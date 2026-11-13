@@ -1,8 +1,16 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import os from 'os'
 import path from 'path'
 import { NextResponse, type NextRequest } from 'next/server'
 import { Pool } from 'pg'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  extractClientIp,
+  managerPinFailureLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
 import {
   EXEC_SESSION_COOKIE,
   verifyExecSessionToken,
@@ -20,6 +28,7 @@ import {
   createDigitalSeal,
   createInitialGovernanceStore,
   DEFAULT_MASTER_PIN_HASH,
+  hashManagerPin,
   mergeGovernanceStores,
   normalizeGovernanceStore,
   type GovernanceApprovalRequest,
@@ -309,31 +318,43 @@ async function saveEnvelopeToDatabase(
   return saved
 }
 
-const GOVERNANCE_RESPONSE_HEADERS = {
-  'Cache-Control': 'no-store, max-age=0',
-  'X-Robots-Tag': 'noindex, nofollow, noarchive',
-  'Permissions-Policy':
-    'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+const GOVERNANCE_RESPONSE_HEADERS = ENTERPRISE_API_SECURITY_HEADERS
+const SERVER_PIN_SALT = 'vf-aether-manager-pin-2026-v1:'
+const DEFAULT_MANAGER_PIN_SHA256 =
+  'db319c32fe81403035ac2bf4c1f627df061bc5cefe53c48ac55c628fa8f2e1d7'
+
+function hashServerManagerPin(pin: string): Buffer {
+  return createHash('sha256')
+    .update(`${SERVER_PIN_SALT}${pin.trim()}`)
+    .digest()
 }
 
-async function guardReadOnlyAuditor(
-  request: NextRequest,
-): Promise<NextResponse | null> {
-  const rawToken =
-    request.cookies.get(EXEC_SESSION_COOKIE)?.value ??
-    request.cookies.get('aether_exec_session')?.value
-  const session = await verifyExecSessionToken(rawToken)
-  if (session?.role === 'auditor') {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'Read-only auditor session',
-        errorAr: 'حساب مراجعة للقراءة فقط — التعديل والاعتماد غير متاحين.',
-      },
-      { status: 403, headers: GOVERNANCE_RESPONSE_HEADERS },
-    )
+function verifyServerManagerPin(candidatePin: string, storedPinHash: string): boolean {
+  const clean = candidatePin.trim()
+  if (!/^\d{4}$/.test(clean)) return false
+
+  const envOverride = process.env.AETHER_MANAGER_PIN?.trim()
+  if (envOverride && /^\d{4}$/.test(envOverride)) {
+    return timingSafeEqual(hashServerManagerPin(clean), hashServerManagerPin(envOverride))
   }
-  return null
+
+  if (storedPinHash && storedPinHash.startsWith('vfsha256_')) {
+    const hex = storedPinHash.slice('vfsha256_'.length)
+    if (/^[0-9a-f]{64}$/i.test(hex)) {
+      return timingSafeEqual(hashServerManagerPin(clean), Buffer.from(hex, 'hex'))
+    }
+  }
+
+  if (storedPinHash && storedPinHash.startsWith('vfh1_') && storedPinHash !== DEFAULT_MASTER_PIN_HASH) {
+    const a = createHash('sha256').update(hashManagerPin(clean)).digest()
+    const b = createHash('sha256').update(storedPinHash).digest()
+    return timingSafeEqual(a, b)
+  }
+
+  return timingSafeEqual(
+    hashServerManagerPin(clean),
+    Buffer.from(DEFAULT_MANAGER_PIN_SHA256, 'hex'),
+  )
 }
 
 async function resolveAuthenticatedApproverRole(
@@ -418,7 +439,10 @@ function stampIncomingStoreWithApprover(
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authGuard = await requireExecApiSession(request, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
   const env = await loadEnvelopeFromDatabase()
   return NextResponse.json(
     {
@@ -426,7 +450,6 @@ export async function GET() {
       backend: env.backend,
       seededOnly: env.seededOnly,
       updatedAtIso: env.updatedAtIso,
-      pinHash: env.pinHash,
       store: env.store,
     },
     { headers: GOVERNANCE_RESPONSE_HEADERS },
@@ -434,15 +457,64 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const auditorBlocked = await guardReadOnlyAuditor(request)
-  if (auditorBlocked) return auditorBlocked
+  const authGuard = await requireExecApiSession(request, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
 
   try {
     const body = (await request.json()) as {
+      action?: string
+      pin?: string
+      currentPin?: string
+      newPin?: string
       store?: PersistedGovernanceStore
       pinHash?: string
     }
-    const approverRole = await resolveAuthenticatedApproverRole(request)
+
+    if (body?.action === 'verifyPin') {
+      const pinKey = `${extractClientIp(request)}:${authGuard.session.sub}`
+      const blocked = managerPinFailureLimiter.peekBlocked(pinKey)
+      if (blocked.blocked) {
+        return buildRateLimitedJsonResponse(blocked.retryAfterSeconds)
+      }
+      const current = await loadEnvelopeFromDatabase()
+      const valid = verifyServerManagerPin(String(body.pin ?? ''), current.pinHash)
+      if (!valid) {
+        const fail = managerPinFailureLimiter.check(pinKey)
+        if (!fail.allowed) {
+          return buildRateLimitedJsonResponse(fail.retryAfterSeconds)
+        }
+      } else {
+        managerPinFailureLimiter.reset(pinKey)
+      }
+      return NextResponse.json({ ok: true, valid }, { headers: GOVERNANCE_RESPONSE_HEADERS })
+    }
+
+    if (body?.action === 'changePin') {
+      const pinKey = `${extractClientIp(request)}:${authGuard.session.sub}`
+      const blocked = managerPinFailureLimiter.peekBlocked(pinKey)
+      if (blocked.blocked) {
+        return buildRateLimitedJsonResponse(blocked.retryAfterSeconds)
+      }
+      const current = await loadEnvelopeFromDatabase()
+      const curOk = verifyServerManagerPin(String(body.currentPin ?? ''), current.pinHash)
+      const nextClean = String(body.newPin ?? '').trim()
+      if (!curOk || !/^\d{4}$/.test(nextClean)) {
+        const fail = managerPinFailureLimiter.check(pinKey)
+        if (!fail.allowed) {
+          return buildRateLimitedJsonResponse(fail.retryAfterSeconds)
+        }
+        return NextResponse.json(
+          { ok: false, valid: false, error: 'Invalid Manager PIN' },
+          { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+        )
+      }
+      managerPinFailureLimiter.reset(pinKey)
+      const nextShaHex = hashServerManagerPin(nextClean).toString('hex')
+      await saveEnvelopeToDatabase(current.store, `vfsha256_${nextShaHex}`)
+      return NextResponse.json({ ok: true, valid: true }, { headers: GOVERNANCE_RESPONSE_HEADERS })
+    }
+
+    const approverRole = toExecApproverRole(authGuard.session.role)
     const current = await loadEnvelopeFromDatabase()
     const normalizedIncoming = body?.store
       ? normalizeGovernanceStore(body.store)
@@ -452,7 +524,8 @@ export async function POST(request: NextRequest) {
       : current.store
     const merged = mergeGovernanceStores(incomingStore, current.store)
     const nextPinHash =
-      typeof body?.pinHash === 'string' && body.pinHash.startsWith('vfh1_')
+      typeof body?.pinHash === 'string' &&
+      (body.pinHash.startsWith('vfh1_') || body.pinHash.startsWith('vfsha256_'))
         ? body.pinHash
         : current.pinHash
 
@@ -462,7 +535,6 @@ export async function POST(request: NextRequest) {
         ok: true,
         backend: saved.backend,
         updatedAtIso: saved.updatedAtIso,
-        pinHash: saved.pinHash,
         store: saved.store,
       },
       { headers: GOVERNANCE_RESPONSE_HEADERS },
@@ -476,8 +548,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auditorBlocked = await guardReadOnlyAuditor(request)
-  if (auditorBlocked) return auditorBlocked
+  const authGuard = await requireExecApiSession(request, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
 
   try {
     const body = (await request.json()) as {
@@ -635,7 +707,6 @@ export async function PATCH(request: NextRequest) {
         ok: true,
         backend: saved.backend,
         updatedAtIso: saved.updatedAtIso,
-        pinHash: saved.pinHash,
         store: saved.store,
       },
       { headers: GOVERNANCE_RESPONSE_HEADERS },
@@ -649,14 +720,14 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const auditorBlocked = await guardReadOnlyAuditor(request)
-  if (auditorBlocked) return auditorBlocked
+  const authGuard = await requireExecApiSession(request, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
   return POST(request)
 }
 
 export async function DELETE(request: NextRequest) {
-  const auditorBlocked = await guardReadOnlyAuditor(request)
-  if (auditorBlocked) return auditorBlocked
+  const authGuard = await requireExecApiSession(request, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
   return NextResponse.json(
     { ok: false, error: 'Method not allowed' },
     { status: 405, headers: GOVERNANCE_RESPONSE_HEADERS },

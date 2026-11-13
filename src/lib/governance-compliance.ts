@@ -1,16 +1,16 @@
 /**
- * Enterprise Governance, 4-Digit Hashed Manager PIN (`2026`), 15-Minute Executive Session,
+ * Enterprise Governance, 4-Digit Hashed Manager PIN, 15-Minute Executive Session,
  * Cross-Device Server Sync (`/api/erp/governance`), Printable A4 Official Circulars (`VF-CIR-2026-XXX`),
  * Digital Executive Seal & Continuous Odoo 17 Compliance Watchdog.
  *
  * Strictly enforces:
- *   - Default Master PIN = `2026` stored ONLY as a salted digest in `localStorage` & server store (zero plaintext).
+ *   - Default Master PIN stored ONLY as a salted digest (zero plaintext PIN in source or localStorage).
  *   - 15-minute Executive Session (`وضع المدير نشط 🔓` + 1-click `قفل الصلاحية 🔒`).
  *   - Cross-device optimistic sync (`localStorage` + `/api/erp/governance` GET/POST/PATCH) so approvals submitted
  *     by the Executive Secretary on PC #1 appear live on the Manager's PC/phone.
  *   - Department Staff (No PIN needed): submit `طلب موافقة المدير 🔔` across Marketing, Growth Plays,
  *     Strategic Planning, Regulations, Before & After, Delivery Radar, and Booth Calculator (`EXB`).
- *   - Manager Only (PIN `2026` required): `موافقة واعتماد ✅` (Digital Seal), `رفض ❌`,
+ *   - Manager Only (4-digit PIN required): `موافقة واعتماد ✅` (Digital Seal), `رفض ❌`,
  *     `إيقاف المخالفة وتجميد الصرف ⛔`, `إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔`, `فك التجميد بعد التصحيح 🔓`.
  *   - Continuous Odoo 17 Watchdog against real Venture Foods 6-brand / 7-branch + `EXB` metrics.
  */
@@ -46,7 +46,7 @@ export const EXEC_SESSION_TTL_MS = 15 * 60 * 1000
 
 const PIN_SALT_PREFIX = 'vf-aether-exec-seal-v1::'
 
-/** Deterministic dual-lane salted 64-bit hex digest so PIN `2026` is never stored raw in localStorage. */
+/** Deterministic dual-lane salted 64-bit hex digest so the Manager PIN is never stored raw in localStorage. */
 export function hashManagerPin(pin: string): string {
   const clean = pin.trim()
   const input = `${PIN_SALT_PREFIX}${clean}::venturefoods-kw`
@@ -64,7 +64,7 @@ export function hashManagerPin(pin: string): string {
   return `vfh1_${hex2}${hex1}`
 }
 
-export const DEFAULT_MASTER_PIN_HASH = hashManagerPin('2026')
+export const DEFAULT_MASTER_PIN_HASH = 'vfh1_8658c76cf929a25c'
 
 export function ensureManagerPinInitialized(): string {
   if (typeof window === 'undefined') return DEFAULT_MASTER_PIN_HASH

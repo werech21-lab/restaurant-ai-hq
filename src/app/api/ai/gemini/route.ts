@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  executiveAiBurstLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
 import { getGeminiApiKey, isValidGeminiApiKey } from '@/lib/ai-keys'
 
 export const runtime = 'nodejs'
@@ -138,6 +144,9 @@ async function discoverFlagshipGeminiCatalog(
 }
 
 export async function GET(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
   const customKey = req.headers.get('x-aether-custom-gemini-key')
   const forceRefresh = req.nextUrl.searchParams.get('refresh') === '1'
   const apiKey = resolveServerGeminiKey(customKey)
@@ -154,24 +163,27 @@ export async function GET(req: NextRequest) {
         engineLabelEn: 'Fast Executive',
         chain: defaultChain,
       },
-      { status: 200 },
+      { status: 200, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }
 
-  const catalog = await discoverFlagshipGeminiCatalog(apiKey, forceRefresh)
+  const catalog = await discoverFlagshipGeminiCatalog(apiKey, forceRefresh && !customKey)
 
-  return NextResponse.json({
-    ok: true,
-    status: 200,
-    liveVerified: catalog.liveVerified,
-    flagshipModel: 'Fast Executive',
-    flagshipBadge: 'Fast Executive',
-    activeModel: 'Fast Executive',
-    activeBadge: 'Fast Executive',
-    engineLabelAr: 'إجابة تنفيذية سريعة',
-    engineLabelEn: 'Fast Executive',
-    chain: catalog.chain,
-  })
+  return NextResponse.json(
+    {
+      ok: true,
+      status: 200,
+      liveVerified: catalog.liveVerified,
+      flagshipModel: 'Fast Executive',
+      flagshipBadge: 'Fast Executive',
+      activeModel: 'Fast Executive',
+      activeBadge: 'Fast Executive',
+      engineLabelAr: 'إجابة تنفيذية سريعة',
+      engineLabelEn: 'Fast Executive',
+      chain: catalog.chain,
+    },
+    { headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
 }
 
 interface GeminiMediaPartInput {
@@ -192,32 +204,51 @@ interface GeminiProxyPostBody {
 }
 
 export async function POST(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`gemini:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
   let body: GeminiProxyPostBody = {}
   try {
     body = (await req.json()) as GeminiProxyPostBody
   } catch {
-    return NextResponse.json({ ok: false, error: 'INVALID_JSON' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, error: 'INVALID_JSON' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   const apiKey = resolveServerGeminiKey(body.customApiKey)
   if (!apiKey) {
-    return NextResponse.json({ ok: false, error: 'GEMINI_KEY_MISSING' }, { status: 401 })
+    return NextResponse.json(
+      { ok: false, error: 'GEMINI_KEY_MISSING' },
+      { status: 401, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
-  const userPrompt = (body.userPrompt ?? '').trim()
+  const userPrompt = (body.userPrompt ?? '').trim().slice(0, 16000)
   const incomingMedia = Array.isArray(body.mediaParts)
-    ? body.mediaParts.filter((p) => p && typeof p.mimeType === 'string' && typeof p.data === 'string' && p.data.length > 0)
+    ? body.mediaParts
+        .filter((p) => p && typeof p.mimeType === 'string' && typeof p.data === 'string' && p.data.length > 0)
+        .slice(0, 4)
     : []
   const hasMultimodal = Boolean(body.audioBase64) || incomingMedia.length > 0
 
   if (!userPrompt && !hasMultimodal) {
-    return NextResponse.json({ ok: false, error: 'EMPTY_PROMPT' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, error: 'EMPTY_PROMPT' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
-  const systemPrompt = (body.systemPrompt ?? '').trim()
+  const systemPrompt = (body.systemPrompt ?? '').trim().slice(0, 48000)
   const maxOutputTokens =
     typeof body.maxOutputTokens === 'number' && body.maxOutputTokens > 0
-      ? body.maxOutputTokens
+      ? Math.min(8192, Math.floor(body.maxOutputTokens))
       : 8192
   const jsonMode = Boolean(body.jsonMode)
 

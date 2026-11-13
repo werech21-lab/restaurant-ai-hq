@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import snapshot from '@/lib/odoo-live-snapshot.json'
 import { fetchLiveOdooSummary, hasOdooCredentials, isSameSiteRequest, parseBucketKey, periodWindowForBucket, summaryFromSnapshot, type OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { EXEC_SESSION_COOKIE, verifyExecSessionToken } from '@/lib/auth/exec-session'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -19,6 +20,11 @@ const headers = { 'cache-control': 'no-store', 'x-content-type-options': 'nosnif
  * or a Supabase session. The executive fallback user used by pages does NOT apply here.
  */
 async function signedInUserId(request: NextRequest): Promise<string | null> {
+  const execRaw = request.cookies.get(EXEC_SESSION_COOKIE)?.value
+  if (execRaw) {
+    const execPayload = await verifyExecSessionToken(execRaw)
+    if (execPayload?.sub) return execPayload.sub
+  }
   const token = request.cookies.get(SESSION_COOKIE)?.value
   if (token) {
     const userId = await verifySessionToken(token)

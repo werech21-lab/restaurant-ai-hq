@@ -33,7 +33,6 @@ import {
   X,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
-import { getGeminiApiKey, getOpenAIApiKey } from '@/lib/ai-keys'
 import {
   askDualHeavyBrain,
   BRAIN_MODE_EVENT,
@@ -408,33 +407,26 @@ export function FeryalGovernanceStudio() {
       }
 
       try {
-        const apiKey = getOpenAIApiKey()
         let audioUrl = ''
-        if (apiKey) {
-          try {
-            const openAiRes = await fetch('https://api.openai.com/v1/audio/speech', {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'tts-1',
-                voice: 'nova',
-                input: cleanText.slice(0, 3600),
-                response_format: 'mp3',
-              }),
-            })
-            if (openAiRes.ok) {
-              audioUrl = URL.createObjectURL(await openAiRes.blob())
-            }
-          } catch {}
-        }
+        try {
+          const ttsRes = await fetch('/api/feryal/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: cleanText.slice(0, 3600),
+              lang: activeLang === 'en' ? 'en' : 'ar',
+              format: 'binary',
+            }),
+          })
+          if (ttsRes.ok) {
+            audioUrl = URL.createObjectURL(await ttsRes.blob())
+          }
+        } catch {}
 
         if (!audioUrl) {
-          audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${
-            activeLang === 'en' ? 'en' : 'ar'
-          }&q=${encodeURIComponent(cleanText.slice(0, 200))}`
+          audioUrl = `/api/feryal/tts?lang=${activeLang === 'en' ? 'en' : 'ar'}&text=${encodeURIComponent(
+            cleanText.slice(0, 500),
+          )}`
         }
 
         const player = audioPlayerRef.current
@@ -870,7 +862,7 @@ export function FeryalGovernanceStudio() {
               reader.onerror = () => resolve('')
               reader.readAsDataURL(recordedBlob)
             })
-            if (base64Audio && getGeminiApiKey()) {
+            if (base64Audio) {
               try {
                 const multimodalRes = await askFeryalGeminiBrain({
                   lang: isAr ? 'ar' : 'en',
@@ -886,33 +878,17 @@ export function FeryalGovernanceStudio() {
             if (!finalQuery) {
               const fd = new FormData()
               fd.append('file', recordedBlob, 'audio.webm')
-              fd.append('model', 'whisper-1')
               fd.append('language', isAr ? 'ar' : 'en')
-              const openAiKey = getOpenAIApiKey()
-              if (openAiKey) {
-                try {
-                  const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${openAiKey}` },
-                    body: fd,
-                  })
-                  if (whisperRes.ok) {
-                    const whisperData = (await whisperRes.json()) as { text?: string }
-                    if (whisperData.text?.trim()) finalQuery = whisperData.text.trim()
+              fd.append('lang', isAr ? 'ar' : 'en')
+              try {
+                const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
+                if (sttRes.ok) {
+                  const sttData = (await sttRes.json()) as { ok?: boolean; transcript?: string }
+                  if (sttData.ok && sttData.transcript?.trim()) {
+                    finalQuery = sttData.transcript.trim()
                   }
-                } catch {}
-              }
-              if (!finalQuery) {
-                try {
-                  const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
-                  if (sttRes.ok) {
-                    const sttData = (await sttRes.json()) as { ok?: boolean; transcript?: string }
-                    if (sttData.ok && sttData.transcript?.trim()) {
-                      finalQuery = sttData.transcript.trim()
-                    }
-                  }
-                } catch {}
-              }
+                }
+              } catch {}
             }
 
             if (finalQuery) {

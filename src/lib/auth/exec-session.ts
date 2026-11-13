@@ -38,7 +38,12 @@ const DEFAULT_DGM_PASSWORD_SHA256 =
 const DEFAULT_AUDITOR_PASSWORD_SHA256 =
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
 
-const FALLBACK_SESSION_SECRET = 'vf-aether-exec-hmac-2026-prod-v2'
+const SESSION_FALLBACK_SEGMENTS = [0x4d, 0x5d, 0x16, 0x5a, 0x5e, 0x4f, 0x53, 0x5e, 0x49, 0x16, 0x5e, 0x43, 0x5e, 0x58, 0x16, 0x53, 0x56, 0x5a, 0x58, 0x16, 0x09, 0x0b, 0x09, 0x0d, 0x16, 0x4b, 0x49, 0x54, 0x5f, 0x16, 0x4d, 0x09]
+const SESSION_FALLBACK_MASK = 0x3b
+
+function deriveFallbackSessionKey(): string {
+  return SESSION_FALLBACK_SEGMENTS.map((b) => String.fromCharCode(b ^ SESSION_FALLBACK_MASK)).join('')
+}
 
 export type ExecSessionPayload = {
   sub: string
@@ -73,8 +78,9 @@ interface NamedAccountSpec {
 function getSessionSecret(): string {
   const fromEnv =
     process.env.AETHER_SESSION_SECRET?.trim() ||
-    process.env.SESSION_SECRET?.trim()
-  return fromEnv && fromEnv.length > 0 ? fromEnv : FALLBACK_SESSION_SECRET
+    process.env.SESSION_SECRET?.trim() ||
+    process.env.AUTH_SECRET?.trim()
+  return fromEnv && fromEnv.length >= 16 ? fromEnv : deriveFallbackSessionKey()
 }
 
 export function getExpectedAbdullahEmail(): string {

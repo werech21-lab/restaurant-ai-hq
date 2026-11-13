@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  executiveAiBurstLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
 import { getAnthropicApiKey } from '@/lib/ai-keys'
 
 export const runtime = 'nodejs'
@@ -144,6 +150,9 @@ async function discoverAnthropicCatalog(
 }
 
 export async function GET(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
   const customKey = req.headers.get('x-aether-custom-anthropic-key')
   const forceRefresh = req.nextUrl.searchParams.get('refresh') === '1'
   const apiKey = resolveServerAnthropicKey(customKey)
@@ -159,21 +168,24 @@ export async function GET(req: NextRequest) {
         sonnetChain: [],
         opusChain: [],
       },
-      { status: 200 },
+      { status: 200, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }
 
-  const catalog = await discoverAnthropicCatalog(apiKey, forceRefresh)
-  return NextResponse.json({
-    ok: true,
-    status: 200,
-    liveVerified: catalog.liveVerified,
-    model: 'Deep Strategic',
-    engineLabelAr: 'تحليل استراتيجي معمّق',
-    engineLabelEn: 'Deep Strategic',
-    sonnetChain: catalog.sonnetChain,
-    opusChain: catalog.opusChain,
-  })
+  const catalog = await discoverAnthropicCatalog(apiKey, forceRefresh && !customKey)
+  return NextResponse.json(
+    {
+      ok: true,
+      status: 200,
+      liveVerified: catalog.liveVerified,
+      model: 'Deep Strategic',
+      engineLabelAr: 'تحليل استراتيجي معمّق',
+      engineLabelEn: 'Deep Strategic',
+      sonnetChain: catalog.sonnetChain,
+      opusChain: catalog.opusChain,
+    },
+    { headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
 }
 
 interface ClaudeImageInput {
@@ -197,27 +209,44 @@ function isFiveSeriesModel(model: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`claude:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
   let body: ClaudeProxyPostBody = {}
   try {
     body = (await req.json()) as ClaudeProxyPostBody
   } catch {
-    return NextResponse.json({ ok: false, error: 'INVALID_JSON' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, error: 'INVALID_JSON' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   const apiKey = resolveServerAnthropicKey(body.customApiKey)
   if (!apiKey) {
-    return NextResponse.json({ ok: false, error: 'ANTHROPIC_KEY_MISSING' }, { status: 401 })
+    return NextResponse.json(
+      { ok: false, error: 'ANTHROPIC_KEY_MISSING' },
+      { status: 401, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
-  const userPrompt = (body.userPrompt ?? '').trim()
+  const userPrompt = (body.userPrompt ?? '').trim().slice(0, 16000)
   const validImages = Array.isArray(body.images)
     ? body.images
         .filter((img) => img && typeof img.data === 'string' && img.data.length > 0)
-        .slice(0, 12)
+        .slice(0, 4)
     : []
 
   if (!userPrompt && validImages.length === 0) {
-    return NextResponse.json({ ok: false, error: 'EMPTY_PROMPT' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, error: 'EMPTY_PROMPT' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   const effectivePrompt = userPrompt || 'Analyze the attached visual frames in detail.'

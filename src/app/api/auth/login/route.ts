@@ -1,6 +1,14 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  extractClientIp,
+  loginAccountFailureLimiter,
+  loginIpAttemptLimiter,
+} from '@/lib/auth/api-guard'
 import {
   authenticateExecutiveCredentials,
   createExecSessionToken,
@@ -12,15 +20,18 @@ import {
   verifyExecutiveCredentials,
   type ExecSessionRole,
 } from '@/lib/auth/exec-session'
+import { checkRequestOrigin } from '@/lib/http-origin'
 import {
   SESSION_COOKIE,
   sessionCookieOptions,
   signSessionToken,
 } from '@/lib/session'
 
-const ROBOTS_HEADER = 'noindex, nofollow, noarchive'
-const PERMISSIONS_POLICY_HEADER =
-  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
+function constantTimeVerifyTag(tagA: string, tagB: string): boolean {
+  const d1 = createHash('sha256').update(tagA).digest()
+  const d2 = createHash('sha256').update(tagB).digest()
+  return timingSafeEqual(d1, d2) && tagA.length === tagB.length
+}
 
 async function parseLoginCredentials(request: Request): Promise<{
   email: string
@@ -33,9 +44,9 @@ async function parseLoginCredentials(request: Request): Promise<{
     try {
       const body = (await request.json()) as Record<string, unknown>
       return {
-        email: String(body?.email ?? '').trim().toLowerCase(),
-        password: typeof body?.password === 'string' ? body.password : '',
-        next: typeof body?.next === 'string' ? body.next : '',
+        email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
+        password: typeof body?.password === 'string' ? body.password.slice(0, 256) : '',
+        next: typeof body?.next === 'string' ? body.next.slice(0, 256) : '',
       }
     } catch {
       return { email: '', password: '', next: '' }
@@ -49,9 +60,9 @@ async function parseLoginCredentials(request: Request): Promise<{
     try {
       const formData = await request.formData()
       return {
-        email: String(formData.get('email') ?? '').trim().toLowerCase(),
-        password: String(formData.get('password') ?? ''),
-        next: String(formData.get('next') ?? ''),
+        email: String(formData.get('email') ?? '').trim().toLowerCase().slice(0, 160),
+        password: String(formData.get('password') ?? '').slice(0, 256),
+        next: String(formData.get('next') ?? '').slice(0, 256),
       }
     } catch {
       return { email: '', password: '', next: '' }
@@ -61,17 +72,46 @@ async function parseLoginCredentials(request: Request): Promise<{
   try {
     const body = (await request.json()) as Record<string, unknown>
     return {
-      email: String(body?.email ?? '').trim().toLowerCase(),
-      password: typeof body?.password === 'string' ? body.password : '',
-      next: typeof body?.next === 'string' ? body.next : '',
+      email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
+      password: typeof body?.password === 'string' ? body.password.slice(0, 256) : '',
+      next: typeof body?.next === 'string' ? body.next.slice(0, 256) : '',
     }
   } catch {
     return { email: '', password: '', next: '' }
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Refuse cross-site login CSRF when browser Origin / Sec-Fetch-Site headers are present
+  const hasOriginMeta =
+    Boolean(request.headers.get('origin')) || Boolean(request.headers.get('sec-fetch-site'))
+  if (hasOriginMeta) {
+    const originVerdict = checkRequestOrigin(request)
+    if (!originVerdict.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Cross-origin login refused',
+          errorAr: 'تم رفض طلب تسجيل الدخول من مصدر خارجي غير مصرح به.',
+        },
+        { status: 403, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+  }
+
+  const clientIp = extractClientIp(request)
+  const ipDecision = loginIpAttemptLimiter.check(`ip:${clientIp}`)
+  if (!ipDecision.allowed) {
+    return buildRateLimitedJsonResponse(ipDecision.retryAfterSeconds)
+  }
+
   const { email, password, next } = await parseLoginCredentials(request)
+  const accountKey = `acct:${clientIp}:${email || 'anonymous'}`
+  const blockedCheck = loginAccountFailureLimiter.peekBlocked(accountKey)
+  if (blockedCheck.blocked) {
+    return buildRateLimitedJsonResponse(blockedCheck.retryAfterSeconds)
+  }
+
   const safeNext = sanitizeExecNextPath(next, '/erp')
 
   let authenticatedEmail: string | null = null
@@ -82,7 +122,7 @@ export async function POST(request: Request) {
     const isExecValid = await verifyExecutiveCredentials(email, password)
     if (isExecValid) {
       const matched = await authenticateExecutiveCredentials(email, password)
-      if (matched.valid) {
+      if (matched.valid && constantTimeVerifyTag(matched.email, email)) {
         authenticatedEmail = matched.email
         authenticatedRole = matched.role
       }
@@ -100,18 +140,23 @@ export async function POST(request: Request) {
         if (dbUser && dbUser.isActive && dbUser.passwordHash) {
           const matches = await bcrypt.compare(password, dbUser.passwordHash)
           if (matches) {
-            authenticatedEmail = dbUser.email.trim().toLowerCase()
-            authenticatedRole = 'admin'
+            const normalizedDbEmail = dbUser.email.trim().toLowerCase()
+            authenticatedEmail = normalizedDbEmail
+            authenticatedRole = normalizedDbEmail.includes('auditor') ? 'auditor' : 'admin'
             prismaUserId = dbUser.id
           }
         }
       } catch {
-        // Prisma SQLite may be unavailable in serverless environments; never break login.
+        // Prisma DB may be unavailable in serverless environments; never break executive login.
       }
     }
   }
 
   if (!authenticatedEmail) {
+    const failDecision = loginAccountFailureLimiter.check(accountKey)
+    if (!failDecision.allowed) {
+      return buildRateLimitedJsonResponse(failDecision.retryAfterSeconds)
+    }
     return NextResponse.json(
       {
         ok: false,
@@ -122,14 +167,12 @@ export async function POST(request: Request) {
       },
       {
         status: 401,
-        headers: {
-          'X-Robots-Tag': ROBOTS_HEADER,
-          'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
-          'Cache-Control': 'no-store',
-        },
+        headers: ENTERPRISE_API_SECURITY_HEADERS,
       },
     )
   }
+
+  loginAccountFailureLimiter.reset(accountKey)
 
   const isSecure = isSecureRequest(request)
   const profile = resolveExecRoleProfile(authenticatedRole)
@@ -149,11 +192,7 @@ export async function POST(request: Request) {
     },
     {
       status: 200,
-      headers: {
-        'X-Robots-Tag': ROBOTS_HEADER,
-        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
-        'Cache-Control': 'no-store',
-      },
+      headers: ENTERPRISE_API_SECURITY_HEADERS,
     },
   )
 
@@ -163,7 +202,7 @@ export async function POST(request: Request) {
     execCookieOptions(isSecure),
   )
 
-  if (prismaUserId) {
+  if (prismaUserId && authenticatedRole !== 'auditor') {
     try {
       const legacyToken = await signSessionToken(prismaUserId)
       response.cookies.set(SESSION_COOKIE, legacyToken, {

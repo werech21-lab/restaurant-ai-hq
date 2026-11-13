@@ -4,10 +4,8 @@
  * Knowledge base is generated from the whitelisted live Odoo dataset (src/lib/odoo/odoo-dataset.ts)
  */
 
-import { getGeminiApiKey, getXaiApiKey } from './ai-keys';
 import {
   askDualHeavyBrain,
-  discoverGrokHeavyModels,
   runGeminiCarbonEngine,
   type BrainMode,
 } from './dual-heavy-brain';
@@ -276,10 +274,6 @@ export async function analyzeEventContractWithGemini({
       : 'China Garden',
   };
 
-  const geminiKey = getGeminiApiKey();
-  const xaiKey = getXaiApiKey();
-  if (!geminiKey && !xaiKey) return defaultResult;
-
   const promptText = `
 Analyze this restaurant event/exhibition booth contract, general description, and executive vision for Venture Foods Kuwait (Odoo 17 ERP):
 - Event Name: ${eventName} (${durationDays} days, Booth Rent: ${boothRentKwd} KWD)
@@ -302,62 +296,21 @@ Return strictly valid JSON with these exact keys:
   "recommendedBrandId": "One of: China Garden, Frank's, Tahina, Farm Brown, The Noodle Bar, Karak Cafeteria"
 }`;
 
-  // 1. Try JSON contract audit first when no binary attachment is required
-  if (xaiKey && !attachmentBase64) {
-    try {
-      const { models } = await discoverGrokHeavyModels();
-      const grokModel = models[0] ?? (process.env.XAI_MODEL || '');
-      if (grokModel) {
-        const xr = await fetch('https://api.x.ai/v1/chat/completions', {
-          method: 'POST',
-          signal: AbortSignal.timeout(18000),
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${xaiKey}`,
-          },
-          body: JSON.stringify({
-            model: grokModel,
-            temperature: 0.25,
-            max_tokens: 1300,
-            messages: [
-              { role: 'system', content: FERYAL_VENTURE_FOODS_KNOWLEDGE },
-              { role: 'user', content: promptText },
-            ],
-          }),
-        });
-        if (xr.ok) {
-          const xData = await xr.json();
-          const raw = xData?.choices?.[0]?.message?.content?.trim() || '';
-          const cleaned = raw.replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
-            return { ...defaultResult, ...parsed };
-          }
-        }
-      }
-    } catch {
-      // Fall through to multimodal JSON contract audit
+  try {
+    const gemRes = await runGeminiCarbonEngine({
+      systemPrompt: FERYAL_VENTURE_FOODS_KNOWLEDGE,
+      userPrompt: promptText,
+      audioBase64: attachmentBase64,
+      mimeType: attachmentMimeType,
+      jsonMode: true,
+    });
+    const cleaned = gemRes.text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
+      return { ...defaultResult, ...parsed };
     }
-  }
-
-  // 2. Multimodal / JSON contract audit
-  if (geminiKey) {
-    try {
-      const gemRes = await runGeminiCarbonEngine({
-        systemPrompt: FERYAL_VENTURE_FOODS_KNOWLEDGE,
-        userPrompt: promptText,
-        audioBase64: attachmentBase64,
-        mimeType: attachmentMimeType,
-        jsonMode: true,
-      });
-      const cleaned = gemRes.text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      if (parsed && Array.isArray(parsed.risksAr) && parsed.voiceSummaryAr) {
-        return { ...defaultResult, ...parsed };
-      }
-    } catch {
-      // Fall through to deterministic result
-    }
+  } catch {
+    // Fall through to deterministic result
   }
 
   return defaultResult;

@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  executiveAiBurstLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
 import { getOpenAIApiKey } from '@/lib/openai-key'
 
 export const runtime = 'nodejs'
@@ -141,8 +147,16 @@ async function generateSpeechAudio(
  * GET Handler - Supports native streaming <audio src="/api/feryal/tts?lang=ar&text=...">
  */
 export async function GET(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`tts:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
   try {
-    const text = req.nextUrl.searchParams.get('text') || ''
+    const text = (req.nextUrl.searchParams.get('text') || '').slice(0, 4000)
     const lang = (req.nextUrl.searchParams.get('lang') === 'en' ? 'en' : 'ar') as 'ar' | 'en'
     const format = req.nextUrl.searchParams.get('format') || ''
 
@@ -184,6 +198,14 @@ export async function GET(req: NextRequest) {
  * POST Handler - Supports JSON and raw streaming calls
  */
 export async function POST(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`tts:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
   try {
     let text = ''
     let lang: 'ar' | 'en' = 'ar'

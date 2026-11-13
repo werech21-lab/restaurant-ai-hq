@@ -12,13 +12,36 @@
  */
 
 import {
-  getAnthropicApiKey,
   getAnthropicBrowserOverride,
-  getGeminiApiKey,
   getGeminiBrowserOverride,
-  getOpenAIApiKey,
-  getXaiApiKey,
-} from '@/lib/ai-keys'
+  getOpenAiBrowserOverride,
+  getXaiBrowserOverride,
+  isValidGeminiApiKey,
+} from '@/lib/ai-keys-client'
+
+function getGeminiRuntimeKey(): string {
+  if (typeof window !== 'undefined') return getGeminiBrowserOverride()
+  const envKey = typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : undefined
+  return isValidGeminiApiKey(envKey) ? envKey!.trim() : ''
+}
+
+function getAnthropicRuntimeKey(): string {
+  if (typeof window !== 'undefined') return getAnthropicBrowserOverride()
+  const envKey = typeof process !== 'undefined' ? process.env?.ANTHROPIC_API_KEY : undefined
+  return envKey && envKey.trim().length > 14 ? envKey.trim() : ''
+}
+
+function getXaiRuntimeKey(): string {
+  if (typeof window !== 'undefined') return getXaiBrowserOverride()
+  const envKey = typeof process !== 'undefined' ? process.env?.XAI_API_KEY : undefined
+  return envKey && envKey.trim().length > 12 ? envKey.trim() : ''
+}
+
+function getOpenAiRuntimeKey(): string {
+  if (typeof window !== 'undefined') return getOpenAiBrowserOverride()
+  const envKey = typeof process !== 'undefined' ? process.env?.OPENAI_API_KEY : undefined
+  return envKey && envKey.trim().length > 10 ? envKey.trim() : ''
+}
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import {
   APPROVED_BRANCH_IDS,
@@ -538,7 +561,7 @@ export async function discoverGeminiCarbonModels(forceRefresh = false): Promise<
     } catch {}
   }
 
-  const key = getGeminiApiKey()
+  const key = getGeminiRuntimeKey()
   if (!key) return DEFAULT_GEMINI_CHAIN
 
   try {
@@ -758,7 +781,7 @@ export async function runGeminiCarbonEngine({
     } catch {}
   }
 
-  const key = getGeminiApiKey()
+  const key = getGeminiRuntimeKey()
   if (!key) throw new Error('GEMINI_KEY_MISSING')
 
   const models = await discoverGeminiCarbonModels()
@@ -928,7 +951,7 @@ export async function discoverGrokHeavyModels(): Promise<{
     }
   } catch {}
 
-  const key = getXaiApiKey()
+  const key = getXaiRuntimeKey()
   if (!key) return { models: DEFAULT_GROK_CHAIN, quotaWarning: 'XAI_KEY_MISSING' }
 
   try {
@@ -979,7 +1002,7 @@ export async function runGrokHeavyEngine({
   lang: 'ar' | 'en'
   grokImageUrls?: Array<{ label: string; dataUrl: string }>
 }): Promise<{ text: string; model: string; quotaStatus?: '402' | '429' }> {
-  const key = getXaiApiKey()
+  const key = getXaiRuntimeKey()
   if (!key) throw new Error('XAI_KEY_MISSING')
 
   const { models } = await discoverGrokHeavyModels()
@@ -1194,7 +1217,7 @@ export async function discoverClaudeDualCatalog(
     } catch {}
   }
 
-  const key = getAnthropicApiKey()
+  const key = getAnthropicRuntimeKey()
   if (key) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
@@ -1339,7 +1362,7 @@ Cross-audit POS baskets, supplier -> warehouse -> Ardiya -> branch flows, and du
     }
   }
 
-  const key = getAnthropicApiKey()
+  const key = getAnthropicRuntimeKey()
   if (!key) throw new Error('ANTHROPIC_KEY_MISSING')
 
   const cat = await discoverClaudeDualCatalog(false)
@@ -1505,16 +1528,16 @@ export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainL
   if (forceRefresh) {
     clearBrainDiscoveryCaches()
   }
-  const [, grokInfo] = await Promise.all([
+  const [geminiModels, grokInfo, claudeCat] = await Promise.all([
     discoverGeminiCarbonModels(forceRefresh),
     discoverGrokHeavyModels(),
     discoverClaudeDualCatalog(forceRefresh),
   ])
 
   const sonnetOnly = getClaudeSonnetOnly()
-  const hasGeminiKey = Boolean(getGeminiApiKey())
-  const hasXaiKey = Boolean(getXaiApiKey()) && !grokInfo.quotaWarning
-  const hasClaudeKey = Boolean(getAnthropicApiKey())
+  const hasGeminiKey = geminiModels.length > 0
+  const hasXaiKey = !grokInfo.quotaWarning
+  const hasClaudeKey = claudeCat.sonnetChain.length > 0 || claudeCat.opusChain.length > 0
 
   return {
     claudeReady: hasClaudeKey,
@@ -1581,8 +1604,7 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
         }
       }
     } catch {
-      const openAiKey = getOpenAIApiKey()
-      if (openAiKey && typeof atob === 'function') {
+      if (typeof atob === 'function') {
         try {
           const byteChars = atob(req.audioBase64)
           const bytes = new Uint8Array(byteChars.length)
@@ -1590,19 +1612,36 @@ export async function askDualHeavyBrain(req: DualBrainRequest): Promise<DualBrai
           const blob = new Blob([bytes], { type: req.mimeType || 'audio/webm' })
           const fd = new FormData()
           fd.append('file', blob, 'speech.webm')
-          fd.append('model', 'whisper-1')
+          fd.append('lang', isAr ? 'ar' : 'en')
           fd.append('language', isAr ? 'ar' : 'en')
-          const sttRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
-            signal: AbortSignal.timeout(12000),
-            headers: { Authorization: `Bearer ${openAiKey}` },
-            body: fd,
-          })
-          if (sttRes.ok) {
-            const sttData = await sttRes.json()
-            if (sttData?.text?.trim()) {
-              extractedTranscript = sttData.text.trim()
-              effectiveQuery = extractedTranscript || ''
+          const openAiKey = getOpenAiRuntimeKey()
+          if (typeof window !== 'undefined') {
+            const proxyStt = await fetch('/api/feryal/stt', {
+              method: 'POST',
+              signal: AbortSignal.timeout(12000),
+              body: fd,
+            })
+            if (proxyStt.ok) {
+              const proxyData = (await proxyStt.json()) as { ok?: boolean; transcript?: string }
+              if (proxyData.ok && proxyData.transcript?.trim()) {
+                extractedTranscript = proxyData.transcript.trim()
+                effectiveQuery = extractedTranscript
+              }
+            }
+          } else if (openAiKey) {
+            fd.append('model', 'whisper-1')
+            const sttRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+              method: 'POST',
+              signal: AbortSignal.timeout(12000),
+              headers: { Authorization: `Bearer ${openAiKey}` },
+              body: fd,
+            })
+            if (sttRes.ok) {
+              const sttData = await sttRes.json()
+              if (sttData?.text?.trim()) {
+                extractedTranscript = sttData.text.trim()
+                effectiveQuery = extractedTranscript || ''
+              }
             }
           }
         } catch {}

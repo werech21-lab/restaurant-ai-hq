@@ -67,9 +67,42 @@ export function ExecutivePinModal({
   }, [])
 
   const evaluateFourDigits = useCallback(
-    (code: string) => {
+    async (code: string) => {
       if (mode === 'verify') {
-        if (verifyManagerPin(code)) {
+        let verified = false
+        try {
+          const res = await fetch('/api/erp/governance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verifyPin', pin: code }),
+          })
+          if (res.status === 403) {
+            triggerShake(
+              isAr
+                ? 'حساب مراجعة للقراءة فقط — الاعتماد غير متاح'
+                : 'Read-only auditor account — PIN approval disabled',
+            )
+            return
+          }
+          if (res.status === 429) {
+            triggerShake(
+              isAr
+                ? 'تم تجاوز عدد المحاولات المسموح — انتظر قليلاً'
+                : 'Too many PIN attempts — please wait',
+            )
+            return
+          }
+          if (res.ok) {
+            const data = (await res.json()) as { valid?: boolean }
+            verified = Boolean(data.valid)
+          } else {
+            verified = verifyManagerPin(code)
+          }
+        } catch {
+          verified = verifyManagerPin(code)
+        }
+
+        if (verified) {
           unlockExecutiveSession()
           setErrorMsg(null)
           setSuccessMsg(
@@ -93,7 +126,29 @@ export function ExecutivePinModal({
 
       // Change PIN flow: Step 1 (verify current PIN) -> Step 2 (set new 4-digit PIN)
       if (changeStep === 'current') {
-        if (verifyManagerPin(code)) {
+        let currentOk = false
+        try {
+          const res = await fetch('/api/erp/governance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'verifyPin', pin: code }),
+          })
+          if (res.ok) {
+            const data = (await res.json()) as { valid?: boolean }
+            currentOk = Boolean(data.valid)
+          } else if (res.status === 403 || res.status === 429) {
+            triggerShake(
+              isAr ? 'غير مصرح بتغيير رمز المدير حالياً' : 'PIN change currently blocked',
+            )
+            return
+          } else {
+            currentOk = verifyManagerPin(code)
+          }
+        } catch {
+          currentOk = verifyManagerPin(code)
+        }
+
+        if (currentOk) {
           setVerifiedCurrentPin(code)
           setChangeStep('next')
           setDigits([])
@@ -104,6 +159,17 @@ export function ExecutivePinModal({
           )
         }
       } else {
+        try {
+          await fetch('/api/erp/governance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'changePin',
+              currentPin: verifiedCurrentPin,
+              newPin: code,
+            }),
+          })
+        } catch {}
         const res = changeManagerPin(verifiedCurrentPin, code)
         if (res.ok) {
           unlockExecutiveSession()

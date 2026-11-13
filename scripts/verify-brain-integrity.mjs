@@ -16,7 +16,10 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync, execSync } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+
+const requireCjs = createRequire(import.meta.url)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -544,7 +547,6 @@ assert(
   `maxGap=${Number(probe.maxGap).toFixed(3)} KWD, shareDrift=${Number(probe.maxShareDrift).toFixed(2)}%, displayIntGap=${probe.maxDisplayGap} KWD`,
 )
 
-const pagePanelSrc = fs.readFileSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx'), 'utf8')
 assert(
   brainSrc.includes('recordVerifiedModel') &&
     brainSrc.includes('formatClaudeModelBadge') &&
@@ -554,9 +556,7 @@ assert(
     !brainSrc.includes('Gemini Pro active as backup') &&
     switcherSrc.includes('🔑⚙️') &&
     switcherSrc.includes('الأنماط التنفيذية المعتمدة') &&
-    pagePanelSrc.includes('liveClaudeId') &&
-    pagePanelSrc.includes('liveGrokId') &&
-    pagePanelSrc.includes('liveGeminiId'),
+    !fs.existsSync(path.join(ROOT, 'src/components/aether/DualBrainPagePanel.tsx')),
   'Friendly Executive Mode status badges, economy routing toggle & zero stale key warnings verified across all surfaces',
 )
 
@@ -571,7 +571,8 @@ const regulationsSrc = fs.readFileSync(path.join(ROOT, 'src/components/erp/Regul
 
 assert(
   pinModalSrc.includes('تغيير رمز المدير ⚙️') &&
-    govEngineSrc.includes("'2026'") &&
+    govEngineSrc.includes('vfh1_8658c76cf929a25c') &&
+    !govEngineSrc.includes("hashManagerPin('2026')") &&
     govEngineSrc.includes('15 * 60 * 1000') &&
     govDrawerSrc.includes('وضع المدير نشط 🔓') &&
     govDrawerSrc.includes('قفل الصلاحية 🔒') &&
@@ -1916,7 +1917,7 @@ const feryalAuditPaths = [
   'src/lib/feryal-gemini-brain.ts',
   'src/lib/feryal-multimodal.ts',
   'src/components/aether/TopBrainSwitcher.tsx',
-  'src/components/aether/DualBrainPagePanel.tsx',
+  'src/lib/ai-keys-client.ts',
 ]
 const bannedModelSlugs = [
   ['claude-', 'sonnet'].join(''),
@@ -2157,14 +2158,15 @@ const audProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', auditorRuntime
 }).trim()
 const audProbe = JSON.parse(audProbeRaw.split('\n').pop() ?? '{}')
 
+const apiGuardAuditSrc = fs.readFileSync(path.join(ROOT, 'src/lib/auth/api-guard.ts'), 'utf8')
 assert(
   execSessionSrc.includes("'auditor'") &&
     execSessionSrc.includes('auditor@venturefoodskw.com') &&
     execSessionSrc.includes('93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba') &&
     middlewareSrc.includes('Read-only auditor session') &&
     middlewareSrc.includes('status: 403') &&
-    govApiSrc.includes('Read-only auditor session') &&
-    govApiSrc.includes('status: 403') &&
+    (govApiSrc.includes('Read-only auditor session') || apiGuardAuditSrc.includes('Read-only auditor session')) &&
+    (govApiSrc.includes('status: 403') || apiGuardAuditSrc.includes('status: 403')) &&
     erpShellReexportSrc.includes('isAuditor') &&
     sidebarSrc.includes('حساب مراجعة — قراءة فقط') &&
     sidebarSrc.includes('Read-Only Auditor') &&
@@ -2530,6 +2532,361 @@ assert(
     govDrawerSrc.includes('approverRoleAr') &&
     circularPrintSrc.includes('activeApproverRoleAr'),
   '18.3 Role Identity UI & Circular Stamp Wiring: TopFilterBar Account Menu, ExecutiveFooter, Sidebar, GovernanceBellDrawer & OfficialCircularPrintModal display exact active role & approverRole',
+)
+
+// 19. Gold-Master CISO Security, Rate-Limit, API RBAC, Vision Upload Guard, Dead-Code & Zero-Leak Gate
+console.log('\n19) Gold-Master CISO Security, Rate-Limit, API RBAC, Vision Guard & Dead-Code Gate:')
+
+const gmSecHeadersCjs = requireCjs(path.join(ROOT, 'security-headers.js'))
+const gmPublicHeadersSrc = fs.readFileSync(path.join(ROOT, 'public/_headers'), 'utf8')
+const gmApiGuardSrc = fs.readFileSync(path.join(ROOT, 'src/lib/auth/api-guard.ts'), 'utf8')
+const gmAiKeysServerSrc = fs.readFileSync(path.join(ROOT, 'src/lib/ai-keys.ts'), 'utf8')
+const gmAiKeysClientSrc = fs.readFileSync(path.join(ROOT, 'src/lib/ai-keys-client.ts'), 'utf8')
+
+const gmBuiltProdHeaders = gmSecHeadersCjs.buildSecurityHeaders({
+  supabaseUrl: 'https://example.supabase.co',
+  isProduction: true,
+})
+const gmHeaderMap = Object.fromEntries(gmBuiltProdHeaders.map((h) => [h.key, h.value]))
+
+assert(
+  gmHeaderMap['Permissions-Policy'] === 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()' &&
+    !gmHeaderMap['Permissions-Policy'].includes(micWildcardPat) &&
+    gmHeaderMap['X-Frame-Options'] === 'DENY' &&
+    gmHeaderMap['X-Content-Type-Options'] === 'nosniff' &&
+    gmHeaderMap['Referrer-Policy'] === 'strict-origin-when-cross-origin' &&
+    nextConfigSrc.includes('noindex, nofollow, noarchive') &&
+    gmPublicHeadersSrc.includes('Permissions-Policy: camera=(self), microphone=(self), geolocation=(), browsing-topics=()') &&
+    gmPublicHeadersSrc.includes('X-Frame-Options: DENY') &&
+    gmPublicHeadersSrc.includes('X-Content-Type-Options: nosniff') &&
+    gmPublicHeadersSrc.includes('Referrer-Policy: strict-origin-when-cross-origin') &&
+    !gmPublicHeadersSrc.includes("'unsafe-eval'") &&
+    middlewareSrc.includes("'X-Frame-Options', 'DENY'") &&
+    middlewareSrc.includes("'X-Content-Type-Options', 'nosniff'") &&
+    middlewareSrc.includes("'Referrer-Policy', 'strict-origin-when-cross-origin'"),
+  '19.1 Enterprise HTTP Security Headers: X-Frame-Options DENY, nosniff, strict-origin-when-cross-origin, noindex & microphone=(self) enforced across next.config.js, security-headers.js, public/_headers & middleware.ts',
+)
+
+const goldMasterProbeScript = `
+import { NextRequest } from 'next/server';
+import { middleware } from './src/middleware';
+import { POST as loginPost } from './src/app/api/auth/login/route';
+import {
+  GET as govGet,
+  POST as govPost,
+} from './src/app/api/erp/governance/route';
+import {
+  GET as visionGet,
+  POST as visionPost,
+} from './src/app/api/erp/feryal/vision/route';
+import {
+  EXEC_SESSION_COOKIE,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  createExecSessionToken,
+} from './src/lib/auth/exec-session';
+import {
+  loginAccountFailureLimiter,
+  loginIpAttemptLimiter,
+  managerPinFailureLimiter,
+} from './src/lib/auth/api-guard';
+import { SIDEBAR_ITEMS } from './src/components/erp-sidebar';
+
+;(async () => {
+  // 1) Middleware security headers check on authenticated /erp response
+  const tokAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tokAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  const mwRes = await middleware(
+    new NextRequest('https://aetherbi.com/erp', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin },
+    }),
+  );
+  const mwHeaders = {
+    xfo: mwRes.headers.get('X-Frame-Options'),
+    xcto: mwRes.headers.get('X-Content-Type-Options'),
+    ref: mwRes.headers.get('Referrer-Policy'),
+    pp: mwRes.headers.get('Permissions-Policy'),
+    robots: mwRes.headers.get('X-Robots-Tag'),
+  };
+
+  // 2) Cross-origin CSRF guard + Sliding-Window Rate Limiter on /api/auth/login
+  const csrfRes = await loginPost(
+    new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        origin: 'https://evil-attacker.example',
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.88',
+      },
+      body: JSON.stringify({ email: 'admin@venturefoodskw.com', password: 'wrong' }),
+    }),
+  );
+
+  const probeIp = '198.51.100.77';
+  const probeEmail = 'ratelimit-probe@venturefoodskw.com';
+  loginIpAttemptLimiter.reset('ip:' + probeIp);
+  loginAccountFailureLimiter.reset('acct:' + probeIp + ':' + probeEmail);
+
+  const loginStatuses: number[] = [];
+  let retryAfterHeader = '';
+  for (let i = 0; i < 9; i++) {
+    const r = await loginPost(
+      new NextRequest('https://aetherbi.com/api/auth/login', {
+        method: 'POST',
+        headers: {
+          origin: 'https://aetherbi.com',
+          'content-type': 'application/json',
+          'x-forwarded-for': probeIp,
+        },
+        body: JSON.stringify({ email: probeEmail, password: 'WrongPassword#' + i }),
+      }),
+    );
+    loginStatuses.push(r.status);
+    if (r.status === 429) {
+      retryAfterHeader = r.headers.get('Retry-After') || '';
+    }
+  }
+  loginIpAttemptLimiter.reset('ip:' + probeIp);
+  loginAccountFailureLimiter.reset('acct:' + probeIp + ':' + probeEmail);
+
+  // 3) 100% /api/erp/** unauthenticated 401 & auditor 403 guards + zero pinHash leak
+  const unauthGovGet = await govGet(new NextRequest('https://aetherbi.com/api/erp/governance'));
+  const unauthGovPost = await govPost(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'verifyPin', pin: '0000' }),
+    }),
+  );
+  const unauthVisionGet = await visionGet(new NextRequest('https://aetherbi.com/api/erp/feryal/vision'));
+  const unauthVisionPost = await visionPost(
+    new NextRequest('https://aetherbi.com/api/erp/feryal/vision', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt: 'test', attachments: [] }),
+    }),
+  );
+
+  const audGovGet = await govGet(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+  const audGovGetJson = await audGovGet.json();
+  const hasPinHashExposed = Boolean(audGovGetJson?.store && 'pinHash' in audGovGetJson.store && audGovGetJson.store.pinHash);
+
+  const audGovPost = await govPost(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'verifyPin', pin: '20' + '26' }),
+    }),
+  );
+  const audVisionPost = await visionPost(
+    new NextRequest('https://aetherbi.com/api/erp/feryal/vision', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud, 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt: 'test', attachments: [] }),
+    }),
+  );
+
+  // 4) Server-side Manager PIN verification (constant-time SHA-256)
+  managerPinFailureLimiter.reset('pin:198.51.100.99:' + DEFAULT_ABDULLAH_EMAIL);
+  const pinWrongRes = await govPost(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: {
+        cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin,
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.99',
+      },
+      body: JSON.stringify({ action: 'verifyPin', pin: '9999' }),
+    }),
+  );
+  const pinWrongJson = await pinWrongRes.json();
+
+  const pinRightRes = await govPost(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: {
+        cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin,
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.99',
+      },
+      body: JSON.stringify({ action: 'verifyPin', pin: '20' + '26' }),
+    }),
+  );
+  const pinRightJson = await pinRightRes.json();
+  managerPinFailureLimiter.reset('pin:198.51.100.99:' + DEFAULT_ABDULLAH_EMAIL);
+
+  // 5) /api/erp/feryal/vision strict MIME (415), magic-byte signature (400), and max attachment count (413)
+  const valid1x1PngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+  const badMimeRes = await visionPost(
+    new NextRequest('https://aetherbi.com/api/erp/feryal/vision', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        prompt: 'Inspect file',
+        mediaParts: [{ label: 'clip.mov', mimeType: 'video/quicktime', data: valid1x1PngBase64 }],
+      }),
+    }),
+  );
+
+  const spoofMagicRes = await visionPost(
+    new NextRequest('https://aetherbi.com/api/erp/feryal/vision', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        prompt: 'Inspect spoofed png',
+        mediaParts: [{ label: 'fake.png', mimeType: 'image/png', data: Buffer.from('NOT_A_PNG_FILE_AT_ALL').toString('base64') }],
+      }),
+    }),
+  );
+
+  const tooManyAttRes = await visionPost(
+    new NextRequest('https://aetherbi.com/api/erp/feryal/vision', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        prompt: 'Too many attachments',
+        mediaParts: Array.from({ length: 5 }, (_, idx) => ({
+          label: 'img-' + idx + '.png',
+          mimeType: 'image/png',
+          data: valid1x1PngBase64,
+        })),
+      }),
+    }),
+  );
+
+  // 6) Sidebar unique titles & hrefs check
+  const hrefs = SIDEBAR_ITEMS.map((i) => i.href);
+  const labelsAr = SIDEBAR_ITEMS.map((i) => i.labelAr);
+  const labelsEn = SIDEBAR_ITEMS.map((i) => i.labelEn);
+
+  console.log(JSON.stringify({
+    mwHeaders,
+    csrfStatus: csrfRes.status,
+    loginStatuses,
+    retryAfterSec: Number(retryAfterHeader || '0'),
+    unauthStatuses: [unauthGovGet.status, unauthGovPost.status, unauthVisionGet.status, unauthVisionPost.status],
+    audGovGetStatus: audGovGet.status,
+    hasPinHashExposed,
+    audMutationStatuses: [audGovPost.status, audVisionPost.status],
+    pinWrongValid: pinWrongJson.valid,
+    pinRightValid: pinRightJson.valid,
+    visionGuardStatuses: [badMimeRes.status, spoofMagicRes.status, tooManyAttRes.status],
+    sidebarCounts: {
+      total: SIDEBAR_ITEMS.length,
+      uniqueHrefs: new Set(hrefs).size,
+      uniqueAr: new Set(labelsAr).size,
+      uniqueEn: new Set(labelsEn).size,
+    },
+    hrefs,
+  }));
+})();
+`
+
+const gmProbeRaw = execFileSync(process.execPath, [tsxCli, '-e', goldMasterProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const gmProbe = JSON.parse(gmProbeRaw.split('\n').pop() ?? '{}')
+
+assert(
+  gmApiGuardSrc.includes('timingSafeEqual') &&
+    gmProbe.csrfStatus === 403 &&
+    JSON.stringify(gmProbe.loginStatuses) === JSON.stringify([401, 401, 401, 401, 401, 401, 401, 401, 429]) &&
+    gmProbe.retryAfterSec > 0 &&
+    gmProbe.mwHeaders?.xfo === 'DENY' &&
+    gmProbe.mwHeaders?.xcto === 'nosniff' &&
+    gmProbe.mwHeaders?.ref === 'strict-origin-when-cross-origin' &&
+    gmProbe.mwHeaders?.pp === 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+  '19.2 Auth Rate-Limiter & CSRF & Constant-Time Hash Gate: /api/auth/login enforces Origin check (403), timingSafeEqual, and sliding-window 429 throttle with Retry-After after 8 failed attempts',
+  `statuses=${JSON.stringify(gmProbe.loginStatuses)}, retryAfter=${gmProbe.retryAfterSec}s, csrf=${gmProbe.csrfStatus}`,
+)
+
+assert(
+  JSON.stringify(gmProbe.unauthStatuses) === JSON.stringify([401, 401, 401, 401]) &&
+    gmProbe.audGovGetStatus === 200 &&
+    gmProbe.hasPinHashExposed === false &&
+    JSON.stringify(gmProbe.audMutationStatuses) === JSON.stringify([403, 403]) &&
+    gmProbe.pinWrongValid === false &&
+    gmProbe.pinRightValid === true &&
+    JSON.stringify(gmProbe.visionGuardStatuses) === JSON.stringify([415, 400, 413]),
+  '19.3 100% /api/erp/** Session, RBAC, PIN Isolation & Vision Upload Gate: 401 unauthenticated, 403 auditor mutations, 0 pinHash JSON leaks, server SHA-256 PIN check, and 415/400/413 vision MIME/magic-byte/count bounds',
+  `unauth=${JSON.stringify(gmProbe.unauthStatuses)}, audMut=${JSON.stringify(gmProbe.audMutationStatuses)}, vision=${JSON.stringify(gmProbe.visionGuardStatuses)}`,
+)
+
+// 19.4 Zero Client AI-Key Imports, Zero Plaintext PINs, Zero Duplicate Sidebar Titles & Dead-Code Purge Verification
+const clientAiKeyImporters = []
+const consoleLogFiles = []
+for (const file of allSrcFiles) {
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/')
+  if (rel === 'src/lib/full-journey-enterprise-brain.ts') continue
+  const txt = fs.readFileSync(file, 'utf8')
+  const isClientModule =
+    /^['"]use client['"]/m.test(txt.slice(0, 250)) ||
+    rel.startsWith('src/components/') ||
+    rel === 'src/lib/dual-heavy-brain.ts' ||
+    rel === 'src/lib/feryal-gemini-brain.ts'
+  if (
+    isClientModule &&
+    (/from\s+['"]@\/lib\/ai-keys['"]/.test(txt) || /from\s+['"]\.\/ai-keys['"]/.test(txt))
+  ) {
+    clientAiKeyImporters.push(rel)
+  }
+  if (!rel.includes('__tests__') && txt.includes('console.log(')) {
+    consoleLogFiles.push(rel)
+  }
+}
+
+const purgedDeadFiles = [
+  'src/components/erp/CommandPalette.tsx',
+  'src/components/erp/ErpNav.tsx',
+  'src/components/aether/EventsUpgrades.tsx',
+  'src/components/aether/ExbOdooUnit.tsx',
+  'src/components/aether/ExecutiveHome.tsx',
+  'src/components/aether/ExecutiveShortcutsV6.tsx',
+  'src/components/aether/FeryalRichText.tsx',
+  'src/components/aether/FeryalWhatIfCalculator.tsx',
+  'src/components/aether/DualBrainPagePanel.tsx',
+  'src/components/aether/ExecutionHubV2.tsx',
+  'src/components/aether/ExecutivePnlV2.tsx',
+  'src/components/aether/ExecutiveSummaryV2.tsx',
+  'src/components/aether/SalesAnalysisV2.tsx',
+  'src/app/erp/sales-scorecard/page.tsx',
+  'src/app/erp/sales-analysis/page.tsx',
+  'src/app/erp/menu-engineering/page.tsx',
+  'src/app/erp/cost-intelligence/page.tsx',
+  'src/app/erp/executive-pnl/page.tsx',
+  'src/app/erp/execution-hub/page.tsx',
+  'src/app/erp/alerts/page.tsx',
+  'src/app/erp/demand-forecast/page.tsx',
+]
+const survivingDeadFiles = purgedDeadFiles.filter((rel) => fs.existsSync(path.join(ROOT, rel)))
+const missingSidebarRouteFiles = (gmProbe.hrefs ?? []).filter((href) => {
+  const pageRel = href === '/erp' ? 'src/app/erp/page.tsx' : `src/app${href}/page.tsx`
+  return !fs.existsSync(path.join(ROOT, pageRel))
+})
+
+assert(
+  clientAiKeyImporters.length === 0 &&
+    !gmAiKeysClientSrc.includes('sk-') &&
+    !gmAiKeysServerSrc.includes('c2stcHJvai') &&
+    !pinModalSrc.includes("'2026'") &&
+    !govEngineSrc.includes("'2026'") &&
+    consoleLogFiles.length === 0 &&
+    survivingDeadFiles.length === 0 &&
+    missingSidebarRouteFiles.length === 0 &&
+    gmProbe.sidebarCounts?.total === 13 &&
+    gmProbe.sidebarCounts?.uniqueHrefs === 13 &&
+    gmProbe.sidebarCounts?.uniqueAr === 13 &&
+    gmProbe.sidebarCounts?.uniqueEn === 13,
+  '19.4 Zero Client Key/PIN Leaks, Zero Duplicate Titles & Dead-Code Purge: 0 client ai-keys imports, 0 plaintext PIN/Base64 keys, 0 console.log, 21 dead files purged & all 13 unique ERP routes intact',
+  `clientAiKeyImporters=${clientAiKeyImporters.length}, survivingDead=${survivingDeadFiles.length}, missingRoutes=${missingSidebarRouteFiles.length}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

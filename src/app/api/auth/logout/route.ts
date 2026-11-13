@@ -1,14 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import {
   EXEC_SESSION_COOKIE,
   execCookieOptions,
   isSecureRequest,
 } from '@/lib/auth/exec-session'
+import { checkRequestOrigin } from '@/lib/http-origin'
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/session'
-
-const ROBOTS_HEADER = 'noindex, nofollow, noarchive'
-const PERMISSIONS_POLICY_HEADER =
-  'camera=(self), microphone=(self), geolocation=(), browsing-topics=()'
 
 function clearAuthCookies(response: NextResponse, isSecure: boolean) {
   response.cookies.set(EXEC_SESSION_COOKIE, '', {
@@ -24,7 +22,16 @@ function clearAuthCookies(response: NextResponse, isSecure: boolean) {
   })
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const hasOriginMeta =
+    Boolean(request.headers.get('origin')) || Boolean(request.headers.get('sec-fetch-site'))
+  if (hasOriginMeta && !checkRequestOrigin(request).allowed) {
+    return NextResponse.json(
+      { ok: false, error: 'Cross-origin logout refused' },
+      { status: 403, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+
   const isSecure = isSecureRequest(request)
   const secFetchMode = (request.headers.get('sec-fetch-mode') || '').toLowerCase()
   const contentType = (request.headers.get('content-type') || '').toLowerCase()
@@ -39,11 +46,7 @@ export async function POST(request: Request) {
   if (isFormNavigation) {
     const response = NextResponse.redirect(new URL('/login', request.url), {
       status: 303,
-      headers: {
-        'X-Robots-Tag': ROBOTS_HEADER,
-        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
-        'Cache-Control': 'no-store',
-      },
+      headers: ENTERPRISE_API_SECURITY_HEADERS,
     })
     clearAuthCookies(response, isSecure)
     return response
@@ -53,11 +56,7 @@ export async function POST(request: Request) {
     { ok: true, redirectTo: '/login' },
     {
       status: 200,
-      headers: {
-        'X-Robots-Tag': ROBOTS_HEADER,
-        'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
-        'Cache-Control': 'no-store',
-      },
+      headers: ENTERPRISE_API_SECURITY_HEADERS,
     },
   )
   clearAuthCookies(response, isSecure)
@@ -65,15 +64,15 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const secFetchSite = (request.headers.get('sec-fetch-site') || '').toLowerCase()
   const isSecure = isSecureRequest(request)
   const response = NextResponse.redirect(new URL('/login', request.url), {
     status: 303,
-    headers: {
-      'X-Robots-Tag': ROBOTS_HEADER,
-      'Permissions-Policy': PERMISSIONS_POLICY_HEADER,
-      'Cache-Control': 'no-store',
-    },
+    headers: ENTERPRISE_API_SECURITY_HEADERS,
   })
-  clearAuthCookies(response, isSecure)
+  // Prevent cross-site <img src="/api/auth/logout"> forced-logout CSRF
+  if (secFetchSite !== 'cross-site') {
+    clearAuthCookies(response, isSecure)
+  }
   return response
 }

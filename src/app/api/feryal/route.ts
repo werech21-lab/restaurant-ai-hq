@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  executiveAiBurstLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
 import { getOpenAIApiKey } from '@/lib/openai-key'
 import { BRANCHES, CHANNELS, LEDGER, LEVERS_MONTHLY_TOTAL } from '@/lib/aether/ledger'
 import { askDualHeavyBrain } from '@/lib/dual-heavy-brain'
@@ -43,7 +49,37 @@ const headlineMetrics = (isEn: boolean): Record<string, string> =>
     ? { 'Odoo Net Sales': `${n3(LEDGER.netSales)} KWD`, 'Operating Profit': `${n3(LEDGER.netProfit)} KWD`, Orders: n0(LEDGER.orders) }
     : { 'صافي مبيعات أودو': `${n3(LEDGER.netSales)} د.ك`, 'الربح التشغيلي': `${n3(LEDGER.netProfit)} د.ك`, 'الطلبات': n0(LEDGER.orders) }
 
+const ALLOWED_FIRECRAWL_HOSTS = new Set([
+  'www.talabat.com',
+  'talabat.com',
+  'deliveroo.com.kw',
+  'www.deliveroo.com.kw',
+  'www.keeta.com',
+  'keeta.com',
+])
+
+function resolveSafeCompetitorUrl(rawUrl: unknown): string {
+  const fallback = 'https://www.talabat.com/kuwait/restaurant/china-garden'
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) return fallback
+  try {
+    const parsed = new URL(rawUrl.trim())
+    if (parsed.protocol !== 'https:') return fallback
+    if (!ALLOWED_FIRECRAWL_HOSTS.has(parsed.hostname.toLowerCase())) return fallback
+    return parsed.toString()
+  } catch {
+    return fallback
+  }
+}
+
 export async function POST(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`feryal:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
   try {
     const body = await req.json()
     const { action, query, url, actionType, lang } = body
@@ -225,9 +261,9 @@ CRITICAL RULES:
       })
     }
 
-    // 3. FIRECRAWL COMPETITOR MENU SCRAPER
+    // 3. FIRECRAWL COMPETITOR MENU SCRAPER (Strictly HTTPS + Allowlisted Aggregator Domains)
     if (action === 'firecrawl') {
-      const targetUrl = url || 'https://www.talabat.com/kuwait/restaurant/china-garden'
+      const targetUrl = resolveSafeCompetitorUrl(url)
       const firecrawlKey = process.env.FIRECRAWL_API_KEY
 
       if (firecrawlKey && !firecrawlKey.startsWith('your_') && firecrawlKey.trim()) {

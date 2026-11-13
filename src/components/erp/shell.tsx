@@ -22,6 +22,10 @@ import {
   normalizeExecSessionRole,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import {
+  EXEC_SESSION_COOKIE,
+  verifyExecSessionToken,
+} from '@/lib/auth/exec-session'
 import { getCompany } from '@/lib/company'
 import { LOCKED_MODULES } from '@/lib/modules'
 import { enabledModuleKeys } from '@/lib/modules-db'
@@ -35,20 +39,6 @@ export {
   type NavItem,
   type SidebarSection,
   type SidebarSectionId,
-}
-
-function decodeBase64UrlPayload(segment: string): Record<string, unknown> | null {
-  try {
-    if (!segment || !/^[A-Za-z0-9\-_]+$/.test(segment)) return null
-    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/')
-    const padLength = (4 - (base64.length % 4)) % 4
-    const padded = base64 + '='.repeat(padLength)
-    const decoded = Buffer.from(padded, 'base64').toString('utf8')
-    const parsed = JSON.parse(decoded)
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
-  } catch {
-    return null
-  }
 }
 
 async function resolveActiveSessionRole(user: {
@@ -68,14 +58,12 @@ async function resolveActiveSessionRole(user: {
   const fromUser = normalizeExecSessionRole(user.sessionRole)
   try {
     const cookieStore = await cookies()
-    const rawToken = cookieStore.get('aether_exec_session')?.value
-    if (rawToken && rawToken.includes('.')) {
-      const payload = decodeBase64UrlPayload(rawToken.split('.')[0] ?? '')
-      const fromCookie = normalizeExecSessionRole(payload?.role)
-      if (fromCookie) return fromCookie
-      if (typeof payload?.sub === 'string' && payload.sub.toLowerCase().includes('auditor')) {
-        return 'auditor'
-      }
+    const rawToken =
+      cookieStore.get(EXEC_SESSION_COOKIE)?.value ??
+      cookieStore.get('aether_exec_session')?.value
+    const verified = await verifyExecSessionToken(rawToken)
+    if (verified) {
+      return verified.role
     }
   } catch {
     // safe fallback when cookies are unavailable

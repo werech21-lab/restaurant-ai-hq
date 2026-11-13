@@ -53,6 +53,7 @@ export default function GlobalError({
       }, 500)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [error, isNetworkFailure])
 
   if (isNetworkFailure) {

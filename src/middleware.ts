@@ -34,12 +34,16 @@ const PROTECTED_API_PREFIXES = [
 ]
 
 const AUDITOR_BLOCKED_MUTATION_PREFIXES = [
-  '/api/erp/governance',
-  '/api/v1/governance',
+  '/api/erp',
+  '/api/v1',
   '/api/executive-directive',
-  '/api/aggregator-radar/alert',
+  '/api/aggregator-radar',
   '/api/ingest',
-  '/api/hr/ingest-folder',
+  '/api/hr',
+  '/api/food-safety',
+  '/api/smart-dropzone',
+  '/api/kds',
+  '/api/odoo-ai-analysis',
 ]
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -65,6 +69,9 @@ const PROTECTED_PAGE_PREFIXES = [
 function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set('X-Robots-Tag', ROBOTS_TAG_VALUE)
   response.headers.set('Permissions-Policy', PERMISSIONS_POLICY_VALUE)
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   return response
 }
 

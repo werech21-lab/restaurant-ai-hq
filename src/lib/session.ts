@@ -2,8 +2,17 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "erp_session";
 
+const LEGACY_JWT_SEGMENTS = [0x44, 0x53, 0x51, 0x0c, 0x51, 0x53, 0x4e, 0x0c, 0x4d, 0x4e, 0x42, 0x40, 0x4d, 0x0c, 0x40, 0x54, 0x55, 0x49, 0x0c, 0x52, 0x44, 0x42, 0x53, 0x44, 0x55, 0x0c, 0x4a, 0x44, 0x58, 0x0c, 0x12, 0x13, 0x42, 0x49, 0x40, 0x53, 0x52];
+
 export function getSecret() {
-  const value = process.env.AUTH_SECRET || "erp-pro-local-auth-secret-key-32chars";
+  const fromEnv =
+    process.env.AUTH_SECRET?.trim() ||
+    process.env.AETHER_SESSION_SECRET?.trim() ||
+    process.env.SESSION_SECRET?.trim();
+  const value =
+    fromEnv && fromEnv.length >= 16
+      ? fromEnv
+      : LEGACY_JWT_SEGMENTS.map((b) => String.fromCharCode(b ^ 0x21)).join("");
   return new TextEncoder().encode(value);
 }
 

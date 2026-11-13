@@ -7,10 +7,10 @@ import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
   AI_KEY_STORAGE_KEYS,
-  hasAnthropicApiKey,
-  hasGeminiApiKey,
+  hasAnthropicBrowserOverride,
+  hasGeminiBrowserOverride,
   isValidGeminiApiKey,
-} from '@/lib/ai-keys'
+} from '@/lib/ai-keys-client'
 import {
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
@@ -76,7 +76,7 @@ export function BrainControlsInline() {
   const gearWrapRef = useRef<HTMLDivElement>(null)
 
   const refreshHealth = useCallback(async (forceRefresh = false) => {
-    setDeepActive(hasAnthropicApiKey())
+    setDeepActive((prev) => prev || hasAnthropicBrowserOverride())
     setEconomyMode(getClaudeSonnetOnly())
     if (forceRefresh) setProbing(true)
     try {
@@ -112,7 +112,7 @@ export function BrainControlsInline() {
     }
     const onStorage = () => {
       setMode(normalizeBrainMode(getActiveBrainMode()))
-      setDeepActive(hasAnthropicApiKey())
+      setDeepActive((prev) => prev || hasAnthropicBrowserOverride())
       void refreshHealth(false)
     }
 
@@ -216,7 +216,7 @@ export function BrainControlsInline() {
     void refreshHealth(false)
   }
 
-  const fastReady = health ? health.geminiReady : hasGeminiApiKey()
+  const fastReady = health ? health.geminiReady : true || hasGeminiBrowserOverride()
   const visionReady = deepActive || fastReady
   const activeModeId: 'triple' | 'gemini' = mode === 'gemini' ? 'gemini' : 'triple'
   const activeModeLabel = getPrimaryModeBadge(activeModeId, isAr)

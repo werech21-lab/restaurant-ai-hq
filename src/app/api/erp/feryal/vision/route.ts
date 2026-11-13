@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
+  buildRateLimitedJsonResponse,
+  ENTERPRISE_API_SECURITY_HEADERS,
+  executiveAiBurstLimiter,
+  requireExecApiSession,
+} from '@/lib/auth/api-guard'
+import {
   getAnthropicApiKey,
   getGeminiApiKey,
   isValidGeminiApiKey,
@@ -271,43 +277,231 @@ function buildDeterministicVisionFallback(
   }
 }
 
-export async function GET() {
-  return NextResponse.json({
-    ok: true,
-    endpoint: '/api/erp/feryal/vision',
-    engines: ['Vision & Video Inspector', 'Deep Strategic'],
-    supportedFormats: ['JPG', 'PNG', 'WEBP', 'MP4', 'WEBM', 'MOV'],
-  })
+const ALLOWED_VISION_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'video/mp4',
+  'video/webm',
+])
+
+const ALLOWED_CLAUDE_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_VISION_BODY_BYTES = 25 * 1024 * 1024
+const MAX_MEDIA_ATTACHMENTS = 4
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024
+const MAX_PROMPT_CHARS = 4000
+const MAX_CONTEXT_CHARS = 12000
+const BASE64_FORMAT_RE = /^[A-Za-z0-9+/=\s]+$/
+
+function normalizeAllowedVisionMime(raw?: string): string | null {
+  if (!raw || typeof raw !== 'string') return null
+  const clean = raw.split(';')[0]?.trim().toLowerCase() ?? ''
+  if (clean === 'image/jpg') return 'image/jpeg'
+  return ALLOWED_VISION_MIME_TYPES.has(clean) ? clean : null
+}
+
+function estimateBase64DecodedBytes(b64: string): number {
+  const len = b64.trim().length
+  const pad = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0
+  return Math.max(0, Math.floor((len * 3) / 4) - pad)
+}
+
+function validateMediaMagicBytes(mime: string, b64: string): boolean {
+  try {
+    const head = Buffer.from(b64.trim().slice(0, 64), 'base64')
+    if (head.length < 4) return false
+    if (mime === 'image/jpeg') {
+      return head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff
+    }
+    if (mime === 'image/png') {
+      return (
+        head[0] === 0x89 &&
+        head[1] === 0x50 &&
+        head[2] === 0x4e &&
+        head[3] === 0x47
+      )
+    }
+    if (mime === 'image/webp') {
+      return (
+        head.length >= 12 &&
+        head.subarray(0, 4).toString('ascii') === 'RIFF' &&
+        head.subarray(8, 12).toString('ascii') === 'WEBP'
+      )
+    }
+    if (mime === 'video/mp4') {
+      return head.length >= 8 && head.subarray(4, 8).toString('ascii') === 'ftyp'
+    }
+    if (mime === 'video/webm') {
+      return (
+        head[0] === 0x1a &&
+        head[1] === 0x45 &&
+        head[2] === 0xdf &&
+        head[3] === 0xa3
+      )
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: true })
+  if (!authGuard.ok) return authGuard.response
+
+  return NextResponse.json(
+    {
+      ok: true,
+      endpoint: '/api/erp/feryal/vision',
+      engines: ['Vision & Video Inspector', 'Deep Strategic'],
+      supportedFormats: ['JPG', 'PNG', 'WEBP', 'MP4', 'WEBM'],
+      maxAttachments: MAX_MEDIA_ATTACHMENTS,
+      maxBodyBytes: MAX_VISION_BODY_BYTES,
+    },
+    { headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
 }
 
 export async function POST(req: NextRequest) {
+  const authGuard = await requireExecApiSession(req, { allowAuditor: false })
+  if (!authGuard.ok) return authGuard.response
+
+  const burst = executiveAiBurstLimiter.check(`vision:${authGuard.session.sub}`)
+  if (!burst.allowed) {
+    return buildRateLimitedJsonResponse(burst.retryAfterSeconds)
+  }
+
+  const declaredLen = Number(req.headers.get('content-length') || '0')
+  if (Number.isFinite(declaredLen) && declaredLen > MAX_VISION_BODY_BYTES) {
+    return NextResponse.json(
+      { ok: false, error: 'PAYLOAD_TOO_LARGE' },
+      { status: 413, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+
   let body: VisionPostBody = {}
   try {
-    body = (await req.json()) as VisionPostBody
+    const rawBody = await req.text()
+    if (Buffer.byteLength(rawBody, 'utf8') > MAX_VISION_BODY_BYTES) {
+      return NextResponse.json(
+        { ok: false, error: 'PAYLOAD_TOO_LARGE' },
+        { status: 413, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    body = JSON.parse(rawBody) as VisionPostBody
   } catch {
-    return NextResponse.json({ ok: false, error: 'INVALID_JSON' }, { status: 400 })
+    return NextResponse.json(
+      { ok: false, error: 'INVALID_JSON' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   const lang: 'ar' | 'en' = body.lang === 'en' ? 'en' : 'ar'
   const friendlyMode = lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
-  const mediaParts = Array.isArray(body.mediaParts)
-    ? body.mediaParts.filter((p) => p && typeof p.mimeType === 'string' && typeof p.data === 'string' && p.data.length > 0)
-    : []
-  const claudeImages = Array.isArray(body.claudeImages)
-    ? body.claudeImages.filter((p) => p && typeof p.data === 'string' && p.data.length > 0)
-    : []
+  const rawMediaParts = Array.isArray(body.mediaParts) ? body.mediaParts : []
+  const rawClaudeImages = Array.isArray(body.claudeImages) ? body.claudeImages : []
 
-  if (mediaParts.length === 0 && claudeImages.length === 0) {
-    return NextResponse.json({ ok: false, error: 'NO_MEDIA_ATTACHED' }, { status: 400 })
+  if (
+    rawMediaParts.length > MAX_MEDIA_ATTACHMENTS ||
+    rawClaudeImages.length > MAX_MEDIA_ATTACHMENTS
+  ) {
+    return NextResponse.json(
+      { ok: false, error: 'TOO_MANY_ATTACHMENTS' },
+      { status: 413, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
+  const mediaParts: GeminiMediaPart[] = []
+  for (const part of rawMediaParts) {
+    if (!part || typeof part.data !== 'string' || !part.data.trim()) continue
+    const normalizedMime = normalizeAllowedVisionMime(part.mimeType)
+    if (!normalizedMime) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'UNSUPPORTED_MEDIA_TYPE',
+          allowed: [...ALLOWED_VISION_MIME_TYPES],
+        },
+        { status: 415, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    const cleanData = part.data.replace(/\s+/g, '')
+    if (!BASE64_FORMAT_RE.test(cleanData)) {
+      return NextResponse.json(
+        { ok: false, error: 'INVALID_BASE64_MEDIA' },
+        { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    const decodedBytes = estimateBase64DecodedBytes(cleanData)
+    const maxBytes = normalizedMime.startsWith('video/') ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES
+    if (decodedBytes === 0 || decodedBytes > maxBytes) {
+      return NextResponse.json(
+        { ok: false, error: 'ATTACHMENT_SIZE_EXCEEDED' },
+        { status: 413, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    if (!validateMediaMagicBytes(normalizedMime, cleanData)) {
+      return NextResponse.json(
+        { ok: false, error: 'MEDIA_SIGNATURE_MISMATCH' },
+        { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    mediaParts.push({
+      mimeType: normalizedMime,
+      data: cleanData,
+      label: typeof part.label === 'string' ? part.label.slice(0, 240) : undefined,
+    })
+  }
+
+  const claudeImages: ClaudeVisionImage[] = []
+  for (const img of rawClaudeImages) {
+    if (!img || typeof img.data !== 'string' || !img.data.trim()) continue
+    const normalizedMime = normalizeAllowedVisionMime(img.mediaType)
+    if (!normalizedMime || !ALLOWED_CLAUDE_IMAGE_MIMES.has(normalizedMime)) {
+      return NextResponse.json(
+        { ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' },
+        { status: 415, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    const cleanData = img.data.replace(/\s+/g, '')
+    if (
+      !BASE64_FORMAT_RE.test(cleanData) ||
+      estimateBase64DecodedBytes(cleanData) > MAX_IMAGE_BYTES ||
+      !validateMediaMagicBytes(normalizedMime, cleanData)
+    ) {
+      return NextResponse.json(
+        { ok: false, error: 'INVALID_IMAGE_PAYLOAD' },
+        { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    claudeImages.push({
+      mediaType: normalizedMime as 'image/jpeg' | 'image/png' | 'image/webp',
+      data: cleanData,
+      label: typeof img.label === 'string' ? img.label.slice(0, 240) : undefined,
+    })
+  }
+
+  if (mediaParts.length === 0 && claudeImages.length === 0) {
+    return NextResponse.json(
+      { ok: false, error: 'NO_MEDIA_ATTACHED' },
+      { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+
+  const safePromptInput =
+    typeof body.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_CHARS) : ''
   const userPrompt =
-    (body.prompt ?? '').trim() ||
+    safePromptInput ||
     (lang === 'ar'
       ? 'افحصي المرفق البصري وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة) والملاحظات الدقيقة.'
       : 'Inspect the attached media, score compliance (🟢 / 🟡 / 🔴), and list exact visual findings.')
 
-  const systemPrompt = buildVisionSystemPrompt(lang, body.workspaceContext)
+  const safeWorkspaceContext =
+    typeof body.workspaceContext === 'string'
+      ? body.workspaceContext.slice(0, MAX_CONTEXT_CHARS)
+      : undefined
+  const systemPrompt = buildVisionSystemPrompt(lang, safeWorkspaceContext)
 
   const geminiKey = resolveGeminiKey(body.customGeminiKey)
   const geminiOut = await runPrimaryVisionInspection({
@@ -320,17 +514,20 @@ export async function POST(req: NextRequest) {
   if (geminiOut) {
     const tier = inferVisionComplianceFromText(geminiOut.text)
     const badge = getComplianceBadgeMeta(tier)
-    return NextResponse.json({
-      ok: true,
-      provider: 'gemini',
-      model: friendlyMode,
-      complianceTier: tier,
-      complianceBadgeAr: badge.ar,
-      complianceBadgeEn: badge.en,
-      engineLabelAr: 'فحص الصور والفيديو',
-      engineLabelEn: 'Vision & Video Inspector',
-      reply: geminiOut.text,
-    })
+    return NextResponse.json(
+      {
+        ok: true,
+        provider: 'gemini',
+        model: friendlyMode,
+        complianceTier: tier,
+        complianceBadgeAr: badge.ar,
+        complianceBadgeEn: badge.en,
+        engineLabelAr: 'فحص الصور والفيديو',
+        engineLabelEn: 'Vision & Video Inspector',
+        reply: geminiOut.text,
+      },
+      { headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   const anthropicKey = resolveAnthropicKey(body.customAnthropicKey)
@@ -338,10 +535,10 @@ export async function POST(req: NextRequest) {
     claudeImages.length > 0
       ? claudeImages
       : mediaParts
-          .filter((m) => m.mimeType.startsWith('image/'))
-          .slice(0, 8)
+          .filter((m) => ALLOWED_CLAUDE_IMAGE_MIMES.has(m.mimeType))
+          .slice(0, MAX_MEDIA_ATTACHMENTS)
           .map((m) => ({
-            mediaType: 'image/jpeg',
+            mediaType: m.mimeType as 'image/jpeg' | 'image/png' | 'image/webp',
             data: m.data,
             label: m.label,
           }))
@@ -356,30 +553,38 @@ export async function POST(req: NextRequest) {
   if (claudeOut) {
     const tier = inferVisionComplianceFromText(claudeOut.text)
     const badge = getComplianceBadgeMeta(tier)
-    return NextResponse.json({
+    return NextResponse.json(
+      {
+        ok: true,
+        provider: 'claude',
+        model: friendlyMode,
+        complianceTier: tier,
+        complianceBadgeAr: badge.ar,
+        complianceBadgeEn: badge.en,
+        engineLabelAr: 'فحص الصور والفيديو',
+        engineLabelEn: 'Vision & Video Inspector',
+        reply: claudeOut.text,
+      },
+      { headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+
+  const safeSummary =
+    typeof body.attachmentSummary === 'string' ? body.attachmentSummary.slice(0, 500) : ''
+  const det = buildDeterministicVisionFallback(userPrompt, safeSummary, lang)
+  const badge = getComplianceBadgeMeta(det.tier)
+  return NextResponse.json(
+    {
       ok: true,
-      provider: 'claude',
+      provider: 'deterministic',
       model: friendlyMode,
-      complianceTier: tier,
+      complianceTier: det.tier,
       complianceBadgeAr: badge.ar,
       complianceBadgeEn: badge.en,
       engineLabelAr: 'فحص الصور والفيديو',
       engineLabelEn: 'Vision & Video Inspector',
-      reply: claudeOut.text,
-    })
-  }
-
-  const det = buildDeterministicVisionFallback(userPrompt, body.attachmentSummary ?? '', lang)
-  const badge = getComplianceBadgeMeta(det.tier)
-  return NextResponse.json({
-    ok: true,
-    provider: 'deterministic',
-    model: friendlyMode,
-    complianceTier: det.tier,
-    complianceBadgeAr: badge.ar,
-    complianceBadgeEn: badge.en,
-    engineLabelAr: 'فحص الصور والفيديو',
-    engineLabelEn: 'Vision & Video Inspector',
-    reply: det.text,
-  })
+      reply: det.text,
+    },
+    { headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
 }

@@ -195,7 +195,15 @@ export async function authenticateUser(permission: Permission, requestedTenant: 
     throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
   }
   const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
-  const granted = panelBridgePermissionSet()
+  const fullPanelSet = panelBridgePermissionSet()
+  const isAuditorPanel =
+    typeof panel.email === 'string' && panel.email.toLowerCase().includes('auditor')
+  const granted: ReadonlySet<string> = isAuditorPanel
+    ? new Set([...fullPanelSet].filter((p) => p.endsWith('.read')))
+    : fullPanelSet
+  if (!granted.has(permission)) {
+    throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
+  }
   return { userId: panelBridgeUserId(panel.id), tenantId, permissions: granted }
 }
 

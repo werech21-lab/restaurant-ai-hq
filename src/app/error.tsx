@@ -74,6 +74,7 @@ export default function GlobalErrorBoundary({
       }, 500)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [error, isNetworkFailure])
 
   if (isNetworkFailure) {
