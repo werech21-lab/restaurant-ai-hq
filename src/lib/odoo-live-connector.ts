@@ -135,6 +135,7 @@ export interface OdooLiveSyncEnvelope extends OdooLiveSummary {
   sourceMode: 'odoo17-live' | 'cached-live' | 'verified-baseline'
   envConfigured: boolean
   latestRecordAt: string
+  latestOdooRecordAt: string
   latestRecordKuwaitIso: string
   kuwaitSyncedAt: string
   hoursSinceLatestRecord: number
@@ -672,7 +673,11 @@ function resolveUiChannelHint(
   if (/deliveroo|ديليفرو/.test(lower)) return 'deliveroo'
   if (/jahez|cari|جاهز|كاري/.test(lower)) return 'jahez'
   if (/snoonu|سنونو/.test(lower)) return 'snoonu'
-  if (/online|whatsapp|bilbayt|call\s*center|takeaway|pickup|cash\s*on\s*delivery/.test(lower)) {
+  if (
+    /online|whatsapp|bilbayt|hesabe|hessabe|fatoorah|payment\s*link|call\s*center|takeaway|pickup|cash\s*on\s*delivery/.test(
+      lower,
+    )
+  ) {
     return 'takeaway-direct'
   }
   const canonical = channelOfPaymentMethod(pricelistOrPaymentName)
@@ -1776,6 +1781,7 @@ function formatEnvelopeFromCore(
     envConfigured: core.envConfigured,
     syncedAt: freshness.latestRecordIso,
     latestRecordAt: freshness.latestRecordIso,
+    latestOdooRecordAt: freshness.kuwaitIso,
     latestRecordKuwaitIso: freshness.kuwaitIso,
     kuwaitSyncedAt: freshness.kuwaitTimestamp,
     latestOperationalDate: core.latestOperationalDate,

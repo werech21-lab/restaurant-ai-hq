@@ -90,7 +90,12 @@ export function ExecutiveFooter({
 
   useEffect(() => {
     setReferenceNowMs(Date.now())
-  }, [lastSyncedRecordIso, liveSummary?.latestRecordAt, liveSummary?.syncedAt])
+  }, [
+    lastSyncedRecordIso,
+    liveSummary?.latestOdooRecordAt,
+    liveSummary?.latestRecordAt,
+    liveSummary?.syncedAt,
+  ])
 
   const triggerLedgerSync = useCallback(async (silent = false) => {
     if (roleProfile.isAuditor) return
@@ -119,7 +124,10 @@ export function ExecutiveFooter({
         // ignore quota errors
       }
       const honestRecordIso =
-        summary.latestRecordAt ?? summary.syncedAt ?? SNAPSHOT_LATEST_RECORD_ISO
+        summary.latestOdooRecordAt ??
+        summary.latestRecordAt ??
+        summary.syncedAt ??
+        SNAPSHOT_LATEST_RECORD_ISO
       setLastSyncedRecordIso(honestRecordIso)
       setReferenceNowMs(Date.now())
       window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: summary }))
@@ -147,6 +155,7 @@ export function ExecutiveFooter({
 
   const activeLatestRecordIso =
     lastSyncedRecordIso ??
+    liveSummary?.latestOdooRecordAt ??
     liveSummary?.latestRecordAt ??
     liveSummary?.syncedAt ??
     SNAPSHOT_LATEST_RECORD_ISO
@@ -170,6 +179,7 @@ export function ExecutiveFooter({
       {/* Honest Data-Freshness Status Banner: Red >24h Stale Alert, Amber Cached Snapshot, or Green <=24h Live Sync */}
       <div
         role="status"
+        data-latest-odoo-record-at={freshness.kuwaitIso}
         data-odoo-freshness={
           liveSummary?.sourceMode === 'cached-live'
             ? 'cached'

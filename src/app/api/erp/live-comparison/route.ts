@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
       connected: liveOverlay.connected,
       sourceMode: liveOverlay.sourceMode,
       latestRecordAt: liveOverlay.latestRecordAt,
+      latestOdooRecordAt: liveOverlay.latestOdooRecordAt,
       latestRecordKuwaitIso: liveOverlay.latestRecordKuwaitIso,
       kuwaitSyncedAt: liveOverlay.kuwaitSyncedAt,
       hoursSinceLatestRecord: liveOverlay.hoursSinceLatestRecord,

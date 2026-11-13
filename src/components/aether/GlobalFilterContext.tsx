@@ -110,6 +110,9 @@ export function GlobalFilterProvider({
   const [filters, setFilters] = useState<Required<GlobalFilters>>(DEFAULT_GLOBAL_FILTERS)
   const [hydrated, setHydrated] = useState(false)
   const [liveSummary, setLiveSummary] = useState<OdooLiveSummary | null>(null)
+  const [customDailySeries, setCustomDailySeries] = useState<
+    { day: string; orders: number; netKwd: number }[]
+  >([])
   const [syncingOdoo, setSyncingOdoo] = useState(false)
   const [syncCooldownSec, setSyncCooldownSec] = useState(0)
 
@@ -341,16 +344,7 @@ export function GlobalFilterProvider({
         if (!active || !Array.isArray(payload?.dailySeries) || payload.dailySeries.length === 0) {
           return
         }
-        setLiveSummary((prev) => {
-          if (!prev) return prev
-          const merged = new Map<string, { day: string; orders: number; netKwd: number }>()
-          for (const d of prev.dailySeries ?? []) merged.set(d.day, d)
-          for (const d of payload.dailySeries ?? []) merged.set(d.day, d)
-          return {
-            ...prev,
-            dailySeries: [...merged.values()].sort((a, b) => a.day.localeCompare(b.day)),
-          }
-        })
+        setCustomDailySeries(payload.dailySeries)
       })
       .catch(() => {
         // silent fallback
@@ -400,9 +394,21 @@ export function GlobalFilterProvider({
   }, [])
   const resetFilters = useCallback(() => setFilters(DEFAULT_GLOBAL_FILTERS), [])
 
+  const effectiveLiveSummary = useMemo<OdooLiveSummary | null>(() => {
+    if (!liveSummary) return null
+    if (customDailySeries.length === 0) return liveSummary
+    const merged = new Map<string, { day: string; orders: number; netKwd: number }>()
+    for (const d of liveSummary.dailySeries ?? []) merged.set(d.day, d)
+    for (const d of customDailySeries) merged.set(d.day, d)
+    return {
+      ...liveSummary,
+      dailySeries: [...merged.values()].sort((a, b) => a.day.localeCompare(b.day)),
+    }
+  }, [liveSummary, customDailySeries])
+
   const workspace = useMemo(
-    () => computeGlobalWorkspace(effectiveFilters, liveSummary, pathname),
-    [effectiveFilters, liveSummary, pathname],
+    () => computeGlobalWorkspace(effectiveFilters, effectiveLiveSummary, pathname),
+    [effectiveFilters, effectiveLiveSummary, pathname],
   )
 
   const buildShareDeepLinkText = useCallback(
@@ -451,7 +457,7 @@ export function GlobalFilterProvider({
     () => ({
       filters: effectiveFilters,
       workspace,
-      liveSummary,
+      liveSummary: effectiveLiveSummary,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,
@@ -468,7 +474,7 @@ export function GlobalFilterProvider({
     [
       effectiveFilters,
       workspace,
-      liveSummary,
+      effectiveLiveSummary,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,

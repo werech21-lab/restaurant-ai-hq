@@ -44,10 +44,18 @@ export function OdooLiveStatusStrip({
 
   useEffect(() => {
     setReferenceNowMs(Date.now())
-  }, [liveSummary?.latestRecordAt, liveSummary?.syncedAt, liveSummary?.lastCheckedAt])
+  }, [
+    liveSummary?.latestOdooRecordAt,
+    liveSummary?.latestRecordAt,
+    liveSummary?.syncedAt,
+    liveSummary?.lastCheckedAt,
+  ])
 
   const activeLatestIso =
-    liveSummary?.latestRecordAt ?? liveSummary?.syncedAt ?? SNAPSHOT_LATEST_RECORD_ISO
+    liveSummary?.latestOdooRecordAt ??
+    liveSummary?.latestRecordAt ??
+    liveSummary?.syncedAt ??
+    SNAPSHOT_LATEST_RECORD_ISO
 
   const freshness = useMemo(
     () => computeOdooFreshnessStatus(activeLatestIso, referenceNowMs),
@@ -97,6 +105,7 @@ export function OdooLiveStatusStrip({
       role="status"
       dir={isAr ? 'rtl' : 'ltr'}
       data-odoo-live-strip={stripTone}
+      data-latest-odoo-record-at={freshness.kuwaitIso}
       className={`no-print flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-[12px] font-semibold tabular-nums shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 transition-colors duration-150 ${stripToneClasses}`}
     >
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">

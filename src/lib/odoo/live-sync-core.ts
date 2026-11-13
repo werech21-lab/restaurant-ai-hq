@@ -68,6 +68,8 @@ export interface OdooLiveSummary {
   syncedAt: string
   /** Canonical latest `pos.order.date_order` ISO-8601 UTC timestamp in the dataset. */
   latestRecordAt?: string
+  /** Canonical latest `pos.order.date_order` timestamp in Kuwait (`Asia/Kuwait`, `+03:00`) ISO-8601 format. */
+  latestOdooRecordAt?: string
   /** Exact `Asia/Kuwait` (`+03:00`) ISO-8601 representation of `latestRecordAt`. */
   latestRecordKuwaitIso?: string
   /** Formatted Kuwait (`Asia/Kuwait`, UTC+3) timestamp of `latestRecordAt`. */

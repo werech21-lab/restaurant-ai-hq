@@ -3898,6 +3898,8 @@ import { GET as liveCompGet } from './src/app/api/erp/live-comparison/route';
     compAudReadOnly: cAudJson.readOnly === true && cAudJson.database === null,
     compGap: cAdminJson?.comparison?.reconciliation?.maxSalesGapKwd ?? -1,
     compNetA: cAdminJson?.comparison?.selectionA?.netSalesKwd ?? 0,
+    latestOdooRecordAtSync: typeof post1Json.latestOdooRecordAt === 'string' && post1Json.latestOdooRecordAt.endsWith('+03:00'),
+    latestOdooRecordAtComp: typeof cAdminJson.latestOdooRecordAt === 'string' && cAdminJson.latestOdooRecordAt.endsWith('+03:00'),
   }));
 })();
 `
@@ -3937,6 +3939,16 @@ assert(
     s26BeforeAfterSrc.includes('/api/erp/live-comparison'),
   '26.3 Unified /api/erp/live-comparison & 3-State Live/Cached/Stale Badge: Returns [401,200,200,200,200] across roles with 0.000 KWD gap, wires /erp/weekday-comparison + /erp/before-after, and renders Live Emerald, Cached Amber & Stale Red states',
   `compStatuses=${JSON.stringify(s26Probe.compStatuses)}, gap=${s26Probe.compGap}, netA=${s26Probe.compNetA}`,
+)
+
+assert(
+  s26Probe.latestOdooRecordAtSync === true &&
+    s26Probe.latestOdooRecordAtComp === true &&
+    s25StatusStripSrc.includes('latestOdooRecordAt') &&
+    execFooterSrc.includes('latestOdooRecordAt') &&
+    s25GlobalFilterCtxSrc.includes('customDailySeries'),
+  '26.4 Direct latestOdooRecordAt Kuwait Timestamp Binding & Race-Free Custom Date Overlay: /api/erp/odoo-sync, /api/erp/live-comparison, OdooLiveStatusStrip & ExecutiveFooter bind directly to latestOdooRecordAt (+03:00) and custom date ranges hydrate race-free',
+  `syncLatest=${s26Probe.latestOdooRecordAtSync}, compLatest=${s26Probe.latestOdooRecordAtComp}`,
 )
 
 console.log('\n----------------------------------------------------------------------')
