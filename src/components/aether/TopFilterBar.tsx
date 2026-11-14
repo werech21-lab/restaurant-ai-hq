@@ -484,7 +484,7 @@ function AccountWorkspaceMenuPanel({
           {userEmail ? (
             <div
               dir="ltr"
-              className="mt-0.5 truncate font-mono text-xs text-slate-600 dark:text-slate-300"
+              className="mt-0.5 break-all whitespace-normal font-mono text-xs text-slate-600 dark:text-slate-300"
             >
               {userEmail}
             </div>
@@ -1515,13 +1515,13 @@ export function TopFilterBar({
                   ) : null}
                 </span>
 
-                <span className="hidden xl:block min-w-0 leading-tight">
-                  <span className="block max-w-[155px] truncate text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                <span className="hidden xl:block leading-tight">
+                  <span className="block whitespace-nowrap text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
                     {isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}
                   </span>
                   <span
                     dir={userEmail ? 'ltr' : undefined}
-                    className="block max-w-[165px] truncate text-xs font-medium text-slate-600 dark:text-[#8FA39B]"
+                    className="block whitespace-nowrap text-xs font-medium text-slate-600 dark:text-[#8FA39B]"
                   >
                     {userEmail || (isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn)}
                   </span>

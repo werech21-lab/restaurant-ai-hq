@@ -34,9 +34,12 @@ import {
   buildPlanCircularText,
   computePlanningHubSnapshot,
   FORECAST_HORIZON_OPTIONS,
+  localizeArabicPlanningCopy,
+  resolveStrategicBriefing,
   sanitizeStrategicPhases,
   SEEDED_STRATEGIC_PHASES,
   STRATEGIC_ROADMAP_STORAGE_KEY,
+  stripStrategicMarkdown,
   type ForecastHorizonId,
   type ScenarioTierId,
   type StrategicRoadmapPhase,
@@ -93,7 +96,7 @@ export function StrategicPlanningStudio() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const kwd = isAr ? 'د.ك' : 'KWD'
-  const { workspace } = useGlobalFilter()
+  const { workspace, liveSummary } = useGlobalFilter()
   const {
     store,
     session,
@@ -170,13 +173,35 @@ export function StrategicPlanningStudio() {
   }, [])
 
   const snap = useMemo(
-    () => computePlanningHubSnapshot(workspace, phases, horizon, customFrom, customTo),
-    [workspace, phases, horizon, customFrom, customTo],
+    () => computePlanningHubSnapshot(workspace, phases, horizon, customFrom, customTo, liveSummary),
+    [workspace, phases, horizon, customFrom, customTo, liveSummary],
   )
 
   const activeScenario = useMemo(
     () => snap.scenarios.find((s) => s.id === activeScenarioId) ?? snap.scenarios[1],
     [snap.scenarios, activeScenarioId],
+  )
+
+  const cleanSubtitleAr = useMemo(
+    () => localizeArabicPlanningCopy(workspace.subtitleAr),
+    [workspace.subtitleAr],
+  )
+
+  useEffect(() => {
+    setAiForecastText(null)
+  }, [horizon, activeScenarioId, customFrom, customTo, workspace.subtitleEn])
+
+  const briefing = useMemo(
+    () =>
+      resolveStrategicBriefing(
+        aiForecastText,
+        snap,
+        activeScenario,
+        cleanSubtitleAr,
+        workspace.subtitleEn,
+        isAr,
+      ),
+    [aiForecastText, snap, activeScenario, cleanSubtitleAr, workspace.subtitleEn, isAr],
   )
 
   const activeBreachCount = useMemo(
@@ -208,15 +233,15 @@ export function StrategicPlanningStudio() {
       const created: StrategicRoadmapPhase = {
         id: `plan-phase-${Date.now()}`,
         phaseCode: `P${phases.length + 1}`,
-        titleAr: cleanTitle,
+        titleAr: localizeArabicPlanningCopy(cleanTitle),
         titleEn: cleanTitle,
         startDate: newStart <= newEnd ? newStart : newEnd,
         endDate: newStart <= newEnd ? newEnd : newStart,
-        ownerAr: cleanOwner,
+        ownerAr: localizeArabicPlanningCopy(cleanOwner),
         ownerEn: cleanOwner,
         costCapKwd: Math.max(0, Number(newCostCap) || 0),
         expectedMonthlyGainKwd: Math.max(0, Number(newMonthlyGain) || 0),
-        targetKpiAr: cleanKpi,
+        targetKpiAr: localizeArabicPlanningCopy(cleanKpi),
         targetKpiEn: cleanKpi,
         odooWatchMetricAr: `التزام بسقف تكلفة ${f0(Number(newCostCap) || 0)} د.ك وعدم تجاوز الخصم 3.0%`,
         odooWatchMetricEn: `Stay within ${f0(Number(newCostCap) || 0)} KWD cost cap & <=3.0% POS discount`,
@@ -240,62 +265,67 @@ export function StrategicPlanningStudio() {
 
   const handleRunStrategicAiForecast = useCallback(async () => {
     setAiForecastLoading(true)
-    const fallbackSynthesis = isAr
-      ? [
-          `• قراءة أودو 17 والسوق الكويتي (${snap.horizonLabelAr}): خط الأساس الشهري ${f0(snap.monthlyBaselineSalesKwd)} د.ك مبيعات بصافي ${f0(snap.monthlyBaselineNetKwd)} د.ك، مع قفزة +${snap.paydayLiftPct}% في أسبوع الرواتب (20–28 الشهر).`,
-          `• التوصية التنفيذية الأولى: اعتمد السيناريو الواقعي (${f0(activeScenario.projectedSalesKwd)} د.ك مبيعات | ${f0(activeScenario.projectedCostsKwd)} د.ك تكاليف | +${f0(activeScenario.projectedNetCashKwd)} د.ك صافي كاش) عبر تحويل الطلبات القريبة إلى أسطول TMP (15%) بدلاً من Tgo (25%).`,
-          `• حماية الهامش بالعارضية والفروع السبعة: ثبّت سقف الخصومات عند ≤ 3.0% وسقف هدر مطبخ العارضية ≤ 1.8%، وشغّل طاحينة ونودل بار داخل السالمية والبروميناد لالتقاط ذروة موسم الشتاء والكشتات بدون دينار إيجار إضافي.`,
-        ].join('\n')
-      : [
-          `• Odoo 17 & Kuwait Market Readout (${snap.horizonLabelEn}): Monthly baseline stands at ${f0(snap.monthlyBaselineSalesKwd)} KWD sales and ${f0(snap.monthlyBaselineNetKwd)} KWD net cash, backed by a +${snap.paydayLiftPct}% Kuwait payday lift (20th–28th).`,
-          `• Primary CFO Recommendation: Lock the Realistic Scenario (${f0(activeScenario.projectedSalesKwd)} KWD sales | ${f0(activeScenario.projectedCostsKwd)} KWD costs | +${f0(activeScenario.projectedNetCashKwd)} KWD net cash) by shifting <=4km delivery orders from Tgo (25%) to own TMP fleet (15%).`,
-          `• Margin Defense Across 7 Branches & Ardiya: Enforce <=3.0% POS promo cap and <=1.8% Ardiya prep waste while running Tahina + Noodle Bar inside Salmiya & Promenade at zero extra rent.`,
-        ].join('\n')
+    const deterministicBaseline = resolveStrategicBriefing(
+      null,
+      snap,
+      activeScenario,
+      cleanSubtitleAr,
+      workspace.subtitleEn,
+      isAr,
+    )
 
     try {
-      const systemText = isAr
-        ? 'أنت المدير المالي والاستراتيجي لشركة فنتشر فودز لإدارة المطاعم في الكويت (6 مطاعم • 7 فروع • 8 قنوات، ومطبخ العارضية المركزي). لخص التوقعات في 3 نقاط تنفيذية محددة بالأرقام (د.ك) بدون حشو.'
-        : 'You are the CFO & Chief Strategy Officer of Venture Foods Kuwait (6 Brands • 7 Branches • 8 Channels, Ardiya Central Kitchen). Summarize the forecast in 3 crisp, numeric KWD executive bullets with zero filler.'
-
-      const userPrompt = isAr
-        ? `حلل أفق التخطيط (${snap.horizonLabelAr}) للنطاق (${workspace.subtitleAr}):
-- خط الأساس الشهري من أودو 17: المبيعات ${f0(snap.monthlyBaselineSalesKwd)} د.ك، التكاليف ${f0(snap.monthlyBaselineCostsKwd)} د.ك، الصافي ${f0(snap.monthlyBaselineNetKwd)} د.ك.
-- تكلفة المواد والعارضية: ${snap.ardiyaFoodPct}% | عمولة التوصيل: ${snap.deliveryFeePct}% | حصة الصالة والمباشر: ${snap.directChannelSharePct}% | قفزة الرواتب (20–28): +${snap.paydayLiftPct}%.
-- السيناريو الواقعي المختار: مبيعات ${f0(activeScenario.projectedSalesKwd)} د.ك، التكاليف ${f0(activeScenario.projectedCostsKwd)} د.ك، الصافي ${f0(activeScenario.projectedNetCashKwd)} د.ك، استرداد ${activeScenario.paybackLabelAr}.
-أعطني 3 توصيات استراتيجية مركزة تجمع بيانات أودو ومواسم الكويت (الشتاء والكشتات والرواتب).`
-        : `Analyze planning horizon (${snap.horizonLabelEn}) for scope (${workspace.subtitleEn}):
-- Odoo 17 monthly baseline: Sales ${f0(snap.monthlyBaselineSalesKwd)} KWD, Costs ${f0(snap.monthlyBaselineCostsKwd)} KWD, Net ${f0(snap.monthlyBaselineNetKwd)} KWD.
-- Food/Ardiya COGS: ${snap.ardiyaFoodPct}% | Delivery cut: ${snap.deliveryFeePct}% | Direct 0%-fee share: ${snap.directChannelSharePct}% | Kuwait payday surge: +${snap.paydayLiftPct}%.
-- Selected Scenario: Sales ${f0(activeScenario.projectedSalesKwd)} KWD, Costs ${f0(activeScenario.projectedCostsKwd)} KWD, Net Cash ${f0(activeScenario.projectedNetCashKwd)} KWD (${activeScenario.paybackLabelEn}).
-Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seasonality.`
-
-      const res = await fetch('/api/ai/claude', {
+      const res = await fetch('/api/erp/planning/forecast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemText,
-          userPrompt,
-          tier: 'daily',
-          maxTokens: 1200,
+          locale: isAr ? 'ar' : 'en',
+          horizonLabel: isAr ? snap.horizonLabelAr : snap.horizonLabelEn,
+          scopeLabel: isAr ? cleanSubtitleAr : workspace.subtitleEn,
+          monthlyBaselineSalesKwd: snap.monthlyBaselineSalesKwd,
+          monthlyBaselineCostsKwd: snap.monthlyBaselineCostsKwd,
+          monthlyBaselineNetKwd: snap.monthlyBaselineNetKwd,
+          dailyAverageSalesKwd: snap.dailyAverageSalesKwd,
+          ardiyaFoodPct: snap.ardiyaFoodPct,
+          deliveryFeePct: snap.deliveryFeePct,
+          directChannelSharePct: snap.directChannelSharePct,
+          paydayLiftPct: snap.paydayLiftPct,
+          scenarioBadge: isAr ? activeScenario.badgeAr : activeScenario.badgeEn,
+          projectedSalesKwd: activeScenario.projectedSalesKwd,
+          projectedCostsKwd: activeScenario.projectedCostsKwd,
+          projectedNetCashKwd: activeScenario.projectedNetCashKwd,
+          netMarginPct: activeScenario.netMarginPct,
+          paybackLabel: isAr ? activeScenario.paybackLabelAr : activeScenario.paybackLabelEn,
+          fallbackPlainText: deterministicBaseline.fullPlainText,
         }),
       })
 
       if (res.ok) {
-        const data = (await res.json()) as { ok?: boolean; text?: string }
-        if (data.ok && data.text?.trim()) {
-          setAiForecastText(data.text.trim())
-          setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
-        } else {
-          setAiForecastText(fallbackSynthesis)
-          setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
+        const data = (await res.json()) as {
+          ok?: boolean
+          text?: string
+          engineLabelAr?: string
+          engineLabelEn?: string
         }
+        const cleaned = stripStrategicMarkdown(data.text ?? '')
+        const localized = isAr ? localizeArabicPlanningCopy(cleaned) : cleaned
+        setAiForecastText(localized || deterministicBaseline.fullPlainText)
+        setAiForecastModel(
+          isAr
+            ? data.engineLabelAr || 'قراءة استراتيجية محدثة • أودو 17'
+            : data.engineLabelEn || 'Strategic Synthesis • Odoo 17',
+        )
       } else {
-        setAiForecastText(fallbackSynthesis)
-        setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
+        setAiForecastText(deterministicBaseline.fullPlainText)
+        setAiForecastModel(
+          isAr ? 'قراءة استراتيجية معتمدة • أودو 17' : 'Verified Strategic Readout • Odoo 17',
+        )
       }
     } catch {
-      setAiForecastText(fallbackSynthesis)
-      setAiForecastModel(isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic')
+      setAiForecastText(deterministicBaseline.fullPlainText)
+      setAiForecastModel(
+        isAr ? 'قراءة استراتيجية معتمدة • أودو 17' : 'Verified Strategic Readout • Odoo 17',
+      )
     } finally {
       setAiForecastUpdatedAt(
         new Date().toLocaleTimeString('en-GB', {
@@ -305,7 +335,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
       )
       setAiForecastLoading(false)
     }
-  }, [activeScenario, isAr, snap, workspace.subtitleAr, workspace.subtitleEn])
+  }, [activeScenario, cleanSubtitleAr, isAr, snap, workspace.subtitleEn])
 
   const totalCostCap = useMemo(
     () => phases.reduce((s, p) => s + p.costCapKwd, 0),
@@ -327,9 +357,9 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
           <span className="ae-icon-badge shrink-0">
             <Compass className="h-4 w-4" />
           </span>
-          <p className="min-w-0 text-[13px] sm:text-[13.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
+          <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium leading-relaxed text-slate-600 dark:text-slate-300">
             {isAr
-              ? `${snap.horizonLabelAr} • ${workspace.subtitleAr} • بيانات أودو 17 ومواسم الكويت`
+              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • بيانات أودو 17 ومواسم الكويت`
               : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Live Odoo 17 + Kuwait seasonality`}
           </p>
           {session.active ? (
@@ -424,38 +454,62 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
         </div>
       ) : null}
 
-      {/* On-Demand Strategic AI Forecast Readout Card */}
-      {aiForecastText ? (
-        <section className={`${CARD_CLS} ae-glow-emerald space-y-3`}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-[15.5px] font-semibold text-slate-900 dark:text-white">
-                {isAr
-                  ? 'قراءة الذكاء الاستراتيجي المحدثة (أودو 17 + سوق الكويت)'
-                  : 'Updated Strategic AI Forecast Readout (Odoo 17 + Kuwait Market)'}
-              </h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-slate-400">
-              {aiForecastModel ? (
-                <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[13px] font-semibold text-emerald-800 dark:text-emerald-300">
-                  {aiForecastModel}
-                </span>
-              ) : null}
-              {aiForecastUpdatedAt ? <span className="tabular-nums">{aiForecastUpdatedAt}</span> : null}
-            </div>
+      {/* ───────────── 1B. Executive Strategic AI Reading Box (3-Card Grid, Always Complete on Load & Refresh) ───────────── */}
+      <section className={`${CARD_CLS} ae-glow-emerald space-y-3.5`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <h2 className="text-[15.5px] font-semibold text-slate-900 dark:text-white">
+              {isAr
+                ? 'قراءة الذكاء الاستراتيجي المحدثة (أودو 17 + سوق الكويت)'
+                : 'Updated Strategic AI Forecast Readout (Odoo 17 + Kuwait Market)'}
+            </h2>
           </div>
-          <div className={`${SUBCARD_CLS} whitespace-pre-line text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-200`}>
-            {aiForecastText}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+            <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[12.5px] font-semibold text-emerald-800 dark:text-emerald-300">
+              {aiForecastModel ??
+                (isAr
+                  ? 'قراءة استراتيجية معتمدة • أودو 17'
+                  : 'Verified Strategic Readout • Odoo 17')}
+            </span>
+            {aiForecastUpdatedAt ? (
+              <span className="tabular-nums">{aiForecastUpdatedAt}</span>
+            ) : null}
           </div>
-        </section>
-      ) : null}
+        </div>
 
-      {/* ───────────── 2. 4 Live Baseline & Kuwait Pulse KPI Cards (`2x2` Mobile Grid) ───────────── */}
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+          {briefing.sections.map((section) => (
+            <article
+              key={section.id}
+              className={`${SUBCARD_CLS} flex flex-col justify-between gap-2.5`}
+            >
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h3 className="text-[14px] font-semibold leading-snug text-slate-900 dark:text-white">
+                    {isAr ? section.titleAr : section.titleEn}
+                  </h3>
+                  <span
+                    dir="ltr"
+                    className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  >
+                    {isAr ? section.metricBadgeAr : section.metricBadgeEn}
+                  </span>
+                </div>
+                <p className="whitespace-normal text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200">
+                  {isAr ? section.bodyAr : section.bodyEn}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ───────────── 2. 4 Normalized Monthly Baseline & Kuwait Pulse KPI Cards (Zero Subtitle Clipping) ───────────── */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
           <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'خط الأساس الشهري (أودو 17)' : 'Monthly Odoo 17 Baseline'}
+            {isAr ? 'خط الأساس الشهري المعتمد — 30 يوم' : 'Normalized Monthly Baseline — 30d'}
           </div>
           <div
             dir="ltr"
@@ -465,10 +519,10 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             {f0(snap.monthlyBaselineSalesKwd)}{' '}
             <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
           </div>
-          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
-              ? `الصافي الشهري الحالي: ${f0(snap.monthlyBaselineNetKwd)} د.ك`
-              : `Current monthly net cash: ${f0(snap.monthlyBaselineNetKwd)} KWD`}
+              ? `متوسط اليوم: ${f0(snap.dailyAverageSalesKwd)} د.ك • الأساس الشهري: ${f0(snap.monthlyBaselineSalesKwd)} د.ك • الصافي: ${f0(snap.monthlyBaselineNetKwd)} د.ك${snap.isTodayPeriodActive ? ` • مبيعات اليوم: ${f0(snap.activePeriodSalesKwd)} د.ك` : ''}`
+              : `Daily avg: ${f0(snap.dailyAverageSalesKwd)} KWD • 30d baseline: ${f0(snap.monthlyBaselineSalesKwd)} KWD • Net: ${f0(snap.monthlyBaselineNetKwd)} KWD${snap.isTodayPeriodActive ? ` • Today POS: ${f0(snap.activePeriodSalesKwd)} KWD` : ''}`}
           </p>
         </article>
 
@@ -486,7 +540,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
               + {f1(snap.deliveryFeePct)}%
             </span>
           </div>
-          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
               ? `حصة الصالة والمباشر (0% عمولة): ${f1(snap.directChannelSharePct)}%`
               : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}%`}
@@ -504,7 +558,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
           >
             +{f1(snap.paydayLiftPct)}%
           </div>
-          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr ? 'قفزة 20–28 الشهر + ذروة الشتاء والكشتات' : '20th–28th salary surge + winter peak'}
           </p>
         </article>
@@ -523,7 +577,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
               {kwd}/{isAr ? 'شهر' : 'mo'}
             </span>
           </div>
-          <p className="mt-1.5 text-[12px] sm:text-[13.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
               ? `سقف تكلفة المراحل الـ ${phases.length}: ${f0(totalCostCap)} د.ك`
               : `Total cost cap across ${phases.length} phases: ${f0(totalCostCap)} KWD`}
@@ -780,7 +834,7 @@ Provide 3 concise CFO strategic bullets combining Odoo telemetry and Kuwait seas
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
               <div className="sm:col-span-2">
                 <label className="mb-1.5 block text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? 'المؤشر المستهدف (Target KPI)' : 'Target KPI'}
+                  {isAr ? 'المؤشر التشغيلي المستهدف' : 'Target KPI'}
                 </label>
                 <input
                   type="text"

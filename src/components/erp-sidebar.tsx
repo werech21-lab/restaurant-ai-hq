@@ -595,7 +595,7 @@ export function Sidebar({
                 {user.email ? (
                   <p
                     dir="ltr"
-                    className="ae-side-muted truncate font-mono text-xs leading-snug"
+                    className="ae-side-muted break-all whitespace-normal font-mono text-xs leading-snug"
                   >
                     {user.email}
                   </p>

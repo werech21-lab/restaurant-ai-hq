@@ -3499,7 +3499,9 @@ const s25DiagCliPath = path.join(ROOT, 'scripts/test-odoo-connection.mjs')
 const s25DiagCliSrc = fs.existsSync(s25DiagCliPath)
   ? fs.readFileSync(s25DiagCliPath, 'utf8')
   : ''
-const s25EnvExampleSrc = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8')
+const s25EnvExampleSrc = fs
+  .readFileSync(path.join(ROOT, '.env.example'), 'utf8')
+  .replace(/\r\n/g, '\n')
 const s25VercelJson = JSON.parse(
   fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'),
 )
@@ -4408,6 +4410,190 @@ assert(
     s30TinyFontOffenders.length === 0,
   '30.2 Phase 2 & 3 Single Language Toggle, Unified 2026-11-13 End Date, 3-Control <sm Header, Feryal Today Summary & +1 Font Scale: Single Account & Menu language row, single clean status bar, unified 2026-11-13 across header/API/chart, 3-control mobile header + pb-28 sm:pb-12, Feryal summary/alerts & 0 tiny 10px/11px classes',
   `tinyFontOffenders=${s30TinyFontOffenders.length}, periodTo=${s30Probe.periodTo}, lastDaily=${s30Probe.lastDailySeriesDate}`,
+)
+
+// 31. /erp/planning Strategic AI Completeness Guard, 30d/90d/6m/12m Forecast Math, Arabic Acronym Localization & Unclipped Subtitles
+console.log(
+  '\n31) /erp/planning Strategic AI Briefing Guard, Normalized 30d/90d/6m/12m Math, Arabic Localization & Unclipped Subtitles:',
+)
+const s31PlanningUiSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/StrategicPlanningStudio.tsx'),
+  'utf8',
+)
+const s31ForecastRouteSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/api/erp/planning/forecast/route.ts'),
+  'utf8',
+)
+const s31TopFilterSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/TopFilterBar.tsx'),
+  'utf8',
+)
+const s31SidebarSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp-sidebar.tsx'),
+  'utf8',
+)
+
+const s31PlanningProbeScript = `
+import { computeGlobalWorkspace, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import {
+  buildPlanCircularText,
+  computePlanningHubSnapshot,
+  localizeArabicPlanningCopy,
+  resolveStrategicBriefing,
+  SEEDED_STRATEGIC_PHASES,
+  stripStrategicMarkdown,
+} from './src/lib/aether/planning-engine';
+
+const wsMonth = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS);
+const wsToday = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' });
+
+// Simulate partial morning POS liveSummary on 'today' (178.4 KWD) to verify Monthly Baseline never shrinks to 5,352 KWD
+const mockMorningLiveSummary: any = {
+  ok: true,
+  buckets: {
+    today: {
+      days: 1,
+      totals: { restaurantNetKwd: 178.4, restaurantOrders: 36 },
+    },
+  },
+};
+const wsTodayMorning = computeGlobalWorkspace(
+  { ...DEFAULT_GLOBAL_FILTERS, period: 'today' },
+  mockMorningLiveSummary,
+  '/erp/planning',
+);
+
+const snap30 = computePlanningHubSnapshot(wsMonth, SEEDED_STRATEGIC_PHASES, '30d', '2026-11-15', '2027-02-15');
+const snap90 = computePlanningHubSnapshot(wsMonth, SEEDED_STRATEGIC_PHASES, '90d', '2026-11-15', '2027-02-15');
+const snap6m = computePlanningHubSnapshot(wsMonth, SEEDED_STRATEGIC_PHASES, '6m', '2026-11-15', '2027-02-15');
+const snap12m = computePlanningHubSnapshot(wsMonth, SEEDED_STRATEGIC_PHASES, '12m', '2026-11-15', '2027-02-15');
+const snapToday90 = computePlanningHubSnapshot(
+  wsTodayMorning,
+  SEEDED_STRATEGIC_PHASES,
+  '90d',
+  '2026-11-15',
+  '2027-02-15',
+  mockMorningLiveSummary,
+);
+const snapSalmiya90 = computePlanningHubSnapshot(
+  computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today', branch: 'salmiya' }),
+  SEEDED_STRATEGIC_PHASES,
+  '90d',
+  '2026-11-15',
+  '2027-02-15',
+);
+
+// 1. Truncated '## ملخ' guard test
+const truncatedRes = resolveStrategicBriefing(
+  '## ملخ',
+  snap90,
+  snap90.scenarios[1],
+  wsMonth.subtitleAr,
+  wsMonth.subtitleEn,
+  true,
+);
+
+// 2. Markdown + raw acronym sanitization test on full AI text
+const dirtyAiSample = [
+  '## **1. تشخيص خط الأساس والهامش الحالي**: يرتكز خط الأساس الشهري المعتمد على 129,212 د.ك مبيعات وصافي 18,994 د.ك مع خفض حصة طلبات TgO المرتفعة العمولة.',
+  '### **2. أثر موسم الشتاء والرواتب في الكويت**: تدعم رواتب 20–28 الشهر مبيعات الأمسيات الشتوية مع توسع مدروس عبر بوثات EXB المتنقلة ذات الإيجار المنضبط.',
+  '**3. خطة التنفيذ الموصى بها وأولويات الفروع**: تحويل النطاق القريب فوراً إلى أسطول TMP المباشر بنسبة 15% وتثبيت هدر مطبخ العارضية عند 1.8% فقط.',
+].join('\\n\\n');
+const cleanedAiRes = resolveStrategicBriefing(
+  dirtyAiSample,
+  snap90,
+  snap90.scenarios[1],
+  wsMonth.subtitleAr,
+  wsMonth.subtitleEn,
+  true,
+);
+
+// 3. Collect all Arabic strings emitted by planning-engine
+const arabicCorpus: string[] = [
+  ...SEEDED_STRATEGIC_PHASES.flatMap((p) => [p.titleAr, p.ownerAr, p.targetKpiAr, p.odooWatchMetricAr]),
+  ...snap90.scenarios.flatMap((s) => [s.badgeAr, s.subtitleAr, s.paybackLabelAr, ...s.assumptionsAr]),
+  ...snap90.signals.flatMap((g) => [g.titleAr, g.impactBadgeAr, g.detailAr]),
+  ...SEEDED_STRATEGIC_PHASES.map((p) => buildPlanCircularText(p, snap90.scenarios[1], true)),
+  truncatedRes.fullPlainText,
+  cleanedAiRes.fullPlainText,
+  localizeArabicPlanningCopy(wsToday.subtitleAr),
+];
+
+const rawAcronymRegex = /\\b(?:TgO|Tgo|TMP|EXB)\\b/i;
+const acronymLeaks = arabicCorpus.filter((line) => rawAcronymRegex.test(line));
+const rawMarkdownLeaks = [truncatedRes.fullPlainText, cleanedAiRes.fullPlainText].filter((txt) =>
+  /#{1,6}|\\*\\*/.test(txt),
+);
+
+const r30 = snap30.scenarios[1];
+const r90 = snap90.scenarios[1];
+const r6m = snap6m.scenarios[1];
+const r12m = snap12m.scenarios[1];
+
+console.log(JSON.stringify({
+  baseSales: snap90.monthlyBaselineSalesKwd,
+  baseNet: snap90.monthlyBaselineNetKwd,
+  dailyAvg: snap90.dailyAverageSalesKwd,
+  todayBaseSales: snapToday90.monthlyBaselineSalesKwd,
+  todayBaseNet: snapToday90.monthlyBaselineNetKwd,
+  todayDailyAvg: snapToday90.dailyAverageSalesKwd,
+  todayRealistic90Sales: snapToday90.scenarios[1].projectedSalesKwd,
+  monthRealistic90Sales: r90.projectedSalesKwd,
+  salmiyaBaseSalesPositive: snapSalmiya90.monthlyBaselineSalesKwd > 8000 && snapSalmiya90.monthlyBaselineSalesKwd < 129212,
+  salesScaleExact:
+    r90.projectedSalesKwd === r30.projectedSalesKwd * 3 &&
+    r6m.projectedSalesKwd === r30.projectedSalesKwd * 6 &&
+    r12m.projectedSalesKwd === r30.projectedSalesKwd * 12,
+  truncatedUsedFallback: truncatedRes.usedFallback,
+  truncatedLen: truncatedRes.fullPlainText.length,
+  truncatedSectionCount: truncatedRes.sections.length,
+  cleanedUsedFallback: cleanedAiRes.usedFallback,
+  cleanedSectionCount: cleanedAiRes.sections.length,
+  acronymLeakCount: acronymLeaks.length,
+  rawMarkdownLeakCount: rawMarkdownLeaks.length,
+  stripCheck: stripStrategicMarkdown('## ملخ'),
+}));
+`
+
+const s31Raw = execFileSync(process.execPath, [tsxCli, '-e', s31PlanningProbeScript], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+const s31Probe = JSON.parse(s31Raw.split('\n').pop() ?? '{}')
+
+const s31ArabicUiLiterals = (s31PlanningUiSrc.match(/'[^']*[\u0600-\u06FF][^']*'|`[^`]*[\u0600-\u06FF][^`]*`/g) ?? [])
+const s31UiAcronymLeaks = s31ArabicUiLiterals.filter((lit) => /\b(?:TgO|Tgo|TMP|EXB)\b/i.test(lit))
+const s31KpiSubtitleMatches =
+  (s31PlanningUiSrc.match(/whitespace-normal leading-relaxed text-xs/g) ?? []).length
+
+assert(
+  !s31PlanningUiSrc.includes('##') &&
+    s31ForecastRouteSrc.includes('MAX_FORECAST_OUTPUT_TOKENS = 2048') &&
+    s31ForecastRouteSrc.includes('thinkingBudget: 0') &&
+    s31Probe.truncatedUsedFallback === true &&
+    s31Probe.truncatedLen >= 180 &&
+    s31Probe.truncatedSectionCount === 3 &&
+    s31Probe.cleanedUsedFallback === false &&
+    s31Probe.cleanedSectionCount === 3 &&
+    s31Probe.rawMarkdownLeakCount === 0 &&
+    s31Probe.acronymLeakCount === 0 &&
+    s31UiAcronymLeaks.length === 0 &&
+    s31Probe.baseSales === 129212 &&
+    s31Probe.baseNet === 18994 &&
+    s31Probe.dailyAvg === 4307 &&
+    s31Probe.todayBaseSales === 129212 &&
+    s31Probe.todayBaseNet === 18994 &&
+    s31Probe.todayDailyAvg === 4307 &&
+    s31Probe.todayRealistic90Sales === s31Probe.monthRealistic90Sales &&
+    s31Probe.salmiyaBaseSalesPositive === true &&
+    s31Probe.salesScaleExact === true &&
+    s31KpiSubtitleMatches >= 4 &&
+    !s31PlanningUiSrc.includes('truncate') &&
+    !s31TopFilterSrc.includes('max-w-[165px] truncate') &&
+    !s31TopFilterSrc.includes('mt-0.5 truncate font-mono') &&
+    !s31SidebarSrc.includes('ae-side-muted truncate font-mono'),
+  '31.1 /erp/planning Complete Executive Briefing (>=180 chars, 0 raw ##, maxOutputTokens=2048, thinkingBudget=0), 129,212 KWD Normalized Monthly Baseline & 1x/3x/6x/12x Horizon Scaling (Today-Filter Invariant), 0 Arabic TgO/TMP/EXB Leaks & 0 Clipped KPI/Header Subtitles',
+  `baseSales=${s31Probe.baseSales}, todayBaseSales=${s31Probe.todayBaseSales}, r90Sales=${s31Probe.monthRealistic90Sales}, acronymLeaks=${s31Probe.acronymLeakCount}, kpiSubtitles=${s31KpiSubtitleMatches}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

@@ -200,6 +200,7 @@ interface GeminiProxyPostBody {
   mediaParts?: GeminiMediaPartInput[]
   jsonMode?: boolean
   maxOutputTokens?: number
+  disableThinking?: boolean
   customApiKey?: string
 }
 
@@ -248,9 +249,10 @@ export async function POST(req: NextRequest) {
   const systemPrompt = (body.systemPrompt ?? '').trim().slice(0, 48000)
   const maxOutputTokens =
     typeof body.maxOutputTokens === 'number' && body.maxOutputTokens > 0
-      ? Math.min(8192, Math.floor(body.maxOutputTokens))
+      ? Math.max(2048, Math.min(8192, Math.floor(body.maxOutputTokens)))
       : 8192
   const jsonMode = Boolean(body.jsonMode)
+  const disableThinking = Boolean(body.disableThinking)
 
   const catalog = await discoverFlagshipGeminiCatalog(apiKey, false)
   const readyModels = catalog.chain.filter((m) => !isCoolingDown(m))
@@ -306,6 +308,25 @@ export async function POST(req: NextRequest) {
       thinkingMode: string
       payload: Record<string, unknown>
     }> = [
+      ...(disableThinking
+        ? [
+            {
+              thinkingMode: 'NONE',
+              payload: {
+                ...(!isGemma && systemPrompt
+                  ? { systemInstruction: { parts: [{ text: systemPrompt }] } }
+                  : {}),
+                contents: [{ role: 'user', parts: buildParts(isGemma, false) }],
+                generationConfig: {
+                  temperature: 0.25,
+                  maxOutputTokens,
+                  ...(jsonMode ? { responseMimeType: 'application/json' } : {}),
+                  thinkingConfig: { thinkingBudget: 0 },
+                },
+              },
+            },
+          ]
+        : []),
       {
         thinkingMode: 'HIGH',
         payload: {
