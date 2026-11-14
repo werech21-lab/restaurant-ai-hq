@@ -179,6 +179,22 @@ export async function middleware(request: NextRequest) {
     if (execSession) {
       const method = request.method.toUpperCase()
       if (
+        (path === '/api/erp/terminal-mappings' ||
+          path.startsWith('/api/erp/terminal-mappings/')) &&
+        execSession.role !== 'admin'
+      ) {
+        return withSecurityHeaders(
+          NextResponse.json(
+            {
+              ok: false,
+              error: 'forbidden_admin_only',
+              errorAr: 'هذه الصلاحية محصورة بمسؤول النظام فقط.',
+            },
+            { status: 403 },
+          ),
+        )
+      }
+      if (
         execSession.role === 'auditor' &&
         (isAuditorBlockedReadOrExportPath(path) ||
           (MUTATION_METHODS.has(method) && isAuditorRestrictedMutationPath(path)))

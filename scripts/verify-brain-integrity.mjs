@@ -1872,6 +1872,8 @@ const ALL_PROTECTED_PW_HASHES = new Set([
   '218deb04287696d7cfc35ba2a0c8863ea54e678dc562d8c5e4cc04731529ecd3', // admin@ (System Admin alias)
   '0778d6bf621ae9947a3cf0961371e5df3ebdb437545f45611a13c5afe0fa1080', // gm@ (General Manager)
   '7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2', // dgm@ (Deputy GM)
+  '886a00b530e565a3f2544f8103d4fdead97154ffd2e36995340738ae6ff4b8ef', // operations@ (Operations Manager)
+  'e7b409f0ff6fd09281f16366113ce65f540b42236be3a7cb6889e053b545de53', // cfo@ / finance@ (Finance Manager CFO)
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba', // auditor@ (Read-Only Auditor)
 ])
 const quotedLiteralRe = /['"`]([^'"`\r\n]{4,128})['"`]/g
@@ -4865,6 +4867,216 @@ assert(
     s32FeryalSidebarSrc.includes('activeTab'),
   '32.2 Most Resilient Negative Badge, Complete Bilingual Campaign Titles (0 Campaign: — / in — in), Exact Oct 16 – Nov 14 Chart Bounds + 100% (Peak) Capsule, Recoverable Profit Opportunities + Auditor Sync Guard, Unclipped w-[272px] Sidebar, <250ms Comparison Overlay & Active Feryal Today Notes Tab (0 Clipped Alerts)',
   `firstChartDay=${s32Probe.firstChartDay}, lastChartDay=${s32Probe.lastChartDay}, overlayMs=${s32Probe.overlayMs}ms, badCampaigns=${s32Probe.badCampaignCount}`,
+)
+
+// ============================================================================
+// SECTION 33: Operations Manager (`ops`) & CFO (`cfo`) RBAC + Admin POS Terminal Discovery Gate
+// ============================================================================
+console.log('\n33) Operations Manager (ops) & CFO (cfo) RBAC + Admin POS Terminal Discovery Gate:')
+
+const s33AuthBarrelPath = path.join(ROOT, 'src/lib/auth.ts')
+const s33TerminalMappingsRoutePath = path.join(ROOT, 'src/app/api/erp/terminal-mappings/route.ts')
+const s33AdminPanelPath = path.join(ROOT, 'src/components/erp/AdminPosTerminalMappingPanel.tsx')
+const s33AdminPanelSrc = fs.existsSync(s33AdminPanelPath)
+  ? fs.readFileSync(s33AdminPanelPath, 'utf8')
+  : ''
+
+const s33ProbeScript = `
+import { NextRequest } from 'next/server';
+import {
+  authenticateExecutiveCredentials,
+  createExecSessionToken,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  DEFAULT_CFO_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_FINANCE_ALIAS_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_OPS_EMAIL,
+  EXEC_SESSION_COOKIE,
+  resolveExecRoleProfile,
+} from './src/lib/auth';
+import { POST as loginPost } from './src/app/api/auth/login/route';
+import { POST as odooSyncPost } from './src/app/api/erp/odoo-sync/route';
+import {
+  DELETE as tmDelete,
+  GET as tmGet,
+  POST as tmPost,
+  PUT as tmPut,
+} from './src/app/api/erp/terminal-mappings/route';
+import { resetAdminPosTerminalMappingsForTests } from './src/lib/odoo-terminal-mappings';
+import { bustOdooLiveCache } from './src/lib/odoo-live-connector';
+
+(async () => {
+  const pwOps = String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54);
+  const pwCfo = String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54);
+
+  const opsAuth = await authenticateExecutiveCredentials(DEFAULT_OPS_EMAIL, pwOps);
+  const cfoAuth = await authenticateExecutiveCredentials(DEFAULT_CFO_EMAIL, pwCfo);
+  const finAuth = await authenticateExecutiveCredentials(DEFAULT_FINANCE_ALIAS_EMAIL, pwCfo);
+
+  const opsLogin = await loginPost(
+    new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.33.0.1' },
+      body: JSON.stringify({ email: DEFAULT_OPS_EMAIL, password: pwOps }),
+    }),
+  );
+  const cfoLogin = await loginPost(
+    new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.33.0.2' },
+      body: JSON.stringify({ email: DEFAULT_CFO_EMAIL, password: pwCfo }),
+    }),
+  );
+  const opsProfile = resolveExecRoleProfile('ops');
+  const cfoProfile = resolveExecRoleProfile('cfo');
+
+  const tokAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tokGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tokDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tokOps = await createExecSessionToken(DEFAULT_OPS_EMAIL, 'ops');
+  const tokCfo = await createExecSessionToken(DEFAULT_CFO_EMAIL, 'cfo');
+  const tokAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  // Auditor strict 403 on sync & terminal mappings
+  const audSyncRes = await odooSyncPost(
+    new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+
+  resetAdminPosTerminalMappingsForTests();
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+
+  // Non-admin 403 on /api/erp/terminal-mappings
+  const blockedStatuses = [];
+  for (const tok of [tokGm, tokDgm, tokOps, tokCfo, tokAud]) {
+    const rPost = await tmPost(
+      new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+        method: 'POST',
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok, 'content-type': 'application/json' },
+        body: JSON.stringify({ terminal_id: 26, branch_id: 'salmiya' }),
+      }),
+    );
+    const rPut = await tmPut(
+      new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+        method: 'PUT',
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok, 'content-type': 'application/json' },
+        body: JSON.stringify({ terminal_id: 26, branch_id: 'salmiya' }),
+      }),
+    );
+    blockedStatuses.push(rPost.status, rPut.status);
+  }
+
+  // Admin auto-discovery & 1-click Save reallocation invariant
+  const g0 = await (
+    await tmGet(
+      new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin },
+      }),
+    )
+  ).json();
+  const term = g0.unmappedTerminals?.[0];
+  const g1 = await (
+    await tmPost(
+      new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+        method: 'POST',
+        headers: {
+          cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ terminal_id: term.terminal_id, branch_id: 'salmiya' }),
+      }),
+    )
+  ).json();
+
+  const sumAfter =
+    Math.round(
+      ((g1.branches ?? []).reduce((s, b) => s + b.netSalesKwd, 0) +
+        (g1.companyTotals?.unmappedTerminalsNetKwd ?? 0)) *
+        1000,
+    ) / 1000;
+
+  await tmDelete(
+    new NextRequest('https://aetherbi.com/api/erp/terminal-mappings?terminal_id=' + term.terminal_id, {
+      method: 'DELETE',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin },
+    }),
+  );
+  resetAdminPosTerminalMappingsForTests();
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+
+  console.log(
+    JSON.stringify({
+      opsOk:
+        opsAuth.valid &&
+        opsAuth.role === 'ops' &&
+        opsLogin.status === 200 &&
+        opsProfile.titleEn === 'Operations Manager' &&
+        opsProfile.titleAr === 'مدير العمليات',
+      cfoOk:
+        cfoAuth.valid &&
+        cfoAuth.role === 'cfo' &&
+        finAuth.valid &&
+        finAuth.role === 'cfo' &&
+        cfoLogin.status === 200 &&
+        cfoProfile.titleEn === 'Finance Manager (CFO)' &&
+        cfoProfile.titleAr === 'المدير المالي',
+      audBlocked: audSyncRes.status === 403,
+      nonAdminAll403: blockedStatuses.every((s) => s === 403),
+      branchesCount: g0.branchOptions?.length ?? 0,
+      unmappedFound: (g0.unmappedTerminals?.length ?? 0) >= 1,
+      sumInvariantOk:
+        sumAfter === g0.companyTotals?.netSalesKwd &&
+        g1.companyTotals?.reconciledExact === true,
+    }),
+  );
+})();
+`
+
+const s33Raw = execFileSync(
+  process.execPath,
+  [tsxCli, '-r', serverOnlyShimPath, '-e', s33ProbeScript],
+  { cwd: ROOT, encoding: 'utf8' },
+).trim()
+const s33Probe = JSON.parse(s33Raw.split('\n').pop() ?? '{}')
+
+// Also scan .next/static if present for zero plaintext credential/digest leaks
+let s33StaticLeaks = 0
+const s33NextStaticDir = path.join(ROOT, '.next', 'static')
+if (fs.existsSync(s33NextStaticDir)) {
+  const s33StaticFiles = walkSrcFiles(s33NextStaticDir)
+  const s33Forbidden = [
+    String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54),
+    String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54),
+    'vf-aether-exec-2026-v1:',
+  ]
+  for (const sf of s33StaticFiles) {
+    const content = fs.readFileSync(sf, 'utf8')
+    for (const marker of s33Forbidden) {
+      if (content.includes(marker)) s33StaticLeaks += 1
+    }
+  }
+}
+
+assert(
+  fs.existsSync(s33AuthBarrelPath) &&
+    fs.existsSync(s33TerminalMappingsRoutePath) &&
+    fs.existsSync(s33AdminPanelPath) &&
+    s33AdminPanelSrc.includes("effectiveRole !== 'admin'") &&
+    s33AdminPanelSrc.includes('غير مصنّف — أجهزة غير مربوطة') &&
+    s33Probe.opsOk === true &&
+    s33Probe.cfoOk === true &&
+    s33Probe.audBlocked === true &&
+    s33Probe.nonAdminAll403 === true &&
+    s33Probe.branchesCount === 7 &&
+    s33Probe.unmappedFound === true &&
+    s33Probe.sumInvariantOk === true &&
+    s33StaticLeaks === 0,
+  '33.1 Operations Manager (ops) & CFO (cfo + finance@ alias) Executive RBAC, Auditor 403 Lockdown, Admin-Only Auto-Discovered Odoo 17 POS Terminal Mapping (sum(branches) + unmapped === companyTotals.netSalesKwd) & 0 Client Bundle Leaks',
+  `opsOk=${s33Probe.opsOk}, cfoOk=${s33Probe.cfoOk}, nonAdmin403=${s33Probe.nonAdminAll403}, sumInvariant=${s33Probe.sumInvariantOk}, staticLeaks=${s33StaticLeaks}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

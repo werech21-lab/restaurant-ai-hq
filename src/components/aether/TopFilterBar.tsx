@@ -782,9 +782,17 @@ export function TopFilterBar({
         ? isAr
           ? 'ن.م'
           : 'DG'
-        : isAr
-          ? 'ع.ع'
-          : 'AA'
+        : topRoleProfile.role === 'ops'
+          ? isAr
+            ? 'م.عم'
+            : 'OP'
+          : topRoleProfile.role === 'cfo'
+            ? isAr
+              ? 'م.م'
+              : 'CF'
+            : isAr
+              ? 'ع.ع'
+              : 'AA'
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -1516,8 +1524,18 @@ export function TopFilterBar({
                 </span>
 
                 <span className="hidden xl:block leading-tight">
-                  <span className="block whitespace-nowrap text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
-                    {isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                    <span>{isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}</span>
+                    <span
+                      data-role-badge={topRoleProfile.role}
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                        auditorMode
+                          ? 'bg-amber-100/90 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200'
+                          : 'bg-emerald-100/90 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200'
+                      }`}
+                    >
+                      {isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn}
+                    </span>
                   </span>
                   <span
                     dir={userEmail ? 'ltr' : undefined}

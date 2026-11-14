@@ -23,6 +23,7 @@ import {
   type ProfitLens,
 } from '@/lib/aether/global-filter-engine'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
 
 const STORAGE_KEY = 'aether.globalFilters.v2'
 const SILENT_POLL_INTERVAL_MS = 180_000 // 3 minutes silent live Odoo 17 polling
@@ -32,6 +33,7 @@ interface GlobalFilterContextValue {
   workspace: GlobalWorkspaceSlice
   liveSummary: OdooLiveSummary | null
   isAuditor: boolean
+  sessionRole: ExecSessionRole
   syncingOdoo: boolean
   syncCooldownSec: number
   triggerOdooSyncNow: () => Promise<void>
@@ -101,9 +103,11 @@ function sanitizeFilters(
 export function GlobalFilterProvider({
   children,
   isAuditor = false,
+  sessionRole = 'admin',
 }: {
   children: React.ReactNode
   isAuditor?: boolean
+  sessionRole?: ExecSessionRole
 }) {
   const pathname = usePathname() ?? ''
   const isSubpage = Boolean(pathname && pathname !== '/erp')
@@ -454,12 +458,15 @@ export function GlobalFilterProvider({
     [effectiveFilters, workspace],
   )
 
+  const resolvedSessionRole: ExecSessionRole = isAuditor ? 'auditor' : sessionRole
+
   const value = useMemo<GlobalFilterContextValue>(
     () => ({
       filters: effectiveFilters,
       workspace,
       liveSummary: effectiveLiveSummary,
       isAuditor,
+      sessionRole: resolvedSessionRole,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,
@@ -478,6 +485,7 @@ export function GlobalFilterProvider({
       workspace,
       effectiveLiveSummary,
       isAuditor,
+      resolvedSessionRole,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,
@@ -505,6 +513,7 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       workspace: fallbackWorkspace,
       liveSummary: null,
       isAuditor: false,
+      sessionRole: 'admin',
       syncingOdoo: false,
       syncCooldownSec: 0,
       triggerOdooSyncNow: async () => {},

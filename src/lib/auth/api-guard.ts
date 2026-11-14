@@ -233,3 +233,30 @@ export async function requireExecApiSession(
 
   return { ok: true, session: resolvedSession }
 }
+
+/**
+ * Strictly requires `role === 'admin'` (`401` if unauthenticated, `403` for `gm`, `dgm`, `ops`, `cfo`, `auditor`).
+ */
+export async function requireAdminOnlyApiSession(
+  request: NextRequest,
+): Promise<ExecApiGuardSuccess | ExecApiGuardFailure> {
+  const guard = await requireExecApiSession(request, { allowAuditor: true })
+  if (!guard.ok) return guard
+
+  if (guard.session.role !== 'admin') {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        {
+          ok: false,
+          error: 'forbidden_admin_only',
+          message: 'System Administrator privileges are required for POS terminal mapping.',
+          errorAr: 'هذه الصلاحية محصورة بمسؤول النظام فقط.',
+        },
+        { status: 403, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      ),
+    }
+  }
+
+  return guard
+}

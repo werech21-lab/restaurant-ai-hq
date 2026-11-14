@@ -30,6 +30,13 @@ import {
   type OdooReceivableClearingSummary,
   type OdooStockTransferSummary,
 } from '@/lib/odoo/live-sync-core'
+import {
+  computeTerminalMappingLedgerSnapshot,
+  getAdminPosTerminalBranch,
+  getAdminPosTerminalMappings,
+  recordLiveDiscoveredPosLedger,
+  type ActiveVentureBranchId,
+} from '@/lib/odoo-terminal-mappings'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -654,10 +661,18 @@ export function resolveRestaurantBranchForConfig(
   cfgId: number,
   cfgName: string,
   extraContext = '',
+  options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
   const combined = `${cfgName || ''} ${extraContext || ''}`.trim()
   if (isDecommissionedWarehouseRecord(combined)) {
     return null
+  }
+
+  if (!options?.ignoreAdminOverride) {
+    const adminMapped = getAdminPosTerminalBranch(cfgId)
+    if (adminMapped) {
+      return adminMapped
+    }
   }
 
   const regEntry = REG.registers[String(cfgId)]
@@ -790,8 +805,45 @@ function buildBaselineFallbackCore(
   const companyMonthOrd = Math.round(
     rawSnap.totals?.orders ?? buckets.month.totals.orders,
   )
-  const restMonthNet = buckets.month.totals.restaurantNetKwd
-  const restMonthOrd = buckets.month.totals.restaurantOrders
+  let restMonthNet = buckets.month.totals.restaurantNetKwd
+  let restMonthOrd = buckets.month.totals.restaurantOrders
+  let unmappedMonthNet = Math.max(0, r3(companyMonthNet - restMonthNet))
+  let unmappedMonthOrd = Math.max(0, companyMonthOrd - restMonthOrd)
+
+  if (Object.keys(getAdminPosTerminalMappings()).length > 0) {
+    const ledger = computeTerminalMappingLedgerSnapshot()
+    if (ledger.mappedTerminals.length > 0 && buckets.month.byLocation) {
+      const clonedByLocation: NonNullable<OdooBucketSummary['byLocation']> = {
+        ...buckets.month.byLocation,
+      }
+      for (const item of ledger.mappedTerminals) {
+        const bId = item.assigned_branch_id
+        if (!bId) continue
+        const prev = clonedByLocation[bId] ?? { netKwd: 0, orders: 0 }
+        clonedByLocation[bId] = {
+          ...prev,
+          netKwd: r3(prev.netKwd + item.net_sales_kwd),
+          orders: prev.orders + item.orders_count,
+        }
+      }
+      restMonthNet = ledger.companyTotals.mappedBranchesNetKwd
+      restMonthOrd = ledger.companyTotals.mappedBranchesOrders
+      unmappedMonthNet = ledger.companyTotals.unmappedTerminalsNetKwd
+      unmappedMonthOrd = ledger.companyTotals.unmappedTerminalsOrders
+      buckets.month = {
+        ...buckets.month,
+        totals: {
+          ...buckets.month.totals,
+          netSalesKwd: restMonthNet,
+          orders: restMonthOrd,
+          aovKwd: restMonthOrd > 0 ? r3(restMonthNet / restMonthOrd) : 0,
+          restaurantNetKwd: restMonthNet,
+          restaurantOrders: restMonthOrd,
+        },
+        byLocation: clonedByLocation,
+      }
+    }
+  }
 
   return {
     fetchedAtMs: Date.now(),
@@ -806,8 +858,8 @@ function buildBaselineFallbackCore(
     companyTotals: {
       netSalesKwd: companyMonthNet,
       orders: companyMonthOrd,
-      unmappedTerminalsNetKwd: Math.max(0, r3(companyMonthNet - restMonthNet)),
-      unmappedTerminalsOrders: Math.max(0, companyMonthOrd - restMonthOrd),
+      unmappedTerminalsNetKwd: unmappedMonthNet,
+      unmappedTerminalsOrders: unmappedMonthOrd,
     },
     buckets,
     dailySeries: rawSnap.timeProfile?.daily ?? [],
@@ -1050,14 +1102,23 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   ])
 
   const branchOfConfigId = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
+  const nativeBranchOfConfigId = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
   const configNameById = new Map<number, string>()
+  const displayConfigNameById = new Map<number, string>()
   const decommissionedConfigIds = new Set<number>()
   for (const c of allConfigs) {
     const extraCtx = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
     configNameById.set(c.id, `${c.name} ${extraCtx}`.trim())
+    displayConfigNameById.set(c.id, String(c.name || `POS #${c.id}`).trim())
     if (isDecommissionedWarehouseRecord(`${c.name} ${extraCtx}`)) {
       decommissionedConfigIds.add(c.id)
       continue
+    }
+    const nativeBranch = resolveRestaurantBranchForConfig(c.id, c.name, extraCtx, {
+      ignoreAdminOverride: true,
+    })
+    if (nativeBranch) {
+      nativeBranchOfConfigId.set(c.id, nativeBranch)
     }
     const mappedBranch = resolveRestaurantBranchForConfig(c.id, c.name, extraCtx)
     if (mappedBranch) {
@@ -1065,6 +1126,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
   for (const cfgId of REG.allowedPosConfigIds) {
+    if (!nativeBranchOfConfigId.has(cfgId) && !decommissionedConfigIds.has(cfgId)) {
+      const nb = resolveRestaurantBranchForConfig(cfgId, configNameById.get(cfgId) ?? '', '', {
+        ignoreAdminOverride: true,
+      })
+      if (nb) nativeBranchOfConfigId.set(cfgId, nb)
+    }
     if (!branchOfConfigId.has(cfgId) && !decommissionedConfigIds.has(cfgId)) {
       const b = resolveRestaurantBranchForConfig(cfgId, configNameById.get(cfgId) ?? '')
       if (b) branchOfConfigId.set(cfgId, b)
@@ -1499,6 +1566,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   let mtdNet = 0
   let mtdOrders = 0
 
+  const rawTerminalMonthStats = new Map<number, { orders: number; net: number }>()
+  const nativeBranchMonthStats = Object.fromEntries(
+    ACTIVE_BRANCH_IDS.map((id) => [id, { netSalesKwd: 0, orders: 0 }]),
+  ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
+
   const newestOrderConverted = odooUtcToKuwaitIso(latestOrderRows?.[0]?.date_order)
 
   for (const row of ordersByDaySessionPricelistRows) {
@@ -1517,6 +1589,21 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       continue
     }
     const branch = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
+    const nativeBranch = cfgId !== undefined ? nativeBranchOfConfigId.get(cfgId) : undefined
+
+    if (dayIso >= monthFromKwIso && dayIso <= todayKwIso) {
+      if (nativeBranch) {
+        nativeBranchMonthStats[nativeBranch].netSalesKwd = r3(
+          nativeBranchMonthStats[nativeBranch].netSalesKwd + net,
+        )
+        nativeBranchMonthStats[nativeBranch].orders += ordCount
+      } else if (cfgId !== undefined) {
+        const prevT = rawTerminalMonthStats.get(cfgId) ?? { orders: 0, net: 0 }
+        prevT.orders += ordCount
+        prevT.net = r3(prevT.net + net)
+        rawTerminalMonthStats.set(cfgId, prevT)
+      }
+    }
 
     // Always accumulate ALL active company POS terminals (including Central / Multi-Branch POS) into dailyMap & MTD
     const dPrev = dailyMap.get(dayIso) ?? { orders: 0, netKwd: 0 }
@@ -1583,6 +1670,44 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       locTodayOrd.set(branch, (locTodayOrd.get(branch) ?? 0) + ordCount)
     }
   }
+
+  // Auto-discover all unmapped Odoo 17 `pos.config` terminals (both active sales & newly registered terminals)
+  const discoveredCandidateMap = new Map<
+    number,
+    { terminal_id: number; terminal_name: string; orders_count: number; net_sales_kwd: number }
+  >()
+  for (const [cfgId, stat] of rawTerminalMonthStats.entries()) {
+    discoveredCandidateMap.set(cfgId, {
+      terminal_id: cfgId,
+      terminal_name:
+        displayConfigNameById.get(cfgId) ??
+        configNameById.get(cfgId) ??
+        `POS Terminal #${cfgId}`,
+      orders_count: stat.orders,
+      net_sales_kwd: r3(stat.net),
+    })
+  }
+  for (const c of allConfigs) {
+    if (
+      !decommissionedConfigIds.has(c.id) &&
+      !nativeBranchOfConfigId.has(c.id) &&
+      !discoveredCandidateMap.has(c.id) &&
+      !/test|training|demo|closed|cancelled/i.test(c.name || '')
+    ) {
+      discoveredCandidateMap.set(c.id, {
+        terminal_id: c.id,
+        terminal_name: displayConfigNameById.get(c.id) ?? String(c.name || `POS #${c.id}`).trim(),
+        orders_count: 0,
+        net_sales_kwd: 0,
+      })
+    }
+  }
+  recordLiveDiscoveredPosLedger({
+    candidateTerminals: [...discoveredCandidateMap.values()].sort(
+      (a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id,
+    ),
+    baseBranches: nativeBranchMonthStats,
+  })
 
   for (const hRow of ordersByHourRows) {
     const rawHourFromUtc = hRow.__range?.['date_order:hour']?.from

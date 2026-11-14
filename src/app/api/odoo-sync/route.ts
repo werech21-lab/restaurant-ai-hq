@@ -106,7 +106,7 @@ export async function resolveVerifiedSyncCaller(
 
 /**
  * GET `/api/odoo-sync` & `/api/erp/odoo-sync`:
- * - `200 OK` for `admin`, `gm`, `dgm`, and `auditor`, plus valid Vercel Cron bearer token.
+ * - `200 OK` for `admin`, `gm`, `dgm`, `ops`, `cfo`, and `auditor`, plus valid Vercel Cron bearer token.
  * - Returns clean, secret-free telemetry:
  *   `{ connected, sourceMode, latestRecordAt, hoursSinceLatestRecord, isStaleOver24h, todaySalesKwd, todayOrders, syncCooldownRemainingSec, diagnosticCode }`
  */
@@ -199,7 +199,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
 
 /**
  * POST `/api/odoo-sync` & `/api/erp/odoo-sync`:
- * - Authorized ONLY for `admin`, `gm`, `dgm`, or `Authorization: Bearer ${process.env.CRON_SECRET}`.
+ * - Authorized ONLY for `admin`, `gm`, `dgm`, `ops`, `cfo`, or `Authorization: Bearer ${process.env.CRON_SECRET}`.
  * - `auditor` strictly receives `403 Forbidden`.
  * - Enforces a 30-second rate-limit cooldown (`syncCooldownRemainingSec`) so rapid clicks never overload Odoo,
  *   busts cache when ready, pulls fresh live Odoo 17 `read_group` aggregates, and returns updated totals + `latestRecordAt`.

@@ -602,18 +602,29 @@ export function Sidebar({
                 ) : null}
               </div>
             ) : (
-              <div className="flex items-center gap-2.5 py-1">
-                <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
-                  {(isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
+              <div className="ae-side-card space-y-1.5 px-3 py-2.5 text-start" data-sidebar-role={roleProfile.role}>
+                <div className="flex items-center gap-2.5">
+                  <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                    {(isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
+                      {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
+                    </p>
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-400/25">
+                      <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                      <span>{isAr ? roleProfile.titleAr : roleProfile.titleEn}</span>
+                    </span>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
-                    {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
+                {user.email ? (
+                  <p
+                    dir="ltr"
+                    className="ae-side-muted break-all whitespace-normal font-mono text-xs leading-snug"
+                  >
+                    {user.email}
                   </p>
-                  <p className="ae-side-muted break-words text-xs leading-snug">
-                    {isAr ? roleProfile.titleAr : roleProfile.titleEn}
-                  </p>
-                </div>
+                ) : null}
               </div>
             )}
             <form action={logout} className="mt-2">

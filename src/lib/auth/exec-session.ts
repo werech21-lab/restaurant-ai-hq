@@ -23,6 +23,9 @@ export const DEFAULT_ABDULLAH_EMAIL = 'abdullah@venturefoodskw.com'
 export const DEFAULT_ADMIN_EMAIL = 'admin@venturefoodskw.com'
 export const DEFAULT_GM_EMAIL = 'gm@venturefoodskw.com'
 export const DEFAULT_DGM_EMAIL = 'dgm@venturefoodskw.com'
+export const DEFAULT_OPS_EMAIL = 'operations@venturefoodskw.com'
+export const DEFAULT_CFO_EMAIL = 'cfo@venturefoodskw.com'
+export const DEFAULT_FINANCE_ALIAS_EMAIL = 'finance@venturefoodskw.com'
 export const DEFAULT_AUDITOR_EMAIL = 'auditor@venturefoodskw.com'
 
 const DEFAULT_PASSWORD_SALT = 'vf-aether-exec-2026-v1:'
@@ -35,6 +38,10 @@ const DEFAULT_GM_PASSWORD_SHA256 =
   '0778d6bf621ae9947a3cf0961371e5df3ebdb437545f45611a13c5afe0fa1080'
 const DEFAULT_DGM_PASSWORD_SHA256 =
   '7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2'
+const DEFAULT_OPS_PASSWORD_SHA256 =
+  '886a00b530e565a3f2544f8103d4fdead97154ffd2e36995340738ae6ff4b8ef'
+const DEFAULT_CFO_PASSWORD_SHA256 =
+  'e7b409f0ff6fd09281f16366113ce65f540b42236be3a7cb6889e053b545de53'
 const DEFAULT_AUDITOR_PASSWORD_SHA256 =
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba'
 
@@ -107,6 +114,24 @@ export function getExpectedDgmEmail(): string {
     .toLowerCase()
 }
 
+export function getExpectedOpsEmail(): string {
+  return (process.env.AETHER_OPS_EMAIL || DEFAULT_OPS_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedCfoEmail(): string {
+  return (process.env.AETHER_CFO_EMAIL || DEFAULT_CFO_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedFinanceAliasEmail(): string {
+  return (process.env.AETHER_FINANCE_EMAIL || DEFAULT_FINANCE_ALIAS_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
 export function getExpectedAuditorEmail(): string {
   return (process.env.AETHER_AUDITOR_EMAIL || DEFAULT_AUDITOR_EMAIL)
     .trim()
@@ -140,6 +165,24 @@ function getNamedAccountSpecs(): NamedAccountSpec[] {
       defaultPasswordSha256: DEFAULT_DGM_PASSWORD_SHA256,
     },
     {
+      role: 'ops',
+      expectedEmail: getExpectedOpsEmail(),
+      envPassword: process.env.AETHER_OPS_PASSWORD,
+      defaultPasswordSha256: DEFAULT_OPS_PASSWORD_SHA256,
+    },
+    {
+      role: 'cfo',
+      expectedEmail: getExpectedCfoEmail(),
+      envPassword: process.env.AETHER_CFO_PASSWORD,
+      defaultPasswordSha256: DEFAULT_CFO_PASSWORD_SHA256,
+    },
+    {
+      role: 'cfo',
+      expectedEmail: getExpectedFinanceAliasEmail(),
+      envPassword: process.env.AETHER_CFO_PASSWORD,
+      defaultPasswordSha256: DEFAULT_CFO_PASSWORD_SHA256,
+    },
+    {
       role: 'auditor',
       expectedEmail: getExpectedAuditorEmail(),
       envPassword: process.env.AETHER_AUDITOR_PASSWORD,
@@ -153,6 +196,10 @@ function inferRoleFromEmail(email: string): ExecSessionRole {
   if (clean === getExpectedAuditorEmail()) return 'auditor'
   if (clean === getExpectedGmEmail()) return 'gm'
   if (clean === getExpectedDgmEmail()) return 'dgm'
+  if (clean === getExpectedOpsEmail()) return 'ops'
+  if (clean === getExpectedCfoEmail() || clean === getExpectedFinanceAliasEmail()) {
+    return 'cfo'
+  }
   return 'admin'
 }
 

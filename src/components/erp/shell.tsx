@@ -106,7 +106,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
       }}
     >
       <BiFilterProvider>
-        <GlobalFilterProvider isAuditor={isAuditor}>
+        <GlobalFilterProvider isAuditor={isAuditor} sessionRole={sessionRole}>
           <GovernanceProvider isAuditor={isAuditor} sessionRole={sessionRole}>
             <div
               id="ae-root"

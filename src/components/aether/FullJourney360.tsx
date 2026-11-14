@@ -17,6 +17,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { AdminPosTerminalMappingPanel } from '@/components/erp/AdminPosTerminalMappingPanel'
 import {
   formatCompactAxisLabel,
   InteractiveDonutChart,
@@ -132,7 +133,7 @@ const f2 = (n: number) =>
 /** ملخص الشركة — Pure Single-View Executive Financial Cockpit */
 export function FullJourney360() {
   const { isAr, T } = useLang()
-  const { workspace, filters, liveSummary, isAuditor } = useGlobalFilter()
+  const { workspace, filters, liveSummary, isAuditor, sessionRole } = useGlobalFilter()
   const auditorReadOnly = isAuditor || Boolean(liveSummary?.readOnly)
 
   const [flowGroup, setFlowGroup] = useState<FlowGroup>('timeline')
@@ -1130,6 +1131,10 @@ export function FullJourney360() {
             })}
           </div>
         </div>
+
+        {sessionRole === 'admin' && !auditorReadOnly ? (
+          <AdminPosTerminalMappingPanel role={sessionRole} />
+        ) : null}
       </section>
     </div>
   )

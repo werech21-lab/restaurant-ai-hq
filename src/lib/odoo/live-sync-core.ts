@@ -99,6 +99,12 @@ export interface OdooLiveSummary {
     unmappedTerminalsNetKwd: number
     unmappedTerminalsOrders: number
   }
+  unmappedTerminals?: {
+    terminal_id: number
+    terminal_name: string
+    orders_count: number
+    net_sales_kwd: number
+  }[]
   brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]

@@ -1,6 +1,6 @@
-export type ExecSessionRole = 'admin' | 'gm' | 'dgm' | 'auditor'
+export type ExecSessionRole = 'admin' | 'gm' | 'dgm' | 'ops' | 'cfo' | 'auditor'
 
-export type ExecApproverRole = 'admin' | 'gm' | 'dgm'
+export type ExecApproverRole = 'admin' | 'gm' | 'dgm' | 'ops' | 'cfo'
 
 export interface ExecRoleProfile {
   role: ExecSessionRole
@@ -64,6 +64,36 @@ export const EXEC_ROLE_PROFILES: Record<ExecSessionRole, ExecRoleProfile> = {
     canApprove: true,
     isAuditor: false,
   },
+  ops: {
+    role: 'ops',
+    nameAr: 'مدير العمليات',
+    nameEn: 'Operations Manager',
+    titleAr: 'مدير العمليات',
+    titleEn: 'Operations Manager',
+    accountLabelAr: 'مدير العمليات',
+    accountLabelEn: 'Operations Manager',
+    approverRoleAr: 'مدير العمليات',
+    approverRoleEn: 'Operations Manager',
+    sealAuthorityAr: 'مدير العمليات (ختم رقمي موثق)',
+    sealAuthorityEn: 'Operations Manager (Verified Digital Seal)',
+    canApprove: true,
+    isAuditor: false,
+  },
+  cfo: {
+    role: 'cfo',
+    nameAr: 'المدير المالي',
+    nameEn: 'Finance Manager (CFO)',
+    titleAr: 'المدير المالي',
+    titleEn: 'Finance Manager (CFO)',
+    accountLabelAr: 'المدير المالي',
+    accountLabelEn: 'Finance Manager (CFO)',
+    approverRoleAr: 'المدير المالي',
+    approverRoleEn: 'Finance Manager (CFO)',
+    sealAuthorityAr: 'المدير المالي (ختم رقمي موثق)',
+    sealAuthorityEn: 'Finance Manager (CFO) (Verified Digital Seal)',
+    canApprove: true,
+    isAuditor: false,
+  },
   auditor: {
     role: 'auditor',
     nameAr: 'مراجع خارجي',
@@ -87,6 +117,8 @@ export function normalizeExecSessionRole(raw: unknown): ExecSessionRole | null {
   }
   if (raw === 'gm') return 'gm'
   if (raw === 'dgm') return 'dgm'
+  if (raw === 'ops') return 'ops'
+  if (raw === 'cfo') return 'cfo'
   if (raw === 'auditor') return 'auditor'
   return null
 }
@@ -98,6 +130,13 @@ export function resolveExecRoleProfile(rawRole?: unknown): ExecRoleProfile {
 
 export function toExecApproverRole(rawRole?: unknown): ExecApproverRole {
   const normalized = normalizeExecSessionRole(rawRole)
-  if (normalized === 'gm' || normalized === 'dgm') return normalized
+  if (
+    normalized === 'gm' ||
+    normalized === 'dgm' ||
+    normalized === 'ops' ||
+    normalized === 'cfo'
+  ) {
+    return normalized
+  }
   return 'admin'
 }

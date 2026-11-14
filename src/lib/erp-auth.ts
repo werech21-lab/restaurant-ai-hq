@@ -30,12 +30,16 @@ function buildNamedExecutiveUser(
     admin: "role_system_admin",
     gm: "role_general_manager",
     dgm: "role_deputy_gm",
+    ops: "role_operations_manager",
+    cfo: "role_finance_cfo",
     auditor: "role_auditor_readonly",
   };
   const userIdMap: Record<ExecSessionRole, string> = {
     admin: "usr_venture_admin_001",
     gm: "usr_venture_gm_001",
     dgm: "usr_venture_dgm_001",
+    ops: "usr_venture_ops_001",
+    cfo: "usr_venture_cfo_001",
     auditor: "usr_venture_auditor_001",
   };
 
