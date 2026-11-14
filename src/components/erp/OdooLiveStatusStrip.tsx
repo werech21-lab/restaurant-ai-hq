@@ -7,6 +7,7 @@ import {
   resolveExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
 import ODOO_SNAPSHOT from '@/lib/odoo-live-snapshot.json'
@@ -128,7 +129,7 @@ export function OdooLiveStatusStrip({
         ) : null}
       </div>
 
-      {!roleProfile.isAuditor ? (
+      {!roleProfile.isAuditor && canTriggerManualOdooSync(activeRole) ? (
         <button
           type="button"
           onClick={() => void triggerOdooSyncNow()}

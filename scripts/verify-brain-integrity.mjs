@@ -1874,6 +1874,8 @@ const ALL_PROTECTED_PW_HASHES = new Set([
   '7c5a104c7a8b070cc8e2d98826a8c3fee478819ca69f73d6360e033db79302c2', // dgm@ (Deputy GM)
   '886a00b530e565a3f2544f8103d4fdead97154ffd2e36995340738ae6ff4b8ef', // operations@ (Operations Manager)
   'e7b409f0ff6fd09281f16366113ce65f540b42236be3a7cb6889e053b545de53', // cfo@ / finance@ (Finance Manager CFO)
+  '491a250410a9880ecd125afd393d810d2dc0f0514c696d916b9146881d340a27', // marketing@ / mkt@ (Marketing Lead)
+  '4469d39aa846b41faab0c61fed8e6dbecc930ce543c55f0685b7a0327bfdc1de', // supply@ / kitchen@ (Central Kitchen & Supply)
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba', // auditor@ (Read-Only Auditor)
 ])
 const quotedLiteralRe = /['"`]([^'"`\r\n]{4,128})['"`]/g
@@ -5077,6 +5079,229 @@ assert(
     s33StaticLeaks === 0,
   '33.1 Operations Manager (ops) & CFO (cfo + finance@ alias) Executive RBAC, Auditor 403 Lockdown, Admin-Only Auto-Discovered Odoo 17 POS Terminal Mapping (sum(branches) + unmapped === companyTotals.netSalesKwd) & 0 Client Bundle Leaks',
   `opsOk=${s33Probe.opsOk}, cfoOk=${s33Probe.cfoOk}, nonAdmin403=${s33Probe.nonAdminAll403}, sumInvariant=${s33Probe.sumInvariantOk}, staticLeaks=${s33StaticLeaks}`,
+)
+
+// ============================================================================
+// SECTION 34: Complete 8-Role Corporate RBAC Matrix (`marketing` & `supply`),
+//             Scoped Isolation, Cost Masking & Admin-Only 8-Role Directory
+// ============================================================================
+console.log(
+  '\n[34] Verifying 8-Role Corporate RBAC (marketing & supply), Scoped Isolation & Admin Directory...',
+)
+
+const s34RolePolicyPath = path.join(ROOT, 'src/lib/auth/role-access-policy.ts')
+const s34RoleDirApiPath = path.join(ROOT, 'src/app/api/erp/role-directory/route.ts')
+const s34AdminDirCardPath = path.join(ROOT, 'src/components/erp/AdminExecutiveDirectoryCard.tsx')
+const s34AdminDirCardSrc = fs.existsSync(s34AdminDirCardPath)
+  ? fs.readFileSync(s34AdminDirCardPath, 'utf8')
+  : ''
+const s34FullJourneySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FullJourney360.tsx'),
+  'utf8',
+)
+
+const s34ProbeScript = `
+import { NextRequest } from 'next/server';
+import {
+  authenticateExecutiveCredentials,
+  canTriggerManualOdooSync,
+  createExecSessionToken,
+  DEFAULT_ABDULLAH_EMAIL,
+  DEFAULT_AUDITOR_EMAIL,
+  DEFAULT_CFO_EMAIL,
+  DEFAULT_DGM_EMAIL,
+  DEFAULT_GM_EMAIL,
+  DEFAULT_MARKETING_ALIAS_EMAIL,
+  DEFAULT_MARKETING_EMAIL,
+  DEFAULT_OPS_EMAIL,
+  DEFAULT_SUPPLY_ALIAS_EMAIL,
+  DEFAULT_SUPPLY_EMAIL,
+  EXEC_ROLE_PROFILES,
+  EXEC_SESSION_COOKIE,
+  shouldMaskInternalCostsForRole,
+} from './src/lib/auth';
+import { POST as loginPost } from './src/app/api/auth/login/route';
+import { POST as odooSyncPost } from './src/app/api/erp/odoo-sync/route';
+import { POST as tmPost } from './src/app/api/erp/terminal-mappings/route';
+import { GET as roleDirGet } from './src/app/api/erp/role-directory/route';
+import { middleware } from './src/middleware';
+
+(async () => {
+  const pwMkt = String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54);
+  const pwSup = String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54);
+
+  const mktAuth = await authenticateExecutiveCredentials(DEFAULT_MARKETING_EMAIL, pwMkt);
+  const mktAliasAuth = await authenticateExecutiveCredentials(DEFAULT_MARKETING_ALIAS_EMAIL, pwMkt);
+  const supAuth = await authenticateExecutiveCredentials(DEFAULT_SUPPLY_EMAIL, pwSup);
+  const supAliasAuth = await authenticateExecutiveCredentials(DEFAULT_SUPPLY_ALIAS_EMAIL, pwSup);
+
+  const mktLogin = await loginPost(
+    new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.44.0.1' },
+      body: JSON.stringify({ email: DEFAULT_MARKETING_EMAIL, password: pwMkt }),
+    }),
+  );
+  const mktLoginJson = await mktLogin.json();
+
+  const supLogin = await loginPost(
+    new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.44.0.2' },
+      body: JSON.stringify({ email: DEFAULT_SUPPLY_EMAIL, password: pwSup }),
+    }),
+  );
+  const supLoginJson = await supLogin.json();
+
+  const tokAdmin = await createExecSessionToken(DEFAULT_ABDULLAH_EMAIL, 'admin');
+  const tokGm = await createExecSessionToken(DEFAULT_GM_EMAIL, 'gm');
+  const tokDgm = await createExecSessionToken(DEFAULT_DGM_EMAIL, 'dgm');
+  const tokOps = await createExecSessionToken(DEFAULT_OPS_EMAIL, 'ops');
+  const tokCfo = await createExecSessionToken(DEFAULT_CFO_EMAIL, 'cfo');
+  const tokMkt = await createExecSessionToken(DEFAULT_MARKETING_EMAIL, 'marketing');
+  const tokSup = await createExecSessionToken(DEFAULT_SUPPLY_EMAIL, 'supply');
+  const tokAud = await createExecSessionToken(DEFAULT_AUDITOR_EMAIL, 'auditor');
+
+  // Marketing route checks
+  const mktAllowed = ['/erp', '/erp/cores', '/erp/weekday-comparison', '/erp/before-after', '/erp/reviews', '/erp/booth', '/erp/feryal-ai'];
+  const mktDenied = ['/erp/commissions', '/erp/planning', '/erp/regulations', '/erp/warehouse-chain'];
+  let mktRoutePass = true;
+  for (const r of mktAllowed) {
+    const res = await middleware(new NextRequest('https://aetherbi.com' + r, { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokMkt } }));
+    if (res.status >= 300) mktRoutePass = false;
+  }
+  for (const r of mktDenied) {
+    const res = await middleware(new NextRequest('https://aetherbi.com' + r, { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokMkt } }));
+    if (res.status !== 307 || !(res.headers.get('location') ?? '').endsWith('/erp/cores')) mktRoutePass = false;
+  }
+
+  // Supply route checks
+  const supAllowed = ['/erp/warehouse-chain', '/erp/prep-sla', '/erp/delivery-sla', '/erp/feryal-ai'];
+  const supDenied = ['/erp', '/erp/cores', '/erp/commissions', '/erp/planning', '/erp/regulations', '/erp/reviews', '/erp/booth'];
+  let supRoutePass = true;
+  for (const r of supAllowed) {
+    const res = await middleware(new NextRequest('https://aetherbi.com' + r, { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokSup } }));
+    if (res.status >= 300) supRoutePass = false;
+  }
+  for (const r of supDenied) {
+    const res = await middleware(new NextRequest('https://aetherbi.com' + r, { headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokSup } }));
+    if (res.status !== 307 || !(res.headers.get('location') ?? '').endsWith('/erp/warehouse-chain')) supRoutePass = false;
+  }
+
+  // API 403 checks for marketing, supply & auditor on POST /api/erp/odoo-sync and /api/erp/terminal-mappings
+  const api403Statuses = [];
+  for (const tok of [tokMkt, tokSup, tokAud]) {
+    const sRes = await odooSyncPost(
+      new NextRequest('https://aetherbi.com/api/erp/odoo-sync', {
+        method: 'POST',
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok },
+      }),
+    );
+    const mRes = await tmPost(
+      new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+        method: 'POST',
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok, 'content-type': 'application/json' },
+        body: JSON.stringify({ terminal_id: 26, branch_id: 'salmiya' }),
+      }),
+    );
+    api403Statuses.push(sRes.status, mRes.status);
+  }
+
+  // Admin-Only 8-Role Directory checks
+  const dirUnauth = await roleDirGet(new NextRequest('https://aetherbi.com/api/erp/role-directory'));
+  const dirNonAdmin = [];
+  for (const tok of [tokGm, tokDgm, tokOps, tokCfo, tokMkt, tokSup, tokAud]) {
+    const r = await roleDirGet(
+      new NextRequest('https://aetherbi.com/api/erp/role-directory', {
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok },
+      }),
+    );
+    dirNonAdmin.push(r.status);
+  }
+  const dirAdmin = await roleDirGet(
+    new NextRequest('https://aetherbi.com/api/erp/role-directory', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin },
+    }),
+  );
+  const dirText = await dirAdmin.text();
+  const dirJson = JSON.parse(dirText);
+
+  console.log(
+    JSON.stringify({
+      eightRoles: Object.keys(EXEC_ROLE_PROFILES).length === 8,
+      mktOk:
+        mktAuth.valid &&
+        mktAuth.role === 'marketing' &&
+        mktAuth.titleEn === 'Marketing Lead • GM & DGM Office' &&
+        mktAuth.titleAr === 'مسؤول التسويق • مكتب المدير العام ونائبه' &&
+        mktAliasAuth.valid &&
+        mktLogin.status === 200 &&
+        mktLoginJson.redirectTo === '/erp' &&
+        mktRoutePass &&
+        shouldMaskInternalCostsForRole('marketing') === true &&
+        !canTriggerManualOdooSync('marketing'),
+      supOk:
+        supAuth.valid &&
+        supAuth.role === 'supply' &&
+        supAuth.titleEn === 'Central Kitchen & Supply Manager' &&
+        supAuth.titleAr === 'مدير المطبخ المركزي وسلسلة الإمداد' &&
+        supAliasAuth.valid &&
+        supLogin.status === 200 &&
+        supLoginJson.redirectTo === '/erp/warehouse-chain' &&
+        supRoutePass &&
+        !canTriggerManualOdooSync('supply'),
+      apiAll403: api403Statuses.every((s) => s === 403),
+      dirOk:
+        dirUnauth.status === 401 &&
+        dirNonAdmin.every((s) => s === 403) &&
+        dirAdmin.status === 200 &&
+        dirJson.count === 8 &&
+        !dirText.toLowerCase().includes('password'),
+    }),
+  );
+})();
+`
+
+const s34Raw = execFileSync(
+  process.execPath,
+  [tsxCli, '-r', serverOnlyShimPath, '-e', s34ProbeScript],
+  { cwd: ROOT, encoding: 'utf8' },
+).trim()
+const s34Probe = JSON.parse(s34Raw.split('\n').pop() ?? '{}')
+
+let s34StaticLeaks = 0
+const s34NextStaticDir = path.join(ROOT, '.next', 'static')
+if (fs.existsSync(s34NextStaticDir)) {
+  const s34StaticFiles = walkSrcFiles(s34NextStaticDir)
+  const s34Forbidden = [
+    String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54),
+    String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54),
+    String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54),
+    String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54),
+    'vf-aether-exec-2026-v1:',
+  ]
+  for (const sf of s34StaticFiles) {
+    const content = fs.readFileSync(sf, 'utf8')
+    for (const marker of s34Forbidden) {
+      if (content.includes(marker)) s34StaticLeaks += 1
+    }
+  }
+}
+
+assert(
+  fs.existsSync(s34RolePolicyPath) &&
+    fs.existsSync(s34RoleDirApiPath) &&
+    fs.existsSync(s34AdminDirCardPath) &&
+    s34AdminDirCardSrc.includes("effectiveRole !== 'admin'") &&
+    s34FullJourneySrc.includes('Restricted to Finance/GM') &&
+    s34Probe.eightRoles === true &&
+    s34Probe.mktOk === true &&
+    s34Probe.supOk === true &&
+    s34Probe.apiAll403 === true &&
+    s34Probe.dirOk === true &&
+    s34StaticLeaks === 0,
+  '34.1 Complete 8-Role Corporate RBAC Matrix (marketing & supply + mkt@/kitchen@ aliases), Scoped Route Redirects, /erp Internal Cost Masking (Restricted to Finance/GM), Admin-Only 8-Role Executive Directory (0 Passwords) & 0 Client Bundle Leaks',
+  `mktOk=${s34Probe.mktOk}, supOk=${s34Probe.supOk}, dirOk=${s34Probe.dirOk}, staticLeaks=${s34StaticLeaks}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

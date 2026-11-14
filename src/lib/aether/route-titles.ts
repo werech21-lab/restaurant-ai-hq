@@ -83,10 +83,28 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
       mobileAr: 'عمولات التوصيل',
     },
   },
+  {
+    match: '/erp/commissions',
+    title: {
+      en: 'Aggregator Commissions',
+      ar: 'عمولات منصات التوصيل',
+      mobileEn: 'Delivery Fees',
+      mobileAr: 'عمولات التوصيل',
+    },
+  },
 
   // 3. السمعة والذكاء المرئي (Reputation & Vision AI)
   {
     match: '/erp/social-reviews',
+    title: {
+      en: 'Social & Aggregator Reviews',
+      ar: 'التقييمات ومنصات التواصل',
+      mobileEn: 'Reviews',
+      mobileAr: 'التقييمات',
+    },
+  },
+  {
+    match: '/erp/reviews',
     title: {
       en: 'Social & Aggregator Reviews',
       ar: 'التقييمات ومنصات التواصل',
@@ -134,6 +152,15 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   },
   {
     match: '/erp/booth-feasibility',
+    title: {
+      en: 'Booth Feasibility Calculator',
+      ar: 'حاسبة جدوى المعارض',
+      mobileEn: 'Booth ROI',
+      mobileAr: 'حاسبة المعارض',
+    },
+  },
+  {
+    match: '/erp/booth',
     title: {
       en: 'Booth Feasibility Calculator',
       ar: 'حاسبة جدوى المعارض',

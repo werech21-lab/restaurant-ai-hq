@@ -28,6 +28,10 @@ import {
   resolveExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import {
+  isErpRouteAllowedForRole,
+  resolveRoleDefaultHome,
+} from '@/lib/auth/role-access-policy'
 import { useI18n } from '@/lib/i18n'
 import type { AccessUser } from '@/lib/permissions'
 import { can } from '@/lib/permissions'
@@ -140,6 +144,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         key: 'aggregator-radar',
         sectionId: 'operations-sla',
         href: '/erp/aggregator-radar',
+        aliases: ['/erp/commissions'],
         labelAr: 'عمولات منصات التوصيل',
         labelEn: 'Aggregator Commissions',
         icon: Radar,
@@ -156,6 +161,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         key: 'social-reviews',
         sectionId: 'reputation-vision',
         href: '/erp/social-reviews',
+        aliases: ['/erp/reviews'],
         labelAr: 'التقييمات ومنصات التواصل',
         labelEn: 'Social & Aggregator Reviews',
         icon: MessageSquareHeart,
@@ -200,7 +206,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         key: 'booth-feasibility',
         sectionId: 'governance-strategy',
         href: '/erp/booth-feasibility',
-        aliases: ['/erp/events-intelligence'],
+        aliases: ['/erp/events-intelligence', '/erp/booth'],
         labelAr: 'حاسبة جدوى المعارض',
         labelEn: 'Booth Feasibility Calculator',
         icon: Calendar,
@@ -307,12 +313,13 @@ export function Sidebar({
       SIDEBAR_SECTIONS.map((section) => ({
         ...section,
         items: section.items.filter((item) => {
+          if (!isErpRouteAllowedForRole(roleProfile.role, item.href)) return false
           if (user.role.isAdmin) return true
           if (item.alwaysVisible) return true
           return can(user, item.key, 'view')
         }),
       })).filter((section) => section.items.length > 0),
-    [user],
+    [roleProfile.role, user],
   )
 
   const activeKey = useMemo(() => {
@@ -400,7 +407,7 @@ export function Sidebar({
       <div className={`shrink-0 pt-5 pb-3 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${collapsed ? 'px-2.5' : 'px-4'}`}>
         <div className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}>
           <Link
-            href="/erp"
+            href={resolveRoleDefaultHome(roleProfile.role)}
             className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-emerald-500/50"
             aria-label={isAr ? 'العودة إلى ملخص الشركة' : 'Back to Company Summary'}
           >

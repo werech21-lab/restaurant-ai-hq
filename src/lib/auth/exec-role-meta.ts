@@ -1,6 +1,21 @@
-export type ExecSessionRole = 'admin' | 'gm' | 'dgm' | 'ops' | 'cfo' | 'auditor'
+export type ExecSessionRole =
+  | 'admin'
+  | 'gm'
+  | 'dgm'
+  | 'ops'
+  | 'cfo'
+  | 'marketing'
+  | 'supply'
+  | 'auditor'
 
-export type ExecApproverRole = 'admin' | 'gm' | 'dgm' | 'ops' | 'cfo'
+export type ExecApproverRole =
+  | 'admin'
+  | 'gm'
+  | 'dgm'
+  | 'ops'
+  | 'cfo'
+  | 'marketing'
+  | 'supply'
 
 export interface ExecRoleProfile {
   role: ExecSessionRole
@@ -94,6 +109,36 @@ export const EXEC_ROLE_PROFILES: Record<ExecSessionRole, ExecRoleProfile> = {
     canApprove: true,
     isAuditor: false,
   },
+  marketing: {
+    role: 'marketing',
+    nameAr: 'مسؤول التسويق',
+    nameEn: 'Marketing Lead',
+    titleAr: 'مسؤول التسويق • مكتب المدير العام ونائبه',
+    titleEn: 'Marketing Lead • GM & DGM Office',
+    accountLabelAr: 'مسؤول التسويق • مكتب المدير العام ونائبه',
+    accountLabelEn: 'Marketing Lead • GM & DGM Office',
+    approverRoleAr: 'مسؤول التسويق',
+    approverRoleEn: 'Marketing Lead',
+    sealAuthorityAr: 'مسؤول التسويق • مكتب المدير العام ونائبه (ختم رقمي موثق)',
+    sealAuthorityEn: 'Marketing Lead • GM & DGM Office (Verified Digital Seal)',
+    canApprove: true,
+    isAuditor: false,
+  },
+  supply: {
+    role: 'supply',
+    nameAr: 'مدير المطبخ المركزي والإمداد',
+    nameEn: 'Central Kitchen & Supply Manager',
+    titleAr: 'مدير المطبخ المركزي وسلسلة الإمداد',
+    titleEn: 'Central Kitchen & Supply Manager',
+    accountLabelAr: 'مدير المطبخ المركزي وسلسلة الإمداد',
+    accountLabelEn: 'Central Kitchen & Supply Manager',
+    approverRoleAr: 'مدير المطبخ المركزي وسلسلة الإمداد',
+    approverRoleEn: 'Central Kitchen & Supply Manager',
+    sealAuthorityAr: 'مدير المطبخ المركزي وسلسلة الإمداد (ختم رقمي موثق)',
+    sealAuthorityEn: 'Central Kitchen & Supply Manager (Verified Digital Seal)',
+    canApprove: true,
+    isAuditor: false,
+  },
   auditor: {
     role: 'auditor',
     nameAr: 'مراجع خارجي',
@@ -119,6 +164,8 @@ export function normalizeExecSessionRole(raw: unknown): ExecSessionRole | null {
   if (raw === 'dgm') return 'dgm'
   if (raw === 'ops') return 'ops'
   if (raw === 'cfo') return 'cfo'
+  if (raw === 'marketing') return 'marketing'
+  if (raw === 'supply') return 'supply'
   if (raw === 'auditor') return 'auditor'
   return null
 }
@@ -134,7 +181,9 @@ export function toExecApproverRole(rawRole?: unknown): ExecApproverRole {
     normalized === 'gm' ||
     normalized === 'dgm' ||
     normalized === 'ops' ||
-    normalized === 'cfo'
+    normalized === 'cfo' ||
+    normalized === 'marketing' ||
+    normalized === 'supply'
   ) {
     return normalized
   }

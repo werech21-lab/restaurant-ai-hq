@@ -38,6 +38,7 @@ import {
   OPEN_GOV_DRAWER_EVENT,
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
+import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { routeTitle } from '@/lib/aether/route-titles'
 import {
@@ -63,12 +64,15 @@ export const POS_FILTER_ROUTES = new Set([
   '/erp/prep-sla',
   '/erp/delivery-sla',
   '/erp/aggregator-radar',
+  '/erp/commissions',
   '/erp/social-reviews',
+  '/erp/reviews',
   '/erp/feryal-ai',
   '/erp/feryal',
   '/erp/planning',
   '/erp/regulations',
   '/erp/booth-feasibility',
+  '/erp/booth',
   '/erp/events-intelligence',
 ])
 
@@ -668,7 +672,7 @@ function AccountWorkspaceMenuPanel({
           </span>
         </button>
 
-        {/* 6. Quick Command Search (`البحث السريع ⌘K`) */}
+      {/* 6. Quick Command Search (`البحث السريع ⌘K`) */}
         <button
           type="button"
           onClick={onOpenCommandSearch}
@@ -686,6 +690,13 @@ function AccountWorkspaceMenuPanel({
           </kbd>
         </button>
       </div>
+
+      {/* Admin-Only 8-Role Executive Access Directory inside Account Drawer */}
+      {activeRole === 'admin' && !auditorMode ? (
+        <div className="border-t border-slate-200/70 pt-2 dark:border-white/[0.08]">
+          <AdminExecutiveDirectoryCard role={activeRole} compact />
+        </div>
+      ) : null}
 
       {/* 7. Real Sign Out (`تسجيل الخروج` / `Sign Out`) */}
       <div className="border-t border-slate-200/70 pt-1.5 dark:border-white/[0.08]">
@@ -790,9 +801,17 @@ export function TopFilterBar({
             ? isAr
               ? 'م.م'
               : 'CF'
-            : isAr
-              ? 'ع.ع'
-              : 'AA'
+            : topRoleProfile.role === 'marketing'
+              ? isAr
+                ? 'ت.س'
+                : 'MK'
+              : topRoleProfile.role === 'supply'
+                ? isAr
+                  ? 'م.إ'
+                  : 'SP'
+                : isAr
+                  ? 'ع.ع'
+                  : 'AA'
 
   const [sharedCopied, setSharedCopied] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)

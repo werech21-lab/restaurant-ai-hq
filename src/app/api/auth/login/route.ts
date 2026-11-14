@@ -20,6 +20,7 @@ import {
   verifyExecutiveCredentials,
   type ExecSessionRole,
 } from '@/lib/auth/exec-session'
+import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 import { checkRequestOrigin } from '@/lib/http-origin'
 import {
   SESSION_COOKIE,
@@ -176,6 +177,10 @@ export async function POST(request: NextRequest) {
 
   const isSecure = isSecureRequest(request)
   const profile = resolveExecRoleProfile(authenticatedRole)
+  const roleScopedRedirect = resolvePostLoginRedirectForRole(
+    authenticatedRole,
+    next ? safeNext : '',
+  )
   const execToken = await createExecSessionToken(
     authenticatedEmail,
     authenticatedRole,
@@ -188,7 +193,7 @@ export async function POST(request: NextRequest) {
       nameEn: profile.nameEn,
       titleAr: profile.titleAr,
       titleEn: profile.titleEn,
-      redirectTo: safeNext || '/erp',
+      redirectTo: roleScopedRedirect,
     },
     {
       status: 200,

@@ -16,6 +16,14 @@ import {
   Unlock,
   X,
 } from 'lucide-react'
+import {
+  normalizeExecSessionRole,
+  type ExecSessionRole,
+} from '@/lib/auth/exec-role-meta'
+import {
+  isErpRouteAllowedForRole,
+  resolveRoleDefaultHome,
+} from '@/lib/auth/role-access-policy'
 import { useI18n } from '@/lib/i18n'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { isNavItemActive, SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
@@ -57,6 +65,12 @@ function readDomAuditorFlag(): boolean {
   return root?.dataset.auditor === 'true'
 }
 
+function readDomSessionRole(): ExecSessionRole {
+  if (typeof document === 'undefined') return 'admin'
+  const root = document.getElementById('ae-root')
+  return normalizeExecSessionRole(root?.dataset.sessionRole) ?? 'admin'
+}
+
 /**
  * Native-Grade 5-Tab Mobile Bottom Dock (`lg:hidden`) +
  * Full 13-Page Categorized "All Modules" Navigation Bottom Sheet.
@@ -71,6 +85,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
   const [sheetOpen, setSheetOpen] = useState(false)
   const [standalonePinOpen, setStandalonePinOpen] = useState(false)
   const [domAuditor, setDomAuditor] = useState(false)
+  const [domRole, setDomRole] = useState<ExecSessionRole>('admin')
   const [fallbackSession, setFallbackSession] = useState<ExecutiveSessionState>({
     active: false,
     unlockedAt: null,
@@ -83,6 +98,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
   useEffect(() => {
     setSheetOpen(false)
     setDomAuditor(readDomAuditorFlag())
+    setDomRole(readDomSessionRole())
   }, [pathname])
 
   useEffect(() => {
@@ -106,6 +122,20 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
   }, [sheetOpen])
 
   const isAuditor = Boolean(isAuditorProp ?? gov?.isAuditor ?? domAuditor)
+  const activeRole: ExecSessionRole = isAuditor
+    ? 'auditor'
+    : (gov?.sessionRole ?? domRole ?? 'admin')
+  const visibleMobileSections = SIDEBAR_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) =>
+      isErpRouteAllowedForRole(activeRole, item.href),
+    ),
+  })).filter((section) => section.items.length > 0)
+  const dockHomeHref = resolveRoleDefaultHome(activeRole)
+  const dockTab2Href =
+    activeRole === 'supply' ? '/erp/delivery-sla' : '/erp/cores'
+  const dockTab4Href =
+    activeRole === 'marketing' ? '/erp/social-reviews' : '/erp/prep-sla'
 
   // Keep standalone Manager PIN session & badge count synced even when mounted in RootLayout outside GovernanceProvider
   const syncFallbackGovernance = useCallback(() => {
@@ -179,16 +209,22 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
     }
   }
 
-  const homeActive = !sheetOpen && pathname === '/erp'
+  const homeActive =
+    !sheetOpen &&
+    (pathname === dockHomeHref ||
+      (dockHomeHref !== '/erp' && pathname.startsWith(`${dockHomeHref}/`)))
   const salesActive =
-    !sheetOpen && (pathname === '/erp/cores' || pathname.startsWith('/erp/cores/'))
+    !sheetOpen && (pathname === dockTab2Href || pathname.startsWith(`${dockTab2Href}/`))
   const feryalActive =
     !sheetOpen &&
     (pathname === '/erp/feryal-ai' ||
       pathname === '/erp/feryal' ||
       pathname.startsWith('/erp/feryal'))
   const opsActive =
-    !sheetOpen && (pathname === '/erp/prep-sla' || pathname.startsWith('/erp/prep-sla/'))
+    !sheetOpen &&
+    (pathname === dockTab4Href ||
+      pathname.startsWith(`${dockTab4Href}/`) ||
+      (activeRole === 'marketing' && pathname === '/erp/reviews'))
   const isSecondaryErpModule =
     pathname.startsWith('/erp/') &&
     !PRIMARY_DOCK_ROUTES.has(pathname) &&
@@ -305,9 +341,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
               </div>
             </div>
 
-            {/* All 13 ERP Pages Grouped Under Their 4 Executive Categories */}
+            {/* Scoped ERP Pages Grouped Under Executive Categories */}
             <div className="space-y-4">
-              {SIDEBAR_SECTIONS.map((section) => (
+              {visibleMobileSections.map((section) => (
                 <div key={section.id} className="space-y-1.5">
                   <div className="px-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                     {isAr ? section.labelAr : section.labelEn}
@@ -372,9 +408,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
         className="ae-mobile-dock no-print fixed inset-x-0 bottom-0 z-40 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(0,0,0,0.06)] backdrop-blur-lg lg:hidden dark:bg-[#0B1512]/95 dark:shadow-[0_-1px_0_rgba(16,185,129,0.12)]"
       >
         <div className="grid h-16 grid-cols-5 items-center px-1">
-          {/* 1) Home -> /erp */}
+          {/* 1) Home -> role default home */}
           <Link
-            href="/erp"
+            href={dockHomeHref}
             aria-current={homeActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               homeActive
@@ -383,12 +419,20 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             }`}
           >
             <LayoutDashboard className="h-5 w-5" />
-            <span className="truncate">{isAr ? 'الرئيسية' : 'Home'}</span>
+            <span className="truncate">
+              {activeRole === 'supply'
+                ? isAr
+                  ? 'المخزن'
+                  : 'Supply'
+                : isAr
+                  ? 'الرئيسية'
+                  : 'Home'}
+            </span>
           </Link>
 
-          {/* 2) Sales -> /erp/cores */}
+          {/* 2) Sales / Delivery SLA -> role-scoped tab 2 */}
           <Link
-            href="/erp/cores"
+            href={dockTab2Href}
             aria-current={salesActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               salesActive
@@ -397,7 +441,15 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             }`}
           >
             <TrendingUp className="h-5 w-5" />
-            <span className="truncate">{isAr ? 'المبيعات' : 'Sales'}</span>
+            <span className="truncate">
+              {activeRole === 'supply'
+                ? isAr
+                  ? 'التوصيل'
+                  : 'Delivery'
+                : isAr
+                  ? 'المبيعات'
+                  : 'Sales'}
+            </span>
           </Link>
 
           {/* 3) Feryal (Elevated Center Emerald Pill Accent) -> /erp/feryal-ai */}
@@ -426,9 +478,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </span>
           </Link>
 
-          {/* 4) Ops -> /erp/prep-sla */}
+          {/* 4) Ops / Reviews -> role-scoped tab 4 */}
           <Link
-            href="/erp/prep-sla"
+            href={dockTab4Href}
             aria-current={opsActive ? 'page' : undefined}
             className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
               opsActive
@@ -437,7 +489,15 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             }`}
           >
             <Activity className="h-5 w-5" />
-            <span className="truncate">{isAr ? 'التشغيل' : 'Ops'}</span>
+            <span className="truncate">
+              {activeRole === 'marketing'
+                ? isAr
+                  ? 'التقييمات'
+                  : 'Reviews'
+                : isAr
+                  ? 'التشغيل'
+                  : 'Ops'}
+            </span>
           </Link>
 
           {/* 5) Menu -> Opens Full 13-Page Categorized Navigation Sheet */}

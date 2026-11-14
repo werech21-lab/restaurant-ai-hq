@@ -17,7 +17,13 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
 import { AdminPosTerminalMappingPanel } from '@/components/erp/AdminPosTerminalMappingPanel'
+import {
+  canTriggerManualOdooSync,
+  isErpRouteAllowedForRole,
+  shouldMaskInternalCostsForRole,
+} from '@/lib/auth/role-access-policy'
 import {
   formatCompactAxisLabel,
   InteractiveDonutChart,
@@ -135,6 +141,8 @@ export function FullJourney360() {
   const { isAr, T } = useLang()
   const { workspace, filters, liveSummary, isAuditor, sessionRole } = useGlobalFilter()
   const auditorReadOnly = isAuditor || Boolean(liveSummary?.readOnly)
+  const maskInternalCosts = shouldMaskInternalCostsForRole(sessionRole)
+  const canSyncOdoo = !auditorReadOnly && canTriggerManualOdooSync(sessionRole)
 
   const [flowGroup, setFlowGroup] = useState<FlowGroup>('timeline')
   const [syncing, setSyncing] = useState(false)
@@ -217,32 +225,41 @@ export function FullJourney360() {
         label: axisLabel,
         tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
         salesKwd: sales,
-        netKwd: pocket,
-        netMarginPct: pointMarginPct,
-        lines: [
-          { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
-          {
-            label: isAr ? 'المواد الغذائية والتوصيل:' : 'Food & Delivery:',
-            value: fmtKwdVal(foodAndDelivery),
-            tone: 'amber',
-          },
-          {
-            label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
-            value: fmtKwdVal(beforeRent),
-            tone: 'slate',
-          },
-          {
-            label: isAr ? 'الصافي بالجيب:' : 'Net in Pocket:',
-            value: fmtKwdVal(pocket),
-            tone: 'emerald',
-            bold: true,
-          },
-          {
-            label: isAr ? 'هامش الصافي:' : 'Net Margin:',
-            value: `${f1(pointMarginPct)}%`,
-            tone: 'emerald',
-          },
-        ],
+        netKwd: maskInternalCosts ? 0 : pocket,
+        netMarginPct: maskInternalCosts ? 0 : pointMarginPct,
+        lines: maskInternalCosts
+          ? [
+              { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
+              {
+                label: isAr ? 'الإيجارات والرواتب والموردين:' : 'Rent, Payroll & Suppliers:',
+                value: isAr ? 'محصور بالمالية والمدير العام' : 'Restricted to Finance/GM',
+                tone: 'slate',
+              },
+            ]
+          : [
+              { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
+              {
+                label: isAr ? 'المواد الغذائية والتوصيل:' : 'Food & Delivery:',
+                value: fmtKwdVal(foodAndDelivery),
+                tone: 'amber',
+              },
+              {
+                label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
+                value: fmtKwdVal(beforeRent),
+                tone: 'slate',
+              },
+              {
+                label: isAr ? 'الصافي بالجيب:' : 'Net in Pocket:',
+                value: fmtKwdVal(pocket),
+                tone: 'emerald',
+                bold: true,
+              },
+              {
+                label: isAr ? 'هامش الصافي:' : 'Net Margin:',
+                value: `${f1(pointMarginPct)}%`,
+                tone: 'emerald',
+              },
+            ],
       }
     })
   }, [
@@ -252,6 +269,7 @@ export function FullJourney360() {
     flowGroup,
     fmtKwdVal,
     isAr,
+    maskInternalCosts,
     netPocketPct,
     workspace.cascadingOptions.branches,
   ])
@@ -429,7 +447,7 @@ export function FullJourney360() {
         </div>
 
         <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {!auditorReadOnly ? (
+          {canSyncOdoo ? (
             <button
               type="button"
               onClick={() => void refreshLive()}
@@ -522,7 +540,9 @@ export function FullJourney360() {
           <article className="ae-kpi-card flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]">
             <div className="flex items-start justify-between gap-2">
               <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                {T('Orders & Before Rent', 'الطلبات والباقي قبل الإيجار')}
+                {maskInternalCosts
+                  ? T('Total Orders', 'إجمالي الطلبات')
+                  : T('Orders & Before Rent', 'الطلبات والباقي قبل الإيجار')}
               </p>
               <Link
                 href="/erp/cores"
@@ -541,19 +561,30 @@ export function FullJourney360() {
             </div>
 
             <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-              <span
-                dir="ltr"
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
-                  beforeRentRatio < 0
-                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
-                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                }`}
-              >
-                {beforeRentRatio > 0 ? '▲' : beforeRentRatio < 0 ? '▼' : '•'} {f1(beforeRentRatio * 100)}% • {fmtKwdVal(beforeRentKwd)}
-              </span>
-              <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
-                {isAr ? 'بعد المواد والتوصيل' : 'left before rent'}
-              </span>
+              {maskInternalCosts ? (
+                <span
+                  data-cost-mask="restricted-finance-gm"
+                  className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
+                >
+                  {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                </span>
+              ) : (
+                <>
+                  <span
+                    dir="ltr"
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
+                      beforeRentRatio < 0
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                    }`}
+                  >
+                    {beforeRentRatio > 0 ? '▲' : beforeRentRatio < 0 ? '▼' : '•'} {f1(beforeRentRatio * 100)}% • {fmtKwdVal(beforeRentKwd)}
+                  </span>
+                  <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
+                    {isAr ? 'بعد المواد والتوصيل' : 'left before rent'}
+                  </span>
+                </>
+              )}
             </div>
           </article>
 
@@ -572,67 +603,124 @@ export function FullJourney360() {
               </Link>
             </div>
 
-            <div
-              dir="ltr"
-              className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
-            >
-              {fmtKwdVal(netPocketKwd)}
-            </div>
+            {maskInternalCosts ? (
+              <>
+                <div className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200">
+                  {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                </div>
+                <div className="mt-3.5 space-y-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-slate-700 dark:bg-white/[0.06] dark:text-slate-300">
+                    {T(
+                      'Rent, payroll & supplier figures masked',
+                      'بيانات الإيجار والرواتب والموردين محجوبة',
+                    )}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div
+                  dir="ltr"
+                  className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
+                >
+                  {fmtKwdVal(netPocketKwd)}
+                </div>
 
-            <div className="mt-3.5 space-y-1">
-              <span
-                dir="ltr"
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
-                  netPocketPct < 0
-                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
-                    : netPocketPct >= 12
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                      : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
-                }`}
-              >
-                {netPocketPct > 0 ? '▲' : netPocketPct < 0 ? '▼' : '•'} {f1(netPocketPct)}% {T('net pocket share', 'نسبة الصافي')}
-              </span>
-              <p className="whitespace-normal text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
-                {isAr
-                  ? 'الصافي الفعلي بعد الإيجار وكافة المصاريف'
-                  : 'Actual net cash after rent & all expenses'}
-              </p>
-            </div>
+                <div className="mt-3.5 space-y-1">
+                  <span
+                    dir="ltr"
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
+                      netPocketPct < 0
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+                        : netPocketPct >= 12
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                          : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
+                    }`}
+                  >
+                    {netPocketPct > 0 ? '▲' : netPocketPct < 0 ? '▼' : '•'} {f1(netPocketPct)}% {T('net pocket share', 'نسبة الصافي')}
+                  </span>
+                  <p className="whitespace-normal text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
+                    {isAr
+                      ? 'الصافي الفعلي بعد الإيجار وكافة المصاريف'
+                      : 'Actual net cash after rent & all expenses'}
+                  </p>
+                </div>
+              </>
+            )}
           </article>
 
-          {/* Card 4 (Matte `#111A17`): Recoverable Profit Opportunities -> `/erp/planning` */}
-          <Link
-            href="/erp/planning"
-            className="ae-kpi-card group flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-transform duration-150 hover:-translate-y-0.5 dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                {T('Recoverable Profit Opportunities', 'فرص زيادة الربح المتاحة')}
-              </p>
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-900/[0.06] transition-transform duration-150 group-hover:scale-105 dark:bg-white/[0.06] dark:text-emerald-200 dark:ring-white/10">
-                <ArrowUpRight className="h-4 w-4" />
-              </span>
-            </div>
-
-            <div
-              dir="ltr"
-              className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
+          {/* Card 4 (Matte `#111A17`): Recoverable Profit / Quiet-Hour Opportunities */}
+          {maskInternalCosts ? (
+            <Link
+              href="/erp/weekday-comparison"
+              className="ae-kpi-card group flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-transform duration-150 hover:-translate-y-0.5 dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
             >
-              +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
-            </div>
+              <div className="flex items-start justify-between gap-2">
+                <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                  {T('Quiet-Hour Demand Upside (3–6 PM)', 'فرصة نمو الساعات الهادئة (3–6 م)')}
+                </p>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-900/[0.06] transition-transform duration-150 group-hover:scale-105 dark:bg-white/[0.06] dark:text-emerald-200 dark:ring-white/10">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
+              </div>
 
-            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                {T(
-                  `Across 7 active branches • ${workspace.plays.length} actionable plays`,
-                  `عبر 7 فروع نشطة • ${formatArOpportunities(workspace.plays.length)} قابلة للاسترداد`,
-                )}
-              </span>
-              <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
-                {T('View Steps ↗', 'عرض الخطوات ↗')}
-              </span>
-            </div>
-          </Link>
+              <div
+                dir="ltr"
+                className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
+              >
+                {quietHoursCard
+                  ? isAr
+                    ? quietHoursCard.valueAr
+                    : quietHoursCard.valueEn
+                  : `+${fmtKwdVal(0)}`}
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  {T(
+                    '7 active branches · Afternoon bundle campaigns',
+                    '7 فروع نشطة · حملات عروض فترة العصر',
+                  )}
+                </span>
+                <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                  {T('View Steps ↗', 'عرض الخطوات ↗')}
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <Link
+              href="/erp/planning"
+              className="ae-kpi-card group flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-transform duration-150 hover:-translate-y-0.5 dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                  {T('Recoverable Profit Opportunities', 'فرص زيادة الربح المتاحة')}
+                </p>
+                <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-900/[0.06] transition-transform duration-150 group-hover:scale-105 dark:bg-white/[0.06] dark:text-emerald-200 dark:ring-white/10">
+                  <ArrowUpRight className="h-4 w-4" />
+                </span>
+              </div>
+
+              <div
+                dir="ltr"
+                className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
+              >
+                +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
+              </div>
+
+              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  {T(
+                    `Across 7 active branches • ${workspace.plays.length} actionable plays`,
+                    `عبر 7 فروع نشطة • ${formatArOpportunities(workspace.plays.length)} قابلة للاسترداد`,
+                  )}
+                </span>
+                <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                  {T('View Steps ↗', 'عرض الخطوات ↗')}
+                </span>
+              </div>
+            </Link>
+          )}
         </div>
 
         {/* ===================================================================
@@ -757,12 +845,14 @@ export function FullJourney360() {
 
               {/* Primary Governance / Operational Focus Block */}
               <Link
-                href="/erp/warehouse-chain"
+                href={maskInternalCosts ? '/erp/weekday-comparison' : '/erp/warehouse-chain'}
                 className="block rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-slate-900/[0.05] transition-colors hover:ring-emerald-500/35 dark:bg-[#141F1B] dark:ring-emerald-400/[0.09] dark:hover:ring-emerald-400/30"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="whitespace-normal text-[14px] font-semibold leading-snug text-slate-950 dark:text-white">
-                    {T('Stop #1 Operational Leak', 'إيقاف أكبر نزيف تشغيلي')}
+                    {maskInternalCosts
+                      ? T('Activate Quiet Hours (3–6 PM)', 'تفعيل حملات الساعات الهادئة (3–6 م)')
+                      : T('Stop #1 Operational Leak', 'إيقاف أكبر نزيف تشغيلي')}
                   </span>
                   <ShieldAlert className="h-4 w-4 shrink-0 text-rose-500 dark:text-rose-400" />
                 </div>
@@ -771,42 +861,62 @@ export function FullJourney360() {
                   dir="ltr"
                   className="mt-1.5 text-[22px] font-semibold tracking-tight tabular-nums text-rose-600 dark:text-rose-300"
                 >
-                  {procurementCard
-                    ? isAr
-                      ? procurementCard.valueAr
-                      : procurementCard.valueEn
-                    : fmtKwdVal(0)}
+                  {maskInternalCosts
+                    ? quietHoursCard
+                      ? isAr
+                        ? quietHoursCard.valueAr
+                        : quietHoursCard.valueEn
+                      : `+${fmtKwdVal(0)}`
+                    : procurementCard
+                      ? isAr
+                        ? procurementCard.valueAr
+                        : procurementCard.valueEn
+                      : fmtKwdVal(0)}
                 </div>
 
                 <div className="mt-2 flex items-center gap-1.5 text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                   <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span className="whitespace-normal">
-                    {T(
-                      'Window: 09:00 – 11:30 KWT · Kitchen & Supplier Audit',
-                      'النافذة: 09:00 – 11:30 ص · تدقيق المطبخ والموردين',
-                    )}
+                    {maskInternalCosts
+                      ? T(
+                          'Supplier & kitchen costs: Restricted to Finance/GM',
+                          'تكاليف الموردين والمطبخ: محصور بالمالية والمدير العام',
+                        )
+                      : T(
+                          'Window: 09:00 – 11:30 KWT · Kitchen & Supplier Audit',
+                          'النافذة: 09:00 – 11:30 ص · تدقيق المطبخ والموردين',
+                        )}
                   </span>
                 </div>
               </Link>
 
               {/* Secondary Open Cumulative Balance Callout */}
               <Link
-                href="/erp/aggregator-radar"
+                href={maskInternalCosts ? '/erp/social-reviews' : '/erp/aggregator-radar'}
                 className="block rounded-xl bg-amber-50/60 px-3 py-2.5 ring-1 ring-amber-500/20 transition-colors hover:bg-amber-50 dark:bg-amber-950/20 dark:ring-amber-400/15 dark:hover:bg-amber-950/35"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs lg:text-[13px] font-semibold text-amber-950 dark:text-amber-200">
-                    {T('Aggregator Collection', 'متابعة تحصيل المنصات')}
+                    {maskInternalCosts
+                      ? T('Social & Brand Reviews', 'تقييمات المنصات والسمعة')
+                      : T('Aggregator Collection', 'متابعة تحصيل المنصات')}
                   </span>
                   <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 text-xs lg:text-[13px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
-                    {T('Cumulative Balance', 'رصيد متراكم')}
+                    {maskInternalCosts
+                      ? T('Marketing Scope', 'نطاق التسويق')
+                      : T('Cumulative Balance', 'رصيد متراكم')}
                   </span>
                 </div>
                 <p className="mt-1 whitespace-normal text-xs lg:text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
-                  {T(
-                    '(Open cumulative balance from prior periods under collection)',
-                    '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
-                  )}
+                  {maskInternalCosts
+                    ? T(
+                        'Monitor ratings & campaign sentiment across all 6 brands',
+                        'متابعة تقييمات العملاء وتفاعل الحملات عبر المطاعم الـ 6',
+                      )
+                    : T(
+                        '(Open cumulative balance from prior periods under collection)',
+                        '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
+                      )}
                 </p>
               </Link>
             </div>
@@ -902,7 +1012,7 @@ export function FullJourney360() {
 
                 {/* Pulse Item 3: Aggregator Receivables */}
                 <Link
-                  href="/erp/aggregator-radar"
+                  href={maskInternalCosts ? '/erp/cores' : '/erp/aggregator-radar'}
                   className="flex items-center justify-between gap-2.5 rounded-xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] transition-colors hover:bg-emerald-50/50 dark:bg-[#141F1B] dark:ring-emerald-400/[0.08] dark:hover:bg-white/[0.06]"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -922,17 +1032,19 @@ export function FullJourney360() {
                     dir="ltr"
                     className="shrink-0 text-xs lg:text-[13px] font-semibold tabular-nums text-amber-700 dark:text-amber-300"
                   >
-                    {receivablesCard
-                      ? isAr
-                        ? receivablesCard.valueAr
-                        : receivablesCard.valueEn
-                      : fmtKwdVal(0)}
+                    {maskInternalCosts
+                      ? T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')
+                      : receivablesCard
+                        ? isAr
+                          ? receivablesCard.valueAr
+                          : receivablesCard.valueEn
+                        : fmtKwdVal(0)}
                   </span>
                 </Link>
 
                 {/* Pulse Item 4: Kitchen Prep & Delivery SLA */}
                 <Link
-                  href="/erp/prep-sla"
+                  href={maskInternalCosts ? '/erp/social-reviews' : '/erp/prep-sla'}
                   className="flex items-center justify-between gap-2.5 rounded-xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] transition-colors hover:bg-emerald-50/50 dark:bg-[#141F1B] dark:ring-emerald-400/[0.08] dark:hover:bg-white/[0.06]"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -1018,14 +1130,56 @@ export function FullJourney360() {
               </p>
             </div>
 
-            <InteractiveDonutChart
-              slices={tenKwdDonutSlices}
-              centerValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
-              centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
-              centerLabel={T('Net Share', 'نصيب الصافي')}
-              isAr={isAr}
-              legendLayout="beside"
-            />
+            {maskInternalCosts ? (
+              <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl bg-[#F6F7F8] p-4 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:ring-emerald-400/[0.1]">
+                <div className="space-y-1.5">
+                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                    {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                  </span>
+                  <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-700 dark:text-slate-200">
+                    {T(
+                      'Internal lease rent, payroll ledger, supplier procurement costs, and net pocket margin splits are restricted to Finance (CFO), GM, DGM, and System Admin.',
+                      'تفاصيل عقود الإيجار، مسيرات الرواتب، تكاليف الموردين، وصافي الهامش محصورة بالمدير المالي والمدير العام ونائبه ومسؤول النظام.',
+                    )}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs font-semibold">
+                  <div className="rounded-xl bg-white p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-white/[0.06]">
+                    <span className="block text-slate-500 dark:text-[#8FA39B]">
+                      {T('Rent & Payroll', 'الإيجار والرواتب')}
+                    </span>
+                    <span className="mt-0.5 block text-slate-800 dark:text-slate-100">
+                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-white/[0.06]">
+                    <span className="block text-slate-500 dark:text-[#8FA39B]">
+                      {T('Supplier Cost', 'تكاليف الموردين')}
+                    </span>
+                    <span className="mt-0.5 block text-slate-800 dark:text-slate-100">
+                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-white p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-white/[0.06]">
+                    <span className="block text-slate-500 dark:text-[#8FA39B]">
+                      {T('Net Pocket', 'الصافي بالجيب')}
+                    </span>
+                    <span className="mt-0.5 block text-slate-800 dark:text-slate-100">
+                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <InteractiveDonutChart
+                slices={tenKwdDonutSlices}
+                centerValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
+                centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
+                centerLabel={T('Net Share', 'نصيب الصافي')}
+                isAr={isAr}
+                legendLayout="beside"
+              />
+            )}
           </div>
         </div>
 
@@ -1056,9 +1210,21 @@ export function FullJourney360() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {workspace.summaryCards.map((c) => {
-              const badgeLabel =
-                c.id === 'delivery-dues'
+            {workspace.summaryCards
+              .map((rawCard) =>
+                isErpRouteAllowedForRole(sessionRole, rawCard.href)
+                  ? rawCard
+                  : { ...rawCard, href: '/erp/cores' },
+              )
+              .map((c) => {
+              const isSensitiveCostCard =
+                maskInternalCosts &&
+                (c.id === 'food-waste' ||
+                  c.id === 'delivery-dues' ||
+                  c.id === 'expiring-items')
+              const badgeLabel = isSensitiveCostCard
+                ? T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')
+                : c.id === 'delivery-dues'
                   ? isAr
                     ? 'رصيد متراكم'
                     : c.badgeEn ?? 'Cumulative Balance'
@@ -1096,7 +1262,11 @@ export function FullJourney360() {
                     <div
                       className={`text-2xl sm:text-[28px] font-semibold tracking-tight tabular-nums ${ACCENT_RING[c.accent]}`}
                     >
-                      {c.id === 'branch-discipline' ? (
+                      {isSensitiveCostCard ? (
+                        <span className="text-[16px] sm:text-[18px] text-slate-700 dark:text-slate-200">
+                          {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                        </span>
+                      ) : c.id === 'branch-discipline' ? (
                         isAr ? (
                           <span>
                             {`${c.valueAr} (${c.badgeAr ?? 'المستهدف: 85+'})`}
@@ -1114,7 +1284,14 @@ export function FullJourney360() {
                     </div>
 
                     <p className="whitespace-normal text-[13.5px] sm:text-[14px] leading-relaxed text-slate-600 dark:text-[#8FA39B]">
-                      {isAr ? c.descAr : c.descEn}
+                      {isSensitiveCostCard
+                        ? T(
+                            'Internal supplier, procurement & treasury ledger figures are restricted to Finance/GM.',
+                            'تفاصيل الموردين والذمم والمخزون المالي محصورة بالإدارة المالية والمدير العام.',
+                          )
+                        : isAr
+                          ? c.descAr
+                          : c.descEn}
                     </p>
                   </div>
 
@@ -1133,7 +1310,10 @@ export function FullJourney360() {
         </div>
 
         {sessionRole === 'admin' && !auditorReadOnly ? (
-          <AdminPosTerminalMappingPanel role={sessionRole} />
+          <div className="space-y-5">
+            <AdminPosTerminalMappingPanel role={sessionRole} />
+            <AdminExecutiveDirectoryCard role={sessionRole} />
+          </div>
         ) : null}
       </section>
     </div>

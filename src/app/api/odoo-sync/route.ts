@@ -15,6 +15,7 @@ import {
   verifyExecSessionToken,
   type ExecSessionRole,
 } from '@/lib/auth/exec-session'
+import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 import { createClient } from '@/lib/supabase/server'
 
@@ -234,6 +235,18 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
         error: 'forbidden_auditor_readonly',
         message: 'Read-only auditor session cannot trigger live Odoo sync.',
         errorAr: 'حساب مراجعة للقراءة فقط — تحديث ربط أودو محصور بالإدارة التنفيذية.',
+      },
+      { status: 403, headers: odooSyncResponseHeaders },
+    )
+  }
+
+  if (!caller.isCron && !canTriggerManualOdooSync(caller.role as ExecSessionRole)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'forbidden_sync_role_restricted',
+        message: 'Manual live Odoo sync is restricted to Admin, GM, DGM, Operations, and Finance.',
+        errorAr: 'تحديث ربط أودو المباشر محصور بمسؤول النظام والإدارة التنفيذية والمالية والعمليات.',
       },
       { status: 403, headers: odooSyncResponseHeaders },
     )

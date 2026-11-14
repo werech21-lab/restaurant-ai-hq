@@ -32,6 +32,8 @@ function buildNamedExecutiveUser(
     dgm: "role_deputy_gm",
     ops: "role_operations_manager",
     cfo: "role_finance_cfo",
+    marketing: "role_marketing_lead",
+    supply: "role_supply_manager",
     auditor: "role_auditor_readonly",
   };
   const userIdMap: Record<ExecSessionRole, string> = {
@@ -40,6 +42,8 @@ function buildNamedExecutiveUser(
     dgm: "usr_venture_dgm_001",
     ops: "usr_venture_ops_001",
     cfo: "usr_venture_cfo_001",
+    marketing: "usr_venture_marketing_001",
+    supply: "usr_venture_supply_001",
     auditor: "usr_venture_auditor_001",
   };
 

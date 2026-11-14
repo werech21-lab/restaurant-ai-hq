@@ -4,6 +4,14 @@ import {
   sanitizeExecNextPath,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
+import {
+  canTriggerManualOdooSync,
+  isErpRouteAllowedForRole,
+  resolveCanonicalErpAlias,
+  resolvePostLoginRedirectForRole,
+  resolveRoleDefaultHome,
+  resolveRoleRedirectForForbiddenRoute,
+} from '@/lib/auth/role-access-policy'
 
 export const PERMISSIONS_POLICY_VALUE =
   'camera=(self), microphone=(self), geolocation=()'
@@ -180,7 +188,9 @@ export async function middleware(request: NextRequest) {
       const method = request.method.toUpperCase()
       if (
         (path === '/api/erp/terminal-mappings' ||
-          path.startsWith('/api/erp/terminal-mappings/')) &&
+          path.startsWith('/api/erp/terminal-mappings/') ||
+          path === '/api/erp/role-directory' ||
+          path.startsWith('/api/erp/role-directory/')) &&
         execSession.role !== 'admin'
       ) {
         return withSecurityHeaders(
@@ -211,23 +221,64 @@ export async function middleware(request: NextRequest) {
           ),
         )
       }
+      if (
+        MUTATION_METHODS.has(method) &&
+        !canTriggerManualOdooSync(execSession.role) &&
+        (path === '/api/erp/odoo-sync' ||
+          path.startsWith('/api/erp/odoo-sync/') ||
+          path === '/api/odoo-sync' ||
+          path.startsWith('/api/odoo-sync/'))
+      ) {
+        return withSecurityHeaders(
+          NextResponse.json(
+            {
+              ok: false,
+              error: 'forbidden_sync_role_restricted',
+              errorAr:
+                'تحديث ربط أودو المباشر محصور بمسؤول النظام والإدارة التنفيذية والمالية والعمليات.',
+            },
+            { status: 403 },
+          ),
+        )
+      }
 
       if (path === '/') {
-        const erpUrl = new URL('/erp', request.url)
+        const homeUrl = new URL(resolveRoleDefaultHome(execSession.role), request.url)
         return withSecurityHeaders(
-          NextResponse.redirect(erpUrl, { status: 307 }),
+          NextResponse.redirect(homeUrl, { status: 307 }),
         )
       }
       if (path === '/login') {
-        const safeNext = sanitizeExecNextPath(
-          request.nextUrl.searchParams.get('next'),
-          '/erp',
-        )
-        const destUrl = new URL(safeNext, request.url)
+        const rawNext = request.nextUrl.searchParams.get('next')
+        const safeNext = rawNext ? sanitizeExecNextPath(rawNext, '/erp') : ''
+        const destPath = resolvePostLoginRedirectForRole(execSession.role, safeNext)
+        const destUrl = new URL(destPath, request.url)
         return withSecurityHeaders(
           NextResponse.redirect(destUrl, { status: 307 }),
         )
       }
+
+      if (!path.startsWith('/api/') && !isPublicAssetOrRoute(path)) {
+        if (!isErpRouteAllowedForRole(execSession.role, path)) {
+          const fallbackUrl = new URL(
+            resolveRoleRedirectForForbiddenRoute(execSession.role),
+            request.url,
+          )
+          return withSecurityHeaders(
+            NextResponse.redirect(fallbackUrl, { status: 307 }),
+          )
+        }
+
+        const canonicalAlias = resolveCanonicalErpAlias(path)
+        if (canonicalAlias) {
+          const rewriteUrl = new URL(
+            `${canonicalAlias}${request.nextUrl.search}`,
+            request.url,
+          )
+          return withSecurityHeaders(NextResponse.rewrite(rewriteUrl))
+        }
+      }
+
       return withSecurityHeaders(NextResponse.next())
     }
 

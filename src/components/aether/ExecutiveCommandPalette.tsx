@@ -40,6 +40,10 @@ import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-fil
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { COMMAND_PALETTE_EVENT } from '@/components/aether/BiFilterContext'
 import { useLang } from '@/components/aether/ui'
+import {
+  isErpRouteAllowedForRole,
+  shouldMaskInternalCostsForRole,
+} from '@/lib/auth/role-access-policy'
 
 type Group = 'pages' | 'decisions' | 'branches' | 'brands' | 'feryal' | 'actions'
 
@@ -121,7 +125,10 @@ export function ExecutiveCommandPalette() {
   const router = useRouter()
   const pathname = usePathname()
   const { lang, isAr, T } = useLang()
-  const { workspace } = useGlobalFilter()
+  const { workspace, sessionRole, isAuditor } = useGlobalFilter()
+  const activeRole = isAuditor ? 'auditor' : sessionRole
+  const maskPaletteCosts =
+    shouldMaskInternalCostsForRole(activeRole) || activeRole === 'supply'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -159,158 +166,204 @@ export function ExecutiveCommandPalette() {
   )
 
   const commands = useMemo<Command[]>(() => {
-    const pages: Command[] = [
+    const allPageSpecs: Array<{ href: string; cmd: Command }> = [
       // 1) القيادة والمبيعات (Executive & Sales)
       {
-        id: 'p-erp',
-        group: 'pages',
-        en: 'Company Summary',
-        ar: 'ملخص الشركة',
-        hintEn: 'Executive & Sales · 4 KPIs, Cash Flow & 10-KWD Split',
-        hintAr: 'القيادة والمبيعات · المؤشرات الرباعية وتوزيعة الـ ١٠ د.ك',
-        keywords: 'overview dashboard company summary executive sales القيادة والمبيعات ملخص الشركة الرئيسية الصافي',
-        icon: <LayoutDashboard className="h-4 w-4" />,
-        run: () => go('/erp'),
+        href: '/erp',
+        cmd: {
+          id: 'p-erp',
+          group: 'pages',
+          en: 'Company Summary',
+          ar: 'ملخص الشركة',
+          hintEn: maskPaletteCosts
+            ? 'Executive & Sales · Sales, Orders & Quiet Hours'
+            : 'Executive & Sales · 4 KPIs, Cash Flow & 10-KWD Split',
+          hintAr: maskPaletteCosts
+            ? 'القيادة والمبيعات · المبيعات والطلبات والساعات الهادئة'
+            : 'القيادة والمبيعات · المؤشرات الرباعية وتوزيعة الـ ١٠ د.ك',
+          keywords: 'overview dashboard company summary executive sales القيادة والمبيعات ملخص الشركة الرئيسية الصافي',
+          icon: <LayoutDashboard className="h-4 w-4" />,
+          run: () => go('/erp'),
+        },
       },
       {
-        id: 'p-cores',
-        group: 'pages',
-        en: 'Sales, Marketing & Menu',
-        ar: 'المبيعات والتسويق والمينيو',
-        hintEn: 'Executive & Sales · Influencer ROI, Channel Mix & Menu Matrix',
-        hintAr: 'القيادة والمبيعات · إعلانات المشاهير، القنوات، وهندسة المينيو',
-        keywords: 'cores marketing social influencer menu sales المبيعات والتسويق والمينيو مشاهير اعلانات منيو اصناف',
-        icon: <BarChart3 className="h-4 w-4" />,
-        run: () => go('/erp/cores'),
+        href: '/erp/cores',
+        cmd: {
+          id: 'p-cores',
+          group: 'pages',
+          en: 'Sales, Marketing & Menu',
+          ar: 'المبيعات والتسويق والمينيو',
+          hintEn: 'Executive & Sales · Influencer ROI, Channel Mix & Menu Matrix',
+          hintAr: 'القيادة والمبيعات · إعلانات المشاهير، القنوات، وهندسة المينيو',
+          keywords: 'cores marketing social influencer menu sales المبيعات والتسويق والمينيو مشاهير اعلانات منيو اصناف',
+          icon: <BarChart3 className="h-4 w-4" />,
+          run: () => go('/erp/cores'),
+        },
       },
       {
-        id: 'p-weekday-comparison',
-        group: 'pages',
-        en: 'Weekday Sales Comparison',
-        ar: 'مقارنة أيام الأسبوع',
-        hintEn: 'Executive & Sales · Day-of-Week Sales & Margin Rhythm',
-        hintAr: 'القيادة والمبيعات · أداء المبيعات والربحية حسب أيام الأسبوع',
-        keywords: 'weekday comparison day of week weekend مقارنة أيام الأسبوع خميس جمعة سبت القيادة والمبيعات',
-        icon: <CalendarDays className="h-4 w-4" />,
-        run: () => go('/erp/weekday-comparison'),
+        href: '/erp/weekday-comparison',
+        cmd: {
+          id: 'p-weekday-comparison',
+          group: 'pages',
+          en: 'Weekday Sales Comparison',
+          ar: 'مقارنة أيام الأسبوع',
+          hintEn: 'Executive & Sales · Day-of-Week Sales & Margin Rhythm',
+          hintAr: 'القيادة والمبيعات · أداء المبيعات والربحية حسب أيام الأسبوع',
+          keywords: 'weekday comparison day of week weekend مقارنة أيام الأسبوع خميس جمعة سبت القيادة والمبيعات',
+          icon: <CalendarDays className="h-4 w-4" />,
+          run: () => go('/erp/weekday-comparison'),
+        },
       },
       {
-        id: 'p-before-after',
-        group: 'pages',
-        en: 'Decision Impact (Before & After)',
-        ar: 'أثر القرارات (قبل وبعد)',
-        hintEn: 'Executive & Sales · Verified Before vs. After Odoo Variance',
-        hintAr: 'القيادة والمبيعات · قياس أثر القرارات المعتمدة قبل وبعد التنفيذ',
-        keywords: 'decision impact before after compare variance أثر القرارات قبل وبعد مقارنة',
-        icon: <ArrowLeftRight className="h-4 w-4" />,
-        run: () => go('/erp/before-after'),
+        href: '/erp/before-after',
+        cmd: {
+          id: 'p-before-after',
+          group: 'pages',
+          en: 'Decision Impact (Before & After)',
+          ar: 'أثر القرارات (قبل وبعد)',
+          hintEn: 'Executive & Sales · Verified Before vs. After Odoo Variance',
+          hintAr: 'القيادة والمبيعات · قياس أثر القرارات المعتمدة قبل وبعد التنفيذ',
+          keywords: 'decision impact before after compare variance أثر القرارات قبل وبعد مقارنة',
+          icon: <ArrowLeftRight className="h-4 w-4" />,
+          run: () => go('/erp/before-after'),
+        },
       },
 
       // 2) التشغيل وسلسلة الإمداد (Operations & SLA)
       {
-        id: 'p-warehouse-chain',
-        group: 'pages',
-        en: 'Warehouse-to-Branch Chain',
-        ar: 'سلسلة المخزن والفروع',
-        hintEn: 'Operations & SLA · Ardiya Stock, Outbound, Received & Depletion',
-        hintAr: 'التشغيل وسلسلة الإمداد · رصيد العارضية، المنصرف، المستلم، والمباع',
-        keywords: 'warehouse chain stock outbound received depletion التشغيل وسلسلة الإمداد سلسلة المخزن والفروع العارضية هدر',
-        icon: <PackageCheck className="h-4 w-4" />,
-        run: () => go('/erp/warehouse-chain'),
+        href: '/erp/warehouse-chain',
+        cmd: {
+          id: 'p-warehouse-chain',
+          group: 'pages',
+          en: 'Warehouse-to-Branch Chain',
+          ar: 'سلسلة المخزن والفروع',
+          hintEn: 'Operations & SLA · Ardiya Stock, Outbound, Received & Depletion',
+          hintAr: 'التشغيل وسلسلة الإمداد · رصيد العارضية، المنصرف، المستلم، والمباع',
+          keywords: 'warehouse chain stock outbound received depletion التشغيل وسلسلة الإمداد سلسلة المخزن والفروع العارضية هدر',
+          icon: <PackageCheck className="h-4 w-4" />,
+          run: () => go('/erp/warehouse-chain'),
+        },
       },
       {
-        id: 'p-prep-sla',
-        group: 'pages',
-        en: 'Kitchen Prep SLA',
-        ar: 'زمن تجهيز المطبخ',
-        hintEn: 'Operations & SLA · Order Arrival to Kitchen Ready Speed',
-        hintAr: 'التشغيل وسلسلة الإمداد · سرعة تحضير المطبخ حسب المطعم والفرع',
-        keywords: 'prep sla kitchen ready kds زمن تجهيز المطبخ مدة تجهيز الطلبات تحضير اخضر اصفر احمر',
-        icon: <Timer className="h-4 w-4" />,
-        run: () => go('/erp/prep-sla'),
+        href: '/erp/prep-sla',
+        cmd: {
+          id: 'p-prep-sla',
+          group: 'pages',
+          en: 'Kitchen Prep SLA',
+          ar: 'زمن تجهيز المطبخ',
+          hintEn: 'Operations & SLA · Order Arrival to Kitchen Ready Speed',
+          hintAr: 'التشغيل وسلسلة الإمداد · سرعة تحضير المطبخ حسب المطعم والفرع',
+          keywords: 'prep sla kitchen ready kds زمن تجهيز المطبخ مدة تجهيز الطلبات تحضير اخضر اصفر احمر',
+          icon: <Timer className="h-4 w-4" />,
+          run: () => go('/erp/prep-sla'),
+        },
       },
       {
-        id: 'p-delivery-sla',
-        group: 'pages',
-        en: 'Rider Delivery SLA',
-        ar: 'زمن توصيل السائق',
-        hintEn: 'Operations & SLA · Dispatch to Customer Handoff Speed',
-        hintAr: 'التشغيل وسلسلة الإمداد · سرعة توصيل السائقين والمنصات',
-        keywords: 'delivery sla rider driver speed زمن توصيل السائق مدة توصيل الطلبات سائق',
-        icon: <Truck className="h-4 w-4" />,
-        run: () => go('/erp/delivery-sla'),
+        href: '/erp/delivery-sla',
+        cmd: {
+          id: 'p-delivery-sla',
+          group: 'pages',
+          en: 'Rider Delivery SLA',
+          ar: 'زمن توصيل السائق',
+          hintEn: 'Operations & SLA · Dispatch to Customer Handoff Speed',
+          hintAr: 'التشغيل وسلسلة الإمداد · سرعة توصيل السائقين والمنصات',
+          keywords: 'delivery sla rider driver speed زمن توصيل السائق مدة توصيل الطلبات سائق',
+          icon: <Truck className="h-4 w-4" />,
+          run: () => go('/erp/delivery-sla'),
+        },
       },
       {
-        id: 'p-radar',
-        group: 'pages',
-        en: 'Aggregator Commissions',
-        ar: 'عمولات منصات التوصيل',
-        hintEn: 'Operations & SLA · Talabat Tgo/TMP, Keeta, Deliveroo & Jahez',
-        hintAr: 'التشغيل وسلسلة الإمداد · عمولات طلبات وكيتا ودليفرو وجاهز وسنونو',
-        keywords: 'aggregator commissions radar delivery talabat keeta deliveroo jahez snoonu tgo tmp عمولات منصات التوصيل مراقبة التوصيل',
-        icon: <Radar className="h-4 w-4" />,
-        run: () => go('/erp/aggregator-radar'),
+        href: '/erp/aggregator-radar',
+        cmd: {
+          id: 'p-radar',
+          group: 'pages',
+          en: 'Aggregator Commissions',
+          ar: 'عمولات منصات التوصيل',
+          hintEn: 'Operations & SLA · Talabat Tgo/TMP, Keeta, Deliveroo & Jahez',
+          hintAr: 'التشغيل وسلسلة الإمداد · عمولات طلبات وكيتا ودليفرو وجاهز وسنونو',
+          keywords: 'aggregator commissions radar delivery talabat keeta deliveroo jahez snoonu tgo tmp عمولات منصات التوصيل مراقبة التوصيل',
+          icon: <Radar className="h-4 w-4" />,
+          run: () => go('/erp/aggregator-radar'),
+        },
       },
 
       // 3) السمعة والذكاء المرئي (Reputation & Vision AI)
       {
-        id: 'p-social-reviews',
-        group: 'pages',
-        en: 'Social & Aggregator Reviews',
-        ar: 'التقييمات ومنصات التواصل',
-        hintEn: 'Reputation & Vision AI · Customer Ratings & Social Sentiment',
-        hintAr: 'السمعة والذكاء المرئي · تقييمات المنصات والتفاعل الاجتماعي',
-        keywords: 'social reviews ratings talabat google instagram السمعة والذكاء المرئي التقييمات ومنصات التواصل تعليقات تقييم',
-        icon: <MessageSquareHeart className="h-4 w-4" />,
-        run: () => go('/erp/social-reviews'),
+        href: '/erp/social-reviews',
+        cmd: {
+          id: 'p-social-reviews',
+          group: 'pages',
+          en: 'Social & Aggregator Reviews',
+          ar: 'التقييمات ومنصات التواصل',
+          hintEn: 'Reputation & Vision AI · Customer Ratings & Social Sentiment',
+          hintAr: 'السمعة والذكاء المرئي · تقييمات المنصات والتفاعل الاجتماعي',
+          keywords: 'social reviews ratings talabat google instagram السمعة والذكاء المرئي التقييمات ومنصات التواصل تعليقات تقييم',
+          icon: <MessageSquareHeart className="h-4 w-4" />,
+          run: () => go('/erp/social-reviews'),
+        },
       },
       {
-        id: 'p-feryal',
-        group: 'pages',
-        en: 'Ask Feryal (Vision & Video)',
-        ar: 'المستشارة فريال (صور وفيديو)',
-        hintEn: 'Reputation & Vision AI · Multimodal Inspection, Voice & Triple-Brain',
-        hintAr: 'السمعة والذكاء المرئي · فحص الصور والفيديو والمحادثة الصوتية',
-        keywords: 'ai copilot voice vision video feryal المستشارة فريال صور وفيديو السمعة والذكاء المرئي',
-        icon: <Sparkles className="h-4 w-4" />,
-        run: () => go('/erp/feryal-ai'),
+        href: '/erp/feryal-ai',
+        cmd: {
+          id: 'p-feryal',
+          group: 'pages',
+          en: 'Ask Feryal (Vision & Video)',
+          ar: 'المستشارة فريال (صور وفيديو)',
+          hintEn: 'Reputation & Vision AI · Multimodal Inspection, Voice & Triple-Brain',
+          hintAr: 'السمعة والذكاء المرئي · فحص الصور والفيديو والمحادثة الصوتية',
+          keywords: 'ai copilot voice vision video feryal المستشارة فريال صور وفيديو السمعة والذكاء المرئي',
+          icon: <Sparkles className="h-4 w-4" />,
+          run: () => go('/erp/feryal-ai'),
+        },
       },
 
       // 4) الحوكمة والتخطيط (Governance & Strategy)
       {
-        id: 'p-planning',
-        group: 'pages',
-        en: 'Strategic Planning & Forecast',
-        ar: 'التخطيط والتوقعات',
-        hintEn: 'Governance & Strategy · 3 Scenarios & Phased Execution Roadmap',
-        hintAr: 'الحوكمة والتخطيط · ٣ سيناريوهات، التوقعات، وخارطة المراحل',
-        keywords: 'planning forecast scenarios roadmap strategy الحوكمة والتخطيط التخطيط والتوقعات خطة مراحل ميزانية',
-        icon: <Compass className="h-4 w-4" />,
-        run: () => go('/erp/planning'),
+        href: '/erp/planning',
+        cmd: {
+          id: 'p-planning',
+          group: 'pages',
+          en: 'Strategic Planning & Forecast',
+          ar: 'التخطيط والتوقعات',
+          hintEn: 'Governance & Strategy · 3 Scenarios & Phased Execution Roadmap',
+          hintAr: 'الحوكمة والتخطيط · ٣ سيناريوهات، التوقعات، وخارطة المراحل',
+          keywords: 'planning forecast scenarios roadmap strategy الحوكمة والتخطيط التخطيط والتوقعات خطة مراحل ميزانية',
+          icon: <Compass className="h-4 w-4" />,
+          run: () => go('/erp/planning'),
+        },
       },
       {
-        id: 'p-regulations',
-        group: 'pages',
-        en: 'Regulations & Licensing',
-        ar: 'التشريعات والتراخيص',
-        hintEn: 'Governance & Strategy · Municipality, PAFN, Manpower & MOCI',
-        hintAr: 'الحوكمة والتخطيط · البلدية، الغذاء، القوى العاملة، والتجارة',
-        keywords: 'regulations licensing compliance municipality pafn manpower moci الحوكمة والتخطيط التشريعات والتراخيص بلدية تراخيص',
-        icon: <Scale className="h-4 w-4" />,
-        run: () => go('/erp/regulations'),
+        href: '/erp/regulations',
+        cmd: {
+          id: 'p-regulations',
+          group: 'pages',
+          en: 'Regulations & Licensing',
+          ar: 'التشريعات والتراخيص',
+          hintEn: 'Governance & Strategy · Municipality, PAFN, Manpower & MOCI',
+          hintAr: 'الحوكمة والتخطيط · البلدية، الغذاء، القوى العاملة، والتجارة',
+          keywords: 'regulations licensing compliance municipality pafn manpower moci الحوكمة والتخطيط التشريعات والتراخيص بلدية تراخيص',
+          icon: <Scale className="h-4 w-4" />,
+          run: () => go('/erp/regulations'),
+        },
       },
       {
-        id: 'p-booth-feasibility',
-        group: 'pages',
-        en: 'Booth Feasibility Calculator',
-        ar: 'حاسبة جدوى المعارض',
-        hintEn: 'Governance & Strategy · Exhibition Rent, Break-Even & Profit Study',
-        hintAr: 'الحوكمة والتخطيط · دراسة جدوى البوثات والإيجار ونقطة التعادل',
-        keywords: 'events booth feasibility calculator exb kashta winterland الحوكمة والتخطيط حاسبة جدوى المعارض حاسبة المعارض بوث كشتة',
-        icon: <CalendarRange className="h-4 w-4" />,
-        run: () => go('/erp/booth-feasibility'),
+        href: '/erp/booth-feasibility',
+        cmd: {
+          id: 'p-booth-feasibility',
+          group: 'pages',
+          en: 'Booth Feasibility Calculator',
+          ar: 'حاسبة جدوى المعارض',
+          hintEn: 'Governance & Strategy · Exhibition Rent, Break-Even & Profit Study',
+          hintAr: 'الحوكمة والتخطيط · دراسة جدوى البوثات والإيجار ونقطة التعادل',
+          keywords: 'events booth feasibility calculator exb kashta winterland الحوكمة والتخطيط حاسبة جدوى المعارض حاسبة المعارض بوث كشتة',
+          icon: <CalendarRange className="h-4 w-4" />,
+          run: () => go('/erp/booth-feasibility'),
+        },
       },
     ]
+    const pages: Command[] = allPageSpecs
+      .filter((entry) => isErpRouteAllowedForRole(activeRole, entry.href))
+      .map((entry) => entry.cmd)
 
     const seenTitleAr = new Set<string>()
     const seenTitleEn = new Set<string>()
@@ -329,20 +382,27 @@ export function ExecutiveCommandPalette() {
       return true
     })
 
-    const decisions: Command[] = dedupedPlays.map((p) => {
-      const dest = resolvePlayCanonicalDestination(p.stage)
-      return {
+    const decisions: Command[] = dedupedPlays
+      .map((p) => ({
+        play: p,
+        dest: resolvePlayCanonicalDestination(p.stage),
+      }))
+      .filter(({ dest }) => isErpRouteAllowedForRole(activeRole, dest.href))
+      .map(({ play: p, dest }) => ({
         id: `d-${p.id}`,
-        group: 'decisions',
+        group: 'decisions' as const,
         en: p.titleEn,
         ar: p.titleAr,
-        hintEn: `${dest.domainEn} · +${p.periodLabelEn}`,
-        hintAr: `${dest.domainAr} · +${p.periodLabelAr}`,
+        hintEn: maskPaletteCosts
+          ? dest.domainEn
+          : `${dest.domainEn} · +${p.periodLabelEn}`,
+        hintAr: maskPaletteCosts
+          ? dest.domainAr
+          : `${dest.domainAr} · +${p.periodLabelAr}`,
         keywords: `${p.problemEn} ${p.problemAr} ${p.stage} ${p.id} ${dest.domainEn} ${dest.domainAr}`,
         icon: <Target className="h-4 w-4 text-emerald-600" />,
         run: () => go(dest.href),
-      }
-    })
+      }))
 
     const branches: Command[] = BRANCH_TRUE_CASH.filter((b) =>
       (APPROVED_BRANCH_IDS as readonly string[]).includes(b.id),
@@ -351,16 +411,20 @@ export function ExecutiveCommandPalette() {
       group: 'branches',
       en: b.en,
       ar: b.ar,
-      hintEn: `Net: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD`,
-      hintAr: `الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك`,
+      hintEn: maskPaletteCosts
+        ? 'Active Branch · Restricted to Finance/GM'
+        : `Net: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD`,
+      hintAr: maskPaletteCosts
+        ? 'فرع نشط · محصور بالمالية والمدير العام'
+        : `الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك`,
       keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
       icon: <Store className="h-4 w-4" />,
       run: () =>
         go(
           feryalHref(
             lang === 'ar'
-              ? `عطيني ملخص واضح لأداء فرع ${b.ar}: المبيعات، الإيجار، المصاريف، وأسرع خطوة لزيادة صافي الربح.`
-              : `Give me a clear summary for ${b.en}: sales, rent, expenses, and the fastest step to grow net profit.`,
+              ? `عطيني ملخص واضح لأداء فرع ${b.ar}.`
+              : `Give me a clear performance summary for ${b.en}.`,
           ),
         ),
     }))

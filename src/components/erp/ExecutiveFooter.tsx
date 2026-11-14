@@ -7,6 +7,7 @@ import {
   resolveExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { OdooAuditCertificatePill } from '@/components/aether/OdooAuditCertificateModal'
 import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
@@ -104,7 +105,7 @@ export function ExecutiveFooter({
   ])
 
   const triggerLedgerSync = useCallback(async (silent = false) => {
-    if (roleProfile.isAuditor) return
+    if (roleProfile.isAuditor || (!silent && !canTriggerManualOdooSync(activeRole))) return
     if (!silent) {
       setSyncing(true)
       try {
@@ -271,32 +272,34 @@ export function ExecutiveFooter({
           ) : null}
 
           {!roleProfile.isAuditor ? (
-            <button
-              type="button"
-              onClick={() => void triggerLedgerSync(false)}
-              disabled={syncing || syncingOdoo || syncCooldownSec > 0}
-              aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
-              className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ${
-                freshness.isStaleOver24h
-                  ? 'bg-white text-slate-800 ring-1 ring-slate-900/10 hover:bg-slate-50 dark:bg-[#090E0C] dark:text-slate-100'
-                  : liveSummary?.sourceMode === 'cached-live'
-                    ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#141F1B] dark:text-amber-200'
-                    : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#141F1B] dark:text-emerald-200'
-              }`}
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 shrink-0 ${syncing || syncingOdoo ? 'animate-spin' : ''}`}
-              />
-              <span>
-                {syncCooldownSec > 0
-                  ? isAr
-                    ? `تحديث (${syncCooldownSec}ث)`
-                    : `Refresh (${syncCooldownSec}s)`
-                  : isAr
-                    ? 'تحديث'
-                    : 'Refresh'}
-              </span>
-            </button>
+            canTriggerManualOdooSync(activeRole) ? (
+              <button
+                type="button"
+                onClick={() => void triggerLedgerSync(false)}
+                disabled={syncing || syncingOdoo || syncCooldownSec > 0}
+                aria-label={isAr ? 'تحديث الربط الآن' : 'Refresh — Sync Odoo Now — Sync Now'}
+                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1 text-xs font-bold transition-colors disabled:opacity-60 ${
+                  freshness.isStaleOver24h
+                    ? 'bg-white text-slate-800 ring-1 ring-slate-900/10 hover:bg-slate-50 dark:bg-[#090E0C] dark:text-slate-100'
+                    : liveSummary?.sourceMode === 'cached-live'
+                      ? 'bg-white text-amber-900 ring-1 ring-amber-500/30 hover:bg-amber-100/70 dark:bg-[#141F1B] dark:text-amber-200'
+                      : 'bg-white text-emerald-900 ring-1 ring-emerald-500/25 hover:bg-emerald-100/70 dark:bg-[#141F1B] dark:text-emerald-200'
+                }`}
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 shrink-0 ${syncing || syncingOdoo ? 'animate-spin' : ''}`}
+                />
+                <span>
+                  {syncCooldownSec > 0
+                    ? isAr
+                      ? `تحديث (${syncCooldownSec}ث)`
+                      : `Refresh (${syncCooldownSec}s)`
+                    : isAr
+                      ? 'تحديث'
+                      : 'Refresh'}
+                </span>
+              </button>
+            ) : null
           ) : null}
         </div>
       </div>
@@ -306,7 +309,7 @@ export function ExecutiveFooter({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <OdooAuditCertificatePill isAr={isAr} />
 
-          {roleProfile.isAuditor ? (
+          {roleProfile.isAuditor || !canTriggerManualOdooSync(activeRole) ? (
             <span
               title={
                 isAr
