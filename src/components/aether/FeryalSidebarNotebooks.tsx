@@ -37,6 +37,8 @@ import type { GlobalWorkspaceSlice } from '@/lib/aether/global-filter-engine'
 export interface FeryalSidebarNotebooksProps {
   isAr: boolean
   isAuditor?: boolean
+  activeTab?: 'chats' | 'notes'
+  onTabChange?: (tab: 'chats' | 'notes') => void
   activeChatId: string
   activeNotebookId: string
   onSelectNotebook: (notebookId: string) => void
@@ -51,6 +53,8 @@ export interface FeryalSidebarNotebooksProps {
 export function FeryalSidebarNotebooks({
   isAr,
   isAuditor = false,
+  activeTab,
+  onTabChange,
   activeChatId,
   activeNotebookId,
   onSelectNotebook,
@@ -61,7 +65,12 @@ export function FeryalSidebarNotebooks({
   onRunNotePrompt,
   panelClassName,
 }: FeryalSidebarNotebooksProps) {
-  const [tab, setTab] = useState<'chats' | 'notes'>('chats')
+  const [internalTab, setInternalTab] = useState<'chats' | 'notes'>('chats')
+  const tab = activeTab ?? internalTab
+  const handleSwitchTab = (next: 'chats' | 'notes') => {
+    setInternalTab(next)
+    onTabChange?.(next)
+  }
   const [chats, setChats] = useState<FeryalChatSummary[]>([])
   const [notebooks, setNotebooks] = useState<FeryalNotebook[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -179,14 +188,14 @@ export function FeryalSidebarNotebooks({
           type="button"
           role="tab"
           aria-selected={tab === 'chats'}
-          onClick={() => setTab('chats')}
-          className={`inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-all ${
+          onClick={() => handleSwitchTab('chats')}
+          className={`inline-flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-full px-3 py-1 text-xs lg:text-[13px] font-semibold transition-all ${
             tab === 'chats'
               ? 'bg-white text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-emerald-500/20 dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-500/30'
               : 'text-neutral-600 hover:text-neutral-900 dark:text-slate-300 dark:hover:text-white'
           }`}
         >
-          <span className="truncate">
+          <span className="whitespace-normal leading-snug">
             {isAr ? 'محادثاتي ودفاتري 💬' : 'Chats & Notebooks 💬'}
           </span>
           {chats.length > 0 ? (
@@ -200,15 +209,15 @@ export function FeryalSidebarNotebooks({
           type="button"
           role="tab"
           aria-selected={tab === 'notes'}
-          onClick={() => setTab('notes')}
-          className={`inline-flex h-8 cursor-pointer items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold transition-all ${
+          onClick={() => handleSwitchTab('notes')}
+          className={`inline-flex min-h-8 cursor-pointer items-center justify-center gap-1 rounded-full px-3 py-1 text-xs lg:text-[13px] font-semibold transition-all ${
             tab === 'notes'
               ? 'bg-white text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-emerald-500/20 dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-500/30'
               : 'text-neutral-600 hover:text-neutral-900 dark:text-slate-300 dark:hover:text-white'
           }`}
         >
-          <span className="truncate">
-            {isAr ? 'أهم ملاحظات اليوم ⚡' : "Today's Notes ⚡"}
+          <span className="whitespace-normal leading-snug">
+            {isAr ? 'ملاحظات اليوم ⚡' : "Today's Notes ⚡"}
           </span>
         </button>
       </div>
@@ -669,11 +678,15 @@ export function FeryalSidebarNotebooks({
                   type="button"
                   disabled={isCopilotThinking}
                   onClick={() => onRunNotePrompt(isAr ? note.promptAr : note.promptEn)}
-                  className="w-full cursor-pointer rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30"
+                  className="w-full cursor-pointer rounded-full bg-emerald-50 px-4 py-2 text-xs lg:text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30"
                 >
                   {isAr ? 'اسأل فريال' : 'Ask Feryal'}
                 </button>
-              ) : null}
+              ) : (
+                <span className="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  {isAr ? 'سجل مراجعة يومي معتمد ✓' : 'Verified Daily Audit Note ✓'}
+                </span>
+              )}
             </article>
           ))}
         </div>

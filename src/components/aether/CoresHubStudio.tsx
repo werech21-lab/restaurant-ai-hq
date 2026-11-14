@@ -40,6 +40,7 @@ import {
   evaluateCampaignOdooHalo,
   isDemoSocialCampaign,
   REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
+  resolveCampaignDisplayName,
   sanitizeRealCampaigns,
   SEEDED_SOCIAL_CAMPAIGNS,
   SOCIAL_AD_TYPE_OPTIONS,
@@ -391,8 +392,8 @@ export function CoresHubStudio() {
       requestApproval({
         refKey: `campaign:${c.id}`,
         domain: 'marketing',
-        titleAr: `اعتماد حملة تسويق: ${c.campaignName} (${evalRow.brandAr})`,
-        titleEn: `Approve Ad Campaign: ${c.campaignName} (${evalRow.brandEn})`,
+        titleAr: `اعتماد حملة تسويق: ${resolveCampaignDisplayName(c, true)} (${evalRow.brandAr})`,
+        titleEn: `Approve Ad Campaign: ${resolveCampaignDisplayName(c, false)} (${evalRow.brandEn})`,
         summaryAr: `الفترة ${evalRow.startDate} ← ${evalRow.endDate} (${formatArDays(evalRow.windowDays)}) • الميزانية ${f0(c.spendKwd)} د.ك • الصافي المتوقع ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} د.ك.`,
         summaryEn: `Window ${evalRow.startDate} -> ${evalRow.endDate} (${evalRow.windowDays}d) • Spend ${f0(c.spendKwd)} KWD • Net ${evalRow.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(evalRow.netProfitAfterAdKwd)} KWD.`,
         departmentAr: 'إدارة التسويق والنمو',
@@ -880,9 +881,9 @@ export function CoresHubStudio() {
 
   const formatCampaignWhatsapp = (ev: CampaignHaloEvaluation) => {
     if (!isAr) {
-      return `*Ad ROI Check — ${ev.brandEn}*\n• Campaign: ${ev.campaign.campaignName} (${ev.adTypeEn})\n• Window: ${ev.startDate} -> ${ev.endDate} (${ev.windowDays}d) | Spend: ${f0(ev.campaign.spendKwd)} KWD\n• Prior ${ev.windowDays}d: ${f1(ev.before3dSalesKwd)} KWD -> Campaign ${ev.windowDays}d: ${f1(ev.after3dSalesKwd)} KWD\n• Real Sales Lift: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} KWD (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} orders)\n• Net Profit After Ad: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} KWD\n• Verdict: ${ev.verdictEn}`
+      return `*Ad ROI Check — ${ev.brandEn}*\n• Campaign: ${resolveCampaignDisplayName(ev.campaign, false)} (${ev.adTypeEn})\n• Window: ${ev.startDate} -> ${ev.endDate} (${ev.windowDays}d) | Spend: ${f0(ev.campaign.spendKwd)} KWD\n• Prior ${ev.windowDays}d: ${f1(ev.before3dSalesKwd)} KWD -> Campaign ${ev.windowDays}d: ${f1(ev.after3dSalesKwd)} KWD\n• Real Sales Lift: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} KWD (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} orders)\n• Net Profit After Ad: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} KWD\n• Verdict: ${ev.verdictEn}`
     }
-    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${ev.campaign.campaignName} (${ev.adTypeAr})\n• الفترة: ${ev.startDate} ← ${ev.endDate} (${formatArDays(ev.windowDays)}) | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات قبل (${formatArDays(ev.windowDays)}): ${f1(ev.before3dSalesKwd)} د.ك ← خلال الحملة: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
+    return `*نتيجة إعلان — ${ev.brandAr}*\n• الحملة: ${resolveCampaignDisplayName(ev.campaign, true)} (${ev.adTypeAr})\n• الفترة: ${ev.startDate} ← ${ev.endDate} (${formatArDays(ev.windowDays)}) | المدفوع: ${f0(ev.campaign.spendKwd)} د.ك\n• المبيعات قبل (${formatArDays(ev.windowDays)}): ${f1(ev.before3dSalesKwd)} د.ك ← خلال الحملة: ${f1(ev.after3dSalesKwd)} د.ك\n• زيادة المبيعات الفعلية: ${ev.liftSalesKwd >= 0 ? '+' : ''}${f1(ev.liftSalesKwd)} د.ك (${ev.liftOrders >= 0 ? '+' : ''}${ev.liftOrders} طلب)\n• الربح الصافي بعد خصم الإعلان: ${ev.netProfitAfterAdKwd >= 0 ? '+' : ''}${f1(ev.netProfitAfterAdKwd)} د.ك\n• القرار: ${ev.verdictAr}`
   }
 
   return (
@@ -1526,7 +1527,7 @@ export function CoresHubStudio() {
                         </div>
 
                         <h3 className="mt-2.5 text-[15px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                          {ev.campaign.campaignName}
+                          {resolveCampaignDisplayName(ev.campaign, isAr)}
                         </h3>
                         {ev.campaign.promotedItem ? (
                           <p className="mt-0.5 text-xs text-neutral-400">

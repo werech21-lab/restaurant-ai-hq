@@ -31,6 +31,7 @@ interface GlobalFilterContextValue {
   filters: Required<GlobalFilters>
   workspace: GlobalWorkspaceSlice
   liveSummary: OdooLiveSummary | null
+  isAuditor: boolean
   syncingOdoo: boolean
   syncCooldownSec: number
   triggerOdooSyncNow: () => Promise<void>
@@ -458,6 +459,7 @@ export function GlobalFilterProvider({
       filters: effectiveFilters,
       workspace,
       liveSummary: effectiveLiveSummary,
+      isAuditor,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,
@@ -475,6 +477,7 @@ export function GlobalFilterProvider({
       effectiveFilters,
       workspace,
       effectiveLiveSummary,
+      isAuditor,
       syncingOdoo,
       syncCooldownSec,
       triggerOdooSyncNow,
@@ -501,6 +504,7 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       filters: DEFAULT_GLOBAL_FILTERS,
       workspace: fallbackWorkspace,
       liveSummary: null,
+      isAuditor: false,
       syncingOdoo: false,
       syncCooldownSec: 0,
       triggerOdooSyncNow: async () => {},

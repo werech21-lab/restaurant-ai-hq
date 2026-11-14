@@ -610,9 +610,11 @@ export function computeCoresHubSnapshot(
       mergedDailyMap.set(d.day, d)
     }
   }
-  const fullDays = [...mergedDailyMap.values()]
-    .filter((d) => d.day <= canonicalPeriodWin.toInclusiveIso)
-    .sort((a, b) => a.day.localeCompare(b.day))
+  const allAvailableDays = [...mergedDailyMap.values()].sort((a, b) => a.day.localeCompare(b.day))
+  const fullDays = allAvailableDays.filter(
+    (d) =>
+      d.day >= canonicalPeriodWin.fromIso && d.day <= canonicalPeriodWin.toInclusiveIso,
+  )
 
   // =========================================================================
   // 1. MENU & PRODUCTS CORE (computed first so Marketing can spotlight gems!)
@@ -938,49 +940,40 @@ export function computeCoresHubSnapshot(
   } else if (filters.period === 'month' || filters.period === 'custom') {
     const customMatching =
       filters.period === 'custom' && filters.customFrom && filters.customTo
-        ? fullDays.filter((d) => d.day >= filters.customFrom! && d.day <= filters.customTo!)
+        ? allAvailableDays.filter(
+            (d) => d.day >= filters.customFrom! && d.day <= filters.customTo!,
+          )
         : []
-    const baseSlice = customMatching.length >= 2 ? customMatching.slice(-14) : fullDays.slice(-14)
-    if (filters.period === 'custom') {
-      timeline = reconcileSalesRows(
-        baseSlice.map((d) => {
-          const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-          return {
-            id: d.day,
-            labelAr: d.day.slice(5),
-            labelEn: d.day.slice(5),
-            tooltipTitleAr: `تاريخ ${d.day}`,
-            tooltipTitleEn: `Date ${d.day}`,
-            rawSales: safeNum(d.netKwd, 1),
-            rawOrders: safeNum(d.orders, 1),
-            color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
-          }
-        }),
-        ws.salesKwd,
-        ws.orders,
-      )
-    } else {
-      const sum30 = fullDays.reduce((s, d) => s + d.netKwd, 0) || 1
-      const sum30Ord = fullDays.reduce((s, d) => s + d.orders, 0) || 1
-      timeline = baseSlice.map((d) => {
+    const monthWindowDays =
+      fullDays.length >= 2
+        ? fullDays
+        : allAvailableDays
+            .filter((d) => d.day <= canonicalPeriodWin.toInclusiveIso)
+            .slice(-30)
+    const baseSlice =
+      filters.period === 'custom'
+        ? customMatching.length >= 2
+          ? customMatching
+          : monthWindowDays.slice(-14)
+        : monthWindowDays
+
+    timeline = reconcileSalesRows(
+      baseSlice.map((d) => {
         const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-        const sKwd = round1(ws.salesKwd * (d.netKwd / sum30))
-        const ord = Math.max(0, Math.round(ws.orders * (d.orders / sum30Ord)))
         return {
           id: d.day,
           labelAr: d.day.slice(5),
           labelEn: d.day.slice(5),
           tooltipTitleAr: `تاريخ ${d.day}`,
           tooltipTitleEn: `Date ${d.day}`,
-          salesKwd: sKwd,
-          displaySalesKwd: Math.round(sKwd),
-          orders: ord,
-          aovKwd: ord > 0 ? round2(sKwd / ord) : ws.aovKwd,
-          sharePct: ws.salesKwd > 0 ? round1((sKwd / ws.salesKwd) * 100) : 0,
+          rawSales: safeNum(d.netKwd, 1),
+          rawOrders: safeNum(d.orders, 1),
           color: dow === 4 || dow === 5 ? '#10B981' : '#38BDF8',
         }
-      })
-    }
+      }),
+      ws.salesKwd,
+      ws.orders,
+    )
   } else {
     const months = [
       { id: 'm1', ar: 'يناير', en: 'Jan', w: 0.088 },

@@ -851,12 +851,17 @@ export function SalesNetComboChart({
                   <div key={`lbl-${d.id}`} className="flex items-center justify-center">
                     <span
                       dir={/^\d/.test(displayLabel) ? 'ltr' : undefined}
-                      className={`whitespace-nowrap text-center text-xs font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
-                        data.length > 7
-                          ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
+                      className={`whitespace-nowrap text-center text-xs lg:text-[13px] font-bold tabular-nums text-slate-600 dark:text-slate-300 ${
+                        data.length > 15
+                          ? (idx === 0 || idx === data.length - 1 || idx % 5 === 0) &&
+                            idx !== data.length - 2
                             ? ''
-                            : 'hidden sm:inline-block'
-                          : ''
+                            : 'hidden'
+                          : data.length > 7
+                            ? (idx % 3 === 0 || idx === data.length - 1) && idx !== data.length - 2
+                              ? ''
+                              : 'hidden sm:inline-block'
+                            : ''
                       }`}
                     >
                       {displayLabel}

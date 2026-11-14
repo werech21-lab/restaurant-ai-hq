@@ -858,7 +858,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
                     <tr>
-                      <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-SLM-084</td>
+                      <td className="py-2.5 px-3 font-bold text-cyan-300">TR-EXB-SLM-084</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
                         {isAr ? 'المطبخ المركزي ➔ فرع السالمية' : 'Central Kitchen ➔ Salmiya Branch'}
                       </td>
@@ -874,7 +874,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2.5 px-3 font-bold text-cyan-300">TR-QRN-360-085</td>
+                      <td className="py-2.5 px-3 font-bold text-cyan-300">TR-EXB-360-085</td>
                       <td className="py-2.5 px-3 font-sans font-semibold text-white">
                         {isAr ? 'المطبخ المركزي ➔ فرع 360 مول' : 'Central Kitchen ➔ 360 Mall Branch'}
                       </td>

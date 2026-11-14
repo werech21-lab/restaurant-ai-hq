@@ -75,7 +75,7 @@ export const COMPREHENSIVE_AR_EN: Record<string, string> = {
   'كشوف NBK / Gulf / Boubyan / Ahli · فواتير · عهد Rabih/Sheila/Amgad/Sanad · Excel/CSV/PDF/صور': 'NBK / Gulf / Boubyan / Ahli · · Rabih/Sheila/Amgad/Sanad · Excel/CSV/PDF/',
   'إغلاق قسري للفرع/البراند في وقت الذروة دون إذن مدير العمليات. مطلوب إعادة الفتح فوراً على $': 'Close Branch/Brand Operations. $',
   'الدفاتر ما زالت على سعر أمر الشراء إلى أن تُحفظ الإعدادات. المتوسط المتحرك لا يعمل قبل ذلك.': 'The books stay on order price until these settings are saved. Moving weighted average does not run before that.',
-  'جرد Excel/CSV · أكواد RW*/PI*/PP* · وصفات · صور أصناف المنيو · رموز PRM/360/ASM/KOUT/QRN/CK': 'Excel/CSV · RW*/PI*/PP* · Recipes · From · PRM/360/ASM/KOUT/QRN/CK',
+  'جرد Excel/CSV · أكواد RW*/PI*/PP* · وصفات · صور أصناف المنيو · رموز PRM/360/ASM/KOUT/SLM/EXB': 'Excel/CSV · RW*/PI*/PP* · Recipes · Menu Images · PRM/360/ASM/KOUT/SLM/EXB',
   'الإلغاء يقيّد قيداً عكسياً بتاريخ في فترة مالية مفتوحة، ويعيد الرصيد المستحق على الفاتورة.': 'Voiding posts a reversing entry dated in an open fiscal period and restores the open balance of the invoice.',
   'شجرة الحسابات وقيود اليومية والفترات المالية وميزان المراجعة. كل المبالغ بالدينار الكويتي.': 'The chart of accounts, the journal, the fiscal periods and the trial balance. All amounts are in Kuwaiti dinar.',
   'إحصاءات السجلات المسحوبة، حالة فهارس التسريع، وزمن الاستجابة — بدون المساس بأي صف تاريخي.': 'Revoked From — Date.',

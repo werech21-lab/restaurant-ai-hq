@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db";
 import { getActiveScope, movementWhereForScope } from "@/lib/scope";
 import { queryProducts } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
+import { isDecommissionedSiteText } from "@/services/warehouse.service";
 import { InventoryPanel } from "@/app/(panel)/inventory/inventory-panel";
 
 export const metadata = {
@@ -78,6 +79,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
         where,
         include: {
           product: { select: { name: true, code: true } },
+          warehouse: { select: { name: true, code: true } },
           createdBy: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -85,8 +87,14 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
         take: PAGE_SIZE,
       }),
     ]);
-    total = count;
-    movements = rows;
+    const cleanRows = rows.filter(
+      (r) =>
+        !isDecommissionedSiteText(
+          `${r.warehouse?.code ?? ""} ${r.warehouse?.name ?? ""} ${r.note ?? ""} ${r.product.code} ${r.product.name}`,
+        ),
+    );
+    total = Math.max(cleanRows.length, count - (rows.length - cleanRows.length));
+    movements = cleanRows;
   } else {
     // Decoupled from hidden scope filters to display all enterprise stock items reliably
     const result = await queryProducts({

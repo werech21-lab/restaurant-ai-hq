@@ -12,7 +12,33 @@ const ATTR_ORIGINAL_PREFIX = 'data-original-ar-'
 const VALUE_ORIGINAL = 'data-original-ar-value'
 
 /** Pages that already localize via React locale state — never mutate their DOM. */
-const REACT_I18N_PATHS = ['/dashboard', '/reports', '/erp/aggregator-radar', '/erp/food-safety', '/erp/sales-scorecard', '/erp/menu-engineering', '/erp/feryal-ai', '/erp/events-intelligence', '/erp/sales-analysis', '/erp/delivery-control', '/erp/alerts', '/erp/demand-forecast', '/erp/cost-intelligence', '/erp/executive-pnl']
+const REACT_I18N_PATHS = [
+  '/dashboard',
+  '/reports',
+  '/erp/aggregator-radar',
+  '/erp/food-safety',
+  '/erp/sales-scorecard',
+  '/erp/menu-engineering',
+  '/erp/feryal-ai',
+  '/erp/feryal',
+  '/erp/before-after',
+  '/erp/cores',
+  '/erp/planning',
+  '/erp/regulations',
+  '/erp/warehouse-chain',
+  '/erp/prep-sla',
+  '/erp/delivery-sla',
+  '/erp/social-reviews',
+  '/erp/weekday-comparison',
+  '/erp/booth-feasibility',
+  '/erp/events-intelligence',
+  '/erp/sales-analysis',
+  '/erp/delivery-control',
+  '/erp/alerts',
+  '/erp/demand-forecast',
+  '/erp/cost-intelligence',
+  '/erp/executive-pnl',
+]
 /** Exact-match pages that localize via React (their sub-routes may still need the safety net). */
 const REACT_I18N_EXACT = ['/erp']
 

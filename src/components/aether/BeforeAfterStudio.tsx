@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   ExecutiveComparisonControlBar,
@@ -891,17 +892,25 @@ export function BeforeAfterStudio() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 tabular-nums">
-            {comparison.insights.topGainer && (
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                {isAr ? 'أعلى تحسن:' : 'Top Lift:'}{' '}
-                {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
-                ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
-              </span>
-            )}
+            {comparison.insights.topGainer &&
+              (comparison.insights.topGainer.deltaKwd > 0 ? (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                  {isAr ? 'أكبر ارتفاع:' : 'Top Lift:'}{' '}
+                  {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
+                  ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-200">
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
+                  {isAr ? 'الأقل تراجعاً (الأكثر تماسكاً):' : 'Most Resilient:'}{' '}
+                  {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
+                  ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                </span>
+              ))}
             {comparison.insights.biggestDecline &&
               comparison.insights.biggestDecline.deltaKwd < 0 && (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1 text-[12px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
                   <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
                   {isAr ? 'أكبر تراجع:' : 'Biggest Drop:'}{' '}
                   {isAr
@@ -917,13 +926,13 @@ export function BeforeAfterStudio() {
       {/* 1C. 6 Core Before-vs-After KPI Delta Cards (with Smart Polarity) */}
       <section className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
         {comparison.kpiList.map((kpi) => {
+          const signed = formatSignedDelta(kpi.deltaPct)
           const badgeTone =
-            kpi.trend === 'flat'
+            kpi.trend === 'flat' || signed.sign === 'flat'
               ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
               : kpi.isFavorable
                 ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
                 : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
-          const arrow = kpi.trend === 'up' ? '▲' : kpi.trend === 'down' ? '▼' : '•'
 
           return (
             <article
@@ -931,7 +940,7 @@ export function BeforeAfterStudio() {
               className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10"
             >
               <div className="flex items-start justify-between gap-1.5">
-                <span className="text-[12px] sm:text-[12.5px] font-semibold text-neutral-500 dark:text-slate-300">
+                <span className="text-[12px] sm:text-[12.5px] lg:text-[13px] font-semibold text-neutral-500 dark:text-slate-300">
                   {isAr ? kpi.labelAr : kpi.labelEn}
                 </span>
                 {kpi.isFavorable ? (
@@ -957,9 +966,8 @@ export function BeforeAfterStudio() {
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
-                  {arrow}{' '}
-                  {kpi.unit === 'pct' ? fmtSignedPp(kpi.deltaPct) : fmtSignedPct(kpi.deltaPct)}
+                <span className={`rounded-lg px-2 py-0.5 text-xs lg:text-[13px] font-semibold ${badgeTone}`}>
+                  {kpi.unit === 'pct' ? `${signed.arrow} ${fmtSignedPp(signed.pct)}` : signed.text}
                 </span>
                 {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' && (
                   <span className="text-xs font-medium text-slate-500 dark:text-slate-400">

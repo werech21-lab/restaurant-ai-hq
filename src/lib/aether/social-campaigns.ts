@@ -22,6 +22,7 @@ export interface SocialCampaign {
   branch?: GlobalBranch
   adType: SocialAdType
   campaignName: string
+  campaignNameEn?: string
   spendKwd: number
   date: string // YYYY-MM-DD (campaign start date)
   startDate?: string // YYYY-MM-DD
@@ -87,6 +88,7 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     brand: 'china-garden',
     adType: 'influencer',
     campaignName: 'تغطية بلوقر مطاعم الكويت — داينمايت شرمب ونودلز',
+    campaignNameEn: 'Kuwait Food Blogger — Dynamite Shrimp & Noodles',
     spendKwd: 350,
     date: '2026-10-29',
     startDate: '2026-10-29',
@@ -98,6 +100,7 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     brand: 'franks',
     adType: 'tiktok',
     campaignName: 'فيديو تيك توك وريلز — فيلي ستيك على الصاج',
+    campaignNameEn: 'TikTok & Reels Promo — Orig. Philly CheeseSteak',
     spendKwd: 95,
     date: '2026-10-22',
     startDate: '2026-10-22',
@@ -109,6 +112,7 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     brand: 'farm-brown',
     adType: 'snapchat',
     campaignName: 'إعلان سناب شات — وجبات كرسبي وساندويتشات',
+    campaignNameEn: 'Snapchat Promo — Crispy Chicken Combo',
     spendKwd: 75,
     date: '2026-11-04',
     startDate: '2026-11-04',
@@ -120,6 +124,7 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     brand: 'noodle-bar',
     adType: 'in-app',
     campaignName: 'إعلان نقرات ممول بدون حد أدنى للطلب',
+    campaignNameEn: 'Sponsored App Clicks — Wok Noodles Promo',
     spendKwd: 190,
     date: '2026-11-01',
     startDate: '2026-11-01',
@@ -127,6 +132,38 @@ export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
     promotedItem: 'Wok Noodles',
   },
 ]
+
+const BROKEN_CAMPAIGN_NAME_RE = /^(?:[-—–\s]|in\s*[-—–]\s*in|in)+$/i
+
+/**
+ * Resolves a complete, meaningful bilingual campaign title (NEVER `—`, empty, or `in — in`).
+ */
+export function resolveCampaignDisplayName(
+  campaign: Partial<SocialCampaign> | null | undefined,
+  isAr: boolean,
+): string {
+  const brandId = campaign?.brand ?? 'china-garden'
+  const brandLabel = getBrandLabel(brandId, isAr)
+  const adOpt =
+    SOCIAL_AD_TYPE_OPTIONS.find((t) => t.id === campaign?.adType) ?? SOCIAL_AD_TYPE_OPTIONS[2]
+  const adLabel = isAr ? adOpt.ar : adOpt.en
+  const dish = (campaign?.promotedItem ?? '').trim()
+  const rawAr = (campaign?.campaignName ?? '').trim()
+  const rawEn = (campaign?.campaignNameEn ?? '').trim()
+
+  if (isAr) {
+    if (rawAr && !BROKEN_CAMPAIGN_NAME_RE.test(rawAr)) return rawAr
+    return dish ? `حملة ${adLabel} — ${dish}` : `حملة ${adLabel} — ${brandLabel}`
+  }
+
+  if (rawEn && !BROKEN_CAMPAIGN_NAME_RE.test(rawEn)) return rawEn
+  if (rawAr && !/[\u0600-\u06FF]/.test(rawAr) && !BROKEN_CAMPAIGN_NAME_RE.test(rawAr)) {
+    return rawAr
+  }
+  const seededHit = SEEDED_SOCIAL_CAMPAIGNS.find((s) => s.id === campaign?.id)
+  if (seededHit?.campaignNameEn) return seededHit.campaignNameEn
+  return dish ? `${adLabel} Promo — ${dish}` : `${adLabel} Campaign — ${brandLabel}`
+}
 
 const BRAND_FOOD_PCT: Record<Exclude<GlobalBrand, 'all'>, number> = {
   'china-garden': 0.264,
@@ -209,9 +246,16 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
       branch,
       adType,
       campaignName:
-        typeof rec.campaignName === 'string' && rec.campaignName.trim()
+        typeof rec.campaignName === 'string' &&
+        rec.campaignName.trim() &&
+        !BROKEN_CAMPAIGN_NAME_RE.test(rec.campaignName.trim())
           ? rec.campaignName.trim()
-          : 'حملة سوشيال',
+          : 'حملة عروض وتوصيل',
+      ...(typeof rec.campaignNameEn === 'string' &&
+      rec.campaignNameEn.trim() &&
+      !BROKEN_CAMPAIGN_NAME_RE.test(rec.campaignNameEn.trim())
+        ? { campaignNameEn: rec.campaignNameEn.trim() }
+        : {}),
       spendKwd: spend,
       date: startDate,
       startDate,

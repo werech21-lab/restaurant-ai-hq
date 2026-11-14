@@ -118,7 +118,6 @@ export const VF_BRANCHES: VfBranchContact[] = [
   { code: 'ARD', nameAr: 'فرع العارضية', nameEn: 'Ardiya Branch', ext: '403', direct: '22243835', email: 'ardiyacg@venturefoodskw.com', warehouseMatch: ['Ardiya', 'العارضية', 'KWC'] },
   { code: '360', nameAr: 'فرع 360 مول', nameEn: '360 Mall Branch', ext: '404', direct: '22240102', email: '360mallcg@venturefoodskw.com', warehouseMatch: ['360'] },
   { code: 'KOUT', nameAr: 'فرع الكوت مول', nameEn: 'Al-Kout Mall Branch', ext: '405', direct: '25309520', email: 'alkoutmallcg@venturefoodskw.com', warehouseMatch: ['Kout', 'الكوت'] },
-  { code: 'QRN', nameAr: 'فرع مبارك الكبير', nameEn: 'Mubarak Al-Kabeer Branch', ext: '406', direct: '22213211', email: '', warehouseMatch: ['Mubarak', 'مبارك الكبير'] },
   { code: 'ASM', nameAr: 'فرع العاصمة مول', nameEn: 'Assima Mall Branch', ext: '407', direct: '22243446', email: 'assimamallcg@venturefoodskw.com', warehouseMatch: ['Assima', 'العاصمة', 'ASM'] },
   { code: 'PRM', nameAr: 'فرع البروميناد مول', nameEn: 'Promenade Mall Branch', ext: '408', direct: '22212230', email: 'promenademall@venturefoodskw.com', warehouseMatch: ['Promenade', 'البروميناد', 'PRM'] },
   { code: 'FRW', nameAr: 'فرع الفروانية', nameEn: 'Farwaniya Branch', ext: '410', direct: '22212232', email: 'farwaniya@venturefoodskw.com', warehouseMatch: ['Farwaniya', 'الفروانية'] },

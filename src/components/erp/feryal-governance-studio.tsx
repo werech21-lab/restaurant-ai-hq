@@ -238,6 +238,7 @@ export function FeryalGovernanceStudio({
   const [memoryOpen, setMemoryOpen] = useState(false)
   const [bigBetMenuOpen, setBigBetMenuOpen] = useState(false)
   const [memoryCountBadge, setMemoryCountBadge] = useState<number>(7)
+  const [activeStudioTab, setActiveStudioTab] = useState<'studio' | 'notes'>('studio')
 
   const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
   const [isProcessingMedia, setIsProcessingMedia] = useState(false)
@@ -547,6 +548,7 @@ export function FeryalGovernanceStudio({
       setInputText('')
       setPendingAttachments([])
       setMediaErrorText(null)
+      setActiveStudioTab('studio')
       setIsCopilotThinking(true)
 
       const liveSnapshot = readLiveGovernanceSnapshot(workspace)
@@ -992,6 +994,7 @@ export function FeryalGovernanceStudio({
     setOpenSplitIds({})
     setBigBetMenuOpen(false)
     setIngestedDeepLinkLabel(null)
+    setActiveStudioTab('studio')
     setActiveChatId(makeFreshChatId())
     setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
   }, [isAr, stopAllMicTracks, stopPlayback])
@@ -1000,6 +1003,7 @@ export function FeryalGovernanceStudio({
     async (chatId: string) => {
       stopPlayback()
       stopAllMicTracks()
+      setActiveStudioTab('studio')
       const thread = await loadChatThread(chatId)
       if (thread && thread.messages.length > 0) {
         setActiveChatId(thread.id)
@@ -1020,9 +1024,9 @@ export function FeryalGovernanceStudio({
   void FERYAL_EXECUTIVE_MODES
 
   const utilityPillIdle =
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-[13px] font-medium whitespace-nowrap text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 sm:px-2.5 sm:py-1.5 sm:text-[12px] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-[13px] font-medium whitespace-nowrap text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 sm:px-2.5 sm:py-1.5 sm:text-[12px] lg:text-[13px] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
   const utilityPillActive =
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2 py-1 text-[13px] font-semibold whitespace-nowrap text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 sm:px-2.5 sm:py-1.5 sm:text-[12px] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
+    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2 py-1 text-[13px] font-semibold whitespace-nowrap text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 sm:px-2.5 sm:py-1.5 sm:text-[12px] lg:text-[13px] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
 
   return (
     <div
@@ -1132,6 +1136,32 @@ export function FeryalGovernanceStudio({
                   ) : null}
 
                   <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={activeStudioTab === 'studio'}
+                      onClick={() => setActiveStudioTab('studio')}
+                      className={activeStudioTab === 'studio' ? utilityPillActive : utilityPillIdle}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span>{T('Studio & Chat', 'استوديو المحادثة')}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="tab"
+                      data-studio-tab="today-notes"
+                      aria-selected={activeStudioTab === 'notes'}
+                      onClick={() => setActiveStudioTab((cur) => (cur === 'notes' ? 'studio' : 'notes'))}
+                      className={activeStudioTab === 'notes' ? utilityPillActive : utilityPillIdle}
+                    >
+                      <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span>{T("Today's Notes ⚡", 'ملاحظات اليوم ⚡')}</span>
+                      <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
+                        {workspace.feryalNotes.length}
+                      </span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setMemoryOpen(true)}
@@ -1332,14 +1362,135 @@ export function FeryalGovernanceStudio({
               ) : null}
             </div>
 
-            {/* 3. Main Studio Body: Balanced Full-Height Onboarding (0 messages) OR Active Stream */}
+            {/* 3. Main Studio Body: Today's Notes Tab OR Balanced Onboarding / Active Stream */}
             <div
               ref={chatScrollRef}
               className={`w-full max-w-full min-w-0 flex-1 overflow-x-hidden px-3 py-3 sm:px-5 sm:py-4 ${
-                hasUserMessages ? 'max-h-[62vh] space-y-3.5 overflow-y-auto' : 'space-y-2.5 sm:space-y-3.5'
+                activeStudioTab === 'studio' && hasUserMessages
+                  ? 'max-h-[62vh] space-y-3.5 overflow-y-auto'
+                  : 'space-y-2.5 sm:space-y-3.5'
               }`}
               aria-live="polite"
             >
+              {activeStudioTab === 'notes' ? (
+                <section
+                  aria-label={T("Today's Notes", 'ملاحظات اليوم')}
+                  className="w-full max-w-full min-w-0 space-y-3.5"
+                >
+                  <div className={`${SUBCARD_CLS} flex flex-wrap items-center justify-between gap-2.5 rounded-2xl p-3.5 sm:p-4`}>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <h3 className="text-[15px] sm:text-[16px] font-bold tracking-tight text-slate-950 dark:text-white">
+                          {T(
+                            "Today's Notes — Daily Executive & Operational Briefing",
+                            'ملاحظات اليوم — المذكرة التنفيذية والتشغيلية اليومية',
+                          )}
+                        </h3>
+                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                          {isAr ? workspace.periodCalendarWindowAr : workspace.periodCalendarWindowEn}
+                        </span>
+                      </div>
+                      <p className="text-xs lg:text-[13px] font-medium whitespace-normal leading-snug text-slate-600 dark:text-slate-300">
+                        {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveStudioTab('studio')}
+                      className="cursor-pointer rounded-xl bg-white px-3 py-1.5 text-xs lg:text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/25 transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-emerald-200"
+                    >
+                      {T('Back to Studio & Chat ↩', 'العودة لاستوديو المحادثة ↩')}
+                    </button>
+                  </div>
+
+                  {/* Structured Daily Executive Notes Grid (Accessible to ALL roles including Read-Only Auditor) */}
+                  <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {workspace.feryalNotes.map((note) => (
+                      <article
+                        key={`today-note-${note.id}`}
+                        className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-3 rounded-2xl p-4 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h4 className="min-w-0 flex-1 text-[14px] font-bold whitespace-normal leading-snug text-neutral-950 dark:text-white">
+                              {isAr ? note.titleAr : note.titleEn}
+                            </h4>
+                            <span
+                              dir="ltr"
+                              className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                            >
+                              {isAr ? note.benefitAr : note.benefitEn}
+                            </span>
+                          </div>
+                          <p className="text-[13px] leading-relaxed whitespace-normal break-words text-neutral-600 dark:text-slate-300">
+                            {isAr ? note.summaryAr : note.summaryEn}
+                          </p>
+                        </div>
+
+                        {!isAuditor ? (
+                          <button
+                            type="button"
+                            disabled={isCopilotThinking}
+                            onClick={() => void handleSendQuery(isAr ? note.promptAr : note.promptEn)}
+                            className="cursor-pointer self-start rounded-xl bg-emerald-50 px-3 py-1.5 text-xs lg:text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/25 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200"
+                          >
+                            {T('Ask Feryal About This Note ▸', 'اطلب تحليل هذه الملاحظة ▸')}
+                          </button>
+                        ) : (
+                          <span className="inline-flex self-start items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                            <span>{T('Verified Odoo 17 Daily Note', 'ملاحظة يومية معتمدة من أودو 17')}</span>
+                          </span>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+
+                  {/* Unclipped Governance & Kitchen/Delivery SLA Alerts Summary inside Today's Notes */}
+                  <div className={`${SUBCARD_CLS} space-y-2.5 rounded-2xl p-4 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Bell className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                        <h4 className="text-[14px] font-bold whitespace-normal leading-snug text-neutral-950 dark:text-white">
+                          {T(
+                            'Active Governance & Kitchen/Delivery SLA Watchdogs',
+                            'التنبيهات الرقابية النشطة للمطبخ والتوصيل والحوكمة',
+                          )}
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDrawer('breaches')}
+                        className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10"
+                      >
+                        {T('Open Governance Bell 🔔', 'فتح جرس الحوكمة 🔔')}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {govSnap.activeBreaches.slice(0, 4).map((b) => (
+                        <div
+                          key={`notes-breach-${b.id}`}
+                          className="flex items-start justify-between gap-2.5 rounded-xl bg-white px-3 py-2.5 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
+                        >
+                          <span className="min-w-0 flex-1 whitespace-normal leading-snug font-semibold text-slate-800 dark:text-slate-100">
+                            {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
+                          </span>
+                          <span
+                            dir="ltr"
+                            className="shrink-0 rounded-md bg-rose-50 px-2 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                          >
+                            {f0(b.monthlyLeakKwd)} KWD
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              ) : (
+                <>
               {messages.map((m, idx) => {
                 const mine = m.sender === 'user'
 
@@ -1940,11 +2091,11 @@ export function FeryalGovernanceStudio({
                               >
                                 <div className="flex min-w-0 items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
                                   <span aria-hidden>{br.healthDot ?? '🟢'}</span>
-                                  <span className="truncate">{isAr ? br.ar : br.en}</span>
+                                  <span className="whitespace-normal leading-snug">{isAr ? br.ar : br.en}</span>
                                 </div>
                                 <div
                                   dir="ltr"
-                                  className="flex shrink-0 items-center gap-2 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-200"
+                                  className="flex shrink-0 items-center gap-2 text-xs lg:text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
                                 >
                                   <span>{f0(br.salesKwd ?? 0)} KWD</span>
                                   <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -2000,14 +2151,14 @@ export function FeryalGovernanceStudio({
                           {govSnap.activeBreaches.slice(0, 4).map((b) => (
                             <div
                               key={`pulse-breach-${b.id}`}
-                              className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
+                              className="flex items-start justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
                             >
-                              <span className="min-w-0 flex-1 truncate font-semibold text-slate-800 dark:text-slate-100">
+                              <span className="min-w-0 flex-1 whitespace-normal leading-snug font-semibold text-slate-800 dark:text-slate-100">
                                 {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
                               </span>
                               <span
                                 dir="ltr"
-                                className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                                className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
                               >
                                 {f0(b.monthlyLeakKwd)} KWD
                               </span>
@@ -2130,6 +2281,8 @@ export function FeryalGovernanceStudio({
                   </div>
                 </div>
               ) : null}
+                </>
+              )}
             </div>
 
             {/* 4. Input Composer Dock (Unclipped Wrapping Vision Bar when active + Composer, or Calm Read-Only Status Bar for Auditor) */}
@@ -2297,6 +2450,8 @@ export function FeryalGovernanceStudio({
             <FeryalSidebarNotebooks
               isAr={isAr}
               isAuditor={isAuditor}
+              activeTab={activeStudioTab === 'notes' ? 'notes' : 'chats'}
+              onTabChange={(next) => setActiveStudioTab(next === 'notes' ? 'notes' : 'studio')}
               activeChatId={activeChatId}
               activeNotebookId={activeNotebookId}
               onSelectNotebook={setActiveNotebookId}

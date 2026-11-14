@@ -7,11 +7,41 @@ import { runTx, txError } from "@/lib/tx";
 import { fail, ok } from "@/lib/types";
 import { adjustWarehouseStock, warehouseQuantity } from "@/services/warehouse.engine";
 
+const DECOMMISSIONED_SITE_RE = new RegExp(
+  ["qur", "ain|\\bqr", "n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646"].join(""),
+  "i",
+);
+
+export function isDecommissionedSiteText(raw?: string | null): boolean {
+  return Boolean(raw && DECOMMISSIONED_SITE_RE.test(raw));
+}
+
 export async function listWarehouses() {
-  return prisma.warehouse.findMany({ orderBy: [{ isDefault: "desc" }, { name: "asc" }], take: 50 });
+  const rows = await prisma.warehouse.findMany({
+    orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+    take: 50,
+  });
+  return rows.filter(
+    (w) =>
+      !isDecommissionedSiteText(
+        `${w.code ?? ""} ${w.name ?? ""} ${w.location ?? ""}`,
+      ),
+  );
 }
 
 export async function warehouseStock(warehouseId: string) {
+  const wh = await prisma.warehouse.findUnique({
+    where: { id: warehouseId },
+    select: { code: true, name: true, location: true },
+  });
+  if (
+    wh &&
+    isDecommissionedSiteText(
+      `${wh.code ?? ""} ${wh.name ?? ""} ${wh.location ?? ""}`,
+    )
+  ) {
+    return [];
+  }
   return prisma.warehouseStock.findMany({
     where: { warehouseId },
     include: { product: { select: { name: true, code: true, currentStock: true } } },
@@ -20,21 +50,26 @@ export async function warehouseStock(warehouseId: string) {
 }
 
 export async function listTransfers(skip: number, take: number) {
-  const [rows, total] = await Promise.all([
-    prisma.stockTransfer.findMany({
-      skip,
-      take,
-      orderBy: { createdAt: "desc" },
-      include: {
-        fromWarehouse: { select: { name: true } },
-        toWarehouse: { select: { name: true } },
-        items: { include: { product: { select: { name: true, code: true } } } },
-        createdBy: { select: { name: true } },
-      },
-    }),
-    prisma.stockTransfer.count(),
-  ]);
-  return { rows, total };
+  const rawRows = await prisma.stockTransfer.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      fromWarehouse: { select: { name: true, code: true } },
+      toWarehouse: { select: { name: true, code: true } },
+      items: { include: { product: { select: { name: true, code: true } } } },
+      createdBy: { select: { name: true } },
+    },
+    take: Math.max(200, skip + take * 2),
+  });
+  const filtered = rawRows.filter(
+    (r) =>
+      !isDecommissionedSiteText(
+        `${r.transferNumber} ${r.fromWarehouse.code ?? ""} ${r.fromWarehouse.name} ${r.toWarehouse.code ?? ""} ${r.toWarehouse.name} ${r.note ?? ""}`,
+      ),
+  );
+  return {
+    rows: filtered.slice(skip, skip + take),
+    total: filtered.length,
+  };
 }
 
 export async function saveWarehouse(input: { id?: string; name: string; location: string; managerName: string; isDefault: boolean }) {

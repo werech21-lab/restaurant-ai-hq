@@ -8,12 +8,14 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  ShieldCheck,
   Sparkles,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import { tierBadgeCls } from '@/components/erp/ops-expansion/DeliverySlaStudio'
 import {
@@ -104,11 +106,11 @@ function formatKpiSecondaryValue(kpi: ExecutiveKpiDelta): string {
 }
 
 function formatKpiDeltaBadge(kpi: ExecutiveKpiDelta): string {
-  const arrow = kpi.trend === 'up' ? '▲' : kpi.trend === 'down' ? '▼' : '•'
+  const signed = formatSignedDelta(kpi.deltaPct)
   if (kpi.unit === 'pct') {
-    return `${arrow} ${fmtSignedPp(kpi.deltaPct)}`
+    return `${signed.arrow} ${fmtSignedPp(signed.pct)}`
   }
-  return `${arrow} ${fmtSignedPct(kpi.deltaPct)}`
+  return signed.text
 }
 
 export function WeekdayComparisonStudio() {
@@ -143,21 +145,29 @@ export function WeekdayComparisonStudio() {
   >([])
 
   useEffect(() => {
+    const existingDays = liveSummary?.dailySeries ?? []
+    if (existingDays.length > 0) {
+      const sortedDays = existingDays.map((d) => d.day).sort()
+      const minKnown = sortedDays[0]
+      const maxKnown = sortedDays[sortedDays.length - 1]
+      const reqMin =
+        query.periodA.from < query.periodB.from ? query.periodA.from : query.periodB.from
+      const reqMax = query.periodA.to > query.periodB.to ? query.periodA.to : query.periodB.to
+      if (minKnown && maxKnown && reqMin >= minKnown && reqMax <= maxKnown) {
+        return
+      }
+    }
+
     let active = true
     const qs = new URLSearchParams({
       dateA: query.periodA.from,
       toA: query.periodA.to,
       dateB: query.periodB.from,
       toB: query.periodB.to,
-      mode: query.mode,
-      granularity: query.granularity,
-      brand: query.brandIds === 'all' ? 'all' : query.brandIds.join(','),
-      branch: query.branchIds === 'all' ? 'all' : query.branchIds.join(','),
-      channel: query.channelIds === 'all' ? 'all' : query.channelIds.join(','),
     })
     fetch(`/api/erp/live-comparison?${qs.toString()}`, {
       method: 'GET',
-      cache: 'no-store',
+      cache: 'default',
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
     })
@@ -178,15 +188,11 @@ export function WeekdayComparisonStudio() {
       active = false
     }
   }, [
+    liveSummary?.dailySeries,
     query.periodA.from,
     query.periodA.to,
     query.periodB.from,
     query.periodB.to,
-    query.mode,
-    query.granularity,
-    query.brandIds,
-    query.branchIds,
-    query.channelIds,
   ])
 
   const mergedLiveSummary = useMemo(() => {
@@ -488,16 +494,26 @@ export function WeekdayComparisonStudio() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 tabular-nums">
-            {comparison.insights.topGainer && (
-              <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1.5 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/25">
-                <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
-                <span>
-                  {isAr ? 'أعلى نمو:' : 'Top Gainer:'}{' '}
-                  {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
-                  ({fmtSigned0(comparison.insights.topGainer.deltaKwd)} {kwd})
-                </span>
-              </div>
-            )}
+            {comparison.insights.topGainer &&
+              (comparison.insights.topGainer.deltaKwd > 0 ? (
+                <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1.5 text-[12px] lg:text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/25">
+                  <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+                  <span>
+                    {isAr ? 'أكبر ارتفاع:' : 'Top Lift:'}{' '}
+                    {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
+                    ({fmtSigned0(comparison.insights.topGainer.deltaKwd)} {kwd})
+                  </span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50/90 px-3 py-1.5 text-[12px] lg:text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/25">
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-300" />
+                  <span>
+                    {isAr ? 'الأقل تراجعاً (الأكثر تماسكاً):' : 'Most Resilient:'}{' '}
+                    {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
+                    ({fmtSigned0(comparison.insights.topGainer.deltaKwd)} {kwd})
+                  </span>
+                </div>
+              ))}
 
             {comparison.insights.biggestDecline &&
               comparison.insights.biggestDecline.deltaKwd < 0 && (

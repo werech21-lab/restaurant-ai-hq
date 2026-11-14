@@ -139,6 +139,12 @@ export async function GET(request: NextRequest) {
       hourlySeries: liveOverlay.hourlySeries ?? [],
       comparison,
     }),
-    { status: 200, headers: odooSyncResponseHeaders },
+    {
+      status: 200,
+      headers: {
+        ...odooSyncResponseHeaders,
+        'cache-control': 'private, max-age=60, stale-while-revalidate=840',
+      },
+    },
   )
 }

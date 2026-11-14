@@ -4207,7 +4207,7 @@ assert(
     s29GlobalsCss.includes('#141F1B') &&
     s29GlobalsCss.includes('#111A17') &&
     s29GlobalsCss.includes('#8FA39B') &&
-    s29AetherCss.includes('--ae-rail-w: 252px') &&
+    s29AetherCss.includes('--ae-rail-w: 272px') &&
     s29AetherCss.includes('--ae-rail-w: 76px') &&
     s29AetherCss.includes('cubic-bezier(0.16, 1, 0.3, 1)') &&
     s29ErpShell.includes('dark:bg-[#090E0C]') &&
@@ -4596,6 +4596,275 @@ assert(
     !s31SidebarSrc.includes('ae-side-muted truncate font-mono'),
   '31.1 /erp/planning Complete Executive Briefing (>=180 chars, 0 raw ##, maxOutputTokens=2048, thinkingBudget=0), 129,212 KWD Normalized Monthly Baseline & 1x/3x/6x/12x Horizon Scaling (Today-Filter Invariant), 0 Arabic TgO/TMP/EXB Leaks & 0 Clipped KPI/Header Subtitles',
   `baseSales=${s31Probe.baseSales}, todayBaseSales=${s31Probe.todayBaseSales}, r90Sales=${s31Probe.monthRealistic90Sales}, acronymLeaks=${s31Probe.acronymLeakCount}, kpiSubtitles=${s31KpiSubtitleMatches}`,
+)
+
+// ============================================================================
+// SECTION 32: 10/10 Gold Master Boudy Closure Gate (All 12 Precision Fixes)
+// ============================================================================
+console.log('\n32) 10/10 Gold Master Boudy Closure Gate (All 12 Precision Fixes):')
+
+function walkSrcFiles(dir, out = []) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name)
+    if (ent.isDirectory()) {
+      walkSrcFiles(full, out)
+    } else if (/\.(?:ts|tsx|js|mjs|json|css)$/i.test(ent.name)) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+const s32AllSrcFiles = walkSrcFiles(path.join(ROOT, 'src'))
+const s32DecommRe = new RegExp('qur' + 'ain|\\bqrn\\b|القرين', 'i')
+const s32DecommOffenders = s32AllSrcFiles.filter((fp) =>
+  s32DecommRe.test(fs.readFileSync(fp, 'utf8')),
+)
+const s32NegUpArrowOffenders = s32AllSrcFiles
+  .filter((fp) => fp.endsWith('.tsx'))
+  .filter((fp) => /▲\s*-\d/.test(fs.readFileSync(fp, 'utf8')))
+
+const s32FullJourneySrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FullJourney360.tsx'),
+  'utf8',
+)
+const s32BeforeAfterSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/BeforeAfterStudio.tsx'),
+  'utf8',
+)
+const s32WeekdayCompSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/ops-expansion/WeekdayComparisonStudio.tsx'),
+  'utf8',
+)
+const s32CoresStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/CoresHubStudio.tsx'),
+  'utf8',
+)
+const s32FeryalStudioSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp/feryal-governance-studio.tsx'),
+  'utf8',
+)
+const s32FeryalSidebarSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/aether/FeryalSidebarNotebooks.tsx'),
+  'utf8',
+)
+const s32SidebarSrc = fs.readFileSync(
+  path.join(ROOT, 'src/components/erp-sidebar.tsx'),
+  'utf8',
+)
+const s32AetherCssSrc = fs.readFileSync(
+  path.join(ROOT, 'src/app/aether-v2.css'),
+  'utf8',
+)
+
+const s32ProbeScript = `
+import {
+  computeGlobalWorkspace,
+  computePeriodOverPeriodDeltaPct,
+  DEFAULT_GLOBAL_FILTERS,
+  formatSignedDelta,
+} from './src/lib/aether/global-filter-engine';
+import { computeCoresHubSnapshot } from './src/lib/aether/cores-hub-engine';
+import {
+  resolveCampaignDisplayName,
+  SEEDED_SOCIAL_CAMPAIGNS,
+} from './src/lib/aether/social-campaigns';
+import { computeBeforeAfterSnapshot } from './src/lib/aether/before-after-engine';
+import {
+  buildReconciledBucket,
+  fetchLiveOdooComparisonOverlay,
+  fetchLiveOdooSnapshot,
+  isDecommissionedWarehouseRecord,
+} from './src/lib/odoo-live-connector';
+
+(async () => {
+  const dPos = formatSignedDelta(3.3);
+  const dNeg = formatSignedDelta(-4.2);
+  const dZero = formatSignedDelta(0);
+
+  const wsMonth = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS);
+  const popDelta = computePeriodOverPeriodDeltaPct(DEFAULT_GLOBAL_FILTERS, wsMonth, null);
+
+  // Reconcile 127,734 KWD mapped + 30,434 KWD (11,252 orders) unmapped into full 158,168.000 KWD
+  const locNet = new Map([
+    ['avenues', 12900],
+    ['360-mall', 24600],
+    ['assima', 17500],
+    ['promenade', 24700],
+    ['salmiya', 16500],
+    ['al-kout', 13834],
+    ['ardiya', 17700],
+  ]);
+  const locOrd = new Map([
+    ['avenues', 2950],
+    ['360-mall', 4420],
+    ['assima', 3350],
+    ['promenade', 4620],
+    ['salmiya', 2400],
+    ['al-kout', 2840],
+    ['ardiya', 3150],
+  ]);
+  const brandWeights = new Map([
+    ['china-garden', 110000],
+    ['franks', 9000],
+    ['farm-brown', 3200],
+    ['noodle-bar', 2200],
+    ['tahina', 2100],
+    ['karak-cafeteria', 1234],
+  ]);
+  const locUi = new Map();
+  for (const lid of locNet.keys()) {
+    locUi.set(lid, {
+      'dine-in': { netKwd: lid === 'ardiya' ? 0 : 6000, orders: 1000 },
+      'takeaway-direct': { netKwd: 2000, orders: 400 },
+      'talabat-tgo': { netKwd: 4000, orders: 800 },
+      'talabat-tmp': { netKwd: 1500, orders: 300 },
+      keeta: { netKwd: 2500, orders: 500 },
+      deliveroo: { netKwd: 1200, orders: 220 },
+      jahez: { netKwd: 500, orders: 90 },
+      snoonu: { netKwd: 300, orders: 55 },
+    });
+  }
+  const recBucket = buildReconciledBucket({
+    key: 'month',
+    from: '2026-10-16',
+    to: '2026-11-15',
+    days: 30,
+    locNetMap: locNet,
+    locOrdersMap: locOrd,
+    unmappedNetKwd: 30434,
+    unmappedOrders: 11252,
+    brandRawWeights: brandWeights,
+    brandQtyWeights: new Map(),
+    locUiRawMap: locUi,
+  });
+
+  const sumBrands = Math.round(
+    Object.values(recBucket.byBrand ?? {}).reduce((s, b) => s + b.netKwd, 0) * 1000,
+  ) / 1000;
+  const sumBranches = Math.round(
+    Object.values(recBucket.byLocation ?? {}).reduce((s, b) => s + b.netKwd, 0) * 1000,
+  ) / 1000;
+  const sumChannels = Math.round(
+    Object.values(recBucket.uiChannels ?? {}).reduce((s, c) => s + c.netKwd, 0) * 1000,
+  ) / 1000;
+
+  const coresMonth = computeCoresHubSnapshot(DEFAULT_GLOBAL_FILTERS, SEEDED_SOCIAL_CAMPAIGNS);
+  const firstChartDay = coresMonth.sales.timeline[0]?.id ?? '';
+  const lastChartDay = coresMonth.sales.timeline[coresMonth.sales.timeline.length - 1]?.id ?? '';
+
+  const baSnap = computeBeforeAfterSnapshot(
+    DEFAULT_GLOBAL_FILTERS,
+    'decision-campaign',
+    null,
+    SEEDED_SOCIAL_CAMPAIGNS,
+    [],
+  );
+  const badCampaignTitles = SEEDED_SOCIAL_CAMPAIGNS.filter((c) => {
+    const en = resolveCampaignDisplayName(c, false);
+    const ar = resolveCampaignDisplayName(c, true);
+    return (
+      !en ||
+      !ar ||
+      en === '—' ||
+      ar === '—' ||
+      /\\bin\\s*[—-]\\s*in\\b/i.test(en) ||
+      /Campaign:\\s*—/i.test(en)
+    );
+  });
+  const badBaEvents = (baSnap.eventOptions ?? []).filter(
+    (ev) =>
+      !ev.labelEn ||
+      !ev.labelAr ||
+      /Campaign:\\s*—/i.test(ev.labelEn) ||
+      /\\bin\\s*[—-]\\s*in\\b/i.test(ev.labelEn),
+  );
+
+  // Warm cache & measure fetchLiveOdooComparisonOverlay latency (<800ms SLA)
+  await fetchLiveOdooSnapshot({ period: 'month' });
+  const t0 = performance.now();
+  const compOverlay = await fetchLiveOdooComparisonOverlay({
+    from: '2026-10-16',
+    to: '2026-11-14',
+  });
+  const overlayMs = Math.round((performance.now() - t0) * 10) / 10;
+
+  console.log(JSON.stringify({
+    posArrowOk: dPos.text === '▲ +3.3%' && dPos.tone === 'emerald',
+    negArrowOk: dNeg.text === '▼ -4.2%' && dNeg.tone === 'rose' && !dNeg.text.includes('▲'),
+    zeroArrowOk: dZero.text === '• 0.0%',
+    popDelta,
+    recTotalNet: recBucket.totals.restaurantNetKwd,
+    recTotalOrders: recBucket.totals.restaurantOrders,
+    zeroVariance:
+      recBucket.totals.restaurantNetKwd === 158168 &&
+      Math.abs(sumBrands - 158168) === 0 &&
+      Math.abs(sumBranches - 158168) === 0 &&
+      Math.abs(sumChannels - 158168) === 0,
+    decommFilterOk:
+      isDecommissionedWarehouseRecord('Qur' + 'ain WH') === true &&
+      isDecommissionedWarehouseRecord('TR-QRN-01') === true &&
+      isDecommissionedWarehouseRecord('Ardiya Central Kitchen (EXB)') === false,
+    firstChartDay,
+    lastChartDay,
+    chartDaysCount: coresMonth.sales.timeline.length,
+    badCampaignCount: badCampaignTitles.length + badBaEvents.length,
+    overlayMs,
+    overlayHasDays: Array.isArray(compOverlay.dailySeries) && compOverlay.dailySeries.length > 0,
+  }));
+})();
+`
+
+const s32Raw = execFileSync(
+  process.execPath,
+  [tsxCli, '-r', serverOnlyShimPath, '-e', s32ProbeScript],
+  { cwd: ROOT, encoding: 'utf8' },
+).trim()
+const s32Probe = JSON.parse(s32Raw.split('\n').pop() ?? '{}')
+
+assert(
+  s32Probe.posArrowOk === true &&
+    s32Probe.negArrowOk === true &&
+    s32Probe.zeroArrowOk === true &&
+    s32Probe.popDelta === 3.3 &&
+    s32NegUpArrowOffenders.length === 0 &&
+    s32Probe.zeroVariance === true &&
+    s32Probe.recTotalOrders === 34982 &&
+    s32Probe.decommFilterOk === true &&
+    s32DecommOffenders.length === 0,
+  '32.1 +3.3% Period-over-Period Delta & Strict Arrow Polarity (0 ▲ - strings), 158,168.000 KWD Full POS Ledger Reconciliation (127,734 + 30,434 KWD / 0.000 KWD Brand=Branch=Channel Variance), and Complete Decommissioned Warehouse Purge (0 src/ matches)',
+  `popDelta=${s32Probe.popDelta}%, recTotal=${s32Probe.recTotalNet}, zeroVariance=${s32Probe.zeroVariance}, decommOffenders=${s32DecommOffenders.length}`,
+)
+
+assert(
+  s32BeforeAfterSrc.includes('Most Resilient:') &&
+    s32BeforeAfterSrc.includes('الأقل تراجعاً (الأكثر تماسكاً):') &&
+    s32WeekdayCompSrc.includes('Most Resilient:') &&
+    s32Probe.badCampaignCount === 0 &&
+    !s32CoresStudioSrc.includes('Campaign: —') &&
+    !s32BeforeAfterSrc.includes('Campaign: —') &&
+    s32Probe.firstChartDay === '2026-10-16' &&
+    s32Probe.lastChartDay === '2026-11-14' &&
+    s32Probe.chartDaysCount === 30 &&
+    s32FullJourneySrc.includes('100% (Peak)') &&
+    s32FullJourneySrc.includes('100% (الذروة)') &&
+    !s32FullJourneySrc.includes('Math.min(99,') &&
+    s32FullJourneySrc.includes('Recoverable Profit Opportunities') &&
+    s32FullJourneySrc.includes('فرص زيادة الربح المتاحة') &&
+    s32FullJourneySrc.includes('!auditorReadOnly') &&
+    !s32FullJourneySrc.includes('truncate') &&
+    s32SidebarSrc.includes('w-[272px]') &&
+    s32SidebarSrc.includes('text-[13px] leading-snug whitespace-normal') &&
+    s32AetherCssSrc.includes('--ae-rail-w: 272px') &&
+    s32Probe.overlayMs < 250 &&
+    s32Probe.overlayHasDays === true &&
+    s32FeryalStudioSrc.includes('data-studio-tab="today-notes"') &&
+    s32FeryalStudioSrc.includes("Today's Notes ⚡") &&
+    s32FeryalStudioSrc.includes('ملاحظات اليوم ⚡') &&
+    !s32FeryalStudioSrc.includes('truncate') &&
+    s32FeryalSidebarSrc.includes('activeTab'),
+  '32.2 Most Resilient Negative Badge, Complete Bilingual Campaign Titles (0 Campaign: — / in — in), Exact Oct 16 – Nov 14 Chart Bounds + 100% (Peak) Capsule, Recoverable Profit Opportunities + Auditor Sync Guard, Unclipped w-[272px] Sidebar, <250ms Comparison Overlay & Active Feryal Today Notes Tab (0 Clipped Alerts)',
+  `firstChartDay=${s32Probe.firstChartDay}, lastChartDay=${s32Probe.lastChartDay}, overlayMs=${s32Probe.overlayMs}ms, badCampaigns=${s32Probe.badCampaignCount}`,
 )
 
 console.log('\n----------------------------------------------------------------------')

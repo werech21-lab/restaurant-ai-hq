@@ -392,7 +392,7 @@ export function Sidebar({
         clipPath: 'inset(0px 0px 0px 0px round 0px)',
       }}
       className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col transition-[width,clip-path] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
-        collapsed ? 'overflow-visible' : 'overflow-y-auto'
+        collapsed ? 'w-[76px] overflow-visible' : 'w-[272px] overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
@@ -521,7 +521,7 @@ export function Sidebar({
                         }`}
                       >
                         <Icon size={17} className="ae-side-icon shrink-0" />
-                        <span className="ae-rail-clip-label leading-snug">{label}</span>
+                        <span className="ae-rail-clip-label text-[13px] leading-snug whitespace-normal">{label}</span>
                       </Link>
 
                       {collapsed ? (

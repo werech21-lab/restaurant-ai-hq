@@ -22,7 +22,11 @@ import {
   type GlobalChannel,
   type GlobalFilters,
 } from '@/lib/aether/global-filter-engine'
-import { evaluateCampaignOdooHalo, type SocialCampaign } from '@/lib/aether/social-campaigns'
+import {
+  evaluateCampaignOdooHalo,
+  resolveCampaignDisplayName,
+  type SocialCampaign,
+} from '@/lib/aether/social-campaigns'
 import type { GovernanceApprovalRequest } from '@/lib/governance-compliance'
 
 export type ComparisonMode = 'period-prev' | 'today-lastweek' | 'decision-campaign'
@@ -177,8 +181,8 @@ export function buildEventOptions(
   const fromCampaigns: SelectableEventOption[] = campaigns.map((c) => ({
     id: `camp:${c.id}`,
     kind: 'campaign',
-    labelAr: `إعلان: ${c.campaignName} (${getBrandLabel(c.brand, true)})`,
-    labelEn: `Ad: ${c.campaignName} (${getBrandLabel(c.brand, false)})`,
+    labelAr: `حملة: ${resolveCampaignDisplayName(c, true)} (${getBrandLabel(c.brand, true)})`,
+    labelEn: `Campaign: ${resolveCampaignDisplayName(c, false)} (${getBrandLabel(c.brand, false)})`,
     dateIso: c.date,
     brand: c.brand,
     expectedLiftRatio: 0.15,
@@ -328,8 +332,8 @@ export function computeBeforeAfterSnapshot(
           `ev-d-${idx}`,
           p.ar,
           p.en,
-          `${p.ar} — ${activeEvent.campaign?.campaignName ?? ''}`,
-          `${p.en} — ${activeEvent.campaign?.campaignName ?? ''}`,
+          `${p.ar} — ${resolveCampaignDisplayName(activeEvent.campaign, true)}`,
+          `${p.en} — ${resolveCampaignDisplayName(activeEvent.campaign, false)}`,
           totalBeforeSales * p.wB,
           totalAfterSales * p.wA,
           totalBeforeOrders * p.wB,
@@ -868,8 +872,8 @@ export function evaluateApprovedDecisionsImpact(
       refKey: `mkt-audit:${camp.id}`,
       sealId: `VF-MKT-${camp.date.slice(5, 7)}${camp.date.slice(8, 10)}`,
       approvedDate: camp.date,
-      titleAr: `حملة: ${camp.campaignName} (${halo.brandAr})`,
-      titleEn: `Campaign: ${camp.campaignName} (${halo.brandEn})`,
+      titleAr: `حملة: ${resolveCampaignDisplayName(camp, true)} (${halo.brandAr})`,
+      titleEn: `Campaign: ${resolveCampaignDisplayName(camp, false)} (${halo.brandEn})`,
       scopeAr: `${halo.brandAr} · ${halo.adTypeAr}`,
       scopeEn: `${halo.brandEn} · ${halo.adTypeEn}`,
       salesBeforeKwd: round1(halo.before3dSalesKwd),

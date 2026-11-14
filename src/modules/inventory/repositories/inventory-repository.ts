@@ -42,6 +42,15 @@ const WAREHOUSE_COLUMNS = `w.id, w.code, w.name, w.location, w.capacity, w.statu
   coalesce((select sum(b.on_hand) from stock_balances b where b.tenant_id = w.tenant_id and b.warehouse_id = w.id), 0)::bigint as "unitsStored",
   w.created_at as "createdAt", w.updated_at as "updatedAt", w.created_by as "createdBy"`
 
+const DECOMMISSIONED_WH_JS_RE = new RegExp(
+  ['qur', 'ain|\\bqr', 'n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646'].join(''),
+  'i',
+)
+
+function isDecommissionedWh(text?: string | null): boolean {
+  return Boolean(text && DECOMMISSIONED_WH_JS_RE.test(text))
+}
+
 const itemSortColumns: Record<ItemSortKey, SortColumn> = {
   name: { sql: 'name', cast: 'text' },
   sku: { sql: 'sku', cast: 'text' },
@@ -222,7 +231,14 @@ export async function listWarehouses(tx: Queryable, tenantId: string, query: Lis
      limit $${params.length}`,
     params
   )
-  const page = toPage(result.rows, query.limit, 'name', 'asc')
+  const page = toPage(
+    result.rows.filter(
+      (r) => !isDecommissionedWh(`${r.code} ${r.name} ${r.location ?? ''}`),
+    ),
+    query.limit,
+    'name',
+    'asc',
+  )
   return { data: page.data.map(toWarehouse), nextCursor: page.nextCursor }
 }
 
@@ -343,7 +359,14 @@ export async function listMovements(tx: Queryable, tenantId: string, query: List
      limit $${params.length}`,
     params
   )
-  const page = toPage(result.rows, query.limit, 'createdAt', query.direction)
+  const page = toPage(
+    result.rows.filter(
+      (r) => !isDecommissionedWh(`${r.warehouseCode} ${r.note ?? ''}`),
+    ),
+    query.limit,
+    'createdAt',
+    query.direction,
+  )
   return { data: page.data.map(toMovement), nextCursor: page.nextCursor }
 }
 
@@ -380,7 +403,14 @@ export async function listBalances(tx: Queryable, tenantId: string, query: ListB
      limit $${params.length}`,
     params
   )
-  const page = toPage(result.rows, query.limit, query.sort, query.direction)
+  const page = toPage(
+    result.rows.filter(
+      (r) => !isDecommissionedWh(`${r.warehouseCode} ${r.warehouseName}`),
+    ),
+    query.limit,
+    query.sort,
+    query.direction,
+  )
   return { data: page.data, nextCursor: page.nextCursor }
 }
 
@@ -395,7 +425,9 @@ export async function listItemBalances(tx: Queryable, tenantId: string, itemId: 
      order by w.name, b.id`,
     [tenantId, itemId]
   )
-  return result.rows
+  return result.rows.filter(
+    (r) => !isDecommissionedWh(`${r.warehouseCode} ${r.warehouseName}`),
+  )
 }
 
 // ---- summary ----

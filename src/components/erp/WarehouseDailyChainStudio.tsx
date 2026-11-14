@@ -59,7 +59,7 @@ const f2 = (n: number) =>
 function HealthBadge({ status, isAr }: { status: ChainHealthStatus; isAr: boolean }) {
   if (status === 'critical') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[12px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
         <span>🔴</span>
         <span>{isAr ? 'تجاوز حرج' : 'Critical'}</span>
       </span>
@@ -67,14 +67,14 @@ function HealthBadge({ status, isAr }: { status: ChainHealthStatus; isAr: boolea
   }
   if (status === 'watch') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
         <span>🟡</span>
         <span>{isAr ? 'مراقبة هادئة' : 'Watch'}</span>
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
       <span>🟢</span>
       <span>{isAr ? 'مطابق' : 'Reconciled'}</span>
     </span>
@@ -498,7 +498,7 @@ export function WarehouseDailyChainStudio() {
         <div className={TABLE_SCROLL_CLS}>
           <table className="w-full min-w-[1040px] border-collapse text-start text-[14px] sm:text-[14.5px]">
             <thead>
-              <tr className="border-b border-neutral-100 text-[12.5px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+              <tr className="border-b border-neutral-100 text-xs lg:text-[13px] font-semibold text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
                 <th className="sticky start-0 z-10 bg-white py-3 pe-3 text-start whitespace-nowrap dark:bg-[#101C17]">
                   {T('Branch', 'الفرع')}
                 </th>
@@ -532,7 +532,7 @@ export function WarehouseDailyChainStudio() {
                   >
                     <td className="sticky start-0 z-10 bg-white py-3.5 pe-3 font-semibold whitespace-nowrap text-neutral-950 dark:bg-[#101C17] dark:text-white">
                       <div>{isAr ? b.branchNameAr : b.branchNameEn}</div>
-                      <div className="text-[12px] font-normal text-neutral-400">
+                      <div className="text-xs lg:text-[13px] font-normal text-neutral-400">
                         {f0(b.transferMoves)} {isAr ? 'حركة استلام' : 'moves'}
                       </div>
                     </td>
@@ -541,7 +541,7 @@ export function WarehouseDailyChainStudio() {
                       <div className="font-semibold text-neutral-900 dark:text-slate-100">
                         {f1(b.dispatchedFromWarehouseKwd)} {isAr ? 'د.ك' : 'KWD'}
                       </div>
-                      <div className="text-[12px] text-sky-700 dark:text-sky-300">
+                      <div className="text-xs lg:text-[13px] text-sky-700 dark:text-sky-300">
                         {f1(b.dispatchedKg)} {unitLabel}
                       </div>
                     </td>
@@ -550,7 +550,7 @@ export function WarehouseDailyChainStudio() {
                       <div className="font-semibold text-neutral-900 dark:text-slate-100">
                         {f1(b.receivedByBranchKwd)} {isAr ? 'د.ك' : 'KWD'}
                       </div>
-                      <div className="text-[12px] text-emerald-700 dark:text-emerald-300">
+                      <div className="text-xs lg:text-[13px] text-emerald-700 dark:text-emerald-300">
                         {f1(b.receivedKg)} {unitLabel}
                       </div>
                     </td>
