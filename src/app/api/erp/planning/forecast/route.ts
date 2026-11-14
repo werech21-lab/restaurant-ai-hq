@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     ? [
         'أنت المدير المالي والتنفيذي لشركة فنتشر فودز لإدارة المطاعم في الكويت (6 مطاعم، 7 فروع، مطبخ العارضية المركزي).',
         'اكتب ملخصاً تنفيذياً من 3 فقرات مرقمة فقط (1. و 2. و 3.) بنص عربي صافٍ وواضح تماماً بدون أي رموز ماركداون مثل # أو ## أو ** أو * أو علامات اقتباس برمجية.',
-        'يُمنع منعاً باتاً كتابة أي اختصارات إنجليزية مثل TgO أو TMP أو EXB داخل النص العربي؛ استعمل حصرياً: طلبات منصات التوصيل الخارجي، أسطول التوصيل الداخلي المباشر، وبوثات المطبخ المركزي المتنقلة.',
+        'يُمنع منعاً باتاً كتابة أي اختصارات إنجليزية مثل TgO أو TMP أو EXB داخل النص العربي؛ استعمل حصرياً: طلبات منصات التوصيل الخارجي، أسطول التوصيل الداخلي المباشر، وبوثات مطبخ العارضية المركزي المتنقلة.',
         'كل فقرة يجب أن تكون جملتين مكتملتين غنيتين بالأرقام الفعلية بالدينار الكويتي (د.ك).',
       ].join(' ')
     : [
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
   const userPrompt = isAr
     ? [
         `حلل أفق التخطيط (${horizonLabel}) للنطاق (${scopeLabel}):`,
-        `- خط الأساس الشهري المعتمد (30 يوم): المبيعات ${fmtInt(body.monthlyBaselineSalesKwd)} د.ك (متوسط اليوم: ${fmtInt(body.dailyAverageSalesKwd)} د.ك)، التكاليف ${fmtInt(body.monthlyBaselineCostsKwd)} د.ك، الصافي ${fmtInt(body.monthlyBaselineNetKwd)} د.ك.`,
+        `- خط الأساس الشهري (أودو 17 — 30 يوم): المبيعات ${fmtInt(body.monthlyBaselineSalesKwd)} د.ك (متوسط اليوم: ${fmtInt(body.dailyAverageSalesKwd)} د.ك)، التكاليف ${fmtInt(body.monthlyBaselineCostsKwd)} د.ك، الصافي ${fmtInt(body.monthlyBaselineNetKwd)} د.ك.`,
         `- تكلفة مواد مطبخ العارضية: ${fmtOne(body.ardiyaFoodPct)}% | اقتطاع التوصيل: ${fmtOne(body.deliveryFeePct)}% | حصة الصالة والاستلام المباشر: ${fmtOne(body.directChannelSharePct)}% | قفزة الرواتب بالكويت (20–28 الشهر): +${fmtOne(body.paydayLiftPct)}%.`,
         `- السيناريو المختار (${scenarioBadge}): المبيعات المتوقعة ${fmtInt(body.projectedSalesKwd)} د.ك، التكاليف ${fmtInt(body.projectedCostsKwd)} د.ك، صافي الكاش +${fmtInt(body.projectedNetCashKwd)} د.ك (${fmtOne(body.netMarginPct)}%)، ${paybackLabel}.`,
         'اكتب الفقرات الثلاث بالترتيب التالي دون أي رموز ماركداون:',

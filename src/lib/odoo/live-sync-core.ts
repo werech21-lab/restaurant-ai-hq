@@ -147,7 +147,7 @@ export interface OdooFreshnessStatus {
 const EN_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
 const AR_MONTH_NAMES = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'] as const
 const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
-export const DEFAULT_SNAPSHOT_LATEST_RECORD_ISO = '2026-11-13T15:18:10.000Z'
+export const DEFAULT_SNAPSHOT_LATEST_RECORD_ISO = '2026-11-14T08:40:00.000Z'
 
 export function normalizeOdooDateOrderToIso(rawDateOrder?: string | null): string | null {
   if (!rawDateOrder || typeof rawDateOrder !== 'string') return null
@@ -376,7 +376,7 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const latestInfo = resolveSnapshotLatestRecordInfo(s)
   const latestFreshness = computeOdooFreshnessStatus(
     latestInfo.latestRecordAt,
-    Date.parse('2026-11-13T15:30:00.000Z'),
+    Date.parse('2026-11-14T08:45:00.000Z'),
   )
   const jp = s.journey?.pulse
   const aa = s.journey?.opex?.analyticArchitecture

@@ -26,7 +26,7 @@ const SNAPSHOT_LATEST_RECORD_ISO =
   DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
 
 /** Deterministic SSR reference timestamp so initial server & client HTML match byte-for-byte before post-mount clock refresh. */
-const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-13T15:30:00.000Z')
+const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-14T08:45:00.000Z')
 
 function toWesternDigits(value: string): string {
   return value.replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))

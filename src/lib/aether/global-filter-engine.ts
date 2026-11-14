@@ -89,8 +89,8 @@ export interface GlobalFilters {
   lens?: ProfitLens
 }
 
-export const DEFAULT_CUSTOM_FROM = '2026-10-15'
-export const DEFAULT_CUSTOM_TO = '2026-11-13'
+export const DEFAULT_CUSTOM_FROM = '2026-10-16'
+export const DEFAULT_CUSTOM_TO = '2026-11-14'
 
 export const DEFAULT_GLOBAL_FILTERS: Required<GlobalFilters> = {
   period: 'month',
@@ -401,8 +401,8 @@ export function formatPeriodCalendarWindow(
     bkt = snapBuckets.today
   }
 
-  const fromIso = bkt?.from ?? (period === 'year' ? '2026-01-01' : '2026-10-15')
-  const rawExclTo = bkt?.to ?? '2026-11-14'
+  const fromIso = bkt?.from ?? (period === 'year' ? '2026-01-01' : '2026-10-16')
+  const rawExclTo = bkt?.to ?? '2026-11-15'
   const shiftedEnd = shiftIsoDateDays(rawExclTo, -1)
   const toInclusiveIso = shiftedEnd >= fromIso ? shiftedEnd : fromIso
   const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
@@ -656,7 +656,7 @@ const KUWAIT_SLICE_PROFILE = (() => {
   const avgDayNet = fullDays.length > 0 ? totalDailyNet / fullDays.length : 4300
   const avgDayOrd = fullDays.length > 0 ? totalDailyOrd / fullDays.length : 850
   const lastCompletedDay = fullDays[fullDays.length - 1] ?? {
-    day: '2026-11-13',
+    day: '2026-11-14',
     orders: 431,
     netKwd: 2671.027,
   }

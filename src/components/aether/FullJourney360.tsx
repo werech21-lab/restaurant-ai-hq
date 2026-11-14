@@ -450,13 +450,13 @@ export function FullJourney360() {
 
       {/* =====================================================================
           SPEC #4: 4-COLUMN HERO + MATTE KPI ROW
-          Card 1: Rich Emerald Gradient Hero (`from-[#0D6E44] to-[#12A163]`)
+          Card 1: Rich Emerald Gradient Hero (`from-[#0F764A] to-[#064E3B]`)
           Cards 2–4: Deep Matte `#111A17` Cards with Circular Arrow Action Buttons
          ===================================================================== */}
       <section className="space-y-4 sm:space-y-5">
         <div className="ae-stagger grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
           {/* Card 1 (Hero Featured Metric): Net Sales KWD */}
-          <article className="ae-hero-emerald-card relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-[#0D6E44] via-[#10935B] to-[#12A163] p-3.5 sm:p-5 text-white shadow-[0_14px_30px_-10px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/25">
+          <article className="ae-hero-emerald-card relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-[#0F764A] via-[#10935B] to-[#064E3B] p-3.5 sm:p-5 text-white shadow-[0_14px_30px_-10px_rgba(16,185,129,0.45)] ring-1 ring-emerald-300/25">
             <div className="flex items-start justify-between gap-2">
               <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-white/95">
                 {T('Net Sales (KWD)', 'صافي المبيعات (د.ك)')}

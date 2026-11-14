@@ -3373,11 +3373,11 @@ import {
 const snapSummary = summaryFromSnapshot(snapshot, undefined, 'month');
 const staleCheck = computeOdooFreshnessStatus(
   '2026-11-10T20:59:00.000Z',
-  Date.parse('2026-11-13T16:00:00.000Z'),
+  Date.parse('2026-11-14T09:00:00.000Z'),
 );
 const liveCheck = computeOdooFreshnessStatus(
   snapSummary.latestRecordAt,
-  Date.parse('2026-11-13T16:00:00.000Z'),
+  Date.parse('2026-11-14T09:00:00.000Z'),
 );
 
 const wToday = formatPeriodCalendarWindow('today');
@@ -3425,33 +3425,33 @@ assert(
     !s24OdooSyncRouteSrc.includes('new Date().toISOString()') &&
     !execFooterSrc.includes('new Date().toISOString()') &&
     !execFooterSrc.includes('hydratedNowIso') &&
-    s24Probe.latestRecordAt === '2026-11-13T15:18:10.000Z' &&
+    s24Probe.latestRecordAt === '2026-11-14T08:40:00.000Z' &&
     s24Probe.syncedAtMatchesLatest === true &&
-    s24Probe.kuwaitTimestamp === '13/11/2026 18:18 UTC+3' &&
+    s24Probe.kuwaitTimestamp === '14/11/2026 11:40 UTC+3' &&
     s24Probe.staleOver24h === true &&
     s24Probe.staleBadgeEn === 'Data updated through Nov 10, 2026' &&
     s24Probe.staleBadgeAr === 'البيانات محدّثة حتى 10 نوفمبر 2026' &&
     s24Probe.liveOver24h === false &&
-    s24Probe.liveBadgeEn === '🟢 Data updated & synced with Odoo 17 through today (Nov 13, 2026)' &&
-    s24Probe.liveBadgeAr === '🟢 البيانات محدّثة ومرتبطة مع أودو 17 حتى اليوم (13 نوفمبر 2026)' &&
+    s24Probe.liveBadgeEn === '🟢 Data updated & synced with Odoo 17 through today (Nov 14, 2026)' &&
+    s24Probe.liveBadgeAr === '🟢 البيانات محدّثة ومرتبطة مع أودو 17 حتى اليوم (14 نوفمبر 2026)' &&
     execFooterSrc.includes('{!roleProfile.isAuditor ? (') &&
     execFooterSrc.includes('Sync Now'),
-  '24.1 Honest Odoo Record Timestamp & Calm Executive Sync Copy: Zero new Date() faking, zero SSR hydration flicker, deterministic 13/11/2026 18:18 UTC+3 record timestamp, calm human-friendly freshness copy, and Sync Now strictly hidden for auditor',
+  '24.1 Honest Odoo Record Timestamp & Calm Executive Sync Copy: Zero new Date() faking, zero SSR hydration flicker, deterministic 14/11/2026 11:40 UTC+3 record timestamp, calm human-friendly freshness copy, and Sync Now strictly hidden for auditor',
   `latest=${s24Probe.latestRecordAt}, stamp=${s24Probe.kuwaitTimestamp}, stale=${s24Probe.staleOver24h}`,
 )
 
 assert(
-  s24Probe.todayEn === 'Nov 13, 2026' &&
-    s24Probe.todayAr === '13 نوفمبر 2026' &&
-    s24Probe.weekEn === 'Nov 7 – Nov 13, 2026' &&
-    s24Probe.monthEn === 'Oct 15 – Nov 13, 2026' &&
-    s24Probe.monthAr === '15 أكتوبر – 13 نوفمبر 2026' &&
+  s24Probe.todayEn === 'Nov 14, 2026' &&
+    s24Probe.todayAr === '14 نوفمبر 2026' &&
+    s24Probe.weekEn === 'Nov 8 – Nov 14, 2026' &&
+    s24Probe.monthEn === 'Oct 16 – Nov 14, 2026' &&
+    s24Probe.monthAr === '16 أكتوبر – 14 نوفمبر 2026' &&
     s24Probe.customEn === 'Oct 20 – Nov 5, 2026' &&
-    s24Probe.subMonthEn.includes('Month (Oct 15 – Nov 13, 2026)') &&
-    s24Probe.subMonthAr.includes('الشهر (15 أكتوبر – 13 نوفمبر 2026)') &&
+    s24Probe.subMonthEn.includes('Month (Oct 16 – Nov 14, 2026)') &&
+    s24Probe.subMonthAr.includes('الشهر (16 أكتوبر – 14 نوفمبر 2026)') &&
     topBarSrc.includes('Period: ${activePeriodShortLabel} (${activePeriodRangeText})') &&
     topBarSrc.includes('الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})'),
-  '24.2 Explicit Period Calendar Windows: Today, Week, Month, Year & Custom display exact calendar date ranges in TopFilterBar, PeriodDropdownPopover & workspace subtitles (Month (Oct 15 – Nov 13, 2026))',
+  '24.2 Explicit Period Calendar Windows: Today, Week, Month, Year & Custom display exact calendar date ranges in TopFilterBar, PeriodDropdownPopover & workspace subtitles (Month (Oct 16 – Nov 14, 2026))',
   `monthEn=${s24Probe.monthEn}, monthAr=${s24Probe.monthAr}`,
 )
 
@@ -4174,15 +4174,15 @@ const s28Raw = execFileSync(process.execPath, [tsxCli, '-e', s28TimelineProbeScr
 const s28Probe = JSON.parse(s28Raw.split('\n').pop() ?? '{}')
 
 assert(
-  s28Probe.monthToIso === '2026-11-13' &&
-    s28Probe.lastMonthBarId === '2026-11-13' &&
-    s28Probe.weekToIso === '2026-11-13' &&
-    s28Probe.lastWeekBarId === '2026-11-13' &&
+  s28Probe.monthToIso === '2026-11-14' &&
+    s28Probe.lastMonthBarId === '2026-11-14' &&
+    s28Probe.weekToIso === '2026-11-14' &&
+    s28Probe.lastWeekBarId === '2026-11-14' &&
     s28FeryalSrc.includes("Today's Branch Highlights") &&
     s28FeryalSrc.includes('Recent Governance & Kitchen/Delivery SLA Alerts') &&
     s28FullJourneySrc.includes('text-slate-600 dark:text-slate-300') &&
     s28ChartsSrc.includes('text-xs font-medium leading-snug text-slate-600 dark:text-slate-300'),
-  '28.2 Canonical Date Alignment (Nov 13, 2026 / 13/11), Feryal 2-Col Executive Pulse & Boosted Subtitle Contrast: Header Period, API & Chart last bar align 100% on 2026-11-13, Feryal desktop canvas filled, and KPI/chart subtitles boosted',
+  '28.2 Canonical Date Alignment (Nov 14, 2026 / 14/11), Feryal 2-Col Executive Pulse & Boosted Subtitle Contrast: Header Period, API & Chart last bar align 100% on 2026-11-14, Feryal desktop canvas filled, and KPI/chart subtitles boosted',
   `monthTo=${s28Probe.monthToIso}, lastBar=${s28Probe.lastMonthBarId}, weekLastBar=${s28Probe.lastWeekBarId}`,
 )
 
@@ -4222,8 +4222,8 @@ assert(
     s29TopBar.includes("isAr ? 'اللغة:' : 'Language:'") &&
     s29FullJourney.includes('Executive Dashboard') &&
     s29FullJourney.includes('ae-hero-emerald-card') &&
-    s29FullJourney.includes('from-[#0D6E44]') &&
-    s29FullJourney.includes('to-[#12A163]') &&
+    s29FullJourney.includes('from-[#0F764A]') &&
+    s29FullJourney.includes('to-[#064E3B]') &&
     s29FullJourney.includes('Weekly Performance Analytics') &&
     s29FullJourney.includes('repeating-linear-gradient(45deg, rgba(16,185,129,0.16)') &&
     s29FullJourney.includes('Branch & Priority Pulse') &&
@@ -4287,7 +4287,7 @@ import {
   const snapMonth = await fetchLiveOdooSnapshot({
     period: 'month',
     forceRefresh: true,
-    referenceNowMs: Date.parse('2026-11-13T16:00:00.000Z'),
+    referenceNowMs: Date.parse('2026-11-14T09:00:00.000Z'),
   });
   const snapSummaryMonth = summaryFromSnapshot(snapshot, undefined, 'month');
 
@@ -4401,14 +4401,14 @@ assert(
     s29TopBar.includes('<div className="hidden sm:block">') &&
     s30ExecFooterSrc.includes('البيانات محدّثة حتى') &&
     s30ExecFooterSrc.includes('Data updated through') &&
-    s30Probe.periodTo === '2026-11-13' &&
-    s30Probe.summaryPeriodTo === '2026-11-13' &&
-    s30Probe.lastDailySeriesDate === '2026-11-13' &&
+    s30Probe.periodTo === '2026-11-14' &&
+    s30Probe.summaryPeriodTo === '2026-11-14' &&
+    s30Probe.lastDailySeriesDate === '2026-11-14' &&
     s30FeryalSrc.includes('ملخص اليوم وآخر التنبيهات') &&
     s30FeryalSrc.includes("Today's Executive Summary & Latest Alerts") &&
     s29FullJourney.includes('pb-28 sm:pb-12') &&
     s30TinyFontOffenders.length === 0,
-  '30.2 Phase 2 & 3 Single Language Toggle, Unified 2026-11-13 End Date, 3-Control <sm Header, Feryal Today Summary & +1 Font Scale: Single Account & Menu language row, single clean status bar, unified 2026-11-13 across header/API/chart, 3-control mobile header + pb-28 sm:pb-12, Feryal summary/alerts & 0 tiny 10px/11px classes',
+  '30.2 Phase 2 & 3 Single Language Toggle, Unified 2026-11-14 End Date, 3-Control <sm Header, Feryal Today Summary & +1 Font Scale: Single Account & Menu language row, single clean status bar, unified 2026-11-14 across header/API/chart, 3-control mobile header + pb-28 sm:pb-12, Feryal summary/alerts & 0 tiny 10px/11px classes',
   `tinyFontOffenders=${s30TinyFontOffenders.length}, periodTo=${s30Probe.periodTo}, lastDaily=${s30Probe.lastDailySeriesDate}`,
 )
 
@@ -4568,8 +4568,10 @@ const s31KpiSubtitleMatches =
 
 assert(
   !s31PlanningUiSrc.includes('##') &&
+    s31PlanningUiSrc.includes('خط الأساس الشهري (أودو 17)') &&
     s31ForecastRouteSrc.includes('MAX_FORECAST_OUTPUT_TOKENS = 2048') &&
     s31ForecastRouteSrc.includes('thinkingBudget: 0') &&
+    s31ForecastRouteSrc.includes('مطبخ العارضية المركزي') &&
     s31Probe.truncatedUsedFallback === true &&
     s31Probe.truncatedLen >= 180 &&
     s31Probe.truncatedSectionCount === 3 &&

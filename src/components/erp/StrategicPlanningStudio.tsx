@@ -509,7 +509,7 @@ export function StrategicPlanningStudio() {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
           <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'خط الأساس الشهري المعتمد — 30 يوم' : 'Normalized Monthly Baseline — 30d'}
+            {isAr ? 'خط الأساس الشهري (أودو 17) — 30 يوم' : 'Monthly Odoo 17 Baseline — 30d'}
           </div>
           <div
             dir="ltr"

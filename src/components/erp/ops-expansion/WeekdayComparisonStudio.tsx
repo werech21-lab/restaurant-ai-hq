@@ -198,7 +198,7 @@ export function WeekdayComparisonStudio() {
     if (!liveSummary) {
       return {
         source: 'live' as const,
-        syncedAt: '2026-11-13T15:18:10.000Z',
+        syncedAt: '2026-11-14T08:40:00.000Z',
         period: { from: query.periodA.from, to: query.periodA.to },
         database: null,
         totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },

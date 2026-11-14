@@ -125,11 +125,12 @@ const fmtOne = (n: number) =>
 export function localizeArabicPlanningCopy(input: string): string {
   if (!input) return ''
   return input
+    .replace(/بوثات المطبخ المركزي المتنقلة/g, 'بوثات مطبخ العارضية المركزي المتنقلة')
     .replace(
       /(و)?(?:بوثات|معارض|المعارض)\s*EXB(?:\s*المتنقلة)?/gi,
-      (_match, prefix: string | undefined) => `${prefix ?? ''}بوثات المطبخ المركزي المتنقلة`,
+      (_match, prefix: string | undefined) => `${prefix ?? ''}بوثات مطبخ العارضية المركزي المتنقلة`,
     )
-    .replace(/\bEXB\b/gi, 'بوثات المطبخ المركزي المتنقلة')
+    .replace(/\bEXB\b/gi, 'بوثات مطبخ العارضية المركزي المتنقلة')
     .replace(
       /(و)?(?:منصة\s+توصيل\s+طلبات|أسطولنا|أسطول|سائقينا)\s*TMP/gi,
       (_match, prefix: string | undefined) => `${prefix ?? ''}أسطول التوصيل الداخلي المباشر`,
@@ -230,11 +231,11 @@ export const SEEDED_STRATEGIC_PHASES: StrategicRoadmapPhase[] = [
     id: 'plan-phase-kashta-payday',
     phaseCode: 'P4',
     titleAr:
-      'خطة موسم الشتاء والكشتات + باقات الرواتب (20–28 الشهر) وبوثات المطبخ المركزي المتنقلة',
+      'خطة موسم الشتاء والكشتات + باقات الرواتب (20–28 الشهر) وبوثات مطبخ العارضية المركزي المتنقلة',
     titleEn: 'Kuwait Winter KashtaBoxes + Payday (20th–28th) Bundles & EXB Cap',
     startDate: '2026-12-10',
     endDate: '2027-02-28',
-    ownerAr: 'إدارة التسويق وبوثات المطبخ المركزي المتنقلة',
+    ownerAr: 'إدارة التسويق وبوثات مطبخ العارضية المركزي المتنقلة',
     ownerEn: 'Marketing & EXB Events Lead',
     costCapKwd: 450,
     expectedMonthlyGainKwd: 1600,
@@ -549,7 +550,7 @@ export function computePlanningHubSnapshot(
       [
         'رفع حصة الصالة والاستلام المباشر (0% عمولة) بـ +6 نقاط مئوية',
         'تحويل كامل النطاق القريب إلى أسطول التوصيل الداخلي المباشر (15%) وإيقاف إعلانات النقرات الخاسرة',
-        'تشغيل بوثات المطبخ المركزي المتنقلة المنتقاة بشرط إيجار ≤ 15% من المبيعات فقط',
+        'تشغيل بوثات مطبخ العارضية المركزي المتنقلة المنتقاة بشرط إيجار ≤ 15% من المبيعات فقط',
       ],
       [
         'Grow zero-commission Dine-In & Direct Pickup share by +6 pts',
@@ -664,7 +665,7 @@ export function buildDeterministicStrategicBriefingSections(
       metricBadgeAr: activeScenario.paybackLabelAr,
       metricBadgeEn: activeScenario.paybackLabelEn,
       bodyAr: localizeArabicPlanningCopy(
-        `يُوصى بتحويل الطلبات القريبة من طلبات منصات التوصيل الخارجي (25%) إلى أسطول التوصيل الداخلي المباشر (15%) والاستلام المباشر، مع تثبيت هدر مطبخ العارضية عند ≤ 1.8% وسقف خصومات الكاشير ≤ 3.0%، وتشغيل طاحينة وذا نودل بار داخل مطابخ السالمية والبروميناد بدون إيجار إضافي، وقصر بوثات المطبخ المركزي المتنقلة على المواقع التي لا يتجاوز إيجارها 15% من المبيعات.`,
+        `يُوصى بتحويل الطلبات القريبة من طلبات منصات التوصيل الخارجي (25%) إلى أسطول التوصيل الداخلي المباشر (15%) والاستلام المباشر، مع تثبيت هدر مطبخ العارضية عند ≤ 1.8% وسقف خصومات الكاشير ≤ 3.0%، وتشغيل طاحينة وذا نودل بار داخل مطابخ السالمية والبروميناد بدون إيجار إضافي، وقصر بوثات مطبخ العارضية المركزي المتنقلة على المواقع التي لا يتجاوز إيجارها 15% من المبيعات.`,
       ),
       bodyEn: `Shift <=4km delivery volume from 25%-fee external aggregators to the 15% direct internal fleet and pickup, hold Ardiya prep waste <= 1.8% and POS promos <= 3.0%, run Tahina & The Noodle Bar inside Salmiya and Promenade kitchens at zero extra rent, and restrict mobile central-kitchen booths to venues with rent <= 15% of sales (${activeScenario.paybackLabelEn}).`,
     },

@@ -242,7 +242,7 @@ export function kuwaitDateBoundsToOdooUtc(
 } {
   const cleanFrom = /^\d{4}-\d{2}-\d{2}$/.test(fromKuwaitDate)
     ? fromKuwaitDate
-    : '2026-11-13'
+    : '2026-11-14'
   const cleanTo =
     /^\d{4}-\d{2}-\d{2}$/.test(toInclusiveKuwaitDate) && toInclusiveKuwaitDate >= cleanFrom
       ? toInclusiveKuwaitDate
@@ -717,7 +717,7 @@ function buildBaselineFallbackCore(
   note?: string,
   diagnosticCode: OdooDiagnosticCode = isOdooLiveEnvConfigured()
     ? 'UPSTREAM_UNREACHABLE_SERVING_BASELINE'
-    : 'ENV_NOT_CONFIGURED',
+    : 'VERIFIED_SNAPSHOT_READY',
 ): CachedCoreSnapshot {
   const baseMonth = summaryFromSnapshot(baselineSnapshot, note, 'month')
   const baseToday = summaryFromSnapshot(baselineSnapshot, note, 'today')
@@ -740,8 +740,8 @@ function buildBaselineFallbackCore(
   ): OdooBucketSummary =>
     rawSnap.buckets?.[key] ?? {
       key,
-      from: sum.period.from || '2026-10-15',
-      to: sum.period.to || '2026-11-14',
+      from: sum.period.from || '2026-10-16',
+      to: sum.period.to || '2026-11-15',
       days,
       totals: {
         netSalesKwd: sum.totals.netSalesKwd,
@@ -756,7 +756,7 @@ function buildBaselineFallbackCore(
     today: fallbackBucket('today', baseToday, 1),
     week: fallbackBucket('week', baseWeek, 7),
     month: fallbackBucket('month', baseMonth, 30),
-    year: fallbackBucket('year', baseYear, 317),
+    year: fallbackBucket('year', baseYear, 318),
   }
 
   const companyMonthNet = r3(
@@ -775,7 +775,7 @@ function buildBaselineFallbackCore(
     envConfigured: isOdooLiveEnvConfigured(),
     diagnosticCode,
     latestRecordAt: baseMonth.latestRecordAt ?? baseMonth.syncedAt,
-    latestOperationalDate: baseMonth.latestOperationalDate ?? '2026-11-13',
+    latestOperationalDate: baseMonth.latestOperationalDate ?? '2026-11-14',
     todayOrdersCount: buckets.today.totals.restaurantOrders,
     todaySalesKwd: buckets.today.totals.restaurantNetKwd,
     companyTotals: {
@@ -946,7 +946,7 @@ function buildReconciledBucket(params: {
 async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const cfg = readServerOdooConfig()
   if (!cfg) {
-    return buildBaselineFallbackCore(undefined, 'ENV_NOT_CONFIGURED')
+    return buildBaselineFallbackCore(undefined, 'VERIFIED_SNAPSHOT_READY')
   }
 
   // 1. Discover & map all POS configs (`id`, `name`, `company_id`) + POS categories

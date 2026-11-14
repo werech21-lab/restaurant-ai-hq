@@ -229,12 +229,12 @@ export interface ErpComparisonResult {
   }
 }
 
-export const DEFAULT_COMPARISON_DATE_A = '2026-11-13'
-export const DEFAULT_COMPARISON_DATE_B = '2026-11-06'
-export const DEFAULT_RANGE_FROM_A = '2026-11-07'
-export const DEFAULT_RANGE_TO_A = '2026-11-13'
-export const DEFAULT_RANGE_FROM_B = '2026-10-31'
-export const DEFAULT_RANGE_TO_B = '2026-11-06'
+export const DEFAULT_COMPARISON_DATE_A = '2026-11-14'
+export const DEFAULT_COMPARISON_DATE_B = '2026-11-07'
+export const DEFAULT_RANGE_FROM_A = '2026-11-08'
+export const DEFAULT_RANGE_TO_A = '2026-11-14'
+export const DEFAULT_RANGE_FROM_B = '2026-11-01'
+export const DEFAULT_RANGE_TO_B = '2026-11-07'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 

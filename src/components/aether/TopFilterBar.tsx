@@ -226,7 +226,7 @@ function PeriodDropdownPopover({
                   liveSummary?.latestOperationalDate &&
                   /^\d{4}-\d{2}-\d{2}$/.test(liveSummary.latestOperationalDate)
                     ? liveSummary.latestOperationalDate
-                    : '2026-11-13'
+                    : '2026-11-14'
                 return [
                   { label: '7d', from: shiftCalendarIso(anchorToIso, -6), to: anchorToIso },
                   { label: '14d', from: shiftCalendarIso(anchorToIso, -13), to: anchorToIso },

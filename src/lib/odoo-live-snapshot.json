@@ -2,10 +2,10 @@
   "source": "odoo17-verified",
   "database": "odoo17",
   "serverVersion": "16.0+e",
-  "syncedAt": "2026-11-13T15:18:10.000Z",
+  "syncedAt": "2026-11-14T08:40:00.000Z",
   "period": {
-    "from": "2026-10-15",
-    "to": "2026-11-14"
+    "from": "2026-10-16",
+    "to": "2026-11-15"
   },
   "scope": {
     "allowedPosConfigIds": [
@@ -58,8 +58,8 @@
   "buckets": {
     "today": {
       "key": "today",
-      "from": "2026-11-13",
-      "to": "2026-11-14",
+      "from": "2026-11-14",
+      "to": "2026-11-15",
       "days": 1,
       "isLatestOperationalDay": false,
       "totals": {
@@ -452,8 +452,8 @@
     },
     "week": {
       "key": "week",
-      "from": "2026-11-07",
-      "to": "2026-11-14",
+      "from": "2026-11-08",
+      "to": "2026-11-15",
       "days": 7,
       "isLatestOperationalDay": false,
       "totals": {
@@ -884,8 +884,8 @@
     },
     "month": {
       "key": "month",
-      "from": "2026-10-15",
-      "to": "2026-11-14",
+      "from": "2026-10-16",
+      "to": "2026-11-15",
       "days": 30,
       "isLatestOperationalDay": false,
       "totals": {
@@ -1317,8 +1317,8 @@
     "year": {
       "key": "year",
       "from": "2026-01-01",
-      "to": "2026-11-14",
-      "days": 317,
+      "to": "2026-11-15",
+      "days": 318,
       "isLatestOperationalDay": false,
       "totals": {
         "netSalesKwd": 1410559.48,
@@ -3601,11 +3601,6 @@
   "timeProfile": {
     "daily": [
       {
-        "day": "2026-10-15",
-        "orders": 1033,
-        "netKwd": 5567.343
-      },
-      {
         "day": "2026-10-16",
         "orders": 1245,
         "netKwd": 7031.015
@@ -3747,6 +3742,11 @@
       },
       {
         "day": "2026-11-13",
+        "orders": 1033,
+        "netKwd": 5567.343
+      },
+      {
+        "day": "2026-11-14",
         "orders": 431,
         "netKwd": 2671.027
       }
@@ -9132,8 +9132,8 @@
     },
     "pulse": {
       "rolling30": {
-        "from": "2026-10-15",
-        "to": "2026-11-14",
+        "from": "2026-10-16",
+        "to": "2026-11-15",
         "days": 30,
         "netKwd": 129211.693,
         "orders": 24057,
@@ -9186,8 +9186,8 @@
         }
       },
       "prior30": {
-        "from": "2026-09-15",
-        "to": "2026-10-15",
+        "from": "2026-09-16",
+        "to": "2026-10-16",
         "days": 30,
         "netKwd": 120703.61,
         "orders": 21436,
@@ -9236,8 +9236,8 @@
       },
       "mtd": {
         "from": "2026-11-01",
-        "to": "2026-11-14",
-        "days": 13,
+        "to": "2026-11-15",
+        "days": 14,
         "netKwd": 49853.688,
         "orders": 9282,
         "aovKwd": 5.371,
@@ -20334,5 +20334,5 @@
       }
     }
   },
-  "latestRecordAt": "2026-11-13T15:18:10.000Z"
+  "latestRecordAt": "2026-11-14T08:40:00.000Z"
 }

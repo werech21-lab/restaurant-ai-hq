@@ -21,7 +21,7 @@ const SNAPSHOT_LATEST_RECORD_ISO =
   DEFAULT_SNAPSHOT_LATEST_RECORD_ISO
 
 /** Deterministic SSR reference clock so initial HTML never flickers on hydration. */
-const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-13T15:30:00.000Z')
+const DETERMINISTIC_SSR_REF_NOW_MS = Date.parse('2026-11-14T08:45:00.000Z')
 
 export function OdooLiveStatusStrip({
   isAuditor = false,
