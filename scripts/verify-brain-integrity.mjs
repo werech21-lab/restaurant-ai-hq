@@ -5304,6 +5304,21 @@ assert(
   `mktOk=${s34Probe.mktOk}, supOk=${s34Probe.supOk}, dirOk=${s34Probe.dirOk}, staticLeaks=${s34StaticLeaks}`,
 )
 
+// ============================================================================
+// SECTION 35: 4 Surgical ERP Fixes Unit & Integration Suite (`scripts/test-erp-fixes.mjs`)
+// ============================================================================
+console.log('\n35) 4 Surgical ERP Fixes Unit & Integration Suite (scripts/test-erp-fixes.mjs):')
+
+const s35Out = execFileSync(process.execPath, [path.join(__dirname, 'test-erp-fixes.mjs')], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim()
+
+assert(
+  s35Out.includes('ALL 10 ERP TARGETED FIXES, 8-ROLE RBAC & POS DISCOVERY CHECKS PASSED!'),
+  '35.1 Unit & Integration Suite (scripts/test-erp-fixes.mjs): +3.3% computePeriodDelta, Branch + Unmapped Sales Reconciliation & 403 RBAC, Least Decline & Campaign Sanitization, dailySeries Bounds <= Kuwait Today & Entity Exclusions',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ Verification FAILED: ${failed} failed, ${passed} passed.`)

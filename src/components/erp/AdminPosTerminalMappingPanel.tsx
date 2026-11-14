@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Link2, RefreshCw, RotateCcw, ShieldCheck, Terminal } from 'lucide-react'
+import { AlertTriangle, Check, Link2, RefreshCw, RotateCcw, ShieldCheck, Terminal } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { formatAdminUnmappedAlertCopy } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
 import { useI18n } from '@/lib/i18n'
 
@@ -223,6 +224,27 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
           <span>{isAr ? 'تحديث الاكتشاف' : 'Refresh Discovery'}</span>
         </button>
       </div>
+
+      {/* Admin-Only Unmapped Sales Alert Banner */}
+      {totals && totals.unmappedTerminalsNetKwd > 0 ? (
+        <div
+          role="status"
+          data-admin-unmapped-alert="true"
+          className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50/90 px-4 py-3 text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/35 dark:text-amber-200 dark:ring-amber-400/25"
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              {isAr
+                ? `«${formatAdminUnmappedAlertCopy(totals.unmappedTerminalsNetKwd, true)}»`
+                : formatAdminUnmappedAlertCopy(totals.unmappedTerminalsNetKwd, false)}
+            </span>
+          </div>
+          <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+            {isAr ? 'تنبيه مسؤول النظام' : 'Admin Alert'}
+          </span>
+        </div>
+      ) : null}
 
       {/* Live Ledger Reconciliation Strip: sum(branches) + unmapped === companyTotals.netSalesKwd */}
       {totals ? (

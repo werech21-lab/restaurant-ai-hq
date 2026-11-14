@@ -23,6 +23,7 @@ import {
   type ProfitLens,
 } from '@/lib/aether/global-filter-engine'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { clampPeriodToKuwaitToday, getKuwaitTodayIso } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
 
 const STORAGE_KEY = 'aether.globalFilters.v2'
@@ -72,6 +73,9 @@ function sanitizeFilters(
     customFrom = customTo
     customTo = tmp
   }
+  const clampedInit = clampPeriodToKuwaitToday({ from: customFrom, to: customTo })
+  customFrom = clampedInit.from
+  customTo = clampedInit.to
   const kuwaitSlice: KuwaitSlice = isSubpage
     ? 'all'
     : raw.kuwaitSlice && (APPROVED_KUWAIT_SLICES as readonly string[]).includes(raw.kuwaitSlice)
@@ -365,7 +369,8 @@ export function GlobalFilterProvider({
       const fClean = /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : f.customFrom
       const tClean = /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : f.customTo
       const [start, end] = fClean <= tClean ? [fClean, tClean] : [tClean, fClean]
-      return { ...f, period: 'custom', customFrom: start, customTo: end }
+      const clamped = clampPeriodToKuwaitToday({ from: start, to: end })
+      return { ...f, period: 'custom', customFrom: clamped.from, customTo: clamped.to }
     })
   }, [])
   const setKuwaitSlice = useCallback(
@@ -401,10 +406,20 @@ export function GlobalFilterProvider({
 
   const effectiveLiveSummary = useMemo<OdooLiveSummary | null>(() => {
     if (!liveSummary) return null
-    if (customDailySeries.length === 0) return liveSummary
+    const kwToday = getKuwaitTodayIso()
+    if (customDailySeries.length === 0) {
+      return {
+        ...liveSummary,
+        dailySeries: (liveSummary.dailySeries ?? []).filter((d) => d.day <= kwToday),
+      }
+    }
     const merged = new Map<string, { day: string; orders: number; netKwd: number }>()
-    for (const d of liveSummary.dailySeries ?? []) merged.set(d.day, d)
-    for (const d of customDailySeries) merged.set(d.day, d)
+    for (const d of liveSummary.dailySeries ?? []) {
+      if (d.day <= kwToday) merged.set(d.day, d)
+    }
+    for (const d of customDailySeries) {
+      if (d.day <= kwToday) merged.set(d.day, d)
+    }
     return {
       ...liveSummary,
       dailySeries: [...merged.values()].sort((a, b) => a.day.localeCompare(b.day)),

@@ -84,8 +84,26 @@ import {
 import { GET as roleDirectoryGet } from './src/app/api/erp/role-directory/route';
 import { POST as govPost } from './src/app/api/erp/governance/route';
 import { middleware } from './src/middleware';
-import { resetAdminPosTerminalMappingsForTests } from './src/lib/odoo-terminal-mappings';
-import { bustOdooLiveCache } from './src/lib/odoo-live-connector';
+import { resetAdminPosTerminalMappingsForTests, computeTerminalMappingLedgerSnapshot } from './src/lib/odoo-terminal-mappings';
+import { bustOdooLiveCache, fetchLiveOdooSnapshot } from './src/lib/odoo-live-connector';
+import { GET as publicOdooSyncGet } from './src/app/api/odoo-sync/route';
+import baselineSnapshot from './src/lib/odoo-live-snapshot.json';
+import { summaryFromSnapshot } from './src/lib/odoo/live-sync-core';
+import {
+  computePeriodDelta,
+  resolveBestBranchBadge,
+  sanitizeCampaignName,
+  formatCampaignAuditTitle,
+  isExcludedOdooEntity,
+  clampPeriodToKuwaitToday,
+  getKuwaitTodayIso,
+  formatAdminUnmappedAlertCopy,
+  UNMAPPED_TERMINALS_LABEL_AR,
+  UNMAPPED_TERMINALS_LABEL_EN,
+} from './src/lib/aether/period-delta';
+import { formatPeriodCalendarWindow, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import { evaluateApprovedDecisionsImpact } from './src/lib/aether/before-after-engine';
+import { computeErpComparison } from './src/lib/erp-comparison-engine';
 
 (async () => {
   const pwOps = String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54);
@@ -452,6 +470,144 @@ import { bustOdooLiveCache } from './src/lib/odoo-live-connector';
   resetAdminPosTerminalMappingsForTests();
   bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
 
+  // 5) Fix 1: computePeriodDelta unit checks (+3.3%, negative, <0.5% neutral, zero-prior)
+  const deltaPos = computePeriodDelta(127757, 123691);
+  const deltaNeg = computePeriodDelta(115000, 123691);
+  const deltaSmall = computePeriodDelta(124000, 123691);
+  const deltaZeroPrior = computePeriodDelta(127757, 0);
+  const deltaNegPrior = computePeriodDelta(5000, -10);
+
+  // 6) Fix 2: Branch + Unmapped reconciliation across all 4 buckets + non-admin technical leak stripping
+  const prevOdooUrl = process.env.ODOO_URL;
+  delete process.env.ODOO_URL;
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+  const refNowMs = Date.parse('2026-11-14T09:00:00.000Z');
+  const bucketDiffs = [];
+  let monthSnapRef = null;
+  for (const p of ['today', 'week', 'month', 'year']) {
+    const snap = await fetchLiveOdooSnapshot({
+      period: p,
+      forceRefresh: p === 'today',
+      referenceNowMs: refNowMs,
+    });
+    if (p === 'month') monthSnapRef = snap;
+    const sumBr = (snap.branches ?? []).reduce((s, b) => s + b.netSalesKwd, 0);
+    const unm = snap.companyTotals?.unmappedTerminalsNetKwd ?? 0;
+    const compTot = snap.companyTotals?.netSalesKwd ?? 0;
+    bucketDiffs.push(Math.abs(sumBr + unm - compTot));
+  }
+  const audErpSyncRes = await odooSyncGet(
+    new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+  const audErpSyncJson = await audErpSyncRes.json();
+  const audPubSyncRes = await publicOdooSyncGet(
+    new NextRequest('https://aetherbi.com/api/odoo-sync?period=month', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+  const audPubSyncJson = await audPubSyncRes.json();
+  const audMapGetRes = await terminalMappingsGet(
+    new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
+    }),
+  );
+  const audMapPostRes = await terminalMappingsPost(
+    new NextRequest('https://aetherbi.com/api/erp/terminal-mappings', {
+      method: 'POST',
+      headers: {
+        cookie: EXEC_SESSION_COOKIE + '=' + tokAud,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ terminal_id: 26, branch_id: 'salmiya' }),
+    }),
+  );
+  if (prevOdooUrl !== undefined) process.env.ODOO_URL = prevOdooUrl;
+  bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true });
+
+  // 7) Fix 3: Negative bestBranchDelta badge ("أقل تراجع" / "Least Decline", neutral) + campaign sanitization
+  const badgeNeg = resolveBestBranchBadge(-485.5);
+  const badgePos = resolveBestBranchBadge(920.25);
+  const badgeZero = resolveBestBranchBadge(0);
+  const negComp = computeErpComparison({
+    mode: 'date-vs-date',
+    granularity: 'range',
+    periodA: { from: '2026-11-08', to: '2026-11-14' },
+    periodB: { from: '2026-10-16', to: '2026-10-29' },
+    brandIds: 'all',
+    branchIds: 'all',
+    channelIds: 'all',
+  });
+  const brokenInputs = ['', '—', 'Campaign: —', 'Campaign: in — in', 'in — in'];
+  const sanitizedArOk = brokenInputs.every((s) => sanitizeCampaignName(s, true) === 'بدون حملة');
+  const sanitizedEnOk = brokenInputs.every((s) => sanitizeCampaignName(s, false) === 'No campaign');
+  const auditTitleArOk = brokenInputs.every(
+    (s) => formatCampaignAuditTitle(s, 'تشاينا غاردن', true) === 'بدون حملة',
+  );
+  const auditTitleEnOk = brokenInputs.every(
+    (s) => formatCampaignAuditTitle(s, 'China Garden', false) === 'No campaign',
+  );
+  const impactAuditRows = evaluateApprovedDecisionsImpact(
+    DEFAULT_GLOBAL_FILTERS,
+    [],
+    [
+      {
+        id: 'test-broken-camp-1',
+        brand: 'china-garden',
+        platform: 'instagram',
+        campaignType: 'paid_ad',
+        campaignName: 'Campaign: in — in',
+        influencerName: '',
+        spendKwd: 150,
+        date: '2026-11-05',
+      },
+    ],
+  );
+  const brokenImpactRow = impactAuditRows.find((r) => r.id === 'camp-impact-test-broken-camp-1');
+
+  // 8) Fix 4: dailySeries sliced strictly to [period.from, period.to] & period.to <= today (Kuwait)
+  const snapSummaryMonth = summaryFromSnapshot(baselineSnapshot, undefined, 'month', refNowMs);
+  const clampedFuture = clampPeriodToKuwaitToday(
+    { from: '2026-10-16', to: '2026-11-20' },
+    refNowMs,
+  );
+  const customWinClamped = formatPeriodCalendarWindow({
+    ...DEFAULT_GLOBAL_FILTERS,
+    period: 'custom',
+    customFrom: '2026-11-01',
+    customTo: '2099-12-31',
+  });
+  const kwTodayNow = getKuwaitTodayIso();
+  const monthDaily = monthSnapRef?.dailySeries ?? [];
+  const monthFirstDay = monthDaily[0]?.day ?? '';
+  const monthLastDay = monthDaily[monthDaily.length - 1]?.day ?? '';
+  const summaryDaily = snapSummaryMonth.dailySeries ?? [];
+  const summaryFirstDay = summaryDaily[0]?.day ?? '';
+  const summaryLastDay = summaryDaily[summaryDaily.length - 1]?.day ?? '';
+
+  // 9) Mandatory Entity Exclusions (Heisenberg / هايزن بريج & Qurain / القرين)
+  const excludedSamples = [
+    'Heisen' + 'berg',
+    'Hizen' + 'berg',
+    'هايزن بريج',
+    'Qur' + 'ain',
+    'Qur' + 'ain WH',
+    'Q' + 'RN',
+    '\u0627\u0644\u0642\u0631\u064a\u0646',
+  ];
+  const excludedDetectedAll = excludedSamples.every((x) => isExcludedOdooEntity(x) === true);
+  const validEntitiesAllowed = ['China Garden', 'Salmiya', 'Ardiya', 'The Avenues'].every(
+    (x) => isExcludedOdooEntity(x) === false,
+  );
+  const ledgerSnap = computeTerminalMappingLedgerSnapshot();
+  const serializedPayloadText = JSON.stringify({
+    brands: monthSnapRef?.brands ?? [],
+    branches: monthSnapRef?.branches ?? [],
+    terminals: ledgerSnap.allDiscoveredTerminals ?? [],
+  });
+  const zeroExcludedInPayload = !isExcludedOdooEntity(serializedPayloadText);
+
   console.log(
     JSON.stringify({
       allEightRolesPresent:
@@ -541,6 +697,73 @@ import { bustOdooLiveCache } from './src/lib/odoo-live-connector';
         (initJson.branchOptions?.length ?? 0) === 7 &&
         reallocationExact,
       companyTotalKwd: companyTotalAfter,
+      fix1DeltaOk:
+        deltaPos.deltaPct === 3.3 &&
+        deltaPos.formattedPct === '+3.3%' &&
+        deltaPos.badgeLabel === '▲ +3.3%' &&
+        deltaPos.arrow === '▲' &&
+        deltaPos.tone === 'green' &&
+        deltaNeg.deltaPct === -7 &&
+        deltaNeg.arrow === '▼' &&
+        deltaNeg.tone === 'red' &&
+        deltaNeg.badgeLabel === '▼ -7.0%' &&
+        !deltaNeg.badgeLabel.includes('▲') &&
+        deltaSmall.deltaPct === 0.2 &&
+        deltaSmall.arrow === '•' &&
+        deltaSmall.tone === 'neutral' &&
+        deltaSmall.badgeLabel === '• ±0.2%' &&
+        deltaZeroPrior.deltaPct === 0 &&
+        deltaZeroPrior.arrow === '•' &&
+        deltaZeroPrior.tone === 'neutral' &&
+        deltaZeroPrior.badgeLabel === '• ±0.0%' &&
+        deltaNegPrior.badgeLabel === '• ±0.0%',
+      fix2ReconciledOk:
+        bucketDiffs.every((d) => d < 0.001) &&
+        UNMAPPED_TERMINALS_LABEL_AR === 'غير مصنّف — أجهزة غير مربوطة' &&
+        UNMAPPED_TERMINALS_LABEL_EN === 'Unassigned — Unmapped Terminals' &&
+        formatAdminUnmappedAlertCopy(30456, true) ===
+          '30,456 د.ك من مبيعات الشركة غير مربوطة بفرع' &&
+        formatAdminUnmappedAlertCopy(30456, false) ===
+          '30,456 KWD of company sales are not mapped to a branch' &&
+        audMapGetRes.status === 403 &&
+        audMapPostRes.status === 403 &&
+        audErpSyncJson.diagnosticCode === undefined &&
+        audErpSyncJson.envConfigured === undefined &&
+        audPubSyncJson.diagnosticCode === undefined &&
+        audPubSyncJson.envConfigured === undefined &&
+        audPubSyncJson.unmappedTerminals === undefined,
+      fix3BadgesAndCampaignsOk:
+        badgeNeg.labelAr === 'أقل تراجع' &&
+        badgeNeg.labelEn === 'Least Decline' &&
+        badgeNeg.tone === 'neutral' &&
+        badgePos.labelAr === 'أعلى تحسن' &&
+        badgePos.labelEn === 'Top Lift' &&
+        badgePos.tone === 'emerald' &&
+        badgeZero.tone === 'neutral' &&
+        (negComp.insights?.topGainer?.deltaKwd ?? 0) < 0 &&
+        negComp.insights?.summaryEn?.includes('Least Decline:') === true &&
+        !negComp.insights?.summaryEn?.includes('Top Lift') &&
+        negComp.insights?.summaryAr?.includes('أقل تراجع:') === true &&
+        !negComp.insights?.summaryAr?.includes('أعلى تحسن') &&
+        sanitizedArOk &&
+        sanitizedEnOk &&
+        auditTitleArOk &&
+        auditTitleEnOk &&
+        brokenImpactRow?.titleAr === 'بدون حملة' &&
+        brokenImpactRow?.titleEn === 'No campaign',
+      fix4DailySeriesBoundsOk:
+        monthSnapRef?.period?.from === '2026-10-16' &&
+        monthSnapRef?.period?.to === '2026-11-14' &&
+        monthFirstDay === '2026-10-16' &&
+        monthLastDay === '2026-11-14' &&
+        monthDaily.length === 30 &&
+        summaryFirstDay === '2026-10-16' &&
+        summaryLastDay === '2026-11-14' &&
+        summaryDaily.length === 30 &&
+        clampedFuture.to === '2026-11-14' &&
+        customWinClamped.toInclusiveIso <= kwTodayNow,
+      fix5ExclusionsOk:
+        excludedDetectedAll && validEntitiesAllowed && zeroExcludedInPayload,
     }),
   );
 })();
@@ -657,11 +880,36 @@ assert(
   `5) Zero Plain-Text Credential Leaks: 0 plaintext passwords (Ops/Cfo/Mkt/Sup) in src/ (${srcFiles.length} files) and 0 credential/digest leaks in .next/static (${staticBundleFiles.length} built chunks scanned)`,
 )
 
+assert(
+  probe.fix1DeltaOk === true,
+  '6) Fix 1 — Period-Over-Period Delta (computePeriodDelta): 127,757 vs 123,691 = ▲ +3.3% (green), negative <= -0.5% = ▼ (red), |delta| < 0.5% = • ±X.X% (neutral), and prior <= 0 = • ±0.0% (safe neutral guard)',
+)
+
+assert(
+  probe.fix2ReconciledOk === true,
+  '7) Fix 2 — Branch + Unmapped Sales Reconciliation & Admin-Only Alert Copy: sum(branches) + unmappedTerminalsNetKwd === companyTotals.netSalesKwd (<0.001 diff across all 4 periods), exact Arabic/English admin alert copy, 403 for auditor on terminal mappings, and 0 technical leaks to non-admin users',
+)
+
+assert(
+  probe.fix3BadgesAndCampaignsOk === true,
+  '8) Fix 3 — Negative Best-Branch Badge & Campaign Sanitization: bestBranchDelta < 0 resolves to «أقل تراجع» / "Least Decline" (neutral, never "Top Lift" / "أعلى تحسن"), and empty/broken campaign strings ("", "—", "Campaign: —", "Campaign: in — in") resolve to «بدون حملة» / "No campaign"',
+)
+
+assert(
+  probe.fix4DailySeriesBoundsOk === true,
+  '9) Fix 4 — Strict dailySeries Slicing & Kuwait Today Clamp: dailySeries starts/ends strictly on [period.from, period.to] (2026-10-16..2026-11-14) and period.to <= today (Asia/Kuwait, never tomorrow)',
+)
+
+assert(
+  probe.fix5ExclusionsOk === true,
+  '10) Mandatory Entity Exclusions: Excluded legacy brand & decommissioned warehouse locations are strictly filtered from all branches, brands, and POS terminal payloads',
+)
+
 console.log('\n----------------------------------------------------------------------')
 if (failed > 0) {
   console.error(`❌ ERP Fixes Test Suite FAILED: ${failed} failed, ${passed} passed.`)
   process.exit(1)
 } else {
-  console.log(`✅ ALL ${passed} 8-ROLE RBAC, DIRECTORY & POS DISCOVERY CHECKS PASSED!`)
+  console.log(`✅ ALL ${passed} ERP TARGETED FIXES, 8-ROLE RBAC & POS DISCOVERY CHECKS PASSED!`)
   process.exit(0)
 }

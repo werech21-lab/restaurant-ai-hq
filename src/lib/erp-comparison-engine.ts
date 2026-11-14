@@ -1880,7 +1880,7 @@ export function computeErpComparison(
   const headlineAr = `${selectionA.shortLabelAr} مقابل ${selectionB.shortLabelAr}: ${salesDiffSign}${Math.round(netSales.deltaAbs).toLocaleString('en-US')} د.ك (${salesDiffSign}${netSales.deltaPct.toFixed(1)}%)`
 
   const summaryEn = primaryPool.topGainer
-    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'Top Lift' : 'Most Resilient'}: ${primaryPool.topGainer.nameEn} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} KWD)${
+    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'Top Lift' : primaryPool.topGainer.deltaKwd < 0 ? 'Least Decline' : 'Most Resilient'}: ${primaryPool.topGainer.nameEn} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} KWD)${
         primaryPool.biggestDecline
           ? ` • Biggest Decline: ${primaryPool.biggestDecline.nameEn} (${Math.round(primaryPool.biggestDecline.deltaKwd).toLocaleString('en-US')} KWD)`
           : ''
@@ -1888,7 +1888,7 @@ export function computeErpComparison(
     : 'No active POS transactions in the selected Brand × Branch combination.'
 
   const summaryAr = primaryPool.topGainer
-    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'أكبر ارتفاع' : 'الأقل تراجعاً (الأكثر تماسكاً)'}: ${primaryPool.topGainer.nameAr} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} د.ك)${
+    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'أعلى تحسن' : primaryPool.topGainer.deltaKwd < 0 ? 'أقل تراجع' : 'الأقل تراجعاً (الأكثر تماسكاً)'}: ${primaryPool.topGainer.nameAr} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} د.ك)${
         primaryPool.biggestDecline
           ? ` • أكبر تراجع: ${primaryPool.biggestDecline.nameAr} (${Math.round(primaryPool.biggestDecline.deltaKwd).toLocaleString('en-US')} د.ك)`
           : ''

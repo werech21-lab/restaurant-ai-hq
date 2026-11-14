@@ -34,6 +34,7 @@ import type {
   OdooLiveSummary,
   OdooPeriodBucketKey,
 } from '@/lib/odoo/live-sync-core'
+import { clampPeriodToKuwaitToday } from '@/lib/aether/period-delta'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
 
@@ -383,8 +384,9 @@ export function formatPeriodCalendarWindow(
       f = t
       t = tmp
     }
-    const labels = formatInclusiveIsoRangeLabels(f, t)
-    return { fromIso: f, toInclusiveIso: t, ...labels }
+    const clampedCustom = clampPeriodToKuwaitToday({ from: f, to: t })
+    const labels = formatInclusiveIsoRangeLabels(clampedCustom.from, clampedCustom.to)
+    return { fromIso: clampedCustom.from, toInclusiveIso: clampedCustom.to, ...labels }
   }
 
   const snapBuckets = (
@@ -404,9 +406,10 @@ export function formatPeriodCalendarWindow(
   const fromIso = bkt?.from ?? (period === 'year' ? '2026-01-01' : '2026-10-16')
   const rawExclTo = bkt?.to ?? '2026-11-15'
   const shiftedEnd = shiftIsoDateDays(rawExclTo, -1)
-  const toInclusiveIso = shiftedEnd >= fromIso ? shiftedEnd : fromIso
-  const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
-  return { fromIso, toInclusiveIso, ...labels }
+  const rawToInclusiveIso = shiftedEnd >= fromIso ? shiftedEnd : fromIso
+  const clampedBucket = clampPeriodToKuwaitToday({ from: fromIso, to: rawToInclusiveIso })
+  const labels = formatInclusiveIsoRangeLabels(clampedBucket.from, clampedBucket.to)
+  return { fromIso: clampedBucket.from, toInclusiveIso: clampedBucket.to, ...labels }
 }
 
 export function getKuwaitSliceLabel(s: KuwaitSlice, isAr: boolean): string {

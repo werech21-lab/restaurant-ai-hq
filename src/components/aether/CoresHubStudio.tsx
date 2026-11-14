@@ -28,6 +28,7 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
 import {
   formatArDays,
+  formatPeriodCalendarWindow,
   GLOBAL_BRANCH_OPTIONS,
   GLOBAL_BRAND_OPTIONS,
   getPeriodLabel,
@@ -35,6 +36,11 @@ import {
   type GlobalBrand,
   type GlobalChannel,
 } from '@/lib/aether/global-filter-engine'
+import {
+  isBrokenOrEmptyCampaignName,
+  UNMAPPED_TERMINALS_LABEL_AR,
+  UNMAPPED_TERMINALS_LABEL_EN,
+} from '@/lib/aether/period-delta'
 import { shiftIsoDate } from '@/lib/erp-comparison-engine'
 import {
   evaluateCampaignOdooHalo,
@@ -537,8 +543,26 @@ export function CoresHubStudio() {
     }))
   }, [snap.marketing.chartPoints, isAr, kwdSuffix])
 
+  const periodWin = useMemo(
+    () =>
+      formatPeriodCalendarWindow(filters.period, {
+        customFrom: filters.customFrom,
+        customTo: filters.customTo,
+        liveSummary,
+      }),
+    [filters.period, filters.customFrom, filters.customTo, liveSummary],
+  )
+
   const salesTimelineData = useMemo<MultiSeriesBarDatum[]>(() => {
-    return snap.sales.timeline.map((pt) => ({
+    const slicedTimeline =
+      filters.period === 'today' || filters.period === 'year'
+        ? snap.sales.timeline
+        : snap.sales.timeline.filter((pt) =>
+            /^\d{4}-\d{2}-\d{2}$/.test(pt.id)
+              ? pt.id >= periodWin.fromIso && pt.id <= periodWin.toInclusiveIso
+              : true,
+          )
+    return slicedTimeline.map((pt) => ({
       id: pt.id,
       label: formatCompactAxisLabel(isAr ? pt.labelAr : pt.labelEn),
       tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
@@ -564,7 +588,7 @@ export function CoresHubStudio() {
         },
       ],
     }))
-  }, [snap.sales.timeline, isAr, kwdSuffix])
+  }, [snap.sales.timeline, filters.period, periodWin.fromIso, periodWin.toInclusiveIso, isAr, kwdSuffix])
 
   const salesHourlyData = useMemo<MultiSeriesBarDatum[]>(() => {
     return snap.sales.hourly.map((pt) => ({
@@ -1527,7 +1551,11 @@ export function CoresHubStudio() {
                         </div>
 
                         <h3 className="mt-2.5 text-[15px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                          {resolveCampaignDisplayName(ev.campaign, isAr)}
+                          {isBrokenOrEmptyCampaignName(ev.campaign.campaignName)
+                            ? isAr
+                              ? 'بدون حملة'
+                              : 'No campaign'
+                            : resolveCampaignDisplayName(ev.campaign, isAr)}
                         </h3>
                         {ev.campaign.promotedItem ? (
                           <p className="mt-0.5 text-xs text-neutral-400">
@@ -2102,6 +2130,33 @@ export function CoresHubStudio() {
                   setBranch(filters.branch === id ? 'all' : (id as GlobalBranch))
                 }
               />
+              {filters.brand === 'all' &&
+              filters.branch === 'all' &&
+              filters.channel === 'all' &&
+              filters.kuwaitSlice === 'all' &&
+              (liveSummary?.companyTotals?.unmappedTerminalsNetKwd ?? 0) > 0 ? (
+                <div className="mt-3 space-y-1.5 rounded-xl bg-neutral-50/90 px-3 py-2.5 ring-1 ring-neutral-900/[0.05] dark:bg-white/[0.04] dark:ring-white/10">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-semibold text-amber-800 dark:text-amber-300">
+                      {isAr ? UNMAPPED_TERMINALS_LABEL_AR : UNMAPPED_TERMINALS_LABEL_EN}
+                    </span>
+                    <span dir="ltr" className="font-semibold tabular-nums text-amber-800 dark:text-amber-300">
+                      {f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} {kwdSuffix} (
+                      {f0(liveSummary!.companyTotals!.unmappedTerminalsOrders)}{' '}
+                      {isAr ? 'طلب' : 'ord'})
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 border-t border-neutral-200/70 pt-1.5 text-xs dark:border-white/10">
+                    <span className="font-semibold text-neutral-700 dark:text-slate-200">
+                      {isAr ? 'إجمالي مبيعات الشركة' : 'Total Company Sales'}
+                    </span>
+                    <span dir="ltr" className="font-bold tabular-nums text-neutral-900 dark:text-white">
+                      {f0(liveSummary!.companyTotals!.netSalesKwd)} {kwdSuffix} (
+                      {f0(liveSummary!.companyTotals!.orders)} {isAr ? 'طلب' : 'ord'})
+                    </span>
+                  </div>
+                </div>
+              ) : null}
             </article>
 
             {/* 3. Sales Channels & Apps */}

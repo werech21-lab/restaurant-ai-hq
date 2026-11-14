@@ -27,6 +27,7 @@ import {
   resolveCampaignDisplayName,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
+import { isBrokenOrEmptyCampaignName } from '@/lib/aether/period-delta'
 import type { GovernanceApprovalRequest } from '@/lib/governance-compliance'
 
 export type ComparisonMode = 'period-prev' | 'today-lastweek' | 'decision-campaign'
@@ -178,16 +179,23 @@ export function buildEventOptions(
   campaigns: SocialCampaign[],
   decisions: ApprovedDecisionItem[],
 ): SelectableEventOption[] {
-  const fromCampaigns: SelectableEventOption[] = campaigns.map((c) => ({
-    id: `camp:${c.id}`,
-    kind: 'campaign',
-    labelAr: `حملة: ${resolveCampaignDisplayName(c, true)} (${getBrandLabel(c.brand, true)})`,
-    labelEn: `Campaign: ${resolveCampaignDisplayName(c, false)} (${getBrandLabel(c.brand, false)})`,
-    dateIso: c.date,
-    brand: c.brand,
-    expectedLiftRatio: 0.15,
-    campaign: c,
-  }))
+  const fromCampaigns: SelectableEventOption[] = campaigns.map((c) => {
+    const missingName = isBrokenOrEmptyCampaignName(c.campaignName)
+    return {
+      id: `camp:${c.id}`,
+      kind: 'campaign',
+      labelAr: missingName
+        ? `بدون حملة (${getBrandLabel(c.brand, true)})`
+        : `حملة: ${resolveCampaignDisplayName(c, true)} (${getBrandLabel(c.brand, true)})`,
+      labelEn: missingName
+        ? `No campaign (${getBrandLabel(c.brand, false)})`
+        : `Campaign: ${resolveCampaignDisplayName(c, false)} (${getBrandLabel(c.brand, false)})`,
+      dateIso: c.date,
+      brand: c.brand,
+      expectedLiftRatio: 0.15,
+      campaign: c,
+    }
+  })
 
   const fromDecisions: SelectableEventOption[] = decisions.map((d) => ({
     id: `dec:${d.id}`,
@@ -867,13 +875,19 @@ export function evaluateApprovedDecisionsImpact(
     const discAfter = halo.verdict === 'loser' ? 4.1 : 2.9
     const hasRegression = halo.verdict === 'loser' || netDiff < 0
 
+    const missingCampName = isBrokenOrEmptyCampaignName(camp.campaignName)
+
     rows.push({
       id: `camp-impact-${camp.id}`,
       refKey: `mkt-audit:${camp.id}`,
       sealId: `VF-MKT-${camp.date.slice(5, 7)}${camp.date.slice(8, 10)}`,
       approvedDate: camp.date,
-      titleAr: `حملة: ${resolveCampaignDisplayName(camp, true)} (${halo.brandAr})`,
-      titleEn: `Campaign: ${resolveCampaignDisplayName(camp, false)} (${halo.brandEn})`,
+      titleAr: missingCampName
+        ? 'بدون حملة'
+        : `حملة: ${resolveCampaignDisplayName(camp, true)} (${halo.brandAr})`,
+      titleEn: missingCampName
+        ? 'No campaign'
+        : `Campaign: ${resolveCampaignDisplayName(camp, false)} (${halo.brandEn})`,
       scopeAr: `${halo.brandAr} · ${halo.adTypeAr}`,
       scopeEn: `${halo.brandEn} · ${halo.adTypeEn}`,
       salesBeforeKwd: round1(halo.before3dSalesKwd),

@@ -35,9 +35,14 @@ import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
 import {
   computePeriodOverPeriodDeltaPct,
   formatArOpportunities,
-  formatSignedDelta,
   type SummaryCardData,
 } from '@/lib/aether/global-filter-engine'
+import {
+  computePeriodDelta,
+  formatAdminUnmappedAlertCopy,
+  UNMAPPED_TERMINALS_LABEL_AR,
+  UNMAPPED_TERMINALS_LABEL_EN,
+} from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
 
 interface EmeraldPillOption<K extends string> {
@@ -404,10 +409,27 @@ export function FullJourney360() {
   const activeWeeklyDay = weeklyPills.find((p) => p.id === activePillId) ?? weeklyPills[weeklyPills.length - 1]
 
   const topBranch = coresSnap.sales.branchRanking[0]
-  const heroDelta = useMemo(
-    () => formatSignedDelta(computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)),
-    [filters, liveSummary, workspace],
-  )
+  const heroDelta = useMemo(() => {
+    const rolling30Net = liveSummary?.journeyPulse?.rolling30?.netKwd ?? 0
+    const prior30Net = liveSummary?.journeyPulse?.prior30?.netKwd ?? 0
+    const isUnfilteredMonth =
+      filters.period === 'month' &&
+      filters.brand === 'all' &&
+      filters.branch === 'all' &&
+      filters.channel === 'all' &&
+      filters.kuwaitSlice === 'all' &&
+      filters.lens === 'all'
+    if (isUnfilteredMonth && rolling30Net > 50_000 && prior30Net > 50_000) {
+      return computePeriodDelta(rolling30Net, prior30Net)
+    }
+    const pct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
+    return computePeriodDelta(100 + pct, 100)
+  }, [filters, liveSummary, workspace])
+
+  const adminUnmappedNetKwd =
+    sessionRole === 'admin' && !auditorReadOnly
+      ? Math.max(0, liveSummary?.companyTotals?.unmappedTerminalsNetKwd ?? 0)
+      : 0
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-5 pb-28 sm:pb-12">
@@ -478,6 +500,34 @@ export function FullJourney360() {
         </div>
       </div>
 
+      {adminUnmappedNetKwd > 0 ? (
+        <div
+          role="status"
+          data-admin-unmapped-banner="true"
+          className="ae-bento-card flex flex-wrap items-center justify-between gap-2.5 rounded-2xl bg-amber-50/90 px-4 py-3 text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/35 dark:text-amber-200 dark:ring-amber-400/25"
+        >
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              {isAr
+                ? `«${formatAdminUnmappedAlertCopy(adminUnmappedNetKwd, true)}»`
+                : formatAdminUnmappedAlertCopy(adminUnmappedNetKwd, false)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              document
+                .getElementById('admin-pos-terminal-mapping')
+                ?.scrollIntoView({ behavior: 'smooth' })
+            }
+            className="inline-flex shrink-0 cursor-pointer items-center rounded-full bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-950 transition-colors hover:bg-amber-500/25 dark:text-amber-100"
+          >
+            {T('Map POS Terminals ↓', 'ربط أجهزة الكاشير ↓')}
+          </button>
+        </div>
+      ) : null}
+
       {/* =====================================================================
           SPEC #4: 4-COLUMN HERO + MATTE KPI ROW
           Card 1: Rich Emerald Gradient Hero (`from-[#0F764A] to-[#064E3B]`)
@@ -512,12 +562,14 @@ export function FullJourney360() {
                 <span
                   dir="ltr"
                   className={`ae-hero-pill inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums backdrop-blur-sm ${
-                    heroDelta.tone === 'rose'
+                    heroDelta.tone === 'red'
                       ? 'bg-rose-500/25 text-rose-50 ring-1 ring-rose-300/35'
-                      : 'bg-white/15 text-white'
+                      : heroDelta.tone === 'neutral'
+                        ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
+                        : 'bg-white/15 text-white'
                   }`}
                 >
-                  {heroDelta.text} {T('vs prior period', 'مقارنة بالفترة السابقة')}
+                  {heroDelta.badgeLabel} {T('vs prior period', 'مقارنة بالفترة السابقة')}
                 </span>
                 <span className="whitespace-normal text-[13px] font-medium tabular-nums text-white/85">
                   {isAr ? `• متوسط ${f2(workspace.aovKwd)} د.ك` : `• AOV ${f2(workspace.aovKwd)} KWD`}
@@ -527,10 +579,9 @@ export function FullJourney360() {
               filters.brand === 'all' &&
               filters.branch === 'all' ? (
                 <p className="whitespace-normal text-xs lg:text-[13px] font-medium tabular-nums text-white/80">
-                  {T(
-                    `Central / Multi-Branch POS Terminals included: ${f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} KWD`,
-                    `شامل نقاط البيع المركزية والمتعددة: ${f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} د.ك`,
-                  )}
+                  {isAr
+                    ? `${UNMAPPED_TERMINALS_LABEL_AR}: ${f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} د.ك`
+                    : `${UNMAPPED_TERMINALS_LABEL_EN}: ${f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} KWD`}
                 </p>
               ) : null}
             </div>
@@ -1071,6 +1122,32 @@ export function FullJourney360() {
                       : '82/100'}
                   </span>
                 </Link>
+
+                {(liveSummary?.companyTotals?.unmappedTerminalsNetKwd ?? 0) > 0 &&
+                filters.brand === 'all' &&
+                filters.branch === 'all' ? (
+                  <div className="flex items-center justify-between gap-2.5 rounded-xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#141F1B] dark:ring-emerald-400/[0.08]">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-300">
+                        <Building2 className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="whitespace-normal text-[13px] lg:text-sm font-semibold leading-tight text-slate-900 dark:text-white">
+                          {isAr ? UNMAPPED_TERMINALS_LABEL_AR : UNMAPPED_TERMINALS_LABEL_EN}
+                        </p>
+                        <p className="mt-0.5 text-xs lg:text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                          {T('Included in total company sales', 'مشمولة ضمن إجمالي مبيعات الشركة')}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      dir="ltr"
+                      className="shrink-0 text-xs lg:text-[13px] font-semibold tabular-nums text-amber-700 dark:text-amber-300"
+                    >
+                      {fmtKwdVal(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
@@ -1310,7 +1387,7 @@ export function FullJourney360() {
         </div>
 
         {sessionRole === 'admin' && !auditorReadOnly ? (
-          <div className="space-y-5">
+          <div id="admin-pos-terminal-mapping" className="space-y-5">
             <AdminPosTerminalMappingPanel role={sessionRole} />
             <AdminExecutiveDirectoryCard role={sessionRole} />
           </div>

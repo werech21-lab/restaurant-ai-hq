@@ -248,9 +248,13 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
       campaignName:
         typeof rec.campaignName === 'string' &&
         rec.campaignName.trim() &&
-        !BROKEN_CAMPAIGN_NAME_RE.test(rec.campaignName.trim())
+        !BROKEN_CAMPAIGN_NAME_RE.test(rec.campaignName.trim()) &&
+        !/^(?:campaign|ad|حملة|إعلان)\s*:\s*(?:[—–\-]+|in\s*[—–\-]+\s*in)?\s*$/i.test(
+          rec.campaignName.trim(),
+        ) &&
+        !/\bin\s*[—–\-]+\s*in\b/i.test(rec.campaignName.trim())
           ? rec.campaignName.trim()
-          : 'حملة عروض وتوصيل',
+          : 'بدون حملة',
       ...(typeof rec.campaignNameEn === 'string' &&
       rec.campaignNameEn.trim() &&
       !BROKEN_CAMPAIGN_NAME_RE.test(rec.campaignNameEn.trim())

@@ -54,6 +54,9 @@ export interface OdooBucketSummary {
   }
   byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }>
   byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
+  mappedByLocation?: Record<string, { netKwd: number; orders: number }>
+  unmappedSummary?: { netSalesKwd: number; orders: number }
+  periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
   uiChannels?: Record<string, { netKwd: number; orders: number }>
   accounting?: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number }
 }
@@ -347,6 +350,10 @@ interface SnapshotShape {
   brands?: { id: string; en: string; netKwd: number; sharePct: number }[]
   locations?: { id: string; en: string; unit: string; netKwd: number; orders: number; sharePct: number }[]
   channels?: { name: string; amountKwd: number }[]
+  timeProfile?: {
+    daily?: { day: string; orders: number; netKwd: number }[]
+    hourly?: { hour: number; orders: number; netKwd: number }[]
+  }
   journey?: {
     pulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
     access?: { readable: { model: string }[]; restricted: { model: string }[] }
@@ -397,8 +404,23 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
   const shiftedInclusiveEnd = /^\d{4}-\d{2}-\d{2}$/.test(rawExclTo)
     ? new Date(Date.parse(`${rawExclTo}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
     : rawExclTo
-  const canonicalInclusiveTo =
+  const rawCanonicalInclusiveTo =
     fromIso && shiftedInclusiveEnd >= fromIso ? shiftedInclusiveEnd : fromIso || shiftedInclusiveEnd
+  const kwTodayIso = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10)
+  const clampedTo =
+    /^\d{4}-\d{2}-\d{2}$/.test(rawCanonicalInclusiveTo) && rawCanonicalInclusiveTo > kwTodayIso
+      ? kwTodayIso
+      : rawCanonicalInclusiveTo
+  const clampedFrom =
+    /^\d{4}-\d{2}-\d{2}$/.test(fromIso) && /^\d{4}-\d{2}-\d{2}$/.test(clampedTo) && fromIso > clampedTo
+      ? clampedTo
+      : fromIso
+  const slicedDaily = Array.isArray(s.timeProfile?.daily)
+    ? s.timeProfile.daily
+        .filter((d) => (!clampedFrom || d.day >= clampedFrom) && (!clampedTo || d.day <= clampedTo))
+        .slice()
+        .sort((x, y) => x.day.localeCompare(y.day))
+    : undefined
   return {
     source: 'snapshot',
     connected: false,
@@ -410,7 +432,7 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
     kuwaitSyncedAt: latestFreshness.kuwaitTimestamp,
     latestOperationalDate: latestInfo.latestOperationalDate,
     bucket,
-    period: { from: fromIso, to: canonicalInclusiveTo },
+    period: { from: clampedFrom, to: clampedTo },
     database: null,
     totals: b
       ? { netSalesKwd: b.totals.netSalesKwd, orders: b.totals.orders, aovKwd: b.totals.aovKwd }
@@ -427,6 +449,8 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
       ? Object.entries(b.uiChannels).map(([name, v]) => ({ name, amountKwd: v.netKwd })).sort((a, x) => x.amountKwd - a.amountKwd)
       : (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
     ...(s.buckets ? { buckets: s.buckets } : {}),
+    ...(slicedDaily ? { dailySeries: slicedDaily } : {}),
+    ...(s.timeProfile?.hourly ? { hourlySeries: s.timeProfile.hourly } : {}),
     ...(jp
       ? { journeyPulse: Object.fromEntries((['rolling30', 'prior30', 'mtd'] as const).map((k) => [k, { from: jp[k].from, to: jp[k].to, days: jp[k].days, netKwd: jp[k].netKwd, orders: jp[k].orders, perDayKwd: jp[k].perDayKwd }])) as OdooLiveSummary['journeyPulse'] }
       : {}),

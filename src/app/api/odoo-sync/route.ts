@@ -146,8 +146,15 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
           referenceNowMs: nowMs,
         })
       : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
-    const { diagnosticCode: _omitAuditorDiag, ...cleanRoPayload } = roPayload
+    const {
+      diagnosticCode: _omitAuditorDiag,
+      envConfigured: _omitAuditorEnv,
+      unmappedTerminals: _omitAuditorTerms,
+      ...cleanRoPayload
+    } = roPayload
     void _omitAuditorDiag
+    void _omitAuditorEnv
+    void _omitAuditorTerms
     return NextResponse.json(
       sanitizeOdooPublicPayload({
         ...cleanRoPayload,
@@ -174,12 +181,13 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
   })
 
   const isAdminCaller = caller.role === 'admin'
-  const { diagnosticCode, ...restPayload } = payload
+  const { diagnosticCode, envConfigured, unmappedTerminals, ...restPayload } = payload
 
   return NextResponse.json(
     sanitizeOdooPublicPayload({
       ...restPayload,
-      ...(isAdminCaller || caller.isCron ? { diagnosticCode } : {}),
+      ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
+      ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
       ...(isAdminCaller
         ? {
             adminAlertDispatched: staleTelemetry.adminAlertDispatched,
@@ -267,12 +275,18 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
   })
 
   const isAdminCaller = caller.role === 'admin'
-  const { diagnosticCode, ...restSyncedPayload } = syncedPayload
+  const {
+    diagnosticCode,
+    envConfigured,
+    unmappedTerminals,
+    ...restSyncedPayload
+  } = syncedPayload
 
   return NextResponse.json(
     sanitizeOdooPublicPayload({
       ...restSyncedPayload,
-      ...(isAdminCaller || caller.isCron ? { diagnosticCode } : {}),
+      ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
+      ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
       ...(isAdminCaller
         ? {
             adminAlertDispatched: staleTelemetry.adminAlertDispatched,

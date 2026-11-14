@@ -37,6 +37,12 @@ import {
   recordLiveDiscoveredPosLedger,
   type ActiveVentureBranchId,
 } from '@/lib/odoo-terminal-mappings'
+import {
+  clampPeriodToKuwaitToday,
+  getKuwaitTodayIso,
+  isExcludedOdooEntity,
+  sliceDailySeriesToPeriod,
+} from '@/lib/aether/period-delta'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -645,7 +651,7 @@ const DECOMMISSIONED_SITE_RE = new RegExp(
 
 export function isDecommissionedWarehouseRecord(rawText?: string | null): boolean {
   if (!rawText) return false
-  return DECOMMISSIONED_SITE_RE.test(rawText)
+  return DECOMMISSIONED_SITE_RE.test(rawText) || isExcludedOdooEntity(rawText)
 }
 
 /**
@@ -834,13 +840,17 @@ function buildBaselineFallbackCore(
         ...buckets.month,
         totals: {
           ...buckets.month.totals,
-          netSalesKwd: restMonthNet,
-          orders: restMonthOrd,
+          netSalesKwd: r3(restMonthNet + unmappedMonthNet),
+          orders: restMonthOrd + unmappedMonthOrd,
           aovKwd: restMonthOrd > 0 ? r3(restMonthNet / restMonthOrd) : 0,
           restaurantNetKwd: restMonthNet,
           restaurantOrders: restMonthOrd,
         },
         byLocation: clonedByLocation,
+        unmappedSummary: {
+          netSalesKwd: unmappedMonthNet,
+          orders: unmappedMonthOrd,
+        },
       }
     }
   }
@@ -1039,6 +1049,14 @@ export function buildReconciledBucket(params: {
     aggUiChannels[ck].netKwd = reconciledAggUi.get(ck) ?? 0
   }
 
+  const mappedByLocation: NonNullable<OdooBucketSummary['mappedByLocation']> = {}
+  for (const lid of ACTIVE_BRANCH_IDS) {
+    mappedByLocation[lid] = {
+      netKwd: r3(Math.max(0, locNetMap.get(lid) ?? 0)),
+      orders: Math.max(0, Math.round(locOrdersMap.get(lid) ?? 0)),
+    }
+  }
+
   return {
     key,
     from,
@@ -1054,6 +1072,11 @@ export function buildReconciledBucket(params: {
     },
     byBrand,
     byLocation,
+    mappedByLocation,
+    unmappedSummary: {
+      netSalesKwd: r3(Math.max(0, unmappedNetKwd)),
+      orders: Math.max(0, Math.round(unmappedOrders)),
+    },
     uiChannels: aggUiChannels,
     ...(accounting ? { accounting } : {}),
   }
@@ -2048,21 +2071,43 @@ function formatEnvelopeFromCore(
       sharePct: pct1(nv, totalNet),
     }
   })
-    .filter((b) => b.netKwd > 0)
+    .filter((b) => b.netKwd > 0 && !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.brand))
     .sort((a, b) => b.netKwd - a.netKwd)
 
-  const branches = ACTIVE_BRANCH_IDS.map((lid) => {
-    const nv = bkt.byLocation?.[lid]?.netKwd ?? 0
-    const ord = bkt.byLocation?.[lid]?.orders ?? 0
+  const branchSource = bkt.mappedByLocation ?? bkt.byLocation
+  const rawBranches = ACTIVE_BRANCH_IDS.map((lid) => {
+    const nv = r3(branchSource?.[lid]?.netKwd ?? 0)
+    const ord = Math.max(0, Math.round(branchSource?.[lid]?.orders ?? 0))
     return {
       id: lid,
       name: REG.locations[lid]?.en ?? lid,
       unit: 'restaurant',
       netSalesKwd: nv,
       orders: ord,
-      sharePct: pct1(nv, totalNet),
     }
-  }).sort((a, b) => b.netSalesKwd - a.netSalesKwd)
+  }).filter((b) => !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.name))
+
+  const branchSumNet = r3(rawBranches.reduce((acc, b) => acc + b.netSalesKwd, 0))
+  const branchSumOrd = rawBranches.reduce((acc, b) => acc + b.orders, 0)
+  const bktUnmappedNet = bkt.unmappedSummary
+    ? r3(Math.max(0, bkt.unmappedSummary.netSalesKwd))
+    : bucketKey === 'month'
+      ? r3(Math.max(0, core.companyTotals.unmappedTerminalsNetKwd))
+      : Math.max(0, r3(bkt.totals.netSalesKwd - branchSumNet))
+  const bktUnmappedOrd = bkt.unmappedSummary
+    ? Math.max(0, Math.round(bkt.unmappedSummary.orders))
+    : bucketKey === 'month'
+      ? Math.max(0, Math.round(core.companyTotals.unmappedTerminalsOrders))
+      : Math.max(0, Math.round(bkt.totals.orders - branchSumOrd))
+  const bucketCompanyNet = r3(branchSumNet + bktUnmappedNet)
+  const bucketCompanyOrd = branchSumOrd + bktUnmappedOrd
+
+  const branches = rawBranches
+    .map((b) => ({
+      ...b,
+      sharePct: pct1(b.netSalesKwd, bucketCompanyNet > 0 ? bucketCompanyNet : totalNet),
+    }))
+    .sort((a, b) => b.netSalesKwd - a.netSalesKwd)
 
   const channels = UI_CHANNEL_KEYS.map((ck) => ({
     name: ck,
@@ -2079,6 +2124,15 @@ function formatEnvelopeFromCore(
   const shiftedInclusiveEnd = shiftIsoDate(bkt.to, -1)
   const canonicalInclusiveTo =
     shiftedInclusiveEnd >= bkt.from ? shiftedInclusiveEnd : bkt.from
+  const clampedPeriod = clampPeriodToKuwaitToday(
+    { from: bkt.from, to: canonicalInclusiveTo },
+    options.referenceNowMs,
+  )
+  const slicedDailySeries = sliceDailySeriesToPeriod(
+    core.dailySeries,
+    { from: clampedPeriod.from, to: clampedPeriod.to },
+    options.referenceNowMs,
+  )
 
   const envelope: OdooLiveSyncEnvelope = {
     ok: true,
@@ -2105,19 +2159,24 @@ function formatEnvelopeFromCore(
     readOnly: options.readOnly,
     cached: options.cached,
     bucket: bucketKey,
-    period: { from: bkt.from, to: canonicalInclusiveTo },
+    period: { from: clampedPeriod.from, to: clampedPeriod.to },
     database: null,
     totals: {
       netSalesKwd: bkt.totals.restaurantNetKwd,
       orders: bkt.totals.restaurantOrders,
       aovKwd: bkt.totals.aovKwd,
     },
-    companyTotals: core.companyTotals,
+    companyTotals: {
+      netSalesKwd: bucketCompanyNet,
+      orders: bucketCompanyOrd,
+      unmappedTerminalsNetKwd: bktUnmappedNet,
+      unmappedTerminalsOrders: bktUnmappedOrd,
+    },
     brands,
     branches,
     channels,
     buckets: core.buckets,
-    dailySeries: core.dailySeries,
+    dailySeries: slicedDailySeries,
     hourlySeries: core.hourlySeries,
     ...(core.stockTransfers ? { stockTransfers: core.stockTransfers } : {}),
     ...(core.aggregatorReceivables
@@ -2342,7 +2401,9 @@ export async function fetchLiveOdooComparisonOverlay(params: {
   const warmCore = coreSnapshotCache ?? lastKnownGoodSnapshot
 
   let baseEnvelope: OdooLiveSyncEnvelope
+  let activeCoreForOverlay: CachedCoreSnapshot
   if (warmCore) {
+    activeCoreForOverlay = warmCore
     baseEnvelope = formatEnvelopeFromCore(warmCore, 'month', {
       readOnly: Boolean(params.readOnly),
       cached: true,
@@ -2360,6 +2421,7 @@ export async function fetchLiveOdooComparisonOverlay(params: {
     }
   } else {
     const baseline = buildBaselineFallbackCore(undefined, 'VERIFIED_SNAPSHOT_READY')
+    activeCoreForOverlay = baseline
     if (!isOdooLiveEnvConfigured()) {
       coreSnapshotCache = baseline
     } else if (!params.readOnly && !inflightCorePull) {
@@ -2373,6 +2435,12 @@ export async function fetchLiveOdooComparisonOverlay(params: {
       referenceNowMs: nowMs,
     })
   }
+
+  const kwTodayIso = getKuwaitTodayIso(nowMs)
+  baseEnvelope = sanitizeOdooPublicPayload({
+    ...baseEnvelope,
+    dailySeries: (activeCoreForOverlay.dailySeries ?? []).filter((d) => d.day <= kwTodayIso),
+  })
 
   if (!isOdooLiveEnvConfigured() || !baseEnvelope.connected) {
     return baseEnvelope
@@ -2479,10 +2547,14 @@ export async function fetchLiveOdooComparisonOverlay(params: {
 
   const mergedMap = new Map<string, { day: string; orders: number; netKwd: number }>()
   for (const d of baseEnvelope.dailySeries ?? []) {
-    mergedMap.set(d.day, d)
+    if (d.day <= kwTodayIso) {
+      mergedMap.set(d.day, d)
+    }
   }
   for (const d of extraDaily) {
-    mergedMap.set(d.day, d)
+    if (d.day <= kwTodayIso) {
+      mergedMap.set(d.day, d)
+    }
   }
 
   return sanitizeOdooPublicPayload({

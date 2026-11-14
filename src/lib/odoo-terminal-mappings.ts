@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import baselineSnapshot from '@/lib/odoo-live-snapshot.json'
 import posRegistry from '@/lib/odoo/pos-registry.json'
+import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -286,7 +287,12 @@ export function recordLiveDiscoveredPosLedger(input: {
   state.liveDiscovered = {
     updatedAtMs: Date.now(),
     candidateTerminals: input.candidateTerminals
-      .filter((t) => Number.isInteger(t.terminal_id) && t.terminal_id > 0)
+      .filter(
+        (t) =>
+          Number.isInteger(t.terminal_id) &&
+          t.terminal_id > 0 &&
+          !isExcludedOdooEntity(t.terminal_name),
+      )
       .map((t) => ({
         terminal_id: t.terminal_id,
         terminal_name: String(t.terminal_name || `POS #${t.terminal_id}`).trim(),
@@ -354,7 +360,7 @@ function buildBaselineDiscoveredSource(): {
   }
 
   const candidateTerminals = [...candidateById.values()]
-    .filter((t) => t.net_sales_kwd > 0 || t.orders_count > 0)
+    .filter((t) => (t.net_sales_kwd > 0 || t.orders_count > 0) && !isExcludedOdooEntity(t.terminal_name))
     .sort((a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id)
 
   return { candidateTerminals, baseBranches }

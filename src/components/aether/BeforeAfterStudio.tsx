@@ -48,6 +48,13 @@ import {
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
 import { useLang } from '@/components/aether/ui'
+import {
+  getKuwaitTodayIso,
+  isBrokenOrEmptyCampaignName,
+  resolveBestBranchBadge,
+  UNMAPPED_TERMINALS_LABEL_AR,
+  UNMAPPED_TERMINALS_LABEL_EN,
+} from '@/lib/aether/period-delta'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -312,16 +319,27 @@ export function BeforeAfterStudio() {
   ])
 
   const mergedLiveSummary = useMemo(() => {
-    if (extraDailySeries.length === 0) return liveSummary
+    const kwToday = getKuwaitTodayIso()
+    if (extraDailySeries.length === 0) {
+      if (!liveSummary) return null
+      return {
+        ...liveSummary,
+        dailySeries: (liveSummary.dailySeries ?? []).filter((d) => d.day <= kwToday),
+      }
+    }
     const map = new Map<string, { day: string; orders: number; netKwd: number }>()
-    for (const d of liveSummary?.dailySeries ?? []) map.set(d.day, d)
-    for (const d of extraDailySeries) map.set(d.day, d)
+    for (const d of liveSummary?.dailySeries ?? []) {
+      if (d.day <= kwToday) map.set(d.day, d)
+    }
+    for (const d of extraDailySeries) {
+      if (d.day <= kwToday) map.set(d.day, d)
+    }
     const mergedDaily = [...map.values()].sort((a, b) => a.day.localeCompare(b.day))
     if (!liveSummary) {
       return {
         source: 'live' as const,
         syncedAt: '2026-11-14T08:40:00.000Z',
-        period: { from: query.periodA.from, to: query.periodA.to },
+        period: { from: query.periodA.from, to: query.periodA.to <= kwToday ? query.periodA.to : kwToday },
         database: null,
         totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
         brands: [],
@@ -830,6 +848,26 @@ export function BeforeAfterStudio() {
                   </tr>
                 )
               })}
+              {scopeKey === 'branches' &&
+              query.brandIds === 'all' &&
+              query.branchIds === 'all' &&
+              query.channelIds === 'all' &&
+              (liveSummary?.companyTotals?.unmappedTerminalsNetKwd ?? 0) > 0 ? (
+                <tr className="bg-slate-50/80 dark:bg-white/[0.03]">
+                  <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">
+                    {isAr ? UNMAPPED_TERMINALS_LABEL_AR : UNMAPPED_TERMINALS_LABEL_EN}
+                    <span className="ms-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      ({(liveSummary!.companyTotals!.unmappedTerminalsOrders ?? 0).toLocaleString('en-US')}{' '}
+                      {isAr ? 'طلب (٣٠ يوم)' : '30d orders'})
+                    </span>
+                  </td>
+                  <td colSpan={6} dir="ltr" className="px-4 py-3 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-200">
+                    {fmtKwd(liveSummary!.companyTotals!.unmappedTerminalsNetKwd, isAr)} ·{' '}
+                    {isAr ? 'إجمالي الشركة (٣٠ يوم):' : '30d Company Total:'}{' '}
+                    {fmtKwd(liveSummary!.companyTotals!.netSalesKwd, isAr)}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -893,21 +931,43 @@ export function BeforeAfterStudio() {
 
           <div className="flex flex-wrap items-center gap-2 tabular-nums">
             {comparison.insights.topGainer &&
-              (comparison.insights.topGainer.deltaKwd > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                  {isAr ? 'أكبر ارتفاع:' : 'Top Lift:'}{' '}
-                  {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
-                  ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-200">
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" />
-                  {isAr ? 'الأقل تراجعاً (الأكثر تماسكاً):' : 'Most Resilient:'}{' '}
-                  {isAr ? comparison.insights.topGainer.nameAr : comparison.insights.topGainer.nameEn}{' '}
-                  ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
-                </span>
-              ))}
+              (() => {
+                const topBadge = resolveBestBranchBadge(comparison.insights.topGainer.deltaKwd)
+                if (topBadge.tone === 'emerald') {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                      {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                      {isAr
+                        ? comparison.insights.topGainer.nameAr
+                        : comparison.insights.topGainer.nameEn}{' '}
+                      ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                    </span>
+                  )
+                }
+                if (comparison.insights.topGainer.deltaKwd < 0) {
+                  return (
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-300 dark:ring-white/10">
+                      <ShieldCheck className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                      {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                      {isAr
+                        ? comparison.insights.topGainer.nameAr
+                        : comparison.insights.topGainer.nameEn}{' '}
+                      ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                    </span>
+                  )
+                }
+                return (
+                  <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.07] dark:text-slate-300 dark:ring-white/10">
+                    <ShieldCheck className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                    {isAr ? 'الأقل تراجعاً (الأكثر تماسكاً):' : 'Most Resilient:'}{' '}
+                    {isAr
+                      ? comparison.insights.topGainer.nameAr
+                      : comparison.insights.topGainer.nameEn}{' '}
+                    ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                  </span>
+                )
+              })()}
             {comparison.insights.biggestDecline &&
               comparison.insights.biggestDecline.deltaKwd < 0 && (
                 <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1 text-[12px] lg:text-[13px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
@@ -1241,7 +1301,13 @@ export function BeforeAfterStudio() {
                           onClick={() => handleLoadDecisionIntoEngine(row)}
                           className="mt-1 block cursor-pointer text-start text-[14.5px] font-bold text-neutral-950 hover:text-emerald-700 dark:text-white dark:hover:text-emerald-300"
                         >
-                          {isAr ? row.titleAr : row.titleEn}
+                          {isAr
+                            ? isBrokenOrEmptyCampaignName(row.titleAr)
+                              ? 'بدون حملة'
+                              : row.titleAr
+                            : isBrokenOrEmptyCampaignName(row.titleEn)
+                              ? 'No campaign'
+                              : row.titleEn}
                         </button>
                         <span className="text-[12.5px] text-neutral-500 dark:text-slate-400">
                           {isAr ? row.scopeAr : row.scopeEn}
