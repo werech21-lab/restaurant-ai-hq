@@ -432,7 +432,7 @@ function inferDomainAndRule(combinedText: string): {
     deptAr: 'العمليات الميدانية ونقاط البيع',
     deptEn: 'Field Operations & POS',
     ruleAr: 'متابعة مؤشرات المبيعات والأصناف في Odoo (pos.order / pos.order.line)',
-    ruleEn: 'Track live sales and item performance in Odoo (pos.order / pos.order.line)',
+    ruleEn: 'Track sales and item performance in Odoo (pos.order / pos.order.line)',
   }
 }
 

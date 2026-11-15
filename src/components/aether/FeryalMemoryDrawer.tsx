@@ -234,8 +234,8 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
               {mem.rules.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-[12.5px] text-slate-500 dark:text-slate-400">
                   {isAr
-                    ? 'لا توجد قواعد أو ملاحظات محفوظة حالياً. جميع إجابات فريال تعتمد مباشرة على استعلامات Odoo الحية.'
-                    : 'No saved notes. All Feryal answers are sourced directly from live Odoo queries.'}
+                    ? 'لا توجد قواعد أو ملاحظات محفوظة حالياً. جميع إجابات فريال تعتمد على استعلامات Odoo 17.'
+                    : 'No saved notes. All Feryal answers are sourced from Odoo 17 queries.'}
                 </div>
               ) : (
                 <div className="space-y-2">

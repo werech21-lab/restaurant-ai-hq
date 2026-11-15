@@ -39,7 +39,7 @@ export default function ErpErrorShield({
         <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300/90">ERP Recovery · Dark Obsidian</p>
         <h1 className="mt-3 text-2xl font-black text-white">Page recovery shield</h1>
         <p className="mt-2 text-sm text-gray-400">
-          This ERP screen hit a client exception. Reset restores the last verified view cleanly.
+          This ERP screen hit a client exception. Reset restores the previous view cleanly.
         </p>
         {error?.message ? (
           <p className="mt-4 break-words rounded-lg border border-red-500/20 bg-red-950/40 px-3 py-2 font-mono text-xs text-red-200">

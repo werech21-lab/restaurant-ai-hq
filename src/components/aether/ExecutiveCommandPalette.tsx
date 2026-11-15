@@ -32,10 +32,6 @@ import {
   Truck,
 } from 'lucide-react'
 import { feryalHref } from '@/lib/aether/ledger'
-import {
-  BRANCH_TRUE_CASH,
-  BRAND_TRUE_CASH,
-} from '@/lib/full-journey-enterprise-brain'
 import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { COMMAND_PALETTE_EVENT } from '@/components/aether/BiFilterContext'
@@ -221,7 +217,7 @@ export function ExecutiveCommandPalette() {
           group: 'pages',
           en: 'Decision Impact (Before & After)',
           ar: 'أثر القرارات (قبل وبعد)',
-          hintEn: 'Executive & Sales · Verified Before vs. After Odoo Variance',
+          hintEn: 'Executive & Sales · Before vs. After Odoo Variance',
           hintAr: 'القيادة والمبيعات · قياس أثر القرارات المعتمدة قبل وبعد التنفيذ',
           keywords: 'decision impact before after compare variance أثر القرارات قبل وبعد مقارنة',
           icon: <ArrowLeftRight className="h-4 w-4" />,
@@ -404,51 +400,59 @@ export function ExecutiveCommandPalette() {
         run: () => go(dest.href),
       }))
 
-    const branches: Command[] = BRANCH_TRUE_CASH.filter((b) =>
-      (APPROVED_BRANCH_IDS as readonly string[]).includes(b.id),
-    ).map((b) => ({
-      id: `br-loc-${b.id}`,
-      group: 'branches',
-      en: b.en,
-      ar: b.ar,
-      hintEn: maskPaletteCosts
-        ? 'Active Branch · Restricted to Finance/GM'
-        : `Net: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} KWD`,
-      hintAr: maskPaletteCosts
-        ? 'فرع نشط · محصور بالمالية والمدير العام'
-        : `الصافي: ${b.trueNetCash >= 0 ? '+' : ''}${Math.round(b.trueNetCash).toLocaleString('en-US')} د.ك`,
-      keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
-      icon: <Store className="h-4 w-4" />,
-      run: () =>
-        go(
-          feryalHref(
-            lang === 'ar'
-              ? `عطيني ملخص واضح لأداء فرع ${b.ar}.`
-              : `Give me a clear performance summary for ${b.en}.`,
+    const branches: Command[] = workspace.cascadingOptions.branches
+      .filter((b) => (APPROVED_BRANCH_IDS as readonly string[]).includes(b.id))
+      .map((b) => ({
+        id: `br-loc-${b.id}`,
+        group: 'branches',
+        en: b.en,
+        ar: b.ar,
+        hintEn:
+          workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
+            ? `Odoo 17 Sales: ${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KWD`
+            : 'Odoo 17 Branch',
+        hintAr:
+          workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
+            ? `مبيعات Odoo 17: ${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`
+            : 'فرع Odoo 17',
+        keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
+        icon: <Store className="h-4 w-4" />,
+        run: () =>
+          go(
+            feryalHref(
+              lang === 'ar'
+                ? `عطيني ملخص واضح لأداء فرع ${b.ar}.`
+                : `Give me a clear performance summary for ${b.en}.`,
+            ),
           ),
-        ),
-    }))
+      }))
 
-    const brands: Command[] = BRAND_TRUE_CASH.filter((b) =>
-      (APPROVED_BRAND_IDS as readonly string[]).includes(b.id),
-    ).map((b) => ({
-      id: `brand-${b.id}`,
-      group: 'brands',
-      en: b.en,
-      ar: b.ar,
-      hintEn: `${Math.round(b.netSales).toLocaleString('en-US')} KWD sales · ${b.orders.toLocaleString('en-US')} orders`,
-      hintAr: `${Math.round(b.netSales).toLocaleString('en-US')} د.ك مبيعات · ${b.orders.toLocaleString('en-US')} طلب`,
-      keywords: `brand علامة براند مطعم ${b.en} ${b.ar}`,
-      icon: <Building2 className="h-4 w-4" />,
-      run: () =>
-        go(
-          feryalHref(
-            lang === 'ar'
-              ? `حلّلي أداء مطعم ${b.ar} من ناحية أرباح الأطباق وعمولات التوصيل وفرصة تشغيله داخل فروعنا الحالية بدون إيجار جديد.`
-              : `Review ${b.en} across dish margins, delivery commissions, and running it inside our existing branch kitchens with zero extra rent.`,
+    const brands: Command[] = workspace.cascadingOptions.brands
+      .filter((b) => (APPROVED_BRAND_IDS as readonly string[]).includes(b.id))
+      .map((b) => ({
+        id: `brand-${b.id}`,
+        group: 'brands',
+        en: b.en,
+        ar: b.ar,
+        hintEn:
+          workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
+            ? `${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KWD sales`
+            : 'Approved Venture Foods Brand',
+        hintAr:
+          workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
+            ? `${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك مبيعات`
+            : 'علامة تجارية معتمدة',
+        keywords: `brand علامة براند مطعم ${b.en} ${b.ar}`,
+        icon: <Building2 className="h-4 w-4" />,
+        run: () =>
+          go(
+            feryalHref(
+              lang === 'ar'
+                ? `حلّلي أداء مطعم ${b.ar} من ناحية أرباح الأطباق وعمولات التوصيل وفرصة تشغيله داخل فروعنا الحالية بدون إيجار جديد.`
+                : `Review ${b.en} across dish margins, delivery commissions, and running it inside our existing branch kitchens with zero extra rent.`,
+            ),
           ),
-        ),
-    }))
+      }))
 
     const feryalPrompts: { en: string; ar: string }[] = [
       {
@@ -496,7 +500,20 @@ export function ExecutiveCommandPalette() {
     ]
 
     return [...pages, ...decisions, ...branches, ...brands, ...feryal, ...actions]
-  }, [close, go, lang, pathname, router, workspace.plays])
+  }, [
+    activeRole,
+    close,
+    go,
+    lang,
+    maskPaletteCosts,
+    pathname,
+    router,
+    workspace.cascadingOptions.branches,
+    workspace.cascadingOptions.brands,
+    workspace.noData,
+    workspace.odooConnected,
+    workspace.plays,
+  ])
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()

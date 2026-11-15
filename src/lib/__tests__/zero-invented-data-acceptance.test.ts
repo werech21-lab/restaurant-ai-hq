@@ -1,4 +1,5 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { computeBeforeAfterSnapshot } from '@/lib/aether/before-after-engine'
@@ -475,6 +476,8 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       const mathRandomRe = /\bMath\.random\s*\(/
       const mockOrSeedCodeRe =
         /\b(mock[A-Za-z0-9_]*|MOCK_[A-Z0-9_]+|seed[A-Za-z0-9_]*|SEED_[A-Z0-9_]+)\b/
+      const forbiddenUiBuzzwordRe = /\bWatchdog\b|Verified Executive|Live Odoo|سجل التدقيق/i
+      const forbiddenStaticRatiosRe = /(?<![\d.])(14\.7|64\.7|24\.71|10\.6)(?![\d.])/
 
       for (const file of files) {
         if (mathRandomRe.test(file.codeWithoutComments)) {
@@ -489,6 +492,17 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
         if (hawallyUiRe.test(file.rawText)) {
           violations.push(`${file.relPath}: contains Hawally / حولي string`)
         }
+        if (forbiddenStaticRatiosRe.test(file.codeWithoutComments)) {
+          violations.push(`${file.relPath}: contains static hardcoded ratio (14.7 / 64.7 / 24.71 / 10.6)`)
+        }
+
+        const isUiComponentOrPage =
+          (file.relPath.startsWith('src/components/') ||
+            (file.relPath.startsWith('src/app/') && !file.relPath.startsWith('src/app/api/'))) &&
+          file.relPath.endsWith('.tsx')
+        if (isUiComponentOrPage && forbiddenUiBuzzwordRe.test(file.codeWithoutComments)) {
+          violations.push(`${file.relPath}: contains forbidden UI buzzword (Watchdog / Verified Executive / Live Odoo / سجل التدقيق)`)
+        }
 
         const tokenMatch = mockOrSeedCodeRe.exec(file.codeIdentifiersOnly)
         if (tokenMatch) {
@@ -497,6 +511,48 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       }
 
       expect(violations).toEqual([])
+
+      // Verify all legacy snapshot JSON files are permanently deleted and no large JSON snapshot exists in src/
+      const rootDir = process.cwd()
+      const bannedSnapshotPaths = [
+        'src/lib/odoo-live-snapshot.json',
+        'src/lib/odoo/delivery-receipts-proof.json',
+        'src/lib/odoo/odoo-journey.json',
+        'src/lib/odoo/odoo-intel.json',
+      ]
+      for (const rel of bannedSnapshotPaths) {
+        expect(existsSync(path.join(rootDir, rel)), `${rel} must be deleted`).toBe(false)
+      }
+
+      const walkJson = async (dir: string): Promise<string[]> => {
+        const found: string[] = []
+        const entries = await readdir(dir, { withFileTypes: true })
+        for (const e of entries) {
+          const fp = path.join(dir, e.name)
+          if (e.isDirectory()) {
+            if (e.name !== 'node_modules' && e.name !== '.next' && e.name !== '__tests__') {
+              found.push(...(await walkJson(fp)))
+            }
+          } else if (e.name.endsWith('.json')) {
+            const st = await stat(fp)
+            if (st.size > 10_240) {
+              found.push(`${path.relative(rootDir, fp).replace(/\\/g, '/')} (${st.size} bytes)`)
+            }
+          }
+        }
+        return found
+      }
+      expect(await walkJson(path.join(rootDir, 'src'))).toEqual([])
+
+      // Verify KpiProvenanceBadge uses yellow styling for «قديمة» and always displays sync timestamp
+      const badgeSrc = await readFile(
+        path.join(rootDir, 'src/components/erp/KpiProvenanceBadge.tsx'),
+        'utf8',
+      )
+      expect(badgeSrc).toContain('bg-yellow-100')
+      expect(badgeSrc).toContain('text-yellow-900')
+      expect(badgeSrc).toContain('قديمة')
+      expect(badgeSrc).not.toContain('!compact && (')
 
       // Verify server-side exclusion filters remain active for raw Odoo records («القرين», «هايزن بريج»)
       expect(isExcludedOdooEntity('القرين')).toBe(true)
@@ -625,8 +681,9 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
       })
       expect(feryalRes.status).toBe('no_odoo_data')
-      expect(feryalRes.reply).toBe(FERYAL_NO_ODOO_DATA_REPLY)
-      expect(feryalRes.reply).toBe('لا أملك بيانات من Odoo عن هذا')
+      expect(feryalRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+      expect(feryalRes.reply).toContain('يلزم')
+      expect(feryalRes.verifier.valid).toBe(true)
     })
   })
 
@@ -866,10 +923,12 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
         dataSource: createAcceptanceDataSource({ topProductsPresent: false }),
       })
       expect(withoutItems.status).toBe('no_odoo_data')
-      expect(withoutItems.reply).toBe('لا أملك بيانات من Odoo عن هذا')
+      expect(withoutItems.reply.startsWith('لا أملك بيانات من Odoo عن هذا')).toBe(true)
+      expect(withoutItems.reply).toContain('يلزم')
+      expect(withoutItems.verifier.valid).toBe(true)
     })
 
-    it('Q4: «تكلفة مورد معين» returns either purchase.order vendor totals or «لا أملك بيانات من Odoo عن هذا»', async () => {
+    it('Q4: «تكلفة مورد معين» returns either purchase.order vendor totals or «لا أملك بيانات من Odoo عن هذا» + linking suggestion', async () => {
       const withVendor = await askFeryalOdooAgent({
         question: 'كم تكلفة مورد شركة المواشي الكويتية؟',
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
@@ -885,7 +944,9 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
         dataSource: createAcceptanceDataSource({ purchaseOrdersPresent: false }),
       })
       expect(withoutVendor.status).toBe('no_odoo_data')
-      expect(withoutVendor.reply).toBe('لا أملك بيانات من Odoo عن هذا')
+      expect(withoutVendor.reply.startsWith('لا أملك بيانات من Odoo عن هذا')).toBe(true)
+      expect(withoutVendor.reply).toContain('يلزم')
+      expect(withoutVendor.verifier.valid).toBe(true)
     })
 
     it('Q5: «مبيعات منافس» returns the single literal answer «لا أعرف»', async () => {

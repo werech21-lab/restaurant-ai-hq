@@ -41,7 +41,7 @@ export function SalesScorecardStudio() {
             <h2 className="text-xl sm:text-2xl font-black text-white">
               {isAr
                 ? 'سجل وترتيب أداء المبيعات الفعلي حسب العلامة التجارية والفرع والقناة'
-                : 'Live Sales Ranking & Scorecard by Brand, Branch & Channel'}
+                : 'Odoo 17 Sales Ranking & Scorecard by Brand, Branch & Channel'}
             </h2>
             <p className="text-xs text-slate-400">
               {isAr ? workspace.subtitleAr : workspace.subtitleEn}

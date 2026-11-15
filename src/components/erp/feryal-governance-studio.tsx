@@ -883,7 +883,7 @@ export function FeryalGovernanceStudio({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-[15.5px] sm:text-[17px] font-black text-slate-900 dark:text-white">
-                  {isAr ? 'اسأل فريال — محرك بيانات Odoo الفعلي' : 'Ask Feryal — Live Odoo Data Engine'}
+                  {isAr ? 'اسأل فريال — محرك بيانات Odoo 17' : 'Ask Feryal — Odoo 17 Data Engine'}
                 </h1>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
                   <Database className="h-3 w-3" />
@@ -892,13 +892,13 @@ export function FeryalGovernanceStudio({
               </div>
               <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
                 {isAr
-                  ? '6 علامات تجارية • 7 فروع مربوطة + بند غير منسوب لفرع • استعلام مباشر من Odoo وتحقق برمجي من كل رقم'
-                  : '6 Brands • 7 Mapped Branches + Unattributed Bucket • Live Odoo Queries & Strict Numeric Verifier'}
+                  ? '6 علامات تجارية • 7 فروع مربوطة + بند غير منسوب لفرع • استعلام من Odoo 17 وفحص برمجي لكل رقم'
+                  : '6 Brands • 7 Mapped Branches + Unattributed Bucket • Odoo 17 Queries & Strict Numeric Verifier'}
               </p>
             </div>
           </div>
 
-          {/* View Switcher: Chat | Live Governance Alerts | Odoo Audit Log */}
+          {/* View Switcher: Chat | Odoo Governance Alerts | Odoo Query Log */}
           <div className="flex flex-wrap items-center gap-1.5">
             <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]">
               <button
@@ -926,7 +926,7 @@ export function FeryalGovernanceStudio({
                 }`}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                <span>{isAr ? 'تنبيهات الحوكمة الفعلية' : 'Live Governance Alerts'}</span>
+                <span>{isAr ? 'تنبيهات الحوكمة الفعلية' : 'Odoo Governance Alerts'}</span>
                 {liveBreaches.length > 0 && (
                   <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10.5px] font-black text-white">
                     {liveBreaches.length}
@@ -949,8 +949,8 @@ export function FeryalGovernanceStudio({
                 <History className="h-3.5 w-3.5" />
                 <span>
                   {isAr
-                    ? `سجل التدقيق (${auditLogs.length})`
-                    : `Audit Log (${auditLogs.length})`}
+                    ? `سجل الأسئلة والاستعلامات (${auditLogs.length})`
+                    : `Odoo Query Log (${auditLogs.length})`}
                 </span>
               </button>
             </div>
@@ -1006,14 +1006,14 @@ export function FeryalGovernanceStudio({
                       <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       <h2 className="text-[15px] font-black">
                         {isAr
-                          ? 'فريال مربوطة حصرياً باستعلامات Odoo الفعلية'
-                          : 'Feryal Connected Exclusively to Live Odoo Queries'}
+                          ? 'فريال مربوطة حصرياً باستعلامات Odoo 17 الفعلية'
+                          : 'Feryal Connected Exclusively to Odoo 17 Queries'}
                       </h2>
                     </div>
                     <p className="mt-2 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
                       {isAr
-                        ? 'كل سؤال يُترجم إلى استعلام فعلي على موديلات Odoo (pos.order، pos.order.line، account.move.line، purchase.order، stock.move / stock.scrap) عبر الفروع السبعة المعتمدة وبند «غير منسوب لفرع»، ثم تُفحص جميع الأرقام برمجياً قبل عرض الإجابة.'
-                        : 'Every question executes a live query against Odoo models across the 7 approved branches + Unattributed bucket, followed by strict programmatic number verification.'}
+                        ? 'كل سؤال يُترجم إلى استعلام فعلي على موديلات Odoo 17 (pos.order، pos.order.line، account.move.line، purchase.order، stock.move / stock.scrap، hr.employee) عبر الفروع السبعة المعتمدة وبند «غير منسوب لفرع»، ثم تُفحص جميع الأرقام برمجياً قبل عرض الإجابة.'
+                        : 'Every question executes a direct query against Odoo 17 models across the 7 approved branches + Unattributed bucket, followed by strict programmatic number checking.'}
                     </p>
                   </div>
 
@@ -1070,7 +1070,7 @@ export function FeryalGovernanceStudio({
                               msg.executedQueries.length > 0 && (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-[10.5px] font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
                                   <CheckCircle2 className="h-3 w-3" />
-                                  {isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Verified Numbers'}
+                                  {isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}
                                 </span>
                               )}
                           </div>
@@ -1191,8 +1191,8 @@ export function FeryalGovernanceStudio({
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>
                     {isAr
-                      ? 'جارٍ استعلام Odoo والتحقق من مطابقة الأرقام...'
-                      : 'Querying live Odoo & verifying reply numbers...'}
+                      ? 'جارٍ استعلام Odoo 17 ومطابقة الأرقام...'
+                      : 'Querying Odoo 17 & checking reply numbers...'}
                   </span>
                 </div>
               )}
@@ -1275,8 +1275,8 @@ export function FeryalGovernanceStudio({
             ) : (
               <div className="border-t border-slate-200/80 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
                 {isAr
-                  ? 'وضع المراجع الخارجي (للقراءة فقط) — يمكنك مراجعة التنبيهات الحقيقية وسجل التدقيق الكامل لاستعلامات Odoo.'
-                  : 'Read-only External Auditor Mode — inspect live Odoo alerts and the full query audit log.'}
+                  ? 'وضع المراجع الخارجي (للقراءة فقط) — يمكنك مراجعة التنبيهات وسجل الأسئلة والاستعلامات الكامل لـ Odoo 17.'
+                  : 'Read-only External Reviewer Mode — inspect Odoo 17 alerts and the full Odoo query log.'}
               </div>
             )}
           </div>
@@ -1289,13 +1289,13 @@ export function FeryalGovernanceStudio({
               <div>
                 <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
-                    ? 'تنبيهات الحوكمة الفعلية من Odoo'
-                    : 'Verified Live Odoo Governance Alerts'}
+                    ? 'تنبيهات الحوكمة الفعلية من Odoo 17'
+                    : 'Odoo 17 Governance Alerts'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isAr
-                    ? 'تُعرض فقط المخالفات الناتجة فعلياً عن استعلام Odoo مقابل السقوف المحفوظة من مسؤول النظام.'
-                    : 'Displays strictly real breaches computed from live Odoo records against admin-saved server thresholds.'}
+                    ? 'تُعرض فقط المخالفات الناتجة فعلياً عن استعلام Odoo 17 مقابل السقوف المحفوظة من مسؤول النظام.'
+                    : 'Displays strictly real breaches computed from Odoo 17 records against admin-saved server thresholds.'}
                 </p>
               </div>
               <button
@@ -1311,20 +1311,20 @@ export function FeryalGovernanceStudio({
             {loadingBreaches ? (
               <div className="flex items-center justify-center py-12 text-xs font-semibold text-slate-500">
                 <Loader2 className="me-2 h-4 w-4 animate-spin text-emerald-600" />
-                {isAr ? 'جارٍ فحص قواعد الحوكمة على Odoo...' : 'Evaluating live Odoo governance rules...'}
+                {isAr ? 'جارٍ فحص قواعد الحوكمة على Odoo 17...' : 'Evaluating Odoo 17 governance rules...'}
               </div>
             ) : liveBreaches.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-emerald-300/70 bg-emerald-50/40 p-8 text-center space-y-1.5 dark:border-emerald-900/60 dark:bg-emerald-950/20">
                 <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600 dark:text-emerald-400" />
                 <div className="text-[14px] font-bold text-slate-900 dark:text-white">
                   {isAr
-                    ? 'لا توجد مخالفات فعلية مسجلة من Odoo حالياً'
-                    : 'No active Odoo governance breaches'}
+                    ? 'لا توجد مخالفات فعلية مسجلة من Odoo 17 حالياً'
+                    : 'No active Odoo 17 governance breaches'}
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   {isAr
-                    ? 'لا يتم عرض أي تنبيه افتراضي أو ثابت عند عدم وجود تجاوز فعلي في بيانات Odoo.'
-                    : 'Zero static or synthetic alerts are shown when no live Odoo threshold is breached.'}
+                    ? 'لا يتم عرض أي تنبيه افتراضي أو ثابت عند عدم وجود تجاوز فعلي في بيانات Odoo 17.'
+                    : 'Zero static or synthetic alerts are shown when no Odoo 17 threshold is breached.'}
                 </p>
               </div>
             ) : (
@@ -1378,13 +1378,13 @@ export function FeryalGovernanceStudio({
               <div>
                 <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
-                    ? 'سجل التدقيق الشفاف لأسئلة واستعلامات فريال'
-                    : 'Transparent Feryal Odoo Query & Verifier Audit Log'}
+                    ? 'سجل الأسئلة والاستعلامات لفريال'
+                    : 'Feryal Odoo Query Log'}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isAr
-                    ? 'يوثق كل سؤال، ودور المستخدم، والطابع الزمني، واستعلامات Odoo المنفذة، ونتيجة فحص الأرقام، والإجابة النهائية.'
-                    : 'Records every question, user role, timestamp, executed Odoo queries, numeric verifier status, and final answer.'}
+                    ? 'يوثق كل سؤال، ودور المستخدم، والطابع الزمني، واستعلامات Odoo 17 المنفذة، ونتيجة فحص الأرقام، والإجابة النهائية.'
+                    : 'Records every question, user role, timestamp, executed Odoo 17 queries, numeric verifier status, and final answer.'}
                 </p>
               </div>
               <button
@@ -1400,8 +1400,8 @@ export function FeryalGovernanceStudio({
             {auditLogs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
                 {isAr
-                  ? 'لا توجد استعلامات مسجلة في سجل التدقيق حتى الآن.'
-                  : 'No queries recorded in the audit log yet.'}
+                  ? 'لا توجد استعلامات مسجلة في سجل الأسئلة والاستعلامات حتى الآن.'
+                  : 'No queries recorded in the Odoo query log yet.'}
               </div>
             ) : (
               <div className="space-y-3">

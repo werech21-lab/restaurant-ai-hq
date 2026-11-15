@@ -539,7 +539,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               <span>
                 {isAr
                   ? 'تقرير المطابقة المحاسبية وجدول ربط الأجهزة (terminal_id -> branch_id)'
-                  : 'Reconciliation Bridge & Complete terminal_id -> branch_id Audit Table'}
+                  : 'Reconciliation Bridge & Complete terminal_id -> branch_id Mapping Table'}
               </span>
               <span
                 dir="ltr"

@@ -38,7 +38,7 @@ export const SMART_INGEST_META: Record<SmartIngestModule, SmartIngestModuleMeta>
     titleAr: '📁 رفع مجلد الحسابات والفواتير الذكي (توزيع تلقائي بالـ AI)',
     titleEn: '📁 Smart Accounting Folder Upload (Auto-Distribute)',
     descAr: 'كشوف بنوك الكويت، فواتير المشتريات، عهد الفروع، والقيود — مطابقة شجرة الحسابات وربط المرفقات.',
-    descEn: 'Kuwait bank statements, purchase invoices, petty cash, and journals — chart matching + verified attachments.',
+    descEn: 'Kuwait bank statements, purchase invoices, petty cash, and journals — chart matching + linked attachments.',
     acceptsAr: 'كشوف NBK / Gulf / Boubyan / Ahli · فواتير · عهد Rabih/Sheila/Amgad/Sanad · Excel/CSV/PDF/صور',
     acceptsEn: 'NBK / Gulf / Boubyan / Ahli statements · invoices · petty cash · Excel/CSV/PDF/images',
     launchHrefs: ['/accounting', '/reports', '/erp/finance'],

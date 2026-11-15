@@ -416,7 +416,7 @@ export function FeryalSidebarNotebooks({
                     : isAuditor
                       ? isAr
                         ? 'جلسة مراجعة للقراءة فقط — إنشاء المحادثات وتصدير النسخ الاحتياطية محصور بالإدارة التنفيذية'
-                        : 'Read-Only Audit Session — Thread creation and data backup export are restricted to executive management'
+                        : 'Read-Only Reviewer Session — Thread creation and data backup export are restricted to executive management'
                       : isAr
                         ? 'تُحفظ محادثاتك تلقائياً فور إرسال أول سؤال'
                         : 'Chats auto-save automatically once you send a message'}
@@ -424,8 +424,8 @@ export function FeryalSidebarNotebooks({
                 <p className="mt-1.5 text-xs leading-relaxed text-neutral-500 dark:text-slate-400">
                   {isAuditor
                     ? isAr
-                      ? 'يمكنك استعراض تبويب أهم ملاحظات اليوم ⚡ أو مراجعة ملخصات أودو 17 المعتمدة في الاستوديو.'
-                      : "Browse Today's Notes ⚡ or inspect verified Odoo 17 briefings in the main studio."
+                      ? 'يمكنك استعراض تبويب أهم ملاحظات اليوم ⚡ أو مراجعة ملخصات أودو 17 في الاستوديو.'
+                      : "Browse Today's Notes ⚡ or inspect Odoo 17 briefings in the main studio."
                     : isAr
                       ? 'عناوين عربية ذكية من ٤–٦ كلمات مصنّفة داخل دفاتر المواضيع.'
                       : 'Auto-titled in 4–6 words and organized into Topic Notebooks.'}
@@ -602,7 +602,7 @@ export function FeryalSidebarNotebooks({
               <span className="min-w-0 break-words whitespace-normal font-medium text-amber-800 dark:text-amber-300">
                 {isAr
                   ? 'وضع قراءة فقط — التصدير والاستعادة مقفلان'
-                  : 'Read-only audit lock — backup export disabled'}
+                  : 'Read-only reviewer lock — backup export disabled'}
               </span>
             ) : (
               <>
@@ -684,7 +684,7 @@ export function FeryalSidebarNotebooks({
                 </button>
               ) : (
                 <span className="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  {isAr ? 'سجل مراجعة يومي معتمد ✓' : 'Verified Daily Audit Note ✓'}
+                  {isAr ? 'ملاحظة يومية من Odoo 17' : 'Daily Odoo 17 Note'}
                 </span>
               )}
             </article>

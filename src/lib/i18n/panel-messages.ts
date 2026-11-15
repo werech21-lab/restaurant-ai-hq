@@ -185,7 +185,7 @@ export const panelEn: { [K in keyof typeof panelAr]: string } = {
   'nav.automations': 'Automations',
   'nav.app-builder': 'App Builder',
   'nav.reports': 'Reports',
-  'nav.audit': 'Audit Log',
+  'nav.audit': 'Activity Log',
   'nav.saas': 'Platform & Plans',
   'nav.payments': 'Online Payments',
   'nav.profile': 'Profile',

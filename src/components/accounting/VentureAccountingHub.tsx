@@ -341,8 +341,8 @@ export function VentureAccountingHub({
           isAr={isAr}
           titleAr="العهد النقدية النثرية وكشوف التصفية (hr.expense)"
           titleEn="Petty Cash & Custodian Expense Sheets (hr.expense)"
-          reasonAr="كشوف العهد النقدية التفصيلية غير مربوطة باستعلام حي من موديول hr.expense في Odoo."
-          reasonEn="Detailed petty cash custodian sheets are not connected to a live Odoo hr.expense feed."
+          reasonAr="كشوف العهد النقدية التفصيلية غير مربوطة باستعلام من موديول hr.expense في Odoo."
+          reasonEn="Detailed petty cash custodian sheets are not connected to an Odoo hr.expense feed."
         />
       )}
 
@@ -351,8 +351,8 @@ export function VentureAccountingHub({
           isAr={isAr}
           titleAr="حافظة الشيكات وكشوف المطابقة البنكية"
           titleEn="Cheque Register & Bank Statement Feeds"
-          reasonAr="سجل الشيكات الصادرة وكشوف الحسابات البنكية التفصيلية غير مربوطة بمصدر بنكي مباشر."
-          reasonEn="Issued cheque registers and bank statement feeds are not linked to a live banking source."
+          reasonAr="سجل الشيكات الصادرة وكشوف الحسابات البنكية التفصيلية غير مربوطة بمصدر بنكي."
+          reasonEn="Issued cheque registers and bank statement feeds are not linked to a banking source."
         />
       )}
 
@@ -362,7 +362,7 @@ export function VentureAccountingHub({
           titleAr="جداول عقود إيجارات الفروع (IFRS 16)"
           titleEn="Branch Lease Schedules (IFRS 16)"
           reasonAr="جداول استحقاق عقود الإيجارات التفصيلية للفروع غير مربوطة بموديول عقود منفصل في Odoo."
-          reasonEn="Branch-level lease amortization schedules are not linked to a live lease contract module in Odoo."
+          reasonEn="Branch-level lease amortization schedules are not linked to a lease contract module in Odoo."
         />
       )}
 

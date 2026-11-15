@@ -5,6 +5,7 @@ import { Pool } from 'pg'
 import { sslOptions } from '@/lib/db-ssl'
 import { prisma } from '@/lib/db'
 import type {
+  OdooLiveHrSummary,
   OdooLivePurchaseSummary,
   OdooLiveWarehouseChainPayload,
   OdooPeriodCube,
@@ -112,6 +113,52 @@ export const APPROVED_FERYAL_BRANDS: Readonly<Record<ApprovedFeryalBrandId, stri
   'karak-cafeteria': 'كافيتيريا كرك',
 }
 
+export interface FeryalBrandMeta {
+  id: ApprovedFeryalBrandId
+  nameAr: string
+  nameEn: string
+  aliases: readonly string[]
+}
+
+export const APPROVED_FERYAL_BRAND_LIST: readonly FeryalBrandMeta[] = [
+  {
+    id: 'china-garden',
+    nameAr: 'تشاينا جاردن',
+    nameEn: 'China Garden',
+    aliases: ['تشاينا جاردن', 'تشاينا غاردن', 'شينا جاردن', 'china garden', 'china-garden'],
+  },
+  {
+    id: 'franks',
+    nameAr: 'فرانكس',
+    nameEn: "Frank's",
+    aliases: ['فرانكس', "frank's", 'franks'],
+  },
+  {
+    id: 'tahina',
+    nameAr: 'طحينة',
+    nameEn: 'Tahina',
+    aliases: ['طحينة', 'طحينه', 'شاورما طحينة', 'شاورما طحينه', 'tahina'],
+  },
+  {
+    id: 'farm-brown',
+    nameAr: 'فارم براون',
+    nameEn: 'Farm Brown',
+    aliases: ['فارم براون', 'farm brown', 'farm-brown'],
+  },
+  {
+    id: 'noodle-bar',
+    nameAr: 'ذا نودل بار',
+    nameEn: 'The Noodle Bar',
+    aliases: ['ذا نودل بار', 'نودل بار', 'the noodle bar', 'noodle bar', 'noodle-bar'],
+  },
+  {
+    id: 'karak-cafeteria',
+    nameAr: 'كافيتيريا كرك',
+    nameEn: 'Karak Cafeteria',
+    aliases: ['كافيتيريا كرك', 'كرك كافيتيريا', 'كرك كافتيريا', 'شاي كرك', 'karak cafeteria', 'karak-cafeteria'],
+  },
+] as const
+
 export type FeryalOdooModelName =
   | 'pos.order'
   | 'pos.order.line'
@@ -120,6 +167,7 @@ export type FeryalOdooModelName =
   | 'purchase.order.line'
   | 'stock.move'
   | 'stock.scrap'
+  | 'hr.employee'
 
 export interface FeryalExecutedOdooQuery {
   model: FeryalOdooModelName
@@ -186,6 +234,7 @@ export interface FeryalOdooDataSource {
     branchId: ApprovedFeryalBranchId,
     limit: number,
   ) => Promise<OdooPeriodCubeProductRow[] | null>
+  fetchHrEmployees?: (referenceNowMs?: number) => Promise<OdooLiveHrSummary | null>
 }
 
 export interface AskFeryalOdooAgentInput {
@@ -583,7 +632,7 @@ export function resolveFeryalQuestionPeriod(
     }
   }
 
-  if (/\b(yesterday)\b/i.test(normDigits) || /(^|\s)(امس|الامس|البارحه)(\s|$)/.test(normAr)) {
+  if (/\b(yesterday)\b/i.test(normDigits) || /(^|\s)(امس|الامس|البارحه)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)) {
     const d = shiftIsoDateDays(kwToday.iso, -1)
     return {
       from: d,
@@ -594,7 +643,7 @@ export function resolveFeryalQuestionPeriod(
     }
   }
 
-  if (/\b(today)\b/i.test(normDigits) || /(^|\s)(اليوم|نهار اليوم)(\s|$)/.test(normAr)) {
+  if (/\b(today)\b/i.test(normDigits) || /(^|\s)(اليوم|نهار اليوم)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)) {
     return {
       from: kwToday.iso,
       to: kwToday.iso,
@@ -645,6 +694,18 @@ export function resolveFeryalQuestionPeriod(
 
   if (/\b(this year|year)\b/i.test(normDigits) || /(هذه السنه|هذا العام|السنه الحاليه|من بدايه السنه|العام)/.test(normAr)) {
     const from = `${String(kwToday.year).padStart(4, '0')}-01-01`
+    const to = kwToday.iso
+    return {
+      from,
+      to,
+      periodLabelAr: `${from} إلى ${to}`,
+      allowedDateStrings: buildAllowedDateStrings(from, to),
+      hasExplicitPeriod: true,
+    }
+  }
+
+  if (/\b(last 30 days|30 days)\b/i.test(normDigits) || /(اخر 30 يوم|اخر 30 يوما|خلال 30 يوم|ثلاثين يوم)/.test(normAr)) {
+    const from = shiftIsoDateDays(kwToday.iso, -29)
     const to = kwToday.iso
     return {
       from,
@@ -754,7 +815,18 @@ function isCompetitorQuestion(question: string): boolean {
   return false
 }
 
-function isUnlinkedNonOdooTopic(question: string): boolean {
+function isUnlinkedNonOdooTopic(question: string): {
+  unlinked: boolean
+  reasonKey:
+    | 'kds'
+    | 'drivers'
+    | 'reviews_marketing'
+    | 'iot_compliance'
+    | 'plans_budgets'
+    | 'recipes_bom'
+    | 'hr_unlinked'
+    | null
+} {
   const normAr = normalizeArabicText(question)
 
   // Kitchen ticket prep duration / KDS SLA (not in Odoo 17)
@@ -763,7 +835,7 @@ function isUnlinkedNonOdooTopic(question: string): boolean {
       normAr,
     )
   ) {
-    return true
+    return { unlinked: true, reasonKey: 'kds' }
   }
 
   // Delivery drivers / fleet GPS
@@ -772,43 +844,312 @@ function isUnlinkedNonOdooTopic(question: string): boolean {
       normAr,
     )
   ) {
-    return true
+    return { unlinked: true, reasonKey: 'drivers' }
   }
 
   // Social reviews, customer ratings, ad spend / influencers
   if (
-    /(تقييمات العملاء|التقييمات|مراجعات العملاء|مراجعات جوجل|تعليقات العملاء|حملات اعلانيه|اعلانات سناب|اعلانات انستقرام|المشاهير|مشاهير|\bcustomer reviews\b|\bratings\b|\binfluencer\b|\broas\b)/i.test(
+    /(تقييمات العملاء|التقييمات|مراجعات العملاء|مراجعات جوجل|مراجعات السوشيال|تقييمات السوشيال|تعليقات العملاء|حملات اعلانيه|اعلانات سناب|اعلانات انستقرام|المشاهير|مشاهير|\bcustomer reviews\b|\bsocial reviews\b|\bratings\b|\binfluencer\b|\broas\b)/i.test(
       normAr,
     )
   ) {
-    return true
+    return { unlinked: true, reasonKey: 'reviews_marketing' }
   }
 
   // IoT fridge temperature sensors / municipal violations
   if (/(حساسات التبريد|حراره الثلاجات|مخالفات البلديه|تراخيص الاطفاء|\biot\b)/.test(normAr)) {
-    return true
+    return { unlinked: true, reasonKey: 'iot_compliance' }
   }
 
-  return false
+  // Unregistered strategic plans, sales targets, budgets, forecasts, booth feasibility
+  if (
+    /(خطه النمو|خطط النمو|خطط غير مسجله|المستهدف|مستهدف المبيعات|الموازنه التقديريه|توقعات الشهر القادم|تنبؤ الطلب|جدوي البوث|دراسه جدوي|\bsales target\b|\bbudget plan\b|\bforecast\b)/i.test(
+      normAr,
+    )
+  ) {
+    return { unlinked: true, reasonKey: 'plans_budgets' }
+  }
+
+  // Standard BOM recipes / portion weights
+  if (/(الوصفه المعياريه|وصفات المطبخ|تكلفه الوصفه|مكونات الطبق|\bbom\b|\brecipe cost\b)/i.test(normAr)) {
+    return { unlinked: true, reasonKey: 'recipes_bom' }
+  }
+
+  // Unlinked HR sub-modules (payslips, biometric attendance, residency renewals)
+  if (
+    /(مسيرات الرواتب|مسير الرواتب|قسائم الرواتب|بصمه الحضور|تاخير البصمه|انتهاء الاقامات|نهايه الخدمه|\bpayslips?\b|\bbiometric\b)/i.test(
+      normAr,
+    )
+  ) {
+    return { unlinked: true, reasonKey: 'hr_unlinked' }
+  }
+
+  return { unlinked: false, reasonKey: null }
+}
+
+type NoOdooDataReasonKey =
+  | 'kds'
+  | 'drivers'
+  | 'reviews_marketing'
+  | 'iot_compliance'
+  | 'plans_budgets'
+  | 'recipes_bom'
+  | 'hr_unlinked'
+  | 'hr_employees_no_access'
+  | 'hr_employees_no_data'
+  | 'vendor_no_data'
+  | 'unknown_branch'
+  | 'pos_no_data'
+  | 'gl_no_data'
+  | 'stock_no_data'
+  | 'generic'
+
+/**
+ * Builds a strict zero-digit refusal starting with `لا أملك بيانات من Odoo عن هذا`
+ * plus a clear Arabic sentence suggesting the exact Odoo integration required.
+ */
+export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey): string {
+  switch (reasonKey) {
+    case 'kds':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم تفعيل وربط موديول شاشة تحضير المطبخ pos_preparation_display في Odoo لتسجيل طوابع بدء وانتهاء تحضير الطلبات.`
+    case 'drivers':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط موديول الأسطول fleet أو واجهة تتبع مندوبي التوصيل مع طلبات نقاط البيع في Odoo لقراءة أزمنة التوصيل ومسارات السائقين.`
+    case 'reviews_marketing':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط واجهات تقييمات المنصات وحملات التسويق بموديول التسويق الاجتماعي social ومراكز التكلفة التحليلية في Odoo.`
+    case 'iot_compliance':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط حساسات التبريد وموديول الجودة والصيانة quality وmaintenance في Odoo لتسجيل قراءات الحرارة وتراخيص الفروع.`
+    case 'plans_budgets':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم إدخال وربط الموازنات التقديرية ومستهدفات الفروع عبر موديول الموازنة المحاسبية crossovered.budget والحسابات التحليلية في Odoo.`
+    case 'recipes_bom':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط قوائم المواد والوصفات المعيارية عبر موديول التصنيع mrp.bom بأصناف نقاط البيع في Odoo.`
+    case 'hr_unlinked':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط موديولات الرواتب والحضور hr.payslip وhr.attendance وحقول الوثائق الرسمية للموظفين في Odoo.`
+    case 'hr_employees_no_access':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم منح صلاحية قراءة موديول الموظفين hr.employee لحساب الربط وتفعيل سجلات الموظفين على مستوى الشركة في Odoo.`
+    case 'hr_employees_no_data':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم تسجيل الموظفين النشطين وربطهم بالأقسام ومواقع العمل في موديول hr.employee داخل Odoo.`
+    case 'vendor_no_data':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم تسجيل المورد في سجل الشركاء res.partner وتأكيد أوامر الشراء في purchase.order أو فواتير الموردين في account.move داخل Odoo.`
+    case 'unknown_branch':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم تعريف الفرع وصناديق البيع التابعة له في pos.config وربطها بالشركة الفعالة داخل Odoo.`
+    case 'pos_no_data':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم التحقق من اتصال Odoo وترحيل جلسات وطلبات نقاط البيع في pos.order وpos.order.line للفترة المطلوبة.`
+    case 'gl_no_data':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ترحيل قيود اليومية المحاسبية في account.move.line وإقفال مسودات الفواتير في Odoo للفترة المطلوبة.`
+    case 'stock_no_data':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم اعتماد حركات المخزن وأوامر الإتلاف في stock.move وstock.scrap داخل Odoo للفترة المطلوبة.`
+    case 'generic':
+    default:
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط المصدر التشغيلي المختص بموديولات Odoo المعتمدة وتحديد المؤشر أو الفترة المطلوبة.`
+  }
+}
+
+export function detectTargetBrandFromQuestion(question: string): {
+  brandId: ApprovedFeryalBrandId | null
+  asksByBrandBreakdown: boolean
+} {
+  const normAr = normalizeArabicText(question)
+  const asksByBrandBreakdown =
+    /(حسب العلامه|حسب العلامات|لكل علامه|العلامات التجاريه|العلامات الست|العلامات السته|جميع العلامات|كل العلامات|حسب البراند|البراندات|لكل براند|مبيعات العلامات|\bby brand\b|\ball brands\b|\bbrands\b)/i.test(
+      normAr,
+    )
+
+  const matched: ApprovedFeryalBrandId[] = []
+  for (const b of APPROVED_FERYAL_BRAND_LIST) {
+    for (const alias of b.aliases) {
+      const aNorm = normalizeArabicText(alias)
+      if (aNorm && normAr.includes(aNorm)) {
+        matched.push(b.id)
+        break
+      }
+    }
+  }
+
+  if (matched.length === 1 && !asksByBrandBreakdown) {
+    return { brandId: matched[0], asksByBrandBreakdown: false }
+  }
+  return { brandId: null, asksByBrandBreakdown }
+}
+
+export function resolveFeryalComparisonPeriods(
+  question: string,
+  referenceNowMs = Date.now(),
+): {
+  periodA: { from: string; to: string; periodLabelAr: string }
+  periodB: { from: string; to: string; periodLabelAr: string }
+  allowedDateStrings: string[]
+} | null {
+  const normDigits = normalizeDigits(question)
+  const normAr = normalizeArabicText(question)
+  const hasComparisonCue =
+    /(قارن|مقارنه|بالمقارنه|مقابل|ضد|الفرق بين|\bvs\.?\b|\bversus\b|\bcompare\b)/i.test(normAr)
+  if (!hasComparisonCue) return null
+
+  const kwToday = getKuwaitCalendarParts(referenceNowMs)
+
+  // 1. Two explicit ISO dates
+  const isoMatches = [
+    ...normDigits.matchAll(/\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/g),
+  ]
+  if (isoMatches.length >= 2) {
+    const isos: string[] = []
+    for (const m of isoMatches) {
+      const y = Number(m[1])
+      const mo = Number(m[2])
+      const d = Number(m[3])
+      if (isValidCalendarDate(y, mo, d)) {
+        const iso = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+        if (!isos.includes(iso)) isos.push(iso)
+      }
+    }
+    if (isos.length >= 2) {
+      const a = isos[0]
+      const b = isos[1]
+      return {
+        periodA: { from: a, to: a, periodLabelAr: a },
+        periodB: { from: b, to: b, periodLabelAr: b },
+        allowedDateStrings: [
+          ...new Set([
+            ...buildAllowedDateStrings(a, a),
+            ...buildAllowedDateStrings(b, b),
+          ]),
+        ],
+      }
+    }
+  }
+
+  // 2. Two explicit DD/MM or DD/MM/YYYY dates
+  const slashMatches = [
+    ...normDigits.matchAll(
+      /(?:^|[^\d])(0?[1-9]|[12]\d|3[01])\/(0?[1-9]|1[0-2])(?:\/(20\d{2}))?(?=[^\d]|$)/g,
+    ),
+  ]
+  if (slashMatches.length >= 2) {
+    const isos: string[] = []
+    for (const m of slashMatches) {
+      const day = Number(m[1])
+      const month = Number(m[2])
+      let year = m[3] ? Number(m[3]) : kwToday.year
+      if (!m[3]) {
+        const cand = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        if (cand > kwToday.iso) year -= 1
+      }
+      if (isValidCalendarDate(year, month, day)) {
+        const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        if (!isos.includes(iso)) isos.push(iso)
+      }
+    }
+    if (isos.length >= 2) {
+      const a = isos[0]
+      const b = isos[1]
+      return {
+        periodA: { from: a, to: a, periodLabelAr: a },
+        periodB: { from: b, to: b, periodLabelAr: b },
+        allowedDateStrings: [
+          ...new Set([
+            ...buildAllowedDateStrings(a, a),
+            ...buildAllowedDateStrings(b, b),
+          ]),
+        ],
+      }
+    }
+  }
+
+  // 3. Relative day/period pairs
+  if (/(اول امس|قبل امس|\bday before yesterday\b)/i.test(normAr) && /(امس|الامس|\byesterday\b)/i.test(normAr)) {
+    const a = shiftIsoDateDays(kwToday.iso, -1)
+    const b = shiftIsoDateDays(kwToday.iso, -2)
+    return {
+      periodA: { from: a, to: a, periodLabelAr: a },
+      periodB: { from: b, to: b, periodLabelAr: b },
+      allowedDateStrings: [...new Set([...buildAllowedDateStrings(a, a), ...buildAllowedDateStrings(b, b)])],
+    }
+  }
+
+  if (
+    /(^|\s)(اليوم|\btoday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr) &&
+    /(^|\s)(امس|الامس|\byesterday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr)
+  ) {
+    const a = kwToday.iso
+    const b = shiftIsoDateDays(kwToday.iso, -1)
+    return {
+      periodA: { from: a, to: a, periodLabelAr: a },
+      periodB: { from: b, to: b, periodLabelAr: b },
+      allowedDateStrings: [...new Set([...buildAllowedDateStrings(a, a), ...buildAllowedDateStrings(b, b)])],
+    }
+  }
+
+  if (/(هذا الاسبوع|الاسبوع الحالي|\bthis week\b)/i.test(normAr) && /(الاسبوع الماضي|الاسبوع السابق|\blast week\b)/i.test(normAr)) {
+    const aFrom = shiftIsoDateDays(kwToday.iso, -6)
+    const aTo = kwToday.iso
+    const bFrom = shiftIsoDateDays(kwToday.iso, -13)
+    const bTo = shiftIsoDateDays(kwToday.iso, -7)
+    return {
+      periodA: { from: aFrom, to: aTo, periodLabelAr: `${aFrom} إلى ${aTo}` },
+      periodB: { from: bFrom, to: bTo, periodLabelAr: `${bFrom} إلى ${bTo}` },
+      allowedDateStrings: [
+        ...new Set([
+          ...buildAllowedDateStrings(aFrom, aTo),
+          ...buildAllowedDateStrings(bFrom, bTo),
+        ]),
+      ],
+    }
+  }
+
+  if (/(هذا الشهر|الشهر الحالي|\bthis month\b)/i.test(normAr) && /(الشهر الماضي|الشهر السابق|\blast month\b)/i.test(normAr)) {
+    const aFrom = `${String(kwToday.year).padStart(4, '0')}-${String(kwToday.month).padStart(2, '0')}-01`
+    const aTo = kwToday.iso
+    const prevMonthYear = kwToday.month === 1 ? kwToday.year - 1 : kwToday.year
+    const prevMonth = kwToday.month === 1 ? 12 : kwToday.month - 1
+    const lastDay = new Date(Date.UTC(prevMonthYear, prevMonth, 0)).getUTCDate()
+    const bFrom = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-01`
+    const bTo = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    return {
+      periodA: { from: aFrom, to: aTo, periodLabelAr: `${aFrom} إلى ${aTo}` },
+      periodB: { from: bFrom, to: bTo, periodLabelAr: `${bFrom} إلى ${bTo}` },
+      allowedDateStrings: [
+        ...new Set([
+          ...buildAllowedDateStrings(aFrom, aTo),
+          ...buildAllowedDateStrings(bFrom, bTo),
+        ]),
+      ],
+    }
+  }
+
+  return null
 }
 
 type DetectedToolKind =
+  | 'pos_comparison'
+  | 'pos_brands'
   | 'pos_orders'
   | 'pos_order_lines'
   | 'account_move_lines'
   | 'purchase_orders'
   | 'stock_moves'
+  | 'hr_employees'
   | 'unknown'
 
 function detectOdooToolKind(
   question: string,
   targetBranchId: ApprovedFeryalBranchId | null,
+  brandDetection: { brandId: ApprovedFeryalBrandId | null; asksByBrandBreakdown: boolean },
+  hasComparisonPeriods: boolean,
 ): DetectedToolKind {
   const normAr = normalizeArabicText(question)
 
+  // 0. HR Employees (`hr.employee`)
+  if (
+    /(hr\.employee|عدد الموظفين|اجمالي الموظفين|كم موظف|الموظفين|موظفي|الموظفون|الكادر الوظيفي|القوي العامله|الموارد البشريه|\bemployees?\b|\bheadcount\b|\bworkforce\b)/i.test(
+      normAr,
+    )
+  ) {
+    return 'hr_employees'
+  }
+
   // 1. Purchase orders / supplier costs (`purchase.order` / `purchase.order.line`)
   if (
-    /(purchase\.order|امر شراء|اوامر الشراء|اوامر شراء|مشتريات|تكلفه مورد|تكاليف الموردين|مورد|المورد|موردين|الموردين|فاتوره مورد|\bsupplier\b|\bsuppliers\b|\bvendor\b|\bvendors\b|\bprocurement\b)/i.test(
+    /(purchase\.order|امر شراء|اوامر الشراء|اوامر شراء|مشتريات|تكلفه مورد|تكلفه المورد|تكاليف الموردين|مورد|المورد|موردين|الموردين|فاتوره مورد|\bsupplier\b|\bsuppliers\b|\bvendor\b|\bvendors\b|\bprocurement\b)/i.test(
       normAr,
     )
   ) {
@@ -833,7 +1174,12 @@ function detectOdooToolKind(
     return 'account_move_lines'
   }
 
-  // 4. Top selling products / POS line items / item discounts (`pos.order.line`)
+  // 4. Two-period POS comparison (`pos.order`)
+  if (hasComparisonPeriods) {
+    return 'pos_comparison'
+  }
+
+  // 5. Top selling products / POS line items / item discounts (`pos.order.line`)
   if (
     /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|\btop \d* ?items\b|\btop \d* ?products\b|\bbest selling\b|\bdiscounts\b)/i.test(
       normAr,
@@ -842,7 +1188,12 @@ function detectOdooToolKind(
     return 'pos_order_lines'
   }
 
-  // 5. POS sales / orders / branches (`pos.order`)
+  // 6. Brand sales breakdown or single brand (`pos.order.line` + `pos.order`)
+  if (brandDetection.asksByBrandBreakdown || brandDetection.brandId !== null) {
+    return 'pos_brands'
+  }
+
+  // 7. POS sales / orders / branches (`pos.order`)
   if (
     targetBranchId !== null ||
     /(pos\.order|مبيعات|المبيعات|ايرادات|الطلبات|عدد الطلبات|متوسط السله|الفروع|حسب الفرع|غير منسوب|\bsales\b|\borders\b|\brevenue\b|\bbranches\b)/i.test(
@@ -885,7 +1236,10 @@ function extractVendorQueryTarget(question: string): {
   const arMatch = norm.match(/(?:تكلفه|مشتريات|اوامر شراء|حساب|فاتوره)?\s*(?:المورد|مورد)\s+(.+)$/)
   if (arMatch) {
     const cleaned = arMatch[1]
-      .replace(/(اليوم|امس|الامس|هذا الشهر|الشهر الماضي|هذه السنه|خلال.*|في الفتره.*|[؟?.,!])/g, '')
+      .replace(
+        /(اليوم|امس|الامس|هذا الشهر|الشهر الحالي|للشهر الحالي|للشهر|الشهر الماضي|هذا الاسبوع|الاسبوع الماضي|اخر 30 يوم|اخر 30 يوما|هذه السنه|خلال.*|في الفتره.*|(?:في|لشهر|شهر)\s+(?:يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر)(?:\s+20\d{2})?|يوم\s+\d{1,2}\/\d{1,2}(?:\/\d{4})?|\b20\d{2}-\d{2}-\d{2}\b|[«»"'()\[\]؟?.,!])/g,
+        '',
+      )
       .trim()
     if (!cleaned || cleaned === 'معين' || cleaned === 'محدد') {
       return { mode: 'placeholder_vendor', vendorQuery: cleaned || 'معين' }
@@ -1031,10 +1385,20 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       return null
     }
   },
+  fetchHrEmployees: async (referenceNowMs) => {
+    try {
+      const mod = await loadOdooConnector()
+      if (!mod) return null
+      return await mod.fetchLiveOdooHrSummary(referenceNowMs)
+    } catch {
+      return null
+    }
+  },
 }
 
 interface ToolExecutionOutput {
   hasData: boolean
+  noDataReasonKey?: NoOdooDataReasonKey
   primaryModel: FeryalOdooModelName
   executedQueries: FeryalExecutedOdooQuery[]
   toolNumbers: number[]
@@ -1075,11 +1439,12 @@ async function runPosOrdersTool(params: {
   if (!cube || !cube.connected || cube.noData) {
     return {
       hasData: false,
+      noDataReasonKey: 'pos_no_data',
       primaryModel: 'pos.order',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
       structuredFacts: {},
     }
   }
@@ -1116,11 +1481,12 @@ async function runPosOrdersTool(params: {
     if (!targetRow || (targetRow.orders <= 0 && targetRow.netKwd <= 0)) {
       return {
         hasData: false,
+        noDataReasonKey: 'pos_no_data',
         primaryModel: 'pos.order',
         executedQueries,
         toolNumbers: [],
         allowedEntityNames: [],
-        deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+        deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
         structuredFacts: {},
       }
     }
@@ -1264,11 +1630,12 @@ async function runPosOrderLinesTool(params: {
   if (!cube || !cube.connected || cube.noData) {
     return {
       hasData: false,
+      noDataReasonKey: 'pos_no_data',
       primaryModel: 'pos.order.line',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
       structuredFacts: {},
     }
   }
@@ -1290,11 +1657,12 @@ async function runPosOrderLinesTool(params: {
     if (!branchItems || branchItems.length === 0) {
       return {
         hasData: false,
+        noDataReasonKey: 'pos_no_data',
         primaryModel: 'pos.order.line',
         executedQueries,
         toolNumbers: [],
         allowedEntityNames: [],
-        deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+        deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
         structuredFacts: {},
       }
     }
@@ -1304,11 +1672,12 @@ async function runPosOrderLinesTool(params: {
   if (items.length === 0) {
     return {
       hasData: false,
+      noDataReasonKey: 'pos_no_data',
       primaryModel: 'pos.order.line',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
       structuredFacts: {},
     }
   }
@@ -1422,11 +1791,12 @@ async function runAccountMoveLinesTool(params: {
   if ((!cube || !cube.connected) && !hasRecData) {
     return {
       hasData: false,
+      noDataReasonKey: 'gl_no_data',
       primaryModel: 'account.move.line',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('gl_no_data'),
       structuredFacts: {},
     }
   }
@@ -1434,11 +1804,12 @@ async function runAccountMoveLinesTool(params: {
   if (!hasAccData && !hasRecData) {
     return {
       hasData: false,
+      noDataReasonKey: 'gl_no_data',
       primaryModel: 'account.move.line',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('gl_no_data'),
       structuredFacts: {},
     }
   }
@@ -1482,11 +1853,12 @@ async function runAccountMoveLinesTool(params: {
   if (!acc) {
     return {
       hasData: false,
+      noDataReasonKey: 'gl_no_data',
       primaryModel: 'account.move.line',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('gl_no_data'),
       structuredFacts: {},
     }
   }
@@ -1584,11 +1956,12 @@ async function runPurchaseOrdersTool(params: {
   if (!po || !po.connected || po.noData || po.byVendor.length === 0) {
     return {
       hasData: false,
+      noDataReasonKey: 'vendor_no_data',
       primaryModel: 'purchase.order',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('vendor_no_data'),
       structuredFacts: {},
     }
   }
@@ -1599,11 +1972,12 @@ async function runPurchaseOrdersTool(params: {
   if (vendorTarget.mode === 'placeholder_vendor') {
     return {
       hasData: false,
+      noDataReasonKey: 'vendor_no_data',
       primaryModel: 'purchase.order',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('vendor_no_data'),
       structuredFacts: {},
     }
   }
@@ -1618,11 +1992,12 @@ async function runPurchaseOrdersTool(params: {
     if (!matchedVendor) {
       return {
         hasData: false,
+        noDataReasonKey: 'vendor_no_data',
         primaryModel: 'purchase.order',
         executedQueries,
         toolNumbers: [],
         allowedEntityNames: [],
-        deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+        deterministicReply: buildFeryalNoOdooDataSuggestion('vendor_no_data'),
         structuredFacts: {},
       }
     }
@@ -1764,11 +2139,12 @@ async function runStockMovesAndScrapTool(params: {
   if (!wh || !wh.connected || wh.noData) {
     return {
       hasData: false,
+      noDataReasonKey: 'stock_no_data',
       primaryModel: 'stock.move',
       executedQueries,
       toolNumbers: [],
       allowedEntityNames: [],
-      deterministicReply: FERYAL_NO_ODOO_DATA_REPLY,
+      deterministicReply: buildFeryalNoOdooDataSuggestion('stock_no_data'),
       structuredFacts: {},
     }
   }
@@ -1809,6 +2185,456 @@ async function runStockMovesAndScrapTool(params: {
       model: 'stock.move',
       period: { from: period.from, to: period.to },
       totals: wh.totals,
+    },
+  }
+}
+
+async function runPosComparisonTool(params: {
+  dataSource: FeryalOdooDataSource
+  comparison: {
+    periodA: { from: string; to: string; periodLabelAr: string }
+    periodB: { from: string; to: string; periodLabelAr: string }
+    allowedDateStrings: string[]
+  }
+  targetBranchId: ApprovedFeryalBranchId | null
+  referenceNowMs?: number
+}): Promise<ToolExecutionOutput> {
+  const { dataSource, comparison, targetBranchId, referenceNowMs } = params
+  const { periodA, periodB } = comparison
+
+  const [cubeA, cubeB] = await Promise.all([
+    dataSource.fetchPeriodCube(periodA.from, periodA.to, referenceNowMs),
+    dataSource.fetchPeriodCube(periodB.from, periodB.to, referenceNowMs),
+  ])
+
+  const companyId = cubeA?.odooCompanyId ?? cubeB?.odooCompanyId ?? null
+  const buildDomain = (p: { from: string; to: string }): unknown[] => [
+    ['date_order', '>=', `${p.from} 00:00:00`],
+    ['date_order', '<=', `${p.to} 23:59:59`],
+    ['state', 'in', ['paid', 'done', 'invoiced']],
+    ...(companyId ? [['company_id', '=', companyId]] : []),
+  ]
+
+  const executedQueries: FeryalExecutedOdooQuery[] = [
+    {
+      model: 'pos.order',
+      method: 'read_group',
+      domain: buildDomain(periodA),
+      groupby: targetBranchId ? ['session_id'] : ['date_order:day', 'session_id'],
+      period: { from: periodA.from, to: periodA.to },
+    },
+    {
+      model: 'pos.order',
+      method: 'read_group',
+      domain: buildDomain(periodB),
+      groupby: targetBranchId ? ['session_id'] : ['date_order:day', 'session_id'],
+      period: { from: periodB.from, to: periodB.to },
+    },
+  ]
+
+  if ((!cubeA || !cubeA.connected) && (!cubeB || !cubeB.connected)) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  let rawNetA = 0
+  let rawOrdersA = 0
+  let rawNetB = 0
+  let rawOrdersB = 0
+  let scopeLabelAr = 'جميع الفروع المعتمدة'
+  const allowedEntityNames: string[] = []
+
+  if (targetBranchId) {
+    const branchMeta = BRANCH_META_BY_ID.get(targetBranchId)
+    scopeLabelAr = branchMeta ? `فرع ${branchMeta.nameAr}` : targetBranchId
+    if (branchMeta) allowedEntityNames.push(branchMeta.nameAr)
+    const bA = cubeA?.byBranch?.[targetBranchId]
+    const bB = cubeB?.byBranch?.[targetBranchId]
+    rawNetA = bA?.netKwd ?? 0
+    rawOrdersA = bA?.orders ?? 0
+    rawNetB = bB?.netKwd ?? 0
+    rawOrdersB = bB?.orders ?? 0
+  } else {
+    rawNetA = cubeA?.totals.netSalesKwd ?? 0
+    rawOrdersA = cubeA?.totals.orders ?? 0
+    rawNetB = cubeB?.totals.netSalesKwd ?? 0
+    rawOrdersB = cubeB?.totals.orders ?? 0
+  }
+
+  if (rawNetA <= 0 && rawOrdersA <= 0 && rawNetB <= 0 && rawOrdersB <= 0) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  const netA1 = round1(rawNetA)
+  const ordersAInt = Math.round(rawOrdersA)
+  const netB1 = round1(rawNetB)
+  const ordersBInt = Math.round(rawOrdersB)
+  const rawDiff = rawNetA - rawNetB
+  const diff1 = round1(netA1 - netB1)
+  const absDiff1 = round1(Math.abs(diff1))
+  const ordersDiffInt = ordersAInt - ordersBInt
+  const absOrdersDiffInt = Math.abs(ordersDiffInt)
+  const pct1 = netB1 > 0 ? round1(((netA1 - netB1) / netB1) * 100) : 0
+  const absPct1 = round1(Math.abs(pct1))
+
+  const toolNumbers: number[] = [
+    rawNetA,
+    netA1,
+    ordersAInt,
+    rawNetB,
+    netB1,
+    ordersBInt,
+    rawDiff,
+    diff1,
+    absDiff1,
+    ordersDiffInt,
+    absOrdersDiffInt,
+    pct1,
+    absPct1,
+  ]
+
+  const directionWord = diff1 > 0 ? 'بارتفاع' : diff1 < 0 ? 'بانخفاض' : 'بفارق'
+  const pctSegment = netB1 > 0 ? ` (${formatKwd1(absPct1)}%)` : ''
+  const ordersDirection =
+    ordersDiffInt > 0
+      ? `زيادة الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`
+      : ordersDiffInt < 0
+        ? `تراجع الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`
+        : `ثبات عدد الطلبات بفارق ${formatIntCount(absOrdersDiffInt)} طلبات`
+
+  const reply = [
+    `• الرقم: وفق موديل pos.order في Odoo (${scopeLabelAr})، بلغ صافي مبيعات الفترة ${periodA.periodLabelAr} قيمة ${formatKwd1(netA1)} د.ك عبر ${formatIntCount(ordersAInt)} طلبات مقابل ${formatKwd1(netB1)} د.ك عبر ${formatIntCount(ordersBInt)} طلبات في الفترة ${periodB.periodLabelAr}، ${directionWord} قدره ${formatKwd1(absDiff1)} د.ك${pctSegment}.`,
+    `• السبب من البيانات: يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك بين الفترتين إلى ${ordersDirection} بين ${periodA.periodLabelAr} (${formatIntCount(ordersAInt)} طلبات) و${periodB.periodLabelAr} (${formatIntCount(ordersBInt)} طلبات).`,
+    `• الإجراء المحدد: يراجع مدير العمليات ومديرو الفروع اليوم توزيع الورديات وتوافر الأصناف الأكثر طلباً لمحاكاة أعلى قراءة مسجلة بين الفترتين.`,
+    `• الأثر المتوقع (تقدير): تقدير — استدامة مستوى الأداء الأعلى يغلق فجوة المبيعات البالغة ${formatKwd1(absDiff1)} د.ك ويرفع استقرار الإيراد اليومي.`,
+  ].join('\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'pos.order',
+    executedQueries,
+    toolNumbers,
+    allowedEntityNames,
+    deterministicReply: reply,
+    structuredFacts: {
+      model: 'pos.order',
+      scope: scopeLabelAr,
+      periodA: { ...periodA, netKwd: netA1, orders: ordersAInt },
+      periodB: { ...periodB, netKwd: netB1, orders: ordersBInt },
+      deltaNetKwd: diff1,
+      deltaOrders: ordersDiffInt,
+      deltaPct: pct1,
+    },
+  }
+}
+
+async function runPosBrandsTool(params: {
+  dataSource: FeryalOdooDataSource
+  period: { from: string; to: string; periodLabelAr: string }
+  targetBrandId: ApprovedFeryalBrandId | null
+  targetBranchId: ApprovedFeryalBranchId | null
+  referenceNowMs?: number
+}): Promise<ToolExecutionOutput> {
+  const { dataSource, period, targetBrandId, targetBranchId, referenceNowMs } = params
+  const cube = await dataSource.fetchPeriodCube(period.from, period.to, referenceNowMs)
+
+  const domain: unknown[] = [
+    ['order_id.date_order', '>=', `${period.from} 00:00:00`],
+    ['order_id.date_order', '<=', `${period.to} 23:59:59`],
+    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+  ]
+  if (cube?.odooCompanyId) {
+    domain.push(['company_id', '=', cube.odooCompanyId])
+  }
+  if (targetBranchId) {
+    domain.push(['branch_scope', '=', targetBranchId])
+  }
+
+  const executedQueries: FeryalExecutedOdooQuery[] = [
+    {
+      model: 'pos.order.line',
+      method: 'read_group',
+      domain,
+      groupby: ['product_id'],
+      period: { from: period.from, to: period.to },
+    },
+  ]
+
+  if (!cube || !cube.connected || cube.noData) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order.line',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  const branchMeta = targetBranchId ? BRANCH_META_BY_ID.get(targetBranchId) : null
+  const scopeLabelAr = branchMeta ? `فرع ${branchMeta.nameAr}` : 'جميع الفروع المعتمدة'
+  const scopeNetRaw = targetBranchId
+    ? cube.byBranch?.[targetBranchId]?.netKwd ?? 0
+    : cube.totals.netSalesKwd
+  const scopeNet1 = round1(scopeNetRaw)
+
+  const brandRows = APPROVED_FERYAL_BRAND_LIST.map((meta) => {
+    const raw = targetBranchId
+      ? cube.brandByBranch?.[targetBranchId]?.[meta.id]
+      : cube.byBrand?.[meta.id]
+    const rawNetKwd = raw?.netKwd ?? 0
+    const netKwd = round1(rawNetKwd)
+    const rawQty = raw?.qty ?? 0
+    const qtyInt = Math.round(rawQty)
+    const linesInt = Math.round(raw?.linesCount ?? 0)
+    const sharePct1 = scopeNet1 > 0 ? round1((netKwd / scopeNet1) * 100) : 0
+    return {
+      id: meta.id,
+      nameAr: meta.nameAr,
+      nameEn: meta.nameEn,
+      rawNetKwd,
+      netKwd,
+      rawQty,
+      qtyInt,
+      linesInt,
+      sharePct1,
+    }
+  }).sort((a, b) => b.netKwd - a.netKwd || b.rawNetKwd - a.rawNetKwd)
+
+  const rawBrandsTotal = brandRows.reduce((s, r) => s + r.rawNetKwd, 0)
+  const brandsTotal1 = round1(brandRows.reduce((s, r) => s + r.netKwd, 0))
+
+  const allowedEntityNames: string[] = []
+  if (branchMeta) allowedEntityNames.push(branchMeta.nameAr)
+  for (const r of brandRows) {
+    allowedEntityNames.push(r.nameAr, r.nameEn)
+  }
+
+  if (targetBrandId) {
+    const targetBrand = brandRows.find((r) => r.id === targetBrandId)
+    if (!targetBrand || (targetBrand.netKwd <= 0 && targetBrand.qtyInt <= 0 && targetBrand.linesInt <= 0)) {
+      return {
+        hasData: false,
+        noDataReasonKey: 'pos_no_data',
+        primaryModel: 'pos.order.line',
+        executedQueries,
+        toolNumbers: [],
+        allowedEntityNames: [],
+        deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+        structuredFacts: {},
+      }
+    }
+
+    const topBrand = brandRows[0]
+    const toolNumbers: number[] = [
+      targetBrand.rawNetKwd,
+      targetBrand.netKwd,
+      targetBrand.rawQty,
+      targetBrand.qtyInt,
+      targetBrand.linesInt,
+      targetBrand.sharePct1,
+      scopeNetRaw,
+      scopeNet1,
+      topBrand.rawNetKwd,
+      topBrand.netKwd,
+    ]
+
+    const reply = [
+      `• الرقم: وفق موديل pos.order.line في Odoo للفترة ${period.periodLabelAr} (${scopeLabelAr})، سجلت علامة ${targetBrand.nameAr} صافي مبيعات ${formatKwd1(targetBrand.netKwd)} د.ك عبر ${formatIntCount(targetBrand.qtyInt)} وحدة مباعة بحصة ${formatKwd1(targetBrand.sharePct1)}% من صافي المبيعات البالغ ${formatKwd1(scopeNet1)} د.ك.`,
+      `• السبب من البيانات: حققت علامة ${targetBrand.nameAr} قيمة ${formatKwd1(targetBrand.netKwd)} د.ك من ${formatIntCount(targetBrand.linesInt)} سطور بيع مرحلة خلال الفترة.`,
+      `• الإجراء المحدد: يراجع مدير العلامة ومدير العمليات اليوم أداء أصناف ${targetBrand.nameAr} وتوافرها على شاشات نقاط البيع ومنصات التوصيل.`,
+      `• الأثر المتوقع (تقدير): تقدير — رفع توافر واقتراحات أصناف ${targetBrand.nameAr} يعزز مساهمتها فوق مستوى ${formatKwd1(targetBrand.netKwd)} د.ك المسجل حالياً.`,
+    ].join('\n')
+
+    return {
+      hasData: true,
+      primaryModel: 'pos.order.line',
+      executedQueries,
+      toolNumbers,
+      allowedEntityNames,
+      deterministicReply: reply,
+      structuredFacts: {
+        model: 'pos.order.line',
+        period: { from: period.from, to: period.to },
+        scope: scopeLabelAr,
+        brand: targetBrand,
+        scopeNetKwd: scopeNet1,
+      },
+    }
+  }
+
+  if (brandsTotal1 <= 0) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order.line',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  const toolNumbers: number[] = [
+    brandRows.length,
+    rawBrandsTotal,
+    brandsTotal1,
+    scopeNetRaw,
+    scopeNet1,
+    Math.round(cube.totals.orders),
+  ]
+  for (const r of brandRows) {
+    toolNumbers.push(r.rawNetKwd, r.netKwd, r.rawQty, r.qtyInt, r.linesInt, r.sharePct1)
+  }
+
+  const brandListText = brandRows
+    .map((r) => `${r.nameAr} ${formatKwd1(r.netKwd)} د.ك (${formatKwd1(r.sharePct1)}%)`)
+    .join('، ')
+
+  const topBrand = brandRows[0]
+  const secondBrand = brandRows[1]
+  const lowestBrand = brandRows[brandRows.length - 1]
+
+  const reply = [
+    `• الرقم: وفق موديل pos.order.line في Odoo للفترة ${period.periodLabelAr} (${scopeLabelAr})، توزعت مبيعات العلامات التجارية الـ ${formatIntCount(brandRows.length)} كالتالي: ${brandListText}، بإجمالي مبيعات منسوبة للعلامات ${formatKwd1(brandsTotal1)} د.ك من صافي مبيعات ${formatKwd1(scopeNet1)} د.ك.`,
+    `• السبب من البيانات: تصدرت علامة ${topBrand.nameAr} بقيمة ${formatKwd1(topBrand.netKwd)} د.ك (${formatKwd1(topBrand.sharePct1)}%) تلتها ${secondBrand.nameAr} بقيمة ${formatKwd1(secondBrand.netKwd)} د.ك بينما سجلت ${lowestBrand.nameAr} قيمة ${formatKwd1(lowestBrand.netKwd)} د.ك.`,
+    `• الإجراء المحدد: يوجه مدير العمليات وفريق التسويق اليوم بمراجعة ظهور وقوائم علامة ${lowestBrand.nameAr} في الفروع ومنصات التوصيل مع تأمين مخزون العلامة المتصدرة ${topBrand.nameAr}.`,
+    `• الأثر المتوقع (تقدير): تقدير — تنشيط مبيعات ${lowestBrand.nameAr} فوق ${formatKwd1(lowestBrand.netKwd)} د.ك يرفع إجمالي مبيعات العلامات البالغ حالياً ${formatKwd1(brandsTotal1)} د.ك.`,
+  ].join('\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'pos.order.line',
+    executedQueries,
+    toolNumbers,
+    allowedEntityNames,
+    deterministicReply: reply,
+    structuredFacts: {
+      model: 'pos.order.line',
+      period: { from: period.from, to: period.to },
+      scope: scopeLabelAr,
+      brandsTotalKwd: brandsTotal1,
+      scopeNetKwd: scopeNet1,
+      brands: brandRows,
+    },
+  }
+}
+
+async function runHrEmployeesTool(params: {
+  dataSource: FeryalOdooDataSource
+  period: { from: string; to: string; periodLabelAr: string }
+  referenceNowMs?: number
+}): Promise<ToolExecutionOutput> {
+  const { dataSource, period, referenceNowMs } = params
+  const hr = dataSource.fetchHrEmployees ? await dataSource.fetchHrEmployees(referenceNowMs) : null
+
+  const domain: unknown[] = [['active', '=', true]]
+  if (hr?.odooCompanyId) {
+    domain.push(['company_id', '=', hr.odooCompanyId])
+  }
+
+  const executedQueries: FeryalExecutedOdooQuery[] = [
+    {
+      model: 'hr.employee',
+      method: 'search_read',
+      domain,
+      groupby: ['department_id', 'work_location_id'],
+      period: { from: period.from, to: period.to },
+    },
+  ]
+
+  if (!hr || !hr.connected || !hr.accessGranted) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'hr_employees_no_access',
+      primaryModel: 'hr.employee',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('hr_employees_no_access'),
+      structuredFacts: {},
+    }
+  }
+
+  if (hr.noData || hr.totals.activeEmployeesCount <= 0) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'hr_employees_no_data',
+      primaryModel: 'hr.employee',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('hr_employees_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  const activeCountInt = Math.round(hr.totals.activeEmployeesCount)
+  const deptsCountInt = Math.round(hr.totals.departmentsCount)
+  const locsCountInt = Math.round(hr.totals.workLocationsCount)
+  const topDepts = hr.byDepartment.slice(0, 5)
+
+  const toolNumbers: number[] = [activeCountInt, deptsCountInt, locsCountInt, topDepts.length]
+  const allowedEntityNames: string[] = []
+
+  const deptText = topDepts
+    .map((d) => {
+      const c = Math.round(d.employeesCount)
+      toolNumbers.push(c)
+      allowedEntityNames.push(d.departmentName)
+      return `${d.departmentName} (${formatIntCount(c)} موظف)`
+    })
+    .join('، ')
+
+  for (const loc of hr.byWorkLocation.slice(0, 5)) {
+    toolNumbers.push(Math.round(loc.employeesCount))
+    allowedEntityNames.push(loc.locationName)
+  }
+
+  const topDept = topDepts[0]
+  const topDeptCountInt = topDept ? Math.round(topDept.employeesCount) : activeCountInt
+  const topDeptName = topDept ? topDept.departmentName : 'بدون قسم محدد'
+  allowedEntityNames.push(topDeptName)
+
+  const reply = [
+    `• الرقم: وفق موديل hr.employee في Odoo، يبلغ إجمالي الموظفين النشطين ${formatIntCount(activeCountInt)} موظف موزعين على ${formatIntCount(deptsCountInt)} أقسام معرفة و${formatIntCount(locsCountInt)} مواقع عمل، وأبرز الأقسام: ${deptText}.`,
+    `• السبب من البيانات: يتركز أكبر عدد ضمن ${topDeptName} بواقع ${formatIntCount(topDeptCountInt)} موظف من إجمالي الكادر المسجل والبالغ ${formatIntCount(activeCountInt)} موظف.`,
+    `• الإجراء المحدد: يراجع مدير الموارد البشرية اليوم اكتمال ربط جميع سجلات hr.employee بالأقسام الفعلية ومواقع الفروع المعتمدة داخل Odoo.`,
+    `• الأثر المتوقع (تقدير): تقدير — توحيد تسكين الموظفين البالغ عددهم ${formatIntCount(activeCountInt)} موظف يرفع دقة توزيع القوى العاملة وتقارير الفروع.`,
+  ].join('\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'hr.employee',
+    executedQueries,
+    toolNumbers,
+    allowedEntityNames,
+    deterministicReply: reply,
+    structuredFacts: {
+      model: 'hr.employee',
+      totals: hr.totals,
+      topDepartments: topDepts,
+      topWorkLocations: hr.byWorkLocation.slice(0, 5),
     },
   }
 }
@@ -2097,15 +2923,25 @@ export async function askFeryalOdooAgent(
     }
   }
 
-  if (!rawQuestion) {
+  const finalizeNoData = (
+    reasonKey: NoOdooDataReasonKey,
+    executedQueries: FeryalExecutedOdooQuery[] = [],
+    period: { from: string; to: string } | null = null,
+  ): Promise<AskFeryalOdooAgentResult> => {
+    const reply = buildFeryalNoOdooDataSuggestion(reasonKey)
+    const verifier = verifyFeryalReplyNumbers(reply, [])
     return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
+      reply,
       status: 'no_odoo_data',
-      executedQueries: [],
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
+      executedQueries,
+      verifier,
       toolNumbers: [],
-      period: null,
+      period,
     })
+  }
+
+  if (!rawQuestion) {
+    return finalizeNoData('generic')
   }
 
   // 1. Strict Competitor Refusal -> literal `لا أعرف` ONLY
@@ -2114,50 +2950,37 @@ export async function askFeryalOdooAgent(
       reply: FERYAL_COMPETITOR_REFUSAL,
       status: 'competitor_refusal',
       executedQueries: [],
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
+      verifier: verifyFeryalReplyNumbers(FERYAL_COMPETITOR_REFUSAL, []),
       toolNumbers: [],
       period: null,
     })
   }
 
-  // 2. Unlinked Non-Odoo Topics -> literal `لا أملك بيانات من Odoo عن هذا`
-  if (isUnlinkedNonOdooTopic(rawQuestion)) {
-    return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
-      status: 'no_odoo_data',
-      executedQueries: [],
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
-      toolNumbers: [],
-      period: null,
-    })
+  // 2. Unlinked Non-Odoo Topics -> starts with `لا أملك بيانات من Odoo عن هذا` + linking suggestion
+  const unlinkedCheck = isUnlinkedNonOdooTopic(rawQuestion)
+  if (unlinkedCheck.unlinked) {
+    return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic')
   }
 
   // 3. Branch Scope Check (7 approved branches only)
   const branchDetection = detectTargetBranchFromQuestion(rawQuestion)
   if (branchDetection.unknownBranchRequested) {
-    return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
-      status: 'no_odoo_data',
-      executedQueries: [],
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
-      toolNumbers: [],
-      period: null,
-    })
+    return finalizeNoData('unknown_branch')
   }
 
-  // 4. Period & Tool Resolution
+  // 4. Period, Brand, Comparison & Tool Resolution
+  const brandDetection = detectTargetBrandFromQuestion(rawQuestion)
+  const comparisonPeriods = resolveFeryalComparisonPeriods(rawQuestion, nowMs)
   const resolvedPeriod = resolveFeryalQuestionPeriod(rawQuestion, nowMs)
-  const toolKind = detectOdooToolKind(rawQuestion, branchDetection.branchId)
+  const toolKind = detectOdooToolKind(
+    rawQuestion,
+    branchDetection.branchId,
+    brandDetection,
+    comparisonPeriods !== null,
+  )
 
   if (toolKind === 'unknown') {
-    return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
-      status: 'no_odoo_data',
-      executedQueries: [],
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
-      toolNumbers: [],
-      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
-    })
+    return finalizeNoData('generic', [], { from: resolvedPeriod.from, to: resolvedPeriod.to })
   }
 
   const dataSource: FeryalOdooDataSource = {
@@ -2166,7 +2989,33 @@ export async function askFeryalOdooAgent(
   }
 
   let toolOutput: ToolExecutionOutput
+  let activePeriod = { from: resolvedPeriod.from, to: resolvedPeriod.to }
+  let activeAllowedDateStrings = resolvedPeriod.allowedDateStrings
+
   switch (toolKind) {
+    case 'pos_comparison': {
+      const comp = comparisonPeriods!
+      const minFrom = comp.periodA.from <= comp.periodB.from ? comp.periodA.from : comp.periodB.from
+      const maxTo = comp.periodA.to >= comp.periodB.to ? comp.periodA.to : comp.periodB.to
+      activePeriod = { from: minFrom, to: maxTo }
+      activeAllowedDateStrings = comp.allowedDateStrings
+      toolOutput = await runPosComparisonTool({
+        dataSource,
+        comparison: comp,
+        targetBranchId: branchDetection.branchId,
+        referenceNowMs: nowMs,
+      })
+      break
+    }
+    case 'pos_brands':
+      toolOutput = await runPosBrandsTool({
+        dataSource,
+        period: resolvedPeriod,
+        targetBrandId: brandDetection.brandId,
+        targetBranchId: branchDetection.branchId,
+        referenceNowMs: nowMs,
+      })
+      break
     case 'pos_orders':
       toolOutput = await runPosOrdersTool({
         dataSource,
@@ -2207,21 +3056,25 @@ export async function askFeryalOdooAgent(
         referenceNowMs: nowMs,
       })
       break
+    case 'hr_employees':
+      toolOutput = await runHrEmployeesTool({
+        dataSource,
+        period: resolvedPeriod,
+        referenceNowMs: nowMs,
+      })
+      break
   }
 
   if (!toolOutput.hasData) {
-    return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
-      status: 'no_odoo_data',
-      executedQueries: toolOutput.executedQueries,
-      verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
-      toolNumbers: [],
-      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
-    })
+    return finalizeNoData(
+      toolOutput.noDataReasonKey ?? 'generic',
+      toolOutput.executedQueries,
+      activePeriod,
+    )
   }
 
   const verifierOptions = {
-    allowedDateStrings: resolvedPeriod.allowedDateStrings,
+    allowedDateStrings: activeAllowedDateStrings,
     allowedEntityNames: toolOutput.allowedEntityNames,
     requireFourPartStructure: true,
     requireGlIncompleteWarning: toolOutput.requireGlIncompleteWarning,
@@ -2234,7 +3087,7 @@ export async function askFeryalOdooAgent(
       const candidateText = await input.candidatePhraser({
         question: rawQuestion,
         toolModel: toolOutput.primaryModel,
-        period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+        period: activePeriod,
         structuredFactsJson: JSON.stringify(toolOutput.structuredFacts),
         deterministicDraft: toolOutput.deterministicReply,
       })
@@ -2251,7 +3104,7 @@ export async function askFeryalOdooAgent(
             executedQueries: toolOutput.executedQueries,
             verifier: candidateCheck.verifier,
             toolNumbers: toolOutput.toolNumbers,
-            period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+            period: activePeriod,
           })
         }
         llmCandidateRejected = true
@@ -2269,13 +3122,14 @@ export async function askFeryalOdooAgent(
   )
 
   if (!verified.accepted) {
+    const fallbackReply = buildFeryalNoOdooDataSuggestion(toolOutput.noDataReasonKey ?? 'generic')
     return finalize({
-      reply: FERYAL_NO_ODOO_DATA_REPLY,
+      reply: fallbackReply,
       status: 'verifier_rejected',
       executedQueries: toolOutput.executedQueries,
       verifier: verified.verifier,
       toolNumbers: toolOutput.toolNumbers,
-      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+      period: activePeriod,
       llmCandidateRejected,
     })
   }
@@ -2286,7 +3140,7 @@ export async function askFeryalOdooAgent(
     executedQueries: toolOutput.executedQueries,
     verifier: verified.verifier,
     toolNumbers: toolOutput.toolNumbers,
-    period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+    period: activePeriod,
     llmCandidateRejected,
   })
 }

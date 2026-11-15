@@ -46,8 +46,8 @@ export function PosTerminal(_props: PosTerminalProps) {
         isAr={isAr}
         titleAr="شاشة الكاشير (POS Terminal)"
         titleEn="POS Cashier Terminal"
-        reasonAr="غير مربوط بمصدر جلسات كاشير مباشرة خارج Odoo POS."
-        reasonEn="Not connected to a standalone live cashier session source outside Odoo POS."
+        reasonAr="غير مربوط بمصدر جلسات كاشير خارج Odoo POS."
+        reasonEn="Not connected to a standalone cashier session source outside Odoo POS."
       />
     </div>
   )

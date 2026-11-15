@@ -189,23 +189,19 @@ export function KpiProvenanceBadge({
         {odooModel}
       </span>
 
-      {!compact ? (
-        <span
-          dir="ltr"
-          className="inline-flex items-center rounded-md bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-900/5 dark:bg-white/[0.04] dark:text-slate-400 dark:ring-white/10"
-        >
-          {rangeStr}
-        </span>
-      ) : null}
+      <span
+        dir="ltr"
+        className="inline-flex items-center rounded-md bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-slate-900/5 dark:bg-white/[0.04] dark:text-slate-400 dark:ring-white/10"
+      >
+        {rangeStr}
+      </span>
 
-      {!compact && lastSyncAt ? (
-        <span className="text-[10px] text-slate-500 dark:text-slate-400">
-          {isAr ? `مزامنة: ${syncInfo.labelAr}` : `Sync: ${syncInfo.labelEn}`}
-        </span>
-      ) : null}
+      <span className="inline-flex items-center text-[10px] font-medium text-slate-600 dark:text-slate-300">
+        {isAr ? `مزامنة: ${syncInfo.labelAr}` : `Sync: ${syncInfo.labelEn}`}
+      </span>
 
       {stale ? (
-        <span className="inline-flex items-center rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-900 ring-1 ring-rose-500/30 dark:bg-rose-950/60 dark:text-rose-200 dark:ring-rose-400/30">
+        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-extrabold bg-yellow-100 text-yellow-900 ring-1 ring-yellow-500/40 dark:bg-yellow-400/20 dark:text-yellow-200 dark:ring-yellow-400/40">
           قديمة
         </span>
       ) : null}

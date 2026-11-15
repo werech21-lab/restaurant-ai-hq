@@ -458,7 +458,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
         <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-semibold text-mist-100">
-              {label('التقدم اللحظي', 'Live progress')}
+              {label('حالة التقدم', 'Upload progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف', 'paused')}` : ''}
             </span>
@@ -489,7 +489,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       {rows.length > 0 ? (
         <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
           <header className="border-b border-white/10 px-4 py-3">
-            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي الحي', 'Live auto-distribution table')}</h2>
+            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي', 'Auto-distribution table')}</h2>
           </header>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px] text-sm">

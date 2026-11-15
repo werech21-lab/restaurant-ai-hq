@@ -580,7 +580,7 @@ function getEntityNames(
     nameAr: getChannelLabel(id as GlobalChannel, true),
     nameEn: getChannelLabel(id as GlobalChannel, false),
     subMetaAr: 'قناة دفع فعلية',
-    subMetaEn: 'Live payment channel',
+    subMetaEn: 'POS payment channel',
   }
 }
 
@@ -1544,7 +1544,7 @@ function buildInsights(
   const sign = salesDeltaKwd > 0 ? '+' : ''
 
   const headlineAr = `صافي المبيعات من Odoo: ${selectionA.netSalesKwd.toLocaleString('en-US')} د.ك مقابل ${selectionB.netSalesKwd.toLocaleString('en-US')} د.ك (${sign}${salesDeltaPct}%)`
-  const headlineEn = `Live Odoo Net Sales: ${selectionA.netSalesKwd.toLocaleString('en-US')} KWD vs ${selectionB.netSalesKwd.toLocaleString('en-US')} KWD (${sign}${salesDeltaPct}%)`
+  const headlineEn = `Odoo 17 Net Sales: ${selectionA.netSalesKwd.toLocaleString('en-US')} KWD vs ${selectionB.netSalesKwd.toLocaleString('en-US')} KWD (${sign}${salesDeltaPct}%)`
 
   const unattrPartAr =
     selectionA.unattributedSalesKwd > 0 || selectionB.unattributedSalesKwd > 0
@@ -1912,8 +1912,8 @@ export function buildComparisonCsv(result: ErpComparisonResult, isAr: boolean): 
 
   lines.push(
     isAr
-      ? `تقرير المقارنة الحية من Odoo,${esc(result.selectionA.titleAr)},مقابل,${esc(result.selectionB.titleAr)}`
-      : `Live Odoo Comparison Report,${esc(result.selectionA.titleEn)},VS,${esc(result.selectionB.titleEn)}`,
+      ? `تقرير المقارنة من Odoo 17,${esc(result.selectionA.titleAr)},مقابل,${esc(result.selectionB.titleAr)}`
+      : `Odoo 17 Comparison Report,${esc(result.selectionA.titleEn)},VS,${esc(result.selectionB.titleEn)}`,
   )
   lines.push(
     isAr
@@ -1974,7 +1974,7 @@ export function buildComparisonCsv(result: ErpComparisonResult, isAr: boolean): 
     result.byBranch,
   )
   pushTable('العلامات المعتمدة (6)', '6 Approved Brands', result.byBrand)
-  pushTable('قنوات الدفع الفعلية', 'Live Payment Channels', result.byChannel)
+  pushTable('قنوات الدفع الفعلية', 'POS Payment Channels', result.byChannel)
 
   return `\uFEFF${lines.join('\r\n')}`
 }

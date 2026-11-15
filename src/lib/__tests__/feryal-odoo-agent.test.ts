@@ -359,7 +359,9 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
       dataSource: createDisconnectedDataSource(),
     })
     expect(discRes.status).toBe('no_odoo_data')
-    expect(discRes.reply).toBe(FERYAL_NO_ODOO_DATA_REPLY)
+    expect(discRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+    expect(discRes.reply).toContain('يلزم')
+    expect(discRes.verifier.valid).toBe(true)
   })
 
   it('Acceptance #4: queries purchase.order for «تكلفة مورد معين» and named suppliers', async () => {
@@ -372,9 +374,11 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
       dataSource: createLiveFixtureDataSource(),
     })
     expect(placeholderRes.executedQueries.some((q) => q.model === 'purchase.order')).toBe(true)
-    expect(placeholderRes.reply).toBe(FERYAL_NO_ODOO_DATA_REPLY)
+    expect(placeholderRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+    expect(placeholderRes.reply).toContain('purchase.order')
+    expect(placeholderRes.verifier.valid).toBe(true)
 
-    // Unknown vendor not in purchase.order -> explicit refusal
+    // Unknown vendor not in purchase.order -> explicit refusal + linking suggestion
     const unknownVendorRes = await askFeryalOdooAgent({
       question: 'تكلفة مورد شركة غير مسجلة في النظام',
       userSub: 'cfo-test',
@@ -383,7 +387,9 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
       dataSource: createLiveFixtureDataSource(),
     })
     expect(unknownVendorRes.executedQueries.some((q) => q.model === 'purchase.order')).toBe(true)
-    expect(unknownVendorRes.reply).toBe(FERYAL_NO_ODOO_DATA_REPLY)
+    expect(unknownVendorRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+    expect(unknownVendorRes.reply).toContain('purchase.order')
+    expect(unknownVendorRes.verifier.valid).toBe(true)
 
     // Existing vendor in purchase.order -> exact 4-part verified cost
     const existingVendorRes = await askFeryalOdooAgent({
@@ -442,7 +448,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(stockRes.verifier.valid).toBe(true)
   })
 
-  it('refuses unlinked operational topics (kitchen prep tickets, drivers, reviews) with «لا أملك بيانات من Odoo عن هذا»', async () => {
+  it('refuses unlinked operational topics (kitchen prep tickets, drivers, reviews) with «لا أملك بيانات من Odoo عن هذا» + clear Odoo linking suggestion', async () => {
     for (const q of [
       'زمن تذاكر تحضير المطبخ اليوم',
       'أداء سائقي التوصيل اليوم',
@@ -454,7 +460,11 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
         dataSource: createLiveFixtureDataSource(),
       })
       expect(res.status, q).toBe('no_odoo_data')
-      expect(res.reply, q).toBe(FERYAL_NO_ODOO_DATA_REPLY)
+      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), q).toBe(true)
+      expect(res.reply.length, q).toBeGreaterThan(FERYAL_NO_ODOO_DATA_REPLY.length + 10)
+      expect(res.reply, q).toContain('يلزم')
+      expect(res.verifier.valid, q).toBe(true)
+      expect(res.verifier.extractedNumbers, q).toEqual([])
     }
   })
 

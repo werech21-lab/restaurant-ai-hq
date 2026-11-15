@@ -101,10 +101,10 @@ export function DomainPanel() {
         </div>
       </section>
       <section className={`${cardClass} space-y-3 p-5`}>
-        <h2 className="font-bold">فحص حالة اتصال الدومين الحي</h2>
+        <h2 className="font-bold">فحص حالة اتصال الدومين</h2>
         <p className="text-sm text-slate-600">يطلب {ERP_ORIGIN}/api/health ويتأكد أن الربط يعمل.</p>
         <button type="button" className={btnPrimary} disabled={pending} onClick={check}>
-          {pending ? "جارٍ الفحص..." : "فحص حالة اتصال الدومين الحي (Live DNS & Ping Checker)"}
+          {pending ? "جارٍ الفحص..." : "فحص حالة اتصال الدومين (DNS & Ping Checker)"}
         </button>
         {error ? <Alert kind="error">{error}</Alert> : null}
         {message ? <Alert kind="ok">{message}</Alert> : null}

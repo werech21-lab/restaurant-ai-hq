@@ -75,24 +75,24 @@ export const FERYAL_VISION_QUICK_PRESETS: readonly FeryalVisionPreset[] = [
   {
     id: 'dish-quality',
     badgeAr: 'فحص جودة وتقديم الطبق 🍽️',
-    badgeEn: 'Dish Quality & Plating Audit 🍽️',
+    badgeEn: 'Dish Quality & Plating Check 🍽️',
     labelAr: 'فحص جودة وتقديم الطبق 🍽️',
-    labelEn: 'Dish Quality & Plating Audit 🍽️',
+    labelEn: 'Dish Quality & Plating Check 🍽️',
     promptAr:
       'افحصي الصورة أو الفيديو المرفق بدقة: قيّمي جودة وتقديم الطبق، الالتزام بالوزن المعياري للوصفة (BOM)، إحكام التغليف ضد التسريب في التوصيل، وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة) مع التوصية الفورية للفرع.',
     promptEn:
-      'Inspect the attached photo/video carefully: audit dish presentation quality, standard recipe BOM portion accuracy, delivery packaging seal integrity, and assign a compliance score (🟢 Compliant / 🟡 Medium Observation / 🔴 Critical Violation) with immediate branch actions.',
+      'Inspect the attached photo/video carefully: review dish presentation quality, standard recipe BOM portion accuracy, delivery packaging seal integrity, and assign a compliance score (🟢 Compliant / 🟡 Medium Observation / 🔴 Critical Violation) with immediate branch actions.',
   },
   {
     id: 'kitchen-hygiene',
-    badgeAr: 'تدقيق نظافة وسلامة المطبخ والثلاجات 🧊',
-    badgeEn: 'Kitchen & Fridge Hygiene Audit 🧊',
-    labelAr: 'تدقيق نظافة وسلامة المطبخ والثلاجات 🧊',
-    labelEn: 'Kitchen & Fridge Hygiene Audit 🧊',
+    badgeAr: 'فحص نظافة وسلامة المطبخ والثلاجات 🧊',
+    badgeEn: 'Kitchen & Fridge Hygiene Check 🧊',
+    labelAr: 'فحص نظافة وسلامة المطبخ والثلاجات 🧊',
+    labelEn: 'Kitchen & Fridge Hygiene Check 🧊',
     promptAr:
-      'دقّقي صورة أو فيديو المطبخ والثلاجات المرفق: افحصي نظافة الأسطح، ترتيب وتغليف المواد الخام وملصقات الصلاحية بالثلاجات، التزام الطاقم بالقفازات وغطاء الرأس واشتراطات بلدية الكويت والهيئة العامة للغذاء، وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة).',
+      'افحصي صورة أو فيديو المطبخ والثلاجات المرفق: راجعي نظافة الأسطح، ترتيب وتغليف المواد الخام وملصقات الصلاحية بالثلاجات، التزام الطاقم بالقفازات وغطاء الرأس واشتراطات بلدية الكويت والهيئة العامة للغذاء، وحددي درجة المطابقة (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة).',
     promptEn:
-      'Audit the attached kitchen/refrigerator photo or video: inspect prep surface cleanliness, raw-material storage, date-labeling inside chillers, PPE/glove compliance, and Kuwait Municipality / PAFN food-safety standards, with an explicit compliance score.',
+      'Inspect the attached kitchen/refrigerator photo or video: review prep surface cleanliness, raw-material storage, date-labeling inside chillers, PPE/glove compliance, and Kuwait Municipality / PAFN food-safety standards, with an explicit compliance score.',
   },
   {
     id: 'supplier-invoice',

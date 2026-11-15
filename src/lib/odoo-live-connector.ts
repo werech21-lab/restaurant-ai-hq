@@ -449,11 +449,42 @@ export interface OdooLivePurchaseSummary {
   byProduct: OdooLivePurchaseProductRow[]
 }
 
+export interface OdooLiveHrDepartmentRow {
+  departmentId: number | null
+  departmentName: string
+  employeesCount: number
+}
+
+export interface OdooLiveHrLocationRow {
+  locationId: number | null
+  locationName: string
+  employeesCount: number
+}
+
+export interface OdooLiveHrSummary {
+  connected: boolean
+  sourceMode: 'odoo17-live' | 'disconnected'
+  accessGranted: boolean
+  noData: boolean
+  messageAr?: string
+  odooCompanyId: number | null
+  lastSyncAt: string | null
+  isStale24h: boolean
+  totals: {
+    activeEmployeesCount: number
+    departmentsCount: number
+    workLocationsCount: number
+  }
+  byDepartment: OdooLiveHrDepartmentRow[]
+  byWorkLocation: OdooLiveHrLocationRow[]
+}
+
 const comparisonRangeCache = new Map<string, CachedComparisonRangeEntry>()
 const customBucketCache = new Map<string, { fetchedAtMs: number; bucket: OdooBucketSummary }>()
 const periodCubeCache = new Map<string, { fetchedAtMs: number; cube: OdooPeriodCube }>()
 const warehouseChainCache = new Map<string, { fetchedAtMs: number; payload: OdooLiveWarehouseChainPayload }>()
 const purchaseOrdersCache = new Map<string, { fetchedAtMs: number; summary: OdooLivePurchaseSummary }>()
+let hrSummaryCache: { fetchedAtMs: number; summary: OdooLiveHrSummary } | null = null
 let rpcSequence = 0
 
 const r3 = (n: number): number => Math.round((Number(n) || 0) * 1000) / 1000
@@ -819,6 +850,7 @@ export function bustOdooLiveCache(options?: { resetCooldown?: boolean; clearLast
   periodCubeCache.clear()
   warehouseChainCache.clear()
   purchaseOrdersCache.clear()
+  hrSummaryCache = null
   consecutiveUpstreamFailures = 0
   circuitOpenUntilMs = 0
   if (options?.resetCooldown) {
@@ -3334,7 +3366,7 @@ export function getReadOnlyOdooSnapshotStatus(
       readOnly: true,
       cached: true,
       referenceNowMs,
-      noteOverride: 'Read-only auditor session: displaying live synced Odoo 17 telemetry.',
+      noteOverride: 'Read-only auditor session: displaying synced Odoo 17 telemetry.',
     })
   }
   return buildDisconnectedOdooEnvelope({
@@ -3388,6 +3420,7 @@ export async function fetchLiveOdooSnapshot(options?: {
     periodCubeCache.clear()
     warehouseChainCache.clear()
     purchaseOrdersCache.clear()
+    hrSummaryCache = null
     circuitOpenUntilMs = 0
   }
 
@@ -3532,7 +3565,7 @@ export async function triggerManualOdooSync(options?: {
       customBucket,
       diagnosticCodeOverride: 'MANUAL_SYNC_COOLDOWN_ACTIVE',
       rateLimitedCooldown: true,
-      noteOverride: `Manual sync cooldown active (${remainingSec}s remaining); serving warm live snapshot.`,
+      noteOverride: `Manual sync cooldown active (${remainingSec}s remaining); serving warm cached snapshot.`,
     })
   }
 
@@ -5674,5 +5707,210 @@ export async function fetchLiveOdooPurchaseOrders(
     return summary
   } catch {
     return buildDisconnectedPurchaseSummary(dateRange)
+  }
+}
+
+function buildDisconnectedHrSummary(
+  messageAr = 'لا توجد بيانات من Odoo عن الموظفين',
+): OdooLiveHrSummary {
+  return {
+    connected: false,
+    sourceMode: 'disconnected',
+    accessGranted: false,
+    noData: true,
+    messageAr,
+    odooCompanyId: null,
+    lastSyncAt: null,
+    isStale24h: false,
+    totals: {
+      activeEmployeesCount: 0,
+      departmentsCount: 0,
+      workLocationsCount: 0,
+    },
+    byDepartment: [],
+    byWorkLocation: [],
+  }
+}
+
+/**
+ * Shared live Odoo 17 helper querying `hr.employee` scoped by `company_id`
+ * with safe `check_access_rights('read', false)` verification via `executeOdooKw`.
+ */
+export async function fetchLiveOdooHrSummary(
+  referenceNowMs: number = Date.now(),
+): Promise<OdooLiveHrSummary> {
+  assertServerRuntime()
+  if (!isOdooLiveEnvConfigured()) {
+    return buildDisconnectedHrSummary()
+  }
+
+  if (hrSummaryCache && referenceNowMs - hrSummaryCache.fetchedAtMs < LIVE_SNAPSHOT_TTL_MS) {
+    return hrSummaryCache.summary
+  }
+
+  try {
+    const uid = await authenticateOdoo()
+    const userCompanyRows = await safeSubQuery(
+      () =>
+        executeOdooKw<{ id: number; company_id?: M2O }[]>(
+          'res.users',
+          'read',
+          [[uid], ['id', 'company_id']],
+        ),
+      [],
+    )
+    const resolvedCompanyId = m2oId(userCompanyRows?.[0]?.company_id) ?? null
+
+    const hasAccess = await safeSubQuery(
+      () =>
+        executeOdooKw<boolean>(
+          'hr.employee',
+          'check_access_rights',
+          ['read', false],
+        ),
+      false,
+    )
+
+    if (!hasAccess) {
+      const fetchedAtMs = Date.now()
+      const summary: OdooLiveHrSummary = {
+        connected: true,
+        sourceMode: 'odoo17-live',
+        accessGranted: false,
+        noData: true,
+        messageAr: 'لا تتوفر صلاحية قراءة hr.employee لحساب الربط الحالي في Odoo',
+        odooCompanyId: resolvedCompanyId,
+        lastSyncAt: formatUtcIsoFromMs(fetchedAtMs),
+        isStale24h: false,
+        totals: {
+          activeEmployeesCount: 0,
+          departmentsCount: 0,
+          workLocationsCount: 0,
+        },
+        byDepartment: [],
+        byWorkLocation: [],
+      }
+      hrSummaryCache = { fetchedAtMs, summary }
+      return summary
+    }
+
+    const fieldMap = await safeSubQuery(
+      () =>
+        executeOdooKw<Record<string, unknown>>(
+          'hr.employee',
+          'fields_get',
+          [['active', 'company_id', 'department_id', 'work_location_id']],
+          { attributes: ['type'] },
+        ),
+      {},
+    )
+    const hasCompanyField = Boolean(fieldMap && 'company_id' in fieldMap)
+    const hasActiveField = Boolean(fieldMap && 'active' in fieldMap)
+    const hasDeptField = Boolean(fieldMap && 'department_id' in fieldMap)
+    const hasLocField = Boolean(fieldMap && 'work_location_id' in fieldMap)
+
+    const domain: unknown[][] = [
+      ...(hasCompanyField && resolvedCompanyId !== null
+        ? [['company_id', '=', resolvedCompanyId]]
+        : []),
+      ...(hasActiveField ? [['active', '=', true]] : []),
+    ]
+
+    const fieldsToRead = [
+      'id',
+      'name',
+      ...(hasDeptField ? ['department_id'] : []),
+      ...(hasLocField ? ['work_location_id'] : []),
+    ]
+
+    const rows = await executeOdooKw<
+      {
+        id: number
+        name?: string
+        department_id?: M2O
+        work_location_id?: M2O
+      }[]
+    >('hr.employee', 'search_read', [domain], {
+      fields: fieldsToRead,
+      order: 'id asc',
+      limit: 2000,
+    })
+
+    const deptAgg = new Map<string, OdooLiveHrDepartmentRow>()
+    const locAgg = new Map<string, OdooLiveHrLocationRow>()
+    let activeEmployeesCount = 0
+
+    for (const emp of rows) {
+      const empName = (emp.name || '').trim()
+      const deptNameRaw = (m2oName(emp.department_id) ?? '').trim()
+      const locNameRaw = (m2oName(emp.work_location_id) ?? '').trim()
+      const combined = `${empName} ${deptNameRaw} ${locNameRaw}`
+      if (isExcludedOdooEntity(combined) || isDecommissionedWarehouseRecord(combined)) {
+        continue
+      }
+      activeEmployeesCount += 1
+
+      const dId = m2oId(emp.department_id)
+      const dName = deptNameRaw || 'بدون قسم محدد'
+      const dKey = dId !== null ? `id:${dId}` : `nm:${dName}`
+      const existingDept = deptAgg.get(dKey)
+      if (existingDept) {
+        existingDept.employeesCount += 1
+      } else {
+        deptAgg.set(dKey, {
+          departmentId: dId,
+          departmentName: dName,
+          employeesCount: 1,
+        })
+      }
+
+      if (hasLocField) {
+        const lId = m2oId(emp.work_location_id)
+        const lName = locNameRaw || 'بدون موقع محدد'
+        const lKey = lId !== null ? `id:${lId}` : `nm:${lName}`
+        const existingLoc = locAgg.get(lKey)
+        if (existingLoc) {
+          existingLoc.employeesCount += 1
+        } else {
+          locAgg.set(lKey, {
+            locationId: lId,
+            locationName: lName,
+            employeesCount: 1,
+          })
+        }
+      }
+    }
+
+    const byDepartment = [...deptAgg.values()].sort(
+      (a, b) => b.employeesCount - a.employeesCount || a.departmentName.localeCompare(b.departmentName),
+    )
+    const byWorkLocation = [...locAgg.values()].sort(
+      (a, b) => b.employeesCount - a.employeesCount || a.locationName.localeCompare(b.locationName),
+    )
+
+    const fetchedAtMs = Date.now()
+    const hasNoData = activeEmployeesCount <= 0
+    const summary: OdooLiveHrSummary = {
+      connected: true,
+      sourceMode: 'odoo17-live',
+      accessGranted: true,
+      noData: hasNoData,
+      ...(hasNoData ? { messageAr: 'لا توجد سجلات موظفين نشطة في hr.employee' } : {}),
+      odooCompanyId: resolvedCompanyId,
+      lastSyncAt: formatUtcIsoFromMs(fetchedAtMs),
+      isStale24h: false,
+      totals: {
+        activeEmployeesCount,
+        departmentsCount: byDepartment.filter((d) => d.departmentId !== null).length,
+        workLocationsCount: byWorkLocation.filter((l) => l.locationId !== null).length,
+      },
+      byDepartment,
+      byWorkLocation,
+    }
+
+    hrSummaryCache = { fetchedAtMs, summary }
+    return summary
+  } catch {
+    return buildDisconnectedHrSummary()
   }
 }

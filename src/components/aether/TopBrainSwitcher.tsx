@@ -342,7 +342,7 @@ export function BrainControlsInline() {
               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-slate-500 dark:text-slate-400">
                 <span>{isAr ? 'الأنماط التنفيذية المعتمدة' : 'Active Executive Modes'}</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
-                  {isAr ? 'جاهز' : 'Verified'}
+                  {isAr ? 'جاهز' : 'Active'}
                 </span>
               </div>
               <div className="space-y-1.5 text-[12px]">

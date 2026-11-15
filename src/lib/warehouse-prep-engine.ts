@@ -960,7 +960,7 @@ export function computeOrderPrepSlaSnapshot(
   return {
     unlinkedSource: true,
     messageAr: 'غير مربوط بمصدر',
-    messageEn: 'Not linked to a live KDS data source',
+    messageEn: 'Not linked to a KDS data source',
     filters,
     totalTickets: 0,
     avgPrepMinutes: 0,

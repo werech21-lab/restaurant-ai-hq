@@ -37,7 +37,7 @@ export default function AggregatorRadar(_props: AggregatorRadarProps) {
         titleAr="رادار حسابات القطاعات ومناطق التوصيل (Tgo / TMP)"
         titleEn="Aggregator Zone Accounts & Polygon Radar (Tgo / TMP)"
         reasonAr="حالة أفرع المناطق السكنية وحوادث إغلاق المضلع الجغرافي على منصات التوصيل غير مربوطة بواجهة برمجية رسمية."
-        reasonEn="Zone account statuses and delivery polygon restrictions across aggregator platforms are not connected to an official live source."
+        reasonEn="Zone account statuses and delivery polygon restrictions across aggregator platforms are not connected to an official data source."
       />
     </div>
   )

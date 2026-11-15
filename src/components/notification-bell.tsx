@@ -152,7 +152,7 @@ export function NotificationBell({
     const executive: UnifiedNotice[] = [
       {
         id: 'exec-radar',
-        title: en ? 'Aggregator radar live watch' : 'مراقبة رادار التوصيل الحية',
+        title: en ? 'Aggregator radar monitor' : 'تنبيه رادار التوصيل',
         body: en
           ? 'Forced Offline / TGO 17% detector is armed for all 6 brands • 7 branches • 8 channels.'
           : 'كاشف الإغلاق القسري وتحويل توصيل المنصة 17% مفعّل عبر 6 علامات تجارية • 7 فروع • 8 قنوات.',
@@ -252,14 +252,14 @@ export function NotificationBell({
           <div
             ref={panelRef}
             role="dialog"
-            aria-label={en ? 'Live Notifications Center' : 'مركز التنبيهات الفورية'}
+            aria-label={en ? 'Notifications Center' : 'مركز التنبيهات'}
             className="fixed z-[9999] w-96 max-w-[92vw] max-h-[min(32rem,calc(100vh-5rem))] overflow-hidden rounded-xl border border-emerald-500/30 bg-[#0f141d] shadow-2xl"
             style={{ top: coords.top, left: coords.left, width: coords.width, maxWidth: '92vw' }}
             dir={rtl ? 'rtl' : 'ltr'}
           >
             <div className="flex items-start justify-between gap-2 border-b border-white/10 px-4 py-3">
               <div>
-                <p className="text-sm font-black text-white">{en ? 'Live Notifications Center' : 'مركز التنبيهات الفورية'}</p>
+                <p className="text-sm font-black text-white">{en ? 'Notifications Center' : 'مركز التنبيهات'}</p>
                 <p className="text-xs text-gray-400">
                   {en ? `${unreadCount} unread · Dark Obsidian` : `${unreadCount} غير مقروء · Dark Obsidian`}
                 </p>
@@ -355,7 +355,7 @@ export function NotificationBell({
           })
         }}
         aria-expanded={open}
-        aria-label={en ? 'Live notifications' : 'التنبيهات الفورية'}
+        aria-label={en ? 'Notifications' : 'التنبيهات'}
       >
         <Bell size={18} />
         {badge > 0 ? (

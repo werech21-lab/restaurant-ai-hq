@@ -59,7 +59,7 @@ async function sendResendOrSmtpEmail(payload: {
     try {
       const fromAddr =
         (process.env.RESEND_FROM_EMAIL ?? '').trim() ||
-        `Aether BI Watchdog <${DEFAULT_ADMIN_ALERT_EMAIL}>`
+        `Aether BI Monitor <${DEFAULT_ADMIN_ALERT_EMAIL}>`
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -106,7 +106,7 @@ async function sendResendOrSmtpEmail(payload: {
       socketTimeout: WEBHOOK_TIMEOUT_MS,
     })
     await transporter.sendMail({
-      from: `"Aether BI Odoo Watchdog" <${smtpUser}>`,
+      from: `"Aether BI Odoo Monitor" <${smtpUser}>`,
       to: payload.to,
       subject: payload.subject,
       text: payload.text,
@@ -205,13 +205,13 @@ export async function dispatchAdminStalenessAlertIfNeeded(
   if (!input.dryRun) {
     const subject = `[Aether BI Admin Alert] Odoo 17 Sync >24h Stale (${input.hoursSinceLatestRecord}h)`
     const text = [
-      'Venture Foods — Aether BI System Administrator Staleness Watchdog',
+      'Venture Foods — Aether BI System Administrator Staleness Monitor',
       `Last record from Odoo: ${kwStamp} (${input.latestRecordAt})`,
       `Elapsed hours: ${input.hoursSinceLatestRecord}h (>24h threshold)`,
       `Triggered at: ${triggeredAtIso}`,
     ].join('\n')
     const html = `<div style="font-family:Inter,system-ui,sans-serif;padding:16px;color:#0f172a">
-      <h2 style="margin:0 0 8px;color:#065f46">Aether BI — Odoo 17 Staleness Watchdog (&gt;24h)</h2>
+      <h2 style="margin:0 0 8px;color:#065f46">Aether BI — Odoo 17 Staleness Alert (&gt;24h)</h2>
       <p style="margin:4px 0"><strong>Last record from Odoo:</strong> ${kwStamp}</p>
       <p style="margin:4px 0"><strong>Elapsed hours:</strong> ${input.hoursSinceLatestRecord}h</p>
       <p style="margin:4px 0"><strong>Recipient:</strong> ${recipient}</p>

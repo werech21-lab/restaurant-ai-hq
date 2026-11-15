@@ -4,19 +4,23 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
-import { JOURNEY_META } from '@/lib/full-journey-enterprise-brain'
 
-type SyncState = { status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'; summary?: OdooLiveSummary; message?: string }
+type SyncState = {
+  status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'
+  summary?: OdooLiveSummary
+  message?: string
+}
 
 const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v11'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
-const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const fmt = (n: number) =>
+  n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 
 /**
- * Live Odoo 17 Heartbeat Pill in the Single-Row Executive Command Bar.
- * Shows the exact Rolling 30-Day + Nov 2026 MTD window, runs a silent 6-hour background refresh check,
- * and allows 1-click manual pull from /api/odoo-sync.
+ * Odoo 17 Sync Pill in the Single-Row Executive Command Bar.
+ * Shows the synced 30-day calendar window, runs a silent 6-hour background refresh check,
+ * and allows 1-click manual pull from /api/erp/odoo-sync.
  */
 export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const [state, setState] = useState<SyncState>({ status: 'idle' })
@@ -27,7 +31,11 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       return silent ? prev : { ...prev, status: 'syncing' }
     })
     try {
-      const res = await fetch('/api/erp/odoo-sync', { cache: 'no-store', credentials: 'same-origin', headers: { accept: 'application/json' } })
+      const res = await fetch('/api/erp/odoo-sync', {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { accept: 'application/json' },
+      })
       if (res.status === 401) {
         if (!silent) setState({ status: 'unauthorized' })
         return
@@ -48,7 +56,6 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
     }
   }, [])
 
-  // Silent 6-hour background freshness check on mount + cross-component sync listener
   useEffect(() => {
     const onExternalSync = (ev: Event) => {
       const detail = (ev as CustomEvent<OdooLiveSummary>).detail
@@ -61,8 +68,7 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         (document.documentElement.dataset.auditor === 'true' ||
           document.documentElement.dataset.sessionRole === 'auditor')
       const last = Number(window.localStorage.getItem(LAST_SYNC_STORAGE_KEY) || '0')
-      const snapshotAgeMs = Date.now() - new Date(JOURNEY_META.syncedAt).getTime()
-      if (!isAuditorDom && (!last || Date.now() - last > SIX_HOURS_MS) && snapshotAgeMs > SIX_HOURS_MS) {
+      if (!isAuditorDom && (!last || Date.now() - last > SIX_HOURS_MS)) {
         const timer = window.setTimeout(() => {
           void sync(true)
         }, 1200)
@@ -81,9 +87,9 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const canonicalMonthWin = formatPeriodCalendarWindow('month', { liveSummary: s ?? null })
   const r30From = canonicalMonthWin.fromIso
   const r30To = canonicalMonthWin.toInclusiveIso
-  const mtdDays = s?.journeyPulse?.mtd?.days ?? 13
-  const mtdLabelAr = `نوفمبر 2026 (${mtdDays} يوماً)`
-  const mtdLabelEn = `Nov 2026 MTD (${mtdDays}d)`
+  const mtdDays = s?.journeyPulse?.mtd?.days ?? 0
+  const mtdSuffixAr = mtdDays > 0 ? ` + الشهر الجاري (${mtdDays} يوماً)` : ''
+  const mtdSuffixEn = mtdDays > 0 ? ` + MTD (${mtdDays}d)` : ''
 
   const label =
     state.status === 'syncing'
@@ -96,11 +102,11 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
           : 'Sign in to refresh'
         : state.status === 'error'
           ? isAr
-            ? 'آخر تحديث محفوظ · إعادة المحاولة'
-            : 'Saved Data · Retry'
+            ? 'تعذر الاتصال بأودو · إعادة المحاولة'
+            : 'Odoo Unreachable · Retry'
           : isAr
-            ? `أودو متصل · آخر 30 يوماً (${r30From} ← ${r30To}) + ${mtdLabelAr}`
-            : `Odoo Live · Last 30d (${r30From} → ${r30To}) + ${mtdLabelEn}`
+            ? `Odoo 17 · آخر 30 يوماً (${r30From} ← ${r30To})${mtdSuffixAr}`
+            : `Odoo 17 · Last 30d (${r30From} → ${r30To})${mtdSuffixEn}`
 
   const shortLabel =
     state.status === 'syncing'
@@ -108,19 +114,21 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         ? 'جارٍ التحديث…'
         : 'Updating…'
       : isAr
-        ? 'أودو متصل · 30 يوماً + نوفمبر'
-        : 'Odoo Live · 30d + Nov'
+        ? 'Odoo 17 · آخر 30 يوماً'
+        : 'Odoo 17 · Last 30d'
 
   const title = s
     ? [
-        isAr ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to} + ${mtdLabelAr}` : `Last 30d: ${s.period.from} → ${s.period.to} + ${mtdLabelEn}`,
+        isAr
+          ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to}${mtdSuffixAr}`
+          : `Last 30d: ${s.period.from} → ${s.period.to}${mtdSuffixEn}`,
         isAr
           ? `صافي المبيعات: ${fmt(s.totals.netSalesKwd)} د.ك · ${s.totals.orders.toLocaleString('en-US')} طلب`
           : `Net sales: ${fmt(s.totals.netSalesKwd)} KWD · ${s.totals.orders.toLocaleString('en-US')} orders`,
       ].join('\n')
     : isAr
-      ? 'متصل بأودو — اضغط لتحديث الأرقام الآن'
-      : 'Connected to Odoo — click to refresh numbers now'
+      ? 'مزامنة Odoo 17 — اضغط لتحديث الأرقام الآن'
+      : 'Odoo 17 sync — click to refresh numbers now'
 
   return (
     <button
@@ -137,11 +145,23 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         <span className="relative flex h-2 w-2">
           <span
             className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
-            style={{ backgroundColor: state.status === 'error' || state.status === 'unauthorized' ? '#FBBF24' : '#10B981' }}
+            style={{
+              backgroundColor:
+                state.status === 'error' || state.status === 'unauthorized'
+                  ? '#FBBF24'
+                  : '#10B981',
+            }}
           />
           <span
             className="relative inline-flex h-2 w-2 rounded-full"
-            style={{ backgroundColor: state.status === 'error' ? '#E11D48' : state.status === 'unauthorized' ? '#D97706' : '#059669' }}
+            style={{
+              backgroundColor:
+                state.status === 'error'
+                  ? '#E11D48'
+                  : state.status === 'unauthorized'
+                    ? '#D97706'
+                    : '#059669',
+            }}
           />
         </span>
       )}

@@ -90,6 +90,14 @@ assert(
   !fs.existsSync(path.join(ROOT, 'src/components/aether/OdooAuditCertificateModal.tsx')),
   'Legacy fake OdooAuditCertificateModal.tsx permanently removed',
 )
+for (const snapRel of [
+  'src/lib/odoo-live-snapshot.json',
+  'src/lib/odoo/delivery-receipts-proof.json',
+  'src/lib/odoo/odoo-journey.json',
+  'src/lib/odoo/odoo-intel.json',
+]) {
+  assert(!fs.existsSync(path.join(ROOT, snapRel)), `Snapshot JSON ${snapRel} permanently deleted`)
+}
 
 const activeRuntimeFiles = [
   'src/lib/odoo-live-connector.ts',
@@ -201,7 +209,8 @@ import { askFeryalOdooAgent, FERYAL_COMPETITOR_REFUSAL, FERYAL_NO_ODOO_DATA_REPL
       planDisc.odooConnected === false &&
       planDisc.noData === true,
     feryalHonestyOk:
-      feryalDisc.reply === FERYAL_NO_ODOO_DATA_REPLY &&
+      feryalDisc.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY) &&
+      feryalDisc.verifier.valid === true &&
       feryalComp.reply === FERYAL_COMPETITOR_REFUSAL &&
       feryalComp.reply === 'لا أعرف',
   }));

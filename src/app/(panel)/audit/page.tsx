@@ -10,7 +10,7 @@ import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { listAudit } from "@/services/report.service";
 
-export const metadata = { title: "Audit Log | AetherBI ERP" };
+export const metadata = { title: "System Activity Log | AetherBI ERP" };
 
 async function AuditContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
@@ -26,13 +26,13 @@ async function AuditContent({ searchParams }: { searchParams: Promise<RawQuery> 
   return (
     <div>
       <PageHeader
-        title={tx(locale, "سجل الرقابة", "Audit log")}
+        title={tx(locale, "سجل العمليات والاستعلامات", "System Activity Log")}
         description={tx(
           locale,
           "كل عملية ينفذها الموظفون: إنشاء وتعديل وحذف وفواتير وسندات.",
           "Every action by staff: create, update, delete, invoices, and vouchers.",
         )}
-        actions={<ExportCsvButton kind="audit" filename="audit.csv" />}
+        actions={<ExportCsvButton kind="audit" filename="activity-log.csv" />}
       />
       <DataCard>
         <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4">
@@ -104,7 +104,7 @@ async function AuditContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function AuditPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <Suspense fallback={<PageSkeleton title="Audit" />}>
+    <Suspense fallback={<PageSkeleton title="Activity Log" />}>
       <AuditContent searchParams={searchParams} />
     </Suspense>
   );

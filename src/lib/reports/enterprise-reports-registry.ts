@@ -639,7 +639,7 @@ export function buildLiveEnterpriseDepartments(
       icon: '🔌',
       accentColor: '#64748b',
       descriptionAr: 'تقارير الموارد البشرية وسلامة الغذاء والأسطول والعهد النثرية غير مربوطة بمصدر بيانات مباشر.',
-      descriptionEn: 'HR, food-safety sensors, fleet telemetry, and petty cash custodian sheets are not connected to a live source.',
+      descriptionEn: 'HR, food-safety sensors, fleet telemetry, and petty cash custodian sheets are not connected to a data source.',
       reports: [
         {
           id: 'hr-payroll-unlinked',
@@ -648,8 +648,8 @@ export function buildLiveEnterpriseDepartments(
           titleEn: 'HR, Payroll & Residency Reports',
           code: 'VF-HR-01',
           sourceState: 'unlinked',
-          unlinkedReasonAr: 'بيانات مسيرات الرواتب والإقامات غير مربوطة باستعلام حي من Odoo HR.',
-          unlinkedReasonEn: 'Payroll runs and residency records are not connected to a live Odoo HR query.',
+          unlinkedReasonAr: 'بيانات مسيرات الرواتب والإقامات غير مربوطة باستعلام من Odoo HR.',
+          unlinkedReasonEn: 'Payroll runs and residency records are not connected to an Odoo HR query.',
           summaryAr: 'غير مربوط بمصدر',
           summaryEn: 'Not linked to a source',
           headlineMetricAr: 'غير مربوط بمصدر',
@@ -671,7 +671,7 @@ export function buildLiveEnterpriseDepartments(
           code: 'VF-OPS-01',
           sourceState: 'unlinked',
           unlinkedReasonAr: 'حساسات درجات الحرارة وزمن السائقين وتكاليف المركبات غير مربوطة بمصدر بيانات خارجي أو Odoo.',
-          unlinkedReasonEn: 'IoT temperature sensors, rider SLA telemetry, and vehicle logs are not connected to a live source.',
+          unlinkedReasonEn: 'IoT temperature sensors, rider SLA telemetry, and vehicle logs are not connected to a data source.',
           summaryAr: 'غير مربوط بمصدر',
           summaryEn: 'Not linked to a source',
           headlineMetricAr: 'غير مربوط بمصدر',

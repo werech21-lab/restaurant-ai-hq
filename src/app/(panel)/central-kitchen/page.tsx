@@ -53,8 +53,8 @@ async function CentralKitchenContent() {
           <p className="mt-2 text-sm text-mist-400">
             {tx(
               locale,
-              'تذاكر التحضير الحية واتفاقيات مستوى الخدمة للفروع.',
-              'Live prep tickets and SLA tracking across branches.',
+              'تذاكر التحضير واتفاقيات مستوى الخدمة للفروع.',
+              'Prep tickets and SLA tracking across branches.',
             )}
           </p>
           <Link href="/kds" className={`${btnGhost} mt-4`}>
@@ -86,8 +86,8 @@ async function CentralKitchenContent() {
           <p className="mt-2 text-sm text-mist-400">
             {tx(
               locale,
-              'ساعات صلاحية HACCP لتحضيرات PP03* ومواد RW01*، عدّاد FEFO حي، وملصقات Brother DK-2205.',
-              'HACCP shelf-life hours for PP03* preps and RW01* raw items, live FEFO countdown, and Brother DK-2205 labels.',
+              'ساعات صلاحية HACCP لتحضيرات PP03* ومواد RW01*، عدّاد FEFO، وملصقات Brother DK-2205.',
+              'HACCP shelf-life hours for PP03* preps and RW01* raw items, FEFO countdown, and Brother DK-2205 labels.',
             )}
           </p>
           <Link href="/erp/food-safety" className={`${btnPrimary} mt-4`}>

@@ -15,7 +15,7 @@ export default function VentureEventsHub() {
         titleAr="إدارة المعارض والفعاليات والمخيمات المؤقتة"
         titleEn="Exhibitions, Camps & Special Events Management"
         reasonAr="مشاريع الفعاليات وعقود البوثات المؤقتة وقوائم المعدات غير مربوطة بمراكز تكلفة منفصلة في Odoo."
-        reasonEn="Temporary exhibition contracts, booth fit-out rosters, and camp operations are not connected to dedicated live cost centers in Odoo."
+        reasonEn="Temporary exhibition contracts, booth fit-out rosters, and camp operations are not connected to dedicated cost centers in Odoo."
       />
     </div>
   )

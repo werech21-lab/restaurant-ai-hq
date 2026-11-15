@@ -180,7 +180,7 @@ export function AdminExecutiveDirectoryCard({
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
               ? 'مصفوفة العزل الأمني المعتمدة لشركة فنتشر فودز (المالك/مسؤول النظام، المدير العام، نائبه، مدير العمليات، المدير المالي، مسؤول التسويق، مدير المطبخ المركزي والإمداد، والمراجع الخارجي).'
-              : 'Verified RBAC access matrix across all 8 Venture Foods corporate roles with strict route & API isolation.'}
+              : 'RBAC access matrix across all 8 Venture Foods corporate roles with strict route & API isolation.'}
           </p>
         </div>
 

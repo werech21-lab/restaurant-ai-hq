@@ -117,7 +117,7 @@ export function FeryalMediaPickerButton({
         type="button"
         disabled={disabled || processing}
         onClick={() => cameraRef.current?.click()}
-        title={isAr ? 'التقاط مباشر بالكاميرا (طبق / مطبخ / فاتورة)' : 'Live Camera Capture'}
+        title={isAr ? 'التقاط بالكاميرا (طبق / مطبخ / فاتورة)' : 'Camera Capture'}
         aria-label={isAr ? 'التقاط بالكاميرا' : 'Capture with camera'}
         className={`inline-flex ${hCls} w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[#F6F7F8] text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
       >

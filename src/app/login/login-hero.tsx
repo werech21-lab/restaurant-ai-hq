@@ -132,7 +132,7 @@ export function LoginHero() {
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden />
-              <span>{isAr ? 'الرقابة المالية ومطابقة أودو 17' : 'Odoo 17 Ledger & POS Audit'}</span>
+              <span>{isAr ? 'الرقابة المالية ومطابقة أودو 17' : 'Odoo 17 Ledger & POS Reconciliation'}</span>
             </div>
             <p className="mt-1.5 text-xs font-semibold leading-relaxed text-slate-200">
               {isAr

@@ -96,7 +96,7 @@ async function ProfitReport({
   if (monthSales.total === 0 && allSales.total === 0) {
     return (
       <div className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-6 text-center text-sm text-slate-300">
-        {tx(locale, "لا توجد بيانات مسجلة في الجداول المحلية لهذه الفترة — راجع تقارير Odoo الحية أعلاه.", "No local database entries recorded for this period — refer to the live Odoo reports above.")}
+        {tx(locale, "لا توجد بيانات مسجلة في الجداول المحلية لهذه الفترة — راجع تقارير Odoo 17 أعلاه.", "No local database entries recorded for this period — refer to the Odoo 17 reports above.")}
       </div>
     );
   }
@@ -332,7 +332,7 @@ async function DebtReport({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                    {tx(locale, "لا توجد أرصدة محلية مسجلة — راجع تقرير الذمم المدينة الحي من Odoo أعلاه.", "No local balances recorded — refer to the live Odoo receivables report above.")}
+                    {tx(locale, "لا توجد أرصدة محلية مسجلة — راجع تقرير الذمم المدينة من Odoo 17 أعلاه.", "No local balances recorded — refer to the Odoo 17 receivables report above.")}
                   </td>
                 </tr>
               ) : (

@@ -470,7 +470,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
           <div className="mb-2 flex items-center justify-between text-sm">
             <span className="font-semibold text-mist-100">
-              {label('التقدم اللحظي', 'Live progress')}
+              {label('حالة التقدم', 'Upload progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف مؤقتاً', 'paused')}` : ''}
             </span>
