@@ -12,9 +12,11 @@
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import { getKuwaitTodayIso } from '@/lib/aether/period-delta'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
+  formatInclusiveIsoRangeLabels,
   getBranchLabel,
   getBrandLabel,
   type GlobalBranch,
@@ -1814,31 +1816,43 @@ function buildHourlyCurveForDow(
 
 export function computeWeekdayComparisonData(
   workspace: GlobalWorkspaceSlice,
+  liveSummary?: OdooLiveSummary | null,
 ): WeekdayComparisonData {
-  const rawDaily: readonly {
-    readonly day: string
-    readonly orders: number
-    readonly netKwd: number
-  }[] = ODOO.timeProfile?.daily ?? []
-
-  // Exclude trailing incomplete current day ('2026-11-14' partial capture & Kuwait today) by default
   const kwTodayIso = getKuwaitTodayIso()
-  const completed = rawDaily
-    .filter((d) => d.orders >= 100 && d.day < '2026-11-14' && d.day < kwTodayIso)
+  const dayMap = new Map<string, { day: string; orders: number; netKwd: number }>()
+  for (const d of ODOO.timeProfile?.daily ?? []) {
+    if (d.orders >= 100 && d.day < kwTodayIso) {
+      dayMap.set(d.day, { day: d.day, orders: d.orders, netKwd: d.netKwd })
+    }
+  }
+  for (const d of liveSummary?.dailySeries ?? []) {
+    if (d.orders >= 50 && d.netKwd > 0 && d.day < kwTodayIso) {
+      dayMap.set(d.day, { day: d.day, orders: d.orders, netKwd: d.netKwd })
+    }
+  }
+
+  // Exclude current incomplete day (`kwTodayIso`) by default while keeping completed days (e.g. `14/11` on `15/11`)
+  const completed = [...dayMap.values()]
+    .sort((a, b) => a.day.localeCompare(b.day))
     .map((d) => {
       const p = parseDateUtc(d.day)
       return { ...d, dow: p.dow, dayOfMonth: p.dayOfMonth }
     })
 
   const last28 = completed.slice(-28)
-  const prevWeek = last28.slice(14, 21) // 2026-10-28 .. 2026-11-03
-  const currWeek = last28.slice(21, 28) // 2026-11-04 .. 2026-11-10
+  const prevWeek = last28.slice(14, 21)
+  const currWeek = last28.slice(21, 28)
 
   const dimScale =
     Number.isFinite(workspace.dimensionShare) && workspace.dimensionShare > 0
       ? workspace.dimensionShare
       : 1
-  const pocketMarginRatio = Math.max(0.03, (workspace.weightedNetPct || 14.7) / 100)
+  const pocketMarginRatio =
+    workspace.accounting?.available &&
+    workspace.accounting.completeAccrualPosted &&
+    workspace.accounting.netProfitPct !== null
+      ? Math.max(0, workspace.accounting.netProfitPct / 100)
+      : 0
   // Gross sales before ~4.2% average POS promo/discount allowance
   const grossFactor = 1.042
 
@@ -1985,11 +1999,20 @@ export function computeWeekdayComparisonData(
   const strongestDay = [...rows].sort((a, b) => b.variancePct - a.variancePct)[0] ?? rows[0]
   const weakestDay = [...rows].sort((a, b) => a.variancePct - b.variancePct)[0] ?? rows[0]
 
+  const currRangeLabels =
+    currWeek.length > 0
+      ? formatInclusiveIsoRangeLabels(currWeek[0].day, currWeek[currWeek.length - 1].day)
+      : { labelAr: '٨ نوفمبر – ١٤ نوفمبر ٢٠٢٦', labelEn: 'Nov 8 – Nov 14, 2026' }
+  const prevRangeLabels =
+    prevWeek.length > 0
+      ? formatInclusiveIsoRangeLabels(prevWeek[0].day, prevWeek[prevWeek.length - 1].day)
+      : { labelAr: '١ نوفمبر – ٧ نوفمبر ٢٠٢٦', labelEn: 'Nov 1 – Nov 7, 2026' }
+
   return {
-    thisWeekLabelAr: '٤ نوفمبر – ١٠ نوفمبر ٢٠٢٦',
-    lastWeekLabelAr: '٢٨ أكتوبر – ٣ نوفمبر ٢٠٢٦',
-    thisWeekLabelEn: 'Nov 4 – Nov 10, 2026',
-    lastWeekLabelEn: 'Oct 28 – Nov 3, 2026',
+    thisWeekLabelAr: currRangeLabels.labelAr,
+    lastWeekLabelAr: prevRangeLabels.labelAr,
+    thisWeekLabelEn: currRangeLabels.labelEn,
+    lastWeekLabelEn: prevRangeLabels.labelEn,
     rows,
     totalThisGrossKwd,
     totalLastGrossKwd,

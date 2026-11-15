@@ -49,11 +49,20 @@ import {
   type OdooExpenseSheetReport,
 } from '@/lib/accounting/odoo-real-expenses-data'
 
+import {
+  mapAuditorCustodianDisplay,
+  redactAuditorPersonalNames,
+} from '@/lib/accounting/auditor-redaction'
+
 export function VentureAccountingHub({
   locale = 'ar',
+  isAuditor = false,
+  embeddedInErp = false,
   liveChildren,
 }: {
   locale?: 'ar' | 'en'
+  isAuditor?: boolean
+  embeddedInErp?: boolean
   liveChildren?: React.ReactNode
 }) {
   let ctxLocale: 'ar' | 'en' | null = null
@@ -166,8 +175,8 @@ export function VentureAccountingHub({
       titleEn: payload.titleEn,
       descriptionAr: payload.titleAr,
       descriptionEn: payload.titleEn,
-      costCenterAr: 'الفروع الـ 9 والمطبخ المركزي',
-      costCenterEn: '9 Branches & Central Kitchen',
+      costCenterAr: 'الفروع الـ 7 والمطبخ المركزي',
+      costCenterEn: '7 Branches & Central Kitchen',
       brandAr: 'البراندات الـ 6 الرسمية',
       brandEn: '6 Official Brands',
       amountKwd: payload.amountKwd,
@@ -294,9 +303,15 @@ export function VentureAccountingHub({
               {isAr ? 'فنتشر فودز ذ.م.م. (820 حساباً بأودو)' : 'Venture Foods W.L.L. (820 Odoo Accounts)'}
             </span>
           </div>
-          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
-            {isAr ? 'مركز القيادة المالي ومراكز تكلفة البراندات والفروع' : 'Financial Command Center & Multi-Brand P&L'}
-          </h1>
+          {embeddedInErp ? (
+            <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">
+              {isAr ? 'مركز القيادة المالي ومراكز تكلفة البراندات والفروع' : 'Financial Command Center & Multi-Brand P&L'}
+            </h2>
+          ) : (
+            <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">
+              {isAr ? 'مركز القيادة المالي ومراكز تكلفة البراندات والفروع' : 'Financial Command Center & Multi-Brand P&L'}
+            </h1>
+          )}
           <p className="text-xs text-slate-400">
             {isAr
               ? 'ميزان المراجعة الموحد، تسويات بنك الكويت الوطني KNET، العهد النقدية، ومخصصات نهاية الخدمة'
@@ -305,13 +320,20 @@ export function VentureAccountingHub({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowNewEntryModal(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10"
-          >
-            <Plus size={15} />
-            {isAr ? 'قيد يومية جديد' : 'New Journal Entry'}
-          </button>
+          {!isAuditor ? (
+            <button
+              onClick={() => setShowNewEntryModal(true)}
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-black hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10"
+            >
+              <Plus size={15} />
+              {isAr ? 'قيد يومية جديد' : 'New Journal Entry'}
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-300">
+              <ShieldCheck size={15} />
+              {isAr ? 'وضع المراجع الخارجي · للقراءة فقط' : 'Read-Only Auditor Mode'}
+            </span>
+          )}
         </div>
       </div>
 
@@ -360,7 +382,7 @@ export function VentureAccountingHub({
               }`}
             >
               <Icon size={15} />
-              <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+              <span>{redactAuditorPersonalNames(isAr ? tab.labelAr : tab.labelEn, isAuditor)}</span>
             </button>
           )
         })}
@@ -370,7 +392,7 @@ export function VentureAccountingHub({
       {/* TAB 0: ODOO STATISTICAL ANALYZER & CUSTODY RADAR (PARETO 80/20)           */}
       {/* ========================================================================= */}
       {activeTab === 'odooAnalytics' && (
-        <OdooAccountingAnalyticsHub isAr={isAr} locale={currentLocale} />
+        <OdooAccountingAnalyticsHub isAr={isAr} locale={currentLocale} isAuditor={isAuditor} />
       )}
 
       {/* ========================================================================= */}
@@ -522,7 +544,16 @@ export function VentureAccountingHub({
           )
         })
 
-        const filteredCustodians = ODOO_CUSTODIANS_7.filter((cust) => {
+        const filteredCustodians = ODOO_CUSTODIANS_7.map((c, idx) => {
+          const mapped = mapAuditorCustodianDisplay(idx + 1, c.nameAr, c.nameEn, isAuditor)
+          return {
+            ...c,
+            nameAr: isAuditor ? mapped.nameAr : c.nameAr,
+            nameEn: isAuditor ? mapped.nameEn : c.nameEn,
+            roleAr: redactAuditorPersonalNames(c.roleAr, isAuditor),
+            roleEn: redactAuditorPersonalNames(c.roleEn, isAuditor),
+          }
+        }).filter((cust) => {
           if (!query) return true
           return (
             cust.nameAr.toLowerCase().includes(query) ||
@@ -533,7 +564,13 @@ export function VentureAccountingHub({
           )
         })
 
-        const filteredSanad = ODOO_SANAD_STATEMENT_DETAILS.filter((item) => {
+        const filteredSanad = ODOO_SANAD_STATEMENT_DETAILS.map((item) => ({
+          ...item,
+          employeeNameAr: isAuditor ? 'موظف تشغيلي مسجل' : item.employeeNameAr,
+          employeeNameEn: isAuditor ? 'Registered Staff' : item.employeeNameEn,
+          descAr: redactAuditorPersonalNames(item.descAr, isAuditor),
+          descEn: redactAuditorPersonalNames(item.descEn, isAuditor),
+        })).filter((item) => {
           if (!query) return true
           return (
             item.id.toLowerCase().includes(query) ||
@@ -550,7 +587,13 @@ export function VentureAccountingHub({
           )
         })
 
-        const filteredRabih = ODOO_RABIH_MAINTENANCE_DETAILS.filter((item) => {
+        const filteredRabih = ODOO_RABIH_MAINTENANCE_DETAILS.map((item) => ({
+          ...item,
+          custodianAr: redactAuditorPersonalNames(item.custodianAr, isAuditor),
+          custodianEn: redactAuditorPersonalNames(item.custodianEn, isAuditor),
+          descAr: redactAuditorPersonalNames(item.descAr, isAuditor),
+          descEn: redactAuditorPersonalNames(item.descEn, isAuditor),
+        })).filter((item) => {
           if (!query) return true
           return (
             item.id.toLowerCase().includes(query) ||
@@ -564,7 +607,15 @@ export function VentureAccountingHub({
           )
         })
 
-        const filteredTopLicenses = ODOO_TOP_SANAD_LICENSES_TRANSACTIONS.filter((item) => {
+        const filteredTopLicenses = ODOO_TOP_SANAD_LICENSES_TRANSACTIONS.map((item) => ({
+          ...item,
+          beneficiaryAr: redactAuditorPersonalNames(item.beneficiaryAr, isAuditor),
+          beneficiaryEn: redactAuditorPersonalNames(item.beneficiaryEn, isAuditor),
+          custodianAr: redactAuditorPersonalNames(item.custodianAr, isAuditor),
+          custodianEn: redactAuditorPersonalNames(item.custodianEn, isAuditor),
+          descAr: redactAuditorPersonalNames(item.descAr, isAuditor),
+          descEn: redactAuditorPersonalNames(item.descEn, isAuditor),
+        })).filter((item) => {
           if (!query) return true
           return (
             item.id.toLowerCase().includes(query) ||
@@ -581,7 +632,15 @@ export function VentureAccountingHub({
           )
         })
 
-        const filteredExpenseSheets = expenseSheetReports.filter((sheet) => {
+        const filteredExpenseSheets = expenseSheetReports.map((sheet) => ({
+          ...sheet,
+          custodianNameAr: redactAuditorPersonalNames(sheet.custodianNameAr, isAuditor),
+          custodianNameEn: redactAuditorPersonalNames(sheet.custodianNameEn, isAuditor),
+          titleAr: redactAuditorPersonalNames(sheet.titleAr, isAuditor),
+          titleEn: redactAuditorPersonalNames(sheet.titleEn, isAuditor),
+          descriptionAr: redactAuditorPersonalNames(sheet.descriptionAr, isAuditor),
+          descriptionEn: redactAuditorPersonalNames(sheet.descriptionEn, isAuditor),
+        })).filter((sheet) => {
           if (selectedExpenseCustodian !== 'ALL' && sheet.custodianId !== selectedExpenseCustodian) {
             return false
           }
@@ -617,9 +676,12 @@ export function VentureAccountingHub({
                   </span>
                 </div>
                 <h3 className="mt-1 text-xl font-black text-white">
-                  {isAr
-                    ? 'أعمال التعقيب الحكومي وكشوف مصروفات (سند) والعهد التشغيلية والصيانة'
-                    : 'PRO Government Clearance, Sanad Statement & Operational Custody Hub'}
+                  {redactAuditorPersonalNames(
+                    isAr
+                      ? 'أعمال التعقيب الحكومي وكشوف مصروفات (سند) والعهد التشغيلية والصيانة'
+                      : 'PRO Government Clearance, Sanad Statement & Operational Custody Hub',
+                    isAuditor,
+                  )}
                 </h3>
                 <p className="text-xs text-slate-400">
                   {isAr
@@ -654,7 +716,7 @@ export function VentureAccountingHub({
 
               <div className="rounded-2xl border border-blue-500/30 bg-blue-950/20 p-4 space-y-1">
                 <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
-                  {isAr ? 'كشوفات (سند) للتعقيب والإقامات' : 'Sanad PRO Clearance'}
+                  {redactAuditorPersonalNames(isAr ? 'كشوفات (سند) للتعقيب والإقامات' : 'Sanad PRO Clearance', isAuditor)}
                 </span>
                 <p className="text-xl font-black text-white font-mono">31,646.750 {isAr ? 'د.ك' : 'KWD'}</p>
                 <div className="flex items-center justify-between text-xs text-slate-400">
@@ -665,7 +727,7 @@ export function VentureAccountingHub({
 
               <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 space-y-1">
                 <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">
-                  {isAr ? 'صيانة المطابخ والفروع (ربيع طه)' : 'Kitchen Maintenance (Rabih)'}
+                  {redactAuditorPersonalNames(isAr ? 'صيانة المطابخ والفروع (ربيع طه)' : 'Kitchen Maintenance (Rabih)', isAuditor)}
                 </span>
                 <p className="text-xl font-black text-white font-mono">10,899.720 {isAr ? 'د.ك' : 'KWD'}</p>
                 <div className="flex items-center justify-between text-xs text-slate-400">
@@ -676,7 +738,7 @@ export function VentureAccountingHub({
 
               <div className="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-4 space-y-1">
                 <span className="text-xs font-bold text-purple-400 uppercase tracking-wider">
-                  {isAr ? 'الموارد البشرية والإدارية (شيام)' : 'HR & Admin (Shyam)'}
+                  {redactAuditorPersonalNames(isAr ? 'الموارد البشرية والإدارية (شيام)' : 'HR & Admin (Shyam)', isAuditor)}
                 </span>
                 <p className="text-xl font-black text-white font-mono">7,053.980 {isAr ? 'د.ك' : 'KWD'}</p>
                 <div className="flex items-center justify-between text-xs text-slate-400">
@@ -687,7 +749,7 @@ export function VentureAccountingHub({
 
               <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-4 space-y-1 col-span-2 sm:col-span-1">
                 <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">
-                  {isAr ? 'المرور والتراخيص والمطافئ (أمجد)' : 'Traffic & Licensing (Amjad)'}
+                  {redactAuditorPersonalNames(isAr ? 'المرور والتراخيص والمطافئ (أمجد)' : 'Traffic & Licensing (Amjad)', isAuditor)}
                 </span>
                 <p className="text-xl font-black text-white font-mono">1,389.000 {isAr ? 'د.ك' : 'KWD'}</p>
                 <div className="flex items-center justify-between text-xs text-slate-400">
@@ -749,7 +811,7 @@ export function VentureAccountingHub({
                           : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-slate-800'
                       }`}
                     >
-                      <span>{isAr ? st.labelAr : st.labelEn}</span>
+                      <span>{redactAuditorPersonalNames(isAr ? st.labelAr : st.labelEn, isAuditor)}</span>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-mono ${
                         active ? 'bg-slate-300 text-black' : 'bg-slate-800 text-slate-400'
                       }`}>
@@ -927,7 +989,7 @@ export function VentureAccountingHub({
                               >
                                 <div className="flex items-center justify-between w-full">
                                   <span className="font-black text-white text-xs truncate">
-                                    {isAr ? cust.nameAr : cust.nameEn}
+                                    {redactAuditorPersonalNames(isAr ? cust.nameAr : cust.nameEn, isAuditor)}
                                   </span>
                                   <span
                                     className={`rounded px-1.5 py-0.5 text-xs font-mono shrink-0 font-bold ${
@@ -957,81 +1019,83 @@ export function VentureAccountingHub({
                     {/* MAIN CONTENT AREA: BATCH PAYMENT ACTION BAR & TABLE */}
                     <div className="flex-1 w-full space-y-4">
                       {/* Top Action & Batch Cheque Issuance Bar */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0d131f] p-4 rounded-2xl border border-slate-800">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={handleSelectAll}
-                            className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700"
-                          >
-                            {isAllSelected
-                              ? isAr
-                                ? 'إلغاء تحديد الكل'
-                                : 'Deselect All'
-                              : isAr
-                              ? `تحديد المعتمد للصرف (${eligibleForPayment.length})`
-                              : `Select All Approved (${eligibleForPayment.length})`}
-                          </button>
+                      {!isAuditor ? (
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0d131f] p-4 rounded-2xl border border-slate-800">
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={handleSelectAll}
+                              className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-bold text-slate-200 hover:bg-slate-700"
+                            >
+                              {isAllSelected
+                                ? isAr
+                                  ? 'إلغاء تحديد الكل'
+                                  : 'Deselect All'
+                                : isAr
+                                ? `تحديد المعتمد للصرف (${eligibleForPayment.length})`
+                                : `Select All Approved (${eligibleForPayment.length})`}
+                            </button>
 
-                          {selectedSheetIds.length > 0 && (
-                            <span className="text-xs text-amber-300 font-bold">
-                              {isAr
-                                ? `تم تحديد ${selectedSheetIds.length} تقارير بقيمة ${filteredExpenseSheets
-                                    .filter((s) => selectedSheetIds.includes(s.id))
-                                    .reduce((acc, s) => acc + s.amountKwd, 0)
-                                    .toFixed(3)} د.ك`
-                                : `Selected ${selectedSheetIds.length} reports (${filteredExpenseSheets
-                                    .filter((s) => selectedSheetIds.includes(s.id))
-                                    .reduce((acc, s) => acc + s.amountKwd, 0)
-                                    .toFixed(3)} KWD)`}
-                            </span>
-                          )}
+                            {selectedSheetIds.length > 0 && (
+                              <span className="text-xs text-amber-300 font-bold">
+                                {isAr
+                                  ? `تم تحديد ${selectedSheetIds.length} تقارير بقيمة ${filteredExpenseSheets
+                                      .filter((s) => selectedSheetIds.includes(s.id))
+                                      .reduce((acc, s) => acc + s.amountKwd, 0)
+                                      .toFixed(3)} د.ك`
+                                  : `Selected ${selectedSheetIds.length} reports (${filteredExpenseSheets
+                                      .filter((s) => selectedSheetIds.includes(s.id))
+                                      .reduce((acc, s) => acc + s.amountKwd, 0)
+                                      .toFixed(3)} KWD)`}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            {/* Button 1: New Single Expense */}
+                            <button
+                              type="button"
+                              onClick={() => setShowSingleExpenseModal(true)}
+                              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-400 hover:bg-emerald-500/20 shadow-sm transition-all"
+                            >
+                              <Plus size={14} />
+                              <span>{isAr ? '➕ تسجيل مصروف فردي جديد' : '➕ New Single Expense'}</span>
+                            </button>
+
+                            {/* Button 2: New Expense Report Sheet */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSheetForModal(null)
+                                setShowExpenseSheetModal(true)
+                              }}
+                              className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-black text-amber-300 hover:bg-amber-500/20 shadow-sm transition-all"
+                            >
+                              <FileSpreadsheet size={14} />
+                              <span>{isAr ? '📑 إنشاء تقرير كشف مجمع' : '📑 New Expense Report Sheet'}</span>
+                            </button>
+
+                            {/* Batch Cheque Issuance Trigger Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedSheetIds.length === 0 && eligibleForPayment.length > 0) {
+                                  setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
+                                }
+                                setShowChequeModal(true)
+                              }}
+                              className="flex items-center gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:brightness-110 transition-all"
+                            >
+                              <CreditCard size={15} />
+                              <span>
+                                {isAr
+                                  ? `🏦 إصدار شيك سداد للتقارير المعتمدة`
+                                  : `🏦 Issue Payment Cheque for Approved Reports`}
+                              </span>
+                            </button>
+                          </div>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          {/* Button 1: New Single Expense */}
-                          <button
-                            type="button"
-                            onClick={() => setShowSingleExpenseModal(true)}
-                            className="flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-2 text-xs font-black text-emerald-400 hover:bg-emerald-500/20 shadow-sm transition-all"
-                          >
-                            <Plus size={14} />
-                            <span>{isAr ? '➕ تسجيل مصروف فردي جديد' : '➕ New Single Expense'}</span>
-                          </button>
-
-                          {/* Button 2: New Expense Report Sheet */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSheetForModal(null)
-                              setShowExpenseSheetModal(true)
-                            }}
-                            className="flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2 text-xs font-black text-amber-300 hover:bg-amber-500/20 shadow-sm transition-all"
-                          >
-                            <FileSpreadsheet size={14} />
-                            <span>{isAr ? '📑 إنشاء تقرير كشف مجمع' : '📑 New Expense Report Sheet'}</span>
-                          </button>
-
-                          {/* Batch Cheque Issuance Trigger Button */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (selectedSheetIds.length === 0 && eligibleForPayment.length > 0) {
-                                setSelectedSheetIds(eligibleForPayment.map((s) => s.id))
-                              }
-                              setShowChequeModal(true)
-                            }}
-                            className="flex items-center gap-2 rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:brightness-110 transition-all"
-                          >
-                            <CreditCard size={15} />
-                            <span>
-                              {isAr
-                                ? `🏦 إصدار شيك سداد للتقارير المعتمدة`
-                                : `🏦 Issue Payment Cheque for Approved Reports`}
-                            </span>
-                          </button>
-                        </div>
-                      </div>
+                      ) : null}
 
                       {/* Expense Reports Sheet Table */}
                       <div className="rounded-2xl border border-slate-800 bg-[#0d131f] overflow-hidden shadow-xl">
@@ -1164,7 +1228,7 @@ export function VentureAccountingHub({
                                             <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
                                             {isAr ? '🔴 غير مدفوع — بانتظار إصدار الشيك' : 'Not Paid — Pending Cheque'}
                                           </span>
-                                          {isApproved && (
+                                          {isApproved && !isAuditor && (
                                             <button
                                               type="button"
                                               onClick={() => {
@@ -1847,7 +1911,7 @@ export function VentureAccountingHub({
                       <td className="px-4 py-3 font-semibold text-white">{row.desc}</td>
                       <td className="px-4 py-3 font-mono text-emerald-400 font-bold text-right">{row.dr}</td>
                       <td className="px-4 py-3 font-mono text-amber-300 font-bold text-right">{row.cr}</td>
-                      <td className="px-4 py-3 text-center text-xs text-slate-400">{row.auditor}</td>
+                      <td className="px-4 py-3 text-center text-xs text-slate-400">{redactAuditorPersonalNames(row.auditor, isAuditor)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1890,7 +1954,7 @@ export function VentureAccountingHub({
                     { code: '101200', name: 'البنك التجاري الكويتي (CBK - Payroll WPS)', cls: 'أصول نقدية', dr: '48,600.000', cr: '0.000', bal: '48,600.000' },
                     { code: '102000', name: 'عهد وصناديق الفروع النقدية (Branch Petty Cash)', cls: 'نقدية فروع', dr: '7,500.000', cr: '0.000', bal: '7,500.000' },
                     { code: '105000', name: 'مخزون المواد الغذائية والتعبئة والمطبخ المركزي', cls: 'مخزون متداول', dr: '124,500.000', cr: '0.000', bal: '124,500.000' },
-                    { code: '106000', name: 'مدينو منصات التوصيل (طلبات، جاهز، دليفرو، كيتا)', cls: 'عملاء ومدينون', dr: '28,450.000', cr: '0.000', bal: '28,450.000' },
+                    { code: '106000', name: 'مدينو منصات التوصيل والعملاء (أودو account.move.line)', cls: 'عملاء ومدينون', dr: '3,776.700', cr: '2,593.492', bal: '1,183.208' },
                     { code: '201000', name: 'موردو المواد الخام واللحوم والخضار (Payables)', cls: 'خصوم متداولة', dr: '0.000', cr: '68,420.000', bal: '-68,420.000' },
                     { code: '202000', name: 'مستحقات رواتب العاملين ومسير WPS', cls: 'خصوم متداولة', dr: '0.000', cr: '48,250.000', bal: '-48,250.000' },
                     { code: '203000', name: 'مخصص مكافأة نهاية الخدمة (EOSB Provision)', cls: 'مخصصات التزامات', dr: '0.000', cr: '25,640.000', bal: '-25,640.000' },
@@ -2392,7 +2456,7 @@ export function VentureAccountingHub({
                       </td>
                       <td className="px-3 py-3 font-mono text-sky-400">{fine.plate}</td>
                       <td className="px-3 py-3 text-slate-300">{fine.desc}</td>
-                      <td className="px-3 py-3 font-medium text-white">{fine.driver}</td>
+                      <td className="px-3 py-3 font-medium text-white">{redactAuditorPersonalNames(fine.driver, isAuditor)}</td>
                       <td className="px-3 py-3 text-end font-mono font-bold text-rose-400">{fine.fine.toFixed(3)} KWD</td>
                       <td className="px-3 py-3 text-center text-slate-300 font-medium">{fine.month}</td>
                       <td className="px-3 py-3 text-center">
@@ -2416,7 +2480,7 @@ export function VentureAccountingHub({
       )}
 
       {/* New Journal Entry Modal */}
-      {showNewEntryModal && (
+      {!isAuditor && showNewEntryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">

@@ -47,6 +47,11 @@ function buildNamedExecutiveUser(
     auditor: "usr_venture_auditor_001",
   };
 
+  const auditorReadOnlyPermissions = [
+    { module: "accounting", canView: true, canCreate: false, canEdit: false, canDelete: false },
+    { module: "reports", canView: true, canCreate: false, canEdit: false, canDelete: false },
+  ];
+
   return {
     id: userIdMap[profile.role],
     name: profile.role === "auditor" ? profile.titleAr : profile.nameAr,
@@ -60,8 +65,8 @@ function buildNamedExecutiveUser(
     role: {
       id: roleIdMap[profile.role],
       name: profile.titleEn,
-      isAdmin: true,
-      permissions: [],
+      isAdmin: profile.role !== "auditor" && profile.role !== "marketing" && profile.role !== "supply",
+      permissions: profile.role === "auditor" ? auditorReadOnlyPermissions : [],
     },
   };
 }

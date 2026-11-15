@@ -7,7 +7,7 @@ import { ShieldCheck, Building2, Store, Users, Database, Layers, CheckCircle2, A
 
 export const metadata = {
   title: "الهيكل المؤسسي والترخيص | Venture Foods W.L.L.",
-  description: "الهيكل المؤسسي الرسمي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. - 6 مطاعم • 7 فروع • 8 قنوات، والمطبخ المركزي",
+  description: "الهيكل المؤسسي الرسمي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. - 6 علامات تجارية • 7 فروع • 8 قنوات، والمطبخ المركزي",
 };
 
 async function CorporateStructureContent() {
@@ -52,7 +52,7 @@ async function CorporateStructureContent() {
             <span className="text-xs font-semibold">العلامات التجارية</span>
             <Building2 size={18} className="text-amber-400" />
           </div>
-          <p className="mt-2 text-2xl font-black text-white">6 مطاعم</p>
+          <p className="mt-2 text-2xl font-black text-white">6 علامات تجارية</p>
           <p className="text-xs text-slate-400">مملوكة ومطورة داخلياً 100%</p>
         </div>
 

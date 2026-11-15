@@ -551,7 +551,7 @@ const ar = {
   'land.hero.trialCta': 'اطلب نسختك التجريبية',
   'land.hero.panelLabel': 'لوحة القيادة التنفيذية',
   'land.hero.bullet1': '6 أقسام أودو متكاملة',
-  'land.hero.bullet2': '6 مطاعم • 7 فروع • 8 قنوات',
+  'land.hero.bullet2': '6 علامات تجارية • 7 فروع • 8 قنوات',
   'land.hero.bullet3': 'محرك AI حتمي + بوابة حوكمة',
   'land.features.title': 'ماذا تقدّم المنظومة؟',
   'land.features.lead': 'ستة أقسام تشغيلية مترابطة مع حوكمة وإشعارات فورية للقرار.',
@@ -604,7 +604,7 @@ const ar = {
   'hr.contact.missing': 'بدون هاتف/بريد في السجل',
   'hr.pay.generateOct': 'توليد واعتماد مسير رواتب أكتوبر 2026',
   'hr.pay.branchPosted': 'تم ترحيل المسير إلى دفتر المالية حسب الفروع',
-  'fin.analytic.matrix': 'مصفوفة ربحية 6 مطاعم • 7 فروع',
+  'fin.analytic.matrix': 'مصفوفة ربحية 6 علامات تجارية • 7 فروع',
   'fin.analytic.revenue': 'الإيراد',
   'fin.analytic.foodCost': 'تكلفة الطعام (BOM)',
   'fin.analytic.payroll': 'رواتب الفرع',
@@ -4810,11 +4810,11 @@ const loginOverridesAr = {
   'login.submitting': 'جارٍ التحقق من الصلاحية…',
   'login.demo': '',
   'login.heroLead':
-    'المنصة التنفيذية الموحدة لشركة فنتشر فودز لإدارة المطاعم (6 مطاعم • 7 فروع • 8 قنوات) — الرقابة المالية، سلاسل الإمداد، ومنصات التوصيل بالدينار الكويتي.',
+    'المنصة التنفيذية الموحدة لشركة فنتشر فودز لإدارة المطاعم (6 علامات تجارية • 7 فروع • 8 قنوات) — الرقابة المالية، سلاسل الإمداد، ومنصات التوصيل بالدينار الكويتي.',
   'login.currency': 'العملة والأساس المالي',
   'login.currencyVal': 'دينار كويتي (د.ك) • مطابقة أودو 17',
   'login.coverage': 'نطاق التشغيل الرسمي',
-  'login.coverageVal': '6 مطاعم • 7 فروع • 8 قنوات',
+  'login.coverageVal': '6 علامات تجارية • 7 فروع • 8 قنوات',
   'login.securityNote': 'جلسة تنفيذية مشفّرة • وصول خاص غير مفهرس في محركات البحث',
   'login.demo.aether': '',
   'login.demo.aetherRole': '',
@@ -4924,25 +4924,37 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
     }
   }, [])
 
-  // Initialize strictly to English ('en') unless explicit '?lang=ar' URL param or explicit 'ar' localStorage toggle is saved.
+  // Initialize strictly to Arabic ('ar' / RTL) unless explicit '?lang=en' URL param, saved 'en' cookie/localStorage, or saved account locale.
   // Never auto-switch from browser language preferences.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    let resolved: Locale = 'en'
+    let resolved: Locale = 'ar'
     try {
       const urlParam = new URLSearchParams(window.location.search).get('lang')?.toLowerCase()
       if (urlParam === 'ar' || urlParam === 'en') {
         resolved = urlParam
       } else {
+        const cookieMatch =
+          typeof document !== 'undefined'
+            ? document.cookie.match(/(?:^|;\s*)(?:NEXT_LOCALE|ai-hq-locale|vf_lang)=(ar|en)(?:;|$)/)
+            : null
         const saved =
           window.localStorage.getItem(storageKey) ||
           window.localStorage.getItem('NEXT_LOCALE') ||
           window.localStorage.getItem('aetherbi_locale') ||
+          cookieMatch?.[1] ||
           ''
-        resolved = saved === 'ar' ? 'ar' : 'en'
+        resolved =
+          saved === 'en'
+            ? 'en'
+            : saved === 'ar'
+              ? 'ar'
+              : initialLocale === 'en'
+                ? 'en'
+                : 'ar'
       }
     } catch {
-      resolved = 'en'
+      resolved = initialLocale === 'en' ? 'en' : 'ar'
     }
     persistLocale(resolved)
     setLocaleState(resolved)
@@ -4961,6 +4973,13 @@ export function LanguageProvider({ initialLocale, children }: { initialLocale: L
     setLocaleState(next)
     persistLocale(next)
     if (typeof window !== 'undefined') {
+      void fetch('/api/auth/locale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: next }),
+      }).catch(() => {
+        // Ignore transient network errors; cookies + localStorage already saved.
+      })
       try {
         const url = new URL(window.location.href)
         if (url.searchParams.has('lang')) {

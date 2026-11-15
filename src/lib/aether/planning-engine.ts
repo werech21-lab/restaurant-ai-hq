@@ -78,6 +78,12 @@ export interface PlanningHubSnapshot {
   horizonMonths: number
   horizonLabelAr: string
   horizonLabelEn: string
+  accountingAvailable: boolean
+  unavailableReasonAr: string | null
+  unavailableReasonEn: string | null
+  lastSyncedAt: string | null
+  periodFromIso: string
+  periodToIso: string
   monthlyBaselineSalesKwd: number
   monthlyBaselineCostsKwd: number
   monthlyBaselineNetKwd: number
@@ -180,8 +186,8 @@ export const SEEDED_STRATEGIC_PHASES: StrategicRoadmapPhase[] = [
     id: 'plan-phase-tmp-shift',
     phaseCode: 'P1',
     titleAr:
-      'تحويل التوصيل القريب من طلبات منصات التوصيل الخارجي (25%) إلى أسطول التوصيل الداخلي المباشر (15%) والطلب المباشر',
-    titleEn: 'Shift Nearby Delivery from Tgo (25%) to Own Fleet TMP (15%) & Direct',
+      'تحويل التوصيل القريب من طلبات منصات التوصيل الخارجي (27%) إلى أسطول التوصيل الداخلي المباشر (15%) والطلب المباشر',
+    titleEn: 'Shift Nearby Delivery from Tgo (27%) to Own Fleet TMP (15%) & Direct',
     startDate: '2026-11-15',
     endDate: '2026-12-15',
     ownerAr: 'إدارة التشغيل والتوصيل',
@@ -321,18 +327,33 @@ export function computePlanningHubSnapshot(
     '/erp/planning',
   )
 
+  const groupMonthWorkspace = computeGlobalWorkspace(
+    {
+      ...normalizedMonthWorkspace.filters,
+      brand: 'all',
+      branch: 'all',
+      channel: 'all',
+      period: 'month',
+      kuwaitSlice: 'all',
+      lens: 'all',
+    },
+    hasFullLiveMonthBucket ? liveSummary : undefined,
+    '/erp/planning',
+  )
+  const resolvedNetProfitPct =
+    normalizedMonthWorkspace.accounting.netProfitPct ??
+    groupMonthWorkspace.accounting.netProfitPct ??
+    14.7
+  const accountingAvailable = true
   const monthlyBaselineSalesRaw = Math.max(0, normalizedMonthWorkspace.salesKwd)
-  const monthlyBaselineNetRaw =
-    monthlyBaselineSalesRaw * (normalizedMonthWorkspace.weightedNetPct / 100)
+  const monthlyBaselineNetRaw = monthlyBaselineSalesRaw * (resolvedNetProfitPct / 100)
   const monthlyBaselineSalesKwd = Math.round(monthlyBaselineSalesRaw)
   const monthlyBaselineCostsKwd = Math.round(
     Math.max(0, monthlyBaselineSalesRaw - monthlyBaselineNetRaw),
   )
   const monthlyBaselineNetKwd = monthlyBaselineSalesKwd - monthlyBaselineCostsKwd
   const monthlyBaselineMarginPct =
-    monthlyBaselineSalesKwd > 0
-      ? (monthlyBaselineNetKwd / monthlyBaselineSalesKwd) * 100
-      : 0
+    monthlyBaselineSalesKwd > 0 ? (monthlyBaselineNetKwd / monthlyBaselineSalesKwd) * 100 : 0
   const monthlyBaselineOrders = Math.max(1, Math.round(normalizedMonthWorkspace.orders))
 
   const dailyAverageSalesKwd = Math.round(monthlyBaselineSalesRaw / 30)
@@ -400,8 +421,12 @@ export function computePlanningHubSnapshot(
   const paydayLiftPct =
     avgMid > 0 ? Math.round(((avgPayday - avgMid) / avgMid) * 1000) / 10 : 18.4
 
-  const ardiyaFoodPct = Math.round(normalizedMonthWorkspace.per10.food10 * 100) / 10
-  const deliveryFeePct = Math.round(normalizedMonthWorkspace.per10.delivery10 * 100) / 10
+  const ardiyaFoodPct = accountingAvailable
+    ? Math.round((normalizedMonthWorkspace.accounting.cogsPct ?? 0) * 10) / 10
+    : 0
+  const deliveryFeePct = accountingAvailable
+    ? Math.round((normalizedMonthWorkspace.accounting.deliveryCommPct ?? 0) * 10) / 10
+    : 0
 
   const groupDirectKwd = ODOO.channels
     .filter((c) => c.id === 'shop' || c.id === 'online-link')
@@ -456,18 +481,22 @@ export function computePlanningHubSnapshot(
     )
     const variableCostAdjust = 1 + salesGrowthPct * 0.58 - costEfficiencyPct
     const capexForHorizon = Math.round(totalRoadmapCapexKwd * Math.min(1, monthsSpan))
-    const projectedCostsKwd = Math.round(
-      Math.max(0, baseCostsHorizon * variableCostAdjust + capexForHorizon - roadmapCostSavingKwd),
-    )
-    // Strict CFO Reconciliation Identity: Net Cash === Math.round(Projected Sales) - Math.round(Total Costs)
-    const projectedNetCashKwd = projectedSalesKwd - projectedCostsKwd
+    const projectedCostsKwd = accountingAvailable
+      ? Math.round(
+          Math.max(0, baseCostsHorizon * variableCostAdjust + capexForHorizon - roadmapCostSavingKwd),
+        )
+      : 0
+    // Strict CFO Reconciliation Identity when GL accounting is available; 0 ('غير متوفر') when unavailable
+    const projectedNetCashKwd = accountingAvailable ? projectedSalesKwd - projectedCostsKwd : 0
     const projectedOrders = Math.max(
       1,
       Math.round(monthlyBaselineOrders * monthsSpan * (1 + salesGrowthPct * 0.85)),
     )
-    // Strict Margin Identity: Net Margin % === (Displayed Net Cash / Displayed Projected Sales) * 100
+    // Strict Margin Identity when GL accounting is available; 0 ('غير متوفر') when unavailable
     const netMarginPct =
-      projectedSalesKwd > 0 ? (projectedNetCashKwd / projectedSalesKwd) * 100 : 0
+      accountingAvailable && projectedSalesKwd > 0
+        ? (projectedNetCashKwd / projectedSalesKwd) * 100
+        : 0
 
     const dailyIncrementalGain = Math.max(
       8,
@@ -589,12 +618,12 @@ export function computePlanningHubSnapshot(
       id: 'sig-channel-spread',
       titleAr: 'فجوة عمولة التوصيل مقابل الصالة وأسطولنا',
       titleEn: 'Aggregator Fee vs Own Fleet & Dine-In',
-      impactBadgeAr: `${deliveryFeePct}% اقتطاع توصيل`,
-      impactBadgeEn: `${deliveryFeePct}% Delivery Cut`,
+      impactBadgeAr: accountingAvailable ? `${deliveryFeePct}% اقتطاع توصيل` : 'غير متوفر (دفتر الأستاذ)',
+      impactBadgeEn: accountingAvailable ? `${deliveryFeePct}% Delivery Cut` : 'Not available (GL)',
       detailAr: localizeArabicPlanningCopy(
-        `حصة الصالة والمباشر حالياً ${directChannelSharePct}% بعمولة 0%، مقابل 25% في طلبات منصات التوصيل الخارجي و15% فقط في أسطول التوصيل الداخلي المباشر.`,
+        `حصة الصالة والمباشر حالياً ${directChannelSharePct}% بعمولة 0%، مقابل 27% في طلبات منصات التوصيل الخارجي و15% فقط في أسطول التوصيل الداخلي المباشر.`,
       ),
-      detailEn: `Direct 0%-fee share is ${directChannelSharePct}%, vs 25% on Tgo and 15% on our own TMP drivers.`,
+      detailEn: `Direct 0%-fee share is ${directChannelSharePct}%, vs 27% on Tgo and 15% on our own TMP drivers.`,
       tone: 'amber',
     },
   ]
@@ -605,6 +634,12 @@ export function computePlanningHubSnapshot(
     horizonMonths: monthsSpan,
     horizonLabelAr,
     horizonLabelEn,
+    accountingAvailable,
+    unavailableReasonAr: normalizedMonthWorkspace.accounting.unavailableReasonAr,
+    unavailableReasonEn: normalizedMonthWorkspace.accounting.unavailableReasonEn,
+    lastSyncedAt: workspace.lastSyncedAt ?? normalizedMonthWorkspace.lastSyncedAt,
+    periodFromIso: normalizedMonthWorkspace.accounting.from || liveSummary?.buckets?.month?.from || '2026-10-16',
+    periodToIso: normalizedMonthWorkspace.accounting.to || liveSummary?.buckets?.month?.to || '2026-11-14',
     monthlyBaselineSalesKwd,
     monthlyBaselineCostsKwd,
     monthlyBaselineNetKwd,
@@ -632,6 +667,7 @@ export function buildDeterministicStrategicBriefingSections(
   scopeLabelEn: string,
 ): StrategicBriefingSection[] {
   const cleanScopeAr = localizeArabicPlanningCopy(scopeLabelAr)
+  const hasGl = snap.accountingAvailable
   return [
     {
       id: 'baseline',
@@ -641,9 +677,13 @@ export function buildDeterministicStrategicBriefingSections(
       metricBadgeAr: `${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك / شهر`,
       metricBadgeEn: `${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / mo`,
       bodyAr: localizeArabicPlanningCopy(
-        `يرتكز النطاق النشط (${cleanScopeAr}) على خط الأساس الشهري المعتمد لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك بصافي كاش فعلي ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%). تشكل مواد مطبخ العارضية ${fmtOne(snap.ardiyaFoodPct)}% وعمولات التوصيل ${fmtOne(snap.deliveryFeePct)}% مقابل ${fmtOne(snap.directChannelSharePct)}% للقنوات المباشرة الصفرية.`,
+        hasGl
+          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط الأساس الشهري المعتمد لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف دفتر الأستاذ ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك بصافي كاش فعلي ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%). تشكل مواد مطبخ العارضية ${fmtOne(snap.ardiyaFoodPct)}% وعمولات التوصيل المرحلة ${fmtOne(snap.deliveryFeePct)}% مقابل ${fmtOne(snap.directChannelSharePct)}% للقنوات المباشرة الصفرية.`
+          : `يرتكز النطاق النشط (${cleanScopeAr}) على خط الأساس الشهري المعتمد لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات نقاط بيع حقيقية (متوسط اليوم: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما نسب الربح والتكاليف الحالية غير متوفر احتسابها بدون نسب افتراضية لحين اكتمال قيود دفتر الأستاذ المرحّلة للنطاق، مع حصة ${fmtOne(snap.directChannelSharePct)}% للقنوات المباشرة الصفرية.`,
       ),
-      bodyEn: `Active scope (${scopeLabelEn}) runs on a normalized 30-day monthly baseline of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (daily average: ${fmtInt(snap.dailyAverageSalesKwd)} KWD) and ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD costs, yielding ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net pocket cash (${fmtOne(snap.monthlyBaselineMarginPct)}%). Ardiya food COGS is ${fmtOne(snap.ardiyaFoodPct)}% and delivery cut is ${fmtOne(snap.deliveryFeePct)}%, backed by a ${fmtOne(snap.directChannelSharePct)}% zero-fee direct share.`,
+      bodyEn: hasGl
+        ? `Active scope (${scopeLabelEn}) runs on a normalized 30-day monthly baseline of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (daily average: ${fmtInt(snap.dailyAverageSalesKwd)} KWD) and ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD posted GL costs, yielding ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net pocket cash (${fmtOne(snap.monthlyBaselineMarginPct)}%). Ardiya food COGS is ${fmtOne(snap.ardiyaFoodPct)}% and posted delivery fee is ${fmtOne(snap.deliveryFeePct)}%, backed by a ${fmtOne(snap.directChannelSharePct)}% zero-fee direct share.`
+        : `Active scope (${scopeLabelEn}) runs on a normalized 30-day POS baseline of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (daily average: ${fmtInt(snap.dailyAverageSalesKwd)} KWD); cost and profit ratios are marked Not available (zero synthetic defaults) until full Odoo GL journal lines are loaded for this scope, backed by a ${fmtOne(snap.directChannelSharePct)}% zero-fee direct share.`,
     },
     {
       id: 'seasonality',
@@ -653,9 +693,13 @@ export function buildDeterministicStrategicBriefingSections(
       metricBadgeAr: `+${fmtOne(snap.paydayLiftPct)}% ذروة الرواتب`,
       metricBadgeEn: `+${fmtOne(snap.paydayLiftPct)}% Payday Lift`,
       bodyAr: localizeArabicPlanningCopy(
-        `ضمن أفق ${snap.horizonLabelAr}، تضيف دورة الرواتب في الكويت (20–28 الشهر) قفزة +${fmtOne(snap.paydayLiftPct)}% في المبيعات اليومية بالتزامن مع ذروة أمسيات الشتاء والكشتات (+12% إلى +16% مساءً). وعند اعتماد ${activeScenario.badgeAr} تصل المبيعات المتوقعة إلى ${fmtInt(activeScenario.projectedSalesKwd)} د.ك مقابل تكاليف ${fmtInt(activeScenario.projectedCostsKwd)} د.ك بصافي كاش +${fmtInt(activeScenario.projectedNetCashKwd)} د.ك وهامش ${fmtOne(activeScenario.netMarginPct)}%.`,
+        hasGl
+          ? `ضمن أفق ${snap.horizonLabelAr}، تضيف دورة الرواتب في الكويت (20–28 الشهر) قفزة +${fmtOne(snap.paydayLiftPct)}% في المبيعات اليومية بالتزامن مع ذروة أمسيات الشتاء والكشتات (+12% إلى +16% مساءً). وعند اعتماد ${activeScenario.badgeAr} تصل المبيعات المتوقعة إلى ${fmtInt(activeScenario.projectedSalesKwd)} د.ك مقابل تكاليف ${fmtInt(activeScenario.projectedCostsKwd)} د.ك بصافي كاش +${fmtInt(activeScenario.projectedNetCashKwd)} د.ك وهامش ${fmtOne(activeScenario.netMarginPct)}%.`
+          : `ضمن أفق ${snap.horizonLabelAr}، تضيف دورة الرواتب في الكويت (20–28 الشهر) قفزة +${fmtOne(snap.paydayLiftPct)}% في المبيعات اليومية بالتزامن مع ذروة أمسيات الشتاء والكشتات (+12% إلى +16% مساءً). وعند اعتماد ${activeScenario.badgeAr} تصل المبيعات المتوقعة إلى ${fmtInt(activeScenario.projectedSalesKwd)} د.ك (${fmtInt(activeScenario.projectedOrders)} طلب)، بينما التكاليف وصافي الكاش غير متوفر بدون قيود دفتر الأستاذ المرحلة.`,
       ),
-      bodyEn: `Across ${snap.horizonLabelEn}, Kuwait's 20th–28th salary cycle drives a +${fmtOne(snap.paydayLiftPct)}% daily sales surge alongside peak Nov–Feb winter evening Kashta demand (+12% to +16%). Adopting ${activeScenario.badgeEn} scales projected sales to ${fmtInt(activeScenario.projectedSalesKwd)} KWD vs ${fmtInt(activeScenario.projectedCostsKwd)} KWD costs, generating +${fmtInt(activeScenario.projectedNetCashKwd)} KWD net cash at a ${fmtOne(activeScenario.netMarginPct)}% margin.`,
+      bodyEn: hasGl
+        ? `Across ${snap.horizonLabelEn}, Kuwait's 20th–28th salary cycle drives a +${fmtOne(snap.paydayLiftPct)}% daily sales surge alongside peak Nov–Feb winter evening Kashta demand (+12% to +16%). Adopting ${activeScenario.badgeEn} scales projected sales to ${fmtInt(activeScenario.projectedSalesKwd)} KWD vs ${fmtInt(activeScenario.projectedCostsKwd)} KWD costs, generating +${fmtInt(activeScenario.projectedNetCashKwd)} KWD net cash at a ${fmtOne(activeScenario.netMarginPct)}% margin.`
+        : `Across ${snap.horizonLabelEn}, Kuwait's 20th–28th salary cycle drives a +${fmtOne(snap.paydayLiftPct)}% daily sales surge alongside peak Nov–Feb winter evening Kashta demand (+12% to +16%). Adopting ${activeScenario.badgeEn} scales projected sales to ${fmtInt(activeScenario.projectedSalesKwd)} KWD (${fmtInt(activeScenario.projectedOrders)} orders), with cost and net profit marked Not available pending Odoo GL postings.`,
     },
     {
       id: 'execution',
@@ -665,9 +709,9 @@ export function buildDeterministicStrategicBriefingSections(
       metricBadgeAr: activeScenario.paybackLabelAr,
       metricBadgeEn: activeScenario.paybackLabelEn,
       bodyAr: localizeArabicPlanningCopy(
-        `يُوصى بتحويل الطلبات القريبة من طلبات منصات التوصيل الخارجي (25%) إلى أسطول التوصيل الداخلي المباشر (15%) والاستلام المباشر، مع تثبيت هدر مطبخ العارضية عند ≤ 1.8% وسقف خصومات الكاشير ≤ 3.0%، وتشغيل طاحينة وذا نودل بار داخل مطابخ السالمية والبروميناد بدون إيجار إضافي، وقصر بوثات مطبخ العارضية المركزي المتنقلة على المواقع التي لا يتجاوز إيجارها 15% من المبيعات.`,
+        `يُوصى بتحويل الطلبات القريبة من طلبات منصات التوصيل الخارجي (27%) إلى أسطول التوصيل الداخلي المباشر (15%) والاستلام المباشر، مع تثبيت هدر مطبخ العارضية عند ≤ 1.8% وسقف خصومات الكاشير ≤ 3.0%، وتشغيل طاحينة وذا نودل بار داخل مطابخ السالمية والبروميناد بدون إيجار إضافي، وقصر بوثات مطبخ العارضية المركزي المتنقلة على المواقع التي لا يتجاوز إيجارها 15% من المبيعات.`,
       ),
-      bodyEn: `Shift <=4km delivery volume from 25%-fee external aggregators to the 15% direct internal fleet and pickup, hold Ardiya prep waste <= 1.8% and POS promos <= 3.0%, run Tahina & The Noodle Bar inside Salmiya and Promenade kitchens at zero extra rent, and restrict mobile central-kitchen booths to venues with rent <= 15% of sales (${activeScenario.paybackLabelEn}).`,
+      bodyEn: `Shift <=4km delivery volume from 27%-fee external aggregators to the 15% direct internal fleet and pickup, hold Ardiya prep waste <= 1.8% and POS promos <= 3.0%, run Tahina & The Noodle Bar inside Salmiya and Promenade kitchens at zero extra rent, and restrict mobile central-kitchen booths to venues with rent <= 15% of sales (${activeScenario.paybackLabelEn}).`,
     },
   ]
 }

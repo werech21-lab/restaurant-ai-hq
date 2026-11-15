@@ -1,4 +1,5 @@
-import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
+import { readSessionPermissions } from '@/lib/auth/context'
+import { getCurrentSessionRole } from '@/lib/erp-auth'
 import IntelligenceWorkspace from '@/modules/governance/ui/IntelligenceWorkspace'
 
 export const dynamic = 'force-dynamic'
@@ -9,12 +10,19 @@ export const metadata = {
 }
 
 export default async function IntelligencePage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
-  const permissions = [...panelBridgePermissionSet()].sort()
+  const [permissions, sessionRole] = await Promise.all([
+    readSessionPermissions(),
+    getCurrentSessionRole(),
+  ])
   const query = await searchParams
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
     <main className="w-full max-w-none px-4 py-6 md:px-6">
-      <IntelligenceWorkspace permissions={permissions} initialTab={tab ?? 'radar'} />
+      <IntelligenceWorkspace
+        permissions={permissions}
+        initialTab={tab ?? 'radar'}
+        isAuditor={sessionRole === 'auditor'}
+      />
     </main>
   )
 }

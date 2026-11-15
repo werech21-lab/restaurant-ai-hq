@@ -248,8 +248,14 @@ export function ExecutiveFooter({
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span>{isAr ? 'الوضع:' : 'Mode:'}</span>
-                    <span dir="ltr" className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
-                      {liveSummary?.sourceMode ?? 'verified-baseline'}
+                    <span dir={isAr ? 'rtl' : 'ltr'} className="font-mono font-semibold text-emerald-700 dark:text-emerald-300">
+                      {isAr
+                        ? liveSummary?.sourceMode === 'odoo17-live'
+                          ? 'أودو 17 مباشر'
+                          : liveSummary?.sourceMode === 'cached-live'
+                            ? 'نسخة أودو المحفوظة'
+                            : 'خط الأساس الموثق'
+                        : (liveSummary?.sourceMode ?? 'verified-baseline')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -258,13 +264,15 @@ export function ExecutiveFooter({
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span>{isAr ? 'عمر آخر سجل:' : 'Record Age:'}</span>
-                    <span dir="ltr" className="font-mono">
-                      {freshness.hoursSinceLatestOdooRecord}h
+                    <span dir={isAr ? 'rtl' : 'ltr'} className="font-mono">
+                      {isAr
+                        ? `${freshness.hoursSinceLatestOdooRecord} ساعة`
+                        : `${freshness.hoursSinceLatestOdooRecord}h`}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span>{isAr ? 'تنبيه >24 ساعة:' : '>24h Watchdog:'}</span>
-                    <span>Email + WhatsApp</span>
+                    <span>{isAr ? 'بريد إلكتروني + واتساب' : 'Email + WhatsApp'}</span>
                   </div>
                 </div>
               ) : null}
@@ -370,7 +378,7 @@ export function ExecutiveFooter({
             <Database className="h-3.5 w-3.5 shrink-0 text-emerald-600/80 dark:text-emerald-400/80" />
             <span>
               {isAr
-                ? 'مصدر البيانات: دفتر الأستاذ العام ونقاط البيع Odoo 17'
+                ? 'مصدر البيانات: دفتر الأستاذ العام ونقاط البيع في أودو 17'
                 : 'Data Source: Odoo 17 General Ledger & POS'}
             </span>
           </span>
@@ -393,14 +401,14 @@ export function ExecutiveFooter({
           </span>
           <span className="font-medium text-slate-600 dark:text-slate-300">
             {isAr
-              ? 'شركة فنتشر فودز • 6 مطاعم • 7 فروع • 8 قنوات'
+              ? 'شركة فنتشر فودز • 6 علامات تجارية • 7 فروع • 8 قنوات'
               : 'Venture Foods Co. • 6 Brands • 7 Branches • 8 Channels'}
           </span>
           <span aria-hidden className="text-slate-300 dark:text-white/15">
             •
           </span>
           <span className="rounded-lg bg-slate-100 px-2 py-0.5 font-semibold tracking-tight tabular-nums text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
-            {isAr ? 'الإصدار v2.8' : 'Aether BI Release v2.8'}
+            {isAr ? 'الإصدار 2.8' : 'Aether BI Release v2.8'}
           </span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDownRight,
   ArrowUpDown,
@@ -121,23 +121,49 @@ export function WeekdayComparisonStudio() {
   const { filters, workspace, liveSummary } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
-  const [query, setQuery] = useState<ErpComparisonQuery>(() => ({
-    ...DEFAULT_STUDIO_QUERY,
-    brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
-    branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
-    channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
-  }))
+  const hadInitialUrlDatesRef = useRef<boolean | null>(null)
+  const userEditedDatesRef = useRef(false)
+
+  const buildLiveDefaultStudioQuery = useCallback((): ErpComparisonQuery => {
+    const defs = resolveCompletedComparisonDefaults({
+      granularity: 'single',
+      liveSummary,
+    })
+    return {
+      ...DEFAULT_STUDIO_QUERY,
+      periodA: defs.periodA,
+      periodB: defs.periodB,
+      brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
+      branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
+      channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
+    }
+  }, [filters.brand, filters.branch, filters.channel, liveSummary])
+
+  const [query, setQuery] = useState<ErpComparisonQuery>(() => {
+    const defs = resolveCompletedComparisonDefaults({ granularity: 'single', liveSummary })
+    return {
+      ...DEFAULT_STUDIO_QUERY,
+      periodA: defs.periodA,
+      periodB: defs.periodB,
+      brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
+      branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
+      channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
+    }
+  })
 
   useEffect(() => {
-    setQuery(readInitialComparisonQueryFromEnv(DEFAULT_STUDIO_QUERY, filters))
+    if (typeof window !== 'undefined' && hadInitialUrlDatesRef.current === null) {
+      const sp = new URLSearchParams(window.location.search)
+      hadInitialUrlDatesRef.current = sp.has('dateA') || sp.has('dateB')
+    }
+    setQuery(readInitialComparisonQueryFromEnv(buildLiveDefaultStudioQuery(), filters))
     // Hydrate once on client mount from URL searchParams
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     if (!liveSummary?.connected || typeof window === 'undefined') return
-    const sp = new URLSearchParams(window.location.search)
-    if (sp.has('dateA') || sp.has('dateB')) return
+    if (hadInitialUrlDatesRef.current || userEditedDatesRef.current) return
     setQuery((prev) => {
       const defs = resolveCompletedComparisonDefaults({
         granularity: prev.granularity,
@@ -158,7 +184,7 @@ export function WeekdayComparisonStudio() {
         periodB: defs.periodB,
       }
     })
-  }, [liveSummary?.connected])
+  }, [liveSummary])
 
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
   const [selectedBucketIdx, setSelectedBucketIdx] = useState<number | null>(null)
@@ -170,6 +196,9 @@ export function WeekdayComparisonStudio() {
   const [extraDailySeries, setExtraDailySeries] = useState<
     { day: string; orders: number; netKwd: number }[]
   >([])
+  const [extraDailyByBranch, setExtraDailyByBranch] = useState<
+    Record<string, Record<string, { netKwd: number; orders: number }>>
+  >({})
 
   useEffect(() => {
     const existingDays = liveSummary?.dailySeries ?? []
@@ -195,22 +224,30 @@ export function WeekdayComparisonStudio() {
     })
     fetch(`/api/erp/live-comparison?${qs.toString()}`, {
       method: 'GET',
-      cache: 'default',
+      cache: 'no-store',
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
     })
       .then((res) =>
         res.ok
-          ? (res.json() as Promise<{ dailySeries?: { day: string; orders: number; netKwd: number }[] }>)
+          ? (res.json() as Promise<{
+              connected?: boolean
+              dailySeries?: { day: string; orders: number; netKwd: number }[]
+              dailyByBranch?: Record<string, Record<string, { netKwd: number; orders: number }>>
+            }>)
           : null,
       )
       .then((payload) => {
-        if (active && Array.isArray(payload?.dailySeries) && payload.dailySeries.length > 0) {
+        if (!active || payload?.connected === false) return
+        if (Array.isArray(payload?.dailySeries) && payload.dailySeries.length > 0) {
           setExtraDailySeries(payload.dailySeries)
+        }
+        if (payload?.dailyByBranch && typeof payload.dailyByBranch === 'object') {
+          setExtraDailyByBranch(payload.dailyByBranch)
         }
       })
       .catch(() => {
-        // silent fallback to liveSummary / verified baseline
+        // silent fallback to liveSummary
       })
     return () => {
       active = false
@@ -225,15 +262,19 @@ export function WeekdayComparisonStudio() {
   ])
 
   const mergedLiveSummary = useMemo(() => {
-    if (extraDailySeries.length === 0) return liveSummary
+    if (extraDailySeries.length === 0 && Object.keys(extraDailyByBranch).length === 0) return liveSummary
     const map = new Map<string, { day: string; orders: number; netKwd: number }>()
-    for (const d of liveSummary?.dailySeries ?? []) map.set(d.day, d)
     for (const d of extraDailySeries) map.set(d.day, d)
+    for (const d of liveSummary?.dailySeries ?? []) map.set(d.day, d)
     const mergedDaily = [...map.values()].sort((a, b) => a.day.localeCompare(b.day))
+    const mergedByBranch = {
+      ...extraDailyByBranch,
+      ...(liveSummary?.dailyByBranch ?? {}),
+    }
     if (!liveSummary) {
       return {
         source: 'live' as const,
-        syncedAt: '2026-11-14T08:40:00.000Z',
+        syncedAt: new Date().toISOString(),
         period: { from: query.periodA.from, to: query.periodA.to },
         database: null,
         totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
@@ -241,21 +282,23 @@ export function WeekdayComparisonStudio() {
         branches: [],
         channels: [],
         dailySeries: mergedDaily,
+        dailyByBranch: mergedByBranch,
       }
     }
     return {
       ...liveSummary,
       dailySeries: mergedDaily,
+      dailyByBranch: mergedByBranch,
     }
-  }, [liveSummary, extraDailySeries, query.periodA.from, query.periodA.to])
+  }, [liveSummary, extraDailySeries, extraDailyByBranch, query.periodA.from, query.periodA.to])
 
   const comparison = useMemo(
     () => computeErpComparison(query, mergedLiveSummary),
     [query, mergedLiveSummary],
   )
   const rollingWeekdays = useMemo(
-    () => computeWeekdayComparisonData(workspace),
-    [workspace],
+    () => computeWeekdayComparisonData(workspace, mergedLiveSummary),
+    [workspace, mergedLiveSummary],
   )
 
   const getBucketPair = useCallback(
@@ -469,8 +512,15 @@ export function WeekdayComparisonStudio() {
       {/* ───────────── 1. Universal Executive Comparison Control Bar ───────────── */}
       <ExecutiveComparisonControlBar
         query={query}
-        onQueryChange={setQuery}
-        onReset={() => setQuery(DEFAULT_STUDIO_QUERY)}
+        onQueryChange={(next) => {
+          userEditedDatesRef.current = true
+          setQuery(next)
+        }}
+        onReset={() => {
+          userEditedDatesRef.current = false
+          hadInitialUrlDatesRef.current = false
+          setQuery(buildLiveDefaultStudioQuery())
+        }}
         onExportCsv={handleExportCsv}
         extraActions={
           <button
@@ -510,6 +560,11 @@ export function WeekdayComparisonStudio() {
                 </span>
                 <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
                   {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
+                </span>
+                <span className="rounded-lg bg-emerald-50/90 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  {isAr
+                    ? `المصدر: أودو 17 pos.order • وقت آخر تحديث: ${comparison.lastSyncedAt ?? liveSummary?.kuwaitSyncedAt ?? liveSummary?.syncedAt ?? 'غير متزامن بعد'}`
+                    : `Source: Odoo 17 pos.order • Last updated: ${comparison.lastSyncedAt ?? liveSummary?.kuwaitSyncedAt ?? liveSummary?.syncedAt ?? 'Pending sync'}`}
                 </span>
               </div>
               {!comparison.isScopeCompatible && (
@@ -564,6 +619,11 @@ export function WeekdayComparisonStudio() {
       {/* ───────────── 3. 6 Core Executive KPI Delta Cards (with Smart Polarity) ───────────── */}
       <section className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
         {comparison.kpiList.map((kpi) => {
+          const isGlKpi =
+            kpi.id === 'foodAndAggregatorCost' ||
+            kpi.id === 'netPocketCash' ||
+            kpi.id === 'netPocketMargin'
+          const isUnavailable = isGlKpi && !comparison.accountingAvailable
           const badgeTone =
             kpi.trend === 'flat'
               ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -577,54 +637,74 @@ export function WeekdayComparisonStudio() {
                 <span className="text-[12px] sm:text-[12.5px] font-semibold leading-snug text-slate-600 dark:text-slate-300">
                   {isAr ? kpi.labelAr : kpi.labelEn}
                 </span>
-                {kpi.isFavorable ? (
+                {isUnavailable ? null : kpi.isFavorable ? (
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 ) : (
                   <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
                 )}
               </div>
 
-              <div className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
-                <span className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                  {formatKpiPrimaryValue(kpi)}
-                </span>
-                {kpi.unit === 'KWD' && (
-                  <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
-                )}
-                {kpi.unit === 'orders' && (
-                  <span className="text-[13px] font-semibold text-slate-500">
-                    {isAr ? 'طلب' : 'ord'}
-                  </span>
-                )}
-              </div>
+              {isUnavailable ? (
+                <>
+                  <div className="mt-2 text-lg sm:text-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400">
+                    {isAr ? 'غير متوفر' : 'Not available'}
+                  </div>
+                  <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-slate-500 dark:border-white/[0.06] dark:text-slate-400">
+                    {isAr
+                      ? `${comparison.accountingUnavailableReasonAr ?? 'يتطلب قيود دفتر الأستاذ المرحلة'} • ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso}`
+                      : `${comparison.accountingUnavailableReasonEn ?? 'Requires posted Odoo GL lines'} • ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso}`}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                    <span className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
+                      {formatKpiPrimaryValue(kpi)}
+                    </span>
+                    {kpi.unit === 'KWD' && (
+                      <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
+                    )}
+                    {kpi.unit === 'orders' && (
+                      <span className="text-[13px] font-semibold text-slate-500">
+                        {isAr ? 'طلب' : 'ord'}
+                      </span>
+                    )}
+                  </div>
 
-              <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
-                  {formatKpiDeltaBadge(kpi)}
-                </span>
-                {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' ? (
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    {kpi.shareOfSalesA.toFixed(1)}% {isAr ? 'من المبيعات' : 'of sales'}
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {kpi.unit === 'pct'
-                      ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
-                      : `${fmtSigned0(kpi.deltaAbs)} ${kpi.unit === 'KWD' ? kwd : ''}`}
-                  </span>
-                )}
-              </div>
+                  <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                    <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                      {formatKpiDeltaBadge(kpi)}
+                    </span>
+                    {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' ? (
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {kpi.shareOfSalesA.toFixed(1)}% {isAr ? 'من المبيعات' : 'of sales'}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {kpi.unit === 'pct'
+                          ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
+                          : `${fmtSigned0(kpi.deltaAbs)} ${kpi.unit === 'KWD' ? kwd : ''}`}
+                      </span>
+                    )}
+                  </div>
 
-              <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
-                {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
-                <span className="font-semibold text-slate-700 dark:text-slate-200">
-                  {formatKpiSecondaryValue(kpi)}
-                  {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
-                </span>
-                {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesB === 'number'
-                  ? ` (${kpi.shareOfSalesB.toFixed(1)}%)`
-                  : ''}
-              </p>
+                  <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
+                    {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
+                    <span className="font-semibold text-slate-700 dark:text-slate-200">
+                      {formatKpiSecondaryValue(kpi)}
+                      {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
+                    </span>
+                    {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesB === 'number'
+                      ? ` (${kpi.shareOfSalesB.toFixed(1)}%)`
+                      : ''}
+                  </p>
+                  <p className="mt-1 text-xs leading-snug text-slate-400 dark:text-slate-500">
+                    {isAr
+                      ? `الفترة: ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} مقابل ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} • أودو 17 ${isGlKpi ? 'account.move.line' : 'pos.order'}`
+                      : `Window: ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} vs ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} • Odoo 17 ${isGlKpi ? 'account.move.line' : 'pos.order'}`}
+                  </p>
+                </>
+              )}
             </div>
           )
         })}
@@ -864,8 +944,8 @@ export function WeekdayComparisonStudio() {
             </h2>
             <p className="mt-0.5 text-[12.5px] sm:text-[13px] text-slate-500 dark:text-slate-400">
               {isAr
-                ? 'اضغط على أي عمود للترتيب الفوري — مجموع الفروع والمطاعم والقنوات يطابق الإجمالي بدقة 0.000 د.ك'
-                : 'Click any numeric column to sort — sum of Branches, Brands, and Channels reconciles to 0.000 KWD'}
+                ? `اضغط على أي عمود للترتيب الفوري — فارق تقريب المجاميع المحسوب: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} د.ك • المصدر: أودو 17 pos.order`
+                : `Click any numeric column to sort — computed sum rounding gap: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} KWD • Source: Odoo 17 pos.order`}
             </p>
           </div>
 
@@ -1036,24 +1116,40 @@ export function WeekdayComparisonStudio() {
                         <span className="text-[13px] text-slate-400">/ {fmt0(row.ordersB)}</span>
                       </td>
                       <td className="py-3 px-3 font-semibold text-emerald-700 dark:text-emerald-300">
-                        {fmt0(row.netProfitA)} {kwd}
-                        <span className="ms-1.5 text-xs font-medium text-slate-400">
-                          ({fmtSigned0(row.netProfitDeltaKwd)})
-                        </span>
+                        {comparison.accountingAvailable ? (
+                          <>
+                            {fmt0(row.netProfitA)} {kwd}
+                            <span className="ms-1.5 text-xs font-medium text-slate-400">
+                              ({fmtSigned0(row.netProfitDeltaKwd)})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400">
+                            {isAr ? 'غير متوفر' : 'Not available'}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-3">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {row.marginPctA.toFixed(1)}%
-                        </span>{' '}
-                        <span
-                          className={`text-[13px] font-semibold ${
-                            row.marginDeltaPp >= 0
-                              ? 'text-emerald-700 dark:text-emerald-300'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          ({fmtSignedPp(row.marginDeltaPp)})
-                        </span>
+                        {comparison.accountingAvailable ? (
+                          <>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {row.marginPctA.toFixed(1)}%
+                            </span>{' '}
+                            <span
+                              className={`text-[13px] font-semibold ${
+                                row.marginDeltaPp >= 0
+                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  : 'text-rose-600 dark:text-rose-400'
+                              }`}
+                            >
+                              ({fmtSignedPp(row.marginDeltaPp)})
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400">
+                            {isAr ? 'غير متوفر' : 'Not available'}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 ps-3 text-end">
                         {row.tier === 'red' ? (
@@ -1106,14 +1202,21 @@ export function WeekdayComparisonStudio() {
                     {fmt0(comparison.selectionB.completedOrders)}
                   </td>
                   <td className="py-3 px-3 text-emerald-700 dark:text-emerald-300">
-                    {fmt0(comparison.selectionA.netPocketCashKwd)} {kwd}
+                    {comparison.accountingAvailable
+                      ? `${fmt0(comparison.selectionA.netPocketCashKwd)} ${kwd}`
+                      : isAr
+                        ? 'غير متوفر'
+                        : 'Not available'}
                   </td>
                   <td className="py-3 px-3">
-                    {comparison.selectionA.netPocketMarginPct.toFixed(1)}% (
-                    {fmtSignedPp(comparison.kpis.netPocketMargin.deltaPct)})
+                    {comparison.accountingAvailable
+                      ? `${comparison.selectionA.netPocketMarginPct.toFixed(1)}% (${fmtSignedPp(comparison.kpis.netPocketMargin.deltaPct)})`
+                      : isAr
+                        ? 'غير متوفر'
+                        : 'Not available'}
                   </td>
                   <td className="py-3 ps-3 text-end text-[13px] text-emerald-700 dark:text-emerald-300">
-                    0.000 {kwd}
+                    {comparison.reconciliation.maxSalesGapKwd.toFixed(3)} {kwd}
                   </td>
                 </tr>
               </tfoot>

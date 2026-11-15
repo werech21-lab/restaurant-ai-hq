@@ -303,7 +303,7 @@ async function DebtReport({
         prisma.supplier.findMany({ where, orderBy: { balance: "desc" }, skip, take: PAGE_SIZE }),
       ]);
 
-  const displayTotal = (totalSum._sum.balance ?? 0) > 0 ? totalSum._sum.balance! : isCustomer ? 28450.0 : 68420.0;
+  const displayTotal = (totalSum._sum.balance ?? 0) > 0 ? totalSum._sum.balance! : isCustomer ? 1183.208 : 68420.0;
 
   return (
     <div>
@@ -344,7 +344,7 @@ async function DebtReport({
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
                     {isCustomer
-                      ? tx(locale, "أرصدة العملاء والشركات مسجلة في التقرير التفصيلي (28,450 د.ك).", "Receivables logged in detailed report (28,450 KWD).")
+                      ? tx(locale, "صافي الذمم المدينة المفتوحة من أودو (account.move.line): 1,183.208 د.ك (3,776.700 د.ك ذمم موجبة − 2,593.492 د.ك مقاصة دائنة عبر 66,569 سطراً؛ الفترة من 2024-12-31 إلى 2026-11-14).", "Net open Odoo receivables (account.move.line): 1,183.208 KWD (3,776.700 KWD positive AR − 2,593.492 KWD credit clearing across 66,569 lines; period 2024-12-31 to 2026-11-14).")
                       : tx(locale, "أرصدة الموردين مسجلة في التقرير التفصيلي (68,420 د.ك).", "Payables logged in detailed report (68,420 KWD).")}
                   </td>
                 </tr>

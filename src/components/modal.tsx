@@ -20,7 +20,13 @@ export function Modal({
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:text-slate-900">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="إغلاق النافذة"
+            title="إغلاق"
+            className="rounded-lg p-1 text-slate-500 hover:text-slate-900"
+          >
             <X size={18} />
           </button>
         </div>

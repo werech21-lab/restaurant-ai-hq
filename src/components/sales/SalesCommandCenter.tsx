@@ -163,7 +163,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               </div>
               <p className="text-xs text-slate-400">
                 {isAr
-                  ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · 6 مطاعم • 7 فروع • 8 قنوات · 364 صنفاً'
+                  ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م. · 6 علامات تجارية • 7 فروع • 8 قنوات · 364 صنفاً'
                   : 'Venture Foods Restaurant Management W.L.L. · 6 Brands • 7 Branches • 8 Channels'}
               </p>
             </div>
@@ -226,7 +226,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
               onChange={(e) => setSelectedBrand(e.target.value as BrandKey)}
               className="rounded-xl border border-white/10 bg-slate-900/90 px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-emerald-500"
             >
-              <option value="ALL">{isAr ? 'جميع المطاعم (6 مطاعم)' : 'All 6 Brands'}</option>
+              <option value="ALL">{isAr ? 'جميع المطاعم (6 علامات تجارية)' : 'All 6 Brands'}</option>
               <option value="China Garden">China Garden (تشاينا جاردن)</option>
               <option value="Frank's">{"Frank's (فرانكس ستيك)"}</option>
               <option value="Tahina">Tahina (شاورما طحينة)</option>

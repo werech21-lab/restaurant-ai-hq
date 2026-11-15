@@ -40,7 +40,7 @@ export interface BranchWarehouseCard {
   readinessScore: number;
 }
 
-// 10 Official Locations: 1 Central Kitchen + 9 Active Branches (active locations only)
+// 10 Official Locations: 1 Central Kitchen + 7 Active Branches (active locations only)
 export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
   {
     id: "wh-commissary",
@@ -614,7 +614,7 @@ export function VentureWarehousesHub({
               {isAr ? "إدارة المستودعات وشبكة الإمداد الداخلي" : "Internal Warehouses & Supply Network"}
             </span>
             <span className="rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-              {isAr ? "المطبخ المركزي + 9 فروع نشطة" : "Central Kitchen + 9 Active Branches"}
+              {isAr ? "المطبخ المركزي + 7 فروع نشطة" : "Central Kitchen + 7 Active Branches"}
             </span>
           </div>
           <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white sm:text-3xl tracking-tight">
@@ -624,7 +624,7 @@ export function VentureWarehousesHub({
           </h1>
           <p className="text-xs text-slate-400 mt-1 max-w-3xl leading-relaxed">
             {isAr
-              ? "المستودع الرئيسي والمطبخ المركزي ومخازن الفروع الـ 9 الرسمية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838) مع تتبع كامل لحساب البضاعة بالطريق (حساب وسيط 1139)."
+              ? "المستودع الرئيسي والمطبخ المركزي ومخازن الفروع الـ 7 الرسمية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. (ترخيص 2021/22838) مع تتبع كامل لحساب البضاعة بالطريق (حساب وسيط 1139)."
               : "Venture Foods Restaurants Management Co. W.L.L. (Lic. 2021/22838) Central Kitchen and 9 Active Branch Stores with In-Transit GL 1139 Reconciliation."}
           </p>
         </div>
@@ -937,7 +937,7 @@ export function VentureWarehousesHub({
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
-                  ? "حصر الشحنات الخارجة من المطبخ المركزي إلى الفروع الـ 9 مع مطابقة الوزن المحول والمستلم وقيد الترحيل المحاسبي."
+                  ? "حصر الشحنات الخارجة من المطبخ المركزي إلى الفروع الـ 7 مع مطابقة الوزن المحول والمستلم وقيد الترحيل المحاسبي."
                   : "Tracking dispatches from Central Kitchen to all 9 branches with weight verification and GL posting."}
               </p>
             </div>
@@ -1044,7 +1044,7 @@ export function VentureWarehousesHub({
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isAr
-                  ? "مراقبة درجات الحرارة اللحظية على مدار الساعة لغرف تبريد المطبخ المركزي ومخازن الفروع الـ 9 وشاحنات التوزيع."
+                  ? "مراقبة درجات الحرارة اللحظية على مدار الساعة لغرف تبريد المطبخ المركزي ومخازن الفروع الـ 7 وشاحنات التوزيع."
                   : "24/7 Real-time IoT temperature monitoring for central kitchen rooms, branch storerooms, and delivery fleet."}
               </p>
             </div>
@@ -1256,7 +1256,7 @@ export function VentureWarehousesHub({
 
               <div>
                 <label className="block font-bold text-slate-300 mb-1">
-                  {isAr ? "إلى الفرع المستلم (الفروع الـ 9 النشطة):" : "Destination Branch (9 Active Branches):"}
+                  {isAr ? "إلى الفرع المستلم (الفروع الـ 7 النشطة):" : "Destination Branch (7 Active Branches):"}
                 </label>
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
                   <option value="WH-AVENUES">{isAr ? "فرع مجمع الأفنيوز — الري" : "The Avenues Mall Branch"}</option>

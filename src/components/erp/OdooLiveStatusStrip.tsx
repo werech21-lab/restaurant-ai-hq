@@ -75,10 +75,10 @@ export function OdooLiveStatusStrip({
   const todaySalesKwd = liveSummary?.todaySalesKwd ?? 0
 
   const stripTone: 'live' | 'cached' | 'stale' =
-    !freshness.isStaleOver24h && isCachedFallback
-      ? 'cached'
-      : isHealthyUnder24h
-        ? 'live'
+    isLiveConnectedAndFresh
+      ? 'live'
+      : !freshness.isStaleOver24h
+        ? 'cached'
         : 'stale'
 
   const stripToneClasses =

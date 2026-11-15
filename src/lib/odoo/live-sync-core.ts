@@ -33,14 +33,68 @@ export interface OdooStockTransferSummary {
   }[]
 }
 
+export interface OdooReceivableAccountRow {
+  accountId: number
+  accountCode: string
+  accountName: string
+  labelAr: string
+  labelEn: string
+  residualKwd: number
+  linesCount: number
+}
+
+export interface OdooReceivableAgingBucket {
+  key: '0_30' | '31_60' | 'over_60'
+  labelAr: string
+  labelEn: string
+  residualKwd: number
+  positiveDebitKwd: number
+  creditOffsetKwd: number
+  linesCount: number
+}
+
 export interface OdooReceivableClearingSummary {
   readable: boolean
   openReceivableKwd: number
+  grossPositiveReceivableKwd?: number
+  creditClearingOffsetKwd?: number
   openLinesCount: number
+  posClearingLinesCount?: number
+  platformAndCorporateLinesCount?: number
+  fromDate?: string | null
+  toDate?: string | null
+  latestMaturityDate?: string | null
+  maturityStatusAr?: string
+  maturityStatusEn?: string
+  openLinesExplanationAr?: string
+  openLinesExplanationEn?: string
+  sourceModel?: 'account.move.line'
+  byAccount?: OdooReceivableAccountRow[]
+  agingBuckets?: OdooReceivableAgingBucket[]
+}
+
+export interface OdooLedgerAccountingSummary {
+  available?: boolean
+  from?: string
+  to?: string
+  sourceModel?: 'account.move.line'
+  lineCount?: number
+  income: number
+  otherIncome: number
+  totalRevenue?: number
+  cogs: number
+  deliveryCommissions?: number
+  expense: number
+  depreciation: number
+  otherOpexAndDepreciation?: number
+  operatingProfit: number
+  completeAccrualPosted?: boolean
+  unavailableReasonAr?: string
+  unavailableReasonEn?: string
 }
 
 export interface OdooBucketSummary {
-  key: OdooPeriodBucketKey
+  key: OdooPeriodBucketKey | 'custom'
   from: string
   to: string
   days: number
@@ -59,7 +113,7 @@ export interface OdooBucketSummary {
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
   uiChannels?: Record<string, { netKwd: number; orders: number }>
-  accounting?: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number }
+  accounting?: OdooLedgerAccountingSummary
 }
 
 export interface OdooLiveSummary {
@@ -119,8 +173,11 @@ export interface OdooLiveSummary {
   branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
   channels: { name: string; amountKwd: number }[]
   buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
+  customBucket?: OdooBucketSummary
   /** Live Kuwait daily POS series (`YYYY-MM-DD`) overlaid on Custom Range & Comparison Engine. */
   dailySeries?: { day: string; orders: number; netKwd: number }[]
+  /** Live Kuwait per-branch daily POS series (`day -> branchId -> { netKwd, orders }`) for exact cross-page parity. */
+  dailyByBranch?: Record<string, Record<string, { netKwd: number; orders: number }>>
   /** Live Kuwait 24-hour POS distribution (`0..23`) overlaid on Hourly Comparison Curves. */
   hourlySeries?: { hour: number; orders: number; netKwd: number }[]
   /** Optional Ardiya Central Kitchen -> Branch transfer telemetry from `stock.picking`. */

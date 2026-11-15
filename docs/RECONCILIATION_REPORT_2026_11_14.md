@@ -2,7 +2,7 @@
 
 - **Audit Window:** `2026-10-16` through `2026-11-14` (30 Calendar Days, Inclusive, `Asia/Kuwait` `UTC+3`)
 - **ERP Source of Truth:** Odoo 17 `pos.order` (`state IN ('paid', 'done', 'invoiced')`, Net of Tax: `amount_total - amount_tax`) joined via `pos.session.config_id`
-- **Reconciliation Variance:** **`0.000 KWD`** across both Exclusion Bridge and Branch Allocation Bridge
+- **Computed Allocation Variance:** `0.000 KWD` across Exclusion Bridge (`158,168.000 - 21,590.000 = 136,578.000 KWD`), 7-Branch Allocation Bridge (`129,587.000 + 6,991.000 = 136,578.000 KWD`), and Non-Branch Bridge (`6,991.000 + 21,590.000 = 28,581.000 KWD`)
 
 ---
 
@@ -11,18 +11,20 @@
 | Ledger Stage | Formula / Scope | Orders | Net Sales (`KWD`) |
 | --- | --- | ---: | ---: |
 | **1. Gross Pre-Exclusion Raw Odoo POS Total** | All 35 `pos.config` registers (`grossPreExclusionKwd`) | `34,982` | **`158,168.000`** |
-| **2. Less: Excluded Decommissioned & Non-Operating Entities** | Decommissioned **Qurain** (`#24`, `#36`) + Excluded Brand **Heisenberg** (`HB #150`) (`excludedEntitiesKwd`) | `-3,099` | **`-21,590.000`** |
+| **2. Less: Excluded Decommissioned & Non-Operating Entities** | Decommissioned Dispatch & Warehouse Unit (`pos.config #24`, `#36`) + Non-Operating POS Category (`#150`) (`excludedEntitiesKwd`) | `-3,099` | **`-21,590.000`** |
 | **3. Active Company Net POS Sales** | `158,168.000 - 21,590.000` (`companyTotals.netSalesKwd`) | **`31,883`** | **`136,578.000`** |
 | └─ **3A. 7 Active Mapped Branches** | 18 mapped `pos.config` terminals (`sum(branches[].netSalesKwd)`) | `25,759` | **`129,587.000`** |
 | └─ **3B. Unclassified / Unmapped POS Terminals** | 15 exhibition/school/unassigned terminals (`غير مصنّف — أجهزة غير مربوطة`) | `6,124` | **`6,991.000`** |
-| **Reconciliation Gap** | `(158,168 - 21,590) - 136,578` & `(129,587 + 6,991) - 136,578` | **`0`** | **`0.000`** |
+| **Computed Variance** | `(158,168 - 21,590) - 136,578` & `(129,587 + 6,991) - 136,578` | **`0`** | **`0.000`** |
 
-### Verified Mathematical Identities
-1. **Exclusion Identity:** `grossPreExclusionKwd (158,168.000) - excludedEntitiesKwd (21,590.000) === companyTotals.netSalesKwd (136,578.000)` (`0.000 KWD` gap)
-2. **Branch Allocation Identity:** `sum(7 mapped branches = 129,587.000) + unmappedTerminalsNetKwd (6,991.000) === companyTotals.netSalesKwd (136,578.000)` (`0.000 KWD` gap)
+### Complete Reconciliation of Non-Branch POS Bridge (`28,581.000 KWD = 6,991.000 + 21,590.000`)
+Subtracting the **7 Active Mapped Branches** (`129,587.000 KWD`) from the **Gross Pre-Exclusion Raw Odoo POS Total** (`158,168.000 KWD`) yields **`28,581.000 KWD`**, which reconciles completely into two verified buckets:
 
-> **Historical Note on Prior Unmapped Bucket (`30,434 KWD` -> `6,991 KWD`):**
-> Prior to the decommissioned branch exclusion and POS terminal audit, raw unmapped POS revenue stood at `30,434.000 KWD` (`158,168.000` gross - `127,734.000` initially mapped). Excluding decommissioned **Qurain** (`21,590.000 KWD`) and binding active branch terminals (`#19/#20` Salmiya, `#43` Al-Kout, `#34` The Avenues, etc.) reduced unmapped POS revenue to **`6,991.000 KWD`** (strictly temporary exhibition booths `#26–#29` and school canteens `#41–#42`).
+| Component of `28,581.000 KWD` Non-Branch Bridge | Governance Destination | Net Sales (`KWD`) |
+| --- | --- | ---: |
+| **A. Unclassified Active Terminals (`#26–#29`, `#41–#42`)** | Active Exhibition Booths & School Canteens (`غير مصنّف — أجهزة غير مربوطة` / `unmappedTerminalsNetKwd`) | **`6,991.000`** |
+| **B. Excluded Decommissioned Units (`#24`, `#36`, `cat#150`)** | Excluded via Governance (`excludedEntitiesKwd`) | **`21,590.000`** |
+| **Total Non-Branch Bridge (`A + B`)** | `6,991.000 + 21,590.000 === 28,581.000 === 158,168.000 - 129,587.000` | **`28,581.000`** |
 
 ---
 
@@ -30,8 +32,8 @@
 
 | Excluded Entity | Odoo Identifier(s) | Governance Reason | Orders | Excluded Net (`KWD`) |
 | --- | --- | --- | ---: | ---: |
-| **Qurain (`Qurain WH` / `QRN` / `القرين`)** | `pos.config #24` (`Delivery (Qurain)`, `picking_type: Qurain: PoS Orders`) & `pos.config #36` (`Delivery (Qurain Temp)`, inactive) | Decommissioned warehouse & closed delivery dispatch unit | `3,099` | **`21,590.000`** |
-| **Heisenberg (`هايزن بريج`)** | `pos.category #150` (`HB`, subcategories `#151–#157`) | Non-operating / excluded brand outside the 6 approved Venture Foods brands | `0` | **`0.000`** |
+| **Decommissioned Dispatch & Warehouse Unit** | `pos.config #24` & `pos.config #36` *(inactive)* | Decommissioned warehouse & closed delivery dispatch unit outside the 7 active branches | `3,099` | **`21,590.000`** |
+| **Non-Operating POS Category** | `pos.category #150` (subcategories `#151–#157`) | Non-operating / excluded category outside the 6 approved Venture Foods brands | `0` | **`0.000`** |
 | **Total Excluded** | — | — | **`3,099`** | **`21,590.000`** |
 
 ---
@@ -55,7 +57,7 @@
 
 ## 4. Complete `terminal_id -> branch_id` Mapping Table (All 35 Odoo `pos.config` Registers)
 
-| `terminal_id` | Odoo `pos.config` Name | Status | Mapped `branch_id` | Branch / Bucket Label | Orders | Net Sales (`KWD`) |
+| `terminal_id` | Odoo `pos.config` Identifier | Status | Mapped `branch_id` | Branch / Bucket Label | Orders | Net Sales (`KWD`) |
 | ---: | --- | --- | --- | --- | ---: | ---: |
 | `17` | `China Garden (360)` | Mapped | `360-mall` | 360 Mall (`مول 360`) | `2,620` | `11,802.158` |
 | `18` | `Delivery (360)` | Mapped | `360-mall` | 360 Mall (`مول 360`) | `1,800` | `12,983.842` |
@@ -90,8 +92,8 @@
 | `38` | `POS EXEBITION 10 (EXB POS 10)` | Unmapped | `null` | `غير مصنّف — أجهزة غير مربوطة` | `0` | `0.000` |
 | `39` | `Tasty Snacks(Jahra)` | Unmapped | `null` | `غير مصنّف — أجهزة غير مربوطة` | `0` | `0.000` |
 | `40` | `NPIS Hawally (Inactive)` | Unmapped | `null` | `غير مصنّف — أجهزة غير مربوطة` | `0` | `0.000` |
-| `24` | `Delivery (Qurain)` | **Excluded** | `EXCLUDED` | Decommissioned Qurain (`القرين`) | `3,099` | `21,590.000` |
-| `36` | `Delivery (Qurain Temp)` *(inactive)* | **Excluded** | `EXCLUDED` | Decommissioned Qurain (`القرين`) | `0` | `0.000` |
-| `cat#150` | `HB — Heisenberg (pos.category #150)` | **Excluded** | `EXCLUDED` | Excluded Brand (`هايزن بريج`) | `0` | `0.000` |
+| `24` | `Decommissioned Dispatch Unit #24` | **Excluded** | `EXCLUDED` | Decommissioned Non-Operating Unit | `3,099` | `21,590.000` |
+| `36` | `Decommissioned Dispatch Unit #36` *(inactive)* | **Excluded** | `EXCLUDED` | Decommissioned Non-Operating Unit | `0` | `0.000` |
+| `cat#150` | `Non-Operating POS Category #150` | **Excluded** | `EXCLUDED` | Excluded Non-Operating Category | `0` | `0.000` |
 | **TOTAL** | **Gross Pre-Exclusion (`35` Registers)** | — | — | — | **`34,982`** | **`158,168.000`** |
 | **ACTIVE** | **Active Company Ledger (`33` Registers)** | — | — | **`129,587.000 + 6,991.000`** | **`31,883`** | **`136,578.000`** |

@@ -18,12 +18,22 @@ import {
   Users,
 } from 'lucide-react'
 
+import {
+  mapAuditorCustodianDisplay,
+  redactAuditorPersonalNames,
+} from '@/lib/accounting/auditor-redaction'
+
 interface OdooAccountingAnalyticsHubProps {
   isAr: boolean
   locale: string
+  isAuditor?: boolean
 }
 
-export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnalyticsHubProps) {
+export function OdooAccountingAnalyticsHub({
+  isAr,
+  locale,
+  isAuditor = false,
+}: OdooAccountingAnalyticsHubProps) {
   const [adoptedRecs, setAdoptedRecs] = useState<Record<string, boolean>>({})
   const [activeCustFilter, setActiveCustFilter] = useState<string>('ALL')
 
@@ -32,7 +42,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
   }
 
   // Audited 8 Custodians Data from Odoo (51,154.950 KWD total across 2,213 transactions)
-  const custodians = [
+  const rawCustodians = [
     {
       id: 'sanad',
       nameAr: 'مكتب سند للتخليص والخدمات الحكومية',
@@ -163,29 +173,42 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
     },
   ]
 
+  const custodians = rawCustodians.map((c, idx) => {
+    const mapped = mapAuditorCustodianDisplay(idx + 1, c.nameAr, c.nameEn, isAuditor)
+    return {
+      ...c,
+      id: isAuditor ? mapped.idCode.toLowerCase() : c.id,
+      displayCode: isAuditor ? mapped.idCode : c.id.toUpperCase(),
+      nameAr: mapped.nameAr,
+      nameEn: mapped.nameEn,
+      shortPillAr: mapped.shortPillAr,
+      shortPillEn: mapped.shortPillEn,
+      roleAr: redactAuditorPersonalNames(c.roleAr, isAuditor),
+      roleEn: redactAuditorPersonalNames(c.roleEn, isAuditor),
+      actionAr: redactAuditorPersonalNames(c.actionAr, isAuditor),
+      actionEn: redactAuditorPersonalNames(c.actionEn, isAuditor),
+    }
+  })
+
   // Filtered custodians list
   const filteredCustodians = activeCustFilter === 'ALL'
     ? custodians
     : custodians.filter((c) => c.id === activeCustFilter)
 
-  // Pareto 80/20 Expense Categories Data (75.38% concentrated in top 5 categories)
-  const paretoCategories = [
+  // Pareto 80/20 Expense Categories Data (pct & cumulativePct computed dynamically from amounts)
+  const rawParetoCategories = [
     {
       rank: 1,
       nameAr: 'المواد التموينية والخضار والفاكهة الطازجة',
       nameEn: 'Fresh Vegetables & Food Supplies',
       amountKwd: 16840.25,
-      pct: 32.92,
-      cumulativePct: 32.92,
       isTop80: true,
     },
     {
       rank: 2,
-      nameAr: 'صيانة التبريد والمكيفات والفلاتر (عهد ربيع)',
-      nameEn: 'HVAC & Chiller Maintenance (Rabih)',
+      nameAr: 'صيانة التبريد والمكيفات والفلاتر',
+      nameEn: 'HVAC & Chiller Maintenance',
       amountKwd: 10707.93,
-      pct: 20.93,
-      cumulativePct: 53.85,
       isTop80: true,
     },
     {
@@ -193,8 +216,6 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
       nameAr: 'رسوم تجديد الإقامات وتراخيص العمل (الشؤون)',
       nameEn: 'Residency Renewals & Labor Permits',
       amountKwd: 5420.1,
-      pct: 10.6,
-      cumulativePct: 64.45,
       isTop80: true,
     },
     {
@@ -202,8 +223,6 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
       nameAr: 'زيوت القلي والمواد الجافة المركزية',
       nameEn: 'Cooking Oils & Dry Goods (Central Kitchen)',
       amountKwd: 3180.45,
-      pct: 6.22,
-      cumulativePct: 70.67,
       isTop80: true,
     },
     {
@@ -211,8 +230,6 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
       nameAr: 'كروت الصحة وتراخيص بلدية الكويت',
       nameEn: 'Health Cards & Municipal Approvals',
       amountKwd: 2410.0,
-      pct: 4.71,
-      cumulativePct: 75.38,
       isTop80: true,
     },
     {
@@ -220,14 +237,21 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
       nameAr: 'باقي بنود المصروفات والعهد الـ 20 مجتمعة',
       nameEn: 'Remaining 20 Expense Lines Combined',
       amountKwd: 12596.22,
-      pct: 24.62,
-      cumulativePct: 100.0,
       isTop80: false,
     },
   ]
+  const totalParetoAmountKwd = rawParetoCategories.reduce((s, r) => s + r.amountKwd, 0) || 1
+  const paretoCategories = (() => {
+    let running = 0
+    return rawParetoCategories.map((item) => {
+      const pct = Number(((item.amountKwd / totalParetoAmountKwd) * 100).toFixed(2))
+      running = Number(Math.min(100, running + pct).toFixed(2))
+      return { ...item, pct, cumulativePct: running }
+    })
+  })()
 
   // The 4 Structured Forensic Alerts & AI Recommendations for Accounting
-  const forensicAlerts = [
+  const rawForensicAlerts = [
     {
       id: 'alert-sanad-recon',
       badgeAr: '🔴 خطر تركز مالي حاد (61.86%)',
@@ -290,6 +314,20 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
     },
   ]
 
+  const forensicAlerts = rawForensicAlerts.map((alert, idx) => ({
+    ...alert,
+    badgeAr: isAuditor ? `📌 ملاحظة مراجعة مالية #${idx + 1}` : alert.badgeAr,
+    badgeEn: isAuditor ? `📌 Financial Audit Note #${idx + 1}` : alert.badgeEn,
+    titleAr: redactAuditorPersonalNames(alert.titleAr, isAuditor),
+    titleEn: redactAuditorPersonalNames(alert.titleEn, isAuditor),
+    statAr: redactAuditorPersonalNames(alert.statAr, isAuditor),
+    statEn: redactAuditorPersonalNames(alert.statEn, isAuditor),
+    rootCauseAr: redactAuditorPersonalNames(alert.rootCauseAr, isAuditor),
+    rootCauseEn: redactAuditorPersonalNames(alert.rootCauseEn, isAuditor),
+    actionAr: redactAuditorPersonalNames(alert.actionAr, isAuditor),
+    actionEn: redactAuditorPersonalNames(alert.actionEn, isAuditor),
+  }))
+
   return (
     <div className="space-y-6">
       {/* 1. Header Banner */}
@@ -345,7 +383,13 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
 
           <div className="rounded-2xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 p-4 shadow-sm">
             <span className="text-xs font-bold text-rose-700 dark:text-rose-400">
-              {isAr ? 'نسبة تركز العهدة الأولى (سند)' : 'Top Custodian Concentration (Sanad)'}
+              {isAr
+                ? isAuditor
+                  ? 'نسبة تركز العهدة التشغيلية الأولى (#1)'
+                  : 'نسبة تركز العهدة الأولى (سند)'
+                : isAuditor
+                  ? 'Top Operational Custody Concentration (#1)'
+                  : 'Top Custodian Concentration (Sanad)'}
             </span>
             <div className="mt-1 text-2xl font-black text-rose-700 dark:text-rose-400 font-mono">
               61.86%
@@ -485,7 +529,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
                 }`}
               >
-                {isAr ? c.nameAr.split(' ')[0] : c.nameEn.split(' ')[0]}
+                {isAr ? c.shortPillAr : c.shortPillEn}
               </button>
             ))}
           </div>
@@ -496,12 +540,14 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
           <table className="w-full text-start text-xs border-collapse">
             <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
               <tr>
-                <th className="py-3 px-3.5 text-start font-bold whitespace-nowrap">{isAr ? 'صاحب العهدة والمسؤولية' : 'Custodian'}</th>
+                <th className="py-3 px-3.5 text-start font-bold whitespace-nowrap">{isAr ? (isAuditor ? 'مركز العهدة والمسؤولية' : 'صاحب العهدة والمسؤولية') : 'Custodian'}</th>
                 <th className="py-3 px-3.5 text-start font-bold whitespace-nowrap">{isAr ? 'المهام ومراكز التكلفة' : 'Role & Scope'}</th>
                 <th className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{isAr ? 'عدد الحركات' : 'Tx Count'}</th>
                 <th className="py-3 px-3.5 text-end font-bold whitespace-nowrap">{isAr ? 'إجمالي المبلغ' : 'Total KWD'}</th>
                 <th className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{isAr ? 'نسبة التركز' : 'Share %'}</th>
-                <th className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{isAr ? 'تصنيف المخاطر' : 'Risk'}</th>
+                {!isAuditor ? (
+                  <th className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{isAr ? 'تصنيف المخاطر' : 'Risk'}</th>
+                ) : null}
                 <th className="py-3 px-3.5 text-start font-bold min-w-[220px]">{isAr ? 'الإجراء التنفيذي والتوفير المالي' : 'Action & Savings'}</th>
               </tr>
             </thead>
@@ -513,7 +559,7 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                       {isAr ? c.nameAr : c.nameEn}
                     </div>
                     <div className="text-xs text-slate-400 font-mono">
-                      #{c.id.toUpperCase()}
+                      #{c.displayCode}
                     </div>
                   </td>
                   <td className="py-3 px-3.5 text-slate-600 dark:text-slate-300">
@@ -536,11 +582,13 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                       {c.sharePct}%
                     </span>
                   </td>
-                  <td className="py-3 px-3.5 text-center whitespace-nowrap">
-                    <span className="text-xs font-bold">
-                      {isAr ? c.riskAr : c.riskEn}
-                    </span>
-                  </td>
+                  {!isAuditor ? (
+                    <td className="py-3 px-3.5 text-center whitespace-nowrap">
+                      <span className="text-xs font-bold">
+                        {isAr ? c.riskAr : c.riskEn}
+                      </span>
+                    </td>
+                  ) : null}
                   <td className="py-3 px-3.5 space-y-1">
                     <p className="text-slate-600 dark:text-slate-400 leading-snug">
                       {isAr ? c.actionAr : c.actionEn}
@@ -565,11 +613,13 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                 <td className="py-3.5 px-3.5 text-center font-mono">
                   100.0%
                 </td>
-                <td className="py-3.5 px-3.5 text-center">
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-700 dark:text-emerald-300 text-xs">
-                    {isAr ? 'مدقق 100%' : '100% Audited'}
-                  </span>
-                </td>
+                {!isAuditor ? (
+                  <td className="py-3.5 px-3.5 text-center">
+                    <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-emerald-700 dark:text-emerald-300 text-xs">
+                      {isAr ? 'مدقق 100%' : '100% Audited'}
+                    </span>
+                  </td>
+                ) : null}
                 <td className="py-3.5 px-3.5 text-emerald-700 dark:text-emerald-400 font-bold">
                   {isAr ? 'إجمالي توفير مستهدف: 2,740.000 د.ك شهرياً (32,880 د.ك سنوياً)' : 'Total Target Savings: 2,740 KWD/mo (32,880 KWD/yr)'}
                 </td>
@@ -640,19 +690,25 @@ export function OdooAccountingAnalyticsHub({ isAr, locale }: OdooAccountingAnaly
                 <span className="text-xs text-slate-500 font-mono">
                   {isAr ? `سنوياً: ${alert.annualSavingsKwd.toLocaleString()} د.ك` : `Annual: ${alert.annualSavingsKwd.toLocaleString()} KWD`}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => handleAdopt(alert.id)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition shadow ${
-                    adoptedRecs[alert.id]
-                      ? 'bg-emerald-600 text-white cursor-default'
-                      : 'bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white'
-                  }`}
-                >
-                  {adoptedRecs[alert.id]
-                    ? (isAr ? '✓ تم الاعتماد للـ GM' : '✓ Adopted')
-                    : (isAr ? 'اعتماد التوصية وتصدير تقرير للـ GM' : 'Adopt & Export GM Brief')}
-                </button>
+                {!isAuditor ? (
+                  <button
+                    type="button"
+                    onClick={() => handleAdopt(alert.id)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition shadow ${
+                      adoptedRecs[alert.id]
+                        ? 'bg-emerald-600 text-white cursor-default'
+                        : 'bg-slate-900 dark:bg-emerald-600 hover:bg-slate-800 dark:hover:bg-emerald-500 text-white'
+                    }`}
+                  >
+                    {adoptedRecs[alert.id]
+                      ? (isAr ? '✓ تم الاعتماد للـ GM' : '✓ Adopted')
+                      : (isAr ? 'اعتماد التوصية وتصدير تقرير للـ GM' : 'Adopt & Export GM Brief')}
+                  </button>
+                ) : (
+                  <span className="rounded-lg border border-slate-300 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    {isAr ? 'للاطلاع فقط (مراجع)' : 'Read-Only Auditor'}
+                  </span>
+                )}
               </div>
             </div>
           ))}

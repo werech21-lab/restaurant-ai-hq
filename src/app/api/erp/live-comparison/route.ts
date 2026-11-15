@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
       diagnosticCode: liveOverlay.diagnosticCode,
       database: null,
       dailySeries: liveOverlay.dailySeries ?? [],
+      dailyByBranch: liveOverlay.dailyByBranch,
       hourlySeries: liveOverlay.hourlySeries ?? [],
       comparison,
     }),

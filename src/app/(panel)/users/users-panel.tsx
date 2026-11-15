@@ -140,6 +140,16 @@ export function UsersPanel({
                           <button
                             type="button"
                             className={btnDanger}
+                            aria-label={
+                              en
+                                ? `Delete ${displayTeamName(row.name, locale)}`
+                                : `حذف ${displayTeamName(row.name, locale)}`
+                            }
+                            title={
+                              en
+                                ? `Delete ${displayTeamName(row.name, locale)}`
+                                : `حذف ${displayTeamName(row.name, locale)}`
+                            }
                             onClick={async () => {
                               const label = displayTeamName(row.name, locale);
                               if (!confirm(en ? `Delete ${label}?` : `هل أنت متأكد من حذف ${label}؟`)) return;

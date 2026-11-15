@@ -155,7 +155,7 @@ export function NotificationBell({
         title: en ? 'Aggregator radar live watch' : 'مراقبة رادار التوصيل الحية',
         body: en
           ? 'Forced Offline / TGO 17% detector is armed for all 6 brands • 7 branches • 8 channels.'
-          : 'كاشف الإغلاق القسري وتحويل توصيل المنصة 17% مفعّل عبر 6 مطاعم • 7 فروع • 8 قنوات.',
+          : 'كاشف الإغلاق القسري وتحويل توصيل المنصة 17% مفعّل عبر 6 علامات تجارية • 7 فروع • 8 قنوات.',
         href: '/erp/aggregator-radar',
         category: 'radar',
         createdAt: now,

@@ -16,8 +16,7 @@
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { BRANCH_TRUE_CASH } from '@/lib/full-journey-enterprise-brain'
-import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
+import { getKuwaitTimeContext, getKuwaitTodayIso } from '@/lib/aether/period-delta'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -236,6 +235,10 @@ export interface ErpComparisonResult {
   byChannel: EntityVarianceRow[]
   insights: ErpComparisonAutoInsights
   likeForLikeMeta: ComparisonLikeForLikeMeta
+  accountingAvailable: boolean
+  accountingUnavailableReasonAr: string | null
+  accountingUnavailableReasonEn: string | null
+  lastSyncedAt: string | null
   reconciliation: {
     maxSalesGapKwd: number
     maxProfitGapKwd: number
@@ -244,16 +247,24 @@ export interface ErpComparisonResult {
   }
 }
 
+function shiftIsoDateBootstrap(iso: string, deltaDays: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  dt.setUTCDate(dt.getUTCDate() + deltaDays)
+  return dt.toISOString().slice(0, 10)
+}
+
 /**
- * Default Comparison Dates exclude the incomplete partial day (`2026-11-14`) by default
- * so windows end cleanly at the last completed calendar day (`2026-11-13`) with equal day counts.
+ * Default Comparison Dates exclude ONLY the incomplete current Kuwait day (`todayIso`)
+ * so windows end cleanly at the last completed calendar day (`yesterdayIso`, e.g. `2026-11-14` on `2026-11-15`).
  */
-export const DEFAULT_COMPARISON_DATE_A = '2026-11-13'
-export const DEFAULT_COMPARISON_DATE_B = '2026-11-06'
-export const DEFAULT_RANGE_FROM_A = '2026-11-07'
-export const DEFAULT_RANGE_TO_A = '2026-11-13'
-export const DEFAULT_RANGE_FROM_B = '2026-10-31'
-export const DEFAULT_RANGE_TO_B = '2026-11-06'
+const INITIAL_COMPLETED_YESTERDAY_ISO = getKuwaitTimeContext().yesterdayIso
+export const DEFAULT_COMPARISON_DATE_A = INITIAL_COMPLETED_YESTERDAY_ISO
+export const DEFAULT_COMPARISON_DATE_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -7)
+export const DEFAULT_RANGE_FROM_A = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -6)
+export const DEFAULT_RANGE_TO_A = INITIAL_COMPLETED_YESTERDAY_ISO
+export const DEFAULT_RANGE_FROM_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -13)
+export const DEFAULT_RANGE_TO_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -7)
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -465,29 +476,15 @@ interface AtomicCell {
   channel: ChannelEntityId
   sales30Kwd: number
   orders30: number
-  foodRate: number // fraction of sales (e.g. 0.264)
-  commRate: number // fraction of sales (e.g. 0.185)
-  opexRate: number // fraction of sales (e.g. 0.345)
 }
 
-const BRAND_FOOD_RATE: Record<BrandEntityId, number> = {
-  'china-garden': 0.264,
-  franks: 0.295,
-  tahina: 0.252,
-  'farm-brown': 0.282,
-  'noodle-bar': 0.258,
-  'karak-cafeteria': 0.225,
-}
-
-const CHANNEL_COMM_RATE: Record<ChannelEntityId, number> = {
-  'dine-in': 0.0,
-  'takeaway-direct': 0.018,
-  'talabat-tgo': 0.185,
-  'talabat-tmp': 0.135,
-  keeta: 0.192,
-  deliveroo: 0.178,
-  jahez: 0.15,
-  snoonu: 0.15,
+interface ResolvedLedgerRates {
+  available: boolean
+  foodRate: number
+  commRate: number
+  opexRate: number
+  unavailableReasonAr: string | null
+  unavailableReasonEn: string | null
 }
 
 const BRAND_SET = new Set<string>(APPROVED_BRAND_IDS)
@@ -561,17 +558,6 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
     }
   }
 
-  const branchFixedRate = {} as Record<BranchEntityId, number>
-  for (const lid of APPROVED_BRANCH_IDS) {
-    const btc = BRANCH_TRUE_CASH.find((x) => x.id === lid)
-    if (btc && btc.posNet > 0) {
-      const ratio = (btc.rent + btc.effectiveLabor + btc.branchOpex + btc.sharedAlloc) / btc.posNet
-      branchFixedRate[lid] = Math.min(0.52, Math.max(0.21, ratio))
-    } else {
-      branchFixedRate[lid] = 0.345
-    }
-  }
-
   const brandAov = {} as Record<BrandEntityId, number>
   for (const bid of APPROVED_BRAND_IDS) {
     const ob = ODOO.brands.find((x) => x.id === bid)
@@ -596,12 +582,6 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
       channel === 'dine-in' ? 1.12 : channel === 'takeaway-direct' ? 0.94 : 0.98
     const cellAov = Math.max(2.1, brandAov[brand] * chAovBoost)
     const orders30 = sales30Kwd / cellAov
-    const foodRate = Math.max(
-      0.205,
-      (BRAND_FOOD_RATE[brand] ?? 0.268) - (channel === 'dine-in' ? 0.018 : 0),
-    )
-    const commRate = CHANNEL_COMM_RATE[channel] ?? 0.135
-    const opexRate = branchFixedRate[branch] ?? 0.345
 
     cells.push({
       brand,
@@ -609,9 +589,6 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
       channel,
       sales30Kwd,
       orders30,
-      foodRate,
-      commRate,
-      opexRate,
     })
     totalSales30 += sales30Kwd
     totalOrders30 += orders30
@@ -644,9 +621,9 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
       partialDayLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
     }
   }
-  // Exclude trailing partial capture day ('2026-11-14') from full-day baseline averages & default lookup
+  // Exclude current incomplete calendar day (`getKuwaitTodayIso()`) and <150-order partial captures from full-day baseline averages
   const fullDays = (tp?.daily ?? []).filter(
-    (d) => d.orders >= 150 && d.netKwd > 0 && d.day < '2026-11-14',
+    (d) => d.orders >= 150 && d.netKwd > 0 && d.day < getKuwaitTodayIso(),
   )
   const realDayLookup = new Map<string, { netKwd: number; orders: number }>()
   const dowAcc: Record<number, { net: number; ord: number; count: number }> = {}
@@ -752,10 +729,7 @@ export function resolveCompletedComparisonDefaults(options?: {
   periodB: DateWindowSelection
 } {
   const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
-  const operationalTodayIso =
-    options?.referenceNowMs !== undefined || options?.liveSummary?.connected === true
-      ? kwCtx.todayIso
-      : '2026-11-14'
+  const operationalTodayIso = kwCtx.todayIso
   const lastCompletedDayIso = shiftIsoDate(operationalTodayIso, -1)
   const anchorTo = options?.sameHoursLikeForLike ? operationalTodayIso : lastCompletedDayIso
   const granularity = options?.granularity === 'range' ? 'range' : 'single'
@@ -841,14 +815,8 @@ function getDateGroupProfile(
 
   const realHit = CALIBRATED_BASE.realDayLookup.get(isoDate)
   if (realHit) {
-    // Restaurant share of group POS (~96.64%)
-    const restRatio = safeDiv(
-      CALIBRATED_BASE.totalSales30,
-      safeNum(ODOO.totals?.netSalesKwd, CALIBRATED_BASE.totalSales30),
-      1,
-    )
-    const restDaySales = realHit.netKwd * Math.min(1, Math.max(0.9, restRatio)) * safeScale
-    const restDayOrders = realHit.orders * Math.min(1, Math.max(0.9, restRatio)) * safeScale
+    const restDaySales = realHit.netKwd * safeScale
+    const restDayOrders = realHit.orders * safeScale
     return {
       salesDayShareOf30: safeDiv(restDaySales, CALIBRATED_BASE.totalSales30, 1 / 30),
       ordersDayShareOf30: safeDiv(restDayOrders, CALIBRATED_BASE.totalOrders30, 1 / 30),
@@ -880,12 +848,15 @@ function getDateGroupProfile(
   }
 }
 
-/** Subtle deterministic entity-day mix shift (normalized so group total stays 100% invariant) */
+/** Exact daily entity metrics (reconciled to live dailyByBranch when filtering pure branch slices) */
 function computeCellMetricsForDate(
   isoDate: string,
   cellFilter: (c: AtomicCell) => boolean,
+  ledgerRates: ResolvedLedgerRates,
   liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
   intradayScale = 1,
+  liveDailyByBranch?: OdooLiveSummary['dailyByBranch'],
+  isPureBranchSubset = false,
 ): {
   byCell: Map<
     AtomicCell,
@@ -905,7 +876,8 @@ function computeCellMetricsForDate(
   totalOpexCost: number
   totalNetPocket: number
 } {
-  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup, intradayScale)
+  const safeScale = Number.isFinite(intradayScale) && intradayScale > 0 ? intradayScale : 1
+  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup, safeScale)
   const matchingCells = CALIBRATED_BASE.cells.filter(cellFilter)
 
   if (matchingCells.length === 0) {
@@ -920,35 +892,16 @@ function computeCellMetricsForDate(
     }
   }
 
-  // Unmodulated target slice totals so Brand/Branch/Channel sums stay 100% additive
-  let baseSliceSales = 0
-  let baseSliceOrders = 0
-  const rawWeights: Array<{ cell: AtomicCell; wSales: number; wOrders: number }> = []
-  let weightedModSalesSum = 0
-  let weightedModOrdersSum = 0
-
-  for (const c of matchingCells) {
-    const rawS = c.sales30Kwd * dayProf.salesDayShareOf30
-    const rawO = c.orders30 * dayProf.ordersDayShareOf30
-    baseSliceSales += rawS
-    baseSliceOrders += rawO
-
-    // Gentle deterministic daily texture per branch/brand/channel (±3.5%), normalized across active cells
-    const mod =
-      0.965 +
-      fnv1aUnit(`${isoDate}|${c.brand}|${c.branch}|${c.channel}`) * 0.07 +
-      (dayProf.isWeekend && c.channel === 'dine-in' ? 0.035 : 0) +
-      (!dayProf.isWeekend && c.branch === 'ardiya' ? 0.02 : 0)
-
-    const wS = rawS * mod
-    const wO = rawO * mod
-    rawWeights.push({ cell: c, wSales: wS, wOrders: wO })
-    weightedModSalesSum += wS
-    weightedModOrdersSum += wO
+  const branchLiveForDay = isPureBranchSubset ? liveDailyByBranch?.[isoDate] : undefined
+  const branchCellBaseSums = new Map<BranchEntityId, { sales30: number; orders30: number }>()
+  if (branchLiveForDay) {
+    for (const c of matchingCells) {
+      const prev = branchCellBaseSums.get(c.branch) ?? { sales30: 0, orders30: 0 }
+      prev.sales30 += c.sales30Kwd
+      prev.orders30 += c.orders30
+      branchCellBaseSums.set(c.branch, prev)
+    }
   }
-
-  const normS = safeDiv(baseSliceSales, weightedModSalesSum, 1)
-  const normO = safeDiv(baseSliceOrders, weightedModOrdersSum, 1)
 
   const byCell = new Map<
     AtomicCell,
@@ -969,15 +922,31 @@ function computeCellMetricsForDate(
   let totalOpexCost = 0
   let totalNetPocket = 0
 
-  for (const item of rawWeights) {
-    const sales = item.wSales * normS
-    const orders = item.wOrders * normO
-    const foodCost = sales * item.cell.foodRate
-    const commCost = sales * item.cell.commRate
-    const opexCost = sales * item.cell.opexRate
-    const netPocket = sales - foodCost - commCost - opexCost
+  for (const c of matchingCells) {
+    let sales: number
+    let orders: number
+    if (branchLiveForDay) {
+      const exactBranch = branchLiveForDay[c.branch] ?? { netKwd: 0, orders: 0 }
+      const baseSum = branchCellBaseSums.get(c.branch) ?? { sales30: 0, orders30: 0 }
+      sales =
+        baseSum.sales30 > 0
+          ? exactBranch.netKwd * safeScale * (c.sales30Kwd / baseSum.sales30)
+          : 0
+      orders =
+        baseSum.orders30 > 0
+          ? exactBranch.orders * safeScale * (c.orders30 / baseSum.orders30)
+          : 0
+    } else {
+      sales = c.sales30Kwd * dayProf.salesDayShareOf30
+      orders = c.orders30 * dayProf.ordersDayShareOf30
+    }
 
-    byCell.set(item.cell, {
+    const foodCost = ledgerRates.available ? sales * ledgerRates.foodRate : 0
+    const commCost = ledgerRates.available ? sales * ledgerRates.commRate : 0
+    const opexCost = ledgerRates.available ? sales * ledgerRates.opexRate : 0
+    const netPocket = ledgerRates.available ? sales - foodCost - commCost - opexCost : 0
+
+    byCell.set(c, {
       sales,
       orders,
       foodCost,
@@ -1042,8 +1011,11 @@ interface AggregatedSliceRaw {
 function aggregateSliceOverDates(
   dates: string[],
   cellFilter: (c: AtomicCell) => boolean,
+  ledgerRates: ResolvedLedgerRates,
   liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
   dateIntradayScaleMap?: ReadonlyMap<string, number>,
+  liveDailyByBranch?: OdooLiveSummary['dailyByBranch'],
+  isPureBranchSubset = false,
 ): AggregatedSliceRaw {
   const byBrand = {} as AggregatedSliceRaw['byBrand']
   for (const b of APPROVED_BRAND_IDS) {
@@ -1068,7 +1040,15 @@ function aggregateSliceOverDates(
 
   for (const dateIso of dates) {
     const scale = dateIntradayScaleMap?.get(dateIso) ?? 1
-    const dayRes = computeCellMetricsForDate(dateIso, cellFilter, liveDailyLookup, scale)
+    const dayRes = computeCellMetricsForDate(
+      dateIso,
+      cellFilter,
+      ledgerRates,
+      liveDailyLookup,
+      scale,
+      liveDailyByBranch,
+      isPureBranchSubset,
+    )
     perDate.push({
       dateIso,
       sales: dayRes.totalSales,
@@ -1209,21 +1189,24 @@ function buildWindowTitles(
 
 function buildSliceTotals(
   raw: AggregatedSliceRaw,
+  ledgerAvailable: boolean,
   entityTitleEn?: string,
   entityTitleAr?: string,
 ): ComparisonSliceTotals {
   const netSalesKwd = r3(raw.totalSales)
   const completedOrders = Math.max(0, Math.round(raw.totalOrders))
   const aovKwd = completedOrders > 0 ? r3(netSalesKwd / completedOrders) : 0
-  const foodCostKwd = r3(raw.totalFoodCost)
-  const aggregatorFeeKwd = r3(raw.totalCommCost)
-  const foodAndAggregatorCostKwd = r3(foodCostKwd + aggregatorFeeKwd)
+  const foodCostKwd = ledgerAvailable ? r3(raw.totalFoodCost) : 0
+  const aggregatorFeeKwd = ledgerAvailable ? r3(raw.totalCommCost) : 0
+  const foodAndAggregatorCostKwd = ledgerAvailable ? r3(foodCostKwd + aggregatorFeeKwd) : 0
   const foodAndAggregatorPct =
-    netSalesKwd > 0 ? r1((foodAndAggregatorCostKwd / netSalesKwd) * 100) : 0
-  const fixedOpexKwd = r3(raw.totalOpexCost)
-  const netPocketCashKwd = r3(netSalesKwd - foodAndAggregatorCostKwd - fixedOpexKwd)
+    ledgerAvailable && netSalesKwd > 0 ? r1((foodAndAggregatorCostKwd / netSalesKwd) * 100) : 0
+  const fixedOpexKwd = ledgerAvailable ? r3(raw.totalOpexCost) : 0
+  const netPocketCashKwd = ledgerAvailable
+    ? r3(netSalesKwd - foodAndAggregatorCostKwd - fixedOpexKwd)
+    : 0
   const netPocketMarginPct =
-    netSalesKwd > 0 ? r1((netPocketCashKwd / netSalesKwd) * 100) : 0
+    ledgerAvailable && netSalesKwd > 0 ? r1((netPocketCashKwd / netSalesKwd) * 100) : 0
 
   const titles = buildWindowTitles(
     raw.fromIso,
@@ -1693,10 +1676,7 @@ export function computeErpComparison(
   const sameHoursLikeForLike = query.sameHoursLikeForLike === true
 
   const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
-  const operationalTodayIso =
-    options?.referenceNowMs !== undefined || liveSummary?.connected === true
-      ? kwCtx.todayIso
-      : '2026-11-14'
+  const operationalTodayIso = kwCtx.todayIso
   const lastCompletedDayIso = shiftIsoDate(operationalTodayIso, -1)
 
   let normA = normalizeWindowSelection(
@@ -1899,12 +1879,78 @@ export function computeErpComparison(
     }
   }
 
-  const rawA = aggregateSliceOverDates(normA.dates, filterA, lookupA, dateScaleA)
+  const isFullCompanyScope =
+    mode === 'date-vs-date' && !brandSet && !branchSet && !channelSet
+  const minWindowDays = Math.min(normA.dayCount, normB.dayCount)
+  const glAcc =
+    minWindowDays >= 180
+      ? liveSummary?.buckets?.year?.accounting
+      : minWindowDays >= 14
+        ? liveSummary?.buckets?.month?.accounting
+        : undefined
+
+  let ledgerRates: ResolvedLedgerRates
+  const glTotalRev = typeof glAcc?.totalRevenue === 'number' ? glAcc.totalRevenue : 0
+  if (
+    isFullCompanyScope &&
+    minWindowDays >= 14 &&
+    glAcc?.available &&
+    glAcc.completeAccrualPosted &&
+    glTotalRev > 0
+  ) {
+    ledgerRates = {
+      available: true,
+      foodRate: Math.max(0, glAcc.cogs / glTotalRev),
+      commRate: Math.max(0, (glAcc.deliveryCommissions ?? 0) / glTotalRev),
+      opexRate: Math.max(0, (glAcc.otherOpexAndDepreciation ?? 0) / glTotalRev),
+      unavailableReasonAr: null,
+      unavailableReasonEn: null,
+    }
+  } else {
+    let reasonAr = 'غير متوفر — لم تتوفر قيود دفتر الأستاذ المرحلة (account.move.line) للفترة المختارة'
+    let reasonEn = 'Not available — posted Odoo GL journal lines (account.move.line) are unavailable for the selected window'
+    if (!isFullCompanyScope) {
+      reasonAr = 'غير متوفر على مستوى فلتر فرعي — قيود المحاسبة في أودو (account.move.line) تُرحّل على مستوى الشركة ولا تُجزّأ افتراضياً'
+      reasonEn = 'Not available for sub-filters — Odoo GL expenses (account.move.line) are posted at company level without synthetic allocation'
+    } else if (minWindowDays < 14) {
+      reasonAr = 'غير متوفر للفترات اليومية/الأسبوعية — استحقاقات الإيجار والرواتب وفواتير المنصات تُقفل شهرياً في account.move.line'
+      reasonEn = 'Not available for daily/weekly windows — rent, payroll, and platform bills post monthly in account.move.line'
+    } else if (glAcc && !glAcc.completeAccrualPosted) {
+      reasonAr = 'غير متوفر — لم تكتمل قيود إقفال التكاليف الشهرية في دفتر الأستاذ بعد'
+      reasonEn = 'Not available — monthly cost accruals are not yet fully posted in Odoo GL'
+    }
+    ledgerRates = {
+      available: false,
+      foodRate: 0,
+      commRate: 0,
+      opexRate: 0,
+      unavailableReasonAr: reasonAr,
+      unavailableReasonEn: reasonEn,
+    }
+  }
+
+  const isPureBranchSubset =
+    !brandSet &&
+    !channelSet &&
+    (Boolean(branchSet) || (mode === 'entity-vs-entity' && entityDim === 'branch'))
+
+  const rawA = aggregateSliceOverDates(
+    normA.dates,
+    filterA,
+    ledgerRates,
+    lookupA,
+    dateScaleA,
+    liveSummary?.dailyByBranch,
+    isPureBranchSubset,
+  )
   const rawB = aggregateSliceOverDates(
     normB.dates,
     filterB,
+    ledgerRates,
     mode === 'entity-vs-entity' ? lookupA : liveDailyLookup,
     mode === 'entity-vs-entity' ? dateScaleA : dateScaleB,
+    liveSummary?.dailyByBranch,
+    isPureBranchSubset,
   )
 
   const entityLabelAEn =
@@ -1932,8 +1978,8 @@ export function computeErpComparison(
         : getBranchLabel(entityBId as BranchEntityId, true)
       : undefined
 
-  const selectionA = buildSliceTotals(rawA, entityLabelAEn, entityLabelAAr)
-  const selectionB = buildSliceTotals(rawB, entityLabelBEn, entityLabelBAr)
+  const selectionA = buildSliceTotals(rawA, ledgerRates.available, entityLabelAEn, entityLabelAAr)
+  const selectionB = buildSliceTotals(rawB, ledgerRates.available, entityLabelBEn, entityLabelBAr)
 
   // 6 Core Executive KPI Deltas (with smart polarity)
   const netSales = buildStandardKpiDelta({
@@ -2068,10 +2114,14 @@ export function computeErpComparison(
     sliceA: selectionA,
     sliceB: selectionB,
     getName: (id, ar) => getChannelLabel(id, ar),
-    getSubMeta: (id, ar) => {
-      const pct = Math.round((CHANNEL_COMM_RATE[id] ?? 0) * 1000) / 10
-      return ar ? `عمولة ${pct}%` : `${pct}% fee`
-    },
+    getSubMeta: (id, ar) =>
+      id === 'dine-in' || id === 'takeaway-direct'
+        ? ar
+          ? 'قناة مباشرة · بدون عمولة منصة'
+          : 'Direct channel · 0% platform fee'
+        : ar
+          ? 'منصة توصيل خارجية · pos.payment'
+          : 'External aggregator · pos.payment',
     getIsCompatible: (id) => !channelSet || channelSet.has(id),
   })
 
@@ -2246,6 +2296,14 @@ export function computeErpComparison(
       summaryAr,
     },
     likeForLikeMeta,
+    accountingAvailable: ledgerRates.available,
+    accountingUnavailableReasonAr: ledgerRates.unavailableReasonAr,
+    accountingUnavailableReasonEn: ledgerRates.unavailableReasonEn,
+    lastSyncedAt:
+      liveSummary?.kuwaitSyncedAt ??
+      liveSummary?.latestOdooRecordAt ??
+      liveSummary?.syncedAt ??
+      null,
     reconciliation: {
       maxSalesGapKwd,
       maxProfitGapKwd,

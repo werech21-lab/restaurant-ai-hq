@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -221,22 +221,48 @@ export function BeforeAfterStudio() {
     openDrawer,
   } = useGovernance()
 
-  const [query, setQuery] = useState<ErpComparisonQuery>(() => ({
-    ...DEFAULT_BEFORE_AFTER_QUERY,
-    brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
-    branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
-    channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
-  }))
+  const hadInitialUrlDatesRef = useRef<boolean | null>(null)
+  const userEditedDatesRef = useRef(false)
+
+  const buildLiveDefaultBeforeAfterQuery = useCallback((): ErpComparisonQuery => {
+    const defs = resolveCompletedComparisonDefaults({
+      granularity: 'range',
+      liveSummary,
+    })
+    return {
+      ...DEFAULT_BEFORE_AFTER_QUERY,
+      periodA: defs.periodA,
+      periodB: defs.periodB,
+      brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
+      branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
+      channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
+    }
+  }, [filters.brand, filters.branch, filters.channel, liveSummary])
+
+  const [query, setQuery] = useState<ErpComparisonQuery>(() => {
+    const defs = resolveCompletedComparisonDefaults({ granularity: 'range', liveSummary })
+    return {
+      ...DEFAULT_BEFORE_AFTER_QUERY,
+      periodA: defs.periodA,
+      periodB: defs.periodB,
+      brandIds: filters.brand === 'all' ? 'all' : [filters.brand],
+      branchIds: filters.branch === 'all' ? 'all' : [filters.branch],
+      channelIds: filters.channel === 'all' ? 'all' : [filters.channel],
+    }
+  })
 
   useEffect(() => {
-    setQuery(readInitialComparisonQueryFromEnv(DEFAULT_BEFORE_AFTER_QUERY, filters))
+    if (typeof window !== 'undefined' && hadInitialUrlDatesRef.current === null) {
+      const sp = new URLSearchParams(window.location.search)
+      hadInitialUrlDatesRef.current = sp.has('dateA') || sp.has('dateB')
+    }
+    setQuery(readInitialComparisonQueryFromEnv(buildLiveDefaultBeforeAfterQuery(), filters))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     if (!liveSummary?.connected || typeof window === 'undefined') return
-    const sp = new URLSearchParams(window.location.search)
-    if (sp.has('dateA') || sp.has('dateB')) return
+    if (hadInitialUrlDatesRef.current || userEditedDatesRef.current) return
     setQuery((prev) => {
       const defs = resolveCompletedComparisonDefaults({
         granularity: prev.granularity,
@@ -257,7 +283,7 @@ export function BeforeAfterStudio() {
         periodB: defs.periodB,
       }
     })
-  }, [liveSummary?.connected])
+  }, [liveSummary])
 
   const [activeDecisionId, setActiveDecisionId] = useState<string | null>(null)
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
@@ -297,8 +323,24 @@ export function BeforeAfterStudio() {
   const [extraDailySeries, setExtraDailySeries] = useState<
     { day: string; orders: number; netKwd: number }[]
   >([])
+  const [extraDailyByBranch, setExtraDailyByBranch] = useState<
+    Record<string, Record<string, { netKwd: number; orders: number }>>
+  >({})
 
   useEffect(() => {
+    const existingDays = liveSummary?.dailySeries ?? []
+    if (existingDays.length > 0) {
+      const sortedDays = existingDays.map((d) => d.day).sort()
+      const minKnown = sortedDays[0]
+      const maxKnown = sortedDays[sortedDays.length - 1]
+      const reqMin =
+        query.periodA.from < query.periodB.from ? query.periodA.from : query.periodB.from
+      const reqMax = query.periodA.to > query.periodB.to ? query.periodA.to : query.periodB.to
+      if (minKnown && maxKnown && reqMin >= minKnown && reqMax <= maxKnown) {
+        return
+      }
+    }
+
     let active = true
     const qs = new URLSearchParams({
       dateA: query.periodA.from,
@@ -320,21 +362,30 @@ export function BeforeAfterStudio() {
     })
       .then((res) =>
         res.ok
-          ? (res.json() as Promise<{ dailySeries?: { day: string; orders: number; netKwd: number }[] }>)
+          ? (res.json() as Promise<{
+              connected?: boolean
+              dailySeries?: { day: string; orders: number; netKwd: number }[]
+              dailyByBranch?: Record<string, Record<string, { netKwd: number; orders: number }>>
+            }>)
           : null,
       )
       .then((payload) => {
-        if (active && Array.isArray(payload?.dailySeries) && payload.dailySeries.length > 0) {
+        if (!active || payload?.connected === false) return
+        if (Array.isArray(payload?.dailySeries) && payload.dailySeries.length > 0) {
           setExtraDailySeries(payload.dailySeries)
+        }
+        if (payload?.dailyByBranch && typeof payload.dailyByBranch === 'object') {
+          setExtraDailyByBranch(payload.dailyByBranch)
         }
       })
       .catch(() => {
-        // silent fallback to liveSummary / verified baseline
+        // silent fallback to liveSummary
       })
     return () => {
       active = false
     }
   }, [
+    liveSummary?.dailySeries,
     query.periodA.from,
     query.periodA.to,
     query.periodB.from,
@@ -349,7 +400,7 @@ export function BeforeAfterStudio() {
 
   const mergedLiveSummary = useMemo(() => {
     const kwToday = getKuwaitTodayIso()
-    if (extraDailySeries.length === 0) {
+    if (extraDailySeries.length === 0 && Object.keys(extraDailyByBranch).length === 0) {
       if (!liveSummary) return null
       return {
         ...liveSummary,
@@ -357,17 +408,22 @@ export function BeforeAfterStudio() {
       }
     }
     const map = new Map<string, { day: string; orders: number; netKwd: number }>()
-    for (const d of liveSummary?.dailySeries ?? []) {
-      if (d.day <= kwToday) map.set(d.day, d)
-    }
     for (const d of extraDailySeries) {
       if (d.day <= kwToday) map.set(d.day, d)
     }
+    // Authoritative: liveSummary from GlobalFilterContext (same source as /erp home) ALWAYS wins
+    for (const d of liveSummary?.dailySeries ?? []) {
+      if (d.day <= kwToday) map.set(d.day, d)
+    }
     const mergedDaily = [...map.values()].sort((a, b) => a.day.localeCompare(b.day))
+    const mergedByBranch = {
+      ...extraDailyByBranch,
+      ...(liveSummary?.dailyByBranch ?? {}),
+    }
     if (!liveSummary) {
       return {
         source: 'live' as const,
-        syncedAt: '2026-11-14T08:40:00.000Z',
+        syncedAt: new Date().toISOString(),
         period: { from: query.periodA.from, to: query.periodA.to <= kwToday ? query.periodA.to : kwToday },
         database: null,
         totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
@@ -375,13 +431,15 @@ export function BeforeAfterStudio() {
         branches: [],
         channels: [],
         dailySeries: mergedDaily,
+        dailyByBranch: mergedByBranch,
       }
     }
     return {
       ...liveSummary,
       dailySeries: mergedDaily,
+      dailyByBranch: mergedByBranch,
     }
-  }, [liveSummary, extraDailySeries, query.periodA.from, query.periodA.to])
+  }, [liveSummary, extraDailySeries, extraDailyByBranch, query.periodA.from, query.periodA.to])
 
   // Live Custom Comparison Engine Result (periodB = Before, periodA = After)
   const comparison = useMemo(
@@ -825,20 +883,28 @@ export function BeforeAfterStudio() {
                       dir="ltr"
                       className="px-4 py-3.5 text-end font-semibold whitespace-nowrap tabular-nums text-neutral-900 dark:text-slate-100"
                     >
-                      <span>
-                        {fmtKwd(r.netProfitB, isAr)} → {fmtKwd(r.netProfitA, isAr)}
-                      </span>
-                      <span
-                        className={`ms-1.5 text-[12.5px] font-bold ${
-                          pocketDiff >= 0
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : tier === 'red'
-                              ? 'text-rose-600 dark:text-rose-400'
-                              : 'text-amber-700 dark:text-amber-300'
-                        }`}
-                      >
-                        ({fmtSignedKwd(pocketDiff, isAr)})
-                      </span>
+                      {comparison.accountingAvailable ? (
+                        <>
+                          <span>
+                            {fmtKwd(r.netProfitB, isAr)} → {fmtKwd(r.netProfitA, isAr)}
+                          </span>
+                          <span
+                            className={`ms-1.5 text-[12.5px] font-bold ${
+                              pocketDiff >= 0
+                                ? 'text-emerald-700 dark:text-emerald-400'
+                                : tier === 'red'
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : 'text-amber-700 dark:text-amber-300'
+                            }`}
+                          >
+                            ({fmtSignedKwd(pocketDiff, isAr)})
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[12.5px] font-medium text-neutral-400 dark:text-slate-400">
+                          {T('Not available', 'غير متوفر')}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center whitespace-nowrap">
                       {tier === 'green' ? (
@@ -911,12 +977,15 @@ export function BeforeAfterStudio() {
         <ExecutiveComparisonControlBar
           query={query}
           onQueryChange={(next) => {
+            userEditedDatesRef.current = true
             setActiveDecisionId(null)
             setQuery(next)
           }}
           onReset={() => {
+            userEditedDatesRef.current = false
+            hadInitialUrlDatesRef.current = false
             setActiveDecisionId(null)
-            setQuery(DEFAULT_BEFORE_AFTER_QUERY)
+            setQuery(buildLiveDefaultBeforeAfterQuery())
           }}
           onExportCsv={handleExportCsv}
           order="b-first"
@@ -953,6 +1022,11 @@ export function BeforeAfterStudio() {
                 </span>
                 <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
                   {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
+                </span>
+                <span className="rounded-lg bg-emerald-50/90 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  {isAr
+                    ? `المصدر: أودو 17 pos.order • وقت آخر تحديث: ${comparison.lastSyncedAt ?? liveSummary?.kuwaitSyncedAt ?? liveSummary?.syncedAt ?? 'غير متزامن بعد'}`
+                    : `Source: Odoo 17 pos.order • Last updated: ${comparison.lastSyncedAt ?? liveSummary?.kuwaitSyncedAt ?? liveSummary?.syncedAt ?? 'Pending sync'}`}
                 </span>
               </div>
             </div>
@@ -1015,6 +1089,11 @@ export function BeforeAfterStudio() {
       {/* 1C. 6 Core Before-vs-After KPI Delta Cards (with Smart Polarity) */}
       <section className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
         {comparison.kpiList.map((kpi) => {
+          const isGlKpi =
+            kpi.id === 'foodAndAggregatorCost' ||
+            kpi.id === 'netPocketCash' ||
+            kpi.id === 'netPocketMargin'
+          const isUnavailable = isGlKpi && !comparison.accountingAvailable
           const signed = formatSignedDelta(kpi.deltaPct)
           const badgeTone =
             kpi.trend === 'flat' || signed.sign === 'flat'
@@ -1032,49 +1111,69 @@ export function BeforeAfterStudio() {
                 <span className="text-[12px] sm:text-[12.5px] lg:text-[13px] font-semibold text-neutral-500 dark:text-slate-300">
                   {isAr ? kpi.labelAr : kpi.labelEn}
                 </span>
-                {kpi.isFavorable ? (
+                {isUnavailable ? null : kpi.isFavorable ? (
                   <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 ) : (
                   <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
                 )}
               </div>
 
-              <div
-                dir="ltr"
-                className={`mt-2 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums ${
-                  kpi.isFavorable
-                    ? 'text-emerald-700 dark:text-emerald-300'
-                    : 'text-rose-700 dark:text-rose-300'
-                }`}
-              >
-                {kpi.unit === 'pct'
-                  ? fmtSignedPp(kpi.deltaPct)
-                  : kpi.unit === 'orders'
-                    ? `${kpi.deltaAbs > 0 ? '+' : ''}${f0(kpi.deltaAbs)}`
-                    : fmtSignedKwd(kpi.deltaAbs, isAr)}
-              </div>
+              {isUnavailable ? (
+                <>
+                  <div className="mt-2 text-lg sm:text-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400">
+                    {T('Not available', 'غير متوفر')}
+                  </div>
+                  <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                    {isAr
+                      ? `${comparison.accountingUnavailableReasonAr ?? 'غير متوفر بدون قيود دفتر الأستاذ'} • الفترة: ${comparison.selectionB.fromIso}..${comparison.selectionA.toIso}`
+                      : `${comparison.accountingUnavailableReasonEn ?? 'Requires posted Odoo GL lines'} • ${comparison.selectionB.fromIso}..${comparison.selectionA.toIso}`}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div
+                    dir="ltr"
+                    className={`mt-2 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums ${
+                      kpi.isFavorable
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : 'text-rose-700 dark:text-rose-300'
+                    }`}
+                  >
+                    {kpi.unit === 'pct'
+                      ? fmtSignedPp(kpi.deltaPct)
+                      : kpi.unit === 'orders'
+                        ? `${kpi.deltaAbs > 0 ? '+' : ''}${f0(kpi.deltaAbs)}`
+                        : fmtSignedKwd(kpi.deltaAbs, isAr)}
+                  </div>
 
-              <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                <span className={`rounded-lg px-2 py-0.5 text-xs lg:text-[13px] font-semibold ${badgeTone}`}>
-                  {kpi.unit === 'pct' ? `${signed.arrow} ${fmtSignedPp(signed.pct)}` : signed.text}
-                </span>
-                {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' && (
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    {f1(kpi.shareOfSalesB ?? 0)}% → {f1(kpi.shareOfSalesA)}%
-                  </span>
-                )}
-              </div>
+                  <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                    <span className={`rounded-lg px-2 py-0.5 text-xs lg:text-[13px] font-semibold ${badgeTone}`}>
+                      {kpi.unit === 'pct' ? `${signed.arrow} ${fmtSignedPp(signed.pct)}` : signed.text}
+                    </span>
+                    {kpi.id === 'foodAndAggregatorCost' && typeof kpi.shareOfSalesA === 'number' && (
+                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {f1(kpi.shareOfSalesB ?? 0)}% → {f1(kpi.shareOfSalesA)}%
+                      </span>
+                    )}
+                  </div>
 
-              <p
-                dir="ltr"
-                className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
-              >
-                {formatKpiVal(kpi, 'before')} →{' '}
-                <strong className="text-slate-800 dark:text-slate-100">
-                  {formatKpiVal(kpi, 'after')}
-                </strong>{' '}
-                {kpi.unit === 'KWD' ? kwd : ''}
-              </p>
+                  <p
+                    dir="ltr"
+                    className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
+                  >
+                    {formatKpiVal(kpi, 'before')} →{' '}
+                    <strong className="text-slate-800 dark:text-slate-100">
+                      {formatKpiVal(kpi, 'after')}
+                    </strong>{' '}
+                    {kpi.unit === 'KWD' ? kwd : ''}
+                  </p>
+                  <p className="mt-1 text-xs leading-snug text-neutral-400 dark:text-slate-500">
+                    {isAr
+                      ? `الفترة: ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} مقابل ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} • المصدر: أودو 17 ${isGlKpi ? 'account.move.line' : 'pos.order'}`
+                      : `Window: ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} vs ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} • Odoo 17 ${isGlKpi ? 'account.move.line' : 'pos.order'}`}
+                  </p>
+                </>
+              )}
             </article>
           )
         })}
@@ -1478,10 +1577,9 @@ export function BeforeAfterStudio() {
               {T('Before vs. After Dimensional Variance Table', 'جدول الفروقات التفصيلي (قبل وبعد)')}
             </h2>
             <p className="mt-0.5 text-[14px] text-neutral-500 dark:text-slate-400">
-              {T(
-                'Live Odoo 17 variance across approved brands, active branches, and channels (0.000 KWD reconciled)',
-                'مقارنة الفروقات الفعلية عبر المطاعم الستة والفروع السبعة والقنوات بتطابق محاسبي 0.000 د.ك',
-              )}
+              {isAr
+                ? `مقارنة الفروقات الفعلية عبر المطاعم الستة والفروع السبعة والقنوات (فارق التقريب المحسوب: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} د.ك) • المصدر: أودو 17 pos.order`
+                : `Odoo 17 POS variance across approved brands, active branches, and channels (computed rounding gap: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} KWD) • Source: Odoo 17 pos.order`}
             </p>
           </div>
 

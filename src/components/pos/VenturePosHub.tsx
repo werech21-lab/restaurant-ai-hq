@@ -641,9 +641,11 @@ export function VenturePosHub({
 
                   {cart.length > 0 && (
                     <button
+                      type="button"
                       onClick={clearCart}
                       className="text-slate-500 hover:text-rose-400 transition-colors"
                       title={isAr ? 'تفريغ الفاتورة' : 'Clear Basket'}
+                      aria-label={isAr ? 'تفريغ الفاتورة' : 'Clear Basket'}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -676,14 +678,18 @@ export function VenturePosHub({
 
                         <div className="flex items-center gap-1.5">
                           <button
+                            type="button"
                             onClick={() => updateCartQty(item.id, -1)}
+                            aria-label={isAr ? `تقليل كمية ${item.nameAr}` : `Decrease quantity of ${item.nameEn}`}
                             className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700"
                           >
                             <Minus size={12} />
                           </button>
                           <span className="font-mono text-xs font-bold text-white w-4 text-center">{qty}</span>
                           <button
+                            type="button"
                             onClick={() => updateCartQty(item.id, 1)}
+                            aria-label={isAr ? `زيادة كمية ${item.nameAr}` : `Increase quantity of ${item.nameEn}`}
                             className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700"
                           >
                             <Plus size={12} />

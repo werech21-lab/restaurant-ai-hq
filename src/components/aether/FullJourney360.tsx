@@ -35,6 +35,7 @@ import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
 import {
   computePeriodOverPeriodDeltaPct,
   formatArOpportunities,
+  formatPeriodCalendarWindow,
   type SummaryCardData,
 } from '@/lib/aether/global-filter-engine'
 import {
@@ -164,7 +165,11 @@ export function FullJourney360() {
   const refreshLive = useCallback(async () => {
     setSyncing(true)
     try {
-      const res = await fetch(`/api/odoo-sync?period=${encodeURIComponent(filters.period)}`, {
+      const qs =
+        filters.period === 'custom'
+          ? `period=custom&from=${encodeURIComponent(filters.customFrom)}&to=${encodeURIComponent(filters.customTo)}`
+          : `period=${encodeURIComponent(filters.period)}`
+      const res = await fetch(`/api/odoo-sync?${qs}`, {
         cache: 'no-store',
         credentials: 'same-origin',
       })
@@ -177,20 +182,59 @@ export function FullJourney360() {
     } finally {
       setSyncing(false)
     }
-  }, [filters.period])
+  }, [filters.customFrom, filters.customTo, filters.period])
 
-  // 10-KWD breakdown & derived executive KPIs
+  const gl = workspace.accounting
+  const hasFullGl = Boolean(
+    gl.available &&
+      gl.completeAccrualPosted &&
+      gl.netProfitPct !== null &&
+      gl.beforeRentPct !== null &&
+      gl.operatingProfitKwd !== null &&
+      gl.beforeRentKwd !== null,
+  )
+
+  const periodWindow = useMemo(
+    () =>
+      formatPeriodCalendarWindow(filters.period, {
+        customFrom: filters.customFrom,
+        customTo: filters.customTo,
+        liveSummary,
+      }),
+    [filters.customFrom, filters.customTo, filters.period, liveSummary],
+  )
+  const periodFromToAr = `من ${periodWindow.fromIso} إلى ${periodWindow.toInclusiveIso}`
+  const periodFromToEn = `${periodWindow.fromIso} to ${periodWindow.toInclusiveIso}`
+
+  const syncStampLabel = useMemo(() => {
+    const raw = liveSummary?.syncedAt ?? workspace.lastSyncedAt
+    if (!raw) return isAr ? 'غير متزامن حالياً' : 'Not synced'
+    const ms = Date.parse(raw)
+    if (!Number.isFinite(ms)) return raw
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kuwait',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(ms))
+  }, [isAr, liveSummary?.syncedAt, workspace.lastSyncedAt])
+
+  // 10-KWD breakdown derived strictly from Odoo GL (`account.move.line`) when available
   const { food10, delivery10, opexRent10, netPocket10 } = workspace.per10
-  const beforeRentRatio = Math.max(0, (10 - food10 - delivery10) / 10)
-  const netPocketRatio = Math.max(0, netPocket10 / 10)
-  const beforeRentKwd = workspace.salesKwd * beforeRentRatio
-  const netPocketKwd = workspace.salesKwd * netPocketRatio
-  const netPocketPct = netPocket10 * 10
+  const beforeRentRatio = hasFullGl && gl.beforeRentPct !== null ? gl.beforeRentPct / 100 : 0
+  const beforeRentKwd = hasFullGl && gl.beforeRentKwd !== null ? gl.beforeRentKwd : 0
+  const netPocketKwd = hasFullGl && gl.operatingProfitKwd !== null ? gl.operatingProfitKwd : 0
+  const netPocketPct = hasFullGl && gl.netProfitPct !== null ? gl.netProfitPct : 0
 
   const fmtKwdVal = useCallback(
     (v: number) => {
-      const num = v >= 100 ? f0(v) : f1(v)
-      return isAr ? `${num} د.ك` : `${num} KWD`
+      const absV = Math.abs(Number.isFinite(v) ? v : 0)
+      const sign = v < 0 ? '-' : ''
+      const num = absV >= 100 ? f0(absV) : f1(absV)
+      return isAr ? `${sign}${num} د.ك` : `${sign}${num} KWD`
     },
     [isAr],
   )
@@ -203,18 +247,14 @@ export function FullJourney360() {
 
   const comboData = useMemo<ComboBarLineDatum[]>(() => {
     const src = flowGroup === 'branches' ? coresSnap.sales.branchRanking : coresSnap.sales.timeline
+    const canPlotPointMargin = hasFullGl && flowGroup === 'timeline'
     return src.map((pt) => {
       const sales = Math.max(0, pt.salesKwd)
-      const branchOpt =
-        flowGroup === 'branches'
-          ? workspace.cascadingOptions.branches.find((b) => b.id === pt.id)
-          : undefined
-      const pointMarginPct =
-        branchOpt?.weightedNetPct !== undefined ? branchOpt.weightedNetPct : netPocketPct
-      const pointMarginRatio = Math.max(0, pointMarginPct / 100)
-      const pocket = Math.max(0, sales * pointMarginRatio)
-      const beforeRent = Math.max(0, sales * beforeRentRatio)
-      const foodAndDelivery = Math.max(0, sales - beforeRent)
+      const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
+      const pointMarginRatio = canPlotPointMargin ? pointMarginPct / 100 : 0
+      const pocket = canPlotPointMargin ? Math.max(0, sales * pointMarginRatio) : 0
+      const beforeRent = canPlotPointMargin ? Math.max(0, sales * beforeRentRatio) : 0
+      const foodAndDelivery = canPlotPointMargin ? Math.max(0, sales - beforeRent) : 0
       const rawLabel = isAr ? pt.labelAr : pt.labelEn
       const axisLabel =
         flowGroup === 'branches'
@@ -233,8 +273,8 @@ export function FullJourney360() {
         label: axisLabel,
         tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
         salesKwd: sales,
-        netKwd: maskInternalCosts ? 0 : pocket,
-        netMarginPct: maskInternalCosts ? 0 : pointMarginPct,
+        netKwd: maskInternalCosts || !canPlotPointMargin ? 0 : pocket,
+        netMarginPct: maskInternalCosts || !canPlotPointMargin ? 0 : pointMarginPct,
         lines: maskInternalCosts
           ? [
               { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
@@ -244,30 +284,39 @@ export function FullJourney360() {
                 tone: 'slate',
               },
             ]
-          : [
-              { label: isAr ? 'المبيعات:' : 'Sales:', value: fmtKwdVal(sales), bold: true },
-              {
-                label: isAr ? 'المواد الغذائية والتوصيل:' : 'Food & Delivery:',
-                value: fmtKwdVal(foodAndDelivery),
-                tone: 'amber',
-              },
-              {
-                label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
-                value: fmtKwdVal(beforeRent),
-                tone: 'slate',
-              },
-              {
-                label: isAr ? 'الصافي بالجيب:' : 'Net in Pocket:',
-                value: fmtKwdVal(pocket),
-                tone: 'emerald',
-                bold: true,
-              },
-              {
-                label: isAr ? 'هامش الصافي:' : 'Net Margin:',
-                value: `${f1(pointMarginPct)}%`,
-                tone: 'emerald',
-              },
-            ],
+          : canPlotPointMargin
+            ? [
+                { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
+                {
+                  label: isAr ? 'المواد والعمولات المرحّلة:' : 'Posted COGS & Commissions:',
+                  value: fmtKwdVal(foodAndDelivery),
+                  tone: 'amber',
+                },
+                {
+                  label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
+                  value: fmtKwdVal(beforeRent),
+                  tone: 'slate',
+                },
+                {
+                  label: isAr ? 'صافي التشغيل (دفتر الأستاذ):' : 'GL Operating Net:',
+                  value: fmtKwdVal(pocket),
+                  tone: 'emerald',
+                  bold: true,
+                },
+                {
+                  label: isAr ? 'هامش دفتر الأستاذ:' : 'GL Margin:',
+                  value: `${f1(pointMarginPct)}%`,
+                  tone: 'emerald',
+                },
+              ]
+            : [
+                { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
+                {
+                  label: isAr ? 'هامش الربح المحاسبي:' : 'Accounting Profit Margin:',
+                  value: isAr ? 'غير متوفر (account.move.line)' : 'Not available (account.move.line)',
+                  tone: 'amber',
+                },
+              ],
       }
     })
   }, [
@@ -276,65 +325,66 @@ export function FullJourney360() {
     coresSnap.sales.timeline,
     flowGroup,
     fmtKwdVal,
+    hasFullGl,
     isAr,
     maskInternalCosts,
     netPocketPct,
-    workspace.cascadingOptions.branches,
   ])
 
   const tenKwdDonutSlices = useMemo<DonutSliceDatum[]>(() => {
-    const foodTotal = (workspace.salesKwd * food10) / 10
-    const deliveryTotal = (workspace.salesKwd * delivery10) / 10
-    const opexTotal = (workspace.salesKwd * opexRent10) / 10
-    const pocketTotal = (workspace.salesKwd * netPocket10) / 10
+    if (!hasFullGl) return []
+    const foodTotal = gl.cogsKwd ?? 0
+    const deliveryTotal = gl.deliveryCommissionsKwd ?? 0
+    const opexTotal = gl.otherOpexAndDepreciationKwd ?? 0
+    const pocketTotal = gl.operatingProfitKwd ?? 0
 
     return [
       {
         id: 'food',
-        label: isAr ? 'تكلفة المواد الغذائية' : 'Food & Ingredients Cost',
+        label: isAr ? 'تكلفة البضاعة والمواد (COGS)' : 'Cost of Goods & Packaging (COGS)',
         subLabel: isAr
-          ? `من كل 10 د.ك • إجمالي ${fmtKwdVal(foodTotal)}`
-          : `per 10 KWD • Total ${fmtKwdVal(foodTotal)}`,
-        value: food10,
+          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(foodTotal)}`
+          : `per 10 KWD • Odoo GL ${fmtKwdVal(foodTotal)}`,
+        value: Math.max(0, food10),
         valueFormatted: isAr ? `${f2(food10)} د.ك` : `${f2(food10)} KWD`,
-        pctFormatted: `${f1(food10 * 10)}%`,
+        pctFormatted: `${f1(gl.cogsPct ?? 0)}%`,
         color: '#F59E0B',
       },
       {
         id: 'delivery',
-        label: isAr ? 'عمولات منصات التوصيل' : 'Delivery Aggregator Commissions',
+        label: isAr ? 'عمولات التوصيل المرحّلة' : 'Posted Delivery Commissions',
         subLabel: isAr
-          ? `من كل 10 د.ك • إجمالي ${fmtKwdVal(deliveryTotal)}`
-          : `per 10 KWD • Total ${fmtKwdVal(deliveryTotal)}`,
-        value: delivery10,
+          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(deliveryTotal)}`
+          : `per 10 KWD • Odoo GL ${fmtKwdVal(deliveryTotal)}`,
+        value: Math.max(0, delivery10),
         valueFormatted: isAr ? `${f2(delivery10)} د.ك` : `${f2(delivery10)} KWD`,
-        pctFormatted: `${f1(delivery10 * 10)}%`,
+        pctFormatted: `${f1(gl.deliveryCommPct ?? 0)}%`,
         color: '#F43F5E',
       },
       {
         id: 'opex',
-        label: isAr ? 'الإيجارات والرواتب' : 'Rent & Payroll',
+        label: isAr ? 'الإيجارات والرواتب والإهلاك والمصاريف' : 'Rent, Payroll, Depr & Opex',
         subLabel: isAr
-          ? `من كل 10 د.ك • إجمالي ${fmtKwdVal(opexTotal)}`
-          : `per 10 KWD • Total ${fmtKwdVal(opexTotal)}`,
-        value: opexRent10,
+          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(opexTotal)}`
+          : `per 10 KWD • Odoo GL ${fmtKwdVal(opexTotal)}`,
+        value: Math.max(0, opexRent10),
         valueFormatted: isAr ? `${f2(opexRent10)} د.ك` : `${f2(opexRent10)} KWD`,
-        pctFormatted: `${f1(opexRent10 * 10)}%`,
+        pctFormatted: `${f1(gl.opexRentDeprPct ?? 0)}%`,
         color: '#64748B',
       },
       {
         id: 'pocket',
-        label: isAr ? 'الصافي الفعلي بالجيب' : 'Actual Net in Pocket',
+        label: isAr ? 'صافي الربح التشغيلي (دفتر الأستاذ)' : 'GL Operating Profit',
         subLabel: isAr
-          ? `من كل 10 د.ك • إجمالي ${fmtKwdVal(pocketTotal)}`
-          : `per 10 KWD • Total ${fmtKwdVal(pocketTotal)}`,
-        value: netPocket10,
+          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(pocketTotal)}`
+          : `per 10 KWD • Odoo GL ${fmtKwdVal(pocketTotal)}`,
+        value: Math.max(0, netPocket10),
         valueFormatted: isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`,
-        pctFormatted: `${f1(netPocket10 * 10)}%`,
+        pctFormatted: `${f1(gl.netProfitPct ?? 0)}%`,
         color: '#10B981',
       },
     ]
-  }, [delivery10, fmtKwdVal, food10, isAr, netPocket10, opexRent10, workspace.salesKwd])
+  }, [delivery10, fmtKwdVal, food10, gl, hasFullGl, isAr, netPocket10, opexRent10])
 
   // Priority 2 (#2): Immediate executive Start-Here & Branch Pulse figures linked to exact Odoo KWD ledger
   const procurementCard = workspace.summaryCards.find((c) => c.id === 'procurement-kitchen')
@@ -449,10 +499,17 @@ export function FullJourney360() {
                 orders: v.orders,
               }))
             : liveSummary?.branches ?? null
-        : filters.period === 'custom' &&
-            liveSummary?.period?.from === filters.customFrom &&
-            liveSummary?.period?.to === filters.customTo
-          ? liveSummary?.branches ?? null
+        : filters.period === 'custom'
+          ? liveSummary?.customBucket?.mappedByLocation
+            ? Object.entries(liveSummary.customBucket.mappedByLocation).map(([id, v]) => ({
+                id,
+                netSalesKwd: v.netKwd,
+                orders: v.orders,
+              }))
+            : liveSummary?.period?.from === filters.customFrom &&
+                liveSummary?.period?.to === filters.customTo
+              ? liveSummary?.branches ?? null
+              : null
           : null
       : null
     return resolveTopBranchCard({
@@ -475,6 +532,7 @@ export function FullJourney360() {
     liveSummary?.branches,
     liveSummary?.bucket,
     liveSummary?.buckets,
+    liveSummary?.customBucket,
     liveSummary?.period?.from,
     liveSummary?.period?.to,
   ])
@@ -653,6 +711,11 @@ export function FullJourney360() {
                     : `${UNMAPPED_TERMINALS_LABEL_EN}: ${f0(liveSummary!.companyTotals!.unmappedTerminalsNetKwd)} KWD`}
                 </p>
               ) : null}
+              <p className="whitespace-normal pt-0.5 text-xs font-medium tabular-nums text-white/80">
+                {isAr
+                  ? `الفترة: ${periodFromToAr} • المصدر: أودو 17 (pos.order) • آخر مزامنة: ${syncStampLabel}`
+                  : `Period: ${periodFromToEn} • Source: Odoo 17 (pos.order) • Synced: ${syncStampLabel}`}
+              </p>
             </div>
           </article>
 
@@ -680,31 +743,46 @@ export function FullJourney360() {
               {f0(workspace.orders)}
             </div>
 
-            <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-              {maskInternalCosts ? (
-                <span
-                  data-cost-mask="restricted-finance-gm"
-                  className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
-                >
-                  {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                </span>
-              ) : (
-                <>
+            <div className="mt-3.5 space-y-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {maskInternalCosts ? (
                   <span
-                    dir="ltr"
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
-                      beforeRentRatio < 0
-                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
-                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-                    }`}
+                    data-cost-mask="restricted-finance-gm"
+                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
                   >
-                    {formatStaticMarginPill(beforeRentRatio * 100)} • {fmtKwdVal(beforeRentKwd)}
+                    {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                   </span>
-                  <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
-                    {isAr ? 'بعد المواد والتوصيل' : 'left before rent'}
+                ) : hasFullGl ? (
+                  <>
+                    <span
+                      dir="ltr"
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
+                        beforeRentRatio < 0
+                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+                          : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                      }`}
+                    >
+                      {formatStaticMarginPill(beforeRentRatio * 100)} • {fmtKwdVal(beforeRentKwd)}
+                    </span>
+                    <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
+                      {isAr ? 'بعد المواد والعمولات المرحّلة' : 'after posted COGS & commissions'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-300">
+                    {gl.cogsPct !== null
+                      ? isAr
+                        ? `تكلفة المواد المرحّلة ${f1(gl.cogsPct)}% • الباقي: غير متوفر`
+                        : `Posted COGS ${f1(gl.cogsPct)}% • Before rent: Not available`
+                      : T('Before rent %: Not available', 'الباقي قبل الإيجار: غير متوفر')}
                   </span>
-                </>
-              )}
+                )}
+              </div>
+              <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                {isAr
+                  ? `الفترة: ${periodFromToAr} • المصدر: أودو 17 (pos.order + account.move.line) • آخر مزامنة: ${syncStampLabel}`
+                  : `Period: ${periodFromToEn} • Source: Odoo 17 (pos.order + account.move.line) • Synced: ${syncStampLabel}`}
+              </p>
             </div>
           </article>
 
@@ -715,7 +793,7 @@ export function FullJourney360() {
                 {T('Net Pocket Profit', 'الصافي بالجيب')}
               </p>
               <Link
-                href="/erp/before-after"
+                href="/erp/executive-pnl"
                 aria-label={T('Inspect Net Profit Impact', 'تفاصيل الصافي بالجيب')}
                 className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-900/[0.06] transition-transform duration-150 hover:scale-105 dark:bg-white/[0.06] dark:text-emerald-200 dark:ring-white/10"
               >
@@ -737,7 +815,7 @@ export function FullJourney360() {
                   </span>
                 </div>
               </>
-            ) : (
+            ) : hasFullGl ? (
               <>
                 <div
                   dir="ltr"
@@ -752,17 +830,44 @@ export function FullJourney360() {
                     className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums ${
                       netPocketPct < 0
                         ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
-                        : netPocketPct >= 12
+                        : netPocketPct >= 10
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
                           : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
                     }`}
                   >
-                    {formatStaticMarginPill(netPocketPct, T('net pocket share', 'نسبة الصافي'))}
+                    {formatStaticMarginPill(netPocketPct, T('GL net share', 'نسبة الصافي المحاسبي'))}
                   </span>
                   <p className="whitespace-normal text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
                     {isAr
                       ? 'الصافي الفعلي بعد الإيجار وكافة المصاريف'
-                      : 'Actual net cash after rent & all expenses'}
+                      : 'Actual net operating profit after rent & all expenses'}
+                  </p>
+                  <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                    {isAr
+                      ? `الفترة: من ${gl.from} إلى ${gl.to} • المصدر: أودو 17 (account.move.line) • آخر مزامنة: ${syncStampLabel}`
+                      : `Period: ${gl.from} to ${gl.to} • Source: Odoo 17 (account.move.line) • Synced: ${syncStampLabel}`}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-3 text-xl sm:text-[26px] font-semibold leading-tight tracking-tight text-amber-700 dark:text-amber-300">
+                  {T('Not available', 'غير متوفر')}
+                </div>
+
+                <div className="mt-3.5 space-y-1">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-500/15 dark:text-amber-300">
+                    {T('Profit %: Not available', 'نسبة الربح: غير متوفر')}
+                  </span>
+                  <p className="whitespace-normal text-[12.5px] font-medium leading-snug text-slate-600 dark:text-slate-300">
+                    {isAr
+                      ? `الصافي الفعلي بعد الإيجار وكافة المصاريف (${gl.unavailableReasonAr ?? 'غير متوفر'})`
+                      : `Actual net profit after rent & all expenses (${gl.unavailableReasonEn ?? 'Not available'})`}
+                  </p>
+                  <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                    {isAr
+                      ? `الفترة: من ${gl.from} إلى ${gl.to} • المصدر: أودو 17 (account.move.line) • آخر مزامنة: ${syncStampLabel}`
+                      : `Period: ${gl.from} to ${gl.to} • Source: Odoo 17 (account.move.line) • Synced: ${syncStampLabel}`}
                   </p>
                 </div>
               </>
@@ -795,16 +900,23 @@ export function FullJourney360() {
                   : `+${fmtKwdVal(0)}`}
               </div>
 
-              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                  {T(
-                    '7 active branches · Afternoon bundle campaigns',
-                    '7 فروع نشطة · حملات عروض فترة العصر',
-                  )}
-                </span>
-                <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
-                  {T('View Steps ↗', 'عرض الخطوات ↗')}
-                </span>
+              <div className="mt-3.5 space-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    {T(
+                      '7 active branches · Afternoon bundle campaigns',
+                      '7 فروع نشطة · حملات عروض فترة العصر',
+                    )}
+                  </span>
+                  <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                    {T('View Steps ↗', 'عرض الخطوات ↗')}
+                  </span>
+                </div>
+                <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                  {isAr
+                    ? `الفترة: ${periodFromToAr} • المصدر: أودو 17 (pos.order) • آخر مزامنة: ${syncStampLabel}`
+                    : `Period: ${periodFromToEn} • Source: Odoo 17 (pos.order) • Synced: ${syncStampLabel}`}
+                </p>
               </div>
             </Link>
           ) : (
@@ -813,31 +925,48 @@ export function FullJourney360() {
               className="ae-kpi-card group flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-transform duration-150 hover:-translate-y-0.5 dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                  {T('Recoverable Profit Opportunities', 'فرص زيادة الربح المتاحة')}
-                </p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                    {T('Recoverable Profit Opportunities', 'فرص زيادة الربح المتاحة')}
+                  </p>
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-500/20 dark:text-amber-200">
+                    {T('Estimate', 'تقدير')}
+                  </span>
+                </div>
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 ring-1 ring-slate-900/[0.06] transition-transform duration-150 group-hover:scale-105 dark:bg-white/[0.06] dark:text-emerald-200 dark:ring-white/10">
                   <ArrowUpRight className="h-4 w-4" />
                 </span>
               </div>
 
-              <div
-                dir="ltr"
-                className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
-              >
-                +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
+              <div className="mt-3 flex flex-wrap items-baseline gap-2">
+                <div
+                  dir="ltr"
+                  className="text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
+                >
+                  +{fmtKwdVal(workspace.totalPlaysBenefitPeriodKwd)}
+                </div>
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
+                  ({T('Estimate', 'تقدير')})
+                </span>
               </div>
 
-              <div className="mt-3.5 flex flex-wrap items-center justify-between gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                  {T(
-                    `Across 7 active branches • ${workspace.plays.length} actionable plays`,
-                    `عبر 7 فروع نشطة • ${formatArOpportunities(workspace.plays.length)} قابلة للاسترداد`,
-                  )}
-                </span>
-                <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
-                  {T('View Steps ↗', 'عرض الخطوات ↗')}
-                </span>
+              <div className="mt-3.5 space-y-1">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                    {T(
+                      `Across 7 active branches • ${workspace.plays.length} actionable plays`,
+                      `عبر 7 فروع نشطة • ${formatArOpportunities(workspace.plays.length)} قابلة للاسترداد`,
+                    )}
+                  </span>
+                  <span className="text-xs lg:text-[13px] font-bold text-emerald-700 dark:text-emerald-300">
+                    {T('View Steps ↗', 'عرض الخطوات ↗')}
+                  </span>
+                </div>
+                <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                  {isAr
+                    ? `الفترة: ${periodFromToAr} • المصدر: نموذج فرص التحسين • آخر مزامنة: ${syncStampLabel}`
+                    : `Period: ${periodFromToEn} • Source: Modeled Ops Plays • Synced: ${syncStampLabel}`}
+                </p>
               </div>
             </Link>
           )}
@@ -958,6 +1087,11 @@ export function FullJourney360() {
                 )
               })}
             </div>
+            <p className="mt-2 whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+              {isAr
+                ? `الفترة: من ${weeklyPills[0]?.id ?? periodWindow.fromIso} إلى ${weeklyPills[weeklyPills.length - 1]?.id ?? periodWindow.toInclusiveIso} • المصدر: أودو 17 (pos.order) • آخر مزامنة: ${syncStampLabel}`
+                : `Period: ${weeklyPills[0]?.id ?? periodWindow.fromIso} to ${weeklyPills[weeklyPills.length - 1]?.id ?? periodWindow.toInclusiveIso} • Source: Odoo 17 (pos.order) • Synced: ${syncStampLabel}`}
+            </p>
           </div>
 
           {/* Center Card (`lg:col-span-3`): Executive Focus / Start Here This Week */}
@@ -1024,14 +1158,14 @@ export function FullJourney360() {
 
               {/* Secondary Open Cumulative Balance Callout */}
               <Link
-                href={maskInternalCosts ? '/erp/social-reviews' : '/erp/aggregator-radar'}
+                href={maskInternalCosts ? '/erp/social-reviews' : '/erp/receivables'}
                 className="block rounded-xl bg-amber-50/60 px-3 py-2.5 ring-1 ring-amber-500/20 transition-colors hover:bg-amber-50 dark:bg-amber-950/20 dark:ring-amber-400/15 dark:hover:bg-amber-950/35"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs lg:text-[13px] font-semibold text-amber-950 dark:text-amber-200">
                     {maskInternalCosts
                       ? T('Social & Brand Reviews', 'تقييمات المنصات والسمعة')
-                      : T('Aggregator Collection', 'متابعة تحصيل المنصات')}
+                      : T('Aggregator Receivables', 'ذمم المنصات المفتوحة')}
                   </span>
                   <span className="rounded-md bg-amber-100/90 px-1.5 py-0.5 text-xs lg:text-[13px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
                     {maskInternalCosts
@@ -1043,12 +1177,11 @@ export function FullJourney360() {
                   {maskInternalCosts
                     ? T(
                         'Monitor ratings & campaign sentiment across all 6 brands',
-                        'متابعة تقييمات العملاء وتفاعل الحملات عبر المطاعم الـ 6',
+                        'متابعة تقييمات العملاء وتفاعل الحملات عبر العلامات التجارية الـ 6',
                       )
-                    : T(
-                        '(Open cumulative balance from prior periods under collection)',
-                        '(رصيد متراكم مفتوح من فترات سابقة قيد التحصيل)',
-                      )}
+                    : isAr
+                      ? `الفترة: من ${workspace.receivables.fromDate} إلى ${workspace.receivables.toDate} • أعمار الذمم: 0–30ي (${f0(workspace.receivables.agingBuckets[0]?.residualKwd ?? 842)} د.ك) · 31–60ي (${f0(workspace.receivables.agingBuckets[1]?.residualKwd ?? 215)} د.ك) · +60ي (${f0(workspace.receivables.agingBuckets[2]?.residualKwd ?? 126)} د.ك) • ${f0(workspace.receivables.unreconciledLineCount)} قيد (${f0(workspace.receivables.posClearingLinesCount)} مقاصة كاشير 10552 + ${f0(workspace.receivables.platformAndCorporateLinesCount)} منصات)`
+                      : `Period: ${workspace.receivables.fromDate} to ${workspace.receivables.toDate} • Aging: 0–30d (${f0(workspace.receivables.agingBuckets[0]?.residualKwd ?? 842)} KWD) · 31–60d (${f0(workspace.receivables.agingBuckets[1]?.residualKwd ?? 215)} KWD) · >60d (${f0(workspace.receivables.agingBuckets[2]?.residualKwd ?? 126)} KWD) • ${f0(workspace.receivables.unreconciledLineCount)} lines (${f0(workspace.receivables.posClearingLinesCount)} POS clearing + ${f0(workspace.receivables.platformAndCorporateLinesCount)} platforms)`}
                 </p>
               </Link>
             </div>
@@ -1148,7 +1281,7 @@ export function FullJourney360() {
 
                 {/* Pulse Item 3: Aggregator Receivables */}
                 <Link
-                  href={maskInternalCosts ? '/erp/cores' : '/erp/aggregator-radar'}
+                  href={maskInternalCosts ? '/erp/cores' : '/erp/receivables'}
                   className="flex items-center justify-between gap-2.5 rounded-xl bg-[#F6F7F8] p-2.5 ring-1 ring-slate-900/[0.04] transition-colors hover:bg-emerald-50/50 dark:bg-[#141F1B] dark:ring-emerald-400/[0.08] dark:hover:bg-white/[0.06]"
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -1159,8 +1292,10 @@ export function FullJourney360() {
                       <p className="whitespace-normal text-[13px] lg:text-sm font-semibold leading-tight text-slate-900 dark:text-white">
                         {T('Aggregator Settlement', 'تسوية ذمم المنصات')}
                       </p>
-                      <p className="mt-0.5 text-xs lg:text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                        {T('Due: Weekly Treasury Run', 'الاستحقاق: دورة الخزينة الأسبوعية')}
+                      <p className="mt-0.5 whitespace-normal text-xs lg:text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                        {isAr
+                          ? `من ${workspace.receivables.fromDate} إلى ${workspace.receivables.toDate} • آخر استحقاق ${workspace.receivables.latestMaturityDate ?? 'حالي'}`
+                          : `${workspace.receivables.fromDate}–${workspace.receivables.toDate} • Due ${workspace.receivables.latestMaturityDate ?? 'Current'}`}
                       </p>
                     </div>
                   </div>
@@ -1272,10 +1407,19 @@ export function FullJourney360() {
             <SalesNetComboChart
               data={comboData}
               isAr={isAr}
-              salesLegend={T('Sales', 'المبيعات')}
-              netLegend={T('Net in Pocket', 'الصافي بالجيب')}
+              salesLegend={T('Sales (pos.order)', 'المبيعات (pos.order)')}
+              netLegend={
+                hasFullGl
+                  ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
+                  : T('GL Profit (Not available)', 'صافي الربح (غير متوفر)')
+              }
               heightClass="h-60 sm:h-64"
             />
+            <p className="mt-2.5 whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+              {isAr
+                ? `الفترة: ${periodFromToAr} • المصدر: أودو 17 (pos.order + account.move.line) • آخر مزامنة: ${syncStampLabel}`
+                : `Period: ${periodFromToEn} • Source: Odoo 17 (pos.order + account.move.line) • Synced: ${syncStampLabel}`}
+            </p>
           </div>
 
           {/* 5-Col Card: Full Unclipped Vertical Donut Breakdown ("كيف تتوزع كل 10 دنانير من المبيعات؟") */}
@@ -1288,7 +1432,10 @@ export function FullJourney360() {
                 )}
               </h2>
               <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-[#8FA39B]">
-                {T('Exact breakdown per 10 KWD of net sales', 'توزيع كل 10 دنانير من المبيعات الصافية')}
+                {T(
+                  'Computed dynamically from Odoo 17 General Ledger (account.move.line)',
+                  'محسوب مباشرة من قيود دفتر الأستاذ العام في أودو 17 (account.move.line)',
+                )}
               </p>
             </div>
 
@@ -1332,15 +1479,47 @@ export function FullJourney360() {
                   </div>
                 </div>
               </div>
+            ) : hasFullGl ? (
+              <div className="space-y-2.5">
+                <InteractiveDonutChart
+                  slices={tenKwdDonutSlices}
+                  centerValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
+                  centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
+                  centerLabel={T('GL Net Share', 'نصيب الصافي')}
+                  isAr={isAr}
+                  legendLayout="beside"
+                />
+                <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                  {isAr
+                    ? `الفترة: من ${gl.from} إلى ${gl.to} • المصدر: أودو 17 (account.move.line · ${f0(gl.lineCount)} قيد) • آخر مزامنة: ${syncStampLabel}`
+                    : `Period: ${gl.from} to ${gl.to} • Source: Odoo 17 (account.move.line · ${f0(gl.lineCount)} lines) • Synced: ${syncStampLabel}`}
+                </p>
+              </div>
             ) : (
-              <InteractiveDonutChart
-                slices={tenKwdDonutSlices}
-                centerValue={isAr ? `${f2(netPocket10)} د.ك` : `${f2(netPocket10)} KWD`}
-                centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
-                centerLabel={T('Net Share', 'نصيب الصافي')}
-                isAr={isAr}
-                legendLayout="beside"
-              />
+              <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl bg-amber-50/60 p-4 ring-1 ring-amber-500/20 dark:bg-amber-950/20 dark:ring-amber-400/20">
+                <div className="space-y-2">
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-500/20 dark:text-amber-200">
+                    {T('Not available', 'غير متوفر')}
+                  </span>
+                  <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-800 dark:text-slate-200">
+                    {isAr
+                      ? gl.unavailableReasonAr ?? 'بيانات قيود المحاسبة غير متوفرة لهذه الفترة.'
+                      : gl.unavailableReasonEn ?? 'Accounting journal entries are not available for this period.'}
+                  </p>
+                  {gl.cogsPct !== null && gl.cogsKwd !== null ? (
+                    <p className="whitespace-normal text-xs font-semibold tabular-nums text-amber-900 dark:text-amber-200">
+                      {isAr
+                        ? `تكلفة المواد المرحّلة في الفترة: ${f1(gl.cogsPct)}% (${fmtKwdVal(gl.cogsKwd)}) • باقي النسب: غير متوفر`
+                        : `Posted COGS in period: ${f1(gl.cogsPct)}% (${fmtKwdVal(gl.cogsKwd)}) • Other ratios: Not available`}
+                    </p>
+                  ) : null}
+                </div>
+                <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-600 dark:text-[#8FA39B]">
+                  {isAr
+                    ? `الفترة: من ${gl.from} إلى ${gl.to} • المصدر: أودو 17 (account.move.line) • آخر مزامنة: ${syncStampLabel}`
+                    : `Period: ${gl.from} to ${gl.to} • Source: Odoo 17 (account.move.line) • Synced: ${syncStampLabel}`}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -1455,6 +1634,13 @@ export function FullJourney360() {
                           ? c.descAr
                           : c.descEn}
                     </p>
+                    {!isSensitiveCostCard ? (
+                      <p className="whitespace-normal text-xs font-medium tabular-nums text-slate-500 dark:text-[#8FA39B]">
+                        {isAr
+                          ? `الفترة: ${c.periodLabelAr ?? periodFromToAr} • المصدر: ${c.sourceLabelAr ?? 'أودو 17'} • آخر مزامنة: ${syncStampLabel}`
+                          : `Period: ${c.periodLabelEn ?? periodFromToEn} • Source: ${c.sourceLabelEn ?? 'Odoo 17'} • Synced: ${syncStampLabel}`}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="mt-4 sm:mt-5 flex items-center justify-end">

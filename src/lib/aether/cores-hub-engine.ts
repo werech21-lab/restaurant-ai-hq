@@ -599,6 +599,12 @@ export function computeCoresHubSnapshot(
     customTo: filters.customTo,
     liveSummary,
   })
+  const isPureBranchFilter =
+    filters.branch !== 'all' &&
+    filters.brand === 'all' &&
+    filters.channel === 'all' &&
+    filters.kuwaitSlice === 'all' &&
+    filters.lens === 'all'
   const mergedDailyMap = new Map<string, { day: string; orders: number; netKwd: number }>()
   for (const d of ODOO.timeProfile?.daily ?? []) {
     if (d.orders > 0 && d.netKwd > 0) {
@@ -608,6 +614,14 @@ export function computeCoresHubSnapshot(
   for (const d of liveSummary?.dailySeries ?? []) {
     if (d.orders > 0 && d.netKwd > 0) {
       mergedDailyMap.set(d.day, d)
+    }
+  }
+  if (isPureBranchFilter && liveSummary?.dailyByBranch) {
+    for (const [day, locMap] of Object.entries(liveSummary.dailyByBranch)) {
+      const bm = locMap?.[filters.branch]
+      if (bm && (bm.orders > 0 || bm.netKwd > 0)) {
+        mergedDailyMap.set(day, { day, orders: bm.orders, netKwd: bm.netKwd })
+      }
     }
   }
   const allAvailableDays = [...mergedDailyMap.values()].sort((a, b) => a.day.localeCompare(b.day))
@@ -628,9 +642,9 @@ export function computeCoresHubSnapshot(
     return true
   })
 
-  // Effective aggregator channel commission (%) for conservative 95%-retention simulator
+  // Effective aggregator channel commission (%) from live Odoo GL when posted
   const effectiveChannelFeePct = round1(
-    Math.min(28, Math.max(0, safeNum(ws.per10.delivery10, 1.55) * 10)),
+    Math.min(28, Math.max(0, safeNum(ws.accounting?.deliveryCommPct, 0))),
   )
   const monthlyUnitsFactor =
     filters.period === 'today'
@@ -1080,27 +1094,41 @@ export function computeCoresHubSnapshot(
     return { cid, rawSales: sub.salesKwd, rawOrders: sub.orders }
   })
 
-  // Fold any unmapped POS/split-tender bucket residual into direct POS before reconciliation
+  // Fold any unmapped POS/split-tender bucket residual into direct POS (0% fee) so external aggregators stay exact
   if (filters.channel === 'all') {
     const rawChSum = channelPrelim.reduce((s, r) => s + r.rawSales, 0)
     const missingPosGap = ws.salesKwd - rawChSum
-    if (missingPosGap > 0.5) {
+    if (Math.abs(missingPosGap) > 0.001) {
       const dineRow = channelPrelim.find((r) => r.cid === 'dine-in')
       const takeRow = channelPrelim.find((r) => r.cid === 'takeaway-direct')
-      const estGapOrders = ws.aovKwd > 0 ? missingPosGap / ws.aovKwd : missingPosGap / 5.2
-      if (filters.branch === 'ardiya') {
-        if (takeRow) {
-          takeRow.rawSales += missingPosGap
-          takeRow.rawOrders += estGapOrders
-        }
-      } else {
-        if (dineRow) {
-          dineRow.rawSales += missingPosGap * 0.9
-          dineRow.rawOrders += estGapOrders * 0.9
-        }
-        if (takeRow) {
-          takeRow.rawSales += missingPosGap * 0.1
-          takeRow.rawOrders += estGapOrders * 0.1
+      const directPool = (dineRow?.rawSales ?? 0) + (takeRow?.rawSales ?? 0)
+      if (missingPosGap > 0 || directPool + missingPosGap >= 0) {
+        const estGapOrders = ws.aovKwd > 0 ? missingPosGap / ws.aovKwd : missingPosGap / 5.2
+        if (filters.branch === 'ardiya') {
+          if (takeRow) {
+            takeRow.rawSales = Math.max(0, takeRow.rawSales + missingPosGap)
+            takeRow.rawOrders = Math.max(0, takeRow.rawOrders + estGapOrders)
+          }
+        } else if (missingPosGap >= 0) {
+          if (dineRow) {
+            dineRow.rawSales += missingPosGap * 0.9
+            dineRow.rawOrders += estGapOrders * 0.9
+          }
+          if (takeRow) {
+            takeRow.rawSales += missingPosGap * 0.1
+            takeRow.rawOrders += estGapOrders * 0.1
+          }
+        } else if (directPool > 0) {
+          const dineShare = (dineRow?.rawSales ?? 0) / directPool
+          const takeShare = (takeRow?.rawSales ?? 0) / directPool
+          if (dineRow) {
+            dineRow.rawSales = Math.max(0, dineRow.rawSales + missingPosGap * dineShare)
+            dineRow.rawOrders = Math.max(0, dineRow.rawOrders + estGapOrders * dineShare)
+          }
+          if (takeRow) {
+            takeRow.rawSales = Math.max(0, takeRow.rawSales + missingPosGap * takeShare)
+            takeRow.rawOrders = Math.max(0, takeRow.rawOrders + estGapOrders * takeShare)
+          }
         }
       }
     }
@@ -1309,7 +1337,7 @@ export function computeCoresHubSnapshot(
   const activeBranchEn = filters.branch === 'all' ? 'All Branches' : getBranchLabel(filters.branch, false)
   const activeScopeAr =
     filters.brand === 'all' && filters.branch === 'all'
-      ? '6 مطاعم • 7 فروع • 8 قنوات'
+      ? '6 علامات تجارية • 7 فروع • 8 قنوات'
       : `${activeBrandAr} · ${activeBranchAr}`
   const activeScopeEn =
     filters.brand === 'all' && filters.branch === 'all'

@@ -17,12 +17,15 @@
  */
 
 import JOURNEY_RAW from '@/lib/odoo/odoo-journey.json'
+import { ODOO } from '@/lib/odoo/odoo-dataset'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
   APPROVED_CHANNEL_IDS,
   computeGlobalWorkspace,
   DEFAULT_GLOBAL_FILTERS,
+  formatPeriodCalendarWindow,
   getBranchLabel,
   getBrandLabel,
   getChannelLabel,
@@ -295,36 +298,37 @@ function formatIsoUtc(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-function buildDateWindow(filters: GlobalFilters): string[] {
-  const anchorEnd = parseIsoUtc('2026-11-10')
-  if (filters.period === 'today') {
-    return ['2026-11-10']
-  }
-  if (filters.period === 'week') {
+const WAREHOUSE_CHAIN_EPOCH_ISO = '2026-09-01'
+
+function buildDateWindow(
+  filters: GlobalFilters,
+  liveSummary?: OdooLiveSummary | null,
+): string[] {
+  const periodWindow = formatPeriodCalendarWindow(filters.period ?? 'month', {
+    customFrom: filters.customFrom,
+    customTo: filters.customTo,
+    liveSummary,
+  })
+  const d1 = parseIsoUtc(periodWindow.fromIso)
+  const d2 = parseIsoUtc(periodWindow.toInclusiveIso)
+  const start = d1 <= d2 ? d1 : d2
+  const end = d1 <= d2 ? d2 : d1
+
+  if (filters.period === 'year') {
     const out: string[] = []
-    for (let i = 6; i >= 0; i--) {
-      out.push(formatIsoUtc(new Date(anchorEnd.getTime() - i * 86400000)))
+    for (let i = 29; i >= 0; i--) {
+      out.push(formatIsoUtc(new Date(end.getTime() - i * 86400000)))
     }
     return out
   }
-  if (filters.period === 'custom' && filters.customFrom && filters.customTo) {
-    const d1 = parseIsoUtc(filters.customFrom)
-    const d2 = parseIsoUtc(filters.customTo)
-    const start = d1 <= d2 ? d1 : d2
-    const end = d1 <= d2 ? d2 : d1
-    const spanDays = Math.min(
-      60,
-      Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1),
-    )
-    const out: string[] = []
-    for (let i = 0; i < spanDays; i++) {
-      out.push(formatIsoUtc(new Date(start.getTime() + i * 86400000)))
-    }
-    return out
-  }
+
+  const spanDays = Math.min(
+    60,
+    Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1),
+  )
   const out: string[] = []
-  for (let i = 29; i >= 0; i--) {
-    out.push(formatIsoUtc(new Date(anchorEnd.getTime() - i * 86400000)))
+  for (let i = 0; i < spanDays; i++) {
+    out.push(formatIsoUtc(new Date(start.getTime() + i * 86400000)))
   }
   return out
 }
@@ -358,98 +362,146 @@ export function computeWarehouseDailyChain(
   filters: GlobalFilters = DEFAULT_GLOBAL_FILTERS,
   workspaceOverride?: GlobalWorkspaceSlice,
   materialCategory: RawMaterialCategory = 'all',
+  liveSummary?: OdooLiveSummary | null,
 ): WarehouseChainSnapshot {
-  const ws = workspaceOverride ?? computeGlobalWorkspace(filters)
+  const ws = workspaceOverride ?? computeGlobalWorkspace(filters, liveSummary)
   const categoryMeta =
     RAW_MATERIAL_CATEGORIES.find((c) => c.id === materialCategory) ?? RAW_MATERIAL_CATEGORIES[0]
   const catShare = categoryMeta.costShare
   const unitKwd = categoryMeta.avgKwdPerUnit
 
-  const dateList = buildDateWindow(filters)
+  const dateList = buildDateWindow(filters, liveSummary)
   const dayCount = dateList.length
 
   const activeBranches: ActiveBranchId[] =
     filters.branch !== 'all' ? [filters.branch] : [...APPROVED_BRANCH_IDS]
 
+  const totalAllBranchesRefSales = APPROVED_BRANCH_IDS.reduce(
+    (s, bid) => s + JOURNEY_SHRINKAGE_MAP[bid].posNet30Kwd,
+    0,
+  )
+  const totalAllBranchesRefOrders = APPROVED_BRANCH_IDS.reduce(
+    (s, bid) => s + JOURNEY_SHRINKAGE_MAP[bid].orders30,
+    0,
+  )
   const totalRefSales = activeBranches.reduce(
     (s, bid) => s + JOURNEY_SHRINKAGE_MAP[bid].posNet30Kwd,
     0,
   )
-  const totalRefOrders = activeBranches.reduce(
-    (s, bid) => s + JOURNEY_SHRINKAGE_MAP[bid].orders30,
-    0,
-  )
 
-  const targetWindowSalesKwd =
-    filters.period === 'year' ? r3(ws.salesKwd / 12) : r3(ws.salesKwd)
-  const targetWindowOrders =
-    filters.period === 'year' ? Math.max(1, Math.round(ws.orders / 12)) : Math.max(1, ws.orders)
-
-  const rawMatrix = dateList.map((dateIso) => {
-    const dt = parseIsoUtc(dateIso)
-    const dow = dt.getUTCDay()
-    const dowFactor = DOW_DEMAND_WEIGHT[dow] ?? 1
-    const branchWeights = activeBranches.map((bid) => {
-      const ref = JOURNEY_SHRINKAGE_MAP[bid]
-      const shareSales = totalRefSales > 0 ? ref.posNet30Kwd / totalRefSales : 1 / activeBranches.length
-      const shareOrders = totalRefOrders > 0 ? ref.orders30 / totalRefOrders : 1 / activeBranches.length
-      const wave = deterministicDayWave(dateIso, `${bid}:${materialCategory}`)
-      return {
-        bid,
-        wSales: shareSales * dowFactor * wave,
-        wOrders: shareOrders * dowFactor * wave,
-      }
-    })
-    return { dateIso, dt, dow, branchWeights }
+  // Window-independent dimensional scope multiplier (brand × channel × kuwaitSlice)
+  // so closed historical days NEVER drift when period window moves!
+  const refMonthAllWs = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'month' })
+  const refMonthScopedNoBranchWs = computeGlobalWorkspace({
+    ...filters,
+    period: 'month',
+    branch: 'all',
   })
+  const nonBranchScopeMult =
+    refMonthAllWs.salesKwd > 0
+      ? Math.min(1, Math.max(0.02, refMonthScopedNoBranchWs.salesKwd / refMonthAllWs.salesKwd))
+      : 1
+  const nonBranchOrderMult =
+    refMonthAllWs.orders > 0
+      ? Math.min(1, Math.max(0.02, refMonthScopedNoBranchWs.orders / refMonthAllWs.orders))
+      : nonBranchScopeMult
 
-  const sumWSales = rawMatrix.reduce(
-    (acc, d) => acc + d.branchWeights.reduce((s, b) => s + b.wSales, 0),
-    0,
+  // Real daily POS lookup: baseline snapshot overlaid with live Odoo dailySeries
+  const dailyPosMap = new Map<string, { netKwd: number; orders: number }>()
+  for (const d of ODOO.timeProfile?.daily ?? []) {
+    if (d.orders > 0 && d.netKwd > 0) {
+      dailyPosMap.set(d.day, { netKwd: d.netKwd, orders: d.orders })
+    }
+  }
+  for (const d of liveSummary?.dailySeries ?? []) {
+    if (d.orders > 0 && d.netKwd > 0) {
+      dailyPosMap.set(d.day, { netKwd: d.netKwd, orders: d.orders })
+    }
+  }
+
+  const baseDailyNetworkSales30 = totalAllBranchesRefSales / 30
+  const baseDailyNetworkOrders30 = totalAllBranchesRefOrders / 30
+
+  // Roll forward deterministically from fixed canonical epoch (`2026-09-01` or `min(dateList)`)
+  // up to `max(dateList)` so every historical date `YYYY-MM-DD` produces 100% identical numbers
+  // across `today`, `week`, `month`, `custom`, and future rolling windows!
+  const windowFirstIso = dateList[0] ?? '2026-11-14'
+  const windowLastIso = dateList[dateList.length - 1] ?? windowFirstIso
+  const simStartIso =
+    windowFirstIso < WAREHOUSE_CHAIN_EPOCH_ISO ? windowFirstIso : WAREHOUSE_CHAIN_EPOCH_ISO
+  const simStartDt = parseIsoUtc(simStartIso)
+  const simEndDt = parseIsoUtc(windowLastIso)
+  const simSpanDays = Math.max(
+    1,
+    Math.round((simEndDt.getTime() - simStartDt.getTime()) / 86400000) + 1,
   )
-  const sumWOrders = rawMatrix.reduce(
-    (acc, d) => acc + d.branchWeights.reduce((s, b) => s + b.wOrders, 0),
-    0,
-  )
+
+  const simDateList: string[] = []
+  for (let i = 0; i < simSpanDays; i++) {
+    simDateList.push(formatIsoUtc(new Date(simStartDt.getTime() + i * 86400000)))
+  }
 
   const networkScopeShare =
     activeBranches.length === APPROVED_BRANCH_IDS.length
       ? 1
       : Math.max(0.14, totalRefSales / 129211.693)
 
-  let runningOpeningKwd = r3(14860 * networkScopeShare * catShare)
+  let runningOpeningKwd = r3(14860 * networkScopeShare * nonBranchScopeMult * catShare)
   let runningOpeningKg = r1(runningOpeningKwd / unitKwd)
 
+  const requestedDateSet = new Set(dateList)
   const days: WarehouseDailyChainDay[] = []
-  let runningSalesAssigned = 0
-  let runningOrdersAssigned = 0
-  const totalCells = rawMatrix.length * activeBranches.length
-  let cellCursor = 0
 
-  for (let dIdx = 0; dIdx < rawMatrix.length; dIdx++) {
-    const row = rawMatrix[dIdx]
-    const weekdayAr = WEEKDAYS_AR[row.dow] ?? ''
-    const weekdayEn = WEEKDAYS_EN[row.dow] ?? ''
-    const isWeekend = row.dow === 4 || row.dow === 5 || row.dow === 6
-    const mmdd = row.dateIso.slice(5)
+  for (let dIdx = 0; dIdx < simDateList.length; dIdx++) {
+    const dateIso = simDateList[dIdx]
+    const dt = parseIsoUtc(dateIso)
+    const dow = dt.getUTCDay()
+    const dowFactor = DOW_DEMAND_WEIGHT[dow] ?? 1
+    const weekdayAr = WEEKDAYS_AR[dow] ?? ''
+    const weekdayEn = WEEKDAYS_EN[dow] ?? ''
+    const isWeekend = dow === 4 || dow === 5 || dow === 6
+    const mmdd = dateIso.slice(5)
+
+    const liveOrSnapDay = dailyPosMap.get(dateIso)
+    const dayNetworkWave = deterministicDayWave(dateIso, `net:${materialCategory}`)
+    const dayFullNetworkSalesKwd = liveOrSnapDay
+      ? liveOrSnapDay.netKwd
+      : baseDailyNetworkSales30 * dowFactor * dayNetworkWave
+    const dayFullNetworkOrders = liveOrSnapDay
+      ? liveOrSnapDay.orders
+      : Math.max(120, Math.round(baseDailyNetworkOrders30 * dowFactor * dayNetworkWave))
+
+    // Deterministic per-branch weights normalized across ALL 7 branches for this exact calendar date
+    const allSevenWaves = APPROVED_BRANCH_IDS.map((bid) => {
+      const ref = JOURNEY_SHRINKAGE_MAP[bid]
+      const wave = deterministicDayWave(dateIso, `${bid}:${materialCategory}`)
+      return {
+        bid,
+        rawSalesW: (ref.posNet30Kwd / totalAllBranchesRefSales) * wave,
+        rawOrdW: (ref.orders30 / totalAllBranchesRefOrders) * wave,
+      }
+    })
+    const sumSevenSalesW = allSevenWaves.reduce((s, x) => s + x.rawSalesW, 0) || 1
+    const sumSevenOrdW = allSevenWaves.reduce((s, x) => s + x.rawOrdW, 0) || 1
 
     const branchNodes: BranchDailyChainNode[] = []
 
-    for (let bIdx = 0; bIdx < row.branchWeights.length; bIdx++) {
-      cellCursor += 1
-      const bw = row.branchWeights[bIdx]
-      const ref = JOURNEY_SHRINKAGE_MAP[bw.bid]
-      const isLastCell = cellCursor === totalCells
+    for (let bIdx = 0; bIdx < activeBranches.length; bIdx++) {
+      const bid = activeBranches[bIdx]
+      const wEntry = allSevenWaves.find((x) => x.bid === bid)!
+      const ref = JOURNEY_SHRINKAGE_MAP[bid]
+      const liveBranchCell = liveSummary?.dailyByBranch?.[bid]?.[dateIso]
 
-      const posSalesKwd = isLastCell
-        ? r3(Math.max(0, targetWindowSalesKwd - runningSalesAssigned))
-        : r3(sumWSales > 0 ? (bw.wSales / sumWSales) * targetWindowSalesKwd : 0)
-      runningSalesAssigned = r3(runningSalesAssigned + posSalesKwd)
+      const posSalesKwd = liveBranchCell && liveBranchCell.netKwd > 0
+        ? r3(liveBranchCell.netKwd * nonBranchScopeMult)
+        : r3(dayFullNetworkSalesKwd * (wEntry.rawSalesW / sumSevenSalesW) * nonBranchScopeMult)
 
-      const posOrders = isLastCell
-        ? Math.max(0, targetWindowOrders - runningOrdersAssigned)
-        : Math.max(1, Math.round(sumWOrders > 0 ? (bw.wOrders / sumWOrders) * targetWindowOrders : 0))
-      runningOrdersAssigned += posOrders
+      const posOrders = liveBranchCell && liveBranchCell.orders > 0
+        ? Math.max(1, Math.round(liveBranchCell.orders * nonBranchOrderMult))
+        : Math.max(
+            1,
+            Math.round(dayFullNetworkOrders * (wEntry.rawOrdW / sumSevenOrdW) * nonBranchOrderMult),
+          )
 
       const branchRawRatio = Math.min(
         0.26,
@@ -459,7 +511,7 @@ export function computeWarehouseDailyChain(
       const bomTheoreticalKg = r1(bomTheoreticalCostKwd / unitKwd)
 
       // Calibrated daily post-reconciliation kitchen shrinkage (~85% of branches 🟢/🟡, 1–2 genuine 🔴 outliers)
-      const dailyWasteScale = bw.bid === 'avenues' ? 0.59 : row.dow === 5 ? 0.58 : 0.54
+      const dailyWasteScale = bid === 'avenues' ? 0.59 : dow === 5 ? 0.58 : 0.54
       const abnormalRatio = ((ref.abnormalPctOfSales || 0) * dailyWasteScale) / 100
       const abnormalShrinkageKwd = r3(posSalesKwd * abnormalRatio * catShare)
       const abnormalShrinkageKg = r1(abnormalShrinkageKwd / unitKwd)
@@ -467,15 +519,15 @@ export function computeWarehouseDailyChain(
       const actualConsumedKwd = r3(bomTheoreticalCostKwd + abnormalShrinkageKwd)
       const actualConsumedKg = r1(bomTheoreticalKg + abnormalShrinkageKg)
 
-      const replenishFactor = row.dow === 4 ? 1.035 : row.dow === 6 ? 0.975 : 1.005
+      const replenishFactor = dow === 4 ? 1.035 : dow === 6 ? 0.975 : 1.005
       const receivedKg = r1(actualConsumedKg * replenishFactor)
       const receivedByBranchKwd = r3(actualConsumedKwd * replenishFactor)
 
-      const dayOfMonth = row.dt.getUTCDate()
-      const isBiweeklyAuditFriday = row.dow === 5 && (dayOfMonth === 6 || dayOfMonth === 23)
+      const dayOfMonth = dt.getUTCDate()
+      const isBiweeklyAuditFriday = dow === 5 && (dayOfMonth === 6 || dayOfMonth === 23)
       const hasTransitSlip =
-        (bw.bid === 'promenade' && isBiweeklyAuditFriday) ||
-        (bw.bid === 'al-kout' && row.dow === 4 && dayOfMonth === 5)
+        (bid === 'promenade' && isBiweeklyAuditFriday) ||
+        (bid === 'al-kout' && dow === 4 && dayOfMonth === 5)
       const transitGapKwd = hasTransitSlip
         ? r3(Math.max(0.65 * catShare, posSalesKwd * 0.0062 * catShare))
         : 0
@@ -494,9 +546,9 @@ export function computeWarehouseDailyChain(
       const requiresInvestigation = branchHealth === 'critical'
 
       branchNodes.push({
-        branchId: bw.bid,
-        branchNameAr: getBranchLabel(bw.bid, true),
-        branchNameEn: getBranchLabel(bw.bid, false),
+        branchId: bid,
+        branchNameAr: getBranchLabel(bid, true),
+        branchNameEn: getBranchLabel(bid, false),
         dispatchedFromWarehouseKwd,
         dispatchedKg,
         transferMoves,
@@ -541,7 +593,7 @@ export function computeWarehouseDailyChain(
     const abnormalShrinkageKwd = r3(branchNodes.reduce((s, b) => s + b.abnormalShrinkageKwd, 0))
     const abnormalShrinkageKg = r1(branchNodes.reduce((s, b) => s + b.abnormalShrinkageKg, 0))
 
-    const isMajorPoDay = row.dow === 0 || row.dow === 2 || row.dow === 4
+    const isMajorPoDay = dow === 0 || dow === 2 || dow === 4
     const minInboundNeededKwd = Math.max(0, warehouseDispatchedKwd - runningOpeningKwd + 250 * catShare)
     const supplierInboundKwd = r3(
       Math.max(minInboundNeededKwd, warehouseDispatchedKwd * (isMajorPoDay ? 1.48 : 0.62)),
@@ -563,13 +615,17 @@ export function computeWarehouseDailyChain(
     runningOpeningKwd = warehouseClosingKwd
     runningOpeningKg = warehouseClosingKg
 
+    if (!requestedDateSet.has(dateIso)) {
+      continue
+    }
+
     const wastePct =
       branchesPosSalesKwd > 0 ? r2((abnormalShrinkageKwd / branchesPosSalesKwd) * 100) : 0
     const dayHealth = classifyBranchChainHealth(transitGapKwd, wastePct, catShare)
     const requiresInvestigation = dayHealth === 'critical'
 
     days.push({
-      dateIso: row.dateIso,
+      dateIso,
       dayLabelAr: `${weekdayAr} ${mmdd}`,
       dayLabelEn: `${weekdayEn} ${mmdd}`,
       weekdayAr,
@@ -1153,9 +1209,10 @@ function buildUniqueTicketDiagnosis(params: {
 export function computeOrderPrepSlaSnapshot(
   filters: GlobalFilters = DEFAULT_GLOBAL_FILTERS,
   _workspaceOverride?: GlobalWorkspaceSlice,
+  liveSummary?: OdooLiveSummary | null,
 ): OrderPrepSlaSnapshot {
-  const dateWindow = buildDateWindow(filters)
-  const latestIso = dateWindow[dateWindow.length - 1] ?? '2026-11-10'
+  const dateWindow = buildDateWindow(filters, liveSummary)
+  const latestIso = dateWindow[dateWindow.length - 1] ?? '2026-11-14'
 
   const activeBrands: ActiveBrandId[] =
     filters.brand !== 'all' ? [filters.brand] : [...APPROVED_BRAND_IDS]

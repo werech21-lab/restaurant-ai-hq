@@ -359,8 +359,8 @@ export function StrategicPlanningStudio() {
           </span>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium leading-relaxed text-slate-600 dark:text-slate-300">
             {isAr
-              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • بيانات أودو 17 ومواسم الكويت`
-              : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Live Odoo 17 + Kuwait seasonality`}
+              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • الفترة: ${snap.periodFromIso} إلى ${snap.periodToIso} • المصدر: أودو 17 (pos.order / account.move.line)${snap.lastSyncedAt ? ` • آخر تحديث: ${snap.lastSyncedAt}` : ''}`
+              : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Window: ${snap.periodFromIso} → ${snap.periodToIso} • Source: Odoo 17${snap.lastSyncedAt ? ` • Last sync: ${snap.lastSyncedAt}` : ''}`}
           </p>
           {session.active ? (
             <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -521,8 +521,8 @@ export function StrategicPlanningStudio() {
           </div>
           <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
-              ? `متوسط اليوم: ${f0(snap.dailyAverageSalesKwd)} د.ك • الأساس الشهري: ${f0(snap.monthlyBaselineSalesKwd)} د.ك • الصافي: ${f0(snap.monthlyBaselineNetKwd)} د.ك${snap.isTodayPeriodActive ? ` • مبيعات اليوم: ${f0(snap.activePeriodSalesKwd)} د.ك` : ''}`
-              : `Daily avg: ${f0(snap.dailyAverageSalesKwd)} KWD • 30d baseline: ${f0(snap.monthlyBaselineSalesKwd)} KWD • Net: ${f0(snap.monthlyBaselineNetKwd)} KWD${snap.isTodayPeriodActive ? ` • Today POS: ${f0(snap.activePeriodSalesKwd)} KWD` : ''}`}
+              ? `الفترة: ${snap.periodFromIso} إلى ${snap.periodToIso} • متوسط اليوم: ${f0(snap.dailyAverageSalesKwd)} د.ك • الصافي: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} د.ك` : 'غير متوفر'}${snap.isTodayPeriodActive ? ` • مبيعات اليوم: ${f0(snap.activePeriodSalesKwd)} د.ك` : ''} • المصدر: أودو 17 pos.order`
+              : `Window: ${snap.periodFromIso} → ${snap.periodToIso} • Daily avg: ${f0(snap.dailyAverageSalesKwd)} KWD • Net: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} KWD` : 'Not available'}${snap.isTodayPeriodActive ? ` • Today POS: ${f0(snap.activePeriodSalesKwd)} KWD` : ''} • Source: Odoo 17 pos.order`}
           </p>
         </article>
 
@@ -530,20 +530,29 @@ export function StrategicPlanningStudio() {
           <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
             {isAr ? 'مطبخ العارضية + عمولة التوصيل' : 'Ardiya COGS + Delivery Cut'}
           </div>
-          <div
-            dir="ltr"
-            data-kpi-val
-            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
-          >
-            {f1(snap.ardiyaFoodPct)}%{' '}
-            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">
-              + {f1(snap.deliveryFeePct)}%
-            </span>
-          </div>
+          {snap.accountingAvailable ? (
+            <div
+              dir="ltr"
+              data-kpi-val
+              className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
+            >
+              {f1(snap.ardiyaFoodPct)}%{' '}
+              <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">
+                + {f1(snap.deliveryFeePct)}%
+              </span>
+            </div>
+          ) : (
+            <div
+              data-kpi-val
+              className="mt-1.5 text-lg sm:text-2xl font-semibold tracking-tight text-slate-500 dark:text-slate-400"
+            >
+              {isAr ? 'غير متوفر' : 'Not available'}
+            </div>
+          )}
           <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
-              ? `حصة الصالة والمباشر (0% عمولة): ${f1(snap.directChannelSharePct)}%`
-              : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}%`}
+              ? `حصة الصالة والمباشر (0% عمولة): ${f1(snap.directChannelSharePct)}% • المصدر: أودو 17 account.move.line (${snap.periodFromIso} إلى ${snap.periodToIso})`
+              : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}% • Source: Odoo 17 account.move.line (${snap.periodFromIso} → ${snap.periodToIso})`}
           </p>
         </article>
 
@@ -559,7 +568,9 @@ export function StrategicPlanningStudio() {
             +{f1(snap.paydayLiftPct)}%
           </div>
           <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
-            {isAr ? 'قفزة 20–28 الشهر + ذروة الشتاء والكشتات' : '20th–28th salary surge + winter peak'}
+            {isAr
+              ? `قفزة 20–28 الشهر + ذروة الشتاء والكشتات • الفترة المرجعية: ${snap.periodFromIso} إلى ${snap.periodToIso} (أودو 17 pos.order)`
+              : `20th–28th salary surge + winter peak • Window: ${snap.periodFromIso} → ${snap.periodToIso} (Odoo 17 pos.order)`}
           </p>
         </article>
 
@@ -579,8 +590,8 @@ export function StrategicPlanningStudio() {
           </div>
           <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
             {isAr
-              ? `سقف تكلفة المراحل الـ ${phases.length}: ${f0(totalCostCap)} د.ك`
-              : `Total cost cap across ${phases.length} phases: ${f0(totalCostCap)} KWD`}
+              ? `سقف تكلفة المراحل الـ ${phases.length}: ${f0(totalCostCap)} د.ك • التوقيت: ${phases[0]?.startDate ?? '2026-11-15'} إلى ${phases[phases.length - 1]?.endDate ?? '2027-02-28'}`
+              : `Total cost cap across ${phases.length} phases: ${f0(totalCostCap)} KWD • Window: ${phases[0]?.startDate ?? '2026-11-15'} → ${phases[phases.length - 1]?.endDate ?? '2027-02-28'}`}
           </p>
         </article>
       </section>
@@ -661,32 +672,48 @@ export function StrategicPlanningStudio() {
                     <div className="text-xs sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
                       {isAr ? 'التكاليف' : 'Total Costs'}
                     </div>
-                    <div
-                      dir="ltr"
-                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300"
-                    >
-                      {f0(sc.projectedCostsKwd)}
-                    </div>
-                    <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
+                    {snap.accountingAvailable ? (
+                      <>
+                        <div
+                          dir="ltr"
+                          className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300"
+                        >
+                          {f0(sc.projectedCostsKwd)}
+                        </div>
+                        <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
+                      </>
+                    ) : (
+                      <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        {isAr ? 'غير متوفر' : 'Not available'}
+                      </div>
+                    )}
                   </div>
 
                   <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
                     <div className="text-xs sm:text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
                       {isAr ? 'صافي الكاش' : 'Net Cash'}
                     </div>
-                    <div
-                      dir="ltr"
-                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300"
-                    >
-                      {sc.projectedNetCashKwd >= 0 ? '+' : ''}
-                      {f0(sc.projectedNetCashKwd)}
-                    </div>
-                    <div
-                      dir="ltr"
-                      className="text-xs sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
-                    >
-                      {f1(sc.netMarginPct)}% {kwd}
-                    </div>
+                    {snap.accountingAvailable ? (
+                      <>
+                        <div
+                          dir="ltr"
+                          className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300"
+                        >
+                          {sc.projectedNetCashKwd >= 0 ? '+' : ''}
+                          {f0(sc.projectedNetCashKwd)}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="text-xs sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
+                        >
+                          {f1(sc.netMarginPct)}% {kwd}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        {isAr ? 'غير متوفر' : 'Not available'}
+                      </div>
+                    )}
                   </div>
                 </div>
 

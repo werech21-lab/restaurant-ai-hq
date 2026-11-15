@@ -44,6 +44,8 @@ const MARKETING_ALLOWED_PREFIXES = [
   '/erp/booth-feasibility',
   '/erp/booth',
   '/erp/events-intelligence',
+  '/erp/competitors',
+  '/erp/market',
   '/erp/feryal-ai',
   '/erp/feryal',
 ] as const
@@ -52,13 +54,45 @@ const SUPPLY_ALLOWED_PREFIXES = [
   '/erp/warehouse-chain',
   '/erp/prep-sla',
   '/erp/delivery-sla',
+  '/erp/food-safety',
   '/erp/feryal-ai',
   '/erp/feryal',
+] as const
+
+export const AUDITOR_FORBIDDEN_PAGE_PREFIXES = [
+  '/users',
+  '/directory',
+  '/roles',
+  '/hr',
+  '/erp/hr',
+  '/erp/iam',
+  '/erp/org',
+  '/erp/admin',
+  '/admin',
+  '/settings',
+  '/pos',
+] as const
+
+export const AUDITOR_FORBIDDEN_API_PREFIXES = [
+  '/api/v1/iam',
+  '/api/v1/admin',
+  '/api/v1/hr',
+  '/api/panel/search',
+  '/api/v1/search',
+  '/api/download/backup',
 ] as const
 
 function matchesAnyPrefix(cleanPath: string, prefixes: readonly string[]): boolean {
   return prefixes.some(
     (prefix) => cleanPath === prefix || cleanPath.startsWith(`${prefix}/`),
+  )
+}
+
+export function isAuditorForbiddenPath(pathname: string): boolean {
+  const clean = stripTrailingSlash(pathname)
+  return (
+    matchesAnyPrefix(clean, AUDITOR_FORBIDDEN_PAGE_PREFIXES) ||
+    matchesAnyPrefix(clean, AUDITOR_FORBIDDEN_API_PREFIXES)
   )
 }
 
@@ -81,9 +115,20 @@ export function isErpRouteAllowedForRole(
   pathname: string,
 ): boolean {
   const clean = stripTrailingSlash(pathname)
+  if (role === 'auditor' && isAuditorForbiddenPath(clean)) {
+    return false
+  }
   if (clean !== '/erp' && !clean.startsWith('/erp/')) {
     if (role === 'supply' || role === 'marketing') {
       return false
+    }
+    if (role === 'auditor') {
+      return (
+        clean === '/accounting' ||
+        clean.startsWith('/accounting/') ||
+        clean === '/reports' ||
+        clean.startsWith('/reports/')
+      )
     }
     return true
   }

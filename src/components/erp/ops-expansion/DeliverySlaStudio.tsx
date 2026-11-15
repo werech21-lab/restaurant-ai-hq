@@ -393,6 +393,11 @@ export function DeliverySlaStudio() {
                 ? `استلام السائق ← باب الزبون • 🟢 ≤ 22 د • 🟡 22.1–32 د • 🔴 > 32 د • ${workspace.subtitleAr}`
                 : `Pickup → Doorstep • 🟢 ≤ 22m • 🟡 22.1–32m • 🔴 > 32m • ${workspace.subtitleEn}`}
             </p>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              {isAr
+                ? `عينة محدودة (${snap.totalTrips} رحلة موثقة من أصل ${workspace.orders.toLocaleString('en-US')} طلب أودو)`
+                : `Limited Sample (${snap.totalTrips} audited trips of ${workspace.orders.toLocaleString('en-US')} Odoo orders)`}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
@@ -544,8 +549,8 @@ export function DeliverySlaStudio() {
           </div>
           <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `${snap.totalTrips} رحلة • الأسرع: ${snap.bestFleet.shortAr} (${snap.bestFleet.meanMinutes.toFixed(1)} د)`
-              : `${snap.totalTrips} trips • Best: ${snap.bestFleet.shortEn} (${snap.bestFleet.meanMinutes.toFixed(1)}m)`}
+              ? `عينة محدودة: ${snap.totalTrips} رحلة (من ${workspace.orders.toLocaleString('en-US')} طلب) • الأسرع: ${snap.bestFleet.shortAr}`
+              : `Limited sample: ${snap.totalTrips} trips (of ${workspace.orders.toLocaleString('en-US')} orders) • Best: ${snap.bestFleet.shortEn}`}
           </p>
         </div>
 

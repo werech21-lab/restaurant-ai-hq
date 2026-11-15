@@ -226,7 +226,7 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                 reloadToken={reloadToken}
                 onOpen={(row) => setDialog({ kind: 'entry', entryId: row.id })}
                 emptyTitle="led.je.empty"
-                emptyHint="led.je.emptyHint"
+                {...(canCreateEntry ? { emptyHint: 'led.je.emptyHint' as const } : {})}
                 toolbar={
                   <>
                     <select value={entryStatus} onChange={(event) => setEntryStatus(event.target.value)} aria-label={t('led.col.status')} className={`${inputClass} mt-0 w-auto`}>

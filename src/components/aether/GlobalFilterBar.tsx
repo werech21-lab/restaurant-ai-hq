@@ -42,7 +42,7 @@ export function GlobalFilterBar() {
         <div className="me-1 hidden min-w-0 flex-col leading-tight lg:flex">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{T('Live BI context', 'سياق التحليل المباشر')}</span>
           <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-            {T('6 Brands • 7 Branches • 8 Channels', '6 مطاعم • 7 فروع • 8 قنوات')}
+            {T('6 Brands • 7 Branches • 8 Channels', '6 علامات تجارية • 7 فروع • 8 قنوات')}
           </span>
         </div>
 

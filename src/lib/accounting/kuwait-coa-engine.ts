@@ -657,7 +657,7 @@ export const KUWAIT_FNB_COA: CoaAccount[] = [
     category: 'CONTROLLABLES',
     normalBalance: 'DEBIT',
     balanceKwd: 650.000,
-    descriptionAr: 'عقود الزيارات الدورية المعتمدة من وزارة الصحة للـ 9 فروع والمطبخ المركزي',
+    descriptionAr: 'عقود الزيارات الدورية المعتمدة من وزارة الصحة للـ 7 فروع والمطبخ المركزي',
     descriptionEn: 'MOH-certified pest prevention scheduled visits across 9 active stores and Central Kitchen',
   },
   {
@@ -879,7 +879,7 @@ export interface FourWallPlStatement {
 
 export function generateFourWallPl(
   netSalesTotal = 167092.160,
-  scopeLabel = 'شركة فنتشر فودز (إجمالي الفروع الـ 9)'
+  scopeLabel = 'شركة فنتشر فودز (إجمالي الفروع الـ 7)'
 ): FourWallPlStatement {
   const grossSales = Number((netSalesTotal * 1.042).toFixed(3))
   const discounts = Number((grossSales - netSalesTotal).toFixed(3))
@@ -1008,7 +1008,7 @@ export const AMC_CONTRACTS_REGISTRY: AmcContractItem[] = [
     id: 'amc-pest-01',
     contractCode: 'AMC-7111-PEST',
     category: 'PEST_CONTROL',
-    nameAr: 'عقد مكافحة القوارض والحشرات الشامل (9 فروع + المطبخ المركزي)',
+    nameAr: 'عقد مكافحة القوارض والحشرات الشامل (7 فروع + المطبخ المركزي)',
     nameEn: 'Comprehensive Pest & Rodent Prevention AMC',
     vendorName: 'الشركة الوطنية لمكافحة الحشرات والتعقيم ذ.م.م.',
     glAccount: '7111',

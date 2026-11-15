@@ -32,14 +32,21 @@ import {
   ODOO_EXPENSES_TOTAL_TX,
 } from '@/lib/accounting/odoo-real-expenses-data'
 
+import {
+  mapAuditorCustodianDisplay,
+  redactAuditorPersonalNames,
+} from '@/lib/accounting/auditor-redaction'
+
 interface IntelligenceWorkspaceProps {
   permissions?: readonly string[]
   initialTab?: string
+  isAuditor?: boolean
 }
 
 export default function IntelligenceWorkspace({
   permissions: _granted,
   initialTab = 'alerts',
+  isAuditor = false,
 }: IntelligenceWorkspaceProps) {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
@@ -226,23 +233,33 @@ export default function IntelligenceWorkspace({
       odooDataProofEn: 'Odoo Audit: 10,707.930 KWD spent via Rabih custody; 62% were repetitive repairs on identical units.',
       steps: [
         { num: '1', textAr: 'استبدال الثلاجات التالفة في الكوت مول والسالمية فوراً لتفادي تكرار فواتير الإصلاح وقطع الغيار.', textEn: 'Procure new high-efficiency prep chillers for Al Kout and Salmiya to halt emergency repair leaks.' },
-        { num: '2', textAr: 'توقيع عقد صيانة سنوي موحد بزيارات دورية شهرية لكافة الفروع الـ 9 وغرف تبريد المطبخ المركزي.', textEn: 'Sign unified preventive maintenance SLA with monthly scheduled audits across all 9 branches.' },
+        { num: '2', textAr: 'توقيع عقد صيانة سنوي موحد بزيارات دورية شهرية لكافة الفروع الـ 7 وغرف تبريد المطبخ المركزي.', textEn: 'Sign unified preventive maintenance SLA with monthly scheduled audits across all 9 branches.' },
         { num: '3', textAr: 'ربط حساسات إنترنت الأشياء (IoT) للحرارة بمنظومة الرادار للتنبيه قبل وصول الحرارة لدرجة الخطر.', textEn: 'Connect digital temperature IoT sensors to AetherBI radar for proactive 24/7 cold-chain telemetry.' },
       ],
     },
   ], [])
 
   // 3. Custodians Breakdown Data (51,154.950 KWD)
-  const custodiansData = useMemo(() => [
-    { nameAr: 'سند للتعقيب والخدمات الحكومية', nameEn: 'Sanad PRO & Govt Services', amountKwd: 31646.750, pct: 61.86, txCount: 1412, roleAr: 'إقامات، كروت بلدية، ضمان صحي، رخص تجارية', roleEn: 'Residencies, Baladiya, MOH, Licenses', avgTxKwd: 22.41, stdDev: '± 8.4%' },
-    { nameAr: 'ربيع عطا طه (صيانة المطابخ والفروع)', nameEn: 'Rabih Atta Taha (Maintenance)', amountKwd: 10707.930, pct: 20.93, txCount: 538, roleAr: 'صيانة غرف تبريد، كمبريسورات، كهرباء، إطفاء', roleEn: 'Cold rooms, compressors, HVAC, fire safety', avgTxKwd: 19.90, stdDev: '± 12.1%' },
-    { nameAr: 'شيلا أمبوس بولبولي (إسناد وتشغيل)', nameEn: 'Sheila Ambos Bulboli (Operations)', amountKwd: 2840.400, pct: 5.55, txCount: 114, roleAr: 'مشتريات تشغيل طارئة، إسناد لوجستي للفروع', roleEn: 'Emergency ops, branch consumables', avgTxKwd: 24.91, stdDev: '± 5.2%' },
-    { nameAr: 'أمجد سمير (المشتريات السريعة)', nameEn: 'Amjad Samir (Fast Procurement)', amountKwd: 2115.650, pct: 4.14, txCount: 86, roleAr: 'شراء خضار ومواد طازجة عاجلة للفروع', roleEn: 'Fresh produce, dairy branch supplements', avgTxKwd: 24.60, stdDev: '± 6.8%' },
-    { nameAr: 'شيام (الموارد البشرية والشؤون)', nameEn: 'Shyam (HR & Welfare)', amountKwd: 1420.250, pct: 2.78, txCount: 42, roleAr: 'تنقلات العمال، رعاية وسكن الموظفين', roleEn: 'Worker transit, staff welfare & housing', avgTxKwd: 33.81, stdDev: '± 4.9%' },
-    { nameAr: 'نادر نزهي (الخدمات العامة)', nameEn: 'Nader Nezhy (General Services)', amountKwd: 1180.500, pct: 2.31, txCount: 38, roleAr: 'نثريات إدارية، رسوم اتصالات وبريد', roleEn: 'Corporate admin, courier & communications', avgTxKwd: 31.06, stdDev: '± 3.8%' },
-    { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن المطبخ المركزي', roleEn: 'Packaging tools & Central Kitchen warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
-    { nameAr: 'نوشا شريف (نثريات الضيافة والإدارة)', nameEn: 'Nousha Sharif (Office Hospitality)', amountKwd: 393.150, pct: 0.77, txCount: 16, roleAr: 'ضيافة مكتب الإدارة العامة والاجتماعات', roleEn: 'HQ office pantry, executive hospitality', avgTxKwd: 24.57, stdDev: '± 2.4%' },
-  ], [])
+  const custodiansData = useMemo(() => {
+    const raw = [
+      { nameAr: 'سند للتعقيب والخدمات الحكومية', nameEn: 'Sanad PRO & Govt Services', amountKwd: 31646.750, pct: 61.86, txCount: 1412, roleAr: 'إقامات، كروت بلدية، ضمان صحي، رخص تجارية', roleEn: 'Residencies, Baladiya, MOH, Licenses', avgTxKwd: 22.41, stdDev: '± 8.4%' },
+      { nameAr: 'ربيع عطا طه (صيانة المطابخ والفروع)', nameEn: 'Rabih Atta Taha (Maintenance)', amountKwd: 10707.930, pct: 20.93, txCount: 538, roleAr: 'صيانة غرف تبريد، كمبريسورات، كهرباء، إطفاء', roleEn: 'Cold rooms, compressors, HVAC, fire safety', avgTxKwd: 19.90, stdDev: '± 12.1%' },
+      { nameAr: 'شيلا أمبوس بولبولي (إسناد وتشغيل)', nameEn: 'Sheila Ambos Bulboli (Operations)', amountKwd: 2840.400, pct: 5.55, txCount: 114, roleAr: 'مشتريات تشغيل طارئة، إسناد لوجستي للفروع', roleEn: 'Emergency ops, branch consumables', avgTxKwd: 24.91, stdDev: '± 5.2%' },
+      { nameAr: 'أمجد سمير (المشتريات السريعة)', nameEn: 'Amjad Samir (Fast Procurement)', amountKwd: 2115.650, pct: 4.14, txCount: 86, roleAr: 'شراء خضار ومواد طازجة عاجلة للفروع', roleEn: 'Fresh produce, dairy branch supplements', avgTxKwd: 24.60, stdDev: '± 6.8%' },
+      { nameAr: 'شيام (الموارد البشرية والشؤون)', nameEn: 'Shyam (HR & Welfare)', amountKwd: 1420.250, pct: 2.78, txCount: 42, roleAr: 'تنقلات العمال، رعاية وسكن الموظفين', roleEn: 'Worker transit, staff welfare & housing', avgTxKwd: 33.81, stdDev: '± 4.9%' },
+      { nameAr: 'نادر نزهي (الخدمات العامة)', nameEn: 'Nader Nezhy (General Services)', amountKwd: 1180.500, pct: 2.31, txCount: 38, roleAr: 'نثريات إدارية، رسوم اتصالات وبريد', roleEn: 'Corporate admin, courier & communications', avgTxKwd: 31.06, stdDev: '± 3.8%' },
+      { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن المطبخ المركزي', roleEn: 'Packaging tools & Central Kitchen warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
+      { nameAr: 'نوشا شريف (نثريات الضيافة والإدارة)', nameEn: 'Nousha Sharif (Office Hospitality)', amountKwd: 393.150, pct: 0.77, txCount: 16, roleAr: 'ضيافة مكتب الإدارة العامة والاجتماعات', roleEn: 'HQ office pantry, executive hospitality', avgTxKwd: 24.57, stdDev: '± 2.4%' },
+    ]
+    return raw.map((c, idx) => {
+      const mapped = mapAuditorCustodianDisplay(idx + 1, c.nameAr, c.nameEn, isAuditor)
+      return {
+        ...c,
+        nameAr: mapped.nameAr,
+        nameEn: mapped.nameEn,
+      }
+    })
+  }, [isAuditor])
 
   // 4. Pareto 80/20 Analysis (Top Categories driving 82.4% of cost)
   const paretoData = useMemo(() => [
@@ -307,7 +324,7 @@ export default function IntelligenceWorkspace({
             </h1>
             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
               {isAr
-                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 مطاعم والـ 7 فروع النشطة و8 قنوات والمطبخ المركزي.'
+                ? 'تم تحليل 2,213 قيد مصروفات وعهد، 166 ملف موظف، 364 وصفة معيارية، ومبيعات الـ 6 علامات تجارية والـ 7 فروع النشطة و8 قنوات والمطبخ المركزي.'
                 : 'Audited 2,213 Odoo expense & custody entries, 166 employee files, 364 standard recipes across 6 brands, 7 active branches, 8 channels & Central Kitchen.'}
             </p>
           </div>

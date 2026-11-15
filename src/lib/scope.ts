@@ -93,7 +93,7 @@ function scopeLabels(brandId: VentureBrandId | null, branchId: VentureBranchId |
     }
   }
   return {
-    labelAr: '6 مطاعم • 7 فروع • 8 قنوات',
+    labelAr: '6 علامات تجارية • 7 فروع • 8 قنوات',
     labelEn: '6 Brands • 7 Branches • 8 Channels',
   }
 }

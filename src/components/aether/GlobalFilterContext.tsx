@@ -247,11 +247,13 @@ export function GlobalFilterProvider({
   // Background fetch of /api/erp/odoo-sync + silent 3-minute polling on active executive sessions
   useEffect(() => {
     let active = true
-    const periodKey =
-      effectiveFilters.period === 'custom' ? 'month' : effectiveFilters.period
+    const qs =
+      effectiveFilters.period === 'custom'
+        ? `period=custom&from=${encodeURIComponent(effectiveFilters.customFrom)}&to=${encodeURIComponent(effectiveFilters.customTo)}`
+        : `period=${encodeURIComponent(effectiveFilters.period)}`
 
     const pullSilentStatus = () => {
-      fetch(`/api/erp/odoo-sync?period=${encodeURIComponent(periodKey)}`, {
+      fetch(`/api/erp/odoo-sync?${qs}`, {
         method: 'GET',
         cache: 'no-store',
         credentials: 'same-origin',
@@ -292,16 +294,18 @@ export function GlobalFilterProvider({
       if (pollTimer !== null) window.clearInterval(pollTimer)
       window.removeEventListener('aether:odoo-sync', onSyncEvent)
     }
-  }, [effectiveFilters.period, isAuditor])
+  }, [effectiveFilters.customFrom, effectiveFilters.customTo, effectiveFilters.period, isAuditor])
 
   const triggerOdooSyncNow = useCallback(async () => {
     if (isAuditor || syncCooldownSec > 0) return
     setSyncingOdoo(true)
     try {
-      const periodKey =
-        effectiveFilters.period === 'custom' ? 'month' : effectiveFilters.period
+      const qs =
+        effectiveFilters.period === 'custom'
+          ? `period=custom&from=${encodeURIComponent(effectiveFilters.customFrom)}&to=${encodeURIComponent(effectiveFilters.customTo)}`
+          : `period=${encodeURIComponent(effectiveFilters.period)}`
       const res = await fetch(
-        `/api/erp/odoo-sync?period=${encodeURIComponent(periodKey)}`,
+        `/api/erp/odoo-sync?${qs}`,
         {
           method: 'POST',
           cache: 'no-store',
@@ -455,17 +459,26 @@ export function GlobalFilterProvider({
       const salesFmt = Math.round(workspace.salesKwd).toLocaleString('en-US')
       const ordFmt = workspace.orders.toLocaleString('en-US')
 
+      const netLabelAr =
+        workspace.accounting.netProfitPct !== null
+          ? `${workspace.accounting.netProfitPct.toFixed(1)}%`
+          : 'غير متوفر'
+      const netLabelEn =
+        workspace.accounting.netProfitPct !== null
+          ? `${workspace.accounting.netProfitPct.toFixed(1)}%`
+          : 'Not available'
+
       if (isAr) {
         return [
           `📊 *فنتشر فودز — ${workspace.subtitleAr}*`,
-          `• المبيعات: ${salesFmt} د.ك (${ordFmt} طلب) | الصافي المرجّح: ${workspace.weightedNetPct.toFixed(1)}%`,
+          `• المبيعات: ${salesFmt} د.ك (${ordFmt} طلب) | صافي الربح المحاسبي: ${netLabelAr}`,
           `• التشخيص: ${workspace.diagnosticStrip.rootCauseAr}`,
           `🔗 رابط مباشر: ${deepUrl}`,
         ].join('\n')
       }
       return [
         `📊 *Venture Foods — ${workspace.subtitleEn}*`,
-        `• Sales: ${salesFmt} KWD (${ordFmt} orders) | Weighted Net: ${workspace.weightedNetPct.toFixed(1)}%`,
+        `• Sales: ${salesFmt} KWD (${ordFmt} orders) | GL Net Margin: ${netLabelEn}`,
         `• Diagnosis: ${workspace.diagnosticStrip.rootCauseEn}`,
         `🔗 Deep Link: ${deepUrl}`,
       ].join('\n')

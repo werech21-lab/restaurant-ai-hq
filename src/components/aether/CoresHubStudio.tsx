@@ -208,13 +208,17 @@ const TAG_FILTERS: readonly {
   },
 ] as const
 
-export function CoresHubStudio() {
+export function CoresHubStudio({
+  initialTab = 'marketing',
+}: {
+  initialTab?: CoreTabId
+} = {}) {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const { filters, workspace, liveSummary, setBrand, setBranch, setChannel } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
-  const [activeTab, setActiveTab] = useState<CoreTabId>('marketing')
+  const [activeTab, setActiveTab] = useState<CoreTabId>(initialTab)
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>([])
   const [showDemoCampaigns, setShowDemoCampaigns] = useState(false)
   const [isAdFormOpen, setIsAdFormOpen] = useState(false)

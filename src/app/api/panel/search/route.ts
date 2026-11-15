@@ -31,6 +31,12 @@ const MODULE_LINKS: Array<{ title: string; href: string; keywords: string }> = [
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: { code: 'unauthorized', message: 'Login required' } }, { status: 401 })
+  if (user.isAuditor || user.sessionRole === 'auditor') {
+    return NextResponse.json(
+      { ok: false, error: 'Read-only auditor session' },
+      { status: 403 },
+    )
+  }
 
   const q = (request.nextUrl.searchParams.get('q') || '').trim().slice(0, 80)
   if (q.length < 1) return NextResponse.json({ data: [] as PanelSearchHit[] })

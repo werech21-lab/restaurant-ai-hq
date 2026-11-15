@@ -215,7 +215,12 @@ export function OrderPrepSlaStudio() {
           </p>
           <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
             <ShieldCheck className="h-3.5 w-3.5" />
-            <span>{T('6 Brands · 7 Branches', '٦ براندات · ٧ فروع')}</span>
+            <span>{T('6 Brands · 7 Branches', '٦ علامات تجارية · ٧ فروع')}</span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+            {isAr
+              ? `عينة محدودة (${f0(snap.totalTickets)} تذكرة مطبخ من أصل ${f0(workspace.orders)} طلب أودو)`
+              : `Limited Sample (${f0(snap.totalTickets)} KDS tickets of ${f0(workspace.orders)} Odoo orders)`}
           </span>
         </div>
 
@@ -254,8 +259,8 @@ export function OrderPrepSlaStudio() {
           </div>
           <p className="text-[13px] sm:text-[12.5px] leading-snug tabular-nums text-neutral-400">
             {T(
-              `P90: ${f1(snap.p90PrepMinutes)}m · ${f0(snap.totalTickets)} tickets`,
-              `ذروة P90: ${f1(snap.p90PrepMinutes)} د · ${f0(snap.totalTickets)} طلب`,
+              `P90: ${f1(snap.p90PrepMinutes)}m · Limited sample: ${f0(snap.totalTickets)} tickets (of ${f0(workspace.orders)})`,
+              `ذروة P90: ${f1(snap.p90PrepMinutes)} د · عينة محدودة: ${f0(snap.totalTickets)} تذكرة (من ${f0(workspace.orders)} طلب)`,
             )}
           </p>
         </div>

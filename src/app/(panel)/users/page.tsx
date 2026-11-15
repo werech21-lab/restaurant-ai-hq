@@ -22,11 +22,13 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
-  await ensureVentureFoodsTeam();
   const locale = await getLocale();
-  const query = await readQuery(searchParams);
   const user = await requireUser();
-  if (!can(user, "users", "view")) return <Forbidden href={firstAllowedHref(user)} />;
+  if (user.isAuditor || user.sessionRole === "auditor" || !can(user, "users", "view")) {
+    return <Forbidden href={firstAllowedHref(user)} />;
+  }
+  await ensureVentureFoodsTeam();
+  const query = await readQuery(searchParams);
 
   const where = {
     isActive: true,

@@ -9,6 +9,8 @@ import {
   Calendar,
   CalendarDays,
   Compass,
+  FileSpreadsheet,
+  Landmark,
   LayoutDashboard,
   LogOut,
   MessageSquareHeart,
@@ -18,8 +20,10 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Radar,
+  Receipt,
   Scale,
   Sparkles,
+  Target,
   Timer,
   Truck,
 } from 'lucide-react'
@@ -42,6 +46,8 @@ export const RAIL_TOGGLE_EVENT = 'aetherbi:toggle-rail'
 export type SidebarSectionId =
   | 'executive-sales'
   | 'operations-sla'
+  | 'finance-accounting'
+  | 'competitors-market'
   | 'reputation-vision'
   | 'governance-strategy'
 
@@ -148,6 +154,58 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelAr: 'عمولات منصات التوصيل',
         labelEn: 'Aggregator Commissions',
         icon: Radar,
+        alwaysVisible: true,
+      },
+    ],
+  },
+  {
+    id: 'finance-accounting',
+    labelAr: 'المالية والمحاسبة',
+    labelEn: 'Finance & Accounting',
+    items: [
+      {
+        key: 'finance',
+        sectionId: 'finance-accounting',
+        href: '/erp/finance',
+        aliases: ['/accounting'],
+        labelAr: 'المركز المالي والمحاسبة',
+        labelEn: 'Finance & General Ledger',
+        icon: Landmark,
+        alwaysVisible: true,
+      },
+      {
+        key: 'receivables',
+        sectionId: 'finance-accounting',
+        href: '/erp/receivables',
+        labelAr: 'الذمم المدينة وأعمار الديون',
+        labelEn: 'AR & Receivables Aging',
+        icon: Receipt,
+        alwaysVisible: true,
+      },
+      {
+        key: 'executive-pnl',
+        sectionId: 'finance-accounting',
+        href: '/erp/executive-pnl',
+        labelAr: 'قائمة الدخل وانحراف الموازنة',
+        labelEn: 'Executive P&L & Variance',
+        icon: FileSpreadsheet,
+        alwaysVisible: true,
+      },
+    ],
+  },
+  {
+    id: 'competitors-market',
+    labelAr: 'المنافسون والسوق',
+    labelEn: 'Competitors & Market',
+    items: [
+      {
+        key: 'competitors',
+        sectionId: 'competitors-market',
+        href: '/erp/competitors',
+        aliases: ['/erp/market'],
+        labelAr: 'رادار المنافسين والسوق',
+        labelEn: 'Competitors & Market Radar',
+        icon: Target,
         alwaysVisible: true,
       },
     ],
@@ -462,7 +520,7 @@ export function Sidebar({
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-xs font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+            {isAr ? '6 علامات تجارية · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
           </p>
         </div>
       </div>

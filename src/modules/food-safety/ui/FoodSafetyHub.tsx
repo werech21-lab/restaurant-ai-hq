@@ -29,6 +29,7 @@ import {
   Info,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useI18n } from '@/lib/i18n'
 
 export type SafetyTab = 'cold' | 'maintenance' | 'inspection' | 'healthCards' | 'shelfLife'
@@ -90,7 +91,7 @@ export interface HealthCardRecord {
   statusEn: string
 }
 
-// 1. Cold Units Database across the 9 Active Branches + Central Kitchen (active locations only)
+// 1. Cold Units Database across the 7 Active Branches + Central Kitchen (active locations only)
 export const COLD_UNITS_DATA: ColdUnit[] = [
   {
     id: 'CU-CK-01',
@@ -207,12 +208,12 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
     sensorBattery: 91,
   },
   {
-    id: 'CU-MRJ-01',
-    branchId: 'MURROUJ',
-    branchNameAr: 'فرع مجمع مروج',
-    branchNameEn: 'Murrouj Complex Branch',
-    unitNameAr: 'ثلاجة اللحوم والدجاج المتبل - فرع مروج',
-    unitNameEn: 'Marinated Poultry & Beef Chiller',
+    id: 'CU-360-01',
+    branchId: 'MALL360',
+    branchNameAr: 'فرع مول 360',
+    branchNameEn: '360 Mall Branch',
+    unitNameAr: 'ثلاجة اللحوم والدجاج المتبل - فرع مول 360',
+    unitNameEn: 'Marinated Poultry & Beef Chiller - 360 Mall',
     typeAr: 'ثلاجة تبريد وحفظ',
     typeEn: 'Meat Chiller',
     currentTempC: 2.0,
@@ -245,14 +246,14 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
     sensorBattery: 88,
   },
   {
-    id: 'CU-FRW-01',
-    branchId: 'FARWANIYA',
-    branchNameAr: 'فرع الفروانية',
-    branchNameEn: 'Farwaniya Branch',
-    unitNameAr: 'ثلاجة تحضير الشاورما والصوصات - فرع الفروانية',
-    unitNameEn: 'Shawarma & Sauce Prep Chiller',
+    id: 'CU-ASM-01',
+    branchId: 'ASSIMA',
+    branchNameAr: 'فرع العاصمة مول',
+    branchNameEn: 'Assima Mall Branch',
+    unitNameAr: 'ثلاجة تحضير اللحوم والصوصات - فرع العاصمة مول',
+    unitNameEn: 'Meat & Sauce Prep Chiller - Assima Mall',
     typeAr: 'ثلاجة تبريد وحفظ',
-    typeEn: 'Shawarma Chiller',
+    typeEn: 'Prep Chiller',
     currentTempC: 2.6,
     targetTempC: 2.0,
     minSafeC: 1.0,
@@ -264,12 +265,12 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
     sensorBattery: 93,
   },
   {
-    id: 'CU-HAW-01',
-    branchId: 'HAWALLY',
-    branchNameAr: 'فرع حولي',
-    branchNameEn: 'Hawally Branch',
-    unitNameAr: 'براد الشاي والحليب والمشروبات - فرع حولي',
-    unitNameEn: 'Beverage & Milk Cooler',
+    id: 'CU-PRM-01',
+    branchId: 'PROMENADE',
+    branchNameAr: 'فرع بروميناد',
+    branchNameEn: 'Promenade Mall Branch',
+    unitNameAr: 'براد الشاي والحليب والمشروبات - فرع بروميناد',
+    unitNameEn: 'Beverage & Milk Cooler - Promenade',
     typeAr: 'براد مشروبات',
     typeEn: 'Beverage Cooler',
     currentTempC: 3.5,
@@ -283,12 +284,12 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
     sensorBattery: 90,
   },
   {
-    id: 'CU-KRN-01',
-    branchId: 'KHAIRAN',
-    branchNameAr: 'فرع الخيران',
-    branchNameEn: 'Khairan Branch',
-    unitNameAr: 'ثلاجة حفظ الروبيان والأسماك - فرع الخيران',
-    unitNameEn: 'Seafood & Shrimp Cooler',
+    id: 'CU-KOUT-02',
+    branchId: 'ALKOUT',
+    branchNameAr: 'فرع الكوت مول',
+    branchNameEn: 'Al-Kout Mall Branch',
+    unitNameAr: 'ثلاجة حفظ الروبيان والأسماك - فرع الكوت مول',
+    unitNameEn: 'Seafood & Shrimp Cooler - Al-Kout',
     typeAr: 'ثلاجة تبريد وحفظ',
     typeEn: 'Seafood Cooler',
     currentTempC: 1.2,
@@ -303,7 +304,7 @@ export const COLD_UNITS_DATA: ColdUnit[] = [
   },
   {
     id: 'CU-SLM-02',
-    branchId: 'SLM',
+    branchId: 'SALMIYA',
     branchNameAr: 'فرع السالمية',
     branchNameEn: 'Salmiya Branch',
     unitNameAr: 'براد تجهيز العجائن والجبن - فرع السالمية',
@@ -476,7 +477,7 @@ export const INSPECTION_PROTOCOLS_DATA = [
     standardAr: 'فحص موازين الحرارة الرقمية بواسطة محلول الماء والثلج (0.0 درجة مئوية) وتسجيل نسبة الانحراف المسموح بها (أقل من ±0.5 درجة مئوية).',
     standardEn: 'Monthly ice-bath calibration logging with maximum ±0.5°C acceptable margin.',
     complianceScore: 100,
-    statusAr: 'تمت المعايرة لجميع الفروع الـ 9',
+    statusAr: 'تمت المعايرة لجميع الفروع الـ 7',
     lastAudited: '01/11/2026',
     auditor: 'ربيع أنيس يحيى (#2042)',
   },
@@ -598,8 +599,8 @@ export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
     nameEn: 'Rajesh Kumar Patel',
     jobTitleAr: 'شيف شاورما ومعلم مقبلات',
     jobTitleEn: 'Shawarma Chef',
-    branchNameAr: 'فرع الفروانية',
-    branchNameEn: 'Farwaniya Branch',
+    branchNameAr: 'فرع العاصمة مول',
+    branchNameEn: 'Assima Mall Branch',
     civilId: '290071904512',
     cardNo: 'HC-KW-2025-12004',
     issueDate: '05/10/2025',
@@ -649,8 +650,8 @@ export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
     nameEn: 'Jonathan Reyes',
     jobTitleAr: 'مشرف صالة ومقدم طلبات',
     jobTitleEn: 'Dining Floor Supervisor',
-    branchNameAr: 'فرع مجمع مروج',
-    branchNameEn: 'Murrouj Complex',
+    branchNameAr: 'فرع مول 360',
+    branchNameEn: '360 Mall',
     civilId: '292081402851',
     cardNo: 'HC-KW-2025-10332',
     issueDate: '01/09/2025',
@@ -666,8 +667,8 @@ export const HEALTH_CARDS_SAMPLE: HealthCardRecord[] = [
     nameEn: 'Ahmed Mahmoud Al-Awadi',
     jobTitleAr: 'معد مشروبات وشاي كرك',
     jobTitleEn: 'Barista & Tea Master',
-    branchNameAr: 'فرع حولي',
-    branchNameEn: 'Hawally Branch',
+    branchNameAr: 'فرع بروميناد',
+    branchNameEn: 'Promenade Branch',
     civilId: '295031101994',
     cardNo: 'HC-KW-2025-06519',
     issueDate: '12/03/2025',
@@ -689,7 +690,9 @@ export const SHELF_LIFE_ITEMS = [
 ]
 
 export default function FoodSafetyHub() {
-  const { locale } = useI18n()
+  const { locale, setLocale } = useI18n()
+  const { isAuditor, sessionRole } = useGlobalFilter()
+  const auditorReadOnly = Boolean(isAuditor || sessionRole === 'auditor')
   const isAr = locale === 'ar'
 
   const [activeTab, setActiveTab] = useState<SafetyTab>('cold')
@@ -748,8 +751,8 @@ export default function FoodSafetyHub() {
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
               {isAr
-                ? 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 9 والمطبخ المركزي، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد'
-                : 'Real-time telemetry for 9 operating branches + Central Kitchen, municipal hygiene compliance, and refrigeration engineering maintenance.'}
+                ? 'الرصد اللحظي لثلاجات وغرف تبريد الفروع الـ 7 والمطبخ المركزي، سجلات الفحص اليومي لبلدية الكويت والهيئة العامة للغذاء، وصيانة معدات التبريد'
+                : 'Real-time telemetry for 7 operating branches + Central Kitchen, municipal hygiene compliance, and refrigeration engineering maintenance.'}
             </p>
           </div>
 
@@ -763,13 +766,15 @@ export default function FoodSafetyHub() {
               <span>{isAr ? 'العودة للوحة القيادة' : 'Back to Dashboard'}</span>
             </Link>
             <ThemeToggle className="shadow-lg" />
-            <a
-              href={isAr ? '/en/erp/food-safety' : '/erp/food-safety'}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            <button
+              type="button"
+              onClick={() => setLocale(isAr ? 'en' : 'ar')}
+              aria-label={isAr ? 'Switch language to English' : 'التبديل إلى اللغة العربية'}
+              className="inline-flex cursor-pointer items-center gap-1 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-bold text-slate-200 transition hover:border-slate-500 hover:text-white"
             >
               <span>🌐</span>
               <span>{isAr ? 'EN' : 'عربي'}</span>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -784,7 +789,7 @@ export default function FoodSafetyHub() {
             </div>
             <div className="mt-2 text-2xl font-black text-white font-mono">12</div>
             <div className="text-[11px] text-cyan-200/70 mt-0.5">
-              {isAr ? 'الفروع الـ 9 + المطبخ المركزي' : '9 Branches + Central Kitchen'}
+              {isAr ? 'الفروع الـ 7 + المطبخ المركزي' : '7 Branches + Central Kitchen'}
             </div>
           </div>
 
@@ -861,8 +866,8 @@ export default function FoodSafetyHub() {
           {
             id: 'cold' as SafetyTab,
             icon: Thermometer,
-            labelAr: '❄️ الرصد اللحظي لدرجات حرارة الثلاجات وغرف التبريد (الفروع الـ 9 والمطبخ المركزي)',
-            labelEn: '❄️ Live Cold-Chain Telemetry (9 Branches + Central Kitchen)',
+            labelAr: '❄️ الرصد اللحظي لدرجات حرارة الثلاجات وغرف التبريد (الفروع الـ 7 والمطبخ المركزي)',
+            labelEn: '❄️ Live Cold-Chain Telemetry (7 Branches + Central Kitchen)',
             count: 12,
           },
           {
@@ -921,7 +926,7 @@ export default function FoodSafetyHub() {
       </div>
 
       {/* ========================================================= */}
-      {/* TAB 1: Live Cold-Chain Telemetry (9 Branches + Central Kitchen) */}
+      {/* TAB 1: Live Cold-Chain Telemetry (7 Branches + Central Kitchen) */}
       {/* ========================================================= */}
       {activeTab === 'cold' && (
         <div className="space-y-6">
@@ -930,22 +935,20 @@ export default function FoodSafetyHub() {
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-cyan-600 dark:text-cyan-400" />
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                {isAr ? 'تصفية الفروع النشطة:' : 'Filter Active Branches:'}
+                {isAr ? 'تصفية الفروع الـ 7 النشطة:' : 'Filter 7 Active Branches:'}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                { id: 'ALL', labelAr: 'الكل (جميع الفروع الـ 9 والمطبخ)', labelEn: 'All Locations' },
+                { id: 'ALL', labelAr: 'الكل (7 فروع + المطبخ المركزي)', labelEn: 'All (7 Branches + CK)' },
                 { id: 'CK-MAIN', labelAr: 'المطبخ المركزي', labelEn: 'Central Kitchen' },
-                { id: 'AVENUES', labelAr: 'مجمع الأفنيوز', labelEn: 'The Avenues' },
-                { id: 'MURROUJ', labelAr: 'مجمع مروج', labelEn: 'Murrouj' },
+                { id: 'AVENUES', labelAr: 'الأفنيوز', labelEn: 'The Avenues' },
+                { id: 'MALL360', labelAr: 'مول 360', labelEn: '360 Mall' },
+                { id: 'ASSIMA', labelAr: 'العاصمة مول', labelEn: 'Assima Mall' },
+                { id: 'PROMENADE', labelAr: 'بروميناد', labelEn: 'Promenade' },
                 { id: 'SALMIYA', labelAr: 'السالمية', labelEn: 'Salmiya' },
-                { id: 'FARWANIYA', labelAr: 'الفروانية', labelEn: 'Farwaniya' },
-                { id: 'MAK', labelAr: 'مبارك الكبير', labelEn: 'Mubarak Al-Kabeer' },
-                { id: 'KHAIRAN', labelAr: 'الخيران', labelEn: 'Khairan' },
                 { id: 'ALKOUT', labelAr: 'الكوت مول', labelEn: 'Al-Kout' },
                 { id: 'ARDIYA', labelAr: 'العارضية', labelEn: 'Ardiya' },
-                { id: 'HAWALLY', labelAr: 'حولي', labelEn: 'Hawally' },
               ].map((b) => (
                 <button
                   key={b.id}
@@ -1111,25 +1114,28 @@ export default function FoodSafetyHub() {
                 </p>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-amber-400/90 mt-2 font-bold">
                   <span>📞 اتصال الطوارئ: 965-98765432+</span>
-                  <span>📍 النطاق: جميع الفروع الـ 9 والمطبخ المركزي</span>
+                  <span>📍 النطاق: جميع الفروع الـ 7 والمطبخ المركزي</span>
                   <span>⚡ الاستجابة الميدانية: أقل من 45 دقيقة</span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={() =>
-                showNotice(
-                  isAr
-                    ? 'تم فتح نموذج تسجيل بلاغ صيانة جديد وتعيين ربيع أنيس يحيى كفني مكلف'
-                    : 'New maintenance ticket opened assigned to Rabie Anis',
-                )
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400 shadow-lg cursor-pointer"
-            >
-              <Plus size={16} />
-              <span>{isAr ? 'تسجيل أمر صيانة أو عطل ثلاجة جديد' : 'New Maintenance Order'}</span>
-            </button>
+            {!auditorReadOnly ? (
+              <button
+                type="button"
+                onClick={() =>
+                  showNotice(
+                    isAr
+                      ? 'تم فتح نموذج تسجيل بلاغ صيانة جديد وتعيين ربيع أنيس يحيى كفني مكلف'
+                      : 'New maintenance ticket opened assigned to Rabie Anis',
+                  )
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black transition hover:bg-amber-400 shadow-lg cursor-pointer"
+              >
+                <Plus size={16} />
+                <span>{isAr ? 'تسجيل أمر صيانة أو عطل ثلاجة جديد' : 'New Maintenance Order'}</span>
+              </button>
+            ) : null}
           </div>
 
           {/* Maintenance Records Table */}

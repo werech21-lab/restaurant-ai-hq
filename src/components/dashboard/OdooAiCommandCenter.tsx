@@ -148,7 +148,7 @@ export function OdooAiCommandCenter() {
     []
   )
 
-  // 3. COMPARATIVE CHART DATA (9 Active Branches + Central Kitchen)
+  // 3. COMPARATIVE CHART DATA (7 Active Branches + Central Kitchen)
   const branchChartData = [
     { name: isAr ? 'الأفنيوز' : 'Avenues', sales: 38425.320, maint: 680.250, margin: 26.8 },
     { name: isAr ? '360 مول' : '360 Mall', sales: 28140.650, maint: 460.200, margin: 27.4 },
@@ -329,8 +329,8 @@ export function OdooAiCommandCenter() {
               <span>{isAiAnalyzing ? (isAr ? 'جارٍ التحليل الذكي عبر Cache...' : 'Analyzing with Cache...') : (isAr ? 'تشغيل التحليل الفوري (Claude 5.5)' : 'Run Claude 5.5 Analysis')}</span>
             </button>
             <span className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-3.5 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{isAr ? 'Odoo V17 متصل لحظياً' : 'Odoo Live Connected'}</span>
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span>{isAr ? 'تكامل بيانات أودو 17' : 'Odoo 17 Data Integration'}</span>
             </span>
           </div>
         </div>
@@ -366,7 +366,7 @@ export function OdooAiCommandCenter() {
               <TrendingUp size={12} />
               <span>+14.8% {isAr ? 'مقارنة بسبتمبر' : 'vs Sept'}</span>
             </span>
-            <span className="text-slate-400 font-mono">{isAr ? '9 فروع نشطة' : '9 Active Stores'}</span>
+            <span className="text-slate-400 font-mono">{isAr ? '7 فروع نشطة' : '7 Active Stores'}</span>
           </div>
         </div>
 
@@ -560,7 +560,7 @@ export function OdooAiCommandCenter() {
                 {isAr ? 'المقارنة الإحصائية للمبيعات وتكاليف الصيانة للفروع (د.ك)' : 'Branch Sales vs Maintenance Ledger (KWD)'}
               </h3>
               <p className="text-xs text-slate-400">
-                {isAr ? 'مبيعات الـ 9 فروع مع إبراز عهد صيانة المطبخ المركزي' : 'Active 9 branches sales alongside Central Kitchen maintenance'}
+                {isAr ? 'مبيعات الـ 7 فروع مع إبراز عهد صيانة المطبخ المركزي' : 'Active 7 branches sales alongside Central Kitchen maintenance'}
               </p>
             </div>
             <span className="rounded-lg bg-blue-500/10 px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">

@@ -5,5 +5,5 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Robots-Tag: noindex, nofollow, noarchive
   Cross-Origin-Opener-Policy: same-origin
-  Strict-Transport-Security: max-age=31536000
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data: https://api.openai.com https://translate.google.com; connect-src 'self' https://generativelanguage.googleapis.com https://*.googleapis.com https://api.x.ai https://*.x.ai https://api.openai.com https://translate.google.com https://*.openai.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob: data: https://api.openai.com https://translate.google.com; connect-src 'self' https://generativelanguage.googleapis.com https://*.googleapis.com https://api.x.ai https://*.x.ai https://api.openai.com https://translate.google.com https://*.openai.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests

@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 
 type Header = { key: string; value: string }
 type Builders = {
-  buildContentSecurityPolicy: (options: { supabaseUrl: string | undefined; isProduction: boolean }) => string
-  buildSecurityHeaders: (options: { supabaseUrl: string | undefined; isProduction: boolean }) => Header[]
+  buildContentSecurityPolicy: (options: { supabaseUrl: string | undefined; isProduction: boolean; nonce?: string }) => string
+  buildSecurityHeaders: (options: { supabaseUrl: string | undefined; isProduction: boolean; nonce?: string; omitCsp?: boolean }) => Header[]
 }
 
 const APPROVED_AI_CONNECT_ORIGINS = [
@@ -58,11 +58,23 @@ describe('content security policy', () => {
     expect(directive(production, 'connect-src')).not.toContain('*')
   })
 
-  it('allows no wildcard source anywhere and no eval in production', () => {
+  it('allows no wildcard source anywhere, no unsafe-inline, and no eval in production script-src', () => {
     expect(production).not.toMatch(/(^|[ ;])\*([ ;]|$)/)
     expect(directive(production, 'media-src')).not.toContain('*')
     expect(directive(production, 'script-src')).not.toContain("'unsafe-eval'")
+    expect(directive(production, 'script-src')).not.toContain("'unsafe-inline'")
     expect(production).toContain('upgrade-insecure-requests')
+
+    const withNonce = buildContentSecurityPolicy({
+      supabaseUrl: SUPABASE,
+      isProduction: true,
+      nonce: 'YWV0aGVyYmlub25jZTEyMzQ1Ng==',
+    })
+    expect(directive(withNonce, 'script-src')).toEqual([
+      "'self'",
+      "'nonce-YWV0aGVyYmlub25jZTEyMzQ1Ng=='",
+    ])
+    expect(directive(withNonce, 'script-src')).not.toContain("'unsafe-inline'")
   })
 
   it('allows eval only outside production, for the development server', () => {
@@ -101,8 +113,8 @@ describe('security headers', () => {
     expect(production.get('Content-Security-Policy')).toBeTruthy()
   })
 
-  it('sends HSTS in production without includeSubDomains or preload, and not in development', () => {
-    expect(production.get('Strict-Transport-Security')).toBe('max-age=31536000')
+  it('sends HSTS in production with includeSubDomains, and not in development', () => {
+    expect(production.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains')
     const development = buildSecurityHeaders({ supabaseUrl: SUPABASE, isProduction: false })
     expect(development.some((header) => header.key === 'Strict-Transport-Security')).toBe(false)
   })

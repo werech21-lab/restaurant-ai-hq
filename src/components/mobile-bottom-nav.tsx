@@ -259,7 +259,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   {isAr ? 'فنتشر فودز' : 'Venture Foods'}
                 </h2>
                 <p className="whitespace-nowrap text-[13px] font-medium text-slate-500 dark:text-slate-400">
-                  {isAr ? '6 مطاعم · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+                  {isAr ? '6 علامات تجارية · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
                 </p>
               </div>
 

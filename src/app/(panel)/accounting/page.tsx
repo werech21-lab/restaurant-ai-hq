@@ -26,13 +26,16 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
   if (!(await isModuleEnabled("accounting"))) {
     return <DisabledModule title={tx(locale, "المحاسبة", "Accounting")} />;
   }
+  const isAuditor = Boolean(user.isAuditor || user.sessionRole === "auditor");
   const query = await readQuery(searchParams);
   const scope = await getActiveScope(query);
   const tabs = [
     { key: "chart", label: tx(locale, "شجرة الحسابات", "Chart of accounts") },
     { key: "journals", label: tx(locale, "قيود اليومية", "Journal entries") },
     { key: "trial", label: tx(locale, "ميزان المراجعة", "Trial balance") },
-    { key: "entry", label: tx(locale, "قيد يدوي", "Manual entry") },
+    ...(!isAuditor && can(user, "accounting", "create")
+      ? [{ key: "entry", label: tx(locale, "قيد يدوي", "Manual entry") }]
+      : []),
   ];
   const tab = tabs.some((item) => item.key === query.tab) ? query.tab : "chart";
   const [accounts, trial, journals] = await Promise.all([
@@ -49,7 +52,7 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
           {tx(locale, "سجلات وقيود الأستاذ العام في قاعدة البيانات (Prisma DB)", "Prisma Database Ledger & Trial Balance")}
         </h4>
         <div className="flex gap-2">
-          <SmartIngestLaunchButton module="accounting" locale={locale} />
+          {!isAuditor ? <SmartIngestLaunchButton module="accounting" locale={locale} /> : null}
           <a
             href="/accounting/reconciliation"
             className="rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-3 py-1 text-xs font-bold text-emerald-300"
@@ -129,7 +132,7 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
           </table>
         </div>
       ) : null}
-      {tab === "entry" && can(user, "accounting", "create") ? (
+      {tab === "entry" && !isAuditor && can(user, "accounting", "create") ? (
         <ManualJournalForm accounts={accounts.map((account) => ({ id: account.id, code: account.code, name: account.name }))} />
       ) : null}
     </div>
@@ -138,6 +141,7 @@ async function AccountingContent({ searchParams }: { searchParams: Promise<RawQu
   return (
     <VentureAccountingHub
       locale={locale === "en" ? "en" : "ar"}
+      isAuditor={isAuditor}
       liveChildren={legacyLiveChildren}
     />
   );

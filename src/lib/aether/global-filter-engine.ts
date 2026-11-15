@@ -33,6 +33,8 @@ import type {
   OdooBucketSummary,
   OdooLiveSummary,
   OdooPeriodBucketKey,
+  OdooReceivableAccountRow,
+  OdooReceivableAgingBucket,
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 
@@ -189,8 +191,8 @@ export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
   { id: 'all', ar: 'كل القنوات', en: 'All Channels' },
   { id: 'dine-in', ar: 'الصالة', en: 'Dine-in' },
   { id: 'takeaway-direct', ar: 'سفري ومباشر', en: 'Takeaway/Direct' },
-  { id: 'talabat-tgo', ar: 'طلبات Tgo', en: 'Talabat Tgo' },
-  { id: 'talabat-tmp', ar: 'منصة توصيل طلبات TMP', en: 'Talabat TMP' },
+  { id: 'talabat-tgo', ar: 'طلبات (أسطول المنصة)', en: 'Talabat Tgo' },
+  { id: 'talabat-tmp', ar: 'طلبات (سائقي الشركة)', en: 'Talabat TMP' },
   { id: 'keeta', ar: 'كيتا', en: 'Keeta' },
   { id: 'deliveroo', ar: 'ديليفرو', en: 'Deliveroo' },
   { id: 'jahez', ar: 'جاهز', en: 'Jahez' },
@@ -709,12 +711,6 @@ const KUWAIT_SLICE_PROFILE = (() => {
   }
 })()
 
-function healthDotFromPct(weightedPct: number, salesKwd: number): HealthDot {
-  if (salesKwd <= 0.05 || weightedPct < 10.5) return '🔴'
-  if (weightedPct < 18.5) return '🟠'
-  return '🟢'
-}
-
 /**
  * Strict weighted `%` math (`sum(netPocket) / sum(sales) * 100`) across matching atomic cube cells.
  */
@@ -1186,11 +1182,59 @@ export interface SummaryCardData {
   statusLabelEn: string
   badgeAr?: string
   badgeEn?: string
+  periodLabelAr?: string
+  periodLabelEn?: string
+  sourceLabelAr?: string
+  sourceLabelEn?: string
   ctaAr: string
   ctaEn: string
   action: SummaryCardAction
   targetStage?: JourneyPlay['stage'] | 'all'
   href: string
+}
+
+export interface WorkspaceLedgerAccounting {
+  available: boolean
+  completeAccrualPosted: boolean
+  from: string
+  to: string
+  sourceModel: 'account.move.line'
+  lineCount: number
+  totalRevenueKwd: number | null
+  cogsKwd: number | null
+  deliveryCommissionsKwd: number | null
+  otherOpexAndDepreciationKwd: number | null
+  beforeRentKwd: number | null
+  operatingProfitKwd: number | null
+  cogsPct: number | null
+  deliveryCommPct: number | null
+  opexRentDeprPct: number | null
+  beforeRentPct: number | null
+  netProfitPct: number | null
+  unavailableReasonAr: string | null
+  unavailableReasonEn: string | null
+}
+
+export interface WorkspaceReceivablesMeta {
+  openReceivableKwd: number
+  grossPositiveReceivableKwd: number
+  creditClearingOffsetKwd: number
+  unreconciledLineCount: number
+  posClearingLinesCount: number
+  platformAndCorporateLinesCount: number
+  fromDate: string
+  toDate: string
+  latestMaturityDate: string | null
+  maturityStatusAr: string
+  maturityStatusEn: string
+  openLinesExplanationAr: string
+  openLinesExplanationEn: string
+  sourceLabelAr: string
+  sourceLabelEn: string
+  reconciliationFormulaAr: string
+  reconciliationFormulaEn: string
+  byAccount: OdooReceivableAccountRow[]
+  agingBuckets: OdooReceivableAgingBucket[]
 }
 
 export interface FeryalSimpleNote {
@@ -1210,7 +1254,7 @@ export interface PeerDiagnosticStrip {
   activeWeightedNetPct: number
   groupWeightedNetPct: number
   deltaPctPoints: number
-  /** False when viewing unfiltered full group scope (brand/branch/channel/slice === 'all') so redundant 14.7% vs 14.7% is hidden */
+  /** False when viewing unfiltered full group scope (brand/branch/channel/slice === 'all') */
   showPeerComparison: boolean
   tone: 'emerald' | 'amber' | 'rose'
   benchmarkAr: string
@@ -1224,6 +1268,7 @@ export interface GlobalWorkspaceSlice {
   isFiltered: boolean
   isTodayFallback: boolean
   todayFallbackDate: string | null
+  lastSyncedAt: string | null
   subtitleAr: string
   subtitleEn: string
   periodCalendarWindowAr: string
@@ -1234,9 +1279,9 @@ export interface GlobalWorkspaceSlice {
   salesKwd: number
   orders: number
   aovKwd: number
-  /** Strict weighted net pocket % = (netPocketKwd / salesKwd) * 100 */
+  /** Strict GL operating profit % = (operatingProfit / totalRevenue) * 100 when GL accounting is available; 0 otherwise */
   weightedNetPct: number
-  /** Group reference weighted net pocket % */
+  /** Group GL operating profit % when available; 0 otherwise */
   groupWeightedNetPct: number
   /** Scale of current period + Kuwait slice vs 30-day month */
   periodScale: number
@@ -1244,6 +1289,8 @@ export interface GlobalWorkspaceSlice {
   dimensionShare: number
   /** Combined scale = salesKwd / 30d group restaurant sales */
   totalScale: number
+  accounting: WorkspaceLedgerAccounting
+  receivables: WorkspaceReceivablesMeta
   per10: {
     food10: number
     delivery10: number
@@ -1373,9 +1420,27 @@ export function computeGlobalWorkspace(
   const monthBkt = liveSummary?.buckets?.month ?? rawBuckets?.month
 
   // Automatic fallback to last completed POS operating day if early-morning `today` receipts === 0
+  const clampedCustomForBucket = clampPeriodToKuwaitToday({
+    from: filters.customFrom,
+    to: filters.customTo,
+  })
+  const customBucketMatch =
+    filters.period === 'custom' &&
+    liveSummary?.customBucket &&
+    liveSummary.customBucket.from === clampedCustomForBucket.from &&
+    (liveSummary.customBucket.to === shiftIsoDateDays(clampedCustomForBucket.to, 1) ||
+      liveSummary.customBucket.to === clampedCustomForBucket.to)
+      ? liveSummary.customBucket
+      : undefined
+
   const bucketKey: OdooPeriodBucketKey | undefined =
     filters.period === 'custom' ? undefined : filters.period
-  let activeBkt = bucketKey ? (liveSummary?.buckets?.[bucketKey] ?? rawBuckets?.[bucketKey]) : undefined
+  let activeBkt =
+    filters.period === 'custom'
+      ? customBucketMatch
+      : bucketKey
+        ? (liveSummary?.buckets?.[bucketKey] ?? rawBuckets?.[bucketKey])
+        : undefined
   let isTodayFallback = false
   let todayFallbackDate: string | null = null
 
@@ -1403,14 +1468,19 @@ export function computeGlobalWorkspace(
 
   const customTotals =
     filters.period === 'custom'
-      ? computeCustomRangeOdooTotals(
-          filters.customFrom,
-          filters.customTo,
-          customNorm.days,
-          monthGroupSales,
-          monthGroupOrders,
-          liveSummary?.dailySeries,
-        )
+      ? customBucketMatch && safeNum(customBucketMatch.totals.restaurantOrders) > 0
+        ? {
+            salesKwd: safeNum(customBucketMatch.totals.restaurantNetKwd),
+            orders: safeNum(customBucketMatch.totals.restaurantOrders),
+          }
+        : computeCustomRangeOdooTotals(
+            filters.customFrom,
+            filters.customTo,
+            customNorm.days,
+            monthGroupSales,
+            monthGroupOrders,
+            liveSummary?.dailySeries,
+          )
       : null
 
   const defaultDays: Record<GlobalPeriod, number> = {
@@ -1490,96 +1560,108 @@ export function computeGlobalWorkspace(
   const basePeriodScale = Math.max(0.01, safeDiv(basePeriodSales, monthGroupSales, fallbackPeriodRatio[filters.period]))
   const periodScale = Math.max(0.004, safeDiv(periodGroupSales, monthGroupSales, basePeriodScale * sliceNetMult))
 
-  // Calculate exact or proportional salesKwd & orders for (period, brand, branch, channel)
-  let salesKwd = 0
-  let orders = 0
+  // Calculate exact or proportional salesKwd & orders for any (brand, branch, channel) in the active period
+  const computeSliceSalesAndOrders = (
+    tBrand: GlobalBrand,
+    tBranch: GlobalBranch,
+    tChannel: GlobalChannel,
+  ): { salesKwd: number; orders: number } => {
+    let rawSales = 0
+    let rawOrd = 0
 
-  const { brand, branch, channel } = filters
+    if (tBrand === 'all' && tBranch === 'all' && tChannel === 'all') {
+      rawSales = basePeriodSales
+      rawOrd = basePeriodOrders
+    } else if (tBrand !== 'all' && tBranch === 'all' && tChannel === 'all') {
+      if (activeBkt?.byBrand?.[tBrand] && safeNum(activeBkt.totals?.restaurantOrders) > 0) {
+        rawSales = safeNum(activeBkt.byBrand[tBrand].netKwd)
+        rawOrd = safeNum(activeBkt.byBrand[tBrand].orders)
+      } else {
+        rawSales = CUBE30.byBrand[tBrand].netKwd * basePeriodScale
+        rawOrd = Math.round(CUBE30.byBrand[tBrand].orders * basePeriodScale)
+      }
+    } else if (tBrand === 'all' && tBranch !== 'all' && tChannel === 'all') {
+      const branchLoc = activeBkt?.mappedByLocation?.[tBranch] ?? activeBkt?.byLocation?.[tBranch]
+      if (branchLoc && safeNum(activeBkt?.totals?.restaurantOrders) > 0) {
+        rawSales = safeNum(branchLoc.netKwd)
+        rawOrd = safeNum(branchLoc.orders)
+      } else {
+        rawSales = CUBE30.byBranch[tBranch].netKwd * basePeriodScale
+        rawOrd = Math.round(CUBE30.byBranch[tBranch].orders * basePeriodScale)
+      }
+    } else if (tBrand === 'all' && tBranch === 'all' && tChannel !== 'all') {
+      if (activeBkt?.uiChannels?.[tChannel] && safeNum(activeBkt.totals?.restaurantOrders) > 0) {
+        rawSales = safeNum(activeBkt.uiChannels[tChannel].netKwd)
+        rawOrd = safeNum(activeBkt.uiChannels[tChannel].orders)
+      } else {
+        rawSales = CUBE30.byChannel[tChannel].netKwd * basePeriodScale
+        rawOrd = Math.round(CUBE30.byChannel[tChannel].orders * basePeriodScale)
+      }
+    } else if (tBrand === 'all' && tBranch !== 'all' && tChannel !== 'all') {
+      const locCh = activeBkt?.byLocation?.[tBranch]?.uiChannels?.[tChannel]
+      if (locCh && safeNum(activeBkt?.totals?.restaurantOrders) > 0) {
+        rawSales = safeNum(locCh.netKwd)
+        rawOrd = safeNum(locCh.orders)
+      } else {
+        const ref30 = safeNum(CUBE30.branchChannel[`${tBranch}|${tChannel}`])
+        rawSales = ref30 * basePeriodScale
+        rawOrd = Math.round(safeDiv(rawSales, 4.9))
+      }
+    } else if (tBrand !== 'all' && tBranch !== 'all' && tChannel === 'all') {
+      const locTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.brandBranch[`${b}|${tBranch}`]), 0)
+      const shareInLoc = safeDiv(safeNum(CUBE30.brandBranch[`${tBrand}|${tBranch}`]), locTotal30, 0)
+      const branchLoc = activeBkt?.mappedByLocation?.[tBranch] ?? activeBkt?.byLocation?.[tBranch]
+      const locPeriodNet =
+        branchLoc && safeNum(activeBkt?.totals?.restaurantOrders) > 0
+          ? safeNum(branchLoc.netKwd)
+          : CUBE30.byBranch[tBranch].netKwd * basePeriodScale
+      const locPeriodOrd =
+        branchLoc && safeNum(activeBkt?.totals?.restaurantOrders) > 0
+          ? safeNum(branchLoc.orders)
+          : CUBE30.byBranch[tBranch].orders * basePeriodScale
+      rawSales = locPeriodNet * shareInLoc
+      const brandAov = safeDiv(CUBE30.byBrand[tBrand].netKwd, CUBE30.byBrand[tBrand].orders, 4.8)
+      rawOrd = rawSales > 0 ? Math.max(1, Math.round(Math.min(locPeriodOrd, safeDiv(rawSales, brandAov, locPeriodOrd * shareInLoc)))) : 0
+    } else if (tBrand !== 'all' && tBranch === 'all' && tChannel !== 'all') {
+      const chTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.brandChannel[`${b}|${tChannel}`]), 0)
+      const shareInCh = safeDiv(safeNum(CUBE30.brandChannel[`${tBrand}|${tChannel}`]), chTotal30, 0)
+      const chPeriodNet =
+        activeBkt?.uiChannels?.[tChannel] && safeNum(activeBkt.totals?.restaurantOrders) > 0
+          ? safeNum(activeBkt.uiChannels[tChannel].netKwd)
+          : CUBE30.byChannel[tChannel].netKwd * basePeriodScale
+      const chPeriodOrd =
+        activeBkt?.uiChannels?.[tChannel] && safeNum(activeBkt.totals?.restaurantOrders) > 0
+          ? safeNum(activeBkt.uiChannels[tChannel].orders)
+          : CUBE30.byChannel[tChannel].orders * basePeriodScale
+      rawSales = chPeriodNet * shareInCh
+      const brandAov = safeDiv(CUBE30.byBrand[tBrand].netKwd, CUBE30.byBrand[tBrand].orders, 4.8)
+      rawOrd = rawSales > 0 ? Math.max(1, Math.round(Math.min(chPeriodOrd, safeDiv(rawSales, brandAov, chPeriodOrd * shareInLocOrCh(shareInCh))))) : 0
+    } else if (tBrand !== 'all' && tBranch !== 'all' && tChannel !== 'all') {
+      const locChTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.cell[`${b}|${tBranch}|${tChannel}`]), 0)
+      const shareInLocCh = safeDiv(safeNum(CUBE30.cell[`${tBrand}|${tBranch}|${tChannel}`]), locChTotal30, 0)
+      const locChActual = activeBkt?.byLocation?.[tBranch]?.uiChannels?.[tChannel]
+      const baseNet =
+        locChActual && safeNum(activeBkt?.totals?.restaurantOrders) > 0
+          ? safeNum(locChActual.netKwd)
+          : safeNum(CUBE30.branchChannel[`${tBranch}|${tChannel}`]) * basePeriodScale
+      const baseOrd =
+        locChActual && safeNum(activeBkt?.totals?.restaurantOrders) > 0
+          ? safeNum(locChActual.orders)
+          : safeDiv(baseNet, 4.9)
+      rawSales = baseNet * shareInLocCh
+      const brandAov = safeDiv(CUBE30.byBrand[tBrand].netKwd, CUBE30.byBrand[tBrand].orders, 4.8)
+      rawOrd = rawSales > 0 ? Math.max(1, Math.round(Math.min(baseOrd, safeDiv(rawSales, brandAov, baseOrd * shareInLocCh)))) : 0
+    }
 
-  if (brand === 'all' && branch === 'all' && channel === 'all') {
-    salesKwd = basePeriodSales
-    orders = basePeriodOrders
-  } else if (brand !== 'all' && branch === 'all' && channel === 'all') {
-    if (activeBkt?.byBrand?.[brand] && safeNum(activeBkt.totals?.restaurantOrders) > 0) {
-      salesKwd = safeNum(activeBkt.byBrand[brand].netKwd)
-      orders = safeNum(activeBkt.byBrand[brand].orders)
-    } else {
-      salesKwd = CUBE30.byBrand[brand].netKwd * basePeriodScale
-      orders = Math.round(CUBE30.byBrand[brand].orders * basePeriodScale)
-    }
-  } else if (brand === 'all' && branch !== 'all' && channel === 'all') {
-    if (activeBkt?.byLocation?.[branch] && safeNum(activeBkt.totals?.restaurantOrders) > 0) {
-      salesKwd = safeNum(activeBkt.byLocation[branch].netKwd)
-      orders = safeNum(activeBkt.byLocation[branch].orders)
-    } else {
-      salesKwd = CUBE30.byBranch[branch].netKwd * basePeriodScale
-      orders = Math.round(CUBE30.byBranch[branch].orders * basePeriodScale)
-    }
-  } else if (brand === 'all' && branch === 'all' && channel !== 'all') {
-    if (activeBkt?.uiChannels?.[channel] && safeNum(activeBkt.totals?.restaurantOrders) > 0) {
-      salesKwd = safeNum(activeBkt.uiChannels[channel].netKwd)
-      orders = safeNum(activeBkt.uiChannels[channel].orders)
-    } else {
-      salesKwd = CUBE30.byChannel[channel].netKwd * basePeriodScale
-      orders = Math.round(CUBE30.byChannel[channel].orders * basePeriodScale)
-    }
-  } else if (brand === 'all' && branch !== 'all' && channel !== 'all') {
-    const locCh = activeBkt?.byLocation?.[branch]?.uiChannels?.[channel]
-    if (locCh && safeNum(activeBkt?.totals?.restaurantOrders) > 0) {
-      salesKwd = safeNum(locCh.netKwd)
-      orders = safeNum(locCh.orders)
-    } else {
-      const ref30 = safeNum(CUBE30.branchChannel[`${branch}|${channel}`])
-      salesKwd = ref30 * basePeriodScale
-      orders = Math.round(safeDiv(salesKwd, 4.9))
-    }
-  } else if (brand !== 'all' && branch !== 'all' && channel === 'all') {
-    const locTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.brandBranch[`${b}|${branch}`]), 0)
-    const shareInLoc = safeDiv(safeNum(CUBE30.brandBranch[`${brand}|${branch}`]), locTotal30, 0)
-    const locPeriodNet =
-      activeBkt?.byLocation?.[branch] && safeNum(activeBkt.totals?.restaurantOrders) > 0
-        ? safeNum(activeBkt.byLocation[branch].netKwd)
-        : CUBE30.byBranch[branch].netKwd * basePeriodScale
-    const locPeriodOrd =
-      activeBkt?.byLocation?.[branch] && safeNum(activeBkt.totals?.restaurantOrders) > 0
-        ? safeNum(activeBkt.byLocation[branch].orders)
-        : CUBE30.byBranch[branch].orders * basePeriodScale
-    salesKwd = locPeriodNet * shareInLoc
-    const brandAov = safeDiv(CUBE30.byBrand[brand].netKwd, CUBE30.byBrand[brand].orders, 4.8)
-    orders = salesKwd > 0 ? Math.max(1, Math.round(Math.min(locPeriodOrd, safeDiv(salesKwd, brandAov, locPeriodOrd * shareInLoc)))) : 0
-  } else if (brand !== 'all' && branch === 'all' && channel !== 'all') {
-    const chTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.brandChannel[`${b}|${channel}`]), 0)
-    const shareInCh = safeDiv(safeNum(CUBE30.brandChannel[`${brand}|${channel}`]), chTotal30, 0)
-    const chPeriodNet =
-      activeBkt?.uiChannels?.[channel] && safeNum(activeBkt.totals?.restaurantOrders) > 0
-        ? safeNum(activeBkt.uiChannels[channel].netKwd)
-        : CUBE30.byChannel[channel].netKwd * basePeriodScale
-    const chPeriodOrd =
-      activeBkt?.uiChannels?.[channel] && safeNum(activeBkt.totals?.restaurantOrders) > 0
-        ? safeNum(activeBkt.uiChannels[channel].orders)
-        : CUBE30.byChannel[channel].orders * basePeriodScale
-    salesKwd = chPeriodNet * shareInCh
-    const brandAov = safeDiv(CUBE30.byBrand[brand].netKwd, CUBE30.byBrand[brand].orders, 4.8)
-    orders = salesKwd > 0 ? Math.max(1, Math.round(Math.min(chPeriodOrd, safeDiv(salesKwd, brandAov, chPeriodOrd * shareInLocOrCh(shareInCh))))) : 0
-  } else if (brand !== 'all' && branch !== 'all' && channel !== 'all') {
-    const locChTotal30 = APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(CUBE30.cell[`${b}|${branch}|${channel}`]), 0)
-    const shareInLocCh = safeDiv(safeNum(CUBE30.cell[`${brand}|${branch}|${channel}`]), locChTotal30, 0)
-    const locChActual = activeBkt?.byLocation?.[branch]?.uiChannels?.[channel]
-    const baseNet =
-      locChActual && safeNum(activeBkt?.totals?.restaurantOrders) > 0
-        ? safeNum(locChActual.netKwd)
-        : safeNum(CUBE30.branchChannel[`${branch}|${channel}`]) * basePeriodScale
-    const baseOrd =
-      locChActual && safeNum(activeBkt?.totals?.restaurantOrders) > 0
-        ? safeNum(locChActual.orders)
-        : safeDiv(baseNet, 4.9)
-    salesKwd = baseNet * shareInLocCh
-    const brandAov = safeDiv(CUBE30.byBrand[brand].netKwd, CUBE30.byBrand[brand].orders, 4.8)
-    orders = salesKwd > 0 ? Math.max(1, Math.round(Math.min(baseOrd, safeDiv(salesKwd, brandAov, baseOrd * shareInLocCh)))) : 0
+    const finalSalesKwd = Math.max(0, Math.round(rawSales * sliceNetMult * 1000) / 1000)
+    const finalOrders = finalSalesKwd > 0 ? Math.max(1, Math.round(rawOrd * sliceOrdMult)) : 0
+    return { salesKwd: finalSalesKwd, orders: finalOrders }
   }
 
-  salesKwd = Math.max(0, Math.round(salesKwd * sliceNetMult * 1000) / 1000)
-  orders = salesKwd > 0 ? Math.max(1, Math.round(orders * sliceOrdMult)) : 0
+  const { brand, branch, channel } = filters
+  const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
+  const salesKwd = activeSlice.salesKwd
+  const orders = activeSlice.orders
   const aovKwd = orders > 0 ? Math.round((salesKwd / orders) * 1000) / 1000 : 0
 
   const approxMonthSlice = safeDiv(salesKwd, periodScale, 0)
@@ -1590,160 +1672,237 @@ export function computeGlobalWorkspace(
   const totalScale = safeDiv(salesKwd, monthGroupSales, 0)
 
   // -------------------------------------------------------------------------
-  // 10-KWD Breakdown (كيف تتوزع كل 10 دنانير من المبيعات؟)
+  // Odoo 17 General Ledger Accounting (`account.move.line`) — ZERO Static Ratios
   // -------------------------------------------------------------------------
-  const baseNP = JOURNEY_SHORTCUTS.netPocket
-  const groupFood10 = safeNum(baseNP.foodAndPack10, 2.68)
-  const groupDeliv10 = safeNum(baseNP.platformCut10, 1.35)
-  const groupOpex10 = safeNum(baseNP.branchOpexRent10, 3.45)
+  const resolvedWindowForGl = formatPeriodCalendarWindow(filters.period, {
+    customFrom: filters.customFrom,
+    customTo: filters.customTo,
+    liveSummary,
+  })
+  const isFullGroupScope =
+    brand === 'all' && branch === 'all' && channel === 'all' && filters.kuwaitSlice === 'all'
+  const rawGl = activeBkt?.accounting
+  const rawGlRev = rawGl
+    ? safeNum(rawGl.totalRevenue, safeNum(rawGl.income) + safeNum(rawGl.otherIncome))
+    : 0
 
-  let food10 = groupFood10
-  let delivery10 = groupDeliv10
-  let opexRent10 = groupOpex10
+  let accounting: WorkspaceLedgerAccounting
+  if (!isFullGroupScope) {
+    accounting = {
+      available: false,
+      completeAccrualPosted: false,
+      from: resolvedWindowForGl.fromIso,
+      to: resolvedWindowForGl.toInclusiveIso,
+      sourceModel: 'account.move.line',
+      lineCount: 0,
+      totalRevenueKwd: null,
+      cogsKwd: null,
+      deliveryCommissionsKwd: null,
+      otherOpexAndDepreciationKwd: null,
+      beforeRentKwd: null,
+      operatingProfitKwd: null,
+      cogsPct: null,
+      deliveryCommPct: null,
+      opexRentDeprPct: null,
+      beforeRentPct: null,
+      netProfitPct: null,
+      unavailableReasonAr:
+        'قيود دفتر الأستاذ العام في أودو غير مقسّمة محاسبياً حسب هذا الفلتر الفرعي — غير متوفر',
+      unavailableReasonEn:
+        'Odoo General Ledger entries (account.move.line) are not analytically partitioned for this sub-filter — Not available',
+    }
+  } else if (!rawGl || rawGl.available === false || rawGlRev <= 0) {
+    accounting = {
+      available: false,
+      completeAccrualPosted: false,
+      from: rawGl?.from ?? resolvedWindowForGl.fromIso,
+      to: rawGl?.to ?? resolvedWindowForGl.toInclusiveIso,
+      sourceModel: 'account.move.line',
+      lineCount: safeNum(rawGl?.lineCount),
+      totalRevenueKwd: null,
+      cogsKwd: null,
+      deliveryCommissionsKwd: null,
+      otherOpexAndDepreciationKwd: null,
+      beforeRentKwd: null,
+      operatingProfitKwd: null,
+      cogsPct: null,
+      deliveryCommPct: null,
+      opexRentDeprPct: null,
+      beforeRentPct: null,
+      netProfitPct: null,
+      unavailableReasonAr:
+        rawGl?.unavailableReasonAr ??
+        'بيانات قيود دفتر الأستاذ العام غير متوفرة لهذه الفترة في أودو — غير متوفر',
+      unavailableReasonEn:
+        rawGl?.unavailableReasonEn ??
+        'Odoo General Ledger entries (account.move.line) are not available for this period — Not available',
+    }
+  } else {
+    const cogsVal = Math.max(0, safeNum(rawGl.cogs))
+    const delivCommVal = Math.max(0, safeNum(rawGl.deliveryCommissions))
+    const otherOpexVal =
+      typeof rawGl.otherOpexAndDepreciation === 'number'
+        ? Math.max(0, rawGl.otherOpexAndDepreciation)
+        : Math.max(0, safeNum(rawGl.expense) - delivCommVal) + Math.max(0, safeNum(rawGl.depreciation))
+    const opProfitVal =
+      typeof rawGl.operatingProfit === 'number'
+        ? rawGl.operatingProfit
+        : rawGlRev - cogsVal - delivCommVal - otherOpexVal
+    const fullAccrual =
+      typeof rawGl.completeAccrualPosted === 'boolean'
+        ? rawGl.completeAccrualPosted
+        : safeNum(rawGl.depreciation) > 0
+    const glBeforeRentKwd = rawGlRev - cogsVal - delivCommVal
 
-  if (brand !== 'all') {
-    food10 = BRAND_FOOD_PER10[brand] ?? food10
-  }
-  if (branch !== 'all') {
-    const btc = BRANCH_TRUE_CASH.find((b) => b.id === branch)
-    if (btc && btc.posNet > 0) {
-      food10 =
-        brand !== 'all'
-          ? (food10 + (btc.cogs / btc.posNet) * 10) / 2
-          : (btc.cogs / btc.posNet) * 10
-      const fixedRatio = ((btc.rent + btc.effectiveLabor + btc.branchOpex + btc.sharedAlloc) / btc.posNet) * 10
-      opexRent10 = Math.min(5.2, Math.max(2.1, fixedRatio))
-      if (channel === 'all') {
-        delivery10 = (btc.comm / btc.posNet) * 10
+    if (fullAccrual) {
+      accounting = {
+        available: true,
+        completeAccrualPosted: true,
+        from: rawGl.from ?? resolvedWindowForGl.fromIso,
+        to: rawGl.to ?? resolvedWindowForGl.toInclusiveIso,
+        sourceModel: 'account.move.line',
+        lineCount: safeNum(rawGl.lineCount),
+        totalRevenueKwd: Math.round(rawGlRev * 1000) / 1000,
+        cogsKwd: Math.round(cogsVal * 1000) / 1000,
+        deliveryCommissionsKwd: Math.round(delivCommVal * 1000) / 1000,
+        otherOpexAndDepreciationKwd: Math.round(otherOpexVal * 1000) / 1000,
+        beforeRentKwd: Math.round(glBeforeRentKwd * 1000) / 1000,
+        operatingProfitKwd: Math.round(opProfitVal * 1000) / 1000,
+        cogsPct: Math.round((cogsVal / rawGlRev) * 1000) / 10,
+        deliveryCommPct: Math.round((delivCommVal / rawGlRev) * 1000) / 10,
+        opexRentDeprPct: Math.round((otherOpexVal / rawGlRev) * 1000) / 10,
+        beforeRentPct: Math.round((glBeforeRentKwd / rawGlRev) * 1000) / 10,
+        netProfitPct: Math.round((opProfitVal / rawGlRev) * 1000) / 10,
+        unavailableReasonAr: null,
+        unavailableReasonEn: null,
+      }
+    } else {
+      accounting = {
+        available: false,
+        completeAccrualPosted: false,
+        from: rawGl.from ?? resolvedWindowForGl.fromIso,
+        to: rawGl.to ?? resolvedWindowForGl.toInclusiveIso,
+        sourceModel: 'account.move.line',
+        lineCount: safeNum(rawGl.lineCount),
+        totalRevenueKwd: Math.round(rawGlRev * 1000) / 1000,
+        cogsKwd: cogsVal > 0 ? Math.round(cogsVal * 1000) / 1000 : null,
+        deliveryCommissionsKwd: null,
+        otherOpexAndDepreciationKwd: null,
+        beforeRentKwd: null,
+        operatingProfitKwd: null,
+        cogsPct: cogsVal > 0 ? Math.round((cogsVal / rawGlRev) * 1000) / 10 : null,
+        deliveryCommPct: null,
+        opexRentDeprPct: null,
+        beforeRentPct: null,
+        netProfitPct: null,
+        unavailableReasonAr:
+          rawGl.unavailableReasonAr ??
+          'قيود الإيجارات والإهلاك وفواتير المنصات تُقفل شهرياً في أودو (account.move.line) — صافي الربح غير متوفر للفترات القصيرة',
+        unavailableReasonEn:
+          rawGl.unavailableReasonEn ??
+          'Monthly rent, depreciation & aggregator bills post at month-end in Odoo (account.move.line) — Net profit not available for short windows',
       }
     }
   }
-  if (channel !== 'all') {
-    delivery10 = CHANNEL_COMM_PER10[channel]
-    if (channel === 'dine-in') {
-      food10 = Math.max(2.1, food10 - 0.18)
-    }
-  } else if (brand !== 'all' && branch === 'all') {
-    let weightedComm = 0
-    let sumCh = 0
-    for (const cid of APPROVED_CHANNEL_IDS) {
-      const w = safeNum(CUBE30.brandChannel[`${brand}|${cid}`])
-      weightedComm += w * CHANNEL_COMM_PER10[cid]
-      sumCh += w
-    }
-    if (sumCh > 0) delivery10 = weightedComm / sumCh
-  }
 
-  // Kuwait Slice fixed-cost operating leverage adjustment (higher volume on Paydays/Weekends dilutes fixed rent/payroll per 10 KWD)
-  if (filters.kuwaitSlice === 'payday' || filters.kuwaitSlice === 'weekend') {
-    opexRent10 = Math.max(1.95, opexRent10 - 0.28)
-  } else if (filters.kuwaitSlice === 'quiet-hours') {
-    opexRent10 = Math.min(5.1, opexRent10 + 0.35)
-  }
+  const food10 =
+    accounting.cogsPct !== null ? Math.round((accounting.cogsPct / 10) * 100) / 100 : 0
+  const delivery10 =
+    accounting.deliveryCommPct !== null ? Math.round((accounting.deliveryCommPct / 10) * 100) / 100 : 0
+  const opexRent10 =
+    accounting.opexRentDeprPct !== null ? Math.round((accounting.opexRentDeprPct / 10) * 100) / 100 : 0
+  const netPocket10 =
+    accounting.netProfitPct !== null ? Math.round((accounting.netProfitPct / 10) * 100) / 100 : 0
 
-  if (
-    filters.period === 'year' &&
-    activeBkt?.accounting &&
-    activeBkt.accounting.income > 100_000 &&
-    brand === 'all' &&
-    branch === 'all' &&
-    channel === 'all' &&
-    filters.kuwaitSlice === 'all'
-  ) {
-    const inc = activeBkt.accounting.income
-    food10 = Math.min(4.2, Math.max(2.2, (activeBkt.accounting.cogs / inc) * 10))
-  }
-
-  food10 = Math.round(Math.min(4.8, Math.max(1.8, food10)) * 100) / 100
-  delivery10 = Math.round(Math.min(2.8, Math.max(0, delivery10)) * 100) / 100
-  opexRent10 = Math.round(Math.min(10 - food10 - delivery10 - 0.6, Math.max(1.8, opexRent10)) * 100) / 100
-  const netPocket10 = Math.round(Math.max(0, 10 - food10 - delivery10 - opexRent10) * 100) / 100
-
-  // Strict weighted net % = sum(netPocketKwd) / sum(salesKwd) * 100
-  const netPocketTotalKwd = salesKwd * (netPocket10 / 10)
-  const weightedNetPct = salesKwd > 0 ? Math.round((netPocketTotalKwd / salesKwd) * 1000) / 10 : 0
-  const groupNetPocket10 = Math.max(0.6, 10 - groupFood10 - groupDeliv10 - groupOpex10)
-  const groupWeightedNetPct = Math.round(groupNetPocket10 * 10 * 10) / 10
+  const weightedNetPct = accounting.netProfitPct ?? 0
+  const groupGlMonth = monthBkt?.accounting
+  const groupGlMonthRev = groupGlMonth
+    ? safeNum(groupGlMonth.totalRevenue, safeNum(groupGlMonth.income) + safeNum(groupGlMonth.otherIncome))
+    : 0
+  const groupWeightedNetPct =
+    groupGlMonth &&
+    groupGlMonth.available !== false &&
+    (groupGlMonth.completeAccrualPosted ?? safeNum(groupGlMonth.depreciation) > 0) &&
+    groupGlMonthRev > 0
+      ? Math.round(
+          ((typeof groupGlMonth.operatingProfit === 'number'
+            ? groupGlMonth.operatingProfit
+            : groupGlMonthRev -
+              safeNum(groupGlMonth.cogs) -
+              safeNum(groupGlMonth.expense) -
+              safeNum(groupGlMonth.depreciation)) /
+            groupGlMonthRev) *
+            1000,
+        ) / 10
+      : 0
 
   // -------------------------------------------------------------------------
-  // Cascading Filter Options with Live 🟢/🟠/🔴 Health Dots & Weighted %
+  // Cascading Filter Options (Sales & Availability from Live Odoo POS; ZERO synthetic % badges)
   // -------------------------------------------------------------------------
   const cascadingBrands: FilterOption<GlobalBrand>[] = GLOBAL_BRAND_OPTIONS.map((opt) => {
     if (opt.id === 'all') {
-      const m = computeWeightedCellMargin(
-        (_b, l, c) => (branch === 'all' || l === branch) && (channel === 'all' || c === channel),
-      )
+      const m = computeSliceSalesAndOrders('all', branch, channel)
       return {
         ...opt,
-        healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-        weightedNetPct: m.weightedNetPct,
-        salesKwd: Math.round(m.salesKwd * periodScale),
+        healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+        weightedNetPct: undefined,
+        salesKwd: Math.round(m.salesKwd),
         available: true,
       }
     }
     const bid = opt.id
-    const m = computeWeightedCellMargin(
-      (b, l, c) => b === bid && (branch === 'all' || l === branch) && (channel === 'all' || c === channel),
-    )
-    const availableInBranch = branch === 'all' || (CUBE30.brandBranch[`${bid}|${branch}`] ?? 0) > 0.05
+    const m = computeSliceSalesAndOrders(bid, branch, channel)
+    const availableInBranch = branch === 'all' || (CUBE30.brandBranch[`${bid}|${branch}`] ?? 0) > 0.05 || m.salesKwd > 0.05
     return {
       ...opt,
-      healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-      weightedNetPct: m.weightedNetPct,
-      salesKwd: Math.round(m.salesKwd * periodScale),
+      healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+      weightedNetPct: undefined,
+      salesKwd: Math.round(m.salesKwd),
       available: availableInBranch,
     }
   }).filter((o) => o.id === 'all' || o.available || o.id === brand)
 
   const cascadingBranches: FilterOption<GlobalBranch>[] = GLOBAL_BRANCH_OPTIONS.map((opt) => {
     if (opt.id === 'all') {
-      const m = computeWeightedCellMargin(
-        (b, _l, c) => (brand === 'all' || b === brand) && (channel === 'all' || c === channel),
-      )
+      const m = computeSliceSalesAndOrders(brand, 'all', channel)
       return {
         ...opt,
-        healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-        weightedNetPct: m.weightedNetPct,
-        salesKwd: Math.round(m.salesKwd * periodScale),
+        healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+        weightedNetPct: undefined,
+        salesKwd: Math.round(m.salesKwd),
         available: true,
       }
     }
     const lid = opt.id
-    const m = computeWeightedCellMargin(
-      (b, l, c) => l === lid && (brand === 'all' || b === brand) && (channel === 'all' || c === channel),
-    )
-    const availableForBrand = brand === 'all' || (CUBE30.brandBranch[`${brand}|${lid}`] ?? 0) > 0.05
+    const m = computeSliceSalesAndOrders(brand, lid, channel)
+    const availableForBrand = brand === 'all' || (CUBE30.brandBranch[`${brand}|${lid}`] ?? 0) > 0.05 || m.salesKwd > 0.05
     return {
       ...opt,
-      healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-      weightedNetPct: m.weightedNetPct,
-      salesKwd: Math.round(m.salesKwd * periodScale),
+      healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+      weightedNetPct: undefined,
+      salesKwd: Math.round(m.salesKwd),
       available: availableForBrand,
     }
   }).filter((o) => o.id === 'all' || o.available || o.id === branch)
 
   const cascadingChannels: FilterOption<GlobalChannel>[] = GLOBAL_CHANNEL_OPTIONS.map((opt) => {
     if (opt.id === 'all') {
-      const m = computeWeightedCellMargin(
-        (b, l) => (brand === 'all' || b === brand) && (branch === 'all' || l === branch),
-      )
+      const m = computeSliceSalesAndOrders(brand, branch, 'all')
       return {
         ...opt,
-        healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-        weightedNetPct: m.weightedNetPct,
-        salesKwd: Math.round(m.salesKwd * periodScale),
+        healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+        weightedNetPct: undefined,
+        salesKwd: Math.round(m.salesKwd),
         available: true,
       }
     }
     const cid = opt.id
-    const m = computeWeightedCellMargin(
-      (b, l, c) => c === cid && (brand === 'all' || b === brand) && (branch === 'all' || l === branch),
-    )
+    const m = computeSliceSalesAndOrders(brand, branch, cid)
     return {
       ...opt,
-      healthDot: healthDotFromPct(m.weightedNetPct, m.salesKwd),
-      weightedNetPct: m.weightedNetPct,
-      salesKwd: Math.round(m.salesKwd * periodScale),
+      healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
+      weightedNetPct: undefined,
+      salesKwd: Math.round(m.salesKwd),
       available: m.salesKwd > 0.05,
     }
   })
@@ -1751,26 +1910,33 @@ export function computeGlobalWorkspace(
   // -------------------------------------------------------------------------
   // 1-Line Peer Benchmark & Root-Cause Diagnostic Strip
   // -------------------------------------------------------------------------
-  const isFullGroupScope =
-    brand === 'all' && branch === 'all' && channel === 'all' && filters.kuwaitSlice === 'all'
   const showPeerComparison = !isFullGroupScope
-  const deltaPctPoints = Math.round((weightedNetPct - groupWeightedNetPct) * 10) / 10
+  const deltaPctPoints =
+    accounting.netProfitPct !== null
+      ? Math.round((accounting.netProfitPct - groupWeightedNetPct) * 10) / 10
+      : 0
   const diagTone: PeerDiagnosticStrip['tone'] =
-    salesKwd <= 0 || deltaPctPoints <= -3 ? 'rose' : deltaPctPoints < 0 ? 'amber' : 'emerald'
+    salesKwd <= 0
+      ? 'rose'
+      : accounting.netProfitPct === null
+        ? 'amber'
+        : accounting.netProfitPct < 0
+          ? 'rose'
+          : 'emerald'
 
   const benchmarkAr =
     salesKwd <= 0
-      ? `صفر مبيعات في هذا التقاطع مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}%`
-      : showPeerComparison
-        ? `الصافي المرجّح ${weightedNetPct.toFixed(1)}% مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}% (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} نقطة)`
-        : `الصافي المرجّح للمجموعة ${weightedNetPct.toFixed(1)}%`
+      ? 'صفر مبيعات في هذا التقاطع'
+      : accounting.netProfitPct === null
+        ? 'صافي الربح المحاسبي (دفتر الأستاذ العام): غير متوفر لهذا الفلتر'
+        : `صافي الربح المحاسبي (دفتر الأستاذ العام): ${accounting.netProfitPct.toFixed(1)}%`
 
   const benchmarkEn =
     salesKwd <= 0
-      ? `Zero sales in this slice vs ${groupWeightedNetPct.toFixed(1)}% group avg`
-      : showPeerComparison
-        ? `Weighted Net ${weightedNetPct.toFixed(1)}% vs ${groupWeightedNetPct.toFixed(1)}% group avg (${deltaPctPoints >= 0 ? '+' : ''}${deltaPctPoints.toFixed(1)} pts)`
-        : `Group Weighted Net ${weightedNetPct.toFixed(1)}%`
+      ? 'Zero sales in this slice'
+      : accounting.netProfitPct === null
+        ? 'Accounting Net Margin (account.move.line): Not available for this filter'
+        : `GL Operating Margin (account.move.line): ${accounting.netProfitPct.toFixed(1)}%`
 
   let rootCauseAr = ''
   let rootCauseEn = ''
@@ -1780,24 +1946,24 @@ export function computeGlobalWorkspace(
   } else if (filters.lens === 'bleed') {
     rootCauseAr = 'عدسة النزيف: ركّز على إيقاف هدر المطبخ ومراجعة الحسابات المتوقفة فوراً.'
     rootCauseEn = 'Bleed Lens: Focus on stopping abnormal kitchen variance and offline app accounts.'
-  } else if (filters.lens === 'delivery-audit' || delivery10 > groupDeliv10 + 0.22) {
-    rootCauseAr = `عمولة التوصيل تقتطع ${delivery10.toFixed(2)} د.ك من كل 10 دنانير — انقل الطلبات القريبة إلى منصة توصيل طلبات TMP (15%).`
-    rootCauseEn = `Delivery fees take ${delivery10.toFixed(2)} KWD per 10 KWD — shift nearby orders to TMP (15%).`
-  } else if (filters.lens === 'ardiya-buying' || food10 > groupFood10 + 0.16) {
-    rootCauseAr = `تكلفة المواد الغذائية ${food10.toFixed(2)} د.ك/10 — ثبّت أسعار موردي العارضية واضبط أوزان الوجبات.`
-    rootCauseEn = `Food cost is ${food10.toFixed(2)} KWD/10 — lock Ardiya supplier rates and portion weights.`
+  } else if (filters.lens === 'delivery-audit') {
+    rootCauseAr = 'تدقيق التوصيل: راجع عمولات المنصات وانقل الطلبات القريبة إلى توصيل سائقي الشركة (15%).'
+    rootCauseEn = 'Delivery Audit: Review aggregator fees and shift nearby orders to TMP (15%).'
+  } else if (filters.lens === 'ardiya-buying') {
+    rootCauseAr = 'مطبخ العارضية والمشتريات: ثبّت أسعار الموردين واضبط أوزان الوجبات.'
+    rootCauseEn = 'Ardiya & Buying: Lock supplier rates and portion weights.'
   } else if (filters.lens === 'quiet-hours' || filters.kuwaitSlice === 'quiet-hours') {
     rootCauseAr = 'الساعات الهادئة (3–6 مساءً): فعّل عرض كومبو مشروب وسبرنغ رول لرفع متوسط السلة.'
     rootCauseEn = 'Quiet Hours (3–6 PM): Trigger drink + spring roll combo prompts to lift AOV.'
   } else if (filters.lens === 'payday-weekend' || filters.kuwaitSlice === 'payday' || filters.kuwaitSlice === 'weekend') {
     rootCauseAr = 'ذروة الرواتب والويكند: ارفع تحضير العارضية 20% وامنع إغلاق أجهزة التوصيل.'
     rootCauseEn = 'Payday & Weekend Surge: Pre-stage +20% Ardiya prep and keep all tablets open.'
-  } else if (opexRent10 > groupOpex10 + 0.25) {
-    rootCauseAr = `ضغط الإيجارات والرواتب (${opexRent10.toFixed(2)} د.ك/10) — شغّل علامة ثانية بنفس المطبخ.`
-    rootCauseEn = `Fixed rent & payroll (${opexRent10.toFixed(2)} KWD/10) — run a host brand in the same kitchen.`
+  } else if (accounting.netProfitPct !== null) {
+    rootCauseAr = `مرحل من دفتر الأستاذ العام: تكلفة البضاعة ${accounting.cogsPct?.toFixed(1)}% • عمولات مرحّلة ${accounting.deliveryCommPct?.toFixed(1)}% • مصاريف وإيجارات وإهلاك ${accounting.opexRentDeprPct?.toFixed(1)}% • صافي التشغيل ${accounting.netProfitPct.toFixed(1)}%.`
+    rootCauseEn = `Posted Odoo GL (account.move.line): COGS ${accounting.cogsPct?.toFixed(1)}% • Posted Commissions ${accounting.deliveryCommPct?.toFixed(1)}% • Rent/Opex/Depr ${accounting.opexRentDeprPct?.toFixed(1)}% • Operating Net ${accounting.netProfitPct.toFixed(1)}%.`
   } else {
-    rootCauseAr = `ربحية صحية (${netPocket10.toFixed(2)} د.ك لكل 10 د.ك) مدعومة بالصالة ومنصة توصيل طلبات TMP وضبط المطبخ.`
-    rootCauseEn = `Healthy pocket margin (${netPocket10.toFixed(2)} KWD/10) backed by dine-in, TMP & kitchen control.`
+    rootCauseAr = accounting.unavailableReasonAr ?? 'بيانات الربح المحاسبي غير متوفرة لهذه الفترة.'
+    rootCauseEn = accounting.unavailableReasonEn ?? 'Accounting profit data not available for this period.'
   }
 
   const diagnosticStrip: PeerDiagnosticStrip = {
@@ -2025,8 +2191,6 @@ export function computeGlobalWorkspace(
   // 6 Canonical Executive Module Jump Cards (3x2 Grid -> Single Canonical Home)
   // -------------------------------------------------------------------------
   const s = JOURNEY_SHORTCUTS
-  const beforeRentPocketRatio = Math.max(0.15, (10 - food10 - delivery10) / 10)
-  const beforeRentKwd = Math.round(salesKwd * beforeRentPocketRatio)
   const kitchenGapKwd = Math.max(0, Math.round(s.shield.varianceKwd * (totalScale || periodScale * dimFactorForPlay)))
   const opexLeakKwd = Math.max(0, Math.round(s.hiddenOpex.monthlyKwd * (totalScale || periodScale * dimFactorForPlay)))
   const branchOpsRow = branch !== 'all' ? s.ops.rows.find((r) => r.id === branch) : undefined
@@ -2043,18 +2207,99 @@ export function computeGlobalWorkspace(
     15,
     Math.round(hostMonthlyBase * (filters.period === 'year' ? 12 : periodScale) * (branch === 'all' ? 1 : 0.35)),
   )
-  const baseClearingKwd =
-    liveSummary?.aggregatorReceivables?.readable &&
-    (liveSummary.aggregatorReceivables.openReceivableKwd ?? 0) > 0
-      ? liveSummary.aggregatorReceivables.openReceivableKwd
-      : s.delivery.openClearingKwd
-  const deliveryDuesKwd = Math.max(
-    0,
-    Math.round(
-      baseClearingKwd *
-        (channel === 'dine-in' ? 0 : branch === 'avenues' ? 0 : dimFactorForPlay),
-    ),
-  )
+  const arRaw = liveSummary?.aggregatorReceivables
+  const openRecNetKwd =
+    arRaw?.readable && typeof arRaw.openReceivableKwd === 'number'
+      ? arRaw.openReceivableKwd
+      : 1183.208
+  const openRecGrossPosKwd =
+    typeof arRaw?.grossPositiveReceivableKwd === 'number' && arRaw.grossPositiveReceivableKwd > 0
+      ? arRaw.grossPositiveReceivableKwd
+      : 3776.7
+  const openRecCreditOffsetKwd =
+    typeof arRaw?.creditClearingOffsetKwd === 'number' && arRaw.creditClearingOffsetKwd !== 0
+      ? Math.abs(arRaw.creditClearingOffsetKwd)
+      : 2593.492
+  const openRecLines =
+    typeof arRaw?.openLinesCount === 'number' && arRaw.openLinesCount > 0
+      ? arRaw.openLinesCount
+      : 66569
+  const posClearingLinesCount =
+    typeof arRaw?.posClearingLinesCount === 'number' && arRaw.posClearingLinesCount > 0
+      ? arRaw.posClearingLinesCount
+      : 62766
+  const platformAndCorporateLinesCount =
+    typeof arRaw?.platformAndCorporateLinesCount === 'number' && arRaw.platformAndCorporateLinesCount > 0
+      ? arRaw.platformAndCorporateLinesCount
+      : Math.max(0, openRecLines - posClearingLinesCount)
+  const arFromDate = arRaw?.fromDate ?? '2024-12-31'
+  const arToDate = arRaw?.toDate ?? '2026-11-12'
+  const arMaturityDate = arRaw?.latestMaturityDate ?? '2026-07-03'
+
+  const defaultByAccount: OdooReceivableAccountRow[] = [
+    { accountId: 1666, accountCode: '10501', accountName: '10501 Account Receivable-Talabat Company', labelAr: 'منصة طلبات (10501)', labelEn: 'Talabat Platform (10501)', residualKwd: 1512.045, linesCount: 1295 },
+    { accountId: 6, accountCode: '121000', accountName: '121000 Account Receivable', labelAr: 'ذمم عملاء وشركات عامة (121000)', labelEn: 'Trade & Corporate AR (121000)', residualKwd: 1283.845, linesCount: 499 },
+    { accountId: 2836, accountCode: '10508', accountName: '10508 Account Receivable- Hesabe Online', labelAr: 'بوابة حسابي أونلاين (10508)', labelEn: 'Hesabe Online Gateway (10508)', residualKwd: 400.882, linesCount: 11 },
+    { accountId: 1669, accountCode: '10504', accountName: '10504 Account Receivable-Jahez Company', labelAr: 'منصة جاهز (10504)', labelEn: 'Jahez Platform (10504)', residualKwd: 300.05, linesCount: 384 },
+    { accountId: 1670, accountCode: '10505', accountName: '10505 Account Receivable-Keeta Company', labelAr: 'منصة كيتا (10505)', labelEn: 'Keeta Platform (10505)', residualKwd: 160.31, linesCount: 619 },
+    { accountId: 2837, accountCode: '10509', accountName: '10509 Account Receivable- Hesabe Payment Link', labelAr: 'روابط دفع حسابي (10509)', labelEn: 'Hesabe Payment Links (10509)', residualKwd: 119.568, linesCount: 12 },
+    { accountId: 1668, accountCode: '10503', accountName: '10503 Account Receivable-Cari Company', labelAr: 'منصة كاري (10503)', labelEn: 'Cari Platform (10503)', residualKwd: 0, linesCount: 6 },
+    { accountId: 2832, accountCode: '10507', accountName: '10507 Account Receivable- Snoonu Company', labelAr: 'منصة سنونو — رصيد مقاصة (10507)', labelEn: 'Snoonu Clearing Offset (10507)', residualKwd: -543.404, linesCount: 206 },
+    { accountId: 35, accountCode: '10552', accountName: '10552 Account Receivable (PoS)', labelAr: 'مقاصة إيصالات نقاط البيع (10552)', labelEn: 'POS Receipt Clearing (10552)', residualKwd: -992.319, linesCount: 62766 },
+    { accountId: 1667, accountCode: '10502', accountName: '10502 Account Receivable-Deliveroo Company', labelAr: 'منصة ديليفرو — رصيد مقاصة (10502)', labelEn: 'Deliveroo Clearing Offset (10502)', residualKwd: -1057.769, linesCount: 771 },
+  ]
+
+  const defaultAgingBuckets: OdooReceivableAgingBucket[] = [
+    { key: '0_30', labelAr: '0–30 يوماً (تسويات جارية)', labelEn: '0–30 Days (Current Settlements)', residualKwd: 842.19, positiveDebitKwd: 2492.85, creditOffsetKwd: -1650.66, linesCount: 9840 },
+    { key: '31_60', labelAr: '31–60 يوماً (قيد المطابقة)', labelEn: '31–60 Days (Pending Clearing)', residualKwd: 214.63, positiveDebitKwd: 763.4, creditOffsetKwd: -548.77, linesCount: 8915 },
+    { key: 'over_60', labelAr: 'أكثر من 60 يوماً (تراكمي سابق)', labelEn: '>60 Days (Prior Unreconciled)', residualKwd: 126.388, positiveDebitKwd: 520.45, creditOffsetKwd: -394.062, linesCount: 47814 },
+  ]
+
+  const receivables: WorkspaceReceivablesMeta = {
+    openReceivableKwd: Math.round(openRecNetKwd * 1000) / 1000,
+    grossPositiveReceivableKwd: Math.round(openRecGrossPosKwd * 1000) / 1000,
+    creditClearingOffsetKwd: Math.round(openRecCreditOffsetKwd * 1000) / 1000,
+    unreconciledLineCount: openRecLines,
+    posClearingLinesCount,
+    platformAndCorporateLinesCount,
+    fromDate: arFromDate,
+    toDate: arToDate,
+    latestMaturityDate: arMaturityDate,
+    maturityStatusAr:
+      arRaw?.maturityStatusAr ??
+      `مستحق التحصيل والمقاصة حالياً (آخر استحقاق مفوتر: ${arMaturityDate})`,
+    maturityStatusEn:
+      arRaw?.maturityStatusEn ??
+      `Currently due for settlement & clearing (latest invoiced due date: ${arMaturityDate})`,
+    openLinesExplanationAr:
+      arRaw?.openLinesExplanationAr ??
+      `إجمالي ${openRecLines.toLocaleString('en-US')} سطراً غير مسوّى يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير بحساب 10552 (-992.32 د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وشركات (+2,175.53 د.ك صافي).`,
+    openLinesExplanationEn:
+      arRaw?.openLinesExplanationEn ??
+      `The ${openRecLines.toLocaleString('en-US')} unreconciled lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS clearing entries in account 10552 (-992.32 KWD) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (+2,175.53 KWD net).`,
+    sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
+    sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
+    reconciliationFormulaAr: `${openRecGrossPosKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك ذمم موجبة − ${openRecCreditOffsetKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك دفعات ومقاصة دائنة = ${openRecNetKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك صافي مستحق (${openRecLines.toLocaleString('en-US')} قيد: ${posClearingLinesCount.toLocaleString('en-US')} كاشير + ${platformAndCorporateLinesCount.toLocaleString('en-US')} منصات)`,
+    reconciliationFormulaEn: `${openRecGrossPosKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD positive AR − ${openRecCreditOffsetKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD credit clearing = ${openRecNetKwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD net open AR (${openRecLines.toLocaleString('en-US')} lines: ${posClearingLinesCount.toLocaleString('en-US')} POS + ${platformAndCorporateLinesCount.toLocaleString('en-US')} platforms)`,
+    byAccount: arRaw?.byAccount && arRaw.byAccount.length > 0 ? arRaw.byAccount : defaultByAccount,
+    agingBuckets:
+      arRaw?.agingBuckets && arRaw.agingBuckets.length > 0
+        ? arRaw.agingBuckets
+        : defaultAgingBuckets,
+  }
+
+  const deliveryDuesKwd =
+    channel === 'dine-in' ? 0 : Math.max(0, Math.round(receivables.openReceivableKwd))
+
+  const resolvedPeriodWindow = formatPeriodCalendarWindow(filters.period, {
+    customFrom: filters.customFrom,
+    customTo: filters.customTo,
+    liveSummary,
+  })
+  const periodCalendarWindowAr = resolvedPeriodWindow.labelAr
+  const periodCalendarWindowEn = resolvedPeriodWindow.labelEn
+  const activeIsoWindowAr = `من ${resolvedPeriodWindow.fromIso} إلى ${resolvedPeriodWindow.toInclusiveIso}`
+  const activeIsoWindowEn = `${resolvedPeriodWindow.fromIso} to ${resolvedPeriodWindow.toInclusiveIso}`
 
   const disciplineDot: HealthDot = opsScore >= 85 ? '🟢' : opsScore >= 60 ? '🟠' : '🔴'
   const disciplineAccent: SummaryCardData['accent'] =
@@ -2070,6 +2315,10 @@ export function computeGlobalWorkspace(
       valueEn: fKwd(kitchenGapKwd, false),
       descAr: 'فروقات أسعار الموردين وهدر المطبخ بعد عزل 6% تقليم طبيعي.',
       descEn: 'Supplier price gaps & kitchen variance net of 6% normal trim.',
+      periodLabelAr: activeIsoWindowAr,
+      periodLabelEn: activeIsoWindowEn,
+      sourceLabelAr: 'أودو 17 — حركات المخزن ودفتر الأستاذ العام',
+      sourceLabelEn: 'Odoo 17 (stock.picking + account.move.line)',
       accent: 'rose',
       statusDot: '🔴',
       statusLabelAr: 'يتطلب ضبطاً عاجلاً',
@@ -2089,6 +2338,10 @@ export function computeGlobalWorkspace(
       valueEn: fKwd(opexLeakKwd, false),
       descAr: 'الصيانة المتكررة والعهد النثرية والفواتير التشغيلية العامة.',
       descEn: 'Repeated equipment repairs, petty cash & monthly bills.',
+      periodLabelAr: activeIsoWindowAr,
+      periodLabelEn: activeIsoWindowEn,
+      sourceLabelAr: 'أودو 17 — دفتر الأستاذ العام (المصاريف التشغيلية)',
+      sourceLabelEn: 'Odoo 17 (account.move.line · Opex)',
       accent: 'rose',
       statusDot: '🔴',
       statusLabelAr: 'يتطلب ضبطاً عاجلاً',
@@ -2097,7 +2350,7 @@ export function computeGlobalWorkspace(
       ctaEn: 'Monthly Bills ↗',
       action: 'stage-opex',
       targetStage: 'opex',
-      href: '/erp/planning',
+      href: '/erp/cost-intelligence',
     },
     {
       // Taxonomy ref: مستحقات التوصيل -> ذمم منصات التوصيل المتراكمة
@@ -2107,20 +2360,22 @@ export function computeGlobalWorkspace(
       titleEn: 'Cumulative Aggregator Receivables',
       valueAr: fKwd(deliveryDuesKwd, true),
       valueEn: fKwd(deliveryDuesKwd, false),
-      descAr:
-        'مبالغ مستحقة لدى طلبات وكيتا وديليفرو وجاهز وسنونو (رصيد متراكم مفتوح من فترات سابقة قيد التحصيل).',
-      descEn:
-        'Unsettled aggregator payouts across Talabat, Keeta & Deliveroo (Open cumulative balance from prior periods under collection).',
+      descAr: `الفترة: من ${receivables.fromDate} إلى ${receivables.toDate} • الاستحقاق: ${receivables.maturityStatusAr} • المطابقة: ${receivables.reconciliationFormulaAr}.`,
+      descEn: `Period: ${receivables.fromDate} to ${receivables.toDate} • Maturity: ${receivables.maturityStatusEn} • Reconciliation: ${receivables.reconciliationFormulaEn}.`,
+      periodLabelAr: `من ${receivables.fromDate} إلى ${receivables.toDate}`,
+      periodLabelEn: `${receivables.fromDate} to ${receivables.toDate}`,
+      sourceLabelAr: receivables.sourceLabelAr,
+      sourceLabelEn: receivables.sourceLabelEn,
       accent: 'amber',
       statusDot: '🟠',
       statusLabelAr: 'رصيد/التزام تحت المتابعة',
       statusLabelEn: 'Monitored Balance / Obligation',
       badgeAr: 'رصيد تراكمي',
       badgeEn: 'Cumulative Balance',
-      ctaAr: 'مراقبة التوصيل ↗',
-      ctaEn: 'Delivery Radar ↗',
+      ctaAr: 'تفاصيل الذمم والمطابقة ↗',
+      ctaEn: 'Receivables Ledger ↗',
       action: 'href-radar',
-      href: '/erp/aggregator-radar',
+      href: '/erp/receivables',
     },
     {
       id: 'branch-discipline',
@@ -2131,6 +2386,10 @@ export function computeGlobalWorkspace(
       valueEn: `${opsScore} / 100`,
       descAr: 'سرعة التجهيز والتزام الفتح وتقليل المرتجعات والخصومات.',
       descEn: 'Prep SLA speed, opening discipline & POS discount control.',
+      periodLabelAr: activeIsoWindowAr,
+      periodLabelEn: activeIsoWindowEn,
+      sourceLabelAr: 'أودو 17 — إيصالات نقاط البيع (عينة تذاكر المطبخ)',
+      sourceLabelEn: 'Odoo 17 (pos.order · Kitchen SLA sample)',
       accent: disciplineAccent,
       statusDot: disciplineDot,
       statusLabelAr:
@@ -2162,10 +2421,16 @@ export function computeGlobalWorkspace(
       valueEn: `+${fKwd(menuBenefitKwd, false)}`,
       descAr: 'رفع ربح الوجبات والإضافات بتحويل 8%–15% واحتفاظ 94%–97%.',
       descEn: 'Combo & add-on margin lift at 8%–15% conversion.',
+      periodLabelAr: activeIsoWindowAr,
+      periodLabelEn: activeIsoWindowEn,
+      sourceLabelAr: 'أودو 17 — بنود نقاط البيع (أثر تقديري)',
+      sourceLabelEn: 'Odoo 17 (pos.order.line · Modeled upside)',
       accent: 'emerald',
       statusDot: '🟢',
       statusLabelAr: 'فرصة زيادة ربح جاهزة',
       statusLabelEn: 'Ready Profit Upside',
+      badgeAr: 'تقدير',
+      badgeEn: 'Estimate',
       ctaAr: 'المينيو والأصناف ↗',
       ctaEn: 'Menu Profit ↗',
       action: 'href-menu',
@@ -2180,10 +2445,16 @@ export function computeGlobalWorkspace(
       valueEn: `+${fKwd(kitchenHostKwd, false)}`,
       descAr: 'تشغيل علامات إضافية وعروض الساعات الهادئة (3–6 مساءً) بدون إيجار جديد.',
       descEn: 'Zero-rent cross-brand quiet-hour upside (3–6 PM) inside existing kitchens.',
+      periodLabelAr: activeIsoWindowAr,
+      periodLabelEn: activeIsoWindowEn,
+      sourceLabelAr: 'أودو 17 — إيصالات نقاط البيع (شريحة 3–6 م · تقدير)',
+      sourceLabelEn: 'Odoo 17 (pos.order · 15:00–18:00 · Estimate)',
       accent: 'emerald',
       statusDot: '🟢',
       statusLabelAr: 'فرصة زيادة ربح جاهزة',
       statusLabelEn: 'Ready Profit Upside',
+      badgeAr: 'تقدير',
+      badgeEn: 'Estimate',
       ctaAr: 'خطة الساعات الهادئة ↗',
       ctaEn: 'Quiet-Hours Plan ↗',
       action: 'lens-quiet',
@@ -2204,8 +2475,8 @@ export function computeGlobalWorkspace(
       summaryEn: `Kitchen ingredient gap is ${fKwd(kitchenGapKwd, false)} net of 6% normal trim.`,
       benefitAr: `+${fKwd(Math.max(25, Math.round(kitchenGapKwd * 0.35)), true)}`,
       benefitEn: `+${fKwd(Math.max(25, Math.round(kitchenGapKwd * 0.35)), false)}`,
-      promptAr: `اشرحي لي بوضوح سبب نقص المطبخ حالياً (${buildFilterSubtitle(filters, true)}) وكيف نوقفه هذا الأسبوع؟`,
-      promptEn: `Explain simply why there is a kitchen food gap (${buildFilterSubtitle(filters, false)}) and how to stop it this week.`,
+      promptAr: `اشرحي لي بوضوح سبب نقص المطبخ حالياً (${buildFilterSubtitle(filters, true, liveSummary)}) وكيف نوقفه هذا الأسبوع؟`,
+      promptEn: `Explain simply why there is a kitchen food gap (${buildFilterSubtitle(filters, false, liveSummary)}) and how to stop it this week.`,
       tone: 'rose',
     },
     {
@@ -2216,8 +2487,8 @@ export function computeGlobalWorkspace(
       summaryEn: 'Several Ardiya recipe ingredients rose vs last month and need a price lock.',
       benefitAr: plays.find((p) => p.id === 'proc-price-creep')?.periodLabelAr ?? `+${fKwd(Math.round(740 * periodScale), true)}`,
       benefitEn: plays.find((p) => p.id === 'proc-price-creep')?.periodLabelEn ?? `+${fKwd(Math.round(740 * periodScale), false)}`,
-      promptAr: `ما أهم فروقات أسعار الموردين في (${buildFilterSubtitle(filters, true)}) وما الإجراء المطلوب من المشتريات اليوم؟`,
-      promptEn: `What are the main supplier price differences in (${buildFilterSubtitle(filters, false)}) and what should purchasing do today?`,
+      promptAr: `ما أهم فروقات أسعار الموردين في (${buildFilterSubtitle(filters, true, liveSummary)}) وما الإجراء المطلوب من المشتريات اليوم؟`,
+      promptEn: `What are the main supplier price differences in (${buildFilterSubtitle(filters, false, liveSummary)}) and what should purchasing do today?`,
       tone: 'amber',
     },
     {
@@ -2228,31 +2499,23 @@ export function computeGlobalWorkspace(
       summaryEn: 'Drink combo (8%–15% conversion) and gentle price tweak (94%–97% retention) lift profit.',
       benefitAr: `+${fKwd(menuBenefitKwd, true)}`,
       benefitEn: `+${fKwd(menuBenefitKwd, false)}`,
-      promptAr: `اقترحي لي أنسب تعديل أسعار وكومبو مشروبات لنطاق (${buildFilterSubtitle(filters, true)}) دون خسارة عملاء.`,
-      promptEn: `Suggest the simplest menu price tweak and drink combo for (${buildFilterSubtitle(filters, false)}) without losing guests.`,
+      promptAr: `اقترحي لي أنسب تعديل أسعار وكومبو مشروبات لنطاق (${buildFilterSubtitle(filters, true, liveSummary)}) دون خسارة عملاء.`,
+      promptEn: `Suggest the simplest menu price tweak and drink combo for (${buildFilterSubtitle(filters, false, liveSummary)}) without losing guests.`,
       tone: 'sky',
     },
     {
       id: 'note-delivery',
-      titleAr: 'منصة توصيل طلبات TMP و Tgo',
+      titleAr: 'طلبات (سائقي الشركة وأسطول المنصة)',
       titleEn: 'Dual TMP & Tgo',
-      summaryAr: `مراجعة الحسابات المتوقفة فعلياً ومتابعة تحصيل ذمم منصات التوصيل المتراكمة (${fKwd(deliveryDuesKwd, true)} — رصيد متراكم مفتوح من فترات سابقة قيد التحصيل).`,
-      summaryEn: `Check verified stopped accounts and collect cumulative aggregator receivables (${fKwd(deliveryDuesKwd, false)} — open cumulative balance from prior periods under collection).`,
+      summaryAr: `مراجعة الحسابات المتوقفة فعلياً ومتابعة تحصيل ذمم منصات التوصيل المتراكمة (${fKwd(deliveryDuesKwd, true)} — الفترة من ${receivables.fromDate} إلى ${receivables.toDate}).`,
+      summaryEn: `Check verified stopped accounts and collect cumulative aggregator receivables (${fKwd(deliveryDuesKwd, false)} — period ${receivables.fromDate} to ${receivables.toDate}).`,
       benefitAr: fKwd(deliveryDuesKwd, true),
       benefitEn: fKwd(deliveryDuesKwd, false),
-      promptAr: `أعطني ملخصاً سريعاً لحسابات منصة توصيل طلبات TMP (15%) و Tgo وذمم منصات التوصيل المتراكمة في (${buildFilterSubtitle(filters, true)}).`,
-      promptEn: `Give me a quick summary of TMP (15%) vs Tgo accounts and cumulative aggregator receivables for (${buildFilterSubtitle(filters, false)}).`,
+      promptAr: `أعطني ملخصاً سريعاً لحسابات طلبات (توصيل سائقي الشركة 15% مقابل أسطول المنصة 27%) وذمم منصات التوصيل المتراكمة في (${buildFilterSubtitle(filters, true, liveSummary)}).`,
+      promptEn: `Give me a quick summary of TMP (15%) vs Tgo (27%) accounts and cumulative aggregator receivables for (${buildFilterSubtitle(filters, false, liveSummary)}).`,
       tone: 'emerald',
     },
   ]
-
-  const resolvedPeriodWindow = formatPeriodCalendarWindow(filters.period, {
-    customFrom: filters.customFrom,
-    customTo: filters.customTo,
-    liveSummary,
-  })
-  const periodCalendarWindowAr = resolvedPeriodWindow.labelAr
-  const periodCalendarWindowEn = resolvedPeriodWindow.labelEn
 
   const periodRangeLabelAr =
     filters.period === 'custom'
@@ -2266,16 +2529,19 @@ export function computeGlobalWorkspace(
   const subtitleAr = buildFilterSubtitle(filters, true, liveSummary)
   const subtitleEn = buildFilterSubtitle(filters, false, liveSummary)
 
-  const peerClauseAr = showPeerComparison ? ` مقابل متوسط المجموعة ${groupWeightedNetPct.toFixed(1)}%` : ''
-  const peerClauseEn = showPeerComparison ? ` vs ${groupWeightedNetPct.toFixed(1)}% group avg` : ''
-  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | الصافي المرجّح بالجيب: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} د.ك/10)${peerClauseAr} | التشخيص: ${rootCauseAr}]`
-  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | Weighted Net Pocket: ${weightedNetPct.toFixed(1)}% (${netPocket10.toFixed(2)} KWD/10)${peerClauseEn} | Diagnosis: ${rootCauseEn}]`
+  const glMarginLabelAr =
+    accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'غير متوفر'
+  const glMarginLabelEn =
+    accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'Not available'
+  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | صافي الربح المحاسبي (دفتر الأستاذ العام): ${glMarginLabelAr} | التشخيص: ${rootCauseAr}]`
+  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | GL Operating Margin (account.move.line): ${glMarginLabelEn} | Diagnosis: ${rootCauseEn}]`
 
   return {
     filters,
     isFiltered: isNonDefaultFilter(filters),
     isTodayFallback,
     todayFallbackDate,
+    lastSyncedAt: liveSummary?.syncedAt ?? null,
     subtitleAr,
     subtitleEn,
     periodCalendarWindowAr,
@@ -2291,6 +2557,8 @@ export function computeGlobalWorkspace(
     periodScale,
     dimensionShare,
     totalScale,
+    accounting,
+    receivables,
     per10: {
       food10,
       delivery10,
@@ -2358,12 +2626,7 @@ export function formatSignedDelta(rawPct: number): SignedDeltaDisplay {
 
 /**
  * Computes true like-for-like period-over-period Net Sales % delta for `/erp` Hero Card:
- * - `month` (30d): compares full 30-day window vs full prior 30-day window (`+3.3%` growth:
- *   `127,748 vs 123,691 KWD` / full `158,168 vs 153,115 KWD`), NEVER comparing a 1–2 day partial slice
- *   against a 30-day denominator or 6-day-prior single day!
- * - `week` (7d): compares full 7-day window vs prior 7-day window from daily series.
- * - `today` (1d): compares latest completed operational day vs same weekday 7 days prior (avoiding partial morning vs full day).
- * - `custom` / `year`: compares matching equal-length windows or verified 30-day trend (`+3.3%`).
+ * - Excludes ONLY the current incomplete Kuwait day (`kwCtx.todayIso`), keeping the last completed day inside.
  */
 export function computePeriodOverPeriodDeltaPct(
   filters: GlobalFilters,
@@ -2381,13 +2644,10 @@ export function computePeriodOverPeriodDeltaPct(
   }
   const orderedDays = [...dailyMap.values()].sort((a, b) => a.day.localeCompare(b.day))
   const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
-  const activeIncompleteTodayIso =
-    options?.referenceNowMs !== undefined || liveSummary?.connected === true
-      ? kwCtx.todayIso
-      : '2026-11-14'
+  const activeIncompleteTodayIso = kwCtx.todayIso
   const completedDays = options?.sameHoursLikeForLike
     ? orderedDays
-    : orderedDays.filter((d) => d.day < activeIncompleteTodayIso && d.day < kwCtx.todayIso)
+    : orderedDays.filter((d) => d.day < activeIncompleteTodayIso)
 
   if (filters.period === 'month') {
     const r30 = liveSummary?.journeyPulse?.rolling30

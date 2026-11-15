@@ -21,6 +21,9 @@ yarn-error.log*
 
 # local & environment secret files (strictly block all .env* except safe templates .env.example & .env.staging.example)
 .env
+.env.staging
+.env.production
+.env*.local
 .env*
 !.env.example
 !.env.staging.example
@@ -41,3 +44,6 @@ yarn-error.log*
 
 # Vercel link metadata. It is not a secret, and it is not part of the app.
 .vercel
+
+# Local runtime state (locale preferences, temporary caches)
+/.runtime/

@@ -94,6 +94,8 @@ export interface BeforeAfterSnapshot {
   beforeLabelEn: string
   afterLabelAr: string
   afterLabelEn: string
+  accountingAvailable: boolean
+  lastSyncedAt: string | null
   summary: {
     sales: { before: number; after: number; diff: number; pct: number }
     pocket: { before: number; after: number; diff: number; pct: number }
@@ -222,15 +224,16 @@ function makePoint(
   afterOrders: number,
   pocketRatioBefore: number,
   pocketRatioAfter: number,
+  accountingAvailable = false,
 ): BeforeAfterPoint {
   const bSales = Math.max(0, round1(beforeSales))
   const aSales = Math.max(0, round1(afterSales))
   const bOrd = Math.max(0, Math.round(beforeOrders))
   const aOrd = Math.max(0, Math.round(afterOrders))
-  const bPocket = Math.max(0, round1(bSales * pocketRatioBefore))
-  const aPocket = Math.max(0, round1(aSales * pocketRatioAfter))
-  const bExp = Math.max(0, round1(bSales - bPocket))
-  const aExp = Math.max(0, round1(aSales - aPocket))
+  const bPocket = accountingAvailable ? round1(bSales * pocketRatioBefore) : 0
+  const aPocket = accountingAvailable ? round1(aSales * pocketRatioAfter) : 0
+  const bExp = accountingAvailable ? Math.max(0, round1(bSales - bPocket)) : 0
+  const aExp = accountingAvailable ? Math.max(0, round1(aSales - aPocket)) : 0
   const bAov = bOrd > 0 ? round2(bSales / bOrd) : 0
   const aAov = aOrd > 0 ? round2(aSales / aOrd) : 0
 
@@ -262,9 +265,16 @@ export function computeBeforeAfterSnapshot(
   liveSummary?: OdooLiveSummary | null,
 ): BeforeAfterSnapshot {
   const ws = computeGlobalWorkspace(filters, liveSummary)
-  const pocketRatioAfter = Math.max(0.08, Math.min(0.45, ws.per10.netPocket10 / 10))
-  // Slightly tighter pocket margin before optimization (or real prior ratio)
-  const pocketRatioBefore = Math.max(0.07, pocketRatioAfter - 0.014)
+  const accountingAvailable = Boolean(
+    ws.accounting.available &&
+      ws.accounting.completeAccrualPosted &&
+      ws.accounting.netProfitPct !== null,
+  )
+  const pocketRatioAfter =
+    accountingAvailable && ws.accounting.netProfitPct !== null
+      ? ws.accounting.netProfitPct / 100
+      : 0
+  const pocketRatioBefore = pocketRatioAfter
 
   const eventOptions = buildEventOptions(campaigns, decisions)
   const activeEvent =
@@ -273,10 +283,18 @@ export function computeBeforeAfterSnapshot(
       : null
 
   const kwTodayIso = getKuwaitTodayIso()
-  const activeIncompleteTodayIso = liveSummary?.connected === true ? kwTodayIso : '2026-11-14'
-  const fullDays = (ODOO.timeProfile?.daily ?? []).filter(
-    (d) => d.orders >= 150 && d.day < activeIncompleteTodayIso && d.day < kwTodayIso,
-  )
+  const dayMap = new Map<string, { day: string; orders: number; netKwd: number }>()
+  for (const d of ODOO.timeProfile?.daily ?? []) {
+    if (d.orders >= 150 && d.day < kwTodayIso) {
+      dayMap.set(d.day, { day: d.day, orders: d.orders, netKwd: d.netKwd })
+    }
+  }
+  for (const d of liveSummary?.dailySeries ?? []) {
+    if (d.orders > 0 && d.netKwd > 0 && d.day < kwTodayIso) {
+      dayMap.set(d.day, { day: d.day, orders: d.orders, netKwd: d.netKwd })
+    }
+  }
+  const fullDays = [...dayMap.values()].sort((a, b) => a.day.localeCompare(b.day))
   const group30Net = fullDays.reduce((s, d) => s + d.netKwd, 0) || ODOO.totals.restaurantNetKwd
   const avgGroupDayNet = fullDays.length > 0 ? group30Net / fullDays.length : 4300
   const avgGroupDayOrd =
@@ -352,6 +370,7 @@ export function computeBeforeAfterSnapshot(
           totalAfterOrders * p.wA,
           pocketRatioBefore,
           pocketRatioAfter,
+          accountingAvailable,
         ),
       )
     } else {
@@ -383,7 +402,8 @@ export function computeBeforeAfterSnapshot(
           safeDiv(bS, sliceAov),
           safeDiv(aS, sliceAov),
           pocketRatioBefore,
-          pocketRatioAfter + 0.015,
+          pocketRatioAfter,
+          accountingAvailable,
         )
       })
       totalBeforeSales = round1(timelinePoints.reduce((s, p) => s + p.beforeSalesKwd, 0))
@@ -445,6 +465,7 @@ export function computeBeforeAfterSnapshot(
         totalAfterOrders * w,
         pocketRatioBefore,
         pocketRatioAfter,
+        accountingAvailable,
       )
     })
   } else if (filters.period === 'week') {
@@ -484,6 +505,7 @@ export function computeBeforeAfterSnapshot(
         totalAfterOrders * aShare,
         pocketRatioBefore,
         pocketRatioAfter,
+        accountingAvailable,
       )
     })
   } else if (filters.period === 'month' || filters.period === 'custom') {
@@ -534,6 +556,7 @@ export function computeBeforeAfterSnapshot(
         totalAfterOrders * share,
         pocketRatioBefore,
         pocketRatioAfter,
+        accountingAvailable,
       )
     })
   } else {
@@ -569,14 +592,15 @@ export function computeBeforeAfterSnapshot(
         totalAfterOrders * q.share,
         pocketRatioBefore,
         pocketRatioAfter,
+        accountingAvailable,
       )
     })
   }
 
-  const beforePocketTotal = round1(totalBeforeSales * pocketRatioBefore)
-  const afterPocketTotal = round1(totalAfterSales * pocketRatioAfter)
-  const beforeExpensesTotal = Math.max(0, round1(totalBeforeSales - beforePocketTotal))
-  const afterExpensesTotal = Math.max(0, round1(totalAfterSales - afterPocketTotal))
+  const beforePocketTotal = accountingAvailable ? round1(totalBeforeSales * pocketRatioBefore) : 0
+  const afterPocketTotal = accountingAvailable ? round1(totalAfterSales * pocketRatioAfter) : 0
+  const beforeExpensesTotal = accountingAvailable ? Math.max(0, round1(totalBeforeSales - beforePocketTotal)) : 0
+  const afterExpensesTotal = accountingAvailable ? Math.max(0, round1(totalAfterSales - afterPocketTotal)) : 0
   const beforeAovTotal = totalBeforeOrders > 0 ? round2(totalBeforeSales / totalBeforeOrders) : 0
   const afterAovTotal = totalAfterOrders > 0 ? round2(totalAfterSales / totalAfterOrders) : 0
 
@@ -593,10 +617,8 @@ export function computeBeforeAfterSnapshot(
       ? safeDiv(totalAfterSales, totalBeforeSales, brandGrowthRatio(bid))
       : brandGrowthRatio(bid)
     const beforeS = round1(safeDiv(afterS, ratio, afterS * 0.91))
-    const pAfterRatio = Math.max(0.08, subWs.per10.netPocket10 / 10)
-    const pBeforeRatio = Math.max(0.07, pAfterRatio - 0.013)
-    const afterP = round1(afterS * pAfterRatio)
-    const beforeP = round1(beforeS * pBeforeRatio)
+    const afterP = accountingAvailable ? round1(afterS * pocketRatioAfter) : 0
+    const beforeP = accountingAvailable ? round1(beforeS * pocketRatioBefore) : 0
     const afterO = Math.max(0, Math.round(subWs.orders * activeScaleRatio))
     const beforeO = Math.max(0, Math.round(safeDiv(afterO, ratio * 0.99, afterO * 0.92)))
 
@@ -628,10 +650,8 @@ export function computeBeforeAfterSnapshot(
       ? safeDiv(totalAfterSales, totalBeforeSales, branchGrowthRatio(lid))
       : branchGrowthRatio(lid)
     const beforeS = round1(safeDiv(afterS, ratio, afterS * 0.91))
-    const pAfterRatio = Math.max(0.08, subWs.per10.netPocket10 / 10)
-    const pBeforeRatio = Math.max(0.07, pAfterRatio - 0.013)
-    const afterP = round1(afterS * pAfterRatio)
-    const beforeP = round1(beforeS * pBeforeRatio)
+    const afterP = accountingAvailable ? round1(afterS * pocketRatioAfter) : 0
+    const beforeP = accountingAvailable ? round1(beforeS * pocketRatioBefore) : 0
     const afterO = Math.max(0, Math.round(subWs.orders * activeScaleRatio))
     const beforeO = Math.max(0, Math.round(safeDiv(afterO, ratio * 0.99, afterO * 0.92)))
 
@@ -669,10 +689,8 @@ export function computeBeforeAfterSnapshot(
       ? safeDiv(totalAfterSales, totalBeforeSales, chFactor)
       : chFactor
     const beforeS = round1(safeDiv(afterS, ratio, afterS * 0.91))
-    const pAfterRatio = Math.max(0.08, subWs.per10.netPocket10 / 10)
-    const pBeforeRatio = Math.max(0.07, pAfterRatio - 0.012)
-    const afterP = round1(afterS * pAfterRatio)
-    const beforeP = round1(beforeS * pBeforeRatio)
+    const afterP = accountingAvailable ? round1(afterS * pocketRatioAfter) : 0
+    const beforeP = accountingAvailable ? round1(beforeS * pocketRatioBefore) : 0
     const afterO = Math.max(0, Math.round(subWs.orders * activeScaleRatio))
     const beforeO = Math.max(0, Math.round(safeDiv(afterO, ratio * 0.99, afterO * 0.92)))
 
@@ -709,8 +727,8 @@ export function computeBeforeAfterSnapshot(
     afterOrders: r.afterOrders,
     beforeAovKwd: r.beforeAovKwd,
     afterAovKwd: r.afterAovKwd,
-    beforeExpensesKwd: Math.max(0, round1(r.beforeSalesKwd - r.beforePocketKwd)),
-    afterExpensesKwd: Math.max(0, round1(r.afterSalesKwd - r.afterPocketKwd)),
+    beforeExpensesKwd: accountingAvailable ? Math.max(0, round1(r.beforeSalesKwd - r.beforePocketKwd)) : 0,
+    afterExpensesKwd: accountingAvailable ? Math.max(0, round1(r.afterSalesKwd - r.afterPocketKwd)) : 0,
   }))
 
   return {
@@ -718,6 +736,8 @@ export function computeBeforeAfterSnapshot(
     beforeLabelEn,
     afterLabelAr,
     afterLabelEn,
+    accountingAvailable,
+    lastSyncedAt: ws.lastSyncedAt,
     summary: {
       sales: {
         before: totalBeforeSales,
@@ -871,9 +891,15 @@ export function evaluateApprovedDecisionsImpact(
   for (const camp of campaigns.slice(0, 3)) {
     if (filters.brand !== 'all' && camp.brand !== filters.brand) continue
     const halo = evaluateCampaignOdooHalo(camp, filters.branch, filters.channel)
-    const pocketRatio = Math.max(0.11, ws.per10.netPocket10 / 10)
-    const netBefore = round1(halo.before3dSalesKwd * pocketRatio)
-    const netAfter = round1(halo.after3dSalesKwd * pocketRatio - camp.spendKwd)
+    const pocketRatio =
+      ws.accounting.available &&
+      ws.accounting.completeAccrualPosted &&
+      ws.accounting.netProfitPct !== null
+        ? ws.accounting.netProfitPct / 100
+        : 0
+    const netBefore = pocketRatio > 0 ? round1(halo.before3dSalesKwd * pocketRatio) : 0
+    const netAfter =
+      pocketRatio > 0 ? round1(halo.after3dSalesKwd * pocketRatio - camp.spendKwd) : -round1(camp.spendKwd)
     const netDiff = round1(netAfter - netBefore)
     const discBefore = 2.6
     const discAfter = halo.verdict === 'loser' ? 4.1 : 2.9

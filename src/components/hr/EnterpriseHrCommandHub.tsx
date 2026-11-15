@@ -468,7 +468,7 @@ export function EnterpriseHrCommandHub({
             <p className="max-w-3xl text-xs sm:text-sm text-mist-300">
               {en
                 ? `6 Brands • 7 Branches • 8 Channels & Central Kitchen · ${employees.length} Active Staff · 618 Contracts · 1,000 Odoo Payslips · PAM (Asahal) & Kuwait Municipality Linked`
-                : `6 مطاعم • 7 فروع • 8 قنوات والمطبخ المركزي · ${employees.length} موظفاً مسجلاً · 618 عقد عمل · 1,000 قسيمة راتب مستوردة · ربط كامل مع القوى العاملة (أسهل) وبلدية الكويت`}
+                : `6 علامات تجارية • 7 فروع • 8 قنوات والمطبخ المركزي · ${employees.length} موظفاً مسجلاً · 618 عقد عمل · 1,000 قسيمة راتب مستوردة · ربط كامل مع القوى العاملة (أسهل) وبلدية الكويت`}
             </p>
           </div>
 
@@ -565,7 +565,7 @@ export function EnterpriseHrCommandHub({
               </p>
               <p className="mt-1 text-2xl font-black text-white">{VENTURE_EMPLOYEES.length}</p>
               <p className="mt-1 text-xs text-emerald-300">
-                {en ? 'Across 6 Brands, 7 Active Branches & Central Kitchen' : 'موزعين على 6 مطاعم و7 فروع نشطة والمطبخ المركزي'}
+                {en ? 'Across 6 Brands, 7 Active Branches & Central Kitchen' : 'موزعين على 6 علامات تجارية و7 فروع نشطة والمطبخ المركزي'}
               </p>
             </article>
             <article className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
@@ -2439,8 +2439,8 @@ export function EnterpriseHrCommandHub({
             titleEn: payload.titleEn,
             descriptionAr: payload.titleAr,
             descriptionEn: payload.titleEn,
-            costCenterAr: 'الفروع الـ 9 والمطبخ المركزي',
-            costCenterEn: '9 Branches & Central Kitchen',
+            costCenterAr: 'الفروع الـ 7 والمطبخ المركزي',
+            costCenterEn: '7 Branches & Central Kitchen',
             brandAr: 'البراندات الـ 6 الرسمية',
             brandEn: '6 Official Brands',
             amountKwd: payload.amountKwd,

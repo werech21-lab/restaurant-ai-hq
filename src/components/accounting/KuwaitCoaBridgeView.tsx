@@ -377,7 +377,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'عقود الفروع الـ 9 والمطبخ المركزي (7111–7123 و 1146): لا يصرف أي شيك لمقاول إلا بعد تأكيد زيارة العمليات وشهادات البلدية والإطفاء'
+                    ? 'عقود الفروع الـ 7 والمطبخ المركزي (7111–7123 و 1146): لا يصرف أي شيك لمقاول إلا بعد تأكيد زيارة العمليات وشهادات البلدية والإطفاء'
                     : 'Preventative contracts for 9 active stores + Central Kitchen: payments automatically held on SLA breach or missing MOH/KFSD certs'}
                 </p>
               </div>
@@ -412,7 +412,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                             GL: {amc.glAccount} (إطفاء شهري من {amc.prepaidAccount})
                           </span>
                           <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-300">
-                            {isAr ? `${amc.coveredLocationsCount} مواقع مغطاة (9 فروع + المطبخ المركزي)` : `${amc.coveredLocationsCount} Monitored Units (9 Stores + CK)`}
+                            {isAr ? `${amc.coveredLocationsCount} مواقع مغطاة (7 فروع + المطبخ المركزي)` : `${amc.coveredLocationsCount} Monitored Units (7 Stores + CK)`}
                           </span>
                         </div>
                         <h3 className="text-base font-black text-white">{isAr ? amc.nameAr : amc.nameEn}</h3>
@@ -641,7 +641,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {isAr
-                    ? 'كل قيد محاسبي مقترن بـ: Brand (BR-00 إلى BR-06) · Location (9 فروع + مطبخ مركزي) · Department · Channel'
+                    ? 'كل قيد محاسبي مقترن بـ: Brand (BR-00 إلى BR-06) · Location (7 فروع + مطبخ مركزي) · Department · Channel'
                     : 'Every transaction is tagged with 4 mandatory dimensions: Brand, Location, Department, and Channel'}
                 </p>
               </div>
@@ -686,7 +686,7 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
                     onChange={(e) => setSelectedLoc(e.target.value)}
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-slate-200 text-xs focus:border-emerald-500"
                   >
-                    <option value="ALL">{isAr ? 'جميع الفروع الـ 9 النشطة + المطبخ المركزي' : 'All 9 Active Stores + Central Kitchen'}</option>
+                    <option value="ALL">{isAr ? 'جميع الفروع الـ 7 النشطة + المطبخ المركزي' : 'All 7 Active Stores + Central Kitchen'}</option>
                     {KUWAIT_DIMENSION_LOCATIONS.map((l) => (
                       <option key={l.code} value={l.code}>{l.code} · {isAr ? l.nameAr : l.nameEn}</option>
                     ))}

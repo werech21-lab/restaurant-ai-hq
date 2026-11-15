@@ -161,6 +161,20 @@ export async function authenticate(request: NextRequest, permission: Permission)
   return authenticateUser(permission, requestedTenant, request)
 }
 
+function buildAuditorReadPermissionSet(fullSet: ReadonlySet<string>): ReadonlySet<string> {
+  return new Set(
+    [...fullSet].filter(
+      (p) =>
+        p.endsWith('.read') &&
+        !p.startsWith('iam.') &&
+        !p.startsWith('hr.') &&
+        !p.startsWith('admin.'),
+    ),
+  )
+}
+
+const AUDITOR_WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
 /**
  * The same checks for callers that have no NextRequest, such as server actions.
  */
@@ -175,11 +189,18 @@ export async function authenticateUser(
 
   const execSession = await resolveExecSession(request)
   if (execSession) {
+    if (
+      execSession.role === 'auditor' &&
+      request &&
+      AUDITOR_WRITE_METHODS.has(request.method.toUpperCase())
+    ) {
+      throw new AppError(403, 'forbidden', 'Read-only auditor session')
+    }
     const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
     const fullSet = panelBridgePermissionSet()
     const granted: ReadonlySet<string> =
       execSession.role === 'auditor'
-        ? new Set([...fullSet].filter((p) => p.endsWith('.read')))
+        ? buildAuditorReadPermissionSet(fullSet)
         : fullSet
 
     if (!granted.has(permission)) {
@@ -229,8 +250,15 @@ export async function authenticateUser(
   const fullPanelSet = panelBridgePermissionSet()
   const isAuditorPanel =
     typeof panel.email === 'string' && panel.email.toLowerCase().includes('auditor')
+  if (
+    isAuditorPanel &&
+    request &&
+    AUDITOR_WRITE_METHODS.has(request.method.toUpperCase())
+  ) {
+    throw new AppError(403, 'forbidden', 'Read-only auditor session')
+  }
   const granted: ReadonlySet<string> = isAuditorPanel
-    ? new Set([...fullPanelSet].filter((p) => p.endsWith('.read')))
+    ? buildAuditorReadPermissionSet(fullPanelSet)
     : fullPanelSet
   if (!granted.has(permission)) {
     throw new AppError(403, 'forbidden', 'You do not have permission for this action.')
@@ -245,11 +273,11 @@ export async function readSessionPermissions(): Promise<string[]> {
   try {
     const execSession = await resolveExecSession()
     if (execSession) {
-      const fullSet = [...panelBridgePermissionSet()]
+      const fullSet = panelBridgePermissionSet()
       if (execSession.role === 'auditor') {
-        return fullSet.filter((p) => p.endsWith('.read')).sort()
+        return [...buildAuditorReadPermissionSet(fullSet)].sort()
       }
-      return fullSet.sort()
+      return [...fullSet].sort()
     }
 
     const userId = await resolveUserId('none')

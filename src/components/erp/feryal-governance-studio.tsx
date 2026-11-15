@@ -123,7 +123,7 @@ const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString(
 
 const welcomeText = (lang: 'ar' | 'en') =>
   lang === 'ar'
-    ? 'هلا بك، أنا فريال. اختر نمط الإجابة أعلاه: دقيق (تحليل دقيق) أو سريع (إجابة سريعة)، أو اضغط 📎 إرفاق صورة / فيديو لفحص جودة الأطباق ونظافة المطبخ وفواتير الموردين، أو اسألني مباشرة عن أرقام أودو 17 عبر 6 مطاعم • 7 فروع • 8 قنوات.'
+    ? 'هلا بك، أنا فريال. اختر نمط الإجابة أعلاه: دقيق (تحليل دقيق) أو سريع (إجابة سريعة)، أو اضغط 📎 إرفاق صورة / فيديو لفحص جودة الأطباق ونظافة المطبخ وفواتير الموردين، أو اسألني مباشرة عن أرقام أودو 17 عبر 6 علامات تجارية • 7 فروع • 8 قنوات.'
     : "Welcome — I'm Feryal. Choose Deep & Precise or Fast Answer above, click 📎 Attach Photo / Video to inspect dish quality, kitchen hygiene, and supplier invoices, or ask directly across live Odoo 17 data (6 Brands • 7 Branches • 8 Channels)."
 
 type ChatMessage = StoredChatMessage
@@ -1095,7 +1095,7 @@ export function FeryalGovernanceStudio({
               isDragActive && !isAuditor ? 'ring-2 ring-emerald-500/45' : ''
             }`}
           >
-            {/* 1. Zero-Overflow Top Studio Bar (`6 مطاعم • 7 فروع • 8 قنوات` + Scrollable/Wrapped Utility Chips) */}
+            {/* 1. Zero-Overflow Top Studio Bar (`6 علامات تجارية • 7 فروع • 8 قنوات` + Scrollable/Wrapped Utility Chips) */}
             <div className="w-full max-w-full min-w-0 space-y-2.5 border-b border-neutral-100 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/[0.06]">
               <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -1112,7 +1112,7 @@ export function FeryalGovernanceStudio({
                     dir={isAr ? 'rtl' : 'ltr'}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#F6F7F8] px-2.5 py-1 text-[13px] font-semibold tabular-nums whitespace-nowrap text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
                   >
-                    <span className="whitespace-nowrap">{T('6 Brands', '6 مطاعم')}</span>
+                    <span className="whitespace-nowrap">{T('6 Brands', '6 علامات تجارية')}</span>
                     <span aria-hidden>•</span>
                     <span className="whitespace-nowrap">{T('7 Branches', '7 فروع')}</span>
                     <span aria-hidden>•</span>
@@ -1508,7 +1508,7 @@ export function FeryalGovernanceStudio({
                         {isAuditor && m.id === 'welcome'
                           ? T(
                               'Read-Only Auditor Mode — Browse Feryal executive threads, institutional memory, and live Odoo 17 governance records across 6 Brands • 7 Branches • 8 Channels without modifying or uploading files.',
-                              'وضع المراجعة للقراءة فقط — استعرض سجلات المستشارة فريال والذاكرة المؤسسية وأرقام أودو 17 عبر 6 مطاعم • 7 فروع • 8 قنوات بدون صلاحية تعديل أو رفع ملفات.',
+                              'وضع المراجعة للقراءة فقط — استعرض سجلات المستشارة فريال والذاكرة المؤسسية وأرقام أودو 17 عبر 6 علامات تجارية • 7 فروع • 8 قنوات بدون صلاحية تعديل أو رفع ملفات.',
                             )
                           : m.text}
                       </p>

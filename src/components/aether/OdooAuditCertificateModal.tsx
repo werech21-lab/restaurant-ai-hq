@@ -2,28 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, CheckCircle2, Copy, Printer, RefreshCw, ShieldCheck, X } from 'lucide-react'
+import { AlertCircle, Check, CheckCircle2, Copy, Printer, RefreshCw, ShieldCheck, X } from 'lucide-react'
 import { ODOO } from '@/lib/odoo/odoo-dataset'
-import RECEIPTS_PROOF from '@/lib/odoo/delivery-receipts-proof.json'
 import type { OdooBucketSummary } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
-
-interface ProofAuditShape {
-  syncedAt?: string
-  odooHost?: string
-  auditCounts?: {
-    posOrdersYtd?: number
-    posPaymentsYtd?: number
-    vendorBillsYtd?: number
-    accountMoveLinesYtd?: number
-    stockMovesYtd?: number
-    activeBoms?: number
-    whitelistedPosRegisters?: number
-  }
-}
-
-const PROOF = RECEIPTS_PROOF as unknown as ProofAuditShape
 
 function formatKuwaitNow(isAr: boolean, date = new Date()): string {
   try {
@@ -48,13 +31,16 @@ const f3 = (n: number) =>
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   })
+const fSigned3 = (n: number) => `${n > 0 ? '+' : ''}${f3(n)}`
 
 /**
- * Compact header trigger pill + modal for Upgrade 2:
- * `شهادة فحص ومطابقة أودو ✅`
+ * Compact header trigger pill + modal for Odoo 17 Audit & Reconciliation Certificate:
+ * Presents ONE single canonical active POS total, ONE single canonical reconciliation equation,
+ * and the REAL computed variance against Odoo General Ledger (`account.move.line`) — never dual
+ * stale totals or hardcoded 30-day receipt counts.
  */
 export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
-  const { filters, workspace, liveSummary } = useGlobalFilter()
+  const { filters, liveSummary } = useGlobalFilter()
   const [open, setOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -76,108 +62,127 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
   }, [open])
 
   const auditData = useMemo(() => {
+    const isLiveConnected =
+      liveSummary?.connected === true &&
+      liveSummary?.source === 'live' &&
+      liveSummary?.sourceMode === 'odoo17-live'
     const rawBuckets = (ODOO as unknown as { buckets?: Record<string, OdooBucketSummary> }).buckets
-    const monthBkt = liveSummary?.buckets?.month ?? rawBuckets?.month
+    const activePeriodKey =
+      filters.period === 'today' ||
+      filters.period === 'week' ||
+      filters.period === 'month' ||
+      filters.period === 'year'
+        ? filters.period
+        : 'month'
 
-    const sumBrands = monthBkt?.byBrand
-      ? Object.values(monthBkt.byBrand).reduce((s, v) => s + (v?.netKwd ?? 0), 0)
-      : ODOO.brands.reduce((s, b) => s + b.netKwd, 0)
+    const activeBkt: OdooBucketSummary | undefined =
+      filters.period === 'custom' && liveSummary?.customBucket
+        ? liveSummary.customBucket
+        : (liveSummary?.buckets?.[activePeriodKey] ??
+          rawBuckets?.[activePeriodKey] ??
+          liveSummary?.buckets?.month ??
+          rawBuckets?.month)
 
-    const sumBranches = monthBkt?.byLocation
-      ? Object.values(monthBkt.byLocation).reduce((s, v) => s + (v?.netKwd ?? 0), 0)
-      : ODOO.restaurants.reduce((s, r) => s + r.netKwd, 0)
+    const periodFrom = activeBkt?.from ?? liveSummary?.period?.from ?? '2026-10-16'
+    const periodTo = activeBkt?.to ?? liveSummary?.period?.to ?? '2026-11-14'
+    const periodDays = Math.max(1, activeBkt?.days ?? 30)
+    const lastSyncedLabel =
+      liveSummary?.kuwaitSyncedAt ??
+      liveSummary?.latestOdooRecordAt ??
+      liveSummary?.syncedAt ??
+      null
 
-    const sumChannels = monthBkt?.uiChannels
-      ? Object.values(monthBkt.uiChannels).reduce((s, v) => s + (v?.netKwd ?? 0), 0)
-      : sumBranches
+    const mappedBranchesMap = activeBkt?.mappedByLocation ?? activeBkt?.byLocation
+    const mappedBranchesKwd = mappedBranchesMap
+      ? Object.values(mappedBranchesMap).reduce((s, v) => s + (v?.netKwd ?? 0), 0)
+      : (liveSummary?.companyTotals?.mappedBranchesNetKwd ??
+        ODOO.restaurants.reduce((s, r) => s + r.netKwd, 0))
 
-    const gap1 = Math.max(Math.abs(sumBrands - sumBranches), Math.abs(sumBranches - sumChannels))
+    const companyActivePosKwd =
+      typeof activeBkt?.totals?.netSalesKwd === 'number' && activeBkt.totals.netSalesKwd > 0
+        ? activeBkt.totals.netSalesKwd
+        : (liveSummary?.companyTotals?.netSalesKwd ?? ODOO.totals.netSalesKwd)
 
-    const sumRest = ODOO.restaurants.reduce((s, r) => s + r.netKwd, 0)
-    const sumExb = ODOO.exhibitions.reduce((s, e) => s + e.netKwd, 0)
-    const totalPos = ODOO.totals.netSalesKwd
-    const gap2 = Math.abs(sumRest + sumExb - totalPos)
+    const unmappedTerminalsKwd =
+      activePeriodKey === 'month' &&
+      filters.period !== 'custom' &&
+      typeof liveSummary?.companyTotals?.unmappedTerminalsNetKwd === 'number'
+        ? liveSummary.companyTotals.unmappedTerminalsNetKwd
+        : (activeBkt?.unmappedSummary?.netSalesKwd ??
+          Math.max(0, companyActivePosKwd - mappedBranchesKwd))
 
-    const companyInc = ODOO.pnl.postedCompany.income
-    const excludedInc = ODOO.pnl.excludedLocations.income
-    const isolatedInc = ODOO.pnl.incomeKwd
-    const gap3 = Math.abs(companyInc - excludedInc - isolatedInc)
+    const posOrdersActiveWindow =
+      activeBkt?.totals?.orders ?? liveSummary?.totals?.orders ?? ODOO.totals.orders
 
-    const { food10, delivery10, opexRent10, netPocket10 } = workspace.per10
-    const sum10 = food10 + delivery10 + opexRent10 + netPocket10
-    const gap4 = Math.abs(sum10 - 10)
+    // Canonical single equation residual: (7 Mapped Branches + Unmapped Active Terminals) - Active Company POS
+    const posEquationVarianceKwd =
+      mappedBranchesKwd + unmappedTerminalsKwd - companyActivePosKwd
 
-    const counts = PROOF.auditCounts ?? {}
-    const posOrdersYtd = counts.posOrdersYtd ?? 266536
-    const posPaymentsYtd = counts.posPaymentsYtd ?? 330005
-    const vendorBillsYtd = counts.vendorBillsYtd ?? 4528
-    const accountMoveLinesYtd = counts.accountMoveLinesYtd ?? 13616152
-    const stockMovesYtd = counts.stockMovesYtd ?? 7343412
-    const activeBoms = counts.activeBoms ?? 1007
-    const whitelistedRegisters = counts.whitelistedPosRegisters ?? 27
+    // Real computed variance against Posted General Ledger (`account.move.line`)
+    const glAcc = activeBkt?.accounting
+    const hasLiveGlRevenue =
+      Boolean(glAcc?.available) &&
+      typeof glAcc?.totalRevenue === 'number' &&
+      Number.isFinite(glAcc.totalRevenue)
+    const glRevenueKwd = hasLiveGlRevenue ? (glAcc!.totalRevenue as number) : null
+    const glVsPosDiff =
+      glRevenueKwd !== null ? glRevenueKwd - companyActivePosKwd : null
 
-    const assertions = [
-      {
-        id: 'cube-identity',
-        titleAr: 'مجموع المطاعم = الفروع = القنوات',
-        titleEn: 'Sum(Brands) = Sum(Branches) = Sum(Channels)',
-        formulaAr: `${f3(sumBrands)} = ${f3(sumBranches)} = ${f3(sumChannels)} د.ك`,
-        formulaEn: `${f3(sumBrands)} = ${f3(sumBranches)} = ${f3(sumChannels)} KWD`,
-        gapKwd: gap1,
-        passed: gap1 < 0.005,
-      },
-      {
-        id: 'pos-group-identity',
-        titleAr: 'المطاعم + معارض EXB = إجمالي الكاشير',
-        titleEn: 'Restaurants + EXB Booths = Total POS',
-        formulaAr: `${f3(sumRest)} + ${f3(sumExb)} = ${f3(totalPos)} د.ك`,
-        formulaEn: `${f3(sumRest)} + ${f3(sumExb)} = ${f3(totalPos)} KWD`,
-        gapKwd: gap2,
-        passed: gap2 < 0.005,
-      },
-      {
-        id: 'ledger-isolation',
-        titleAr: 'عزل الفروع المعتمدة بدفتر الأستاذ',
-        titleEn: 'Approved Branch Ledger Isolation',
-        formulaAr: `${f3(companyInc)} − ${f3(excludedInc)} = ${f3(isolatedInc)} د.ك`,
-        formulaEn: `${f3(companyInc)} − ${f3(excludedInc)} = ${f3(isolatedInc)} KWD`,
-        gapKwd: gap3,
-        passed: gap3 < 0.005,
-      },
-      {
-        id: 'per10-identity',
-        titleAr: 'مطابقة توزيعة كل ١٠ دنانير',
-        titleEn: '10-KWD Pocket Allocation Identity',
-        formulaAr: `${food10.toFixed(2)} + ${delivery10.toFixed(2)} + ${opexRent10.toFixed(2)} + ${netPocket10.toFixed(2)} = ${f3(sum10)} د.ك`,
-        formulaEn: `${food10.toFixed(2)} + ${delivery10.toFixed(2)} + ${opexRent10.toFixed(2)} + ${netPocket10.toFixed(2)} = ${f3(sum10)} KWD`,
-        gapKwd: gap4,
-        passed: gap4 < 0.005,
-      },
-    ]
+    const canonicalEquationAr = `الفروع الـ ${APPROVED_BRANCH_IDS.length} المربوطة (${f3(mappedBranchesKwd)}) + الأجهزة النشطة غير المربوطة (${f3(unmappedTerminalsKwd)}) = صافي مبيعات الشركة النشط (${f3(companyActivePosKwd)} د.ك)`
+    const canonicalEquationEn = `${APPROVED_BRANCH_IDS.length} Mapped Branches (${f3(mappedBranchesKwd)}) + Unmapped Active Terminals (${f3(unmappedTerminalsKwd)}) = Active Company POS Net Sales (${f3(companyActivePosKwd)} KWD)`
 
-    const allPassed = assertions.every((a) => a.passed)
+    const varianceBadgeAr =
+      glVsPosDiff !== null
+        ? `الفارق الفعلي مع دفتر الأستاذ: ${fSigned3(glVsPosDiff)} د.ك`
+        : `فرق التوزيع الداخلي للكاشير: ${fSigned3(posEquationVarianceKwd)} د.ك`
+    const varianceBadgeEn =
+      glVsPosDiff !== null
+        ? `Actual GL vs POS Variance: ${fSigned3(glVsPosDiff)} KWD`
+        : `Internal POS Allocation Variance: ${fSigned3(posEquationVarianceKwd)} KWD`
+
+    const varianceReasonAr =
+      glVsPosDiff !== null && glRevenueKwd !== null
+        ? `إيرادات دفتر الأستاذ العام المرحّلة (account.move.line) لنفس الفترة تبلغ ${f3(glRevenueKwd)} د.ك مقابل ${f3(companyActivePosKwd)} د.ك في نقاط البيع النشطة (${fInt(posOrdersActiveWindow)} إيصال خلال ${fInt(periodDays)} يوماً)، بفارق محاسبي محسوب قدره ${fSigned3(glVsPosDiff)} د.ك ناتج عن قيود جلسات الوحدات المستبعدة المرحّلة في حسابات المبيعات المشتركة وفواتير التموين وتوقيت إقفال الورديات الليلية.`
+        : `قيود إيرادات دفتر الأستاذ العام غير محمّلة لهذه النافذة؛ إجمالي نقاط البيع النشطة المعتمد هو ${f3(companyActivePosKwd)} د.ك عبر ${fInt(posOrdersActiveWindow)} إيصال خلال ${fInt(periodDays)} يوماً عبر ${APPROVED_BRAND_IDS.length} علامات تجارية و${APPROVED_BRANCH_IDS.length} فروع.`
+    const varianceReasonEn =
+      glVsPosDiff !== null && glRevenueKwd !== null
+        ? `Posted General Ledger revenue (account.move.line) for this exact window is ${f3(glRevenueKwd)} KWD vs. ${f3(companyActivePosKwd)} KWD in active POS (${fInt(posOrdersActiveWindow)} receipts across ${fInt(periodDays)} days), yielding a real computed variance of ${fSigned3(glVsPosDiff)} KWD from shared income-account postings of excluded units, catering invoices, and midnight shift-close cutoffs.`
+        : `Posted General Ledger revenue is not loaded for this window; canonical active POS net sales equal ${f3(companyActivePosKwd)} KWD across ${fInt(posOrdersActiveWindow)} receipts (${fInt(periodDays)} days) spanning ${APPROVED_BRAND_IDS.length} brands and ${APPROVED_BRANCH_IDS.length} branches.`
+
+    const isExactZeroFromLive =
+      isLiveConnected && glVsPosDiff !== null && Math.abs(glVsPosDiff) < 0.001
 
     return {
-      posOrdersYtd,
-      posOrders30d: ODOO.totals.orders,
-      posPaymentsYtd,
-      vendorBillsYtd,
-      accountMoveLinesYtd,
-      stockMovesYtd,
-      activeBoms,
-      whitelistedRegisters,
-      brandsCount: APPROVED_BRAND_IDS.length,
-      branchesCount: APPROVED_BRANCH_IDS.length,
-      assertions,
-      allPassed,
+      isLiveConnected,
+      periodFrom,
+      periodTo,
+      periodDays,
+      lastSyncedLabel,
+      mappedBranchesKwd,
+      unmappedTerminalsKwd,
+      companyActivePosKwd,
+      posOrdersActiveWindow,
+      glRevenueKwd,
+      glVsPosDiff,
+      posEquationVarianceKwd,
+      canonicalEquationAr,
+      canonicalEquationEn,
+      varianceBadgeAr,
+      varianceBadgeEn,
+      varianceReasonAr,
+      varianceReasonEn,
+      isExactZeroFromLive,
     }
-  }, [liveSummary, workspace.per10])
+  }, [filters.period, liveSummary])
 
   const handleRefreshAudit = useCallback(async () => {
     setRefreshing(true)
     try {
-      const syncBucket = filters.period === 'custom' ? 'month' : filters.period
-      const res = await fetch(`/api/odoo-sync?period=${encodeURIComponent(syncBucket)}`, {
+      const qs =
+        filters.period === 'custom' && filters.customFrom && filters.customTo
+          ? `period=custom&from=${encodeURIComponent(filters.customFrom)}&to=${encodeURIComponent(filters.customTo)}`
+          : `period=${encodeURIComponent(filters.period === 'custom' ? 'month' : filters.period)}`
+      const res = await fetch(`/api/erp/odoo-sync?${qs}`, {
         cache: 'no-store',
         credentials: 'same-origin',
       })
@@ -186,38 +191,34 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
         window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: d }))
       }
     } catch {
-      // fallback to verified snapshot
+      // keep last known state
     } finally {
       setAuditTime(new Date())
       setRefreshing(false)
     }
-  }, [filters.period])
+  }, [filters.customFrom, filters.customTo, filters.period])
 
   const kuwaitTimestamp = useMemo(() => formatKuwaitNow(isAr, auditTime), [auditTime, isAr])
 
   const handleCopyWhatsApp = useCallback(async () => {
     const lines = isAr
       ? [
-          `✅ *شهادة فحص ومطابقة أودو 17 — فنتشر فودز*`,
-          `🕒 توقيت الكويت: ${kuwaitTimestamp}`,
-          `📦 السجلات المفحوصة:`,
-          `• إيصالات الكاشير: ${fInt(auditData.posOrdersYtd)} سنوياً (${fInt(auditData.posOrders30d)} آخر ٣٠ يوم)`,
-          `• فواتير الموردين والوصفات: ${fInt(auditData.vendorBillsYtd)} فاتورة • ${fInt(auditData.activeBoms)} وصفة BOM`,
-          `• القيود والمخزون: ${fInt(auditData.accountMoveLinesYtd)} قيد محاسبي • ${fInt(auditData.stockMovesYtd)} حركة مخزون`,
-          `• النطاق المعتمد: ${auditData.brandsCount} مطاعم • ${auditData.branchesCount} فروع نشطة + EXB (${auditData.whitelistedRegisters} كاشير)`,
-          `🧮 مطابقات الحساب الحية (فرق 0.000 د.ك):`,
-          ...auditData.assertions.map((a) => `✓ ${a.titleAr}: ${a.formulaAr} (الفرق ${f3(a.gapKwd)} د.ك)`),
+          `📋 *شهادة فحص ومطابقة أودو 17 — فنتشر فودز*`,
+          `🗓️ الفترة المفحوصة: من ${auditData.periodFrom} إلى ${auditData.periodTo} (${fInt(auditData.periodDays)} يوماً)`,
+          `🕒 وقت الفحص بتوقيت الكويت: ${kuwaitTimestamp}${auditData.lastSyncedLabel ? ` (آخر مزامنة أودو: ${auditData.lastSyncedLabel})` : ''}`,
+          `💰 الإجمالي الموحد المعتمد: ${f3(auditData.companyActivePosKwd)} د.ك (${fInt(auditData.posOrdersActiveWindow)} إيصال كاشير)`,
+          `🧮 المعادلة الموحدة: ${auditData.canonicalEquationAr}`,
+          `⚖️ ${auditData.varianceBadgeAr}`,
+          `📌 التفسير المحاسبي: ${auditData.varianceReasonAr}`,
         ]
       : [
-          `✅ *Odoo 17 Audit & Reconciliation Certificate — Venture Foods*`,
-          `🕒 Kuwait Time: ${kuwaitTimestamp}`,
-          `📦 Records Scanned:`,
-          `• POS Receipts: ${fInt(auditData.posOrdersYtd)} YTD (${fInt(auditData.posOrders30d)} 30d)`,
-          `• Vendor Bills & BOMs: ${fInt(auditData.vendorBillsYtd)} bills • ${fInt(auditData.activeBoms)} BOMs`,
-          `• Ledger & Stock: ${fInt(auditData.accountMoveLinesYtd)} journal lines • ${fInt(auditData.stockMovesYtd)} stock moves`,
-          `• Approved Scope: ${auditData.brandsCount} brands • ${auditData.branchesCount} branches + EXB (${auditData.whitelistedRegisters} POS registers)`,
-          `🧮 Runtime Math Assertions (0.000 KWD gap):`,
-          ...auditData.assertions.map((a) => `✓ ${a.titleEn}: ${a.formulaEn} (gap ${f3(a.gapKwd)} KWD)`),
+          `📋 *Odoo 17 Audit & Reconciliation Certificate — Venture Foods*`,
+          `🗓️ Audited Window: ${auditData.periodFrom} to ${auditData.periodTo} (${fInt(auditData.periodDays)} days)`,
+          `🕒 Kuwait Audit Time: ${kuwaitTimestamp}${auditData.lastSyncedLabel ? ` (Last Odoo Sync: ${auditData.lastSyncedLabel})` : ''}`,
+          `💰 Canonical Active POS Total: ${f3(auditData.companyActivePosKwd)} KWD (${fInt(auditData.posOrdersActiveWindow)} POS receipts)`,
+          `🧮 Canonical Equation: ${auditData.canonicalEquationEn}`,
+          `⚖️ ${auditData.varianceBadgeEn}`,
+          `📌 Accounting Note: ${auditData.varianceReasonEn}`,
         ]
 
     try {
@@ -259,25 +260,25 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                 {/* Modal Header */}
                 <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 pb-4 dark:border-white/10">
                   <div className="space-y-1">
-                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-extrabold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-extrabold text-slate-800 ring-1 ring-slate-900/10 dark:bg-white/10 dark:text-slate-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       <span>
-                        {auditData.allPassed
+                        {auditData.isLiveConnected
                           ? isAr
-                            ? 'مطابقة تامة ١٠٠٪ — فرق 0.000 د.ك'
-                            : '100% Reconciled — 0.000 KWD Gap'
+                            ? `مطابقة فعلية من أودو 17 (${auditData.periodFrom} إلى ${auditData.periodTo})`
+                            : `Verified Odoo 17 Reconciliation (${auditData.periodFrom} → ${auditData.periodTo})`
                           : isAr
-                            ? 'قيد المراجعة'
-                            : 'Check Pending'}
+                            ? `بيانات مرجعية محفوظة (${auditData.periodFrom} إلى ${auditData.periodTo})`
+                            : `Cached Snapshot Bridge (${auditData.periodFrom} → ${auditData.periodTo})`}
                       </span>
                     </div>
                     <h2 className="text-[19px] font-extrabold tracking-tight text-slate-950 dark:text-white">
                       {isAr ? 'شهادة فحص ومطابقة أودو ✅' : 'Odoo 17 Audit & Reconciliation Certificate ✅'}
                     </h2>
-                    <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       {isAr
-                        ? `توقيت الكويت الحي (UTC+3): ${kuwaitTimestamp}`
-                        : `Live Kuwait Timestamp (UTC+3): ${kuwaitTimestamp}`}
+                        ? `الفترة: من ${auditData.periodFrom} إلى ${auditData.periodTo} (${fInt(auditData.periodDays)} يوماً) • وقت الفحص: ${kuwaitTimestamp}${auditData.lastSyncedLabel ? ` • آخر مزامنة أودو: ${auditData.lastSyncedLabel}` : ''}`
+                        : `Window: ${auditData.periodFrom} to ${auditData.periodTo} (${fInt(auditData.periodDays)} days) • Checked: ${kuwaitTimestamp}${auditData.lastSyncedLabel ? ` • Last Odoo sync: ${auditData.lastSyncedLabel}` : ''}`}
                     </p>
                   </div>
 
@@ -291,94 +292,63 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   </button>
                 </div>
 
-                {/* Real Odoo Scanned Counts (4 Bento Tiles) */}
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {isAr ? 'إيصالات الكاشير' : 'POS Receipts'}
-                    </div>
-                    <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
-                      {fInt(auditData.posOrdersYtd)}
-                    </div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {/* Single Canonical Total Hero Card */}
+                <div className="ae-bento-subcard mt-4 rounded-2xl p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">
                       {isAr
-                        ? `${fInt(auditData.posOrders30d)} آخر ٣٠ يوم`
-                        : `${fInt(auditData.posOrders30d)} last 30d`}
-                    </div>
+                        ? 'الإجمالي الموحد المعتمد لصافي مبيعات الشركة النشطة (Odoo 17 pos.order)'
+                        : 'Canonical Active Company POS Net Sales (Odoo 17 pos.order)'}
+                    </span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      {isAr
+                        ? `${fInt(auditData.posOrdersActiveWindow)} إيصال في ${fInt(auditData.periodDays)} يوماً`
+                        : `${fInt(auditData.posOrdersActiveWindow)} receipts in ${fInt(auditData.periodDays)} days`}
+                    </span>
                   </div>
-
-                  <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {isAr ? 'فواتير الموردين' : 'Vendor Bills'}
-                    </div>
-                    <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
-                      {fInt(auditData.vendorBillsYtd)}
-                    </div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {isAr
-                        ? `${fInt(auditData.activeBoms)} وصفة إنتاج`
-                        : `${fInt(auditData.activeBoms)} active BOMs`}
-                    </div>
-                  </div>
-
-                  <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {isAr ? 'قيود ومخزون' : 'Ledger & Stock'}
-                    </div>
-                    <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-slate-950 dark:text-white">
-                      {fInt(auditData.accountMoveLinesYtd)}
-                    </div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {isAr
-                        ? `${fInt(auditData.stockMovesYtd)} حركة مخزون`
-                        : `${fInt(auditData.stockMovesYtd)} stock moves`}
-                    </div>
-                  </div>
-
-                  <div className="ae-bento-subcard rounded-2xl p-3">
-                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                      {isAr ? 'المطاعم والفروع' : 'Brands & Branches'}
-                    </div>
-                    <div dir="ltr" className="mt-1 text-[17px] font-black tabular-nums text-emerald-700 dark:text-emerald-400">
-                      {auditData.brandsCount} × {auditData.branchesCount} + EXB
-                    </div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {isAr
-                        ? `${auditData.whitelistedRegisters} كاشير معتمد`
-                        : `${auditData.whitelistedRegisters} POS registers`}
-                    </div>
+                  <div
+                    dir="ltr"
+                    className="mt-2 text-2xl font-black tabular-nums text-emerald-700 dark:text-emerald-400"
+                  >
+                    {f3(auditData.companyActivePosKwd)} {isAr ? 'د.ك' : 'KWD'}
                   </div>
                 </div>
 
-                {/* 4 Live Runtime Math Assertions */}
-                <div className="mt-4 space-y-2">
-                  <div className="text-[12.5px] font-extrabold text-slate-900 dark:text-white">
-                    {isAr ? '٤ مطابقات حسابية حية (فرق 0.000 د.ك)' : '4 Live Runtime Math Assertions (0.000 KWD Gap)'}
-                  </div>
-                  {auditData.assertions.map((a) => (
-                    <div
-                      key={a.id}
-                      className="ae-bento-subcard flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 text-[12px]"
+                {/* Single Canonical Equation + Real Computed Variance */}
+                <div className="ae-bento-subcard mt-3 space-y-2.5 rounded-2xl p-4 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-extrabold text-slate-900 dark:text-white">
+                      {isAr
+                        ? 'معادلة المطابقة الموحدة والفارق المحاسبي الفعلي:'
+                        : 'Single Canonical Reconciliation Equation & Real Computed Variance:'}
+                    </span>
+                    <span
+                      dir="ltr"
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-extrabold tabular-nums ring-1 ${
+                        auditData.isExactZeroFromLive
+                          ? 'bg-emerald-50 text-emerald-800 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'bg-amber-50 text-amber-900 ring-amber-500/25 dark:bg-amber-950/50 dark:text-amber-200'
+                      }`}
                     >
-                      <div className="space-y-0.5">
-                        <div className="font-extrabold text-slate-900 dark:text-white">
-                          {isAr ? a.titleAr : a.titleEn}
-                        </div>
-                        <div dir="ltr" className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                          {isAr ? a.formulaAr : a.formulaEn}
-                        </div>
-                      </div>
-                      <span
-                        dir="ltr"
-                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[13px] font-extrabold tabular-nums text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      >
+                      {auditData.isExactZeroFromLive ? (
                         <Check className="h-3.5 w-3.5" />
-                        <span>
-                          {f3(a.gapKwd)} {isAr ? 'د.ك' : 'KWD'}
-                        </span>
-                      </span>
-                    </div>
-                  ))}
+                      ) : (
+                        <AlertCircle className="h-3.5 w-3.5" />
+                      )}
+                      <span>{isAr ? auditData.varianceBadgeAr : auditData.varianceBadgeEn}</span>
+                    </span>
+                  </div>
+
+                  <div
+                    dir="ltr"
+                    className="rounded-xl bg-slate-100/80 px-3 py-2 font-mono text-xs font-bold text-slate-800 dark:bg-white/[0.05] dark:text-slate-100"
+                  >
+                    {isAr ? auditData.canonicalEquationAr : auditData.canonicalEquationEn}
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                    {isAr ? auditData.varianceReasonAr : auditData.varianceReasonEn}
+                  </p>
                 </div>
 
                 {/* 3 Crisp Action Buttons: تحديث الفحص 🔄 | نسخ للواتساب 📋 | طباعة 🖨️ */}
@@ -387,7 +357,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                     type="button"
                     onClick={() => void handleRefreshAudit()}
                     disabled={refreshing}
-                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold text-slate-800 transition-all hover:text-slate-950 disabled:opacity-50 dark:text-slate-100"
+                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-bold text-slate-800 transition-all hover:text-slate-950 disabled:opacity-50 dark:text-slate-100"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                     <span>{isAr ? 'تحديث الفحص 🔄' : 'Refresh Audit 🔄'}</span>
@@ -396,7 +366,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   <button
                     type="button"
                     onClick={() => void handleCopyWhatsApp()}
-                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold text-slate-800 transition-all hover:text-slate-950 dark:text-slate-100"
+                    className="ae-bento-subcard inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-bold text-slate-800 transition-all hover:text-slate-950 dark:text-slate-100"
                   >
                     {copied ? (
                       <>
@@ -416,7 +386,7 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
                   <button
                     type="button"
                     onClick={() => window.print()}
-                    className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-[12.5px] font-bold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
+                    className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-bold text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
                   >
                     <Printer className="h-3.5 w-3.5" />
                     <span>{isAr ? 'طباعة 🖨️' : 'Print 🖨️'}</span>

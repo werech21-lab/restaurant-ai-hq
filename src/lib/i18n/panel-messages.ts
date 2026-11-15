@@ -2,7 +2,7 @@
 export const panelAr = {
   'panel.company.ar': 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
   'panel.company.en': 'VENTURE FOODS RESTAURANTS MANAGEMENT CO. W.L.L.',
-  'panel.tagline': '6 مطاعم • 7 فروع • 8 قنوات',
+  'panel.tagline': '6 علامات تجارية • 7 فروع • 8 قنوات',
   'nav.dashboard': 'لوحة التحكم',
   'nav.users': 'المستخدمون',
   'nav.roles': 'الأدوار والصلاحيات',
@@ -69,7 +69,7 @@ export const panelAr = {
   'login.password': 'كلمة المرور',
   'login.submit': 'دخول',
   'login.demo': 'دخول سريع تجريبي',
-  'login.heroLead': 'منظومة فنتشر فودز لإدارة مجموعات المطاعم في الكويت: 6 مطاعم • 7 فروع • 8 قنوات، مخزون، مشتريات، نقاط بيع وكاشير، ومالية بالدينار الكويتي.',
+  'login.heroLead': 'منظومة فنتشر فودز لإدارة مجموعات المطاعم في الكويت: 6 علامات تجارية • 7 فروع • 8 قنوات، مخزون، مشتريات، نقاط بيع وكاشير، ومالية بالدينار الكويتي.',
   'login.currency': 'العملة',
   'login.currencyVal': 'دينار كويتي · د.ك',
   'login.coverage': 'التغطية',

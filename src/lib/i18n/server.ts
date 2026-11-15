@@ -1,9 +1,11 @@
 import { cookies } from 'next/headers'
+import { EXEC_SESSION_COOKIE, verifyExecSessionToken } from '@/lib/auth/exec-session'
+import { getSavedUserLocale } from '@/lib/auth/user-locale-store'
 import type { Locale } from '@/lib/i18n'
 
 const LOCALE_COOKIES = ['NEXT_LOCALE', 'ai-hq-locale', 'vf_lang'] as const
 
-/** Server locale from cookies (defaults to EN; AR only when explicitly set). */
+/** Server locale from account preference + cookies (defaults strictly to Arabic 'ar' / RTL). */
 export async function getLocale(): Promise<Locale> {
   try {
     const store = await cookies()
@@ -11,10 +13,15 @@ export async function getLocale(): Promise<Locale> {
       const value = store.get(key)?.value
       if (value === 'en' || value === 'ar') return value
     }
+    const execSession = await verifyExecSessionToken(store.get(EXEC_SESSION_COOKIE)?.value)
+    const savedAccountLocale = getSavedUserLocale(execSession?.sub)
+    if (savedAccountLocale === 'en' || savedAccountLocale === 'ar') {
+      return savedAccountLocale
+    }
   } catch {
     // Cookie store unavailable during cold start.
   }
-  return 'en'
+  return 'ar'
 }
 
 /** Strict bilingual pick — never mix languages. */

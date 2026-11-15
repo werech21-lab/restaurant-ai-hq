@@ -44,6 +44,9 @@ const REACT_I18N_EXACT = ['/erp']
 
 function isReactI18nPath(pathname: string | null): boolean {
   if (!pathname) return false
+  if (pathname === '/erp' || pathname.startsWith('/erp/') || pathname.startsWith('/en/erp')) {
+    return true
+  }
   if (REACT_I18N_EXACT.includes(pathname)) return true
   return REACT_I18N_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }

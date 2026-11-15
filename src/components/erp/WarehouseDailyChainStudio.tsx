@@ -30,7 +30,7 @@ import {
 const CARD_CLS =
   'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CARD_CLS =
-  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-kpi-card min-w-0 overflow-hidden rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const SUBCARD_CLS =
   'rounded-2xl bg-[#F6F7F8] ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
 const SEGMENT_TRACK_CLS =
@@ -41,7 +41,7 @@ const SEGMENT_BTN_ACTIVE_CLS =
   'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
 const SEGMENT_BTN_IDLE_CLS =
   'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
-const TABLE_SCROLL_CLS = 'overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0'
+const TABLE_SCROLL_CLS = 'w-full max-w-full overflow-x-auto'
 const PAGE_SIZE = 12
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
@@ -86,7 +86,7 @@ export function WarehouseDailyChainStudio() {
   const isAr = locale !== 'en'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
 
-  const { filters, workspace } = useGlobalFilter()
+  const { filters, workspace, liveSummary } = useGlobalFilter()
   const { requestApproval, getApprovalByRef, openDrawer } = useGovernance()
 
   const [materialCategory, setMaterialCategory] = useState<RawMaterialCategory>('all')
@@ -95,8 +95,8 @@ export function WarehouseDailyChainStudio() {
   const [toastMsg, setToastMsg] = useState<{ ar: string; en: string } | null>(null)
 
   const snap = useMemo(
-    () => computeWarehouseDailyChain(filters, workspace, materialCategory),
-    [filters, materialCategory, workspace],
+    () => computeWarehouseDailyChain(filters, workspace, materialCategory, liveSummary),
+    [filters, liveSummary, materialCategory, workspace],
   )
 
   useEffect(() => {
@@ -240,7 +240,7 @@ export function WarehouseDailyChainStudio() {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-full max-w-[1920px] mx-auto space-y-6 pb-12 font-sans text-[14px] sm:text-[15px] text-neutral-900 antialiased dark:text-slate-100"
+      className="w-full max-w-[1920px] mx-auto overflow-x-clip space-y-6 pb-12 font-sans text-[14px] sm:text-[15px] text-neutral-900 antialiased dark:text-slate-100"
     >
       {toastMsg ? (
         <div className="fixed bottom-20 lg:bottom-6 end-6 z-50 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-[13.5px] font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#101C17] dark:text-emerald-300 dark:ring-emerald-500/20">
@@ -348,14 +348,29 @@ export function WarehouseDailyChainStudio() {
             )
           })}
         </div>
+
+        {liveSummary?.stockTransfers?.readable ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/35 dark:text-emerald-200">
+            <span>
+              {isAr
+                ? `مزامنة حركات أودو 17 (stock.picking): ${f0(liveSummary.stockTransfers.recentDoneCount)} حركة مكتملة مؤخراً • ${f0(liveSummary.stockTransfers.pendingCount)} قيد النقل • الأيام المغلقة ثابتة حتمياً بالتاريخ`
+                : `Live Odoo 17 stock.picking sync: ${f0(liveSummary.stockTransfers.recentDoneCount)} recent done • ${f0(liveSummary.stockTransfers.pendingCount)} in transit • Closed days deterministically locked by date`}
+            </span>
+            {liveSummary.stockTransfers.latestTransferAt ? (
+              <span dir="ltr" className="tabular-nums text-emerald-700 dark:text-emerald-300">
+                {liveSummary.stockTransfers.latestTransferAt.slice(0, 16).replace('T', ' ')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {/* ───────────── 2. Connected 4-Stage KPI Grid (`2x2` Mobile Grid) ───────────── */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Node 1 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <div className="flex min-w-0 items-center justify-between gap-1.5">
+            <span className="inline-flex min-w-0 items-center gap-1 rounded-xl bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <Package className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('1. Warehouse Stock', '١. رصيد المخزن')}</span>
             </span>
@@ -381,8 +396,8 @@ export function WarehouseDailyChainStudio() {
 
         {/* Node 2 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-sky-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
+          <div className="flex min-w-0 items-center justify-between gap-1.5">
+            <span className="inline-flex min-w-0 items-center gap-1 rounded-xl bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-300">
               <Truck className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('2. Daily Outbound', '٢. المنصرف الخارج')}</span>
             </span>
@@ -412,8 +427,8 @@ export function WarehouseDailyChainStudio() {
 
         {/* Node 3 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+          <div className="flex min-w-0 items-center justify-between gap-1.5">
+            <span className="inline-flex min-w-0 items-center gap-1 rounded-xl bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
               <Store className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('3. Branch Received', '٣. المستلم بالفرع')}</span>
             </span>
@@ -444,8 +459,8 @@ export function WarehouseDailyChainStudio() {
 
         {/* Node 4 */}
         <article className={`${KPI_CARD_CLS} flex flex-col justify-between`}>
-          <div className="flex items-center justify-between gap-1.5">
-            <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] sm:text-[12px] font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+          <div className="flex min-w-0 items-center justify-between gap-1.5">
+            <span className="inline-flex min-w-0 items-center gap-1 rounded-xl bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
               <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">{T('4. Sold & Waste', '٤. المباع والهدر')}</span>
             </span>

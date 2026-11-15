@@ -315,6 +315,11 @@ export function SocialReviewsStudio() {
                 ? `طلبات · كيتا · جاهز · ديليفرو · كاري/سنونو · جوجل · إنستغرام · تيك توك · إكس • ${workspace.subtitleAr}`
                 : `Talabat · Keeta · Jahez · Deliveroo · Cari · Google · IG · TikTok · X • ${workspace.subtitleEn}`}
             </p>
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              {isAr
+                ? `عينة محدودة (${snap.totalReviews} تقييم موثق من أصل ${workspace.orders.toLocaleString('en-US')} طلب)`
+                : `Limited Sample (${snap.totalReviews} documented reviews of ${workspace.orders.toLocaleString('en-US')} orders)`}
+            </span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -454,8 +459,8 @@ export function SocialReviewsStudio() {
           </div>
           <p className="mt-1.5 text-[13px] sm:text-[12.5px] leading-snug text-neutral-500 tabular-nums dark:text-slate-400">
             {isAr
-              ? `إجمالي ${snap.totalReviews} تقييم مرصود`
-              : `Across ${snap.totalReviews} reviews`}
+              ? `عينة محدودة: ${snap.totalReviews} تقييم مرصود (من ${workspace.orders.toLocaleString('en-US')} طلب أودو)`
+              : `Limited sample: ${snap.totalReviews} reviews (of ${workspace.orders.toLocaleString('en-US')} Odoo orders)`}
           </p>
         </div>
 

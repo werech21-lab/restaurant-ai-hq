@@ -99,6 +99,7 @@ import {
   formatStaticMarginPill,
   isExcludedOdooEntity,
   clampPeriodToKuwaitToday,
+  getKuwaitTimeContext,
   getKuwaitTodayIso,
   formatAdminUnmappedAlertCopy,
   UNMAPPED_TERMINALS_LABEL_AR,
@@ -691,9 +692,10 @@ import {
     null,
     { referenceNowMs: kwMidday14Ms },
   );
+  const expectedYesterdayKwIso = getKuwaitTimeContext().yesterdayIso;
   const closingFix2FairWindowOk =
-    DEFAULT_COMPARISON_DATE_A === '2026-11-13' &&
-    DEFAULT_RANGE_TO_A === '2026-11-13' &&
+    DEFAULT_COMPARISON_DATE_A === expectedYesterdayKwIso &&
+    DEFAULT_RANGE_TO_A === expectedYesterdayKwIso &&
     compDefaultsOff.periodA.from === '2026-11-07' &&
     compDefaultsOff.periodA.to === '2026-11-13' &&
     compDefaultsOff.periodB.from === '2026-10-31' &&

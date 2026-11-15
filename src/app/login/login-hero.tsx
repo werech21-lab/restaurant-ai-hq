@@ -69,7 +69,7 @@ export function LoginHero() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-5">
           <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-3 py-1 text-xs font-semibold tabular-nums text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            <span>Aether BI v2.8 Enterprise</span>
+            <span>{isAr ? 'منصة إيثر لذكاء الأعمال 2.8' : 'Aether BI v2.8 Enterprise'}</span>
           </span>
         </div>
 
@@ -78,24 +78,26 @@ export function LoginHero() {
           <VentureFoodsEmblem className="h-14 w-14 shrink-0 drop-shadow-md" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold tracking-wider uppercase text-emerald-400" dir="ltr">
-                Venture Foods
+              <span className="text-xs font-bold tracking-wider text-emerald-400">
+                {isAr ? 'فنتشر فودز الكويت' : 'Venture Foods Kuwait'}
               </span>
               <span className="text-white/25" aria-hidden>
                 •
               </span>
-              <span className="text-xs font-medium text-slate-300">Odoo 17 Live ERP</span>
+              <span className="text-xs font-medium text-slate-300">
+                {isAr ? 'تكامل بيانات أودو 17' : 'Odoo 17 ERP Integration'}
+              </span>
             </div>
-            <h1 className="mt-1 text-2xl font-bold leading-snug tracking-tight text-white xl:text-[26px]">
+            <h2 className="mt-1 text-2xl font-bold leading-snug tracking-tight text-white xl:text-[26px]">
               {companyName}
-            </h1>
+            </h2>
           </div>
         </div>
 
         {/* Official Unified Executive Scope Statement */}
         <p className="mt-5 rounded-2xl border border-emerald-400/15 bg-emerald-950/35 px-4 py-3 text-[13px] font-semibold leading-relaxed text-emerald-100">
           {isAr
-            ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م • 6 مطاعم • 7 فروع • 8 قنوات • منصة إيثر لذكاء الأعمال والحوكمة المرتبطة بأودو 17'
+            ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م • 6 علامات تجارية • 7 فروع • 8 قنوات • منصة إيثر لذكاء الأعمال والحوكمة المرتبطة بأودو 17'
             : 'Venture Foods Restaurants Co. W.L.L. • 6 Brands • 7 Branches • 8 Channels • Aether BI & Governance Platform Connected to Odoo 17'}
         </p>
 
@@ -112,7 +114,7 @@ export function LoginHero() {
             </div>
             <p className="mt-1.5 text-sm font-bold tabular-nums text-emerald-300">
               {isAr
-                ? '6 مطاعم • 7 فروع • 8 قنوات'
+                ? '6 علامات تجارية • 7 فروع • 8 قنوات'
                 : '6 Brands • 7 Branches • 8 Channels'}
             </p>
           </div>
@@ -134,8 +136,8 @@ export function LoginHero() {
             </div>
             <p className="mt-1.5 text-xs font-semibold leading-relaxed text-slate-200">
               {isAr
-                ? 'مطابقة لحظية لدفتر الأستاذ ونقاط البيع والذمم عبر 7 فروع'
-                : 'Zero-gap general ledger, POS & aggregator reconciliation'}
+                ? 'مطابقة آلية لدفتر الأستاذ العام ونقاط البيع والذمم عبر 7 فروع'
+                : 'Automated general ledger, POS & aggregator reconciliation across 7 branches'}
             </p>
           </div>
 

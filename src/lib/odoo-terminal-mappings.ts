@@ -109,6 +109,7 @@ export interface PosReconciliationReport {
   mappedBranchesOrders: number
   unmappedTerminalsNetKwd: number
   unmappedTerminalsOrders: number
+  nonBranchBridgeTotalKwd: number
   exclusionGapKwd: number
   allocationGapKwd: number
   reconciledExact: boolean
@@ -341,14 +342,14 @@ export function resetAdminPosTerminalMappingsForTests(): void {
   persistOverridesToDisk(state.overrides)
 }
 
-const DECOMM_WH_EN = ['Qur', 'ain'].join('')
-const DECOMM_WH_CODE = ['Q', 'RN'].join('')
-const DECOMM_WH_AR = String.fromCharCode(0x0627, 0x0644, 0x0642, 0x0631, 0x064a, 0x0646)
-const EXCL_BRAND_EN = ['Heisen', 'berg'].join('')
-const EXCL_BRAND_AR =
-  String.fromCharCode(0x0647, 0x0627, 0x064a, 0x0632, 0x0646) +
-  ' ' +
-  String.fromCharCode(0x0628, 0x0631, 0x064a, 0x062c)
+/**
+ * Generic governance labels for decommissioned / non-operating Odoo entities:
+ * Standing Rule: Never display forbidden legacy warehouse or non-operating brand names anywhere.
+ */
+const DECOMM_UNIT_LABEL_EN = 'Decommissioned Dispatch & Warehouse Unit (#24 & #36)'
+const DECOMM_UNIT_LABEL_AR = 'وحدة التوصيل والمستودع المتوقفة عن التشغيل (كاشير #24 و#36)'
+const EXCL_CATEGORY_LABEL_EN = 'Non-Operating POS Category (#150)'
+const EXCL_CATEGORY_LABEL_AR = 'فئة نقاط البيع غير التشغيلية المستبعدة (فئة #150)'
 
 /**
  * Canonical verified Odoo 17 `pos.config` ledger (`2026-10-16` -> `2026-11-14` audit snapshot):
@@ -690,24 +691,26 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
     {
       entity_id: 'decommissioned-wh-pos-24-36',
       terminal_ids: [24, 36],
-      label_en: `${DECOMM_WH_EN} (${DECOMM_WH_EN} WH / ${DECOMM_WH_CODE}) — Delivery (${DECOMM_WH_EN}) #24 & Temp #36`,
-      label_ar: `فرع ومستودع ${DECOMM_WH_AR} المتوقف (${DECOMM_WH_CODE}) — جهاز #24 وجهاز #36`,
+      label_en: DECOMM_UNIT_LABEL_EN,
+      label_ar: DECOMM_UNIT_LABEL_AR,
       reason_en: 'Decommissioned warehouse & closed delivery dispatch unit excluded from active 7-branch ledger',
-      reason_ar: 'فرع ومستودع متوقف عن التشغيل مستبعد بالكامل من دفتر الفروع السبعة النشطة',
+      reason_ar: 'وحدة تشغيلية ومستودع متوقف مستبعد بالكامل من دفتر الفروع السبعة النشطة',
       orders_count: Math.max(0, Math.round(sourceData.excludedPos24Orders + sourceData.excludedPos36Orders)),
       net_sales_kwd: r3(sourceData.excludedPos24Kwd + sourceData.excludedPos36Kwd),
     },
     {
       entity_id: 'excluded-brand-hb-150',
       terminal_ids: [],
-      label_en: `${EXCL_BRAND_EN} (pos.category #150 HB)`,
-      label_ar: `علامة ${EXCL_BRAND_AR} المستبعدة (فئة نقاط البيع HB #150)`,
-      reason_en: 'Non-operating / excluded brand purged across all 6 active Venture Foods brands',
-      reason_ar: 'علامة تجارية مستبعدة خارج نطاق العلامات الست المعتمدة للشركة',
+      label_en: EXCL_CATEGORY_LABEL_EN,
+      label_ar: EXCL_CATEGORY_LABEL_AR,
+      reason_en: 'Non-operating / excluded POS category outside the 6 active Venture Foods brands',
+      reason_ar: 'فئة تجارية مستبعدة خارج نطاق العلامات الست المعتمدة للشركة',
       orders_count: 0,
       net_sales_kwd: 0,
     },
   ]
+
+  const nonBranchBridgeTotalKwd = r3(excludedEntitiesKwd + unmappedNetAcc)
 
   return {
     source: useLive ? 'odoo17-live' : 'verified-baseline',
@@ -754,6 +757,7 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
       mappedBranchesOrders,
       unmappedTerminalsNetKwd: unmappedNetAcc,
       unmappedTerminalsOrders: unmappedOrdersAcc,
+      nonBranchBridgeTotalKwd,
       exclusionGapKwd,
       allocationGapKwd,
       reconciledExact,

@@ -191,7 +191,42 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   { match: '/dashboard', title: { en: 'Detailed Financial Report', ar: 'التقرير المالي التفصيلي' } },
   { match: '/erp/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
   { match: '/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
-  { match: '/erp/finance', title: { en: 'Finance', ar: 'المالية' } },
+  {
+    match: '/erp/finance',
+    title: {
+      en: 'Finance & General Ledger',
+      ar: 'المركز المالي والمحاسبة',
+      mobileEn: 'Finance',
+      mobileAr: 'المالية',
+    },
+  },
+  {
+    match: '/erp/receivables',
+    title: {
+      en: 'AR & Receivables Aging',
+      ar: 'الذمم المدينة وأعمار الديون',
+      mobileEn: 'AR Aging',
+      mobileAr: 'الذمم المدينة',
+    },
+  },
+  {
+    match: '/erp/competitors',
+    title: {
+      en: 'Competitors & Market Radar',
+      ar: 'رادار المنافسين والسوق',
+      mobileEn: 'Competitors',
+      mobileAr: 'المنافسون',
+    },
+  },
+  {
+    match: '/erp/market',
+    title: {
+      en: 'Competitors & Market Radar',
+      ar: 'رادار المنافسين والسوق',
+      mobileEn: 'Competitors',
+      mobileAr: 'المنافسون',
+    },
+  },
   { match: '/accounting', title: { en: 'Accounting', ar: 'المحاسبة' } },
   { match: '/erp/inventory', title: { en: 'Inventory', ar: 'المخزون' } },
   { match: '/inventory', title: { en: 'Inventory', ar: 'المخزون' } },

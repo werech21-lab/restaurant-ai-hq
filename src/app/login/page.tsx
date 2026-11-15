@@ -12,7 +12,7 @@ import {
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 
 export const metadata: Metadata = {
-  title: 'Sign in | Venture Foods · Aether BI',
+  title: 'تسجيل الدخول | فنتشر فودز · إيثر لذكاء الأعمال',
   robots: {
     index: false,
     follow: false,

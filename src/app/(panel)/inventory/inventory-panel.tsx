@@ -571,7 +571,7 @@ export function InventoryPanel({
               {[
                 { id: "ALL", labelAr: "الكل", labelEn: "All" },
                 { id: "CK", labelAr: "المطبخ المركزي", labelEn: "Central Kitchen" },
-                { id: "BRANCHES", labelAr: "الفروع الـ 9 النشطة", labelEn: "9 Branches" },
+                { id: "BRANCHES", labelAr: "الفروع الـ 7 النشطة", labelEn: "7 Branches" },
                 { id: "MEAT_RAW", labelAr: "المواد الخام واللحوم", labelEn: "Raw Meats & Ingredients" },
                 { id: "PREP", labelAr: "تحضيرات وصوصات المطبخ المركزي", labelEn: "CK Preps & Sauces" },
                 { id: "PACKAGING", labelAr: "مواد التغليف والعلب", labelEn: "Packaging & Disposables" },

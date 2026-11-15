@@ -6,6 +6,7 @@ import {
 } from '@/lib/auth/exec-session'
 import {
   canTriggerManualOdooSync,
+  isAuditorForbiddenPath,
   isErpRouteAllowedForRole,
   resolveCanonicalErpAlias,
   resolvePostLoginRedirectForRole,
@@ -37,12 +38,69 @@ export const EXEC_ROLE_WHITELIST: ReadonlySet<ExecRole> = new Set<ExecRole>([
 export const PERMISSIONS_POLICY_VALUE =
   'camera=(self), microphone=(self), geolocation=()'
 const ROBOTS_TAG_VALUE = 'noindex, nofollow, noarchive'
+const HSTS_HEADER_VALUE = 'max-age=31536000; includeSubDomains'
+
+function generateCspNonce(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+function originOfUrl(value?: string): string | null {
+  if (!value) return null
+  try {
+    return new URL(value).origin
+  } catch {
+    return null
+  }
+}
+
+function buildMiddlewareCsp(nonce: string, isProduction: boolean): string {
+  const supabase = originOfUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const connect = [
+    "'self'",
+    'https://generativelanguage.googleapis.com',
+    'https://*.googleapis.com',
+    'https://api.x.ai',
+    'https://*.x.ai',
+    'https://api.openai.com',
+    'https://translate.google.com',
+    'https://*.openai.com',
+  ]
+  if (supabase) {
+    connect.push(supabase)
+    connect.push(supabase.replace(/^http/, 'ws'))
+  }
+  const scriptSrc = isProduction
+    ? ["'self'", `'nonce-${nonce}'`]
+    : ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+  const parts = [
+    "default-src 'self'",
+    `script-src ${scriptSrc.join(' ')}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "media-src 'self' blob: data: https://api.openai.com https://translate.google.com",
+    `connect-src ${connect.join(' ')}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ]
+  if (isProduction) parts.push('upgrade-insecure-requests')
+  return parts.join('; ')
+}
 
 const PUBLIC_EXACT_PATHS = new Set([
   '/login',
   '/session-end',
   '/api/auth/login',
   '/api/auth/logout',
+  '/api/auth/locale',
   '/api/health',
   '/robots.txt',
   '/manifest.json',
@@ -101,15 +159,19 @@ const PROTECTED_PAGE_PREFIXES = [
   '/recipes',
 ]
 
-function withSecurityHeaders(response: NextResponse): NextResponse {
+function withSecurityHeaders(response: NextResponse, cspValue?: string): NextResponse {
+  const isProd = process.env.NODE_ENV === 'production'
+  if (cspValue) {
+    response.headers.set('Content-Security-Policy', cspValue)
+  }
   response.headers.set('X-Robots-Tag', ROBOTS_TAG_VALUE)
   response.headers.set('Permissions-Policy', PERMISSIONS_POLICY_VALUE)
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
-  if (process.env.NODE_ENV === 'production') {
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000')
+  if (isProd) {
+    response.headers.set('Strict-Transport-Security', HSTS_HEADER_VALUE)
   }
   return response
 }
@@ -160,16 +222,21 @@ function isAuthorizedCronRequest(request: NextRequest, pathname: string): boolea
 }
 
 function isAuditorBlockedReadOrExportPath(pathname: string): boolean {
-  return AUDITOR_BLOCKED_ANY_METHOD_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  )
+  if (
+    AUDITOR_BLOCKED_ANY_METHOD_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return true
+  }
+  return isAuditorForbiddenPath(pathname)
 }
 
 function isAuditorRestrictedMutationPath(pathname: string): boolean {
   if (
     pathname === '/api/auth/login' ||
     pathname === '/api/auth/logout' ||
-    pathname === '/api/v1/governance/telemetry'
+    pathname === '/api/auth/locale'
   ) {
     return false
   }
@@ -183,11 +250,43 @@ function isAuditorRestrictedMutationPath(pathname: string): boolean {
   ) {
     return true
   }
-  return pathname.startsWith('/api/')
+  return true
+}
+
+function buildAuditorForbiddenPageResponse(): NextResponse {
+  const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>403 — وصول مقيّد | فنتشر فودز</title>
+</head>
+<body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#070d17;color:#f8fafc;font-family:system-ui,-apple-system,sans-serif;padding:24px;">
+  <main style="max-width:480px;width:100%;border:1px solid rgba(16,185,129,0.25);background:#0d1522;border-radius:16px;padding:28px;text-align:center;">
+    <div style="display:inline-block;padding:4px 12px;border-radius:999px;background:rgba(244,63,94,0.15);color:#fda4af;font-size:12px;font-weight:700;">403 · Read-only auditor session</div>
+    <h1 style="margin:14px 0 8px;font-size:20px;font-weight:800;">هذا المسار محظور على حساب المراجع</h1>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#94a3b8;">بيانات المستخدمين والموارد البشرية والإعدادات محجوبة من الخادم لحساب المراجعة للقراءة فقط.</p>
+    <a href="/erp" style="display:inline-block;padding:10px 20px;border-radius:10px;background:#10b981;color:#020617;font-size:13px;font-weight:800;text-decoration:none;">العودة إلى لوحة القيادة التنفيذية</a>
+  </main>
+</body>
+</html>`
+  return new NextResponse(html, {
+    status: 403,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  })
 }
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
+  const isProd = process.env.NODE_ENV === 'production'
+  const nonce = generateCspNonce()
+  const csp = buildMiddlewareCsp(nonce, isProd)
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
+
+  const seal = (res: NextResponse) => withSecurityHeaders(res, csp)
+  const passThrough = () => seal(NextResponse.next({ request: { headers: requestHeaders } }))
 
   try {
     const host = request.headers.get('host') || ''
@@ -195,9 +294,7 @@ export async function middleware(request: NextRequest) {
       const canonicalUrl = request.nextUrl.clone()
       canonicalUrl.host = 'aetherbi.com'
       canonicalUrl.protocol = 'https'
-      return withSecurityHeaders(
-        NextResponse.redirect(canonicalUrl, { status: 301 }),
-      )
+      return seal(NextResponse.redirect(canonicalUrl, { status: 301 }))
     }
 
     const rawToken =
@@ -214,7 +311,7 @@ export async function middleware(request: NextRequest) {
           path.startsWith('/api/erp/role-directory/')) &&
         execSession.role !== 'admin'
       ) {
-        return withSecurityHeaders(
+        return seal(
           NextResponse.json(
             {
               ok: false,
@@ -225,22 +322,38 @@ export async function middleware(request: NextRequest) {
           ),
         )
       }
-      if (
-        execSession.role === 'auditor' &&
-        (isAuditorBlockedReadOrExportPath(path) ||
-          (MUTATION_METHODS.has(method) && isAuditorRestrictedMutationPath(path)))
-      ) {
-        return withSecurityHeaders(
-          NextResponse.json(
-            {
-              ok: false,
-              error: 'Read-only auditor session',
-              errorAr:
-                'حساب مراجعة للقراءة فقط — التعديل والاعتماد غير متاحين.',
-            },
-            { status: 403 },
-          ),
-        )
+      if (execSession.role === 'auditor') {
+        if (MUTATION_METHODS.has(method) && isAuditorRestrictedMutationPath(path)) {
+          return seal(
+            NextResponse.json(
+              {
+                ok: false,
+                error: 'Read-only auditor session',
+                errorAr:
+                  'حساب مراجعة للقراءة فقط — التعديل والاعتماد غير متاحين.',
+              },
+              { status: 403 },
+            ),
+          )
+        }
+        if (isAuditorBlockedReadOrExportPath(path)) {
+          const wantsJson =
+            path.startsWith('/api/') ||
+            (request.headers.get('accept') || '').includes('application/json')
+          return seal(
+            wantsJson
+              ? NextResponse.json(
+                  {
+                    ok: false,
+                    error: 'Read-only auditor session',
+                    errorAr:
+                      'حساب مراجعة للقراءة فقط — هذا المسار محظور على المراجع.',
+                  },
+                  { status: 403 },
+                )
+              : buildAuditorForbiddenPageResponse(),
+          )
+        }
       }
       if (
         MUTATION_METHODS.has(method) &&
@@ -250,7 +363,7 @@ export async function middleware(request: NextRequest) {
           path === '/api/odoo-sync' ||
           path.startsWith('/api/odoo-sync/'))
       ) {
-        return withSecurityHeaders(
+        return seal(
           NextResponse.json(
             {
               ok: false,
@@ -265,18 +378,14 @@ export async function middleware(request: NextRequest) {
 
       if (path === '/') {
         const homeUrl = new URL(resolveRoleDefaultHome(execSession.role), request.url)
-        return withSecurityHeaders(
-          NextResponse.redirect(homeUrl, { status: 307 }),
-        )
+        return seal(NextResponse.redirect(homeUrl, { status: 307 }))
       }
       if (path === '/login') {
         const rawNext = request.nextUrl.searchParams.get('next')
         const safeNext = rawNext ? sanitizeExecNextPath(rawNext, '/erp') : ''
         const destPath = resolvePostLoginRedirectForRole(execSession.role, safeNext)
         const destUrl = new URL(destPath, request.url)
-        return withSecurityHeaders(
-          NextResponse.redirect(destUrl, { status: 307 }),
-        )
+        return seal(NextResponse.redirect(destUrl, { status: 307 }))
       }
 
       if (!path.startsWith('/api/') && !isPublicAssetOrRoute(path)) {
@@ -285,9 +394,7 @@ export async function middleware(request: NextRequest) {
             resolveRoleRedirectForForbiddenRoute(execSession.role),
             request.url,
           )
-          return withSecurityHeaders(
-            NextResponse.redirect(fallbackUrl, { status: 307 }),
-          )
+          return seal(NextResponse.redirect(fallbackUrl, { status: 307 }))
         }
 
         const canonicalAlias = resolveCanonicalErpAlias(path)
@@ -296,29 +403,27 @@ export async function middleware(request: NextRequest) {
             `${canonicalAlias}${request.nextUrl.search}`,
             request.url,
           )
-          return withSecurityHeaders(NextResponse.rewrite(rewriteUrl))
+          return seal(
+            NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } }),
+          )
         }
       }
 
-      return withSecurityHeaders(NextResponse.next())
+      return passThrough()
     }
 
     // Unauthenticated handling:
     if (path === '/') {
       const loginUrl = new URL('/login', request.url)
-      return withSecurityHeaders(
-        NextResponse.redirect(loginUrl, { status: 307 }),
-      )
+      return seal(NextResponse.redirect(loginUrl, { status: 307 }))
     }
 
     if (isPublicAssetOrRoute(path) || isAuthorizedCronRequest(request, path)) {
-      return withSecurityHeaders(NextResponse.next())
+      return passThrough()
     }
 
     if (isProtectedApiPath(path)) {
-      return withSecurityHeaders(
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-      )
+      return seal(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
     }
 
     // All protected ERP & panel routes (including /erp, /erp/:path*, PROTECTED_PAGE_PREFIXES, and any other internal route)
@@ -331,26 +436,18 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       const requestedPath = `${path}${request.nextUrl.search}`
       loginUrl.searchParams.set('next', requestedPath)
-      return withSecurityHeaders(
-        NextResponse.redirect(loginUrl, { status: 307 }),
-      )
+      return seal(NextResponse.redirect(loginUrl, { status: 307 }))
     }
 
-    return withSecurityHeaders(
-      NextResponse.redirect(new URL('/login', request.url), { status: 307 }),
-    )
+    return seal(NextResponse.redirect(new URL('/login', request.url), { status: 307 }))
   } catch {
     if (path.startsWith('/api/') && !PUBLIC_EXACT_PATHS.has(path)) {
-      return withSecurityHeaders(
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-      )
+      return seal(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))
     }
     if (PUBLIC_EXACT_PATHS.has(path)) {
-      return withSecurityHeaders(NextResponse.next())
+      return passThrough()
     }
-    return withSecurityHeaders(
-      NextResponse.redirect(new URL('/login', request.url), { status: 307 }),
-    )
+    return seal(NextResponse.redirect(new URL('/login', request.url), { status: 307 }))
   }
 }
 

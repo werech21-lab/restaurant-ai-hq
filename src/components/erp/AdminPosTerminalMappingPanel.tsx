@@ -62,6 +62,9 @@ interface ReconciliationReportPayload {
   mappedBranchesOrders: number
   unmappedTerminalsNetKwd: number
   unmappedTerminalsOrders: number
+  initialUnmappedPreAuditKwd?: number
+  newlyMappedBranchTerminalsBridgeKwd?: number
+  nonBranchBridgeTotalKwd?: number
   exclusionGapKwd: number
   allocationGapKwd: number
   reconciledExact: boolean
@@ -542,9 +545,9 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                 dir="ltr"
                 className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:text-emerald-200"
               >
-                {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} -{' '}
+                {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} −{' '}
                 {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} ={' '}
-                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD (0.000 Gap)
+                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD ({data.reconciliationReport.periodFrom} → {data.reconciliationReport.periodTo})
               </span>
             </div>
             <ChevronDown
@@ -556,30 +559,44 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
 
           {showReconciliationTable ? (
             <div className="mt-3 space-y-3">
-              {/* Two Mathematical Identity Pills */}
-              <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+              {/* Three Mathematical Identity Pills proving 158,168 - 21,590 = 136,578 and 28,581 = 6,991 + 21,590 */}
+              <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
                 <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
                   <div className="font-bold text-slate-900 dark:text-white">
                     {isAr
-                      ? '1) معادلة الاستبعاد المحاسبي (0.000 د.ك فرق)'
-                      : '1) Exclusion Reconciliation Identity (0.000 KWD Gap)'}
+                      ? `1) معادلة الاستبعاد (${data.reconciliationReport.periodFrom} إلى ${data.reconciliationReport.periodTo})`
+                      : `1) Exclusion Identity (${data.reconciliationReport.periodFrom} → ${data.reconciliationReport.periodTo})`}
                   </div>
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
-                    {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} KWD (Gross) -{' '}
-                    {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} KWD (Excluded) ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong>
+                    {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} −{' '}
+                    {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong> (Δ{' '}
+                    {fmtKwd(data.reconciliationReport.exclusionGapKwd)})
                   </div>
                 </div>
                 <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
                   <div className="font-bold text-slate-900 dark:text-white">
                     {isAr
-                      ? '2) معادلة توزيع الفروع السبعة + غير المصنّف (0.000 د.ك فرق)'
-                      : '2) 7-Branch Allocation Identity (0.000 KWD Gap)'}
+                      ? '2) معادلة توزيع الفروع الـ 7 + الأجهزة غير المربوطة'
+                      : '2) 7-Branch + Unmapped Allocation Identity'}
                   </div>
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
-                    {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)} KWD (7 Branches) +{' '}
-                    {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} KWD (Unmapped) ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong>
+                    {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)} +{' '}
+                    {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong> (Δ{' '}
+                    {fmtKwd(data.reconciliationReport.allocationGapKwd)})
+                  </div>
+                </div>
+                <div className="rounded-xl bg-emerald-50/80 p-3 text-xs leading-relaxed text-emerald-950 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:text-emerald-100 dark:ring-emerald-400/20">
+                  <div className="font-bold">
+                    {isAr
+                      ? `3) إثبات مطابقة خارج الفروع الـ 7 (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} د.ك)`
+                      : `3) Non-Branch Reconciliation Proof (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} KWD)`}
+                  </div>
+                  <div className="mt-1 text-xs font-mono tabular-nums">
+                    {isAr
+                      ? `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} د.ك (غير مربوط) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} د.ك (مستبعد) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} د.ك (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)})`
+                      : `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} (unmapped) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} (excluded) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} KWD (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)})`}
                   </div>
                 </div>
               </div>

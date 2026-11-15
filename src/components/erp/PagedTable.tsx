@@ -14,7 +14,7 @@ type Props<T extends { id: string }> = {
   columns: ReadonlyArray<Column<T>>
   onOpen: (row: T) => void
   emptyTitle: MessageKey
-  emptyHint: MessageKey
+  emptyHint?: MessageKey
   toolbar?: ReactNode
 }
 
@@ -45,7 +45,7 @@ export function PagedTable<T extends { id: string }>({ path, reloadToken, column
       {list.phase === 'ready' && list.rows.length === 0 ? (
         <div className="py-10 text-center">
           <p className="text-gray-200">{t(emptyTitle)}</p>
-          <p className="mt-1 text-sm text-gray-400">{t(emptyHint)}</p>
+          {emptyHint ? <p className="mt-1 text-sm text-gray-400">{t(emptyHint)}</p> : null}
         </div>
       ) : null}
 

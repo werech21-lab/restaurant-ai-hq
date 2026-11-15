@@ -11,18 +11,10 @@ const nextConfig = {
   },
   async redirects() {
     // Root "/" is enforced directly by src/middleware.ts (unauthenticated -> /login, authenticated -> /erp).
-    // Report screens that duplicate Odoo redirect to /erp (which itself requires authentication in middleware).
     const consolidated = [
-      '/erp/sales-scorecard',
       '/dashboard',
-      '/erp/sales-analysis',
-      '/erp/menu-engineering',
-      '/erp/cost-intelligence',
-      '/erp/executive-pnl',
       '/erp/execution-hub',
-      '/erp/alerts',
       '/automations',
-      '/erp/demand-forecast',
     ]
     return consolidated.map((source) => ({
       source,
@@ -39,6 +31,7 @@ const nextConfig = {
       ...buildSecurityHeaders({
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
         isProduction: process.env.NODE_ENV === 'production',
+        omitCsp: true,
       }),
       { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
     ]

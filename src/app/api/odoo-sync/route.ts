@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
   canAuditorFetchColdLiveOdoo,
+  fetchLiveOdooCustomBucket,
   fetchLiveOdooSnapshot,
   getReadOnlyOdooSnapshotStatus,
   sanitizeOdooPublicPayload,
@@ -136,17 +137,26 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
   }
 
   const periodParam = request.nextUrl.searchParams.get('period')
+  const fromParam = request.nextUrl.searchParams.get('from')
+  const toParam = request.nextUrl.searchParams.get('to')
 
   if (caller.isAuditor) {
     const nowMs = Date.now()
-    const roPayload = canAuditorFetchColdLiveOdoo(nowMs)
+    const baseRoPayload = canAuditorFetchColdLiveOdoo(nowMs)
       ? await fetchLiveOdooSnapshot({
           period: periodParam,
+          customFrom: fromParam,
+          customTo: toParam,
           forceRefresh: false,
           readOnly: true,
           referenceNowMs: nowMs,
         })
       : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
+    const customBkt =
+      periodParam === 'custom' && fromParam && toParam && !baseRoPayload.customBucket
+        ? await fetchLiveOdooCustomBucket(fromParam, toParam, nowMs)
+        : undefined
+    const roPayload = customBkt ? { ...baseRoPayload, customBucket: customBkt } : baseRoPayload
     const {
       diagnosticCode: _omitAuditorDiag,
       envConfigured: _omitAuditorEnv,
@@ -169,6 +179,8 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
 
   const payload = await fetchLiveOdooSnapshot({
     period: periodParam,
+    customFrom: fromParam,
+    customTo: toParam,
     forceRefresh: caller.isCron,
     readOnly: false,
     referenceNowMs: Date.now(),
@@ -263,8 +275,12 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
   }
 
   const periodParam = request.nextUrl.searchParams.get('period')
+  const fromParam = request.nextUrl.searchParams.get('from')
+  const toParam = request.nextUrl.searchParams.get('to')
   const syncedPayload = await triggerManualOdooSync({
     period: periodParam,
+    customFrom: fromParam,
+    customTo: toParam,
     isCron: caller.isCron,
     referenceNowMs: Date.now(),
   })

@@ -55,6 +55,16 @@ import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
 export type ErpOverviewSubtab = 'summary' | 'plays'
 
+const ROUTES_WITH_OWN_H1 = new Set([
+  '/erp/food-safety',
+  '/erp/alerts',
+  '/erp/cost-intelligence',
+  '/erp/demand-forecast',
+  '/erp/market',
+  '/erp/ledger',
+  '/erp/intelligence',
+])
+
 /** Routes that display the 5D POS & ledger filters (Period incl. Custom + Unified Filters Popover). */
 export const POS_FILTER_ROUTES = new Set([
   '/erp',
@@ -75,6 +85,13 @@ export const POS_FILTER_ROUTES = new Set([
   '/erp/booth-feasibility',
   '/erp/booth',
   '/erp/events-intelligence',
+  '/erp/receivables',
+  '/erp/executive-pnl',
+  '/erp/sales-scorecard',
+  '/erp/sales-analysis',
+  '/erp/menu-engineering',
+  '/erp/competitors',
+  '/erp/market',
 ])
 
 function toWesternNumerals(input: string): string {
@@ -959,8 +976,18 @@ export function TopFilterBar({
     setMobileSheetOpen(false)
   }
 
+  const hasOwnPageH1 = ROUTES_WITH_OWN_H1.has(pathname)
+  const canonicalHeadingText = page
+    ? isAr
+      ? page.ar
+      : page.en
+    : isAr
+      ? 'ملخص الشركة'
+      : 'Company Summary'
+
   return (
     <>
+      {!hasOwnPageH1 ? <h1 className="sr-only">{canonicalHeadingText}</h1> : null}
       {/* =====================================================================
           1. MOBILE & TABLET COMPACT 56px STICKY FROSTED APP BAR (`lg:hidden`)
              Strictly 3 Ultra-Clean Controls on `<sm` (`390px`) Phones:
@@ -1241,7 +1268,7 @@ export function TopFilterBar({
               </div>
 
               <FilterChipGroup
-                label={isAr ? 'المطعم / العلامة (6 مطاعم)' : 'Brand (6 Approved Brands)'}
+                label={isAr ? 'المطعم / العلامة (6 علامات تجارية)' : 'Brand (6 Approved Brands)'}
                 value={filters.brand}
                 options={workspace.cascadingOptions.brands}
                 isAr={isAr}
@@ -1700,7 +1727,7 @@ export function TopFilterBar({
 
               {/* 1. Brand (`المطعم / العلامة`) */}
               <FilterChipGroup
-                label={isAr ? 'المطعم / العلامة (6 مطاعم معتمدة)' : 'Brand (6 Approved Brands)'}
+                label={isAr ? 'المطعم / العلامة (6 علامات تجارية معتمدة)' : 'Brand (6 Approved Brands)'}
                 value={filters.brand}
                 options={workspace.cascadingOptions.brands}
                 isAr={isAr}
