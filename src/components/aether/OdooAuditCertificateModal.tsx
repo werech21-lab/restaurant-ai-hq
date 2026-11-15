@@ -6,7 +6,11 @@ import { AlertCircle, Check, CheckCircle2, Copy, Printer, RefreshCw, ShieldCheck
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import type { OdooBucketSummary } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
+import {
+  APPROVED_BRANCH_IDS,
+  APPROVED_BRAND_IDS,
+  formatPeriodCalendarWindow,
+} from '@/lib/aether/global-filter-engine'
 
 function formatKuwaitNow(isAr: boolean, date = new Date()): string {
   try {
@@ -83,9 +87,18 @@ export function OdooAuditCertificatePill({ isAr }: { isAr: boolean }) {
           liveSummary?.buckets?.month ??
           rawBuckets?.month)
 
-    const periodFrom = activeBkt?.from ?? liveSummary?.period?.from ?? '2026-10-16'
-    const periodTo = activeBkt?.to ?? liveSummary?.period?.to ?? '2026-11-14'
-    const periodDays = Math.max(1, activeBkt?.days ?? 30)
+    const resolvedWin = formatPeriodCalendarWindow(filters.period, {
+      customFrom: filters.customFrom,
+      customTo: filters.customTo,
+      liveSummary,
+    })
+    const periodFrom = resolvedWin.fromIso
+    const periodTo = resolvedWin.toInclusiveIso
+    const computedSpanDays =
+      Math.round(
+        (Date.parse(`${periodTo}T12:00:00Z`) - Date.parse(`${periodFrom}T12:00:00Z`)) / 86_400_000,
+      ) + 1
+    const periodDays = Math.max(1, Number.isFinite(computedSpanDays) ? computedSpanDays : (activeBkt?.days ?? 30))
     const lastSyncedLabel =
       liveSummary?.kuwaitSyncedAt ??
       liveSummary?.latestOdooRecordAt ??

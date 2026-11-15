@@ -77,7 +77,7 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
     titleEn: 'Sales, Channels & Menu Engineering',
     icon: '📊',
     accentColor: '#10b981',
-    descriptionAr: 'تحليل أداء المطاعم الـ 6، منصات التوصيل، مصفوفة ربحية الأصناف، وحركة المبيعات لشهر أكتوبر 2026',
+    descriptionAr: 'تحليل أداء العلامات التجارية الـ 6، منصات التوصيل، مصفوفة ربحية الأصناف، وحركة المبيعات لشهر أكتوبر 2026',
     descriptionEn: 'Performance of 6 brands, aggregators, Profitability matrix & October 2026 sales volume',
     reports: [
       {
@@ -86,7 +86,7 @@ export const ENTERPRISE_DEPARTMENTS: EnterpriseDepartmentDef[] = [
         titleAr: 'مبيعات البراندات والقنوات الشامل',
         titleEn: 'Brand & Channel Sales Performance',
         code: 'VF-SALES-01',
-        summaryAr: 'تفصيل مبيعات المطاعم الـ 6 وتوزيعها عبر 8 قنوات بيع بإجمالي 167,092 د.ك',
+        summaryAr: 'تفصيل مبيعات العلامات التجارية الـ 6 وتوزيعها عبر 8 قنوات بيع بإجمالي 167,092 د.ك',
         summaryEn: 'Breakdown of 6 brands across 8 sales channels totaling KWD 167,092',
         headlineMetricAr: '167,092 د.ك',
         headlineMetricEn: '167,092 KWD',

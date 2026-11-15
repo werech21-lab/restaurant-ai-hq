@@ -534,7 +534,7 @@ export function VenturePosHub({
             {/* Brand Filter Pills */}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
-                { id: 'ALL', labelAr: 'جميع المطاعم الـ 6', labelEn: 'All 6 Brands' },
+                { id: 'ALL', labelAr: 'جميع العلامات التجارية الـ 6', labelEn: 'All 6 Brands' },
                 { id: 'chinagarden', labelAr: 'تشاينا جاردن', labelEn: 'China Garden' },
                 { id: 'franks', labelAr: "فرانكس", labelEn: "Frank's" },
                 { id: 'tahina', labelAr: 'شاورما طحينة', labelEn: 'Tahina' },
@@ -605,10 +605,12 @@ export function VenturePosHub({
                     </div>
 
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         addToCart(item)
                       }}
+                      aria-label={isAr ? `إضافة ${item.nameAr} إلى السلة` : `Add ${item.nameEn} to cart`}
                       className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all"
                     >
                       <Plus size={16} />

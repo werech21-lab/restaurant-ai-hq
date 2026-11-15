@@ -251,6 +251,23 @@ export function GlobalFilterProvider({
       effectiveFilters.period === 'custom'
         ? `period=custom&from=${encodeURIComponent(effectiveFilters.customFrom)}&to=${encodeURIComponent(effectiveFilters.customTo)}`
         : `period=${encodeURIComponent(effectiveFilters.period)}`
+    const cacheKey = `aether_live_odoo_summary_v1:${qs}`
+
+    try {
+      const cachedRaw = window.sessionStorage.getItem(cacheKey)
+      if (cachedRaw) {
+        const parsed = JSON.parse(cachedRaw) as { savedAt?: number; data?: OdooLiveSummary }
+        if (
+          parsed?.data?.totals &&
+          typeof parsed.savedAt === 'number' &&
+          Date.now() - parsed.savedAt < 5 * 60_000
+        ) {
+          setLiveSummary((prev) => prev ?? parsed.data ?? null)
+        }
+      }
+    } catch {
+      // ignore sessionStorage quota/access errors
+    }
 
     const pullSilentStatus = () => {
       fetch(`/api/erp/odoo-sync?${qs}`, {
@@ -263,6 +280,11 @@ export function GlobalFilterProvider({
         .then((data) => {
           if (active && data && data.totals) {
             setLiveSummary(data)
+            try {
+              window.sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), data }))
+            } catch {
+              // ignore sessionStorage quota errors
+            }
             if (typeof data.syncCooldownRemainingSec === 'number') {
               setSyncCooldownSec(Math.max(0, Math.round(data.syncCooldownRemainingSec)))
             }

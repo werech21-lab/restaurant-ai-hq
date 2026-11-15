@@ -1331,7 +1331,7 @@ export function computeCoresHubSnapshot(
             ? '/ period'
             : '/ mo'
 
-  const activeBrandAr = filters.brand === 'all' ? 'المطاعم الـ 6' : getBrandLabel(filters.brand, true)
+  const activeBrandAr = filters.brand === 'all' ? 'العلامات التجارية الـ 6' : getBrandLabel(filters.brand, true)
   const activeBrandEn = filters.brand === 'all' ? 'All 6 Brands' : getBrandLabel(filters.brand, false)
   const activeBranchAr = filters.branch === 'all' ? 'كل الفروع' : getBranchLabel(filters.branch, true)
   const activeBranchEn = filters.branch === 'all' ? 'All Branches' : getBranchLabel(filters.branch, false)

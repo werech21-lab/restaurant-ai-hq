@@ -47,7 +47,7 @@ export function GlobalFilterBar() {
         </div>
 
         <select aria-label={T('Brand', 'العلامة التجارية')} className="ae-select" value={filters.brand} onChange={(e) => setBrand(e.target.value as BrandId | 'all')}>
-          <option value="all">{T('All 6 brands', 'كل المطاعم الـ 6')}</option>
+          <option value="all">{T('All 6 brands', 'كل العلامات التجارية الـ 6')}</option>
           {BRANDS.map((b) => (
             <option key={b.id} value={b.id}>
               {isAr ? b.ar : b.en}

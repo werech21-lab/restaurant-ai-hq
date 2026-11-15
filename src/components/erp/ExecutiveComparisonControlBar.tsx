@@ -545,7 +545,7 @@ export function ExecutiveComparisonControlBar({
 
   // Scope summary labels
   const brandPillLabel = useMemo(() => {
-    if (query.brandIds === 'all') return isAr ? 'كل المطاعم (6)' : 'All 6 Brands'
+    if (query.brandIds === 'all') return isAr ? 'كل العلامات التجارية (6)' : 'All 6 Brands'
     if (query.brandIds.length === 1) return getBrandLabel(query.brandIds[0], isAr)
     return isAr ? `${query.brandIds.length} مطاعم محددة` : `${query.brandIds.length} Brands Selected`
   }, [query.brandIds, isAr])

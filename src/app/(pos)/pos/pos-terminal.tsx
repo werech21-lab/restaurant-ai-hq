@@ -793,6 +793,7 @@ export function PosTerminal({
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
+                        aria-label={en ? `Decrease quantity of ${line.product.name}` : `تقليل كمية ${line.product.name}`}
                         className="grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-ink-950"
                         onClick={() =>
                           setCart((c) =>
@@ -807,6 +808,7 @@ export function PosTerminal({
                       <span className="min-w-7 text-center text-sm font-black">{formatQty(line.quantity)}</span>
                       <button
                         type="button"
+                        aria-label={en ? `Increase quantity of ${line.product.name}` : `زيادة كمية ${line.product.name}`}
                         className="grid h-8 w-8 place-items-center rounded-lg border border-white/15 bg-ink-950"
                         onClick={() =>
                           setCart((c) =>
@@ -1009,6 +1011,7 @@ export function PosTerminal({
               </div>
               <button
                 type="button"
+                aria-label={en ? 'Close modal' : 'إغلاق النافذة'}
                 onClick={() => setShowStaffModal(false)}
                 className="rounded-lg p-1 text-mist-400 hover:text-white"
               >

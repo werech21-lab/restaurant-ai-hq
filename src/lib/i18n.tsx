@@ -68,7 +68,7 @@ const ar = {
   'spec.sales': 'المبيعات',
   'spec.pos': 'نظام نقاط البيع والكاشير',
   'spec.subscriptions': 'الاشتراكات',
-  'spec.org': 'الفروع والمطاعم الـ 6',
+  'spec.org': 'الفروع والعلامات التجارية الـ 6',
   'spec.tradeContracts': 'العقود التجارية والالتزامات',
   'spec.employees': 'الموظفون',
   'spec.recruitment': 'التوظيف',

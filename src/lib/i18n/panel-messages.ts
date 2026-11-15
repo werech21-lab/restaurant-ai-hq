@@ -126,7 +126,7 @@ export const panelAr = {
   'lang.switch': 'اللغة / Language',
   'scope.brand': 'البراند',
   'scope.branch': 'الفرع',
-  'scope.allBrands': 'كل المطاعم الـ 6',
+  'scope.allBrands': 'كل العلامات التجارية الـ 6',
   'scope.allBranches': 'كل مواقع المطاعم (7)',
   'scope.reset': 'إعادة تعيين · عرض الكل',
   'trade.newParty': 'جديد',

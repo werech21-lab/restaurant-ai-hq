@@ -551,7 +551,7 @@ export function BeforeAfterStudio() {
         refKey: 'core-dec-direct-pickup-vip',
         titleAr: 'قرار بطاقة الطلب المباشر والاستلام بدون عمولة (٠٪)',
         titleEn: '0%-Fee Direct Pickup & VIP Card Conversion',
-        scopeAr: 'كل المطاعم الستة والفروع',
+        scopeAr: 'كل العلامات التجارية الست والفروع',
         scopeEn: 'All 6 Brands & Active Branches',
         sealId: 'VF-SEAL-819320',
         approvedDate: '2026-10-21',
@@ -1578,7 +1578,7 @@ export function BeforeAfterStudio() {
             </h2>
             <p className="mt-0.5 text-[14px] text-neutral-500 dark:text-slate-400">
               {isAr
-                ? `مقارنة الفروقات الفعلية عبر المطاعم الستة والفروع السبعة والقنوات (فارق التقريب المحسوب: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} د.ك) • المصدر: أودو 17 pos.order`
+                ? `مقارنة الفروقات الفعلية عبر العلامات التجارية الست والفروع السبعة والقنوات (فارق التقريب المحسوب: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} د.ك) • المصدر: أودو 17 pos.order`
                 : `Odoo 17 POS variance across approved brands, active branches, and channels (computed rounding gap: ${comparison.reconciliation.maxSalesGapKwd.toFixed(3)} KWD) • Source: Odoo 17 pos.order`}
             </p>
           </div>

@@ -489,7 +489,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                 <div className="flex items-center justify-between pb-4">
                   <div>
                     <h3 className="text-sm font-bold text-white">
-                      {isAr ? 'أداء المطاعم الـ 6 (انقر للفلترة)' : '6 Brands Breakdown (Click to filter)'}
+                      {isAr ? 'أداء العلامات التجارية الـ 6 (انقر للفلترة)' : '6 Brands Breakdown (Click to filter)'}
                     </h3>
                     <p className="text-xs text-slate-400">
                       {isAr ? 'اضغط على أي براند لتخصيص كامل اللوحة' : 'Click any bar to filter entire dashboard'}

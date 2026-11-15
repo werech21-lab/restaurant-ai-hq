@@ -2139,7 +2139,7 @@ export function computeErpComparison(
   const scopePartsAr: string[] = []
   if (!brandSet) {
     scopePartsEn.push('All 6 Brands')
-    scopePartsAr.push('كل المطاعم الستة')
+    scopePartsAr.push('كل العلامات التجارية الست')
   } else {
     scopePartsEn.push([...brandSet].map((b) => getBrandLabel(b, false)).join(', '))
     scopePartsAr.push([...brandSet].map((b) => getBrandLabel(b, true)).join('، '))

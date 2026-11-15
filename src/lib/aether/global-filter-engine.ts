@@ -147,7 +147,7 @@ export const GLOBAL_PROFIT_LENS_OPTIONS: readonly FilterOption<ProfitLens>[] = [
 
 /** ONLY the 6 approved Venture Foods restaurant brands — never include canceled or school canteen brands. */
 export const GLOBAL_BRAND_OPTIONS: readonly FilterOption<GlobalBrand>[] = [
-  { id: 'all', ar: 'كل المطاعم', en: 'All Brands' },
+  { id: 'all', ar: 'كل العلامات التجارية', en: 'All Brands' },
   { id: 'china-garden', ar: 'تشاينا جاردن', en: 'China Garden' },
   { id: 'franks', ar: 'فرانكس', en: "Frank's" },
   { id: 'tahina', ar: 'طحينة', en: 'Tahina' },
@@ -1121,7 +1121,7 @@ function formatConsolidatedScopeLabel(
   if (brandText && branchText) return `${brandText} • ${branchText}`
   if (branchText) return branchText
   if (brandText) return brandText
-  return isAr ? 'كل المطاعم الـ 6 والفروع الـ 7' : 'All 6 Brands & 7 Branches'
+  return isAr ? 'كل العلامات التجارية الـ 6 والفروع الـ 7' : 'All 6 Brands & 7 Branches'
 }
 
 function matchesProfitLens(p: JourneyPlay, lens: ProfitLens): boolean {

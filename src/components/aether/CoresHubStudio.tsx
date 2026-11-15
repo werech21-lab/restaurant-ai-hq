@@ -2065,7 +2065,7 @@ export function CoresHubStudio({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h3 className="text-[16px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                    {isAr ? 'حصة المطاعم الستة' : '6 Venture Foods Brands'}
+                    {isAr ? 'حصة العلامات التجارية الست' : '6 Venture Foods Brands'}
                   </h3>
                   <p className="mt-0.5 text-xs text-neutral-400">
                     {isAr ? 'اضغط أي مطعم للفلترة • مطابق 100%' : 'Click brand to filter • 100.0% reconciled'}
