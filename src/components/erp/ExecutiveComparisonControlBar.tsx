@@ -7,6 +7,7 @@ import {
   Calendar,
   Check,
   ChevronDown,
+  Clock,
   Download,
   GitCompareArrows,
   RotateCcw,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -40,6 +42,7 @@ import {
   DEFAULT_RANGE_TO_B,
   formatCalendarDateBadge,
   normalizeWindowSelection,
+  resolveCompletedComparisonDefaults,
   sanitizeIsoDate,
   shiftIsoDate,
   shiftIsoMonth,
@@ -117,6 +120,8 @@ export function readInitialComparisonQueryFromEnv(
     const brandsParam = sp.get('brands')
     const branchesParam = sp.get('branches')
     const channelsParam = sp.get('channels')
+    const sameHoursParam =
+      sp.get('sameHours') === '1' || sp.get('sameHoursLikeForLike') === 'true'
 
     const mode: ComparisonModeType =
       compMode === 'entity-vs-entity' || compMode === 'date-vs-date' ? compMode : base.mode
@@ -173,6 +178,7 @@ export function readInitialComparisonQueryFromEnv(
       entityDimension,
       entityA: (entA as BrandEntityId | BranchEntityId) || base.entityA || 'china-garden',
       entityB: (entB as BrandEntityId | BranchEntityId) || base.entityB || 'franks',
+      sameHoursLikeForLike: sameHoursParam || Boolean(base.sameHoursLikeForLike),
     }
   } catch {
     return base
@@ -195,7 +201,8 @@ export function ExecutiveComparisonControlBar({
 }: ExecutiveComparisonControlBarProps) {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
-  const { filters, setBrand, setBranch, setChannel } = useGlobalFilter()
+  const { filters, liveSummary, setBrand, setBranch, setChannel } = useGlobalFilter()
+  const kuwaitClock = useMemo(() => getKuwaitTimeContext(), [])
 
   const [openMenu, setOpenMenu] = useState<OpenDropdownId>(null)
   const [copiedLink, setCopiedLink] = useState(false)
@@ -284,6 +291,9 @@ export function ExecutiveComparisonControlBar({
 
       if (query.channelIds === 'all') url.searchParams.delete('channels')
       else url.searchParams.set('channels', query.channelIds.join(','))
+
+      if (query.sameHoursLikeForLike) url.searchParams.set('sameHours', '1')
+      else url.searchParams.delete('sameHours')
 
       window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
     } catch {
@@ -479,25 +489,48 @@ export function ExecutiveComparisonControlBar({
     [onQueryChange, syncScopeToGlobal],
   )
 
+  const toggleSameHoursLikeForLike = useCallback(() => {
+    onQueryChange((prev) => {
+      const nextSameHours = !prev.sameHoursLikeForLike
+      const nextDefaults = resolveCompletedComparisonDefaults({
+        granularity: prev.granularity,
+        sameHoursLikeForLike: nextSameHours,
+        liveSummary,
+      })
+      return {
+        ...prev,
+        sameHoursLikeForLike: nextSameHours,
+        periodA: nextDefaults.periodA,
+        periodB: nextDefaults.periodB,
+      }
+    })
+  }, [liveSummary, onQueryChange])
+
   const handleResetAll = useCallback(() => {
     syncScopeToGlobal('all', 'all', 'all')
     if (onReset) {
       onReset()
       return
     }
+    const defs = resolveCompletedComparisonDefaults({
+      granularity: 'single',
+      sameHoursLikeForLike: false,
+      liveSummary,
+    })
     onQueryChange({
       mode: 'date-vs-date',
       granularity: 'single',
-      periodA: { from: DEFAULT_COMPARISON_DATE_A, to: DEFAULT_COMPARISON_DATE_A },
-      periodB: { from: DEFAULT_COMPARISON_DATE_B, to: DEFAULT_COMPARISON_DATE_B },
+      periodA: defs.periodA,
+      periodB: defs.periodB,
       brandIds: 'all',
       branchIds: 'all',
       channelIds: 'all',
       entityDimension: 'brand',
       entityA: 'china-garden',
       entityB: 'franks',
+      sameHoursLikeForLike: false,
     })
-  }, [onQueryChange, onReset, syncScopeToGlobal])
+  }, [liveSummary, onQueryChange, onReset, syncScopeToGlobal])
 
   const handleCopyDeepLink = useCallback(async () => {
     if (typeof window === 'undefined') return
@@ -872,6 +905,23 @@ export function ExecutiveComparisonControlBar({
               {isAr ? 'فترة مخصصة (من–إلى)' : 'Custom Range (From–To)'}
             </button>
           </div>
+
+          {/* Toggle Chip: Same-Hours Like-for-Like (opt-in to include today's partial hours) */}
+          <button
+            type="button"
+            aria-pressed={Boolean(query.sameHoursLikeForLike)}
+            onClick={toggleSameHoursLikeForLike}
+            className={`inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 ${
+              query.sameHoursLikeForLike
+                ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500/40 dark:bg-emerald-500 dark:text-[#04130D]'
+                : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15 dark:hover:bg-emerald-500/15'
+            }`}
+          >
+            <Clock className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              {isAr ? 'مقارنة نفس الساعات حتى اللحظة' : 'Same-Hours Like-for-Like'}
+            </span>
+          </button>
         </div>
 
         {/* Trailing Utility Actions */}
@@ -922,6 +972,25 @@ export function ExecutiveComparisonControlBar({
           {extraActions}
         </div>
       </div>
+
+      {query.sameHoursLikeForLike ? (
+        <div
+          role="status"
+          className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50/80 px-3 py-2 text-xs lg:text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200 dark:ring-emerald-400/25"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+            <span>
+              {isAr
+                ? `مقارنة نفس الساعات حتى اللحظة · Comparing 00:00–${kuwaitClock.hhMm} across both windows`
+                : `Comparing 00:00–${kuwaitClock.hhMm} across both windows`}
+            </span>
+          </span>
+          <span className="text-xs font-medium text-emerald-800/80 dark:text-emerald-300/80">
+            {isAr ? 'توقيت الكويت (UTC+3)' : 'Asia/Kuwait (UTC+3)'}
+          </span>
+        </div>
+      ) : null}
 
       {/* ───────────── MIDDLE ROW: Side-by-Side Selection Cards (A vs B) ───────────── */}
       {query.mode === 'date-vs-date' ? (

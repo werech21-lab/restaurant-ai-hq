@@ -56,6 +56,7 @@ export interface OdooBucketSummary {
   byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
   mappedByLocation?: Record<string, { netKwd: number; orders: number }>
   unmappedSummary?: { netSalesKwd: number; orders: number }
+  excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
   uiChannels?: Record<string, { netKwd: number; orders: number }>
   accounting?: { income: number; otherIncome: number; cogs: number; expense: number; depreciation: number; operatingProfit: number }
@@ -97,10 +98,16 @@ export interface OdooLiveSummary {
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
   companyTotals?: {
+    grossPreExclusionKwd?: number
+    excludedEntitiesKwd?: number
+    excludedEntitiesOrders?: number
+    mappedBranchesNetKwd?: number
     netSalesKwd: number
     orders: number
     unmappedTerminalsNetKwd: number
     unmappedTerminalsOrders: number
+    reconciliationGapKwd?: number
+    reconciledExact?: boolean
   }
   unmappedTerminals?: {
     terminal_id: number
@@ -452,7 +459,32 @@ export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPer
     ...(slicedDaily ? { dailySeries: slicedDaily } : {}),
     ...(s.timeProfile?.hourly ? { hourlySeries: s.timeProfile.hourly } : {}),
     ...(jp
-      ? { journeyPulse: Object.fromEntries((['rolling30', 'prior30', 'mtd'] as const).map((k) => [k, { from: jp[k].from, to: jp[k].to, days: jp[k].days, netKwd: jp[k].netKwd, orders: jp[k].orders, perDayKwd: jp[k].perDayKwd }])) as OdooLiveSummary['journeyPulse'] }
+      ? {
+          journeyPulse: Object.fromEntries(
+            (['rolling30', 'prior30', 'mtd'] as const).map((k) => {
+              const rawWin = jp[k]
+              const inclusiveWinTo =
+                k === 'rolling30' || k === 'mtd'
+                  ? clampedTo
+                  : /^\d{4}-\d{2}-\d{2}$/.test(rawWin.to)
+                    ? new Date(Date.parse(`${rawWin.to}T12:00:00Z`) - 86_400_000)
+                        .toISOString()
+                        .slice(0, 10)
+                    : rawWin.to
+              return [
+                k,
+                {
+                  from: rawWin.from,
+                  to: inclusiveWinTo,
+                  days: rawWin.days,
+                  netKwd: rawWin.netKwd,
+                  orders: rawWin.orders,
+                  perDayKwd: rawWin.perDayKwd,
+                },
+              ]
+            }),
+          ) as OdooLiveSummary['journeyPulse'],
+        }
       : {}),
     ...(s.journey?.access ? { access: { readable: s.journey.access.readable.map((a) => a.model), restricted: s.journey.access.restricted.map((a) => a.model) } } : {}),
     ...(aa

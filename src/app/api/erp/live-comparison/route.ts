@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
   const entityDimension: EntityComparisonDimension =
     sp.get('entityDimension') === 'branch' ? 'branch' : 'brand'
 
+  const sameHoursLikeForLike =
+    sp.get('sameHours') === '1' || sp.get('sameHoursLikeForLike') === 'true'
+
   const query: ErpComparisonQuery = {
     mode,
     granularity,
@@ -106,6 +109,7 @@ export async function GET(request: NextRequest) {
     entityDimension,
     entityA: (sp.get('entityA') as BrandEntityId | BranchEntityId) || undefined,
     entityB: (sp.get('entityB') as BrandEntityId | BranchEntityId) || undefined,
+    sameHoursLikeForLike,
   }
 
   const liveOverlay = await fetchLiveOdooComparisonOverlay({

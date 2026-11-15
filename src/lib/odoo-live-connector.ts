@@ -33,7 +33,6 @@ import {
 import {
   computeTerminalMappingLedgerSnapshot,
   getAdminPosTerminalBranch,
-  getAdminPosTerminalMappings,
   recordLiveDiscoveredPosLedger,
   type ActiveVentureBranchId,
 } from '@/lib/odoo-terminal-mappings'
@@ -177,10 +176,16 @@ interface CachedCoreSnapshot {
   todayOrdersCount: number
   todaySalesKwd: number
   companyTotals: {
+    grossPreExclusionKwd?: number
+    excludedEntitiesKwd?: number
+    excludedEntitiesOrders?: number
+    mappedBranchesNetKwd?: number
     netSalesKwd: number
     orders: number
     unmappedTerminalsNetKwd: number
     unmappedTerminalsOrders: number
+    reconciliationGapKwd?: number
+    reconciledExact?: boolean
   }
   buckets: Record<OdooPeriodBucketKey, OdooBucketSummary>
   dailySeries: { day: string; orders: number; netKwd: number }[]
@@ -805,55 +810,58 @@ function buildBaselineFallbackCore(
     year: fallbackBucket('year', baseYear, 318),
   }
 
-  const companyMonthNet = r3(
-    rawSnap.totals?.netSalesKwd ?? buckets.month.totals.netSalesKwd,
-  )
-  const companyMonthOrd = Math.round(
-    rawSnap.totals?.orders ?? buckets.month.totals.orders,
-  )
-  let restMonthNet = buckets.month.totals.restaurantNetKwd
-  let restMonthOrd = buckets.month.totals.restaurantOrders
-  let unmappedMonthNet = Math.max(0, r3(companyMonthNet - restMonthNet))
-  let unmappedMonthOrd = Math.max(0, companyMonthOrd - restMonthOrd)
-
-  if (Object.keys(getAdminPosTerminalMappings()).length > 0) {
-    const ledger = computeTerminalMappingLedgerSnapshot()
-    if (ledger.mappedTerminals.length > 0 && buckets.month.byLocation) {
-      const clonedByLocation: NonNullable<OdooBucketSummary['byLocation']> = {
-        ...buckets.month.byLocation,
-      }
-      for (const item of ledger.mappedTerminals) {
-        const bId = item.assigned_branch_id
-        if (!bId) continue
-        const prev = clonedByLocation[bId] ?? { netKwd: 0, orders: 0 }
-        clonedByLocation[bId] = {
-          ...prev,
-          netKwd: r3(prev.netKwd + item.net_sales_kwd),
-          orders: prev.orders + item.orders_count,
-        }
-      }
-      restMonthNet = ledger.companyTotals.mappedBranchesNetKwd
-      restMonthOrd = ledger.companyTotals.mappedBranchesOrders
-      unmappedMonthNet = ledger.companyTotals.unmappedTerminalsNetKwd
-      unmappedMonthOrd = ledger.companyTotals.unmappedTerminalsOrders
-      buckets.month = {
-        ...buckets.month,
-        totals: {
-          ...buckets.month.totals,
-          netSalesKwd: r3(restMonthNet + unmappedMonthNet),
-          orders: restMonthOrd + unmappedMonthOrd,
-          aovKwd: restMonthOrd > 0 ? r3(restMonthNet / restMonthOrd) : 0,
-          restaurantNetKwd: restMonthNet,
-          restaurantOrders: restMonthOrd,
-        },
-        byLocation: clonedByLocation,
-        unmappedSummary: {
-          netSalesKwd: unmappedMonthNet,
-          orders: unmappedMonthOrd,
-        },
-      }
-    }
+  const ledger = computeTerminalMappingLedgerSnapshot()
+  const locNetMonth = new Map<string, number>()
+  const locOrdMonth = new Map<string, number>()
+  for (const br of ledger.branches) {
+    locNetMonth.set(br.id, br.netSalesKwd)
+    locOrdMonth.set(br.id, br.orders)
   }
+
+  const brandRawMonth = new Map<string, number>()
+  const brandQtyMonth = new Map<string, number>()
+  for (const bid of ACTIVE_BRAND_IDS) {
+    brandRawMonth.set(bid, Math.max(0, buckets.month.byBrand?.[bid]?.netKwd ?? 0))
+    brandQtyMonth.set(bid, Math.max(0, buckets.month.byBrand?.[bid]?.qty ?? 0))
+  }
+
+  const locUiRawMonth = new Map<string, Record<string, { netKwd: number; orders: number }>>()
+  for (const lid of ACTIVE_BRANCH_IDS) {
+    locUiRawMonth.set(
+      lid,
+      buckets.month.byLocation?.[lid]?.uiChannels ??
+        Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])),
+    )
+  }
+
+  buckets.month = buildReconciledBucket({
+    key: 'month',
+    from: buckets.month.from || '2026-10-16',
+    to: buckets.month.to || '2026-11-15',
+    days: buckets.month.days || 30,
+    locNetMap: locNetMonth,
+    locOrdersMap: locOrdMonth,
+    unmappedNetKwd: ledger.companyTotals.unmappedTerminalsNetKwd,
+    unmappedOrders: ledger.companyTotals.unmappedTerminalsOrders,
+    excludedNetKwd: ledger.companyTotals.excludedEntitiesKwd,
+    excludedOrders: ledger.companyTotals.excludedEntitiesOrders,
+    brandRawWeights: brandRawMonth,
+    brandQtyWeights: brandQtyMonth,
+    locUiRawMap: locUiRawMonth,
+    accounting: buckets.month.accounting,
+  })
+
+  const normalizedPulse = baseMonth.journeyPulse
+    ? {
+        ...baseMonth.journeyPulse,
+        rolling30: {
+          ...baseMonth.journeyPulse.rolling30,
+          netKwd: ledger.companyTotals.netSalesKwd,
+          orders: ledger.companyTotals.orders,
+          perDayKwd: r3(ledger.companyTotals.netSalesKwd / 30),
+        },
+      }
+    : undefined
 
   return {
     fetchedAtMs: Date.now(),
@@ -866,15 +874,21 @@ function buildBaselineFallbackCore(
     todayOrdersCount: buckets.today.totals.restaurantOrders,
     todaySalesKwd: buckets.today.totals.restaurantNetKwd,
     companyTotals: {
-      netSalesKwd: companyMonthNet,
-      orders: companyMonthOrd,
-      unmappedTerminalsNetKwd: unmappedMonthNet,
-      unmappedTerminalsOrders: unmappedMonthOrd,
+      grossPreExclusionKwd: ledger.companyTotals.grossPreExclusionKwd,
+      excludedEntitiesKwd: ledger.companyTotals.excludedEntitiesKwd,
+      excludedEntitiesOrders: ledger.companyTotals.excludedEntitiesOrders,
+      mappedBranchesNetKwd: ledger.companyTotals.mappedBranchesNetKwd,
+      netSalesKwd: ledger.companyTotals.netSalesKwd,
+      orders: ledger.companyTotals.orders,
+      unmappedTerminalsNetKwd: ledger.companyTotals.unmappedTerminalsNetKwd,
+      unmappedTerminalsOrders: ledger.companyTotals.unmappedTerminalsOrders,
+      reconciliationGapKwd: ledger.companyTotals.reconciliationGapKwd,
+      reconciledExact: ledger.companyTotals.reconciledExact,
     },
     buckets,
     dailySeries: rawSnap.timeProfile?.daily ?? [],
     hourlySeries: rawSnap.timeProfile?.hourly ?? [],
-    journeyPulse: baseMonth.journeyPulse,
+    journeyPulse: normalizedPulse,
     note:
       note ??
       (isOdooLiveEnvConfigured()
@@ -901,6 +915,8 @@ export function buildReconciledBucket(params: {
   locOrdersMap: Map<string, number>
   unmappedNetKwd?: number
   unmappedOrders?: number
+  excludedNetKwd?: number
+  excludedOrders?: number
   brandRawWeights: Map<string, number>
   brandQtyWeights: Map<string, number>
   locUiRawMap: Map<string, Record<string, { netKwd: number; orders: number }>>
@@ -916,6 +932,8 @@ export function buildReconciledBucket(params: {
     locOrdersMap,
     unmappedNetKwd = 0,
     unmappedOrders = 0,
+    excludedNetKwd = 0,
+    excludedOrders = 0,
     brandRawWeights,
     brandQtyWeights,
     locUiRawMap,
@@ -1077,6 +1095,10 @@ export function buildReconciledBucket(params: {
       netSalesKwd: r3(Math.max(0, unmappedNetKwd)),
       orders: Math.max(0, Math.round(unmappedOrders)),
     },
+    excludedSummary: {
+      netSalesKwd: r3(Math.max(0, excludedNetKwd)),
+      orders: Math.max(0, Math.round(excludedOrders)),
+    },
     uiChannels: aggUiChannels,
     ...(accounting ? { accounting } : {}),
   }
@@ -1216,6 +1238,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     prior30AggRows,
     stockTransfers,
     aggregatorReceivables,
+    decommissionedOrders30Rows,
   ] = await Promise.all([
     executeOdooKw<{ id: number; date_order: string; amount_total?: number; config_id?: M2O }[]>(
       'pos.order',
@@ -1492,6 +1515,35 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         openLinesCount: Math.max(0, Number(rows?.[0]?.__count ?? 0)),
       }
     }, undefined),
+    decommissionedConfigIds.size > 0
+      ? safeSubQuery(
+          () =>
+            executeOdooKw<
+              {
+                __count?: number
+                amount_total?: number
+                amount_tax?: number
+                session_id: M2O
+                __range?: { 'date_order:day'?: { from?: string; to?: string } }
+              }[]
+            >(
+              'pos.order',
+              'read_group',
+              [
+                [
+                  ['date_order', '>=', boundsMonth.fromUtc],
+                  ['date_order', '<', boundsMonth.toUtc],
+                  ['state', 'in', ['paid', 'done', 'invoiced']],
+                  ['session_id.config_id', 'in', [...decommissionedConfigIds]],
+                ],
+                ['amount_total:sum', 'amount_tax:sum'],
+                ['session_id', 'date_order:day'],
+              ],
+              { lazy: false, context: { tz: 'Asia/Kuwait' } },
+            ),
+          [],
+        )
+      : Promise.resolve([]),
   ])
 
   // 4. Resolve session -> config_id + product -> brand mapping
@@ -1499,6 +1551,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ...new Set(
       [
         ...ordersByDaySessionPricelistRows.map((o) => m2oId(o.session_id)),
+        ...decommissionedOrders30Rows.map((o) => m2oId(o.session_id)),
         ...payments30Rows.map((p) => m2oId(p.session_id)),
         ...paymentsTodayRows.map((p) => m2oId(p.session_id)),
       ].filter((x): x is number => x !== null),
@@ -1590,9 +1643,52 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   let mtdOrders = 0
 
   const rawTerminalMonthStats = new Map<number, { orders: number; net: number }>()
+  const nativeTerminalMonthStats = new Map<number, { orders: number; net: number }>()
   const nativeBranchMonthStats = Object.fromEntries(
     ACTIVE_BRANCH_IDS.map((id) => [id, { netSalesKwd: 0, orders: 0 }]),
   ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
+
+  let excludedMonthNet = 0
+  let excludedMonthOrd = 0
+  let excludedWeekNet = 0
+  let excludedWeekOrd = 0
+  let excludedTodayNet = 0
+  let excludedTodayOrd = 0
+  let excludedPos24Net = 0
+  let excludedPos24Ord = 0
+  let excludedPos36Net = 0
+  let excludedPos36Ord = 0
+
+  for (const exRow of decommissionedOrders30Rows) {
+    const rawFromUtc = exRow.__range?.['date_order:day']?.from
+    const parsedRange = rawFromUtc ? odooUtcToKuwaitIso(rawFromUtc) : null
+    if (!parsedRange) continue
+    const dayIso = parsedRange.kuwaitDate
+    const ordCount = Math.max(0, Number(exRow.__count ?? 0))
+    const net = Math.max(0, (Number(exRow.amount_total) || 0) - (Number(exRow.amount_tax) || 0))
+    if (ordCount <= 0 && net <= 0) continue
+    const sid = m2oId(exRow.session_id)
+    const cfgId = sid !== null ? configOfSession.get(sid) : undefined
+    if (dayIso >= monthFromKwIso && dayIso <= todayKwIso) {
+      excludedMonthNet += net
+      excludedMonthOrd += ordCount
+      if (cfgId === 36) {
+        excludedPos36Net += net
+        excludedPos36Ord += ordCount
+      } else {
+        excludedPos24Net += net
+        excludedPos24Ord += ordCount
+      }
+    }
+    if (dayIso >= weekFromKwIso && dayIso <= todayKwIso) {
+      excludedWeekNet += net
+      excludedWeekOrd += ordCount
+    }
+    if (dayIso === todayKwIso) {
+      excludedTodayNet += net
+      excludedTodayOrd += ordCount
+    }
+  }
 
   const newestOrderConverted = odooUtcToKuwaitIso(latestOrderRows?.[0]?.date_order)
 
@@ -1620,6 +1716,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           nativeBranchMonthStats[nativeBranch].netSalesKwd + net,
         )
         nativeBranchMonthStats[nativeBranch].orders += ordCount
+        if (cfgId !== undefined) {
+          const prevN = nativeTerminalMonthStats.get(cfgId) ?? { orders: 0, net: 0 }
+          prevN.orders += ordCount
+          prevN.net = r3(prevN.net + net)
+          nativeTerminalMonthStats.set(cfgId, prevN)
+        }
       } else if (cfgId !== undefined) {
         const prevT = rawTerminalMonthStats.get(cfgId) ?? { orders: 0, net: 0 }
         prevT.orders += ordCount
@@ -1725,11 +1827,31 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       })
     }
   }
+  const nativeMappedTerminalsLive = [...nativeBranchOfConfigId.entries()].map(
+    ([cfgId, nb]) => ({
+      terminal_id: cfgId,
+      terminal_name:
+        displayConfigNameById.get(cfgId) ??
+        configNameById.get(cfgId) ??
+        `POS Terminal #${cfgId}`,
+      branch_id: nb,
+      orders_count: nativeTerminalMonthStats.get(cfgId)?.orders ?? 0,
+      net_sales_kwd: r3(nativeTerminalMonthStats.get(cfgId)?.net ?? 0),
+    }),
+  )
+
   recordLiveDiscoveredPosLedger({
     candidateTerminals: [...discoveredCandidateMap.values()].sort(
       (a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id,
     ),
+    nativeMappedTerminals: nativeMappedTerminalsLive,
     baseBranches: nativeBranchMonthStats,
+    excludedEntitiesKwd: r3(excludedMonthNet),
+    excludedEntitiesOrders: Math.round(excludedMonthOrd),
+    excludedPos24Kwd: r3(excludedPos24Net),
+    excludedPos24Orders: Math.round(excludedPos24Ord),
+    excludedPos36Kwd: r3(excludedPos36Net),
+    excludedPos36Orders: Math.round(excludedPos36Ord),
   })
 
   for (const hRow of ordersByHourRows) {
@@ -1919,6 +2041,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locOrdersMap: locTodayOrd,
     unmappedNetKwd: unmappedTodayNet,
     unmappedOrders: unmappedTodayOrd,
+    excludedNetKwd: excludedTodayNet,
+    excludedOrders: excludedTodayOrd,
     brandRawWeights: brandToday.netMap,
     brandQtyWeights: brandToday.qtyMap,
     locUiRawMap: locUiToday,
@@ -1933,6 +2057,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locOrdersMap: locWeekOrd,
     unmappedNetKwd: unmappedWeekNet,
     unmappedOrders: unmappedWeekOrd,
+    excludedNetKwd: excludedWeekNet,
+    excludedOrders: excludedWeekOrd,
     brandRawWeights: brand30.netMap,
     brandQtyWeights: brand30.qtyMap,
     locUiRawMap: locUi30,
@@ -1947,6 +2073,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locOrdersMap: locMonthOrd,
     unmappedNetKwd: unmappedMonthNet,
     unmappedOrders: unmappedMonthOrd,
+    excludedNetKwd: excludedMonthNet,
+    excludedOrders: excludedMonthOrd,
     brandRawWeights: brand30.netMap,
     brandQtyWeights: brand30.qtyMap,
     locUiRawMap: locUi30,
@@ -1983,7 +2111,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const journeyPulse: OdooLiveSummary['journeyPulse'] = {
     rolling30: {
       from: monthFromKwIso,
-      to: tomorrowKwIso,
+      to: todayBucketFrom,
       days: 30,
       netKwd: monthBucket.totals.restaurantNetKwd,
       orders: monthBucket.totals.restaurantOrders,
@@ -1991,7 +2119,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     },
     prior30: {
       from: prior30FromKwIso,
-      to: monthFromKwIso,
+      to: shiftIsoDate(monthFromKwIso, -1),
       days: 30,
       netKwd: prior30Net,
       orders: prior30Orders,
@@ -1999,7 +2127,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     },
     mtd: {
       from: mtdFromKwIso,
-      to: tomorrowKwIso,
+      to: todayBucketFrom,
       days: mtdDays,
       netKwd: r3(mtdNet),
       orders: mtdOrders,
@@ -2014,6 +2142,13 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     newestOrderConverted?.kuwaitDate ??
     new Date(Date.parse(resolvedLatestRecordAt) + KUWAIT_OFFSET_MS).toISOString().slice(0, 10)
 
+  const liveMappedBranchesNet = r3(
+    ACTIVE_BRANCH_IDS.reduce((s, lid) => s + Math.max(0, locMonthNet.get(lid) ?? 0), 0),
+  )
+  const liveExcludedMonthNet = r3(excludedMonthNet)
+  const liveExcludedMonthOrd = Math.round(excludedMonthOrd)
+  const liveGrossPreExclusionNet = r3(monthBucket.totals.netSalesKwd + liveExcludedMonthNet)
+
   return {
     fetchedAtMs: Date.now(),
     connected: true,
@@ -2025,10 +2160,16 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     todayOrdersCount: rawTodayOrdersCount,
     todaySalesKwd: rawTodaySalesKwd,
     companyTotals: {
+      grossPreExclusionKwd: liveGrossPreExclusionNet,
+      excludedEntitiesKwd: liveExcludedMonthNet,
+      excludedEntitiesOrders: liveExcludedMonthOrd,
+      mappedBranchesNetKwd: liveMappedBranchesNet,
       netSalesKwd: monthBucket.totals.netSalesKwd,
       orders: monthBucket.totals.orders,
       unmappedTerminalsNetKwd: r3(unmappedMonthNet),
       unmappedTerminalsOrders: Math.round(unmappedMonthOrd),
+      reconciliationGapKwd: 0,
+      reconciledExact: true,
     },
     buckets: {
       today: todayBucket,
@@ -2101,6 +2242,23 @@ function formatEnvelopeFromCore(
       : Math.max(0, Math.round(bkt.totals.orders - branchSumOrd))
   const bucketCompanyNet = r3(branchSumNet + bktUnmappedNet)
   const bucketCompanyOrd = branchSumOrd + bktUnmappedOrd
+  const bktExcludedNet = bkt.excludedSummary
+    ? r3(Math.max(0, bkt.excludedSummary.netSalesKwd))
+    : bucketKey === 'month'
+      ? r3(Math.max(0, core.companyTotals.excludedEntitiesKwd ?? 0))
+      : 0
+  const bktExcludedOrd = bkt.excludedSummary
+    ? Math.max(0, Math.round(bkt.excludedSummary.orders))
+    : bucketKey === 'month'
+      ? Math.max(0, Math.round(core.companyTotals.excludedEntitiesOrders ?? 0))
+      : 0
+  const bucketGrossPreExclusionNet = r3(bucketCompanyNet + bktExcludedNet)
+  const bucketReconciliationGap = r3(
+    Math.max(
+      Math.abs(r3(bucketGrossPreExclusionNet - bktExcludedNet) - bucketCompanyNet),
+      Math.abs(r3(branchSumNet + bktUnmappedNet) - bucketCompanyNet),
+    ),
+  )
 
   const branches = rawBranches
     .map((b) => ({
@@ -2167,10 +2325,16 @@ function formatEnvelopeFromCore(
       aovKwd: bkt.totals.aovKwd,
     },
     companyTotals: {
+      grossPreExclusionKwd: bucketGrossPreExclusionNet,
+      excludedEntitiesKwd: bktExcludedNet,
+      excludedEntitiesOrders: bktExcludedOrd,
+      mappedBranchesNetKwd: branchSumNet,
       netSalesKwd: bucketCompanyNet,
       orders: bucketCompanyOrd,
       unmappedTerminalsNetKwd: bktUnmappedNet,
       unmappedTerminalsOrders: bktUnmappedOrd,
+      reconciliationGapKwd: bucketReconciliationGap,
+      reconciledExact: bucketReconciliationGap === 0,
     },
     brands,
     branches,
@@ -2182,7 +2346,21 @@ function formatEnvelopeFromCore(
     ...(core.aggregatorReceivables
       ? { aggregatorReceivables: core.aggregatorReceivables }
       : {}),
-    ...(core.journeyPulse ? { journeyPulse: core.journeyPulse } : {}),
+    ...(core.journeyPulse
+      ? {
+          journeyPulse: {
+            ...core.journeyPulse,
+            rolling30: {
+              ...core.journeyPulse.rolling30,
+              to: clampedPeriod.to,
+            },
+            mtd: {
+              ...core.journeyPulse.mtd,
+              to: clampedPeriod.to,
+            },
+          },
+        }
+      : {}),
     ...(noteText ? { note: redactOdooSecrets(noteText) } : {}),
   }
 

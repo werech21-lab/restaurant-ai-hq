@@ -11,6 +11,7 @@
  */
 
 import { ODOO } from '@/lib/odoo/odoo-dataset'
+import { getKuwaitTodayIso } from '@/lib/aether/period-delta'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -1820,9 +1821,10 @@ export function computeWeekdayComparisonData(
     readonly netKwd: number
   }[] = ODOO.timeProfile?.daily ?? []
 
-  // Exclude trailing incomplete early-morning sync day (<100 orders across 7 branches)
+  // Exclude trailing incomplete current day ('2026-11-14' partial capture & Kuwait today) by default
+  const kwTodayIso = getKuwaitTodayIso()
   const completed = rawDaily
-    .filter((d) => d.orders >= 100)
+    .filter((d) => d.orders >= 100 && d.day < '2026-11-14' && d.day < kwTodayIso)
     .map((d) => {
       const p = parseDateUtc(d.day)
       return { ...d, dow: p.dow, dayOfMonth: p.dayOfMonth }

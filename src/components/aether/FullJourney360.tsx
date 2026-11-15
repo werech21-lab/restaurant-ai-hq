@@ -38,8 +38,11 @@ import {
   type SummaryCardData,
 } from '@/lib/aether/global-filter-engine'
 import {
+  buildWeeklyChartMeta,
   computePeriodDelta,
   formatAdminUnmappedAlertCopy,
+  formatStaticMarginPill,
+  resolveTopBranchCard,
   UNMAPPED_TERMINALS_LABEL_AR,
   UNMAPPED_TERMINALS_LABEL_EN,
 } from '@/lib/aether/period-delta'
@@ -408,7 +411,73 @@ export function FullJourney360() {
       : peakPillId
   const activeWeeklyDay = weeklyPills.find((p) => p.id === activePillId) ?? weeklyPills[weeklyPills.length - 1]
 
-  const topBranch = coresSnap.sales.branchRanking[0]
+  const weeklyChartMeta = useMemo(
+    () =>
+      buildWeeklyChartMeta(
+        weeklyPills.map((p) => p.id),
+        { liveConnected: Boolean(liveSummary?.connected) },
+      ),
+    [weeklyPills, liveSummary?.connected],
+  )
+
+  const topBranchCard = useMemo(() => {
+    const isUnfilteredSubScope =
+      filters.brand === 'all' &&
+      filters.channel === 'all' &&
+      filters.kuwaitSlice === 'all' &&
+      filters.lens === 'all'
+    const bucketKey =
+      filters.period === 'today' ||
+      filters.period === 'week' ||
+      filters.period === 'month' ||
+      filters.period === 'year'
+        ? filters.period
+        : null
+    const bucketMapLoc = bucketKey
+      ? liveSummary?.buckets?.[bucketKey]?.mappedByLocation ??
+        liveSummary?.buckets?.[bucketKey]?.byLocation ??
+        null
+      : null
+    const periodBranches = isUnfilteredSubScope
+      ? bucketKey
+        ? liveSummary?.bucket === bucketKey && Array.isArray(liveSummary?.branches)
+          ? liveSummary.branches
+          : bucketMapLoc
+            ? Object.entries(bucketMapLoc).map(([id, v]) => ({
+                id,
+                netSalesKwd: v.netKwd,
+                orders: v.orders,
+              }))
+            : liveSummary?.branches ?? null
+        : filters.period === 'custom' &&
+            liveSummary?.period?.from === filters.customFrom &&
+            liveSummary?.period?.to === filters.customTo
+          ? liveSummary?.branches ?? null
+          : null
+      : null
+    return resolveTopBranchCard({
+      branches: periodBranches,
+      period: filters.period,
+      branchFilter: filters.branch,
+      subScopeRatio: 1,
+      fallbackBranches: coresSnap.sales.branchRanking,
+    })
+  }, [
+    coresSnap.sales.branchRanking,
+    filters.branch,
+    filters.brand,
+    filters.channel,
+    filters.customFrom,
+    filters.customTo,
+    filters.kuwaitSlice,
+    filters.lens,
+    filters.period,
+    liveSummary?.branches,
+    liveSummary?.bucket,
+    liveSummary?.buckets,
+    liveSummary?.period?.from,
+    liveSummary?.period?.to,
+  ])
   const heroDelta = useMemo(() => {
     const rolling30Net = liveSummary?.journeyPulse?.rolling30?.netKwd ?? 0
     const prior30Net = liveSummary?.journeyPulse?.prior30?.netKwd ?? 0
@@ -629,7 +698,7 @@ export function FullJourney360() {
                         : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
                     }`}
                   >
-                    {beforeRentRatio > 0 ? '▲' : beforeRentRatio < 0 ? '▼' : '•'} {f1(beforeRentRatio * 100)}% • {fmtKwdVal(beforeRentKwd)}
+                    {formatStaticMarginPill(beforeRentRatio * 100)} • {fmtKwdVal(beforeRentKwd)}
                   </span>
                   <span className="whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                     {isAr ? 'بعد المواد والتوصيل' : 'left before rent'}
@@ -688,7 +757,7 @@ export function FullJourney360() {
                           : 'bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300'
                     }`}
                   >
-                    {netPocketPct > 0 ? '▲' : netPocketPct < 0 ? '▼' : '•'} {f1(netPocketPct)}% {T('net pocket share', 'نسبة الصافي')}
+                    {formatStaticMarginPill(netPocketPct, T('net pocket share', 'نسبة الصافي'))}
                   </span>
                   <p className="whitespace-normal text-[13px] font-medium leading-snug text-slate-600 dark:text-slate-300">
                     {isAr
@@ -789,10 +858,7 @@ export function FullJourney360() {
                   {T('Weekly Performance Analytics', 'تحليلات الأداء الأسبوعي')}
                 </h2>
                 <p className="mt-0.5 whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
-                  {T(
-                    '7-day POS ledger trajectory (Sat–Fri) · Select any pill bar',
-                    'مسار 7 أيام من نقاط البيع (السبت – الجمعة) · اختر أي عمود كبسولة',
-                  )}
+                  {isAr ? weeklyChartMeta.subtitleAr : weeklyChartMeta.subtitleEn}
                 </p>
               </div>
 
@@ -803,6 +869,11 @@ export function FullJourney360() {
                     •
                   </span>
                   <span dir="ltr">{fmtKwdVal(activeWeeklyDay.salesKwd)}</span>
+                  {weeklyChartMeta.bars.find((b) => b.id === activeWeeklyDay.id)?.isPartialToday ? (
+                    <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+                      {T('Partial', 'جزئي')}
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -812,8 +883,9 @@ export function FullJourney360() {
               dir="ltr"
               className="mt-5 grid grid-cols-7 items-end gap-2.5 sm:gap-4 pt-6 pb-1"
             >
-              {weeklyPills.map((day) => {
+              {weeklyPills.map((day, barIdx) => {
                 const isSelected = day.id === activePillId
+                const isPartialToday = Boolean(weeklyChartMeta.bars[barIdx]?.isPartialToday)
                 return (
                   <button
                     key={day.id}
@@ -821,7 +893,7 @@ export function FullJourney360() {
                     onClick={() => setSelectedPillId(day.id)}
                     onMouseEnter={() => setSelectedPillId(day.id)}
                     aria-pressed={isSelected}
-                    aria-label={`${day.dayNameEn} (${day.shortDate}): ${fmtKwdVal(day.salesKwd)}`}
+                    aria-label={`${day.dayNameEn} (${day.shortDate})${isPartialToday ? ' Partial' : ''}: ${fmtKwdVal(day.salesKwd)}`}
                     className="group flex cursor-pointer flex-col items-center focus:outline-none"
                   >
                     <div className="relative flex h-40 sm:h-44 w-full flex-col items-center justify-end">
@@ -833,6 +905,10 @@ export function FullJourney360() {
                           {day.isPeak
                             ? T('100% (Peak)', '100% (الذروة)')
                             : `${day.compactKwd} ${isAr ? 'د.ك' : 'KWD'}`}
+                        </span>
+                      ) : isPartialToday ? (
+                        <span className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/30">
+                          {T('Partial', 'جزئي')}
                         </span>
                       ) : (
                         <span
@@ -873,6 +949,11 @@ export function FullJourney360() {
                     <span className="text-xs lg:text-[13px] font-medium tabular-nums text-slate-600 dark:text-slate-300">
                       {day.shortDate}
                     </span>
+                    {isPartialToday && isSelected ? (
+                      <span className="mt-1 inline-flex items-center whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/30">
+                        {T('Partial', 'جزئي')}
+                      </span>
+                    ) : null}
                   </button>
                 )
               })}
@@ -1012,14 +1093,18 @@ export function FullJourney360() {
                     </span>
                     <div className="min-w-0">
                       <p className="whitespace-normal text-[13px] lg:text-sm font-semibold leading-tight text-slate-900 dark:text-white">
-                        {topBranch
+                        {topBranchCard
                           ? isAr
-                            ? topBranch.labelAr
-                            : topBranch.labelEn
+                            ? topBranchCard.labelAr
+                            : topBranchCard.labelEn
                           : T('Lead Branch', 'الفرع المتصدر')}
                       </p>
                       <p className="mt-0.5 text-xs lg:text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                        {T('Peak POS Revenue · Today', 'أعلى إيراد نقاط بيع · اليوم')}
+                        {topBranchCard
+                          ? isAr
+                            ? topBranchCard.subtitleAr
+                            : topBranchCard.subtitleEn
+                          : T('Peak POS Revenue · This Month', 'أعلى إيراد نقاط بيع · الشهر')}
                       </p>
                     </div>
                   </div>
@@ -1027,7 +1112,7 @@ export function FullJourney360() {
                     dir="ltr"
                     className="shrink-0 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
                   >
-                    {topBranch ? fmtKwdVal(topBranch.salesKwd) : fmtKwdVal(workspace.salesKwd)}
+                    {topBranchCard ? fmtKwdVal(topBranchCard.netSalesKwd) : fmtKwdVal(workspace.salesKwd)}
                   </span>
                 </Link>
 

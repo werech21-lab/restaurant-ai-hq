@@ -5315,8 +5315,8 @@ const s35Out = execFileSync(process.execPath, [path.join(__dirname, 'test-erp-fi
 }).trim()
 
 assert(
-  s35Out.includes('ALL 10 ERP TARGETED FIXES, 8-ROLE RBAC & POS DISCOVERY CHECKS PASSED!'),
-  '35.1 Unit & Integration Suite (scripts/test-erp-fixes.mjs): +3.3% computePeriodDelta, Branch + Unmapped Sales Reconciliation & 403 RBAC, Least Decline & Campaign Sanitization, dailySeries Bounds <= Kuwait Today & Entity Exclusions',
+  s35Out.includes('ALL 14 ERP TARGETED FIXES, 8-ROLE RBAC & POS DISCOVERY CHECKS PASSED!'),
+  '35.1 Unit & Integration Suite (scripts/test-erp-fixes.mjs): +3.3% computePeriodDelta, 158.1k->136.5k Terminal Reconciliation, Fair Completed-Day Comparisons, Mall 360 Period Sync, Static Margin Arrows Stripped & rolling30.to === period.to',
 )
 
 console.log('\n----------------------------------------------------------------------')

@@ -17,6 +17,7 @@
 import { ODOO } from '@/lib/odoo/odoo-dataset'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { BRANCH_TRUE_CASH } from '@/lib/full-journey-enterprise-brain'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -59,6 +60,8 @@ export interface ErpComparisonQuery {
   entityDimension?: EntityComparisonDimension
   entityA?: BrandEntityId | BranchEntityId
   entityB?: BrandEntityId | BranchEntityId
+  /** Optional opt-in to include today's partial hours (`00:00–[Kuwait HH:mm]`) across both windows */
+  sameHoursLikeForLike?: boolean
 }
 
 export type ExecutiveKpiId =
@@ -191,6 +194,17 @@ export interface ErpComparisonAutoInsights {
   summaryAr: string
 }
 
+export interface ComparisonLikeForLikeMeta {
+  sameHoursLikeForLike: boolean
+  excludedIncompleteToday: boolean
+  operationalTodayIso: string
+  lastCompletedDayIso: string
+  kuwaitHhMm: string
+  intradayShare: number
+  helperNoteEn: string
+  helperNoteAr: string
+}
+
 export interface ErpComparisonResult {
   query: ErpComparisonQuery
   isScopeCompatible: boolean
@@ -221,6 +235,7 @@ export interface ErpComparisonResult {
   byBrand: EntityVarianceRow[]
   byChannel: EntityVarianceRow[]
   insights: ErpComparisonAutoInsights
+  likeForLikeMeta: ComparisonLikeForLikeMeta
   reconciliation: {
     maxSalesGapKwd: number
     maxProfitGapKwd: number
@@ -229,12 +244,16 @@ export interface ErpComparisonResult {
   }
 }
 
-export const DEFAULT_COMPARISON_DATE_A = '2026-11-14'
-export const DEFAULT_COMPARISON_DATE_B = '2026-11-07'
-export const DEFAULT_RANGE_FROM_A = '2026-11-08'
-export const DEFAULT_RANGE_TO_A = '2026-11-14'
-export const DEFAULT_RANGE_FROM_B = '2026-11-01'
-export const DEFAULT_RANGE_TO_B = '2026-11-07'
+/**
+ * Default Comparison Dates exclude the incomplete partial day (`2026-11-14`) by default
+ * so windows end cleanly at the last completed calendar day (`2026-11-13`) with equal day counts.
+ */
+export const DEFAULT_COMPARISON_DATE_A = '2026-11-13'
+export const DEFAULT_COMPARISON_DATE_B = '2026-11-06'
+export const DEFAULT_RANGE_FROM_A = '2026-11-07'
+export const DEFAULT_RANGE_TO_A = '2026-11-13'
+export const DEFAULT_RANGE_FROM_B = '2026-10-31'
+export const DEFAULT_RANGE_TO_B = '2026-11-06'
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -481,6 +500,7 @@ interface CalibratedOdooBase {
   avgDailyGroupSales: number
   avgDailyGroupOrders: number
   realDayLookup: Map<string, { netKwd: number; orders: number }>
+  partialDayLookup: Map<string, { netKwd: number; orders: number }>
   weekdayLift: Record<number, { salesFactor: number; ordersFactor: number }>
   hourlyWeights: Record<number, number>
   brandAov: Record<BrandEntityId, number>
@@ -618,7 +638,16 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
     }
   ).timeProfile
 
-  const fullDays = (tp?.daily ?? []).filter((d) => d.orders >= 150 && d.netKwd > 0)
+  const partialDayLookup = new Map<string, { netKwd: number; orders: number }>()
+  for (const d of tp?.daily ?? []) {
+    if (d.orders > 0 && d.netKwd > 0) {
+      partialDayLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
+    }
+  }
+  // Exclude trailing partial capture day ('2026-11-14') from full-day baseline averages & default lookup
+  const fullDays = (tp?.daily ?? []).filter(
+    (d) => d.orders >= 150 && d.netKwd > 0 && d.day < '2026-11-14',
+  )
   const realDayLookup = new Map<string, { netKwd: number; orders: number }>()
   const dowAcc: Record<number, { net: number; ord: number; count: number }> = {}
   let sumDailyNet = 0
@@ -687,6 +716,7 @@ const CALIBRATED_BASE: CalibratedOdooBase = (() => {
     avgDailyGroupSales,
     avgDailyGroupOrders,
     realDayLookup,
+    partialDayLookup,
     weekdayLift,
     hourlyWeights,
     brandAov,
@@ -704,10 +734,84 @@ export function getCompatibleBranchesForBrands(
   )
 }
 
+/**
+ * Resolves default comparison windows that exclude incomplete `today` (`Asia/Kuwait`) by default
+ * (ending at `yesterday` = `lastCompletedDayIso` with equal completed-day counts), or include `today`
+ * when `sameHoursLikeForLike === true`.
+ */
+export function resolveCompletedComparisonDefaults(options?: {
+  granularity?: ComparisonGranularity
+  sameHoursLikeForLike?: boolean
+  liveSummary?: OdooLiveSummary | null
+  referenceNowMs?: number
+}): {
+  operationalTodayIso: string
+  lastCompletedDayIso: string
+  kuwaitHhMm: string
+  periodA: DateWindowSelection
+  periodB: DateWindowSelection
+} {
+  const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
+  const operationalTodayIso =
+    options?.referenceNowMs !== undefined || options?.liveSummary?.connected === true
+      ? kwCtx.todayIso
+      : '2026-11-14'
+  const lastCompletedDayIso = shiftIsoDate(operationalTodayIso, -1)
+  const anchorTo = options?.sameHoursLikeForLike ? operationalTodayIso : lastCompletedDayIso
+  const granularity = options?.granularity === 'range' ? 'range' : 'single'
+
+  if (granularity === 'range') {
+    return {
+      operationalTodayIso,
+      lastCompletedDayIso,
+      kuwaitHhMm: kwCtx.hhMm,
+      periodA: { from: shiftIsoDate(anchorTo, -6), to: anchorTo },
+      periodB: { from: shiftIsoDate(anchorTo, -13), to: shiftIsoDate(anchorTo, -7) },
+    }
+  }
+
+  return {
+    operationalTodayIso,
+    lastCompletedDayIso,
+    kuwaitHhMm: kwCtx.hhMm,
+    periodA: { from: anchorTo, to: anchorTo },
+    periodB: { from: shiftIsoDate(anchorTo, -7), to: shiftIsoDate(anchorTo, -7) },
+  }
+}
+
+function computeIntradayShareUpToKuwaitClock(
+  hour24: number,
+  minute: number,
+  hourlyWeights?: Readonly<Record<number, number>>,
+): number {
+  const safeMin = Math.max(0, Math.min(59, minute))
+  if (hour24 === 0) {
+    return r3(Math.max(0.05, ((safeMin + 1) / 60) * 0.06))
+  }
+  if (hour24 < 11) {
+    return 0.08
+  }
+  const weights = hourlyWeights ?? CALIBRATED_BASE.hourlyWeights
+  let totalWeight = 0
+  let cumulativeWeight = 0
+  for (const slot of OPERATING_HOURS_14) {
+    const w = weights[slot.hour24] ?? slot.baseWeight
+    totalWeight += w
+    if (slot.hour24 !== 0 && slot.hour24 < hour24) {
+      cumulativeWeight += w
+    } else if (slot.hour24 === hour24) {
+      cumulativeWeight += w * Math.max(0.15, (safeMin + 1) / 60)
+    }
+  }
+  const share = totalWeight > 0 ? cumulativeWeight / totalWeight : 0.5
+  return r3(Math.min(1, Math.max(0.08, share)))
+}
+
 /** Deterministic daily group factor + micro-entity modulation for any calendar date YYYY-MM-DD */
 function getDateGroupProfile(
   isoDate: string,
   liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
+  intradayScale = 1,
 ): {
   salesDayShareOf30: number
   ordersDayShareOf30: number
@@ -715,6 +819,7 @@ function getDateGroupProfile(
   isPayday: boolean
   dow: number
 } {
+  const safeScale = Number.isFinite(intradayScale) && intradayScale > 0 ? intradayScale : 1
   const dt = new Date(`${isoDate}T12:00:00Z`)
   const dow = dt.getUTCDay()
   const dom = dt.getUTCDate()
@@ -724,8 +829,10 @@ function getDateGroupProfile(
   const liveHit = liveDailyLookup?.get(isoDate)
   if (liveHit && liveHit.orders > 0 && liveHit.netKwd > 0) {
     return {
-      salesDayShareOf30: safeDiv(liveHit.netKwd, CALIBRATED_BASE.totalSales30, 1 / 30),
-      ordersDayShareOf30: safeDiv(liveHit.orders, CALIBRATED_BASE.totalOrders30, 1 / 30),
+      salesDayShareOf30:
+        safeDiv(liveHit.netKwd, CALIBRATED_BASE.totalSales30, 1 / 30) * safeScale,
+      ordersDayShareOf30:
+        safeDiv(liveHit.orders, CALIBRATED_BASE.totalOrders30, 1 / 30) * safeScale,
       isWeekend,
       isPayday,
       dow,
@@ -740,8 +847,8 @@ function getDateGroupProfile(
       safeNum(ODOO.totals?.netSalesKwd, CALIBRATED_BASE.totalSales30),
       1,
     )
-    const restDaySales = realHit.netKwd * Math.min(1, Math.max(0.9, restRatio))
-    const restDayOrders = realHit.orders * Math.min(1, Math.max(0.9, restRatio))
+    const restDaySales = realHit.netKwd * Math.min(1, Math.max(0.9, restRatio)) * safeScale
+    const restDayOrders = realHit.orders * Math.min(1, Math.max(0.9, restRatio)) * safeScale
     return {
       salesDayShareOf30: safeDiv(restDaySales, CALIBRATED_BASE.totalSales30, 1 / 30),
       ordersDayShareOf30: safeDiv(restDayOrders, CALIBRATED_BASE.totalOrders30, 1 / 30),
@@ -755,9 +862,14 @@ function getDateGroupProfile(
   const wl = CALIBRATED_BASE.weekdayLift[dow] ?? { salesFactor: 1, ordersFactor: 1 }
   const paydayMult = isPayday ? 1.11 : dom >= 10 && dom <= 19 ? 0.94 : 1.01
   const jitter = 0.955 + fnv1aUnit(`vf-day:${isoDate}`) * 0.09 // ±4.5% natural daily variance
-  const daySales = CALIBRATED_BASE.avgDailyGroupSales * wl.salesFactor * paydayMult * jitter
+  const daySales =
+    CALIBRATED_BASE.avgDailyGroupSales * wl.salesFactor * paydayMult * jitter * safeScale
   const dayOrders =
-    CALIBRATED_BASE.avgDailyGroupOrders * wl.ordersFactor * (0.98 + (paydayMult - 1) * 0.85) * jitter
+    CALIBRATED_BASE.avgDailyGroupOrders *
+    wl.ordersFactor *
+    (0.98 + (paydayMult - 1) * 0.85) *
+    jitter *
+    safeScale
 
   return {
     salesDayShareOf30: safeDiv(daySales, CALIBRATED_BASE.totalSales30, 1 / 30),
@@ -773,6 +885,7 @@ function computeCellMetricsForDate(
   isoDate: string,
   cellFilter: (c: AtomicCell) => boolean,
   liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
+  intradayScale = 1,
 ): {
   byCell: Map<
     AtomicCell,
@@ -792,7 +905,7 @@ function computeCellMetricsForDate(
   totalOpexCost: number
   totalNetPocket: number
 } {
-  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup)
+  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup, intradayScale)
   const matchingCells = CALIBRATED_BASE.cells.filter(cellFilter)
 
   if (matchingCells.length === 0) {
@@ -930,6 +1043,7 @@ function aggregateSliceOverDates(
   dates: string[],
   cellFilter: (c: AtomicCell) => boolean,
   liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
+  dateIntradayScaleMap?: ReadonlyMap<string, number>,
 ): AggregatedSliceRaw {
   const byBrand = {} as AggregatedSliceRaw['byBrand']
   for (const b of APPROVED_BRAND_IDS) {
@@ -953,7 +1067,8 @@ function aggregateSliceOverDates(
   let totalNetPocket = 0
 
   for (const dateIso of dates) {
-    const dayRes = computeCellMetricsForDate(dateIso, cellFilter, liveDailyLookup)
+    const scale = dateIntradayScaleMap?.get(dateIso) ?? 1
+    const dayRes = computeCellMetricsForDate(dateIso, cellFilter, liveDailyLookup, scale)
     perDate.push({
       dateIso,
       sales: dayRes.totalSales,
@@ -1571,15 +1686,85 @@ function pickInsightPair(rows: EntityVarianceRow[]): {
 export function computeErpComparison(
   query: ErpComparisonQuery,
   liveSummary?: OdooLiveSummary | null,
+  options?: { referenceNowMs?: number },
 ): ErpComparisonResult {
   const mode: ComparisonModeType = query.mode === 'entity-vs-entity' ? 'entity-vs-entity' : 'date-vs-date'
   const granularity: ComparisonGranularity = query.granularity === 'range' ? 'range' : 'single'
+  const sameHoursLikeForLike = query.sameHoursLikeForLike === true
 
-  const normA = normalizeWindowSelection(query.periodA, granularity, DEFAULT_COMPARISON_DATE_A)
-  const normB =
+  const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
+  const operationalTodayIso =
+    options?.referenceNowMs !== undefined || liveSummary?.connected === true
+      ? kwCtx.todayIso
+      : '2026-11-14'
+  const lastCompletedDayIso = shiftIsoDate(operationalTodayIso, -1)
+
+  let normA = normalizeWindowSelection(
+    query.periodA,
+    granularity,
+    sameHoursLikeForLike ? operationalTodayIso : DEFAULT_COMPARISON_DATE_A,
+  )
+  let normB =
     mode === 'entity-vs-entity'
       ? normA
-      : normalizeWindowSelection(query.periodB, granularity, DEFAULT_COMPARISON_DATE_B)
+      : normalizeWindowSelection(
+          query.periodB,
+          granularity,
+          sameHoursLikeForLike ? shiftIsoDate(operationalTodayIso, -7) : DEFAULT_COMPARISON_DATE_B,
+        )
+
+  // By default (!sameHoursLikeForLike), exclude incomplete current day (`operationalTodayIso`)
+  // so comparison windows end cleanly at `lastCompletedDayIso` (`yesterday`) with equal day counts.
+  if (!sameHoursLikeForLike && normA.toIso >= operationalTodayIso) {
+    const shiftBackDays = Math.max(
+      1,
+      Math.round(
+        (Date.parse(`${normA.toIso}T00:00:00Z`) -
+          Date.parse(`${lastCompletedDayIso}T00:00:00Z`)) /
+          86_400_000,
+      ),
+    )
+    const shiftedFromA = shiftIsoDate(normA.fromIso, -shiftBackDays)
+    const shiftedToA = shiftIsoDate(normA.toIso, -shiftBackDays)
+    const shouldShiftPairedB =
+      mode === 'date-vs-date' &&
+      (normB.toIso >= operationalTodayIso || normB.dayCount === normA.dayCount)
+
+    normA = normalizeWindowSelection(
+      { from: shiftedFromA, to: shiftedToA },
+      granularity,
+      lastCompletedDayIso,
+    )
+    if (mode === 'entity-vs-entity') {
+      normB = normA
+    } else if (shouldShiftPairedB) {
+      normB = normalizeWindowSelection(
+        {
+          from: shiftIsoDate(normB.fromIso, -shiftBackDays),
+          to: shiftIsoDate(normB.toIso, -shiftBackDays),
+        },
+        granularity,
+        shiftIsoDate(lastCompletedDayIso, -7),
+      )
+    }
+  } else if (!sameHoursLikeForLike && mode === 'date-vs-date' && normB.toIso >= operationalTodayIso) {
+    const shiftBackDaysB = Math.max(
+      1,
+      Math.round(
+        (Date.parse(`${normB.toIso}T00:00:00Z`) -
+          Date.parse(`${lastCompletedDayIso}T00:00:00Z`)) /
+          86_400_000,
+      ),
+    )
+    normB = normalizeWindowSelection(
+      {
+        from: shiftIsoDate(normB.fromIso, -shiftBackDaysB),
+        to: shiftIsoDate(normB.toIso, -shiftBackDaysB),
+      },
+      granularity,
+      shiftIsoDate(lastCompletedDayIso, -7),
+    )
+  }
 
   const brandSet =
     query.brandIds === 'all' || query.brandIds.length === 0
@@ -1667,8 +1852,60 @@ export function computeErpComparison(
     }
   }
 
-  const rawA = aggregateSliceOverDates(normA.dates, filterA, liveDailyLookup)
-  const rawB = aggregateSliceOverDates(normB.dates, filterB, liveDailyLookup)
+  const intradayShare = sameHoursLikeForLike
+    ? computeIntradayShareUpToKuwaitClock(kwCtx.hour24, kwCtx.minute, liveHourlyWeights)
+    : 1
+
+  let lookupA = liveDailyLookup
+  const dateScaleA = new Map<string, number>()
+  const dateScaleB = new Map<string, number>()
+
+  if (sameHoursLikeForLike) {
+    const todayIdxInA = normA.dates.indexOf(operationalTodayIso)
+    if (todayIdxInA >= 0) {
+      const hasLivePartialToday = Boolean(liveDailyLookup?.has(operationalTodayIso))
+      const snapshotPartialToday = CALIBRATED_BASE.partialDayLookup.get(operationalTodayIso)
+      if (!hasLivePartialToday && snapshotPartialToday && operationalTodayIso === '2026-11-14') {
+        lookupA = new Map(liveDailyLookup ?? [])
+        lookupA.set(operationalTodayIso, snapshotPartialToday)
+      } else if (!hasLivePartialToday) {
+        dateScaleA.set(operationalTodayIso, intradayShare)
+      }
+
+      if (mode === 'date-vs-date') {
+        const pairedDateB =
+          normB.dates[todayIdxInA] ??
+          (normB.dates.length > 0 ? normB.dates[normB.dates.length - 1] : undefined)
+        if (pairedDateB && pairedDateB < operationalTodayIso) {
+          const effectiveScaleB =
+            !hasLivePartialToday && snapshotPartialToday && operationalTodayIso === '2026-11-14'
+              ? r3(
+                  Math.min(
+                    1,
+                    Math.max(
+                      0.1,
+                      safeDiv(
+                        snapshotPartialToday.netKwd,
+                        CALIBRATED_BASE.avgDailyGroupSales,
+                        intradayShare,
+                      ),
+                    ),
+                  ),
+                )
+              : intradayShare
+          dateScaleB.set(pairedDateB, effectiveScaleB)
+        }
+      }
+    }
+  }
+
+  const rawA = aggregateSliceOverDates(normA.dates, filterA, lookupA, dateScaleA)
+  const rawB = aggregateSliceOverDates(
+    normB.dates,
+    filterB,
+    mode === 'entity-vs-entity' ? lookupA : liveDailyLookup,
+    mode === 'entity-vs-entity' ? dateScaleA : dateScaleB,
+  )
 
   const entityLabelAEn =
     mode === 'entity-vs-entity'
@@ -1943,6 +2180,28 @@ export function computeErpComparison(
     ),
   )
 
+  const likeForLikeMeta: ComparisonLikeForLikeMeta = sameHoursLikeForLike
+    ? {
+        sameHoursLikeForLike: true,
+        excludedIncompleteToday: false,
+        operationalTodayIso,
+        lastCompletedDayIso,
+        kuwaitHhMm: kwCtx.hhMm,
+        intradayShare,
+        helperNoteEn: `Comparing 00:00–${kwCtx.hhMm} across both windows`,
+        helperNoteAr: `مقارنة نفس الساعات حتى اللحظة · Comparing 00:00–${kwCtx.hhMm} بتوقيت الكويت عبر الفترتين`,
+      }
+    : {
+        sameHoursLikeForLike: false,
+        excludedIncompleteToday: true,
+        operationalTodayIso,
+        lastCompletedDayIso,
+        kuwaitHhMm: kwCtx.hhMm,
+        intradayShare: 1,
+        helperNoteEn: `Completed calendar days through ${lastCompletedDayIso} (incomplete today ${operationalTodayIso} excluded by default)`,
+        helperNoteAr: `أيام تقويمية مكتملة حتى ${lastCompletedDayIso} (تم استبعاد اليوم الحالي غير المكتمل ${operationalTodayIso} افتراضياً)`,
+      }
+
   return {
     query: {
       ...query,
@@ -1953,6 +2212,7 @@ export function computeErpComparison(
       entityDimension: entityDim,
       entityA: entityAId,
       entityB: entityBId,
+      sameHoursLikeForLike,
     },
     isScopeCompatible,
     scopeSummaryEn,
@@ -1985,6 +2245,7 @@ export function computeErpComparison(
       summaryEn,
       summaryAr,
     },
+    likeForLikeMeta,
     reconciliation: {
       maxSalesGapKwd,
       maxProfitGapKwd,

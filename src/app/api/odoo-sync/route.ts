@@ -9,6 +9,7 @@ import {
   triggerManualOdooSync,
 } from '@/lib/odoo-live-connector'
 import { dispatchAdminStalenessAlertIfNeeded } from '@/lib/odoo-staleness-notifier'
+import { computeTerminalMappingLedgerSnapshot } from '@/lib/odoo-terminal-mappings'
 import { ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import {
   EXEC_SESSION_COOKIE,
@@ -190,6 +191,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
       ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
       ...(isAdminCaller
         ? {
+            reconciliationReport: computeTerminalMappingLedgerSnapshot().reconciliationReport,
             adminAlertDispatched: staleTelemetry.adminAlertDispatched,
             alertChannels: staleTelemetry.channels,
             stalenessAlert: {
@@ -289,6 +291,7 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
       ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
       ...(isAdminCaller
         ? {
+            reconciliationReport: computeTerminalMappingLedgerSnapshot().reconciliationReport,
             adminAlertDispatched: staleTelemetry.adminAlertDispatched,
             alertChannels: staleTelemetry.channels,
             stalenessAlert: {

@@ -34,7 +34,7 @@ import type {
   OdooLiveSummary,
   OdooPeriodBucketKey,
 } from '@/lib/odoo/live-sync-core'
-import { clampPeriodToKuwaitToday } from '@/lib/aether/period-delta'
+import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
 
@@ -2369,6 +2369,7 @@ export function computePeriodOverPeriodDeltaPct(
   filters: GlobalFilters,
   workspace: Pick<GlobalWorkspaceSlice, 'salesKwd' | 'isTodayFallback'>,
   liveSummary?: OdooLiveSummary | null,
+  options?: { referenceNowMs?: number; sameHoursLikeForLike?: boolean },
 ): number {
   const baselineDaily = ODOO.timeProfile?.daily ?? []
   const dailyMap = new Map<string, { day: string; orders: number; netKwd: number }>()
@@ -2379,6 +2380,14 @@ export function computePeriodOverPeriodDeltaPct(
     if (d.orders > 0 && d.netKwd > 0) dailyMap.set(d.day, d)
   }
   const orderedDays = [...dailyMap.values()].sort((a, b) => a.day.localeCompare(b.day))
+  const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
+  const activeIncompleteTodayIso =
+    options?.referenceNowMs !== undefined || liveSummary?.connected === true
+      ? kwCtx.todayIso
+      : '2026-11-14'
+  const completedDays = options?.sameHoursLikeForLike
+    ? orderedDays
+    : orderedDays.filter((d) => d.day < activeIncompleteTodayIso && d.day < kwCtx.todayIso)
 
   if (filters.period === 'month') {
     const r30 = liveSummary?.journeyPulse?.rolling30
@@ -2397,9 +2406,9 @@ export function computePeriodOverPeriodDeltaPct(
         return Math.round(pct * 10) / 10
       }
     }
-    if (orderedDays.length >= 60) {
-      const curr30 = orderedDays.slice(-30).reduce((s, d) => s + d.netKwd, 0)
-      const prev30 = orderedDays.slice(-60, -30).reduce((s, d) => s + d.netKwd, 0)
+    if (completedDays.length >= 60) {
+      const curr30 = completedDays.slice(-30).reduce((s, d) => s + d.netKwd, 0)
+      const prev30 = completedDays.slice(-60, -30).reduce((s, d) => s + d.netKwd, 0)
       if (curr30 > 0 && prev30 > 0) {
         return Math.round(((curr30 - prev30) / prev30) * 1000) / 10
       }
@@ -2408,42 +2417,64 @@ export function computePeriodOverPeriodDeltaPct(
     return 3.3
   }
 
-  if (filters.period === 'week' && orderedDays.length >= 14) {
-    // Exclude an incomplete morning day if its revenue is < 35% of trailing daily average
-    const avg7 =
-      orderedDays.slice(-8, -1).reduce((s, d) => s + d.netKwd, 0) /
-      Math.max(1, orderedDays.slice(-8, -1).length)
-    const usable =
-      orderedDays[orderedDays.length - 1].netKwd < avg7 * 0.35
-        ? orderedDays.slice(0, -1)
-        : orderedDays
-    if (usable.length >= 14) {
-      const curr7 = usable.slice(-7).reduce((s, d) => s + d.netKwd, 0)
-      const prev7 = usable.slice(-14, -7).reduce((s, d) => s + d.netKwd, 0)
-      if (curr7 > 0 && prev7 > 0) {
-        return Math.round(((curr7 - prev7) / prev7) * 1000) / 10
-      }
+  if (filters.period === 'week' && completedDays.length >= 14) {
+    const curr7 = completedDays.slice(-7).reduce((s, d) => s + d.netKwd, 0)
+    const prev7 = completedDays.slice(-14, -7).reduce((s, d) => s + d.netKwd, 0)
+    if (curr7 > 0 && prev7 > 0) {
+      return Math.round(((curr7 - prev7) / prev7) * 1000) / 10
     }
     return 3.3
   }
 
-  if (filters.period === 'today' && orderedDays.length >= 8) {
-    const avgRecent =
-      orderedDays.slice(-8, -1).reduce((s, d) => s + d.netKwd, 0) /
-      Math.max(1, orderedDays.slice(-8, -1).length)
-    const latestFullIdx =
-      orderedDays[orderedDays.length - 1].netKwd < avgRecent * 0.35
-        ? orderedDays.length - 2
-        : orderedDays.length - 1
+  if (filters.period === 'today' && completedDays.length >= 8) {
+    const latestFullIdx = completedDays.length - 1
     const sameWeekdayIdx = latestFullIdx - 7
     if (latestFullIdx >= 0 && sameWeekdayIdx >= 0) {
-      const currDay = orderedDays[latestFullIdx].netKwd
-      const prevSameWeekday = orderedDays[sameWeekdayIdx].netKwd
+      const currDay = completedDays[latestFullIdx].netKwd
+      const prevSameWeekday = completedDays[sameWeekdayIdx].netKwd
       if (currDay > 0 && prevSameWeekday > 0) {
         return Math.round(((currDay - prevSameWeekday) / prevSameWeekday) * 1000) / 10
       }
     }
     return 3.3
+  }
+
+  if (filters.period === 'custom' && filters.customFrom && filters.customTo) {
+    const rawFrom = filters.customFrom <= filters.customTo ? filters.customFrom : filters.customTo
+    const rawTo = filters.customFrom <= filters.customTo ? filters.customTo : filters.customFrom
+    const effectiveTo =
+      !options?.sameHoursLikeForLike && rawTo >= activeIncompleteTodayIso
+        ? kwCtx.todayIso < activeIncompleteTodayIso
+          ? kwCtx.yesterdayIso
+          : new Date(Date.parse(`${activeIncompleteTodayIso}T00:00:00Z`) - 86_400_000)
+              .toISOString()
+              .slice(0, 10)
+        : rawTo
+    const effectiveFrom = rawFrom <= effectiveTo ? rawFrom : effectiveTo
+    const spanDays = Math.max(
+      1,
+      Math.round(
+        (Date.parse(`${effectiveTo}T00:00:00Z`) - Date.parse(`${effectiveFrom}T00:00:00Z`)) /
+          86_400_000,
+      ) + 1,
+    )
+    const priorTo = new Date(Date.parse(`${effectiveFrom}T00:00:00Z`) - 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+    const priorFrom = new Date(
+      Date.parse(`${effectiveFrom}T00:00:00Z`) - spanDays * 86_400_000,
+    )
+      .toISOString()
+      .slice(0, 10)
+    const currRows = completedDays.filter((d) => d.day >= effectiveFrom && d.day <= effectiveTo)
+    const prevRows = completedDays.filter((d) => d.day >= priorFrom && d.day <= priorTo)
+    if (currRows.length > 0 && currRows.length === prevRows.length) {
+      const currSum = currRows.reduce((s, d) => s + d.netKwd, 0)
+      const prevSum = prevRows.reduce((s, d) => s + d.netKwd, 0)
+      if (currSum > 0 && prevSum > 0) {
+        return Math.round(((currSum - prevSum) / prevSum) * 1000) / 10
+      }
+    }
   }
 
   return 3.3

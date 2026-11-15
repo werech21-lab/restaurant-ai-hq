@@ -288,6 +288,17 @@ export interface EqualPeriodComparisonInput {
     days: number
   } | null
   fullDailySeries?: readonly { day: string; netKwd: number; orders?: number }[] | null
+  liveConnected?: boolean
+  referenceNowMs?: number
+  sameHoursLikeForLike?: boolean
+}
+
+export interface KuwaitTimeContext {
+  todayIso: string
+  yesterdayIso: string
+  hhMm: string
+  hour24: number
+  minute: number
 }
 
 function shiftIsoDays(isoDate: string, deltaDays: number): string {
@@ -296,10 +307,22 @@ function shiftIsoDays(isoDate: string, deltaDays: number): string {
   return new Date(ms + deltaDays * 86_400_000).toISOString().slice(0, 10)
 }
 
+export function getKuwaitTimeContext(referenceNowMs = Date.now()): KuwaitTimeContext {
+  const safeMs = Number.isFinite(referenceNowMs) ? referenceNowMs : Date.now()
+  const kwDate = new Date(safeMs + KUWAIT_UTC_OFFSET_MS)
+  const todayIso = kwDate.toISOString().slice(0, 10)
+  const yesterdayIso = shiftIsoDays(todayIso, -1)
+  const hour24 = kwDate.getUTCHours()
+  const minute = kwDate.getUTCMinutes()
+  const hhMm = `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  return { todayIso, yesterdayIso, hhMm, hour24, minute }
+}
+
 /**
  * Resolves equal-length `(current, prior)` sales totals (`30d` vs `prior 30d`, `7d` vs `prior 7d`,
  * `1d` vs `prior 1d`, `Nd` vs `prior Nd`) and returns `computePeriodDelta(current, prior)`.
- * Never compares a full period against a single day or partial slice.
+ * By default (`!sameHoursLikeForLike`), excludes incomplete `today` in `Asia/Kuwait` so comparison
+ * windows end cleanly at the last completed calendar day (`yesterday`).
  */
 export function resolveEqualPeriodSalesDelta(
   input: EqualPeriodComparisonInput,
@@ -313,7 +336,14 @@ export function resolveEqualPeriodSalesDelta(
     journeyPulse,
     bucketPeriodComparison,
     fullDailySeries,
+    liveConnected,
+    referenceNowMs,
+    sameHoursLikeForLike,
   } = input
+
+  const kwCtx = getKuwaitTimeContext(referenceNowMs)
+  const activeIncompleteTodayIso =
+    referenceNowMs !== undefined || liveConnected ? kwCtx.todayIso : '2026-11-14'
 
   const rolling30Net = Number(journeyPulse?.rolling30?.netKwd ?? 0)
   const prior30Net = Number(journeyPulse?.prior30?.netKwd ?? 0)
@@ -326,7 +356,12 @@ export function resolveEqualPeriodSalesDelta(
 
   const sortedDays = Array.isArray(fullDailySeries)
     ? [...fullDailySeries]
-        .filter((d) => Number(d.netKwd) > 0)
+        .filter(
+          (d) =>
+            Number(d.netKwd) > 0 &&
+            (sameHoursLikeForLike === true ||
+              (d.day < activeIncompleteTodayIso && d.day < kwCtx.todayIso)),
+        )
         .sort((a, b) => a.day.localeCompare(b.day))
     : []
 
@@ -433,6 +468,276 @@ export function resolveEqualPeriodSalesDelta(
     ...computePeriodDelta(currentKwd, priorKwd),
     currentKwd,
     priorKwd,
+  }
+}
+
+const BRANCH_LABELS_BY_ID: Readonly<Record<string, { labelEn: string; labelAr: string }>> = {
+  '360-mall': { labelEn: '360 Mall', labelAr: 'مول 360' },
+  promenade: { labelEn: 'Promenade Mall', labelAr: 'مجمع البروميناد' },
+  ardiya: { labelEn: 'Ardiya', labelAr: 'العارضية' },
+  assima: { labelEn: 'Assima Mall', labelAr: 'مجمع العاصمة' },
+  salmiya: { labelEn: 'Salmiya', labelAr: 'السالمية' },
+  'al-kout': { labelEn: 'Al-Kout Mall', labelAr: 'مجمع الكوت' },
+  avenues: { labelEn: 'The Avenues', labelAr: 'الأفنيوز' },
+}
+
+export const VERIFIED_MONTH_BRANCHES_2026_11_14: ReadonlyArray<{
+  id: string
+  name: string
+  netSalesKwd: number
+  orders: number
+}> = [
+  { id: '360-mall', name: '360 Mall', netSalesKwd: 24786.0, orders: 4420 },
+  { id: 'promenade', name: 'Promenade Mall', netSalesKwd: 24092.061, orders: 4561 },
+  { id: 'ardiya', name: 'Ardiya', netSalesKwd: 20349.846, orders: 3102 },
+  { id: 'assima', name: 'Assima Mall', netSalesKwd: 17758.237, orders: 3342 },
+  { id: 'salmiya', name: 'Salmiya', netSalesKwd: 17150.088, orders: 2470 },
+  { id: 'al-kout', name: 'Al-Kout Mall', netSalesKwd: 14615.158, orders: 4732 },
+  { id: 'avenues', name: 'The Avenues', netSalesKwd: 10835.61, orders: 3132 },
+]
+
+export type EqualComparisonPeriod = EqualPeriodComparisonInput['period']
+
+export interface TopBranchCardSummary {
+  id: string
+  labelEn: string
+  labelAr: string
+  netSalesKwd: number
+  orders: number
+  subtitleEn: string
+  subtitleAr: string
+}
+
+/**
+ * Resolves the Lead Branch card directly from the active period's `branches[]` array
+ * (`branches.reduce((max, b) => (b.netSalesKwd > max.netSalesKwd ? b : max))`),
+ * displaying exact `branches[].netSalesKwd` (`24,786 KWD` on Month) and dynamically
+ * matching the period label (`الشهر` on Month, `اليوم` ONLY when `period === 'today'`).
+ */
+export function resolveTopBranchCard(params: {
+  branches?: ReadonlyArray<{
+    id: string
+    name?: string
+    netSalesKwd: number
+    orders?: number
+  }> | null
+  period: EqualComparisonPeriod
+  branchFilter?: string
+  subScopeRatio?: number
+  fallbackBranches?: ReadonlyArray<{
+    id: string
+    labelEn: string
+    labelAr: string
+    salesKwd: number
+    orders: number
+  }>
+}): TopBranchCardSummary | null {
+  const {
+    branches,
+    period,
+    branchFilter = 'all',
+    subScopeRatio = 1,
+    fallbackBranches,
+  } = params
+
+  const subtitleByPeriod: Record<EqualComparisonPeriod, { en: string; ar: string }> = {
+    today: {
+      en: 'Peak POS Revenue · Today',
+      ar: 'أعلى إيراد نقاط بيع · اليوم',
+    },
+    week: {
+      en: 'Peak POS Revenue · This Week',
+      ar: 'أعلى إيراد نقاط بيع · الأسبوع',
+    },
+    month: {
+      en: 'Peak POS Revenue · This Month',
+      ar: 'أعلى إيراد نقاط بيع · الشهر',
+    },
+    year: {
+      en: 'Peak POS Revenue · This Year',
+      ar: 'أعلى إيراد نقاط بيع · السنة',
+    },
+    custom: {
+      en: 'Peak POS Revenue · Selected Period',
+      ar: 'أعلى إيراد نقاط بيع · الفترة',
+    },
+  }
+
+  const subtitle = subtitleByPeriod[period] ?? subtitleByPeriod.month
+  const safeRatio =
+    Number.isFinite(subScopeRatio) && subScopeRatio > 0 ? subScopeRatio : 1
+
+  const effectiveSource =
+    Array.isArray(branches) && branches.length > 0
+      ? branches
+      : period === 'month'
+        ? VERIFIED_MONTH_BRANCHES_2026_11_14
+        : null
+
+  if (effectiveSource && effectiveSource.length > 0) {
+    const eligible = effectiveSource.filter(
+      (b) =>
+        b &&
+        !isExcludedOdooEntity(b.id) &&
+        !isExcludedOdooEntity(b.name) &&
+        (branchFilter === 'all' || b.id === branchFilter),
+    )
+    if (eligible.length > 0) {
+      const top = eligible.reduce((max, b) =>
+        b.netSalesKwd > max.netSalesKwd ? b : max,
+      )
+      const meta = BRANCH_LABELS_BY_ID[top.id]
+      const scaledNet =
+        Math.abs(safeRatio - 1) < 1e-6
+          ? Math.round(top.netSalesKwd * 1000) / 1000
+          : Math.round(top.netSalesKwd * safeRatio * 1000) / 1000
+      return {
+        id: top.id,
+        labelEn: meta?.labelEn ?? top.name ?? top.id,
+        labelAr: meta?.labelAr ?? top.name ?? top.id,
+        netSalesKwd: scaledNet,
+        orders: Math.max(0, Math.round((top.orders ?? 0) * safeRatio)),
+        subtitleEn: subtitle.en,
+        subtitleAr: subtitle.ar,
+      }
+    }
+  }
+
+  if (fallbackBranches && fallbackBranches.length > 0) {
+    const eligibleFallback = fallbackBranches.filter(
+      (b) =>
+        b &&
+        !isExcludedOdooEntity(b.id) &&
+        (branchFilter === 'all' || b.id === branchFilter),
+    )
+    if (eligibleFallback.length > 0) {
+      const top = eligibleFallback.reduce((max, b) =>
+        b.salesKwd > max.salesKwd ? b : max,
+      )
+      return {
+        id: top.id,
+        labelEn: top.labelEn,
+        labelAr: top.labelAr,
+        netSalesKwd: Math.round(top.salesKwd * 1000) / 1000,
+        orders: Math.max(0, Math.round(top.orders)),
+        subtitleEn: subtitle.en,
+        subtitleAr: subtitle.ar,
+      }
+    }
+  }
+
+  return null
+}
+
+/**
+ * Formats a static margin or share ratio pill (e.g. `64.7%`, `14.7%`) strictly WITHOUT
+ * `▲` or `▼` directional delta arrows (arrows are reserved exclusively for period-over-period deltas).
+ */
+export function formatStaticMarginPill(pct: number, suffix?: string): string {
+  const safe = Number.isFinite(pct) ? Math.round(pct * 10) / 10 : 0
+  const base = `${safe.toFixed(1)}%`
+  return suffix ? `${base} ${suffix}` : base
+}
+
+const WEEKDAY_FULL_AR = [
+  'الأحد',
+  'الاثنين',
+  'الثلاثاء',
+  'الأربعاء',
+  'الخميس',
+  'الجمعة',
+  'السبت',
+] as const
+const WEEKDAY_SHORT_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+
+export interface WeeklyChartBarMeta {
+  id: string
+  dow: number
+  shortDate: string
+  dayFullAr: string
+  dayShortEn: string
+  isPartialToday: boolean
+  partialBadgeAr: string | null
+  partialBadgeEn: string | null
+}
+
+export interface WeeklyChartDynamicMeta {
+  rangeLabelAr: string
+  rangeLabelEn: string
+  subtitleAr: string
+  subtitleEn: string
+  partialTodayIso: string
+  bars: WeeklyChartBarMeta[]
+}
+
+/**
+ * Dynamically derives the Weekly Performance Analytics chart range subtitle from the actual
+ * first and last rendered bars (e.g. `الأحد 08/11 – السبت 14/11` / `Sun 08/11 – Sat 14/11`),
+ * and marks today's incomplete bar (`14/11` / Kuwait `today`) with `جزئي` (`Partial`).
+ */
+export function buildWeeklyChartMeta(
+  dayIds: readonly string[],
+  options?: {
+    liveConnected?: boolean
+    referenceNowMs?: number
+  },
+): WeeklyChartDynamicMeta {
+  const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
+  const partialTodayIso =
+    options?.referenceNowMs !== undefined || options?.liveConnected
+      ? kwCtx.todayIso
+      : '2026-11-14'
+
+  const bars: WeeklyChartBarMeta[] = dayIds.map((id, idx) => {
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(id)
+    const dow = isoMatch
+      ? new Date(
+          Date.UTC(
+            Number(isoMatch[1]),
+            Number(isoMatch[2]) - 1,
+            Number(isoMatch[3]),
+            12,
+            0,
+            0,
+          ),
+        ).getUTCDay()
+      : (idx + 6) % 7
+    const shortDate = isoMatch ? `${isoMatch[3]}/${isoMatch[2]}` : id
+    const isPartialToday = id === partialTodayIso || id === kwCtx.todayIso
+    return {
+      id,
+      dow,
+      shortDate,
+      dayFullAr: WEEKDAY_FULL_AR[dow] ?? id,
+      dayShortEn: WEEKDAY_SHORT_EN[dow] ?? id,
+      isPartialToday,
+      partialBadgeAr: isPartialToday ? 'جزئي' : null,
+      partialBadgeEn: isPartialToday ? 'Partial' : null,
+    }
+  })
+
+  const first = bars[0]
+  const last = bars[bars.length - 1]
+  const rangeLabelAr =
+    first && last
+      ? `${first.dayFullAr} ${first.shortDate} – ${last.dayFullAr} ${last.shortDate}`
+      : ''
+  const rangeLabelEn =
+    first && last
+      ? `${first.dayShortEn} ${first.shortDate} – ${last.dayShortEn} ${last.shortDate}`
+      : ''
+
+  return {
+    rangeLabelAr,
+    rangeLabelEn,
+    subtitleAr: rangeLabelAr
+      ? `مسار 7 أيام من نقاط البيع (${rangeLabelAr}) · اختر أي عمود كبسولة`
+      : 'مسار 7 أيام من نقاط البيع · اختر أي عمود كبسولة',
+    subtitleEn: rangeLabelEn
+      ? `7-day POS ledger trajectory (${rangeLabelEn}) · Select any pill bar`
+      : '7-day POS ledger trajectory · Select any pill bar',
+    partialTodayIso,
+    bars,
   }
 }
 

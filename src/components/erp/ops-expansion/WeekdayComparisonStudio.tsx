@@ -27,6 +27,7 @@ import {
   computeErpComparison,
   DEFAULT_COMPARISON_DATE_A,
   DEFAULT_COMPARISON_DATE_B,
+  resolveCompletedComparisonDefaults,
   type BreakdownDimension,
   type ComparisonChartBucket,
   type EntityVarianceRow,
@@ -133,6 +134,32 @@ export function WeekdayComparisonStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!liveSummary?.connected || typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.has('dateA') || sp.has('dateB')) return
+    setQuery((prev) => {
+      const defs = resolveCompletedComparisonDefaults({
+        granularity: prev.granularity,
+        sameHoursLikeForLike: prev.sameHoursLikeForLike,
+        liveSummary,
+      })
+      if (
+        prev.periodA.from === defs.periodA.from &&
+        prev.periodA.to === defs.periodA.to &&
+        prev.periodB.from === defs.periodB.from &&
+        prev.periodB.to === defs.periodB.to
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        periodA: defs.periodA,
+        periodB: defs.periodB,
+      }
+    })
+  }, [liveSummary?.connected])
+
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
   const [selectedBucketIdx, setSelectedBucketIdx] = useState<number | null>(null)
   const [tableTab, setTableTab] = useState<TableTabKey>('branch')
@@ -164,6 +191,7 @@ export function WeekdayComparisonStudio() {
       toA: query.periodA.to,
       dateB: query.periodB.from,
       toB: query.periodB.to,
+      ...(query.sameHoursLikeForLike ? { sameHours: '1' } : {}),
     })
     fetch(`/api/erp/live-comparison?${qs.toString()}`, {
       method: 'GET',
@@ -193,6 +221,7 @@ export function WeekdayComparisonStudio() {
     query.periodA.to,
     query.periodB.from,
     query.periodB.to,
+    query.sameHoursLikeForLike,
   ])
 
   const mergedLiveSummary = useMemo(() => {

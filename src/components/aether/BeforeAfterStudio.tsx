@@ -24,6 +24,7 @@ import {
   DEFAULT_RANGE_FROM_B,
   DEFAULT_RANGE_TO_A,
   DEFAULT_RANGE_TO_B,
+  resolveCompletedComparisonDefaults,
   sanitizeIsoDate,
   shiftIsoDate,
   type BranchEntityId,
@@ -232,6 +233,32 @@ export function BeforeAfterStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!liveSummary?.connected || typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (sp.has('dateA') || sp.has('dateB')) return
+    setQuery((prev) => {
+      const defs = resolveCompletedComparisonDefaults({
+        granularity: prev.granularity,
+        sameHoursLikeForLike: prev.sameHoursLikeForLike,
+        liveSummary,
+      })
+      if (
+        prev.periodA.from === defs.periodA.from &&
+        prev.periodA.to === defs.periodA.to &&
+        prev.periodB.from === defs.periodB.from &&
+        prev.periodB.to === defs.periodB.to
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        periodA: defs.periodA,
+        periodB: defs.periodB,
+      }
+    })
+  }, [liveSummary?.connected])
+
   const [activeDecisionId, setActiveDecisionId] = useState<string | null>(null)
   const [chartMetric, setChartMetric] = useState<ChartMetricKey>('sales')
   const [selectedBucketIdx, setSelectedBucketIdx] = useState<number | null>(null)
@@ -283,6 +310,7 @@ export function BeforeAfterStudio() {
       brand: query.brandIds === 'all' ? 'all' : query.brandIds.join(','),
       branch: query.branchIds === 'all' ? 'all' : query.branchIds.join(','),
       channel: query.channelIds === 'all' ? 'all' : query.channelIds.join(','),
+      ...(query.sameHoursLikeForLike ? { sameHours: '1' } : {}),
     })
     fetch(`/api/erp/live-comparison?${qs.toString()}`, {
       method: 'GET',
@@ -316,6 +344,7 @@ export function BeforeAfterStudio() {
     query.brandIds,
     query.branchIds,
     query.channelIds,
+    query.sameHoursLikeForLike,
   ])
 
   const mergedLiveSummary = useMemo(() => {

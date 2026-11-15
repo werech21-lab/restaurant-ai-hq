@@ -90,10 +90,13 @@ import { GET as publicOdooSyncGet } from './src/app/api/odoo-sync/route';
 import baselineSnapshot from './src/lib/odoo-live-snapshot.json';
 import { summaryFromSnapshot } from './src/lib/odoo/live-sync-core';
 import {
+  buildWeeklyChartMeta,
   computePeriodDelta,
   resolveBestBranchBadge,
+  resolveTopBranchCard,
   sanitizeCampaignName,
   formatCampaignAuditTitle,
+  formatStaticMarginPill,
   isExcludedOdooEntity,
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
@@ -101,9 +104,19 @@ import {
   UNMAPPED_TERMINALS_LABEL_AR,
   UNMAPPED_TERMINALS_LABEL_EN,
 } from './src/lib/aether/period-delta';
-import { formatPeriodCalendarWindow, DEFAULT_GLOBAL_FILTERS } from './src/lib/aether/global-filter-engine';
+import {
+  computeGlobalWorkspace,
+  computePeriodOverPeriodDeltaPct,
+  formatPeriodCalendarWindow,
+  DEFAULT_GLOBAL_FILTERS,
+} from './src/lib/aether/global-filter-engine';
 import { evaluateApprovedDecisionsImpact } from './src/lib/aether/before-after-engine';
-import { computeErpComparison } from './src/lib/erp-comparison-engine';
+import {
+  computeErpComparison,
+  DEFAULT_COMPARISON_DATE_A,
+  DEFAULT_RANGE_TO_A,
+  resolveCompletedComparisonDefaults,
+} from './src/lib/erp-comparison-engine';
 
 (async () => {
   const pwOps = String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54);
@@ -484,6 +497,7 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
   const refNowMs = Date.parse('2026-11-14T09:00:00.000Z');
   const bucketDiffs = [];
   let monthSnapRef = null;
+  let todaySnapRef = null;
   for (const p of ['today', 'week', 'month', 'year']) {
     const snap = await fetchLiveOdooSnapshot({
       period: p,
@@ -491,11 +505,18 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
       referenceNowMs: refNowMs,
     });
     if (p === 'month') monthSnapRef = snap;
+    if (p === 'today') todaySnapRef = snap;
     const sumBr = (snap.branches ?? []).reduce((s, b) => s + b.netSalesKwd, 0);
     const unm = snap.companyTotals?.unmappedTerminalsNetKwd ?? 0;
     const compTot = snap.companyTotals?.netSalesKwd ?? 0;
     bucketDiffs.push(Math.abs(sumBr + unm - compTot));
   }
+  const adminErpSyncRes = await odooSyncGet(
+    new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAdmin },
+    }),
+  );
+  const adminErpSyncJson = await adminErpSyncRes.json();
   const audErpSyncRes = await odooSyncGet(
     new NextRequest('https://aetherbi.com/api/erp/odoo-sync?period=month', {
       headers: { cookie: EXEC_SESSION_COOKIE + '=' + tokAud },
@@ -607,6 +628,149 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
     terminals: ledgerSnap.allDiscoveredTerminals ?? [],
   });
   const zeroExcludedInPayload = !isExcludedOdooEntity(serializedPayloadText);
+
+  // 10) Closing Fix 1: Exact 158,168 - 21,590 === 136,578 & sum(branches) + 6,991 === 136,578
+  const monthCompanyTotals = monthSnapRef?.companyTotals ?? {};
+  const monthSumBranches = Math.round(
+    (monthSnapRef?.branches ?? []).reduce((s, b) => s + b.netSalesKwd, 0) * 1000,
+  ) / 1000;
+  const adminRecReport = adminErpSyncJson?.reconciliationReport;
+  const closingFix1IdentityOk =
+    monthCompanyTotals.grossPreExclusionKwd === 158168 &&
+    monthCompanyTotals.excludedEntitiesKwd === 21590 &&
+    monthCompanyTotals.grossPreExclusionKwd - monthCompanyTotals.excludedEntitiesKwd === 136578 &&
+    monthCompanyTotals.netSalesKwd === 136578 &&
+    monthSumBranches === 129587 &&
+    monthCompanyTotals.unmappedTerminalsNetKwd === 6991 &&
+    monthSumBranches + monthCompanyTotals.unmappedTerminalsNetKwd === 136578 &&
+    monthCompanyTotals.reconciliationGapKwd === 0 &&
+    monthCompanyTotals.reconciledExact === true &&
+    adminRecReport?.reconciledExact === true &&
+    adminRecReport?.terminalMappingTable?.length === 33 &&
+    adminRecReport?.excludedBreakdown?.length === 2 &&
+    audErpSyncJson?.reconciliationReport === undefined;
+
+  // 11) Closing Fix 2: Incomplete current day ('2026-11-14') excluded by default + Same-Hours Like-for-Like toggle
+  const kwMidday14Ms = Date.parse('2026-11-14T12:30:00+03:00');
+  const defaultRangeComp = computeErpComparison(
+    {
+      mode: 'date-vs-date',
+      granularity: 'range',
+      periodA: { from: '2026-11-08', to: '2026-11-14' },
+      periodB: { from: '2026-11-01', to: '2026-11-07' },
+      brandIds: 'all',
+      branchIds: 'all',
+      channelIds: 'all',
+    },
+    null,
+    { referenceNowMs: kwMidday14Ms },
+  );
+  const likeForLikeComp = computeErpComparison(
+    {
+      mode: 'date-vs-date',
+      granularity: 'range',
+      periodA: { from: '2026-11-08', to: '2026-11-14' },
+      periodB: { from: '2026-11-01', to: '2026-11-07' },
+      brandIds: 'all',
+      branchIds: 'all',
+      channelIds: 'all',
+      sameHoursLikeForLike: true,
+    },
+    null,
+    { referenceNowMs: kwMidday14Ms },
+  );
+  const compDefaultsOff = resolveCompletedComparisonDefaults({
+    granularity: 'range',
+    sameHoursLikeForLike: false,
+    referenceNowMs: kwMidday14Ms,
+  });
+  const wsWeek = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'week' }, null, '/erp');
+  const weekPopDelta = computePeriodOverPeriodDeltaPct(
+    { ...DEFAULT_GLOBAL_FILTERS, period: 'week' },
+    wsWeek,
+    null,
+    { referenceNowMs: kwMidday14Ms },
+  );
+  const closingFix2FairWindowOk =
+    DEFAULT_COMPARISON_DATE_A === '2026-11-13' &&
+    DEFAULT_RANGE_TO_A === '2026-11-13' &&
+    compDefaultsOff.periodA.from === '2026-11-07' &&
+    compDefaultsOff.periodA.to === '2026-11-13' &&
+    compDefaultsOff.periodB.from === '2026-10-31' &&
+    compDefaultsOff.periodB.to === '2026-11-06' &&
+    defaultRangeComp.selectionA.fromIso === '2026-11-07' &&
+    defaultRangeComp.selectionA.toIso === '2026-11-13' &&
+    defaultRangeComp.selectionB.fromIso === '2026-10-31' &&
+    defaultRangeComp.selectionB.toIso === '2026-11-06' &&
+    defaultRangeComp.selectionA.dayCount === 7 &&
+    defaultRangeComp.selectionB.dayCount === 7 &&
+    defaultRangeComp.likeForLikeMeta.excludedIncompleteToday === true &&
+    likeForLikeComp.selectionA.toIso === '2026-11-14' &&
+    likeForLikeComp.likeForLikeMeta.sameHoursLikeForLike === true &&
+    likeForLikeComp.likeForLikeMeta.helperNoteEn === 'Comparing 00:00–12:30 across both windows' &&
+    likeForLikeComp.likeForLikeMeta.helperNoteAr.includes('مقارنة نفس الساعات حتى اللحظة') &&
+    likeForLikeComp.reconciliation.maxSalesGapKwd === 0 &&
+    Number.isFinite(weekPopDelta) &&
+    weekPopDelta > -5;
+
+  // 12) Closing Fix 3: Top branch card ('مول 360') equals active period branches[].netSalesKwd (24,786 KWD for Month)
+  const topMonthCard = resolveTopBranchCard({
+    branches: monthSnapRef?.branches ?? [],
+    period: 'month',
+  });
+  const topTodayExpected = (todaySnapRef?.branches ?? []).reduce(
+    (max, b) => (b.netSalesKwd > max.netSalesKwd ? b : max),
+    todaySnapRef?.branches?.[0] ?? { id: '', netSalesKwd: 0 },
+  );
+  const topTodayCard = resolveTopBranchCard({
+    branches: todaySnapRef?.branches ?? [],
+    period: 'today',
+  });
+  const closingFix3TopBranchOk =
+    topMonthCard?.id === '360-mall' &&
+    topMonthCard?.labelAr === 'مول 360' &&
+    topMonthCard?.netSalesKwd === 24786 &&
+    topMonthCard?.netSalesKwd === monthSnapRef?.branches?.[0]?.netSalesKwd &&
+    topMonthCard?.subtitleAr === 'أعلى إيراد نقاط بيع · الشهر' &&
+    !topMonthCard?.subtitleAr?.includes('اليوم') &&
+    topTodayCard?.id === topTodayExpected.id &&
+    Math.abs((topTodayCard?.netSalesKwd ?? 0) - topTodayExpected.netSalesKwd) < 0.001 &&
+    topTodayCard?.subtitleAr === 'أعلى إيراد نقاط بيع · اليوم';
+
+  // 13) Closing Fix 4: Static margin pills (64.7%, 14.7%) zero arrows, weekly chart caption + جزئي tag, rolling30.to === period.to
+  const marginPillBeforeRent = formatStaticMarginPill(64.7);
+  const marginPillNetPocket = formatStaticMarginPill(14.7, 'نسبة الصافي');
+  const weeklyMeta = buildWeeklyChartMeta(
+    [
+      '2026-11-08',
+      '2026-11-09',
+      '2026-11-10',
+      '2026-11-11',
+      '2026-11-12',
+      '2026-11-13',
+      '2026-11-14',
+    ],
+    { referenceNowMs: kwMidday14Ms },
+  );
+  const lastWeeklyBar = weeklyMeta.bars[weeklyMeta.bars.length - 1];
+  const closingFix4PolishOk =
+    marginPillBeforeRent === '64.7%' &&
+    marginPillNetPocket === '14.7% نسبة الصافي' &&
+    !marginPillBeforeRent.includes('▲') &&
+    !marginPillBeforeRent.includes('▼') &&
+    !marginPillNetPocket.includes('▲') &&
+    !marginPillNetPocket.includes('▼') &&
+    weeklyMeta.rangeLabelAr === 'الأحد 08/11 – السبت 14/11' &&
+    weeklyMeta.rangeLabelEn === 'Sun 08/11 – Sat 14/11' &&
+    lastWeeklyBar?.id === '2026-11-14' &&
+    lastWeeklyBar?.isPartialToday === true &&
+    lastWeeklyBar?.partialBadgeAr === 'جزئي' &&
+    lastWeeklyBar?.partialBadgeEn === 'Partial' &&
+    monthSnapRef?.journeyPulse?.rolling30?.to === monthSnapRef?.period?.to &&
+    monthSnapRef?.journeyPulse?.rolling30?.to === '2026-11-14' &&
+    snapSummaryMonth?.journeyPulse?.rolling30?.to === snapSummaryMonth?.period?.to &&
+    snapSummaryMonth?.journeyPulse?.rolling30?.to === '2026-11-14' &&
+    adminErpSyncJson?.journeyPulse?.rolling30?.to === adminErpSyncJson?.period?.to;
 
   console.log(
     JSON.stringify({
@@ -764,16 +928,29 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
         customWinClamped.toInclusiveIso <= kwTodayNow,
       fix5ExclusionsOk:
         excludedDetectedAll && validEntitiesAllowed && zeroExcludedInPayload,
+      closingFix1IdentityOk,
+      closingFix2FairWindowOk,
+      closingFix3TopBranchOk,
+      closingFix4PolishOk,
     }),
   );
 })();
 `
 
-const rawOut = execFileSync(
-  process.execPath,
-  [tsxCli, '-r', serverOnlyShimPath, '-e', runtimeProbeScript],
-  { cwd: ROOT, encoding: 'utf8' },
-).trim()
+const tmpProbePath = path.join(ROOT, `.tmp-erp-probe-${process.pid}.mts`)
+let rawOut = ''
+try {
+  fs.writeFileSync(tmpProbePath, runtimeProbeScript, 'utf8')
+  rawOut = execFileSync(
+    process.execPath,
+    [tsxCli, '-r', serverOnlyShimPath, tmpProbePath],
+    { cwd: ROOT, encoding: 'utf8' },
+  ).trim()
+} finally {
+  if (fs.existsSync(tmpProbePath)) {
+    fs.unlinkSync(tmpProbePath)
+  }
+}
 const probe = JSON.parse(rawOut.split('\n').pop() ?? '{}')
 
 assert(
@@ -903,6 +1080,54 @@ assert(
 assert(
   probe.fix5ExclusionsOk === true,
   '10) Mandatory Entity Exclusions: Excluded legacy brand & decommissioned warehouse locations are strictly filtered from all branches, brands, and POS terminal payloads',
+)
+
+const recDocPath = path.join(ROOT, 'docs', 'RECONCILIATION_REPORT_2026_11_14.md')
+const recDocSrc = fs.existsSync(recDocPath) ? fs.readFileSync(recDocPath, 'utf8') : ''
+const adminPanelSrc = fs.readFileSync(
+  path.join(ROOT, 'src', 'components', 'erp', 'AdminPosTerminalMappingPanel.tsx'),
+  'utf8',
+)
+assert(
+  probe.closingFix1IdentityOk === true &&
+    fs.existsSync(recDocPath) &&
+    recDocSrc.includes('158,168') &&
+    recDocSrc.includes('21,590') &&
+    recDocSrc.includes('136,578') &&
+    recDocSrc.includes('6,991') &&
+    recDocSrc.includes('terminal_id') &&
+    adminPanelSrc.includes('reconciliationReport'),
+  '11) Closing Fix 1 — Reconciliation Identity & terminal_id -> branch_id Audit Table: 158,168 - 21,590 === 136,578 KWD, sum(7 branches = 129,587) + 6,991 === 136,578 KWD (0.000 gap), docs/RECONCILIATION_REPORT_2026_11_14.md present, and admin-only collapsible mapping table wired',
+)
+
+const controlBarSrc = fs.readFileSync(
+  path.join(ROOT, 'src', 'components', 'erp', 'ExecutiveComparisonControlBar.tsx'),
+  'utf8',
+)
+assert(
+  probe.closingFix2FairWindowOk === true &&
+    controlBarSrc.includes('Same-Hours Like-for-Like') &&
+    controlBarSrc.includes('مقارنة نفس الساعات حتى اللحظة'),
+  '12) Closing Fix 2 — Fair Period Comparisons: Incomplete current day (today in Asia/Kuwait) excluded by default across Before/After & WoW windows (7 completed days vs prior 7 completed days), with optional Same-Hours Like-for-Like (مقارنة نفس الساعات حتى اللحظة) toggle chip & 00:00–HH:mm helper note',
+)
+
+const fullJourneySrc = fs.readFileSync(
+  path.join(ROOT, 'src', 'components', 'aether', 'FullJourney360.tsx'),
+  'utf8',
+)
+assert(
+  probe.closingFix3TopBranchOk === true && fullJourneySrc.includes('resolveTopBranchCard'),
+  '13) Closing Fix 3 — Top Branch Card Synced to Active Period branches[].netSalesKwd: Mall 360 (مول 360) equals exact 24,786 KWD with «الشهر» label on Month (and «اليوم» strictly when Period = Today)',
+)
+
+assert(
+  probe.closingFix4PolishOk === true &&
+    fullJourneySrc.includes('formatStaticMarginPill') &&
+    !fullJourneySrc.includes("beforeRentRatio > 0 ? '▲'") &&
+    !fullJourneySrc.includes("netPocketPct > 0 ? '▲'") &&
+    fullJourneySrc.includes('weeklyChartMeta.subtitleAr') &&
+    fullJourneySrc.includes("T('Partial', 'جزئي')"),
+  '14) Closing Fix 4 — Display Polish & API Date Alignment: Static margin pills (64.7%, 14.7%) contain zero ▲/▼ arrows, weekly chart caption dynamically reflects rendered bars (الأحد 08/11 – السبت 14/11) with «جزئي» (Partial) pill on today, and journeyPulse.rolling30.to === period.to (2026-11-14)',
 )
 
 console.log('\n----------------------------------------------------------------------')

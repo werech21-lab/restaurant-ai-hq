@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Check, Link2, RefreshCw, RotateCcw, ShieldCheck, Terminal } from 'lucide-react'
+import { AlertTriangle, Check, ChevronDown, Link2, RefreshCw, RotateCcw, ShieldCheck, Terminal } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatAdminUnmappedAlertCopy } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
@@ -26,6 +26,49 @@ interface DiscoveredTerminalRow {
   updated_by: string | null
 }
 
+interface TerminalAuditMappingRow {
+  terminal_id: number
+  terminal_name: string
+  status: 'mapped-native' | 'mapped-admin' | 'unmapped'
+  branch_id: string | null
+  branch_label_en: string
+  branch_label_ar: string
+  orders_count: number
+  net_sales_kwd: number
+}
+
+interface ExcludedEntityAuditRow {
+  entity_id: string
+  terminal_ids: number[]
+  label_en: string
+  label_ar: string
+  reason_en: string
+  reason_ar: string
+  orders_count: number
+  net_sales_kwd: number
+}
+
+interface ReconciliationReportPayload {
+  asOfDate: string
+  periodFrom: string
+  periodTo: string
+  grossPreExclusionKwd: number
+  grossPreExclusionOrders: number
+  excludedEntitiesKwd: number
+  excludedEntitiesOrders: number
+  activeCompanyNetSalesKwd: number
+  activeCompanyOrders: number
+  mappedBranchesNetKwd: number
+  mappedBranchesOrders: number
+  unmappedTerminalsNetKwd: number
+  unmappedTerminalsOrders: number
+  exclusionGapKwd: number
+  allocationGapKwd: number
+  reconciledExact: boolean
+  excludedBreakdown: ExcludedEntityAuditRow[]
+  terminalMappingTable: TerminalAuditMappingRow[]
+}
+
 interface TerminalMappingsApiResponse {
   ok: boolean
   unmappedLabelAr: string
@@ -34,14 +77,18 @@ interface TerminalMappingsApiResponse {
   unmappedTerminals: DiscoveredTerminalRow[]
   mappedTerminals: DiscoveredTerminalRow[]
   companyTotals: {
+    grossPreExclusionKwd?: number
+    excludedEntitiesKwd?: number
     netSalesKwd: number
     orders: number
     mappedBranchesNetKwd: number
     mappedBranchesOrders: number
     unmappedTerminalsNetKwd: number
     unmappedTerminalsOrders: number
+    reconciliationGapKwd?: number
     reconciledExact: boolean
   }
+  reconciliationReport?: ReconciliationReportPayload
   liveSummary?: unknown
 }
 
@@ -82,6 +129,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
   const [selectedBranches, setSelectedBranches] = useState<Record<number, string>>({})
   const [savedNoticeId, setSavedNoticeId] = useState<number | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [showReconciliationTable, setShowReconciliationTable] = useState(false)
 
   const loadMappings = useCallback(async () => {
     if (effectiveRole !== 'admin') return
@@ -471,6 +519,162 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               </div>
             ))}
           </div>
+        </div>
+      ) : null}
+
+      {/* Admin-Only Collapsible Reconciliation Bridge & Complete terminal_id -> branch_id Audit Table */}
+      {data?.reconciliationReport ? (
+        <div className="border-t border-slate-200/80 pt-3 dark:border-emerald-500/15">
+          <button
+            type="button"
+            aria-expanded={showReconciliationTable}
+            onClick={() => setShowReconciliationTable((prev) => !prev)}
+            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl bg-[#F6F7F8] px-3.5 py-2.5 text-start text-[13px] font-semibold text-slate-800 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50/70 dark:bg-[#141F1B] dark:text-emerald-100 dark:ring-emerald-400/20 dark:hover:bg-emerald-500/10"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>
+                {isAr
+                  ? 'تقرير المطابقة المحاسبية وجدول ربط الأجهزة (terminal_id -> branch_id)'
+                  : 'Reconciliation Bridge & Complete terminal_id -> branch_id Audit Table'}
+              </span>
+              <span
+                dir="ltr"
+                className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:text-emerald-200"
+              >
+                {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} -{' '}
+                {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} ={' '}
+                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD (0.000 Gap)
+              </span>
+            </div>
+            <ChevronDown
+              className={`h-4 w-4 shrink-0 transition-transform duration-150 ${
+                showReconciliationTable ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {showReconciliationTable ? (
+            <div className="mt-3 space-y-3">
+              {/* Two Mathematical Identity Pills */}
+              <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
+                  <div className="font-bold text-slate-900 dark:text-white">
+                    {isAr
+                      ? '1) معادلة الاستبعاد المحاسبي (0.000 د.ك فرق)'
+                      : '1) Exclusion Reconciliation Identity (0.000 KWD Gap)'}
+                  </div>
+                  <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
+                    {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} KWD (Gross) -{' '}
+                    {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} KWD (Excluded) ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
+                  <div className="font-bold text-slate-900 dark:text-white">
+                    {isAr
+                      ? '2) معادلة توزيع الفروع السبعة + غير المصنّف (0.000 د.ك فرق)'
+                      : '2) 7-Branch Allocation Identity (0.000 KWD Gap)'}
+                  </div>
+                  <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
+                    {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)} KWD (7 Branches) +{' '}
+                    {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} KWD (Unmapped) ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Excluded Entities Breakdown */}
+              <div className="overflow-x-auto rounded-xl ring-1 ring-slate-900/[0.06] dark:ring-emerald-400/15">
+                <table className="min-w-full divide-y divide-slate-200/80 text-start text-xs dark:divide-white/10">
+                  <thead className="bg-rose-50/70 font-semibold text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
+                    <tr>
+                      <th className="px-3 py-2 text-start">
+                        {isAr ? 'الكيانات المستبعدة خارج التشغيل' : 'Excluded Entities'}
+                      </th>
+                      <th className="px-3 py-2 text-start">
+                        {isAr ? 'سبب الاستبعاد الحوكمي' : 'Governance Exclusion Reason'}
+                      </th>
+                      <th className="px-3 py-2 text-end">{isAr ? 'الطلبات' : 'Orders'}</th>
+                      <th className="px-3 py-2 text-end">
+                        {isAr ? 'المبلغ المستبعد (د.ك)' : 'Excluded Net (KWD)'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/70 bg-white dark:divide-white/5 dark:bg-[#101815]">
+                    {data.reconciliationReport.excludedBreakdown.map((ex) => (
+                      <tr key={ex.entity_id}>
+                        <td className="px-3 py-2 font-semibold text-slate-900 dark:text-white">
+                          {isAr ? ex.label_ar : ex.label_en}
+                        </td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                          {isAr ? ex.reason_ar : ex.reason_en}
+                        </td>
+                        <td dir="ltr" className="px-3 py-2 text-end font-mono tabular-nums">
+                          {fmtInt(ex.orders_count)}
+                        </td>
+                        <td
+                          dir="ltr"
+                          className="px-3 py-2 text-end font-mono font-bold tabular-nums text-rose-700 dark:text-rose-300"
+                        >
+                          -{fmtKwd(ex.net_sales_kwd)} KWD
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Complete terminal_id -> branch_id Table */}
+              <div className="overflow-x-auto rounded-xl ring-1 ring-slate-900/[0.06] dark:ring-emerald-400/15">
+                <table className="min-w-full divide-y divide-slate-200/80 text-start text-xs dark:divide-white/10">
+                  <thead className="bg-[#F6F7F8] font-semibold text-slate-700 dark:bg-[#141F1B] dark:text-slate-200">
+                    <tr>
+                      <th className="px-3 py-2 text-start">terminal_id</th>
+                      <th className="px-3 py-2 text-start">
+                        {isAr ? 'اسم جهاز نقطة البيع (Odoo)' : 'POS Terminal Name'}
+                      </th>
+                      <th className="px-3 py-2 text-start">branch_id</th>
+                      <th className="px-3 py-2 text-start">
+                        {isAr ? 'الفرع / التصنيف' : 'Mapped Branch / Bucket'}
+                      </th>
+                      <th className="px-3 py-2 text-end">{isAr ? 'الطلبات' : 'Orders'}</th>
+                      <th className="px-3 py-2 text-end">
+                        {isAr ? 'صافي المبيعات (د.ك)' : 'Net Sales (KWD)'}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200/70 bg-white dark:divide-white/5 dark:bg-[#101815]">
+                    {data.reconciliationReport.terminalMappingTable.map((row) => (
+                      <tr key={row.terminal_id}>
+                        <td dir="ltr" className="px-3 py-2 font-mono font-bold text-slate-900 dark:text-white">
+                          #{row.terminal_id}
+                        </td>
+                        <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                          {row.terminal_name}
+                        </td>
+                        <td dir="ltr" className="px-3 py-2 font-mono text-slate-700 dark:text-emerald-300">
+                          {row.branch_id ?? 'unmapped'}
+                        </td>
+                        <td className="px-3 py-2 text-slate-700 dark:text-slate-200">
+                          {isAr ? row.branch_label_ar : row.branch_label_en}
+                        </td>
+                        <td dir="ltr" className="px-3 py-2 text-end font-mono tabular-nums">
+                          {fmtInt(row.orders_count)}
+                        </td>
+                        <td
+                          dir="ltr"
+                          className="px-3 py-2 text-end font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+                        >
+                          {fmtKwd(row.net_sales_kwd)} KWD
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>

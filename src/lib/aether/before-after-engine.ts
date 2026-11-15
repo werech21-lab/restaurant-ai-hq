@@ -27,7 +27,7 @@ import {
   resolveCampaignDisplayName,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
-import { isBrokenOrEmptyCampaignName } from '@/lib/aether/period-delta'
+import { getKuwaitTodayIso, isBrokenOrEmptyCampaignName } from '@/lib/aether/period-delta'
 import type { GovernanceApprovalRequest } from '@/lib/governance-compliance'
 
 export type ComparisonMode = 'period-prev' | 'today-lastweek' | 'decision-campaign'
@@ -272,7 +272,11 @@ export function computeBeforeAfterSnapshot(
       ? eventOptions.find((e) => e.id === selectedEventId) ?? eventOptions[0] ?? null
       : null
 
-  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
+  const kwTodayIso = getKuwaitTodayIso()
+  const activeIncompleteTodayIso = liveSummary?.connected === true ? kwTodayIso : '2026-11-14'
+  const fullDays = (ODOO.timeProfile?.daily ?? []).filter(
+    (d) => d.orders >= 150 && d.day < activeIncompleteTodayIso && d.day < kwTodayIso,
+  )
   const group30Net = fullDays.reduce((s, d) => s + d.netKwd, 0) || ODOO.totals.restaurantNetKwd
   const avgGroupDayNet = fullDays.length > 0 ? group30Net / fullDays.length : 4300
   const avgGroupDayOrd =
