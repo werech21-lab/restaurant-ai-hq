@@ -1,81 +1,35 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import {
+  AlertTriangle,
   Bell,
   Brain,
-  Camera,
   Check,
   CheckCircle2,
-  Columns2,
-  Copy,
-  Headphones,
-  ImagePlus,
+  ClipboardCopy,
+  Database,
+  ExternalLink,
+  FileSpreadsheet,
+  History,
   Loader2,
-  Maximize2,
-  MessageCircle,
   Mic,
-  MicOff,
-  Minimize2,
-  Paperclip,
-  Rocket,
-  RotateCcw,
-  Scale,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  RefreshCw,
   Send,
-  ShieldAlert,
   ShieldCheck,
-  Sparkles,
   Square,
-  TrendingUp,
+  Trash2,
   Volume2,
   VolumeX,
-  X,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
-import {
-  askDualHeavyBrain,
-  BRAIN_MODE_EVENT,
-  FERYAL_EXECUTIVE_MODES,
-  FERYAL_PRIMARY_MODES,
-  getActiveBrainMode,
-  getExecutiveModeLabel,
-  getPrimaryModeBadge,
-  normalizeBrainMode,
-  setActiveBrainMode,
-  type BrainMode,
-} from '@/lib/dual-heavy-brain'
-import { askFeryalGeminiBrain, getDeterministicFeryalReply } from '@/lib/feryal-gemini-brain'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import {
-  APPROVED_BRANCH_IDS,
-  APPROVED_BRAND_IDS,
-  APPROVED_CHANNEL_IDS,
-  APPROVED_KUWAIT_SLICES,
-  APPROVED_PROFIT_LENSES,
-  type GlobalBranch,
-  type GlobalBrand,
-  type GlobalChannel,
-  type GlobalPeriod,
-  type KuwaitSlice,
-  type ProfitLens,
-} from '@/lib/aether/global-filter-engine'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
-import {
-  autoSaveChatThread,
-  loadChatThread,
-  type StoredChatMessage,
-} from '@/lib/feryal-chat-store'
-import {
-  buildMacroBigBetPrompt,
-  FERYAL_MEMORY_UPDATED_EVENT,
-  getFeryalMemorySync,
-  hydrateFeryalMemory,
-  MACRO_BIG_BET_STRATEGIES,
-  type MacroBigBetId,
-} from '@/lib/feryal-learning-engine'
-import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
 import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
+import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
 import {
   FeryalMediaPickerButton,
   FeryalMessageAttachmentsGallery,
@@ -85,2395 +39,1440 @@ import {
 import {
   buildDefaultMediaPrompt,
   callFeryalVisionInspector,
-  FERYAL_VISION_QUICK_PRESETS,
-  inferVisionComplianceFromText,
   isSupportedMediaFile,
   processFeryalMediaFile,
   revokeAttachmentObjectUrls,
   toStoredAttachmentMeta,
   type FeryalMediaAttachment,
+  type StoredAttachmentMeta,
   type VisionComplianceTier,
 } from '@/lib/feryal-multimodal'
-import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
-import type { ExecSessionRole } from '@/lib/auth/exec-session'
 import {
-  GOVERNANCE_UPDATED_EVENT,
-  syncGovernanceFromServer,
-} from '@/lib/governance-compliance'
+  BRAIN_MODE_EVENT,
+  getActiveBrainMode,
+  getPrimaryModeBadge,
+  type BrainMode,
+} from '@/lib/dual-heavy-brain'
 import {
-  buildFeryalGovernancePromptContext,
-  buildGovernanceAwareFallbackReply,
-  buildQuickAuditChipPrompt,
+  autoSaveChatThread,
+  FERYAL_CHATS_UPDATED_EVENT,
+  getChatIndexSync,
+  hydrateFeryalChatStore,
+  loadChatThread,
+  type StoredChatMessage,
+} from '@/lib/feryal-chat-store'
+import {
+  autoLearnFromConversationTurn,
+  FERYAL_MEMORY_UPDATED_EVENT,
+  getFeryalMemorySync,
+  hydrateFeryalMemory,
+} from '@/lib/feryal-learning-engine'
+import {
   extractFeryalRecommendationMeta,
   FERYAL_EXECUTIVE_AUDIT_CHIPS,
   formatFeryalExecutiveSummary,
   readLiveGovernanceSnapshot,
+  submitFeryalRecommendationToBell,
   type QuickAuditChipId,
 } from '@/lib/feryal-governance-bridge'
+import {
+  isVerifiedOdooGovernanceBreach,
+  type ComplianceBreachItem,
+} from '@/lib/governance-compliance'
 
-const STUDIO_PANEL_CLS =
-  'ae-bento-card w-full max-w-full min-w-0 h-auto overflow-x-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
-
-const SIDEBAR_PANEL_CLS =
-  'ae-bento-card w-full max-w-full min-w-0 h-auto lg:min-h-[calc(100vh-148px)] lg:max-h-[calc(100vh-148px)] overflow-x-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
-
-const SUBCARD_CLS = 'rounded-2xl bg-[#F6F7F8] dark:bg-[#09110E]'
-
-const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-
-const welcomeText = (lang: 'ar' | 'en') =>
-  lang === 'ar'
-    ? 'هلا بك، أنا فريال. اختر نمط الإجابة أعلاه: دقيق (تحليل دقيق) أو سريع (إجابة سريعة)، أو اضغط 📎 إرفاق صورة / فيديو لفحص جودة الأطباق ونظافة المطبخ وفواتير الموردين، أو اسألني مباشرة عن أرقام أودو 17 عبر 6 علامات تجارية • 7 فروع • 8 قنوات.'
-    : "Welcome — I'm Feryal. Choose Deep & Precise or Fast Answer above, click 📎 Attach Photo / Video to inspect dish quality, kitchen hygiene, and supplier invoices, or ask directly across live Odoo 17 data (6 Brands • 7 Branches • 8 Channels)."
-
-type ChatMessage = StoredChatMessage
-
-const welcomeMessage = (lang: 'ar' | 'en'): ChatMessage => ({
-  id: 'welcome',
-  sender: 'feryal',
-  text: welcomeText(lang),
-  time: '',
-})
-
-const makeFreshChatId = () => `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-
-function sanitizeTextForSpeechClient(rawText: string, lang: 'ar' | 'en'): string {
-  if (!rawText) return ''
-  let text = rawText
-  text = text.replace(/https?:\/\/\S+/gi, '')
-  text = text.replace(/[*#`_~•–—+\/\\|<>\[\]{}()=^:]/g, ' ')
-  text = text.replace(
-    /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}]/gu,
-    ' ',
-  )
-  if (lang === 'ar') {
-    text = text.replace(/\bKWD\b/gi, ' دينار كويتي ')
-    text = text.replace(/د\.ك/g, ' دينار كويتي ')
-    text = text.replace(/%/g, ' بالمئة ')
-    text = text.replace(/\bCOGS\b/gi, ' تكلفة الأغذية والمواد ')
-    text = text.replace(/\bAOV\b/gi, ' متوسط قيمة السلة ')
-    text = text.replace(/\bTgo\b/gi, ' طلبات جو ')
-    text = text.replace(/\bTMP\b/gi, ' أسطول طلبات الخاص ')
-  } else {
-    text = text.replace(/\bKWD\b/gi, ' Kuwaiti Dinars ')
-    text = text.replace(/د\.ك/g, ' Kuwaiti Dinars ')
-    text = text.replace(/%/g, ' percent ')
-    text = text.replace(/\bCOGS\b/gi, ' Cost of Goods Sold ')
-  }
-  return text.replace(/\s+/g, ' ').trim()
+interface ExecutedOdooQueryBadge {
+  model: string
+  method: string
+  domain: unknown[]
+  groupby: string[]
+  period: { from: string; to: string }
 }
+
+interface VerifierBadgeState {
+  valid: boolean
+  extractedNumbers: number[]
+  unverifiedNumbers: number[]
+  reason?: string
+}
+
+interface ChatUiMessage extends StoredChatMessage {
+  userPrompt?: string
+  providerBadge?: string
+  learnedBadge?: string
+  complianceTier?: VisionComplianceTier
+  attachments?: StoredAttachmentMeta[]
+  executedQueries?: ExecutedOdooQueryBadge[]
+  verifier?: VerifierBadgeState
+  replyStatus?: string
+}
+
+interface ServerAuditLogRow {
+  id: string
+  timestampIso: string
+  userSub: string
+  userRole: string
+  question: string
+  status: string
+  executedQueries: ExecutedOdooQueryBadge[]
+  verifier: VerifierBadgeState
+  finalReply: string
+}
+
+interface UserFieldNote {
+  id: string
+  title: string
+  detail: string
+  createdAt: string
+}
+
+const USER_NOTES_STORAGE_KEY = 'vf.feryal.user_notes.clean.v1'
+
+let localUiSeq = 0
+function nextUiId(prefix: string): string {
+  localUiSeq = (localUiSeq + 1) % 1_000_000
+  return `${prefix}-${Date.now()}-${localUiSeq}`
+}
+
+function formatClockNow(): string {
+  try {
+    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return '00:00'
+  }
+}
+
+const LIVE_ODOO_STARTER_QUESTIONS: ReadonlyArray<{
+  id: string
+  modelBadge: string
+  ar: string
+  en: string
+}> = [
+  {
+    id: 'yesterday-by-branch',
+    modelBadge: 'pos.order',
+    ar: 'مبيعات أمس حسب الفرع',
+    en: 'مبيعات أمس حسب الفرع',
+  },
+  {
+    id: 'promenade-yesterday',
+    modelBadge: 'pos.order',
+    ar: 'مبيعات بروميناد أمس',
+    en: 'مبيعات بروميناد أمس',
+  },
+  {
+    id: 'top-5-items',
+    modelBadge: 'pos.order.line',
+    ar: 'أعلى 5 أصناف أمس',
+    en: 'أعلى 5 أصناف أمس',
+  },
+  {
+    id: 'purchase-orders-summary',
+    modelBadge: 'purchase.order',
+    ar: 'إجمالي أوامر الشراء والموردين هذا الشهر',
+    en: 'إجمالي أوامر الشراء والموردين هذا الشهر',
+  },
+  {
+    id: 'warehouse-transfers',
+    modelBadge: 'stock.move / stock.scrap',
+    ar: 'حركات التحويل المخزني والهدر هذا الشهر',
+    en: 'حركات التحويل المخزني والهدر هذا الشهر',
+  },
+  {
+    id: 'gl-accounting',
+    modelBadge: 'account.move.line',
+    ar: 'الإيرادات والمصروفات وصافي الربح في دفتر الأستاذ هذا الشهر',
+    en: 'الإيرادات والمصروفات وصافي الربح في دفتر الأستاذ هذا الشهر',
+  },
+]
 
 export function FeryalGovernanceStudio({
   sessionRole,
 }: {
-  sessionRole?: ExecSessionRole
+  sessionRole?: string
 } = {}) {
-  const { locale: ctxLocale } = useI18n()
-  const searchParams = useSearchParams()
-  const {
-    filters,
-    workspace,
-    liveSummary,
-    setPeriod,
-    setCustomRange,
-    setKuwaitSlice,
-    setBrand,
-    setBranch,
-    setChannel,
-    setLens,
-  } = useGlobalFilter()
-  const {
-    requestApproval,
-    openDrawer,
-    getApprovalByRef,
-    sessionRole: govSessionRole,
-    isAuditor: govIsAuditor,
-  } = useGovernance()
+  const { locale } = useI18n()
+  const isAr = locale === 'ar'
+  const isAuditor = sessionRole === 'auditor'
+  const { workspace } = useGlobalFilter()
 
-  const effectiveRole: ExecSessionRole =
-    sessionRole ?? govSessionRole ?? (govIsAuditor ? 'auditor' : 'admin')
-  const isAuditor = effectiveRole === 'auditor'
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'notes'>('chats')
+  const [mainTab, setMainTab] = useState<'chat' | 'alerts' | 'audit'>('chat')
+  const [memoryDrawerOpen, setMemoryDrawerOpen] = useState(false)
+  const [savedNotesCount, setSavedNotesCount] = useState(0)
 
-  const isAr = ctxLocale !== 'en'
-  const currentLang: 'ar' | 'en' = isAr ? 'ar' : 'en'
-  const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
-
-  const [govTick, setGovTick] = useState(0)
-  useEffect(() => {
-    if (!isAuditor) {
-      void syncGovernanceFromServer().then((changed) => {
-        if (changed) setGovTick((t) => t + 1)
-      })
-    }
-    const onGovSync = () => setGovTick((t) => t + 1)
-    window.addEventListener(GOVERNANCE_UPDATED_EVENT, onGovSync)
-    window.addEventListener('storage', onGovSync)
-    return () => {
-      window.removeEventListener(GOVERNANCE_UPDATED_EVENT, onGovSync)
-      window.removeEventListener('storage', onGovSync)
-    }
-  }, [isAuditor])
-
-  const govSnap = useMemo(() => {
-    void govTick
-    return readLiveGovernanceSnapshot(workspace)
-  }, [workspace, govTick])
-
-  const [activeChatId, setActiveChatId] = useState<string>(() => makeFreshChatId())
+  const [activeChatId, setActiveChatId] = useState<string>(() => nextUiId('chat'))
   const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [welcomeMessage(currentLang)])
+  const [messages, setMessages] = useState<ChatUiMessage[]>([])
   const [inputText, setInputText] = useState('')
-  const [isCopilotThinking, setIsCopilotThinking] = useState(false)
-  const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [openSplitIds, setOpenSplitIds] = useState<Record<string, boolean>>({})
-  const [activeBrainMode, setActiveBrainModeState] = useState<
-    'triple' | 'claude' | 'gemini' | 'grok'
-  >('triple')
-  const [submittedBellMap, setSubmittedBellMap] = useState<Record<string, string>>({})
-  const [toastNotice, setToastNotice] = useState<{ ar: string; en: string } | null>(null)
-  const [ingestedDeepLinkLabel, setIngestedDeepLinkLabel] = useState<string | null>(null)
-  const [isDragActive, setIsDragActive] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [activeMode, setActiveMode] = useState<BrainMode>('triple')
 
-  const [memoryOpen, setMemoryOpen] = useState(false)
-  const [bigBetMenuOpen, setBigBetMenuOpen] = useState(false)
-  const [memoryCountBadge, setMemoryCountBadge] = useState<number>(7)
-  const [activeStudioTab, setActiveStudioTab] = useState<'studio' | 'notes'>('studio')
+  // Live Governance Alerts strictly from `/api/erp/governance` (ZERO static alerts)
+  const [liveBreaches, setLiveBreaches] = useState<ComplianceBreachItem[]>([])
+  const [loadingBreaches, setLoadingBreaches] = useState(false)
 
+  // Transparent Server Audit Log from `GET /api/erp/feryal/chat`
+  const [auditLogs, setAuditLogs] = useState<ServerAuditLogRow[]>([])
+  const [loadingAudit, setLoadingAudit] = useState(false)
+
+  // Clean user-entered notes (ZERO pre-populated cards)
+  const [userNotes, setUserNotes] = useState<UserFieldNote[]>([])
+  const [noteTitle, setNoteTitle] = useState('')
+  const [noteDetail, setNoteDetail] = useState('')
+
+  // Multimodal attachments
   const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
-  const [isProcessingMedia, setIsProcessingMedia] = useState(false)
-  const [mediaErrorText, setMediaErrorText] = useState<string | null>(null)
-  const [isListening, setIsListening] = useState(false)
-  const [isVoiceMuted, setIsVoiceMuted] = useState(true)
-  const [isHandsFree, setIsHandsFree] = useState(false)
-  const [playingMsgId, setPlayingMsgId] = useState<string | null>(null)
-  const [isTranscribing, setIsTranscribing] = useState(false)
-  const [micToast, setMicToast] = useState<string | null>(null)
-
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
-  const recognitionRef = useRef<any>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const mediaStreamRef = useRef<MediaStream | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
-  const chatScrollRef = useRef<HTMLDivElement>(null)
-  const inputFieldRef = useRef<HTMLTextAreaElement | null>(null)
+  const [processingMedia, setProcessingMedia] = useState(false)
+  const [mediaError, setMediaError] = useState<string | null>(null)
   const openPickerRef = useRef<(() => void) | null>(null)
   const openCameraRef = useRef<(() => void) | null>(null)
-  const silenceTimerRef = useRef<any>(null)
-  const interimTranscriptRef = useRef<string>('')
-  const isListeningRef = useRef(false)
-  const isHandsFreeRef = useRef(false)
-  const isVoiceMutedRef = useRef(true)
-  const startListeningRef = useRef<(() => void) | null>(null)
-  const handleSendQueryRef = useRef<((text?: string) => Promise<void>) | null>(null)
-  const ingestedPromptSigRef = useRef<string>('')
 
-  const hasUserMessages = useMemo(
-    () => messages.some((m) => m.sender === 'user'),
-    [messages],
-  )
+  // Voice & clipboard UI state
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [submittedBellIds, setSubmittedBellIds] = useState<Record<string, boolean>>({})
+  const [speakingId, setSpeakingId] = useState<string | null>(null)
+  const [recordingVoice, setRecordingVoice] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    isHandsFreeRef.current = isHandsFree
-  }, [isHandsFree])
-
-  useEffect(() => {
-    isVoiceMutedRef.current = isVoiceMuted
-  }, [isVoiceMuted])
-
-  const showToast = useCallback((ar: string, en: string) => {
-    setToastNotice({ ar, en })
-    window.setTimeout(() => {
-      setToastNotice((cur) => (cur?.ar === ar ? null : cur))
-    }, 3400)
-  }, [])
-
-  useEffect(() => {
-    const syncMemCount = () => {
-      const m = getFeryalMemorySync()
-      setMemoryCountBadge(m.rules.length + m.outcomes.length)
-    }
-    void hydrateFeryalMemory().then((m) => {
-      setMemoryCountBadge(m.rules.length + m.outcomes.length)
-    })
-    window.addEventListener(FERYAL_MEMORY_UPDATED_EVENT, syncMemCount)
-    return () => window.removeEventListener(FERYAL_MEMORY_UPDATED_EVENT, syncMemCount)
-  }, [])
-
-  useEffect(() => {
-    setActiveBrainModeState(normalizeBrainMode(getActiveBrainMode()))
-    const onBrainMode = (e: Event) => {
-      const detail = (e as CustomEvent<BrainMode>).detail
-      setActiveBrainModeState(normalizeBrainMode(detail ?? getActiveBrainMode()))
-    }
-    window.addEventListener(BRAIN_MODE_EVENT, onBrainMode)
-    return () => window.removeEventListener(BRAIN_MODE_EVENT, onBrainMode)
-  }, [])
-
-  const handleSelectStudioMode = useCallback((next: 'triple' | 'gemini' | 'claude') => {
-    setActiveBrainModeState(next)
-    setActiveBrainMode(next)
-  }, [])
-
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.some((m) => m.sender === 'user')) return prev
-      return [welcomeMessage(isAr ? 'ar' : 'en')]
-    })
-  }, [isAr])
-
-  useEffect(() => {
-    const hasUser = messages.some((m) => m.sender === 'user' && m.text.trim().length > 0)
-    if (!hasUser) return
-    void autoSaveChatThread({
-      chatId: activeChatId,
-      messages,
-      lang: isAr ? 'ar' : 'en',
-      filterLabel: isAr ? workspace.subtitleAr : workspace.subtitleEn,
-      preferredNotebookId: activeNotebookId !== 'all' ? activeNotebookId : null,
-    })
-  }, [activeChatId, activeNotebookId, isAr, messages, workspace.subtitleAr, workspace.subtitleEn])
-
-  // Auto-scroll ONLY during active multi-message conversation, NEVER on empty-state load
-  useEffect(() => {
-    if (!hasUserMessages) return
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
-    }
-  }, [hasUserMessages, messages, isCopilotThinking])
-
-  useEffect(() => {
-    const el = inputFieldRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
-  }, [inputText])
-
-  const copyToClipboard = useCallback(async (key: string, text: string) => {
+  const fetchServerGovernanceBreaches = useCallback(async () => {
+    setLoadingBreaches(true)
     try {
-      await navigator.clipboard?.writeText(text)
-    } catch {}
-    setCopiedKey(key)
-    window.setTimeout(() => setCopiedKey((cur) => (cur === key ? null : cur)), 2200)
-  }, [])
-
-  const stopAllMicTracks = useCallback(() => {
-    if (mediaStreamRef.current) {
-      try {
-        mediaStreamRef.current.getTracks().forEach((track) => {
-          track.stop()
-          track.enabled = false
-        })
-      } catch {}
-      mediaStreamRef.current = null
-    }
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch {}
-    }
-    setIsListening(false)
-    isListeningRef.current = false
-  }, [])
-
-  const fallbackSpeechSynthesis = useCallback((rawText: string, lang: 'ar' | 'en') => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
-    try {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(sanitizeTextForSpeechClient(rawText, lang))
-      utterance.lang = lang === 'ar' ? 'ar-XA' : 'en-US'
-      utterance.rate = 1.0
-      utterance.onend = () => {
-        setPlayingMsgId(null)
-        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
-          window.setTimeout(() => startListeningRef.current?.(), 600)
-        }
+      const res = await fetch('/api/erp/governance', {
+        method: 'GET',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { breaches?: ComplianceBreachItem[] }
+        const verified = Array.isArray(data.breaches)
+          ? data.breaches.filter((b) => isVerifiedOdooGovernanceBreach(b))
+          : []
+        setLiveBreaches(verified)
+      } else {
+        setLiveBreaches([])
       }
-      utterance.onerror = () => setPlayingMsgId(null)
-      window.speechSynthesis.speak(utterance)
     } catch {
-      setPlayingMsgId(null)
+      setLiveBreaches([])
+    } finally {
+      setLoadingBreaches(false)
     }
   }, [])
 
-  const stopPlayback = useCallback(() => {
-    if (audioPlayerRef.current) audioPlayerRef.current.pause()
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel()
+  const fetchServerAuditLogs = useCallback(async () => {
+    setLoadingAudit(true)
+    try {
+      const res = await fetch('/api/erp/feryal/chat?limit=50', {
+        method: 'GET',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { auditLogs?: ServerAuditLogRow[] }
+        setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : [])
+      }
+    } catch {
+      // keep existing audit list on network error
+    } finally {
+      setLoadingAudit(false)
     }
-    setPlayingMsgId(null)
   }, [])
 
-  const playFeryalSpeech = useCallback(
-    async (text: string, msgId?: string, force = false) => {
-      if (isVoiceMuted && !force) return
-      stopAllMicTracks()
-      if (audioPlayerRef.current) audioPlayerRef.current.pause()
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
+  useEffect(() => {
+    setActiveMode(getActiveBrainMode())
+    const onMode = () => setActiveMode(getActiveBrainMode())
+    window.addEventListener(BRAIN_MODE_EVENT, onMode)
+    return () => window.removeEventListener(BRAIN_MODE_EVENT, onMode)
+  }, [])
+
+  useEffect(() => {
+    void hydrateFeryalMemory().then((m) => setSavedNotesCount(m.rules.length))
+    const onMem = () => setSavedNotesCount(getFeryalMemorySync().rules.length)
+    window.addEventListener(FERYAL_MEMORY_UPDATED_EVENT, onMem)
+    return () => window.removeEventListener(FERYAL_MEMORY_UPDATED_EVENT, onMem)
+  }, [])
+
+  useEffect(() => {
+    void hydrateFeryalChatStore().then(() => {
+      const idx = getChatIndexSync()
+      if (idx.length > 0) {
+        const latest = idx[0]
+        setActiveChatId(latest.id)
+        void loadChatThread(latest.id).then((thread) => {
+          if (thread && thread.messages.length > 0) {
+            setMessages(thread.messages)
+          }
+        })
       }
+    })
+  }, [])
 
-      const activeLang: 'ar' | 'en' = isAr ? 'ar' : 'en'
-      const activeId = msgId || 'live-speech'
-      setPlayingMsgId(activeId)
-      const cleanText = sanitizeTextForSpeechClient(text, activeLang) || feryalPlainText(text)
-
-      const onEnded = () => {
-        setPlayingMsgId(null)
-        if (isHandsFreeRef.current && !isVoiceMutedRef.current) {
-          window.setTimeout(() => startListeningRef.current?.(), 600)
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(USER_NOTES_STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+          setUserNotes(
+            parsed.filter(
+              (n): n is UserFieldNote =>
+                typeof n === 'object' &&
+                n !== null &&
+                typeof (n as UserFieldNote).id === 'string' &&
+                typeof (n as UserFieldNote).title === 'string',
+            ),
+          )
         }
       }
+    } catch {
+      // ignore storage read error
+    }
+  }, [])
 
-      try {
-        let audioUrl = ''
-        if (!isAuditor) {
-          try {
-            const ttsRes = await fetch('/api/feryal/tts', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                text: cleanText.slice(0, 3600),
-                lang: activeLang === 'en' ? 'en' : 'ar',
-                format: 'binary',
-              }),
-            })
-            if (ttsRes.ok) {
-              audioUrl = URL.createObjectURL(await ttsRes.blob())
-            }
-          } catch {}
-        }
+  useEffect(() => {
+    void fetchServerGovernanceBreaches()
+    void fetchServerAuditLogs()
+  }, [fetchServerGovernanceBreaches, fetchServerAuditLogs])
 
-        if (!audioUrl) {
-          audioUrl = `/api/feryal/tts?lang=${activeLang === 'en' ? 'en' : 'ar'}&text=${encodeURIComponent(
-            cleanText.slice(0, 500),
-          )}`
-        }
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, sending])
 
-        const player = audioPlayerRef.current
-        if (player) {
-          player.src = audioUrl
-          player.onended = onEnded
-          player.onerror = () => fallbackSpeechSynthesis(cleanText, activeLang)
-          await player.play().catch(() => fallbackSpeechSynthesis(cleanText, activeLang))
-          return
-        }
-        fallbackSpeechSynthesis(cleanText, activeLang)
-      } catch {
-        fallbackSpeechSynthesis(cleanText, activeLang)
-      }
+  useEffect(() => {
+    return () => {
+      revokeAttachmentObjectUrls(pendingAttachments)
+    }
+  }, [pendingAttachments])
+
+  const persistMessages = useCallback(
+    async (chatId: string, nextMsgs: ChatUiMessage[]) => {
+      const stored: StoredChatMessage[] = nextMsgs.map((m) => ({
+        id: m.id,
+        sender: m.sender,
+        text: m.text,
+        time: m.time,
+        engineLabelAr: m.providerBadge,
+        statusNoteAr: m.learnedBadge,
+        visionCompliance: m.complianceTier,
+        attachmentsMeta: m.attachments,
+      }))
+      await autoSaveChatThread({
+        chatId,
+        messages: stored,
+        lang: isAr ? 'ar' : 'en',
+        preferredNotebookId: activeNotebookId !== 'all' ? activeNotebookId : undefined,
+        filterLabel: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+      })
     },
-    [fallbackSpeechSynthesis, isAr, isAuditor, isVoiceMuted, stopAllMicTracks],
+    [activeNotebookId, isAr, workspace.subtitleAr, workspace.subtitleEn],
   )
+
+  const handleStartNewChat = useCallback(() => {
+    const freshId = nextUiId('chat')
+    setActiveChatId(freshId)
+    setMessages([])
+    setInputText('')
+    setMainTab('chat')
+  }, [])
+
+  const handleSelectChat = useCallback(async (chatId: string) => {
+    setActiveChatId(chatId)
+    setMainTab('chat')
+    const thread = await loadChatThread(chatId)
+    if (thread) {
+      setMessages(
+        thread.messages.map((m) => ({
+          ...m,
+          providerBadge: m.engineLabelAr,
+          learnedBadge: m.statusNoteAr,
+          complianceTier: m.visionCompliance,
+          attachments: m.attachmentsMeta,
+        })),
+      )
+    } else {
+      setMessages([])
+    }
+  }, [])
 
   const handleFilesSelected = useCallback(
     async (files: File[]) => {
       if (isAuditor) return
-      const valid = files.filter(isSupportedMediaFile).slice(0, 5)
+      const valid = files.filter(isSupportedMediaFile).slice(0, 4)
       if (valid.length === 0) return
-      setMediaErrorText(null)
-      setIsProcessingMedia(true)
+      setProcessingMedia(true)
+      setMediaError(null)
       try {
         const processed: FeryalMediaAttachment[] = []
         for (const f of valid) {
-          const item = await processFeryalMediaFile(f)
-          processed.push(item)
+          processed.push(await processFeryalMediaFile(f))
         }
-        setPendingAttachments((prev) => [...prev, ...processed].slice(0, 6))
+        setPendingAttachments((prev) => [...prev, ...processed].slice(0, 4))
       } catch {
-        setMediaErrorText(
-          isAr
-            ? 'تعذر قراءة الملف المرفق — يرجى اختيار صورة (JPG / PNG / WEBP) أو فيديو (MP4 / WEBM / MOV).'
-            : 'Could not read media file — please attach a valid image (JPG / PNG / WEBP) or video (MP4 / WEBM / MOV).',
+        setMediaError(
+          isAr ? 'تعذر تجهيز المرفق البصري.' : 'Could not process visual attachment.',
         )
       } finally {
-        setIsProcessingMedia(false)
+        setProcessingMedia(false)
       }
     },
     [isAr, isAuditor],
   )
 
-  useEffect(() => {
-    if (isAuditor) return undefined
-    const onWindowPaste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
-        return
-      }
-      const pasted = Array.from(e.clipboardData?.files ?? []).filter(isSupportedMediaFile)
-      if (pasted.length > 0) {
-        e.preventDefault()
-        void handleFilesSelected(pasted)
-      }
-    }
-    window.addEventListener('paste', onWindowPaste)
-    return () => window.removeEventListener('paste', onWindowPaste)
-  }, [handleFilesSelected, isAuditor])
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id)
+      if (target) revokeAttachmentObjectUrls([target])
+      return prev.filter((a) => a.id !== id)
+    })
+  }, [])
 
-  const handleSendQuery = useCallback(
-    async (queryText?: string) => {
-      if (isAuditor) return
-      const lang: 'ar' | 'en' = isAr ? 'ar' : 'en'
-      const attachmentsSnapshot = pendingAttachments
-      const rawText = (queryText ?? inputText).trim()
-      const textToSend =
-        rawText ||
-        (attachmentsSnapshot.length > 0
-          ? buildDefaultMediaPrompt(attachmentsSnapshot, lang)
-          : '')
-      if (!textToSend && attachmentsSnapshot.length === 0) return
+  const handleClearAllAttachments = useCallback(() => {
+    setPendingAttachments((prev) => {
+      revokeAttachmentObjectUrls(prev)
+      return []
+    })
+    setMediaError(null)
+  }, [])
 
-      // Western 0-9 tabular timestamp across both AR and EN
-      const stamp = () =>
-        new Date().toLocaleTimeString('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
+  const sendQuestion = useCallback(
+    async (overridePrompt?: string) => {
+      if (isAuditor || sending) return
+      const rawPrompt = (overridePrompt ?? inputText).trim()
+      const hasMedia = pendingAttachments.length > 0
+
+      if (!rawPrompt && !hasMedia) return
+
+      const effectivePrompt =
+        rawPrompt || buildDefaultMediaPrompt(pendingAttachments, isAr ? 'ar' : 'en')
+
+      const attachmentMetas: StoredAttachmentMeta[] = pendingAttachments.map(
+        toStoredAttachmentMeta,
+      )
+      const attachmentsSnapshot = [...pendingAttachments]
+
+      const userMsg: ChatUiMessage = {
+        id: nextUiId('u'),
+        sender: 'user',
+        text: effectivePrompt,
+        time: formatClockNow(),
+        ...(attachmentMetas.length > 0 ? { attachments: attachmentMetas } : {}),
+      }
+
+      const optimisticList = [...messages, userMsg]
+      setMessages(optimisticList)
+      if (!overridePrompt) setInputText('')
+      if (hasMedia) handleClearAllAttachments()
+      setSending(true)
+      setMainTab('chat')
+
+      try {
+        // 1. Visual attachment inspection via `/api/erp/feryal/vision` ONLY when media is attached
+        if (attachmentsSnapshot.length > 0) {
+          const visionRes = await callFeryalVisionInspector({
+            prompt: effectivePrompt,
+            lang: isAr ? 'ar' : 'en',
+            workspaceContext: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+            attachments: attachmentsSnapshot,
+          })
+
+          const replyText =
+            visionRes?.reply ||
+            (isAr ? 'لا أملك بيانات من Odoo عن هذا' : 'لا أملك بيانات من Odoo عن هذا')
+          const tier: VisionComplianceTier | undefined = visionRes?.complianceTier
+
+          const feryalMsg: ChatUiMessage = {
+            id: nextUiId('f'),
+            sender: 'feryal',
+            text: replyText,
+            time: formatClockNow(),
+            userPrompt: effectivePrompt,
+            providerBadge: isAr ? 'فحص الصور والفيديو' : 'Vision Inspector',
+            complianceTier: tier,
+          }
+          const updated = [...optimisticList, feryalMsg]
+          setMessages(updated)
+          await persistMessages(activeChatId, updated)
+          return
+        }
+
+        // 2. Exclusive Odoo 17 Live Tool-Calling Engine (`POST /api/erp/feryal/chat`)
+        const res = await fetch('/api/erp/feryal/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: effectivePrompt }),
         })
 
-      const storedMeta =
-        attachmentsSnapshot.length > 0
-          ? attachmentsSnapshot.map(toStoredAttachmentMeta)
-          : undefined
+        let replyText = 'لا أملك بيانات من Odoo عن هذا'
+        let modelBadge = 'Odoo'
+        let executedQueries: ExecutedOdooQueryBadge[] = []
+        let verifier: VerifierBadgeState | undefined
+        let replyStatus = 'no_odoo_data'
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `user-${Date.now()}`,
-          sender: 'user',
-          text: textToSend,
-          time: stamp(),
-          attachmentsMeta: storedMeta,
-        },
-      ])
-      setInputText('')
-      setPendingAttachments([])
-      setMediaErrorText(null)
-      setActiveStudioTab('studio')
-      setIsCopilotThinking(true)
-
-      const liveSnapshot = readLiveGovernanceSnapshot(workspace)
-      const richGovernanceContext = buildFeryalGovernancePromptContext(
-        liveSnapshot,
-        workspace,
-        lang,
-      )
-
-      try {
-        let reply = ''
-        let visionCompliance: VisionComplianceTier | undefined
-        const hasVisualEvidence = attachmentsSnapshot.length > 0
-        let engineLabelAr: string | undefined
-        let engineLabelEn: string | undefined
-        let claudeReply: string | undefined
-        let claudeModel: string | undefined
-        let claudeThinkingSummary: string | undefined
-        let geminiReply: string | undefined
-        let geminiModel: string | undefined
-        let grokReply: string | undefined
-        let grokModel: string | undefined
-        let statusNoteAr: string | undefined
-        let statusNoteEn: string | undefined
-
-        // 1. Dedicated Multimodal Vision & Video Route (`/api/erp/feryal/vision`) when images/videos are attached
-        if (hasVisualEvidence) {
-          try {
-            const visionRes = await callFeryalVisionInspector({
-              prompt: textToSend,
-              lang,
-              workspaceContext: richGovernanceContext,
-              attachments: attachmentsSnapshot,
-            })
-            if (visionRes && visionRes.reply) {
-              reply = visionRes.reply
-              visionCompliance = visionRes.complianceTier
-              engineLabelAr = 'فحص الصور والفيديو'
-              engineLabelEn = 'Vision & Video Inspector'
-              if (visionRes.provider === 'gemini') {
-                geminiReply = visionRes.reply
-                geminiModel = lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
-              } else if (visionRes.provider === 'claude') {
-                claudeReply = visionRes.reply
-                claudeModel = lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'
-              }
-            }
-          } catch (visErr) {
-            console.warn('Feryal vision route fallback:', visErr)
+        if (res.ok) {
+          const payload = (await res.json()) as {
+            ok?: boolean
+            reply?: string
+            status?: string
+            model?: string
+            executedQueries?: ExecutedOdooQueryBadge[]
+            verifier?: VerifierBadgeState
+          }
+          if (payload.ok && typeof payload.reply === 'string') {
+            replyText = payload.reply
+            replyStatus = payload.status || 'answered'
+            modelBadge = payload.model ? `Odoo (${payload.model})` : 'Odoo'
+            executedQueries = Array.isArray(payload.executedQueries) ? payload.executedQueries : []
+            verifier = payload.verifier
           }
         }
 
-        // 2. Unified Executive Synthesis (Deep Strategic / Fast Executive / Vision & Video Inspector)
-        if (!reply) {
-          try {
-            const dualRes = await askDualHeavyBrain({
-              query: textToSend,
-              lang,
-              mode: activeBrainMode,
-              filters,
-              workspace,
-              pageContext: richGovernanceContext,
-              attachments: hasVisualEvidence ? attachmentsSnapshot : undefined,
-            })
-            reply = dualRes.reply?.trim() || ''
-            if (hasVisualEvidence && reply) {
-              visionCompliance = inferVisionComplianceFromText(reply)
-            }
-            engineLabelAr = hasVisualEvidence
-              ? 'فحص الصور والفيديو'
-              : getExecutiveModeLabel(activeBrainMode, true)
-            engineLabelEn = hasVisualEvidence
-              ? 'Vision & Video Inspector'
-              : getExecutiveModeLabel(activeBrainMode, false)
-            claudeReply = dualRes.claudeReply
-            claudeModel = lang === 'ar' ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'
-            claudeThinkingSummary = dualRes.claudeThinkingSummary
-            geminiReply = dualRes.geminiReply
-            geminiModel = lang === 'ar' ? 'إجابة تنفيذية سريعة' : 'Fast Executive'
-            grokReply = dualRes.grokReply
-            grokModel = lang === 'ar' ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'
-            statusNoteAr = dualRes.statusNoteAr
-            statusNoteEn = dualRes.statusNoteEn
-          } catch (brainErr) {
-            console.warn('Feryal advisory warning:', brainErr)
-          }
+        const learnRes = await autoLearnFromConversationTurn(effectivePrompt, replyText)
+
+        const feryalMsg: ChatUiMessage = {
+          id: nextUiId('f'),
+          sender: 'feryal',
+          text: replyText,
+          time: formatClockNow(),
+          userPrompt: effectivePrompt,
+          providerBadge: modelBadge,
+          learnedBadge: learnRes.learnedFact,
+          executedQueries,
+          verifier,
+          replyStatus,
         }
 
-        if (hasVisualEvidence) {
-          revokeAttachmentObjectUrls(attachmentsSnapshot)
-        }
-
-        // 3. Server `/api/feryal` fallback
-        if (!reply) {
-          try {
-            const res = await fetch('/api/feryal', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'chat',
-                query: `${richGovernanceContext}\n\n${textToSend}`,
-                lang,
-              }),
-            })
-            if (res.ok) {
-              const data = (await res.json()) as {
-                success?: boolean
-                replyAr?: string
-                replyEn?: string
-              }
-              if (data.success) {
-                reply = (lang === 'ar' ? data.replyAr : data.replyEn) || ''
-                engineLabelAr = getExecutiveModeLabel(activeBrainMode, true)
-                engineLabelEn = getExecutiveModeLabel(activeBrainMode, false)
-              }
-            }
-          } catch {}
-        }
-
-        // 4. Deterministic Odoo 17 + Governance fallback
-        if (!reply) {
-          reply =
-            buildGovernanceAwareFallbackReply(textToSend, liveSnapshot, workspace, lang) ||
-            getDeterministicFeryalReply(textToSend, lang)
-          engineLabelAr = getExecutiveModeLabel(activeBrainMode, true)
-          engineLabelEn = getExecutiveModeLabel(activeBrainMode, false)
-        }
-
-        const feryalMsgId = `feryal-${Date.now()}`
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: feryalMsgId,
-            sender: 'feryal',
-            text: reply,
-            time: stamp(),
-            visionCompliance,
-            hasVisualEvidence,
-            engineLabelAr,
-            engineLabelEn,
-            claudeReply,
-            claudeModel,
-            claudeThinkingSummary,
-            geminiReply,
-            geminiModel,
-            grokReply,
-            grokModel,
-            statusNoteAr,
-            statusNoteEn,
-          },
-        ])
-        void playFeryalSpeech(reply, feryalMsgId)
-      } finally {
-        setIsCopilotThinking(false)
-      }
-    },
-    [activeBrainMode, filters, inputText, isAr, isAuditor, pendingAttachments, playFeryalSpeech, workspace],
-  )
-
-  useEffect(() => {
-    handleSendQueryRef.current = handleSendQuery
-  }, [handleSendQuery])
-
-  // Auto-Ingest `?prompt=` from Growth Plays, Operational Pages & `/erp/feryal` Redirect
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const sp = new URLSearchParams(searchParams?.toString() || window.location.search)
-
-    const urlPeriod = sp.get('period') as GlobalPeriod | null
-    if (
-      urlPeriod &&
-      (urlPeriod === 'today' ||
-        urlPeriod === 'week' ||
-        urlPeriod === 'month' ||
-        urlPeriod === 'year' ||
-        urlPeriod === 'custom') &&
-      urlPeriod !== filters.period
-    ) {
-      setPeriod(urlPeriod)
-    }
-    const urlFrom = sp.get('from') ?? sp.get('customFrom')
-    const urlTo = sp.get('to') ?? sp.get('customTo')
-    if (urlFrom && urlTo && /^\d{4}-\d{2}-\d{2}$/.test(urlFrom) && /^\d{4}-\d{2}-\d{2}$/.test(urlTo)) {
-      setCustomRange(urlFrom, urlTo)
-    }
-    const urlBrand = sp.get('brand') as GlobalBrand | null
-    if (urlBrand && (APPROVED_BRAND_IDS as readonly string[]).includes(urlBrand) && urlBrand !== filters.brand) {
-      setBrand(urlBrand)
-    }
-    const urlBranch = sp.get('branch') as GlobalBranch | null
-    if (urlBranch && (APPROVED_BRANCH_IDS as readonly string[]).includes(urlBranch) && urlBranch !== filters.branch) {
-      setBranch(urlBranch)
-    }
-    const urlChannel = sp.get('channel') as GlobalChannel | null
-    if (urlChannel && (APPROVED_CHANNEL_IDS as readonly string[]).includes(urlChannel) && urlChannel !== filters.channel) {
-      setChannel(urlChannel)
-    }
-    const urlSlice = sp.get('slice') as KuwaitSlice | null
-    if (urlSlice && (APPROVED_KUWAIT_SLICES as readonly string[]).includes(urlSlice) && urlSlice !== filters.kuwaitSlice) {
-      setKuwaitSlice(urlSlice)
-    }
-    const urlLens = sp.get('lens') as ProfitLens | null
-    if (urlLens && (APPROVED_PROFIT_LENSES as readonly string[]).includes(urlLens) && urlLens !== filters.lens) {
-      setLens(urlLens)
-    }
-
-    const incomingPrompt = (sp.get('prompt') ?? sp.get('q') ?? '').trim()
-    if (!incomingPrompt) return
-    if (ingestedPromptSigRef.current === incomingPrompt) return
-
-    ingestedPromptSigRef.current = incomingPrompt
-    setIngestedDeepLinkLabel(incomingPrompt)
-
-    try {
-      const cleanUrl = new URL(window.location.href)
-      cleanUrl.searchParams.delete('prompt')
-      cleanUrl.searchParams.delete('q')
-      window.history.replaceState(
-        window.history.state,
-        '',
-        cleanUrl.pathname + cleanUrl.search + cleanUrl.hash,
-      )
-    } catch {}
-
-    if (isAuditor) return undefined
-
-    const timer = window.setTimeout(() => {
-      void handleSendQueryRef.current?.(incomingPrompt)
-    }, 180)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [
-    filters.branch,
-    filters.brand,
-    filters.channel,
-    filters.kuwaitSlice,
-    filters.lens,
-    filters.period,
-    isAuditor,
-    searchParams,
-    setBranch,
-    setBrand,
-    setChannel,
-    setCustomRange,
-    setKuwaitSlice,
-    setLens,
-    setPeriod,
-  ])
-
-  const startListening = useCallback(async () => {
-    if (typeof window === 'undefined' || isAuditor) return
-    stopPlayback()
-    stopAllMicTracks()
-
-    let speechRecognitionActive = false
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SpeechRecognition) {
-      try {
-        const recognizer = new SpeechRecognition()
-        recognizer.continuous = false
-        recognizer.interimResults = true
-        recognizer.lang = isAr ? 'ar-KW' : 'en-US'
-        recognizer.maxAlternatives = 1
-        interimTranscriptRef.current = ''
-
-        recognizer.onstart = () => {
-          setIsListening(true)
-          isListeningRef.current = true
-          setMicToast(null)
-        }
-        recognizer.onresult = (event: any) => {
-          let interimText = ''
-          let finalText = ''
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const item = event.results[i]
-            const transcript = item[0]?.transcript || ''
-            if (item.isFinal) finalText += transcript
-            else interimText += transcript
-          }
-          const liveText = (finalText || interimText).trim()
-          if (liveText) {
-            setInputText(liveText)
-            interimTranscriptRef.current = liveText
-          }
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-          if (finalText.trim()) {
-            stopAllMicTracks()
-            const q = finalText.trim()
-            interimTranscriptRef.current = ''
-            void handleSendQueryRef.current?.(q)
-          } else if (interimText.trim()) {
-            silenceTimerRef.current = window.setTimeout(() => {
-              if (!isListeningRef.current) return
-              stopAllMicTracks()
-              if (interimTranscriptRef.current.trim()) {
-                const q = interimTranscriptRef.current.trim()
-                interimTranscriptRef.current = ''
-                void handleSendQueryRef.current?.(q)
-              }
-            }, 1800)
-          }
-        }
-        recognizer.onerror = () => {
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-          stopAllMicTracks()
-        }
-        recognitionRef.current = recognizer
-        recognizer.start()
-        speechRecognitionActive = true
-      } catch {}
-    }
-
-    if (!speechRecognitionActive && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        mediaStreamRef.current = stream
-        const mr = new MediaRecorder(stream)
-        audioChunksRef.current = []
-        mr.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data)
-        }
-        mr.onstop = async () => {
-          stopAllMicTracks()
-          if (audioChunksRef.current.length === 0) return
-          const recordedBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-          audioChunksRef.current = []
-          setIsTranscribing(true)
-          try {
-            let finalQuery = ''
-            const base64Audio = await new Promise<string>((resolve) => {
-              const reader = new FileReader()
-              reader.onloadend = () => {
-                const res = typeof reader.result === 'string' ? reader.result : ''
-                resolve(res.includes(',') ? res.split(',')[1] : '')
-              }
-              reader.onerror = () => resolve('')
-              reader.readAsDataURL(recordedBlob)
-            })
-            if (base64Audio) {
-              try {
-                const multimodalRes = await askFeryalGeminiBrain({
-                  lang: isAr ? 'ar' : 'en',
-                  audioBase64: base64Audio,
-                  mimeType: 'audio/webm',
-                })
-                if (multimodalRes.transcript?.trim()) {
-                  finalQuery = multimodalRes.transcript.trim()
-                }
-              } catch {}
-            }
-
-            if (!finalQuery) {
-              const fd = new FormData()
-              fd.append('file', recordedBlob, 'audio.webm')
-              fd.append('language', isAr ? 'ar' : 'en')
-              fd.append('lang', isAr ? 'ar' : 'en')
-              try {
-                const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
-                if (sttRes.ok) {
-                  const sttData = (await sttRes.json()) as { ok?: boolean; transcript?: string }
-                  if (sttData.ok && sttData.transcript?.trim()) {
-                    finalQuery = sttData.transcript.trim()
-                  }
-                }
-              } catch {}
-            }
-
-            if (finalQuery) {
-              setInputText(finalQuery)
-              void handleSendQueryRef.current?.(finalQuery)
-            }
-          } catch {}
-          setIsTranscribing(false)
-        }
-        mediaRecorderRef.current = mr
-        mr.start(250)
-        setIsListening(true)
-        isListeningRef.current = true
+        const updated = [...optimisticList, feryalMsg]
+        setMessages(updated)
+        await persistMessages(activeChatId, updated)
+        void fetchServerAuditLogs()
       } catch {
-        setMicToast(
-          isAr
-            ? 'تعذر تشغيل المايكروفون — يمكنك الكتابة مباشرة.'
-            : 'Microphone unavailable — please type your question.',
-        )
-        window.setTimeout(() => setMicToast(null), 4000)
+        const fallbackMsg: ChatUiMessage = {
+          id: nextUiId('f'),
+          sender: 'feryal',
+          text: 'لا أملك بيانات من Odoo عن هذا',
+          time: formatClockNow(),
+          userPrompt: effectivePrompt,
+          providerBadge: 'Odoo',
+          replyStatus: 'no_odoo_data',
+        }
+        const updated = [...optimisticList, fallbackMsg]
+        setMessages(updated)
+        await persistMessages(activeChatId, updated)
+      } finally {
+        setSending(false)
       }
-    }
-  }, [isAr, isAuditor, stopAllMicTracks, stopPlayback])
+    },
+    [
+      activeChatId,
+      fetchServerAuditLogs,
+      handleClearAllAttachments,
+      inputText,
+      isAr,
+      isAuditor,
+      messages,
+      pendingAttachments,
+      persistMessages,
+      sending,
+      workspace.subtitleAr,
+      workspace.subtitleEn,
+    ],
+  )
 
-  useEffect(() => {
-    startListeningRef.current = startListening
-  }, [startListening])
-
-  const toggleListening = useCallback(() => {
-    if (isListening) {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-        try {
-          mediaRecorderRef.current.stop()
-        } catch {}
-      }
-      stopAllMicTracks()
-    } else {
-      void startListening()
-    }
-  }, [isListening, startListening, stopAllMicTracks])
-
-  useEffect(() => {
-    return () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      stopPlayback()
-      stopAllMicTracks()
-    }
-  }, [stopAllMicTracks, stopPlayback])
-
-  const handleRunQuickAuditChip = useCallback(
+  const handleQuickAuditChip = useCallback(
     (chipId: QuickAuditChipId) => {
-      if (isCopilotThinking) return
-      const prompt = buildQuickAuditChipPrompt(chipId, govSnap, workspace, isAr)
-      void handleSendQuery(prompt)
+      if (isAuditor) return
+      const snap = readLiveGovernanceSnapshot(workspace)
+      const promptMap: Record<QuickAuditChipId, string> = {
+        'open-violations': 'مبيعات أمس حسب الفرع',
+        'seven-branch-plan': 'أعلى 5 أصناف أمس',
+        'odoo-growth-plan': 'إجمالي أوامر الشراء والموردين هذا الشهر',
+        'regulatory-readiness': 'حركات التحويل المخزني والهدر هذا الشهر',
+      }
+      const q = promptMap[chipId]
+      void snap
+      void sendQuestion(q)
     },
-    [govSnap, handleSendQuery, isAr, isCopilotThinking, workspace],
+    [isAuditor, sendQuestion, workspace],
   )
 
-  const launchMacroBigBet = useCallback(
-    (strategyId: MacroBigBetId) => {
-      setBigBetMenuOpen(false)
-      const prompt = buildMacroBigBetPrompt(strategyId, workspace, isAr)
-      void handleSendQuery(prompt)
-    },
-    [handleSendQuery, isAr, workspace],
-  )
-
-  const newDiscussion = useCallback(() => {
-    stopPlayback()
-    stopAllMicTracks()
-    setInputText('')
-    setPendingAttachments([])
-    setMediaErrorText(null)
-    setOpenSplitIds({})
-    setBigBetMenuOpen(false)
-    setIngestedDeepLinkLabel(null)
-    setActiveStudioTab('studio')
-    setActiveChatId(makeFreshChatId())
-    setMessages([welcomeMessage(isAr ? 'ar' : 'en')])
-  }, [isAr, stopAllMicTracks, stopPlayback])
-
-  const handleSelectSavedChat = useCallback(
-    async (chatId: string) => {
-      stopPlayback()
-      stopAllMicTracks()
-      setActiveStudioTab('studio')
-      const thread = await loadChatThread(chatId)
-      if (thread && thread.messages.length > 0) {
-        setActiveChatId(thread.id)
-        setOpenSplitIds({})
-        setMessages(thread.messages)
+  const handleCopyReply = useCallback(
+    async (msg: ChatUiMessage) => {
+      const meta = extractFeryalRecommendationMeta(msg.text, msg.userPrompt, workspace)
+      const formatted =
+        msg.replyStatus === 'answered'
+          ? formatFeryalExecutiveSummary(msg.text, meta, workspace, isAr)
+          : feryalPlainText(msg.text)
+      try {
+        await navigator.clipboard.writeText(formatted)
+        setCopiedId(msg.id)
+        window.setTimeout(() => setCopiedId(null), 2000)
+      } catch {
+        // ignore clipboard error
       }
     },
-    [stopAllMicTracks, stopPlayback],
+    [isAr, workspace],
   )
 
-  const lastFeryal = useMemo(
-    () => [...messages].reverse().find((m) => m.sender === 'feryal') ?? null,
-    [messages],
+  const handleEscalateToBell = useCallback(
+    (msg: ChatUiMessage) => {
+      if (isAuditor) return
+      const meta = extractFeryalRecommendationMeta(msg.text, msg.userPrompt, workspace)
+      submitFeryalRecommendationToBell(meta)
+      setSubmittedBellIds((prev) => ({ ...prev, [msg.id]: true }))
+    },
+    [isAuditor, workspace],
   )
 
-  const selectedPrimaryModeId: 'triple' | 'gemini' =
-    activeBrainMode === 'gemini' ? 'gemini' : 'triple'
-  void FERYAL_EXECUTIVE_MODES
+  const handleSpeakMessage = useCallback(
+    async (msg: ChatUiMessage) => {
+      if (speakingId === msg.id) {
+        audioRef.current?.pause()
+        setSpeakingId(null)
+        return
+      }
+      try {
+        setSpeakingId(msg.id)
+        const res = await fetch('/api/feryal/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: feryalPlainText(msg.text),
+            lang: isAr ? 'ar' : 'en',
+            format: 'json',
+          }),
+        })
+        if (res.ok) {
+          const data = (await res.json()) as { audioDataUrl?: string }
+          if (data.audioDataUrl) {
+            const audio = new Audio(data.audioDataUrl)
+            audioRef.current = audio
+            audio.onended = () => setSpeakingId(null)
+            audio.onerror = () => setSpeakingId(null)
+            await audio.play()
+            return
+          }
+        }
+        setSpeakingId(null)
+      } catch {
+        setSpeakingId(null)
+      }
+    },
+    [isAr, speakingId],
+  )
 
-  const utilityPillIdle =
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-2 py-1 text-[13px] font-medium whitespace-nowrap text-neutral-600 transition-all duration-150 hover:bg-white/90 hover:text-neutral-900 sm:px-2.5 sm:py-1.5 sm:text-[12px] lg:text-[13px] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
-  const utilityPillActive =
-    'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-2 py-1 text-[13px] font-semibold whitespace-nowrap text-emerald-800 shadow-sm ring-1 ring-slate-900/[0.06] transition-all duration-150 sm:px-2.5 sm:py-1.5 sm:text-[12px] lg:text-[13px] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30'
+  const handleToggleVoiceInput = useCallback(async () => {
+    if (isAuditor) return
+    if (recordingVoice && mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      setRecordingVoice(false)
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      const chunks: BlobPart[] = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data)
+      }
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+        if (blob.size === 0) return
+        const fd = new FormData()
+        fd.append('file', blob, 'recording.webm')
+        fd.append('lang', isAr ? 'ar' : 'en')
+        try {
+          const sttRes = await fetch('/api/feryal/stt', { method: 'POST', body: fd })
+          if (sttRes.ok) {
+            const data = (await sttRes.json()) as { transcript?: string }
+            if (data.transcript?.trim()) {
+              setInputText((prev) =>
+                prev ? `${prev} ${data.transcript!.trim()}` : data.transcript!.trim(),
+              )
+            }
+          }
+        } catch {
+          // ignore STT error
+        }
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setRecordingVoice(true)
+    } catch {
+      setRecordingVoice(false)
+    }
+  }, [isAr, isAuditor, recordingVoice])
+
+  const handleAddUserNote = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (isAuditor) return
+      const cleanTitle = noteTitle.trim()
+      const cleanDetail = noteDetail.trim()
+      if (!cleanTitle) return
+      const entry: UserFieldNote = {
+        id: nextUiId('note'),
+        title: cleanTitle,
+        detail: cleanDetail,
+        createdAt: new Date().toISOString().slice(0, 10),
+      }
+      const next = [entry, ...userNotes].slice(0, 50)
+      setUserNotes(next)
+      setNoteTitle('')
+      setNoteDetail('')
+      try {
+        window.localStorage.setItem(USER_NOTES_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // ignore storage write error
+      }
+    },
+    [isAuditor, noteDetail, noteTitle, userNotes],
+  )
+
+  const handleDeleteUserNote = useCallback(
+    (id: string) => {
+      if (isAuditor) return
+      const next = userNotes.filter((n) => n.id !== id)
+      setUserNotes(next)
+      try {
+        window.localStorage.setItem(USER_NOTES_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // ignore storage write error
+      }
+    },
+    [isAuditor, userNotes],
+  )
+
+  const modeBadgeLabel = useMemo(
+    () => getPrimaryModeBadge(activeMode, isAr ? 'ar' : 'en'),
+    [activeMode, isAr],
+  )
 
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden pt-0 pb-6 font-sans text-[15px] text-neutral-900 antialiased dark:text-slate-100"
+      className="flex min-h-[calc(100vh-120px)] w-full flex-col lg:flex-row gap-4 rounded-3xl bg-[#F6F7F8] p-3 sm:p-4 dark:bg-[#08100D]"
     >
-      <audio ref={audioPlayerRef} hidden className="hidden" preload="none" />
-      <div className="w-full max-w-full min-w-0 space-y-3 overflow-x-hidden">
-        {toastNotice ? (
-          <div className="fixed bottom-6 end-6 z-50 flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-semibold text-emerald-800 shadow-xl ring-1 ring-emerald-500/25 dark:bg-[#101C17] dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span className="min-w-0 break-words">{isAr ? toastNotice.ar : toastNotice.en}</span>
-          </div>
-        ) : null}
-
-        {ingestedDeepLinkLabel ? (
-          <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50/85 px-4 py-2.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/45 dark:text-emerald-200">
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="shrink-0 font-semibold">
-                {T('Prompt Auto-Executed:', 'تم تشغيل السؤال تلقائياً:')}
-              </span>
-              <span className="min-w-0 whitespace-normal break-words text-emerald-800/90 dark:text-emerald-300">
-                {ingestedDeepLinkLabel}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIngestedDeepLinkLabel(null)}
-              className="cursor-pointer rounded-xl bg-white/90 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-white dark:bg-[#101C17] dark:text-emerald-300"
-            >
-              {T('Dismiss', 'إخفاء')}
-            </button>
-          </div>
-        ) : null}
-
-        {/* Unified Full-Width Multimodal Studio + Persistent Notebooks Grid (items-start prevents blank height voids) */}
-        <div className="grid w-full max-w-full min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-12">
-          <section
-            onDragEnter={(e) => {
-              if (isAuditor) return
-              e.preventDefault()
-              setIsDragActive(true)
-            }}
-            onDragOver={(e) => {
-              if (isAuditor) return
-              e.preventDefault()
-              if (!isDragActive) setIsDragActive(true)
-            }}
-            onDragLeave={(e) => {
-              if (isAuditor) return
-              if (e.currentTarget === e.target) setIsDragActive(false)
-            }}
-            onDrop={(e) => {
-              if (isAuditor) return
-              e.preventDefault()
-              setIsDragActive(false)
-              const dropped = Array.from(e.dataTransfer?.files ?? []).filter(isSupportedMediaFile)
-              if (dropped.length > 0) {
-                void handleFilesSelected(dropped)
-              }
-            }}
-            className={`${
-              isExpanded ? 'lg:col-span-12' : 'lg:col-span-8 xl:col-span-9'
-            } ${STUDIO_PANEL_CLS} lg:min-h-[calc(100vh-148px)] flex flex-col justify-between transition-shadow ${
-              isDragActive && !isAuditor ? 'ring-2 ring-emerald-500/45' : ''
-            }`}
-          >
-            {/* 1. Zero-Overflow Top Studio Bar (`6 علامات تجارية • 7 فروع • 8 قنوات` + Scrollable/Wrapped Utility Chips) */}
-            <div className="w-full max-w-full min-w-0 space-y-2.5 border-b border-neutral-100 px-3.5 py-2.5 sm:px-5 sm:py-3 dark:border-white/[0.06]">
-              <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="inline-flex min-w-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold whitespace-normal text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      {T(
-                        'Feryal Executive & Visual Studio · Odoo 17',
-                        'استوديو المستشارة فريال التنفيذي والبصري · أودو 17',
-                      )}
-                    </span>
-                  </span>
-                  <span
-                    dir={isAr ? 'rtl' : 'ltr'}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#F6F7F8] px-2.5 py-1 text-[13px] font-semibold tabular-nums whitespace-nowrap text-neutral-600 dark:bg-[#09110E] dark:text-slate-300"
-                  >
-                    <span className="whitespace-nowrap">{T('6 Brands', '6 علامات تجارية')}</span>
-                    <span aria-hidden>•</span>
-                    <span className="whitespace-nowrap">{T('7 Branches', '7 فروع')}</span>
-                    <span aria-hidden>•</span>
-                    <span className="whitespace-nowrap">{T('8 Channels', '8 قنوات')}</span>
-                  </span>
-                </div>
-
-                {/* Wrapping Mobile-Safe Studio Action Pills (Zero clipping on 390px) */}
-                <div className="flex w-full md:w-auto min-w-0 max-w-full flex-wrap items-center gap-1.5">
-                  {!isAuditor ? (
-                    <button
-                      type="button"
-                      disabled={isCopilotThinking}
-                      aria-expanded={bigBetMenuOpen}
-                      onClick={() => setBigBetMenuOpen((v) => !v)}
-                      className="inline-flex shrink-0 min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-emerald-800 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 sm:px-3 sm:text-[12px] dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
-                    >
-                      <Rocket className="h-3.5 w-3.5 shrink-0" />
-                      <span>{T('Big-Bet Generator 🚀', 'ابتكار الحلول الكبرى 🚀')}</span>
-                    </button>
-                  ) : null}
-
-                  <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-1 rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={activeStudioTab === 'studio'}
-                      onClick={() => setActiveStudioTab('studio')}
-                      className={activeStudioTab === 'studio' ? utilityPillActive : utilityPillIdle}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>{T('Studio & Chat', 'استوديو المحادثة')}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="tab"
-                      data-studio-tab="today-notes"
-                      aria-selected={activeStudioTab === 'notes'}
-                      onClick={() => setActiveStudioTab((cur) => (cur === 'notes' ? 'studio' : 'notes'))}
-                      className={activeStudioTab === 'notes' ? utilityPillActive : utilityPillIdle}
-                    >
-                      <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>{T("Today's Notes ⚡", 'ملاحظات اليوم ⚡')}</span>
-                      <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                        {workspace.feryalNotes.length}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setMemoryOpen(true)}
-                      className={utilityPillIdle}
-                    >
-                      <Brain className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>{T('Feryal Memory 🧠', 'ذاكرة وتطور فريال 🧠')}</span>
-                      <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300">
-                        {memoryCountBadge}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        playingMsgId
-                          ? stopPlayback()
-                          : lastFeryal && void playFeryalSpeech(lastFeryal.text, lastFeryal.id, true)
-                      }
-                      className={playingMsgId ? utilityPillActive : utilityPillIdle}
-                    >
-                      {playingMsgId ? (
-                        <Square className="h-3 w-3 shrink-0" />
-                      ) : (
-                        <Headphones className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                      <span>{playingMsgId ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      aria-pressed={!isVoiceMuted}
-                      onClick={() => setIsVoiceMuted((v) => !v)}
-                      className={!isVoiceMuted ? utilityPillActive : utilityPillIdle}
-                    >
-                      {isVoiceMuted ? (
-                        <VolumeX className="h-3.5 w-3.5 shrink-0" />
-                      ) : (
-                        <Volume2 className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                      <span>{T('Auto-Voice', 'رد صوتي')}</span>
-                    </button>
-
-                    {!isAuditor ? (
-                      <button
-                        type="button"
-                        aria-pressed={isHandsFree}
-                        onClick={() => setIsHandsFree((v) => !v)}
-                        className={isHandsFree ? utilityPillActive : utilityPillIdle}
-                      >
-                        <Mic className="h-3.5 w-3.5 shrink-0" />
-                        <span>{T('Hands-Free', 'محادثة مستمرة')}</span>
-                      </button>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      aria-pressed={isExpanded}
-                      onClick={() => setIsExpanded((v) => !v)}
-                      className={`${isExpanded ? utilityPillActive : utilityPillIdle} hidden lg:inline-flex`}
-                    >
-                      {isExpanded ? (
-                        <Minimize2 className="h-3.5 w-3.5 shrink-0" />
-                      ) : (
-                        <Maximize2 className="h-3.5 w-3.5 shrink-0" />
-                      )}
-                      <span>{isExpanded ? T('Notebooks', 'الدفاتر') : T('Expand', 'تكبير')}</span>
-                    </button>
-
-                    {!isAuditor ? (
-                      <button type="button" onClick={newDiscussion} className={utilityPillIdle}>
-                        <RotateCcw className="h-3.5 w-3.5 shrink-0" />
-                        <span>{T('+ New Chat', '+ محادثة جديدة')}</span>
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Friendly 2-Option Mode Selector (`دقيق` / `سريع`) + Dedicated Photo/Video Attachment Button (`📎 إرفاق صورة / فيديو`) */}
-              <div className="flex w-full max-w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div
-                  role="tablist"
-                  aria-label={T('Select Answer Mode', 'اختيار نمط الإجابة')}
-                  className="grid w-full sm:w-auto sm:min-w-[360px] max-w-full min-w-0 grid-cols-2 gap-1.5 rounded-2xl bg-[#F6F7F8] p-1.5 dark:bg-[#09110E]"
-                >
-                  {FERYAL_PRIMARY_MODES.map((opt) => {
-                    const active = selectedPrimaryModeId === opt.id
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        title={isAr ? `${opt.shortAr} (${opt.subAr}) — ${opt.descAr}` : `${opt.shortEn} — ${opt.descEn}`}
-                        onClick={() => handleSelectStudioMode(opt.id)}
-                        className={`flex min-w-0 cursor-pointer flex-col items-start justify-center rounded-xl px-3.5 py-2 text-start transition-all duration-150 ${
-                          active
-                            ? 'bg-white text-emerald-900 shadow-sm ring-1 ring-emerald-500/30 dark:bg-[#101C17] dark:text-emerald-200 dark:ring-emerald-500/40'
-                            : 'text-neutral-600 hover:bg-white/70 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/[0.05] dark:hover:text-white'
-                        }`}
-                      >
-                        <span className="w-full min-w-0 text-[13.5px] font-bold whitespace-normal break-words">
-                          {isAr ? opt.shortAr : opt.shortEn}
-                        </span>
-                        <span className="mt-0.5 w-full min-w-0 text-[13px] font-medium whitespace-normal break-words text-neutral-500 dark:text-slate-400">
-                          {isAr ? opt.subAr : opt.subEn}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Dedicated Multimodal Photo / Video Attachment Action Cluster (Hidden for Read-Only Auditor) */}
-                {!isAuditor ? (
-                  <div className="flex w-full sm:w-auto min-w-0 max-w-full flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={isCopilotThinking || isProcessingMedia}
-                      onClick={() => openPickerRef.current?.()}
-                      title={T(
-                        'Attach JPG / PNG / WEBP photos or MP4 / WEBM / MOV videos for visual audit',
-                        'إرفاق صورة (JPG / PNG) أو فيديو (MP4) لفحص الأطباق والمطبخ وفواتير الموردين',
-                      )}
-                      className="inline-flex flex-1 sm:flex-initial min-h-[42px] min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3.5 py-2 text-[12.5px] font-semibold whitespace-normal text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/35"
-                    >
-                      <Paperclip className="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-300" />
-                      <span>{T('📎 Attach Photo / Video', '📎 إرفاق صورة / فيديو')}</span>
-                      {pendingAttachments.length > 0 ? (
-                        <span className="btn-colored inline-flex h-5 min-w-[20px] items-center justify-center rounded-md bg-emerald-600 px-1.5 text-xs font-bold tabular-nums text-white">
-                          {pendingAttachments.length}
-                        </span>
-                      ) : null}
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={isCopilotThinking || isProcessingMedia}
-                      onClick={() => openCameraRef.current?.()}
-                      title={T('Live Camera Capture', 'التقاط مباشر بالكاميرا')}
-                      className="inline-flex min-h-[42px] min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#F6F7F8] px-3 py-2 text-[12px] font-semibold whitespace-normal text-neutral-700 ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-900 disabled:opacity-50 dark:bg-[#09110E] dark:text-slate-200 dark:ring-white/[0.08]"
-                    >
-                      <Camera className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>{T('Camera', 'الكاميرا')}</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50/90 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/40 dark:text-amber-200">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-                    <span>{T('Read-Only Auditor Mode', 'حساب مراجعة — قراءة فقط')}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Inline Unclipped Big-Bet Strategy Drawer (Never overflows viewport on 390px or 1440px) */}
-              {!isAuditor && bigBetMenuOpen ? (
-                <div className="w-full max-w-full min-w-0 space-y-2 rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-emerald-500/20 dark:bg-[#09110E]">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-neutral-950 dark:text-white">
-                      {T('Launch Macro Profit Strategy 🚀', 'اختر محور ابتكار الحلول الكبرى 🚀')}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setBigBetMenuOpen(false)}
-                      aria-label={T('Close', 'إغلاق')}
-                      className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg text-neutral-500 hover:bg-white hover:text-neutral-900 dark:hover:bg-[#101C17] dark:hover:text-white"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-                    {MACRO_BIG_BET_STRATEGIES.map((st) => (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => launchMacroBigBet(st.id)}
-                        className="min-w-0 cursor-pointer rounded-xl bg-white p-3 text-start shadow-sm ring-1 ring-slate-900/[0.05] transition-all hover:ring-emerald-500/40 dark:bg-[#101C17] dark:ring-white/[0.08]"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-1.5">
-                          <span className="min-w-0 text-xs font-semibold whitespace-normal break-words text-neutral-950 dark:text-white">
-                            {isAr ? st.titleAr : st.titleEn}
-                          </span>
-                          <span
-                            dir="ltr"
-                            className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                          >
-                            +{st.estMonthlyKwdMin.toLocaleString('en-US')}–
-                            {st.estMonthlyKwdMax.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-[13px] leading-relaxed whitespace-normal break-words text-neutral-500 dark:text-slate-400">
-                          {isAr ? st.summaryAr : st.summaryEn}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {/* 3. Main Studio Body: Today's Notes Tab OR Balanced Onboarding / Active Stream */}
-            <div
-              ref={chatScrollRef}
-              className={`w-full max-w-full min-w-0 flex-1 overflow-x-hidden px-3 py-3 sm:px-5 sm:py-4 ${
-                activeStudioTab === 'studio' && hasUserMessages
-                  ? 'max-h-[62vh] space-y-3.5 overflow-y-auto'
-                  : 'space-y-2.5 sm:space-y-3.5'
-              }`}
-              aria-live="polite"
-            >
-              {activeStudioTab === 'notes' ? (
-                <section
-                  aria-label={T("Today's Notes", 'ملاحظات اليوم')}
-                  className="w-full max-w-full min-w-0 space-y-3.5"
-                >
-                  <div className={`${SUBCARD_CLS} flex flex-wrap items-center justify-between gap-2.5 rounded-2xl p-3.5 sm:p-4`}>
-                    <div className="min-w-0 space-y-0.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <h3 className="text-[15px] sm:text-[16px] font-bold tracking-tight text-slate-950 dark:text-white">
-                          {T(
-                            "Today's Notes — Daily Executive & Operational Briefing",
-                            'ملاحظات اليوم — المذكرة التنفيذية والتشغيلية اليومية',
-                          )}
-                        </h3>
-                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                          {isAr ? workspace.periodCalendarWindowAr : workspace.periodCalendarWindowEn}
-                        </span>
-                      </div>
-                      <p className="text-xs lg:text-[13px] font-medium whitespace-normal leading-snug text-slate-600 dark:text-slate-300">
-                        {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveStudioTab('studio')}
-                      className="cursor-pointer rounded-xl bg-white px-3 py-1.5 text-xs lg:text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/25 transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-emerald-200"
-                    >
-                      {T('Back to Studio & Chat ↩', 'العودة لاستوديو المحادثة ↩')}
-                    </button>
-                  </div>
-
-                  {/* Structured Daily Executive Notes Grid (Accessible to ALL roles including Read-Only Auditor) */}
-                  <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {workspace.feryalNotes.map((note) => (
-                      <article
-                        key={`today-note-${note.id}`}
-                        className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-3 rounded-2xl p-4 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
-                      >
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <h4 className="min-w-0 flex-1 text-[14px] font-bold whitespace-normal leading-snug text-neutral-950 dark:text-white">
-                              {isAr ? note.titleAr : note.titleEn}
-                            </h4>
-                            <span
-                              dir="ltr"
-                              className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs lg:text-[13px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            >
-                              {isAr ? note.benefitAr : note.benefitEn}
-                            </span>
-                          </div>
-                          <p className="text-[13px] leading-relaxed whitespace-normal break-words text-neutral-600 dark:text-slate-300">
-                            {isAr ? note.summaryAr : note.summaryEn}
-                          </p>
-                        </div>
-
-                        {!isAuditor ? (
-                          <button
-                            type="button"
-                            disabled={isCopilotThinking}
-                            onClick={() => void handleSendQuery(isAr ? note.promptAr : note.promptEn)}
-                            className="cursor-pointer self-start rounded-xl bg-emerald-50 px-3 py-1.5 text-xs lg:text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/25 transition-colors hover:bg-emerald-100 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200"
-                          >
-                            {T('Ask Feryal About This Note ▸', 'اطلب تحليل هذه الملاحظة ▸')}
-                          </button>
-                        ) : (
-                          <span className="inline-flex self-start items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                            <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                            <span>{T('Verified Odoo 17 Daily Note', 'ملاحظة يومية معتمدة من أودو 17')}</span>
-                          </span>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-
-                  {/* Unclipped Governance & Kitchen/Delivery SLA Alerts Summary inside Today's Notes */}
-                  <div className={`${SUBCARD_CLS} space-y-2.5 rounded-2xl p-4 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}>
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <Bell className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                        <h4 className="text-[14px] font-bold whitespace-normal leading-snug text-neutral-950 dark:text-white">
-                          {T(
-                            'Active Governance & Kitchen/Delivery SLA Watchdogs',
-                            'التنبيهات الرقابية النشطة للمطبخ والتوصيل والحوكمة',
-                          )}
-                        </h4>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openDrawer('breaches')}
-                        className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs lg:text-[13px] font-semibold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10"
-                      >
-                        {T('Open Governance Bell 🔔', 'فتح جرس الحوكمة 🔔')}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      {govSnap.activeBreaches.slice(0, 4).map((b) => (
-                        <div
-                          key={`notes-breach-${b.id}`}
-                          className="flex items-start justify-between gap-2.5 rounded-xl bg-white px-3 py-2.5 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
-                        >
-                          <span className="min-w-0 flex-1 whitespace-normal leading-snug font-semibold text-slate-800 dark:text-slate-100">
-                            {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
-                          </span>
-                          <span
-                            dir="ltr"
-                            className="shrink-0 rounded-md bg-rose-50 px-2 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                          >
-                            {f0(b.monthlyLeakKwd)} KWD
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </section>
-              ) : (
-                <>
-              {messages.map((m, idx) => {
-                const mine = m.sender === 'user'
-
-                // Render compact single-card welcome header when studio opens with 0 user messages
-                if (!hasUserMessages && m.id === 'welcome') {
-                  return (
-                    <div
-                      key={m.id}
-                      className={`${SUBCARD_CLS} flex w-full max-w-full min-w-0 items-start gap-3 p-3.5 sm:p-4`}
-                    >
-                      <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                        <Sparkles className="h-4 w-4" />
-                      </span>
-                      <p className="min-w-0 flex-1 text-[14px] leading-relaxed whitespace-normal break-words text-neutral-800 dark:text-slate-100">
-                        {isAuditor && m.id === 'welcome'
-                          ? T(
-                              'Read-Only Auditor Mode — Browse Feryal executive threads, institutional memory, and live Odoo 17 governance records across 6 Brands • 7 Branches • 8 Channels without modifying or uploading files.',
-                              'وضع المراجعة للقراءة فقط — استعرض سجلات المستشارة فريال والذاكرة المؤسسية وأرقام أودو 17 عبر 6 علامات تجارية • 7 فروع • 8 قنوات بدون صلاحية تعديل أو رفع ملفات.',
-                            )
-                          : m.text}
-                      </p>
-                    </div>
-                  )
-                }
-
-                const prevUserMsg =
-                  !mine && idx > 0
-                    ? [...messages.slice(0, idx)].reverse().find((x) => x.sender === 'user')
-                    : undefined
-
-                const recMeta =
-                  !mine && m.id !== 'welcome'
-                    ? extractFeryalRecommendationMeta(m.text, prevUserMsg?.text, workspace)
-                    : null
-
-                const hasVisualDoc = Boolean(
-                  m.hasVisualEvidence ||
-                    (prevUserMsg?.attachmentsMeta && prevUserMsg.attachmentsMeta.length > 0),
-                )
-
-                const approvalRefKey = hasVisualDoc ? `feryal-vision:${m.id}` : recMeta?.refKey ?? ''
-                const existingApproval = approvalRefKey ? getApprovalByRef(approvalRefKey) : undefined
-                const isQueuedInBell =
-                  Boolean(approvalRefKey && submittedBellMap[approvalRefKey]) ||
-                  existingApproval?.status === 'pending'
-                const isApprovedSealed = existingApproval?.status === 'approved'
-
-                const execMemoText =
-                  recMeta && !mine
-                    ? formatFeryalExecutiveSummary(m.text, recMeta, workspace, isAr)
-                    : ''
-
-                const brainPanels = !mine
-                  ? [
-                      m.claudeReply
-                        ? {
-                            key: 'claude',
-                            titleAr: 'تحليل استراتيجي معمّق',
-                            titleEn: 'Deep Strategic',
-                            badge: isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic',
-                            reply: m.claudeReply,
-                          }
-                        : null,
-                      m.geminiReply
-                        ? {
-                            key: 'gemini',
-                            titleAr: 'إجابة تنفيذية سريعة',
-                            titleEn: 'Fast Executive',
-                            badge: isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive',
-                            reply: m.geminiReply,
-                          }
-                        : null,
-                      m.grokReply
-                        ? {
-                            key: 'grok',
-                            titleAr: 'تحليل النمو والمخاطر (3 زوايا)',
-                            titleEn: 'Growth & Risk Synthesis (3 Angles)',
-                            badge: isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic',
-                            reply: m.grokReply,
-                          }
-                        : null,
-                    ].filter((x): x is NonNullable<typeof x> => Boolean(x))
-                  : []
-
-                const hasMultipleBrains = brainPanels.length >= 2
-                const splitOpen = Boolean(openSplitIds[m.id])
-                const engineBadge = !mine
-                  ? m.hasVisualEvidence
-                    ? isAr
-                      ? 'فحص الصور والفيديو'
-                      : 'Vision & Video Inspector'
-                    : getPrimaryModeBadge(activeBrainMode, isAr)
-                  : undefined
-                const noteText = !mine ? (isAr ? m.statusNoteAr : m.statusNoteEn) : undefined
-
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex w-full max-w-full min-w-0 gap-2.5 sm:gap-3 ${
-                      mine ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    {!mine ? (
-                      <span className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                        <Sparkles className="h-4 w-4" />
-                      </span>
-                    ) : null}
-
-                    <div
-                      className={`min-w-0 ${
-                        mine ? 'max-w-[88%] sm:max-w-[80%]' : 'w-full max-w-full flex-1'
-                      }`}
-                    >
-                      {(engineBadge || (!mine && m.visionCompliance) || noteText) ? (
-                        <div className="mb-1.5 flex max-w-full min-w-0 flex-wrap items-center gap-1.5">
-                          {engineBadge ? (
-                            <span className="inline-flex min-w-0 items-center rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold whitespace-normal text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                              {engineBadge}
-                            </span>
-                          ) : null}
-                          {!mine && m.visionCompliance ? (
-                            <FeryalVisionCompliancePill tier={m.visionCompliance} isAr={isAr} />
-                          ) : null}
-                          {noteText ? (
-                            <span className="min-w-0 rounded-lg bg-amber-50 px-2.5 py-0.5 text-xs font-medium whitespace-normal break-words text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                              {noteText}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      <div
-                        className={
-                          mine
-                            ? 'w-full max-w-full min-w-0 whitespace-pre-wrap break-words rounded-2xl bg-emerald-50/90 px-4 py-3.5 text-[15px] leading-[1.85] font-medium text-emerald-950 ring-1 ring-emerald-600/15 sm:px-5 sm:py-4 dark:bg-emerald-950/55 dark:text-emerald-50 dark:ring-emerald-500/30'
-                            : `${SUBCARD_CLS} w-full max-w-full min-w-0 break-words px-4 py-3.5 text-[15px] leading-[1.85] text-neutral-800 sm:px-5 sm:py-4 dark:text-slate-100`
-                        }
-                      >
-                        {mine && m.attachmentsMeta && m.attachmentsMeta.length > 0 ? (
-                          <FeryalMessageAttachmentsGallery
-                            attachmentsMeta={m.attachmentsMeta}
-                            isAr={isAr}
-                          />
-                        ) : null}
-                        {mine ? m.text : <FeryalStudioMessage text={m.text} />}
-                      </div>
-
-                      {/* Executive Action Bar (1-Click Manager Bell Escalation + Copy + WhatsApp) */}
-                      {!mine && m.id !== 'welcome' && recMeta ? (
-                        <div className="mt-2.5 w-full max-w-full min-w-0 space-y-2.5 rounded-2xl bg-[#F6F7F8]/95 p-3 dark:bg-[#09110E]/95">
-                          <div className="flex max-w-full min-w-0 flex-wrap items-center gap-1.5 text-xs">
-                            <span className="min-w-0 rounded-lg bg-white px-2.5 py-0.5 font-medium whitespace-normal break-words text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:bg-[#101C17] dark:text-slate-200">
-                              {isAr ? recMeta.targetScopeAr : recMeta.targetScopeEn}
-                            </span>
-                            <span
-                              dir="ltr"
-                              className="rounded-lg bg-emerald-50 px-2.5 py-0.5 font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                            >
-                              +{f0(recMeta.conservativeMonthlyReturnKwd)}{' '}
-                              {isAr ? 'د.ك/شهر (متحفظ)' : 'KWD/mo (conservative)'}
-                            </span>
-                            <span className="min-w-0 rounded-lg bg-amber-50 px-2.5 py-0.5 font-medium whitespace-normal break-words text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                              {isAr ? recMeta.complianceRuleAr : recMeta.complianceRuleEn}
-                            </span>
-                          </div>
-
-                          <div className="flex w-full max-w-full min-w-0 flex-wrap items-center justify-between gap-2">
-                            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
-                              {isApprovedSealed ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openDrawer('sealed')}
-                                  className="inline-flex min-h-[32px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold whitespace-normal text-emerald-800 ring-1 ring-emerald-600/20 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
-                                >
-                                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                                  <span>
-                                    {isAr
-                                      ? `معتمد بختم المدير (${existingApproval?.seal?.sealId ?? 'VF'}) ✅`
-                                      : `Manager Sealed (${existingApproval?.seal?.sealId ?? 'VF'}) ✅`}
-                                  </span>
-                                </button>
-                              ) : isQueuedInBell ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openDrawer('approvals')}
-                                  className="inline-flex min-h-[32px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold whitespace-normal text-emerald-800 ring-1 ring-emerald-600/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200"
-                                >
-                                  <Check className="h-3.5 w-3.5 shrink-0" />
-                                  <span>
-                                    {T(
-                                      'Queued in Manager Bell ✓ (View 🔔)',
-                                      'تم الرفع لجرس المدير ✓ (فتح الجرس 🔔)',
-                                    )}
-                                  </span>
-                                </button>
-                              ) : !isAuditor ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const created = requestApproval({
-                                      refKey: approvalRefKey,
-                                      domain: hasVisualDoc ? 'operations' : recMeta.domain,
-                                      titleAr: hasVisualDoc
-                                        ? 'ملاحظة فحص بصري موثقة من فريال'
-                                        : recMeta.titleAr,
-                                      titleEn: hasVisualDoc
-                                        ? 'Feryal Photo/Video Audit Finding'
-                                        : recMeta.titleEn,
-                                      summaryAr: hasVisualDoc
-                                        ? feryalPlainText(m.text).slice(0, 220)
-                                        : recMeta.summaryAr,
-                                      summaryEn: hasVisualDoc
-                                        ? feryalPlainText(m.text).slice(0, 220)
-                                        : recMeta.summaryEn,
-                                      departmentAr: hasVisualDoc
-                                        ? 'الرقابة الميدانية والجودة'
-                                        : recMeta.departmentAr,
-                                      departmentEn: hasVisualDoc
-                                        ? 'Field Quality & Compliance'
-                                        : recMeta.departmentEn,
-                                      budgetOrCostKwd: recMeta.budgetOrCostKwd,
-                                      expectedMonthlyReturnKwd: recMeta.conservativeMonthlyReturnKwd,
-                                      href: '/erp/feryal-ai',
-                                    })
-                                    setSubmittedBellMap((prev) => ({
-                                      ...prev,
-                                      [approvalRefKey]: created.id,
-                                    }))
-                                    setGovTick((t) => t + 1)
-                                    showToast(
-                                      `تم رفع الملاحظة والتوصية إلى جرس المدير للاعتماد (+${f0(recMeta.conservativeMonthlyReturnKwd)} د.ك/شهر) 🔔`,
-                                      `Finding queued in Manager Bell (+${f0(recMeta.conservativeMonthlyReturnKwd)} KWD/mo) 🔔`,
-                                    )
-                                  }}
-                                  className="btn-colored inline-flex min-h-[32px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-semibold whitespace-normal text-white transition-all hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
-                                >
-                                  <Bell className="h-3.5 w-3.5 shrink-0" />
-                                  <span>
-                                    {hasVisualDoc
-                                      ? T(
-                                          'Escalate Photo-Documented Finding to Manager Bell 🔔',
-                                          'رفع الملاحظة الموثقة بالصورة لجرس المدير 🔔',
-                                        )
-                                      : T(
-                                          'Submit Recommendation to Manager Bell 🔔',
-                                          'رفع التوصية لجرس المدير 🔔',
-                                        )}
-                                  </span>
-                                </button>
-                              ) : null}
-
-                              <button
-                                type="button"
-                                onClick={() => void copyToClipboard(`${m.id}-exec-memo`, execMemoText)}
-                                className="inline-flex min-h-[32px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1 text-xs font-semibold whitespace-normal text-neutral-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:hover:bg-emerald-950/50"
-                              >
-                                {copiedKey === `${m.id}-exec-memo` ? (
-                                  <>
-                                    <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                                    <span>{T('Copied ✓', 'تم النسخ ✓')}</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
-                                    <span>{T('Copy Executive Summary 📋', 'نسخ الملخص التنفيذي 📋')}</span>
-                                  </>
-                                )}
-                              </button>
-
-                              <a
-                                href={`https://wa.me/?text=${encodeURIComponent(execMemoText)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex min-h-[32px] min-w-0 items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1 text-xs font-semibold whitespace-normal text-emerald-800 transition-colors hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5 shrink-0" />
-                                <span>{T('WhatsApp 📲', 'واتساب 📲')}</span>
-                              </a>
-                            </div>
-
-                            <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-neutral-400">
-                              {hasMultipleBrains ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setOpenSplitIds((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
-                                  }
-                                  className="inline-flex min-h-[28px] cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-0.5 text-[13px] font-medium tabular-nums text-neutral-700 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300"
-                                >
-                                  <Columns2 className="h-3 w-3 shrink-0" />
-                                  <span>
-                                    {T(
-                                      `Perspectives (${brainPanels.length})`,
-                                      `الزوايا التفصيلية (${brainPanels.length})`,
-                                    )}
-                                  </span>
-                                </button>
-                              ) : null}
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  playingMsgId === m.id
-                                    ? stopPlayback()
-                                    : void playFeryalSpeech(m.text, m.id, true)
-                                }
-                                className="inline-flex min-h-[28px] cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-0.5 text-[13px] font-medium text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-300"
-                              >
-                                {playingMsgId === m.id ? (
-                                  <Square className="h-3 w-3 shrink-0" />
-                                ) : (
-                                  <Volume2 className="h-3 w-3 shrink-0" />
-                                )}
-                                <span>{playingMsgId === m.id ? T('Stop', 'إيقاف') : T('Listen', 'استماع')}</span>
-                              </button>
-
-                              {m.time ? <span className="tabular-nums">{m.time}</span> : null}
-                            </div>
-                          </div>
-                        </div>
-                      ) : mine && m.time ? (
-                        <div className="mt-1 text-end text-xs tabular-nums text-neutral-400">
-                          {m.time}
-                        </div>
-                      ) : null}
-
-                      {/* Expandable Perspectives */}
-                      {hasMultipleBrains && splitOpen ? (
-                        <div
-                          className={`mt-3 grid w-full max-w-full min-w-0 grid-cols-1 gap-3 ${
-                            brainPanels.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
-                          }`}
-                        >
-                          {brainPanels.map((panel) => (
-                            <div
-                              key={panel.key}
-                              className={`${SUBCARD_CLS} min-w-0 p-4 text-[14px] leading-relaxed text-neutral-700 dark:text-slate-200`}
-                            >
-                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/70 pb-2 dark:border-white/[0.06]">
-                                <span className="text-xs font-semibold text-neutral-950 dark:text-white">
-                                  {isAr ? panel.titleAr : panel.titleEn}
-                                </span>
-                                <span className="rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-[#101C17] dark:text-emerald-300">
-                                  {panel.badge}
-                                </span>
-                              </div>
-                              <FeryalStudioMessage text={panel.reply} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })}
-
-              {/* Empty-State Upload & Vision Bar + 2x2 Starter Executive Prompts (Right at the top, zero clipping!) */}
-              {!hasUserMessages && !isCopilotThinking && pendingAttachments.length === 0 ? (
-                <div className="w-full max-w-full min-w-0 space-y-3">
-                  {!isAuditor ? (
-                    <div
-                      className={`${SUBCARD_CLS} w-full max-w-full min-w-0 rounded-2xl p-3.5 ring-1 ring-emerald-500/15 sm:p-4 dark:ring-emerald-500/20`}
-                    >
-                      <div className="flex w-full max-w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0 space-y-1">
-                          <div className="text-[14px] font-semibold whitespace-normal break-words text-neutral-950 dark:text-white">
-                            {T(
-                              'Vision & Video Inspector — Instant Compliance Audit',
-                              'فحص الصور والفيديو — تدقيق المطابقة الفوري',
-                            )}
-                          </div>
-                          <p className="text-[12.5px] leading-relaxed whitespace-normal break-words text-neutral-600 dark:text-slate-300">
-                            {T(
-                              'Drag & drop, paste (Ctrl+V), or upload JPG / PNG / WEBP photos and MP4 / WEBM / MOV videos (6-frame extraction) for instant compliance scoring (🟢 / 🟡 / 🔴).',
-                              'اسحب وأفلت أو الصق (Ctrl+V) أو ارفع صور JPG / PNG وفيديو MP4 لاستخراج 6 لقطات زمنية وتقييم المطابقة فوراً (🟢 مطابق / 🟡 ملاحظة متوسطة / 🔴 مخالفة حرجة).',
-                            )}
-                          </p>
-                        </div>
-
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openPickerRef.current?.()}
-                            className="btn-colored inline-flex min-h-[36px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold whitespace-normal text-white transition-colors hover:bg-emerald-500 dark:bg-emerald-500 dark:text-emerald-950"
-                          >
-                            <ImagePlus className="h-3.5 w-3.5 shrink-0" />
-                            <span>
-                              {T(
-                                '📎 Attach Photo / Video (JPG / PNG / MP4)',
-                                '📎 إرفاق صورة / فيديو (JPG / PNG / MP4)',
-                              )}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openCameraRef.current?.()}
-                            className="inline-flex min-h-[36px] min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-1.5 text-xs font-semibold whitespace-normal text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-emerald-300"
-                          >
-                            <Camera className="h-3.5 w-3.5 shrink-0" />
-                            <span>{T('Camera Capture', 'التقاط بالكاميرا')}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 2x2 Wrapping Vision Presets Grid (Zero horizontal scroll/clipping) */}
-                      <div className="mt-3 grid w-full max-w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-                        {FERYAL_VISION_QUICK_PRESETS.map((preset) => (
-                          <button
-                            key={`empty-${preset.id}`}
-                            type="button"
-                            onClick={() => {
-                              setInputText(isAr ? preset.promptAr : preset.promptEn)
-                              openPickerRef.current?.()
-                            }}
-                            className="flex min-w-0 cursor-pointer items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-start text-[12.5px] font-medium whitespace-normal break-words text-neutral-700 shadow-sm ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-emerald-950/60"
-                          >
-                            <span className="min-w-0 flex-1 whitespace-normal break-words">
-                              {isAr ? preset.badgeAr : preset.badgeEn}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* 2x2 Starter Executive Prompts (Read-Only Summary Cards when Auditor) */}
-                  <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2">
-                    {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
-                      const Icon =
-                        chip.id === 'open-violations'
-                          ? ShieldAlert
-                          : chip.id === 'seven-branch-plan'
-                            ? CheckCircle2
-                            : chip.id === 'odoo-growth-plan'
-                              ? TrendingUp
-                              : Scale
-                      const badgeCls =
-                        chip.tone === 'rose'
-                          ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                          : chip.tone === 'emerald'
-                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : chip.tone === 'amber'
-                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-                              : 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
-
-                      if (isAuditor) {
-                        return (
-                          <div
-                            key={`card-${chip.id}`}
-                            className={`${SUBCARD_CLS} w-full max-w-full min-w-0 p-3.5 text-start`}
-                          >
-                            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                              <span
-                                className={`min-w-0 rounded-lg px-2.5 py-0.5 text-[13px] font-semibold tabular-nums whitespace-normal break-words ${badgeCls}`}
-                              >
-                                {isAr ? chip.badgeAr : chip.badgeEn}
-                              </span>
-                              <Icon className="h-4 w-4 shrink-0 text-neutral-400" />
-                            </div>
-                            <div className="mt-2 min-w-0 text-[14px] font-semibold whitespace-normal break-words text-neutral-950 dark:text-white">
-                              {isAr ? chip.labelAr : chip.labelEn}
-                            </div>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <button
-                          key={`card-${chip.id}`}
-                          type="button"
-                          onClick={() => handleRunQuickAuditChip(chip.id)}
-                          className={`${SUBCARD_CLS} group w-full max-w-full min-w-0 cursor-pointer p-3.5 text-start transition-all hover:ring-1 hover:ring-emerald-500/35`}
-                        >
-                          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-                            <span
-                              className={`min-w-0 rounded-lg px-2.5 py-0.5 text-[13px] font-semibold tabular-nums whitespace-normal break-words ${badgeCls}`}
-                            >
-                              {isAr ? chip.badgeAr : chip.badgeEn}
-                            </span>
-                            <Icon className="h-4 w-4 shrink-0 text-neutral-400 transition-colors group-hover:text-emerald-600" />
-                          </div>
-                          <div className="mt-2 min-w-0 text-[14px] font-semibold whitespace-normal break-words text-neutral-950 dark:text-white">
-                            {isAr ? chip.labelAr : chip.labelEn}
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  {/* 2-Column Executive Pulse: ملخص اليوم وآخر التنبيهات / Today's Executive Summary & Latest Alerts */}
-                  <section
-                    aria-label={T(
-                      "Today's Executive Summary & Latest Alerts",
-                      'ملخص اليوم وآخر التنبيهات',
-                    )}
-                    className="w-full max-w-full min-w-0 space-y-2.5"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <h3 className="text-[14px] font-bold tracking-tight text-slate-900 dark:text-white">
-                          {T(
-                            "Today's Executive Summary & Latest Alerts",
-                            'ملخص اليوم وآخر التنبيهات',
-                          )}
-                        </h3>
-                      </div>
-                      <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                        {isAr ? workspace.periodCalendarWindowAr : workspace.periodCalendarWindowEn}
-                      </span>
-                    </div>
-
-                    <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 lg:grid-cols-2 lg:gap-3.5">
-                      {/* Column 1: Today's Live KPI Snapshot + Today's Branch Highlights */}
-                      <div
-                        className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-2.5 rounded-2xl p-3 sm:p-3.5 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <h4 className="text-[13.5px] font-bold tracking-tight text-neutral-950 dark:text-white">
-                              {T("Today's Branch Highlights", 'أبرز مؤشرات الفروع اليوم')}
-                            </h4>
-                          </div>
-                          <span
-                            dir="ltr"
-                            className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                          >
-                            {workspace.weightedNetPct.toFixed(1)}% {T('net pocket', 'صافي الجيب')}
-                          </span>
-                        </div>
-
-                        {/* Live Today KPI Mini-Strip */}
-                        {(() => {
-                          const todayBkt = liveSummary?.buckets?.today
-                          const todaySales =
-                            todayBkt?.totals?.restaurantNetKwd ??
-                            liveSummary?.todaySalesKwd ??
-                            workspace.salesKwd
-                          const todayOrders =
-                            todayBkt?.totals?.restaurantOrders ??
-                            liveSummary?.todayOrdersCount ??
-                            workspace.orders
-                          const todayAov =
-                            todayOrders > 0
-                              ? todaySales / todayOrders
-                              : workspace.orders > 0
-                                ? workspace.salesKwd / workspace.orders
-                                : 0
-                          return (
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="rounded-xl bg-white px-2.5 py-2 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]">
-                                <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                  {T("Today's Sales", 'مبيعات اليوم')}
-                                </div>
-                                <div
-                                  dir="ltr"
-                                  className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-900 dark:text-white"
-                                >
-                                  {f0(todaySales)} KWD
-                                </div>
-                              </div>
-                              <div className="rounded-xl bg-white px-2.5 py-2 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]">
-                                <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                  {T('Orders', 'الطلبات')}
-                                </div>
-                                <div
-                                  dir="ltr"
-                                  className="mt-0.5 text-[13px] font-bold tabular-nums text-slate-900 dark:text-white"
-                                >
-                                  {Math.round(todayOrders).toLocaleString('en-US')}
-                                </div>
-                              </div>
-                              <div className="rounded-xl bg-white px-2.5 py-2 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]">
-                                <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                  {T('Avg Bill', 'متوسط الفاتورة')}
-                                </div>
-                                <div
-                                  dir="ltr"
-                                  className="mt-0.5 text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300"
-                                >
-                                  {todayAov.toFixed(2)} KWD
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()}
-
-                        <div className="space-y-1.5">
-                          {workspace.cascadingOptions.branches
-                            .filter((b) => b.id !== 'all' && (b.salesKwd ?? 0) > 0)
-                            .sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
-                            .slice(0, 3)
-                            .map((br) => (
-                              <div
-                                key={`pulse-br-${br.id}`}
-                                className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
-                              >
-                                <div className="flex min-w-0 items-center gap-1.5 font-semibold text-slate-800 dark:text-slate-100">
-                                  <span aria-hidden>{br.healthDot ?? '🟢'}</span>
-                                  <span className="whitespace-normal leading-snug">{isAr ? br.ar : br.en}</span>
-                                </div>
-                                <div
-                                  dir="ltr"
-                                  className="flex shrink-0 items-center gap-2 text-xs lg:text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
-                                >
-                                  <span>{f0(br.salesKwd ?? 0)} KWD</span>
-                                  <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                    {(br.weightedNetPct ?? workspace.weightedNetPct).toFixed(1)}%
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-
-                        {!isAuditor ? (
-                          <button
-                            type="button"
-                            disabled={isCopilotThinking}
-                            onClick={() =>
-                              void handleSendQuery(
-                                T(
-                                  'Compare top 3 branches vs lagging branches today and list immediate net-pocket actions.',
-                                  'قارن أفضل 3 فروع مقابل الفروع الأقل أداءً اليوم واقترح خطوات فورية لرفع صافي الجيب.',
-                                ),
-                              )
-                            }
-                            className="cursor-pointer self-start rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:bg-[#101C17] dark:text-emerald-200"
-                          >
-                            {T('Inspect Branch Pulse ▸', 'تحليل نبض الفروع ▸')}
-                          </button>
-                        ) : null}
-                      </div>
-
-                      {/* Column 2: Recent Governance & Kitchen/Delivery SLA Alerts */}
-                      <div
-                        className={`${SUBCARD_CLS} flex min-w-0 flex-col justify-between gap-2.5 rounded-2xl p-3 sm:p-3.5 ring-1 ring-slate-900/[0.04] dark:ring-white/[0.06]`}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/60 pb-2 dark:border-white/[0.06]">
-                          <div className="flex min-w-0 items-center gap-1.5">
-                            <Bell className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <h4 className="text-[13.5px] font-bold tracking-tight text-neutral-950 dark:text-white">
-                              {T(
-                                'Recent Governance & Kitchen/Delivery SLA Alerts',
-                                'أحدث تنبيهات الحوكمة والمطبخ والتوصيل',
-                              )}
-                            </h4>
-                          </div>
-                          <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                            {T(
-                              `${govSnap.activeBreaches.length} Active Watchdogs`,
-                              `${govSnap.activeBreaches.length} تنبيهات رقابية نشطة`,
-                            )}
-                          </span>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          {govSnap.activeBreaches.slice(0, 4).map((b) => (
-                            <div
-                              key={`pulse-breach-${b.id}`}
-                              className="flex items-start justify-between gap-2 rounded-xl bg-white px-3 py-2 text-[13px] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-white/[0.06]"
-                            >
-                              <span className="min-w-0 flex-1 whitespace-normal leading-snug font-semibold text-slate-800 dark:text-slate-100">
-                                {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
-                              </span>
-                              <span
-                                dir="ltr"
-                                className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-xs lg:text-[13px] font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                              >
-                                {f0(b.monthlyLeakKwd)} KWD
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openDrawer('breaches')}
-                            className="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10"
-                          >
-                            {T('Open Governance Bell 🔔', 'فتح جرس الحوكمة 🔔')}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Verified Executive Audit Briefings & Institutional Memory Preview (Fills desktop canvas with live Odoo 17 intelligence) */}
-                  <div
-                    className={`${SUBCARD_CLS} w-full max-w-full min-w-0 space-y-2.5 rounded-2xl p-3 sm:p-4`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 pb-2 dark:border-white/[0.06]">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <Brain className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        <h3 className="min-w-0 text-[13.5px] font-semibold tracking-tight whitespace-normal break-words text-neutral-950 dark:text-white">
-                          {T(
-                            'Verified Executive Audit Briefings & Institutional Memory Preview',
-                            'ملخصات المراجعة التنفيذية المعتمدة ومعاينة الذاكرة المؤسسية',
-                          )}
-                        </h3>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                          {T(
-                            `${memoryCountBadge} Active Memory Rules`,
-                            `${memoryCountBadge} قواعد ذاكرة مؤسسية نشطة`,
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setMemoryOpen(true)}
-                          className="cursor-pointer rounded-lg bg-[#F6F7F8] px-2.5 py-0.5 text-xs font-semibold text-neutral-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200"
-                        >
-                          {T('Inspect Memory ↗', 'مراجعة الذاكرة ↗')}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2 text-xs font-medium tabular-nums text-slate-600 dark:bg-[#09110E] dark:text-slate-300">
-                      <span className="min-w-0 break-words whitespace-normal font-semibold text-neutral-800 dark:text-slate-100">
-                        {isAr ? workspace.subtitleAr : workspace.subtitleEn}
-                      </span>
-                      <span dir="ltr" className="font-semibold text-emerald-700 dark:text-emerald-300">
-                        {Math.round(workspace.salesKwd).toLocaleString('en-US')} KWD •{' '}
-                        {workspace.orders.toLocaleString('en-US')} {isAr ? 'طلب' : 'orders'} •{' '}
-                        {workspace.weightedNetPct.toFixed(1)}% {isAr ? 'صافي مرجّح' : 'net margin'}
-                      </span>
-                    </div>
-
-                    <div className="grid w-full max-w-full min-w-0 grid-cols-1 gap-2.5 md:grid-cols-3">
-                      {workspace.feryalNotes.slice(0, 3).map((note, noteIdx) => (
-                        <article
-                          key={`preview-${note.id}`}
-                          className={`${noteIdx === 2 ? 'hidden md:flex' : 'flex'} min-w-0 flex-col justify-between gap-2 rounded-xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-white/[0.06]`}
-                        >
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap items-center justify-between gap-1.5">
-                              <span className="min-w-0 text-[12.5px] font-bold whitespace-normal break-words text-neutral-900 dark:text-white">
-                                {isAr ? note.titleAr : note.titleEn}
-                              </span>
-                              <span
-                                dir="ltr"
-                                className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              >
-                                {isAr ? note.benefitAr : note.benefitEn}
-                              </span>
-                            </div>
-                            <p className="text-[12px] leading-relaxed whitespace-normal break-words text-neutral-600 dark:text-slate-300">
-                              {isAr ? note.summaryAr : note.summaryEn}
-                            </p>
-                          </div>
-
-                          {!isAuditor ? (
-                            <button
-                              type="button"
-                              disabled={isCopilotThinking}
-                              onClick={() =>
-                                void handleSendQuery(isAr ? note.promptAr : note.promptEn)
-                              }
-                              className="cursor-pointer self-start rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/20 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:bg-[#101C17] dark:text-emerald-200"
-                            >
-                              {T('Run Briefing ▸', 'تشغيل التحليل ▸')}
-                            </button>
-                          ) : (
-                            <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                              {T('Verified Odoo 17 Audit Record', 'سجل مراجعة معتمد من أودو 17')}
-                            </span>
-                          )}
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {isCopilotThinking ? (
-                <div className="flex w-full max-w-full min-w-0 items-center gap-3">
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  </span>
-                  <div className={`${SUBCARD_CLS} min-w-0 flex-1 px-4 py-3 text-[13.5px] font-medium whitespace-normal break-words text-neutral-600 dark:text-slate-300`}>
-                    {T(
-                      'Feryal is inspecting visual evidence & live Odoo 17 telemetry…',
-                      'فريال تدقق المرفقات البصرية وأرقام أودو 17 وسجل الحوكمة…',
-                    )}
-                  </div>
-                </div>
-              ) : null}
-                </>
-              )}
-            </div>
-
-            {/* 4. Input Composer Dock (Unclipped Wrapping Vision Bar when active + Composer, or Calm Read-Only Status Bar for Auditor) */}
-            <div className="w-full max-w-full min-w-0 border-t border-neutral-100 bg-white px-3.5 pb-3.5 pt-2.5 sm:px-5 sm:pb-4 sm:pt-3 dark:border-white/[0.06] dark:bg-[#101C17]">
-              {isAuditor ? (
-                <div
-                  role="status"
-                  className="flex w-full max-w-full min-w-0 items-center justify-between gap-3 rounded-2xl bg-amber-50/80 px-4 py-3 text-[13px] font-semibold text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/35 dark:text-amber-100 dark:ring-amber-500/30"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <ShieldCheck className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                    <span className="min-w-0 whitespace-normal break-words">
-                      {T(
-                        'Read-Only Auditor Mode — Inspection Only',
-                        'وضع المراجعة للقراءة فقط — استعراض التحليلات والسجلات بدون صلاحية تعديل أو رفع ملفات',
-                      )}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {(hasUserMessages || pendingAttachments.length > 0) ? (
-                    <div className="mb-2.5 flex w-full max-w-full min-w-0 items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap rounded-2xl bg-neutral-100/90 p-1.5 dark:bg-white/[0.06]">
-                      <button
-                        type="button"
-                        disabled={isCopilotThinking || isProcessingMedia}
-                        onClick={() => openPickerRef.current?.()}
-                        className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-[12px] font-semibold whitespace-nowrap md:whitespace-normal text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
-                      >
-                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
-                        <span>
-                          {T('📎 Attach Photo / Video', '📎 إرفاق صورة / فيديو')}
-                        </span>
-                      </button>
-
-                      {FERYAL_VISION_QUICK_PRESETS.map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          disabled={isCopilotThinking || isProcessingMedia}
-                          onClick={() => {
-                            setInputText(isAr ? preset.promptAr : preset.promptEn)
-                            inputFieldRef.current?.focus()
-                          }}
-                          className="inline-flex shrink-0 md:shrink min-w-0 cursor-pointer items-center gap-1 rounded-xl px-2.5 py-1.5 text-[12px] font-medium whitespace-nowrap md:whitespace-normal break-words text-neutral-600 transition-all duration-150 hover:bg-white/80 hover:text-neutral-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                        >
-                          <span>{isAr ? preset.badgeAr : preset.badgeEn}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <FeryalPendingAttachmentsTray
-                    isAr={isAr}
-                    attachments={pendingAttachments}
-                    processing={isProcessingMedia}
-                    errorText={mediaErrorText}
-                    onRemove={(id) =>
-                      setPendingAttachments((prev) => {
-                        const rem = prev.find((item) => item.id === id)
-                        if (rem) revokeAttachmentObjectUrls([rem])
-                        return prev.filter((item) => item.id !== id)
-                      })
-                    }
-                    onClearAll={() => {
-                      revokeAttachmentObjectUrls(pendingAttachments)
-                      setPendingAttachments([])
-                      setMediaErrorText(null)
-                    }}
-                  />
-
-                  {(micToast || isListening || isTranscribing) ? (
-                    <div
-                      className={`mb-2 text-[13px] font-medium ${
-                        micToast
-                          ? 'text-rose-600 dark:text-rose-400'
-                          : 'text-emerald-700 dark:text-emerald-400'
-                      }`}
-                    >
-                      {micToast ??
-                        (isTranscribing
-                          ? T('Transcribing voice…', 'جارٍ تحويل الصوت إلى نص…')
-                          : T('Listening… speak now', 'أستمع إليك الآن… تفضل بالحديث'))}
-                    </div>
-                  ) : null}
-
-                  <div className="flex w-full max-w-full min-w-0 items-end gap-1.5 sm:gap-2">
-                    <FeryalMediaPickerButton
-                      isAr={isAr}
-                      disabled={isCopilotThinking}
-                      processing={isProcessingMedia}
-                      attachmentCount={pendingAttachments.length}
-                      onFilesSelected={(files) => void handleFilesSelected(files)}
-                      openPickerRef={openPickerRef}
-                      openCameraRef={openCameraRef}
-                      size="lg"
-                    />
-
-                    <textarea
-                      ref={inputFieldRef}
-                      rows={1}
-                      value={inputText}
-                      onChange={(e) => setInputText(e.target.value)}
-                      onPaste={(e) => {
-                        const pastedFiles = Array.from(e.clipboardData?.files ?? []).filter(
-                          isSupportedMediaFile,
-                        )
-                        if (pastedFiles.length > 0) {
-                          e.preventDefault()
-                          void handleFilesSelected(pastedFiles)
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          if (!isCopilotThinking && !isProcessingMedia) void handleSendQuery()
-                        }
-                      }}
-                      placeholder={T(
-                        'Ask in Deep & Precise or Fast Answer mode, or click 📎 Attach Photo / Video…',
-                        'اسأل بنمط دقيق أو سريع، أو اضغط 📎 إرفاق صورة / فيديو لفحص الأطباق والمطبخ والفواتير…',
-                      )}
-                      className={`${SUBCARD_CLS} min-h-[48px] min-w-0 flex-1 resize-none px-3.5 py-3 text-[14.5px] leading-relaxed text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 sm:min-h-[50px] sm:px-4 dark:text-white`}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={toggleListening}
-                      aria-pressed={isListening}
-                      aria-label={
-                        isListening
-                          ? T('Stop microphone', 'إيقاف المايكروفون')
-                          : T('Speak to Feryal', 'التحدث إلى فريال')
-                      }
-                      className={`inline-flex h-[48px] w-[42px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all sm:h-[50px] sm:w-[48px] ${
-                        isListening
-                          ? 'btn-colored animate-pulse bg-rose-600 text-white'
-                          : `${SUBCARD_CLS} text-neutral-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200 dark:hover:bg-emerald-950/60`
-                      }`}
-                    >
-                      {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleSendQuery()}
-                      disabled={
-                        isCopilotThinking ||
-                        isProcessingMedia ||
-                        (!inputText.trim() && pendingAttachments.length === 0)
-                      }
-                      className="btn-colored inline-flex h-[48px] shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-3.5 text-[13.5px] font-semibold text-white transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-40 sm:h-[50px] sm:px-5 sm:text-[14.5px] dark:bg-emerald-500 dark:text-emerald-950"
-                    >
-                      <Send className={`h-4 w-4 shrink-0 ${isAr ? 'rotate-180' : ''}`} />
-                      <span className="hidden sm:inline">{T('Send', 'إرسال')}</span>
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Persistent Notebooks & Saved Threads Side Panel */}
-          {!isExpanded ? (
+      {/* Sidebar: Saved Chats & User-Only Field Notes (Zero Static Cards) */}
+      {sidebarOpen && (
+        <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#0D1713] dark:ring-emerald-500/15 overflow-hidden">
+          {sidebarTab === 'chats' ? (
             <FeryalSidebarNotebooks
               isAr={isAr}
               isAuditor={isAuditor}
-              activeTab={activeStudioTab === 'notes' ? 'notes' : 'chats'}
-              onTabChange={(next) => setActiveStudioTab(next === 'notes' ? 'notes' : 'studio')}
+              activeTab={sidebarTab}
+              onTabChange={setSidebarTab}
               activeChatId={activeChatId}
               activeNotebookId={activeNotebookId}
               onSelectNotebook={setActiveNotebookId}
-              onSelectChat={(id) => void handleSelectSavedChat(id)}
-              onNewChat={newDiscussion}
+              onSelectChat={handleSelectChat}
+              onNewChat={handleStartNewChat}
               workspace={workspace}
-              isCopilotThinking={isCopilotThinking}
-              onRunNotePrompt={(p) => void handleSendQuery(p)}
-              panelClassName={SIDEBAR_PANEL_CLS}
+              isCopilotThinking={sending}
+              onRunNotePrompt={(prompt) => void sendQuestion(prompt)}
+              panelClassName=""
             />
-          ) : null}
-        </div>
+          ) : (
+            <div className="flex h-full flex-col p-3.5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab('chats')}
+                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-neutral-600 dark:text-slate-300"
+                  >
+                    {isAr ? 'المحادثات' : 'Chats'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSidebarTab('notes')}
+                    className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-2xs dark:bg-emerald-500/20 dark:text-emerald-200"
+                  >
+                    {isAr ? 'ملاحظات المستخدم' : 'User Notes'}
+                  </button>
+                </div>
+              </div>
 
-        {/* Institutional Memory Drawer */}
-        <FeryalMemoryDrawer
-          open={memoryOpen}
-          onClose={() => setMemoryOpen(false)}
-          isAr={isAr}
-          isAuditor={isAuditor}
-          onAskScalePlan={(p) => void handleSendQuery(p)}
-        />
+              {!isAuditor && (
+                <form
+                  onSubmit={handleAddUserNote}
+                  className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2 dark:border-slate-800 dark:bg-slate-900/60"
+                >
+                  <input
+                    type="text"
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                    placeholder={isAr ? 'عنوان الملاحظة...' : 'Note title...'}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                  <textarea
+                    rows={2}
+                    value={noteDetail}
+                    onChange={(e) => setNoteDetail(e.target.value)}
+                    placeholder={isAr ? 'تفاصيل الملاحظة الفعليّة...' : 'Factual note details...'}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {isAr ? 'إضافة ملاحظة' : 'Add Note'}
+                  </button>
+                </form>
+              )}
+
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {userNotes.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    {isAr
+                      ? 'لا توجد ملاحظات مسجلة حالياً.'
+                      : 'No notes recorded yet.'}
+                  </div>
+                ) : (
+                  userNotes.map((n) => (
+                    <div
+                      key={n.id}
+                      className="rounded-xl border border-slate-200/80 bg-white p-2.5 space-y-1 dark:border-slate-800 dark:bg-slate-900/70"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          {n.title}
+                        </span>
+                        {!isAuditor && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUserNote(n.id)}
+                            className="text-slate-400 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {n.detail ? (
+                        <p className="text-xs text-slate-600 dark:text-slate-300">{n.detail}</p>
+                      ) : null}
+                      <div className="text-[11px] text-slate-400">{n.createdAt}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* Main Studio Area */}
+      <div className="flex min-w-0 flex-1 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#0D1713] dark:ring-emerald-500/15 overflow-hidden">
+        {/* Top Bar */}
+        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-200/80 px-4 py-3 dark:border-emerald-500/15">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((v) => !v)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
+              title={isAr ? 'إظهار/إخفاء القائمة الجانبية' : 'Toggle sidebar'}
+            >
+              {sidebarOpen ? (
+                <PanelLeftClose className="h-4 w-4" />
+              ) : (
+                <PanelLeftOpen className="h-4 w-4" />
+              )}
+            </button>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-[15.5px] sm:text-[17px] font-black text-slate-900 dark:text-white">
+                  {isAr ? 'اسأل فريال — محرك بيانات Odoo الفعلي' : 'Ask Feryal — Live Odoo Data Engine'}
+                </h1>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
+                  <Database className="h-3 w-3" />
+                  {modeBadgeLabel}
+                </span>
+              </div>
+              <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
+                {isAr
+                  ? '6 علامات تجارية • 7 فروع مربوطة + بند غير منسوب لفرع • استعلام مباشر من Odoo وتحقق برمجي من كل رقم'
+                  : '6 Brands • 7 Mapped Branches + Unattributed Bucket • Live Odoo Queries & Strict Numeric Verifier'}
+              </p>
+            </div>
+          </div>
+
+          {/* View Switcher: Chat | Live Governance Alerts | Odoo Audit Log */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setMainTab('chat')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  mainTab === 'chat'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                }`}
+              >
+                {isAr ? 'المحادثة' : 'Chat'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('alerts')
+                  void fetchServerGovernanceBreaches()
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  mainTab === 'alerts'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                }`}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>{isAr ? 'تنبيهات الحوكمة الفعلية' : 'Live Governance Alerts'}</span>
+                {liveBreaches.length > 0 && (
+                  <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10.5px] font-black text-white">
+                    {liveBreaches.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMainTab('audit')
+                  void fetchServerAuditLogs()
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                  mainTab === 'audit'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                }`}
+              >
+                <History className="h-3.5 w-3.5" />
+                <span>
+                  {isAr
+                    ? `سجل التدقيق (${auditLogs.length})`
+                    : `Audit Log (${auditLogs.length})`}
+                </span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMemoryDrawerOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            >
+              <Brain className="h-3.5 w-3.5 text-emerald-600" />
+              <span>
+                {isAr
+                  ? savedNotesCount > 0
+                    ? `الملاحظات (${savedNotesCount})`
+                    : 'سجل الملاحظات'
+                  : savedNotesCount > 0
+                    ? `Notes (${savedNotesCount})`
+                    : 'Notes Log'}
+              </span>
+            </button>
+          </div>
+        </header>
+
+        {/* Tab 1: Live Odoo Chat */}
+        {mainTab === 'chat' && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/* Quick Live Odoo Query Chips */}
+            {!isAuditor && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-100 px-4 py-2.5 dark:border-white/[0.05]">
+                {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    disabled={sending}
+                    onClick={() => handleQuickAuditChip(chip.id)}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 disabled:opacity-50 dark:border-slate-800 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                  >
+                    <span>{isAr ? chip.labelAr : chip.labelEn}</span>
+                    <span className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-[10.5px] font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                      {isAr ? chip.badgeAr : chip.badgeEn}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Conversation Stream */}
+            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+              {messages.length === 0 ? (
+                <div className="mx-auto max-w-3xl py-6 space-y-5">
+                  <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                    <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
+                      <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <h2 className="text-[15px] font-black">
+                        {isAr
+                          ? 'فريال مربوطة حصرياً باستعلامات Odoo الفعلية'
+                          : 'Feryal Connected Exclusively to Live Odoo Queries'}
+                      </h2>
+                    </div>
+                    <p className="mt-2 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
+                      {isAr
+                        ? 'كل سؤال يُترجم إلى استعلام فعلي على موديلات Odoo (pos.order، pos.order.line، account.move.line، purchase.order، stock.move / stock.scrap) عبر الفروع السبعة المعتمدة وبند «غير منسوب لفرع»، ثم تُفحص جميع الأرقام برمجياً قبل عرض الإجابة.'
+                        : 'Every question executes a live query against Odoo models across the 7 approved branches + Unattributed bucket, followed by strict programmatic number verification.'}
+                    </p>
+                  </div>
+
+                  {!isAuditor && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {LIVE_ODOO_STARTER_QUESTIONS.map((q) => (
+                        <button
+                          key={q.id}
+                          type="button"
+                          disabled={sending}
+                          onClick={() => void sendQuestion(isAr ? q.ar : q.en)}
+                          className="flex flex-col items-start gap-1.5 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start transition hover:border-emerald-400 hover:bg-emerald-50/40 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-500/40"
+                        >
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-bold text-emerald-700 dark:bg-slate-800 dark:text-emerald-300">
+                            {q.modelBadge}
+                          </span>
+                          <span className="text-[13.5px] font-bold text-slate-900 dark:text-white">
+                            {isAr ? q.ar : q.en}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-3xl rounded-2xl px-4 py-3.5 ${
+                        msg.sender === 'user'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'w-full bg-[#F8FAF9] text-slate-900 ring-1 ring-slate-900/[0.06] dark:bg-[#111E19] dark:text-slate-100 dark:ring-emerald-500/15'
+                      }`}
+                    >
+                      {msg.sender === 'feryal' && (
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-black text-emerald-800 dark:text-emerald-300">
+                              {isAr ? 'فريال' : 'Feryal'}
+                            </span>
+                            {msg.providerBadge && (
+                              <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {msg.providerBadge}
+                              </span>
+                            )}
+                            {msg.complianceTier && (
+                              <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
+                            )}
+                            {msg.verifier?.valid &&
+                              msg.executedQueries &&
+                              msg.executedQueries.length > 0 && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-[10.5px] font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  {isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Verified Numbers'}
+                                </span>
+                              )}
+                          </div>
+                          <span className="text-[11px] text-slate-400">{msg.time}</span>
+                        </div>
+                      )}
+
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <FeryalMessageAttachmentsGallery
+                          attachmentsMeta={msg.attachments}
+                          isAr={isAr}
+                        />
+                      )}
+
+                      {msg.sender === 'user' ? (
+                        <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed font-medium">
+                          {msg.text}
+                        </p>
+                      ) : (
+                        <FeryalStudioMessage text={msg.text} />
+                      )}
+
+                      {/* Executed Odoo Queries Provenance Strip */}
+                      {msg.sender === 'feryal' &&
+                        msg.executedQueries &&
+                        msg.executedQueries.length > 0 && (
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 pt-2.5 text-[11px] text-slate-600 dark:border-white/[0.07] dark:text-slate-300">
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                            <span className="font-semibold">
+                              {isAr ? 'الاستعلام المنفذ:' : 'Executed Query:'}
+                            </span>
+                            {msg.executedQueries.map((q, idx) => (
+                              <span
+                                key={`${q.model}-${idx}`}
+                                dir="ltr"
+                                className="rounded-md bg-white px-2 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
+                              >
+                                {q.model}.{q.method} ({q.period.from}
+                                {q.period.to !== q.period.from ? `..${q.period.to}` : ''})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Action Footer */}
+                      {msg.sender === 'feryal' && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyReply(msg)}
+                            className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
+                          >
+                            {copiedId === msg.id ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            ) : (
+                              <ClipboardCopy className="h-3.5 w-3.5" />
+                            )}
+                            <span>
+                              {copiedId === msg.id
+                                ? isAr
+                                  ? 'تم النسخ'
+                                  : 'Copied'
+                                : isAr
+                                  ? 'نسخ الرد'
+                                  : 'Copy'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleSpeakMessage(msg)}
+                            className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
+                          >
+                            {speakingId === msg.id ? (
+                              <VolumeX className="h-3.5 w-3.5 text-rose-600" />
+                            ) : (
+                              <Volume2 className="h-3.5 w-3.5 text-emerald-600" />
+                            )}
+                            <span>
+                              {speakingId === msg.id
+                                ? isAr
+                                  ? 'إيقاف الصوت'
+                                  : 'Stop'
+                                : isAr
+                                  ? 'استماع'
+                                  : 'Listen'}
+                            </span>
+                          </button>
+
+                          {!isAuditor && msg.replyStatus === 'answered' && (
+                            <button
+                              type="button"
+                              disabled={Boolean(submittedBellIds[msg.id])}
+                              onClick={() => handleEscalateToBell(msg)}
+                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-emerald-800/60"
+                            >
+                              <Bell className="h-3.5 w-3.5" />
+                              <span>
+                                {submittedBellIds[msg.id]
+                                  ? isAr
+                                    ? 'تم الرفع لجرس المدير'
+                                    : 'Sent to Manager Bell'
+                                  : isAr
+                                    ? 'رفع التوصية لجرس المدير'
+                                    : 'Send to Manager Bell'}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {sending && (
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>
+                    {isAr
+                      ? 'جارٍ استعلام Odoo والتحقق من مطابقة الأرقام...'
+                      : 'Querying live Odoo & verifying reply numbers...'}
+                  </span>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer */}
+            {!isAuditor ? (
+              <div className="border-t border-slate-200/80 bg-white p-3.5 dark:border-emerald-500/15 dark:bg-[#0D1713]">
+                <FeryalPendingAttachmentsTray
+                  isAr={isAr}
+                  attachments={pendingAttachments}
+                  processing={processingMedia}
+                  errorText={mediaError}
+                  onRemove={handleRemoveAttachment}
+                  onClearAll={handleClearAllAttachments}
+                  onApplyPresetPrompt={(p) => setInputText(p)}
+                />
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    void sendQuestion()
+                  }}
+                  className="flex items-end gap-2"
+                >
+                  <FeryalMediaPickerButton
+                    isAr={isAr}
+                    disabled={sending}
+                    processing={processingMedia}
+                    attachmentCount={pendingAttachments.length}
+                    onFilesSelected={handleFilesSelected}
+                    openPickerRef={openPickerRef}
+                    openCameraRef={openCameraRef}
+                  />
+
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => void handleToggleVoiceInput()}
+                    title={isAr ? 'إدخال صوتي' : 'Voice input'}
+                    className={`inline-flex h-[44px] sm:h-[48px] w-[42px] sm:w-[46px] shrink-0 items-center justify-center rounded-2xl transition ${
+                      recordingVoice
+                        ? 'bg-rose-600 text-white animate-pulse'
+                        : 'bg-[#F6F7F8] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200'
+                    }`}
+                  >
+                    {recordingVoice ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </button>
+
+                  <textarea
+                    rows={1}
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        void sendQuestion()
+                      }
+                    }}
+                    placeholder={
+                      isAr
+                        ? 'اسأل فريال عن مبيعات الفروع، الأصناف، أوامر الشراء، المخزن، أو القيود في Odoo...'
+                        : 'Ask Feryal about branch POS sales, items, purchase orders, stock moves, or GL entries...'
+                    }
+                    className="min-h-[44px] sm:min-h-[48px] max-h-36 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#F6F7F8] px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-[#09110E] dark:text-white"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={sending || (!inputText.trim() && pendingAttachments.length === 0)}
+                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-45"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span>{isAr ? 'إرسال' : 'Send'}</span>
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="border-t border-slate-200/80 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
+                {isAr
+                  ? 'وضع المراجع الخارجي (للقراءة فقط) — يمكنك مراجعة التنبيهات الحقيقية وسجل التدقيق الكامل لاستعلامات Odoo.'
+                  : 'Read-only External Auditor Mode — inspect live Odoo alerts and the full query audit log.'}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Real Odoo Governance Breaches ONLY (`/api/erp/governance`) */}
+        {mainTab === 'alerts' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
+                  {isAr
+                    ? 'تنبيهات الحوكمة الفعلية من Odoo'
+                    : 'Verified Live Odoo Governance Alerts'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAr
+                    ? 'تُعرض فقط المخالفات الناتجة فعلياً عن استعلام Odoo مقابل السقوف المحفوظة من مسؤول النظام.'
+                    : 'Displays strictly real breaches computed from live Odoo records against admin-saved server thresholds.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void fetchServerGovernanceBreaches()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingBreaches ? 'animate-spin' : ''}`} />
+                <span>{isAr ? 'تحديث من Odoo' : 'Refresh'}</span>
+              </button>
+            </div>
+
+            {loadingBreaches ? (
+              <div className="flex items-center justify-center py-12 text-xs font-semibold text-slate-500">
+                <Loader2 className="me-2 h-4 w-4 animate-spin text-emerald-600" />
+                {isAr ? 'جارٍ فحص قواعد الحوكمة على Odoo...' : 'Evaluating live Odoo governance rules...'}
+              </div>
+            ) : liveBreaches.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-emerald-300/70 bg-emerald-50/40 p-8 text-center space-y-1.5 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+                <div className="text-[14px] font-bold text-slate-900 dark:text-white">
+                  {isAr
+                    ? 'لا توجد مخالفات فعلية مسجلة من Odoo حالياً'
+                    : 'No active Odoo governance breaches'}
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400">
+                  {isAr
+                    ? 'لا يتم عرض أي تنبيه افتراضي أو ثابت عند عدم وجود تجاوز فعلي في بيانات Odoo.'
+                    : 'Zero static or synthetic alerts are shown when no live Odoo threshold is breached.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {liveBreaches.map((b) => (
+                  <div
+                    key={b.id}
+                    className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-2 dark:border-rose-900/50 dark:bg-rose-950/20"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="rounded-md bg-rose-600 px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+                        {b.odooModel}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {b.period.from} → {b.period.to}
+                      </span>
+                    </div>
+                    <div className="text-[14px] font-black text-slate-900 dark:text-white">
+                      {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
+                    </div>
+                    <div className="text-xs text-slate-700 dark:text-slate-300">
+                      {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                      <span className="font-semibold text-rose-800 dark:text-rose-300">
+                        {isAr ? b.approvedRuleLimitAr : b.approvedRuleLimitEn}
+                      </span>
+                      {b.odooRecordUrl && (
+                        <a
+                          href={b.odooRecordUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline dark:text-emerald-300"
+                        >
+                          <span>{isAr ? 'فتح السجل في Odoo' : 'Open in Odoo'}</span>
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Transparent Odoo Query & Numeric Verifier Audit Log */}
+        {mainTab === 'audit' && (
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
+                  {isAr
+                    ? 'سجل التدقيق الشفاف لأسئلة واستعلامات فريال'
+                    : 'Transparent Feryal Odoo Query & Verifier Audit Log'}
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAr
+                    ? 'يوثق كل سؤال، ودور المستخدم، والطابع الزمني، واستعلامات Odoo المنفذة، ونتيجة فحص الأرقام، والإجابة النهائية.'
+                    : 'Records every question, user role, timestamp, executed Odoo queries, numeric verifier status, and final answer.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void fetchServerAuditLogs()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
+                <span>{isAr ? 'تحديث السجل' : 'Refresh Log'}</span>
+              </button>
+            </div>
+
+            {auditLogs.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                {isAr
+                  ? 'لا توجد استعلامات مسجلة في سجل التدقيق حتى الآن.'
+                  : 'No queries recorded in the audit log yet.'}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {auditLogs.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 dark:border-slate-800 dark:bg-slate-900/60"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                          {entry.userRole}
+                        </span>
+                        {!isAuditor && (
+                          <span className="font-mono text-[11px] text-slate-500">
+                            {entry.userSub}
+                          </span>
+                        )}
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                            entry.verifier?.valid
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                          }`}
+                        >
+                          {entry.verifier?.valid
+                            ? isAr
+                              ? 'فحص الأرقام: مطابق'
+                              : 'Verifier: Passed'
+                            : isAr
+                              ? 'فحص الأرقام: مرفوض'
+                              : 'Verifier: Rejected'}
+                        </span>
+                      </div>
+                      <span dir="ltr" className="font-mono text-[11px] text-slate-400">
+                        {entry.timestampIso}
+                      </span>
+                    </div>
+
+                    <div className="text-[13.5px] font-bold text-slate-900 dark:text-white">
+                      {isAr ? 'السؤال: ' : 'Q: '}
+                      {entry.question}
+                    </div>
+
+                    {entry.executedQueries.length > 0 && (
+                      <div className="space-y-1 rounded-xl bg-white p-2.5 text-[11.5px] ring-1 ring-slate-200/70 dark:bg-slate-950 dark:ring-slate-800">
+                        {entry.executedQueries.map((q, qi) => (
+                          <div key={`${entry.id}-q-${qi}`} dir="ltr" className="font-mono text-slate-700 dark:text-slate-300">
+                            model={q.model} | groupby={JSON.stringify(q.groupby)} | period={q.period.from}..{q.period.to} | domain={JSON.stringify(q.domain)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-200/60 dark:bg-slate-950/60 dark:text-slate-200 dark:ring-slate-800">
+                      {entry.finalReply}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      <FeryalMemoryDrawer
+        open={memoryDrawerOpen}
+        onClose={() => setMemoryDrawerOpen(false)}
+        isAr={isAr}
+        isAuditor={isAuditor}
+      />
     </div>
   )
 }

@@ -214,14 +214,16 @@ export function EnterpriseHrCommandHub({
   useEffect(() => {
     setCustomAvatars(loadCustomAvatars())
 
-    const handleAvatarUpdated = (e: any) => {
-      if (e.detail?.code && e.detail?.dataUrl) {
-        setCustomAvatars((prev) => ({ ...prev, [e.detail.code]: e.detail.dataUrl }))
+    const handleAvatarUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ code?: string; dataUrl?: string }>).detail
+      if (detail?.code && detail?.dataUrl) {
+        setCustomAvatars((prev) => ({ ...prev, [detail.code!]: detail.dataUrl! }))
       }
     }
-    const handleBatchUpdated = (e: any) => {
-      if (e.detail) {
-        setCustomAvatars((prev) => ({ ...prev, ...e.detail }))
+    const handleBatchUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<Record<string, string>>).detail
+      if (detail) {
+        setCustomAvatars((prev) => ({ ...prev, ...detail }))
       }
     }
 
@@ -1150,8 +1152,8 @@ export function EnterpriseHrCommandHub({
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Total Audited Custody OPEX' : 'إجمالي المصروفات المدققة'}</p>
-              <p className="mt-1 text-2xl font-black text-emerald-300">51,154.950 {en ? 'KWD' : 'د.ك'}</p>
-              <p className="mt-1 text-xs text-mist-400">{en ? '2,213 Audited Transactions' : '2,213 معاملة مدققة'}</p>
+              <p className="mt-1 text-lg font-black text-amber-300">{en ? 'Unlinked Source' : 'غير مربوط بمصدر'}</p>
+              <p className="mt-1 text-xs text-mist-400">{en ? 'Live HR custody feed not linked' : 'عهد الموارد البشرية غير مربوطة مباشرة'}</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-[#0f141c] p-4">
               <p className="text-xs text-mist-400">{en ? 'Submitted Expense Sheets' : 'تقارير التصفية المرفوعة'}</p>
@@ -2398,7 +2400,7 @@ export function EnterpriseHrCommandHub({
         onSave={(payload) => {
           const newSheet: OdooExpenseSheetReport = {
             id: `sheet_hr_${Date.now()}`,
-            reportNo: `EXP/HR/2026/${Math.floor(1000 + Math.random() * 9000)}`,
+            reportNo: `EXP/HR/2026/${1000 + (Date.now() % 9000)}`,
             date: payload.date,
             custodianId: payload.custodianId,
             custodianNameAr: payload.custodianId === 'sanad' ? 'سند' : payload.custodianId === 'rabih' ? 'ربيع أنيس يحيى' : 'الموظف المسؤول',

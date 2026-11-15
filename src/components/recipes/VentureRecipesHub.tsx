@@ -606,7 +606,7 @@ export function VentureRecipesHub({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
                 active
                   ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10'

@@ -9,6 +9,7 @@ import {
   loadCustomAvatars,
   loadCustomDocs,
   saveCustomDocs,
+  type CustomEmployeeDoc,
 } from './hr-avatar-utils'
 
 type Props = {
@@ -28,7 +29,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
   const [newNoteInput, setNewNoteInput] = useState('')
 
   const [customAvatars, setCustomAvatars] = useState<Record<string, string>>({})
-  const [customDocs, setCustomDocs] = useState<Record<string, any[]>>({})
+  const [customDocs, setCustomDocs] = useState<Record<string, CustomEmployeeDoc[]>>({})
   const photoFileInputRef = useRef<HTMLInputElement>(null)
   const docFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -36,21 +37,26 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
     setCustomAvatars(loadCustomAvatars())
     setCustomDocs(loadCustomDocs())
 
-    const handleAvatarUpdated = (e: any) => {
-      if (e.detail?.code && e.detail?.dataUrl) {
-        setCustomAvatars((prev) => ({ ...prev, [e.detail.code]: e.detail.dataUrl }))
+    const handleAvatarUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ code?: string; dataUrl?: string }>).detail
+      if (detail?.code && detail?.dataUrl) {
+        setCustomAvatars((prev) => ({ ...prev, [detail.code!]: detail.dataUrl! }))
       }
     }
-    const handleBatchUpdated = (e: any) => {
-      if (e.detail) {
-        setCustomAvatars((prev) => ({ ...prev, ...e.detail }))
+    const handleBatchUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<Record<string, string>>).detail
+      if (detail) {
+        setCustomAvatars((prev) => ({ ...prev, ...detail }))
       }
     }
-    const handleDocsUpdated = (e: any) => {
-      if (e.detail?.code && e.detail?.newDoc) {
+    const handleDocsUpdated = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ code?: string; newDoc?: CustomEmployeeDoc }>).detail
+      if (detail?.code && detail?.newDoc) {
+        const code = detail.code
+        const doc = detail.newDoc
         setCustomDocs((prev) => ({
           ...prev,
-          [e.detail.code]: [e.detail.newDoc, ...(prev[e.detail.code] || [])],
+          [code]: [doc, ...(prev[code] || [])],
         }))
       }
     }
@@ -919,7 +925,7 @@ export function EmployeeProfileModal360({ employee, isOpen, onClose, locale }: P
                     <div className="flex justify-between border-b border-white/5 pb-1.5">
                       <span className="text-mist-400">{en ? 'Residential Address:' : 'عنوان السكن بالكويت:'}</span>
                       <span className="font-bold text-white text-right">
-                        {isArabic ? 'محافظة حولي، السالمية، قطعة 4، شارع 12' : 'Hawally Gov, Salmiya, Block 4, St 12'}
+                        {isArabic ? 'السالمية، قطعة 4، شارع 12' : 'Salmiya, Block 4, St 12'}
                       </span>
                     </div>
                     <div className="flex justify-between border-b border-white/5 pb-1.5">

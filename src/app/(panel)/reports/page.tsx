@@ -19,7 +19,7 @@ import { DepartmentalReportsHub } from "@/components/reports/DepartmentalReports
 
 export const metadata = {
   title: "مركز التقارير المؤسسية الشامل | Venture Foods W.L.L.",
-  description: "دليل تقارير شركة فنتشر فودز لإدارة المطاعم ذ.م.م. المصنف حسب الأقسام الـ 7",
+  description: "تقارير المبيعات والأرباح والذمم المرتبطة بـ Odoo لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
 };
 
 async function LiveDbReportsSection({
@@ -28,7 +28,7 @@ async function LiveDbReportsSection({
   warehouseIds,
 }: {
   locale: Locale;
-  query: any;
+  query: Awaited<ReturnType<typeof readQuery>>;
   warehouseIds: string[];
 }) {
   const tab = ["stock", "customers", "suppliers", "payments"].includes(query.tab) ? query.tab : "pnl";
@@ -93,35 +93,28 @@ async function ProfitReport({
     costOfGoods(undefined, undefined, warehouseIds),
   ]);
 
-  // Fallback to verified October baseline when live November invoices are not yet populated
-  const displayMonthSales = monthSales.total > 0 ? monthSales.total : 167092.0;
-  const displayMonthCogs = monthCogs > 0 ? monthCogs : 52634.0;
-  const displayAllSales = allSales.total > 0 ? allSales.total : 167092.0;
-  const displayAllCogs = allCogs > 0 ? allCogs : 52634.0;
+  if (monthSales.total === 0 && allSales.total === 0) {
+    return (
+      <div className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-6 text-center text-sm text-slate-300">
+        {tx(locale, "لا توجد بيانات مسجلة في الجداول المحلية لهذه الفترة — راجع تقارير Odoo الحية أعلاه.", "No local database entries recorded for this period — refer to the live Odoo reports above.")}
+      </div>
+    );
+  }
 
   const blocks = [
-    { label: tx(locale, `مبيعات ${monthLabel} (المعتمدة)`, `Sales · ${monthLabel}`), value: displayMonthSales },
-    { label: tx(locale, `تكلفة البضاعة ${monthLabel}`, `COGS · ${monthLabel}`), value: displayMonthCogs },
-    { label: tx(locale, `مجمل الربح ${monthLabel}`, `Gross profit · ${monthLabel}`), value: displayMonthSales - displayMonthCogs },
-    { label: tx(locale, "إجمالي المبيعات التراكمية", "Total cumulative sales"), value: displayAllSales },
-    { label: tx(locale, "إجمالي تكلفة البضاعة المباعة", "Total COGS"), value: displayAllCogs },
-    { label: tx(locale, "مجمل الربح التراكمي", "Cumulative gross profit"), value: displayAllSales - displayAllCogs },
+    { label: tx(locale, `مبيعات ${monthLabel}`, `Sales · ${monthLabel}`), value: monthSales.total },
+    { label: tx(locale, `تكلفة البضاعة ${monthLabel}`, `COGS · ${monthLabel}`), value: monthCogs },
+    { label: tx(locale, `مجمل الربح ${monthLabel}`, `Gross profit · ${monthLabel}`), value: monthSales.total - monthCogs },
+    { label: tx(locale, "إجمالي المبيعات التراكمية", "Total cumulative sales"), value: allSales.total },
+    { label: tx(locale, "إجمالي تكلفة البضاعة المباعة", "Total COGS"), value: allCogs },
+    { label: tx(locale, "مجمل الربح التراكمي", "Cumulative gross profit"), value: allSales.total - allCogs },
   ];
 
   return (
-    <div>
-      <div className="grid gap-4 md:grid-cols-3">
-        {blocks.map((block) => (
-          <StatCard key={block.label} label={block.label} value={moneyFor(locale, block.value)} />
-        ))}
-      </div>
-      <p className="mt-4 text-xs text-slate-400">
-        {tx(
-          locale,
-          `مجمل الربح = المبيعات − تكلفة الكميات المباعة بسعر التكلفة. مبيعات شهر أكتوبر 2026 المعتمدة: 167,092 د.ك لـ 30,543 طلباً.`,
-          `Gross profit = sales minus COGS at item cost. Audited October 2026 sales: 167,092 KWD for 30,543 orders.`
-        )}
-      </p>
+    <div className="grid gap-4 md:grid-cols-3">
+      {blocks.map((block) => (
+        <StatCard key={block.label} label={block.label} value={moneyFor(locale, block.value)} />
+      ))}
     </div>
   );
 }
@@ -194,10 +187,6 @@ async function StockReport({
     rows = productRows;
   }
 
-  // Realistic Fallback if DB is empty
-  const displayCostValue = valuation.costValue > 0 ? valuation.costValue : 124500.0;
-  const displaySellValue = valuation.sellValue > 0 ? valuation.sellValue : 382900.0;
-
   const forecasts = await forecastLabels(
     rows.map((row) => ({ id: row.id, currentStock: row.currentStock })),
     new Date()
@@ -208,11 +197,11 @@ async function StockReport({
       <div className="mb-4 grid gap-4 md:grid-cols-2">
         <section className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
           <p className="text-sm text-slate-400">{tx(locale, "قيمة المخزون بسعر التكلفة", "Inventory at cost")}</p>
-          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, displayCostValue)}</p>
+          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, valuation.costValue)}</p>
         </section>
         <section className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
           <p className="text-sm text-slate-400">{tx(locale, "قيمة المخزون بسعر البيع", "Inventory at sell price")}</p>
-          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, displaySellValue)}</p>
+          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, valuation.sellValue)}</p>
         </section>
       </div>
       <DataCard>
@@ -243,7 +232,7 @@ async function StockReport({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                    {tx(locale, "1,000 صنف مفهرس في دليل المخزون المركزي.", "1,000 SKUs indexed in Central Inventory.")}
+                    {tx(locale, "لا توجد بيانات مخزون محلية مسجلة.", "No local inventory records found.")}
                   </td>
                 </tr>
               ) : (
@@ -303,17 +292,17 @@ async function DebtReport({
         prisma.supplier.findMany({ where, orderBy: { balance: "desc" }, skip, take: PAGE_SIZE }),
       ]);
 
-  const displayTotal = (totalSum._sum.balance ?? 0) > 0 ? totalSum._sum.balance! : isCustomer ? 1183.208 : 68420.0;
+  const actualTotal = totalSum._sum.balance ?? 0;
 
   return (
     <div>
       <section className="mb-4 rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
         <p className="text-sm text-slate-400">
           {isCustomer
-            ? tx(locale, "إجمالي مديونية العملاء والشركات", "Total customer & corporate receivables")
-            : tx(locale, "إجمالي المستحق لموردي المواد الخام", "Total supplier payables")}
+            ? tx(locale, "إجمالي مديونية العملاء المسجلة محلياً", "Total local customer receivables")
+            : tx(locale, "إجمالي المستحق للموردين المسجل محلياً", "Total local supplier payables")}
         </p>
-        <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, displayTotal)}</p>
+        <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, actualTotal)}</p>
       </section>
       <DataCard>
         <form method="get" className="flex gap-2 border-b border-slate-800 p-4">
@@ -343,9 +332,7 @@ async function DebtReport({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
-                    {isCustomer
-                      ? tx(locale, "صافي الذمم المدينة المفتوحة من أودو (account.move.line): 1,183.208 د.ك (3,776.700 د.ك ذمم موجبة − 2,593.492 د.ك مقاصة دائنة عبر 66,569 سطراً؛ الفترة من 2024-12-31 إلى 2026-11-14).", "Net open Odoo receivables (account.move.line): 1,183.208 KWD (3,776.700 KWD positive AR − 2,593.492 KWD credit clearing across 66,569 lines; period 2024-12-31 to 2026-11-14).")
-                      : tx(locale, "أرصدة الموردين مسجلة في التقرير التفصيلي (68,420 د.ك).", "Payables logged in detailed report (68,420 KWD).")}
+                    {tx(locale, "لا توجد أرصدة محلية مسجلة — راجع تقرير الذمم المدينة الحي من Odoo أعلاه.", "No local balances recorded — refer to the live Odoo receivables report above.")}
                   </td>
                 </tr>
               ) : (
@@ -373,14 +360,12 @@ async function DebtReport({
 
 async function PaymentsReport({ locale, q, page, skip }: { locale: Locale; q: string; page: number; skip: number }) {
   const data = await listPayments({ q, skip, take: PAGE_SIZE });
-  const displayReceipts = data.receipts > 0 ? data.receipts : 58984.3;
-  const displayPayments = data.payments > 0 ? data.payments : 52634.0;
 
   return (
     <div>
       <div className="mb-4 grid gap-4 md:grid-cols-2">
-        <StatCard label={tx(locale, "إجمالي سندات ومقبوضات KNET", "Total Receipts / K-NET")} value={moneyFor(locale, displayReceipts)} />
-        <StatCard label={tx(locale, "إجمالي مدفوعات الموردين والرواتب", "Total Payments / Outflow")} value={moneyFor(locale, displayPayments)} />
+        <StatCard label={tx(locale, "إجمالي سندات القبض المسجلة محلياً", "Total Local Receipts")} value={moneyFor(locale, data.receipts)} />
+        <StatCard label={tx(locale, "إجمالي سندات الصرف المسجلة محلياً", "Total Local Payments")} value={moneyFor(locale, data.payments)} />
       </div>
       <DataCard>
         <form method="get" className="flex gap-2 border-b border-slate-800 p-4">
@@ -412,7 +397,7 @@ async function PaymentsReport({ locale, q, page, skip }: { locale: Locale; q: st
               {data.rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                    {tx(locale, "حركات الخزينة والتحويلات موثقة ومطابقة محاسبياً في تقرير K-NET والتسويات.", "Treasury and bank movements verified in K-NET settlements report.")}
+                    {tx(locale, "لا توجد سندات محلية مسجلة لهذه الفترة.", "No local payment vouchers recorded for this period.")}
                   </td>
                 </tr>
               ) : (
@@ -438,15 +423,22 @@ async function PaymentsReport({ locale, q, page, skip }: { locale: Locale; q: st
   );
 }
 
-async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
+type ReportsSearchParams = RawQuery & {
+  reportId?: string | string[];
+  report?: string | string[];
+};
+
+async function ReportsContent({ searchParams }: { searchParams: Promise<ReportsSearchParams> }) {
   await connection();
   const locale = await getLocale();
-  const query = await readQuery(searchParams);
+  const rawParams = await searchParams;
+  const query = await readQuery(rawParams);
   const user = await requireUser();
   if (!can(user, "reports", "view")) return <Forbidden href={firstAllowedHref(user)} />;
 
   const scope = await getActiveScope(query);
-  const initialReportId = (query as any).reportId || (query as any).report || undefined;
+  const rawReportId = rawParams.reportId ?? rawParams.report;
+  const initialReportId = typeof rawReportId === "string" ? rawReportId : undefined;
 
   const liveDbChildren = (
     <LiveDbReportsSection locale={locale} query={query} warehouseIds={scope.warehouseIds} />
@@ -461,7 +453,7 @@ async function ReportsContent({ searchParams }: { searchParams: Promise<RawQuery
   );
 }
 
-export default function ReportsPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
+export default function ReportsPage({ searchParams }: { searchParams: Promise<ReportsSearchParams> }) {
   return (
     <Suspense fallback={<PageSkeleton title="Reports" />}>
       <ReportsContent searchParams={searchParams} />

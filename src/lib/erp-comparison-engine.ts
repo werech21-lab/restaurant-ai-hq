@@ -1,22 +1,27 @@
 /**
- * Universal Deterministic Enterprise Comparison Engine (`src/lib/erp-comparison-engine.ts`)
+ * Live Odoo Period-Cube Enterprise Comparison Engine (`src/lib/erp-comparison-engine.ts`)
  *
- * Powers every custom comparison surface across Aether BI:
- *   1. `/erp/weekday-comparison` (Date & Sales Comparison Studio)
- *   2. `/erp/before-after`       (Before & After Decision / Period Comparison)
- *   3. `/erp/cores`              (Campaign & Promo Ad Before-vs-After ROI)
+ * Computes all comparison KPIs, hourly/daily chart buckets, and entity variance
+ * rows (7 approved operational branches + standalone 8th «غير منسوب لفرع» bucket,
+ * 6 approved brands, and payment channels) strictly from live Odoo 17 period
+ * cubes (`OdooPeriodCube` A & B).
  *
- * Strictly backed by the Venture Foods Odoo 17 enterprise POS & ledger cube:
- *   - 6 Approved Brands × 7 Active Branches × 8 Sales Channels
- *   - 0.000 KWD reconciliation gap (`sum(Brands) === sum(Branches) === sum(Channels) === Total`)
- *   - Zero `NaN` / `Infinity` division bugs across empty or incompatible Brand × Branch slices
- *   - Supports both `'date-vs-date'` (Period A vs Custom Period B) and `'entity-vs-entity'`
- *     (Brand A vs Brand B, or Branch A vs Branch B over any Custom Date / Range).
+ * Strict Guarantees:
+ *   - Zero static dataset imports, snapshots, or invented weights.
+ *   - Standalone unattributed POS terminal sales (`غير منسوب لفرع`) are surfaced
+ *     explicitly as row #8 in `byBranch` and never redistributed into the 7 branches.
+ *   - GL profit/expense metrics report real values only when complete accrual entries
+ *     are posted in Odoo `account.move.line`; otherwise `accountingAvailable: false`
+ *     with `قيود غير مكتملة لهذه الفترة`.
  */
 
-import { ODOO } from '@/lib/odoo/odoo-dataset'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { getKuwaitTimeContext, getKuwaitTodayIso } from '@/lib/aether/period-delta'
+import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
+import {
+  getKuwaitTimeContext,
+  UNMAPPED_TERMINALS_LABEL_AR,
+  UNMAPPED_TERMINALS_LABEL_EN,
+} from '@/lib/aether/period-delta'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -39,27 +44,24 @@ export type ComparisonGranularity = 'single' | 'range'
 export type EntityComparisonDimension = 'brand' | 'branch'
 export type BreakdownDimension = 'branch' | 'brand' | 'channel'
 
+export const UNATTRIBUTED_BRANCH_ROW_ID = 'unattributed' as const
+
 export interface DateWindowSelection {
-  from: string // YYYY-MM-DD
-  to: string // YYYY-MM-DD
+  from: string
+  to: string
 }
 
 export interface ErpComparisonQuery {
   mode: ComparisonModeType
   granularity: ComparisonGranularity
-  /** Period A (or shared evaluation period in `'entity-vs-entity'` mode) */
   periodA: DateWindowSelection
-  /** Custom Period B (used in `'date-vs-date'` mode) */
   periodB: DateWindowSelection
-  /** Scope filters: `'all'` or non-empty subset array */
   brandIds: 'all' | readonly BrandEntityId[]
   branchIds: 'all' | readonly BranchEntityId[]
   channelIds: 'all' | readonly ChannelEntityId[]
-  /** Entity-vs-Entity configuration when `mode === 'entity-vs-entity'` */
   entityDimension?: EntityComparisonDimension
   entityA?: BrandEntityId | BranchEntityId
   entityB?: BrandEntityId | BranchEntityId
-  /** Optional opt-in to include today's partial hours (`00:00–[Kuwait HH:mm]`) across both windows */
   sameHoursLikeForLike?: boolean
 }
 
@@ -77,13 +79,14 @@ export interface ExecutiveKpiDelta {
   labelAr: string
   unit: 'KWD' | 'orders' | 'pct'
   polarity: 'higher-is-better' | 'lower-is-better'
+  available?: boolean
+  unavailableReasonAr?: string
+  unavailableReasonEn?: string
   valueA: number
   valueB: number
-  /** Auxiliary % of sales (used on Food + Aggregator Cost smart polarity card) */
   shareOfSalesA?: number
   shareOfSalesB?: number
   deltaAbs: number
-  /** Percentage change (`%`), or percentage-point (`pp`) shift when `unit === 'pct'` */
   deltaPct: number
   deltaBps?: number
   trend: 'up' | 'down' | 'flat'
@@ -110,6 +113,9 @@ export interface ComparisonSliceTotals {
   fixedOpexKwd: number
   netPocketCashKwd: number
   netPocketMarginPct: number
+  unattributedSalesKwd: number
+  unattributedOrders: number
+  accountingAvailable: boolean
 }
 
 export interface ComparisonChartBucket {
@@ -119,15 +125,12 @@ export interface ComparisonChartBucket {
   labelAr: string
   metaA: string
   metaB: string
-  /** Net Sales KWD in Selection A & Selection B */
   seriesA: number
   seriesB: number
   delta: number
   deltaPct: number
-  /** Cumulative Net Sales KWD across buckets */
   cumulativeA: number
   cumulativeB: number
-  /** Additional switchable metrics */
   ordersA: number
   ordersB: number
   ordersDelta: number
@@ -146,6 +149,8 @@ export interface EntityVarianceRow {
   subMetaEn: string
   subMetaAr: string
   isCompatible: boolean
+  isUnattributed?: boolean
+  accountingAvailable: boolean
   valueA: number
   valueB: number
   deltaKwd: number
@@ -205,13 +210,17 @@ export interface ComparisonLikeForLikeMeta {
 }
 
 export interface ErpComparisonResult {
+  connected: boolean
+  noData: boolean
+  messageAr?: string
   query: ErpComparisonQuery
   isScopeCompatible: boolean
   scopeSummaryEn: string
   scopeSummaryAr: string
   selectionA: ComparisonSliceTotals
   selectionB: ComparisonSliceTotals
-  /** Ordered array of the 6 Core Executive KPI Deltas */
+  unattributedA: { salesKwd: number; orders: number }
+  unattributedB: { salesKwd: number; orders: number }
   kpiList: readonly [
     ExecutiveKpiDelta,
     ExecutiveKpiDelta,
@@ -247,6 +256,12 @@ export interface ErpComparisonResult {
   }
 }
 
+export interface ErpComparisonLiveCubesInput {
+  cubeA?: OdooPeriodCube | null
+  cubeB?: OdooPeriodCube | null
+  liveSummary?: OdooLiveSummary | null
+}
+
 function shiftIsoDateBootstrap(iso: string, deltaDays: number): string {
   const [y, m, d] = iso.split('-').map(Number)
   const dt = new Date(Date.UTC(y, m - 1, d))
@@ -254,19 +269,31 @@ function shiftIsoDateBootstrap(iso: string, deltaDays: number): string {
   return dt.toISOString().slice(0, 10)
 }
 
-/**
- * Default Comparison Dates exclude ONLY the incomplete current Kuwait day (`todayIso`)
- * so windows end cleanly at the last completed calendar day (`yesterdayIso`, e.g. `2026-11-14` on `2026-11-15`).
- */
 const INITIAL_COMPLETED_YESTERDAY_ISO = getKuwaitTimeContext().yesterdayIso
 export const DEFAULT_COMPARISON_DATE_A = INITIAL_COMPLETED_YESTERDAY_ISO
-export const DEFAULT_COMPARISON_DATE_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -7)
-export const DEFAULT_RANGE_FROM_A = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -6)
+export const DEFAULT_COMPARISON_DATE_B = shiftIsoDateBootstrap(
+  INITIAL_COMPLETED_YESTERDAY_ISO,
+  -7,
+)
+export const DEFAULT_RANGE_FROM_A = shiftIsoDateBootstrap(
+  INITIAL_COMPLETED_YESTERDAY_ISO,
+  -6,
+)
 export const DEFAULT_RANGE_TO_A = INITIAL_COMPLETED_YESTERDAY_ISO
-export const DEFAULT_RANGE_FROM_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -13)
-export const DEFAULT_RANGE_TO_B = shiftIsoDateBootstrap(INITIAL_COMPLETED_YESTERDAY_ISO, -7)
+export const DEFAULT_RANGE_FROM_B = shiftIsoDateBootstrap(
+  INITIAL_COMPLETED_YESTERDAY_ISO,
+  -13,
+)
+export const DEFAULT_RANGE_TO_B = shiftIsoDateBootstrap(
+  INITIAL_COMPLETED_YESTERDAY_ISO,
+  -7,
+)
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
+const NO_DATA_EN = 'No data from Odoo for this period'
+const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 
 const EN_WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 const EN_WEEKDAYS_FULL = [
@@ -316,73 +343,42 @@ const AR_MONTHS = [
   'ديسمبر',
 ] as const
 
-/** 14 Operating Hours (`11:00` through `00:00`) for Single-Day Horizontal Intraday Comparison */
 export const OPERATING_HOURS_14: ReadonlyArray<{
   hour24: number
   slotKey: string
   labelEn: string
   labelAr: string
   compactEn: string
-  baseWeight: number
-  weekendBoost: number
 }> = [
-  { hour24: 11, slotKey: '11:00', labelEn: '11:00', labelAr: '11 ص', compactEn: '11 AM', baseWeight: 0.036, weekendBoost: 0.88 },
-  { hour24: 12, slotKey: '12:00', labelEn: '12:00', labelAr: '12 م', compactEn: '12 PM', baseWeight: 0.068, weekendBoost: 0.94 },
-  { hour24: 13, slotKey: '13:00', labelEn: '13:00', labelAr: '1 م', compactEn: '1 PM', baseWeight: 0.094, weekendBoost: 0.98 },
-  { hour24: 14, slotKey: '14:00', labelEn: '14:00', labelAr: '2 م', compactEn: '2 PM', baseWeight: 0.088, weekendBoost: 1.0 },
-  { hour24: 15, slotKey: '15:00', labelEn: '15:00', labelAr: '3 م', compactEn: '3 PM', baseWeight: 0.056, weekendBoost: 0.96 },
-  { hour24: 16, slotKey: '16:00', labelEn: '16:00', labelAr: '4 م', compactEn: '4 PM', baseWeight: 0.048, weekendBoost: 0.95 },
-  { hour24: 17, slotKey: '17:00', labelEn: '17:00', labelAr: '5 م', compactEn: '5 PM', baseWeight: 0.054, weekendBoost: 0.98 },
-  { hour24: 18, slotKey: '18:00', labelEn: '18:00', labelAr: '6 م', compactEn: '6 PM', baseWeight: 0.072, weekendBoost: 1.02 },
-  { hour24: 19, slotKey: '19:00', labelEn: '19:00', labelAr: '7 م', compactEn: '7 PM', baseWeight: 0.096, weekendBoost: 1.06 },
-  { hour24: 20, slotKey: '20:00', labelEn: '20:00', labelAr: '8 م', compactEn: '8 PM', baseWeight: 0.114, weekendBoost: 1.1 },
-  { hour24: 21, slotKey: '21:00', labelEn: '21:00', labelAr: '9 PM', compactEn: '9 PM', baseWeight: 0.108, weekendBoost: 1.12 },
-  { hour24: 22, slotKey: '22:00', labelEn: '22:00', labelAr: '10 م', compactEn: '10 PM', baseWeight: 0.078, weekendBoost: 1.14 },
-  { hour24: 23, slotKey: '23:00', labelEn: '23:00', labelAr: '11 م', compactEn: '11 PM', baseWeight: 0.054, weekendBoost: 1.16 },
-  { hour24: 0, slotKey: '00:00', labelEn: '00:00', labelAr: '12 ص', compactEn: '12 AM', baseWeight: 0.034, weekendBoost: 1.18 },
+  { hour24: 11, slotKey: '11:00', labelEn: '11:00', labelAr: '11 ص', compactEn: '11 AM' },
+  { hour24: 12, slotKey: '12:00', labelEn: '12:00', labelAr: '12 م', compactEn: '12 PM' },
+  { hour24: 13, slotKey: '13:00', labelEn: '13:00', labelAr: '1 م', compactEn: '1 PM' },
+  { hour24: 14, slotKey: '14:00', labelEn: '14:00', labelAr: '2 م', compactEn: '2 PM' },
+  { hour24: 15, slotKey: '15:00', labelEn: '15:00', labelAr: '3 م', compactEn: '3 PM' },
+  { hour24: 16, slotKey: '16:00', labelEn: '16:00', labelAr: '4 م', compactEn: '4 PM' },
+  { hour24: 17, slotKey: '17:00', labelEn: '17:00', labelAr: '5 م', compactEn: '5 PM' },
+  { hour24: 18, slotKey: '18:00', labelEn: '18:00', labelAr: '6 م', compactEn: '6 PM' },
+  { hour24: 19, slotKey: '19:00', labelEn: '19:00', labelAr: '7 م', compactEn: '7 PM' },
+  { hour24: 20, slotKey: '20:00', labelEn: '20:00', labelAr: '8 م', compactEn: '8 PM' },
+  { hour24: 21, slotKey: '21:00', labelEn: '21:00', labelAr: '9 م', compactEn: '9 PM' },
+  { hour24: 22, slotKey: '22:00', labelEn: '22:00', labelAr: '10 م', compactEn: '10 PM' },
+  { hour24: 23, slotKey: '23:00', labelEn: '23:00', labelAr: '11 م', compactEn: '11 PM' },
+  { hour24: 0, slotKey: '00:00', labelEn: '00:00', labelAr: '12 ص', compactEn: '12 AM' },
 ]
 
-// Fix 21:00 Arabic label cleanly to '9 م'
-const OPERATING_HOUR_LABELS_AR: Record<number, string> = {
-  11: '11 ص',
-  12: '12 م',
-  13: '1 م',
-  14: '2 م',
-  15: '3 م',
-  16: '4 م',
-  17: '5 م',
-  18: '6 م',
-  19: '7 م',
-  20: '8 م',
-  21: '9 م',
-  22: '10 م',
-  23: '11 م',
-  0: '12 ص',
-}
-
-const r3 = (n: number): number => (Number.isFinite(n) ? Math.round(n * 1000) / 1000 : 0)
 const r2 = (n: number): number => (Number.isFinite(n) ? Math.round(n * 100) / 100 : 0)
 const r1 = (n: number): number => (Number.isFinite(n) ? Math.round(n * 10) / 10 : 0)
 
-function safeNum(v: unknown, fb = 0): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fb
+function safePctDelta(valA: number, valB: number): number {
+  if (!Number.isFinite(valA) || !Number.isFinite(valB)) return 0
+  if (Math.abs(valB) < 0.0001) return Math.abs(valA) < 0.0001 ? 0 : 100
+  return r1(((valA - valB) / Math.abs(valB)) * 100)
 }
 
-function safeDiv(num: number, den: number, fb = 0): number {
-  if (!Number.isFinite(num) || !Number.isFinite(den) || Math.abs(den) < 1e-9) return fb
-  return num / den
-}
-
-function fnv1aUnit(seed: string): number {
-  let h = 2166136261
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return (h >>> 0) / 4294967295
-}
-
-export function sanitizeIsoDate(raw: string | undefined | null, fallback = DEFAULT_COMPARISON_DATE_A): string {
+export function sanitizeIsoDate(
+  raw: string | undefined | null,
+  fallback = DEFAULT_COMPARISON_DATE_A,
+): string {
   if (!raw || !ISO_DATE_RE.test(raw.trim())) return fallback
   const clean = raw.trim()
   const [y, m, d] = clean.split('-').map(Number)
@@ -466,256 +462,6 @@ export function formatCalendarDateBadge(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Atomic 3D Odoo Cube Calibration (6 Brands × 7 Branches × 8 Channels)
-// ---------------------------------------------------------------------------
-
-interface AtomicCell {
-  brand: BrandEntityId
-  branch: BranchEntityId
-  channel: ChannelEntityId
-  sales30Kwd: number
-  orders30: number
-}
-
-interface ResolvedLedgerRates {
-  available: boolean
-  foodRate: number
-  commRate: number
-  opexRate: number
-  unavailableReasonAr: string | null
-  unavailableReasonEn: string | null
-}
-
-const BRAND_SET = new Set<string>(APPROVED_BRAND_IDS)
-const BRANCH_SET = new Set<string>(APPROVED_BRANCH_IDS)
-
-interface CalibratedOdooBase {
-  cells: AtomicCell[]
-  totalSales30: number
-  totalOrders30: number
-  avgDailyGroupSales: number
-  avgDailyGroupOrders: number
-  realDayLookup: Map<string, { netKwd: number; orders: number }>
-  partialDayLookup: Map<string, { netKwd: number; orders: number }>
-  weekdayLift: Record<number, { salesFactor: number; ordersFactor: number }>
-  hourlyWeights: Record<number, number>
-  brandAov: Record<BrandEntityId, number>
-  brandOperatesInBranch: Set<string>
-}
-
-const CALIBRATED_BASE: CalibratedOdooBase = (() => {
-  const rawCellSales = new Map<string, number>()
-  const addRaw = (b: string, l: string, c: ChannelEntityId, val: number) => {
-    if (!BRAND_SET.has(b) || !BRANCH_SET.has(l) || val <= 0) return
-    const k = `${b}|${l}|${c}`
-    rawCellSales.set(k, (rawCellSales.get(k) ?? 0) + val)
-  }
-
-  const monthBkt = (
-    ODOO as unknown as {
-      buckets?: {
-        month?: {
-          byLocation?: Record<string, { hallShopKwd?: number }>
-        }
-      }
-    }
-  ).buckets?.month
-
-  const hallShareByLoc: Record<string, number> = {}
-  for (const r of ODOO.restaurants) {
-    if (!BRANCH_SET.has(r.id)) continue
-    const shopKwd = r.channels.find((ch) => ch.channel === 'shop')?.amountKwd ?? 0
-    const hallKwd = monthBkt?.byLocation?.[r.id]?.hallShopKwd
-    if (r.id === 'ardiya') {
-      hallShareByLoc[r.id] = 0
-    } else if (typeof hallKwd === 'number' && shopKwd > 0) {
-      hallShareByLoc[r.id] = Math.min(1, Math.max(0, hallKwd / shopKwd))
-    } else {
-      hallShareByLoc[r.id] = 0.92
-    }
-  }
-
-  for (const row of ODOO.cube) {
-    const b = row.brand
-    if (!BRAND_SET.has(b)) continue
-    const loc = (row.location as string) === 'call-center' ? 'ardiya' : row.location
-    if (!BRANCH_SET.has(loc)) continue
-    const net = safeNum(row.netKwd)
-    if (net <= 0) continue
-    const ch = row.channel as string
-    if (ch === 'talabat-tgo') addRaw(b, loc, 'talabat-tgo', net)
-    else if (ch === 'talabat-tmp') addRaw(b, loc, 'talabat-tmp', net)
-    else if (ch === 'keeta') addRaw(b, loc, 'keeta', net)
-    else if (ch === 'deliveroo-go' || ch === 'deliveroo-mp') addRaw(b, loc, 'deliveroo', net)
-    else if (ch === 'jahez') addRaw(b, loc, 'jahez', net)
-    else if (ch === 'snoonu') addRaw(b, loc, 'snoonu', net)
-    else if (ch === 'online-link' || ch === 'cod') addRaw(b, loc, 'takeaway-direct', net)
-    else {
-      const hr = hallShareByLoc[loc] ?? (loc === 'ardiya' ? 0 : 0.9)
-      addRaw(b, loc, 'dine-in', net * hr)
-      addRaw(b, loc, 'takeaway-direct', net * (1 - hr))
-    }
-  }
-
-  const brandAov = {} as Record<BrandEntityId, number>
-  for (const bid of APPROVED_BRAND_IDS) {
-    const ob = ODOO.brands.find((x) => x.id === bid)
-    brandAov[bid] = safeNum(ob?.aovKwd, 5.1) || 5.1
-  }
-
-  const cells: AtomicCell[] = []
-  const brandOperatesInBranch = new Set<string>()
-  let totalSales30 = 0
-  let totalOrders30 = 0
-
-  for (const [k, sales30Kwd] of rawCellSales.entries()) {
-    const [brand, branch, channel] = k.split('|') as [
-      BrandEntityId,
-      BranchEntityId,
-      ChannelEntityId,
-    ]
-    if (sales30Kwd > 0.05) {
-      brandOperatesInBranch.add(`${brand}|${branch}`)
-    }
-    const chAovBoost =
-      channel === 'dine-in' ? 1.12 : channel === 'takeaway-direct' ? 0.94 : 0.98
-    const cellAov = Math.max(2.1, brandAov[brand] * chAovBoost)
-    const orders30 = sales30Kwd / cellAov
-
-    cells.push({
-      brand,
-      branch,
-      channel,
-      sales30Kwd,
-      orders30,
-    })
-    totalSales30 += sales30Kwd
-    totalOrders30 += orders30
-  }
-
-  // Scale orders30 so group 30d orders match exact Odoo restaurantOrders (24,057)
-  const targetOrders30 = safeNum(ODOO.totals?.restaurantOrders, 24057)
-  if (totalOrders30 > 0 && targetOrders30 > 0) {
-    const ordScale = targetOrders30 / totalOrders30
-    totalOrders30 = 0
-    for (const c of cells) {
-      c.orders30 *= ordScale
-      totalOrders30 += c.orders30
-    }
-  }
-
-  // Real daily & hourly POS profiles from ODOO.timeProfile
-  const tp = (
-    ODOO as unknown as {
-      timeProfile?: {
-        daily?: { day: string; orders: number; netKwd: number }[]
-        hourly?: { hour: number; orders: number; netKwd: number }[]
-      }
-    }
-  ).timeProfile
-
-  const partialDayLookup = new Map<string, { netKwd: number; orders: number }>()
-  for (const d of tp?.daily ?? []) {
-    if (d.orders > 0 && d.netKwd > 0) {
-      partialDayLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
-    }
-  }
-  // Exclude current incomplete calendar day (`getKuwaitTodayIso()`) and <150-order partial captures from full-day baseline averages
-  const fullDays = (tp?.daily ?? []).filter(
-    (d) => d.orders >= 150 && d.netKwd > 0 && d.day < getKuwaitTodayIso(),
-  )
-  const realDayLookup = new Map<string, { netKwd: number; orders: number }>()
-  const dowAcc: Record<number, { net: number; ord: number; count: number }> = {}
-  let sumDailyNet = 0
-  let sumDailyOrd = 0
-
-  for (const d of fullDays) {
-    realDayLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
-    const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-    dowAcc[dow] ??= { net: 0, ord: 0, count: 0 }
-    dowAcc[dow].net += d.netKwd
-    dowAcc[dow].ord += d.orders
-    dowAcc[dow].count += 1
-    sumDailyNet += d.netKwd
-    sumDailyOrd += d.orders
-  }
-
-  const avgDailyGroupSales =
-    fullDays.length > 0 ? sumDailyNet / fullDays.length : totalSales30 / 30
-  const avgDailyGroupOrders =
-    fullDays.length > 0 ? sumDailyOrd / fullDays.length : totalOrders30 / 30
-
-  const defaultDowLift: Record<number, number> = {
-    0: 0.91, // Sun
-    1: 0.88, // Mon
-    2: 0.92, // Tue
-    3: 0.97, // Wed
-    4: 1.18, // Thu
-    5: 1.24, // Fri
-    6: 1.06, // Sat
-  }
-
-  const weekdayLift: Record<number, { salesFactor: number; ordersFactor: number }> = {}
-  for (let dow = 0; dow <= 6; dow++) {
-    const bucket = dowAcc[dow]
-    if (bucket && bucket.count > 0 && avgDailyGroupSales > 0 && avgDailyGroupOrders > 0) {
-      weekdayLift[dow] = {
-        salesFactor: bucket.net / bucket.count / avgDailyGroupSales,
-        ordersFactor: bucket.ord / bucket.count / avgDailyGroupOrders,
-      }
-    } else {
-      weekdayLift[dow] = {
-        salesFactor: defaultDowLift[dow] ?? 1,
-        ordersFactor: defaultDowLift[dow] ?? 1,
-      }
-    }
-  }
-
-  const hourlyWeights: Record<number, number> = {}
-  const rawHours = tp?.hourly ?? []
-  let sumWindowHourNet = 0
-  for (const slot of OPERATING_HOURS_14) {
-    const match = rawHours.find((h) => h.hour === slot.hour24)
-    const val = match && match.netKwd > 0 ? match.netKwd : slot.baseWeight * 10000
-    hourlyWeights[slot.hour24] = val
-    sumWindowHourNet += val
-  }
-  for (const slot of OPERATING_HOURS_14) {
-    hourlyWeights[slot.hour24] =
-      sumWindowHourNet > 0 ? hourlyWeights[slot.hour24] / sumWindowHourNet : slot.baseWeight
-  }
-
-  return {
-    cells,
-    totalSales30: totalSales30 || 129211.693,
-    totalOrders30: totalOrders30 || 24057,
-    avgDailyGroupSales,
-    avgDailyGroupOrders,
-    realDayLookup,
-    partialDayLookup,
-    weekdayLift,
-    hourlyWeights,
-    brandAov,
-    brandOperatesInBranch,
-  }
-})()
-
-/** Returns valid branches operating a brand (or all 7 branches if `'all'`). */
-export function getCompatibleBranchesForBrands(
-  brandIds: 'all' | readonly BrandEntityId[],
-): readonly BranchEntityId[] {
-  if (brandIds === 'all' || brandIds.length === 0) return APPROVED_BRANCH_IDS
-  return APPROVED_BRANCH_IDS.filter((branch) =>
-    brandIds.some((brand) => isBrandBranchCompatible(brand, branch)),
-  )
-}
-
-/**
- * Resolves default comparison windows that exclude incomplete `today` (`Asia/Kuwait`) by default
- * (ending at `yesterday` = `lastCompletedDayIso` with equal completed-day counts), or include `today`
- * when `sameHoursLikeForLike === true`.
- */
 export function resolveCompletedComparisonDefaults(options?: {
   granularity?: ComparisonGranularity
   sameHoursLikeForLike?: boolean
@@ -753,391 +499,95 @@ export function resolveCompletedComparisonDefaults(options?: {
   }
 }
 
-function computeIntradayShareUpToKuwaitClock(
-  hour24: number,
-  minute: number,
-  hourlyWeights?: Readonly<Record<number, number>>,
-): number {
-  const safeMin = Math.max(0, Math.min(59, minute))
-  if (hour24 === 0) {
-    return r3(Math.max(0.05, ((safeMin + 1) / 60) * 0.06))
-  }
-  if (hour24 < 11) {
-    return 0.08
-  }
-  const weights = hourlyWeights ?? CALIBRATED_BASE.hourlyWeights
-  let totalWeight = 0
-  let cumulativeWeight = 0
-  for (const slot of OPERATING_HOURS_14) {
-    const w = weights[slot.hour24] ?? slot.baseWeight
-    totalWeight += w
-    if (slot.hour24 !== 0 && slot.hour24 < hour24) {
-      cumulativeWeight += w
-    } else if (slot.hour24 === hour24) {
-      cumulativeWeight += w * Math.max(0.15, (safeMin + 1) / 60)
-    }
-  }
-  const share = totalWeight > 0 ? cumulativeWeight / totalWeight : 0.5
-  return r3(Math.min(1, Math.max(0.08, share)))
-}
-
-/** Deterministic daily group factor + micro-entity modulation for any calendar date YYYY-MM-DD */
-function getDateGroupProfile(
-  isoDate: string,
-  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
-  intradayScale = 1,
-): {
-  salesDayShareOf30: number
-  ordersDayShareOf30: number
-  isWeekend: boolean
-  isPayday: boolean
-  dow: number
-} {
-  const safeScale = Number.isFinite(intradayScale) && intradayScale > 0 ? intradayScale : 1
-  const dt = new Date(`${isoDate}T12:00:00Z`)
-  const dow = dt.getUTCDay()
-  const dom = dt.getUTCDate()
-  const isWeekend = dow === 4 || dow === 5 || dow === 6
-  const isPayday = dom >= 22 && dom <= 29
-
-  const liveHit = liveDailyLookup?.get(isoDate)
-  if (liveHit && liveHit.orders > 0 && liveHit.netKwd > 0) {
-    return {
-      salesDayShareOf30:
-        safeDiv(liveHit.netKwd, CALIBRATED_BASE.totalSales30, 1 / 30) * safeScale,
-      ordersDayShareOf30:
-        safeDiv(liveHit.orders, CALIBRATED_BASE.totalOrders30, 1 / 30) * safeScale,
-      isWeekend,
-      isPayday,
-      dow,
-    }
-  }
-
-  const realHit = CALIBRATED_BASE.realDayLookup.get(isoDate)
-  if (realHit) {
-    const restDaySales = realHit.netKwd * safeScale
-    const restDayOrders = realHit.orders * safeScale
-    return {
-      salesDayShareOf30: safeDiv(restDaySales, CALIBRATED_BASE.totalSales30, 1 / 30),
-      ordersDayShareOf30: safeDiv(restDayOrders, CALIBRATED_BASE.totalOrders30, 1 / 30),
-      isWeekend,
-      isPayday,
-      dow,
-    }
-  }
-
-  // Deterministic calendar model for dates outside the 30d live snapshot window
-  const wl = CALIBRATED_BASE.weekdayLift[dow] ?? { salesFactor: 1, ordersFactor: 1 }
-  const paydayMult = isPayday ? 1.11 : dom >= 10 && dom <= 19 ? 0.94 : 1.01
-  const jitter = 0.955 + fnv1aUnit(`vf-day:${isoDate}`) * 0.09 // ±4.5% natural daily variance
-  const daySales =
-    CALIBRATED_BASE.avgDailyGroupSales * wl.salesFactor * paydayMult * jitter * safeScale
-  const dayOrders =
-    CALIBRATED_BASE.avgDailyGroupOrders *
-    wl.ordersFactor *
-    (0.98 + (paydayMult - 1) * 0.85) *
-    jitter *
-    safeScale
-
-  return {
-    salesDayShareOf30: safeDiv(daySales, CALIBRATED_BASE.totalSales30, 1 / 30),
-    ordersDayShareOf30: safeDiv(dayOrders, CALIBRATED_BASE.totalOrders30, 1 / 30),
-    isWeekend,
-    isPayday,
-    dow,
-  }
-}
-
-/** Exact daily entity metrics (reconciled to live dailyByBranch when filtering pure branch slices) */
-function computeCellMetricsForDate(
-  isoDate: string,
-  cellFilter: (c: AtomicCell) => boolean,
-  ledgerRates: ResolvedLedgerRates,
-  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
-  intradayScale = 1,
-  liveDailyByBranch?: OdooLiveSummary['dailyByBranch'],
-  isPureBranchSubset = false,
-): {
-  byCell: Map<
-    AtomicCell,
-    {
-      sales: number
-      orders: number
-      foodCost: number
-      commCost: number
-      opexCost: number
-      netPocket: number
-    }
-  >
-  totalSales: number
-  totalOrders: number
-  totalFoodCost: number
-  totalCommCost: number
-  totalOpexCost: number
-  totalNetPocket: number
-} {
-  const safeScale = Number.isFinite(intradayScale) && intradayScale > 0 ? intradayScale : 1
-  const dayProf = getDateGroupProfile(isoDate, liveDailyLookup, safeScale)
-  const matchingCells = CALIBRATED_BASE.cells.filter(cellFilter)
-
-  if (matchingCells.length === 0) {
-    return {
-      byCell: new Map(),
-      totalSales: 0,
-      totalOrders: 0,
-      totalFoodCost: 0,
-      totalCommCost: 0,
-      totalOpexCost: 0,
-      totalNetPocket: 0,
-    }
-  }
-
-  const branchLiveForDay = isPureBranchSubset ? liveDailyByBranch?.[isoDate] : undefined
-  const branchCellBaseSums = new Map<BranchEntityId, { sales30: number; orders30: number }>()
-  if (branchLiveForDay) {
-    for (const c of matchingCells) {
-      const prev = branchCellBaseSums.get(c.branch) ?? { sales30: 0, orders30: 0 }
-      prev.sales30 += c.sales30Kwd
-      prev.orders30 += c.orders30
-      branchCellBaseSums.set(c.branch, prev)
-    }
-  }
-
-  const byCell = new Map<
-    AtomicCell,
-    {
-      sales: number
-      orders: number
-      foodCost: number
-      commCost: number
-      opexCost: number
-      netPocket: number
-    }
-  >()
-
-  let totalSales = 0
-  let totalOrders = 0
-  let totalFoodCost = 0
-  let totalCommCost = 0
-  let totalOpexCost = 0
-  let totalNetPocket = 0
-
-  for (const c of matchingCells) {
-    let sales: number
-    let orders: number
-    if (branchLiveForDay) {
-      const exactBranch = branchLiveForDay[c.branch] ?? { netKwd: 0, orders: 0 }
-      const baseSum = branchCellBaseSums.get(c.branch) ?? { sales30: 0, orders30: 0 }
-      sales =
-        baseSum.sales30 > 0
-          ? exactBranch.netKwd * safeScale * (c.sales30Kwd / baseSum.sales30)
-          : 0
-      orders =
-        baseSum.orders30 > 0
-          ? exactBranch.orders * safeScale * (c.orders30 / baseSum.orders30)
-          : 0
-    } else {
-      sales = c.sales30Kwd * dayProf.salesDayShareOf30
-      orders = c.orders30 * dayProf.ordersDayShareOf30
-    }
-
-    const foodCost = ledgerRates.available ? sales * ledgerRates.foodRate : 0
-    const commCost = ledgerRates.available ? sales * ledgerRates.commRate : 0
-    const opexCost = ledgerRates.available ? sales * ledgerRates.opexRate : 0
-    const netPocket = ledgerRates.available ? sales - foodCost - commCost - opexCost : 0
-
-    byCell.set(c, {
-      sales,
-      orders,
-      foodCost,
-      commCost,
-      opexCost,
-      netPocket,
-    })
-
-    totalSales += sales
-    totalOrders += orders
-    totalFoodCost += foodCost
-    totalCommCost += commCost
-    totalOpexCost += opexCost
-    totalNetPocket += netPocket
-  }
-
-  return {
-    byCell,
-    totalSales,
-    totalOrders,
-    totalFoodCost,
-    totalCommCost,
-    totalOpexCost,
-    totalNetPocket,
-  }
-}
-
-interface AggregatedSliceRaw {
-  dates: string[]
-  fromIso: string
-  toIso: string
-  dayCount: number
-  perDate: Array<{
-    dateIso: string
-    sales: number
-    orders: number
-    foodCost: number
-    commCost: number
-    opexCost: number
-    netPocket: number
-  }>
-  byBrand: Record<
-    BrandEntityId,
-    { sales: number; orders: number; foodAgg: number; netPocket: number }
-  >
-  byBranch: Record<
-    BranchEntityId,
-    { sales: number; orders: number; foodAgg: number; netPocket: number }
-  >
-  byChannel: Record<
-    ChannelEntityId,
-    { sales: number; orders: number; foodAgg: number; netPocket: number }
-  >
-  totalSales: number
-  totalOrders: number
-  totalFoodCost: number
-  totalCommCost: number
-  totalOpexCost: number
-  totalNetPocket: number
-}
-
-function aggregateSliceOverDates(
-  dates: string[],
-  cellFilter: (c: AtomicCell) => boolean,
-  ledgerRates: ResolvedLedgerRates,
-  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
-  dateIntradayScaleMap?: ReadonlyMap<string, number>,
-  liveDailyByBranch?: OdooLiveSummary['dailyByBranch'],
-  isPureBranchSubset = false,
-): AggregatedSliceRaw {
-  const byBrand = {} as AggregatedSliceRaw['byBrand']
-  for (const b of APPROVED_BRAND_IDS) {
-    byBrand[b] = { sales: 0, orders: 0, foodAgg: 0, netPocket: 0 }
-  }
-  const byBranch = {} as AggregatedSliceRaw['byBranch']
-  for (const l of APPROVED_BRANCH_IDS) {
-    byBranch[l] = { sales: 0, orders: 0, foodAgg: 0, netPocket: 0 }
-  }
-  const byChannel = {} as AggregatedSliceRaw['byChannel']
-  for (const ch of APPROVED_CHANNEL_IDS) {
-    byChannel[ch] = { sales: 0, orders: 0, foodAgg: 0, netPocket: 0 }
-  }
-
-  const perDate: AggregatedSliceRaw['perDate'] = []
-  let totalSales = 0
-  let totalOrders = 0
-  let totalFoodCost = 0
-  let totalCommCost = 0
-  let totalOpexCost = 0
-  let totalNetPocket = 0
-
-  for (const dateIso of dates) {
-    const scale = dateIntradayScaleMap?.get(dateIso) ?? 1
-    const dayRes = computeCellMetricsForDate(
-      dateIso,
-      cellFilter,
-      ledgerRates,
-      liveDailyLookup,
-      scale,
-      liveDailyByBranch,
-      isPureBranchSubset,
-    )
-    perDate.push({
-      dateIso,
-      sales: dayRes.totalSales,
-      orders: dayRes.totalOrders,
-      foodCost: dayRes.totalFoodCost,
-      commCost: dayRes.totalCommCost,
-      opexCost: dayRes.totalOpexCost,
-      netPocket: dayRes.totalNetPocket,
-    })
-
-    totalSales += dayRes.totalSales
-    totalOrders += dayRes.totalOrders
-    totalFoodCost += dayRes.totalFoodCost
-    totalCommCost += dayRes.totalCommCost
-    totalOpexCost += dayRes.totalOpexCost
-    totalNetPocket += dayRes.totalNetPocket
-
-    for (const [cell, m] of dayRes.byCell.entries()) {
-      const fa = m.foodCost + m.commCost
-      byBrand[cell.brand].sales += m.sales
-      byBrand[cell.brand].orders += m.orders
-      byBrand[cell.brand].foodAgg += fa
-      byBrand[cell.brand].netPocket += m.netPocket
-
-      byBranch[cell.branch].sales += m.sales
-      byBranch[cell.branch].orders += m.orders
-      byBranch[cell.branch].foodAgg += fa
-      byBranch[cell.branch].netPocket += m.netPocket
-
-      byChannel[cell.channel].sales += m.sales
-      byChannel[cell.channel].orders += m.orders
-      byChannel[cell.channel].foodAgg += fa
-      byChannel[cell.channel].netPocket += m.netPocket
-    }
-  }
-
-  return {
-    dates,
-    fromIso: dates[0] ?? DEFAULT_COMPARISON_DATE_A,
-    toIso: dates[dates.length - 1] ?? DEFAULT_COMPARISON_DATE_A,
-    dayCount: dates.length,
-    perDate,
-    byBrand,
-    byBranch,
-    byChannel,
-    totalSales,
-    totalOrders,
-    totalFoodCost,
-    totalCommCost,
-    totalOpexCost,
-    totalNetPocket,
-  }
-}
-
-/** Distributes 3-decimal KWD / integer rounding residual onto the largest non-zero bucket so sum === exact target (0.000 gap). */
-function reconcileRoundedArray(rawValues: number[], targetRounded: number, decimals: 0 | 3): number[] {
-  if (rawValues.length === 0) return []
-  const factor = decimals === 0 ? 1 : 1000
-  const rounded = rawValues.map((v) =>
-    decimals === 0 ? Math.round(v) : Math.round(v * factor) / factor,
+export function getCompatibleBranchesForBrands(
+  brandIds: 'all' | readonly BrandEntityId[],
+): BranchEntityId[] {
+  const activeBrands: readonly BrandEntityId[] =
+    brandIds === 'all' || brandIds.length === 0 ? APPROVED_BRAND_IDS : brandIds
+  return APPROVED_BRANCH_IDS.filter((br) =>
+    activeBrands.some((b) => isBrandBranchCompatible(b, br)),
   )
-  const currentSum = rounded.reduce((s, v) => s + v, 0)
-  const diff =
-    decimals === 0
-      ? Math.round(targetRounded - currentSum)
-      : Math.round((targetRounded - currentSum) * factor) / factor
-  if (Math.abs(diff) > 0 && rawValues.some((v) => Math.abs(v) > 0)) {
-    let bestIdx = 0
-    let bestAbs = -1
-    for (let i = 0; i < rawValues.length; i++) {
-      if (Math.abs(rawValues[i]) > bestAbs) {
-        bestAbs = Math.abs(rawValues[i])
-        bestIdx = i
+}
+
+interface ResolvedEntityScope {
+  brandIds: BrandEntityId[]
+  branchIds: BranchEntityId[]
+  includeUnattributed: boolean
+  channelIds: ChannelEntityId[]
+}
+
+function sanitizeBrandSelection(raw: 'all' | readonly BrandEntityId[]): BrandEntityId[] {
+  if (raw === 'all' || raw.length === 0) return [...APPROVED_BRAND_IDS]
+  const valid = raw.filter((id): id is BrandEntityId =>
+    (APPROVED_BRAND_IDS as readonly string[]).includes(id),
+  )
+  return valid.length > 0 ? Array.from(new Set(valid)) : [...APPROVED_BRAND_IDS]
+}
+
+function sanitizeBranchSelection(raw: 'all' | readonly BranchEntityId[]): {
+  branchIds: BranchEntityId[]
+  includeUnattributed: boolean
+} {
+  if (raw === 'all' || raw.length === 0) {
+    return { branchIds: [...APPROVED_BRANCH_IDS], includeUnattributed: true }
+  }
+  const valid = raw.filter((id): id is BranchEntityId =>
+    (APPROVED_BRANCH_IDS as readonly string[]).includes(id),
+  )
+  if (valid.length === 0) {
+    return { branchIds: [...APPROVED_BRANCH_IDS], includeUnattributed: true }
+  }
+  return { branchIds: Array.from(new Set(valid)), includeUnattributed: false }
+}
+
+function sanitizeChannelSelection(raw: 'all' | readonly ChannelEntityId[]): ChannelEntityId[] {
+  if (raw === 'all' || raw.length === 0) return [...APPROVED_CHANNEL_IDS]
+  const valid = raw.filter((id): id is ChannelEntityId =>
+    (APPROVED_CHANNEL_IDS as readonly string[]).includes(id),
+  )
+  return valid.length > 0 ? Array.from(new Set(valid)) : [...APPROVED_CHANNEL_IDS]
+}
+
+function getEntityNames(
+  dim: BreakdownDimension,
+  id: string,
+): { nameAr: string; nameEn: string; subMetaAr: string; subMetaEn: string } {
+  if (dim === 'branch') {
+    if (id === UNATTRIBUTED_BRANCH_ROW_ID) {
+      return {
+        nameAr: UNMAPPED_TERMINALS_LABEL_AR,
+        nameEn: UNMAPPED_TERMINALS_LABEL_EN,
+        subMetaAr: 'أجهزة نقاط بيع غير مربوطة بفرع تشغيلي في Odoo',
+        subMetaEn: 'POS terminals not linked to an operational branch in Odoo',
       }
     }
-    rounded[bestIdx] =
-      decimals === 0
-        ? Math.round(rounded[bestIdx] + diff)
-        : Math.round((rounded[bestIdx] + diff) * factor) / factor
+    return {
+      nameAr: getBranchLabel(id as GlobalBranch, true),
+      nameEn: getBranchLabel(id as GlobalBranch, false),
+      subMetaAr: 'فرع تشغيلي مربوط',
+      subMetaEn: 'Mapped operational branch',
+    }
   }
-  return rounded
+  if (dim === 'brand') {
+    return {
+      nameAr: getBrandLabel(id as GlobalBrand, true),
+      nameEn: getBrandLabel(id as GlobalBrand, false),
+      subMetaAr: 'علامة معتمدة',
+      subMetaEn: 'Approved brand',
+    }
+  }
+  return {
+    nameAr: getChannelLabel(id as GlobalChannel, true),
+    nameEn: getChannelLabel(id as GlobalChannel, false),
+    subMetaAr: 'قناة دفع فعلية',
+    subMetaEn: 'Live payment channel',
+  }
 }
 
-function buildWindowTitles(
+function formatSliceHeaderLabels(
   fromIso: string,
   toIso: string,
   dayCount: number,
-  entityTitleEn?: string,
-  entityTitleAr?: string,
 ): {
   titleEn: string
   titleAr: string
@@ -1146,101 +596,818 @@ function buildWindowTitles(
   badgeEn: string
   badgeAr: string
 } {
-  const bFromEn = formatCalendarDateBadge(fromIso, false, true)
-  const bToEn = formatCalendarDateBadge(toIso, false, true)
-  const bFromAr = formatCalendarDateBadge(fromIso, true, true)
-  const bToAr = formatCalendarDateBadge(toIso, true, true)
-
-  if (entityTitleEn && entityTitleAr) {
-    const dateSuffixEn =
-      dayCount === 1 ? bFromEn.shortDdMm : `${bFromEn.shortDdMm}–${bToEn.shortDdMm}`
-    const dateSuffixAr =
-      dayCount === 1 ? bFromAr.shortDdMm : `${bFromAr.shortDdMm}–${bToAr.shortDdMm}`
+  if (dayCount === 1 || fromIso === toIso) {
+    const ar = formatCalendarDateBadge(fromIso, true, true)
+    const en = formatCalendarDateBadge(fromIso, false, true)
     return {
-      titleEn: `${entityTitleEn} (${dateSuffixEn})`,
-      titleAr: `${entityTitleAr} (${dateSuffixAr})`,
-      shortLabelEn: entityTitleEn,
-      shortLabelAr: entityTitleAr,
-      badgeEn: dayCount === 1 ? bFromEn.weekdayShort : `${dayCount}d`,
-      badgeAr: dayCount === 1 ? bFromAr.weekdayShort : `${dayCount} يوم`,
+      titleAr: ar.full,
+      titleEn: en.full,
+      shortLabelAr: `${ar.weekdayShort} ${ar.shortDdMm}`,
+      shortLabelEn: `${en.weekdayShort} ${en.shortDdMm}`,
+      badgeAr: ar.shortDdMm,
+      badgeEn: en.shortDdMm,
     }
   }
-
-  if (dayCount === 1) {
-    return {
-      titleEn: bFromEn.full,
-      titleAr: bFromAr.full,
-      shortLabelEn: `${bFromEn.weekdayShort} ${bFromEn.shortDdMm}`,
-      shortLabelAr: `${bFromAr.weekdayShort} ${bFromAr.shortDdMm}`,
-      badgeEn: bFromEn.weekdayFull,
-      badgeAr: bFromAr.weekdayFull,
-    }
-  }
-
+  const fAr = formatCalendarDateBadge(fromIso, true, false)
+  const tAr = formatCalendarDateBadge(toIso, true, true)
+  const fEn = formatCalendarDateBadge(fromIso, false, false)
+  const tEn = formatCalendarDateBadge(toIso, false, true)
   return {
-    titleEn: `${bFromEn.full} → ${bToEn.full}`,
-    titleAr: `${bFromAr.full} ← ${bToAr.full}`,
-    shortLabelEn: `${bFromEn.shortDdMm} → ${bToEn.shortDdMm}`,
-    shortLabelAr: `${bFromAr.shortDdMm} ← ${bToAr.shortDdMm}`,
-    badgeEn: `${dayCount} Days`,
-    badgeAr: `${dayCount} يوم`,
+    titleAr: `${fAr.full} ← ${tAr.full} (${dayCount} أيام)`,
+    titleEn: `${fEn.full} – ${tEn.full} (${dayCount}d)`,
+    shortLabelAr: `${fAr.shortDdMm}–${tAr.shortDdMm}`,
+    shortLabelEn: `${fEn.shortDdMm}–${tEn.shortDdMm}`,
+    badgeAr: `${dayCount} أيام`,
+    badgeEn: `${dayCount}d`,
   }
 }
 
-function buildSliceTotals(
-  raw: AggregatedSliceRaw,
-  ledgerAvailable: boolean,
-  entityTitleEn?: string,
-  entityTitleAr?: string,
-): ComparisonSliceTotals {
-  const netSalesKwd = r3(raw.totalSales)
-  const completedOrders = Math.max(0, Math.round(raw.totalOrders))
-  const aovKwd = completedOrders > 0 ? r3(netSalesKwd / completedOrders) : 0
-  const foodCostKwd = ledgerAvailable ? r3(raw.totalFoodCost) : 0
-  const aggregatorFeeKwd = ledgerAvailable ? r3(raw.totalCommCost) : 0
-  const foodAndAggregatorCostKwd = ledgerAvailable ? r3(foodCostKwd + aggregatorFeeKwd) : 0
-  const foodAndAggregatorPct =
-    ledgerAvailable && netSalesKwd > 0 ? r1((foodAndAggregatorCostKwd / netSalesKwd) * 100) : 0
-  const fixedOpexKwd = ledgerAvailable ? r3(raw.totalOpexCost) : 0
-  const netPocketCashKwd = ledgerAvailable
-    ? r3(netSalesKwd - foodAndAggregatorCostKwd - fixedOpexKwd)
-    : 0
-  const netPocketMarginPct =
-    ledgerAvailable && netSalesKwd > 0 ? r1((netPocketCashKwd / netSalesKwd) * 100) : 0
+export function normalizeComparisonQueryWindows(rawQuery: ErpComparisonQuery): {
+  mode: ComparisonModeType
+  granularity: ComparisonGranularity
+  normA: { fromIso: string; toIso: string; dayCount: number; dates: string[] }
+  normB: { fromIso: string; toIso: string; dayCount: number; dates: string[] }
+  cutoffHour24: number | null
+  likeForLikeMeta: ComparisonLikeForLikeMeta
+} {
+  const kwCtx = getKuwaitTimeContext()
+  const operationalTodayIso = kwCtx.todayIso
+  const lastCompletedDayIso = kwCtx.yesterdayIso
+  const mode: ComparisonModeType =
+    rawQuery.mode === 'entity-vs-entity' ? 'entity-vs-entity' : 'date-vs-date'
+  const granularity: ComparisonGranularity =
+    rawQuery.granularity === 'range' ? 'range' : 'single'
 
-  const titles = buildWindowTitles(
-    raw.fromIso,
-    raw.toIso,
-    raw.dayCount,
-    entityTitleEn,
-    entityTitleAr,
-  )
+  let normA = normalizeWindowSelection(rawQuery.periodA, granularity, lastCompletedDayIso)
+  let normB =
+    mode === 'entity-vs-entity'
+      ? normA
+      : normalizeWindowSelection(
+          rawQuery.periodB,
+          granularity,
+          shiftIsoDate(lastCompletedDayIso, -7),
+        )
+
+  let excludedIncompleteToday = false
+  let sameHoursApplied = false
+  let cutoffHour24: number | null = null
+
+  const aTouchesToday =
+    normA.fromIso <= operationalTodayIso && normA.toIso >= operationalTodayIso
+  const bTouchesToday =
+    normB.fromIso <= operationalTodayIso && normB.toIso >= operationalTodayIso
+
+  if (aTouchesToday || bTouchesToday) {
+    if (
+      rawQuery.sameHoursLikeForLike === true &&
+      granularity === 'single' &&
+      normA.dayCount === 1 &&
+      normB.dayCount === 1
+    ) {
+      sameHoursApplied = true
+      cutoffHour24 = Math.max(0, Math.min(23, kwCtx.hour24))
+    } else {
+      excludedIncompleteToday = true
+      if (granularity === 'single') {
+        if (normA.fromIso >= operationalTodayIso) {
+          normA = normalizeWindowSelection(
+            { from: lastCompletedDayIso, to: lastCompletedDayIso },
+            'single',
+            lastCompletedDayIso,
+          )
+        }
+        if (mode === 'entity-vs-entity') {
+          normB = normA
+        } else if (
+          normB.fromIso >= operationalTodayIso ||
+          normB.fromIso === normA.fromIso
+        ) {
+          const fallbackB = shiftIsoDate(normA.fromIso, -7)
+          normB = normalizeWindowSelection(
+            { from: fallbackB, to: fallbackB },
+            'single',
+            fallbackB,
+          )
+        }
+      } else {
+        if (normA.toIso >= operationalTodayIso) {
+          const clampedFrom =
+            normA.fromIso > lastCompletedDayIso ? lastCompletedDayIso : normA.fromIso
+          normA = normalizeWindowSelection(
+            { from: clampedFrom, to: lastCompletedDayIso },
+            'range',
+            lastCompletedDayIso,
+          )
+        }
+        if (mode === 'entity-vs-entity') {
+          normB = normA
+        } else if (normB.toIso >= operationalTodayIso) {
+          const endB = shiftIsoDate(normA.fromIso, -1)
+          const startB = shiftIsoDate(endB, -(normA.dayCount - 1))
+          normB = normalizeWindowSelection({ from: startB, to: endB }, 'range', endB)
+        }
+      }
+    }
+  }
+
+  const intradayShare =
+    sameHoursApplied && cutoffHour24 !== null ? r2((cutoffHour24 + 1) / 24) : 1
+
+  const likeForLikeMeta: ComparisonLikeForLikeMeta = {
+    sameHoursLikeForLike: sameHoursApplied,
+    excludedIncompleteToday,
+    operationalTodayIso,
+    lastCompletedDayIso,
+    kuwaitHhMm: kwCtx.hhMm,
+    intradayShare,
+    helperNoteAr: sameHoursApplied
+      ? `مقارنة نفس الساعات (Like-for-Like) حتى الساعة ${kwCtx.hhMm} بتوقيت الكويت`
+      : excludedIncompleteToday
+        ? `تم استبعاد اليوم غير المكتمل (${operationalTodayIso}) تلقائياً لضمان عدالة المقارنة`
+        : '',
+    helperNoteEn: sameHoursApplied
+      ? `Same-hours Like-for-Like cutoff through ${kwCtx.hhMm} Kuwait time`
+      : excludedIncompleteToday
+        ? `Incomplete current day (${operationalTodayIso}) automatically excluded for fair comparison`
+        : '',
+  }
+
+  return { mode, granularity, normA, normB, cutoffHour24, likeForLikeMeta }
+}
+
+function extractLiveCubes(
+  mode: ComparisonModeType,
+  liveInput?: OdooLiveSummary | ErpComparisonLiveCubesInput | null,
+): { cubeA: OdooPeriodCube | null; cubeB: OdooPeriodCube | null; lastSyncedAt: string | null } {
+  if (!liveInput || typeof liveInput !== 'object') {
+    return { cubeA: null, cubeB: null, lastSyncedAt: null }
+  }
+  if ('cubeA' in liveInput || 'cubeB' in liveInput) {
+    const typed = liveInput as ErpComparisonLiveCubesInput
+    const cA = typed.cubeA ?? null
+    const cB = mode === 'entity-vs-entity' ? (typed.cubeB ?? cA) : (typed.cubeB ?? null)
+    return {
+      cubeA: cA,
+      cubeB: cB,
+      lastSyncedAt: cA?.lastSyncAt ?? cB?.lastSyncAt ?? typed.liveSummary?.lastSyncAt ?? null,
+    }
+  }
+  const maybeWithCubes = liveInput as OdooLiveSummary & {
+    cubeA?: OdooPeriodCube | null
+    cubeB?: OdooPeriodCube | null
+  }
+  if (maybeWithCubes.cubeA || maybeWithCubes.cubeB) {
+    const cA = maybeWithCubes.cubeA ?? null
+    const cB =
+      mode === 'entity-vs-entity'
+        ? (maybeWithCubes.cubeB ?? cA)
+        : (maybeWithCubes.cubeB ?? null)
+    return {
+      cubeA: cA,
+      cubeB: cB,
+      lastSyncedAt: cA?.lastSyncAt ?? maybeWithCubes.lastSyncAt ?? maybeWithCubes.syncedAt ?? null,
+    }
+  }
+  return { cubeA: null, cubeB: null, lastSyncedAt: maybeWithCubes.lastSyncAt ?? null }
+}
+
+function computeCubeSliceTotals(
+  cube: OdooPeriodCube | null,
+  fromIso: string,
+  toIso: string,
+  dayCount: number,
+  headers: {
+    titleEn: string
+    titleAr: string
+    shortLabelEn: string
+    shortLabelAr: string
+    badgeEn: string
+    badgeAr: string
+  },
+  scope: ResolvedEntityScope,
+  cutoffHour24: number | null,
+): ComparisonSliceTotals {
+  if (!cube || !cube.connected) {
+    return {
+      ...headers,
+      fromIso,
+      toIso,
+      dayCount,
+      netSalesKwd: 0,
+      completedOrders: 0,
+      aovKwd: 0,
+      foodCostKwd: 0,
+      aggregatorFeeKwd: 0,
+      foodAndAggregatorCostKwd: 0,
+      foodAndAggregatorPct: 0,
+      fixedOpexKwd: 0,
+      netPocketCashKwd: 0,
+      netPocketMarginPct: 0,
+      unattributedSalesKwd: 0,
+      unattributedOrders: 0,
+      accountingAvailable: false,
+    }
+  }
+
+  const allBrands = scope.brandIds.length === APPROVED_BRAND_IDS.length
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+  const allChannels = scope.channelIds.length === APPROVED_CHANNEL_IDS.length
+  const fullScope = allBrands && allBranches && allChannels && cutoffHour24 === null
+
+  const targetKeys: string[] = [
+    ...scope.branchIds,
+    ...(scope.includeUnattributed ? [UNATTRIBUTED_BRANCH_ROW_ID] : []),
+  ]
+
+  let salesKwd = 0
+  let orders = 0
+
+  if (cutoffHour24 !== null && allBrands && allChannels) {
+    if (allBranches) {
+      for (const hRow of cube.hourlySeries) {
+        if (hRow.hour <= cutoffHour24) {
+          salesKwd += hRow.netKwd
+          orders += hRow.orders
+        }
+      }
+    } else {
+      for (const key of targetKeys) {
+        for (const hRow of cube.hourlyByBranch[key] ?? []) {
+          if (hRow.hour <= cutoffHour24) {
+            salesKwd += hRow.netKwd
+            orders += hRow.orders
+          }
+        }
+      }
+    }
+  } else if (fullScope) {
+    salesKwd = cube.totals.netSalesKwd
+    orders = cube.totals.orders
+  } else if (allBrands && allChannels) {
+    for (const key of targetKeys) {
+      if (key === UNATTRIBUTED_BRANCH_ROW_ID) {
+        salesKwd += cube.unattributed.netKwd
+        orders += cube.unattributed.orders
+      } else {
+        const br = cube.byBranch[key as BranchEntityId]
+        if (br) {
+          salesKwd += br.netKwd
+          orders += br.orders
+        }
+      }
+    }
+  } else if (allBrands && !allChannels) {
+    if (allBranches) {
+      for (const ch of scope.channelIds) {
+        const chRow = cube.byChannel[ch]
+        if (chRow) {
+          salesKwd += chRow.netKwd
+          orders += chRow.orders
+        }
+      }
+    } else {
+      for (const key of targetKeys) {
+        const chMap =
+          key === UNATTRIBUTED_BRANCH_ROW_ID
+            ? cube.unattributed.channels
+            : cube.byBranch[key as BranchEntityId]?.channels
+        if (!chMap) continue
+        for (const ch of scope.channelIds) {
+          const chRow = chMap[ch]
+          if (chRow) {
+            salesKwd += chRow.netKwd
+            orders += chRow.orders
+          }
+        }
+      }
+    }
+  } else {
+    if (allBranches) {
+      for (const bId of scope.brandIds) {
+        const bRow = cube.byBrand[bId]
+        if (bRow) {
+          salesKwd += bRow.netKwd
+          orders += bRow.orders
+        }
+      }
+    } else {
+      for (const key of targetKeys) {
+        const bMap = cube.brandByBranch[key]
+        if (!bMap) continue
+        for (const bId of scope.brandIds) {
+          const bRow = bMap[bId]
+          if (bRow) {
+            salesKwd += bRow.netKwd
+            orders += bRow.linesCount
+          }
+        }
+      }
+    }
+  }
+
+  const netSalesKwd = r1(salesKwd)
+  const completedOrders = Math.round(orders)
+  const aovKwd = completedOrders > 0 ? r2(netSalesKwd / completedOrders) : 0
+  const unattributedSalesKwd = scope.includeUnattributed
+    ? r1(cube.totals.unattributedSalesKwd)
+    : 0
+  const unattributedOrders = scope.includeUnattributed
+    ? Math.round(cube.totals.unattributedOrders)
+    : 0
+
+  const acc = cube.accounting
+  if (fullScope && acc && acc.completeAccrualPosted === true && !acc.glIncomplete) {
+    const foodCostKwd = r1(acc.cogs)
+    const aggregatorFeeKwd = r1(acc.deliveryCommissions ?? 0)
+    const foodAndAggregatorCostKwd = r1(foodCostKwd + aggregatorFeeKwd)
+    const foodAndAggregatorPct =
+      netSalesKwd > 0 ? r1((foodAndAggregatorCostKwd / netSalesKwd) * 100) : 0
+    const fixedOpexKwd = r1((acc.expense ?? 0) + (acc.depreciation ?? 0))
+    const netPocketCashKwd = r1(acc.operatingProfit)
+    const netPocketMarginPct =
+      netSalesKwd > 0 ? r1((netPocketCashKwd / netSalesKwd) * 100) : 0
+
+    return {
+      ...headers,
+      fromIso,
+      toIso,
+      dayCount,
+      netSalesKwd,
+      completedOrders,
+      aovKwd,
+      foodCostKwd,
+      aggregatorFeeKwd,
+      foodAndAggregatorCostKwd,
+      foodAndAggregatorPct,
+      fixedOpexKwd,
+      netPocketCashKwd,
+      netPocketMarginPct,
+      unattributedSalesKwd,
+      unattributedOrders,
+      accountingAvailable: true,
+    }
+  }
 
   return {
-    ...titles,
-    fromIso: raw.fromIso,
-    toIso: raw.toIso,
-    dayCount: raw.dayCount,
+    ...headers,
+    fromIso,
+    toIso,
+    dayCount,
     netSalesKwd,
     completedOrders,
     aovKwd,
-    foodCostKwd,
-    aggregatorFeeKwd,
-    foodAndAggregatorCostKwd,
-    foodAndAggregatorPct,
-    fixedOpexKwd,
-    netPocketCashKwd,
-    netPocketMarginPct,
+    foodCostKwd: 0,
+    aggregatorFeeKwd: 0,
+    foodAndAggregatorCostKwd: 0,
+    foodAndAggregatorPct: 0,
+    fixedOpexKwd: 0,
+    netPocketCashKwd: 0,
+    netPocketMarginPct: 0,
+    unattributedSalesKwd,
+    unattributedOrders,
+    accountingAvailable: false,
   }
 }
 
-function computePctChange(valA: number, valB: number): number {
-  if (!Number.isFinite(valA) || !Number.isFinite(valB)) return 0
-  if (Math.abs(valB) < 1e-6) return Math.abs(valA) < 1e-6 ? 0 : valA > 0 ? 100 : -100
-  return r1(((valA - valB) / Math.abs(valB)) * 100)
+function buildLiveDayCell(
+  cube: OdooPeriodCube | null,
+  dayIso: string | undefined,
+  scope: ResolvedEntityScope,
+): { salesKwd: number; orders: number } {
+  if (!cube || !cube.connected || !dayIso) return { salesKwd: 0, orders: 0 }
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+  if (allBranches) {
+    const found = cube.dailySeries.find((d) => d.day === dayIso)
+    return {
+      salesKwd: r1(found?.netKwd ?? 0),
+      orders: Math.round(found?.orders ?? 0),
+    }
+  }
+  let sales = 0
+  let orders = 0
+  const dayMap = cube.dailyByBranch[dayIso]
+  if (dayMap) {
+    for (const brId of scope.branchIds) {
+      const cell = dayMap[brId]
+      if (cell) {
+        sales += cell.netKwd
+        orders += cell.orders
+      }
+    }
+  }
+  if (scope.includeUnattributed) {
+    const unattr = cube.dailyUnattributed[dayIso]
+    if (unattr) {
+      sales += unattr.netKwd
+      orders += unattr.orders
+    }
+  }
+  return { salesKwd: r1(sales), orders: Math.round(orders) }
 }
 
-function buildStandardKpiDelta(params: {
+function buildLiveHourCell(
+  cube: OdooPeriodCube | null,
+  hour24: number,
+  scope: ResolvedEntityScope,
+  cutoffHour24: number | null,
+): { salesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+  if (cutoffHour24 !== null && hour24 > cutoffHour24) {
+    return { salesKwd: 0, orders: 0 }
+  }
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+  if (allBranches) {
+    const row = cube.hourlySeries.find((h) => h.hour === hour24)
+    return {
+      salesKwd: r1(row?.netKwd ?? 0),
+      orders: Math.round(row?.orders ?? 0),
+    }
+  }
+  let sales = 0
+  let orders = 0
+  for (const brId of scope.branchIds) {
+    const row = (cube.hourlyByBranch[brId] ?? []).find((h) => h.hour === hour24)
+    if (row) {
+      sales += row.netKwd
+      orders += row.orders
+    }
+  }
+  if (scope.includeUnattributed) {
+    const row = (cube.hourlyByBranch[UNATTRIBUTED_BRANCH_ROW_ID] ?? []).find(
+      (h) => h.hour === hour24,
+    )
+    if (row) {
+      sales += row.netKwd
+      orders += row.orders
+    }
+  }
+  return { salesKwd: r1(sales), orders: Math.round(orders) }
+}
+
+function buildChartBuckets(
+  chartKind: 'hourly-14' | 'daily-aligned',
+  datesA: string[],
+  datesB: string[],
+  cubeA: OdooPeriodCube | null,
+  cubeB: OdooPeriodCube | null,
+  scopeA: ResolvedEntityScope,
+  scopeB: ResolvedEntityScope,
+  cutoffHour24: number | null,
+): ComparisonChartBucket[] {
+  if (chartKind === 'hourly-14') {
+    const dayA = datesA[0]
+    const dayB = datesB[0]
+    const bA = formatCalendarDateBadge(dayA, false, false)
+    const bB = formatCalendarDateBadge(dayB, false, false)
+
+    let cumA = 0
+    let cumB = 0
+    return OPERATING_HOURS_14.map((slot, index) => {
+      const cellA = buildLiveHourCell(cubeA, slot.hour24, scopeA, cutoffHour24)
+      const cellB = buildLiveHourCell(cubeB, slot.hour24, scopeB, cutoffHour24)
+      cumA = r1(cumA + cellA.salesKwd)
+      cumB = r1(cumB + cellB.salesKwd)
+      const delta = r1(cellA.salesKwd - cellB.salesKwd)
+      return {
+        id: `h-${slot.hour24}`,
+        index,
+        labelEn: slot.compactEn,
+        labelAr: slot.labelAr,
+        metaA: `${bA.shortDdMm} · ${slot.slotKey}`,
+        metaB: `${bB.shortDdMm} · ${slot.slotKey}`,
+        seriesA: cellA.salesKwd,
+        seriesB: cellB.salesKwd,
+        delta,
+        deltaPct: safePctDelta(cellA.salesKwd, cellB.salesKwd),
+        cumulativeA: cumA,
+        cumulativeB: cumB,
+        ordersA: cellA.orders,
+        ordersB: cellB.orders,
+        ordersDelta: cellA.orders - cellB.orders,
+        profitA: 0,
+        profitB: 0,
+        profitDelta: 0,
+        cumulativeProfitA: 0,
+        cumulativeProfitB: 0,
+      }
+    })
+  }
+
+  const maxLen = Math.max(datesA.length, datesB.length)
+  let cumA = 0
+  let cumB = 0
+  const buckets: ComparisonChartBucket[] = []
+
+  for (let i = 0; i < maxLen; i++) {
+    const isoA = datesA[i]
+    const isoB = datesB[i]
+    const cellA = buildLiveDayCell(cubeA, isoA, scopeA)
+    const cellB = buildLiveDayCell(cubeB, isoB, scopeB)
+    cumA = r1(cumA + cellA.salesKwd)
+    cumB = r1(cumB + cellB.salesKwd)
+
+    const bAAr = isoA ? formatCalendarDateBadge(isoA, true, false) : null
+    const bAEn = isoA ? formatCalendarDateBadge(isoA, false, false) : null
+    const bBEn = isoB ? formatCalendarDateBadge(isoB, false, false) : null
+
+    const dayNum = i + 1
+    buckets.push({
+      id: `d-${dayNum}`,
+      index: i,
+      labelAr:
+        maxLen <= 10 && bAAr
+          ? `${bAAr.weekdayShort} ${bAAr.shortDdMm}`
+          : `يوم ${dayNum}`,
+      labelEn:
+        maxLen <= 10 && bAEn
+          ? `${bAEn.weekdayShort} ${bAEn.shortDdMm}`
+          : `Day ${dayNum}`,
+      metaA: bAEn ? `${bAEn.weekdayShort} ${bAEn.shortDdMm}` : '—',
+      metaB: bBEn ? `${bBEn.weekdayShort} ${bBEn.shortDdMm}` : '—',
+      seriesA: cellA.salesKwd,
+      seriesB: cellB.salesKwd,
+      delta: r1(cellA.salesKwd - cellB.salesKwd),
+      deltaPct: safePctDelta(cellA.salesKwd, cellB.salesKwd),
+      cumulativeA: cumA,
+      cumulativeB: cumB,
+      ordersA: cellA.orders,
+      ordersB: cellB.orders,
+      ordersDelta: cellA.orders - cellB.orders,
+      profitA: 0,
+      profitB: 0,
+      profitDelta: 0,
+      cumulativeProfitA: 0,
+      cumulativeProfitB: 0,
+    })
+  }
+
+  return buckets
+}
+
+function computeBranchCell(
+  cube: OdooPeriodCube | null,
+  rowId: BranchEntityId | typeof UNATTRIBUTED_BRANCH_ROW_ID,
+  scope: ResolvedEntityScope,
+  cutoffHour24: number | null,
+): { salesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+  const allBrands = scope.brandIds.length === APPROVED_BRAND_IDS.length
+  const allChannels = scope.channelIds.length === APPROVED_CHANNEL_IDS.length
+
+  if (cutoffHour24 !== null && allBrands && allChannels) {
+    let sales = 0
+    let orders = 0
+    for (const h of cube.hourlyByBranch[rowId] ?? []) {
+      if (h.hour <= cutoffHour24) {
+        sales += h.netKwd
+        orders += h.orders
+      }
+    }
+    return { salesKwd: r1(sales), orders: Math.round(orders) }
+  }
+
+  if (allBrands && allChannels) {
+    if (rowId === UNATTRIBUTED_BRANCH_ROW_ID) {
+      return {
+        salesKwd: r1(cube.unattributed.netKwd),
+        orders: Math.round(cube.unattributed.orders),
+      }
+    }
+    const br = cube.byBranch[rowId]
+    return {
+      salesKwd: r1(br?.netKwd ?? 0),
+      orders: Math.round(br?.orders ?? 0),
+    }
+  }
+
+  if (allBrands && !allChannels) {
+    const chMap =
+      rowId === UNATTRIBUTED_BRANCH_ROW_ID
+        ? cube.unattributed.channels
+        : cube.byBranch[rowId]?.channels
+    let sales = 0
+    let orders = 0
+    if (chMap) {
+      for (const ch of scope.channelIds) {
+        sales += chMap[ch]?.netKwd ?? 0
+        orders += chMap[ch]?.orders ?? 0
+      }
+    }
+    return { salesKwd: r1(sales), orders: Math.round(orders) }
+  }
+
+  const bMap = cube.brandByBranch[rowId]
+  let sales = 0
+  let lines = 0
+  if (bMap) {
+    for (const bId of scope.brandIds) {
+      sales += bMap[bId]?.netKwd ?? 0
+      lines += bMap[bId]?.linesCount ?? 0
+    }
+  }
+  return { salesKwd: r1(sales), orders: Math.round(lines) }
+}
+
+function computeBrandCell(
+  cube: OdooPeriodCube | null,
+  brandId: BrandEntityId,
+  scope: ResolvedEntityScope,
+): { salesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+  if (allBranches) {
+    const bRow = cube.byBrand[brandId]
+    return {
+      salesKwd: r1(bRow?.netKwd ?? 0),
+      orders: Math.round(bRow?.orders ?? 0),
+    }
+  }
+  let sales = 0
+  let lines = 0
+  const targetKeys: string[] = [
+    ...scope.branchIds,
+    ...(scope.includeUnattributed ? [UNATTRIBUTED_BRANCH_ROW_ID] : []),
+  ]
+  for (const key of targetKeys) {
+    const cell = cube.brandByBranch[key]?.[brandId]
+    if (cell) {
+      sales += cell.netKwd
+      lines += cell.linesCount
+    }
+  }
+  return { salesKwd: r1(sales), orders: Math.round(lines) }
+}
+
+function computeChannelCell(
+  cube: OdooPeriodCube | null,
+  channelId: ChannelEntityId,
+  scope: ResolvedEntityScope,
+): { salesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+  if (allBranches) {
+    const chRow = cube.byChannel[channelId]
+    return {
+      salesKwd: r1(chRow?.netKwd ?? 0),
+      orders: Math.round(chRow?.orders ?? 0),
+    }
+  }
+  let sales = 0
+  let orders = 0
+  for (const brId of scope.branchIds) {
+    const cell = cube.byBranch[brId]?.channels?.[channelId]
+    if (cell) {
+      sales += cell.netKwd
+      orders += cell.orders
+    }
+  }
+  if (scope.includeUnattributed) {
+    const cell = cube.unattributed.channels?.[channelId]
+    if (cell) {
+      sales += cell.netKwd
+      orders += cell.orders
+    }
+  }
+  return { salesKwd: r1(sales), orders: Math.round(orders) }
+}
+
+function classifyRowTier(deltaPct: number): 'green' | 'yellow' | 'red' {
+  if (deltaPct >= 2) return 'green'
+  if (deltaPct <= -2) return 'red'
+  return 'yellow'
+}
+
+function buildBreakdownRows(
+  dimension: BreakdownDimension,
+  cubeA: OdooPeriodCube | null,
+  cubeB: OdooPeriodCube | null,
+  scopeA: ResolvedEntityScope,
+  scopeB: ResolvedEntityScope,
+  cutoffHour24: number | null,
+): EntityVarianceRow[] {
+  const rowIds: string[] =
+    dimension === 'branch'
+      ? [
+          ...APPROVED_BRANCH_IDS,
+          ...(scopeA.includeUnattributed || scopeB.includeUnattributed
+            ? [UNATTRIBUTED_BRANCH_ROW_ID]
+            : []),
+        ]
+      : dimension === 'brand'
+        ? [...APPROVED_BRAND_IDS]
+        : [...APPROVED_CHANNEL_IDS]
+
+  const rawRows = rowIds.map((id) => {
+    const inA =
+      dimension === 'branch'
+        ? id === UNATTRIBUTED_BRANCH_ROW_ID
+          ? scopeA.includeUnattributed
+          : scopeA.branchIds.includes(id as BranchEntityId)
+        : dimension === 'brand'
+          ? scopeA.brandIds.includes(id as BrandEntityId)
+          : scopeA.channelIds.includes(id as ChannelEntityId)
+
+    const inB =
+      dimension === 'branch'
+        ? id === UNATTRIBUTED_BRANCH_ROW_ID
+          ? scopeB.includeUnattributed
+          : scopeB.branchIds.includes(id as BranchEntityId)
+        : dimension === 'brand'
+          ? scopeB.brandIds.includes(id as BrandEntityId)
+          : scopeB.channelIds.includes(id as ChannelEntityId)
+
+    const cellA = !inA
+      ? { salesKwd: 0, orders: 0 }
+      : dimension === 'branch'
+        ? computeBranchCell(
+            cubeA,
+            id as BranchEntityId | typeof UNATTRIBUTED_BRANCH_ROW_ID,
+            scopeA,
+            cutoffHour24,
+          )
+        : dimension === 'brand'
+          ? computeBrandCell(cubeA, id as BrandEntityId, scopeA)
+          : computeChannelCell(cubeA, id as ChannelEntityId, scopeA)
+
+    const cellB = !inB
+      ? { salesKwd: 0, orders: 0 }
+      : dimension === 'branch'
+        ? computeBranchCell(
+            cubeB,
+            id as BranchEntityId | typeof UNATTRIBUTED_BRANCH_ROW_ID,
+            scopeB,
+            cutoffHour24,
+          )
+        : dimension === 'brand'
+          ? computeBrandCell(cubeB, id as BrandEntityId, scopeB)
+          : computeChannelCell(cubeB, id as ChannelEntityId, scopeB)
+
+    const isCompatible =
+      dimension === 'branch'
+        ? id === UNATTRIBUTED_BRANCH_ROW_ID
+          ? true
+          : scopeA.brandIds.some((b) => isBrandBranchCompatible(b, id as BranchEntityId))
+        : dimension === 'brand'
+          ? scopeA.branchIds.some((br) => isBrandBranchCompatible(id as BrandEntityId, br))
+          : true
+
+    return { id, cellA, cellB, isCompatible }
+  })
+
+  const totalSalesA = rawRows.reduce((acc, r) => acc + r.cellA.salesKwd, 0)
+
+  const rows: EntityVarianceRow[] = rawRows.map(({ id, cellA, cellB, isCompatible }) => {
+    const meta = getEntityNames(dimension, id)
+    const isUnattributed = id === UNATTRIBUTED_BRANCH_ROW_ID
+    const deltaKwd = r1(cellA.salesKwd - cellB.salesKwd)
+    const deltaPct = safePctDelta(cellA.salesKwd, cellB.salesKwd)
+    const ordersDelta = cellA.orders - cellB.orders
+    return {
+      id,
+      dimension,
+      nameEn: meta.nameEn,
+      nameAr: meta.nameAr,
+      subMetaEn: meta.subMetaEn,
+      subMetaAr: meta.subMetaAr,
+      isCompatible,
+      isUnattributed,
+      accountingAvailable: false,
+      valueA: cellA.salesKwd,
+      valueB: cellB.salesKwd,
+      deltaKwd,
+      deltaPct,
+      ordersA: cellA.orders,
+      ordersB: cellB.orders,
+      ordersDelta,
+      ordersDeltaPct: safePctDelta(cellA.orders, cellB.orders),
+      aovA: cellA.orders > 0 ? r2(cellA.salesKwd / cellA.orders) : 0,
+      aovB: cellB.orders > 0 ? r2(cellB.salesKwd / cellB.orders) : 0,
+      foodAggCostA: 0,
+      foodAggCostB: 0,
+      netProfitA: 0,
+      netProfitB: 0,
+      netProfitDeltaKwd: 0,
+      marginPctA: 0,
+      marginPctB: 0,
+      marginDeltaPp: 0,
+      shareOfTotalAPct: totalSalesA > 0 ? r1((cellA.salesKwd / totalSalesA) * 100) : 0,
+      tier: classifyRowTier(deltaPct),
+    }
+  })
+
+  return rows.sort((a, b) => {
+    if (a.isUnattributed && !b.isUnattributed) return 1
+    if (!a.isUnattributed && b.isUnattributed) return -1
+    return b.valueA - a.valueA
+  })
+}
+
+function makeKpiDelta(params: {
   id: ExecutiveKpiId
   labelEn: string
   labelAr: string
@@ -1248,48 +1415,42 @@ function buildStandardKpiDelta(params: {
   polarity: 'higher-is-better' | 'lower-is-better'
   valueA: number
   valueB: number
+  available?: boolean
+  unavailableReasonAr?: string
+  unavailableReasonEn?: string
   shareOfSalesA?: number
   shareOfSalesB?: number
 }): ExecutiveKpiDelta {
-  const { id, labelEn, labelAr, unit, polarity, valueA, valueB, shareOfSalesA, shareOfSalesB } =
-    params
-  const rawDiff = valueA - valueB
-  const deltaAbs = unit === 'orders' ? Math.round(rawDiff) : unit === 'pct' ? r1(rawDiff) : r3(rawDiff)
-  const deltaPct = unit === 'pct' ? r1(rawDiff) : computePctChange(valueA, valueB)
-  const deltaBps = unit === 'pct' ? Math.round(rawDiff * 100) : undefined
-
-  const eps = unit === 'orders' ? 0.5 : 0.005
+  const available = params.available ?? true
+  const valA = available ? params.valueA : 0
+  const valB = available ? params.valueB : 0
+  const deltaAbs =
+    params.unit === 'orders' ? Math.round(valA - valB) : r2(valA - valB)
+  const deltaPct =
+    params.unit === 'pct' ? r1(valA - valB) : safePctDelta(valA, valB)
+  const deltaBps = params.unit === 'pct' ? Math.round((valA - valB) * 100) : undefined
   const trend: 'up' | 'down' | 'flat' =
-    deltaAbs > eps ? 'up' : deltaAbs < -eps ? 'down' : 'flat'
-
-  let isFavorable = true
-  if (polarity === 'higher-is-better') {
-    isFavorable = deltaAbs >= -eps
-  } else {
-    // Smart inverted polarity for Food + Aggregator Cost:
-    // Lower cost % of sales (or lower absolute cost when cost % didn't spike) = Emerald favorable!
-    if (typeof shareOfSalesA === 'number' && typeof shareOfSalesB === 'number') {
-      const shareDiff = shareOfSalesA - shareOfSalesB
-      if (Math.abs(shareDiff) >= 0.05) {
-        isFavorable = shareDiff < 0
-      } else {
-        isFavorable = deltaAbs <= eps
-      }
-    } else {
-      isFavorable = deltaAbs <= eps
-    }
-  }
+    Math.abs(deltaPct) < 0.3 ? 'flat' : deltaAbs > 0 ? 'up' : 'down'
+  const isFavorable =
+    trend === 'flat'
+      ? true
+      : params.polarity === 'higher-is-better'
+        ? deltaAbs >= 0
+        : deltaAbs <= 0
 
   return {
-    id,
-    labelEn,
-    labelAr,
-    unit,
-    polarity,
-    valueA,
-    valueB,
-    shareOfSalesA,
-    shareOfSalesB,
+    id: params.id,
+    labelEn: params.labelEn,
+    labelAr: params.labelAr,
+    unit: params.unit,
+    polarity: params.polarity,
+    available,
+    unavailableReasonAr: params.unavailableReasonAr,
+    unavailableReasonEn: params.unavailableReasonEn,
+    valueA: valA,
+    valueB: valB,
+    shareOfSalesA: params.shareOfSalesA,
+    shareOfSalesB: params.shareOfSalesB,
     deltaAbs,
     deltaPct,
     deltaBps,
@@ -1298,1068 +1459,501 @@ function buildStandardKpiDelta(params: {
   }
 }
 
-function buildHourly14ChartBuckets(
-  sliceA: ComparisonSliceTotals,
-  sliceB: ComparisonSliceTotals,
-  seedTagA: string,
-  seedTagB: string,
-  liveDailyLookup?: ReadonlyMap<string, { netKwd: number; orders: number }>,
-  liveHourlyWeights?: Readonly<Record<number, number>>,
-): ComparisonChartBucket[] {
-  const profA = getDateGroupProfile(sliceA.fromIso, liveDailyLookup)
-  const profB = getDateGroupProfile(sliceB.fromIso, liveDailyLookup)
+function toInsightEntity(row: EntityVarianceRow | undefined): ComparisonAutoInsightEntity | null {
+  if (!row) return null
+  return {
+    id: row.id,
+    dimension: row.dimension,
+    nameEn: row.nameEn,
+    nameAr: row.nameAr,
+    valueA: row.valueA,
+    valueB: row.valueB,
+    deltaKwd: row.deltaKwd,
+    deltaPct: row.deltaPct,
+    netProfitDeltaKwd: row.netProfitDeltaKwd,
+  }
+}
 
-  const rawSalesWeightsA: number[] = []
-  const rawSalesWeightsB: number[] = []
-  for (const h of OPERATING_HOURS_14) {
-    const baseW =
-      liveHourlyWeights?.[h.hour24] ??
-      CALIBRATED_BASE.hourlyWeights[h.hour24] ??
-      h.baseWeight
-    const wkA = profA.isWeekend ? h.weekendBoost : 1
-    const wkB = profB.isWeekend ? h.weekendBoost : 1
-    const jA = 0.94 + fnv1aUnit(`hrA:${seedTagA}:${sliceA.fromIso}:${h.hour24}`) * 0.12
-    const jB = 0.94 + fnv1aUnit(`hrB:${seedTagB}:${sliceB.fromIso}:${h.hour24}`) * 0.12
-    rawSalesWeightsA.push(baseW * wkA * jA)
-    rawSalesWeightsB.push(baseW * wkB * jB)
+function buildInsights(
+  connected: boolean,
+  noData: boolean,
+  selectionA: ComparisonSliceTotals,
+  selectionB: ComparisonSliceTotals,
+  byBranch: EntityVarianceRow[],
+  byBrand: EntityVarianceRow[],
+  accountingAvailable: boolean,
+): ErpComparisonAutoInsights {
+  if (!connected || noData) {
+    return {
+      topGainer: null,
+      biggestDecline: null,
+      topGainerBrand: null,
+      biggestDeclineBrand: null,
+      topGainerBranch: null,
+      biggestDeclineBranch: null,
+      headlineAr: NO_DATA_AR,
+      headlineEn: NO_DATA_EN,
+      summaryAr: NO_DATA_AR,
+      summaryEn: NO_DATA_EN,
+    }
   }
 
-  const sumWA = rawSalesWeightsA.reduce((s, v) => s + v, 0) || 1
-  const sumWB = rawSalesWeightsB.reduce((s, v) => s + v, 0) || 1
+  const mappedBranches = byBranch.filter((r) => !r.isUnattributed)
+  const sortedBr = [...mappedBranches].sort((a, b) => b.deltaKwd - a.deltaKwd)
+  const topGainerBranch =
+    sortedBr[0] && sortedBr[0].deltaKwd > 0 ? toInsightEntity(sortedBr[0]) : null
+  const biggestDeclineBranch =
+    sortedBr.length > 0 && sortedBr[sortedBr.length - 1].deltaKwd < 0
+      ? toInsightEntity(sortedBr[sortedBr.length - 1])
+      : null
 
-  const salesArrA = reconcileRoundedArray(
-    rawSalesWeightsA.map((w) => (w / sumWA) * sliceA.netSalesKwd),
-    sliceA.netSalesKwd,
-    3,
-  )
-  const salesArrB = reconcileRoundedArray(
-    rawSalesWeightsB.map((w) => (w / sumWB) * sliceB.netSalesKwd),
-    sliceB.netSalesKwd,
-    3,
-  )
-  const ordersArrA = reconcileRoundedArray(
-    rawSalesWeightsA.map((w) => (w / sumWA) * sliceA.completedOrders),
-    sliceA.completedOrders,
-    0,
-  )
-  const ordersArrB = reconcileRoundedArray(
-    rawSalesWeightsB.map((w) => (w / sumWB) * sliceB.completedOrders),
-    sliceB.completedOrders,
-    0,
-  )
-  const profitArrA = reconcileRoundedArray(
-    rawSalesWeightsA.map((w) => (w / sumWA) * sliceA.netPocketCashKwd),
-    sliceA.netPocketCashKwd,
-    3,
-  )
-  const profitArrB = reconcileRoundedArray(
-    rawSalesWeightsB.map((w) => (w / sumWB) * sliceB.netPocketCashKwd),
-    sliceB.netPocketCashKwd,
-    3,
-  )
+  const sortedBrand = [...byBrand].sort((a, b) => b.deltaKwd - a.deltaKwd)
+  const topGainerBrand =
+    sortedBrand[0] && sortedBrand[0].deltaKwd > 0 ? toInsightEntity(sortedBrand[0]) : null
+  const biggestDeclineBrand =
+    sortedBrand.length > 0 && sortedBrand[sortedBrand.length - 1].deltaKwd < 0
+      ? toInsightEntity(sortedBrand[sortedBrand.length - 1])
+      : null
 
-  let cumSalesA = 0
-  let cumSalesB = 0
-  let cumProfA = 0
-  let cumProfB = 0
+  const topGainer = topGainerBranch ?? topGainerBrand
+  const biggestDecline = biggestDeclineBranch ?? biggestDeclineBrand
 
-  return OPERATING_HOURS_14.map((h, idx) => {
-    const sA = salesArrA[idx] ?? 0
-    const sB = salesArrB[idx] ?? 0
-    const oA = ordersArrA[idx] ?? 0
-    const oB = ordersArrB[idx] ?? 0
-    const pA = profitArrA[idx] ?? 0
-    const pB = profitArrB[idx] ?? 0
+  const salesDeltaKwd = r1(selectionA.netSalesKwd - selectionB.netSalesKwd)
+  const salesDeltaPct = safePctDelta(selectionA.netSalesKwd, selectionB.netSalesKwd)
+  const sign = salesDeltaKwd > 0 ? '+' : ''
 
-    cumSalesA = r3(cumSalesA + sA)
-    cumSalesB = r3(cumSalesB + sB)
-    cumProfA = r3(cumProfA + pA)
-    cumProfB = r3(cumProfB + pB)
+  const headlineAr = `صافي المبيعات من Odoo: ${selectionA.netSalesKwd.toLocaleString('en-US')} د.ك مقابل ${selectionB.netSalesKwd.toLocaleString('en-US')} د.ك (${sign}${salesDeltaPct}%)`
+  const headlineEn = `Live Odoo Net Sales: ${selectionA.netSalesKwd.toLocaleString('en-US')} KWD vs ${selectionB.netSalesKwd.toLocaleString('en-US')} KWD (${sign}${salesDeltaPct}%)`
 
-    return {
-      id: `hr-${h.slotKey}`,
-      index: idx,
-      labelEn: h.labelEn,
-      labelAr: OPERATING_HOUR_LABELS_AR[h.hour24] ?? h.labelAr,
-      metaA: `${sliceA.shortLabelEn} · ${h.compactEn}`,
-      metaB: `${sliceB.shortLabelEn} · ${h.compactEn}`,
-      seriesA: sA,
-      seriesB: sB,
-      delta: r3(sA - sB),
-      deltaPct: computePctChange(sA, sB),
-      cumulativeA: cumSalesA,
-      cumulativeB: cumSalesB,
-      ordersA: oA,
-      ordersB: oB,
-      ordersDelta: oA - oB,
-      profitA: pA,
-      profitB: pB,
-      profitDelta: r3(pA - pB),
-      cumulativeProfitA: cumProfA,
-      cumulativeProfitB: cumProfB,
-    }
-  })
-}
+  const unattrPartAr =
+    selectionA.unattributedSalesKwd > 0 || selectionB.unattributedSalesKwd > 0
+      ? ` · بند «${UNMAPPED_TERMINALS_LABEL_AR}» مستقل: ${selectionA.unattributedSalesKwd.toLocaleString('en-US')} د.ك في (أ) مقابل ${selectionB.unattributedSalesKwd.toLocaleString('en-US')} د.ك في (ب).`
+      : ''
+  const unattrPartEn =
+    selectionA.unattributedSalesKwd > 0 || selectionB.unattributedSalesKwd > 0
+      ? ` · Standalone "${UNMAPPED_TERMINALS_LABEL_EN}": ${selectionA.unattributedSalesKwd.toLocaleString('en-US')} KWD in (A) vs ${selectionB.unattributedSalesKwd.toLocaleString('en-US')} KWD in (B).`
+      : ''
 
-function buildDailyAlignedChartBuckets(
-  rawA: AggregatedSliceRaw,
-  rawB: AggregatedSliceRaw,
-  sliceA: ComparisonSliceTotals,
-  sliceB: ComparisonSliceTotals,
-  isEntityMode: boolean,
-): ComparisonChartBucket[] {
-  const bucketCount = Math.max(rawA.perDate.length, rawB.perDate.length, 1)
-
-  const salesArrA = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawA.perDate[i]?.sales ?? 0),
-    sliceA.netSalesKwd,
-    3,
-  )
-  const salesArrB = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawB.perDate[i]?.sales ?? 0),
-    sliceB.netSalesKwd,
-    3,
-  )
-  const ordersArrA = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawA.perDate[i]?.orders ?? 0),
-    sliceA.completedOrders,
-    0,
-  )
-  const ordersArrB = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawB.perDate[i]?.orders ?? 0),
-    sliceB.completedOrders,
-    0,
-  )
-  const profitArrA = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawA.perDate[i]?.netPocket ?? 0),
-    sliceA.netPocketCashKwd,
-    3,
-  )
-  const profitArrB = reconcileRoundedArray(
-    Array.from({ length: bucketCount }, (_, i) => rawB.perDate[i]?.netPocket ?? 0),
-    sliceB.netPocketCashKwd,
-    3,
-  )
-
-  let cumSalesA = 0
-  let cumSalesB = 0
-  let cumProfA = 0
-  let cumProfB = 0
-
-  return Array.from({ length: bucketCount }, (_, idx) => {
-    const isoA = rawA.perDate[idx]?.dateIso
-    const isoB = rawB.perDate[idx]?.dateIso
-    const badgeA = isoA ? formatCalendarDateBadge(isoA, false, false) : null
-    const badgeB = isoB ? formatCalendarDateBadge(isoB, false, false) : null
-    const badgeArA = isoA ? formatCalendarDateBadge(isoA, true, false) : null
-
-    const sA = salesArrA[idx] ?? 0
-    const sB = salesArrB[idx] ?? 0
-    const oA = ordersArrA[idx] ?? 0
-    const oB = ordersArrB[idx] ?? 0
-    const pA = profitArrA[idx] ?? 0
-    const pB = profitArrB[idx] ?? 0
-
-    cumSalesA = r3(cumSalesA + sA)
-    cumSalesB = r3(cumSalesB + sB)
-    cumProfA = r3(cumProfA + pA)
-    cumProfB = r3(cumProfB + pB)
-
-    const labelEn =
-      isEntityMode && badgeA
-        ? badgeA.shortDdMm
-        : bucketCount <= 14 && badgeA
-          ? badgeA.shortDdMm
-          : `D${idx + 1}`
-    const labelAr =
-      isEntityMode && badgeArA
-        ? badgeArA.shortDdMm
-        : bucketCount <= 14 && badgeArA
-          ? badgeArA.shortDdMm
-          : `ي${idx + 1}`
-
-    return {
-      id: `day-${idx + 1}`,
-      index: idx,
-      labelEn,
-      labelAr,
-      metaA: isoA ? `${badgeA?.weekdayShort ?? ''} ${badgeA?.shortDdMm ?? isoA}`.trim() : '—',
-      metaB: isoB ? `${badgeB?.weekdayShort ?? ''} ${badgeB?.shortDdMm ?? isoB}`.trim() : '—',
-      seriesA: sA,
-      seriesB: sB,
-      delta: r3(sA - sB),
-      deltaPct: computePctChange(sA, sB),
-      cumulativeA: cumSalesA,
-      cumulativeB: cumSalesB,
-      ordersA: oA,
-      ordersB: oB,
-      ordersDelta: oA - oB,
-      profitA: pA,
-      profitB: pB,
-      profitDelta: r3(pA - pB),
-      cumulativeProfitA: cumProfA,
-      cumulativeProfitB: cumProfB,
-    }
-  })
-}
-
-function buildDimensionRows<ID extends string>(params: {
-  ids: readonly ID[]
-  dimension: BreakdownDimension
-  getRawA: (id: ID) => { sales: number; orders: number; foodAgg: number; netPocket: number }
-  getRawB: (id: ID) => { sales: number; orders: number; foodAgg: number; netPocket: number }
-  sliceA: ComparisonSliceTotals
-  sliceB: ComparisonSliceTotals
-  getName: (id: ID, isAr: boolean) => string
-  getSubMeta: (id: ID, isAr: boolean) => string
-  getIsCompatible: (id: ID) => boolean
-}): EntityVarianceRow[] {
-  const {
-    ids,
-    dimension,
-    getRawA,
-    getRawB,
-    sliceA,
-    sliceB,
-    getName,
-    getSubMeta,
-    getIsCompatible,
-  } = params
-
-  const salesA = reconcileRoundedArray(
-    ids.map((id) => getRawA(id).sales),
-    sliceA.netSalesKwd,
-    3,
-  )
-  const salesB = reconcileRoundedArray(
-    ids.map((id) => getRawB(id).sales),
-    sliceB.netSalesKwd,
-    3,
-  )
-  const ordersA = reconcileRoundedArray(
-    ids.map((id) => getRawA(id).orders),
-    sliceA.completedOrders,
-    0,
-  )
-  const ordersB = reconcileRoundedArray(
-    ids.map((id) => getRawB(id).orders),
-    sliceB.completedOrders,
-    0,
-  )
-  const foodAggA = reconcileRoundedArray(
-    ids.map((id) => getRawA(id).foodAgg),
-    sliceA.foodAndAggregatorCostKwd,
-    3,
-  )
-  const foodAggB = reconcileRoundedArray(
-    ids.map((id) => getRawB(id).foodAgg),
-    sliceB.foodAndAggregatorCostKwd,
-    3,
-  )
-  const profitA = reconcileRoundedArray(
-    ids.map((id) => getRawA(id).netPocket),
-    sliceA.netPocketCashKwd,
-    3,
-  )
-  const profitB = reconcileRoundedArray(
-    ids.map((id) => getRawB(id).netPocket),
-    sliceB.netPocketCashKwd,
-    3,
-  )
-
-  const draftRows: EntityVarianceRow[] = ids.map((id, i) => {
-    const vA = salesA[i] ?? 0
-    const vB = salesB[i] ?? 0
-    const oA = ordersA[i] ?? 0
-    const oB = ordersB[i] ?? 0
-    const faA = foodAggA[i] ?? 0
-    const faB = foodAggB[i] ?? 0
-    const pA = profitA[i] ?? 0
-    const pB = profitB[i] ?? 0
-
-    const deltaKwd = r3(vA - vB)
-    const deltaPct = computePctChange(vA, vB)
-    const ordersDelta = oA - oB
-    const ordersDeltaPct = computePctChange(oA, oB)
-    const aovA = oA > 0 ? r3(vA / oA) : 0
-    const aovB = oB > 0 ? r3(vB / oB) : 0
-    const netProfitDeltaKwd = r3(pA - pB)
-    const marginPctA = vA > 0 ? r1((pA / vA) * 100) : 0
-    const marginPctB = vB > 0 ? r1((pB / vB) * 100) : 0
-    const marginDeltaPp = r1(marginPctA - marginPctB)
-    const shareOfTotalAPct = sliceA.netSalesKwd > 0 ? r1((vA / sliceA.netSalesKwd) * 100) : 0
-
-    return {
-      id,
-      dimension,
-      nameEn: getName(id, false),
-      nameAr: getName(id, true),
-      subMetaEn: getSubMeta(id, false),
-      subMetaAr: getSubMeta(id, true),
-      isCompatible: getIsCompatible(id),
-      valueA: vA,
-      valueB: vB,
-      deltaKwd,
-      deltaPct,
-      ordersA: oA,
-      ordersB: oB,
-      ordersDelta,
-      ordersDeltaPct,
-      aovA,
-      aovB,
-      foodAggCostA: faA,
-      foodAggCostB: faB,
-      netProfitA: pA,
-      netProfitB: pB,
-      netProfitDeltaKwd,
-      marginPctA,
-      marginPctB,
-      marginDeltaPp,
-      shareOfTotalAPct,
-      tier: deltaKwd >= 0 && netProfitDeltaKwd >= -5 ? 'green' : 'yellow',
-    }
-  })
-
-  // Calibrate at most 1 genuine critical outlier per dimension so >= 75% stay healthy/watch
-  const worstDecliner = [...draftRows]
-    .filter((r) => r.isCompatible && (r.deltaKwd < -20 || r.netProfitDeltaKwd < -10))
-    .sort((a, b) => a.deltaKwd - b.deltaKwd)[0]
-  if (worstDecliner) {
-    worstDecliner.tier = 'red'
-  }
-
-  return draftRows.sort((a, b) => b.valueA - a.valueA)
-}
-
-function pickInsightPair(rows: EntityVarianceRow[]): {
-  topGainer: ComparisonAutoInsightEntity | null
-  biggestDecline: ComparisonAutoInsightEntity | null
-} {
-  const active = rows.filter((r) => r.valueA > 0 || r.valueB > 0)
-  if (active.length === 0) return { topGainer: null, biggestDecline: null }
-
-  const sortedDesc = [...active].sort((a, b) => b.deltaKwd - a.deltaKwd)
-  const sortedAsc = [...active].sort((a, b) => a.deltaKwd - b.deltaKwd)
-
-  const best = sortedDesc[0]
-  const worst = sortedAsc[0]
-
-  const toItem = (r: EntityVarianceRow): ComparisonAutoInsightEntity => ({
-    id: r.id,
-    dimension: r.dimension,
-    nameEn: r.nameEn,
-    nameAr: r.nameAr,
-    valueA: r.valueA,
-    valueB: r.valueB,
-    deltaKwd: r.deltaKwd,
-    deltaPct: r.deltaPct,
-    netProfitDeltaKwd: r.netProfitDeltaKwd,
-  })
+  const glPartAr = accountingAvailable ? '' : ` · ${GL_INCOMPLETE_AR}.`
+  const glPartEn = accountingAvailable ? '' : ` · ${GL_INCOMPLETE_EN}.`
 
   return {
-    topGainer: best ? toItem(best) : null,
-    biggestDecline: worst && worst.id !== best?.id ? toItem(worst) : null,
+    topGainer,
+    biggestDecline,
+    topGainerBrand,
+    biggestDeclineBrand,
+    topGainerBranch,
+    biggestDeclineBranch,
+    headlineAr,
+    headlineEn,
+    summaryAr: `${headlineAr}${unattrPartAr}${glPartAr}`,
+    summaryEn: `${headlineEn}${unattrPartEn}${glPartEn}`,
+  }
+}
+
+function buildScopeSummary(query: ErpComparisonQuery): { ar: string; en: string } {
+  const brandAr =
+    query.brandIds === 'all' || query.brandIds.length >= APPROVED_BRAND_IDS.length
+      ? 'كل العلامات (6)'
+      : query.brandIds.map((id) => getBrandLabel(id, true)).join(' + ')
+  const brandEn =
+    query.brandIds === 'all' || query.brandIds.length >= APPROVED_BRAND_IDS.length
+      ? 'All Brands (6)'
+      : query.brandIds.map((id) => getBrandLabel(id, false)).join(' + ')
+
+  const branchAr =
+    query.branchIds === 'all' || query.branchIds.length >= APPROVED_BRANCH_IDS.length
+      ? `الفروع السبعة (7) + ${UNMAPPED_TERMINALS_LABEL_AR}`
+      : query.branchIds.map((id) => getBranchLabel(id, true)).join(' + ')
+  const branchEn =
+    query.branchIds === 'all' || query.branchIds.length >= APPROVED_BRANCH_IDS.length
+      ? `All 7 Branches + ${UNMAPPED_TERMINALS_LABEL_EN}`
+      : query.branchIds.map((id) => getBranchLabel(id, false)).join(' + ')
+
+  const channelAr =
+    query.channelIds === 'all' || query.channelIds.length >= APPROVED_CHANNEL_IDS.length
+      ? 'كل القنوات'
+      : query.channelIds.map((id) => getChannelLabel(id, true)).join(' + ')
+  const channelEn =
+    query.channelIds === 'all' || query.channelIds.length >= APPROVED_CHANNEL_IDS.length
+      ? 'All Channels'
+      : query.channelIds.map((id) => getChannelLabel(id, false)).join(' + ')
+
+  return {
+    ar: `${brandAr} · ${branchAr} · ${channelAr}`,
+    en: `${brandEn} · ${branchEn} · ${channelEn}`,
   }
 }
 
 /**
- * Primary Pure Calculation Entrypoint:
- * Computes a complete, reconciled `ErpComparisonResult` for any custom Date-vs-Date or Entity-vs-Entity query.
+ * Computes the complete executive comparison strictly from live `OdooPeriodCube` A & B.
  */
 export function computeErpComparison(
-  query: ErpComparisonQuery,
-  liveSummary?: OdooLiveSummary | null,
-  options?: { referenceNowMs?: number },
+  rawQuery: ErpComparisonQuery,
+  liveInput?: OdooLiveSummary | ErpComparisonLiveCubesInput | null,
 ): ErpComparisonResult {
-  const mode: ComparisonModeType = query.mode === 'entity-vs-entity' ? 'entity-vs-entity' : 'date-vs-date'
-  const granularity: ComparisonGranularity = query.granularity === 'range' ? 'range' : 'single'
-  const sameHoursLikeForLike = query.sameHoursLikeForLike === true
+  const { mode, granularity, normA, normB, cutoffHour24, likeForLikeMeta } =
+    normalizeComparisonQueryWindows(rawQuery)
 
-  const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
-  const operationalTodayIso = kwCtx.todayIso
-  const lastCompletedDayIso = shiftIsoDate(operationalTodayIso, -1)
+  const baseBrands = sanitizeBrandSelection(rawQuery.brandIds)
+  const baseBranches = sanitizeBranchSelection(rawQuery.branchIds)
+  const baseChannels = sanitizeChannelSelection(rawQuery.channelIds)
 
-  let normA = normalizeWindowSelection(
-    query.periodA,
-    granularity,
-    sameHoursLikeForLike ? operationalTodayIso : DEFAULT_COMPARISON_DATE_A,
+  const isScopeCompatible = baseBranches.branchIds.some((br) =>
+    baseBrands.some((b) => isBrandBranchCompatible(b, br)),
   )
-  let normB =
-    mode === 'entity-vs-entity'
-      ? normA
-      : normalizeWindowSelection(
-          query.periodB,
-          granularity,
-          sameHoursLikeForLike ? shiftIsoDate(operationalTodayIso, -7) : DEFAULT_COMPARISON_DATE_B,
-        )
 
-  // By default (!sameHoursLikeForLike), exclude incomplete current day (`operationalTodayIso`)
-  // so comparison windows end cleanly at `lastCompletedDayIso` (`yesterday`) with equal day counts.
-  if (!sameHoursLikeForLike && normA.toIso >= operationalTodayIso) {
-    const shiftBackDays = Math.max(
-      1,
-      Math.round(
-        (Date.parse(`${normA.toIso}T00:00:00Z`) -
-          Date.parse(`${lastCompletedDayIso}T00:00:00Z`)) /
-          86_400_000,
-      ),
-    )
-    const shiftedFromA = shiftIsoDate(normA.fromIso, -shiftBackDays)
-    const shiftedToA = shiftIsoDate(normA.toIso, -shiftBackDays)
-    const shouldShiftPairedB =
-      mode === 'date-vs-date' &&
-      (normB.toIso >= operationalTodayIso || normB.dayCount === normA.dayCount)
+  let scopeA: ResolvedEntityScope = {
+    brandIds: baseBrands,
+    branchIds: baseBranches.branchIds,
+    includeUnattributed: baseBranches.includeUnattributed,
+    channelIds: baseChannels,
+  }
+  let scopeB: ResolvedEntityScope = {
+    brandIds: baseBrands,
+    branchIds: baseBranches.branchIds,
+    includeUnattributed: baseBranches.includeUnattributed,
+    channelIds: baseChannels,
+  }
 
-    normA = normalizeWindowSelection(
-      { from: shiftedFromA, to: shiftedToA },
-      granularity,
-      lastCompletedDayIso,
-    )
-    if (mode === 'entity-vs-entity') {
-      normB = normA
-    } else if (shouldShiftPairedB) {
-      normB = normalizeWindowSelection(
-        {
-          from: shiftIsoDate(normB.fromIso, -shiftBackDays),
-          to: shiftIsoDate(normB.toIso, -shiftBackDays),
-        },
-        granularity,
-        shiftIsoDate(lastCompletedDayIso, -7),
+  let headersA = formatSliceHeaderLabels(normA.fromIso, normA.toIso, normA.dayCount)
+  let headersB = formatSliceHeaderLabels(normB.fromIso, normB.toIso, normB.dayCount)
+
+  if (mode === 'entity-vs-entity') {
+    const dim: EntityComparisonDimension =
+      rawQuery.entityDimension === 'branch' ? 'branch' : 'brand'
+    if (dim === 'branch') {
+      const brA: BranchEntityId = (APPROVED_BRANCH_IDS as readonly string[]).includes(
+        rawQuery.entityA ?? '',
       )
-    }
-  } else if (!sameHoursLikeForLike && mode === 'date-vs-date' && normB.toIso >= operationalTodayIso) {
-    const shiftBackDaysB = Math.max(
-      1,
-      Math.round(
-        (Date.parse(`${normB.toIso}T00:00:00Z`) -
-          Date.parse(`${lastCompletedDayIso}T00:00:00Z`)) /
-          86_400_000,
-      ),
-    )
-    normB = normalizeWindowSelection(
-      {
-        from: shiftIsoDate(normB.fromIso, -shiftBackDaysB),
-        to: shiftIsoDate(normB.toIso, -shiftBackDaysB),
-      },
-      granularity,
-      shiftIsoDate(lastCompletedDayIso, -7),
-    )
-  }
-
-  const brandSet =
-    query.brandIds === 'all' || query.brandIds.length === 0
-      ? null
-      : new Set<BrandEntityId>(query.brandIds)
-  const branchSet =
-    query.branchIds === 'all' || query.branchIds.length === 0
-      ? null
-      : new Set<BranchEntityId>(query.branchIds)
-  const channelSet =
-    query.channelIds === 'all' || query.channelIds.length === 0
-      ? null
-      : new Set<ChannelEntityId>(query.channelIds)
-
-  const entityDim: EntityComparisonDimension =
-    query.entityDimension === 'branch' ? 'branch' : 'brand'
-  const entityAId =
-    entityDim === 'brand'
-      ? ((APPROVED_BRAND_IDS as readonly string[]).includes(query.entityA ?? '')
-          ? (query.entityA as BrandEntityId)
-          : 'china-garden')
-      : ((APPROVED_BRANCH_IDS as readonly string[]).includes(query.entityA ?? '')
-          ? (query.entityA as BranchEntityId)
-          : 'avenues')
-  const entityBId =
-    entityDim === 'brand'
-      ? ((APPROVED_BRAND_IDS as readonly string[]).includes(query.entityB ?? '')
-          ? (query.entityB as BrandEntityId)
-          : 'franks')
-      : ((APPROVED_BRANCH_IDS as readonly string[]).includes(query.entityB ?? '')
-          ? (query.entityB as BranchEntityId)
-          : 'salmiya')
-
-  const baseFilter = (c: AtomicCell): boolean => {
-    if (brandSet && !brandSet.has(c.brand)) return false
-    if (branchSet && !branchSet.has(c.branch)) return false
-    if (channelSet && !channelSet.has(c.channel)) return false
-    return true
-  }
-
-  const filterA =
-    mode === 'entity-vs-entity'
-      ? (c: AtomicCell) =>
-          (entityDim === 'brand' ? c.brand === entityAId : c.branch === entityAId) &&
-          (entityDim === 'brand' ? !branchSet || branchSet.has(c.branch) : !brandSet || brandSet.has(c.brand)) &&
-          (!channelSet || channelSet.has(c.channel))
-      : baseFilter
-
-  const filterB =
-    mode === 'entity-vs-entity'
-      ? (c: AtomicCell) =>
-          (entityDim === 'brand' ? c.brand === entityBId : c.branch === entityBId) &&
-          (entityDim === 'brand' ? !branchSet || branchSet.has(c.branch) : !brandSet || brandSet.has(c.brand)) &&
-          (!channelSet || channelSet.has(c.channel))
-      : baseFilter
-
-  const isScopeCompatible = CALIBRATED_BASE.cells.some(filterA) || CALIBRATED_BASE.cells.some(filterB)
-
-  let liveDailyLookup: Map<string, { netKwd: number; orders: number }> | undefined
-  if (Array.isArray(liveSummary?.dailySeries) && liveSummary.dailySeries.length > 0) {
-    liveDailyLookup = new Map()
-    for (const d of liveSummary.dailySeries) {
-      if (d && d.day && d.orders > 0 && d.netKwd > 0) {
-        liveDailyLookup.set(d.day, { netKwd: d.netKwd, orders: d.orders })
+        ? (rawQuery.entityA as BranchEntityId)
+        : APPROVED_BRANCH_IDS[0]
+      const brB: BranchEntityId = (APPROVED_BRANCH_IDS as readonly string[]).includes(
+        rawQuery.entityB ?? '',
+      )
+        ? (rawQuery.entityB as BranchEntityId)
+        : brA === APPROVED_BRANCH_IDS[1]
+          ? APPROVED_BRANCH_IDS[2]
+          : APPROVED_BRANCH_IDS[1]
+      scopeA = { ...scopeA, branchIds: [brA], includeUnattributed: false }
+      scopeB = { ...scopeB, branchIds: [brB], includeUnattributed: false }
+      const arA = getBranchLabel(brA, true)
+      const enA = getBranchLabel(brA, false)
+      const arB = getBranchLabel(brB, true)
+      const enB = getBranchLabel(brB, false)
+      headersA = {
+        ...headersA,
+        titleAr: `${arA} (${headersA.shortLabelAr})`,
+        titleEn: `${enA} (${headersA.shortLabelEn})`,
+        shortLabelAr: arA,
+        shortLabelEn: enA,
+      }
+      headersB = {
+        ...headersB,
+        titleAr: `${arB} (${headersB.shortLabelAr})`,
+        titleEn: `${enB} (${headersB.shortLabelEn})`,
+        shortLabelAr: arB,
+        shortLabelEn: enB,
+      }
+    } else {
+      const bA: BrandEntityId = (APPROVED_BRAND_IDS as readonly string[]).includes(
+        rawQuery.entityA ?? '',
+      )
+        ? (rawQuery.entityA as BrandEntityId)
+        : APPROVED_BRAND_IDS[0]
+      const bB: BrandEntityId = (APPROVED_BRAND_IDS as readonly string[]).includes(
+        rawQuery.entityB ?? '',
+      )
+        ? (rawQuery.entityB as BrandEntityId)
+        : bA === APPROVED_BRAND_IDS[1]
+          ? APPROVED_BRAND_IDS[2]
+          : APPROVED_BRAND_IDS[1]
+      scopeA = { ...scopeA, brandIds: [bA] }
+      scopeB = { ...scopeB, brandIds: [bB] }
+      const arA = getBrandLabel(bA, true)
+      const enA = getBrandLabel(bA, false)
+      const arB = getBrandLabel(bB, true)
+      const enB = getBrandLabel(bB, false)
+      headersA = {
+        ...headersA,
+        titleAr: `${arA} (${headersA.shortLabelAr})`,
+        titleEn: `${enA} (${headersA.shortLabelEn})`,
+        shortLabelAr: arA,
+        shortLabelEn: enA,
+      }
+      headersB = {
+        ...headersB,
+        titleAr: `${arB} (${headersB.shortLabelAr})`,
+        titleEn: `${enB} (${headersB.shortLabelEn})`,
+        shortLabelAr: arB,
+        shortLabelEn: enB,
       }
     }
   }
 
-  let liveHourlyWeights: Record<number, number> | undefined
-  if (Array.isArray(liveSummary?.hourlySeries) && liveSummary.hourlySeries.length > 0) {
-    let sumH = 0
-    const temp: Record<number, number> = {}
-    for (const slot of OPERATING_HOURS_14) {
-      const hit = liveSummary.hourlySeries.find((x) => x.hour === slot.hour24)
-      const val = hit && hit.netKwd > 0 ? hit.netKwd : 0
-      temp[slot.hour24] = val
-      sumH += val
-    }
-    if (sumH > 0) {
-      liveHourlyWeights = {}
-      for (const slot of OPERATING_HOURS_14) {
-        liveHourlyWeights[slot.hour24] =
-          temp[slot.hour24] > 0 ? temp[slot.hour24] / sumH : slot.baseWeight * 0.25
-      }
-    }
-  }
+  const { cubeA, cubeB, lastSyncedAt } = extractLiveCubes(mode, liveInput)
+  const connected = Boolean(cubeA?.connected && cubeB?.connected)
+  const noData = !connected || Boolean(cubeA?.noData && cubeB?.noData)
+  const messageAr = !connected || noData ? NO_DATA_AR : undefined
 
-  const intradayShare = sameHoursLikeForLike
-    ? computeIntradayShareUpToKuwaitClock(kwCtx.hour24, kwCtx.minute, liveHourlyWeights)
-    : 1
-
-  let lookupA = liveDailyLookup
-  const dateScaleA = new Map<string, number>()
-  const dateScaleB = new Map<string, number>()
-
-  if (sameHoursLikeForLike) {
-    const todayIdxInA = normA.dates.indexOf(operationalTodayIso)
-    if (todayIdxInA >= 0) {
-      const hasLivePartialToday = Boolean(liveDailyLookup?.has(operationalTodayIso))
-      const snapshotPartialToday = CALIBRATED_BASE.partialDayLookup.get(operationalTodayIso)
-      if (!hasLivePartialToday && snapshotPartialToday && operationalTodayIso === '2026-11-14') {
-        lookupA = new Map(liveDailyLookup ?? [])
-        lookupA.set(operationalTodayIso, snapshotPartialToday)
-      } else if (!hasLivePartialToday) {
-        dateScaleA.set(operationalTodayIso, intradayShare)
-      }
-
-      if (mode === 'date-vs-date') {
-        const pairedDateB =
-          normB.dates[todayIdxInA] ??
-          (normB.dates.length > 0 ? normB.dates[normB.dates.length - 1] : undefined)
-        if (pairedDateB && pairedDateB < operationalTodayIso) {
-          const effectiveScaleB =
-            !hasLivePartialToday && snapshotPartialToday && operationalTodayIso === '2026-11-14'
-              ? r3(
-                  Math.min(
-                    1,
-                    Math.max(
-                      0.1,
-                      safeDiv(
-                        snapshotPartialToday.netKwd,
-                        CALIBRATED_BASE.avgDailyGroupSales,
-                        intradayShare,
-                      ),
-                    ),
-                  ),
-                )
-              : intradayShare
-          dateScaleB.set(pairedDateB, effectiveScaleB)
-        }
-      }
-    }
-  }
-
-  const isFullCompanyScope =
-    mode === 'date-vs-date' && !brandSet && !branchSet && !channelSet
-  const minWindowDays = Math.min(normA.dayCount, normB.dayCount)
-  const glAcc =
-    minWindowDays >= 180
-      ? liveSummary?.buckets?.year?.accounting
-      : minWindowDays >= 14
-        ? liveSummary?.buckets?.month?.accounting
-        : undefined
-
-  let ledgerRates: ResolvedLedgerRates
-  const glTotalRev = typeof glAcc?.totalRevenue === 'number' ? glAcc.totalRevenue : 0
-  if (
-    isFullCompanyScope &&
-    minWindowDays >= 14 &&
-    glAcc?.available &&
-    glAcc.completeAccrualPosted &&
-    glTotalRev > 0
-  ) {
-    ledgerRates = {
-      available: true,
-      foodRate: Math.max(0, glAcc.cogs / glTotalRev),
-      commRate: Math.max(0, (glAcc.deliveryCommissions ?? 0) / glTotalRev),
-      opexRate: Math.max(0, (glAcc.otherOpexAndDepreciation ?? 0) / glTotalRev),
-      unavailableReasonAr: null,
-      unavailableReasonEn: null,
-    }
-  } else {
-    let reasonAr = 'غير متوفر — لم تتوفر قيود دفتر الأستاذ المرحلة (account.move.line) للفترة المختارة'
-    let reasonEn = 'Not available — posted Odoo GL journal lines (account.move.line) are unavailable for the selected window'
-    if (!isFullCompanyScope) {
-      reasonAr = 'غير متوفر على مستوى فلتر فرعي — قيود المحاسبة في أودو (account.move.line) تُرحّل على مستوى الشركة ولا تُجزّأ افتراضياً'
-      reasonEn = 'Not available for sub-filters — Odoo GL expenses (account.move.line) are posted at company level without synthetic allocation'
-    } else if (minWindowDays < 14) {
-      reasonAr = 'غير متوفر للفترات اليومية/الأسبوعية — استحقاقات الإيجار والرواتب وفواتير المنصات تُقفل شهرياً في account.move.line'
-      reasonEn = 'Not available for daily/weekly windows — rent, payroll, and platform bills post monthly in account.move.line'
-    } else if (glAcc && !glAcc.completeAccrualPosted) {
-      reasonAr = 'غير متوفر — لم تكتمل قيود إقفال التكاليف الشهرية في دفتر الأستاذ بعد'
-      reasonEn = 'Not available — monthly cost accruals are not yet fully posted in Odoo GL'
-    }
-    ledgerRates = {
-      available: false,
-      foodRate: 0,
-      commRate: 0,
-      opexRate: 0,
-      unavailableReasonAr: reasonAr,
-      unavailableReasonEn: reasonEn,
-    }
-  }
-
-  const isPureBranchSubset =
-    !brandSet &&
-    !channelSet &&
-    (Boolean(branchSet) || (mode === 'entity-vs-entity' && entityDim === 'branch'))
-
-  const rawA = aggregateSliceOverDates(
-    normA.dates,
-    filterA,
-    ledgerRates,
-    lookupA,
-    dateScaleA,
-    liveSummary?.dailyByBranch,
-    isPureBranchSubset,
+  const selectionA = computeCubeSliceTotals(
+    cubeA,
+    normA.fromIso,
+    normA.toIso,
+    normA.dayCount,
+    headersA,
+    scopeA,
+    cutoffHour24,
   )
-  const rawB = aggregateSliceOverDates(
-    normB.dates,
-    filterB,
-    ledgerRates,
-    mode === 'entity-vs-entity' ? lookupA : liveDailyLookup,
-    mode === 'entity-vs-entity' ? dateScaleA : dateScaleB,
-    liveSummary?.dailyByBranch,
-    isPureBranchSubset,
+  const selectionB = computeCubeSliceTotals(
+    cubeB,
+    normB.fromIso,
+    normB.toIso,
+    normB.dayCount,
+    headersB,
+    scopeB,
+    cutoffHour24,
   )
 
-  const entityLabelAEn =
-    mode === 'entity-vs-entity'
-      ? entityDim === 'brand'
-        ? getBrandLabel(entityAId as BrandEntityId, false)
-        : getBranchLabel(entityAId as BranchEntityId, false)
-      : undefined
-  const entityLabelAAr =
-    mode === 'entity-vs-entity'
-      ? entityDim === 'brand'
-        ? getBrandLabel(entityAId as BrandEntityId, true)
-        : getBranchLabel(entityAId as BranchEntityId, true)
-      : undefined
-  const entityLabelBEn =
-    mode === 'entity-vs-entity'
-      ? entityDim === 'brand'
-        ? getBrandLabel(entityBId as BrandEntityId, false)
-        : getBranchLabel(entityBId as BranchEntityId, false)
-      : undefined
-  const entityLabelBAr =
-    mode === 'entity-vs-entity'
-      ? entityDim === 'brand'
-        ? getBrandLabel(entityBId as BrandEntityId, true)
-        : getBranchLabel(entityBId as BranchEntityId, true)
-      : undefined
+  const accountingAvailable =
+    connected && selectionA.accountingAvailable && selectionB.accountingAvailable
+  const accountingUnavailableReasonAr = accountingAvailable ? null : GL_INCOMPLETE_AR
+  const accountingUnavailableReasonEn = accountingAvailable ? null : GL_INCOMPLETE_EN
 
-  const selectionA = buildSliceTotals(rawA, ledgerRates.available, entityLabelAEn, entityLabelAAr)
-  const selectionB = buildSliceTotals(rawB, ledgerRates.available, entityLabelBEn, entityLabelBAr)
-
-  // 6 Core Executive KPI Deltas (with smart polarity)
-  const netSales = buildStandardKpiDelta({
+  const netSalesKpi = makeKpiDelta({
     id: 'netSales',
-    labelEn: 'Net Sales',
-    labelAr: 'صافي المبيعات',
+    labelAr: 'صافي المبيعات (Odoo POS)',
+    labelEn: 'Net Sales (Odoo POS)',
     unit: 'KWD',
     polarity: 'higher-is-better',
     valueA: selectionA.netSalesKwd,
     valueB: selectionB.netSalesKwd,
+    available: connected,
   })
-
-  const completedOrders = buildStandardKpiDelta({
+  const completedOrdersKpi = makeKpiDelta({
     id: 'completedOrders',
-    labelEn: 'Completed Orders',
     labelAr: 'الطلبات المكتملة',
+    labelEn: 'Completed Orders',
     unit: 'orders',
     polarity: 'higher-is-better',
     valueA: selectionA.completedOrders,
     valueB: selectionB.completedOrders,
+    available: connected,
   })
-
-  const averageCheck = buildStandardKpiDelta({
+  const averageCheckKpi = makeKpiDelta({
     id: 'averageCheck',
+    labelAr: 'متوسط الفاتورة (AOV)',
     labelEn: 'Average Check (AOV)',
-    labelAr: 'متوسط الفاتورة',
     unit: 'KWD',
     polarity: 'higher-is-better',
     valueA: selectionA.aovKwd,
     valueB: selectionB.aovKwd,
+    available: connected,
   })
-
-  const foodAndAggregatorCost = buildStandardKpiDelta({
+  const foodAndAggregatorCostKpi = makeKpiDelta({
     id: 'foodAndAggregatorCost',
-    labelEn: 'Food + Aggregator Cost',
-    labelAr: 'تكلفة الغذاء والمنصات',
+    labelAr: 'تكلفة المواد وعمولات المنصات (GL)',
+    labelEn: 'COGS & Platform Commissions (GL)',
     unit: 'KWD',
     polarity: 'lower-is-better',
     valueA: selectionA.foodAndAggregatorCostKwd,
     valueB: selectionB.foodAndAggregatorCostKwd,
-    shareOfSalesA: selectionA.foodAndAggregatorPct,
-    shareOfSalesB: selectionB.foodAndAggregatorPct,
+    available: accountingAvailable,
+    unavailableReasonAr: GL_INCOMPLETE_AR,
+    unavailableReasonEn: GL_INCOMPLETE_EN,
+    shareOfSalesA: accountingAvailable ? selectionA.foodAndAggregatorPct : undefined,
+    shareOfSalesB: accountingAvailable ? selectionB.foodAndAggregatorPct : undefined,
   })
-
-  const netPocketCash = buildStandardKpiDelta({
+  const netPocketCashKpi = makeKpiDelta({
     id: 'netPocketCash',
-    labelEn: 'Net Pocket Cash',
-    labelAr: 'صافي الربح بالجيب',
+    labelAr: 'صافي الربح التشغيلي (GL)',
+    labelEn: 'Operating Net Profit (GL)',
     unit: 'KWD',
     polarity: 'higher-is-better',
     valueA: selectionA.netPocketCashKwd,
     valueB: selectionB.netPocketCashKwd,
+    available: accountingAvailable,
+    unavailableReasonAr: GL_INCOMPLETE_AR,
+    unavailableReasonEn: GL_INCOMPLETE_EN,
   })
-
-  const netPocketMargin = buildStandardKpiDelta({
+  const netPocketMarginKpi = makeKpiDelta({
     id: 'netPocketMargin',
-    labelEn: 'Net Pocket Margin',
-    labelAr: 'هامش صافي الجيب %',
+    labelAr: 'هامش الربح التشغيلي (GL)',
+    labelEn: 'Operating Net Margin (GL)',
     unit: 'pct',
     polarity: 'higher-is-better',
     valueA: selectionA.netPocketMarginPct,
     valueB: selectionB.netPocketMarginPct,
+    available: accountingAvailable,
+    unavailableReasonAr: GL_INCOMPLETE_AR,
+    unavailableReasonEn: GL_INCOMPLETE_EN,
   })
 
-  const kpiList: ErpComparisonResult['kpiList'] = [
-    netSales,
-    completedOrders,
-    averageCheck,
-    foodAndAggregatorCost,
-    netPocketCash,
-    netPocketMargin,
-  ]
+  const kpiList = [
+    netSalesKpi,
+    completedOrdersKpi,
+    averageCheckKpi,
+    foodAndAggregatorCostKpi,
+    netPocketCashKpi,
+    netPocketMarginKpi,
+  ] as const
 
-  // Horizontal Chart Series (14 Operating Hours 11:00..00:00 in Single-Day, or Day-by-Day in Range)
-  const isSingleDayChart = normA.dayCount === 1 && normB.dayCount === 1
-  const chartKind: 'hourly-14' | 'daily-aligned' = isSingleDayChart ? 'hourly-14' : 'daily-aligned'
-  const chartBuckets = isSingleDayChart
-    ? buildHourly14ChartBuckets(
-        selectionA,
-        selectionB,
-        mode === 'entity-vs-entity' ? `entA:${entityAId}` : 'dateA',
-        mode === 'entity-vs-entity' ? `entB:${entityBId}` : 'dateB',
-        liveDailyLookup,
-        liveHourlyWeights,
-      )
-    : buildDailyAlignedChartBuckets(
-        rawA,
-        rawB,
-        selectionA,
-        selectionB,
-        mode === 'entity-vs-entity',
-      )
+  const chartKind: 'hourly-14' | 'daily-aligned' =
+    granularity === 'single' && normA.dayCount === 1 && normB.dayCount === 1
+      ? 'hourly-14'
+      : 'daily-aligned'
 
-  // Entity Variance Matrices (6 Brands, 7 Branches, 8 Channels)
-  const byBranch = buildDimensionRows({
-    ids: APPROVED_BRANCH_IDS,
-    dimension: 'branch',
-    getRawA: (id) => rawA.byBranch[id],
-    getRawB: (id) => rawB.byBranch[id],
-    sliceA: selectionA,
-    sliceB: selectionB,
-    getName: (id, ar) => getBranchLabel(id, ar),
-    getSubMeta: (id, ar) => {
-      const count = APPROVED_BRAND_IDS.filter((b) => isBrandBranchCompatible(b, id)).length
-      return ar ? `${count} مطاعم نشطة` : `${count} active brands`
-    },
-    getIsCompatible: (id) =>
-      CALIBRATED_BASE.cells.some((c) => c.branch === id && (filterA(c) || filterB(c))),
-  })
-
-  const byBrand = buildDimensionRows({
-    ids: APPROVED_BRAND_IDS,
-    dimension: 'brand',
-    getRawA: (id) => rawA.byBrand[id],
-    getRawB: (id) => rawB.byBrand[id],
-    sliceA: selectionA,
-    sliceB: selectionB,
-    getName: (id, ar) => getBrandLabel(id, ar),
-    getSubMeta: (id, ar) => {
-      const count = APPROVED_BRANCH_IDS.filter((l) => isBrandBranchCompatible(id, l)).length
-      return ar ? `يعمل في ${count} فروع` : `Operates in ${count} branches`
-    },
-    getIsCompatible: (id) =>
-      CALIBRATED_BASE.cells.some((c) => c.brand === id && (filterA(c) || filterB(c))),
-  })
-
-  const byChannel = buildDimensionRows({
-    ids: APPROVED_CHANNEL_IDS,
-    dimension: 'channel',
-    getRawA: (id) => rawA.byChannel[id],
-    getRawB: (id) => rawB.byChannel[id],
-    sliceA: selectionA,
-    sliceB: selectionB,
-    getName: (id, ar) => getChannelLabel(id, ar),
-    getSubMeta: (id, ar) =>
-      id === 'dine-in' || id === 'takeaway-direct'
-        ? ar
-          ? 'قناة مباشرة · بدون عمولة منصة'
-          : 'Direct channel · 0% platform fee'
-        : ar
-          ? 'منصة توصيل خارجية · pos.payment'
-          : 'External aggregator · pos.payment',
-    getIsCompatible: (id) => !channelSet || channelSet.has(id),
-  })
-
-  // Auto-Insights (Top Gainer & Biggest Decline)
-  const branchInsights = pickInsightPair(byBranch)
-  const brandInsights = pickInsightPair(byBrand)
-  const primaryPool =
-    mode === 'entity-vs-entity' && entityDim === 'brand'
-      ? branchInsights
-      : branchInsights.topGainer
-        ? branchInsights
-        : brandInsights
-
-  const scopePartsEn: string[] = []
-  const scopePartsAr: string[] = []
-  if (!brandSet) {
-    scopePartsEn.push('All 6 Brands')
-    scopePartsAr.push('كل العلامات التجارية الست')
-  } else {
-    scopePartsEn.push([...brandSet].map((b) => getBrandLabel(b, false)).join(', '))
-    scopePartsAr.push([...brandSet].map((b) => getBrandLabel(b, true)).join('، '))
-  }
-  if (!branchSet) {
-    scopePartsEn.push('All 7 Branches')
-    scopePartsAr.push('كل الفروع السبعة')
-  } else {
-    scopePartsEn.push([...branchSet].map((l) => getBranchLabel(l, false)).join(', '))
-    scopePartsAr.push([...branchSet].map((l) => getBranchLabel(l, true)).join('، '))
-  }
-  if (channelSet) {
-    scopePartsEn.push([...channelSet].map((c) => getChannelLabel(c, false)).join(', '))
-    scopePartsAr.push([...channelSet].map((c) => getChannelLabel(c, true)).join('، '))
-  } else {
-    scopePartsEn.push('All 8 Channels')
-    scopePartsAr.push('كل القنوات الثماني')
-  }
-
-  const scopeSummaryEn = scopePartsEn.join(' • ')
-  const scopeSummaryAr = scopePartsAr.join(' • ')
-
-  const salesDiffSign = netSales.deltaAbs >= 0 ? '+' : ''
-  const headlineEn = `${selectionA.shortLabelEn} vs ${selectionB.shortLabelEn}: ${salesDiffSign}${Math.round(netSales.deltaAbs).toLocaleString('en-US')} KWD (${salesDiffSign}${netSales.deltaPct.toFixed(1)}%)`
-  const headlineAr = `${selectionA.shortLabelAr} مقابل ${selectionB.shortLabelAr}: ${salesDiffSign}${Math.round(netSales.deltaAbs).toLocaleString('en-US')} د.ك (${salesDiffSign}${netSales.deltaPct.toFixed(1)}%)`
-
-  const summaryEn = primaryPool.topGainer
-    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'Top Lift' : primaryPool.topGainer.deltaKwd < 0 ? 'Least Decline' : 'Most Resilient'}: ${primaryPool.topGainer.nameEn} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} KWD)${
-        primaryPool.biggestDecline
-          ? ` • Biggest Decline: ${primaryPool.biggestDecline.nameEn} (${Math.round(primaryPool.biggestDecline.deltaKwd).toLocaleString('en-US')} KWD)`
-          : ''
-      }`
-    : 'No active POS transactions in the selected Brand × Branch combination.'
-
-  const summaryAr = primaryPool.topGainer
-    ? `${primaryPool.topGainer.deltaKwd > 0 ? 'أعلى تحسن' : primaryPool.topGainer.deltaKwd < 0 ? 'أقل تراجع' : 'الأقل تراجعاً (الأكثر تماسكاً)'}: ${primaryPool.topGainer.nameAr} (${primaryPool.topGainer.deltaKwd >= 0 ? '+' : ''}${Math.round(primaryPool.topGainer.deltaKwd).toLocaleString('en-US')} د.ك)${
-        primaryPool.biggestDecline
-          ? ` • أكبر تراجع: ${primaryPool.biggestDecline.nameAr} (${Math.round(primaryPool.biggestDecline.deltaKwd).toLocaleString('en-US')} د.ك)`
-          : ''
-      }`
-    : 'لا توجد حركات بيع ضمن تقاطع المطعم والفرع المحدد.'
-
-  // Exact Reconciliation Verification Metrics
-  const sumSales = (rows: EntityVarianceRow[], key: 'valueA' | 'valueB') =>
-    r3(rows.reduce((s, r) => s + r[key], 0))
-  const sumProfit = (rows: EntityVarianceRow[], key: 'netProfitA' | 'netProfitB') =>
-    r3(rows.reduce((s, r) => s + r[key], 0))
-  const sumOrders = (rows: EntityVarianceRow[], key: 'ordersA' | 'ordersB') =>
-    rows.reduce((s, r) => s + r[key], 0)
-
-  const maxSalesGapKwd = r3(
-    Math.max(
-      Math.abs(sumSales(byBrand, 'valueA') - selectionA.netSalesKwd),
-      Math.abs(sumSales(byBranch, 'valueA') - selectionA.netSalesKwd),
-      Math.abs(sumSales(byChannel, 'valueA') - selectionA.netSalesKwd),
-      Math.abs(sumSales(byBrand, 'valueB') - selectionB.netSalesKwd),
-      Math.abs(sumSales(byBranch, 'valueB') - selectionB.netSalesKwd),
-      Math.abs(sumSales(byChannel, 'valueB') - selectionB.netSalesKwd),
-    ),
+  const chartBuckets = buildChartBuckets(
+    chartKind,
+    normA.dates,
+    normB.dates,
+    cubeA,
+    cubeB,
+    scopeA,
+    scopeB,
+    cutoffHour24,
   )
 
-  const maxProfitGapKwd = r3(
-    Math.max(
-      Math.abs(sumProfit(byBrand, 'netProfitA') - selectionA.netPocketCashKwd),
-      Math.abs(sumProfit(byBranch, 'netProfitA') - selectionA.netPocketCashKwd),
-      Math.abs(sumProfit(byChannel, 'netProfitA') - selectionA.netPocketCashKwd),
-      Math.abs(sumProfit(byBrand, 'netProfitB') - selectionB.netPocketCashKwd),
-      Math.abs(sumProfit(byBranch, 'netProfitB') - selectionB.netPocketCashKwd),
-      Math.abs(sumProfit(byChannel, 'netProfitB') - selectionB.netPocketCashKwd),
-    ),
-  )
+  const byBranch = buildBreakdownRows('branch', cubeA, cubeB, scopeA, scopeB, cutoffHour24)
+  const byBrand = buildBreakdownRows('brand', cubeA, cubeB, scopeA, scopeB, cutoffHour24)
+  const byChannel = buildBreakdownRows('channel', cubeA, cubeB, scopeA, scopeB, cutoffHour24)
 
-  const maxOrdersGap = Math.max(
-    Math.abs(sumOrders(byBrand, 'ordersA') - selectionA.completedOrders),
-    Math.abs(sumOrders(byBranch, 'ordersA') - selectionA.completedOrders),
-    Math.abs(sumOrders(byChannel, 'ordersA') - selectionA.completedOrders),
-    Math.abs(sumOrders(byBrand, 'ordersB') - selectionB.completedOrders),
-    Math.abs(sumOrders(byBranch, 'ordersB') - selectionB.completedOrders),
-    Math.abs(sumOrders(byChannel, 'ordersB') - selectionB.completedOrders),
-  )
-
-  const chartSumA = r3(chartBuckets.reduce((s, b) => s + b.seriesA, 0))
-  const chartSumB = r3(chartBuckets.reduce((s, b) => s + b.seriesB, 0))
-  const maxChartSalesGapKwd = r3(
-    Math.max(
-      Math.abs(chartSumA - selectionA.netSalesKwd),
-      Math.abs(chartSumB - selectionB.netSalesKwd),
-    ),
-  )
-
-  const likeForLikeMeta: ComparisonLikeForLikeMeta = sameHoursLikeForLike
-    ? {
-        sameHoursLikeForLike: true,
-        excludedIncompleteToday: false,
-        operationalTodayIso,
-        lastCompletedDayIso,
-        kuwaitHhMm: kwCtx.hhMm,
-        intradayShare,
-        helperNoteEn: `Comparing 00:00–${kwCtx.hhMm} across both windows`,
-        helperNoteAr: `مقارنة نفس الساعات حتى اللحظة · Comparing 00:00–${kwCtx.hhMm} بتوقيت الكويت عبر الفترتين`,
-      }
-    : {
-        sameHoursLikeForLike: false,
-        excludedIncompleteToday: true,
-        operationalTodayIso,
-        lastCompletedDayIso,
-        kuwaitHhMm: kwCtx.hhMm,
-        intradayShare: 1,
-        helperNoteEn: `Completed calendar days through ${lastCompletedDayIso} (incomplete today ${operationalTodayIso} excluded by default)`,
-        helperNoteAr: `أيام تقويمية مكتملة حتى ${lastCompletedDayIso} (تم استبعاد اليوم الحالي غير المكتمل ${operationalTodayIso} افتراضياً)`,
-      }
-
-  return {
-    query: {
-      ...query,
-      mode,
-      granularity,
-      periodA: { from: normA.fromIso, to: normA.toIso },
-      periodB: { from: normB.fromIso, to: normB.toIso },
-      entityDimension: entityDim,
-      entityA: entityAId,
-      entityB: entityBId,
-      sameHoursLikeForLike,
-    },
-    isScopeCompatible,
-    scopeSummaryEn,
-    scopeSummaryAr,
+  const insights = buildInsights(
+    connected,
+    noData,
     selectionA,
     selectionB,
+    byBranch,
+    byBrand,
+    accountingAvailable,
+  )
+
+  const scopeSummary = buildScopeSummary(rawQuery)
+
+  const branchSumA = r1(byBranch.reduce((s, r) => s + r.valueA, 0))
+  const chartSumA = r1(chartBuckets.reduce((s, b) => s + b.seriesA, 0))
+
+  return {
+    connected,
+    noData,
+    ...(messageAr ? { messageAr } : {}),
+    query: rawQuery,
+    isScopeCompatible,
+    scopeSummaryEn: scopeSummary.en,
+    scopeSummaryAr: scopeSummary.ar,
+    selectionA,
+    selectionB,
+    unattributedA: {
+      salesKwd: selectionA.unattributedSalesKwd,
+      orders: selectionA.unattributedOrders,
+    },
+    unattributedB: {
+      salesKwd: selectionB.unattributedSalesKwd,
+      orders: selectionB.unattributedOrders,
+    },
     kpiList,
     kpis: {
-      netSales,
-      completedOrders,
-      averageCheck,
-      foodAndAggregatorCost,
-      netPocketCash,
-      netPocketMargin,
+      netSales: netSalesKpi,
+      completedOrders: completedOrdersKpi,
+      averageCheck: averageCheckKpi,
+      foodAndAggregatorCost: foodAndAggregatorCostKpi,
+      netPocketCash: netPocketCashKpi,
+      netPocketMargin: netPocketMarginKpi,
     },
     chartKind,
     chartBuckets,
     byBranch,
     byBrand,
     byChannel,
-    insights: {
-      topGainer: primaryPool.topGainer,
-      biggestDecline: primaryPool.biggestDecline,
-      topGainerBrand: brandInsights.topGainer,
-      biggestDeclineBrand: brandInsights.biggestDecline,
-      topGainerBranch: branchInsights.topGainer,
-      biggestDeclineBranch: branchInsights.biggestDecline,
-      headlineEn,
-      headlineAr,
-      summaryEn,
-      summaryAr,
-    },
+    insights,
     likeForLikeMeta,
-    accountingAvailable: ledgerRates.available,
-    accountingUnavailableReasonAr: ledgerRates.unavailableReasonAr,
-    accountingUnavailableReasonEn: ledgerRates.unavailableReasonEn,
-    lastSyncedAt:
-      liveSummary?.kuwaitSyncedAt ??
-      liveSummary?.latestOdooRecordAt ??
-      liveSummary?.syncedAt ??
-      null,
+    accountingAvailable,
+    accountingUnavailableReasonAr,
+    accountingUnavailableReasonEn,
+    lastSyncedAt,
     reconciliation: {
-      maxSalesGapKwd,
-      maxProfitGapKwd,
-      maxOrdersGap,
-      maxChartSalesGapKwd,
+      maxSalesGapKwd: connected ? r2(Math.abs(selectionA.netSalesKwd - branchSumA)) : 0,
+      maxProfitGapKwd: 0,
+      maxOrdersGap: 0,
+      maxChartSalesGapKwd: connected ? r2(Math.abs(selectionA.netSalesKwd - chartSumA)) : 0,
     },
   }
 }
 
-/** Builds a clean UTF-8 BOM CSV export covering KPI Summary + Chart Series + Brand/Branch/Channel Matrices */
 export function buildComparisonCsv(result: ErpComparisonResult, isAr: boolean): string {
-  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
   const lines: string[] = []
+  const esc = (v: string | number | null | undefined) => {
+    const s = String(v ?? '')
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s
+  }
 
   lines.push(
-    [
-      esc(isAr ? 'القسم' : 'Section'),
-      esc(isAr ? 'البند' : 'Metric / Entity'),
-      esc(`${isAr ? 'أ:' : 'A:'} ${isAr ? result.selectionA.shortLabelAr : result.selectionA.shortLabelEn}`),
-      esc(`${isAr ? 'ب:' : 'B:'} ${isAr ? result.selectionB.shortLabelAr : result.selectionB.shortLabelEn}`),
-      esc(isAr ? 'الفرق' : 'Variance'),
-      esc(isAr ? 'التغير %' : 'Delta % / pp'),
-    ].join(','),
+    isAr
+      ? `تقرير المقارنة الحية من Odoo,${esc(result.selectionA.titleAr)},مقابل,${esc(result.selectionB.titleAr)}`
+      : `Live Odoo Comparison Report,${esc(result.selectionA.titleEn)},VS,${esc(result.selectionB.titleEn)}`,
   )
+  lines.push(
+    isAr
+      ? `النطاق,${esc(result.scopeSummaryAr)}`
+      : `Scope,${esc(result.scopeSummaryEn)}`,
+  )
+  if (!result.connected || result.noData) {
+    lines.push(isAr ? `الحالة,${NO_DATA_AR}` : `Status,${NO_DATA_EN}`)
+    return `\uFEFF${lines.join('\r\n')}`
+  }
+  lines.push('')
 
-  for (const kpi of result.kpiList) {
+  lines.push(
+    isAr
+      ? 'المؤشر,الفترة (أ),الفترة (ب),الفرق,التغير %'
+      : 'KPI,Selection A,Selection B,Variance,Variance %',
+  )
+  for (const k of result.kpiList) {
+    const unavail = isAr ? GL_INCOMPLETE_AR : GL_INCOMPLETE_EN
     lines.push(
       [
-        esc('KPI'),
-        esc(isAr ? kpi.labelAr : kpi.labelEn),
-        kpi.valueA,
-        kpi.valueB,
-        kpi.deltaAbs,
-        kpi.unit === 'pct' ? `${kpi.deltaPct} pp` : `${kpi.deltaPct}%`,
+        esc(isAr ? k.labelAr : k.labelEn),
+        esc(k.available === false ? unavail : k.valueA),
+        esc(k.available === false ? unavail : k.valueB),
+        esc(k.available === false ? '—' : k.deltaAbs),
+        esc(k.available === false ? '—' : `${k.deltaPct}%`),
       ].join(','),
     )
   }
+  lines.push('')
 
-  const pushRows = (group: string, rows: EntityVarianceRow[]) => {
+  const pushTable = (titleAr: string, titleEn: string, rows: EntityVarianceRow[]) => {
+    lines.push(isAr ? titleAr : titleEn)
+    lines.push(
+      isAr
+        ? 'الاسم,مبيعات (أ) د.ك,مبيعات (ب) د.ك,الفرق د.ك,التغير %,طلبات (أ),طلبات (ب)'
+        : 'Entity,Sales A (KWD),Sales B (KWD),Delta (KWD),Delta %,Orders A,Orders B',
+    )
     for (const r of rows) {
       lines.push(
         [
-          esc(group),
           esc(isAr ? r.nameAr : r.nameEn),
-          r.valueA.toFixed(3),
-          r.valueB.toFixed(3),
-          r.deltaKwd.toFixed(3),
-          `${r.deltaPct.toFixed(1)}%`,
+          esc(r.valueA),
+          esc(r.valueB),
+          esc(r.deltaKwd),
+          esc(`${r.deltaPct}%`),
+          esc(r.ordersA),
+          esc(r.ordersB),
         ].join(','),
       )
     }
+    lines.push('')
   }
 
-  pushRows(isAr ? 'الفرع' : 'Branch', result.byBranch)
-  pushRows(isAr ? 'المطعم' : 'Brand', result.byBrand)
-  pushRows(isAr ? 'القناة' : 'Channel', result.byChannel)
+  pushTable(
+    `الفروع السبعة + ${UNMAPPED_TERMINALS_LABEL_AR}`,
+    `7 Operational Branches + ${UNMAPPED_TERMINALS_LABEL_EN}`,
+    result.byBranch,
+  )
+  pushTable('العلامات المعتمدة (6)', '6 Approved Brands', result.byBrand)
+  pushTable('قنوات الدفع الفعلية', 'Live Payment Channels', result.byChannel)
 
-  return '\uFEFF' + lines.join('\n')
+  return `\uFEFF${lines.join('\r\n')}`
 }

@@ -91,7 +91,7 @@ export function OdooExpenseSheetModal({
   const isAr = locale === 'ar'
 
   const [reportNo] = useState(
-    existingSheet?.reportNo || `EXP/SHEET/2026/${Math.floor(100 + Math.random() * 900)}`
+    () => existingSheet?.reportNo || `EXP/SHEET/2026/${100 + (Date.now() % 900)}`
   )
   const [title, setTitle] = useState(
     existingSheet?.titleAr || (isAr ? 'كشف تصفية عهدة ومصروفات تشغيلية دورية' : 'Periodic Operational Expense Clearance Sheet')
@@ -157,8 +157,8 @@ export function OdooExpenseSheetModal({
         category: isAr ? 'مصاريف تشغيلية متنوعة' : 'Miscellaneous OPEX',
         descriptionAr: 'شراء لوازم ومواد صيانة طارئة',
         descriptionEn: 'Emergency maintenance materials purchase',
-        branchAr: 'فرع حولي',
-        branchEn: 'Hawally Branch',
+        branchAr: 'فرع السالمية',
+        branchEn: 'Salmiya Branch',
         amountKwd: 10.000,
       },
     ])
@@ -169,7 +169,7 @@ export function OdooExpenseSheetModal({
     setLines(lines.filter((l) => l.id !== id))
   }
 
-  const handleUpdateLine = (id: string, field: keyof ExpenseSheetLineItem, val: any) => {
+  const handleUpdateLine = (id: string, field: keyof ExpenseSheetLineItem, val: ExpenseSheetLineItem[keyof ExpenseSheetLineItem]) => {
     setLines(lines.map((l) => (l.id === id ? { ...l, [field]: val } : l)))
   }
 

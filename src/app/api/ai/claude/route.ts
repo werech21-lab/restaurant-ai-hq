@@ -380,14 +380,14 @@ export async function POST(req: NextRequest) {
 
           const contentArr = Array.isArray(res.content) ? res.content : []
           const text = contentArr
-            .filter((b: any) => b.type === 'text')
-            .map((b: any) => b.text)
+            .filter((b) => b.type === 'text')
+            .map((b) => b.text)
             .join('\n')
             .trim()
 
           const thinkingSummary = contentArr
-            .filter((b: any) => b.type === 'thinking')
-            .map((b: any) => b.thinking)
+            .filter((b) => b.type === 'thinking')
+            .map((b) => b.thinking)
             .join('\n')
             .trim()
 

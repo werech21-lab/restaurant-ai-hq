@@ -562,9 +562,9 @@ export function VenturePurchasesHub({
             </span>
             <ShoppingCart size={18} className="text-blue-400" />
           </div>
-          <div className="mt-2 text-2xl font-black text-white font-mono">52,634.000 {isAr ? "د.ك" : "KWD"}</div>
+          <div className="mt-2 text-lg font-black text-amber-300 font-mono">{isAr ? "غير مربوط بمصدر" : "Unlinked Source"}</div>
           <p className="text-xs text-blue-200/70 mt-1">
-            {isAr ? "148 أمر شراء وتوريد معتمد خلال الدورة" : "148 approved purchase orders this cycle"}
+            {isAr ? "راجع /erp/cost-intelligence لأوامر الشراء الفعلية من Odoo" : "See /erp/cost-intelligence for live Odoo POs"}
           </p>
         </div>
 
@@ -663,7 +663,7 @@ export function VenturePurchasesHub({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
                 active
                   ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"

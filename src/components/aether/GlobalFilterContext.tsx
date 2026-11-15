@@ -29,6 +29,31 @@ import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
 const STORAGE_KEY = 'aether.globalFilters.v2'
 const SILENT_POLL_INTERVAL_MS = 180_000 // 3 minutes silent live Odoo 17 polling
 
+function normalizeSyncPayloadToSummary(raw: Partial<OdooLiveSummary> | null | undefined): OdooLiveSummary {
+  if (raw && raw.connected === true && raw.totals) {
+    return raw as OdooLiveSummary
+  }
+  return {
+    source: 'disconnected',
+    connected: false,
+    sourceMode: 'disconnected',
+    noData: true,
+    messageAr: raw?.messageAr ?? 'لا توجد بيانات من Odoo لهذه الفترة',
+    lastSyncAt: raw?.lastSyncAt ?? null,
+    isStale24h: Boolean(raw?.isStale24h),
+    odooCompanyId: raw?.odooCompanyId ?? null,
+    dateRange: raw?.dateRange ?? { from: DEFAULT_CUSTOM_FROM, to: DEFAULT_CUSTOM_TO },
+    period: raw?.period ?? raw?.dateRange ?? { from: DEFAULT_CUSTOM_FROM, to: DEFAULT_CUSTOM_TO },
+    database: null,
+    diagnosticCode: raw?.diagnosticCode,
+    syncedAt: raw?.syncedAt ?? '',
+    totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
+    brands: [],
+    branches: [],
+    channels: [],
+  }
+}
+
 interface GlobalFilterContextValue {
   filters: Required<GlobalFilters>
   workspace: GlobalWorkspaceSlice
@@ -258,11 +283,15 @@ export function GlobalFilterProvider({
       if (cachedRaw) {
         const parsed = JSON.parse(cachedRaw) as { savedAt?: number; data?: OdooLiveSummary }
         if (
+          parsed?.data?.connected === true &&
+          parsed?.data?.noData !== true &&
           parsed?.data?.totals &&
           typeof parsed.savedAt === 'number' &&
           Date.now() - parsed.savedAt < 5 * 60_000
         ) {
           setLiveSummary((prev) => prev ?? parsed.data ?? null)
+        } else {
+          window.sessionStorage.removeItem(cacheKey)
         }
       }
     } catch {
@@ -276,22 +305,35 @@ export function GlobalFilterProvider({
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
       })
-        .then((res) => (res.ok ? (res.json() as Promise<OdooLiveSummary>) : null))
+        .then((res) => (res.ok ? (res.json() as Promise<Partial<OdooLiveSummary>>) : null))
         .then((data) => {
-          if (active && data && data.totals) {
-            setLiveSummary(data)
-            try {
-              window.sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), data }))
-            } catch {
-              // ignore sessionStorage quota errors
+          if (!active) return
+          const normalized = normalizeSyncPayloadToSummary(data)
+          setLiveSummary(normalized)
+          try {
+            if (normalized.connected && !normalized.noData) {
+              window.sessionStorage.setItem(
+                cacheKey,
+                JSON.stringify({ savedAt: Date.now(), data: normalized }),
+              )
+            } else {
+              window.sessionStorage.removeItem(cacheKey)
             }
-            if (typeof data.syncCooldownRemainingSec === 'number') {
-              setSyncCooldownSec(Math.max(0, Math.round(data.syncCooldownRemainingSec)))
-            }
+          } catch {
+            // ignore sessionStorage quota errors
+          }
+          if (typeof data?.syncCooldownRemainingSec === 'number') {
+            setSyncCooldownSec(Math.max(0, Math.round(data.syncCooldownRemainingSec)))
           }
         })
         .catch(() => {
-          // Silent fallback to verified baseline Odoo snapshot
+          if (!active) return
+          try {
+            window.sessionStorage.removeItem(cacheKey)
+          } catch {
+            // ignore sessionStorage errors
+          }
+          setLiveSummary(normalizeSyncPayloadToSummary(null))
         })
     }
 
@@ -307,8 +349,8 @@ export function GlobalFilterProvider({
       : null
 
     const onSyncEvent = (ev: Event) => {
-      const detail = (ev as CustomEvent<OdooLiveSummary>).detail
-      if (detail && detail.totals) setLiveSummary(detail)
+      const detail = (ev as CustomEvent<Partial<OdooLiveSummary>>).detail
+      if (detail) setLiveSummary(normalizeSyncPayloadToSummary(detail))
     }
     window.addEventListener('aether:odoo-sync', onSyncEvent)
     return () => {
@@ -335,27 +377,36 @@ export function GlobalFilterProvider({
           headers: { accept: 'application/json' },
         },
       )
-      if (!res.ok) return
-      const fresh = (await res.json()) as OdooLiveSummary
-      if (fresh && fresh.totals) {
-        setLiveSummary(fresh)
-        setSyncCooldownSec(
-          typeof fresh.syncCooldownRemainingSec === 'number' && fresh.syncCooldownRemainingSec > 0
-            ? Math.round(fresh.syncCooldownRemainingSec)
-            : 30,
-        )
-        window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: fresh }))
+      if (!res.ok) {
+        const disconnected = normalizeSyncPayloadToSummary(null)
+        setLiveSummary(disconnected)
+        window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: disconnected }))
+        return
       }
+      const rawFresh = (await res.json()) as Partial<OdooLiveSummary>
+      const fresh = normalizeSyncPayloadToSummary(rawFresh)
+      setLiveSummary(fresh)
+      setSyncCooldownSec(
+        typeof rawFresh?.syncCooldownRemainingSec === 'number' && rawFresh.syncCooldownRemainingSec > 0
+          ? Math.round(rawFresh.syncCooldownRemainingSec)
+          : 30,
+      )
+      window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: fresh }))
     } catch {
-      // Keep existing snapshot on transient network error
+      const disconnected = normalizeSyncPayloadToSummary(null)
+      setLiveSummary(disconnected)
+      window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: disconnected }))
     } finally {
       setSyncingOdoo(false)
     }
-  }, [effectiveFilters.period, isAuditor, syncCooldownSec])
+  }, [effectiveFilters.customFrom, effectiveFilters.customTo, effectiveFilters.period, isAuditor, syncCooldownSec])
 
   // Hydrate custom global date ranges from /api/erp/live-comparison so Company Summary & Comparison stay 100% unified
   useEffect(() => {
-    if (effectiveFilters.period !== 'custom') return undefined
+    if (effectiveFilters.period !== 'custom') {
+      setCustomDailySeries([])
+      return undefined
+    }
     let active = true
     const qs = new URLSearchParams({
       dateA: effectiveFilters.customFrom,
@@ -372,17 +423,26 @@ export function GlobalFilterProvider({
     })
       .then((res) =>
         res.ok
-          ? (res.json() as Promise<{ dailySeries?: { day: string; orders: number; netKwd: number }[] }>)
+          ? (res.json() as Promise<{
+              connected?: boolean
+              dailySeries?: { day: string; orders: number; netKwd: number }[]
+            }>)
           : null,
       )
       .then((payload) => {
-        if (!active || !Array.isArray(payload?.dailySeries) || payload.dailySeries.length === 0) {
+        if (!active) return
+        if (
+          payload?.connected === false ||
+          !Array.isArray(payload?.dailySeries) ||
+          payload.dailySeries.length === 0
+        ) {
+          setCustomDailySeries([])
           return
         }
         setCustomDailySeries(payload.dailySeries)
       })
       .catch(() => {
-        // silent fallback
+        if (active) setCustomDailySeries([])
       })
     return () => {
       active = false
@@ -432,6 +492,7 @@ export function GlobalFilterProvider({
 
   const effectiveLiveSummary = useMemo<OdooLiveSummary | null>(() => {
     if (!liveSummary) return null
+    if (liveSummary.connected !== true) return liveSummary
     const kwToday = getKuwaitTodayIso()
     if (customDailySeries.length === 0) {
       return {

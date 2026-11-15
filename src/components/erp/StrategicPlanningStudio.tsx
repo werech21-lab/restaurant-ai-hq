@@ -3,41 +3,31 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowUpRight,
-  Bell,
+  AlertTriangle,
+  Calculator,
   Check,
-  CheckCircle2,
   Compass,
   Copy,
   FileText,
-  Lock,
   Megaphone,
   MessageCircle,
   Plus,
   RefreshCw,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   Trash2,
-  Unlock,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import {
-  APPROVED_BRANCH_IDS,
-  getBranchLabel,
-  type GlobalBranch,
-} from '@/lib/aether/global-filter-engine'
-import { useGovernance } from '@/components/erp/GovernanceBellDrawer'
-import { buildCircularSerialRef } from '@/lib/governance-compliance'
+import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import {
   buildPlanCircularText,
   computePlanningHubSnapshot,
   FORECAST_HORIZON_OPTIONS,
+  INITIAL_STRATEGIC_PHASES,
   localizeArabicPlanningCopy,
   resolveStrategicBriefing,
   sanitizeStrategicPhases,
-  SEEDED_STRATEGIC_PHASES,
   STRATEGIC_ROADMAP_STORAGE_KEY,
   stripStrategicMarkdown,
   type ForecastHorizonId,
@@ -62,11 +52,9 @@ const SEGMENT_BTN_IDLE_CLS =
 const INPUT_CLS =
   'h-10 w-full rounded-xl bg-white px-3.5 text-[14px] font-medium text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/80 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-[#0B1410] dark:text-slate-100 dark:ring-emerald-500/15'
 const PRIMARY_SOFT_BTN_CLS =
-  'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const HEADER_ACTION_BTN_CLS =
-  'inline-flex min-h-[36px] sm:h-10 min-w-0 cursor-pointer items-center gap-2 whitespace-normal sm:whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 py-1.5 sm:py-0 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:opacity-60 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
-const MENU_ITEM_CLS =
-  'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-slate-700 transition-colors hover:bg-emerald-50/70 hover:text-emerald-900 dark:text-slate-200 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-200'
+  'inline-flex min-h-[36px] sm:h-10 min-w-0 cursor-pointer items-center gap-2 whitespace-normal sm:whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 py-1.5 sm:py-0 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 
 const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f1 = (n: number) =>
@@ -97,31 +85,15 @@ export function StrategicPlanningStudio() {
   const isAr = locale === 'ar'
   const kwd = isAr ? 'د.ك' : 'KWD'
   const { workspace, liveSummary } = useGlobalFilter()
-  const {
-    store,
-    session,
-    breaches,
-    requestApproval,
-    getApprovalByRef,
-    approveItemWithPin,
-    toggleBranchReceipt,
-    confirmAllBranchesReceipt,
-    issueOfficialCircularWithPin,
-    openCircularPrintModal,
-    openDrawer,
-  } = useGovernance()
 
   const [horizon, setHorizon] = useState<ForecastHorizonId>('90d')
   const [customFrom, setCustomFrom] = useState('2026-11-15')
   const [customTo, setCustomTo] = useState('2027-02-15')
   const [activeScenarioId, setActiveScenarioId] = useState<ScenarioTierId>('realistic')
-  const [phases, setPhases] = useState<StrategicRoadmapPhase[]>(SEEDED_STRATEGIC_PHASES)
+  const [phases, setPhases] = useState<StrategicRoadmapPhase[]>(INITIAL_STRATEGIC_PHASES)
   const [formOpen, setFormOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const [expandedCircularId, setExpandedCircularId] = useState<string | null>(null)
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
-  // New Strategic Phase form state
   const [newTitle, setNewTitle] = useState('')
   const [newStart, setNewStart] = useState('2026-11-20')
   const [newEnd, setNewEnd] = useState('2027-01-20')
@@ -130,7 +102,6 @@ export function StrategicPlanningStudio() {
   const [newMonthlyGain, setNewMonthlyGain] = useState('1200')
   const [newKpi, setNewKpi] = useState('')
 
-  // On-demand AI Strategic Forecast Readout state (triggered ONLY when user clicks button)
   const [aiForecastLoading, setAiForecastLoading] = useState(false)
   const [aiForecastText, setAiForecastText] = useState<string | null>(null)
   const [aiForecastModel, setAiForecastModel] = useState<string | null>(null)
@@ -144,25 +115,6 @@ export function StrategicPlanningStudio() {
       }
     } catch {}
   }, [])
-
-  useEffect(() => {
-    if (!openMenuId) return
-    const handlePointerDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null
-      if (!target?.closest('[data-plan-menu-root]')) {
-        setOpenMenuId(null)
-      }
-    }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenMenuId(null)
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [openMenuId])
 
   const persistPhases = useCallback((next: StrategicRoadmapPhase[]) => {
     const clean = dedupeStrategicPhases(next)
@@ -178,7 +130,7 @@ export function StrategicPlanningStudio() {
   )
 
   const activeScenario = useMemo(
-    () => snap.scenarios.find((s) => s.id === activeScenarioId) ?? snap.scenarios[1],
+    () => snap.scenarios.find((s) => s.id === activeScenarioId) ?? snap.scenarios[1] ?? snap.scenarios[0],
     [snap.scenarios, activeScenarioId],
   )
 
@@ -204,11 +156,6 @@ export function StrategicPlanningStudio() {
     [aiForecastText, snap, activeScenario, cleanSubtitleAr, workspace.subtitleEn, isAr],
   )
 
-  const activeBreachCount = useMemo(
-    () => breaches.filter((b) => !b.frozen).length,
-    [breaches],
-  )
-
   const copyToClipboard = useCallback((key: string, text: string) => {
     try {
       void navigator.clipboard.writeText(text)
@@ -222,14 +169,14 @@ export function StrategicPlanningStudio() {
       e.preventDefault()
       const cleanTitle =
         newTitle.trim() ||
-        (isAr ? 'مرحلة تشغيلية استراتيجية جديدة' : 'New Strategic Execution Phase')
+        (isAr ? 'مرحلة تشغيلية تقديرية جديدة' : 'New Estimated Execution Phase')
       const cleanOwner =
         newOwner.trim() || (isAr ? 'إدارة التشغيل والفروع' : 'Operations & Branch Team')
       const cleanKpi =
         newKpi.trim() ||
         (isAr
           ? 'رفع صافي التدفق النقدي وضبط سقف التكلفة'
-          : 'Grow net cash flow within approved cost cap')
+          : 'Grow net cash flow within estimated cost cap')
       const created: StrategicRoadmapPhase = {
         id: `plan-phase-${Date.now()}`,
         phaseCode: `P${phases.length + 1}`,
@@ -243,8 +190,8 @@ export function StrategicPlanningStudio() {
         expectedMonthlyGainKwd: Math.max(0, Number(newMonthlyGain) || 0),
         targetKpiAr: localizeArabicPlanningCopy(cleanKpi),
         targetKpiEn: cleanKpi,
-        odooWatchMetricAr: `التزام بسقف تكلفة ${f0(Number(newCostCap) || 0)} د.ك وعدم تجاوز الخصم 3.0%`,
-        odooWatchMetricEn: `Stay within ${f0(Number(newCostCap) || 0)} KWD cost cap & <=3.0% POS discount`,
+        odooWatchMetricAr: `مراجعة الصرف في أودو مقابل سقف تقديري ${f0(Number(newCostCap) || 0)} د.ك`,
+        odooWatchMetricEn: `Review Odoo spend against ${f0(Number(newCostCap) || 0)} KWD estimated cap`,
       }
       persistPhases([created, ...phases])
       setNewTitle('')
@@ -258,12 +205,12 @@ export function StrategicPlanningStudio() {
   const handleDeletePhase = useCallback(
     (id: string) => {
       persistPhases(phases.filter((p) => p.id !== id))
-      setOpenMenuId(null)
     },
     [persistPhases, phases],
   )
 
   const handleRunStrategicAiForecast = useCallback(async () => {
+    if (!activeScenario || snap.noData || !snap.odooConnected) return
     setAiForecastLoading(true)
     const deterministicBaseline = resolveStrategicBriefing(
       null,
@@ -312,19 +259,19 @@ export function StrategicPlanningStudio() {
         setAiForecastText(localized || deterministicBaseline.fullPlainText)
         setAiForecastModel(
           isAr
-            ? data.engineLabelAr || 'قراءة استراتيجية محدثة • أودو 17'
-            : data.engineLabelEn || 'Strategic Synthesis • Odoo 17',
+            ? data.engineLabelAr || 'قراءة تقديرية استرشادية • أودو 17'
+            : data.engineLabelEn || 'Strategic Estimate Synthesis • Odoo 17',
         )
       } else {
         setAiForecastText(deterministicBaseline.fullPlainText)
         setAiForecastModel(
-          isAr ? 'قراءة استراتيجية معتمدة • أودو 17' : 'Verified Strategic Readout • Odoo 17',
+          isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17',
         )
       }
     } catch {
       setAiForecastText(deterministicBaseline.fullPlainText)
       setAiForecastModel(
-        isAr ? 'قراءة استراتيجية معتمدة • أودو 17' : 'Verified Strategic Readout • Odoo 17',
+        isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17',
       )
     } finally {
       setAiForecastUpdatedAt(
@@ -346,12 +293,64 @@ export function StrategicPlanningStudio() {
     [phases],
   )
 
+  const provenanceRange = useMemo(
+    () => ({
+      from: snap.periodFromIso || workspace.dateRange.from,
+      to: snap.periodToIso || workspace.dateRange.to,
+    }),
+    [snap.periodFromIso, snap.periodToIso, workspace.dateRange.from, workspace.dateRange.to],
+  )
+
+  // Strict Zero-Fallback Disconnect / Empty Truth: never fall back to static baselines or numbers
+  if (!workspace.odooConnected || workspace.noData || snap.noData || !snap.odooConnected) {
+    return (
+      <div
+        dir={isAr ? 'rtl' : 'ltr'}
+        className="w-full max-w-[1920px] min-w-0 overflow-x-hidden mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
+      >
+        <section className={`${CARD_CLS} flex flex-col items-center justify-center gap-3 py-14 text-center`}>
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-300">
+            <AlertTriangle className="h-6 w-6" />
+          </span>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            {isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No data from Odoo for this period'}
+          </h2>
+          <p className="max-w-xl text-sm text-slate-500 dark:text-slate-400">
+            {isAr
+              ? 'تم إلغاء أي خط أساس ثابت أو أرقام مخترعة في التخطيط الاستراتيجي. يُرجى التحقق من اتصال Odoo 17 أو اختيار فترة زمنية تحتوي على إيصالات فعلية لبناء التقديرات.'
+              : 'Static baselines have been permanently removed. Connect to Odoo 17 or select a date window with posted receipts to compute scenario estimates.'}
+          </p>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
       className="w-full max-w-[1920px] min-w-0 overflow-x-hidden mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
     >
-      {/* ───────────── 1. Slim Contextual Bar + Touch-Scrollable Horizon Picker + On-Demand Strategic AI Button ───────────── */}
+      {/* Prominent Estimation Disclaimer Banner */}
+      <div className="rounded-2xl bg-amber-50/90 px-4 py-3 text-[13.5px] font-medium text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-100 dark:ring-amber-400/25">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
+            <span className="font-bold">
+              {isAr
+                ? 'تنبيه منهجي: جميع أرقام التخطيط والسيناريوهات أدناه هي «تقدير» محسوب بمعادلات ظاهرة فوق خط الأساس الفعلي من Odoo وليست قيوداً محققة.'
+                : 'Methodological Notice: Every figure below is a mathematical «تقدير» (Estimate) projected over the Odoo reference period, not realized accounting actuals.'}
+            </span>
+          </div>
+          {snap.glIncomplete ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-200/80 px-3 py-0.5 text-xs font-bold text-amber-950 dark:bg-amber-900/70 dark:text-amber-100">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span>{isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}</span>
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* ───────────── 1. Contextual Bar + Horizon Picker + On-Demand Strategic AI Button ───────────── */}
       <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between`}>
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="ae-icon-badge shrink-0">
@@ -359,21 +358,15 @@ export function StrategicPlanningStudio() {
           </span>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium leading-relaxed text-slate-600 dark:text-slate-300">
             {isAr
-              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • الفترة: ${snap.periodFromIso} إلى ${snap.periodToIso} • المصدر: أودو 17 (pos.order / account.move.line)${snap.lastSyncedAt ? ` • آخر تحديث: ${snap.lastSyncedAt}` : ''}`
-              : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Window: ${snap.periodFromIso} → ${snap.periodToIso} • Source: Odoo 17${snap.lastSyncedAt ? ` • Last sync: ${snap.lastSyncedAt}` : ''}`}
+              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • الفترة المرجعية: ${snap.periodFromIso} إلى ${snap.periodToIso} • المصدر: Odoo 17 (pos.order / account.move.line)`
+              : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Reference window: ${snap.periodFromIso} → ${snap.periodToIso} • Source: Odoo 17`}
           </p>
-          {session.active ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Unlock className="h-3.5 w-3.5" />
-              <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
-            </span>
-          ) : null}
         </div>
 
         <div className="flex max-w-full flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
           <div
             role="tablist"
-            aria-label={isAr ? 'أفق التوقعات' : 'Forecast Horizon'}
+            aria-label={isAr ? 'أفق التقديرات' : 'Estimate Horizon'}
             className={SEGMENT_TRACK_CLS}
           >
             {FORECAST_HORIZON_OPTIONS.map((h) => {
@@ -409,11 +402,11 @@ export function StrategicPlanningStudio() {
             <span className="min-w-0 break-words">
               {aiForecastLoading
                 ? isAr
-                  ? 'جارٍ تحديث التوقعات...'
-                  : 'Synthesizing Forecast...'
+                  ? 'جارٍ تحديث القراءة التقديرية...'
+                  : 'Synthesizing Estimate...'
                 : isAr
-                  ? 'تحديث التوقعات بالذكاء الاستراتيجي ✨'
-                  : 'Refresh Strategic AI Forecast ✨'}
+                  ? 'تحديث القراءة التقديرية ✨'
+                  : 'Refresh Estimate Readout ✨'}
             </span>
           </button>
         </div>
@@ -423,7 +416,7 @@ export function StrategicPlanningStudio() {
       {horizon === 'custom' ? (
         <div className="ae-bento-card flex flex-wrap items-center gap-3 px-5 py-3.5">
           <span className="text-[14px] font-semibold text-slate-700 dark:text-slate-200">
-            {isAr ? 'نطاق التخطيط المخصص:' : 'Custom Forecast Window:'}
+            {isAr ? 'نطاق التقدير المخصص:' : 'Custom Estimate Window:'}
           </span>
           <label className="inline-flex items-center gap-2 text-[13.5px] text-slate-500 dark:text-slate-300">
             <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
@@ -447,170 +440,258 @@ export function StrategicPlanningStudio() {
           </label>
           <span
             dir="ltr"
-            className="rounded-full bg-emerald-50 px-3 py-1 text-[13px] font-semibold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
+            className="rounded-full bg-amber-100/80 px-3 py-1 text-[13px] font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200"
           >
-            {snap.horizonDays} {isAr ? 'يوم' : 'days'}
+            {isAr ? `تقدير • ${snap.horizonDays} يوم` : `Estimate • ${snap.horizonDays} days`}
           </span>
         </div>
       ) : null}
 
-      {/* ───────────── 1B. Executive Strategic AI Reading Box (3-Card Grid, Always Complete on Load & Refresh) ───────────── */}
-      <section className={`${CARD_CLS} ae-glow-emerald space-y-3.5`}>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <h2 className="text-[15.5px] font-semibold text-slate-900 dark:text-white">
-              {isAr
-                ? 'قراءة الذكاء الاستراتيجي المحدثة (أودو 17 + سوق الكويت)'
-                : 'Updated Strategic AI Forecast Readout (Odoo 17 + Kuwait Market)'}
-            </h2>
+      {/* ───────────── 1B. Executive Strategic Estimate Readout Box ───────────── */}
+      {briefing.sections.length > 0 ? (
+        <section className={`${CARD_CLS} ae-glow-emerald space-y-3.5`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <h2 className="text-[15.5px] font-semibold text-slate-900 dark:text-white">
+                {isAr
+                  ? 'قراءة التقدير الاستراتيجي بالمعادلات (تقدير)'
+                  : 'Formula-Based Strategic Estimate Readout'}
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+              <span className="rounded-xl bg-amber-100/90 px-3 py-0.5 text-[12px] font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
+                {aiForecastModel ??
+                  (isAr ? 'تقدير محسوب بمعادلة • Odoo 17' : 'Formula Estimate • Odoo 17')}
+              </span>
+              {aiForecastUpdatedAt ? (
+                <span className="tabular-nums">{aiForecastUpdatedAt}</span>
+              ) : null}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="ae-bento-subcard rounded-xl px-3 py-0.5 text-[12.5px] font-semibold text-emerald-800 dark:text-emerald-300">
-              {aiForecastModel ??
-                (isAr
-                  ? 'قراءة استراتيجية معتمدة • أودو 17'
-                  : 'Verified Strategic Readout • Odoo 17')}
-            </span>
-            {aiForecastUpdatedAt ? (
-              <span className="tabular-nums">{aiForecastUpdatedAt}</span>
-            ) : null}
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
-          {briefing.sections.map((section) => (
-            <article
-              key={section.id}
-              className={`${SUBCARD_CLS} flex flex-col justify-between gap-2.5`}
-            >
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h3 className="text-[14px] font-semibold leading-snug text-slate-900 dark:text-white">
-                    {isAr ? section.titleAr : section.titleEn}
-                  </h3>
-                  <span
-                    dir="ltr"
-                    className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
-                  >
-                    {isAr ? section.metricBadgeAr : section.metricBadgeEn}
-                  </span>
+          <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+            {briefing.sections.map((section) => (
+              <article
+                key={section.id}
+                className={`${SUBCARD_CLS} flex flex-col justify-between gap-2.5`}
+              >
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="text-[14px] font-semibold leading-snug text-slate-900 dark:text-white">
+                      {isAr ? section.titleAr : section.titleEn}
+                    </h3>
+                    <span
+                      dir="ltr"
+                      className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                    >
+                      {isAr ? section.metricBadgeAr : section.metricBadgeEn}
+                    </span>
+                  </div>
+                  <p className="whitespace-normal text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200">
+                    {isAr ? section.bodyAr : section.bodyEn}
+                  </p>
                 </div>
-                <p className="whitespace-normal text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200">
-                  {isAr ? section.bodyAr : section.bodyEn}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      {/* ───────────── 2. 4 Normalized Monthly Baseline & Kuwait Pulse KPI Cards (Zero Subtitle Clipping) ───────────── */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'خط الأساس الشهري (أودو 17) — 30 يوم' : 'Monthly Odoo 17 Baseline — 30d'}
-          </div>
-          <div
-            dir="ltr"
-            data-kpi-val
-            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
-          >
-            {f0(snap.monthlyBaselineSalesKwd)}{' '}
-            <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
-          </div>
-          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
-            {isAr
-              ? `الفترة: ${snap.periodFromIso} إلى ${snap.periodToIso} • متوسط اليوم: ${f0(snap.dailyAverageSalesKwd)} د.ك • الصافي: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} د.ك` : 'غير متوفر'}${snap.isTodayPeriodActive ? ` • مبيعات اليوم: ${f0(snap.activePeriodSalesKwd)} د.ك` : ''} • المصدر: أودو 17 pos.order`
-              : `Window: ${snap.periodFromIso} → ${snap.periodToIso} • Daily avg: ${f0(snap.dailyAverageSalesKwd)} KWD • Net: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} KWD` : 'Not available'}${snap.isTodayPeriodActive ? ` • Today POS: ${f0(snap.activePeriodSalesKwd)} KWD` : ''} • Source: Odoo 17 pos.order`}
-          </p>
-        </article>
-
-        <article className={`${KPI_CARD_CLS} ae-glow-amber`}>
-          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'مطبخ العارضية + عمولة التوصيل' : 'Ardiya COGS + Delivery Cut'}
-          </div>
-          {snap.accountingAvailable ? (
+      {/* ───────────── 2. 4 Normalized Baseline Estimate KPI Cards — Every Number Badged «تقدير» + Visible Formula ───────────── */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <article className={`${KPI_CARD_CLS} ae-glow-emerald flex flex-col justify-between gap-2.5`}>
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+                {isAr ? 'خط الأساس التقديري المعياري — 30 يوم' : 'Normalized 30d Baseline Estimate'}
+              </span>
+            </div>
             <div
               dir="ltr"
               data-kpi-val
               className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
             >
-              {f1(snap.ardiyaFoodPct)}%{' '}
-              <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">
-                + {f1(snap.deliveryFeePct)}%
+              {f0(snap.monthlyBaselineSalesKwd)}{' '}
+              <span className="text-[12.5px] sm:text-[15px] font-semibold text-slate-400">{kwd}</span>
+            </div>
+            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `المتوسط اليومي التقديري: ${f0(snap.dailyAverageSalesKwd)} د.ك • الصافي التقديري: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} د.ك` : 'قيود غير مكتملة'}`
+                : `Est. daily avg: ${f0(snap.dailyAverageSalesKwd)} KWD • Est. net: ${snap.accountingAvailable ? `${f0(snap.monthlyBaselineNetKwd)} KWD` : 'Incomplete GL'}`}
+            </p>
+            <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+              <span className="font-bold text-amber-800 dark:text-amber-300">
+                {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+              </span>
+              {isAr ? snap.baselineFormulaAr : snap.baselineFormulaEn}
+            </div>
+          </div>
+          <KpiProvenanceBadge
+            odooModel="pos.order + account.move.line"
+            dateRange={provenanceRange}
+            lastSyncAt={snap.lastSyncedAt}
+            isStale24h={snap.isStale24h}
+            kind="تقدير"
+            queryOrFormula={isAr ? snap.baselineFormulaAr : snap.baselineFormulaEn}
+            isAr={isAr}
+            compact
+          />
+        </article>
+
+        <article className={`${KPI_CARD_CLS} ae-glow-amber flex flex-col justify-between gap-2.5`}>
+          <div>
+            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'معاملات التكلفة والعمولات للتقدير' : 'Estimated COGS & Commission Inputs'}
+            </div>
+            {snap.accountingAvailable ? (
+              <div
+                dir="ltr"
+                data-kpi-val
+                className="mt-1.5 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
+              >
+                {f1(snap.ardiyaFoodPct)}%{' '}
+                <span className="text-[12.5px] sm:text-[14px] font-semibold text-slate-500">
+                  +{' '}
+                  {snap.aggregatorCommissionUnposted
+                    ? isAr
+                      ? 'غير مُرحَّل بعد'
+                      : 'Unposted'
+                    : `${f1(snap.deliveryFeePct)}%`}
+                </span>
+              </div>
+            ) : (
+              <div
+                data-kpi-val
+                className="mt-1.5 text-lg sm:text-xl font-semibold tracking-tight text-amber-700 dark:text-amber-300"
+              >
+                {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL for this period'}
+              </div>
+            )}
+            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `حصة الصالة والسفري المباشر (0% عمولة): ${f1(snap.directChannelSharePct)}%`
+                : `Zero-commission Dine-In & Direct share: ${f1(snap.directChannelSharePct)}%`}
+            </p>
+            <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+              <span className="font-bold text-amber-800 dark:text-amber-300">
+                {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+              </span>
+              {isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
+            </div>
+          </div>
+          <KpiProvenanceBadge
+            odooModel="account.move.line + pos.order"
+            dateRange={provenanceRange}
+            lastSyncAt={snap.lastSyncedAt}
+            isStale24h={snap.isStale24h}
+            kind="تقدير"
+            queryOrFormula={isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
+            isAr={isAr}
+            compact
+          />
+        </article>
+
+        <article className={`${KPI_CARD_CLS} ae-glow-sky flex flex-col justify-between gap-2.5`}>
+          <div>
+            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'التغير الدوري المرجعي للتقدير' : 'Reference Period Momentum Input'}
+            </div>
+            <div
+              dir="ltr"
+              data-kpi-val
+              className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+            >
+              {snap.paydayLiftPct >= 0 ? '+' : ''}
+              {f1(snap.paydayLiftPct)}%
+            </div>
+            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `مقارنة الفترة المرجعية (${snap.periodFromIso} ← ${snap.periodToIso}) بالفترة السابقة`
+                : `Reference window (${snap.periodFromIso} → ${snap.periodToIso}) vs prior window`}
+            </p>
+            <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+              <span className="font-bold text-amber-800 dark:text-amber-300">
+                {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+              </span>
+              {isAr ? snap.momentumFormulaAr : snap.momentumFormulaEn}
+            </div>
+          </div>
+          <KpiProvenanceBadge
+            odooModel="pos.order"
+            dateRange={provenanceRange}
+            lastSyncAt={snap.lastSyncedAt}
+            isStale24h={snap.isStale24h}
+            kind="تقدير"
+            queryOrFormula={isAr ? snap.momentumFormulaAr : snap.momentumFormulaEn}
+            isAr={isAr}
+            compact
+          />
+        </article>
+
+        <article className={`${KPI_CARD_CLS} ae-glow-emerald flex flex-col justify-between gap-2.5`}>
+          <div>
+            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'العائد التقديري للمراحل المضافة يدوياً' : 'User-Entered Roadmap Upside Estimate'}
+            </div>
+            <div
+              dir="ltr"
+              data-kpi-val
+              className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
+            >
+              +{f0(totalMonthlyUpside)}{' '}
+              <span className="text-[12px] sm:text-[14.5px] font-semibold text-slate-400">
+                {kwd}/{isAr ? 'شهر' : 'mo'}
               </span>
             </div>
-          ) : (
-            <div
-              data-kpi-val
-              className="mt-1.5 text-lg sm:text-2xl font-semibold tracking-tight text-slate-500 dark:text-slate-400"
-            >
-              {isAr ? 'غير متوفر' : 'Not available'}
+            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `عدد المراحل المضافة: ${phases.length} • إجمالي سقف التكلفة التقديري: ${f0(totalCostCap)} د.ك`
+                : `User phases: ${phases.length} • Total estimated cost cap: ${f0(totalCostCap)} KWD`}
+            </p>
+            <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11.5px] leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+              <span className="font-bold text-amber-800 dark:text-amber-300">
+                {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+              </span>
+              {isAr
+                ? `مجموع العوائد الشهرية المدخلة يدوياً (${phases.length} مراحل) = +${f0(totalMonthlyUpside)} د.ك/شهر`
+                : `Sum of user-entered phase monthly gains (${phases.length} phases) = +${f0(totalMonthlyUpside)} KWD/mo`}
             </div>
-          )}
-          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
-            {isAr
-              ? `حصة الصالة والمباشر (0% عمولة): ${f1(snap.directChannelSharePct)}% • المصدر: أودو 17 account.move.line (${snap.periodFromIso} إلى ${snap.periodToIso})`
-              : `Zero-fee Dine-In & Pickup share: ${f1(snap.directChannelSharePct)}% • Source: Odoo 17 account.move.line (${snap.periodFromIso} → ${snap.periodToIso})`}
-          </p>
-        </article>
-
-        <article className={`${KPI_CARD_CLS} ae-glow-sky`}>
-          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'نبض الرواتب والموسم بالكويت' : 'Kuwait Payday & Seasonal Lift'}
           </div>
-          <div
-            dir="ltr"
-            data-kpi-val
-            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
-          >
-            +{f1(snap.paydayLiftPct)}%
-          </div>
-          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
-            {isAr
-              ? `قفزة 20–28 الشهر + ذروة الشتاء والكشتات • الفترة المرجعية: ${snap.periodFromIso} إلى ${snap.periodToIso} (أودو 17 pos.order)`
-              : `20th–28th salary surge + winter peak • Window: ${snap.periodFromIso} → ${snap.periodToIso} (Odoo 17 pos.order)`}
-          </p>
-        </article>
-
-        <article className={`${KPI_CARD_CLS} ae-glow-emerald`}>
-          <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-500 dark:text-slate-400">
-            {isAr ? 'عائد خارطة المراحل مقابل السقف' : 'Roadmap Return vs Cost Cap'}
-          </div>
-          <div
-            dir="ltr"
-            data-kpi-val
-            className="mt-1.5 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-400"
-          >
-            +{f0(totalMonthlyUpside)}{' '}
-            <span className="text-[12px] sm:text-[14.5px] font-semibold text-slate-400">
-              {kwd}/{isAr ? 'شهر' : 'mo'}
-            </span>
-          </div>
-          <p className="mt-2 whitespace-normal leading-relaxed text-xs text-slate-600 dark:text-slate-300">
-            {isAr
-              ? `سقف تكلفة المراحل الـ ${phases.length}: ${f0(totalCostCap)} د.ك • التوقيت: ${phases[0]?.startDate ?? '2026-11-15'} إلى ${phases[phases.length - 1]?.endDate ?? '2027-02-28'}`
-              : `Total cost cap across ${phases.length} phases: ${f0(totalCostCap)} KWD • Window: ${phases[0]?.startDate ?? '2026-11-15'} → ${phases[phases.length - 1]?.endDate ?? '2027-02-28'}`}
-          </p>
+          <KpiProvenanceBadge
+            odooModel="مدخلات تخطيط يدوية + pos.order"
+            dateRange={provenanceRange}
+            lastSyncAt={snap.lastSyncedAt}
+            isStale24h={snap.isStale24h}
+            kind="تقدير"
+            queryOrFormula={
+              isAr
+                ? `Σ العائد الشهري المقدر للمراحل المدخلة (${phases.length}) = ${f0(totalMonthlyUpside)} د.ك`
+                : `Sum(expectedMonthlyGainKwd across ${phases.length} user phases) = ${f0(totalMonthlyUpside)} KWD`
+            }
+            isAr={isAr}
+            compact
+          />
         </article>
       </section>
 
-      {/* ───────────── 3. 3-Scenario Forecast Cards (متحفظ / واقعي / طموح) ───────────── */}
+      {/* ───────────── 3. 3-Scenario Forecast Cards — Every Scenario Number Badged «تقدير» + Visible Formula ───────────── */}
       <section className="space-y-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-white">
-              {isAr ? 'سيناريوهات التوقعات المالية الثلاثة' : 'Three Financial Forecast Scenarios'}
+              {isAr
+                ? 'سيناريوهات التقدير المالي الثلاثة (تقدير بالمعادلات)'
+                : 'Three Formula-Based Financial Estimate Scenarios'}
             </h2>
             <p className="text-[14px] text-slate-500 dark:text-slate-400">
               {isAr
-                ? 'اختر أي سيناريو لربطه بالتعميم الرسمي ومؤشرات الامتثال'
-                : 'Select any scenario to link with official circulars & Odoo compliance targets'}
+                ? 'كل رقم أدناه موسوم بـ «تقدير» ومشفوع بمعادلته الحسابية الظاهرة فوق خط الأساس الفعلي'
+                : 'Every figure below is badged as «تقدير» (Estimate) with its explicit mathematical formula'}
             </p>
           </div>
-          <span className="ae-pill-light text-[13px]">
-            {isAr ? snap.horizonLabelAr : snap.horizonLabelEn}
+          <span className="rounded-full bg-amber-100/90 px-3.5 py-1 text-[13px] font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
+            {isAr ? `تقدير • ${snap.horizonLabelAr}` : `Estimate • ${snap.horizonLabelEn}`}
           </span>
         </div>
 
@@ -621,157 +702,193 @@ export function StrategicPlanningStudio() {
               <article
                 key={sc.id}
                 onClick={() => setActiveScenarioId(sc.id)}
-                className={`${CARD_CLS} cursor-pointer transition-all duration-150 ${
+                className={`${CARD_CLS} flex cursor-pointer flex-col justify-between gap-4 transition-all duration-150 ${
                   selected
                     ? 'ring-2 ring-emerald-500/75 dark:ring-emerald-400/75'
                     : 'hover:-translate-y-0.5'
                 }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-semibold ${
-                        sc.id === 'realistic'
-                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200'
-                          : sc.id === 'ambitious'
-                            ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
-                            : 'bg-slate-100 text-slate-700 dark:bg-white/[0.08] dark:text-slate-200'
-                      }`}
-                    >
-                      {isAr ? sc.badgeAr : sc.badgeEn}
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-semibold ${
+                          sc.id === 'realistic'
+                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200'
+                            : sc.id === 'ambitious'
+                              ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
+                              : 'bg-slate-100 text-slate-700 dark:bg-white/[0.08] dark:text-slate-200'
+                        }`}
+                      >
+                        {isAr ? sc.badgeAr : sc.badgeEn}
+                      </span>
+                      <p className="mt-1.5 text-[13.5px] text-slate-500 dark:text-slate-400">
+                        {isAr ? sc.subtitleAr : sc.subtitleEn}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-1 text-[12px] font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
+                      {isAr ? 'تقدير' : 'Estimate'}
                     </span>
-                    <p className="mt-1.5 text-[14px] text-slate-500 dark:text-slate-400">
-                      {isAr ? sc.subtitleAr : sc.subtitleEn}
-                    </p>
                   </div>
 
-                  <span
-                    dir="ltr"
-                    className="ae-bento-subcard rounded-full px-3 py-1 text-[12px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
-                  >
-                    {isAr ? sc.paybackLabelAr : sc.paybackLabelEn}
-                  </span>
+                  {/* 3 Core Estimated Numbers */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                    <div className="ae-bento-subcard p-2.5 sm:p-3">
+                      <div className="flex items-center justify-between gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span>{isAr ? 'المبيعات المقدّرة' : 'Est. Sales'}</span>
+                      </div>
+                      <div
+                        dir="ltr"
+                        className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {f0(sc.projectedSalesKwd)}
+                      </div>
+                      <div className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                        {kwd} • {isAr ? 'تقدير' : 'Est.'}
+                      </div>
+                    </div>
+
+                    <div className="ae-bento-subcard p-2.5 sm:p-3">
+                      <div className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {isAr ? 'التكاليف المقدّرة' : 'Est. Costs'}
+                      </div>
+                      {snap.accountingAvailable ? (
+                        <>
+                          <div
+                            dir="ltr"
+                            className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300"
+                          >
+                            {f0(sc.projectedCostsKwd)}
+                          </div>
+                          <div className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">
+                            {kwd} • {isAr ? 'تقدير' : 'Est.'}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          {isAr ? 'قيود غير مكتملة' : 'Incomplete GL'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
+                      <div className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                        {isAr ? 'صافي الكاش المقدّر' : 'Est. Net Cash'}
+                      </div>
+                      {snap.accountingAvailable ? (
+                        <>
+                          <div
+                            dir="ltr"
+                            className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300"
+                          >
+                            {sc.projectedNetCashKwd >= 0 ? '+' : ''}
+                            {f0(sc.projectedNetCashKwd)}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="text-[11px] font-semibold tabular-nums text-emerald-800 dark:text-emerald-300"
+                          >
+                            {f1(sc.netMarginPct)}% • {isAr ? 'تقدير' : 'Est.'}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                          {isAr ? 'قيود غير مكتملة' : 'Incomplete GL'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Explicit Visible Mathematical Formulas */}
+                  <div className="space-y-1.5 rounded-xl bg-slate-50 p-3 text-[12px] leading-relaxed text-slate-700 ring-1 ring-slate-200/80 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10">
+                    <div className="font-bold text-amber-900 dark:text-amber-300">
+                      {isAr ? 'المعادلات الظاهرة لهذا السيناريو:' : 'Visible Scenario Formulas:'}
+                    </div>
+                    <div>• {isAr ? sc.salesFormulaAr : sc.salesFormulaEn}</div>
+                    <div>• {isAr ? sc.costsFormulaAr : sc.costsFormulaEn}</div>
+                    <div>• {isAr ? sc.netFormulaAr : sc.netFormulaEn}</div>
+                  </div>
+
+                  <ul className="space-y-1.5 text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-300">
+                    {(isAr ? sc.assumptionsAr : sc.assumptionsEn).map((line) => (
+                      <li key={line} className="flex items-start gap-2">
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                {/* 3 Core Numbers: Projected Sales | Costs (التكاليف KWD) | Net Cash */}
-                <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-2.5">
-                  <div className="ae-bento-subcard p-2.5 sm:p-3">
-                    <div className="text-xs sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                      {isAr ? 'المبيعات المتوقعة' : 'Projected Sales'}
-                    </div>
-                    <div
-                      dir="ltr"
-                      className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-slate-900 dark:text-white"
-                    >
-                      {f0(sc.projectedSalesKwd)}
-                    </div>
-                    <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
-                  </div>
-
-                  <div className="ae-bento-subcard p-2.5 sm:p-3">
-                    <div className="text-xs sm:text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                      {isAr ? 'التكاليف' : 'Total Costs'}
-                    </div>
-                    {snap.accountingAvailable ? (
-                      <>
-                        <div
-                          dir="ltr"
-                          className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-amber-700 dark:text-amber-300"
-                        >
-                          {f0(sc.projectedCostsKwd)}
-                        </div>
-                        <div className="text-xs sm:text-[12px] text-slate-400">{kwd}</div>
-                      </>
-                    ) : (
-                      <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                        {isAr ? 'غير متوفر' : 'Not available'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
-                    <div className="text-xs sm:text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
-                      {isAr ? 'صافي الكاش' : 'Net Cash'}
-                    </div>
-                    {snap.accountingAvailable ? (
-                      <>
-                        <div
-                          dir="ltr"
-                          className="mt-1 text-base sm:text-[19px] font-semibold tracking-tight tabular-nums text-emerald-700 dark:text-emerald-300"
-                        >
-                          {sc.projectedNetCashKwd >= 0 ? '+' : ''}
-                          {f0(sc.projectedNetCashKwd)}
-                        </div>
-                        <div
-                          dir="ltr"
-                          className="text-xs sm:text-[12px] font-semibold tabular-nums text-emerald-700/85 dark:text-emerald-400"
-                        >
-                          {f1(sc.netMarginPct)}% {kwd}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
-                        {isAr ? 'غير متوفر' : 'Not available'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <ul className="mt-4 space-y-2 text-[14px] leading-relaxed text-slate-600 dark:text-slate-300">
-                  {(isAr ? sc.assumptionsAr : sc.assumptionsEn).map((line) => (
-                    <li key={line} className="flex items-start gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
+                <KpiProvenanceBadge
+                  odooModel="pos.order + account.move.line"
+                  dateRange={provenanceRange}
+                  lastSyncAt={snap.lastSyncedAt}
+                  isStale24h={snap.isStale24h}
+                  kind="تقدير"
+                  queryOrFormula={`${isAr ? sc.salesFormulaAr : sc.salesFormulaEn} | ${isAr ? sc.netFormulaAr : sc.netFormulaEn}`}
+                  isAr={isAr}
+                  compact
+                />
               </article>
             )
           })}
         </div>
       </section>
 
-      {/* ───────────── 4. Kuwait F&B Market & Seasonal Drivers Strip ───────────── */}
+      {/* ───────────── 4. Observed Odoo Reference Inputs Strip ───────────── */}
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {snap.signals.map((sig) => (
-          <article key={sig.id} className={CARD_CLS}>
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">
-                {isAr ? sig.titleAr : sig.titleEn}
-              </h3>
-              <span
-                dir="ltr"
-                className={`shrink-0 rounded-full px-3 py-0.5 text-[12px] font-semibold tabular-nums ${
-                  sig.tone === 'emerald'
-                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                    : sig.tone === 'sky'
-                      ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/60 dark:text-sky-200'
-                      : 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-                }`}
-              >
-                {isAr ? sig.impactBadgeAr : sig.impactBadgeEn}
-              </span>
+          <article key={sig.id} className={`${CARD_CLS} flex flex-col justify-between gap-3`}>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">
+                  {isAr ? sig.titleAr : sig.titleEn}
+                </h3>
+                <span
+                  dir="ltr"
+                  className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-[12px] font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                >
+                  {isAr ? `تقدير • ${sig.impactBadgeAr}` : `Est • ${sig.impactBadgeEn}`}
+                </span>
+              </div>
+              <p className="text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-300">
+                {isAr ? sig.detailAr : sig.detailEn}
+              </p>
+              <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 text-[11.5px] text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+                <span className="font-bold text-amber-800 dark:text-amber-300">
+                  {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+                </span>
+                {isAr ? sig.formulaAr : sig.formulaEn}
+              </div>
             </div>
-            <p className="mt-2 text-[14px] leading-relaxed text-slate-500 dark:text-slate-300">
-              {isAr ? sig.detailAr : sig.detailEn}
-            </p>
+            <KpiProvenanceBadge
+              odooModel="pos.order + account.move.line"
+              dateRange={provenanceRange}
+              lastSyncAt={snap.lastSyncedAt}
+              isStale24h={snap.isStale24h}
+              kind="تقدير"
+              queryOrFormula={isAr ? sig.formulaAr : sig.formulaEn}
+              isAr={isAr}
+              compact
+            />
           </article>
         ))}
       </section>
 
-      {/* ───────────── 5. Wide 2x2 Phased Execution Roadmap (`grid-cols-1 xl:grid-cols-2 gap-6`) ───────────── */}
+      {/* ───────────── 5. User-Defined Execution Roadmap (Zero Pre-Seeded Phases; Official Circulars Disabled) ───────────── */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-white">
               {isAr
-                ? 'المراحل الأربع والجدول الزمني واعتماد التعميم الرسمي'
-                : 'Four Execution Phases & Official Circular Governance'}
+                ? 'مراحل التخطيط المخصصة (مدخلات تقديرية يدوية)'
+                : 'Custom Planning Phases (User-Entered Estimates)'}
             </h2>
             <p className="text-[14px] text-slate-500 dark:text-slate-400">
               {isAr
-                ? 'اعتمد كل مرحلة بخطوة واحدة واضحة لتفعيل التعميم الرسمي ومتابعة الفروع الـ 7'
-                : 'Approve each phase in one clean step to unlock official circular printing & 7-branch tracking'}
+                ? 'أضف مراحل خطتك يدوياً لحساب أثرها التقديري. التعميم الرسمي وأوامر الإيقاف معطّلة حتى ربط سقوف الأدمن بمخالفات فعلية في Odoo.'
+                : 'Add custom phases manually to model their estimated impact. Official circulars and freeze actions remain disabled pending server-side Odoo threshold rules.'}
             </p>
           </div>
 
@@ -781,7 +898,15 @@ export function StrategicPlanningStudio() {
             className={PRIMARY_SOFT_BTN_CLS}
           >
             <Plus className="h-4 w-4" />
-            <span>{formOpen ? (isAr ? 'إغلاق النموذج ✕' : 'Close ✕') : isAr ? '+ خطة جديدة' : '+ New Plan'}</span>
+            <span>
+              {formOpen
+                ? isAr
+                  ? 'إغلاق النموذج ✕'
+                  : 'Close ✕'
+                : isAr
+                  ? '+ إضافة مرحلة تقديرية'
+                  : '+ Add Estimate Phase'}
+            </span>
           </button>
         </div>
 
@@ -797,7 +922,11 @@ export function StrategicPlanningStudio() {
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder={isAr ? 'مثال: إطلاق منيو الشتاء في السالمية...' : 'e.g. Launch winter family bundles...'}
+                  placeholder={
+                    isAr
+                      ? 'مثال: إطلاق باقات عائلية في السالمية...'
+                      : 'e.g. Launch family bundles in Salmiya...'
+                  }
                   className={INPUT_CLS}
                 />
               </div>
@@ -844,7 +973,7 @@ export function StrategicPlanningStudio() {
 
               <div>
                 <label className="mb-1.5 block text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? 'سقف التكلفة (د.ك)' : 'Cost Cap (KWD)'}
+                  {isAr ? 'سقف التكلفة التقديري (د.ك)' : 'Est. Cost Cap (KWD)'}
                 </label>
                 <input
                   type="number"
@@ -868,14 +997,18 @@ export function StrategicPlanningStudio() {
                   required
                   value={newKpi}
                   onChange={(e) => setNewKpi(e.target.value)}
-                  placeholder={isAr ? 'مثال: رفع الطلبات +30 يومياً وسقف هدر ≤ 1.8%' : 'e.g. +30 daily orders & waste <= 1.8%'}
+                  placeholder={
+                    isAr
+                      ? 'مثال: ضبط الهدر في مطبخ العارضية...'
+                      : 'e.g. Reduce kitchen waste...'
+                  }
                   className={INPUT_CLS}
                 />
               </div>
 
               <div>
                 <label className="mb-1.5 block text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? 'العائد الشهري المتوقع (د.ك)' : 'Expected Monthly Return (KWD)'}
+                  {isAr ? 'العائد الشهري التقديري (د.ك)' : 'Est. Monthly Return (KWD)'}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -887,10 +1020,7 @@ export function StrategicPlanningStudio() {
                     onChange={(e) => setNewMonthlyGain(e.target.value)}
                     className={`${INPUT_CLS} tabular-nums`}
                   />
-                  <button
-                    type="submit"
-                    className={`${PRIMARY_SOFT_BTN_CLS} h-10 shrink-0`}
-                  >
+                  <button type="submit" className={`${PRIMARY_SOFT_BTN_CLS} h-10 shrink-0`}>
                     <Plus className="h-4 w-4" />
                     <span>{isAr ? 'حفظ' : 'Add'}</span>
                   </button>
@@ -900,465 +1030,186 @@ export function StrategicPlanningStudio() {
           </form>
         ) : null}
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {phases.map((phase) => {
-            const refKey = `strategic-plan:${phase.id}`
-            const approval = getApprovalByRef(refKey)
-            const isApproved = approval?.status === 'approved'
-            const isPending = approval?.status === 'pending'
-            const circularKey = `plan-circular:${phase.id}`
-            const issuedCircular = store.issuedCirculars[circularKey]
-            const receipts = store.branchReceipts[circularKey] ?? {}
-            const receivedCount = APPROVED_BRANCH_IDS.filter((b) => receipts[b]).length
-            const circularBodyAr = buildPlanCircularText(
-              phase,
-              activeScenario,
-              true,
-              issuedCircular?.sealId ?? approval?.seal?.sealId,
-            )
-            const circularBodyEn = buildPlanCircularText(
-              phase,
-              activeScenario,
-              false,
-              issuedCircular?.sealId ?? approval?.seal?.sealId,
-            )
-            const activeCircularText = isAr ? circularBodyAr : circularBodyEn
-            const showCircularPanel = expandedCircularId === phase.id || Boolean(issuedCircular)
-            const menuOpen = openMenuId === phase.id
+        {phases.length === 0 ? (
+          <div className={`${CARD_CLS} text-center text-sm text-slate-500 dark:text-slate-400`}>
+            {isAr
+              ? 'لا توجد مراحل مضافة بعد. اضغط «+ إضافة مرحلة تقديرية» لإدخال مرحلة تخطيط يدوية.'
+              : 'No custom planning phases added yet. Click "+ Add Estimate Phase" to model a manual phase.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            {phases.map((phase) => {
+              const activeCircularText = buildPlanCircularText(phase, activeScenario, isAr)
+              const feryalPrompt = isAr
+                ? `حللي المرحلة التقديرية (${phase.phaseCode}: ${phase.titleAr}) بسقف تكلفة تقديري ${f0(phase.costCapKwd)} د.ك وعائد تقديري +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر.`
+                : `Analyze estimated phase (${phase.phaseCode}: ${phase.titleEn}) with ${f0(phase.costCapKwd)} KWD cost cap and +${f0(phase.expectedMonthlyGainKwd)} KWD/mo estimated return.`
 
-            const openPrintForPhase = () => {
-              openCircularPrintModal({
-                circularKey,
-                serialRef: issuedCircular?.serialRef ?? buildCircularSerialRef(circularKey),
-                kind: 'strategic-plan',
-                titleAr: `${phase.phaseCode} — ${phase.titleAr}`,
-                titleEn: `${phase.phaseCode} — ${phase.titleEn}`,
-                classificationAr: 'تعميم خطة استراتيجية معتمدة',
-                classificationEn: 'Approved Strategic Execution Circular',
-                scopeAr: `${phase.ownerAr} · الفروع السبعة ومطبخ العارضية`,
-                scopeEn: `${phase.ownerEn} · All 7 Active Branches & Ardiya Kitchen`,
-                issuedAtIso:
-                  issuedCircular?.issuedAtIso ??
-                  approval?.seal?.approvedAtIso ??
-                  new Date().toISOString(),
-                effectiveWindow: `${phase.startDate} → ${phase.endDate}`,
-                sealId: issuedCircular?.sealId ?? approval?.seal?.sealId,
-                financialSummaryAr: `سقف التكلفة: ${f0(phase.costCapKwd)} د.ك • العائد المتوقع: +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر`,
-                financialSummaryEn: `Cost Cap: ${f0(phase.costCapKwd)} KWD • Expected Gain: +${f0(phase.expectedMonthlyGainKwd)} KWD/mo`,
-                mandatoryRulesAr: [
-                  `المؤشر التشغيلي الإلزامي: ${phase.targetKpiAr}`,
-                  `سقف الصرف المسموح لهذه المرحلة لا يتجاوز ${f0(phase.costCapKwd)} د.ك.`,
-                  `السيناريو المالي المربوط: ${activeScenario.badgeAr} (صافي كاش +${f0(activeScenario.projectedNetCashKwd)} د.ك).`,
-                  'يتم تجميد أي انحراف آلياً عبر جرس الامتثال في أودو 17.',
-                ],
-                mandatoryRulesEn: [
-                  `Mandatory Target KPI: ${phase.targetKpiEn}`,
-                  `Phase spending strictly capped at <= ${f0(phase.costCapKwd)} KWD.`,
-                  `Linked Scenario: ${activeScenario.badgeEn} (+${f0(activeScenario.projectedNetCashKwd)} KWD net cash).`,
-                  'Any deviation triggers immediate Odoo 17 Compliance Watchdog alert.',
-                ],
-                bodyAr: circularBodyAr,
-                bodyEn: circularBodyEn,
-              })
-            }
-
-            const feryalPrompt = isAr
-              ? `حللي المرحلة الاستراتيجية (${phase.phaseCode}: ${phase.titleAr}) بسقف تكلفة ${f0(phase.costCapKwd)} د.ك وعائد مستهدف +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر، وأعطيني خطة متابعة يومية في أودو 17.`
-              : `Analyze strategic phase (${phase.phaseCode}: ${phase.titleEn}) with ${f0(phase.costCapKwd)} KWD cost cap and +${f0(phase.expectedMonthlyGainKwd)} KWD/mo upside, and suggest daily Odoo 17 checkpoints.`
-
-            return (
-              <article
-                key={phase.id}
-                className={`${CARD_CLS} flex flex-col justify-between gap-4 transition-all duration-150 ${
-                  menuOpen ? 'z-30' : 'z-0'
-                }`}
-              >
-                <div className="space-y-3.5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-emerald-50 px-3 py-0.5 font-mono text-[13px] font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/70 dark:text-emerald-200">
-                        {phase.phaseCode}
-                      </span>
-                      <span
-                        dir="ltr"
-                        className="ae-bento-subcard rounded-full px-3 py-0.5 text-[12.5px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
-                      >
-                        {phase.startDate} → {phase.endDate}
-                      </span>
-                      <span className="ae-bento-subcard rounded-full px-3 py-0.5 text-[12.5px] font-medium text-slate-600 dark:text-slate-300">
-                        {isAr ? phase.ownerAr : phase.ownerEn}
-                      </span>
-                      {issuedCircular ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-[12px] font-semibold text-sky-800 dark:bg-sky-950/60 dark:text-sky-200">
-                          <Megaphone className="h-3 w-3" />
-                          <span>
-                            {isAr
-                              ? `تم التعميم (${receivedCount}/7 فروع) 📢`
-                              : `Broadcasted (${receivedCount}/7) 📢`}
-                          </span>
+              return (
+                <article
+                  key={phase.id}
+                  className={`${CARD_CLS} flex flex-col justify-between gap-4`}
+                >
+                  <div className="space-y-3.5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-emerald-50 px-3 py-0.5 font-mono text-[13px] font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/70 dark:text-emerald-200">
+                          {phase.phaseCode}
                         </span>
-                      ) : null}
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="ae-bento-subcard px-3.5 py-1.5 text-end">
-                        <div className="text-[13px] text-slate-500 dark:text-slate-400">
-                          {isAr ? 'سقف التكلفة' : 'Cost Cap'}
-                        </div>
-                        <div
-                          dir="ltr"
-                          className="text-[14.5px] font-bold tabular-nums text-slate-900 dark:text-white"
-                        >
-                          {f0(phase.costCapKwd)} {kwd}
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-emerald-50/80 px-3.5 py-1.5 text-end ring-1 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/20">
-                        <div className="text-[13px] text-emerald-800 dark:text-emerald-300">
-                          {isAr ? 'العائد الشهري' : 'Monthly Gain'}
-                        </div>
-                        <div
-                          dir="ltr"
-                          className="text-[14.5px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300"
-                        >
-                          +{f0(phase.expectedMonthlyGainKwd)} {kwd}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <h3 className="text-[16px] font-semibold leading-snug text-slate-900 dark:text-white">
-                    {isAr ? phase.titleAr : phase.titleEn}
-                  </h3>
-
-                  <div className={`${SUBCARD_CLS} space-y-1.5 text-[14px] leading-relaxed`}>
-                    <p className="text-slate-700 dark:text-slate-200">
-                      <span className="font-semibold text-slate-900 dark:text-white">
-                        {isAr ? 'المؤشر المستهدف: ' : 'Target KPI: '}
-                      </span>
-                      {isAr ? phase.targetKpiAr : phase.targetKpiEn}
-                    </p>
-                    <p className="text-[13.5px] text-slate-500 dark:text-slate-400">
-                      <span className="font-semibold text-emerald-800 dark:text-emerald-300">
-                        {isAr ? 'قاعدة أودو 17: ' : 'Odoo 17 Rule: '}
-                      </span>
-                      {isAr ? phase.odooWatchMetricAr : phase.odooWatchMetricEn}
-                    </p>
-                  </div>
-
-                  {/* 7/7 Branch Receipt Tracker */}
-                  {showCircularPanel ? (
-                    <div className={`${SUBCARD_CLS} space-y-2.5`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 text-[13.5px] font-semibold text-slate-900 dark:text-white">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                          <span>
-                            {isAr
-                              ? `سجل استلام الفروع السبعة للتعميم (${receivedCount}/7)`
-                              : `7-Branch Circular Receipt Tracker (${receivedCount}/7)`}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => confirmAllBranchesReceipt(circularKey)}
-                          className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-[12px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
-                        >
-                          {isAr ? 'تأكيد استلام الـ 7 فروع ✓' : 'Verify All 7 Branches ✓'}
-                        </button>
-                      </div>
-
-                      <div className={SEGMENT_TRACK_CLS}>
-                        {APPROVED_BRANCH_IDS.map((branchId) => {
-                          const checked = Boolean(receipts[branchId])
-                          return (
-                            <button
-                              key={branchId}
-                              type="button"
-                              onClick={() =>
-                                toggleBranchReceipt(
-                                  circularKey,
-                                  branchId as Exclude<GlobalBranch, 'all'>,
-                                )
-                              }
-                              className={`inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-3 py-1.5 text-[12.5px] font-semibold transition-all duration-150 ${
-                                checked
-                                  ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/25 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-200'
-                                  : 'bg-white text-slate-600 ring-1 ring-slate-200/80 hover:bg-slate-50 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/10'
-                              }`}
-                            >
-                              {checked ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" /> : null}
-                              <span>{getBranchLabel(branchId, isAr)}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Progressive State-Driven Single Primary Action + Quiet Overflow Menu */}
-                <div className="mt-1 flex flex-wrap items-center justify-between gap-2.5 border-t border-slate-200/70 pt-3.5 dark:border-white/[0.06]">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {isApproved ? (
-                      <>
                         <span
-                          title={approval?.seal?.sealId}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-50/90 px-3.5 text-[13px] font-semibold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          dir="ltr"
+                          className="ae-bento-subcard rounded-full px-3 py-0.5 text-[12.5px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
                         >
-                          <ShieldCheck className="h-4 w-4" />
-                          <span>{isAr ? 'معتمد رسمياً ✓' : 'Officially Approved ✓'}</span>
+                          {phase.startDate} → {phase.endDate}
                         </span>
-
-                        <button
-                          type="button"
-                          onClick={openPrintForPhase}
-                          className={PRIMARY_SOFT_BTN_CLS}
-                        >
-                          <FileText className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
-                          <span>{isAr ? 'طباعة التعميم الرسمي 📄' : 'Print Official Circular 📄'}</span>
-                        </button>
-                      </>
-                    ) : isPending && approval ? (
-                      <>
-                        <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-[12.5px] font-semibold text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
-                          <Bell className="h-3.5 w-3.5" />
-                          <span>{isAr ? 'بانتظار الختم 🔔' : 'Pending Seal 🔔'}</span>
+                        <span className="ae-bento-subcard rounded-full px-3 py-0.5 text-[12.5px] font-medium text-slate-600 dark:text-slate-300">
+                          {isAr ? phase.ownerAr : phase.ownerEn}
                         </span>
+                        <span className="rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
+                          {isAr ? 'تقدير يدوي' : 'User Estimate'}
+                        </span>
+                      </div>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            approveItemWithPin(approval.id, approval.titleAr, approval.titleEn)
-                          }
-                          className={PRIMARY_SOFT_BTN_CLS}
-                        >
-                          <Lock className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-300" />
-                          <span>{isAr ? 'اعتماد بختم المدير' : 'Approve with Manager PIN'}</span>
-                        </button>
-                      </>
-                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="ae-bento-subcard px-3.5 py-1.5 text-end">
+                          <div className="text-[12px] text-slate-500 dark:text-slate-400">
+                            {isAr ? 'سقف التكلفة (تقدير)' : 'Est. Cost Cap'}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="text-[14.5px] font-bold tabular-nums text-slate-900 dark:text-white"
+                          >
+                            {f0(phase.costCapKwd)} {kwd}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-emerald-50/80 px-3.5 py-1.5 text-end ring-1 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/20">
+                          <div className="text-[12px] text-emerald-800 dark:text-emerald-300">
+                            {isAr ? 'العائد الشهري (تقدير)' : 'Est. Monthly Gain'}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="text-[14.5px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300"
+                          >
+                            +{f0(phase.expectedMonthlyGainKwd)} {kwd}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <h3 className="text-[16px] font-semibold leading-snug text-slate-900 dark:text-white">
+                      {isAr ? phase.titleAr : phase.titleEn}
+                    </h3>
+
+                    <div className={`${SUBCARD_CLS} space-y-1.5 text-[14px] leading-relaxed`}>
+                      <p className="text-slate-700 dark:text-slate-200">
+                        <span className="font-semibold text-slate-900 dark:text-white">
+                          {isAr ? 'المؤشر المستهدف: ' : 'Target KPI: '}
+                        </span>
+                        {isAr ? phase.targetKpiAr : phase.targetKpiEn}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3.5 dark:border-white/[0.06]">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          requestApproval({
-                            refKey,
-                            domain: 'planning',
-                            titleAr: `اعتماد مرحلة التخطيط (${phase.phaseCode}): ${phase.titleAr}`,
-                            titleEn: `Approve Strategic Phase (${phase.phaseCode}): ${phase.titleEn}`,
-                            summaryAr: `الفترة ${phase.startDate} ← ${phase.endDate} • المسؤول: ${phase.ownerAr} • سقف التكلفة ${f0(phase.costCapKwd)} د.ك • العائد +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر.`,
-                            summaryEn: `Window ${phase.startDate} -> ${phase.endDate} • Owner: ${phase.ownerEn} • Cost Cap ${f0(phase.costCapKwd)} KWD • Return +${f0(phase.expectedMonthlyGainKwd)} KWD/mo.`,
-                            departmentAr: phase.ownerAr,
-                            departmentEn: phase.ownerEn,
-                            budgetOrCostKwd: phase.costCapKwd,
-                            expectedMonthlyReturnKwd: phase.expectedMonthlyGainKwd,
-                            href: '/erp/planning',
-                          })
+                        disabled
+                        title={
+                          isAr
+                            ? 'معطّل حتى ربط سقوف الأدمن بتنبيهات Odoo الحقيقية'
+                            : 'Disabled pending server-side Odoo threshold alerts'
                         }
                         className={PRIMARY_SOFT_BTN_CLS}
                       >
-                        <Bell className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
-                        <span>{isAr ? 'طلب اعتماد المدير' : 'Request Manager Approval'}</span>
+                        <FileText className="h-4 w-4" />
+                        <span>
+                          {isAr ? 'طباعة / تصدير تعميم رسمي (معطّل)' : 'Print Official Circular (Disabled)'}
+                        </span>
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        disabled
+                        title={
+                          isAr
+                            ? 'معطّل حتى ربط سقوف الأدمن بتنبيهات Odoo الحقيقية'
+                            : 'Disabled pending server-side Odoo threshold alerts'
+                        }
+                        className={PRIMARY_SOFT_BTN_CLS}
+                      >
+                        <Megaphone className="h-4 w-4" />
+                        <span>{isAr ? 'تعميم رسمي (معطّل)' : 'Broadcast Circular (Disabled)'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled
+                        title={
+                          isAr
+                            ? 'معطّل حتى توفر مخالفة فعلية من Odoo'
+                            : 'Disabled until a real Odoo breach exists'
+                        }
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-50 px-3 text-[12.5px] font-semibold text-rose-700 opacity-50 cursor-not-allowed dark:bg-rose-950/40 dark:text-rose-300"
+                      >
+                        <ShieldAlert className="h-4 w-4" />
+                        <span>{isAr ? 'إيقاف فوري (معطّل)' : 'Freeze Action (Disabled)'}</span>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(`circ-${phase.id}`, activeCircularText)}
+                        className="ae-pill-light h-9 px-3 text-[12.5px] inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {copiedKey === `circ-${phase.id}` ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>{isAr ? 'تم النسخ' : 'Copied'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>{isAr ? 'نسخ المسودة' : 'Copy Draft'}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(activeCircularText)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ae-pill-light h-9 px-3 text-[12.5px] inline-flex items-center gap-1.5"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                      </a>
+
+                      <Link
+                        href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
+                        className="ae-pill-light h-9 px-3 text-[12.5px] inline-flex items-center gap-1.5"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>{isAr ? 'فريال' : 'Feryal'}</span>
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePhase(phase.id)}
+                        className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-[12.5px] font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>{isAr ? 'حذف' : 'Delete'}</span>
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Quiet Compact Overflow Menu (`مشاركة ⋯`) */}
-                  <div data-plan-menu-root className="relative">
-                    <button
-                      type="button"
-                      aria-expanded={menuOpen}
-                      onClick={() => setOpenMenuId((cur) => (cur === phase.id ? null : phase.id))}
-                      className="ae-pill-light h-9 px-3.5 text-[13px]"
-                    >
-                      <span>{isAr ? 'مشاركة ⋯' : 'Share ⋯'}</span>
-                    </button>
-
-                    {menuOpen ? (
-                      <div className="absolute end-0 bottom-full z-50 mb-2 w-64">
-                        <div className="ae-bento-card space-y-0.5 p-1.5 !shadow-[0_18px_42px_-10px_rgba(15,23,42,0.18)]">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenMenuId(null)
-                              openPrintForPhase()
-                            }}
-                            className={MENU_ITEM_CLS}
-                          >
-                            <FileText className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span>
-                              {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Official Circular 📄'}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenMenuId(null)
-                              issueOfficialCircularWithPin({
-                                circularKey,
-                                kind: 'strategic-plan',
-                                titleAr: `${phase.phaseCode} — ${phase.titleAr}`,
-                                titleEn: `${phase.phaseCode} — ${phase.titleEn}`,
-                                circularBodyAr,
-                                circularBodyEn,
-                                scopeAr: `${phase.ownerAr} · الفروع السبعة المعتمدة`,
-                                scopeEn: `${phase.ownerEn} · All 7 Active Branches`,
-                                effectiveWindow: `${phase.startDate} → ${phase.endDate}`,
-                                financialSummaryAr: `سقف التكلفة: ${f0(phase.costCapKwd)} د.ك • العائد المستهدف: +${f0(phase.expectedMonthlyGainKwd)} د.ك/شهر`,
-                                financialSummaryEn: `Cost Cap: ${f0(phase.costCapKwd)} KWD • Target Return: +${f0(phase.expectedMonthlyGainKwd)} KWD/mo`,
-                                mandatoryRulesAr: [
-                                  `تحقيق المؤشر المستهدف: ${phase.targetKpiAr}`,
-                                  `عدم تجاوز سقف ميزانية المرحلة المحدد بـ ${f0(phase.costCapKwd)} د.ك بدون ختم المدير التنفيذي.`,
-                                  'ربط التنفيذ آلياً بمراقب الامتثال الحي في أودو 17 وتأكيد استلام الفروع السبعة.',
-                                ],
-                                mandatoryRulesEn: [
-                                  `Deliver Target KPI: ${phase.targetKpiEn}`,
-                                  `Strict phase cost cap <= ${f0(phase.costCapKwd)} KWD without Executive PIN Seal.`,
-                                  'Monitored continuously in Odoo 17 Watchdog with 7-branch digital receipt tracking.',
-                                ],
-                                onIssued: () => setExpandedCircularId(phase.id),
-                              })
-                            }}
-                            className={MENU_ITEM_CLS}
-                          >
-                            <Megaphone className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span>
-                              {isAr
-                                ? 'تعميم الخطة المعتمدة رسمياً 📢'
-                                : 'Broadcast Approved Plan Officially 📢'}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              copyToClipboard(`circ-${phase.id}`, activeCircularText)
-                              setOpenMenuId(null)
-                            }}
-                            className={MENU_ITEM_CLS}
-                          >
-                            {copiedKey === `circ-${phase.id}` ? (
-                              <>
-                                <Check className="h-4 w-4 shrink-0 text-emerald-600" />
-                                <span>{isAr ? 'تم النسخ ✓' : 'Copied ✓'}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-4 w-4 shrink-0 text-slate-500" />
-                                <span>{isAr ? 'نسخ التعميم 📋' : 'Copy Circular 📋'}</span>
-                              </>
-                            )}
-                          </button>
-
-                          <a
-                            href={`https://wa.me/?text=${encodeURIComponent(activeCircularText)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setOpenMenuId(null)}
-                            className={MENU_ITEM_CLS}
-                          >
-                            <MessageCircle className="h-4 w-4 shrink-0 text-emerald-600" />
-                            <span>{isAr ? 'واتساب الفروع 📲' : 'WhatsApp Share 📲'}</span>
-                          </a>
-
-                          <Link
-                            href={`/erp/feryal-ai?prompt=${encodeURIComponent(feryalPrompt)}`}
-                            onClick={() => setOpenMenuId(null)}
-                            className={MENU_ITEM_CLS}
-                          >
-                            <Sparkles className="h-4 w-4 shrink-0 text-emerald-600" />
-                            <span>{isAr ? 'استشارة المستشارة فريال ✨' : 'Ask Feryal AI ✨'}</span>
-                          </Link>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setExpandedCircularId((cur) => (cur === phase.id ? null : phase.id))
-                              setOpenMenuId(null)
-                            }}
-                            className={MENU_ITEM_CLS}
-                          >
-                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                            <span>
-                              {isAr
-                                ? `سجل جاهزية واستلام الفروع (${receivedCount}/7)`
-                                : `7-Branch Readiness (${receivedCount}/7)`}
-                            </span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenMenuId(null)
-                              openDrawer('breaches')
-                            }}
-                            className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/50"
-                          >
-                            <ShieldAlert className="h-4 w-4 shrink-0" />
-                            <span>{isAr ? 'إيقاف المخالفة فوراً ⛔' : 'Stop Breach Immediately ⛔'}</span>
-                          </button>
-
-                          {!SEEDED_STRATEGIC_PHASES.some((s) => s.id === phase.id) ? (
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePhase(phase.id)}
-                              className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-start text-[13.5px] font-medium text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"
-                            >
-                              <Trash2 className="h-4 w-4 shrink-0" />
-                              <span>{isAr ? 'حذف المرحلة المخصصة' : 'Delete Custom Phase'}</span>
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
       </section>
-
-      {/* ───────────── 6. Single Compact Odoo 17 Compliance Status Strip (Opens Manager Bell Breaches Tab) ───────────── */}
-      <button
-        type="button"
-        onClick={() => openDrawer('breaches')}
-        className="ae-bento-card ae-lift flex w-full cursor-pointer flex-wrap items-center justify-between gap-3 px-5 py-4 text-start transition-all"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="ae-icon-badge">
-            <ShieldCheck className="h-4 w-4" />
-          </span>
-          {/* Verifier anchor: مراقب أودو ١٧ نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔 */}
-          <span className="text-[14.5px] font-semibold tabular-nums text-slate-900 dark:text-white">
-            {isAr
-              ? 'مراقب أودو 17 نشط • افتح جرس الاعتمادات لمراجعة المخالفات 🔔'
-              : 'Odoo 17 Watchdog Active • Open Approval Bell to Review Breaches 🔔'}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[13px] font-semibold tabular-nums ${
-              activeBreachCount > 0
-                ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-500/20 dark:bg-rose-950/60 dark:text-rose-300'
-                : 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300'
-            }`}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                activeBreachCount > 0 ? 'bg-rose-500' : 'bg-emerald-500'
-              }`}
-            />
-            <span>
-              {isAr
-                ? `${activeBreachCount} مخالفات نشطة`
-                : `${activeBreachCount} Active Breaches`}
-            </span>
-          </span>
-          <ArrowUpRight className="h-4 w-4 text-slate-400" />
-        </div>
-      </button>
     </div>
   )
 }

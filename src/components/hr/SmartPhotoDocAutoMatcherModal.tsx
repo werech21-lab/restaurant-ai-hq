@@ -249,7 +249,7 @@ export function SmartPhotoDocAutoMatcherModal({
       const analysis = analyzeFile(file)
 
       return {
-        id: `scanned-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        id: `scanned-${Date.now()}-${idx}`,
         file,
         fileName: file.name,
         fileSize: formatBytes(file.size),
@@ -394,7 +394,7 @@ export function SmartPhotoDocAutoMatcherModal({
           if (dataUrl) {
             const meta = DOC_TYPE_META[it.docType]
             const newDoc = {
-              id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              id: `doc-${Date.now()}-${it.id}`,
               nameAr: meta.labelAr,
               nameEn: meta.labelEn,
               fileName: it.fileName,

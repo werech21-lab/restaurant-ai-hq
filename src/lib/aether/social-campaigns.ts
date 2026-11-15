@@ -1,9 +1,10 @@
 /**
- * Shared Social Media, Influencer & In-App Ad Campaign Registry + Real Odoo 3-Day Halo Calculator.
- * Used across `/erp/cores` (Tab 1: التسويق ونمو المبيعات) and `/erp/before-after` (مقارنة قبل وبعد).
+ * Social Media, Influencer & In-App Ad Campaign Registry + Live Odoo POS Halo Calculator.
+ * Zero hardcoded campaigns; evaluates user-entered campaigns strictly against live Odoo `dailySeries`
+ * when Odoo is connected.
  */
 
-import { ODOO } from '@/lib/odoo/odoo-dataset'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -37,6 +38,8 @@ export type AdVerdict = 'winner' | 'breakeven' | 'loser'
 
 export interface CampaignHaloEvaluation {
   campaign: SocialCampaign
+  odooConnected: boolean
+  noData: boolean
   brandAr: string
   brandEn: string
   branchAr: string
@@ -82,58 +85,14 @@ export const SOCIAL_AD_TYPE_OPTIONS: readonly {
   { id: 'in-app', ar: 'إعلان داخل طلبات وكيتا', en: 'Talabat & Keeta Ads' },
 ] as const
 
-export const SEEDED_SOCIAL_CAMPAIGNS: SocialCampaign[] = [
-  {
-    id: 'camp-cg-blogger-oct29',
-    brand: 'china-garden',
-    adType: 'influencer',
-    campaignName: 'تغطية بلوقر مطاعم الكويت — داينمايت شرمب ونودلز',
-    campaignNameEn: 'Kuwait Food Blogger — Dynamite Shrimp & Noodles',
-    spendKwd: 350,
-    date: '2026-10-29',
-    startDate: '2026-10-29',
-    endDate: '2026-10-31',
-    promotedItem: 'Dynamite Shrimp & Chicken Noodles',
-  },
-  {
-    id: 'camp-franks-tiktok-oct22',
-    brand: 'franks',
-    adType: 'tiktok',
-    campaignName: 'فيديو تيك توك وريلز — فيلي ستيك على الصاج',
-    campaignNameEn: 'TikTok & Reels Promo — Orig. Philly CheeseSteak',
-    spendKwd: 95,
-    date: '2026-10-22',
-    startDate: '2026-10-22',
-    endDate: '2026-10-24',
-    promotedItem: 'Orig. Philly CheeseSteak',
-  },
-  {
-    id: 'camp-fb-snap-nov04',
-    brand: 'farm-brown',
-    adType: 'snapchat',
-    campaignName: 'إعلان سناب شات — وجبات كرسبي وساندويتشات',
-    campaignNameEn: 'Snapchat Promo — Crispy Chicken Combo',
-    spendKwd: 75,
-    date: '2026-11-04',
-    startDate: '2026-11-04',
-    endDate: '2026-11-06',
-    promotedItem: 'Crispy Chicken Combo',
-  },
-  {
-    id: 'camp-inapp-clicks-nov01',
-    brand: 'noodle-bar',
-    adType: 'in-app',
-    campaignName: 'إعلان نقرات ممول بدون حد أدنى للطلب',
-    campaignNameEn: 'Sponsored App Clicks — Wok Noodles Promo',
-    spendKwd: 190,
-    date: '2026-11-01',
-    startDate: '2026-11-01',
-    endDate: '2026-11-03',
-    promotedItem: 'Wok Noodles',
-  },
-]
-
 const BROKEN_CAMPAIGN_NAME_RE = /^(?:[-—–\s]|in\s*[-—–]\s*in|in)+$/i
+
+const LEGACY_REMOVED_IDS = new Set<string>([
+  'camp-cg-blogger-oct29',
+  'camp-franks-tiktok-oct22',
+  'camp-fb-snap-nov04',
+  'camp-inapp-clicks-nov01',
+])
 
 /**
  * Resolves a complete, meaningful bilingual campaign title (NEVER `—`, empty, or `in — in`).
@@ -160,27 +119,7 @@ export function resolveCampaignDisplayName(
   if (rawAr && !/[\u0600-\u06FF]/.test(rawAr) && !BROKEN_CAMPAIGN_NAME_RE.test(rawAr)) {
     return rawAr
   }
-  const seededHit = SEEDED_SOCIAL_CAMPAIGNS.find((s) => s.id === campaign?.id)
-  if (seededHit?.campaignNameEn) return seededHit.campaignNameEn
   return dish ? `${adLabel} Promo — ${dish}` : `${adLabel} Campaign — ${brandLabel}`
-}
-
-const BRAND_FOOD_PCT: Record<Exclude<GlobalBrand, 'all'>, number> = {
-  'china-garden': 0.264,
-  franks: 0.295,
-  tahina: 0.252,
-  'farm-brown': 0.282,
-  'noodle-bar': 0.258,
-  'karak-cafeteria': 0.225,
-}
-
-const BRAND_PLATFORM_CUT_PCT: Record<Exclude<GlobalBrand, 'all'>, number> = {
-  'china-garden': 0.135,
-  franks: 0.148,
-  tahina: 0.142,
-  'farm-brown': 0.132,
-  'noodle-bar': 0.152,
-  'karak-cafeteria': 0.085,
 }
 
 const safeNum = (v: unknown, fb = 0): number =>
@@ -188,25 +127,18 @@ const safeNum = (v: unknown, fb = 0): number =>
 
 function shiftIsoDate(iso: string, deltaDays: number): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  if (!m) return '2026-11-05'
+  if (!m) return new Date().toISOString().slice(0, 10)
   const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
   dt.setUTCDate(dt.getUTCDate() + deltaDays)
   return dt.toISOString().slice(0, 10)
 }
 
-export const DEMO_SOCIAL_CAMPAIGN_IDS = new Set<string>(
-  SEEDED_SOCIAL_CAMPAIGNS.map((c) => c.id),
-)
-
-export function isDemoSocialCampaign(id: string): boolean {
-  return DEMO_SOCIAL_CAMPAIGN_IDS.has(id)
-}
-
-function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCampaign[] {
+function parseValidCampaignList(raw: unknown): SocialCampaign[] {
   if (!Array.isArray(raw)) return []
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
   const validBranches = new Set<string>(APPROVED_BRANCH_IDS)
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
+  const todayIso = new Date().toISOString().slice(0, 10)
   const out: SocialCampaign[] = []
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue
@@ -214,7 +146,7 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
     if (!rec.brand || !validBrands.has(rec.brand)) continue
     const id =
       typeof rec.id === 'string' && rec.id ? rec.id : `camp-${Date.now()}-${out.length}`
-    if (excludeDemoIds && DEMO_SOCIAL_CAMPAIGN_IDS.has(id)) continue
+    if (LEGACY_REMOVED_IDS.has(id)) continue
     const adType: SocialAdType =
       rec.adType && validTypes.has(rec.adType) ? (rec.adType as SocialAdType) : 'instagram'
     const branch: GlobalBranch =
@@ -225,7 +157,7 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
         ? rec.startDate
         : typeof rec.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.date)
           ? rec.date
-          : '2026-11-05'
+          : todayIso
     const rawEnd =
       typeof rec.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rec.endDate)
         ? rec.endDate
@@ -272,94 +204,27 @@ function parseValidCampaignList(raw: unknown, excludeDemoIds: boolean): SocialCa
   return out
 }
 
-/** Sanitizes user-saved real Venture Foods campaigns; preserves `[]` when empty and strips demo IDs. */
+/** Sanitizes user-saved Venture Foods campaigns; preserves `[]` when empty. */
 export function sanitizeRealCampaigns(raw: unknown): SocialCampaign[] {
-  return parseValidCampaignList(raw, true)
+  return parseValidCampaignList(raw)
 }
 
 export function sanitizeCampaigns(raw: unknown): SocialCampaign[] {
-  const out = parseValidCampaignList(raw, false)
-  return out.length > 0 ? out : SEEDED_SOCIAL_CAMPAIGNS
+  return parseValidCampaignList(raw)
 }
 
 /**
- * Evaluates a social/influencer/in-app campaign against actual Odoo POS daily sales:
- * Compares custom baseline date range (or prior N days) BEFORE vs N days DURING/AFTER
- * for the selected Brand, Branch (All 7 or specific branch), and Channel.
+ * Evaluates a user-recorded campaign against live Odoo POS daily sales (`liveSummary.dailySeries`).
+ * Never invents fallback sales when Odoo is disconnected or when dates have no POS records.
  */
 export function evaluateCampaignOdooHalo(
   campaign: SocialCampaign,
   activeBranch: GlobalBranch = 'all',
   activeChannel: GlobalChannel = 'all',
+  liveSummary?: OdooLiveSummary | null,
 ): CampaignHaloEvaluation {
   const effectiveBranch: GlobalBranch =
     campaign.branch && campaign.branch !== 'all' ? campaign.branch : activeBranch
-
-  // Complete operational days from Odoo (exclude partial morning sync days < 150 orders)
-  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
-  const dayMap = new Map<string, (typeof fullDays)[number]>(fullDays.map((d) => [d.day, d]))
-
-  // Weekday averages from real Odoo daily POS as fallback if date is outside the 30d window
-  const weekdayBuckets: Record<number, { sumNet: number; sumOrd: number; count: number }> = {}
-  let totalDailyNet = 0
-  let totalDailyOrd = 0
-  for (const d of fullDays) {
-    const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-    weekdayBuckets[dow] ??= { sumNet: 0, sumOrd: 0, count: 0 }
-    weekdayBuckets[dow].sumNet += d.netKwd
-    weekdayBuckets[dow].sumOrd += d.orders
-    weekdayBuckets[dow].count += 1
-    totalDailyNet += d.netKwd
-    totalDailyOrd += d.orders
-  }
-  const fallbackAvgNet = fullDays.length > 0 ? totalDailyNet / fullDays.length : 4300
-  const fallbackAvgOrd = fullDays.length > 0 ? totalDailyOrd / fullDays.length : 980
-
-  const getGroupDay = (iso: string): { netKwd: number; orders: number } => {
-    const hit = dayMap.get(iso)
-    if (hit) return { netKwd: hit.netKwd, orders: hit.orders }
-    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
-    const wb = weekdayBuckets[dow]
-    if (wb && wb.count > 0) {
-      return { netKwd: wb.sumNet / wb.count, orders: wb.sumOrd / wb.count }
-    }
-    return { netKwd: fallbackAvgNet, orders: fallbackAvgOrd }
-  }
-
-  // Brand share & AOV from real Odoo 30d brand totals
-  const brandRow = ODOO.brands.find((b) => b.id === campaign.brand)
-  const groupRestNet30 = ODOO.restaurants.reduce((s, r) => s + r.netKwd, 0) || ODOO.totals.restaurantNetKwd
-  const brandNet30 = safeNum(brandRow?.netKwd, 1500)
-  const brandAov = safeNum(brandRow?.aovKwd, 4.5) || 4.5
-  let sliceShare = Math.max(0.008, Math.min(0.92, brandNet30 / Math.max(1, groupRestNet30)))
-
-  // Apply branch share if filtered
-  if (effectiveBranch !== 'all') {
-    const locRow = ODOO.restaurants.find((r) => r.id === effectiveBranch)
-    const locBrand = locRow?.brands.find((x) => x.brand === campaign.brand)
-    const branchRatio =
-      locBrand && brandNet30 > 0
-        ? locBrand.netKwd / brandNet30
-        : locRow
-          ? locRow.netKwd / Math.max(1, groupRestNet30)
-          : 0.14
-    sliceShare *= Math.max(0.02, branchRatio)
-  }
-
-  // Apply channel share if filtered
-  if (activeChannel !== 'all') {
-    const rawChIds =
-      activeChannel === 'dine-in' || activeChannel === 'takeaway-direct'
-        ? ['shop', 'online-link', 'cod']
-        : activeChannel === 'deliveroo'
-          ? ['deliveroo-go', 'deliveroo-mp']
-          : [activeChannel]
-    const chSum = ODOO.brandChannel
-      .filter((bc) => bc.brand === campaign.brand && rawChIds.includes(bc.channel))
-      .reduce((s, bc) => s + bc.netKwd, 0)
-    const chRatio = brandNet30 > 0 && chSum > 0 ? chSum / brandNet30 : 0.15
-    sliceShare *= activeChannel === 'dine-in' ? chRatio * 0.85 : activeChannel === 'takeaway-direct' ? Math.max(0.05, chRatio * 0.15) : chRatio
-  }
 
   const startIso =
     campaign.startDate && /^\d{4}-\d{2}-\d{2}$/.test(campaign.startDate)
@@ -412,59 +277,134 @@ export function evaluateCampaignOdooHalo(
     }
   }
 
+  const adOpt =
+    SOCIAL_AD_TYPE_OPTIONS.find((t) => t.id === campaign.adType) ?? SOCIAL_AD_TYPE_OPTIONS[0]
+
+  const isConnected = Boolean(liveSummary?.connected && liveSummary?.source === 'live' && !liveSummary?.noData)
+  const dayMap = new Map<string, { netKwd: number; orders: number }>()
+
+  if (isConnected && liveSummary) {
+    if (effectiveBranch !== 'all' && liveSummary.dailyByBranch) {
+      for (const [day, locMap] of Object.entries(liveSummary.dailyByBranch)) {
+        const hit = locMap?.[effectiveBranch]
+        if (hit) {
+          dayMap.set(day, { netKwd: safeNum(hit.netKwd), orders: safeNum(hit.orders) })
+        }
+      }
+    } else {
+      for (const d of liveSummary.dailySeries ?? []) {
+        dayMap.set(d.day, { netKwd: safeNum(d.netKwd), orders: safeNum(d.orders) })
+      }
+    }
+  }
+
+  // Brand share from live Odoo brands only (never static fallback)
+  let brandShare = 0
+  if (isConnected && liveSummary) {
+    const totalBrandSales = (liveSummary.brands ?? []).reduce((s, b) => s + safeNum(b.netKwd), 0)
+    const hitBrand = (liveSummary.brands ?? []).find((b) => b.id === campaign.brand)
+    if (totalBrandSales > 0 && hitBrand) {
+      brandShare = safeNum(hitBrand.netKwd) / totalBrandSales
+    }
+  }
+
+  // Channel share from live bucket if filtered
+  let channelShare = 1
+  if (isConnected && liveSummary && activeChannel !== 'all') {
+    const monthBucket = liveSummary.buckets?.month
+    const totalCh = Object.values(monthBucket?.uiChannels ?? {}).reduce(
+      (s, c) => s + safeNum(c?.netKwd),
+      0,
+    )
+    const chHit = safeNum(monthBucket?.uiChannels?.[activeChannel]?.netKwd)
+    channelShare = totalCh > 0 ? chHit / totalCh : 0
+  }
+
+  const sliceShare = isConnected ? brandShare * channelShare : 0
+
   let before3dSalesKwd = 0
   let after3dSalesKwd = 0
-  for (const dt of beforeDates) before3dSalesKwd += getGroupDay(dt).netKwd * sliceShare
-  for (const dt of afterDates) after3dSalesKwd += getGroupDay(dt).netKwd * sliceShare
+  let before3dOrders = 0
+  let after3dOrders = 0
+  let matchedDays = 0
+
+  for (const dt of beforeDates) {
+    const hit = dayMap.get(dt)
+    if (hit) {
+      matchedDays += 1
+      before3dSalesKwd += hit.netKwd * sliceShare
+      before3dOrders += hit.orders * sliceShare
+    }
+  }
+  for (const dt of afterDates) {
+    const hit = dayMap.get(dt)
+    if (hit) {
+      matchedDays += 1
+      after3dSalesKwd += hit.netKwd * sliceShare
+      after3dOrders += hit.orders * sliceShare
+    }
+  }
+
+  const noData = !isConnected || matchedDays === 0
 
   before3dSalesKwd = Math.round(before3dSalesKwd * 10) / 10
   after3dSalesKwd = Math.round(after3dSalesKwd * 10) / 10
+  before3dOrders = Math.max(0, Math.round(before3dOrders))
+  after3dOrders = Math.max(0, Math.round(after3dOrders))
 
-  const before3dOrders = Math.max(1, Math.round(before3dSalesKwd / brandAov))
-  const after3dOrders = Math.max(1, Math.round(after3dSalesKwd / brandAov))
+  const liftSalesKwd = noData ? 0 : Math.round((after3dSalesKwd - before3dSalesKwd) * 10) / 10
+  const liftOrders = noData ? 0 : after3dOrders - before3dOrders
+  const liftPct =
+    !noData && before3dSalesKwd > 0
+      ? Math.round(((after3dSalesKwd - before3dSalesKwd) / before3dSalesKwd) * 1000) / 10
+      : 0
 
-  const liftSalesKwd = Math.round((after3dSalesKwd - before3dSalesKwd) * 10) / 10
-  const liftOrders = after3dOrders - before3dOrders
-  const liftPct = before3dSalesKwd > 0 ? Math.round(((after3dSalesKwd - before3dSalesKwd) / before3dSalesKwd) * 1000) / 10 : 0
-
-  const foodPct = BRAND_FOOD_PCT[campaign.brand] ?? 0.27
-  const commPct =
-    activeChannel === 'dine-in'
-      ? 0
-      : activeChannel === 'takeaway-direct'
-        ? 0.02
-        : BRAND_PLATFORM_CUT_PCT[campaign.brand] ?? 0.14
+  // Use live GL COGS & posted commission ratios only if available; otherwise 0
+  const monthAcc = isConnected ? liveSummary?.buckets?.month?.accounting : undefined
+  const glIncome = safeNum(monthAcc?.income)
+  const liveCogsRatio =
+    glIncome > 0 && safeNum(monthAcc?.cogs) > 0 ? safeNum(monthAcc?.cogs) / glIncome : 0
+  const liveCommRatio =
+    !monthAcc?.aggregatorCommissionUnposted &&
+    glIncome > 0 &&
+    safeNum(monthAcc?.deliveryCommissions) > 0
+      ? safeNum(monthAcc?.deliveryCommissions) / glIncome
+      : 0
 
   const positiveLiftSales = Math.max(0, liftSalesKwd)
-  const foodAndPackCostKwd = Math.round(positiveLiftSales * foodPct * 10) / 10
-  const platformFeeKwd = Math.round(positiveLiftSales * commPct * 10) / 10
-  const incrementalGrossProfitKwd =
-    liftSalesKwd >= 0
-      ? Math.round((liftSalesKwd - foodAndPackCostKwd - platformFeeKwd) * 10) / 10
-      : Math.round(liftSalesKwd * (1 - foodPct - commPct) * 10) / 10
-
-  const netProfitAfterAdKwd = Math.round((incrementalGrossProfitKwd - campaign.spendKwd) * 10) / 10
+  const foodAndPackCostKwd = noData ? 0 : Math.round(positiveLiftSales * liveCogsRatio * 10) / 10
+  const platformFeeKwd = noData ? 0 : Math.round(positiveLiftSales * liveCommRatio * 10) / 10
+  const incrementalGrossProfitKwd = noData
+    ? 0
+    : Math.round((liftSalesKwd - foodAndPackCostKwd - platformFeeKwd) * 10) / 10
+  const netProfitAfterAdKwd = noData
+    ? 0
+    : Math.round((incrementalGrossProfitKwd - campaign.spendKwd) * 10) / 10
   const roasMultiple =
-    campaign.spendKwd > 0 ? Math.max(0, Math.round((positiveLiftSales / campaign.spendKwd) * 10) / 10) : 0
+    !noData && campaign.spendKwd > 0
+      ? Math.max(0, Math.round((positiveLiftSales / campaign.spendKwd) * 10) / 10)
+      : 0
 
-  let verdict: AdVerdict = 'loser'
-  let verdictAr = 'خاسر — لا تكرره 🔴'
-  let verdictEn = 'Losing Ad — Skip 🔴'
+  let verdict: AdVerdict = 'breakeven'
+  let verdictAr = noData ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'متعادل'
+  let verdictEn = noData ? 'No Odoo data for this period' : 'Breakeven'
 
-  if (netProfitAfterAdKwd >= Math.max(25, campaign.spendKwd * 0.25)) {
-    verdict = 'winner'
-    verdictAr = 'إعلان رابح — كرره 🟢'
-    verdictEn = 'Winning Ad — Repeat 🟢'
-  } else if (netProfitAfterAdKwd >= -15) {
-    verdict = 'breakeven'
-    verdictAr = 'رجّع تكلفته فقط 🟡'
-    verdictEn = 'Broke Even Only 🟡'
+  if (!noData) {
+    if (netProfitAfterAdKwd > 0) {
+      verdict = 'winner'
+      verdictAr = 'صافي موجب (تقدير)'
+      verdictEn = 'Positive Net (Estimate)'
+    } else if (netProfitAfterAdKwd < 0) {
+      verdict = 'loser'
+      verdictAr = 'صافي سالب (تقدير)'
+      verdictEn = 'Negative Net (Estimate)'
+    }
   }
-
-  const adOpt = SOCIAL_AD_TYPE_OPTIONS.find((t) => t.id === campaign.adType) ?? SOCIAL_AD_TYPE_OPTIONS[0]
 
   return {
     campaign,
+    odooConnected: isConnected,
+    noData,
     brandAr: getBrandLabel(campaign.brand, true),
     brandEn: getBrandLabel(campaign.brand, false),
     branchAr: effectiveBranch === 'all' ? 'كل الفروع السبعة' : getBranchLabel(effectiveBranch, true),

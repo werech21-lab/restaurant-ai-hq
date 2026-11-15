@@ -65,7 +65,7 @@ export function NewEmployeeWizardModal({ open, onClose, en }: Props) {
   const [passportExpiry, setPassportExpiry] = useState('2029-05-20')
 
   // Step 2: Job, Brand, Branch & Biometric Barcode
-  const [barcode, setBarcode] = useState(`1${Math.floor(170 + Math.random() * 800)}`)
+  const [barcode, setBarcode] = useState(() => `1${170 + (Date.now() % 800)}`)
   const [jobTitle, setJobTitle] = useState('Demi Chef de Partie')
   const [brand, setBrand] = useState(BRANDS[0])
   const [branch, setBranch] = useState(BRANCHES[0])

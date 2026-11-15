@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { apiRequest, errorKey } from '@/components/erp/api'
 import { OdooExtendedMeta } from '@/components/erp/OdooExtendedMeta'
 import { errorClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import type { OdooDataCenterReport } from '@/modules/odoo'
+import type { OdooDataCenterReport } from '@/modules/odoo/client'
 
 export function OdooDataCenterClient() {
   const [report, setReport] = useState<OdooDataCenterReport | null>(null)

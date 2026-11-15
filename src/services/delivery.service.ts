@@ -166,9 +166,9 @@ export async function recordDeliverySale(
 ) {
   let platform = await tx.deliveryPlatform.findUnique({ where: { code: input.platformCode } })
   if (!platform) {
-    const seed = DELIVERY_PLATFORMS.find((row) => row.code === input.platformCode)
-    if (!seed) return null
-    platform = await tx.deliveryPlatform.create({ data: { ...seed, isActive: true } })
+    const preset = DELIVERY_PLATFORMS.find((row) => row.code === input.platformCode)
+    if (!preset) return null
+    platform = await tx.deliveryPlatform.create({ data: { ...preset, isActive: true } })
   }
   if (!platform.isActive) return null
   const payout = computePayout({

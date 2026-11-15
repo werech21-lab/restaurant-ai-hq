@@ -2,9 +2,19 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { AppError } from '@/lib/api/errors'
 import type { AuthContext } from '@/lib/auth/context'
-import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooModels, type OdooModel, type OdooPayload } from '@/modules/odoo/domain/odoo'
-import { fetchOdooModels, fetchOdooSession, liveOdooTransport, liveWebTransport } from '@/modules/odoo/domain/rpc'
-import { importOdooFile, pullOdoo } from '@/modules/odoo/services/odoo-service'
+import {
+  ODOO_COMPANY_ID,
+  ODOO_ORIGIN,
+  fetchOdooModels,
+  fetchOdooSession,
+  importOdooFile,
+  liveOdooTransport,
+  liveWebTransport,
+  odooModels,
+  pullOdoo,
+  type OdooModel,
+  type OdooPayload,
+} from '@/modules/odoo'
 
 export type LiveExtractInput =
   | { mode: 'password'; database: string; login: string; secret: string }

@@ -137,10 +137,10 @@ export function lostSalesFromOffline(gmvMinor: number, offlineMinutes: number): 
   return Math.round(gmvMinor * factor)
 }
 
-function diagnose(seed: number): { status: LiveStatus; mode: ActiveMode; offlineMinutes: number } {
-  const roll = seed % 100
-  if (roll < 8) return { status: 'forced_offline', mode: 'TGO', offlineMinutes: 15 + (seed % 45) }
-  if (roll < 22) return { status: 'busy_throttled', mode: 'TGO', offlineMinutes: 5 + (seed % 25) }
+function diagnose(digest: number): { status: LiveStatus; mode: ActiveMode; offlineMinutes: number } {
+  const roll = digest % 100
+  if (roll < 8) return { status: 'forced_offline', mode: 'TGO', offlineMinutes: 15 + (digest % 45) }
+  if (roll < 22) return { status: 'busy_throttled', mode: 'TGO', offlineMinutes: 5 + (digest % 25) }
   if (roll < 35) return { status: 'online', mode: 'TGO', offlineMinutes: 0 }
   return { status: 'online', mode: 'TMP', offlineMinutes: 0 }
 }
@@ -154,9 +154,9 @@ export function buildForensicMatrix(at = new Date()): ForensicSnapshot {
     const branches = VENTURE_BRANCHES.filter((b) => b.brandId === brand.id)
     for (const branch of branches) {
       for (const platform of FORENSIC_PLATFORMS) {
-        const seed = hash(`${bucket}|${brand.id}|${branch.id}|${platform}`)
-        const diag = diagnose(seed)
-        const gmvMinor = 12_000 + (seed % 85_000) // 12.000–97.000 KWD window sample in fils
+        const digest = hash(`${bucket}|${brand.id}|${branch.id}|${platform}`)
+        const diag = diagnose(digest)
+        const gmvMinor = 12_000 + (digest % 85_000) // 12.000–97.000 KWD window sample in fils
         const mode = diag.mode
         const commissionBps = mode === 'TMP' ? TMP_BPS : TGO_BPS
         const accountCode = mode === 'TMP' ? TALABAT_MP_ACCOUNT : TALABAT_TGO_ACCOUNT
@@ -166,7 +166,7 @@ export function buildForensicMatrix(at = new Date()): ForensicSnapshot {
           : null
         const penalty = commissionPenaltyMinor(gmvMinor, mode)
         const lost = lostSalesFromOffline(gmvMinor, offlineMinutes)
-        const tmpShare = mode === 'TMP' ? 10_000 : Math.max(0, 10_000 - (seed % 4_000))
+        const tmpShare = mode === 'TMP' ? 10_000 : Math.max(0, 10_000 - (digest % 4_000))
         const tgoShare = 10_000 - tmpShare
 
         rows.push({

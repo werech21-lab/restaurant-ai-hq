@@ -17,6 +17,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  ExternalLink,
   FileText,
   Lock,
   MessageCircle,
@@ -24,6 +25,7 @@ import {
   Settings,
   ShieldAlert,
   ShieldCheck,
+  Sliders,
   Unlock,
   X,
   XCircle,
@@ -45,9 +47,12 @@ import {
   freezeBreachById,
   getExecutiveSession,
   GOVERNANCE_UPDATED_EVENT,
+  isExecutiveGovernanceRole,
+  isVerifiedOdooGovernanceBreach,
   loadGovernanceStore,
   lockExecutiveSession,
   markAllBranchesReceived,
+  pushGovernancePatchToServer,
   recordIssuedCircular,
   rejectRequestById,
   retroactivelyApproveBreachById,
@@ -58,6 +63,7 @@ import {
   type ComplianceBreachItem,
   type ExecutiveSessionState,
   type FlaggedDecisionRegression,
+  type GovernanceAdminThresholds,
   type GovernanceApprovalMeta,
   type GovernanceApprovalRequest,
   type GovernanceDomain,
@@ -165,22 +171,24 @@ export function buildStopDirectiveCircularDoc(
     approverRoleEn: issued?.approverRoleEn,
     approvedByAr: issued?.approvedByAr,
     approvedByEn: issued?.approvedByEn,
-    financialSummaryAr: `إيقاف تسرب شهري مرصود بأودو بقيمة ${breach.monthlyLeakKwd.toLocaleString('en-US')} د.ك/شهر`,
-    financialSummaryEn: `Halts verified Odoo leakage of ${breach.monthlyLeakKwd.toLocaleString('en-US')} KWD/mo`,
+    financialSummaryAr: `أثر التجاوز المحسوب من Odoo: ${breach.monthlyLeakKwd.toLocaleString('en-US')} د.ك`,
+    financialSummaryEn: `Odoo computed overrun impact: ${breach.monthlyLeakKwd.toLocaleString('en-US')} KWD`,
     mandatoryRulesAr: [
       breach.approvedRuleLimitAr,
-      `الدليل المرصود في أودو ١٧: ${breach.odooMetricProofAr}`,
-      'تجميد أي صرف أو خصم أو استلام يخالف السقف المعتمد فوراً لحين التصحيح وفك التجميد بختم المدير.',
-      'يلتزم مديرو الفروع السبعة والمطبخ المركزي بالعارضية بالتنفيذ الفوري وتأكيد الاستلام.',
+      `مرجع Odoo (${breach.odooModel}): ${breach.odooMetricProofAr}`,
+      'تجميد الصرف المخالف لحين التصحيح وفك التجميد بتأكيد تنفيذي مسجل على الخادم.',
     ],
     mandatoryRulesEn: [
       breach.approvedRuleLimitEn,
-      `Live Odoo 17 Evidence: ${breach.odooMetricProofEn}`,
-      'Immediately freeze any spend, discount, or PO receipt exceeding the approved cap until verified fix.',
-      'Mandatory immediate compliance across all 7 active branches & Ardiya Central Kitchen.',
+      `Odoo Reference (${breach.odooModel}): ${breach.odooMetricProofEn}`,
+      'Freeze non-compliant spend until corrected and unfrozen with server-logged executive confirmation.',
     ],
     bodyAr: breach.stopDirectiveAr,
     bodyEn: breach.stopDirectiveEn,
+    odooRecordUrl: breach.odooRecordUrl,
+    odooModel: breach.odooModel,
+    adminThreshold: breach.adminThreshold,
+    computedValue: breach.computedValue,
   }
 }
 
@@ -330,8 +338,8 @@ export function GovernanceProvider({
 
   const notifyAuditorReadOnly = useCallback(() => {
     showToast(
-      'وضع المراجعة — قراءة فقط • الاعتمادات والتعديلات مقفلة 🔒',
-      'Read-Only Auditor Session • Approvals & mutations are disabled 🔒',
+      'وضع المراجع الخارجي — قراءة فقط • الاعتمادات والتعديلات مقفلة 🔒',
+      'Read-Only Session • Approvals & mutations are disabled 🔒',
     )
   }, [showToast])
 
@@ -406,6 +414,11 @@ export function GovernanceProvider({
         titleEn: `Approve & Seal: ${titleEn}`,
         onSuccess: () => {
           const item = approveRequestById(id, resolvedRole)
+          void pushGovernancePatchToServer({
+            action: 'approve',
+            approvalId: id,
+            confirmedByExecutive: true,
+          })
           syncFromStorage()
           if (item?.seal) {
             const roleAr = item.seal.approverRoleAr ?? 'مسؤول النظام'
@@ -428,6 +441,11 @@ export function GovernanceProvider({
         titleEn: `Reject Request: ${titleEn}`,
         onSuccess: () => {
           rejectRequestById(id)
+          void pushGovernancePatchToServer({
+            action: 'reject',
+            approvalId: id,
+            confirmedByExecutive: true,
+          })
           syncFromStorage()
           showToast('تم رفض الطلب وتسجيل القرار ❌', 'Request rejected & logged ❌')
         },
@@ -436,45 +454,82 @@ export function GovernanceProvider({
     [requireManagerPin, showToast, syncFromStorage],
   )
 
+  const breaches = useMemo(() => evaluateLiveOdooBreaches(store), [store])
+  const activeBreaches = useMemo(() => breaches.filter((b) => !b.frozen), [breaches])
+
   const freezeBreachWithPin = useCallback(
     (breach: ComplianceBreachItem, broadcastDirective = false) => {
+      if (!isExecutiveGovernanceRole(resolvedRole) || !isVerifiedOdooGovernanceBreach(breach)) {
+        showToast(
+          'الإيقاف والتعميم معطّل حتى تتوفر مخالفة حقيقية من Odoo بسقف محفوظ من الأدمن',
+          'Freeze & circular are disabled until a real Odoo breach with admin-saved threshold exists',
+        )
+        return
+      }
       requireManagerPin({
         titleAr: broadcastDirective
           ? 'إيقاف المخالفة وتعميم أمر إيقاف فوري ⛔'
           : 'إيقاف المخالفة وتجميد الصرف فوراً ⛔',
         titleEn: 'Stop Breach & Freeze Spend Immediately ⛔',
         onSuccess: () => {
-          freezeBreachById(breach.id)
-          recordIssuedCircular(
-            `stop-circular:${breach.id}`,
-            `أمر إيقاف مخالفة: ${breach.approvedDecisionTitleAr}`,
-            `Stop-Violation Order: ${breach.approvedDecisionTitleEn}`,
-            {
-              kind: 'stop-directive',
-              scopeAr: breach.affectedScopeAr,
-              scopeEn: breach.affectedScopeEn,
-              bodyAr: breach.stopDirectiveAr,
-              bodyEn: breach.stopDirectiveEn,
-            },
-            resolvedRole,
-          )
-          syncFromStorage()
-          if (broadcastDirective && typeof navigator !== 'undefined' && navigator.clipboard) {
-            const isDocAr =
-              typeof document !== 'undefined' ? document.documentElement.lang !== 'en' : true
-            void navigator.clipboard
-              .writeText(isDocAr ? breach.stopDirectiveAr : breach.stopDirectiveEn)
-              .catch(() => {})
-            showToast(
-              'تم تجميد الصرف وختم أمر الإيقاف الرسمي للتعميم والطباعة ⛔📄',
-              'Spend frozen & official stop directive sealed for print ⛔📄',
+          void (async () => {
+            const res = await pushGovernancePatchToServer({
+              action: 'freezeBreach',
+              breachId: breach.id,
+              confirmedByExecutive: true,
+            })
+            if (!res.ok) {
+              showToast(
+                res.error ?? 'تعذر تسجيل أمر التجميد على الخادم',
+                res.error ?? 'Server rejected freeze directive',
+              )
+              return
+            }
+            freezeBreachById(breach.id)
+            const circularKey = `stop-circular:${breach.id}`
+            const meta = recordIssuedCircular(
+              circularKey,
+              `أمر إيقاف مخالفة: ${breach.approvedDecisionTitleAr}`,
+              `Stop-Violation Order: ${breach.approvedDecisionTitleEn}`,
+              {
+                kind: 'stop-directive',
+                scopeAr: breach.affectedScopeAr,
+                scopeEn: breach.affectedScopeEn,
+                bodyAr: breach.stopDirectiveAr,
+                bodyEn: breach.stopDirectiveEn,
+              },
+              resolvedRole,
             )
-          } else {
+            await pushGovernancePatchToServer({
+              action: 'issueCircular',
+              circularKey,
+              confirmedByExecutive: true,
+              circularRecord: {
+                issuedAtIso: meta.issuedAtIso,
+                sealId: meta.sealId,
+                serialRef: meta.serialRef,
+                kind: 'stop-directive',
+                titleAr: `أمر إيقاف مخالفة: ${breach.approvedDecisionTitleAr}`,
+                titleEn: `Stop-Violation Order: ${breach.approvedDecisionTitleEn}`,
+                scopeAr: breach.affectedScopeAr,
+                scopeEn: breach.affectedScopeEn,
+                bodyAr: breach.stopDirectiveAr,
+                bodyEn: breach.stopDirectiveEn,
+              },
+            })
+            syncFromStorage()
+            if (broadcastDirective && typeof navigator !== 'undefined' && navigator.clipboard) {
+              const isDocAr =
+                typeof document !== 'undefined' ? document.documentElement.lang !== 'en' : true
+              void navigator.clipboard
+                .writeText(isDocAr ? breach.stopDirectiveAr : breach.stopDirectiveEn)
+                .catch(() => {})
+            }
             showToast(
-              'تم إيقاف المخالفة وتجميد الصرف ⛔',
-              'Compliance breach stopped & spend frozen ⛔',
+              'تم تسجيل أمر التجميد بتأكيد تنفيذي في سجل الخادم ⛔',
+              'Freeze directive logged in server executive register ⛔',
             )
-          }
+          })()
         },
       })
     },
@@ -483,6 +538,7 @@ export function GovernanceProvider({
 
   const retroactiveApproveBreachWithPin = useCallback(
     (breach: ComplianceBreachItem) => {
+      if (!isVerifiedOdooGovernanceBreach(breach)) return
       requireManagerPin({
         titleAr: 'اعتماد استثنائي بأثر رجعي وختم التجاوز ✅',
         titleEn: 'Retroactive Executive Approval & Digital Seal ✅',
@@ -503,14 +559,16 @@ export function GovernanceProvider({
     (breach: ComplianceBreachItem) => {
       requireManagerPin({
         titleAr: 'فك التجميد بعد التصحيح والمطابقة 🔓',
-        titleEn: 'Unfreeze After Verified Correction 🔓',
+        titleEn: 'Unfreeze After Correction 🔓',
         onSuccess: () => {
+          void pushGovernancePatchToServer({
+            action: 'unfreezeBreach',
+            breachId: breach.id,
+            confirmedByExecutive: true,
+          })
           unfreezeBreachById(breach.id)
           syncFromStorage()
-          showToast(
-            'تم فك التجميد بعد التحقق من التصحيح 🔓',
-            'Unfrozen after verified correction 🔓',
-          )
+          showToast('تم فك التجميد وتسجيل الإجراء 🔓', 'Unfrozen & logged on server 🔓')
         },
       })
     },
@@ -558,54 +616,95 @@ export function GovernanceProvider({
       effectiveWindow?: string
       onIssued?: (meta: { sealId: string; issuedAtIso: string; serialRef: string }) => void
     }) => {
+      if (!isExecutiveGovernanceRole(resolvedRole) || breaches.length === 0) {
+        showToast(
+          'إصدار التعميم الرسمي معطّل حتى تتوفر تنبيهات مبنية من Odoo بسقوف يحفظها الأدمن',
+          'Official circulars are disabled until Odoo alerts with admin-saved thresholds exist',
+        )
+        return
+      }
       requireManagerPin({
         titleAr: `تعميم رسمي مختوم: ${opts.titleAr}`,
         titleEn: `Issue Stamped Circular: ${opts.titleEn}`,
         onSuccess: () => {
-          const meta = recordIssuedCircular(
-            opts.circularKey,
-            opts.titleAr,
-            opts.titleEn,
-            {
-              kind: opts.kind,
-              scopeAr: opts.scopeAr,
-              scopeEn: opts.scopeEn,
-              mandatoryRulesAr: opts.mandatoryRulesAr,
-              mandatoryRulesEn: opts.mandatoryRulesEn,
-              financialSummaryAr: opts.financialSummaryAr,
-              financialSummaryEn: opts.financialSummaryEn,
-              effectiveWindow: opts.effectiveWindow,
-              bodyAr: opts.circularBodyAr,
-              bodyEn: opts.circularBodyEn,
-            },
-            resolvedRole,
-          )
-          syncFromStorage()
-          if (typeof navigator !== 'undefined' && navigator.clipboard) {
-            const isDocAr =
-              typeof document !== 'undefined' ? document.documentElement.lang !== 'en' : true
-            const stampedText = isDocAr
-              ? `${opts.circularBodyAr}\n\n🔐 المرجع: ${meta.serialRef} · صفة المعتمد: ${meta.approverRoleAr ?? 'مسؤول النظام'} · الختم التنفيذي: ${meta.sealId}`
-              : `${opts.circularBodyEn}\n\n🔐 Ref: ${meta.serialRef} · Approver Role: ${meta.approverRoleEn ?? 'System Admin'} · Digital Executive Seal: ${meta.sealId}`
-            void navigator.clipboard.writeText(stampedText).catch(() => {})
-          }
-          opts.onIssued?.(meta)
-          showToast(
-            `تم إصدار التعميم (${meta.serialRef}) بصفة (${meta.approverRoleAr ?? 'مسؤول النظام'}) والختم (${meta.sealId}) 📋`,
-            `Official circular (${meta.serialRef}) sealed by (${meta.approverRoleEn ?? 'System Admin'}) (${meta.sealId}) 📋`,
-          )
+          void (async () => {
+            const meta = recordIssuedCircular(
+              opts.circularKey,
+              opts.titleAr,
+              opts.titleEn,
+              {
+                kind: opts.kind,
+                scopeAr: opts.scopeAr,
+                scopeEn: opts.scopeEn,
+                mandatoryRulesAr: opts.mandatoryRulesAr,
+                mandatoryRulesEn: opts.mandatoryRulesEn,
+                financialSummaryAr: opts.financialSummaryAr,
+                financialSummaryEn: opts.financialSummaryEn,
+                effectiveWindow: opts.effectiveWindow,
+                bodyAr: opts.circularBodyAr,
+                bodyEn: opts.circularBodyEn,
+              },
+              resolvedRole,
+            )
+            const res = await pushGovernancePatchToServer({
+              action: 'issueCircular',
+              circularKey: opts.circularKey,
+              confirmedByExecutive: true,
+              circularRecord: {
+                issuedAtIso: meta.issuedAtIso,
+                sealId: meta.sealId,
+                serialRef: meta.serialRef,
+                kind: opts.kind,
+                titleAr: opts.titleAr,
+                titleEn: opts.titleEn,
+                scopeAr: opts.scopeAr,
+                scopeEn: opts.scopeEn,
+                mandatoryRulesAr: opts.mandatoryRulesAr,
+                mandatoryRulesEn: opts.mandatoryRulesEn,
+                financialSummaryAr: opts.financialSummaryAr,
+                financialSummaryEn: opts.financialSummaryEn,
+                effectiveWindow: opts.effectiveWindow,
+                bodyAr: opts.circularBodyAr,
+                bodyEn: opts.circularBodyEn,
+              },
+            })
+            if (!res.ok) {
+              showToast(
+                res.error ?? 'تعذر تسجيل التعميم على الخادم',
+                res.error ?? 'Failed to log circular on server',
+              )
+              return
+            }
+            syncFromStorage()
+            opts.onIssued?.(meta)
+            showToast(
+              `تم إصدار التعميم (${meta.serialRef}) وتسجيله في الخادم 📋`,
+              `Official circular (${meta.serialRef}) issued & logged on server 📋`,
+            )
+          })()
         },
       })
     },
-    [requireManagerPin, resolvedRole, showToast, syncFromStorage],
+    [breaches.length, requireManagerPin, resolvedRole, showToast, syncFromStorage],
   )
 
-  const openCircularPrintModal = useCallback((doc: OfficialCircularDocument) => {
-    setPrintDoc(doc)
-  }, [])
+  const openCircularPrintModal = useCallback(
+    (doc: OfficialCircularDocument) => {
+      if (breaches.length === 0 && !doc.odooRecordUrl) {
+        showToast(
+          'طباعة التعميم معطّلة حتى تتوفر تنبيهات مبنية من Odoo بسقوف يحفظها الأدمن',
+          'Circular printing is disabled until Odoo alerts with admin-saved thresholds exist',
+        )
+        return
+      }
+      setPrintDoc(doc)
+    },
+    [breaches.length, showToast],
+  )
 
   const openBreachStopCircularPrint = useCallback(
     (breach: ComplianceBreachItem) => {
+      if (!isVerifiedOdooGovernanceBreach(breach)) return
       const liveStore = isAuditor ? store : loadGovernanceStore()
       setPrintDoc(buildStopDirectiveCircularDoc(breach, liveStore))
     },
@@ -621,8 +720,8 @@ export function GovernanceProvider({
       flagDecisionRegressionInStore(input)
       syncFromStorage()
       showToast(
-        'تم تسجيل التراجع في مراقب الامتثال وجرس المدير 🔔🚨',
-        'Post-decision regression flagged to Compliance Watchdog 🔔🚨',
+        'تم حفظ الملاحظة للمراجعة الإدارية 🔔',
+        'Flagged note saved for executive review 🔔',
       )
     },
     [isAuditor, notifyAuditorReadOnly, showToast, syncFromStorage],
@@ -633,8 +732,6 @@ export function GovernanceProvider({
     () => approvals.filter((a) => a.status === 'pending'),
     [approvals],
   )
-  const breaches = useMemo(() => evaluateLiveOdooBreaches(store), [store])
-  const activeBreaches = useMemo(() => breaches.filter((b) => !b.frozen), [breaches])
   const liveBadgeCount = pendingApprovals.length + activeBreaches.length
 
   const openDrawer = useCallback((initialTab: DrawerTabId = 'all') => {
@@ -815,10 +912,6 @@ function formatCountdown(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-/**
- * Topbar Live Governance & Odoo Breach Bell (`🔔`).
- * Shows the pending/breach count badge ONCE cleanly (Manager PIN lives in the Executive Account menu).
- */
 export function GovernanceBellTrigger({
   showInlinePin = false,
 }: { showInlinePin?: boolean } = {}) {
@@ -879,13 +972,13 @@ export function GovernanceBellTrigger({
         onClick={() => openDrawer('all')}
         aria-label={
           isAr
-            ? `جرس الاعتماد والرقابة (${liveBadgeCount})`
-            : `Approvals & Compliance Bell (${liveBadgeCount})`
+            ? `جرس الحوكمة والاعتماد (${liveBadgeCount})`
+            : `Governance & Approvals Bell (${liveBadgeCount})`
         }
         title={
           isAr
-            ? `${pendingApprovals.length} بانتظار الموافقة · ${activeBreaches.length} مخالفات أودو حية`
-            : `${pendingApprovals.length} Pending Approvals · ${activeBreaches.length} Active Odoo Breaches`
+            ? `${pendingApprovals.length} طلبات معلقة · ${activeBreaches.length} مخالفات Odoo`
+            : `${pendingApprovals.length} Pending Approvals · ${activeBreaches.length} Odoo Breaches`
         }
         className="ae-capsule relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:inline-flex lg:h-9 lg:gap-1.5 lg:px-3"
       >
@@ -934,9 +1027,20 @@ function GovernanceSlideOverDrawer({
   const isAr = locale === 'ar'
   const [mounted, setMounted] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [execConfirmedIds, setExecConfirmedIds] = useState<Record<string, boolean>>({})
+  const [thresholdsOpen, setThresholdsOpen] = useState(false)
+  const [savingThresholds, setSavingThresholds] = useState(false)
+  const [discEnabled, setDiscEnabled] = useState(false)
+  const [discCap, setDiscCap] = useState('')
+  const [poEnabled, setPoEnabled] = useState(false)
+  const [poCap, setPoCap] = useState('')
+  const [commEnabled, setCommEnabled] = useState(false)
+  const [commCap, setCommCap] = useState('')
 
   const {
     isAuditor,
+    sessionRole,
+    store,
     session,
     approvals,
     pendingApprovals,
@@ -949,7 +1053,6 @@ function GovernanceSlideOverDrawer({
     approveItemWithPin,
     rejectItemWithPin,
     freezeBreachWithPin,
-    retroactiveApproveBreachWithPin,
     unfreezeBreachWithPin,
     openBreachStopCircularPrint,
   } = useGovernance()
@@ -957,6 +1060,28 @@ function GovernanceSlideOverDrawer({
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    const t = store.adminThresholds ?? {}
+    setDiscEnabled(Boolean(t.posDiscountPctCap?.enabled))
+    setDiscCap(
+      t.posDiscountPctCap?.thresholdValue !== undefined
+        ? String(t.posDiscountPctCap.thresholdValue)
+        : '',
+    )
+    setPoEnabled(Boolean(t.supplierOrderTotalCapKwd?.enabled))
+    setPoCap(
+      t.supplierOrderTotalCapKwd?.thresholdValue !== undefined
+        ? String(t.supplierOrderTotalCapKwd.thresholdValue)
+        : '',
+    )
+    setCommEnabled(Boolean(t.aggregatorCommissionPctCap?.enabled))
+    setCommCap(
+      t.aggregatorCommissionPctCap?.thresholdValue !== undefined
+        ? String(t.aggregatorCommissionPctCap.thresholdValue)
+        : '',
+    )
+  }, [store.adminThresholds])
 
   useEffect(() => {
     if (!open) return
@@ -981,13 +1106,80 @@ function GovernanceSlideOverDrawer({
     }
   }, [])
 
+  const handleSaveThresholds = useCallback(() => {
+    if (sessionRole !== 'admin' || isAuditor) return
+    requireManagerPin({
+      titleAr: 'حفظ سقوف تنبيهات Odoo الإدارية على الخادم',
+      titleEn: 'Save Server Admin Odoo Alert Thresholds',
+      onSuccess: () => {
+        void (async () => {
+          setSavingThresholds(true)
+          try {
+            const payload: Partial<GovernanceAdminThresholds> = {}
+            if (discCap.trim() !== '') {
+              payload.posDiscountPctCap = {
+                enabled: discEnabled,
+                thresholdValue: Number(discCap),
+                odooModel: 'pos.order.line',
+                updatedAtIso: new Date().toISOString(),
+                updatedBySub: 'admin',
+                updatedByRole: 'admin',
+              }
+            }
+            if (poCap.trim() !== '') {
+              payload.supplierOrderTotalCapKwd = {
+                enabled: poEnabled,
+                thresholdValue: Number(poCap),
+                odooModel: 'purchase.order.line',
+                updatedAtIso: new Date().toISOString(),
+                updatedBySub: 'admin',
+                updatedByRole: 'admin',
+              }
+            }
+            if (commCap.trim() !== '') {
+              payload.aggregatorCommissionPctCap = {
+                enabled: commEnabled,
+                thresholdValue: Number(commCap),
+                odooModel: 'account.move.line',
+                updatedAtIso: new Date().toISOString(),
+                updatedBySub: 'admin',
+                updatedByRole: 'admin',
+              }
+            }
+            await pushGovernancePatchToServer({
+              action: 'saveThresholds',
+              adminThresholds: payload,
+              confirmedByExecutive: true,
+            })
+            await triggerCrossDeviceSync()
+          } finally {
+            setSavingThresholds(false)
+          }
+        })()
+      },
+    })
+  }, [
+    commCap,
+    commEnabled,
+    discCap,
+    discEnabled,
+    isAuditor,
+    poCap,
+    poEnabled,
+    requireManagerPin,
+    sessionRole,
+    triggerCrossDeviceSync,
+  ])
+
   if (!mounted || !open) return null
+
+  const canExecAct = isExecutiveGovernanceRole(sessionRole) && !isAuditor
 
   const tabs: { id: DrawerTabId; ar: string; en: string; count: number }[] = [
     {
       id: 'all',
       ar: 'الكل',
-      en: 'All Live',
+      en: 'All',
       count: pendingApprovals.length + activeBreaches.length,
     },
     {
@@ -998,8 +1190,8 @@ function GovernanceSlideOverDrawer({
     },
     {
       id: 'breaches',
-      ar: 'مخالفات أودو 🚨',
-      en: 'Odoo Breaches 🚨',
+      ar: 'مخالفات Odoo',
+      en: 'Odoo Alerts',
       count: activeBreaches.length,
     },
     {
@@ -1009,6 +1201,10 @@ function GovernanceSlideOverDrawer({
       count: sealedHistory.length,
     },
   ]
+
+  const disabledButtonsNotice = isAr
+    ? 'معطّل حتى تتوفر تنبيهات مبنية فعلياً من استعلامات Odoo حقيقية مع سقوف يحفظها الأدمن على الخادم'
+    : 'Disabled until alerts are built from real Odoo queries with admin-saved server thresholds'
 
   return createPortal(
     <div
@@ -1044,7 +1240,7 @@ function GovernanceSlideOverDrawer({
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label={isAr ? 'مركز اعتماد المدير ورقابة أودو الحية' : 'Executive Approval & Odoo Watchdog'}
+        aria-label={isAr ? 'مركز اعتماد المدير وتنبيهات Odoo' : 'Executive Approval & Odoo Alerts'}
         className={`flex h-full w-full max-w-[480px] flex-col bg-[#F7F7F8] shadow-2xl dark:bg-neutral-950 dark:ring-1 dark:ring-white/[0.08] ${
           isAr ? 'vf-bell-drawer-rtl' : 'vf-bell-drawer-ltr'
         }`}
@@ -1058,23 +1254,32 @@ function GovernanceSlideOverDrawer({
               </div>
               <div>
                 <h2 className="text-[17px] font-semibold tracking-tight text-neutral-950 dark:text-white">
-                  {isAr
-                    ? 'اعتماد المدير ورقابة التزام أودو ١٧'
-                    : 'Executive Approvals & Live Odoo 17 Watchdog'}
+                  {isAr ? 'مركز الحوكمة وتنبيهات Odoo' : 'Executive Governance & Odoo Alerts'}
                 </h2>
                 <p className="mt-0.5 text-xs text-neutral-400">
                   {isAr
-                    ? `${pendingApprovals.length} طلب بانتظار الختم · ${activeBreaches.length} مخالفة · متزامن عبر الأجهزة`
-                    : `${pendingApprovals.length} awaiting PIN seal · ${activeBreaches.length} breaches · Cross-device synced`}
+                    ? `${pendingApprovals.length} طلب بانتظار الختم · ${activeBreaches.length} مخالفة مسجلة`
+                    : `${pendingApprovals.length} awaiting PIN seal · ${activeBreaches.length} active alerts`}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
+              {sessionRole === 'admin' && !isAuditor ? (
+                <button
+                  type="button"
+                  onClick={() => setThresholdsOpen((v) => !v)}
+                  title={isAr ? 'إعداد سقوف التنبيهات على الخادم (للأدمن)' : 'Server Alert Thresholds (Admin)'}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-white/[0.06] dark:text-slate-300"
+                >
+                  <Sliders className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+
               <button
                 type="button"
                 onClick={() => void triggerCrossDeviceSync()}
-                title={isAr ? 'مزامنة فورية مع الخادم والأجهزة' : 'Sync now across devices'}
+                title={isAr ? 'مزامنة فورية مع الخادم' : 'Sync with server'}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-white/[0.06] dark:text-slate-300"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${syncingCrossDevice ? 'animate-spin text-emerald-600' : ''}`} />
@@ -1091,7 +1296,7 @@ function GovernanceSlideOverDrawer({
             </div>
           </div>
 
-          {/* Executive Session Control Bar / Auditor Read-Only Notice */}
+          {/* Executive Session Control Bar */}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs dark:bg-neutral-950">
             {isAuditor ? (
               <>
@@ -1099,12 +1304,12 @@ function GovernanceSlideOverDrawer({
                   <Lock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                   <span>
                     {isAr
-                      ? 'حساب مراجعة — قراءة فقط (الاعتماد والتجميد مقفل)'
-                      : 'Read-Only Auditor (PIN & Mutations Disabled)'}
+                      ? 'وضع المراجع الخارجي — قراءة فقط (الاعتماد والتجميد مقفل)'
+                      : 'External Reviewer — Read-Only (PIN & Mutations Disabled)'}
                   </span>
                 </div>
                 <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
-                  {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
+                  {isAr ? 'وضع المراجع الخارجي' : 'Read-Only Session'}
                 </span>
               </>
             ) : (
@@ -1125,7 +1330,7 @@ function GovernanceSlideOverDrawer({
                     <Lock className="h-4 w-4 text-neutral-400" />
                     <span>
                       {isAr
-                        ? 'الاعتماد وإيقاف الصرف يتطلب رمز المدير (٤ أرقام)'
+                        ? 'الاعتماد وإيقاف الصرف يتطلب رمز المدير (4 أرقام)'
                         : 'Approvals & freezes require 4-digit Manager PIN'}
                     </span>
                   </div>
@@ -1145,7 +1350,7 @@ function GovernanceSlideOverDrawer({
                       type="button"
                       onClick={() =>
                         requireManagerPin({
-                          titleAr: 'فتح صلاحية المدير لمدة ١٥ دقيقة',
+                          titleAr: 'فتح صلاحية المدير لمدة 15 دقيقة',
                           titleEn: 'Unlock 15-Minute Executive Session',
                         })
                       }
@@ -1174,6 +1379,101 @@ function GovernanceSlideOverDrawer({
               </>
             )}
           </div>
+
+          {thresholdsOpen && sessionRole === 'admin' && !isAuditor ? (
+            <div className="mt-3 space-y-2.5 rounded-2xl bg-neutral-50 p-3.5 text-xs ring-1 ring-slate-200 dark:bg-neutral-950 dark:ring-white/10">
+              <div className="font-semibold text-neutral-900 dark:text-white">
+                {isAr
+                  ? 'إعداد سقوف التنبيهات على الخادم (للأدمن فقط — لا توجد ثوابت في الكود)'
+                  : 'Server-Saved Alert Thresholds (Admin Only — Zero Code Constants)'}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <label className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-neutral-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={discEnabled}
+                      onChange={(e) => setDiscEnabled(e.target.checked)}
+                    />
+                    <span>{isAr ? 'سقف خصومات pos.order.line (%)' : 'POS Discount Cap (%)'}</span>
+                  </span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={discCap}
+                    onChange={(e) => setDiscCap(e.target.value)}
+                    placeholder="—"
+                    className="h-7 w-24 rounded-lg bg-white px-2 text-end tabular-nums ring-1 ring-slate-300 dark:bg-neutral-900 dark:ring-white/15"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-neutral-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={poEnabled}
+                      onChange={(e) => setPoEnabled(e.target.checked)}
+                    />
+                    <span>
+                      {isAr ? 'سقف مشتريات purchase.order.line (د.ك)' : 'Purchase Order Cap (KWD)'}
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    step="10"
+                    min="0"
+                    value={poCap}
+                    onChange={(e) => setPoCap(e.target.value)}
+                    placeholder="—"
+                    className="h-7 w-24 rounded-lg bg-white px-2 text-end tabular-nums ring-1 ring-slate-300 dark:bg-neutral-900 dark:ring-white/15"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-neutral-700 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={commEnabled}
+                      onChange={(e) => setCommEnabled(e.target.checked)}
+                    />
+                    <span>
+                      {isAr
+                        ? 'سقف عمولة المنصات المرحّلة account.move.line (%)'
+                        : 'Posted Aggregator Commission Cap (%)'}
+                    </span>
+                  </span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={commCap}
+                    onChange={(e) => setCommCap(e.target.value)}
+                    placeholder="—"
+                    className="h-7 w-24 rounded-lg bg-white px-2 text-end tabular-nums ring-1 ring-slate-300 dark:bg-neutral-900 dark:ring-white/15"
+                  />
+                </label>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={savingThresholds}
+                  onClick={handleSaveThresholds}
+                  className="btn-colored cursor-pointer rounded-xl bg-emerald-600 px-3.5 py-1.5 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {savingThresholds
+                    ? isAr
+                      ? 'جارٍ الحفظ...'
+                      : 'Saving...'
+                    : isAr
+                      ? 'حفظ السقوف على الخادم'
+                      : 'Save Server Thresholds'}
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {/* Filter Pills */}
           <div className="mt-3 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
@@ -1209,125 +1509,150 @@ function GovernanceSlideOverDrawer({
 
         {/* Scrollable Content */}
         <div className="flex-1 space-y-3.5 overflow-y-auto p-4 sm:p-5">
-          {/* 1. Live Odoo Compliance Breaches */}
-          {(tab === 'all' || tab === 'breaches') && breaches.length > 0 ? (
+          {/* 1. Odoo Governance Alerts */}
+          {tab === 'all' || tab === 'breaches' ? (
             <section className="space-y-2.5">
               <div className="flex items-center justify-between px-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                  <ShieldAlert className="h-4 w-4" />
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-800 dark:text-slate-200">
+                  <ShieldAlert className="h-4 w-4 text-emerald-600" />
                   <span>
                     {isAr
-                      ? 'مراقب أودو ١٧ للقرارات المعتمدة (مباشر)'
-                      : 'Continuous Odoo 17 Compliance Watchdog'}
+                      ? 'تنبيهات الحوكمة من استعلامات Odoo'
+                      : 'Odoo Query Governance Alerts'}
                   </span>
                 </span>
-                <span className="text-xs tabular-nums text-neutral-400">
-                  {activeBreaches.length} {isAr ? 'نشطة' : 'active'}
+                <span dir="ltr" className="text-xs tabular-nums text-neutral-400">
+                  {activeBreaches.length}
                 </span>
               </div>
 
-              {breaches.map((b) => {
-                const directiveText = isAr ? b.stopDirectiveAr : b.stopDirectiveEn
-                const waUrl = `https://wa.me/?text=${encodeURIComponent(directiveText)}`
-                const isProceduralOverrun = b.breachKind === 'procedural-cap-overrun'
-                return (
-                  <article
-                    key={b.id}
-                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-neutral-900"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          b.frozen
-                            ? 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-300'
-                            : isProceduralOverrun
-                              ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200'
-                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                        }`}
-                      >
-                        <AlertTriangle className="h-3 w-3" />
-                        <span>
-                          {b.frozen
-                            ? isAr
-                              ? 'مجمد بأمر المدير ⛔'
-                              : 'Spend Frozen by Manager ⛔'
-                            : isProceduralOverrun
-                              ? isAr
-                                ? '⚠️ تجاوز سقف بدون إذن مسبق'
-                                : '⚠️ Unapproved Cap Overrun'
-                              : isAr
-                                ? '🚨 مخالفة لقرار معتمد'
-                                : '🚨 Approved Decision Breach'}
-                        </span>
+              {breaches.length === 0 ? (
+                <div className="space-y-3 rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
+                  <p className="text-xs leading-relaxed text-neutral-600 dark:text-slate-300">
+                    {isAr
+                      ? 'لا توجد مخالفات مسجلة من Odoo حالياً (0 مخالفات). لا تظهر التنبيهات إلا عند تجاوز قيمة محسوبة من Odoo لسقف يحفظه الأدمن على الخادم.'
+                      : '0 Odoo breaches currently active. Alerts appear only when a real Odoo query exceeds an admin-saved server threshold.'}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled
+                      title={disabledButtonsNotice}
+                      className="inline-flex h-8 cursor-not-allowed items-center gap-1 rounded-full bg-neutral-200 px-3.5 text-xs font-semibold text-neutral-500 opacity-65 dark:bg-white/10 dark:text-slate-400"
+                    >
+                      <span>
+                        {isAr
+                          ? 'إيقاف فوري وتعميم أمر تجميد ⛔'
+                          : 'Immediate Stop & Broadcast Freeze ⛔'}
                       </span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      title={disabledButtonsNotice}
+                      className="inline-flex h-8 cursor-not-allowed items-center gap-1 rounded-full bg-neutral-200 px-3 text-xs font-semibold text-neutral-500 opacity-65 dark:bg-white/10 dark:text-slate-400"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>
+                        {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print / Export Official Circular 📄'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                breaches.map((b) => {
+                  const verified = isVerifiedOdooGovernanceBreach(b)
+                  const confirmed = Boolean(execConfirmedIds[b.id])
+                  const actionEnabled = verified && canExecAct && confirmed
+                  const directiveText = isAr ? b.stopDirectiveAr : b.stopDirectiveEn
+                  const waUrl = `https://wa.me/?text=${encodeURIComponent(directiveText)}`
 
-                      {isProceduralOverrun ? (
-                        <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                          {isAr
-                            ? (b.badgeLabelAr ??
-                              `+${(b.capOverrunKwd ?? b.monthlyLeakKwd).toLocaleString('en-US')} د.ك تجاوز سقف بدون إذن مسبق`)
-                            : (b.badgeLabelEn ??
-                              `+${(b.capOverrunKwd ?? b.monthlyLeakKwd).toLocaleString('en-US')} KWD unapproved cap overrun`)}
+                  return (
+                    <article
+                      key={b.id}
+                      className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all duration-150 dark:bg-neutral-900"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            b.frozen
+                              ? 'bg-neutral-100 text-neutral-700 dark:bg-white/10 dark:text-slate-300'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                          }`}
+                        >
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>
+                            {b.frozen
+                              ? isAr
+                                ? 'مجمد بتأكيد تنفيذي ⛔'
+                                : 'Frozen by Executive ⛔'
+                              : isAr
+                                ? 'تجاوز سقف محفوظ على الخادم'
+                                : 'Server Threshold Exceeded'}
+                          </span>
                         </span>
-                      ) : (
+
                         <span
                           dir="ltr"
-                          className="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                          title={`Odoo Domain: ${JSON.stringify(b.odooDomain)}`}
+                          className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-neutral-700 dark:bg-white/10 dark:text-slate-200"
                         >
-                          -{b.monthlyLeakKwd.toLocaleString('en-US')} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
+                          {b.odooModel} · {b.computedValue} &gt; {b.adminThreshold}
                         </span>
-                      )}
-                    </div>
+                      </div>
 
-                    <h3 className="mt-2 text-[14px] font-semibold leading-snug text-neutral-950 dark:text-white">
-                      {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
-                    </h3>
-                    <p className="mt-1 text-xs text-neutral-500 dark:text-slate-300">
-                      {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
-                    </p>
-                    <div className="mt-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-[13px] text-neutral-600 dark:bg-neutral-950 dark:text-slate-300">
-                      {isAr ? b.approvedRuleLimitAr : b.approvedRuleLimitEn}
-                    </div>
+                      <h3 className="mt-2 text-[14px] font-semibold leading-snug text-neutral-950 dark:text-white">
+                        {isAr ? b.breachHeadlineAr : b.breachHeadlineEn}
+                      </h3>
+                      <p className="mt-1 text-xs text-neutral-500 dark:text-slate-300">
+                        {isAr ? b.odooMetricProofAr : b.odooMetricProofEn}
+                      </p>
 
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      {isAuditor ? (
-                        <>
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F7F7F8] px-3 py-2 text-xs text-neutral-700 dark:bg-neutral-950 dark:text-slate-300">
+                        <span dir="ltr" className="tabular-nums">
+                          {b.period.from} → {b.period.to}
+                        </span>
+                        <a
+                          href={b.odooRecordUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          <span>{isAr ? 'فتح السجل في Odoo' : 'Open Record in Odoo'}</span>
+                        </a>
+                      </div>
+
+                      {!isAuditor && canExecAct && !b.frozen ? (
+                        <label className="mt-2.5 flex cursor-pointer items-center gap-2 rounded-xl bg-amber-50/70 px-3 py-2 text-xs font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                          <input
+                            type="checkbox"
+                            checked={confirmed}
+                            onChange={(e) =>
+                              setExecConfirmedIds((prev) => ({
+                                ...prev,
+                                [b.id]: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span>
+                            {isAr
+                              ? 'أؤكد بصفتي التنفيذية مراجعة سجل Odoo واعتماد التجميد / التعميم في سجل الخادم'
+                              : 'I explicitly confirm reviewing the Odoo record and logging this action on the server'}
+                          </span>
+                        </label>
+                      ) : null}
+
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        {!b.frozen ? (
                           <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
-                              <Lock className="h-3 w-3 shrink-0" />
-                              <span>
-                                {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
-                              </span>
-                            </span>
-
                             <button
                               type="button"
-                              onClick={() => openBreachStopCircularPrint(b)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/10 dark:text-slate-200"
-                            >
-                              <FileText className="h-3.5 w-3.5 text-emerald-600" />
-                              <span>
-                                {isAr ? 'طباعة / تصدير تعميم رسمي 📄' : 'Print Circular 📄'}
-                              </span>
-                            </button>
-                          </div>
-
-                          <Link
-                            href={b.href}
-                            onClick={onClose}
-                            className="text-xs font-medium text-neutral-500 hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-300"
-                          >
-                            {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
-                          </Link>
-                        </>
-                      ) : !b.frozen ? (
-                        <>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => freezeBreachWithPin(b, true)}
+                              disabled={!actionEnabled}
+                              title={!actionEnabled ? disabledButtonsNotice : undefined}
+                              onClick={() => actionEnabled && freezeBreachWithPin(b, true)}
                               style={{ color: '#FFFFFF' }}
-                              className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors duration-150 hover:bg-rose-700"
+                              className="btn-colored inline-flex h-8 items-center gap-1 rounded-full bg-rose-600 px-3.5 text-xs font-semibold text-white transition-colors duration-150 hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <span>
                                 {isAr
@@ -1336,35 +1661,12 @@ function GovernanceSlideOverDrawer({
                               </span>
                             </button>
 
-                            {b.retroactiveApprovalEligible ? (
-                              <button
-                                type="button"
-                                onClick={() => retroactiveApproveBreachWithPin(b)}
-                                style={{ color: '#FFFFFF' }}
-                                className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-emerald-700"
-                              >
-                                <span>
-                                  {isAr
-                                    ? 'اعتماد استثنائي بأثر رجعي ✅'
-                                    : 'Retroactive Approval ✅'}
-                                </span>
-                              </button>
-                            ) : (
-                              <Link
-                                href={b.href}
-                                onClick={onClose}
-                                className="inline-flex h-8 items-center gap-1 rounded-full bg-neutral-100 px-3 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200/80 hover:text-neutral-950 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15"
-                              >
-                                <span>
-                                  {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
-                                </span>
-                              </Link>
-                            )}
-
                             <button
                               type="button"
-                              onClick={() => openBreachStopCircularPrint(b)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 dark:bg-white/10 dark:text-slate-200"
+                              disabled={!actionEnabled}
+                              title={!actionEnabled ? disabledButtonsNotice : undefined}
+                              onClick={() => actionEnabled && openBreachStopCircularPrint(b)}
+                              className="inline-flex h-8 items-center gap-1 rounded-full bg-[#F7F7F8] px-2.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-200/70 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white/10 dark:text-slate-200"
                             >
                               <FileText className="h-3.5 w-3.5 text-emerald-600" />
                               <span>
@@ -1372,24 +1674,13 @@ function GovernanceSlideOverDrawer({
                               </span>
                             </button>
                           </div>
-
-                          {b.retroactiveApprovalEligible ? (
-                            <Link
-                              href={b.href}
-                              onClick={onClose}
-                              className="text-xs font-medium text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-300"
-                            >
-                              {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
-                            </Link>
-                          ) : null}
-                        </>
-                      ) : (
-                        <>
+                        ) : (
                           <div className="flex flex-wrap items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => unfreezeBreachWithPin(b)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                              disabled={!canExecAct || !verified}
+                              onClick={() => canExecAct && verified && unfreezeBreachWithPin(b)}
+                              className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 transition-colors duration-150 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200"
                             >
                               <span>
                                 {isAr ? 'فك التجميد بعد التصحيح 🔓' : 'Unfreeze After Fix 🔓'}
@@ -1398,8 +1689,9 @@ function GovernanceSlideOverDrawer({
 
                             <button
                               type="button"
-                              onClick={() => openBreachStopCircularPrint(b)}
-                              className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-200"
+                              disabled={!verified}
+                              onClick={() => verified && openBreachStopCircularPrint(b)}
+                              className="inline-flex h-8 items-center gap-1 rounded-full bg-emerald-50 px-2.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200"
                             >
                               <FileText className="h-3.5 w-3.5" />
                               <span>
@@ -1436,20 +1728,12 @@ function GovernanceSlideOverDrawer({
                               <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
                             </a>
                           </div>
-
-                          <Link
-                            href={b.href}
-                            onClick={onClose}
-                            className="text-xs font-medium text-neutral-400 hover:text-emerald-700 dark:hover:text-emerald-300"
-                          >
-                            {isAr ? 'فتح المصدر للمراجعة ↗' : 'Review Source ↗'}
-                          </Link>
-                        </>
-                      )}
-                    </div>
-                  </article>
-                )
-              })}
+                        )}
+                      </div>
+                    </article>
+                  )
+                })
+              )}
             </section>
           ) : null}
 
@@ -1467,9 +1751,7 @@ function GovernanceSlideOverDrawer({
 
               {pendingApprovals.length === 0 ? (
                 <div className="rounded-2xl bg-white p-4 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
-                  {isAr
-                    ? 'لا توجد طلبات معلقة حالياً — جميع القرارات معتمدة ومختومة ✅'
-                    : 'Zero pending requests — all department items are reviewed ✅'}
+                  {isAr ? 'لا توجد طلبات معلقة حالياً.' : 'Zero pending requests.'}
                 </div>
               ) : (
                 pendingApprovals.map((req) => (
@@ -1507,7 +1789,7 @@ function GovernanceSlideOverDrawer({
                         <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
                           <Lock className="h-3 w-3 shrink-0" />
                           <span>
-                            {isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only Auditor Session'}
+                            {isAr ? 'وضع المراجع الخارجي — قراءة فقط' : 'Read-Only Session'}
                           </span>
                         </span>
                       ) : (
@@ -1546,64 +1828,87 @@ function GovernanceSlideOverDrawer({
             </section>
           ) : null}
 
-          {/* 3. Sealed Executive Decisions History */}
+          {/* 3. Sealed Executive Decisions & Server Log */}
           {tab === 'sealed' ? (
             <section className="space-y-2.5">
-              {sealedHistory.length === 0 ? (
+              {sealedHistory.length === 0 && (store.auditLog?.length ?? 0) === 0 ? (
                 <div className="rounded-2xl bg-white p-5 text-center text-xs text-neutral-400 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900">
-                  {isAr ? 'لم يتم ختم قرارات جديدة بعد في هذه الجلسة.' : 'No sealed decisions recorded yet.'}
+                  {isAr ? 'لا توجد قرارات مختومة بعد.' : 'No sealed decisions recorded yet.'}
                 </div>
               ) : (
-                sealedHistory.map((item) => (
-                  <article
-                    key={item.id}
-                    className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                          item.status === 'approved'
-                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                            : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
-                        }`}
-                      >
-                        {item.status === 'approved'
-                          ? isAr
-                            ? 'معتمد ومختوم ✅'
-                            : 'Approved & Sealed ✅'
-                          : isAr
-                            ? 'مرفوض ❌'
-                            : 'Rejected ❌'}
-                      </span>
-                      {item.seal ? (
+                <>
+                  {sealedHistory.map((item) => (
+                    <article
+                      key={item.id}
+                      className="rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-neutral-900"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <span
-                          dir="ltr"
-                          className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            item.status === 'approved'
+                              ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                          }`}
                         >
-                          {item.seal.sealId}
+                          {item.status === 'approved'
+                            ? isAr
+                              ? 'معتمد ومختوم ✅'
+                              : 'Approved & Sealed ✅'
+                            : isAr
+                              ? 'مرفوض ❌'
+                              : 'Rejected ❌'}
                         </span>
-                      ) : null}
-                    </div>
-                    <h3 className="mt-2 text-[13.5px] font-semibold text-neutral-950 dark:text-white">
-                      {isAr ? item.titleAr : item.titleEn}
-                    </h3>
-                    {item.seal ? (
-                      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50/80 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-                          <span>
-                            {isAr ? 'صفة المعتمد:' : 'Approver Role:'}{' '}
-                            {isAr
-                              ? (item.seal.approverRoleAr ?? item.seal.approvedByAr)
-                              : (item.seal.approverRoleEn ?? item.seal.approvedByEn)}
+                        {item.seal ? (
+                          <span
+                            dir="ltr"
+                            className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400"
+                          >
+                            {item.seal.sealId}
                           </span>
-                        </span>
-                        <span dir="ltr" className="tabular-nums text-neutral-400">
-                          {item.seal.approvedAtIso.slice(0, 16).replace('T', ' ')} UTC
-                        </span>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </article>
-                ))
+                      <h3 className="mt-2 text-[13.5px] font-semibold text-neutral-950 dark:text-white">
+                        {isAr ? item.titleAr : item.titleEn}
+                      </h3>
+                      {item.seal ? (
+                        <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50/80 px-2 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+                            <span>
+                              {isAr ? 'صفة المعتمد:' : 'Approver Role:'}{' '}
+                              {isAr
+                                ? (item.seal.approverRoleAr ?? item.seal.approvedByAr)
+                                : (item.seal.approverRoleEn ?? item.seal.approvedByEn)}
+                            </span>
+                          </span>
+                          <span dir="ltr" className="tabular-nums text-neutral-400">
+                            {item.seal.approvedAtIso.slice(0, 16).replace('T', ' ')} UTC
+                          </span>
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+
+                  {(store.auditLog ?? []).length > 0 ? (
+                    <div className="space-y-1.5 rounded-2xl bg-white p-3.5 text-xs dark:bg-neutral-900">
+                      <div className="font-semibold text-neutral-800 dark:text-slate-200">
+                        {isAr ? 'سجل الإجراءات الخادمي' : 'Server Executive Action Log'}
+                      </div>
+                      {(store.auditLog ?? []).slice(0, 10).map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-1.5 dark:border-white/10"
+                        >
+                          <span className="text-neutral-700 dark:text-slate-300">
+                            {isAr ? entry.summaryAr : entry.summaryEn} ({entry.actorRole})
+                          </span>
+                          <span dir="ltr" className="tabular-nums text-neutral-400">
+                            {entry.timestampIso.slice(0, 16).replace('T', ' ')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </>
               )}
             </section>
           ) : null}

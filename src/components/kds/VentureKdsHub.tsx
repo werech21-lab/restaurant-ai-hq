@@ -105,9 +105,9 @@ export const KITCHEN_LOCATIONS: KitchenLocation[] = [
     brands: ['karak', 'chinagarden', 'shawarma'],
   },
   {
-    id: 'HAWALLI',
-    nameAr: 'مطبخ فرع بروميناد حولي (الشيف: دونر ناينغو #1924)',
-    nameEn: 'Hawalli Promenade Kitchen (Chef: Donner Nainggo #1924)',
+    id: 'PROMENADE',
+    nameAr: 'مطبخ فرع البروميناد (الشيف: دونر ناينغو #1924)',
+    nameEn: 'Promenade Kitchen (Chef: Donner Nainggo #1924)',
     chefAr: 'الشيف: دونر ناينغو (#1924)',
     chefEn: 'Chef: Donner Nainggo (#1924)',
     brands: ['karak', 'franks', 'chinagarden'],
@@ -448,7 +448,7 @@ export const INITIAL_KDS_TICKETS: KdsTicket[] = [
     orderRef: 'ORD-TAL-9934',
     orderRefAr: 'طلب منصة طلبات #9934',
     orderRefEn: 'Talabat Order #9934',
-    branchId: 'HAWALLI',
+    branchId: 'PROMENADE',
     brandId: 'chinagarden',
     brandNameAr: 'تشاينا جاردن',
     brandNameEn: 'China Garden',
@@ -649,7 +649,7 @@ export function VentureKdsHub({
   const handleLogWaste = (e: React.FormEvent) => {
     e.preventDefault()
     const newLog = {
-      id: `WST-${Math.floor(100 + Math.random() * 900)}`,
+      id: `WST-${100 + (Date.now() % 900)}`,
       time: isAr ? 'الآن' : 'Just now',
       item: wasteDishName,
       station: wasteStation === 'GRILL' ? (isAr ? 'محطة الجريل' : 'Grill Station') : wasteStation === 'FRYER' ? (isAr ? 'محطة المقليات' : 'Fryer Station') : (isAr ? 'محطة الووك' : 'Wok Station'),
@@ -801,7 +801,7 @@ export function VentureKdsHub({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
                 active
                   ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/10'

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
-  fetchLiveOdooComparisonOverlay,
+  fetchLiveOdooPeriodCube,
   sanitizeOdooPublicPayload,
 } from '@/lib/odoo-live-connector'
 import {
@@ -17,6 +17,8 @@ import {
   computeErpComparison,
   DEFAULT_COMPARISON_DATE_A,
   DEFAULT_COMPARISON_DATE_B,
+  normalizeComparisonQueryWindows,
+  sanitizeIsoDate,
   type BranchEntityId,
   type BrandEntityId,
   type ChannelEntityId,
@@ -44,10 +46,11 @@ function parseMultiIdParam<T extends string>(
 
 /**
  * GET `/api/erp/live-comparison`:
- * - Authenticated (`200 OK`) for all 4 roles (`admin`, `gm`, `dgm`, `auditor`); `401` if unauthenticated.
- * - Accepts `?dateA=YYYY-MM-DD&toA=...&dateB=YYYY-MM-DD&toB=...&brand=...&branch=...&channel=...`
- * - Queries live Odoo 17 `read_group` aggregates in `Asia/Kuwait` (`UTC+3`) time (with 60s server cache + baseline fallback)
- *   so Company Summary, Sales, and Custom Date Comparison ALWAYS return 100% unified numbers with `0.000 KWD` gap.
+ * Authenticates the active ERP session, fetches live Odoo 17 period cubes
+ * (`fetchLiveOdooPeriodCube`) for Period A & Period B, and computes every
+ * comparison row (7 operational branches + standalone 8th «غير منسوب لفرع»,
+ * 6 brands, payment channels, and hourly/daily series) strictly from live
+ * Odoo JSON-RPC data with zero static fallbacks.
  */
 export async function GET(request: NextRequest) {
   if (!isSameSiteRequest(request.headers)) {
@@ -73,16 +76,16 @@ export async function GET(request: NextRequest) {
   }
 
   const sp = request.nextUrl.searchParams
-  const isoRe = /^\d{4}-\d{2}-\d{2}$/
-
-  const dateA = isoRe.test(sp.get('dateA') ?? '')
-    ? (sp.get('dateA') as string)
-    : DEFAULT_COMPARISON_DATE_A
-  const toA = isoRe.test(sp.get('toA') ?? '') ? (sp.get('toA') as string) : dateA
-  const dateB = isoRe.test(sp.get('dateB') ?? '')
-    ? (sp.get('dateB') as string)
-    : DEFAULT_COMPARISON_DATE_B
-  const toB = isoRe.test(sp.get('toB') ?? '') ? (sp.get('toB') as string) : dateB
+  const dateA = sanitizeIsoDate(
+    sp.get('dateA') ?? sp.get('fromA'),
+    DEFAULT_COMPARISON_DATE_A,
+  )
+  const toA = sanitizeIsoDate(sp.get('toA'), dateA)
+  const dateB = sanitizeIsoDate(
+    sp.get('dateB') ?? sp.get('fromB'),
+    DEFAULT_COMPARISON_DATE_B,
+  )
+  const toB = sanitizeIsoDate(sp.get('toB'), dateB)
 
   const mode: ComparisonModeType =
     sp.get('mode') === 'entity-vs-entity' ? 'entity-vs-entity' : 'date-vs-date'
@@ -93,10 +96,27 @@ export async function GET(request: NextRequest) {
   const branchIds = parseMultiIdParam<BranchEntityId>(sp.get('branch'), APPROVED_BRANCH_IDS)
   const channelIds = parseMultiIdParam<ChannelEntityId>(sp.get('channel'), APPROVED_CHANNEL_IDS)
   const entityDimension: EntityComparisonDimension =
-    sp.get('entityDimension') === 'branch' ? 'branch' : 'brand'
+    sp.get('entityDimension') === 'branch' || sp.get('entityDim') === 'branch'
+      ? 'branch'
+      : 'brand'
 
   const sameHoursLikeForLike =
     sp.get('sameHours') === '1' || sp.get('sameHoursLikeForLike') === 'true'
+
+  const rawEntA = sp.get('entityA')
+  const rawEntB = sp.get('entityB')
+  const entityA =
+    rawEntA &&
+    ((APPROVED_BRAND_IDS as readonly string[]).includes(rawEntA) ||
+      (APPROVED_BRANCH_IDS as readonly string[]).includes(rawEntA))
+      ? (rawEntA as BrandEntityId | BranchEntityId)
+      : undefined
+  const entityB =
+    rawEntB &&
+    ((APPROVED_BRAND_IDS as readonly string[]).includes(rawEntB) ||
+      (APPROVED_BRANCH_IDS as readonly string[]).includes(rawEntB))
+      ? (rawEntB as BrandEntityId | BranchEntityId)
+      : undefined
 
   const query: ErpComparisonQuery = {
     mode,
@@ -107,49 +127,131 @@ export async function GET(request: NextRequest) {
     branchIds,
     channelIds,
     entityDimension,
-    entityA: (sp.get('entityA') as BrandEntityId | BranchEntityId) || undefined,
-    entityB: (sp.get('entityB') as BrandEntityId | BranchEntityId) || undefined,
+    entityA,
+    entityB,
     sameHoursLikeForLike,
   }
 
-  const liveOverlay = await fetchLiveOdooComparisonOverlay({
-    fromA: dateA,
-    toA,
-    fromB: dateB,
-    toB,
-    readOnly: caller.isAuditor,
-    referenceNowMs: Date.now(),
-  })
+  const { normA, normB } = normalizeComparisonQueryWindows(query)
+  const sameWindow =
+    mode === 'entity-vs-entity' ||
+    (normA.fromIso === normB.fromIso && normA.toIso === normB.toIso)
 
-  const comparison = computeErpComparison(query, liveOverlay)
+  try {
+    const [cubeA, cubeB] = sameWindow
+      ? await fetchLiveOdooPeriodCube(normA.fromIso, normA.toIso).then(
+          (c) => [c, c] as const,
+        )
+      : await Promise.all([
+          fetchLiveOdooPeriodCube(normA.fromIso, normA.toIso),
+          fetchLiveOdooPeriodCube(normB.fromIso, normB.toIso),
+        ])
 
-  return NextResponse.json(
-    sanitizeOdooPublicPayload({
-      ok: true,
-      readOnly: caller.isAuditor,
-      role: caller.role,
-      connected: liveOverlay.connected,
-      sourceMode: liveOverlay.sourceMode,
-      latestRecordAt: liveOverlay.latestRecordAt,
-      latestOdooRecordAt: liveOverlay.latestOdooRecordAt,
-      latestRecordKuwaitIso: liveOverlay.latestRecordKuwaitIso,
-      kuwaitSyncedAt: liveOverlay.kuwaitSyncedAt,
-      hoursSinceLatestRecord: liveOverlay.hoursSinceLatestRecord,
-      isStaleOver24h: liveOverlay.isStaleOver24h,
-      syncCooldownRemainingSec: liveOverlay.syncCooldownRemainingSec,
-      diagnosticCode: liveOverlay.diagnosticCode,
-      database: null,
-      dailySeries: liveOverlay.dailySeries ?? [],
-      dailyByBranch: liveOverlay.dailyByBranch,
-      hourlySeries: liveOverlay.hourlySeries ?? [],
-      comparison,
-    }),
-    {
-      status: 200,
-      headers: {
-        ...odooSyncResponseHeaders,
-        'cache-control': 'private, max-age=60, stale-while-revalidate=840',
-      },
-    },
-  )
+    if (!cubeA.connected || !cubeB.connected) {
+      const disconnectedComparison = computeErpComparison(query, null)
+      return NextResponse.json(
+        sanitizeOdooPublicPayload({
+          ok: true,
+          readOnly: caller.isAuditor,
+          role: caller.role,
+          connected: false,
+          sourceMode: 'disconnected',
+          noData: true,
+          messageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+          summary: null,
+          lastSyncAt: null,
+          isStale24h: false,
+          odooCompanyId: null,
+          dateRange: { from: normA.fromIso, to: normA.toIso },
+          database: null,
+          cubeA: null,
+          cubeB: null,
+          dailySeries: [],
+          dailyByBranch: {},
+          dailyUnattributed: {},
+          hourlySeries: [],
+          comparison: disconnectedComparison,
+        }),
+        { status: 200, headers: odooSyncResponseHeaders },
+      )
+    }
+
+    const comparison = computeErpComparison(query, { cubeA, cubeB })
+
+    const dailyMap = new Map<
+      string,
+      {
+        day: string
+        orders: number
+        netKwd: number
+        unattributedNetKwd: number
+        unattributedOrders: number
+      }
+    >()
+    for (const row of cubeB.dailySeries) dailyMap.set(row.day, row)
+    for (const row of cubeA.dailySeries) dailyMap.set(row.day, row)
+    const mergedDailySeries = [...dailyMap.values()].sort((a, b) =>
+      a.day.localeCompare(b.day),
+    )
+
+    return NextResponse.json(
+      sanitizeOdooPublicPayload({
+        ok: true,
+        readOnly: caller.isAuditor,
+        role: caller.role,
+        connected: true,
+        sourceMode: 'odoo17-live',
+        noData: Boolean(cubeA.noData && cubeB.noData),
+        ...(cubeA.noData && cubeB.noData
+          ? { messageAr: 'لا توجد بيانات من Odoo لهذه الفترة' }
+          : {}),
+        summary: null,
+        lastSyncAt: cubeA.lastSyncAt,
+        isStale24h: cubeA.isStale24h || cubeB.isStale24h,
+        odooCompanyId: cubeA.odooCompanyId,
+        dateRange: {
+          from: normA.fromIso < normB.fromIso ? normA.fromIso : normB.fromIso,
+          to: normA.toIso > normB.toIso ? normA.toIso : normB.toIso,
+        },
+        periodA: cubeA.dateRange,
+        periodB: cubeB.dateRange,
+        database: null,
+        cubeA,
+        cubeB,
+        dailySeries: mergedDailySeries,
+        dailyByBranch: { ...cubeB.dailyByBranch, ...cubeA.dailyByBranch },
+        dailyUnattributed: { ...cubeB.dailyUnattributed, ...cubeA.dailyUnattributed },
+        hourlySeries: cubeA.hourlySeries,
+        comparison,
+      }),
+      { status: 200, headers: odooSyncResponseHeaders },
+    )
+  } catch {
+    const disconnectedComparison = computeErpComparison(query, null)
+    return NextResponse.json(
+      sanitizeOdooPublicPayload({
+        ok: true,
+        readOnly: caller.isAuditor,
+        role: caller.role,
+        connected: false,
+        sourceMode: 'disconnected',
+        noData: true,
+        messageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+        summary: null,
+        lastSyncAt: null,
+        isStale24h: false,
+        odooCompanyId: null,
+        dateRange: { from: normA.fromIso, to: normA.toIso },
+        database: null,
+        cubeA: null,
+        cubeB: null,
+        dailySeries: [],
+        dailyByBranch: {},
+        dailyUnattributed: {},
+        hourlySeries: [],
+        comparison: disconnectedComparison,
+      }),
+      { status: 200, headers: odooSyncResponseHeaders },
+    )
+  }
 }

@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { permissions } from '@/lib/auth/permissions'
 import { authenticate } from '@/lib/auth/context'
 import { dispatchExclusiveOperationalReport, listExclusiveRadarRecipients } from '@/lib/alerts'
-import { buildForensicMatrix } from '@/modules/governance/domain/forensic-radar'
-import { listForensicHistory } from '@/modules/governance/services/forensic-radar-service'
+import { buildForensicMatrix, listForensicHistory } from '@/modules/governance'
 import { dispatchServerEmail, getSmtpPublicStatus } from '@/lib/email/server-mail'
 import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
@@ -151,9 +150,9 @@ export async function GET(request: NextRequest) {
  * 2) Daily Forensic Report (supports manualTrigger from UI or automated webhook)
  */
 export async function POST(request: NextRequest) {
-  let body: any = null
+  let body: { manualTrigger?: boolean; kind?: string; emailText?: string } | null = null
   try {
-    body = await request.json()
+    body = (await request.json()) as { manualTrigger?: boolean; kind?: string; emailText?: string }
   } catch {
     body = null
   }

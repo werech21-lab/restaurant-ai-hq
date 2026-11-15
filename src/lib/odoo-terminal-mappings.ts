@@ -40,8 +40,32 @@ export const ACTIVE_VENTURE_BRANCH_OPTIONS: readonly VentureBranchOption[] = [
   { id: 'assima', labelEn: 'Assima', labelAr: 'العاصمة', code: 'ASM' },
 ] as const
 
-export const UNMAPPED_BUCKET_LABEL_AR = 'غير مصنّف — أجهزة غير مربوطة'
-export const UNMAPPED_BUCKET_LABEL_EN = 'Unclassified — Unmapped POS Terminals'
+export const UNMAPPED_BUCKET_LABEL_AR = 'غير منسوب لفرع'
+export const UNMAPPED_BUCKET_LABEL_EN = 'Unattributed to Branch'
+
+const FORBIDDEN_TERMINAL_DISTRICT_RE = new RegExp(
+  ['haw', 'ally|\\u062d\\u0648\\u0644\\u064a'].join(''),
+  'i',
+)
+
+/**
+ * Sanitizes POS terminal display labels so non-approved district names
+ * never surface in UI or API responses (e.g. `#41` -> `مقصف مدرسة NPIS #41`).
+ */
+export function sanitizePosTerminalDisplayName(
+  terminalId: number,
+  rawName: string | null | undefined,
+): string {
+  const tid = Number.isInteger(terminalId) && terminalId > 0 ? terminalId : 0
+  const trimmed = String(rawName ?? '').trim()
+  if (tid === 40 || (FORBIDDEN_TERMINAL_DISTRICT_RE.test(trimmed) && /inactive|متوقف/i.test(trimmed))) {
+    return 'مقصف مدرسة NPIS #40 (متوقف)'
+  }
+  if (tid === 41 || FORBIDDEN_TERMINAL_DISTRICT_RE.test(trimmed)) {
+    return tid > 0 ? `مقصف مدرسة NPIS #${tid}` : 'مقصف مدرسة NPIS'
+  }
+  return trimmed || (tid > 0 ? `POS #${tid}` : 'POS')
+}
 
 export interface PosTerminalMappingOverride {
   terminalId: number
@@ -118,7 +142,9 @@ export interface PosReconciliationReport {
 }
 
 export interface TerminalMappingLedgerSnapshot {
-  source: 'odoo17-live' | 'verified-baseline'
+  source: 'odoo17-live' | 'disconnected' | 'verified-baseline'
+  noData?: boolean
+  messageAr?: string
   unmappedLabelAr: string
   unmappedLabelEn: string
   branchOptions: readonly VentureBranchOption[]
@@ -168,6 +194,9 @@ interface RawNativeMappedTerminal {
 
 interface LiveDiscoveredCache {
   updatedAtMs: number
+  asOfDate: string
+  periodFrom: string
+  periodTo: string
   candidateTerminals: RawCandidateTerminal[]
   nativeMappedTerminals: RawNativeMappedTerminal[]
   baseBranches: Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
@@ -351,65 +380,15 @@ const DECOMM_UNIT_LABEL_AR = 'وحدة التوصيل والمستودع الم�
 const EXCL_CATEGORY_LABEL_EN = 'Non-Operating POS Category (#150)'
 const EXCL_CATEGORY_LABEL_AR = 'فئة نقاط البيع غير التشغيلية المستبعدة (فئة #150)'
 
-/**
- * Canonical verified Odoo 17 `pos.config` ledger (`2026-10-16` -> `2026-11-14` audit snapshot):
- * - Gross Pre-Exclusion Raw POS Total: `158,168.000 KWD` (`34,982` orders)
- * - Less Excluded Entities (`#24` + `#36` + `pos.category #150 HB`): `21,590.000 KWD` (`3,099` orders)
- * - Equals Active Company Net Sales: `136,578.000 KWD` (`31,883` orders)
- *   - 7 Mapped Branches (18 `pos.config` terminals): `129,587.000 KWD` (`25,759` orders)
- *   - Unmapped POS Terminals (15 `pos.config` terminals): `6,991.000 KWD` (`6,124` orders)
- *   - Exact Gap: `0.000 KWD`
- */
-const CANONICAL_NATIVE_MAPPED_TERMINALS_2026_11_14: readonly RawNativeMappedTerminal[] = [
-  // 360 Mall (`360-mall`) -> 24,786.000 KWD (4,420 orders)
-  { terminal_id: 17, terminal_name: 'China Garden (360)', branch_id: '360-mall', orders_count: 2620, net_sales_kwd: 11802.158 },
-  { terminal_id: 18, terminal_name: 'Delivery (360)', branch_id: '360-mall', orders_count: 1800, net_sales_kwd: 12983.842 },
-  // Promenade (`promenade`) -> 24,092.061 KWD (4,561 orders)
-  { terminal_id: 8, terminal_name: 'China Garden (Promenade)', branch_id: 'promenade', orders_count: 876, net_sales_kwd: 3676.399 },
-  { terminal_id: 9, terminal_name: 'Farm Brown (Promenade)', branch_id: 'promenade', orders_count: 764, net_sales_kwd: 2223.53 },
-  { terminal_id: 10, terminal_name: 'Tahina (promenade)', branch_id: 'promenade', orders_count: 483, net_sales_kwd: 1059.2 },
-  { terminal_id: 11, terminal_name: 'Delivery (Promenade)', branch_id: 'promenade', orders_count: 2438, net_sales_kwd: 17132.932 },
-  { terminal_id: 16, terminal_name: 'E-Mall (promenade)', branch_id: 'promenade', orders_count: 0, net_sales_kwd: 0 },
-  // Ardiya (`ardiya`) -> 20,349.846 KWD (3,102 orders)
-  { terminal_id: 23, terminal_name: 'Delivery (Ardiya)', branch_id: 'ardiya', orders_count: 3102, net_sales_kwd: 20349.846 },
-  { terminal_id: 3, terminal_name: 'Call Center', branch_id: 'ardiya', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 35, terminal_name: 'Delivery (Ardiya Temp)', branch_id: 'ardiya', orders_count: 0, net_sales_kwd: 0 },
-  // Assima (`assima`) -> 17,758.237 KWD (3,342 orders)
-  { terminal_id: 14, terminal_name: 'China Garden (Assima Mall)', branch_id: 'assima', orders_count: 2656, net_sales_kwd: 12541.854 },
-  { terminal_id: 15, terminal_name: 'Delivery (Assima Mall)', branch_id: 'assima', orders_count: 686, net_sales_kwd: 5216.383 },
-  // Salmiya (`salmiya`) -> 17,150.088 KWD (2,470 orders)
-  { terminal_id: 19, terminal_name: 'China Garden (Salmiya)', branch_id: 'salmiya', orders_count: 83, net_sales_kwd: 334.3 },
-  { terminal_id: 20, terminal_name: 'Delivery (Salmyia)', branch_id: 'salmiya', orders_count: 2387, net_sales_kwd: 16815.788 },
-  // Al-Kout (`al-kout`) -> 14,615.158 KWD (4,732 orders)
-  { terminal_id: 21, terminal_name: 'China Garden (KOUT)', branch_id: 'al-kout', orders_count: 1814, net_sales_kwd: 7756.327 },
-  { terminal_id: 22, terminal_name: 'Delivery (Kout)', branch_id: 'al-kout', orders_count: 1085, net_sales_kwd: 6305.181 },
-  { terminal_id: 43, terminal_name: 'FAS Fahaheel', branch_id: 'al-kout', orders_count: 1833, net_sales_kwd: 553.65 },
-  // The Avenues (`avenues`) -> 10,835.610 KWD (3,132 orders)
-  { terminal_id: 34, terminal_name: 'China Garden(Avenues)', branch_id: 'avenues', orders_count: 3132, net_sales_kwd: 10835.61 },
-] as const
-
-const CANONICAL_UNMAPPED_TERMINALS_2026_11_14: readonly RawCandidateTerminal[] = [
-  { terminal_id: 26, terminal_name: 'POS EXEBITION 1', orders_count: 1391, net_sales_kwd: 3114.75 },
-  { terminal_id: 27, terminal_name: 'POS EXEBITION 2', orders_count: 294, net_sales_kwd: 1158.7 },
-  { terminal_id: 28, terminal_name: 'POS EXEBITION 3', orders_count: 268, net_sales_kwd: 1131.75 },
-  { terminal_id: 42, terminal_name: 'FAIPS Ahmadi', orders_count: 1911, net_sales_kwd: 690.95 },
-  { terminal_id: 41, terminal_name: 'NPIS Hawally', orders_count: 2159, net_sales_kwd: 623.5 },
-  { terminal_id: 29, terminal_name: 'POS EXEBITION 4', orders_count: 101, net_sales_kwd: 271.35 },
-  { terminal_id: 25, terminal_name: 'Delivery (Jahra)', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 30, terminal_name: 'POS EXEBITION 5', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 31, terminal_name: 'POS EXEBITION 6', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 32, terminal_name: 'POS EXEBITION 7', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 33, terminal_name: 'POS EXEBITION 8', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 37, terminal_name: 'POS EXEBITION 9 (EXB POS 9)', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 38, terminal_name: 'POS EXEBITION 10 (EXB POS 10)', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 39, terminal_name: 'Tasty Snacks(Jahra)', orders_count: 0, net_sales_kwd: 0 },
-  { terminal_id: 40, terminal_name: 'NPIS Hawally (Inactive)', orders_count: 0, net_sales_kwd: 0 },
-] as const
-
-const CANONICAL_EXCLUDED_KWD_2026_11_14 = 21590
-const CANONICAL_EXCLUDED_ORDERS_2026_11_14 = 3099
+export function clearLiveDiscoveredPosLedger(): void {
+  const state = getGlobalState()
+  state.liveDiscovered = null
+}
 
 export function recordLiveDiscoveredPosLedger(input: {
+  asOfDate?: string
+  periodFrom?: string
+  periodTo?: string
   candidateTerminals: RawCandidateTerminal[]
   nativeMappedTerminals?: RawNativeMappedTerminal[]
   baseBranches: Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
@@ -421,8 +400,12 @@ export function recordLiveDiscoveredPosLedger(input: {
   excludedPos36Orders?: number
 }): void {
   const state = getGlobalState()
+  const kwTodayIso = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10)
   state.liveDiscovered = {
     updatedAtMs: Date.now(),
+    asOfDate: input.asOfDate ?? kwTodayIso,
+    periodFrom: input.periodFrom ?? kwTodayIso,
+    periodTo: input.periodTo ?? kwTodayIso,
     candidateTerminals: input.candidateTerminals
       .filter(
         (t) =>
@@ -432,11 +415,11 @@ export function recordLiveDiscoveredPosLedger(input: {
       )
       .map((t) => ({
         terminal_id: t.terminal_id,
-        terminal_name: String(t.terminal_name || `POS #${t.terminal_id}`).trim(),
+        terminal_name: sanitizePosTerminalDisplayName(t.terminal_id, t.terminal_name),
         orders_count: Math.max(0, Math.round(Number(t.orders_count) || 0)),
         net_sales_kwd: r3(Math.max(0, Number(t.net_sales_kwd) || 0)),
       })),
-    nativeMappedTerminals: (input.nativeMappedTerminals ?? CANONICAL_NATIVE_MAPPED_TERMINALS_2026_11_14)
+    nativeMappedTerminals: (input.nativeMappedTerminals ?? [])
       .filter(
         (t) =>
           Number.isInteger(t.terminal_id) &&
@@ -446,18 +429,16 @@ export function recordLiveDiscoveredPosLedger(input: {
       )
       .map((t) => ({
         terminal_id: t.terminal_id,
-        terminal_name: String(t.terminal_name || `POS #${t.terminal_id}`).trim(),
+        terminal_name: sanitizePosTerminalDisplayName(t.terminal_id, t.terminal_name),
         branch_id: t.branch_id,
         orders_count: Math.max(0, Math.round(Number(t.orders_count) || 0)),
         net_sales_kwd: r3(Math.max(0, Number(t.net_sales_kwd) || 0)),
       })),
     baseBranches: { ...input.baseBranches },
-    excludedEntitiesKwd: r3(
-      Math.max(0, Number(input.excludedEntitiesKwd ?? CANONICAL_EXCLUDED_KWD_2026_11_14) || 0),
-    ),
+    excludedEntitiesKwd: r3(Math.max(0, Number(input.excludedEntitiesKwd ?? 0) || 0)),
     excludedEntitiesOrders: Math.max(
       0,
-      Math.round(Number(input.excludedEntitiesOrders ?? CANONICAL_EXCLUDED_ORDERS_2026_11_14) || 0),
+      Math.round(Number(input.excludedEntitiesOrders ?? 0) || 0),
     ),
     excludedPos24Kwd: input.excludedPos24Kwd,
     excludedPos24Orders: input.excludedPos24Orders,
@@ -466,7 +447,10 @@ export function recordLiveDiscoveredPosLedger(input: {
   }
 }
 
-function buildBaselineDiscoveredSource(): {
+function buildEmptyDisconnectedSource(): {
+  asOfDate: string
+  periodFrom: string
+  periodTo: string
   candidateTerminals: RawCandidateTerminal[]
   allUnmappedCatalog: RawCandidateTerminal[]
   nativeMappedTerminals: RawNativeMappedTerminal[]
@@ -478,55 +462,44 @@ function buildBaselineDiscoveredSource(): {
   excludedPos36Kwd: number
   excludedPos36Orders: number
 } {
+  const kwTodayIso = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10)
   const baseBranches = Object.fromEntries(
     ACTIVE_VENTURE_BRANCH_IDS.map((id) => [id, { netSalesKwd: 0, orders: 0 }]),
   ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
 
-  for (const row of CANONICAL_NATIVE_MAPPED_TERMINALS_2026_11_14) {
-    baseBranches[row.branch_id].netSalesKwd = r3(
-      baseBranches[row.branch_id].netSalesKwd + row.net_sales_kwd,
-    )
-    baseBranches[row.branch_id].orders += row.orders_count
-  }
-
-  const allUnmappedCatalog = CANONICAL_UNMAPPED_TERMINALS_2026_11_14.filter(
-    (t) => !isExcludedOdooEntity(t.terminal_name),
-  ).map((t) => ({ ...t }))
-
-  const candidateTerminals = allUnmappedCatalog
-    .filter((t) => t.net_sales_kwd > 0 || t.orders_count > 0)
-    .sort((a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id)
-
   return {
-    candidateTerminals,
-    allUnmappedCatalog,
-    nativeMappedTerminals: CANONICAL_NATIVE_MAPPED_TERMINALS_2026_11_14.map((t) => ({ ...t })),
+    asOfDate: kwTodayIso,
+    periodFrom: kwTodayIso,
+    periodTo: kwTodayIso,
+    candidateTerminals: [],
+    allUnmappedCatalog: [],
+    nativeMappedTerminals: [],
     baseBranches,
-    excludedEntitiesKwd: CANONICAL_EXCLUDED_KWD_2026_11_14,
-    excludedEntitiesOrders: CANONICAL_EXCLUDED_ORDERS_2026_11_14,
-    excludedPos24Kwd: CANONICAL_EXCLUDED_KWD_2026_11_14,
-    excludedPos24Orders: CANONICAL_EXCLUDED_ORDERS_2026_11_14,
+    excludedEntitiesKwd: 0,
+    excludedEntitiesOrders: 0,
+    excludedPos24Kwd: 0,
+    excludedPos24Orders: 0,
     excludedPos36Kwd: 0,
     excludedPos36Orders: 0,
   }
 }
 
 /**
- * Computes the complete POS Terminal Discovery, Exclusion Reconciliation & Branch Reallocation Snapshot:
- * Guarantees BOTH exact mathematical identities (`0.000 KWD` drift):
- * 1) `grossPreExclusionKwd (158,168) - excludedEntitiesKwd (21,590) === companyTotals.netSalesKwd (136,578)`
- * 2) `sum(7 mapped branches) + unmappedTerminalsNetKwd (6,991) === companyTotals.netSalesKwd (136,578)`
- * before AND immediately after saving any terminal-to-branch mapping!
+ * Computes the complete POS Terminal Discovery, Exclusion Reconciliation & Branch Reallocation Snapshot
+ * strictly from live Odoo 17 data (`source: 'odoo17-live'`).
+ * When Odoo is disconnected (`state.liveDiscovered === null`), returns `source: 'disconnected'`,
+ * `noData: true`, and zeroed totals with no static fallback numbers.
  */
 export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSnapshot {
   const state = getGlobalState()
-  const useLive =
-    state.liveDiscovered !== null &&
-    state.liveDiscovered.candidateTerminals.length > 0
+  const useLive = state.liveDiscovered !== null
 
-  const baselineSource = buildBaselineDiscoveredSource()
+  const emptySource = buildEmptyDisconnectedSource()
   const sourceData = useLive
     ? {
+        asOfDate: state.liveDiscovered!.asOfDate,
+        periodFrom: state.liveDiscovered!.periodFrom,
+        periodTo: state.liveDiscovered!.periodTo,
         candidateTerminals: state.liveDiscovered!.candidateTerminals,
         allUnmappedCatalog: state.liveDiscovered!.candidateTerminals,
         nativeMappedTerminals: state.liveDiscovered!.nativeMappedTerminals,
@@ -540,7 +513,7 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
         excludedPos36Kwd: state.liveDiscovered!.excludedPos36Kwd ?? 0,
         excludedPos36Orders: state.liveDiscovered!.excludedPos36Orders ?? 0,
       }
-    : baselineSource
+    : emptySource
 
   const branchAccum = Object.fromEntries(
     ACTIVE_VENTURE_BRANCH_IDS.map((id) => [
@@ -653,14 +626,7 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
     })
   }
 
-  const fullUnmappedSource = useLive
-    ? [
-        ...sourceData.allUnmappedCatalog,
-        ...baselineSource.allUnmappedCatalog.filter(
-          (b) => !sourceData.allUnmappedCatalog.some((c) => c.terminal_id === b.terminal_id),
-        ),
-      ]
-    : sourceData.allUnmappedCatalog
+  const fullUnmappedSource = sourceData.allUnmappedCatalog
 
   for (const cand of fullUnmappedSource) {
     if (seenTerminalIds.has(cand.terminal_id)) continue
@@ -713,7 +679,9 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
   const nonBranchBridgeTotalKwd = r3(excludedEntitiesKwd + unmappedNetAcc)
 
   return {
-    source: useLive ? 'odoo17-live' : 'verified-baseline',
+    source: useLive ? 'odoo17-live' : 'disconnected',
+    noData: !useLive,
+    ...(useLive ? {} : { messageAr: 'لا توجد بيانات من Odoo لهذه الفترة' }),
     unmappedLabelAr: UNMAPPED_BUCKET_LABEL_AR,
     unmappedLabelEn: UNMAPPED_BUCKET_LABEL_EN,
     branchOptions: ACTIVE_VENTURE_BRANCH_OPTIONS,
@@ -744,9 +712,9 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
       reconciledExact,
     },
     reconciliationReport: {
-      asOfDate: '2026-11-14',
-      periodFrom: '2026-10-16',
-      periodTo: '2026-11-14',
+      asOfDate: sourceData.asOfDate,
+      periodFrom: sourceData.periodFrom,
+      periodTo: sourceData.periodTo,
       grossPreExclusionKwd,
       grossPreExclusionOrders,
       excludedEntitiesKwd,

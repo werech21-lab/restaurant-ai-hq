@@ -56,9 +56,6 @@ export const erpSectors: readonly ErpSector[] = [
       { href: '/erp/inventory?tab=purchase', title: 'spec.purchasing' },
       { href: '/erp/inventory?tab=plm', title: 'spec.plm' },
       { href: '/erp/inventory?tab=maintenance', title: 'spec.maintenance' },
-      { href: '/erp/kitchen', title: 'spec.kitchen' },
-      { href: '/erp/delivery', title: 'spec.delivery' },
-      { href: '/erp/procurement', title: 'spec.purchasing' },
     ],
   },
   {

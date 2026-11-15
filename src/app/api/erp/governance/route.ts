@@ -24,14 +24,23 @@ import { prisma } from '@/lib/db'
 import { sslOptions } from '@/lib/db-ssl'
 import { APPROVED_BRANCH_IDS, type GlobalBranch } from '@/lib/aether/global-filter-engine'
 import {
+  fetchLiveOdooPeriodCube,
+  fetchLiveOdooPurchaseOrders,
+} from '@/lib/odoo-live-connector'
+import {
   buildCircularSerialRef,
   createDigitalSeal,
   createInitialGovernanceStore,
   DEFAULT_MASTER_PIN_HASH,
   hashManagerPin,
+  isExecutiveGovernanceRole,
+  isVerifiedOdooGovernanceBreach,
   mergeGovernanceStores,
   normalizeGovernanceStore,
+  type ComplianceBreachItem,
+  type GovernanceAdminThresholds,
   type GovernanceApprovalRequest,
+  type GovernanceAuditLogEntry,
   type IssuedCircularRecord,
   type PersistedGovernanceStore,
 } from '@/lib/governance-compliance'
@@ -40,12 +49,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const ROW_ID = 'venture-foods-hq'
-const TMP_FILE_PATH = path.join(os.tmpdir(), 'vf-aether-governance-sync-v1.json')
+const TMP_FILE_PATH = path.join(os.tmpdir(), 'vf-aether-governance-sync-v2.json')
 
 interface ServerGovernanceEnvelope {
   store: PersistedGovernanceStore
   pinHash: string
-  seededOnly: boolean
+  initialEmpty: boolean
   updatedAtIso: string
   backend: 'postgres' | 'prisma' | 'server-cache'
 }
@@ -69,7 +78,7 @@ function readTmpFallback(): ServerGovernanceEnvelope {
             typeof parsed.pinHash === 'string' && parsed.pinHash.startsWith('vfh1_')
               ? parsed.pinHash
               : DEFAULT_MASTER_PIN_HASH,
-          seededOnly: false,
+          initialEmpty: false,
           updatedAtIso: parsed.updatedAtIso ?? new Date().toISOString(),
           backend: 'server-cache',
         }
@@ -83,7 +92,7 @@ function readTmpFallback(): ServerGovernanceEnvelope {
   const initial: ServerGovernanceEnvelope = {
     store: createInitialGovernanceStore(),
     pinHash: DEFAULT_MASTER_PIN_HASH,
-    seededOnly: true,
+    initialEmpty: true,
     updatedAtIso: new Date().toISOString(),
     backend: 'server-cache',
   }
@@ -148,7 +157,6 @@ function getGovernancePgPool(): Pool | null {
 }
 
 async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
-  // 1. Try cloud Postgres (`DATABASE_URL`) when configured & reachable
   const pgPool = getGovernancePgPool()
   if (pgPool) {
     try {
@@ -178,7 +186,7 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
             typeof row.pin_hash === 'string' && row.pin_hash.startsWith('vfh1_')
               ? row.pin_hash
               : DEFAULT_MASTER_PIN_HASH,
-          seededOnly: false,
+          initialEmpty: false,
           updatedAtIso:
             row.updated_at instanceof Date
               ? row.updated_at.toISOString()
@@ -188,15 +196,14 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
         writeTmpFallback(env)
         return env
       }
-      const seeded = readTmpFallback()
-      return { ...seeded, backend: 'postgres' }
+      const fallback = readTmpFallback()
+      return { ...fallback, backend: 'postgres' }
     } catch {
       globalForGov.__vfGovPgHealthy = false
       globalForGov.__vfGovPgCheckedAt = Date.now()
     }
   }
 
-  // 2. Try Prisma SQLite when running on Vercel `/tmp` copy (never mutates tracked `prisma/dev.db` locally)
   if (process.env.VERCEL || process.env.VF_GOVERNANCE_PRISMA === '1') {
     try {
       await prisma.$executeRawUnsafe(`
@@ -218,7 +225,7 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
             typeof r.pin_hash === 'string' && r.pin_hash.startsWith('vfh1_')
               ? r.pin_hash
               : DEFAULT_MASTER_PIN_HASH,
-          seededOnly: false,
+          initialEmpty: false,
           updatedAtIso: r.updated_at || new Date().toISOString(),
           backend: 'prisma',
         }
@@ -230,7 +237,6 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
     }
   }
 
-  // 3. Resilient server memory + `os.tmpdir()` state
   return readTmpFallback()
 }
 
@@ -244,7 +250,10 @@ async function saveEnvelopeToDatabase(
     updatedAtIso: nowIso,
   }
   const safePinHash =
-    typeof pinHash === 'string' && pinHash.startsWith('vfh1_') ? pinHash : DEFAULT_MASTER_PIN_HASH
+    typeof pinHash === 'string' &&
+    (pinHash.startsWith('vfh1_') || pinHash.startsWith('vfsha256_'))
+      ? pinHash
+      : DEFAULT_MASTER_PIN_HASH
 
   let backend: ServerGovernanceEnvelope['backend'] = 'server-cache'
 
@@ -310,12 +319,252 @@ async function saveEnvelopeToDatabase(
   const saved: ServerGovernanceEnvelope = {
     store: stampedStore,
     pinHash: safePinHash,
-    seededOnly: false,
+    initialEmpty: false,
     updatedAtIso: nowIso,
     backend,
   }
   writeTmpFallback(saved)
   return saved
+}
+
+function normalizeOdooWebBaseUrl(): string | null {
+  const raw = (process.env.ODOO_URL ?? '').trim().replace(/\/+$/, '')
+  if (!raw || !/^https?:\/\//i.test(raw)) return null
+  return raw
+}
+
+function defaultKuwait30dWindow(): { from: string; to: string } {
+  const kuwaitNowMs = Date.now() + 3 * 3600 * 1000
+  const toDt = new Date(kuwaitNowMs)
+  const fromDt = new Date(kuwaitNowMs - 29 * 86_400_000)
+  return {
+    from: fromDt.toISOString().slice(0, 10),
+    to: toDt.toISOString().slice(0, 10),
+  }
+}
+
+/**
+ * Evaluates live Odoo breaches strictly against admin-saved server thresholds (`store.adminThresholds`).
+ * Never uses code constants; returns `0` breaches when no admin threshold is configured or when Odoo has no violation.
+ */
+async function evaluateServerLiveOdooBreaches(
+  store: PersistedGovernanceStore,
+  requestedPeriod?: { from?: string; to?: string },
+): Promise<ComplianceBreachItem[]> {
+  const thresholds = store.adminThresholds ?? {}
+  const discountRule = thresholds.posDiscountPctCap
+  const supplierRule = thresholds.supplierOrderTotalCapKwd
+  const commissionRule = thresholds.aggregatorCommissionPctCap
+
+  const anyEnabled = Boolean(
+    (discountRule?.enabled && Number.isFinite(discountRule.thresholdValue)) ||
+      (supplierRule?.enabled && Number.isFinite(supplierRule.thresholdValue)) ||
+      (commissionRule?.enabled && Number.isFinite(commissionRule.thresholdValue)),
+  )
+  if (!anyEnabled) return []
+
+  const odooBaseUrl = normalizeOdooWebBaseUrl()
+  if (!odooBaseUrl) return []
+
+  const fallbackWin = defaultKuwait30dWindow()
+  const fromIso =
+    requestedPeriod?.from && /^\d{4}-\d{2}-\d{2}$/.test(requestedPeriod.from)
+      ? requestedPeriod.from
+      : fallbackWin.from
+  const toIso =
+    requestedPeriod?.to && /^\d{4}-\d{2}-\d{2}$/.test(requestedPeriod.to)
+      ? requestedPeriod.to
+      : fallbackWin.to
+  const period = fromIso <= toIso ? { from: fromIso, to: toIso } : { from: toIso, to: fromIso }
+
+  const out: ComplianceBreachItem[] = []
+
+  if (
+    (discountRule?.enabled && Number.isFinite(discountRule.thresholdValue)) ||
+    (commissionRule?.enabled && Number.isFinite(commissionRule.thresholdValue))
+  ) {
+    try {
+      const cube = await fetchLiveOdooPeriodCube(period.from, period.to)
+      if (cube.connected && !cube.noData && cube.totals.netSalesKwd > 0) {
+        if (discountRule?.enabled && Number.isFinite(discountRule.thresholdValue)) {
+          const computedPct =
+            Math.round((cube.totals.totalDiscountKwd / cube.totals.netSalesKwd) * 10000) / 100
+          if (computedPct > discountRule.thresholdValue) {
+            const topProd = cube.topProducts.find((p) => p.discountKwd > 0)
+            const odooDomain = [
+              ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+              ['discount', '>', 0],
+              ['order_id.date_order', '>=', `${period.from} 00:00:00`],
+              ['order_id.date_order', '<=', `${period.to} 23:59:59`],
+            ]
+            const odooRecordUrl = topProd
+              ? `${odooBaseUrl}/web#id=${topProd.productId}&model=product.product&view_type=form`
+              : `${odooBaseUrl}/web#model=pos.order.line&view_type=list`
+            const excessKwd = Math.max(
+              0,
+              Math.round(
+                ((computedPct - discountRule.thresholdValue) / 100) * cube.totals.netSalesKwd,
+              ),
+            )
+            const id = 'live-breach-pos-discount-cap'
+            out.push({
+              id,
+              category: 'discount-cap',
+              severity: 'critical',
+              odooModel: 'pos.order.line',
+              odooDomain,
+              period,
+              odooRecordUrl,
+              computedValue: computedPct,
+              adminThreshold: discountRule.thresholdValue,
+              breachKind: 'financial-bleed',
+              approvedDecisionTitleAr: `سقف خصومات نقاط البيع المعتمد من الأدمن (${discountRule.thresholdValue}%)`,
+              approvedDecisionTitleEn: `Admin-Saved POS Discount Cap (${discountRule.thresholdValue}%)`,
+              breachHeadlineAr: `تجاوز خصومات نقاط البيع: ${computedPct}% مقابل السقف المحفوظ (${discountRule.thresholdValue}%)`,
+              breachHeadlineEn: `POS Discount Cap Exceeded: ${computedPct}% vs ${discountRule.thresholdValue}% threshold`,
+              odooMetricProofAr: `موديل pos.order.line (${period.from} → ${period.to}): خصومات ${cube.totals.totalDiscountKwd.toLocaleString('en-US')} د.ك من مبيعات ${cube.totals.netSalesKwd.toLocaleString('en-US')} د.ك`,
+              odooMetricProofEn: `Model pos.order.line (${period.from} -> ${period.to}): ${cube.totals.totalDiscountKwd.toLocaleString('en-US')} KWD discounts on ${cube.totals.netSalesKwd.toLocaleString('en-US')} KWD sales`,
+              approvedRuleLimitAr: `السقف الإداري المحفوظ على الخادم: ≤ ${discountRule.thresholdValue}%`,
+              approvedRuleLimitEn: `Server Admin Threshold: <= ${discountRule.thresholdValue}%`,
+              monthlyLeakKwd: excessKwd,
+              affectedScopeAr: 'نقاط البيع الفعالة في Odoo',
+              affectedScopeEn: 'Active Odoo POS Registers',
+              href: '/erp/cores?tab=sales',
+              frozen: Boolean(store.frozenBreachIds[id]),
+              frozenAtIso: store.frozenBreachIds[id],
+              stopDirectiveAr: `أمر تجميد خصومات يتجاوز السقف المحفوظ (${discountRule.thresholdValue}%) للفترة ${period.from} → ${period.to} (القيمة المحسوبة من Odoo: ${computedPct}%).`,
+              stopDirectiveEn: `Freeze POS discounts exceeding admin threshold (${discountRule.thresholdValue}%) for ${period.from} -> ${period.to} (Odoo computed: ${computedPct}%).`,
+            })
+          }
+        }
+
+        if (
+          commissionRule?.enabled &&
+          Number.isFinite(commissionRule.thresholdValue) &&
+          cube.accounting &&
+          !cube.accounting.aggregatorCommissionUnposted &&
+          cube.accounting.income > 0
+        ) {
+          const commKwd = cube.accounting.deliveryCommissions ?? 0
+          const computedCommPct = Math.round((commKwd / cube.accounting.income) * 10000) / 100
+          if (computedCommPct > commissionRule.thresholdValue) {
+            const odooDomain = [
+              ['parent_state', '=', 'posted'],
+              ['date', '>=', period.from],
+              ['date', '<=', period.to],
+            ]
+            const odooRecordUrl = `${odooBaseUrl}/web#model=account.move.line&view_type=list`
+            const excessKwd = Math.max(
+              0,
+              Math.round(
+                ((computedCommPct - commissionRule.thresholdValue) / 100) * cube.accounting.income,
+              ),
+            )
+            const id = 'live-breach-aggregator-commission-cap'
+            out.push({
+              id,
+              category: 'aggregator-promo-cap',
+              severity: 'high',
+              odooModel: 'account.move.line',
+              odooDomain,
+              period,
+              odooRecordUrl,
+              computedValue: computedCommPct,
+              adminThreshold: commissionRule.thresholdValue,
+              breachKind: 'financial-bleed',
+              approvedDecisionTitleAr: `سقف نسبة عمولات المنصات المرحّلة (${commissionRule.thresholdValue}%)`,
+              approvedDecisionTitleEn: `Admin-Saved Posted Aggregator Commission Cap (${commissionRule.thresholdValue}%)`,
+              breachHeadlineAr: `تجاوز نسبة عمولات التوصيل المرحّلة: ${computedCommPct}% مقابل السقف (${commissionRule.thresholdValue}%)`,
+              breachHeadlineEn: `Posted Aggregator Commission Exceeded: ${computedCommPct}% vs ${commissionRule.thresholdValue}%`,
+              odooMetricProofAr: `موديل account.move.line (${period.from} → ${period.to}): عمولات مرحّلة ${commKwd.toLocaleString('en-US')} د.ك`,
+              odooMetricProofEn: `Model account.move.line (${period.from} -> ${period.to}): ${commKwd.toLocaleString('en-US')} KWD posted commissions`,
+              approvedRuleLimitAr: `السقف الإداري المحفوظ على الخادم: ≤ ${commissionRule.thresholdValue}%`,
+              approvedRuleLimitEn: `Server Admin Threshold: <= ${commissionRule.thresholdValue}%`,
+              monthlyLeakKwd: excessKwd,
+              affectedScopeAr: 'قيود عمولات منصات التوصيل المرحّلة',
+              affectedScopeEn: 'Posted Aggregator Commission Journal Items',
+              href: '/erp/aggregator-radar',
+              frozen: Boolean(store.frozenBreachIds[id]),
+              frozenAtIso: store.frozenBreachIds[id],
+              stopDirectiveAr: `مراجعة قيود عمولات المنصات للفترة ${period.from} → ${period.to} (${computedCommPct}% مقابل سقف ${commissionRule.thresholdValue}%).`,
+              stopDirectiveEn: `Review posted aggregator commission entries for ${period.from} -> ${period.to} (${computedCommPct}% vs ${commissionRule.thresholdValue}% cap).`,
+            })
+          }
+        }
+      }
+    } catch {
+      // Never fabricate breaches on Odoo connectivity error
+    }
+  }
+
+  if (supplierRule?.enabled && Number.isFinite(supplierRule.thresholdValue)) {
+    try {
+      const po = await fetchLiveOdooPurchaseOrders(period.from, period.to)
+      if (po.connected && !po.noData && po.totals.totalUntaxedKwd > supplierRule.thresholdValue) {
+        const topVendor = po.byVendor[0]
+        const odooDomain = [
+          ['state', 'in', ['purchase', 'done']],
+          ['date_order', '>=', `${period.from} 00:00:00`],
+          ['date_order', '<=', `${period.to} 23:59:59`],
+        ]
+        const odooRecordUrl = topVendor?.partnerId
+          ? `${odooBaseUrl}/web#id=${topVendor.partnerId}&model=res.partner&view_type=form`
+          : `${odooBaseUrl}/web#model=purchase.order&view_type=list`
+        const overrunKwd = Math.max(
+          0,
+          Math.round(po.totals.totalUntaxedKwd - supplierRule.thresholdValue),
+        )
+        const id = 'live-breach-purchase-cap'
+        out.push({
+          id,
+          category: 'ardiya-supplier-cost',
+          severity: 'high',
+          odooModel: 'purchase.order.line',
+          odooDomain,
+          period,
+          odooRecordUrl,
+          computedValue: Math.round(po.totals.totalUntaxedKwd * 1000) / 1000,
+          adminThreshold: supplierRule.thresholdValue,
+          breachKind: 'procedural-cap-overrun',
+          capOverrunKwd: overrunKwd,
+          approvedDecisionTitleAr: `سقف أوامر الشراء المحفوظ من الأدمن (${supplierRule.thresholdValue.toLocaleString('en-US')} د.ك)`,
+          approvedDecisionTitleEn: `Admin-Saved Purchase Order Cap (${supplierRule.thresholdValue.toLocaleString('en-US')} KWD)`,
+          breachHeadlineAr: `تجاوز إجمالي أوامر الشراء المؤكدة: ${po.totals.totalUntaxedKwd.toLocaleString('en-US')} د.ك مقابل السقف (${supplierRule.thresholdValue.toLocaleString('en-US')} د.ك)`,
+          breachHeadlineEn: `Confirmed Purchase Orders Exceeded Cap: ${po.totals.totalUntaxedKwd.toLocaleString('en-US')} KWD vs ${supplierRule.thresholdValue.toLocaleString('en-US')} KWD`,
+          odooMetricProofAr: `موديل purchase.order.line (${period.from} → ${period.to}): ${po.totals.ordersCount} أمر شراء مؤكد`,
+          odooMetricProofEn: `Model purchase.order.line (${period.from} -> ${period.to}): ${po.totals.ordersCount} confirmed purchase orders`,
+          approvedRuleLimitAr: `السقف الإداري المحفوظ على الخادم: ≤ ${supplierRule.thresholdValue.toLocaleString('en-US')} د.ك`,
+          approvedRuleLimitEn: `Server Admin Threshold: <= ${supplierRule.thresholdValue.toLocaleString('en-US')} KWD`,
+          monthlyLeakKwd: overrunKwd,
+          affectedScopeAr: 'المشتريات والموردون في Odoo',
+          affectedScopeEn: 'Odoo Purchasing & Vendors',
+          href: '/erp/cost-intelligence',
+          frozen: Boolean(store.frozenBreachIds[id]),
+          frozenAtIso: store.frozenBreachIds[id],
+          stopDirectiveAr: `إيقاف اعتماد أوامر شراء إضافية فوق السقف المحفوظ (${supplierRule.thresholdValue.toLocaleString('en-US')} د.ك) للفترة ${period.from} → ${period.to}.`,
+          stopDirectiveEn: `Hold additional purchase orders exceeding admin cap (${supplierRule.thresholdValue.toLocaleString('en-US')} KWD) for ${period.from} -> ${period.to}.`,
+        })
+      }
+    } catch {
+      // Never fabricate breaches on Odoo connectivity error
+    }
+  }
+
+  return out.filter((b) => isVerifiedOdooGovernanceBreach(b))
+}
+
+function appendAuditEntry(
+  store: PersistedGovernanceStore,
+  entry: Omit<GovernanceAuditLogEntry, 'id' | 'timestampIso'>,
+  nowIso: string,
+): GovernanceAuditLogEntry[] {
+  const existing = Array.isArray(store.auditLog) ? store.auditLog : []
+  const record: GovernanceAuditLogEntry = {
+    id: `gov-audit-${Date.now()}-${existing.length + 1}`,
+    timestampIso: nowIso,
+    ...entry,
+  }
+  return [record, ...existing].slice(0, 200)
 }
 
 const GOVERNANCE_RESPONSE_HEADERS = ENTERPRISE_API_SECURITY_HEADERS
@@ -406,36 +655,15 @@ function stampIncomingStoreWithApprover(
     return item
   })
 
-  const stampedCirculars: Record<string, IssuedCircularRecord> = {
-    ...incoming.issuedCirculars,
-  }
-  for (const [key, rec] of Object.entries(stampedCirculars)) {
-    if (!rec) continue
-    const prevRec = previous.issuedCirculars[key]
-    const newlyIssued = !prevRec || prevRec.sealId !== rec.sealId
-    if (newlyIssued || !rec.approverRole) {
-      const roleToStamp = newlyIssued
-        ? approverRole
-        : toExecApproverRole(rec.approverRole ?? approverRole)
-      const roleProfile =
-        roleToStamp === approverRole
-          ? profile
-          : resolveExecRoleProfile(roleToStamp)
-      stampedCirculars[key] = {
-        ...rec,
-        approverRole: roleToStamp,
-        approverRoleAr: roleProfile.approverRoleAr,
-        approverRoleEn: roleProfile.approverRoleEn,
-        approvedByAr: roleProfile.sealAuthorityAr,
-        approvedByEn: roleProfile.sealAuthorityEn,
-      }
-    }
-  }
-
+  // Server retains authority over issuedCirculars, adminThresholds, liveBreaches, and auditLog
   return {
     ...incoming,
     approvals: stampedApprovals,
-    issuedCirculars: stampedCirculars,
+    issuedCirculars: previous.issuedCirculars,
+    adminThresholds: previous.adminThresholds,
+    liveBreaches: previous.liveBreaches,
+    auditLog: previous.auditLog,
+    frozenBreachIds: previous.frozenBreachIds,
   }
 }
 
@@ -444,13 +672,26 @@ export async function GET(request: NextRequest) {
   if (!authGuard.ok) return authGuard.response
 
   const env = await loadEnvelopeFromDatabase()
+  const fromParam = request.nextUrl.searchParams.get('from') ?? undefined
+  const toParam = request.nextUrl.searchParams.get('to') ?? undefined
+  const liveBreaches = await evaluateServerLiveOdooBreaches(env.store, {
+    from: fromParam,
+    to: toParam,
+  })
+  const storeWithLiveBreaches: PersistedGovernanceStore = {
+    ...env.store,
+    liveBreaches,
+  }
+
   return NextResponse.json(
     {
       ok: true,
       backend: env.backend,
-      seededOnly: env.seededOnly,
+      initialEmpty: env.initialEmpty,
       updatedAtIso: env.updatedAtIso,
-      store: env.store,
+      breachesCount: liveBreaches.length,
+      breaches: liveBreaches,
+      store: storeWithLiveBreaches,
     },
     { headers: GOVERNANCE_RESPONSE_HEADERS },
   )
@@ -523,13 +764,22 @@ export async function POST(request: NextRequest) {
       ? stampIncomingStoreWithApprover(normalizedIncoming, current.store, approverRole)
       : current.store
     const merged = mergeGovernanceStores(incomingStore, current.store)
+    const liveBreaches = await evaluateServerLiveOdooBreaches(merged)
+    const finalStore: PersistedGovernanceStore = {
+      ...merged,
+      adminThresholds: current.store.adminThresholds ?? {},
+      issuedCirculars: current.store.issuedCirculars ?? {},
+      frozenBreachIds: current.store.frozenBreachIds ?? {},
+      auditLog: current.store.auditLog ?? [],
+      liveBreaches,
+    }
     const nextPinHash =
       typeof body?.pinHash === 'string' &&
       (body.pinHash.startsWith('vfh1_') || body.pinHash.startsWith('vfsha256_'))
         ? body.pinHash
         : current.pinHash
 
-    const saved = await saveEnvelopeToDatabase(merged, nextPinHash)
+    const saved = await saveEnvelopeToDatabase(finalStore, nextPinHash)
     return NextResponse.json(
       {
         ok: true,
@@ -551,11 +801,20 @@ export async function PATCH(request: NextRequest) {
   const authGuard = await requireExecApiSession(request, { allowAuditor: false })
   if (!authGuard.ok) return authGuard.response
 
+  if (!isExecutiveGovernanceRole(authGuard.session.role)) {
+    return NextResponse.json(
+      { ok: false, error: 'Executive role (admin/gm/dgm/cfo/ops) required' },
+      { status: 403, headers: GOVERNANCE_RESPONSE_HEADERS },
+    )
+  }
+
   try {
     const body = (await request.json()) as {
       action?: string
       pinHash?: string
       approverRole?: ExecApproverRole
+      confirmedByExecutive?: boolean
+      adminThresholds?: Partial<GovernanceAdminThresholds>
       approval?: GovernanceApprovalRequest
       approvalId?: string
       rejectionNote?: string
@@ -576,6 +835,75 @@ export async function PATCH(request: NextRequest) {
     const nowIso = new Date().toISOString()
 
     switch (body.action) {
+      case 'saveThresholds': {
+        if (authGuard.session.role !== 'admin') {
+          return NextResponse.json(
+            { ok: false, error: 'Only admin can configure governance thresholds' },
+            { status: 403, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const incoming = body.adminThresholds ?? {}
+        const nextThresholds: GovernanceAdminThresholds = {
+          ...(nextStore.adminThresholds ?? {}),
+        }
+        if (incoming.posDiscountPctCap) {
+          const val = Number(incoming.posDiscountPctCap.thresholdValue)
+          if (Number.isFinite(val) && val >= 0) {
+            nextThresholds.posDiscountPctCap = {
+              enabled: Boolean(incoming.posDiscountPctCap.enabled),
+              thresholdValue: val,
+              odooModel: 'pos.order.line',
+              updatedAtIso: nowIso,
+              updatedBySub: authGuard.session.sub,
+              updatedByRole: serverApproverRole,
+            }
+          }
+        }
+        if (incoming.supplierOrderTotalCapKwd) {
+          const val = Number(incoming.supplierOrderTotalCapKwd.thresholdValue)
+          if (Number.isFinite(val) && val >= 0) {
+            nextThresholds.supplierOrderTotalCapKwd = {
+              enabled: Boolean(incoming.supplierOrderTotalCapKwd.enabled),
+              thresholdValue: val,
+              odooModel: 'purchase.order.line',
+              updatedAtIso: nowIso,
+              updatedBySub: authGuard.session.sub,
+              updatedByRole: serverApproverRole,
+            }
+          }
+        }
+        if (incoming.aggregatorCommissionPctCap) {
+          const val = Number(incoming.aggregatorCommissionPctCap.thresholdValue)
+          if (Number.isFinite(val) && val >= 0) {
+            nextThresholds.aggregatorCommissionPctCap = {
+              enabled: Boolean(incoming.aggregatorCommissionPctCap.enabled),
+              thresholdValue: val,
+              odooModel: 'account.move.line',
+              updatedAtIso: nowIso,
+              updatedBySub: authGuard.session.sub,
+              updatedByRole: serverApproverRole,
+            }
+          }
+        }
+        nextStore = {
+          ...nextStore,
+          adminThresholds: nextThresholds,
+          auditLog: appendAuditEntry(
+            nextStore,
+            {
+              actorSub: authGuard.session.sub,
+              actorRole: serverApproverRole,
+              action: 'saveThresholds',
+              targetId: 'adminThresholds',
+              confirmedByExecutive: true,
+              summaryAr: 'حفظ سقوف التنبيهات الإدارية على الخادم',
+              summaryEn: 'Saved server admin governance thresholds',
+            },
+            nowIso,
+          ),
+        }
+        break
+      }
       case 'updatePinHash': {
         if (typeof body.pinHash === 'string' && body.pinHash.startsWith('vfh1_')) {
           nextPinHash = body.pinHash
@@ -602,6 +930,19 @@ export async function PATCH(request: NextRequest) {
                 ? { ...a, status: 'approved', seal, updatedAtIso: seal.approvedAtIso }
                 : a,
             ),
+            auditLog: appendAuditEntry(
+              nextStore,
+              {
+                actorSub: authGuard.session.sub,
+                actorRole: serverApproverRole,
+                action: 'approveRequest',
+                targetId: body.approvalId,
+                confirmedByExecutive: Boolean(body.confirmedByExecutive),
+                summaryAr: `اعتماد طلب حوكمة (${body.approvalId})`,
+                summaryEn: `Approved governance request (${body.approvalId})`,
+              },
+              nowIso,
+            ),
           }
         }
         break
@@ -620,31 +961,93 @@ export async function PATCH(request: NextRequest) {
                   }
                 : a,
             ),
+            auditLog: appendAuditEntry(
+              nextStore,
+              {
+                actorSub: authGuard.session.sub,
+                actorRole: serverApproverRole,
+                action: 'rejectRequest',
+                targetId: body.approvalId,
+                confirmedByExecutive: Boolean(body.confirmedByExecutive),
+                summaryAr: `رفض طلب حوكمة (${body.approvalId})`,
+                summaryEn: `Rejected governance request (${body.approvalId})`,
+              },
+              nowIso,
+            ),
           }
         }
         break
       }
       case 'freezeBreach': {
-        if (body.breachId) {
-          const nextResolved = { ...nextStore.resolvedBreachIds }
-          delete nextResolved[body.breachId]
-          nextStore = {
-            ...nextStore,
-            frozenBreachIds: { ...nextStore.frozenBreachIds, [body.breachId]: nowIso },
-            resolvedBreachIds: nextResolved,
-          }
+        if (body.confirmedByExecutive !== true) {
+          return NextResponse.json(
+            { ok: false, error: 'Explicit executive confirmation is required to freeze a breach' },
+            { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const liveBreaches = await evaluateServerLiveOdooBreaches(nextStore)
+        const verifiedTarget = liveBreaches.find(
+          (b) => b.id === body.breachId && isVerifiedOdooGovernanceBreach(b),
+        )
+        if (!body.breachId || !verifiedTarget) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error:
+                'Cannot freeze: no verified live Odoo breach with admin-saved threshold exists',
+            },
+            { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const nextResolved = { ...nextStore.resolvedBreachIds }
+        delete nextResolved[body.breachId]
+        nextStore = {
+          ...nextStore,
+          liveBreaches,
+          frozenBreachIds: { ...nextStore.frozenBreachIds, [body.breachId]: nowIso },
+          resolvedBreachIds: nextResolved,
+          auditLog: appendAuditEntry(
+            nextStore,
+            {
+              actorSub: authGuard.session.sub,
+              actorRole: serverApproverRole,
+              action: 'freezeBreach',
+              targetId: body.breachId,
+              confirmedByExecutive: true,
+              summaryAr: `إيقاف وتجميد مخالفة Odoo مؤكدة (${verifiedTarget.odooModel}: ${verifiedTarget.computedValue} > ${verifiedTarget.adminThreshold})`,
+              summaryEn: `Froze verified Odoo breach (${verifiedTarget.odooModel}: ${verifiedTarget.computedValue} > ${verifiedTarget.adminThreshold})`,
+            },
+            nowIso,
+          ),
         }
         break
       }
       case 'unfreezeBreach': {
-        if (body.breachId) {
-          const nextFrozen = { ...nextStore.frozenBreachIds }
-          delete nextFrozen[body.breachId]
-          nextStore = {
-            ...nextStore,
-            frozenBreachIds: nextFrozen,
-            resolvedBreachIds: { ...nextStore.resolvedBreachIds, [body.breachId]: nowIso },
-          }
+        if (body.confirmedByExecutive !== true || !body.breachId) {
+          return NextResponse.json(
+            { ok: false, error: 'Explicit executive confirmation is required' },
+            { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const nextFrozen = { ...nextStore.frozenBreachIds }
+        delete nextFrozen[body.breachId]
+        nextStore = {
+          ...nextStore,
+          frozenBreachIds: nextFrozen,
+          resolvedBreachIds: { ...nextStore.resolvedBreachIds, [body.breachId]: nowIso },
+          auditLog: appendAuditEntry(
+            nextStore,
+            {
+              actorSub: authGuard.session.sub,
+              actorRole: serverApproverRole,
+              action: 'unfreezeBreach',
+              targetId: body.breachId,
+              confirmedByExecutive: true,
+              summaryAr: `فك تجميد مخالفة (${body.breachId})`,
+              summaryEn: `Unfroze breach (${body.breachId})`,
+            },
+            nowIso,
+          ),
         }
         break
       }
@@ -673,27 +1076,56 @@ export async function PATCH(request: NextRequest) {
         break
       }
       case 'issueCircular': {
-        if (body.circularKey && body.circularRecord) {
-          const serialRef =
-            body.circularRecord.serialRef ?? buildCircularSerialRef(body.circularKey)
-          const sealRef = createDigitalSeal(serverApproverRole)
-          nextStore = {
-            ...nextStore,
-            issuedCirculars: {
-              ...nextStore.issuedCirculars,
-              [body.circularKey]: {
-                ...body.circularRecord,
-                serialRef,
-                sealId: body.circularRecord.sealId || sealRef.sealId,
-                issuedAtIso: body.circularRecord.issuedAtIso || sealRef.approvedAtIso,
-                approverRole: serverApproverRole,
-                approverRoleAr: approverProfile.approverRoleAr,
-                approverRoleEn: approverProfile.approverRoleEn,
-                approvedByAr: approverProfile.sealAuthorityAr,
-                approvedByEn: approverProfile.sealAuthorityEn,
-              },
+        if (body.confirmedByExecutive !== true) {
+          return NextResponse.json(
+            { ok: false, error: 'Explicit executive confirmation is required to issue a circular' },
+            { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const liveBreaches = await evaluateServerLiveOdooBreaches(nextStore)
+        if (liveBreaches.length === 0 || !body.circularKey || !body.circularRecord) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error:
+                'Official circular issuance is disabled until live Odoo breaches with admin-saved thresholds exist',
             },
-          }
+            { status: 400, headers: GOVERNANCE_RESPONSE_HEADERS },
+          )
+        }
+        const serialRef =
+          body.circularRecord.serialRef ?? buildCircularSerialRef(body.circularKey)
+        const sealRef = createDigitalSeal(serverApproverRole)
+        nextStore = {
+          ...nextStore,
+          liveBreaches,
+          issuedCirculars: {
+            ...nextStore.issuedCirculars,
+            [body.circularKey]: {
+              ...body.circularRecord,
+              serialRef,
+              sealId: body.circularRecord.sealId || sealRef.sealId,
+              issuedAtIso: body.circularRecord.issuedAtIso || sealRef.approvedAtIso,
+              approverRole: serverApproverRole,
+              approverRoleAr: approverProfile.approverRoleAr,
+              approverRoleEn: approverProfile.approverRoleEn,
+              approvedByAr: approverProfile.sealAuthorityAr,
+              approvedByEn: approverProfile.sealAuthorityEn,
+            },
+          },
+          auditLog: appendAuditEntry(
+            nextStore,
+            {
+              actorSub: authGuard.session.sub,
+              actorRole: serverApproverRole,
+              action: 'issueCircular',
+              targetId: body.circularKey,
+              confirmedByExecutive: true,
+              summaryAr: `إصدار تعميم رسمي (${serialRef}) بتأكيد تنفيذي`,
+              summaryEn: `Issued official circular (${serialRef}) with executive confirmation`,
+            },
+            nowIso,
+          ),
         }
         break
       }
@@ -701,12 +1133,18 @@ export async function PATCH(request: NextRequest) {
         break
     }
 
-    const saved = await saveEnvelopeToDatabase(nextStore, nextPinHash)
+    const refreshedBreaches = await evaluateServerLiveOdooBreaches(nextStore)
+    const saved = await saveEnvelopeToDatabase(
+      { ...nextStore, liveBreaches: refreshedBreaches },
+      nextPinHash,
+    )
     return NextResponse.json(
       {
         ok: true,
         backend: saved.backend,
         updatedAtIso: saved.updatedAtIso,
+        breachesCount: refreshedBreaches.length,
+        breaches: refreshedBreaches,
         store: saved.store,
       },
       { headers: GOVERNANCE_RESPONSE_HEADERS },

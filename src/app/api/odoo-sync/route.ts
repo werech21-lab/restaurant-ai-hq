@@ -153,7 +153,11 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
         })
       : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
     const customBkt =
-      periodParam === 'custom' && fromParam && toParam && !baseRoPayload.customBucket
+      baseRoPayload.connected &&
+      periodParam === 'custom' &&
+      fromParam &&
+      toParam &&
+      !baseRoPayload.customBucket
         ? await fetchLiveOdooCustomBucket(fromParam, toParam, nowMs)
         : undefined
     const roPayload = customBkt ? { ...baseRoPayload, customBucket: customBkt } : baseRoPayload
@@ -186,12 +190,14 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
     referenceNowMs: Date.now(),
   })
 
-  const staleTelemetry = await dispatchAdminStalenessAlertIfNeeded({
-    hoursSinceLatestRecord: payload.hoursSinceLatestRecord,
-    isStaleOver24h: payload.isStaleOver24h,
-    latestRecordAt: payload.latestRecordAt,
-    kuwaitTimestamp: payload.kuwaitSyncedAt,
-  })
+  const staleTelemetry = payload.connected
+    ? await dispatchAdminStalenessAlertIfNeeded({
+        hoursSinceLatestRecord: payload.hoursSinceLatestRecord,
+        isStaleOver24h: payload.isStaleOver24h,
+        latestRecordAt: payload.latestRecordAt,
+        kuwaitTimestamp: payload.kuwaitSyncedAt,
+      })
+    : { adminAlertDispatched: false, channels: [] as string[] }
 
   const isAdminCaller = caller.role === 'admin'
   const { diagnosticCode, envConfigured, unmappedTerminals, ...restPayload } = payload
@@ -285,12 +291,14 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
     referenceNowMs: Date.now(),
   })
 
-  const staleTelemetry = await dispatchAdminStalenessAlertIfNeeded({
-    hoursSinceLatestRecord: syncedPayload.hoursSinceLatestRecord,
-    isStaleOver24h: syncedPayload.isStaleOver24h,
-    latestRecordAt: syncedPayload.latestRecordAt,
-    kuwaitTimestamp: syncedPayload.kuwaitSyncedAt,
-  })
+  const staleTelemetry = syncedPayload.connected
+    ? await dispatchAdminStalenessAlertIfNeeded({
+        hoursSinceLatestRecord: syncedPayload.hoursSinceLatestRecord,
+        isStaleOver24h: syncedPayload.isStaleOver24h,
+        latestRecordAt: syncedPayload.latestRecordAt,
+        kuwaitTimestamp: syncedPayload.kuwaitSyncedAt,
+      })
+    : { adminAlertDispatched: false, channels: [] as string[] }
 
   const isAdminCaller = caller.role === 'admin'
   const {

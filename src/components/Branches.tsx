@@ -8,7 +8,7 @@ import { useI18n, type MessageKey } from '@/lib/i18n'
 const chartSeed: Array<{ area: MessageKey; margin: number; fill: string }> = [
   { area: 'area.salmiya', margin: 35.6, fill: '#3fb950' },
   { area: 'area.shuwaikh', margin: 28.2, fill: '#58a6ff' },
-  { area: 'area.hawally', margin: 24.1, fill: '#f85149' },
+  { area: 'area.promenade', margin: 24.1, fill: '#f85149' },
 ]
 
 const tableSeed: Array<{
@@ -22,7 +22,7 @@ const tableSeed: Array<{
 }> = [
   { area: 'area.shuwaikh', code: '01', brand: 'brand.burger', revenue: 28400, margin: 28.2, status: 'status.mid', tone: 'text-yellow-400' },
   { area: 'area.salmiya', code: '03', brand: 'brand.pizza', revenue: 34100, margin: 35.6, status: 'status.great', tone: 'text-green-400' },
-  { area: 'area.hawally', code: '05', brand: 'brand.burger', revenue: 22600, margin: 24.1, status: 'status.weak', tone: 'text-red-400' },
+  { area: 'area.promenade', code: '05', brand: 'brand.burger', revenue: 22600, margin: 24.1, status: 'status.weak', tone: 'text-red-400' },
 ]
 
 const shell = 'rounded-xl border border-[#30363d] bg-[#1c2128]'

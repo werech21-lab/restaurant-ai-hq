@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Check,
   CheckCircle2,
   Copy,
+  ExternalLink,
   FileCheck2,
   Lock,
   MessageCircle,
@@ -17,6 +18,7 @@ import { useI18n } from '@/lib/i18n'
 import { APPROVED_BRANCH_IDS, getBranchLabel, type GlobalBranch } from '@/lib/aether/global-filter-engine'
 import {
   buildCircularSerialRef,
+  evaluateLiveOdooBreaches,
   type OfficialCircularDocument,
   type PersistedGovernanceStore,
 } from '@/lib/governance-compliance'
@@ -60,6 +62,22 @@ export function OfficialCircularPrintModal({
     }
   }, [open, onClose])
 
+  const liveBreaches = useMemo(() => evaluateLiveOdooBreaches(store), [store])
+  const hasRealOdooBreachBacking = useMemo(() => {
+    if (!doc) return false
+    if (
+      doc.odooRecordUrl &&
+      doc.odooModel &&
+      typeof doc.adminThreshold === 'number' &&
+      Number.isFinite(doc.adminThreshold) &&
+      typeof doc.computedValue === 'number' &&
+      Number.isFinite(doc.computedValue)
+    ) {
+      return true
+    }
+    return liveBreaches.length > 0
+  }, [doc, liveBreaches.length])
+
   if (!mounted || !open || !doc) return null
 
   const issuedMeta = store.issuedCirculars[doc.circularKey]
@@ -89,7 +107,7 @@ export function OfficialCircularPrintModal({
         `• الموضوع: ${doc.titleAr}`,
         `• النطاق: ${doc.scopeAr}`,
         doc.financialSummaryAr ? `• الضوابط المالية: ${doc.financialSummaryAr}` : null,
-        `• القواعد الإلزامية في أودو ١٧:`,
+        `• القواعد الإلزامية:`,
         ...doc.mandatoryRulesAr.map((r, i) => `  ${i + 1}. ${r}`),
         activeSealId
           ? `• معتمد رسمياً (${activeApproverRoleAr ?? 'الإدارة التنفيذية'}) — الختم: ${activeSealId}`
@@ -103,16 +121,17 @@ export function OfficialCircularPrintModal({
         `• Subject: ${doc.titleEn}`,
         `• Scope: ${doc.scopeEn}`,
         doc.financialSummaryEn ? `• Financial Guardrails: ${doc.financialSummaryEn}` : null,
-        `• Mandatory Odoo 17 Rules:`,
+        `• Mandatory Rules:`,
         ...doc.mandatoryRulesEn.map((r, i) => `  ${i + 1}. ${r}`),
         activeSealId
-          ? `• Verified Executive Digital Seal (${activeApproverRoleEn ?? 'Executive Management'}): ${activeSealId}`
+          ? `• Executive Digital Seal (${activeApproverRoleEn ?? 'Executive Management'}): ${activeSealId}`
           : `• Status: Pending Executive PIN Seal`,
       ]
         .filter(Boolean)
         .join('\n')
 
   const handleCopy = async () => {
+    if (!hasRealOdooBreachBacking) return
     try {
       await navigator.clipboard.writeText(plainShareText)
       setCopied(true)
@@ -121,9 +140,13 @@ export function OfficialCircularPrintModal({
   }
 
   const handlePrint = () => {
-    if (typeof window === 'undefined') return
+    if (!hasRealOdooBreachBacking || typeof window === 'undefined') return
     window.print()
   }
+
+  const disabledReason = isAr
+    ? 'معطّل حتى تتوفر تنبيهات مبنية فعلياً من استعلامات Odoo حقيقية مع سقوف يحفظها الأدمن'
+    : 'Disabled until alerts are backed by real Odoo queries with admin-saved thresholds'
 
   return createPortal(
     <>
@@ -195,8 +218,10 @@ export function OfficialCircularPrintModal({
             {!activeSealId && onSealNow ? (
               <button
                 type="button"
-                onClick={() => onSealNow(doc)}
-                className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 dark:bg-amber-950/60 dark:text-amber-200"
+                disabled={!hasRealOdooBreachBacking}
+                title={!hasRealOdooBreachBacking ? disabledReason : undefined}
+                onClick={() => hasRealOdooBreachBacking && onSealNow(doc)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-amber-50 px-3.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-950/60 dark:text-amber-200"
               >
                 <Lock className="h-3.5 w-3.5" />
                 <span>{isAr ? 'اعتماد وختم بالـ PIN الآن 🔐' : 'Seal with Manager PIN 🔐'}</span>
@@ -205,17 +230,21 @@ export function OfficialCircularPrintModal({
 
             <button
               type="button"
+              disabled={!hasRealOdooBreachBacking}
+              title={!hasRealOdooBreachBacking ? disabledReason : undefined}
               onClick={handlePrint}
-              className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition-all duration-150 hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
+              className="btn-colored inline-flex h-9 items-center gap-1.5 rounded-full bg-emerald-600 px-4 text-xs font-semibold text-white transition-all duration-150 hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D]"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span>{isAr ? 'طباعة / تصدير PDF 🖨️' : 'Print / Save PDF 🖨️'}</span>
+              <span>{isAr ? 'طباعة / تصدير تعميم رسمي 🖨️' : 'Print / Export Official Circular 🖨️'}</span>
             </button>
 
             <button
               type="button"
+              disabled={!hasRealOdooBreachBacking}
+              title={!hasRealOdooBreachBacking ? disabledReason : undefined}
               onClick={() => void handleCopy()}
-              className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 dark:bg-[#09110E] dark:text-slate-200"
+              className="inline-flex h-9 items-center gap-1 rounded-full bg-[#F7F7F8] px-3 text-xs font-medium text-neutral-800 hover:bg-neutral-200/70 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#09110E] dark:text-slate-200"
             >
               {copied ? (
                 <>
@@ -230,15 +259,17 @@ export function OfficialCircularPrintModal({
               )}
             </button>
 
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(plainShareText)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-9 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
-            >
-              <MessageCircle className="h-3.5 w-3.5" />
-              <span>{isAr ? 'واتساب 📲' : 'WhatsApp 📲'}</span>
-            </a>
+            {hasRealOdooBreachBacking ? (
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(plainShareText)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-9 items-center gap-1 rounded-full bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span>{isAr ? 'واتساب 📲' : 'WhatsApp 📲'}</span>
+              </a>
+            ) : null}
 
             <button
               type="button"
@@ -251,13 +282,21 @@ export function OfficialCircularPrintModal({
           </div>
         </div>
 
+        {!hasRealOdooBreachBacking ? (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mb-3 w-full max-w-[850px] rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/70 dark:text-amber-200"
+          >
+            {disabledReason}
+          </div>
+        ) : null}
+
         {/* Crisp White A4 Corporate Letterhead Sheet */}
         <article
           id="vf-official-circular-sheet"
           onClick={(e) => e.stopPropagation()}
           className="w-full max-w-[850px] rounded-2xl bg-white p-6 text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.28)] sm:p-10"
         >
-          {/* 1. Corporate Letterhead Header */}
           <header className="flex flex-col justify-between gap-4 border-b-2 border-emerald-700 pb-5 sm:flex-row sm:items-start">
             <div className="space-y-1">
               <div className="inline-flex items-center gap-2">
@@ -270,8 +309,8 @@ export function OfficialCircularPrintModal({
                   </h1>
                   <p className="text-xs font-medium text-slate-500">
                     {isAr
-                      ? 'الإدارة التنفيذية والرقابة المالية والتشغيلية · نظام أودو ١٧ الموحد (الكويت)'
-                      : 'Executive Management & Financial Compliance · Odoo 17 Enterprise HQ (Kuwait)'}
+                      ? 'الإدارة التنفيذية والرقابة المالية والتشغيلية · نظام Odoo 17 (الكويت)'
+                      : 'Executive Management & Financial Governance · Odoo 17 Enterprise HQ (Kuwait)'}
                   </p>
                 </div>
               </div>
@@ -289,7 +328,6 @@ export function OfficialCircularPrintModal({
             </div>
           </header>
 
-          {/* 2. Subject & Scope Metadata Box */}
           <section className="mt-5 rounded-xl bg-[#F7F7F8] p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold text-emerald-900">
@@ -324,14 +362,27 @@ export function OfficialCircularPrintModal({
                 </div>
               ) : null}
             </div>
+
+            {doc.odooRecordUrl ? (
+              <div className="mt-2 border-t border-slate-200/80 pt-2 text-xs">
+                <a
+                  href={doc.odooRecordUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold text-emerald-800 hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>{isAr ? 'فتح السجل الفعلي في Odoo' : 'Open Record in Odoo'}</span>
+                </a>
+              </div>
+            ) : null}
           </section>
 
-          {/* 3. Mandatory Odoo 17 Compliance Rules */}
           <section className="mt-5 space-y-2.5">
             <h3 className="text-sm font-extrabold text-slate-950">
               {isAr
-                ? 'أولاً: الضوابط والقواعد التنفيذية الإلزامية (مراقبة آلياً في أودو ١٧)'
-                : 'I. Mandatory Executive & Odoo 17 Compliance Directives'}
+                ? 'أولاً: الضوابط والقواعد التنفيذية الإلزامية'
+                : 'I. Mandatory Executive Directives'}
             </h3>
             <ol className="space-y-2">
               {rulesList.map((rule, idx) => (
@@ -348,7 +399,6 @@ export function OfficialCircularPrintModal({
             </ol>
           </section>
 
-          {/* 4. Digital Executive PIN Approval Seal */}
           <section className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-12">
             <div className="rounded-xl bg-emerald-50/75 p-4 ring-1 ring-emerald-600/25 sm:col-span-7">
               <div className="flex items-center gap-2 text-emerald-900">
@@ -380,12 +430,12 @@ export function OfficialCircularPrintModal({
                     {isAr
                       ? (activeApprovedByAr ??
                         (activeApproverRoleAr
-                          ? `${activeApproverRoleAr} — شركة فنتشر فودز (تحقق برمز PIN الموثق)`
-                          : 'الإدارة التنفيذية — شركة فنتشر فودز (تحقق برمز PIN الموثق)'))
+                          ? `${activeApproverRoleAr} — شركة فنتشر فودز`
+                          : 'الإدارة التنفيذية — شركة فنتشر فودز'))
                       : (activeApprovedByEn ??
                         (activeApproverRoleEn
-                          ? `${activeApproverRoleEn} — Venture Foods Co. (PIN Verified)`
-                          : 'Executive Management — Venture Foods Co. (PIN Verified)'))}
+                          ? `${activeApproverRoleEn} — Venture Foods Co.`
+                          : 'Executive Management — Venture Foods Co.'))}
                   </span>
                 </div>
               </div>
@@ -399,19 +449,18 @@ export function OfficialCircularPrintModal({
                 <span className="font-mono text-xs font-bold text-emerald-800">{serialRef}</span>
                 {activeSealId ? (
                   <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-bold text-white">
-                    VERIFIED SEAL ✓
+                    {isAr ? 'ختم إداري ✓' : 'EXECUTIVE SEAL ✓'}
                   </span>
                 ) : null}
               </div>
               <div className="border-t border-dashed border-slate-300 pt-1.5 text-xs text-slate-500">
                 {isAr
-                  ? 'يسري العمل بهذا التعميم فور صدوره ويُراقب آلياً عبر جرس الامتثال'
-                  : 'Effective immediately upon issuance; monitored live by Odoo Watchdog'}
+                  ? 'يُسجَّل كل اعتماد وتعميم في سجل القرارات الخادمي'
+                  : 'Logged in the server executive decision register'}
               </div>
             </div>
           </section>
 
-          {/* 5. 7 Active Branches Acknowledgment Table */}
           <section className="mt-6 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-extrabold text-slate-950">

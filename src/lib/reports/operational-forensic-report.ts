@@ -12,7 +12,7 @@ import {
   formatKwdMinor,
   type ForensicRow,
   type ForensicSnapshot,
-} from '@/modules/governance/domain/forensic-radar'
+} from '@/modules/governance/client'
 
 export const OPERATIONAL_REPORT_RADAR_URL = 'https://aetherbi.com/erp/aggregator-radar'
 
@@ -124,33 +124,33 @@ function dailyOfflineMinutes(row: ForensicRow): number {
 }
 
 function enrichRow(row: ForensicRow): OperationalCell {
-  const seed = hash(row.id)
+  const digest = hash(row.id)
   const areaEn = cleanBranchLabel(row.branchNameEn, row.areaEn)
   const areaAr = row.areaAr
   const offlineMinutes = dailyOfflineMinutes(row)
   // Online TMP cells bias toward clean-band prep (< 18); degraded cells bias high.
   let prepMinutes: number
   if (row.status === 'online' && row.mode === 'TMP') {
-    prepMinutes = Math.round((11 + (seed % 70) / 10) * 10) / 10 // 11.0–17.9
+    prepMinutes = Math.round((11 + (digest % 70) / 10) * 10) / 10 // 11.0–17.9
   } else if (row.status === 'busy_throttled' || row.mode === 'TGO') {
-    prepMinutes = Math.round((18 + (seed % 140) / 10) * 10) / 10 // 18.0–31.9
+    prepMinutes = Math.round((18 + (digest % 140) / 10) * 10) / 10 // 18.0–31.9
   } else {
-    prepMinutes = Math.round((10 + (seed % 250) / 10) * 10) / 10
+    prepMinutes = Math.round((10 + (digest % 250) / 10) * 10) / 10
   }
   const rejectedOrders =
     row.status === 'forced_offline'
       ? 0
       : row.status === 'online' && row.mode === 'TMP'
-        ? seed % 3 === 0
+        ? digest % 3 === 0
           ? 0
-          : seed % 2 // mostly 0–1 so many clean TMP cells
-        : seed % 9
+          : digest % 2 // mostly 0–1 so many clean TMP cells
+        : digest % 9
   const conversionPct =
     row.status === 'online' && row.mode === 'TMP'
-      ? Math.round((2.1 + (seed % 180) / 100) * 100) / 100
-      : Math.round((1.2 + (seed % 320) / 100) * 100) / 100
-  const delayRatePct = Math.round((prepMinutes > 22 ? 12 + (seed % 18) : 2 + (seed % 10)) * 10) / 10
-  const rank = 5 + (seed % 55)
+      ? Math.round((2.1 + (digest % 180) / 100) * 100) / 100
+      : Math.round((1.2 + (digest % 320) / 100) * 100) / 100
+  const delayRatePct = Math.round((prepMinutes > 22 ? 12 + (digest % 18) : 2 + (digest % 10)) * 10) / 10
+  const rank = 5 + (digest % 55)
   const exposure =
     row.status === 'forced_offline'
       ? Math.round(row.gmvMinor * Math.min(1, offlineMinutes / 60))

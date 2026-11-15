@@ -42,7 +42,7 @@ import {
 interface Props {
   isAr: boolean
   activeSubView: 'amcHub' | 'expiryRadar' | 'hrBridge' | 'transitRecon' | 'fourWallPnl' | 'coa4d'
-  onSelectSubView?: (view: any) => void
+  onSelectSubView?: (view: Props['activeSubView']) => void
 }
 
 export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
@@ -128,7 +128,9 @@ export function KuwaitCoaBridgeView({ isAr, activeSubView }: Props) {
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-bold text-emerald-400">
-                  {isAr ? 'صافي المبيعات: 167,092.160 د.ك (100%)' : 'Net Sales: 167,092.160 KWD (100%)'}
+                  {isAr
+                    ? `صافي المبيعات: ${pnl.netSales.toLocaleString(undefined, { minimumFractionDigits: 3 })} د.ك (100%)`
+                    : `Net Sales: ${pnl.netSales.toLocaleString(undefined, { minimumFractionDigits: 3 })} KWD (100%)`}
                 </span>
               </div>
             </div>

@@ -1,13 +1,19 @@
 /**
- * Strategic Planning, Multi-Scenario Forecasting & Odoo Compliance Synthesis Engine (`/erp/planning`).
- * Combines live Venture Foods Odoo 17 telemetry (6 brands, 7 active branches, Ardiya Central Kitchen,
- * Dine-In vs 15% internal fleet / 25% external aggregator margins, and Kuwait 20th-28th payday cycles)
- * with Kuwait F&B seasonality.
+ * Strategic Planning & Multi-Scenario Estimation Engine (`/erp/planning`).
+ * Strictly bound to live Odoo 17 telemetry (`pos.order` & `account.move.line`) across
+ * the 6 approved brands and 7 approved branches (+ unattributed sales).
+ *
+ * Rules enforced:
+ *  - ZERO static fallback (no hardcoded monthly baseline, static ratios, or `ODOO` dataset).
+ *  - When Odoo is disconnected or returns `noData`, `noData: true` is returned with zero numbers.
+ *  - Every projected figure exposes its explicit mathematical formula (`formulaAr` / `formulaEn`)
+ *    and is tagged as `«تقدير»` in the UI.
  */
 
-import { ODOO } from '@/lib/odoo/odoo-dataset'
 import {
+  DEFAULT_GLOBAL_FILTERS,
   computeGlobalWorkspace,
+  type GlobalFilters,
   type GlobalWorkspaceSlice,
 } from '@/lib/aether/global-filter-engine'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
@@ -29,6 +35,12 @@ export interface ScenarioForecastCard {
   paybackDays: number
   paybackLabelAr: string
   paybackLabelEn: string
+  salesFormulaAr: string
+  salesFormulaEn: string
+  costsFormulaAr: string
+  costsFormulaEn: string
+  netFormulaAr: string
+  netFormulaEn: string
   assumptionsAr: string[]
   assumptionsEn: string[]
 }
@@ -56,6 +68,8 @@ export interface KuwaitMarketSignal {
   titleEn: string
   impactBadgeAr: string
   impactBadgeEn: string
+  formulaAr: string
+  formulaEn: string
   detailAr: string
   detailEn: string
   tone: 'emerald' | 'sky' | 'amber'
@@ -73,6 +87,14 @@ export interface StrategicBriefingSection {
 }
 
 export interface PlanningHubSnapshot {
+  odooConnected: boolean
+  noData: boolean
+  noDataMessageAr: string
+  noDataMessageEn: string
+  isStale24h: boolean
+  glIncomplete: boolean
+  glWarningAr: string | null
+  aggregatorCommissionUnposted: boolean
   horizonId: ForecastHorizonId
   horizonDays: number
   horizonMonths: number
@@ -84,6 +106,7 @@ export interface PlanningHubSnapshot {
   lastSyncedAt: string | null
   periodFromIso: string
   periodToIso: string
+  sourcePeriodDays: number
   monthlyBaselineSalesKwd: number
   monthlyBaselineCostsKwd: number
   monthlyBaselineNetKwd: number
@@ -96,11 +119,17 @@ export interface PlanningHubSnapshot {
   deliveryFeePct: number
   paydayLiftPct: number
   directChannelSharePct: number
+  baselineFormulaAr: string
+  baselineFormulaEn: string
+  costShareFormulaAr: string
+  costShareFormulaEn: string
+  momentumFormulaAr: string
+  momentumFormulaEn: string
   scenarios: ScenarioForecastCard[]
   signals: KuwaitMarketSignal[]
 }
 
-export const STRATEGIC_ROADMAP_STORAGE_KEY = 'vf_strategic_roadmap_v1'
+export const STRATEGIC_ROADMAP_STORAGE_KEY = 'vf_strategic_roadmap_v2_clean'
 export const MIN_VALID_STRATEGIC_BRIEFING_CHARS = 180
 
 export const FORECAST_HORIZON_OPTIONS: readonly {
@@ -171,8 +200,7 @@ export function stripStrategicMarkdown(raw: string): string {
 }
 
 /**
- * Completeness guard: rejects empty, stub, or thinking-starved outputs (such as `## ملخ` -> `ملخ`)
- * shorter than 180 characters or ending in an unfinished fragment.
+ * Completeness guard: rejects empty, stub, or unfinished outputs shorter than 180 characters.
  */
 export function isBriefingTruncatedOrIncomplete(cleanedPlainText: string): boolean {
   const trimmed = cleanedPlainText.trim()
@@ -181,79 +209,11 @@ export function isBriefingTruncatedOrIncomplete(cleanedPlainText: string): boole
   return false
 }
 
-export const SEEDED_STRATEGIC_PHASES: StrategicRoadmapPhase[] = [
-  {
-    id: 'plan-phase-tmp-shift',
-    phaseCode: 'P1',
-    titleAr:
-      'تحويل التوصيل القريب من طلبات منصات التوصيل الخارجي (27%) إلى أسطول التوصيل الداخلي المباشر (15%) والطلب المباشر',
-    titleEn: 'Shift Nearby Delivery from Tgo (27%) to Own Fleet TMP (15%) & Direct',
-    startDate: '2026-11-15',
-    endDate: '2026-12-15',
-    ownerAr: 'إدارة التشغيل والتوصيل',
-    ownerEn: 'Operations & Fleet Team',
-    costCapKwd: 250,
-    expectedMonthlyGainKwd: 1850,
-    targetKpiAr:
-      'خفض متوسط عمولة المنصات بـ 3.8% ورفع حصة أسطول التوصيل الداخلي المباشر والطلب المباشر',
-    targetKpiEn: 'Cut blended platform fee by 3.8% & grow TMP + Direct share',
-    odooWatchMetricAr:
-      'حصة طلبات منصات التوصيل الخارجي لا تتجاوز 32% من طلبات التوصيل القريبة',
-    odooWatchMetricEn: 'Tgo share stays <= 32% on <=4km branch zones',
-  },
-  {
-    id: 'plan-phase-ardiya-cogs',
-    phaseCode: 'P2',
-    titleAr: 'تثبيت عقود موردي مطبخ العارضية المركزي وضبط الهدر اليومي ≤ 1.8%',
-    titleEn: 'Lock Ardiya Central Kitchen Supplier Caps & Daily Prep Waste <= 1.8%',
-    startDate: '2026-11-20',
-    endDate: '2027-01-20',
-    ownerAr: 'المشتريات والشيف التنفيذي — العارضية',
-    ownerEn: 'Procurement & Ardiya Head Chef',
-    costCapKwd: 180,
-    expectedMonthlyGainKwd: 1420,
-    targetKpiAr: 'تثبيت تكلفة المواد الأولية ≤ 27.2% وإيقاف أي فاتورة مورد تتجاوز السقف',
-    targetKpiEn: 'Hold food COGS <= 27.2% & auto-flag supplier price creep',
-    odooWatchMetricAr: 'سقف زيادة سعر الوحدة بفواتير الموردين ≤ +3.0%',
-    odooWatchMetricEn: 'Vendor bill unit-cost variance <= +3.0%',
-  },
-  {
-    id: 'plan-phase-shared-kitchens',
-    phaseCode: 'P3',
-    titleAr: 'تشغيل علامة رديفة (طاحينة + نودل بار) داخل مطابخ السالمية والبروميناد',
-    titleEn: 'Activate Co-Kitchen Brands (Tahina + Noodle Bar) Inside Salmiya & Promenade',
-    startDate: '2026-12-01',
-    endDate: '2027-02-15',
-    ownerAr: 'مديرو فروع السالمية والبروميناد',
-    ownerEn: 'Salmiya & Promenade Branch Managers',
-    costCapKwd: 620,
-    expectedMonthlyGainKwd: 2100,
-    targetKpiAr: '+45 طلب يومياً بنفس الإيجار ونفس طاقم التحضير الأساسي',
-    targetKpiEn: '+45 daily orders at zero incremental rent',
-    odooWatchMetricAr: 'التزام التحضير ≤ 14 دقيقة وتقييم المنصات ≥ 4.6★',
-    odooWatchMetricEn: 'Prep time <= 14m & app rating >= 4.6★',
-  },
-  {
-    id: 'plan-phase-kashta-payday',
-    phaseCode: 'P4',
-    titleAr:
-      'خطة موسم الشتاء والكشتات + باقات الرواتب (20–28 الشهر) وبوثات مطبخ العارضية المركزي المتنقلة',
-    titleEn: 'Kuwait Winter KashtaBoxes + Payday (20th–28th) Bundles & EXB Cap',
-    startDate: '2026-12-10',
-    endDate: '2027-02-28',
-    ownerAr: 'إدارة التسويق وبوثات مطبخ العارضية المركزي المتنقلة',
-    ownerEn: 'Marketing & EXB Events Lead',
-    costCapKwd: 450,
-    expectedMonthlyGainKwd: 1600,
-    targetKpiAr: 'عائد إعلاني ≥ 4.8x وسقف خصومات كاشير ≤ 3.0% وإيجار بوث ≤ 15%',
-    targetKpiEn: 'ROAS >= 4.8x, POS discount <= 3.0% & booth rent <= 15%',
-    odooWatchMetricAr: 'خصومات نقاط البيع ≤ 3.0% ولا استمرار لحملة خاسرة',
-    odooWatchMetricEn: 'POS discounts <= 3.0% & zero negative-ROI ads',
-  },
-]
+/** Zero pre-populated static phases — user defines phases explicitly. */
+export const INITIAL_STRATEGIC_PHASES: StrategicRoadmapPhase[] = []
 
 export function sanitizeStrategicPhases(raw: unknown): StrategicRoadmapPhase[] {
-  if (!Array.isArray(raw) || raw.length === 0) return SEEDED_STRATEGIC_PHASES
+  if (!Array.isArray(raw) || raw.length === 0) return INITIAL_STRATEGIC_PHASES
   const out: StrategicRoadmapPhase[] = []
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue
@@ -290,14 +250,71 @@ export function sanitizeStrategicPhases(raw: unknown): StrategicRoadmapPhase[] {
       odooWatchMetricAr:
         typeof r.odooWatchMetricAr === 'string' && r.odooWatchMetricAr
           ? localizeArabicPlanningCopy(r.odooWatchMetricAr)
-          : 'مراقبة الصرف والخصم عبر أودو 17',
+          : 'متابعة الصرف عبر قيود أودو 17',
       odooWatchMetricEn:
         typeof r.odooWatchMetricEn === 'string' && r.odooWatchMetricEn
           ? r.odooWatchMetricEn
-          : 'Monitored live via Odoo 17 POS & bills',
+          : 'Tracked via Odoo 17 POS & vendor bills',
     })
   }
-  return out.length > 0 ? out : SEEDED_STRATEGIC_PHASES
+  return out
+}
+
+function resolveHorizonWindow(
+  horizonId: ForecastHorizonId,
+  customFrom: string,
+  customTo: string,
+): {
+  horizonDays: number
+  monthsSpan: number
+  horizonLabelAr: string
+  horizonLabelEn: string
+} {
+  if (horizonId === '30d') {
+    return {
+      horizonDays: 30,
+      monthsSpan: 1,
+      horizonLabelAr: 'تقديرات 30 يوم القادمة (1× شهر)',
+      horizonLabelEn: 'Next 30 Days Estimate (1x Month)',
+    }
+  }
+  if (horizonId === '90d') {
+    return {
+      horizonDays: 90,
+      monthsSpan: 3,
+      horizonLabelAr: 'تقديرات 90 يوم القادمة (3× أشهر)',
+      horizonLabelEn: 'Next 90 Days Estimate (3x Months)',
+    }
+  }
+  if (horizonId === '6m') {
+    return {
+      horizonDays: 180,
+      monthsSpan: 6,
+      horizonLabelAr: 'تقديرات 6 أشهر (نصف سنوية)',
+      horizonLabelEn: '6-Month Horizon Estimate',
+    }
+  }
+  if (horizonId === '12m') {
+    return {
+      horizonDays: 365,
+      monthsSpan: 12,
+      horizonLabelAr: 'تقديرات 12 شهر (سنة كاملة)',
+      horizonLabelEn: '12-Month Full-Year Estimate',
+    }
+  }
+  const startMs = new Date(`${customFrom}T00:00:00Z`).getTime()
+  const endMs = new Date(`${customTo}T00:00:00Z`).getTime()
+  const diff =
+    Number.isFinite(startMs) && Number.isFinite(endMs)
+      ? Math.round((Math.max(startMs, endMs) - Math.min(startMs, endMs)) / 86_400_000) + 1
+      : 45
+  const horizonDays = Math.max(1, Math.min(730, diff))
+  return {
+    horizonDays,
+    monthsSpan: horizonDays / 30,
+    horizonLabelAr: `فترة تقديرية مخصصة (${customFrom} ← ${customTo} · ${horizonDays} يوم)`,
+    horizonLabelEn: `Custom Estimate Horizon (${customFrom} → ${customTo} · ${horizonDays}d)`,
+  }
 }
 
 export function computePlanningHubSnapshot(
@@ -308,145 +325,218 @@ export function computePlanningHubSnapshot(
   customTo: string,
   liveSummary?: OdooLiveSummary | null,
 ): PlanningHubSnapshot {
-  // Always compute Normalized 30-Day Monthly Run-Rate Baseline from the true 30-day `month` slice
-  // for the active Brand × Branch × Channel filter so selecting `Period: Today` NEVER shrinks
-  // Monthly Baseline (`129,212 KWD` sales / `18,994 KWD` net) to a single day's receipts!
-  const hasFullLiveMonthBucket =
-    Boolean(liveSummary?.buckets?.month) &&
-    Number(liveSummary?.buckets?.month?.days ?? 0) >= 28 &&
-    Number(liveSummary?.buckets?.month?.totals?.restaurantNetKwd ?? 0) >= 90_000
-
-  const normalizedMonthWorkspace = computeGlobalWorkspace(
-    {
-      ...workspace.filters,
-      period: 'month',
-      kuwaitSlice: 'all',
-      lens: 'all',
-    },
-    hasFullLiveMonthBucket ? liveSummary : undefined,
-    '/erp/planning',
+  const { horizonDays, monthsSpan, horizonLabelAr, horizonLabelEn } = resolveHorizonWindow(
+    horizonId,
+    customFrom,
+    customTo,
   )
 
-  const groupMonthWorkspace = computeGlobalWorkspace(
-    {
-      ...normalizedMonthWorkspace.filters,
-      brand: 'all',
-      branch: 'all',
-      channel: 'all',
-      period: 'month',
-      kuwaitSlice: 'all',
-      lens: 'all',
-    },
-    hasFullLiveMonthBucket ? liveSummary : undefined,
-    '/erp/planning',
-  )
-  const resolvedNetProfitPct =
-    normalizedMonthWorkspace.accounting.netProfitPct ??
-    groupMonthWorkspace.accounting.netProfitPct ??
-    14.7
-  const accountingAvailable = true
-  const monthlyBaselineSalesRaw = Math.max(0, normalizedMonthWorkspace.salesKwd)
-  const monthlyBaselineNetRaw = monthlyBaselineSalesRaw * (resolvedNetProfitPct / 100)
+  const summaryDisconnected =
+    liveSummary !== undefined && (!liveSummary || !liveSummary.connected || Boolean(liveSummary.noData))
+
+  if (!workspace.odooConnected || workspace.noData || summaryDisconnected) {
+    return {
+      odooConnected: false,
+      noData: true,
+      noDataMessageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+      noDataMessageEn: 'No data from Odoo for this period',
+      isStale24h: Boolean(workspace.isStale24h),
+      glIncomplete: Boolean(workspace.glIncomplete),
+      glWarningAr: workspace.glWarningAr,
+      aggregatorCommissionUnposted: Boolean(workspace.aggregatorCommissionUnposted),
+      horizonId,
+      horizonDays,
+      horizonMonths: monthsSpan,
+      horizonLabelAr,
+      horizonLabelEn,
+      accountingAvailable: false,
+      unavailableReasonAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+      unavailableReasonEn: 'No data from Odoo for this period',
+      lastSyncedAt: workspace.lastSyncAt ?? workspace.lastSyncedAt ?? null,
+      periodFromIso: workspace.dateRange?.from ?? '',
+      periodToIso: workspace.dateRange?.to ?? '',
+      sourcePeriodDays: 0,
+      monthlyBaselineSalesKwd: 0,
+      monthlyBaselineCostsKwd: 0,
+      monthlyBaselineNetKwd: 0,
+      monthlyBaselineMarginPct: 0,
+      dailyAverageSalesKwd: 0,
+      dailyAverageNetKwd: 0,
+      activePeriodSalesKwd: 0,
+      isTodayPeriodActive: workspace.filters.period === 'today',
+      ardiyaFoodPct: 0,
+      deliveryFeePct: 0,
+      paydayLiftPct: 0,
+      directChannelSharePct: 0,
+      baselineFormulaAr: '',
+      baselineFormulaEn: '',
+      costShareFormulaAr: '',
+      costShareFormulaEn: '',
+      momentumFormulaAr: '',
+      momentumFormulaEn: '',
+      scenarios: [],
+      signals: [],
+    }
+  }
+
+  // Respect the active period on `workspace.filters.period` (`today`, `week`, `month`, `year`) so switching periods
+  // updates baselines, GL completeness warnings, and aggregator commission posting states dynamically.
+  const baseWorkspace =
+    liveSummary !== undefined
+      ? computeGlobalWorkspace(
+          {
+            ...workspace.filters,
+            kuwaitSlice: 'all',
+            lens: 'all',
+          },
+          liveSummary ?? undefined,
+          '/erp/planning',
+        )
+      : workspace
+
+  if (!baseWorkspace.odooConnected || baseWorkspace.noData || baseWorkspace.salesKwd <= 0) {
+    return {
+      odooConnected: Boolean(workspace.odooConnected),
+      noData: true,
+      noDataMessageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+      noDataMessageEn: 'No data from Odoo for this period',
+      isStale24h: Boolean(workspace.isStale24h),
+      glIncomplete: Boolean(workspace.glIncomplete),
+      glWarningAr: workspace.glWarningAr,
+      aggregatorCommissionUnposted: Boolean(workspace.aggregatorCommissionUnposted),
+      horizonId,
+      horizonDays,
+      horizonMonths: monthsSpan,
+      horizonLabelAr,
+      horizonLabelEn,
+      accountingAvailable: false,
+      unavailableReasonAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+      unavailableReasonEn: 'No data from Odoo for this period',
+      lastSyncedAt: workspace.lastSyncAt ?? workspace.lastSyncedAt ?? null,
+      periodFromIso: baseWorkspace.dateRange?.from ?? workspace.dateRange?.from ?? '',
+      periodToIso: baseWorkspace.dateRange?.to ?? workspace.dateRange?.to ?? '',
+      sourcePeriodDays: 0,
+      monthlyBaselineSalesKwd: 0,
+      monthlyBaselineCostsKwd: 0,
+      monthlyBaselineNetKwd: 0,
+      monthlyBaselineMarginPct: 0,
+      dailyAverageSalesKwd: 0,
+      dailyAverageNetKwd: 0,
+      activePeriodSalesKwd: 0,
+      isTodayPeriodActive: workspace.filters.period === 'today',
+      ardiyaFoodPct: 0,
+      deliveryFeePct: 0,
+      paydayLiftPct: 0,
+      directChannelSharePct: 0,
+      baselineFormulaAr: '',
+      baselineFormulaEn: '',
+      costShareFormulaAr: '',
+      costShareFormulaEn: '',
+      momentumFormulaAr: '',
+      momentumFormulaEn: '',
+      scenarios: [],
+      signals: [],
+    }
+  }
+
+  const sourcePeriodDays = Math.max(1, baseWorkspace.periodDays || 30)
+  const monthlyScale = 30 / sourcePeriodDays
+  const monthlyBaselineSalesRaw = Math.max(0, baseWorkspace.salesKwd * monthlyScale)
   const monthlyBaselineSalesKwd = Math.round(monthlyBaselineSalesRaw)
-  const monthlyBaselineCostsKwd = Math.round(
-    Math.max(0, monthlyBaselineSalesRaw - monthlyBaselineNetRaw),
-  )
-  const monthlyBaselineNetKwd = monthlyBaselineSalesKwd - monthlyBaselineCostsKwd
+  const monthlyBaselineOrders = Math.max(1, Math.round(baseWorkspace.orders * monthlyScale))
+
+  const accountingAvailable =
+    Boolean(baseWorkspace.accounting.available) &&
+    baseWorkspace.accounting.netProfitPct !== null &&
+    Number.isFinite(baseWorkspace.accounting.netProfitPct)
+
+  const resolvedNetProfitPct = accountingAvailable
+    ? (baseWorkspace.accounting.netProfitPct ?? 0)
+    : 0
+
+  const monthlyBaselineNetRaw = accountingAvailable
+    ? monthlyBaselineSalesRaw * (resolvedNetProfitPct / 100)
+    : 0
+  const monthlyBaselineCostsKwd = accountingAvailable
+    ? Math.round(Math.max(0, monthlyBaselineSalesRaw - monthlyBaselineNetRaw))
+    : 0
+  const monthlyBaselineNetKwd = accountingAvailable
+    ? monthlyBaselineSalesKwd - monthlyBaselineCostsKwd
+    : 0
   const monthlyBaselineMarginPct =
-    monthlyBaselineSalesKwd > 0 ? (monthlyBaselineNetKwd / monthlyBaselineSalesKwd) * 100 : 0
-  const monthlyBaselineOrders = Math.max(1, Math.round(normalizedMonthWorkspace.orders))
+    accountingAvailable && monthlyBaselineSalesKwd > 0
+      ? (monthlyBaselineNetKwd / monthlyBaselineSalesKwd) * 100
+      : 0
 
   const dailyAverageSalesKwd = Math.round(monthlyBaselineSalesRaw / 30)
-  const dailyAverageNetKwd = Math.round(monthlyBaselineNetRaw / 30)
+  const dailyAverageNetKwd = accountingAvailable ? Math.round(monthlyBaselineNetRaw / 30) : 0
   const activePeriodSalesKwd = Math.round(Math.max(0, workspace.salesKwd))
   const isTodayPeriodActive = workspace.filters.period === 'today'
 
-  // Resolve exact horizon days & monthly multiplier (`30d=1x`, `90d=3x`, `6m=6x`, `12m=12x`, `custom=days/30`)
-  let horizonDays = 90
-  let monthsSpan = 3
-  let horizonLabelAr = 'توقعات 90 يوم (موسم الشتاء والرواتب)'
-  let horizonLabelEn = 'Next 90 Days (Winter & Payday Cycle)'
-
-  if (horizonId === '30d') {
-    horizonDays = 30
-    monthsSpan = 1
-    horizonLabelAr = 'توقعات 30 يوم القادمة (1× شهر)'
-    horizonLabelEn = 'Next 30 Days Forecast (1x Month)'
-  } else if (horizonId === '90d') {
-    horizonDays = 90
-    monthsSpan = 3
-    horizonLabelAr = 'توقعات 90 يوم (موسم الشتاء والرواتب)'
-    horizonLabelEn = 'Next 90 Days (Winter & Payday Cycle)'
-  } else if (horizonId === '6m') {
-    horizonDays = 180
-    monthsSpan = 6
-    horizonLabelAr = 'توقعات 6 أشهر (نصف سنوية)'
-    horizonLabelEn = '6-Month Strategic Horizon'
-  } else if (horizonId === '12m') {
-    horizonDays = 365
-    monthsSpan = 12
-    horizonLabelAr = 'توقعات 12 شهر (خطة سنوية كاملة)'
-    horizonLabelEn = '12-Month Full-Year Plan'
-  } else {
-    const startMs = new Date(`${customFrom}T00:00:00Z`).getTime()
-    const endMs = new Date(`${customTo}T00:00:00Z`).getTime()
-    const diff =
-      Number.isFinite(startMs) && Number.isFinite(endMs)
-        ? Math.round((Math.max(startMs, endMs) - Math.min(startMs, endMs)) / 86_400_000) + 1
-        : 45
-    horizonDays = Math.max(1, Math.min(730, diff))
-    monthsSpan = horizonDays / 30
-    horizonLabelAr = `فترة مخصصة (${customFrom} ← ${customTo} · ${horizonDays} يوم)`
-    horizonLabelEn = `Custom Horizon (${customFrom} → ${customTo} · ${horizonDays}d)`
-  }
-
-  // Real Odoo payday vs mid-month lift from daily POS records
-  const fullDays = (ODOO.timeProfile?.daily ?? []).filter((d) => d.orders >= 150)
-  const paydayDays = fullDays.filter((d) => {
-    const dom = Number(d.day.slice(8, 10))
-    return dom >= 20 && dom <= 28
-  })
-  const midDays = fullDays.filter((d) => {
-    const dom = Number(d.day.slice(8, 10))
-    return dom >= 10 && dom <= 19
-  })
-  const avgPayday =
-    paydayDays.length > 0
-      ? paydayDays.reduce((s, d) => s + d.netKwd, 0) / paydayDays.length
-      : 4720
-  const avgMid =
-    midDays.length > 0
-      ? midDays.reduce((s, d) => s + d.netKwd, 0) / midDays.length
-      : 3980
+  // Observed period-over-period sales momentum strictly from Odoo `periodComparison` (zero static 4720/3980/18.4%)
+  const monthComparison = liveSummary?.buckets?.month?.periodComparison
   const paydayLiftPct =
-    avgMid > 0 ? Math.round(((avgPayday - avgMid) / avgMid) * 1000) / 10 : 18.4
+    monthComparison && monthComparison.priorNetKwd > 0
+      ? Math.round(
+          ((monthComparison.currentNetKwd - monthComparison.priorNetKwd) /
+            monthComparison.priorNetKwd) *
+            1000,
+        ) / 10
+      : 0
 
-  const ardiyaFoodPct = accountingAvailable
-    ? Math.round((normalizedMonthWorkspace.accounting.cogsPct ?? 0) * 10) / 10
-    : 0
-  const deliveryFeePct = accountingAvailable
-    ? Math.round((normalizedMonthWorkspace.accounting.deliveryCommPct ?? 0) * 10) / 10
-    : 0
+  const ardiyaFoodPct =
+    accountingAvailable && baseWorkspace.accounting.cogsPct !== null
+      ? Math.round(baseWorkspace.accounting.cogsPct * 10) / 10
+      : 0
+  const deliveryFeePct =
+    accountingAvailable &&
+    !baseWorkspace.aggregatorCommissionUnposted &&
+    baseWorkspace.accounting.deliveryCommPct !== null
+      ? Math.round(baseWorkspace.accounting.deliveryCommPct * 10) / 10
+      : 0
 
-  const groupDirectKwd = ODOO.channels
-    .filter((c) => c.id === 'shop' || c.id === 'online-link')
-    .reduce((s, c) => s + c.netKwd, 0)
+  // Direct zero-commission share strictly from live Odoo `uiChannels` / channel options (zero static 28.5%)
+  const channelOpts = baseWorkspace.cascadingOptions.channels.filter((c) => c.id !== 'all')
+  const totalChannelSales = channelOpts.reduce((s, c) => s + (c.salesKwd ?? 0), 0)
+  const directChannelSales = channelOpts
+    .filter((c) => c.id === 'dine-in' || c.id === 'takeaway-direct')
+    .reduce((s, c) => s + (c.salesKwd ?? 0), 0)
   const directChannelSharePct =
-    normalizedMonthWorkspace.filters.channel === 'dine-in' ||
-    normalizedMonthWorkspace.filters.channel === 'takeaway-direct'
+    baseWorkspace.filters.channel === 'dine-in' || baseWorkspace.filters.channel === 'takeaway-direct'
       ? 100
-      : ODOO.totals.restaurantNetKwd > 0
-        ? Math.round((groupDirectKwd / ODOO.totals.restaurantNetKwd) * 1000) / 10
-        : 28.5
+      : totalChannelSales > 0
+        ? Math.round((directChannelSales / totalChannelSales) * 1000) / 10
+        : 0
 
-  // Scale roadmap cost cap & upside proportionally to the 30-day filtered slice share
+  const periodFromIso = baseWorkspace.dateRange?.from || workspace.dateRange?.from || ''
+  const periodToIso = baseWorkspace.dateRange?.to || workspace.dateRange?.to || ''
+
+  const baselineFormulaAr = `خط الأساس التقديري (30 يوم) = مبيعات الفترة (${fmtInt(baseWorkspace.salesKwd)} د.ك ÷ ${sourcePeriodDays} يوم) × 30 = ${fmtInt(monthlyBaselineSalesKwd)} د.ك`
+  const baselineFormulaEn = `30d Baseline Estimate = (${fmtInt(baseWorkspace.salesKwd)} KWD ÷ ${sourcePeriodDays}d) × 30 = ${fmtInt(monthlyBaselineSalesKwd)} KWD`
+
+  const costShareFormulaAr = accountingAvailable
+    ? `نسبة تكلفة المواد (${fmtOne(ardiyaFoodPct)}%) = تكلفة البضاعة ÷ الإيراد | نسبة العمولات (${baseWorkspace.aggregatorCommissionUnposted ? 'غير مُرحَّل بعد' : `${fmtOne(deliveryFeePct)}%`}) | حصة المباشر (${fmtOne(directChannelSharePct)}%) = مبيعات الصالة والسفري ÷ إجمالي القنوات`
+    : 'قيود التكلفة غير مكتملة في دفتر الأستاذ لهذه الفترة'
+  const costShareFormulaEn = accountingAvailable
+    ? `COGS% (${fmtOne(ardiyaFoodPct)}%) = COGS ÷ Revenue | Comm% (${baseWorkspace.aggregatorCommissionUnposted ? 'Unposted' : `${fmtOne(deliveryFeePct)}%`}) | Direct% (${fmtOne(directChannelSharePct)}%) = (Dine-in + Direct) ÷ Total`
+    : 'GL cost lines incomplete for this period'
+
+  const momentumFormulaAr =
+    monthComparison && monthComparison.priorNetKwd > 0
+      ? `التغير الدوري = ((${fmtInt(monthComparison.currentNetKwd)} − ${fmtInt(monthComparison.priorNetKwd)}) ÷ ${fmtInt(monthComparison.priorNetKwd)}) × 100 = ${paydayLiftPct >= 0 ? '+' : ''}${fmtOne(paydayLiftPct)}%`
+      : 'التغير الدوري = 0.0% (بانتظار فترة مقارنة سابقة من pos.order)'
+  const momentumFormulaEn =
+    monthComparison && monthComparison.priorNetKwd > 0
+      ? `Period Momentum = ((${fmtInt(monthComparison.currentNetKwd)} − ${fmtInt(monthComparison.priorNetKwd)}) ÷ ${fmtInt(monthComparison.priorNetKwd)}) × 100 = ${paydayLiftPct >= 0 ? '+' : ''}${fmtOne(paydayLiftPct)}%`
+      : 'Period Momentum = 0.0% (no prior comparison window)'
+
   const isAllScope =
-    normalizedMonthWorkspace.filters.brand === 'all' &&
-    normalizedMonthWorkspace.filters.branch === 'all' &&
-    normalizedMonthWorkspace.filters.channel === 'all'
+    baseWorkspace.filters.brand === 'all' &&
+    baseWorkspace.filters.branch === 'all' &&
+    baseWorkspace.filters.channel === 'all'
   const sliceRatio = isAllScope
     ? 1
-    : Math.max(0.05, Math.min(1, normalizedMonthWorkspace.dimensionShare || 0.1))
+    : Math.max(0.05, Math.min(1, baseWorkspace.dimensionShare || 0.1))
 
   const totalRoadmapCapexKwd = Math.round(
     phases.reduce((s, p) => s + p.costCapKwd, 0) * sliceRatio,
@@ -486,26 +576,45 @@ export function computePlanningHubSnapshot(
           Math.max(0, baseCostsHorizon * variableCostAdjust + capexForHorizon - roadmapCostSavingKwd),
         )
       : 0
-    // Strict CFO Reconciliation Identity when GL accounting is available; 0 ('غير متوفر') when unavailable
     const projectedNetCashKwd = accountingAvailable ? projectedSalesKwd - projectedCostsKwd : 0
     const projectedOrders = Math.max(
       1,
       Math.round(monthlyBaselineOrders * monthsSpan * (1 + salesGrowthPct * 0.85)),
     )
-    // Strict Margin Identity when GL accounting is available; 0 ('غير متوفر') when unavailable
     const netMarginPct =
       accountingAvailable && projectedSalesKwd > 0
         ? (projectedNetCashKwd / projectedSalesKwd) * 100
         : 0
 
-    const dailyIncrementalGain = Math.max(
-      8,
-      (totalMonthlyRoadmapGainKwd * roadmapCaptureRatio) / 30,
-    )
+    const dailyIncrementalGain =
+      totalMonthlyRoadmapGainKwd > 0
+        ? Math.max(1, (totalMonthlyRoadmapGainKwd * roadmapCaptureRatio) / 30)
+        : 0
     const paybackDays =
-      totalRoadmapCapexKwd <= 0
+      totalRoadmapCapexKwd <= 0 || dailyIncrementalGain <= 0
         ? 0
         : Math.max(5, Math.min(180, Math.round(totalRoadmapCapexKwd / dailyIncrementalGain)))
+
+    const growthPctLabel = fmtOne(salesGrowthPct * 100)
+    const effPctLabel = fmtOne(costEfficiencyPct * 100)
+    const monthsLabel = fmtOne(monthsSpan)
+
+    const salesFormulaAr = `المبيعات المقدّرة = (${fmtInt(monthlyBaselineSalesKwd)} × ${monthsLabel} شهر) × (1 + ${growthPctLabel}%) + أثر المراحل (${fmtInt(roadmapRevenueLiftKwd)}) = ${fmtInt(projectedSalesKwd)} د.ك`
+    const salesFormulaEn = `Est. Sales = (${fmtInt(monthlyBaselineSalesKwd)} × ${monthsLabel}m) × (1 + ${growthPctLabel}%) + Roadmap Lift (${fmtInt(roadmapRevenueLiftKwd)}) = ${fmtInt(projectedSalesKwd)} KWD`
+
+    const costsFormulaAr = accountingAvailable
+      ? `التكاليف المقدّرة = (${fmtInt(monthlyBaselineCostsKwd)} × ${monthsLabel} شهر) × (1 + ${growthPctLabel}%×0.58 − ${effPctLabel}%) + سقف المراحل (${fmtInt(capexForHorizon)}) − وفورات (${fmtInt(roadmapCostSavingKwd)}) = ${fmtInt(projectedCostsKwd)} د.ك`
+      : 'غير متوفر بدون اكتمال قيود التكلفة في account.move.line'
+    const costsFormulaEn = accountingAvailable
+      ? `Est. Costs = (${fmtInt(monthlyBaselineCostsKwd)} × ${monthsLabel}m) × (1 + ${growthPctLabel}%×0.58 − ${effPctLabel}%) + Capex (${fmtInt(capexForHorizon)}) − Savings (${fmtInt(roadmapCostSavingKwd)}) = ${fmtInt(projectedCostsKwd)} KWD`
+      : 'Unavailable pending posted GL cost lines'
+
+    const netFormulaAr = accountingAvailable
+      ? `صافي التدفق المقدّر = المبيعات المقدّرة (${fmtInt(projectedSalesKwd)}) − التكاليف المقدّرة (${fmtInt(projectedCostsKwd)}) = ${projectedNetCashKwd >= 0 ? '+' : ''}${fmtInt(projectedNetCashKwd)} د.ك`
+      : 'غير متوفر بدون اكتمال قيود دفتر الأستاذ'
+    const netFormulaEn = accountingAvailable
+      ? `Est. Net Cash = Est. Sales (${fmtInt(projectedSalesKwd)}) − Est. Costs (${fmtInt(projectedCostsKwd)}) = ${projectedNetCashKwd >= 0 ? '+' : ''}${fmtInt(projectedNetCashKwd)} KWD`
+      : 'Unavailable pending GL postings'
 
     return {
       id,
@@ -519,8 +628,14 @@ export function computePlanningHubSnapshot(
       projectedOrders,
       netMarginPct,
       paybackDays,
-      paybackLabelAr: paybackDays === 0 ? 'فوري (بدون رأسمال)' : `استرداد خلال ${paybackDays} يوم`,
-      paybackLabelEn: paybackDays === 0 ? 'Immediate (Zero Capex)' : `${paybackDays}d Payback`,
+      paybackLabelAr: paybackDays === 0 ? 'بدون رأسمال إضافي' : `استرداد تقديري ${paybackDays} يوم`,
+      paybackLabelEn: paybackDays === 0 ? 'Zero Extra Capex' : `Est. ${paybackDays}d Payback`,
+      salesFormulaAr,
+      salesFormulaEn,
+      costsFormulaAr,
+      costsFormulaEn,
+      netFormulaAr,
+      netFormulaEn,
       assumptionsAr: assumptionsAr.map(localizeArabicPlanningCopy),
       assumptionsEn,
     }
@@ -529,117 +644,151 @@ export function computePlanningHubSnapshot(
   const scenarios: ScenarioForecastCard[] = [
     buildScenario(
       'conservative',
-      'السيناريو المتحفظ 🛡️',
-      'Conservative 🛡️',
-      'ثبات السوق مع ضبط الخصومات والهدر فقط',
-      'Flat market demand + strict cost & promo discipline',
+      'تقدير السيناريو المتحفظ 🛡️',
+      'Conservative Estimate 🛡️',
+      'افتراض نمو +3.5% مع خفض تكاليف متغيرة 1.8%',
+      'Assumes +3.5% sales growth & 1.8% cost efficiency',
       0.035,
       0.018,
       0.55,
       [
-        'سقف خصومات الكاشير والتطبيقات عند ≤ 3.0%',
-        'تحويل 25% فقط من طلبات منصات التوصيل الخارجي القريبة إلى أسطول التوصيل الداخلي المباشر',
-        'تثبيت أسعار موردي العارضية بدون توسع تشغيلي إضافي',
+        'معامل نمو مبيعات افتراضي +3.5% على خط الأساس الفعلي',
+        'معامل كفاءة تكاليف افتراضي -1.8% عبر ضبط الهدر والخصومات',
+        'احتساب 55% فقط من العائد المتوقع للمراحل المضافة يدوياً',
       ],
       [
-        'Cap POS & app promos strictly at <= 3.0%',
-        'Convert 25% of nearby Tgo orders to own TMP fleet',
-        'Hold Ardiya supplier unit costs flat with zero new capex',
+        'Assumes +3.5% sales growth over normalized Odoo POS baseline',
+        'Assumes -1.8% variable cost efficiency from waste & promo caps',
+        'Applies 55% capture weight on user-entered roadmap phases',
       ],
     ),
     buildScenario(
       'realistic',
-      'السيناريو الواقعي (الموصى به) ⭐',
-      'Realistic (Target) ⭐',
-      'تنفيذ المراحل الأربع + استغلال الرواتب وموسم الشتاء',
-      'Execute 4 roadmap phases + Kuwait winter & payday pulse',
+      'تقدير السيناريو الواقعي ⭐',
+      'Realistic Estimate ⭐',
+      'افتراض نمو +9.5% مع خفض تكاليف متغيرة 3.4%',
+      'Assumes +9.5% sales growth & 3.4% cost efficiency',
       0.095,
       0.034,
       0.85,
       [
-        `استغلال قفزة الرواتب (+${paydayLiftPct}%) بباقات عائلية بدون حرق خصم`,
-        'تشغيل طاحينة ونودل بار داخل مطابخ السالمية والبروميناد',
-        'خفض هدر مطبخ العارضية إلى ≤ 1.8% وتثبيت عقود الدواجن والروبيان',
+        'معامل نمو مبيعات افتراضي +9.5% على خط الأساس الفعلي',
+        'معامل كفاءة تكاليف افتراضي -3.4% مع تحسين مزيج القنوات',
+        'احتساب 85% من العائد المتوقع للمراحل المضافة يدوياً',
       ],
       [
-        `Capture +${paydayLiftPct}% Kuwait payday surge via high-margin bundles`,
-        'Run Tahina & Noodle Bar inside Salmiya & Promenade kitchens',
-        'Cut Ardiya prep waste to <= 1.8% & lock protein supplier contracts',
+        'Assumes +9.5% sales growth over normalized Odoo POS baseline',
+        'Assumes -3.4% cost efficiency via channel & kitchen discipline',
+        'Applies 85% capture weight on user-entered roadmap phases',
       ],
     ),
     buildScenario(
       'ambitious',
-      'السيناريو الطموح 🚀',
-      'Ambitious 🚀',
-      'نمو هجومي في الصالة والاستلام المباشر وبوثات الشتاء الرابحة',
-      'Full direct-channel shift + peak winter Kashta & EXB booths',
+      'تقدير السيناريو الطموح 🚀',
+      'Ambitious Estimate 🚀',
+      'افتراض نمو +16.5% مع خفض تكاليف متغيرة 4.8%',
+      'Assumes +16.5% sales growth & 4.8% cost efficiency',
       0.165,
       0.048,
       1.15,
       [
-        'رفع حصة الصالة والاستلام المباشر (0% عمولة) بـ +6 نقاط مئوية',
-        'تحويل كامل النطاق القريب إلى أسطول التوصيل الداخلي المباشر (15%) وإيقاف إعلانات النقرات الخاسرة',
-        'تشغيل بوثات مطبخ العارضية المركزي المتنقلة المنتقاة بشرط إيجار ≤ 15% من المبيعات فقط',
+        'معامل نمو مبيعات افتراضي +16.5% عبر رفع حصة الصالة والطلب المباشر',
+        'معامل كفاءة تكاليف افتراضي -4.8% عبر تحويل التوصيل القريب للسائقين الداخليين',
+        'احتساب 115% من العائد المتوقع للمراحل المضافة يدوياً',
       ],
       [
-        'Grow zero-commission Dine-In & Direct Pickup share by +6 pts',
-        'Full nearby TMP (15%) fleet routing + zero losing click ads',
-        'Deploy selective winter EXB booths strictly under <= 15% rent cap',
+        'Assumes +16.5% sales growth led by zero-commission Dine-In & Direct',
+        'Assumes -4.8% cost efficiency via direct internal fleet routing',
+        'Applies 115% capture weight on user-entered roadmap phases',
       ],
     ),
   ]
 
   const signals: KuwaitMarketSignal[] = [
     {
-      id: 'sig-payday',
-      titleAr: 'نبض رواتب الكويت (20–28 الشهر)',
-      titleEn: 'Kuwait Payday Surge (20th–28th)',
-      impactBadgeAr: `+${paydayLiftPct}% مبيعات يومية`,
-      impactBadgeEn: `+${paydayLiftPct}% Daily Lift`,
+      id: 'sig-momentum',
+      titleAr: 'زخم المبيعات الدوري من إيصالات نقاط البيع',
+      titleEn: 'Observed POS Period-over-Period Momentum',
+      impactBadgeAr: `${paydayLiftPct >= 0 ? '+' : ''}${fmtOne(paydayLiftPct)}% تغير دوري`,
+      impactBadgeEn: `${paydayLiftPct >= 0 ? '+' : ''}${fmtOne(paydayLiftPct)}% Period Delta`,
+      formulaAr: momentumFormulaAr,
+      formulaEn: momentumFormulaEn,
       detailAr:
-        'إيصالات أودو تثبت قفزة متوسط السلة والطلبات العائلية في أسبوع الرواتب؛ نرفع الباقات العائلية ونمنع الخصم المفتوح.',
+        'مقارنة صافي مبيعات الفترة المرجعية مقابل الفترة المماثلة السابقة في pos.order كمدخل استرشادي للتقدير.',
       detailEn:
-        'Odoo POS confirms strong basket expansion during Kuwait salary week; push family platters without discounting.',
+        'Compares current reference window POS net sales against the immediately preceding window in pos.order.',
       tone: 'emerald',
     },
     {
-      id: 'sig-winter-kashta',
-      titleAr: 'موسم الشتاء والمخيمات والكشتات (نوفمبر – فبراير)',
-      titleEn: 'Kuwait Winter & Kashta Season (Nov–Feb)',
-      impactBadgeAr: '+12% إلى +16% مساءً',
-      impactBadgeEn: '+12% to +16% Evening',
+      id: 'sig-direct-share',
+      titleAr: 'حصة الصالة والسفري المباشر (0% عمولة)',
+      titleEn: 'Zero-Commission Dine-In & Direct Share',
+      impactBadgeAr: `${fmtOne(directChannelSharePct)}% حصة مباشرة`,
+      impactBadgeEn: `${fmtOne(directChannelSharePct)}% Direct Share`,
+      formulaAr: `(مبيعات الصالة + سفري ومباشر) ÷ إجمالي مبيعات القنوات × 100 = ${fmtOne(directChannelSharePct)}%`,
+      formulaEn: `(Dine-In + Direct Sales) ÷ Total Channel Sales × 100 = ${fmtOne(directChannelSharePct)}%`,
       detailAr:
-        'ذروة الطلب المسائي (7م – 12ص) على بوكسات المشاركة العائلية في فرانكس وتشاينا جاردن وكرك كافيتريا؛ جهّز تحضير العارضية مبكراً.',
+        'تُستخرج من توزيع إيصالات نقاط البيع حسب القناة وتُستخدم في تقدير أثر التحول من المنصات الخارجية.',
       detailEn:
-        'Peak evening sharing-box demand across Frank’s, China Garden & Karak; pre-stage Ardiya evening dispatch.',
+        'Computed from POS channel receipts to estimate margin upside from shifting off external aggregators.',
       tone: 'sky',
     },
     {
       id: 'sig-channel-spread',
-      titleAr: 'فجوة عمولة التوصيل مقابل الصالة وأسطولنا',
-      titleEn: 'Aggregator Fee vs Own Fleet & Dine-In',
-      impactBadgeAr: accountingAvailable ? `${deliveryFeePct}% اقتطاع توصيل` : 'غير متوفر (دفتر الأستاذ)',
-      impactBadgeEn: accountingAvailable ? `${deliveryFeePct}% Delivery Cut` : 'Not available (GL)',
+      titleAr: 'نسبة تكلفة المواد وعمولات التوصيل المرحّلة',
+      titleEn: 'Posted COGS & Delivery Commission Ratio',
+      impactBadgeAr: baseWorkspace.aggregatorCommissionUnposted
+        ? 'عمولات: غير مُرحَّل بعد'
+        : accountingAvailable
+          ? `${fmtOne(ardiyaFoodPct)}% مواد + ${fmtOne(deliveryFeePct)}% عمولات`
+          : 'قيود غير مكتملة',
+      impactBadgeEn: baseWorkspace.aggregatorCommissionUnposted
+        ? 'Commissions: Unposted'
+        : accountingAvailable
+          ? `${fmtOne(ardiyaFoodPct)}% COGS + ${fmtOne(deliveryFeePct)}% Comm.`
+          : 'GL Incomplete',
+      formulaAr: costShareFormulaAr,
+      formulaEn: costShareFormulaEn,
       detailAr: localizeArabicPlanningCopy(
-        `حصة الصالة والمباشر حالياً ${directChannelSharePct}% بعمولة 0%، مقابل 27% في طلبات منصات التوصيل الخارجي و15% فقط في أسطول التوصيل الداخلي المباشر.`,
+        baseWorkspace.aggregatorCommissionUnposted
+          ? 'عمولات منصات التوصيل غير مُرحَّلة بعد في هذه الفترة، لذا لا تُفترض صفراً في قراءة التكاليف.'
+          : 'تُحسب من قيود account.move.line المرحّلة للفترة المرجعية كأساس لتقدير تكاليف السيناريوهات.',
       ),
-      detailEn: `Direct 0%-fee share is ${directChannelSharePct}%, vs 27% on Tgo and 15% on our own TMP drivers.`,
+      detailEn: baseWorkspace.aggregatorCommissionUnposted
+        ? 'Aggregator commissions are not yet posted in GL for this period and are never assumed zero.'
+        : 'Derived from posted account.move.line entries for scenario cost estimation.',
       tone: 'amber',
     },
   ]
 
   return {
+    odooConnected: true,
+    noData: false,
+    noDataMessageAr: '',
+    noDataMessageEn: '',
+    isStale24h: Boolean(baseWorkspace.isStale24h || workspace.isStale24h),
+    glIncomplete: Boolean(baseWorkspace.glIncomplete || workspace.glIncomplete),
+    glWarningAr: baseWorkspace.glWarningAr ?? workspace.glWarningAr,
+    aggregatorCommissionUnposted: Boolean(
+      baseWorkspace.aggregatorCommissionUnposted || workspace.aggregatorCommissionUnposted,
+    ),
     horizonId,
     horizonDays,
     horizonMonths: monthsSpan,
     horizonLabelAr,
     horizonLabelEn,
     accountingAvailable,
-    unavailableReasonAr: normalizedMonthWorkspace.accounting.unavailableReasonAr,
-    unavailableReasonEn: normalizedMonthWorkspace.accounting.unavailableReasonEn,
-    lastSyncedAt: workspace.lastSyncedAt ?? normalizedMonthWorkspace.lastSyncedAt,
-    periodFromIso: normalizedMonthWorkspace.accounting.from || liveSummary?.buckets?.month?.from || '2026-10-16',
-    periodToIso: normalizedMonthWorkspace.accounting.to || liveSummary?.buckets?.month?.to || '2026-11-14',
+    unavailableReasonAr: baseWorkspace.accounting.unavailableReasonAr,
+    unavailableReasonEn: baseWorkspace.accounting.unavailableReasonEn,
+    lastSyncedAt:
+      baseWorkspace.lastSyncAt ??
+      workspace.lastSyncAt ??
+      baseWorkspace.lastSyncedAt ??
+      workspace.lastSyncedAt ??
+      null,
+    periodFromIso,
+    periodToIso,
+    sourcePeriodDays,
     monthlyBaselineSalesKwd,
     monthlyBaselineCostsKwd,
     monthlyBaselineNetKwd,
@@ -652,66 +801,75 @@ export function computePlanningHubSnapshot(
     deliveryFeePct,
     paydayLiftPct,
     directChannelSharePct,
+    baselineFormulaAr,
+    baselineFormulaEn,
+    costShareFormulaAr,
+    costShareFormulaEn,
+    momentumFormulaAr,
+    momentumFormulaEn,
     scenarios,
     signals,
   }
 }
 
 /**
- * Builds the rich, deterministic 3-section Executive Strategic Briefing interpolated with live active numbers.
+ * Builds the deterministic 3-section Executive Strategic Briefing strictly from live-derived estimates.
  */
 export function buildDeterministicStrategicBriefingSections(
   snap: PlanningHubSnapshot,
-  activeScenario: ScenarioForecastCard,
+  activeScenario: ScenarioForecastCard | undefined,
   scopeLabelAr: string,
   scopeLabelEn: string,
 ): StrategicBriefingSection[] {
+  if (snap.noData || !snap.odooConnected || !activeScenario) {
+    return []
+  }
   const cleanScopeAr = localizeArabicPlanningCopy(scopeLabelAr)
   const hasGl = snap.accountingAvailable
   return [
     {
       id: 'baseline',
       index: 1,
-      titleAr: '1. تشخيص خط الأساس والهامش الحالي',
-      titleEn: '1. Baseline & Current Margin Diagnosis',
-      metricBadgeAr: `${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك / شهر`,
-      metricBadgeEn: `${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / mo`,
+      titleAr: '1. خط الأساس التقديري (تقدير مبني على pos.order)',
+      titleEn: '1. Normalized Baseline Estimate (pos.order)',
+      metricBadgeAr: `تقدير: ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك / 30 يوم`,
+      metricBadgeEn: `Est: ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / 30d`,
       bodyAr: localizeArabicPlanningCopy(
         hasGl
-          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط الأساس الشهري المعتمد لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف دفتر الأستاذ ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك بصافي كاش فعلي ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%). تشكل مواد مطبخ العارضية ${fmtOne(snap.ardiyaFoodPct)}% وعمولات التوصيل المرحلة ${fmtOne(snap.deliveryFeePct)}% مقابل ${fmtOne(snap.directChannelSharePct)}% للقنوات المباشرة الصفرية.`
-          : `يرتكز النطاق النشط (${cleanScopeAr}) على خط الأساس الشهري المعتمد لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات نقاط بيع حقيقية (متوسط اليوم: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما نسب الربح والتكاليف الحالية غير متوفر احتسابها بدون نسب افتراضية لحين اكتمال قيود دفتر الأستاذ المرحّلة للنطاق، مع حصة ${fmtOne(snap.directChannelSharePct)}% للقنوات المباشرة الصفرية.`,
+          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري معياري لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف مقدّرة ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك وصافي تقديري ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%).${snap.glIncomplete ? ' تنبيه: قيود غير مكتملة لهذه الفترة في دفتر الأستاذ.' : ''}`
+          : `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري معياري لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما تقدير التكاليف وصافي التدفق غير متوفر لحين اكتمال قيود دفتر الأستاذ المرحّلة.`,
       ),
       bodyEn: hasGl
-        ? `Active scope (${scopeLabelEn}) runs on a normalized 30-day monthly baseline of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (daily average: ${fmtInt(snap.dailyAverageSalesKwd)} KWD) and ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD posted GL costs, yielding ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net pocket cash (${fmtOne(snap.monthlyBaselineMarginPct)}%). Ardiya food COGS is ${fmtOne(snap.ardiyaFoodPct)}% and posted delivery fee is ${fmtOne(snap.deliveryFeePct)}%, backed by a ${fmtOne(snap.directChannelSharePct)}% zero-fee direct share.`
-        : `Active scope (${scopeLabelEn}) runs on a normalized 30-day POS baseline of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (daily average: ${fmtInt(snap.dailyAverageSalesKwd)} KWD); cost and profit ratios are marked Not available (zero synthetic defaults) until full Odoo GL journal lines are loaded for this scope, backed by a ${fmtOne(snap.directChannelSharePct)}% zero-fee direct share.`,
+        ? `Active scope (${scopeLabelEn}) uses a normalized 30-day baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (est. daily avg: ${fmtInt(snap.dailyAverageSalesKwd)} KWD), ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD costs, and ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net cash (${fmtOne(snap.monthlyBaselineMarginPct)}%).`
+        : `Active scope (${scopeLabelEn}) uses a normalized 30-day POS baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales; cost and profit estimates await complete Odoo GL postings.`,
     },
     {
       id: 'seasonality',
       index: 2,
-      titleAr: '2. أثر موسم الشتاء والرواتب في الكويت',
-      titleEn: '2. Kuwait Winter & Salary Cycle Impact',
-      metricBadgeAr: `+${fmtOne(snap.paydayLiftPct)}% ذروة الرواتب`,
-      metricBadgeEn: `+${fmtOne(snap.paydayLiftPct)}% Payday Lift`,
+      titleAr: '2. معادلة التقدير للسيناريو المختار',
+      titleEn: '2. Selected Scenario Projection Formula',
+      metricBadgeAr: `تقدير: ${fmtInt(activeScenario.projectedSalesKwd)} د.ك`,
+      metricBadgeEn: `Est: ${fmtInt(activeScenario.projectedSalesKwd)} KWD`,
       bodyAr: localizeArabicPlanningCopy(
         hasGl
-          ? `ضمن أفق ${snap.horizonLabelAr}، تضيف دورة الرواتب في الكويت (20–28 الشهر) قفزة +${fmtOne(snap.paydayLiftPct)}% في المبيعات اليومية بالتزامن مع ذروة أمسيات الشتاء والكشتات (+12% إلى +16% مساءً). وعند اعتماد ${activeScenario.badgeAr} تصل المبيعات المتوقعة إلى ${fmtInt(activeScenario.projectedSalesKwd)} د.ك مقابل تكاليف ${fmtInt(activeScenario.projectedCostsKwd)} د.ك بصافي كاش +${fmtInt(activeScenario.projectedNetCashKwd)} د.ك وهامش ${fmtOne(activeScenario.netMarginPct)}%.`
-          : `ضمن أفق ${snap.horizonLabelAr}، تضيف دورة الرواتب في الكويت (20–28 الشهر) قفزة +${fmtOne(snap.paydayLiftPct)}% في المبيعات اليومية بالتزامن مع ذروة أمسيات الشتاء والكشتات (+12% إلى +16% مساءً). وعند اعتماد ${activeScenario.badgeAr} تصل المبيعات المتوقعة إلى ${fmtInt(activeScenario.projectedSalesKwd)} د.ك (${fmtInt(activeScenario.projectedOrders)} طلب)، بينما التكاليف وصافي الكاش غير متوفر بدون قيود دفتر الأستاذ المرحلة.`,
+          ? `ضمن أفق ${snap.horizonLabelAr}، يُقدّر ${activeScenario.badgeAr} مبيعات بنحو ${fmtInt(activeScenario.projectedSalesKwd)} د.ك وتكاليف بنحو ${fmtInt(activeScenario.projectedCostsKwd)} د.ك وصافي تدفق تقديري ${activeScenario.projectedNetCashKwd >= 0 ? '+' : ''}${fmtInt(activeScenario.projectedNetCashKwd)} د.ك (${fmtOne(activeScenario.netMarginPct)}%) وفق المعادلة الظاهرة أدناه.`
+          : `ضمن أفق ${snap.horizonLabelAr}، يُقدّر ${activeScenario.badgeAr} مبيعات بنحو ${fmtInt(activeScenario.projectedSalesKwd)} د.ك (${fmtInt(activeScenario.projectedOrders)} طلب تقديري)، بينما التكاليف والصافي غير متوفرين بدون قيود دفتر الأستاذ.`,
       ),
       bodyEn: hasGl
-        ? `Across ${snap.horizonLabelEn}, Kuwait's 20th–28th salary cycle drives a +${fmtOne(snap.paydayLiftPct)}% daily sales surge alongside peak Nov–Feb winter evening Kashta demand (+12% to +16%). Adopting ${activeScenario.badgeEn} scales projected sales to ${fmtInt(activeScenario.projectedSalesKwd)} KWD vs ${fmtInt(activeScenario.projectedCostsKwd)} KWD costs, generating +${fmtInt(activeScenario.projectedNetCashKwd)} KWD net cash at a ${fmtOne(activeScenario.netMarginPct)}% margin.`
-        : `Across ${snap.horizonLabelEn}, Kuwait's 20th–28th salary cycle drives a +${fmtOne(snap.paydayLiftPct)}% daily sales surge alongside peak Nov–Feb winter evening Kashta demand (+12% to +16%). Adopting ${activeScenario.badgeEn} scales projected sales to ${fmtInt(activeScenario.projectedSalesKwd)} KWD (${fmtInt(activeScenario.projectedOrders)} orders), with cost and net profit marked Not available pending Odoo GL postings.`,
+        ? `Across ${snap.horizonLabelEn}, ${activeScenario.badgeEn} estimates ${fmtInt(activeScenario.projectedSalesKwd)} KWD sales, ${fmtInt(activeScenario.projectedCostsKwd)} KWD costs, and ${activeScenario.projectedNetCashKwd >= 0 ? '+' : ''}${fmtInt(activeScenario.projectedNetCashKwd)} KWD net cash (${fmtOne(activeScenario.netMarginPct)}%).`
+        : `Across ${snap.horizonLabelEn}, ${activeScenario.badgeEn} estimates ${fmtInt(activeScenario.projectedSalesKwd)} KWD sales (${fmtInt(activeScenario.projectedOrders)} est. orders); cost and net cash require posted GL lines.`,
     },
     {
       id: 'execution',
       index: 3,
-      titleAr: '3. خطة التنفيذ الموصى بها وأولويات الفروع',
-      titleEn: '3. Recommended Execution & Branch Priorities',
-      metricBadgeAr: activeScenario.paybackLabelAr,
-      metricBadgeEn: activeScenario.paybackLabelEn,
+      titleAr: '3. ضوابط القراءة التنفيذية للتقديرات',
+      titleEn: '3. Executive Estimation Safeguards',
+      metricBadgeAr: 'تقدير (ليست أرقاماً فعلية)',
+      metricBadgeEn: 'Estimate (Not Actuals)',
       bodyAr: localizeArabicPlanningCopy(
-        `يُوصى بتحويل الطلبات القريبة من طلبات منصات التوصيل الخارجي (27%) إلى أسطول التوصيل الداخلي المباشر (15%) والاستلام المباشر، مع تثبيت هدر مطبخ العارضية عند ≤ 1.8% وسقف خصومات الكاشير ≤ 3.0%، وتشغيل طاحينة وذا نودل بار داخل مطابخ السالمية والبروميناد بدون إيجار إضافي، وقصر بوثات مطبخ العارضية المركزي المتنقلة على المواقع التي لا يتجاوز إيجارها 15% من المبيعات.`,
+        `جميع الأرقام المعروضة في هذه الصفحة هي تقديرات استشرافية مبنية على معادلات رياضية فوق خط الأساس الفعلي من أودو (${snap.periodFromIso} إلى ${snap.periodToIso}) وليست قيوداً فعلية محققة؛ وتظل أوامر التجميد والتعاميم الرسمية معطّلة حتى ربط سقوف الأدمن بمخالفات فعلية في أودو.`,
       ),
-      bodyEn: `Shift <=4km delivery volume from 27%-fee external aggregators to the 15% direct internal fleet and pickup, hold Ardiya prep waste <= 1.8% and POS promos <= 3.0%, run Tahina & The Noodle Bar inside Salmiya and Promenade kitchens at zero extra rent, and restrict mobile central-kitchen booths to venues with rent <= 15% of sales (${activeScenario.paybackLabelEn}).`,
+      bodyEn: `All figures on this page are mathematical projections derived from the Odoo baseline (${snap.periodFromIso} → ${snap.periodToIso}), not realized accounting actuals; official circulars and freeze actions remain disabled.`,
     },
   ]
 }
@@ -719,7 +877,6 @@ export function buildDeterministicStrategicBriefingSections(
 function cleanParsedBulletLine(line: string, isAr: boolean): string {
   let out = stripStrategicMarkdown(line)
   if (isAr) out = localizeArabicPlanningCopy(out)
-  // Strip leading numbering or echoed section titles so card body never repeats card heading
   out = out
     .replace(/^\s*[1-3١-٣][.)\-–:]\s*/, '')
     .replace(
@@ -730,14 +887,10 @@ function cleanParsedBulletLine(line: string, isAr: boolean): string {
   return out
 }
 
-/**
- * Resolves AI forecast text through strict Markdown stripping, Arabic acronym localization,
- * and the >= 180-character completeness guard — always returning 3 complete executive sections.
- */
 export function resolveStrategicBriefing(
   rawAiText: string | null | undefined,
   snap: PlanningHubSnapshot,
-  activeScenario: ScenarioForecastCard,
+  activeScenario: ScenarioForecastCard | undefined,
   scopeLabelAr: string,
   scopeLabelEn: string,
   isAr: boolean,
@@ -752,6 +905,14 @@ export function resolveStrategicBriefing(
     scopeLabelAr,
     scopeLabelEn,
   )
+
+  if (deterministic.length === 0) {
+    return {
+      sections: [],
+      fullPlainText: '',
+      usedFallback: true,
+    }
+  }
 
   const deterministicPlainText = deterministic
     .map((s) => `${isAr ? s.titleAr : s.titleEn}: ${isAr ? s.bodyAr : s.bodyEn}`)
@@ -776,7 +937,6 @@ export function resolveStrategicBriefing(
     }
   }
 
-  // Split into numbered sections or non-empty lines
   const rawChunks = localized
     .split(/\n+(?=\s*[1-3١-٣][.)\-–:])|\n{2,}|\n+/)
     .map((c) => cleanParsedBulletLine(c, isAr))
@@ -812,38 +972,76 @@ export function resolveStrategicBriefing(
 
 export function buildPlanCircularText(
   phase: StrategicRoadmapPhase,
-  scenario: ScenarioForecastCard,
+  scenario: ScenarioForecastCard | undefined,
   isAr: boolean,
   sealId?: string,
 ): string {
   const stamp = sealId ?? `VF-PLAN-${new Date().getFullYear()}`
+  const salesEst = scenario ? scenario.projectedSalesKwd.toLocaleString('en-US') : '0'
+  const netEst = scenario ? scenario.projectedNetCashKwd.toLocaleString('en-US') : '0'
+  const scenLabelEn = scenario?.badgeEn ?? 'Estimate'
+  const scenLabelAr = scenario?.badgeAr ?? 'تقدير'
+
   if (!isAr) {
     return [
-      `📢 *OFFICIAL EXECUTIVE CIRCULAR — VENTURE FOODS CO. W.L.L.*`,
-      `🔖 Seal ID: ${stamp}`,
-      `📌 Approved Plan (${phase.phaseCode}): ${phase.titleEn}`,
-      `🗓️ Execution Window: ${phase.startDate} → ${phase.endDate}`,
-      `👤 Responsible Owner: ${phase.ownerEn}`,
-      `💰 Approved Cost Cap: ${phase.costCapKwd.toLocaleString('en-US')} KWD | Expected Return: +${phase.expectedMonthlyGainKwd.toLocaleString('en-US')} KWD/mo`,
-      `🎯 Target KPI: ${phase.targetKpiEn}`,
-      `🛡️ Live Odoo 17 Watchdog Rule: ${phase.odooWatchMetricEn}`,
-      `📊 Linked Forecast Scenario (${scenario.badgeEn}): Sales ${scenario.projectedSalesKwd.toLocaleString('en-US')} KWD | Net Cash ${scenario.projectedNetCashKwd.toLocaleString('en-US')} KWD`,
-      `✅ Mandatory across all 7 active branches + Ardiya Central Kitchen. Any deviation triggers an immediate Odoo Compliance Alert.`,
+      `DRAFT PLANNING SUMMARY (ESTIMATE) — VENTURE FOODS CO. W.L.L.`,
+      `Ref: ${stamp}`,
+      `Phase (${phase.phaseCode}): ${phase.titleEn}`,
+      `Window: ${phase.startDate} -> ${phase.endDate}`,
+      `Owner: ${phase.ownerEn}`,
+      `Estimated Cost Cap: ${phase.costCapKwd.toLocaleString('en-US')} KWD | Estimated Return: +${phase.expectedMonthlyGainKwd.toLocaleString('en-US')} KWD/mo`,
+      `Target KPI: ${phase.targetKpiEn}`,
+      `Linked Scenario (${scenLabelEn}): Est. Sales ${salesEst} KWD | Est. Net Cash ${netEst} KWD`,
     ].join('\n')
   }
 
   return localizeArabicPlanningCopy(
     [
-      `📢 تعميم إداري وتنفيذي رسمي — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
-      `🔖 رقم الختم التنفيذي: ${stamp}`,
-      `📌 الخطة المعتمدة (${phase.phaseCode}): ${phase.titleAr}`,
-      `🗓️ فترة التنفيذ: ${phase.startDate} ← ${phase.endDate}`,
-      `👤 المسؤول عن التنفيذ: ${phase.ownerAr}`,
-      `💰 سقف التكلفة المعتمد: ${phase.costCapKwd.toLocaleString('en-US')} د.ك | العائد الشهري المستهدف: +${phase.expectedMonthlyGainKwd.toLocaleString('en-US')} د.ك`,
-      `🎯 مؤشر الأداء المستهدف: ${phase.targetKpiAr}`,
-      `🛡️ قاعدة الرقابة الحية في أودو 17: ${phase.odooWatchMetricAr}`,
-      `📊 السيناريو المرتبط (${scenario.badgeAr}): المبيعات ${scenario.projectedSalesKwd.toLocaleString('en-US')} د.ك | الصافي ${scenario.projectedNetCashKwd.toLocaleString('en-US')} د.ك`,
-      `✅ يُعمم للعمل الفوري في الفروع السبعة ومطبخ العارضية المركزي، وأي تجاوز لسقف التكلفة أو الخصم يُرصد آلياً كمخالفة فورية.`,
+      `مسودة خطة تقديرية (تقدير) — شركة فنتشر فودز لإدارة المطاعم ذ.م.م`,
+      `المرجع: ${stamp}`,
+      `المرحلة (${phase.phaseCode}): ${phase.titleAr}`,
+      `فترة التنفيذ: ${phase.startDate} ← ${phase.endDate}`,
+      `المسؤول: ${phase.ownerAr}`,
+      `سقف التكلفة التقديري: ${phase.costCapKwd.toLocaleString('en-US')} د.ك | العائد التقديري: +${phase.expectedMonthlyGainKwd.toLocaleString('en-US')} د.ك/شهر`,
+      `المؤشر المستهدف: ${phase.targetKpiAr}`,
+      `السيناريو التقديري (${scenLabelAr}): مبيعات مقدّرة ${salesEst} د.ك | صافي مقدّر ${netEst} د.ك`,
     ].join('\n'),
   )
+}
+
+function isGlobalWorkspaceSlice(
+  candidate: Partial<GlobalFilters> | GlobalWorkspaceSlice | null | undefined,
+): candidate is GlobalWorkspaceSlice {
+  return Boolean(
+    candidate &&
+      typeof candidate === 'object' &&
+      'filters' in candidate &&
+      'odooConnected' in candidate &&
+      'salesKwd' in candidate,
+  )
+}
+
+/**
+ * Convenience strategic planning entry point accepting either a computed `GlobalWorkspaceSlice`
+ * or partial `GlobalFilters` alongside an optional `OdooLiveSummary`.
+ */
+export function computeStrategicPlanning(
+  filtersOrWorkspace?: Partial<GlobalFilters> | GlobalWorkspaceSlice | null,
+  liveSummary?: OdooLiveSummary | null,
+  phases: StrategicRoadmapPhase[] = INITIAL_STRATEGIC_PHASES,
+  horizonId: ForecastHorizonId = '30d',
+  customFrom = '',
+  customTo = '',
+): PlanningHubSnapshot {
+  const workspace = isGlobalWorkspaceSlice(filtersOrWorkspace)
+    ? filtersOrWorkspace
+    : computeGlobalWorkspace(
+        {
+          ...DEFAULT_GLOBAL_FILTERS,
+          ...(filtersOrWorkspace ?? {}),
+        },
+        liveSummary ?? undefined,
+        '/erp/planning',
+      )
+  return computePlanningHubSnapshot(workspace, phases, horizonId, customFrom, customTo, liveSummary)
 }

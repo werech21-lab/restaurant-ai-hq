@@ -84,13 +84,27 @@ export interface OdooLedgerAccountingSummary {
   totalRevenue?: number
   cogs: number
   deliveryCommissions?: number
+  deliveryCommissionLinesCount?: number
   expense: number
   depreciation: number
   otherOpexAndDepreciation?: number
   operatingProfit: number
   completeAccrualPosted?: boolean
+  glIncomplete?: boolean
+  glWarningAr?: string
+  aggregatorCommissionUnposted?: boolean
+  aggregatorCommissionDisplayAr?: string
   unavailableReasonAr?: string
   unavailableReasonEn?: string
+}
+
+export interface OdooUnattributedBranchRow {
+  id: 'unattributed'
+  labelAr: string
+  labelEn: string
+  netSalesKwd: number
+  orders: number
+  sharePct: number
 }
 
 export interface OdooBucketSummary {
@@ -109,6 +123,9 @@ export interface OdooBucketSummary {
   byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }>
   byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
   mappedByLocation?: Record<string, { netKwd: number; orders: number }>
+  unattributedSalesKwd?: number
+  unattributedOrders?: number
+  unattributedBranch?: OdooUnattributedBranchRow
   unmappedSummary?: { netSalesKwd: number; orders: number }
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
@@ -117,10 +134,17 @@ export interface OdooBucketSummary {
 }
 
 export interface OdooLiveSummary {
-  source: 'live' | 'snapshot'
+  source: 'live' | 'snapshot' | 'disconnected'
   /** Live connection telemetry (safe for client consumption; ZERO secrets/URLs/DB names). */
   connected?: boolean
-  sourceMode?: 'odoo17-live' | 'cached-live' | 'verified-baseline'
+  sourceMode?: 'odoo17-live' | 'cached-live' | 'disconnected' | 'verified-baseline'
+  noData?: boolean
+  messageAr?: string
+  messageEn?: string
+  lastSyncAt?: string | null
+  isStale24h?: boolean
+  odooCompanyId?: number | null
+  dateRange?: { from: string; to: string }
   envConfigured?: boolean
   /** Honest ISO-8601 UTC timestamp bound strictly to the latest actual Odoo 17 POS/accounting record. */
   syncedAt: string
@@ -146,11 +170,14 @@ export interface OdooLiveSummary {
   rateLimitedCooldown?: boolean
   lastCheckedAt?: string
   readOnly?: boolean
-  bucket?: OdooPeriodBucketKey
+  bucket?: OdooPeriodBucketKey | 'custom'
   period: { from: string; to: string }
   /** Strictly `null` in all browser-facing responses so `ODOO_DB` never leaves the server. */
   database: string | null
   totals: { netSalesKwd: number; orders: number; aovKwd: number }
+  unattributedSalesKwd?: number
+  unattributedOrders?: number
+  unattributedBranch?: OdooUnattributedBranchRow
   companyTotals?: {
     grossPreExclusionKwd?: number
     excludedEntitiesKwd?: number
@@ -178,6 +205,8 @@ export interface OdooLiveSummary {
   dailySeries?: { day: string; orders: number; netKwd: number }[]
   /** Live Kuwait per-branch daily POS series (`day -> branchId -> { netKwd, orders }`) for exact cross-page parity. */
   dailyByBranch?: Record<string, Record<string, { netKwd: number; orders: number }>>
+  /** Live Kuwait unattributed daily POS series (`day -> { netKwd, orders }`). */
+  dailyUnattributed?: Record<string, { netKwd: number; orders: number }>
   /** Live Kuwait 24-hour POS distribution (`0..23`) overlaid on Hourly Comparison Curves. */
   hourlySeries?: { hour: number; orders: number; netKwd: number }[]
   /** Optional Ardiya Central Kitchen -> Branch transfer telemetry from `stock.picking`. */
@@ -448,114 +477,40 @@ export function periodWindowForBucket(bucket: OdooPeriodBucketKey, now = new Dat
   return { from: iso(shift(t, -30)), to: iso(shift(t, 1)) }
 }
 
-export function summaryFromSnapshot(raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
-  const s = (raw ?? {}) as SnapshotShape
-  const latestInfo = resolveSnapshotLatestRecordInfo(s)
-  const latestFreshness = computeOdooFreshnessStatus(
-    latestInfo.latestRecordAt,
-    Date.parse('2026-11-14T08:45:00.000Z'),
-  )
-  const jp = s.journey?.pulse
-  const aa = s.journey?.opex?.analyticArchitecture
-  const un = s.journey?.opex?.unallocated?.rolling30
-  const b = s.buckets?.[bucket]
-  const bucketBrandEntries = b?.byBrand ? Object.entries(b.byBrand).filter(([, v]) => v.netKwd > 0) : null
-  const bucketBrandTotal = bucketBrandEntries ? bucketBrandEntries.reduce((acc, [, v]) => acc + v.netKwd, 0) : 0
-  const bucketLocEntries = b?.byLocation ? Object.entries(b.byLocation) : null
-  const bucketLocTotal = b?.totals.netSalesKwd ?? 0
-  const fromIso = b ? b.from : (s.period?.from ?? '')
-  const rawExclTo = b ? b.to : (s.period?.to ?? '')
-  const shiftedInclusiveEnd = /^\d{4}-\d{2}-\d{2}$/.test(rawExclTo)
-    ? new Date(Date.parse(`${rawExclTo}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
-    : rawExclTo
-  const rawCanonicalInclusiveTo =
-    fromIso && shiftedInclusiveEnd >= fromIso ? shiftedInclusiveEnd : fromIso || shiftedInclusiveEnd
+export function summaryFromSnapshot(_raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
+  const win = periodWindowForBucket(bucket)
   const kwTodayIso = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10)
-  const clampedTo =
-    /^\d{4}-\d{2}-\d{2}$/.test(rawCanonicalInclusiveTo) && rawCanonicalInclusiveTo > kwTodayIso
-      ? kwTodayIso
-      : rawCanonicalInclusiveTo
-  const clampedFrom =
-    /^\d{4}-\d{2}-\d{2}$/.test(fromIso) && /^\d{4}-\d{2}-\d{2}$/.test(clampedTo) && fromIso > clampedTo
-      ? clampedTo
-      : fromIso
-  const slicedDaily = Array.isArray(s.timeProfile?.daily)
-    ? s.timeProfile.daily
-        .filter((d) => (!clampedFrom || d.day >= clampedFrom) && (!clampedTo || d.day <= clampedTo))
-        .slice()
-        .sort((x, y) => x.day.localeCompare(y.day))
-    : undefined
+  const inclusiveTo =
+    /^\d{4}-\d{2}-\d{2}$/.test(win.to)
+      ? new Date(Date.parse(`${win.to}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+      : kwTodayIso
+  const dateRange = {
+    from: win.from,
+    to: inclusiveTo >= win.from ? inclusiveTo : win.from,
+  }
   return {
-    source: 'snapshot',
+    source: 'disconnected',
     connected: false,
-    sourceMode: 'verified-baseline',
-    syncedAt: latestInfo.latestRecordAt,
-    latestRecordAt: latestInfo.latestRecordAt,
-    latestOdooRecordAt: latestFreshness.kuwaitIso,
-    latestRecordKuwaitIso: latestFreshness.kuwaitIso,
-    kuwaitSyncedAt: latestFreshness.kuwaitTimestamp,
-    latestOperationalDate: latestInfo.latestOperationalDate,
+    sourceMode: 'disconnected',
+    noData: true,
+    messageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+    messageEn: 'No data from Odoo for this period',
+    lastSyncAt: null,
+    isStale24h: false,
+    odooCompanyId: null,
+    dateRange,
+    syncedAt: '',
     bucket,
-    period: { from: clampedFrom, to: clampedTo },
+    period: dateRange,
     database: null,
-    totals: b
-      ? { netSalesKwd: b.totals.netSalesKwd, orders: b.totals.orders, aovKwd: b.totals.aovKwd }
-      : s.totals
-        ? { netSalesKwd: s.totals.netSalesKwd, orders: s.totals.orders, aovKwd: s.totals.aovKwd }
-        : { netSalesKwd: 0, orders: 0, aovKwd: 0 },
-    brands: bucketBrandEntries
-      ? bucketBrandEntries.map(([bid, v]) => ({ id: bid, brand: REG.brands.find((x) => x.id === bid)?.en ?? bid, netKwd: v.netKwd, sharePct: pct(v.netKwd, bucketBrandTotal) })).sort((a, x) => x.netKwd - a.netKwd)
-      : (s.brands ?? []).filter((x) => x.netKwd > 0).map((x) => ({ id: x.id, brand: x.en, netKwd: x.netKwd, sharePct: x.sharePct })),
-    branches: bucketLocEntries
-      ? bucketLocEntries.map(([lid, v]) => ({ id: lid, name: REG.locations[lid]?.en ?? lid, unit: REG.locations[lid]?.unit ?? 'restaurant', netSalesKwd: v.netKwd, orders: v.orders, sharePct: pct(v.netKwd, bucketLocTotal) })).sort((a, x) => x.netSalesKwd - a.netSalesKwd)
-      : (s.locations ?? []).map((l) => ({ id: l.id, name: l.en, unit: l.unit, netSalesKwd: l.netKwd, orders: l.orders, sharePct: l.sharePct })),
-    channels: b?.uiChannels
-      ? Object.entries(b.uiChannels).map(([name, v]) => ({ name, amountKwd: v.netKwd })).sort((a, x) => x.amountKwd - a.amountKwd)
-      : (s.channels ?? []).map((c) => ({ name: c.name, amountKwd: c.amountKwd })),
-    ...(s.buckets ? { buckets: s.buckets } : {}),
-    ...(slicedDaily ? { dailySeries: slicedDaily } : {}),
-    ...(s.timeProfile?.hourly ? { hourlySeries: s.timeProfile.hourly } : {}),
-    ...(jp
-      ? {
-          journeyPulse: Object.fromEntries(
-            (['rolling30', 'prior30', 'mtd'] as const).map((k) => {
-              const rawWin = jp[k]
-              const inclusiveWinTo =
-                k === 'rolling30' || k === 'mtd'
-                  ? clampedTo
-                  : /^\d{4}-\d{2}-\d{2}$/.test(rawWin.to)
-                    ? new Date(Date.parse(`${rawWin.to}T12:00:00Z`) - 86_400_000)
-                        .toISOString()
-                        .slice(0, 10)
-                    : rawWin.to
-              return [
-                k,
-                {
-                  from: rawWin.from,
-                  to: inclusiveWinTo,
-                  days: rawWin.days,
-                  netKwd: rawWin.netKwd,
-                  orders: rawWin.orders,
-                  perDayKwd: rawWin.perDayKwd,
-                },
-              ]
-            }),
-          ) as OdooLiveSummary['journeyPulse'],
-        }
-      : {}),
-    ...(s.journey?.access ? { access: { readable: s.journey.access.readable.map((a) => a.model), restricted: s.journey.access.restricted.map((a) => a.model) } } : {}),
-    ...(aa
-      ? {
-          analyticCostCenters: {
-            plansReadable: Boolean(aa.plansReadable),
-            accountsReadable: Boolean(aa.accountsReadable),
-            linesReadable: Boolean(aa.linesReadable),
-            whitelistedCenters: aa.whitelistedCenters?.length ?? 0,
-            unallocatedExpenseDebit30Kwd: un?.grossDebitKwd,
-            unallocatedLines30: un?.lines,
-          },
-        }
-      : {}),
+    totals: { netSalesKwd: 0, orders: 0, aovKwd: 0 },
+    unattributedSalesKwd: 0,
+    unattributedOrders: 0,
+    brands: [],
+    branches: [],
+    channels: [],
+    dailySeries: [],
+    hourlySeries: [],
     ...(note ? { note } : {}),
   }
 }
@@ -570,39 +525,6 @@ function monthToDate(now = new Date()) {
 
 const ACTIVE_BRAND_IDS = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria'] as const
 const UI_CHANNEL_KEYS = ['dine-in', 'takeaway-direct', 'talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'snoonu'] as const
-
-function reconcileAmounts(rawMap: Map<string, number>, keys: readonly string[], targetTotal: number): Map<string, number> {
-  const target = Math.max(0, r3(targetTotal))
-  const posEntries = keys.map((k) => [k, Math.max(0, Number(rawMap.get(k)) || 0)] as const)
-  const rawSum = posEntries.reduce((s, [, v]) => s + v, 0)
-  const out = new Map<string, number>()
-  if (target <= 0) {
-    for (const k of keys) out.set(k, 0)
-    return out
-  }
-  if (rawSum <= 0) {
-    for (const k of keys) out.set(k, 0)
-    out.set(keys[0], target)
-    return out
-  }
-  let roundedSum = 0
-  let maxKey = keys[0]
-  let maxVal = -1
-  for (const [k, v] of posEntries) {
-    const scaled = r3((v / rawSum) * target)
-    out.set(k, scaled)
-    roundedSum += scaled
-    if (scaled > maxVal) {
-      maxVal = scaled
-      maxKey = k
-    }
-  }
-  const residual = r3(target - roundedSum)
-  if (residual !== 0) {
-    out.set(maxKey, Math.max(0, r3((out.get(maxKey) ?? 0) + residual)))
-  }
-  return out
-}
 
 export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(), timeoutMs = 25_000, bucket?: OdooPeriodBucketKey): Promise<OdooLiveSummary> {
   if (!hasOdooCredentials(env)) throw new Error('Odoo credentials are not configured on the server')
@@ -695,8 +617,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   }
   const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0))
   const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0)
-  const rawLocMap = new Map(restaurantLocIds.map((loc) => [loc, locAgg.get(loc)?.net ?? 0]))
-  const reconciledLocNet = reconcileAmounts(rawLocMap, restaurantLocIds, targetNet)
+  const rawLocNet = new Map(restaurantLocIds.map((loc) => [loc, r3(locAgg.get(loc)?.net ?? 0)]))
 
   const locRawUi = new Map<string, Record<string, { netKwd: number; orders: number }>>()
   for (const loc of restaurantLocIds) {
@@ -727,19 +648,17 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const byLocation: NonNullable<OdooBucketSummary['byLocation']> = {}
   const aggUiChannels: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]))
   for (const loc of restaurantLocIds) {
-    const locTarget = reconciledLocNet.get(loc) ?? 0
+    const locTarget = rawLocNet.get(loc) ?? 0
     const rawUi = locRawUi.get(loc)!
     const rawUiMap = new Map<string, number>(UI_CHANNEL_KEYS.map((ck) => [ck, rawUi[ck].netKwd]))
     if (loc === 'ardiya' && (rawUiMap.get('dine-in') ?? 0) > 0) {
       rawUiMap.set('takeaway-direct', (rawUiMap.get('takeaway-direct') ?? 0) + (rawUiMap.get('dine-in') ?? 0))
       rawUiMap.set('dine-in', 0)
     }
-    const allowedCk = loc === 'ardiya' ? UI_CHANNEL_KEYS.filter((ck) => ck !== 'dine-in') : UI_CHANNEL_KEYS
-    const recUi = reconcileAmounts(rawUiMap, allowedCk, locTarget)
     const locUi: Record<string, { netKwd: number; orders: number }> = {}
     for (const ck of UI_CHANNEL_KEYS) {
-      const nv = r3(recUi.get(ck) ?? 0)
-      const ov = nv > 0 ? Math.max(1, rawUi[ck].orders || Math.round(nv / 4.8)) : 0
+      const nv = r3(rawUiMap.get(ck) ?? 0)
+      const ov = Math.max(0, Math.round(rawUi[ck].orders || 0))
       locUi[ck] = { netKwd: nv, orders: ov }
       aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
       aggUiChannels[ck].orders += ov
@@ -750,35 +669,29 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       uiChannels: locUi,
     }
   }
-  const aggRawMap = new Map<string, number>(UI_CHANNEL_KEYS.map((ck) => [ck, aggUiChannels[ck].netKwd]))
-  const reconciledAggUi = reconcileAmounts(aggRawMap, UI_CHANNEL_KEYS, targetNet)
-  for (const ck of UI_CHANNEL_KEYS) {
-    aggUiChannels[ck].netKwd = reconciledAggUi.get(ck) ?? 0
-  }
 
   const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
-  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { product_id: M2O; price_subtotal: number; qty?: number }[]
+  const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { product_id: M2O; price_subtotal: number; qty?: number; __count?: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
   const categOf = new Map(products.map((p) => [p.id, m2oId(p.pos_categ_id)]))
-  const brandAgg = new Map<string, { rawNet: number; qty: number }>()
+  const brandAgg = new Map<string, { rawNet: number; qty: number; linesCount: number }>()
   for (const g of byProduct) {
     const root = rootName(categOf.get(m2oId(g.product_id) ?? -1) ?? null)
     const brand = root ? brandOfRoot.get(root) : undefined
     if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id)) continue
-    const prev = brandAgg.get(brand.id) ?? { rawNet: 0, qty: 0 }
-    prev.rawNet += g.price_subtotal || 0
-    prev.qty += g.qty || 0
+    const prev = brandAgg.get(brand.id) ?? { rawNet: 0, qty: 0, linesCount: 0 }
+    prev.rawNet += Math.max(0, g.price_subtotal || 0)
+    prev.qty += Math.max(0, g.qty || 0)
+    prev.linesCount += Math.max(0, g.__count || 0)
     brandAgg.set(brand.id, prev)
   }
-  const rawBrandMap = new Map<string, number>(ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, brandAgg.get(bid)?.rawNet ?? 0)]))
-  const reconciledBrandNet = reconcileAmounts(rawBrandMap, ACTIVE_BRAND_IDS, targetNet)
   const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
   for (const bid of ACTIVE_BRAND_IDS) {
-    const nv = reconciledBrandNet.get(bid) ?? 0
+    const nv = r3(Math.max(0, brandAgg.get(bid)?.rawNet ?? 0))
     byBrand[bid] = {
       netKwd: nv,
-      orders: nv > 0 ? Math.max(1, Math.round((nv / Math.max(1, targetNet)) * totalOrders)) : 0,
+      orders: Math.max(0, Math.round(brandAgg.get(bid)?.linesCount ?? 0)),
       qty: r3(Math.max(0, brandAgg.get(bid)?.qty ?? 0)),
     }
   }
@@ -884,12 +797,12 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     period,
     database: null,
     totals: { netSalesKwd: targetNet, orders: totalOrders, aovKwd: totalOrders ? r3(targetNet / totalOrders) : 0 },
-    brands: ACTIVE_BRAND_IDS.filter((bid) => (reconciledBrandNet.get(bid) ?? 0) > 0).map((bid) => {
-      const nv = reconciledBrandNet.get(bid) ?? 0
+    brands: ACTIVE_BRAND_IDS.filter((bid) => (byBrand[bid]?.netKwd ?? 0) > 0).map((bid) => {
+      const nv = byBrand[bid]?.netKwd ?? 0
       return { id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: nv, sharePct: pct(nv, targetNet) }
     }).sort((a, b) => b.netKwd - a.netKwd),
     branches: restaurantLocIds.map((lid) => {
-      const nv = reconciledLocNet.get(lid) ?? 0
+      const nv = rawLocNet.get(lid) ?? 0
       return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
     }).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: UI_CHANNEL_KEYS.map((ck) => ({ name: ck, amountKwd: aggUiChannels[ck].netKwd })).sort((a, b) => b.amountKwd - a.amountKwd),

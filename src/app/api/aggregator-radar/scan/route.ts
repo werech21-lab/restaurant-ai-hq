@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { permissions } from '@/lib/auth/permissions'
 import { protectedRoute } from '@/lib/api/route'
-import { runForensicScan } from '@/modules/governance/services/forensic-radar-service'
+import { runForensicScan } from '@/modules/governance'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

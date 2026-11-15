@@ -386,7 +386,7 @@ export async function processSmartDropzoneBatch(input: {
     const id =
       cleanSha.length >= 32
         ? `sdz_sha_${cleanSha.slice(0, 40)}`
-        : `sdz_${Date.now()}_${rows.length}_${Math.random().toString(36).slice(2, 8)}`
+        : `sdz_${Date.now()}_${rows.length}_${crypto.randomUUID().slice(0, 6)}`
     const sourceLabel = file.source || (cleanSha ? 'browser_local_reader' : 'web_upload')
     const data = {
       module: `smart_dropzone:${department}`,

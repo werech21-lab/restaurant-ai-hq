@@ -458,7 +458,7 @@ async function migrateLegacySavedChats(): Promise<void> {
           .map((m) => m.text)
           .join(' ')
           .slice(0, 4000)
-        const id = String(item.id || `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`)
+        const id = String(item.id || `legacy-${Date.now()}-${threadMemoryCache.size + 1}`)
         const thread: FeryalChatThread = {
           id,
           title: validTitle,
@@ -652,7 +652,7 @@ export function createNotebook(nameAr: string, nameEn?: string, icon = '📁'): 
   if (!cleanAr) return null
   const current = getNotebooksSync()
   const nb: FeryalNotebook = {
-    id: `nb-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    id: `nb-${Date.now()}-${current.length + 1}`,
     nameAr: cleanAr,
     nameEn: (nameEn || cleanAr).trim(),
     icon,

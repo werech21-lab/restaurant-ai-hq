@@ -19,6 +19,14 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }))
 
+vi.mock('@/lib/email/server-mail', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/email/server-mail')>()
+  return {
+    ...actual,
+    dispatchServerEmail: async () => ({ ok: true, engine: 'none' as const, message: 'mocked-in-matrix-test' }),
+  }
+})
+
 /**
  * Every API route is called, with every HTTP method it exports, as four kinds of caller. The route files are loaded for
  * real, so a route added without `protectedRoute`, or protected by too weak a permission, fails here.
@@ -28,7 +36,7 @@ type Handler = (request: NextRequest, context: { params: Promise<Record<string, 
 type RouteCase = { route: string; method: string; handler: Handler }
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const
-const apiDir = path.join(process.cwd(), 'src', 'app', 'api')
+const apiDir = path.join(process.cwd(), 'src', 'app', 'api', 'v1')
 
 /** Routes that a read-only member may legitimately POST to: the command bar only reads. */
 const READ_ONLY_POST = new Set(['/api/v1/ai/command'])
@@ -132,8 +140,8 @@ afterAll(stopDatabase)
 
 describe('the API surface', () => {
   it('finds every route file and method (a count that only moves on purpose)', () => {
-    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(154)
-    expect(cases.length).toBe(218)
+    expect(new Set(cases.map((testCase) => testCase.route)).size).toBe(158)
+    expect(cases.length).toBe(224)
   })
 })
 

@@ -73,8 +73,8 @@ export default function IntelligenceWorkspace({
       categoryAr: 'شؤون وإقامات وبلدية',
       categoryEn: 'Govt Clearance & Baladiya',
       costCenter: 'CC-HQ-LEGAL',
-      observationAr: 'رصد تركز 61.8% من إجمالي مصروفات العهد (31,646.750 د.ك من أصل 51,154.950 د.ك) في مكتب تعقيب واحد (سند) عبر 1,412 معاملة في أودو، مع رصد معاملات تجديد إقامة وكروت صحة بلدية متكررة تتضمن هوامش أتعاب مرتفعة.',
-      observationEn: '61.8% of petty cash (31,646.750 KWD of 51,154.950 KWD) concentrated in a single agency (Sanad) across 1,412 Odoo transactions, with repetitive residency renewals and municipality health cards carrying excessive markups.',
+      observationAr: 'تنبيه حوكمة العهد غير مربوط بمصدر حي من Odoo حالياً — يرجى مراجعة قيود المصروفات الفعلية في لوحة المحاسبة.',
+      observationEn: 'Custody concentration alert is currently unlinked from live Odoo telemetry — review posted journal entries in Accounting.',
       impactAr: 'فرصة توفير سنوية مباشرة بقيمة 22,200.000 د.ك (1,850 د.ك/شهرياً) عند التحول الداخلي.',
       impactEn: 'Direct annual saving opportunity of 22,200.000 KWD (1,850 KWD/mo) via internal processing.',
       actionStepAr: 'إنشاء وحدة تعقيب داخلي وربط مع بوابات "أسهل" والقوى العاملة وبلدية الكويت مباشرة عبر النظام.',
@@ -239,7 +239,7 @@ export default function IntelligenceWorkspace({
     },
   ], [])
 
-  // 3. Custodians Breakdown Data (51,154.950 KWD)
+  // 3. Custodians Breakdown Data (Unlinked until live hr.expense feed is configured)
   const custodiansData = useMemo(() => {
     const raw = [
       { nameAr: 'سند للتعقيب والخدمات الحكومية', nameEn: 'Sanad PRO & Govt Services', amountKwd: 31646.750, pct: 61.86, txCount: 1412, roleAr: 'إقامات، كروت بلدية، ضمان صحي، رخص تجارية', roleEn: 'Residencies, Baladiya, MOH, Licenses', avgTxKwd: 22.41, stdDev: '± 8.4%' },
@@ -349,8 +349,8 @@ export default function IntelligenceWorkspace({
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 border-t border-slate-200 dark:border-slate-800/60 pt-4 text-xs">
           <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3">
             <div className="text-[11px] text-slate-500 dark:text-slate-400">{isAr ? 'إجمالي قيود العهد بأودو:' : 'Odoo Custody Entries:'}</div>
-            <div className="text-lg font-black text-slate-900 dark:text-white mt-0.5 font-mono">
-              51,154.950 <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+            <div className="text-sm font-black text-amber-600 dark:text-amber-300 mt-0.5">
+              {isAr ? 'غير مربوط بمصدر' : 'Unlinked Source'}
             </div>
             <div className="text-[10px] text-slate-500">{isAr ? '2,213 معاملة مدققة' : '2,213 audited txns'}</div>
           </div>
@@ -658,8 +658,8 @@ export default function IntelligenceWorkspace({
                 </h3>
                 <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                   {isAr
-                    ? 'أعلى 5 بنود في أودو تستحوذ على 75.38% من إجمالي التكاليف (38,560.230 د.ك من أصل 51,154.950 د.ك).'
-                    : 'Top 5 expense items drive 75.38% of total Odoo custody disbursements (38,560.230 KWD of 51,154.950 KWD).'}
+                    ? 'تصنيف باريتو لبنود المصروفات يتطلب ربطاً مباشراً بقيود المصروفات المرحّلة للفترة المختارة.'
+                    : 'Pareto breakdown requires direct binding to posted expense lines for the selected period.'}
                 </p>
               </div>
               <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-3 py-1 text-xs font-bold">
@@ -752,7 +752,7 @@ export default function IntelligenceWorkspace({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white sm:text-lg">
-                  {isAr ? '⚖️ مصفوفة إحصاء العهد الـ 8 وتوزيع الـ 51,154.950 د.ك في أودو' : '⚖️ 8 Custodians Ledger & Odoo Petty Cash Matrix (51,154.950 KWD)'}
+                  {isAr ? '⚖️ مصفوفة إحصاء العهد في أودو' : '⚖️ Custodians Ledger & Petty Cash Matrix'}
                 </h3>
                 <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                   {isAr
@@ -760,8 +760,8 @@ export default function IntelligenceWorkspace({
                     : 'Detailed breakdown displaying relative share, txn volume, mean ticket size, and standard deviation per custodian.'}
                 </p>
               </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
-                {isAr ? 'إجمالي العهد: 51,154.950 د.ك' : 'Total Custody: 51,154.950 KWD'}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+                {isAr ? 'غير مربوط بمصدر' : 'Unlinked Source'}
               </div>
             </div>
 

@@ -95,13 +95,12 @@ const EXPENSE_CUSTODIANS = [
 
 const LOCATIONS_11 = [
   { id: 'salmiya', nameAr: 'فرع السالمية', nameEn: 'Salmiya Branch' },
-  { id: 'hawally', nameAr: 'فرع حولي', nameEn: 'Hawally Branch' },
-  { id: 'farwaniya', nameAr: 'فرع الفروانية', nameEn: 'Farwaniya Branch' },
-  { id: 'mubarak-al-kabeer', nameAr: 'فرع مبارك الكبير', nameEn: 'Mubarak Al-Kabeer Branch' },
-  { id: 'khiran', nameAr: 'فرع خيران', nameEn: 'Khiran Branch' },
-  { id: 'ardiya', nameAr: 'فرع العارضية الحرفية', nameEn: 'Ardiya Craft Branch' },
-  { id: 'mahboula', nameAr: 'فرع المهبولة', nameEn: 'Mahboula Branch' },
-  { id: 'fahaheel', nameAr: 'فرع الفحيحيل', nameEn: 'Fahaheel Branch' },
+  { id: 'ardiya', nameAr: 'فرع العارضية', nameEn: 'Ardiya Branch' },
+  { id: 'al-kout', nameAr: 'فرع الكوت مول', nameEn: 'Al Kout Mall Branch' },
+  { id: 'promenade', nameAr: 'فرع بروميناد', nameEn: 'Promenade Branch' },
+  { id: '360-mall', nameAr: 'فرع 360 مول', nameEn: '360 Mall Branch' },
+  { id: 'avenues', nameAr: 'فرع الأفنيوز', nameEn: 'The Avenues Branch' },
+  { id: 'assima', nameAr: 'فرع العاصمة مول', nameEn: 'Assima Mall Branch' },
   { id: 'central_kitchen', nameAr: 'المطبخ المركزي', nameEn: 'Central Kitchen' },
   { id: 'hq_office', nameAr: 'المقر الرئيسي — شرق', nameEn: 'HQ Office — Sharq' },
 ]
@@ -212,12 +211,12 @@ export function OdooExpenseSingleModal({
     setSplits(splits.filter((s) => s.id !== id))
   }
 
-  const handleUpdateSplit = (id: string, field: keyof AnalyticSplitRow, val: any) => {
+  const handleUpdateSplit = (id: string, field: keyof AnalyticSplitRow, val: AnalyticSplitRow[keyof AnalyticSplitRow]) => {
     setSplits(splits.map((s) => (s.id === id ? { ...s, [field]: val } : s)))
   }
 
   const handleAttachReceipt = () => {
-    const fakeFileName = `INV-${Math.floor(1000 + Math.random() * 9000)}-RECEIPT.pdf`
+    const fakeFileName = `INV-${1000 + (Date.now() % 9000)}-RECEIPT.pdf`
     setReceiptAttached(true)
     setReceiptName(fakeFileName)
     setChatterLogs((prev) => [
@@ -457,7 +456,7 @@ export function OdooExpenseSingleModal({
                   </label>
                   <select
                     value={paidBy}
-                    onChange={(e) => setPaidBy(e.target.value as any)}
+                    onChange={(e) => setPaidBy(e.target.value as 'employee' | 'company')}
                     className="w-full rounded-xl border border-slate-700 bg-slate-900/90 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none font-bold"
                   >
                     <option value="employee">

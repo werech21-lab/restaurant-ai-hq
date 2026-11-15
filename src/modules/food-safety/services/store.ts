@@ -36,10 +36,10 @@ type Store = {
   batches: ShelfLifeBatch[]
   disposals: SpoilageDisposal[]
   alerts: FoodSafetyAlert[]
-  seeded: boolean
+  initialized: boolean
 }
 
-/** v2 wipes cross-brand seed pollution (China Garden showing Farm Brown / Frank's). */
+/** v2 wipes cross-brand pollution (China Garden showing Farm Brown / Frank's). */
 const STORE_KEY = '__vfFoodSafetyStoreV2' as const
 
 const g = globalThis as typeof globalThis & {
@@ -58,25 +58,25 @@ function store(): Store {
       batches: [],
       disposals: [],
       alerts: [],
-      seeded: false,
+      initialized: false,
     }
   }
   return g[STORE_KEY]!
 }
 
-function hash(seed: string): number {
+function hash(inputKey: string): number {
   let h = 2166136261
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i)
+  for (let i = 0; i < inputKey.length; i++) {
+    h ^= inputKey.charCodeAt(i)
     h = Math.imul(h, 16777619)
   }
   return h >>> 0
 }
 
-function seededTemp(unitId: string, targetC: number, criticalAboveC: number, dayKey: string): number {
+function baselineTemp(unitId: string, targetC: number, criticalAboveC: number, dayKey: string): number {
   const h = hash(`${unitId}:${dayKey}`)
   const roll = h % 100
-  // Known problem sites from maintenance data get hotter seed bias
+  // Known problem sites from maintenance data get hotter bias
   const hotSites = ['FB-ALKOUT', 'FB-SALMIYA', 'CG-360', 'FB-ARDIYA', 'ST-KEIFAN', 'CG-ASSIMA', 'CK-MAIN']
   const siteId = unitId.split('::')[0] ?? ''
   const isHot = hotSites.includes(siteId) && (unitId.includes('vegetables') || unitId.includes('salad') || unitId.includes('freezer'))
@@ -90,9 +90,9 @@ function dayKey(d = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuwait', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
 }
 
-export function ensureSeeded(now = new Date()): void {
+export function ensureInitialized(now = new Date()): void {
   const s = store()
-  if (s.seeded) {
+  if (s.initialized) {
     refreshBatchStatuses(now)
     return
   }
@@ -101,7 +101,7 @@ export function ensureSeeded(now = new Date()): void {
   for (const site of sites) {
     for (const spec of COLD_UNIT_SPECS) {
       const id = `${site.id}::${spec.kind}`
-      const tempC = seededTemp(id, spec.targetC, spec.criticalAboveC, key)
+      const tempC = baselineTemp(id, spec.targetC, spec.criticalAboveC, key)
       const health = healthFromTemp(tempC, spec.warnAboveC, spec.criticalAboveC)
       const unit: ColdUnit = {
         id,
@@ -117,7 +117,7 @@ export function ensureSeeded(now = new Date()): void {
         door: hash(id) % 17 === 0 ? 'open' : 'closed',
         health,
         lastReadingAt: now.toISOString(),
-        source: 'seed',
+        source: 'baseline',
       }
       s.units.set(id, unit)
       if (health === 'critical') {
@@ -134,10 +134,10 @@ export function ensureSeeded(now = new Date()): void {
     }
   }
 
-  // Seed FEFO batches ONLY at sites owned by the SKU's brand (or CK). Never mix brands.
-  const seedRules = SHELF_LIFE_MATRIX.filter((r) => r.ownerBrand !== 'SHARED')
+  // Initialize FEFO batches ONLY at sites owned by the SKU's brand (or CK). Never mix brands.
+  const matrixRules = SHELF_LIFE_MATRIX.filter((r) => r.ownerBrand !== 'SHARED')
   let bi = 0
-  for (const prep of seedRules) {
+  for (const prep of matrixRules) {
     const owner = primaryOwnerBrand(prep)
     const compatibleSites = sites.filter(
       (site) =>
@@ -187,7 +187,7 @@ export function ensureSeeded(now = new Date()): void {
     }
   }
 
-  s.seeded = true
+  s.initialized = true
 }
 
 function refreshBatchStatuses(now: Date): void {
@@ -233,7 +233,7 @@ export function applyTelemetry(input: {
   door?: ColdUnit['door']
   recordedAt?: string
 }): { unit: ColdUnit; alert: FoodSafetyAlert | null } {
-  ensureSeeded()
+  ensureInitialized()
   const s = store()
   const unit = s.units.get(input.unitId)
   if (!unit) throw new Error(`unknown_unit:${input.unitId}`)
@@ -273,7 +273,7 @@ export function applyTelemetry(input: {
 }
 
 export function addCheckIn(row: ShiftCheckIn): ShiftCheckIn {
-  ensureSeeded()
+  ensureInitialized()
   const s = store()
   s.checkIns.unshift(row)
   if (s.checkIns.length > 300) s.checkIns.length = 300
@@ -292,13 +292,13 @@ export function addCheckIn(row: ShiftCheckIn): ShiftCheckIn {
 }
 
 export function addBatch(row: ShelfLifeBatch): ShelfLifeBatch {
-  ensureSeeded()
+  ensureInitialized()
   store().batches.unshift(row)
   return row
 }
 
 export function addDisposal(row: SpoilageDisposal): SpoilageDisposal {
-  ensureSeeded()
+  ensureInitialized()
   const s = store()
   s.disposals.unshift(row)
   if (row.batchId) {
@@ -324,12 +324,12 @@ export function addDisposal(row: SpoilageDisposal): SpoilageDisposal {
 }
 
 export function getUnit(unitId: string): ColdUnit | undefined {
-  ensureSeeded()
+  ensureInitialized()
   return store().units.get(unitId)
 }
 
 export function buildBoard(filter?: { brandId?: string | null; branchId?: string | null }): FoodSafetyBoard {
-  ensureSeeded()
+  ensureInitialized()
   const s = store()
   refreshBatchStatuses(new Date())
   let sites = listFoodSafetySites()

@@ -182,7 +182,7 @@ export function BrandSalesAnalyticsDashboard({ locale = 'en' }: Props) {
                   : 'border border-white/15 bg-white/5 text-mist-300 hover:bg-white/10'
               }`}
             >
-              ✨ {en ? 'October 2026 Model (167,092 KWD)' : 'نموذج أكتوبر 2026 المعتمد (167,092 د.ك)'}
+              {en ? 'Odoo Period View' : 'عرض بيانات الفترة'}
             </button>
             <button
               type="button"

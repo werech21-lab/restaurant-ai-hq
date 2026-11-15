@@ -188,9 +188,10 @@ export async function GET(req: NextRequest) {
         'X-TTS-Engine': speech.engine,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('TTS GET error:', error)
-    return new Response(error?.message || 'Server error', { status: 500 })
+    const msg = error instanceof Error ? error.message : 'Server error'
+    return new Response(msg, { status: 500 })
   }
 }
 
@@ -252,10 +253,11 @@ export async function POST(req: NextRequest) {
       },
       { headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('TTS POST error:', error)
+    const msg = error instanceof Error ? error.message : 'Server error'
     return NextResponse.json(
-      { ok: false, error: error?.message || 'Server error' },
+      { ok: false, error: msg },
       { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }

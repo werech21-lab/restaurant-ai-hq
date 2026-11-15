@@ -264,15 +264,15 @@ export function OdooAiCommandCenter() {
       } else {
         setAiAnalysisResult(
           isAr
-            ? 'تم تدقيق كافة الأرقام محلياً: الأداء المالي مطابق 100% لدفاتر أودو (167,092.160 د.ك مبيعات، 10,707.930 د.ك صيانة، 51,154.950 د.ك عهد).'
-            : 'Local verification complete: 100% reconciled to Odoo ledgers (167,092.160 KWD sales, 10,707.930 KWD maint).'
+            ? 'لا توجد بيانات من Odoo لهذه الفترة.'
+            : 'No Odoo data available for this period.'
         )
       }
     } catch {
       setAiAnalysisResult(
         isAr
-          ? 'تم التحقق من مؤشرات Odoo ERP بنجاح: المطابقة تامة بالفلس.'
-          : 'Odoo ERP indicators verified: 100% matched.'
+          ? 'لا توجد بيانات من Odoo لهذه الفترة.'
+          : 'No Odoo data available for this period.'
       )
     } finally {
       setIsAiAnalyzing(false)
@@ -575,8 +575,8 @@ export function OdooAiCommandCenter() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(val: any) => [
-                    `${Number(val).toLocaleString(undefined, { minimumFractionDigits: 3 })} ${isAr ? 'د.ك' : 'KWD'}`,
+                  formatter={(val) => [
+                    `${Number(val ?? 0).toLocaleString(undefined, { minimumFractionDigits: 3 })} ${isAr ? 'د.ك' : 'KWD'}`,
                   ]}
                 />
                 <Legend />

@@ -11,7 +11,7 @@ export type VentureBranchOption = {
   areaEn: string
 }
 
-/** The 10 operating branches for POS / scope pickers. */
+/** The 7 official operating branches for scope pickers. */
 export function ventureBranchOptions(): VentureBranchOption[] {
   return VENTURE_BRANCHES.map((branch) => {
     const brand = brandById(branch.brandId)!

@@ -495,7 +495,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                       {isAr ? 'اضغط على أي براند لتخصيص كامل اللوحة' : 'Click any bar to filter entire dashboard'}
                     </p>
                   </div>
-                  <span className="text-xs font-bold text-emerald-400">167,092 KWD</span>
+                  <span className="text-xs font-bold text-amber-400">{isAr ? 'بيانات Odoo' : 'Odoo Data'}</span>
                 </div>
                 <div className="space-y-3">
                   {OCTOBER_BRAND_SCORECARDS.map((b) => {
@@ -1546,7 +1546,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                   STRATEGIC_15_REPORTS.forEach((rep) => {
                     handleExportCSV(
                       rep.filename,
-                      `Report: ${rep.titleEn}\nGenerated For: Venture Foods Restaurant Management W.L.L.\nPeriod: October 2026 Live\nCategory: ${rep.categoryEn}\nSummary: ${rep.summaryEn}\nNet Sales Baseline: 167,092 KWD\nOrders: 30,543\n`
+                      `Report: ${rep.titleEn}\nGenerated For: Venture Foods Restaurant Management W.L.L.\nCategory: ${rep.categoryEn}\nSummary: ${rep.summaryEn}\n`
                     )
                   })
                 }}
@@ -1588,7 +1588,7 @@ export function SalesCommandCenter({ initialLocale = 'ar', initialTab = 'scoreca
                       onClick={() =>
                         handleExportCSV(
                           rep.filename,
-                          `Report: ${rep.titleEn}\nCompany: Venture Foods Restaurant Management W.L.L.\nPeriod: October 2026\nCategory: ${rep.categoryEn}\nSummary: ${rep.summaryEn}\nSales Baseline: 167,092 KWD\nOrders: 30,543\nStatus: Audited & Verified\n`
+                          `Report: ${rep.titleEn}\nCompany: Venture Foods Restaurant Management W.L.L.\nCategory: ${rep.categoryEn}\nSummary: ${rep.summaryEn}\n`
                         )
                       }
                       className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 transition-all"

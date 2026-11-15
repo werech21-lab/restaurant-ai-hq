@@ -1,6 +1,6 @@
 import { permissions } from '@/lib/auth/permissions'
 import { protectedRoute } from '@/lib/api/route'
-import { odooDataCenterHandler } from '@/modules/odoo/api/v1/data-center'
+import { odooDataCenterHandler } from '@/modules/odoo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

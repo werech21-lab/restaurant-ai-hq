@@ -20,8 +20,8 @@ export interface PeriodDeltaResult {
 }
 
 export const UNMAPPED_TERMINALS_ROW_ID = 'unmapped-terminals' as const
-export const UNMAPPED_TERMINALS_LABEL_AR = 'غير مصنّف — أجهزة غير مربوطة'
-export const UNMAPPED_TERMINALS_LABEL_EN = 'Unassigned — Unmapped Terminals'
+export const UNMAPPED_TERMINALS_LABEL_AR = 'غير منسوب لفرع'
+export const UNMAPPED_TERMINALS_LABEL_EN = 'Unattributed to Branch'
 
 const KUWAIT_UTC_OFFSET_MS = 3 * 3600 * 1000
 
@@ -342,8 +342,7 @@ export function resolveEqualPeriodSalesDelta(
   } = input
 
   const kwCtx = getKuwaitTimeContext(referenceNowMs)
-  const activeIncompleteTodayIso =
-    referenceNowMs !== undefined || liveConnected ? kwCtx.todayIso : '2026-11-14'
+  const activeIncompleteTodayIso = kwCtx.todayIso
 
   const rolling30Net = Number(journeyPulse?.rolling30?.netKwd ?? 0)
   const prior30Net = Number(journeyPulse?.prior30?.netKwd ?? 0)
@@ -486,15 +485,7 @@ export const VERIFIED_MONTH_BRANCHES_2026_11_14: ReadonlyArray<{
   name: string
   netSalesKwd: number
   orders: number
-}> = [
-  { id: '360-mall', name: '360 Mall', netSalesKwd: 24786.0, orders: 4420 },
-  { id: 'promenade', name: 'Promenade Mall', netSalesKwd: 24092.061, orders: 4561 },
-  { id: 'ardiya', name: 'Ardiya', netSalesKwd: 20349.846, orders: 3102 },
-  { id: 'assima', name: 'Assima Mall', netSalesKwd: 17758.237, orders: 3342 },
-  { id: 'salmiya', name: 'Salmiya', netSalesKwd: 17150.088, orders: 2470 },
-  { id: 'al-kout', name: 'Al-Kout Mall', netSalesKwd: 14615.158, orders: 4732 },
-  { id: 'avenues', name: 'The Avenues', netSalesKwd: 10835.61, orders: 3132 },
-]
+}> = []
 
 export type EqualComparisonPeriod = EqualPeriodComparisonInput['period']
 
@@ -509,10 +500,10 @@ export interface TopBranchCardSummary {
 }
 
 /**
- * Resolves the Lead Branch card directly from the active period's `branches[]` array
+ * Resolves the Lead Branch card directly from the active period's live `branches[]` array
  * (`branches.reduce((max, b) => (b.netSalesKwd > max.netSalesKwd ? b : max))`),
- * displaying exact `branches[].netSalesKwd` (`24,786 KWD` on Month) and dynamically
- * matching the period label (`الشهر` on Month, `اليوم` ONLY when `period === 'today'`).
+ * dynamically matching the period label (`الشهر` on Month, `اليوم` ONLY when `period === 'today'`).
+ * Returns `null` when Odoo is disconnected or no live branch data exists.
  */
 export function resolveTopBranchCard(params: {
   branches?: ReadonlyArray<{
@@ -568,11 +559,7 @@ export function resolveTopBranchCard(params: {
     Number.isFinite(subScopeRatio) && subScopeRatio > 0 ? subScopeRatio : 1
 
   const effectiveSource =
-    Array.isArray(branches) && branches.length > 0
-      ? branches
-      : period === 'month'
-        ? VERIFIED_MONTH_BRANCHES_2026_11_14
-        : null
+    Array.isArray(branches) && branches.length > 0 ? branches : null
 
   if (effectiveSource && effectiveSource.length > 0) {
     const eligible = effectiveSource.filter(
@@ -630,7 +617,7 @@ export function resolveTopBranchCard(params: {
 }
 
 /**
- * Formats a static margin or share ratio pill (e.g. `64.7%`, `14.7%`) strictly WITHOUT
+ * Formats a margin or share ratio pill strictly WITHOUT
  * `▲` or `▼` directional delta arrows (arrows are reserved exclusively for period-over-period deltas).
  */
 export function formatStaticMarginPill(pct: number, suffix?: string): string {
@@ -683,10 +670,7 @@ export function buildWeeklyChartMeta(
   },
 ): WeeklyChartDynamicMeta {
   const kwCtx = getKuwaitTimeContext(options?.referenceNowMs)
-  const partialTodayIso =
-    options?.referenceNowMs !== undefined || options?.liveConnected
-      ? kwCtx.todayIso
-      : '2026-11-14'
+  const partialTodayIso = kwCtx.todayIso
 
   const bars: WeeklyChartBarMeta[] = dayIds.map((id, idx) => {
     const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(id)

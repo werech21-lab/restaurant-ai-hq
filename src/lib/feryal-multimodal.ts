@@ -423,8 +423,11 @@ export function revokeAttachmentObjectUrls(attachments: readonly FeryalMediaAtta
   }
 }
 
+let mediaSeqCounter = 0
+
 export async function processFeryalMediaFile(file: File): Promise<FeryalMediaAttachment> {
-  const id = `media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+  mediaSeqCounter = (mediaSeqCounter + 1) % 1_000_000
+  const id = `media-${Date.now()}-${mediaSeqCounter}`
   const kind = inferMediaKind(file)
   if (kind === 'video') {
     return processVideoFile(file, id)

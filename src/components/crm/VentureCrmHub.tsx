@@ -109,7 +109,7 @@ export function VentureCrmHub({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
                 active
                   ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/10'
@@ -284,7 +284,7 @@ export function VentureCrmHub({
                 <tbody className="divide-y divide-slate-800/60 text-slate-200">
                   {[
                     { cust: 'بدر ناصر (طلبات)', branch: isAr ? 'فرع السالمية (فرانكس)' : "فرع السالمية (Frank's)", rating: '⭐⭐⭐⭐⭐', text: 'ستيك ترفل ممتاز ووصل حاراً ومقرمشاً خلال 22 دقيقة', action: 'شكر العميل ومنحه كود خصم 10%', status: 'مغلق بنجاح' },
-                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: isAr ? 'فرع حولي (تشاينا جاردن)' : 'فرع حولي (China Garden)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
+                    { cust: 'فاطمة العوضي (صالة الفرع)', branch: isAr ? 'فرع البروميناد (تشاينا جاردن)' : 'فرع البروميناد (China Garden)', rating: '⭐⭐⭐⭐', text: 'طعم البرجر رائع ولكن التكييف كان بارداً جداً بالصالة', action: 'تعديل منظم الحرارة بالفرع فورياً', status: 'مغلق بنجاح' },
                     { cust: 'محمد السبيعي (دليفرو)', branch: isAr ? 'فرع العارضية (فرانكس)' : "فرع العارضية (Frank's)", rating: '⭐⭐⭐', text: 'تم نسيان علبة صوص إضافية بالطلب المسلم', action: 'تعويض بقسيمة مجانية 3 د.ك للطلب القادم', status: 'تم الصلح والتعويض' },
                     { cust: 'خلود الهاجري (واتساب مباشر)', branch: isAr ? 'فرع المهبولة (شاورما طحينة)' : 'فرع المهبولة (Shawarma)', rating: '⭐⭐⭐⭐⭐', text: 'شاورما ممتازة والخبز اللبناني طازج وخفيف', action: 'ترقية الحساب لفئة الفضة', status: 'مغلق بنجاح' },
                   ].map((row, idx) => (

@@ -293,7 +293,7 @@ export function VentureAutomationHub({ locale = 'ar' }: { locale?: 'ar' | 'en' }
         status: 'SUCCESS',
         detailsAr: `تم إرسال إشعار تجريبي عبر البريد الإلكتروني الرسمي وتسجيل الحالة في السجل`,
         detailsEn: `Dispatched test email notification via official SMTP and logged event`,
-        durationMs: Math.floor(Math.random() * 300) + 200,
+        durationMs: 240,
       }
 
       setLogs((prev) => [newLog, ...prev.slice(0, 19)])

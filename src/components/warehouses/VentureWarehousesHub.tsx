@@ -112,12 +112,12 @@ export const OFFICIAL_10_LOCATIONS: BranchWarehouseCard[] = [
     readinessScore: 96,
   },
   {
-    id: "wh-hawalli",
-    code: "WH-HAWALLI",
-    nameAr: "مخزن فرع بروميناد حولي",
-    nameEn: "Hawalli Promenade Mall Branch Store",
-    areaAr: "مجمع البروميناد · حولي · شارع تونس",
-    areaEn: "The Promenade Mall · Hawalli · Tunis St.",
+    id: "wh-promenade",
+    code: "WH-PROMENADE",
+    nameAr: "مخزن فرع البروميناد",
+    nameEn: "Promenade Mall Branch Store",
+    areaAr: "مجمع البروميناد · شارع تونس",
+    areaEn: "The Promenade Mall · Tunis St.",
     brandRolesAr: "تشاينا جاردن وذا نودل بار",
     brandRolesEn: "China Garden & The Noodle Bar",
     stockValueKwd: 3180.0,
@@ -490,8 +490,8 @@ export const PHYSICAL_COUNT_VARIANCE_DATA = [
     code: "PP03-CGS",
     nameAr: "صوص كانتون الصيني السري (جالون 5 لتر)",
     nameEn: "Canton Secret Sauce (5L Gallon)",
-    locationAr: "مخزن فرع بروميناد حولي",
-    locationEn: "Hawalli Promenade Store",
+    locationAr: "مخزن فرع البروميناد",
+    locationEn: "Promenade Store",
     bookQty: "14 جالون",
     physicalQty: "14 جالون",
     varianceQty: "0 جالون",
@@ -570,9 +570,9 @@ export function VentureWarehousesHub({
       // Region filter
       if (filterRegion === "COMMISSARY" && !w.isCommissary) return false;
       if (
-        filterRegion === "CAPITAL_HAWALLY" &&
+        filterRegion === "CAPITAL_SALMIYA" &&
         !w.areaAr.includes("العاصمة") &&
-        !w.areaAr.includes("حولي") &&
+        !w.areaAr.includes("البروميناد") &&
         !w.areaAr.includes("السالمية") &&
         !w.areaAr.includes("الري")
       ) {
@@ -757,7 +757,7 @@ export function VentureWarehousesHub({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
                 active
                   ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
@@ -797,7 +797,7 @@ export function VentureWarehousesHub({
               {[
                 { key: "ALL", labelAr: "الكل (10 مواقع)", labelEn: "All (10)" },
                 { key: "COMMISSARY", labelAr: "المطبخ المركزي (1)", labelEn: "Central Kitchen (1)" },
-                { key: "CAPITAL_HAWALLY", labelAr: "العاصمة وحولي (4)", labelEn: "Capital & Hawally (4)" },
+                { key: "CAPITAL_SALMIYA", labelAr: "العاصمة والسالمية (4)", labelEn: "Capital & Salmiya (4)" },
                 { key: "FARWANIYA_MUBARAK", labelAr: "الفروانية ومبارك الكبير (3)", labelEn: "Farwaniya & Mubarak (3)" },
                 { key: "AHMADI", labelAr: "محافظة الأحمدي (2)", labelEn: "Ahmadi (2)" },
               ].map((pill) => (
@@ -1261,7 +1261,7 @@ export function VentureWarehousesHub({
                 <select className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2.5 text-white focus:outline-none">
                   <option value="WH-AVENUES">{isAr ? "فرع مجمع الأفنيوز — الري" : "The Avenues Mall Branch"}</option>
                   <option value="WH-SALMIYA">{isAr ? "فرع السالمية المركزي" : "Salmiya Central Branch"}</option>
-                  <option value="WH-HAWALLI">{isAr ? "فرع بروميناد حولي" : "Hawalli Promenade Branch"}</option>
+                  <option value="WH-PROMENADE">{isAr ? "فرع البروميناد" : "Promenade Branch"}</option>
                   <option value="WH-360MALL">{isAr ? "فرع 360 مول — الزهراء" : "360 Mall Branch"}</option>
                   <option value="WH-ASIMA">{isAr ? "فرع العاصمة مول — شرق" : "Al-Assima Mall Branch"}</option>
                   <option value="WH-KOUT">{isAr ? "فرع الكوت مول — الفحيحيل" : "Al-Kout Mall Branch"}</option>

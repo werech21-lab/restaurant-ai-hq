@@ -1,45 +1,30 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
-import { useI18n } from '@/lib/i18n'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
-  ENTERPRISE_DEPARTMENTS,
-  getAllEnterpriseReports,
-  getReportById,
-  type EnterpriseReportDef,
-  type EnterpriseDepartmentDef,
-} from '@/lib/reports/enterprise-reports-registry'
-import {
-  FileText,
-  Search,
+  AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Database,
   Download,
+  FileText,
   Printer,
-  RotateCw,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  Filter,
-  BarChart3,
-  Layers,
-  Sparkles,
-  ExternalLink,
-  Mail,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  ShoppingBag,
-  CreditCard,
-  MapPin,
-  Landmark,
-  Package,
-  Users,
-  Flame,
-  Truck,
-  ShieldCheck,
-  Store,
+  Search,
 } from 'lucide-react'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import {
+  GLOBAL_PERIOD_OPTIONS,
+  formatPeriodCalendarWindow,
+  type GlobalPeriod,
+} from '@/lib/aether/global-filter-engine'
+import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
+import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
+import { useI18n } from '@/lib/i18n'
+import {
+  buildLiveEnterpriseDepartments,
+  type EnterpriseReportDef,
+} from '@/lib/reports/enterprise-reports-registry'
 
 interface Props {
   initialReportId?: string
@@ -47,932 +32,392 @@ interface Props {
   liveDbChildren?: React.ReactNode
 }
 
-export function DepartmentalReportsHub({ initialReportId, locale = 'ar', liveDbChildren }: Props) {
+export function DepartmentalReportsHub({
+  initialReportId,
+  locale = 'ar',
+  liveDbChildren,
+}: Props) {
   let ctxLocale: 'ar' | 'en' | null = null
   try {
     const i18n = useI18n()
     if (i18n?.locale) ctxLocale = i18n.locale
   } catch {}
 
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(initialReportId || null)
-  const [activeDeptFilter, setActiveDeptFilter] = useState<string>('all')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [tableSearch, setTableSearch] = useState('')
-  const [brandFilter, setBrandFilter] = useState('ALL')
-  const [periodFilter, setPeriodFilter] = useState('OCT_2026')
-  const [isPrintMode, setIsPrintMode] = useState(false)
   const [currentLocale, setCurrentLocale] = useState<'ar' | 'en'>(locale)
-
   useEffect(() => {
     if (ctxLocale) setCurrentLocale(ctxLocale)
   }, [ctxLocale])
 
-  useEffect(() => {
-    if (typeof document === 'undefined') return
-    const updateFromDoc = () => {
-      const docLang = document.documentElement.lang
-      if (docLang === 'en' || docLang === 'ar') {
-        setCurrentLocale(docLang)
-      }
-    }
-    updateFromDoc()
-    const observer = new MutationObserver(updateFromDoc)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'dir'] })
-    return () => observer.disconnect()
-  }, [])
-  const [showLiveDb, setShowLiveDb] = useState(false)
-  const [sortKey, setSortKey] = useState<string | null>(null)
-  const [sortAsc, setSortAsc] = useState<boolean>(true)
-  const [notice, setNotice] = useState<string | null>(null)
-
+  const { filters, workspace, liveSummary, setPeriod } = useGlobalFilter()
   const isAr = currentLocale === 'ar'
-  const isRtl = isAr
 
-  const allReports = useMemo(() => getAllEnterpriseReports(), [])
-  const currentReport = useMemo(
-    () => (selectedReportId ? getReportById(selectedReportId) : null),
-    [selectedReportId]
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(initialReportId || null)
+  const [activeDeptFilter, setActiveDeptFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showLocalDb, setShowLocalDb] = useState(false)
+
+  const periodWindow = useMemo(
+    () =>
+      formatPeriodCalendarWindow(filters.period ?? 'month', {
+        customFrom: filters.customFrom,
+        customTo: filters.customTo,
+        liveSummary,
+      }),
+    [filters.period, filters.customFrom, filters.customTo, liveSummary],
   )
 
-  // Filtered reports for directory view
+  const departments = useMemo(
+    () => buildLiveEnterpriseDepartments(workspace, liveSummary, isAr),
+    [workspace, liveSummary, isAr],
+  )
+
+  const currentReport: EnterpriseReportDef | null = useMemo(() => {
+    if (!selectedReportId) return null
+    for (const d of departments) {
+      const hit = d.reports.find((r) => r.id === selectedReportId)
+      if (hit) return hit
+    }
+    return null
+  }, [departments, selectedReportId])
+
   const filteredDepartments = useMemo(() => {
-    return ENTERPRISE_DEPARTMENTS.map((dept) => {
-      const reports = dept.reports.filter((r) => {
-        const matchesDept = activeDeptFilter === 'all' || activeDeptFilter === dept.id
-        if (!matchesDept) return false
-        if (!searchQuery.trim()) return true
-        const q = searchQuery.toLowerCase()
-        return (
-          r.titleAr.toLowerCase().includes(q) ||
-          r.titleEn.toLowerCase().includes(q) ||
-          r.code.toLowerCase().includes(q) ||
-          r.summaryAr.toLowerCase().includes(q) ||
-          r.summaryEn.toLowerCase().includes(q)
-        )
-      })
-      return { ...dept, reports }
-    }).filter((dept) => dept.reports.length > 0)
-  }, [activeDeptFilter, searchQuery])
+    const q = searchQuery.trim().toLowerCase()
+    return departments
+      .filter((d) => activeDeptFilter === 'all' || d.id === activeDeptFilter)
+      .map((d) => ({
+        ...d,
+        reports: d.reports.filter(
+          (r) =>
+            !q ||
+            r.titleAr.toLowerCase().includes(q) ||
+            r.titleEn.toLowerCase().includes(q) ||
+            r.code.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((d) => d.reports.length > 0)
+  }, [departments, activeDeptFilter, searchQuery])
 
-  // Filtered and Sorted table rows for drill-down view
-  const filteredTableRows = useMemo(() => {
-    if (!currentReport) return []
-    let rows = [...currentReport.rows]
-
-    if (brandFilter !== 'ALL') {
-      rows = rows.filter((r) => {
-        const val = String(r.brand || r.brandId || r.item || r.channel || '').toLowerCase()
-        return val.includes(brandFilter.toLowerCase())
-      })
-    }
-
-    if (tableSearch.trim()) {
-      const q = tableSearch.toLowerCase()
-      rows = rows.filter((r) =>
-        Object.values(r).some((v) => String(v).toLowerCase().includes(q))
-      )
-    }
-
-    if (sortKey) {
-      rows.sort((a, b) => {
-        const valA = a[sortKey]
-        const valB = b[sortKey]
-        const numA = parseFloat(String(valA).replace(/[^0-9.-]/g, ''))
-        const numB = parseFloat(String(valB).replace(/[^0-9.-]/g, ''))
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return sortAsc ? numA - numB : numB - numA
-        }
-        return sortAsc
-          ? String(valA ?? '').localeCompare(String(valB ?? ''))
-          : String(valB ?? '').localeCompare(String(valA ?? ''))
-      })
-    }
-
-    return rows
-  }, [currentReport, brandFilter, tableSearch, sortKey, sortAsc])
-
-  // Max values per numeric/currency column for inline visual progress bars
-  const colMaxes = useMemo(() => {
-    if (!currentReport) return {}
-    const map: Record<string, number> = {}
-    currentReport.columns.forEach((col) => {
-      let max = 0
-      filteredTableRows.forEach((r) => {
-        const num = parseFloat(String(r[col.key]).replace(/[^0-9.-]/g, ''))
-        if (!isNaN(num) && num > max) max = num
-      })
-      map[col.key] = max
-    })
-    return map
-  }, [currentReport, filteredTableRows])
-
-  // Column Totals for Total Summary Row
-  const colTotals = useMemo(() => {
-    if (!currentReport) return {}
-    const map: Record<string, number> = {}
-    currentReport.columns.forEach((col) => {
-      let sum = 0
-      let hasNum = false
-      filteredTableRows.forEach((r) => {
-        const num = parseFloat(String(r[col.key]).replace(/[^0-9.-]/g, ''))
-        if (!isNaN(num) && (col.isCurrency || col.key.toLowerCase().includes('order') || col.key.toLowerCase().includes('count') || col.key.toLowerCase().includes('qty') || col.key.toLowerCase().includes('sales') || col.key.toLowerCase().includes('total') || col.key.toLowerCase().includes('debt'))) {
-          sum += num
-          hasNum = true
-        }
-      })
-      if (hasNum) map[col.key] = sum
-    })
-    return map
-  }, [currentReport, filteredTableRows])
-
-  const toggleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc)
-    } else {
-      setSortKey(key)
-      setSortAsc(false)
-    }
-  }
-
-  // CSV Exporter
-  const handleExportCsv = () => {
-    if (!currentReport) return
-    const headers = currentReport.columns.map((c) => (isAr ? c.labelAr : c.labelEn))
-    const rows = filteredTableRows.map((r) =>
-      currentReport.columns.map((c) => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`)
-    )
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const handleExportCsv = (report: EnterpriseReportDef) => {
+    if (report.rows.length === 0) return
+    const headers = report.columns.map((c) => (isAr ? c.labelAr : c.labelEn))
+    const lines = [
+      headers.join(','),
+      ...report.rows.map((r) =>
+        report.columns
+          .map((c) => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`)
+          .join(','),
+      ),
+    ]
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${currentReport.code}_${isAr ? 'تقرير' : 'Report'}_${periodFilter}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${report.code}-${periodWindow.fromIso}-${periodWindow.toInclusiveIso}.csv`
+    a.click()
     URL.revokeObjectURL(url)
   }
 
-  // Print Trigger
-  const handlePrint = () => {
-    window.print()
-  }
-
-  // Email Report Trigger
-  const handleEmailReport = () => {
-    setNotice(
-      isAr
-        ? 'تم إرسال التقرير بنجاح عبر خادم Google Workspace SMTP إلى المعتمدين الثلاثة: Abdullah Abdulghafar (Sec@venturefoodskw.com), Choukrallah Nassif (operations@venturefoodskw.com), Abdulrahman Mohamed (abdelrahmanm@venturefoodskw.com)'
-        : 'Report successfully emailed via Google Workspace SMTP to: Abdullah Abdulghafar (Sec@venturefoodskw.com), Choukrallah Nassif (operations@venturefoodskw.com), Abdulrahman Mohamed (abdelrahmanm@venturefoodskw.com)'
-    )
-    setTimeout(() => setNotice(null), 6000)
-  }
-
   return (
-    <div
-      dir={isRtl ? 'rtl' : 'ltr'}
-      className={`min-h-screen transition-colors duration-200 ${
-        isPrintMode ? 'bg-white text-slate-900 p-4' : 'bg-[#07090e] text-slate-100 p-2 sm:p-6'
-      }`}
-    >
-      {/* 1. TOP HEADER & TOGGLES BAR */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-400">
-              <CheckCircle2 size={12} />
-              {isAr ? 'مركز التقارير المؤسسية الشامل — فنتشر فودز' : 'Venture Foods Enterprise Reports Hub'}
+    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
+      <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <FileText className="h-3.5 w-3.5" />
+              {isAr ? 'مركز التقارير المرتبط بـ Odoo 17' : 'Odoo 17 Connected Reports Center'}
             </span>
-            <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs text-slate-400 font-mono">
-              Venture Foods W.L.L. · Lic. 2021/22838
-            </span>
-          </div>
-          <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl tracking-tight">
-            {isAr ? 'دليل التقارير التنفيذية ومحرك التحليل التفصيلي' : 'Executive Reports Directory & Financial Drill-Down'}
-          </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {isAr
-              ? 'مكتبة التقارير الرسمية المصنفة عبر 7 قطاعات تشغيلية ومالية لشركة فنتشر فودز لإدارة المطاعم ذ.م.م. مزودة بأشرطة التقدم المرئية وإمكانية الفرز والتصدير'
-              : 'Official company report repository classified across 7 operating and financial departments with inline visual bars'}
-          </p>
-        </div>
-
-        {/* Global Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          {liveDbChildren && (
-            <button
-              onClick={() => setShowLiveDb(!showLiveDb)}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                showLiveDb ? 'bg-amber-500 text-black' : 'border border-slate-700 bg-slate-800 text-slate-200'
-              }`}
-            >
-              <Layers size={14} />
-              {showLiveDb
-                ? isAr
-                  ? 'عرض دليل التقارير المؤسسية'
-                  : 'View Enterprise Directory'
-                : isAr
-                ? 'استعلامات قاعدة البيانات الحية'
-                : 'Live Database Reports'}
-            </button>
-          )}
-
-          <button
-            onClick={() => setIsPrintMode(!isPrintMode)}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:bg-slate-700"
-          >
-            <Printer size={14} />
-            {isPrintMode ? (isAr ? 'الوضع الليلي' : 'Dark Mode') : (isAr ? 'وضع الطباعة' : 'Print Mode')}
-          </button>
-        </div>
-      </div>
-
-      {/* Notice Toast */}
-      {notice && (
-        <div className="mb-6 rounded-2xl border border-emerald-500/40 bg-emerald-950/80 p-4 text-xs font-semibold text-emerald-300 shadow-xl flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 size={16} />
-            {notice}
-          </span>
-          <button onClick={() => setNotice(null)} className="text-slate-400 hover:text-white">✕</button>
-        </div>
-      )}
-
-      {/* Live DB Wrapper Section */}
-      {showLiveDb && liveDbChildren && (
-        <div className="mb-8 rounded-2xl border border-amber-500/30 bg-[#0f172a]/90 p-4 sm:p-6 shadow-xl">
-          <div className="mb-4 flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
-              <Layers size={16} />
-              <span>{isAr ? 'استعلامات قاعدة البيانات الحية' : 'Prisma Live Database Raw Queries'}</span>
-            </div>
-            <button
-              onClick={() => setShowLiveDb(false)}
-              className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-400 hover:text-white"
-            >
-              ✕ {isAr ? 'إغلاق' : 'Close'}
-            </button>
-          </div>
-          {liveDbChildren}
-        </div>
-      )}
-
-      {/* 2. CONDITIONAL VIEW: DIRECTORY vs DRILL-DOWN REPORT VIEWER */}
-      {!selectedReportId || !currentReport ? (
-        /* VIEW 1: AETHERBI-STYLE DEPARTMENTAL DIRECTORY */
-        <div className="space-y-8">
-          {/* Quick Hero Metrics Bar */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
-              <span className="text-xs font-bold text-slate-400">{isAr ? 'التقارير المعتمدة' : 'Audited Reports'}</span>
-              <p className="mt-1 text-2xl font-black text-emerald-400 font-mono">{allReports.length} {isAr ? 'تقريراً' : 'Reports'}</p>
-              <span className="text-xs text-slate-500">{isAr ? 'تغطي كافة العمليات' : '100% Operations Coverage'}</span>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
-              <span className="text-xs font-bold text-slate-400">{isAr ? 'القطاعات التشغيلية' : 'Departments'}</span>
-              <p className="mt-1 text-2xl font-black text-blue-400 font-mono">7 {isAr ? 'أقسام رئيسية' : 'Divisions'}</p>
-              <span className="text-xs text-slate-500">{isAr ? 'هيكل مؤسسي موحد' : 'Unified Hierarchy'}</span>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
-              <span className="text-xs font-bold text-slate-400">{isAr ? 'سجلات Odoo الموثقة' : 'Odoo Ingested Data'}</span>
-              <p className="mt-1 text-2xl font-black text-purple-400 font-mono">9,662 {isAr ? 'سجلاً' : 'Records'}</p>
-              <span className="text-xs text-slate-500">{isAr ? 'تطابق SHA-256 بنسبة 100%' : '100% Cryptographic Match'}</span>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-4 shadow-lg">
-              <span className="text-xs font-bold text-slate-400">{isAr ? 'مبيعات أكتوبر 2026' : 'October 2026 Sales'}</span>
-              <p className="mt-1 text-2xl font-black text-amber-400 font-mono">167,092.160 {isAr ? 'د.ك' : 'KWD'}</p>
-              <span className="text-xs text-slate-500">{isAr ? '30,543 طلباً مدققاً' : '30,543 Audited Orders'}</span>
-            </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              {isAr
+                ? 'مركز التقارير التنفيذية والمالية — فنتشر فودز'
+                : 'Executive & Financial Reports Hub — Venture Foods'}
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `الفترة المختارة: ${periodWindow.labelAr} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`
+                : `Selected Period: ${periodWindow.labelEn} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`}
+            </p>
           </div>
 
-          {/* Search & AetherBI Department Category Tabs */}
-          <div className="space-y-4">
-            {/* Search Input */}
-            <div className="relative w-full max-w-md">
-              <Search className="absolute top-3 start-3.5 text-slate-500" size={16} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isAr ? 'ابحث عن أي تقرير أو رقم حساب أو كلمة...' : 'Search reports, account codes, or topics...'}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-900/90 py-2.5 ps-10 pe-4 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute top-2.5 end-3 text-xs text-slate-400 hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* AetherBI 7-Category Tab Navigation Bar */}
-            <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-1">
-              {[
-                { id: 'all', labelAr: 'جميع القطاعات', labelEn: 'All Divisions', icon: Sparkles },
-                { id: 'odoo-deep', labelAr: '📊 محلل أودو الإحصائي (4D & باريتو)', labelEn: 'Odoo Deep Stats (4D & Pareto)', icon: BarChart3 },
-                { id: 'sales', labelAr: '📊 المبيعات والطلبات', labelEn: 'Sales & Orders', icon: ShoppingBag },
-                { id: 'finance', labelAr: '💰 الإدارة المالية وP&L', labelEn: 'Finance & P&L', icon: Landmark },
-                { id: 'inventory', labelAr: '📦 المخزون والوصفات', labelEn: 'Inventory & BOM', icon: Package },
-                { id: 'operations', labelAr: '🍳 المطبخ المركزي وKDS', labelEn: 'Central Kitchen & KDS', icon: Flame },
-                { id: 'hr', labelAr: '👥 الموارد البشرية والرواتب', labelEn: 'HR & Payroll', icon: Users },
-                { id: 'procurement', labelAr: '🛒 المشتريات والموردين', labelEn: 'Procurement', icon: Truck },
-                { id: 'governance', labelAr: '🛡️ الحوكمة وبحيرة Odoo', labelEn: 'Governance & Audit', icon: ShieldCheck },
-                { id: 'events', labelAr: '🎪 المعارض والفعاليات', labelEn: 'Events & Expos', icon: Store },
-              ].map((tab) => {
-                const Icon = tab.icon
-                const active = activeDeptFilter === tab.id
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+              {GLOBAL_PERIOD_OPTIONS.filter((p) => p.id !== 'custom').map((opt) => {
+                const active = filters.period === opt.id
                 return (
                   <button
-                    key={tab.id}
-                    onClick={() => setActiveDeptFilter(tab.id)}
-                    className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setPeriod(opt.id as GlobalPeriod)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       active
-                        ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/10 font-black'
-                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                     }`}
                   >
-                    <Icon size={14} />
-                    <span>{isAr ? tab.labelAr : tab.labelEn}</span>
+                    {isAr ? opt.ar : opt.en}
                   </button>
                 )
               })}
             </div>
-          </div>
 
-          {/* Department Sections & Report Cards Grid */}
-          <div className="space-y-10">
-
-            {/* ODOO DEEP STATISTICAL ANALYTICS & 4D PARETO VIEW */}
-            {activeDeptFilter === 'odoo-deep' && (
-              <div className="space-y-6">
-                {/* 1. Custodians 8-Way Matrix */}
-                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                    <div>
-                      <h3 className="text-base font-black text-white sm:text-lg">
-                        {isAr ? '⚖️ إحصائيات العهد الـ 8 وتوزيع الـ 51,154.950 د.ك في أودو' : '⚖️ 8 Custodians Ledger & Odoo Petty Cash Matrix (51,154.950 KWD)'}
-                      </h3>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {isAr
-                          ? 'تحليل إحصائي معمق يوضح الحصة النسبية، عدد المعاملات، المتوسط الحسابي، والانحراف المعياري لكل عهدة.'
-                          : 'Statistical breakdown displaying relative share, txn volume, mean ticket size, and standard deviation per custodian.'}
-                      </p>
-                    </div>
-                    <span className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-mono font-bold text-slate-300">
-                      {isAr ? 'إجمالي العهد: 51,154.950 د.ك' : 'Total Custody: 51,154.950 KWD'}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-xs text-start">
-                      <thead className="border-b border-slate-800 text-slate-400">
-                        <tr>
-                          <th className="py-2.5 px-3 text-start">{isAr ? 'العهدة / الشخص المسؤول' : 'Custodian'}</th>
-                          <th className="py-2.5 px-3 text-start">{isAr ? 'طبيعة المصروفات' : 'Role / Scope'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'عدد الحركات' : 'Txns'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'المتوسط (د.ك)' : 'Mean (KWD)'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'الانحراف' : 'Std Dev'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'الإجمالي (د.ك)' : 'Total (KWD)'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'النسبة %' : 'Share %'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {[
-                          { nameAr: 'سند للتعقيب والخدمات الحكومية', nameEn: 'Sanad PRO & Govt Services', amountKwd: 31646.750, pct: 61.86, txCount: 1412, roleAr: 'إقامات، كروت بلدية، ضمان صحي، رخص تجارية', roleEn: 'Residencies, Baladiya, MOH, Licenses', avgTxKwd: 22.41, stdDev: '± 8.4%' },
-                          { nameAr: 'ربيع عطا طه (صيانة المطابخ والفروع)', nameEn: 'Rabih Atta Taha (Maintenance)', amountKwd: 10707.930, pct: 20.93, txCount: 538, roleAr: 'صيانة غرف تبريد، كمبريسورات، كهرباء، إطفاء', roleEn: 'Cold rooms, compressors, HVAC, fire safety', avgTxKwd: 19.90, stdDev: '± 12.1%' },
-                          { nameAr: 'شيلا أمبوس بولبولي (إسناد وتشغيل)', nameEn: 'Sheila Ambos Bulboli (Operations)', amountKwd: 2840.400, pct: 5.55, txCount: 114, roleAr: 'مشتريات تشغيل طارئة، إسناد لوجستي للفروع', roleEn: 'Emergency ops, branch consumables', avgTxKwd: 24.91, stdDev: '± 5.2%' },
-                          { nameAr: 'أمجد سمير (المشتريات السريعة)', nameEn: 'Amjad Samir (Fast Procurement)', amountKwd: 2115.650, pct: 4.14, txCount: 86, roleAr: 'شراء خضار ومواد طازجة عاجلة للفروع', roleEn: 'Fresh produce, dairy branch supplements', avgTxKwd: 24.60, stdDev: '± 6.8%' },
-                          { nameAr: 'شيام (الموارد البشرية والشؤون)', nameEn: 'Shyam (HR & Welfare)', amountKwd: 1420.250, pct: 2.78, txCount: 42, roleAr: 'تنقلات العمال، رعاية وسكن الموظفين', roleEn: 'Worker transit, staff welfare & housing', avgTxKwd: 33.81, stdDev: '± 4.9%' },
-                          { nameAr: 'نادر نزهي (الخدمات العامة)', nameEn: 'Nader Nezhy (General Services)', amountKwd: 1180.500, pct: 2.31, txCount: 38, roleAr: 'نثريات إدارية، رسوم اتصالات وبريد', roleEn: 'Corporate admin, courier & communications', avgTxKwd: 31.06, stdDev: '± 3.8%' },
-                          { nameAr: 'شكر الله ناصيف (المستودع والإسناد)', nameEn: 'Shokrallah Nassif (Warehouse Support)', amountKwd: 850.320, pct: 1.66, txCount: 22, roleAr: 'أدوات تغليف وطوارئ شحن المطبخ المركزي', roleEn: 'Packaging tools & Central Kitchen warehouse support', avgTxKwd: 38.65, stdDev: '± 5.1%' },
-                          { nameAr: 'نوشا شريف (نثريات الضيافة والإدارة)', nameEn: 'Nousha Sharif (Office Hospitality)', amountKwd: 393.150, pct: 0.77, txCount: 16, roleAr: 'ضيافة مكتب الإدارة العامة والاجتماعات', roleEn: 'HQ office pantry, executive hospitality', avgTxKwd: 24.57, stdDev: '± 2.4%' },
-                        ].map((c) => (
-                          <tr key={c.nameEn} className="hover:bg-white/[0.02]">
-                            <td className="py-3 px-3 font-bold text-white">
-                              {isAr ? c.nameAr : c.nameEn}
-                            </td>
-                            <td className="py-3 px-3 text-slate-400">
-                              {isAr ? c.roleAr : c.roleEn}
-                            </td>
-                            <td className="py-3 px-3 text-end font-mono text-slate-500">{c.txCount}</td>
-                            <td className="py-3 px-3 text-end font-mono text-slate-300 font-semibold">{c.avgTxKwd.toFixed(2)}</td>
-                            <td className="py-3 px-3 text-end font-mono text-amber-400">{c.stdDev}</td>
-                            <td className="py-3 px-3 text-end font-mono font-bold text-white">
-                              {c.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })}
-                            </td>
-                            <td className="py-3 px-3 text-end font-mono font-bold text-emerald-400">
-                              {c.pct}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* 2. Pareto 80/20 Card */}
-                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
-                    <div>
-                      <h3 className="text-base font-black text-white sm:text-lg">
-                        {isAr ? '📈 تحليل باريتو الإحصائي (قاعدة 80/20) لمصروفات أودو' : '📈 Pareto 80/20 Statistical Analysis of Odoo Expenses'}
-                      </h3>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        {isAr
-                          ? 'تحديد الـ 20% من بنود المصروفات التي تستحوذ على 80% من التكاليف في أودو (أعلى 5 بنود = 75.38%).'
-                          : 'Identified top 20% of cost centers driving 80% of aggregate Odoo spend (top 5 lines = 75.38%).'}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 px-3 py-1 text-xs font-bold">
-                      {isAr ? 'قاعدة باريتو 80/20' : 'Pareto 80/20'}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="w-full text-xs text-start">
-                      <thead className="border-b border-slate-800 text-slate-400">
-                        <tr>
-                          <th className="py-2.5 px-3 text-start">#</th>
-                          <th className="py-2.5 px-3 text-start">{isAr ? 'بند المصروف بأودو' : 'Expense Category'}</th>
-                          <th className="py-2.5 px-3 text-start">{isAr ? 'القطاع' : 'Division'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'النسبة من الإجمالي' : 'Share %'}</th>
-                          <th className="py-2.5 px-3 text-end">{isAr ? 'التراكمي (Pareto %)' : 'Cumulative %'}</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {[
-                          { rank: 1, nameAr: 'مصاريف تجديد الإقامات وأذونات العمل', nameEn: 'Residency Renewals & PAM Permits', amountKwd: 14912.800, pct: 29.15, cumPct: 29.15, categoryAr: 'شؤون وقوى عاملة' },
-                          { rank: 2, nameAr: 'الصيانة العامة للمطابخ والفروع', nameEn: 'Kitchen & Branch Maintenance', amountKwd: 10707.930, pct: 20.93, cumPct: 50.08, categoryAr: 'صيانة وتبريد' },
-                          { rank: 3, nameAr: 'رسوم الضمان الصحي وبطاقات وزارة الصحة', nameEn: 'Health Insurance & MOH Fees', amountKwd: 6945.000, pct: 13.58, cumPct: 63.66, categoryAr: 'صحة وضمان' },
-                          { rank: 4, nameAr: 'الإعلانات والتراخيص التجارية والبلدية', nameEn: 'Baladiya Licenses & Ads Approvals', amountKwd: 4216.500, pct: 8.24, cumPct: 71.90, categoryAr: 'بلدية وتراخيص' },
-                          { rank: 5, nameAr: 'فحص العمالة وكروت الصحة للبلدية', nameEn: 'Staff Medical Exams & Health Cards', amountKwd: 1778.000, pct: 3.48, cumPct: 75.38, categoryAr: 'كروت صحة' },
-                          { rank: 6, nameAr: 'باقي بنود المصروفات الـ 20 مجتمعة', nameEn: 'Remaining 20 Expense Items Combined', amountKwd: 12594.720, pct: 24.62, cumPct: 100.00, categoryAr: 'نثريات وتشغيل' },
-                        ].map((row) => (
-                          <tr key={row.rank} className="hover:bg-white/[0.02]">
-                            <td className="py-3 px-3 font-mono font-bold text-slate-500">{row.rank}</td>
-                            <td className="py-3 px-3 font-bold text-white">
-                              {isAr ? row.nameAr : row.nameEn}
-                            </td>
-                            <td className="py-3 px-3 text-slate-400">{row.categoryAr}</td>
-                            <td className="py-3 px-3 text-end font-mono font-bold text-white">
-                              {row.amountKwd.toLocaleString(undefined, { minimumFractionDigits: 3 })}
-                            </td>
-                            <td className="py-3 px-3 text-end font-mono text-emerald-400 font-bold">
-                              {row.pct}%
-                            </td>
-                            <td className="py-3 px-3 text-end font-mono font-bold text-purple-400">
-                              {row.cumPct}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* 3. 4D Profitability Dimensions */}
-                <div className="rounded-3xl border border-slate-800 bg-[#0d131f] p-6 shadow-xl">
-                  <h3 className="text-base font-black text-white sm:text-lg">
-                    {isAr ? '🌐 إحصائيات الربحية الرباعية بأودو (4D Profitability Analysis)' : '🌐 Odoo 4D Profitability Analysis'}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    {isAr
-                      ? 'تحليل الأبعاد الأربعة في أودو: (العلامة التجارية × الفرع × القسم التشغيلي × قناة البيع والتوصيل).'
-                      : 'Evaluating 4 primary Odoo dimensions: (Brand × Branch × Division × Channel).'}
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 1: العلامة التجارية' : 'Dimension 1: Brand'}</div>
-                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'تشاينا جاردن (84.8%)' : 'China Garden (84.8%)'}</div>
-                      <div className="text-xs text-slate-400 mt-1">141,662.650 د.ك · هامش 28.4%</div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 2: الفرع الأعلى كفاءة' : 'Dimension 2: Top Branch'}</div>
-                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'المطبخ المركزي' : 'Central Kitchen'}</div>
-                      <div className="text-xs text-slate-400 mt-1">36,400.000 د.ك · هامش 32.1%</div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 3: القسم التشغيلي' : 'Dimension 3: Division'}</div>
-                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'التوصيل والمنصات (60%)' : 'Delivery Aggregators (60%)'}</div>
-                      <div className="text-xs text-slate-400 mt-1">103,876.750 د.ك مبيعات مجمعة</div>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                      <div className="text-xs font-bold text-slate-400">{isAr ? 'البُعد 4: قناة البيع الأكثر ربحية' : 'Dimension 4: Top Channel'}</div>
-                      <div className="mt-2 text-sm font-black text-white">{isAr ? 'الصالات والسفري المباشر' : 'Dine-In & Direct Takeaway'}</div>
-                      <div className="text-xs text-slate-400 mt-1">58,972.250 د.ك · عمولة 0%</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {liveDbChildren && (
+              <button
+                type="button"
+                onClick={() => setShowLocalDb((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              >
+                <Database className="h-3.5 w-3.5" />
+                {isAr ? 'جداول النظام المحلي' : 'Local DB Tables'}
+              </button>
             )}
-
-            {filteredDepartments.map((dept) => (
-              <div key={dept.id} className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{dept.icon}</span>
-                    <div>
-                      <h2 className="text-lg font-black text-white">
-                        {isAr ? dept.titleAr : dept.titleEn}
-                      </h2>
-                      <p className="text-xs text-slate-400">
-                        {isAr ? dept.descriptionAr : dept.descriptionEn}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
-                    {dept.reports.length} {isAr ? 'تقارير' : 'Reports'}
-                  </span>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {dept.reports.map((report) => (
-                    <div
-                      key={report.id}
-                      onClick={() => {
-                        setSelectedReportId(report.id)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
-                      className="group flex cursor-pointer flex-col justify-between rounded-2xl border border-slate-800/90 bg-[#0d131f] p-5 shadow-lg transition-all duration-200 hover:-translate-y-1 hover:border-emerald-500/50 hover:bg-[#111927]"
-                    >
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-emerald-400">
-                            {report.code}
-                          </span>
-                          <span className="text-xs text-slate-500 font-mono">
-                            {report.auditedDate}
-                          </span>
-                        </div>
-
-                        <h3 className="text-base font-black text-white group-hover:text-emerald-400 transition-colors">
-                          {isAr ? report.titleAr : report.titleEn}
-                        </h3>
-                        <p className="mt-1 line-clamp-2 text-xs text-slate-400">
-                          {isAr ? report.summaryAr : report.summaryEn}
-                        </p>
-                      </div>
-
-                      <div className="mt-5 flex items-center justify-between border-t border-slate-800/80 pt-3">
-                        <div>
-                          <span className="block text-xs text-slate-500 font-semibold">{isAr ? 'المؤشر الرئيسي' : 'Headline Metric'}</span>
-                          <span className="font-mono text-sm font-black text-amber-400">
-                            {isAr ? report.headlineMetricAr : report.headlineMetricEn}
-                          </span>
-                        </div>
-                        <span className="flex items-center gap-1 rounded-xl bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400 border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                          {isAr ? 'فتح التقرير' : 'View'}
-                          <ArrowRight size={13} className={isAr ? 'rotate-180' : ''} />
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
-      ) : (
-        /* VIEW 2: AETHERBI-STYLE DRILL-DOWN REPORT VIEWER */
-        <div className="space-y-6">
-          {/* Top Bar with Back Button & Actions */}
-          <div className="rounded-2xl border border-slate-800 bg-[#0d131f] p-5 shadow-xl">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <button
-                  onClick={() => setSelectedReportId(null)}
-                  className="mb-2 inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700"
-                >
-                  <ArrowLeft size={14} className={isAr ? 'rotate-180' : ''} />
-                  <span>{isAr ? 'العودة لجميع التقارير' : 'Back to Reports Directory'}</span>
-                </button>
 
-                <div className="flex items-center gap-2">
-                  <span className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-bold text-emerald-400">
-                    {currentReport.code}
-                  </span>
-                  <h2 className="text-xl font-black text-white sm:text-2xl">
-                    {isAr ? currentReport.titleAr : currentReport.titleEn}
-                  </h2>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">
+        {!selectedReportId && (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-slate-800">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveDeptFilter('all')}
+                className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                  activeDeptFilter === 'all'
+                    ? 'bg-slate-900 text-white dark:bg-emerald-600'
+                    : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                {isAr ? 'الكل' : 'All'}
+              </button>
+              {departments.map((dept) => (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => setActiveDeptFilter(dept.id)}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                    activeDeptFilter === dept.id
+                      ? 'bg-slate-900 text-white dark:bg-emerald-600'
+                      : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
+                  {isAr ? dept.titleAr : dept.titleEn}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-slate-400" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={isAr ? 'بحث في التقارير...' : 'Search reports...'}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pe-3 ps-9 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
+        )}
+      </header>
+
+      {showLocalDb && liveDbChildren && <div>{liveDbChildren}</div>}
+
+      {currentReport ? (
+        <section className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedReportId(null)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            >
+              {isAr ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {isAr ? 'العودة إلى دليل التقارير' : 'Back to Reports Directory'}
+            </button>
+
+            {currentReport.sourceState === 'odoo-live' && currentReport.rows.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleExportCsv(currentReport)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  {isAr ? 'تصدير CSV' : 'Export CSV'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  {isAr ? 'طباعة' : 'Print'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {currentReport.sourceState === 'unlinked' ? (
+            <UnlinkedSourceNotice
+              isAr={isAr}
+              titleAr={currentReport.titleAr}
+              titleEn={currentReport.titleEn}
+              reasonAr={currentReport.unlinkedReasonAr}
+              reasonEn={currentReport.unlinkedReasonEn}
+            />
+          ) : !workspace.odooConnected || workspace.noData || currentReport.rows.length === 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-8 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
+              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-amber-600 dark:text-amber-400" />
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                لا توجد بيانات من Odoo لهذه الفترة
+              </h2>
+            </div>
+          ) : (
+            <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <span className="text-xs font-bold text-emerald-600">{currentReport.code}</span>
+                <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
+                  {isAr ? currentReport.titleAr : currentReport.titleEn}
+                </h2>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {isAr ? currentReport.summaryAr : currentReport.summaryEn}
                 </p>
               </div>
 
-              {/* Action Buttons: Export, Print, Email to 3 verified */}
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={handleEmailReport}
-                  className="flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-600/20 px-3.5 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-600/40 transition-all shadow-md"
-                >
-                  <Mail size={15} />
-                  {isAr ? 'إرسال للمعتمدين بالبريد' : 'Email Report'}
-                </button>
-                <button
-                  onClick={handleExportCsv}
-                  className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-black transition-all hover:bg-emerald-400 shadow-md"
-                >
-                  <Download size={15} />
-                  {isAr ? 'تصدير ملف إكسل' : 'Export CSV'}
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700"
-                >
-                  <Printer size={15} />
-                  {isAr ? 'طباعة التقرير' : 'Print PDF'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Filters Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-[#0b0f17] p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Brand Filter */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400 font-bold">{isAr ? 'العلامة التجارية:' : 'Brand:'}</span>
-                <select
-                  value={brandFilter}
-                  onChange={(e) => setBrandFilter(e.target.value)}
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
-                >
-                  <option value="ALL">{isAr ? 'جميع المطاعم (6)' : 'All 6 Brands'}</option>
-                  <option value="China">{isAr ? 'تشاينا جاردن (84.8%)' : 'China Garden (84.8%)'}</option>
-                  <option value="Frank">{isAr ? "فرانكس (9.7%)" : "Frank's (9.7%)"}</option>
-                  <option value="Tahina">{isAr ? 'شاورما طحينة (2.6%)' : 'Tahina (2.6%)'}</option>
-                  <option value="Farm">{isAr ? 'فارم براون (1.6%)' : 'Farm Brown (1.6%)'}</option>
-                  <option value="Noodle">{isAr ? 'ذا نودل بار (1.0%)' : 'The Noodle Bar (1.0%)'}</option>
-                  <option value="Karak">{isAr ? 'كرك كافتيريا (0.3%)' : 'Karak Cafeteria (0.3%)'}</option>
-                </select>
-              </div>
-
-              {/* Period Filter */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400 font-bold">{isAr ? 'الفترة:' : 'Period:'}</span>
-                <select
-                  value={periodFilter}
-                  onChange={(e) => setPeriodFilter(e.target.value)}
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-white focus:outline-none"
-                >
-                  <option value="OCT_2026">{isAr ? 'أكتوبر 2026 (الأساس المعتمد)' : 'Oct 2026 (Audited Base)'}</option>
-                  <option value="Q4_2026">{isAr ? 'الربع الرابع 2026' : 'Q4 2026'}</option>
-                  <option value="FY_2026">{isAr ? 'السنة المالية 2026 كاملة' : 'Full FY 2026'}</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Table Search */}
-            <div className="relative w-full max-w-xs sm:w-auto">
-              <Search className="absolute top-2.5 start-2.5 text-slate-500" size={14} />
-              <input
-                type="text"
-                value={tableSearch}
-                onChange={(e) => setTableSearch(e.target.value)}
-                placeholder={isAr ? 'تصفية صفوف الجدول...' : 'Filter table rows...'}
-                className="w-full rounded-xl border border-slate-700 bg-slate-900 py-2 ps-8 pe-3 text-xs text-slate-200 placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* AetherBI Executive KPI Cards */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {currentReport.kpis.map((kpi, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col justify-between rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-4 shadow-md"
-              >
-                <div>
-                  <span className="text-xs font-bold text-slate-400">
-                    {isAr ? kpi.labelAr : kpi.labelEn}
-                  </span>
-                  <p className="mt-1 text-lg font-black text-white font-mono">{kpi.value}</p>
+              {currentReport.glIncomplete && (
+                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+                  <span>قيود غير مكتملة لهذه الفترة</span>
                 </div>
-                {(kpi.change || kpi.subtextAr) && (
-                  <div className="mt-2 flex items-center justify-between text-xs pt-2 border-t border-slate-800/80">
-                    {kpi.change && (
-                      <span
-                        className={`font-bold ${
-                          kpi.trend === 'up'
-                            ? 'text-emerald-400'
-                            : kpi.trend === 'down'
-                            ? 'text-rose-400'
-                            : 'text-amber-400'
-                        }`}
-                      >
-                        {kpi.change}
-                      </span>
-                    )}
-                    <span className="text-slate-500 truncate">
-                      {isAr ? kpi.subtextAr : kpi.subtextEn}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              )}
 
-          {/* Visual Breakdown Bar Chart */}
-          {currentReport.breakdown && currentReport.breakdown.length > 0 && (
-            <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5 shadow-xl">
-              <h3 className="mb-3 text-sm font-black text-white">
-                {isAr ? currentReport.breakdownTitleAr : currentReport.breakdownTitleEn}
-              </h3>
-              <div className="mb-3 flex h-4 w-full overflow-hidden rounded-full bg-slate-800">
-                {currentReport.breakdown.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="h-full transition-all duration-300"
-                    style={{
-                      width: `${item.percent}%`,
-                      backgroundColor: item.color,
-                    }}
-                    title={`${isAr ? item.labelAr : item.labelEn}: ${item.percent}%`}
-                  />
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-4 text-xs">
-                {currentReport.breakdown.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-slate-300">
-                      {isAr ? item.labelAr : item.labelEn}
-                    </span>
-                    <span className="font-bold text-white font-mono">
-                      {item.percent}%
-                    </span>
-                  </div>
-                ))}
+              {currentReport.kpis.length > 0 && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  {currentReport.kpis.map((kpi, idx) => (
+                    <article
+                      key={idx}
+                      className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                    >
+                      <p className="text-xs font-semibold text-slate-500">
+                        {isAr ? kpi.labelAr : kpi.labelEn}
+                      </p>
+                      <p className="mt-1.5 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                        {kpi.value}
+                      </p>
+                      {kpi.subtextAr && (
+                        <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                          {isAr ? kpi.subtextAr : kpi.subtextEn ?? kpi.subtextAr}
+                        </p>
+                      )}
+                      {kpi.odooModel && (
+                        <div className="mt-2.5">
+                          <KpiProvenanceBadge
+                            model={kpi.odooModel}
+                            dateRange={workspace.dateRange}
+                            lastSyncAt={workspace.lastSyncAt}
+                            isStale24h={workspace.isStale24h}
+                            kind={kpi.provenanceKind ?? 'فعلي'}
+                            queryOrFormula={kpi.queryOrFormula}
+                            isAr={isAr}
+                          />
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 dark:border-slate-800">
+                      {currentReport.columns.map((col) => (
+                        <th key={col.key} className="px-3 py-2.5 text-start">
+                          {isAr ? col.labelAr : col.labelEn}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentReport.rows.map((row, idx) => (
+                      <tr
+                        key={idx}
+                        className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
+                      >
+                        {currentReport.columns.map((col) => (
+                          <td
+                            key={col.key}
+                            className="px-3 py-2.5 font-medium tabular-nums text-slate-900 dark:text-slate-100"
+                          >
+                            {String(row[col.key] ?? '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
+        </section>
+      ) : (
+        <div className="space-y-6">
+          {!workspace.odooConnected || workspace.noData ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
+              <AlertCircle className="mx-auto mb-2 h-7 w-7 text-amber-600 dark:text-amber-400" />
+              <p className="text-base font-bold text-slate-900 dark:text-white">
+                لا توجد بيانات من Odoo لهذه الفترة
+              </p>
+            </div>
+          ) : null}
 
-          {/* Rich AetherBI Data Table with Inline Visual Progress Bars */}
-          <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3.5">
-              <div className="flex items-center gap-2">
-                <FileText size={16} className="text-emerald-400" />
-                <h3 className="text-sm font-black text-white">
-                  {isAr ? 'الجدول التفصيلي الكامل (AetherBI Table Engine)' : 'Complete AetherBI Detailed Table'}
-                </h3>
-                <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-mono text-slate-400">
-                  {filteredTableRows.length} {isAr ? 'سجل' : 'Rows'}
-                </span>
+          {filteredDepartments.map((dept) => (
+            <section
+              key={dept.id}
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+            >
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {dept.icon} {isAr ? dept.titleAr : dept.titleEn}
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {isAr ? dept.descriptionAr : dept.descriptionEn}
+                </p>
               </div>
-              <span className="text-xs text-slate-500">
-                {isAr ? 'انقر على رأس أي عمود للترتيب · الأرقام بالدينار الكويتي (KWD)' : 'Click column header to sort · All values in KWD'}
-              </span>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-800 bg-slate-900/80 text-xs font-bold uppercase text-slate-400">
-                    {currentReport.columns.map((col) => {
-                      const isSorted = sortKey === col.key
-                      return (
-                        <th
-                          key={col.key}
-                          onClick={() => toggleSort(col.key)}
-                          className={`px-4 py-3 cursor-pointer hover:text-white transition-colors ${
-                            col.align === 'center'
-                              ? 'text-center'
-                              : col.align === 'right'
-                              ? 'text-right'
-                              : 'text-left'
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {dept.reports.map((report) => (
+                  <button
+                    key={report.id}
+                    type="button"
+                    onClick={() => setSelectedReportId(report.id)}
+                    className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-start transition hover:border-emerald-500 hover:bg-white dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-emerald-500"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-slate-500">{report.code}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                            report.sourceState === 'unlinked'
+                              ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                           }`}
                         >
-                          <div className={`inline-flex items-center gap-1.5 ${col.align === 'center' ? 'justify-center' : col.align === 'right' ? 'justify-end' : 'justify-start'}`}>
-                            <span>{isAr ? col.labelAr : col.labelEn}</span>
-                            {isSorted ? (
-                              sortAsc ? <ArrowUp size={12} className="text-emerald-400" /> : <ArrowDown size={12} className="text-emerald-400" />
-                            ) : (
-                              <ArrowUpDown size={11} className="text-slate-600" />
-                            )}
-                          </div>
-                        </th>
-                      )
-                    })}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                  {filteredTableRows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={currentReport.columns.length}
-                        className="py-12 text-center text-sm text-slate-500"
-                      >
-                        {isAr ? 'لا توجد بيانات مطابقة لخيارات الفلترة الحالية.' : 'No data matches the selected filters.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredTableRows.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-slate-900/50 transition-colors">
-                        {currentReport.columns.map((col) => {
-                          const val = row[col.key]
-                          const numVal = parseFloat(String(val).replace(/[^0-9.-]/g, ''))
-                          const maxVal = colMaxes[col.key] || 1
-                          const barPct = !isNaN(numVal) && maxVal > 0 ? Math.min(100, Math.max(8, (numVal / maxVal) * 100)) : 0
-
-                          return (
-                            <td
-                              key={col.key}
-                              className={`px-4 py-3 ${
-                                col.align === 'center'
-                                  ? 'text-center'
-                                  : col.align === 'right'
-                                  ? 'text-right font-mono'
-                                  : 'text-left'
-                              }`}
-                            >
-                              {col.isBadge ? (
-                                <span className="inline-flex rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-slate-700">
-                                  {val}
-                                </span>
-                              ) : col.isCurrency ? (
-                                <div className="flex items-center justify-end gap-2.5">
-                                  {barPct > 0 && (
-                                    <div className="w-16 h-1.5 rounded-full bg-slate-800 overflow-hidden hidden sm:block">
-                                      <div
-                                        className="h-full rounded-full bg-amber-400/80"
-                                        style={{ width: `${barPct}%` }}
-                                      />
-                                    </div>
-                                  )}
-                                  <span className="font-bold text-amber-300">
-                                    {val}
-                                  </span>
-                                </div>
-                              ) : col.isPercent ? (
-                                <div className="flex items-center justify-center gap-2">
-                                  {barPct > 0 && (
-                                    <div className="w-12 h-1.5 rounded-full bg-slate-800 overflow-hidden hidden sm:block">
-                                      <div
-                                        className="h-full rounded-full bg-emerald-400"
-                                        style={{ width: `${barPct}%` }}
-                                      />
-                                    </div>
-                                  )}
-                                  <span className="font-bold text-emerald-400">
-                                    {val}
-                                  </span>
-                                </div>
-                              ) : (
-                                val ?? '—'
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-
-                {/* AetherBI Total Summary Row */}
-                <tfoot>
-                  <tr className="border-t-2 border-slate-700 bg-slate-900/90 font-bold text-xs">
-                    <td className="px-4 py-3 text-slate-300 font-sans">
-                      {isAr ? 'الإجمالي العام الموحد' : 'Total Summary'}
-                    </td>
-                    {currentReport.columns.slice(1).map((col) => {
-                      const total = colTotals[col.key]
-                      return (
-                        <td
-                          key={col.key}
-                          className={`px-4 py-3 font-mono ${
-                            col.align === 'center'
-                              ? 'text-center'
-                              : col.align === 'right'
-                              ? 'text-right'
-                              : 'text-left'
-                          }`}
-                        >
-                          {total !== undefined ? (
-                            <span className={col.isCurrency ? 'text-amber-400 font-black text-sm' : 'text-emerald-400 font-black'}>
-                              {col.isCurrency ? total.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + (isAr ? ' د.ك' : ' KWD') : total.toLocaleString()}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+                          {report.sourceState === 'unlinked'
+                            ? 'غير مربوط بمصدر'
+                            : report.odooModel ?? 'Odoo'}
+                        </span>
+                      </div>
+                      <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">
+                        {isAr ? report.titleAr : report.titleEn}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                        {isAr ? report.summaryAr : report.summaryEn}
+                      </p>
+                    </div>
+                    <div className="mt-4 border-t border-slate-200/80 pt-2.5 text-xs font-extrabold tabular-nums text-emerald-700 dark:border-slate-700 dark:text-emerald-400">
+                      {isAr ? report.headlineMetricAr : report.headlineMetricEn}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </div>

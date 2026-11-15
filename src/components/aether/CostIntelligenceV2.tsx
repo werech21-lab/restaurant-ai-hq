@@ -1,277 +1,340 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { AlertTriangle, ChefHat, FlaskConical, Gauge, Receipt, Sparkles, TrendingDown, TrendingUp } from 'lucide-react'
-import { BRANDS, LEDGER, QUADRANTS, feryalHref, fmt, kwd, pct } from '@/lib/aether/ledger'
-import {
-  PRICE_CREEP_ALERT_PCT,
-  SUPPLIER_ITEMS,
-  cogsVarianceMatrix,
-  marginErosion,
-  priceCreep,
-  type IngredientId,
-} from '@/lib/enterprise-giants-engine'
-import { useBiFilters } from '@/components/aether/BiFilterContext'
-import { Badge, Num, ReorderableTable, SectionHeader, Sparkline, StatsCardV2, TONE_HEX, useLang, type ReorderColumn } from '@/components/aether/ui'
-
-const LEVEL = {
-  stable: { en: 'Stable', ar: 'مستقر', tone: 'emerald' as const },
-  watch: { en: 'Watch', ar: 'مراقبة', tone: 'amber' as const },
-  spike: { en: 'Price spike', ar: 'ارتفاع حاد', tone: 'rose' as const },
-}
-
-const MOVE = {
-  renegotiate: { en: 'Renegotiate / dual-source supplier', ar: 'إعادة التفاوض أو مورد بديل', tone: 'sky' as const },
-  reprice: { en: 'Re-price menu item', ar: 'تعديل سعر الصنف', tone: 'amber' as const },
-  portion: { en: 'Trim portion 5%', ar: 'تخفيض الحصة 5%', tone: 'emerald' as const },
-  none: { en: 'No exposure', ar: 'لا تأثير', tone: 'slate' as const },
-}
+import React, { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Building2, Package, Receipt, RefreshCw, ShoppingCart } from 'lucide-react'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
+import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
+import { useI18n } from '@/lib/i18n'
+import type { OdooLivePurchaseSummary } from '@/lib/odoo-live-connector'
 
 export function CostIntelligenceV2() {
-  const { lang, isAr, T } = useLang()
-  const { filters } = useBiFilters()
-  const creep = useMemo(() => priceCreep(filters), [filters])
-  const [ingredient, setIngredient] = useState<IngredientId>('poultry-breast')
-  const defaultPct = creep.find((c) => c.id === ingredient)?.creepPct ?? 0
-  const [increase, setIncrease] = useState<number | null>(null)
-  const pctUsed = increase ?? Math.round(defaultPct * 10) / 10
-  const erosion = useMemo(() => marginErosion(ingredient, pctUsed, filters), [ingredient, pctUsed, filters])
-  const matrix = useMemo(() => cogsVarianceMatrix(filters), [filters])
+  const { locale } = useI18n()
+  const isAr = locale !== 'en'
+  const { filters, liveSummary } = useGlobalFilter()
 
-  const flagged = creep.filter((c) => c.level !== 'stable')
-  const creepImpact = creep.reduce((s, c) => s + c.impact, 0)
-  const digits = filters.period === 'daily' ? 3 : 0
-  const actualPct = matrix.salesTotal ? (matrix.actualTotal / matrix.salesTotal) * 100 : LEDGER.cogsPct
-  const theoPct = LEDGER.cogsTargetPct
+  const periodWindow = useMemo(
+    () =>
+      formatPeriodCalendarWindow(filters.period ?? 'month', {
+        customFrom: filters.customFrom,
+        customTo: filters.customTo,
+        liveSummary,
+      }),
+    [filters.period, filters.customFrom, filters.customTo, liveSummary],
+  )
 
-  const brandName = (id: string) => {
-    const b = BRANDS.find((x) => x.id === id)
-    return b ? (isAr ? b.ar : b.en) : id
-  }
+  const [loading, setLoading] = useState(true)
+  const [purchaseSummary, setPurchaseSummary] = useState<OdooLivePurchaseSummary | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const matrixColumns: ReorderColumn<(typeof matrix.rows)[number]>[] = [
-    { key: 'branch', en: 'Branch', ar: 'الفرع', render: (r) => <span className="font-semibold text-slate-900 dark:text-white">{isAr ? r.ar : r.en}</span>, csv: (r) => (isAr ? r.ar : r.en) },
-    { key: 'sales', en: 'Net sales', ar: 'صافي المبيعات', align: 'end', render: (r) => <Num>{fmt(r.sales, digits)}</Num>, csv: (r) => r.sales.toFixed(3) },
-    { key: 'theo', en: 'Theoretical COGS (24.0%)', ar: 'التكلفة النظرية (24.0%)', align: 'end', render: (r) => <Num>{fmt(r.theoretical, digits)}</Num>, csv: (r) => r.theoretical.toFixed(3) },
-    { key: 'actual', en: 'Actual COGS', ar: 'التكلفة الفعلية', align: 'end', render: (r) => <Num className="text-slate-900 dark:text-white">{fmt(r.actual, digits)}</Num>, csv: (r) => r.actual.toFixed(3) },
-    { key: 'actualPct', en: 'Actual %', ar: 'النسبة الفعلية', align: 'end', render: (r) => <Num className={r.actualPct > LEDGER.cogsPct ? 'text-rose-600' : 'text-slate-700 dark:text-slate-200'}>{pct(r.actualPct, 2)}</Num>, csv: (r) => r.actualPct.toFixed(2) },
-    { key: 'ck', en: 'Central kitchen shrinkage', ar: 'فاقد المطبخ المركزي', align: 'end', render: (r) => <Num className="text-rose-600">{fmt(r.ckShrink, 2)}</Num>, csv: (r) => r.ckShrink.toFixed(3) },
-    { key: 'portion', en: 'Over-portioning', ar: 'زيادة الحصص', align: 'end', render: (r) => <Num className="text-amber-600">{fmt(r.overPortion, 2)}</Num>, csv: (r) => r.overPortion.toFixed(3) },
-    { key: 'waste', en: 'Unrecorded waste', ar: 'هدر غير مسجل', align: 'end', render: (r) => <Num className="text-sky-600">{fmt(r.unrecorded, 2)}</Num>, csv: (r) => r.unrecorded.toFixed(3) },
-    { key: 'gap', en: 'Total gap', ar: 'إجمالي الفجوة', align: 'end', render: (r) => <Num className="text-slate-900 dark:text-white">{fmt(r.gap, 2)}</Num>, csv: (r) => r.gap.toFixed(3) },
-  ]
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+
+    const qs = new URLSearchParams({
+      from: periodWindow.fromIso,
+      to: periodWindow.toInclusiveIso,
+    })
+
+    fetch(`/api/erp/purchase-orders?${qs.toString()}`, {
+      method: 'GET',
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+      .then(async (res) => {
+        if (!res.ok) return null
+        const json = await res.json()
+        return (json?.purchaseOrders ?? null) as OdooLivePurchaseSummary | null
+      })
+      .then((payload) => {
+        if (!cancelled) {
+          setPurchaseSummary(payload)
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPurchaseSummary(null)
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [periodWindow.fromIso, periodWindow.toInclusiveIso])
+
+  const filteredProducts = useMemo(() => {
+    if (!purchaseSummary?.byProduct) return []
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return purchaseSummary.byProduct
+    return purchaseSummary.byProduct.filter((p) => p.productName.toLowerCase().includes(q))
+  }, [purchaseSummary, searchQuery])
+
+  const filteredVendors = useMemo(() => {
+    if (!purchaseSummary?.byVendor) return []
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return purchaseSummary.byVendor
+    return purchaseSummary.byVendor.filter((v) => v.vendorName.toLowerCase().includes(q))
+  }, [purchaseSummary, searchQuery])
+
+  const fmtKwd = (v: number) =>
+    `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${
+      isAr ? 'د.ك' : 'KWD'
+    }`
+
+  const noData =
+    !purchaseSummary ||
+    !purchaseSummary.connected ||
+    purchaseSummary.noData ||
+    purchaseSummary.totals.ordersCount === 0
 
   return (
-    <div className="ae-stagger space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
-      <section className="ae-tile flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1.5">
-          <Badge tone="rose">{T('Supplier price creep · COGS intelligence', 'ارتفاع أسعار الموردين · ذكاء التكلفة')}</Badge>
-          <h1 className="ae-h text-2xl text-slate-900 dark:text-white">{T('Cost Intelligence', 'ذكاء التكلفة')}</h1>
-          <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300">
-            {T(
-              `Vendor invoices against contracted baselines, recipe margin erosion across the top 32 items, and the ${pct(LEDGER.cogsTargetPct)} theoretical vs ${pct(LEDGER.cogsPct)} actual food-cost gap (${kwd(LEDGER.cogs, 'en', 3)}).`,
-              `فواتير الموردين مقابل الأسعار المتعاقد عليها، وتآكل هامش الوصفات لأعلى 32 صنفاً، وفجوة تكلفة الأغذية النظرية ${pct(LEDGER.cogsTargetPct)} مقابل الفعلية ${pct(LEDGER.cogsPct)} (${kwd(LEDGER.cogs, 'ar', 3)}).`,
-            )}
-          </p>
-        </div>
-        <Link href={feryalHref(T('Which supplier price increases threaten our margin most and what counter-moves do you recommend?', 'أي ارتفاعات أسعار الموردين تهدد هامشنا أكثر وما الإجراءات المضادة التي توصين بها؟'))} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
-          <Sparkles className="h-3.5 w-3.5" />
-          {T('Ask Feryal', 'اسأل فريال')}
-        </Link>
-      </section>
-
-      <section className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatsCardV2 icon={<AlertTriangle className="h-4 w-4" />} label={T('Ingredients above contract', 'مواد فوق السعر المتعاقد')} value={`${flagged.length} / ${SUPPLIER_ITEMS.length}`} valueTone="rose" sub={T(`Alert threshold ${PRICE_CREEP_ALERT_PCT}% over baseline`, `حد التنبيه ${PRICE_CREEP_ALERT_PCT}% فوق الأساس`)} />
-        <StatsCardV2 icon={<TrendingUp className="h-4 w-4" />} label={T('Price-creep cost exposure', 'تكلفة ارتفاع الأسعار')} value={kwd(creepImpact, lang, digits)} valueTone="amber" sub={T('At current purchase volumes', 'بأحجام الشراء الحالية')} />
-        <StatsCardV2 icon={<Gauge className="h-4 w-4" />} label={T('Theoretical vs actual COGS', 'التكلفة النظرية مقابل الفعلية')} value={`${pct(theoPct)} → ${pct(actualPct)}`} valueTone="rose" target={{ label: T('Gap recovered by the Ardiya lever', 'الفجوة المستردة برافعة العارضية'), progress: 100, tone: 'emerald' }} />
-        <StatsCardV2 icon={<TrendingDown className="h-4 w-4" />} label={T('Recoverable food-cost gap', 'فجوة التكلفة القابلة للاسترداد')} value={`+${kwd(matrix.gapTotal, lang, digits)}`} valueTone="emerald" sub={T(`${fmt(LEDGER.cogsEntries)} central-kitchen entries`, `${fmt(LEDGER.cogsEntries)} قيداً للمطبخ المركزي`)} />
-      </section>
-
-      <section className="space-y-3">
-        <SectionHeader icon={<Receipt className="h-4 w-4" />} title={T('Live supplier invoice price-creep radar', 'رادار ارتفاع أسعار فواتير الموردين')} subtitle={T('Latest invoice vs contracted baseline · last six weekly invoices', 'آخر فاتورة مقابل السعر المتعاقد · آخر ست فواتير أسبوعية')} />
-        <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {creep.map((c) => {
-            const lv = LEVEL[c.level]
-            return (
-              <article key={c.id} className={`ae-tile ae-lift flex flex-col justify-between gap-3 p-4 ${ingredient === c.id ? 'ring-2 ring-sky-500' : ''}`}>
-                <div className="space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-white">{isAr ? c.ar : c.en}</p>
-                    <Badge tone={lv.tone}>{isAr ? lv.ar : lv.en}</Badge>
-                  </div>
-                  <p className="ae-meta">{isAr ? c.vendorAr : c.vendorEn}</p>
-                </div>
-                <div className="flex items-end justify-between gap-2">
-                  <div>
-                    <div className="text-xs text-slate-500">
-                      {T('Contract', 'المتعاقد')} <Num>{fmt(c.contract, 3)}</Num> → {T('invoice', 'الفاتورة')}
-                    </div>
-                    <Num className={`text-lg ${c.creepPct >= PRICE_CREEP_ALERT_PCT ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
-                      {fmt(c.latest, 3)} <span className="text-xs font-semibold text-slate-500">/ {isAr ? c.unitAr : c.unitEn}</span>
-                    </Num>
-                  </div>
-                  <Sparkline data={c.invoices} color={TONE_HEX[lv.tone]} width={84} height={30} />
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <Num className={c.creepPct > 0 ? 'text-rose-600' : 'text-emerald-600'}>
-                    {c.creepPct > 0 ? '+' : ''}
-                    {pct(c.creepPct)}
-                  </Num>
-                  <span className="text-slate-500">
-                    <Num className="text-slate-900 dark:text-white">{kwd(c.impact, lang, digits || 1)}</Num>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIngredient(c.id)
-                    setIncrease(null)
-                  }}
-                  className={ingredient === c.id ? 'btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]' : 'ae-pill-light ae-pill-sm'}
-                >
-                  <FlaskConical className="h-3 w-3" />
-                  {T('Simulate margin impact', 'محاكاة أثر الهامش')}
-                </button>
-              </article>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="ae-tile space-y-4 p-5">
-        <SectionHeader
-          icon={<FlaskConical className="h-4 w-4" />}
-          title={T('Recipe margin erosion simulator', 'محاكي تآكل هامش الوصفات')}
-          subtitle={T('Impact on unit food cost and margin across the top 32 revenue items (Stars & Plowhorses)', 'الأثر على تكلفة الوحدة والهامش لأعلى 32 صنفاً إيراداً (النجوم والأحصنة العاملة)')}
-          actions={
-            <Link
-              href={feryalHref(
-                isAr
-                  ? `حللي أثر ارتفاع سعر ${erosion.supplier.ar} بنسبة ${fmt(pctUsed, 1)}% على هامش أعلى 32 صنفاً (تآكل ${fmt(erosion.totalErosion)} د.ك) والإجراءات المضادة.`
-                  : `Analyse a ${fmt(pctUsed, 1)}% price increase on ${erosion.supplier.en} across our top 32 items (${fmt(erosion.totalErosion)} KWD erosion) and the counter-moves.`,
-              )}
-              className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              {T('Ask Feryal', 'اسأل فريال')}
-            </Link>
-          }
-        />
-        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-12">
-          <div className="ae-tile-soft space-y-4 p-4 lg:col-span-4">
-            <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{T('Ingredient', 'المادة')}</span>
-              <select
-                className="ae-select w-full !max-w-none"
-                value={ingredient}
-                onChange={(e) => {
-                  setIngredient(e.target.value as IngredientId)
-                  setIncrease(null)
-                }}
-              >
-                {SUPPLIER_ITEMS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {isAr ? s.ar : s.en}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
-                <span>{T('Vendor price increase', 'زيادة سعر المورد')}</span>
-                <Num className="text-base text-slate-900 dark:text-white">+{pct(pctUsed)}</Num>
-              </div>
-              <input type="range" min={0} max={25} step={0.5} value={pctUsed} onChange={(e) => setIncrease(Number(e.target.value))} className="w-full accent-rose-600" aria-label={T('Vendor price increase', 'زيادة سعر المورد')} />
-              <div className="flex justify-between text-xs text-slate-400">
-                <Num>0%</Num>
-                <button type="button" className="font-semibold text-sky-600 hover:underline" onClick={() => setIncrease(null)}>
-                  {T('Use live invoice creep', 'استخدم الارتفاع الفعلي')}
-                </button>
-                <Num>25%</Num>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="ae-tile p-3">
-                <div className="text-xs text-slate-500">{T('Margin erosion', 'تآكل الهامش')}</div>
-                <Num className="text-lg text-rose-600">−{kwd(erosion.totalErosion, lang, digits || 1)}</Num>
-              </div>
-              <div className="ae-tile p-3">
-                <div className="text-xs text-slate-500">{T('Items exposed', 'الأصناف المتأثرة')}</div>
-                <Num className="text-lg text-slate-900 dark:text-white">{erosion.affected} / 32</Num>
-              </div>
-            </div>
+    <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <Receipt className="h-3.5 w-3.5" />
+              {isAr
+                ? 'أوامر الشراء وأسعار الموردين من Odoo (purchase.order)'
+                : 'Odoo Purchase Orders & Vendor Unit Costs (purchase.order)'}
+            </span>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              {isAr ? 'ذكاء التكلفة والمشتريات' : 'Cost & Procurement Intelligence'}
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              {isAr
+                ? `الفترة المختارة: ${periodWindow.labelAr} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`
+                : `Selected Period: ${periodWindow.labelEn} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`}
+            </p>
           </div>
-          <div className="w-full min-w-0 overflow-x-auto rounded-xl lg:col-span-8">
-            <table className="w-full min-w-[640px] text-xs">
-              <thead>
-                <tr className="text-slate-500">
-                  <th className="px-3 py-2 text-start font-semibold">{T('Menu item', 'الصنف')}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{T('Unit cost +', 'زيادة تكلفة الوحدة')}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{T('COGS %', 'نسبة التكلفة')}</th>
-                  <th className="px-3 py-2 text-end font-semibold">{T('Erosion', 'التآكل')}</th>
-                  <th className="px-3 py-2 text-start font-semibold">{T('Counter-move', 'الإجراء المضاد')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {erosion.rows.slice(0, 12).map((r) => {
-                  const q = QUADRANTS.find((x) => x.id === r.item.quadrant)!
-                  const mv = MOVE[r.move]
-                  return (
-                    <tr key={r.item.id} className={r.qty === 0 ? 'opacity-50' : ''}>
-                      <td className="px-3 py-2">
-                        <div className="font-semibold text-slate-900 dark:text-white">{isAr ? r.item.ar : r.item.en}</div>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                          {brandName(r.item.brand)} · <Badge tone={q.tone} className="!py-0">{isAr ? q.ar : q.en}</Badge>
-                        </div>
+
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={isAr ? 'ابحث باسم المورد أو الصنف...' : 'Filter vendor or item...'}
+            className="w-full max-w-xs rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+          />
+        </div>
+      </section>
+
+      {loading ? (
+        <section className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+          <RefreshCw className="h-5 w-5 animate-spin text-emerald-600" />
+          <span className="text-sm font-semibold">
+            {isAr ? 'جاري جلب أوامر الشراء من Odoo...' : 'Fetching purchase orders from Odoo...'}
+          </span>
+        </section>
+      ) : noData ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-8 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
+          <AlertCircle className="mx-auto mb-3 h-8 w-8 text-amber-600 dark:text-amber-400" />
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            لا توجد بيانات من Odoo لهذه الفترة
+          </h2>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {isAr
+              ? `لم يتم العثور على أوامر شراء معتمدة (purchase.order بحالة purchase أو done) ضمن الفترة ${periodWindow.fromIso} إلى ${periodWindow.toInclusiveIso}.`
+              : `No confirmed Odoo purchase orders (state in ['purchase', 'done']) found between ${periodWindow.fromIso} and ${periodWindow.toInclusiveIso}.`}
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                <span>{isAr ? 'إجمالي أوامر الشراء المعتمدة' : 'Confirmed Purchase Total'}</span>
+                <ShoppingCart className="h-4 w-4 text-emerald-600" />
+              </div>
+              <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                {fmtKwd(purchaseSummary.totals.totalAmountKwd)}
+              </p>
+              <div className="mt-3">
+                <KpiProvenanceBadge
+                  model="purchase.order"
+                  dateRange={purchaseSummary.dateRange}
+                  lastSyncAt={purchaseSummary.lastSyncAt}
+                  isStale24h={purchaseSummary.isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="SUM(purchase.order.amount_total) WHERE state IN ('purchase','done')"
+                  isAr={isAr}
+                />
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                <span>{isAr ? 'عدد أوامر الشراء' : 'Purchase Orders Count'}</span>
+                <Receipt className="h-4 w-4 text-sky-600" />
+              </div>
+              <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                {purchaseSummary.totals.ordersCount.toLocaleString('en-US')}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {isAr
+                  ? `${purchaseSummary.totals.linesCount.toLocaleString('en-US')} سطر شراء`
+                  : `${purchaseSummary.totals.linesCount.toLocaleString('en-US')} order lines`}
+              </p>
+              <div className="mt-2">
+                <KpiProvenanceBadge
+                  model="purchase.order"
+                  dateRange={purchaseSummary.dateRange}
+                  lastSyncAt={purchaseSummary.lastSyncAt}
+                  isStale24h={purchaseSummary.isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="COUNT(purchase.order) WHERE state IN ('purchase','done')"
+                  isAr={isAr}
+                />
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                <span>{isAr ? 'الموردون الفعليون في الفترة' : 'Active Vendors'}</span>
+                <Building2 className="h-4 w-4 text-indigo-600" />
+              </div>
+              <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                {purchaseSummary.totals.vendorsCount.toLocaleString('en-US')}
+              </p>
+              <div className="mt-3">
+                <KpiProvenanceBadge
+                  model="purchase.order"
+                  dateRange={purchaseSummary.dateRange}
+                  lastSyncAt={purchaseSummary.lastSyncAt}
+                  isStale24h={purchaseSummary.isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="COUNT(DISTINCT purchase.order.partner_id) WHERE state IN ('purchase','done')"
+                  isAr={isAr}
+                />
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-500">
+                <span>{isAr ? 'الأصناف المشتراة' : 'Purchased Products'}</span>
+                <Package className="h-4 w-4 text-amber-600" />
+              </div>
+              <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                {purchaseSummary.totals.productsCount.toLocaleString('en-US')}
+              </p>
+              <div className="mt-3">
+                <KpiProvenanceBadge
+                  model="purchase.order.line"
+                  dateRange={purchaseSummary.dateRange}
+                  lastSyncAt={purchaseSummary.lastSyncAt}
+                  isStale24h={purchaseSummary.isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="COUNT(DISTINCT purchase.order.line.product_id) WHERE order_id.state IN ('purchase','done')"
+                  isAr={isAr}
+                />
+              </div>
+            </article>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
+              {isAr ? 'مشتريات الموردين المعتمدة في Odoo' : 'Confirmed Odoo Vendor Spend'}
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 dark:border-slate-800">
+                    <th className="px-3 py-2.5 text-start">{isAr ? 'المورد' : 'Vendor'}</th>
+                    <th className="px-3 py-2.5 text-center">{isAr ? 'الأوامر' : 'Orders'}</th>
+                    <th className="px-3 py-2.5 text-center">{isAr ? 'السطور' : 'Lines'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'صافي القيمة' : 'Untaxed'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'الإجمالي' : 'Total'}</th>
+                    <th className="px-3 py-2.5 text-center">{isAr ? 'آخر أمر شراء' : 'Latest Order'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVendors.map((v) => (
+                    <tr
+                      key={v.partnerId}
+                      className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
+                    >
+                      <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
+                        {v.vendorName}
                       </td>
-                      <td className="px-3 py-2 text-end"><Num>{fmt(r.deltaUnit, 3)}</Num></td>
-                      <td className="px-3 py-2 text-end">
-                        <Num className={r.newCogsPct > r.baseCogsPct ? 'text-rose-600' : ''}>{`${pct(r.baseCogsPct)} → ${pct(r.newCogsPct)}`}</Num>
+                      <td className="px-3 py-2.5 text-center tabular-nums">{v.ordersCount}</td>
+                      <td className="px-3 py-2.5 text-center tabular-nums">{v.linesCount}</td>
+                      <td className="px-3 py-2.5 text-end tabular-nums">
+                        {fmtKwd(v.totalUntaxedKwd)}
                       </td>
-                      <td className="px-3 py-2 text-end"><Num className="text-rose-600">{fmt(r.erosion, 1)}</Num></td>
-                      <td className="px-3 py-2">
-                        <Badge tone={mv.tone}>{isAr ? mv.ar : mv.en}</Badge>
-                        {r.move === 'reprice' ? <Num className="ms-1 text-xs text-slate-500">+{pct(r.priceToRestore)}</Num> : null}
+                      <td className="px-3 py-2.5 text-end font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                        {fmtKwd(v.totalAmountKwd)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs text-slate-500" dir="ltr">
+                        {v.latestOrderDate ?? '—'}
                       </td>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-      <section className="ae-tile space-y-4 p-5">
-        <SectionHeader
-          icon={<ChefHat className="h-4 w-4" />}
-          title={T('Theoretical vs actual COGS variance matrix', 'مصفوفة انحراف التكلفة النظرية مقابل الفعلية')}
-          subtitle={T(`${pct(LEDGER.cogsTargetPct)} target vs ${pct(LEDGER.cogsPct)} actual · ${kwd(LEDGER.cogs, 'en', 3)} · ${LEDGER.branches} restaurant locations`, `المستهدف ${pct(LEDGER.cogsTargetPct)} مقابل الفعلي ${pct(LEDGER.cogsPct)} · ${kwd(LEDGER.cogs, 'ar', 3)} · ${LEDGER.branches} مواقع مطاعم`)}
-        />
-        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-4">
-          <div className="ae-tile-soft flex flex-col justify-between p-4">
-            <div className="ae-meta">{T('Gap to theoretical', 'الفجوة عن النظري')}</div>
-            <Num className="text-2xl text-rose-600">{kwd(matrix.gapTotal, lang, digits || 3)}</Num>
-            <div className="mt-2 flex h-2.5 overflow-hidden rounded-full" dir="ltr">
-              {matrix.causes.map((c) => (
-                <div key={c.id} style={{ width: `${c.share * 100}%`, backgroundColor: TONE_HEX[c.tone] }} />
-              ))}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
+              {isAr
+                ? 'الأصناف المشتراة وتذبذب سعر الوحدة الفعلي (purchase.order.line)'
+                : 'Purchased Items & Actual Unit-Price Variance (purchase.order.line)'}
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 dark:border-slate-800">
+                    <th className="px-3 py-2.5 text-start">{isAr ? 'الصنف' : 'Product'}</th>
+                    <th className="px-3 py-2.5 text-center">{isAr ? 'الوحدة' : 'UoM'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'الكمية' : 'Total Qty'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'متوسط السعر المرجّح' : 'Weighted Avg Price'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'أدنى — أعلى سعر' : 'Min — Max Price'}</th>
+                    <th className="px-3 py-2.5 text-center">{isAr ? 'تذبذب السعر %' : 'Price Variance %'}</th>
+                    <th className="px-3 py-2.5 text-end">{isAr ? 'إجمالي التكلفة' : 'Total Spend'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((p) => (
+                    <tr
+                      key={p.productId}
+                      className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
+                    >
+                      <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
+                        {p.productName}
+                      </td>
+                      <td className="px-3 py-2.5 text-center text-xs text-slate-500">{p.uomName}</td>
+                      <td className="px-3 py-2.5 text-end tabular-nums">
+                        {p.totalQty.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-3 py-2.5 text-end tabular-nums">
+                        {fmtKwd(p.weightedAvgUnitPriceKwd)}
+                      </td>
+                      <td className="px-3 py-2.5 text-end text-xs tabular-nums text-slate-600 dark:text-slate-300">
+                        {p.minUnitPriceKwd.toFixed(3)} — {p.maxUnitPriceKwd.toFixed(3)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center tabular-nums">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-bold ${
+                            p.priceVariancePct > 5
+                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
+                              : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                          }`}
+                        >
+                          {p.priceVariancePct.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-end font-bold tabular-nums text-slate-900 dark:text-white">
+                        {fmtKwd(p.totalSubtotalKwd)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-          {matrix.causes.map((c) => (
-            <div key={c.id} className="ae-tile-soft flex flex-col justify-between p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TONE_HEX[c.tone] }} />
-                {isAr ? c.ar : c.en}
-              </div>
-              <Num className="text-xl text-slate-900 dark:text-white">{kwd(c.value, lang, digits || 2)}</Num>
-              <Num className="text-xs text-slate-500">{pct(c.share * 100, 0)}</Num>
-            </div>
-          ))}
-        </div>
-        <ReorderableTable columns={matrixColumns} rows={matrix.rows} rowKey={(r) => r.id} csvName={`aetherbi-cogs-variance-${filters.period}.csv`} maxHeight={460} />
-      </section>
+          </section>
+        </>
+      )}
     </div>
   )
 }

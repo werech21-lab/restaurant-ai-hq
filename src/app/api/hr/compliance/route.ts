@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (!user || !can(user, 'hr', 'view')) {
       return NextResponse.json({ error: { code: 'forbidden', message: 'HR access required' } }, { status: 403 })
     }
-    if (request.nextUrl.searchParams.get('seed') === '1') {
+    if (request.nextUrl.searchParams.get('init') === '1') {
       await ensureComplianceBaselines()
     }
     return NextResponse.json({ data: await buildComplianceRadar() })
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: { code: 'forbidden', message: 'HR edit required' } }, { status: 403 })
     }
     const body = (await request.json().catch(() => ({}))) as { action?: string }
-    if (body.action === 'seed') {
+    if (body.action === 'init') {
       return NextResponse.json({ data: await ensureComplianceBaselines() })
     }
     return NextResponse.json({ data: await buildComplianceRadar() })

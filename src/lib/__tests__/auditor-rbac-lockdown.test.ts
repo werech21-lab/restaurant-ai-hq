@@ -125,7 +125,7 @@ describe('Auditor Server-Enforced RBAC Lockdown (Item 10)', () => {
     expect(auditorHtml).not.toContain('نوشا أسانار')
     expect(auditorHtml).not.toContain('مكتب سند')
     expect(auditorHtml).toContain('وضع المراجع الخارجي')
-    expect(auditorHtml).toContain('51,154.950')
+    expect(auditorHtml).not.toContain('51,154.950')
 
     const cfoHtml = renderToStaticMarkup(
       React.createElement(VentureAccountingHub, { locale: 'ar', isAuditor: false }),

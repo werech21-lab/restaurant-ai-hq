@@ -1,4 +1,4 @@
-import { odooFields, textOf, type OdooModel, type OdooPayload, type Plain } from '@/modules/odoo/domain/odoo'
+import { odooFields, textOf, type OdooModel, type OdooPayload, type Plain } from '@/modules/odoo/client'
 
 export type MappedField = {
   key: string

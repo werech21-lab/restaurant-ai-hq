@@ -135,14 +135,26 @@ export function saveCustomAvatarsBatch(updates: Record<string, string>): void {
   }
 }
 
+export interface CustomEmployeeDoc {
+  id: string
+  nameAr: string
+  nameEn: string
+  fileName: string
+  size: string
+  uploadDate: string
+  statusAr: string
+  statusEn: string
+  dataUrl?: string
+}
+
 /**
  * Load custom attached documents from localStorage
  */
-export function loadCustomDocs(): Record<string, any[]> {
+export function loadCustomDocs(): Record<string, CustomEmployeeDoc[]> {
   if (typeof window === 'undefined') return {}
   try {
     const raw = localStorage.getItem(STORAGE_DOCS_KEY)
-    return raw ? JSON.parse(raw) : {}
+    return raw ? (JSON.parse(raw) as Record<string, CustomEmployeeDoc[]>) : {}
   } catch {
     return {}
   }
@@ -151,7 +163,7 @@ export function loadCustomDocs(): Record<string, any[]> {
 /**
  * Save custom attached documents
  */
-export function saveCustomDocs(code: string, newDoc: any): void {
+export function saveCustomDocs(code: string, newDoc: CustomEmployeeDoc): void {
   if (typeof window === 'undefined') return
   try {
     const current = loadCustomDocs()

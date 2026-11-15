@@ -102,7 +102,7 @@ export const VENTURE_STOCK_SEED: ProductRow[] = [
   { id: "vfs-16", code: "RW01-MOZ", name: "جبن موزاريلا إيطالي أصلي مبشور", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 2.650, sellingPrice: 0.000, reorderLevel: 90, low: false, costLabel: "2.650 د.ك", sellLabel: "—", stockLabel: "680 كجم", reorderLabel: "90 كجم", forecastLabel: "تكفي 16 يوماً", warehouseName: "المطبخ المركزي" },
   { id: "vfs-17", code: "RW01-TAH", name: "طحينة سمسم سائلة صافية ممتازة (سطل 18 كجم)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 16.500, sellingPrice: 0.000, reorderLevel: 25, low: false, costLabel: "16.500 د.ك", sellLabel: "—", stockLabel: "120 سطل", reorderLabel: "25 سطل", forecastLabel: "تكفي 30 يوماً", warehouseName: "المطبخ المركزي" },
   { id: "vfs-18", code: "RW01-BN01", name: "خبز بريوش طازج يومي للبرجر", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 0.120, sellingPrice: 0.000, reorderLevel: 500, low: false, costLabel: "0.120 د.ك", sellLabel: "—", stockLabel: "2,400 حبة", reorderLabel: "500 حبة", forecastLabel: "تكفي يومين (توريد يومي)", warehouseName: "مخزن فرع الأفنيوز" },
-  { id: "vfs-19", code: "RW01-CHP", name: "عجين شباتي طازج مجهز لكافتيريا كرك", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 0.060, sellingPrice: 0.000, reorderLevel: 600, low: false, costLabel: "0.060 د.ك", sellLabel: "—", stockLabel: "3,200 حبة", reorderLabel: "600 حبة", forecastLabel: "تكفي 3 أيام", warehouseName: "مخزن فرع حولي" },
+  { id: "vfs-19", code: "RW01-CHP", name: "عجين شباتي طازج مجهز لكافتيريا كرك", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 0.060, sellingPrice: 0.000, reorderLevel: 600, low: false, costLabel: "0.060 د.ك", sellLabel: "—", stockLabel: "3,200 حبة", reorderLabel: "600 حبة", forecastLabel: "تكفي 3 أيام", warehouseName: "مخزن فرع البروميناد" },
   { id: "vfs-20", code: "RW01-TEA", name: "أوراق شاي سيلاني فاخر وزعفران إيراني أصلي", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 8.500, sellingPrice: 0.000, reorderLevel: 15, low: false, costLabel: "8.500 د.ك", sellLabel: "—", stockLabel: "85 كجم", reorderLabel: "15 كجم", forecastLabel: "تكفي 40 يوماً", warehouseName: "المطبخ المركزي" },
   { id: "vfs-21", code: "RW01-MLK", name: "حليب مبخر هولندي ممتاز (كرتون 48 علبة)", categoryId: "cat-1131", categoryName: "1131 مواد خام غذائية", costPrice: 12.800, sellingPrice: 0.000, reorderLevel: 30, low: false, costLabel: "12.800 د.ك", sellLabel: "—", stockLabel: "190 كرتون", reorderLabel: "30 كرتون", forecastLabel: "تكفي 25 يوماً", warehouseName: "مستودع المطبخ المركزي" },
   
@@ -294,9 +294,7 @@ export function InventoryPanel({
       <input
         type="file"
         ref={folderInputRef}
-        // @ts-ignore
-        webkitdirectory=""
-        directory=""
+        {...({ webkitdirectory: "", directory: "" } as React.InputHTMLAttributes<HTMLInputElement>)}
         multiple
         className="hidden"
         onChange={handleFolderSelected}

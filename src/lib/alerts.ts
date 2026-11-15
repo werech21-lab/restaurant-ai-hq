@@ -24,7 +24,7 @@ import {
   EXCLUSIVE_RADAR_MOBILES,
   EXCLUSIVE_RADAR_RECIPIENTS,
 } from '@/lib/vf-contact-directory'
-import type { ForensicSnapshot } from '@/modules/governance/domain/forensic-radar'
+import type { ForensicSnapshot } from '@/modules/governance/client'
 
 export type RadarAlertKind = 'forced_offline' | 'busy_peak' | 'tgo_forced' | 'test' | 'daily_report'
 

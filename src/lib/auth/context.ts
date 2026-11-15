@@ -218,7 +218,18 @@ export async function authenticateUser(
     }
   }
 
-  const userId = await resolveUserId('none')
+  let supabaseMissing = false
+  let userId: string | null = null
+  try {
+    userId = await resolveUserId('throw')
+  } catch (err) {
+    if (err instanceof AppError && err.code === 'server_misconfigured') {
+      supabaseMissing = true
+    } else {
+      throw err
+    }
+  }
+
   if (userId) {
     const memberships = await db.query<MembershipRow>(
       `${membershipSql} and ($2::uuid is null or m.tenant_id = $2::uuid)
@@ -244,6 +255,9 @@ export async function authenticateUser(
 
   const panel = await getPanelSessionUser()
   if (!panel) {
+    if (supabaseMissing) {
+      throw new AppError(500, 'server_misconfigured', 'The server is not configured.')
+    }
     throw new AppError(401, 'unauthenticated', 'Sign in to continue.')
   }
   const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'

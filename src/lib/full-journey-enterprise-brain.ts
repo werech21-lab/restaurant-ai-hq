@@ -2676,7 +2676,7 @@ const HOST_KITCHEN = (() => {
   const stressed = [...BRANCH_TRUE_CASH].filter((r) => r.rentPct > 18 || r.trueMarginPct < 10).sort((a, b) => a.trueNetCash - b.trueNetCash)[0]
   if (!stressed) return null
   const present = new Set(J.brandLocation.filter((x) => x.location === stressed.id && x.netKwd > 50).map((x) => x.brand))
-  const candidates = ['franks', 'tahina', 'farm-brown', 'karak-cafeteria', 'sushi-hoko', 'heisenberg', 'noodle-bar'].filter((b) => BRANDS.some((x) => x.id === b) && !present.has(b))
+  const candidates = ['franks', 'tahina', 'farm-brown', 'karak-cafeteria', 'noodle-bar'].filter((b) => BRANDS.some((x) => x.id === b) && !present.has(b))
   const scored = candidates.map((b) => {
     const sites = J.brandLocation.filter((x) => x.brand === b && BRANCH_IDS.has(x.location) && x.netKwd > 200)
     if (!sites.length) return null

@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, type ComponentProps } from 'react'
 import { connection } from 'next/server'
 import { RecipesPanel } from '@/app/(panel)/recipes/recipes-panel'
 import { PageSkeleton } from '@/components/erp-ui'
@@ -21,8 +21,8 @@ async function RecipesContent() {
   await connection()
   const rawLocale = await getLocale().catch(() => 'ar')
   const locale: 'ar' | 'en' = rawLocale === 'en' ? 'en' : 'ar'
-  let rows: any[] = []
-  let products: any[] = []
+  let rows: ComponentProps<typeof RecipesPanel>['rows'] = []
+  let products: ComponentProps<typeof RecipesPanel>['products'] = []
 
   try {
     const scope = await getActiveScope()

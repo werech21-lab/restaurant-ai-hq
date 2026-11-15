@@ -24,7 +24,7 @@ export type ColdUnit = {
   door: DoorState
   health: UnitHealth
   lastReadingAt: string
-  source: 'iot' | 'seed' | 'manual'
+  source: 'iot' | 'baseline' | 'manual'
 }
 
 export type TelemetryReading = {

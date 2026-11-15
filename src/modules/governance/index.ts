@@ -64,3 +64,38 @@ export type { GovernanceEvent } from '@/modules/governance/events'
 export { workedMinutes } from '@/modules/governance/domain/gate'
 export { archiveSchema } from '@/modules/governance/schemas/governance'
 export type * from '@/modules/governance/domain/types'
+export {
+  forensicBoard,
+  latestForensicSnapshot,
+  listForensicHistory,
+  runForensicScan,
+  type ForensicBoard,
+  type ForensicBoardQuery,
+} from '@/modules/governance/services/forensic-radar-service'
+export {
+  FORENSIC_PLATFORMS,
+  PENALTY_BPS,
+  TALABAT_MP_ACCOUNT,
+  TALABAT_TGO_ACCOUNT,
+  TGO_BPS,
+  TMP_BPS,
+  buildForensicMatrix,
+  buildForensicReport,
+  cleanBranchLabel,
+  commissionPenaltyMinor,
+  displayBrandName,
+  filterForensicRows,
+  formatKwdMinor,
+  lostSalesFromOffline,
+  summarizeKpis,
+  type ActiveMode,
+  type ForensicDayBucket,
+  type ForensicHourBucket,
+  type ForensicKpis,
+  type ForensicPlatform,
+  type ForensicReport,
+  type ForensicReportPeriod,
+  type ForensicRow,
+  type ForensicSnapshot,
+  type LiveStatus,
+} from '@/modules/governance/domain/forensic-radar'
