@@ -797,7 +797,7 @@ import {
         mktAliasCred.role === 'marketing' &&
         mktLogin.status === 200 &&
         mktLogin.body.role === 'marketing' &&
-        mktLogin.body.redirectTo === '/erp' &&
+        mktLogin.body.redirectTo === '/erp/cores' &&
         mktLogin.cookie.includes(EXEC_SESSION_COOKIE) &&
         mktAliasLogin.status === 200 &&
         mktAliasLogin.body.role === 'marketing',

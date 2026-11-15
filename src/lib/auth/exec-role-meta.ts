@@ -1,4 +1,4 @@
-export type ExecSessionRole =
+export type ExecRole =
   | 'admin'
   | 'gm'
   | 'dgm'
@@ -7,6 +7,23 @@ export type ExecSessionRole =
   | 'marketing'
   | 'supply'
   | 'auditor'
+
+export type ExecSessionRole = ExecRole
+
+export const VALID_EXEC_ROLES: readonly ExecRole[] = [
+  'admin',
+  'gm',
+  'dgm',
+  'ops',
+  'cfo',
+  'marketing',
+  'supply',
+  'auditor',
+] as const
+
+export const EXEC_ROLE_WHITELIST: ReadonlySet<ExecRole> = new Set<ExecRole>(
+  VALID_EXEC_ROLES,
+)
 
 export type ExecApproverRole =
   | 'admin'
@@ -156,18 +173,23 @@ export const EXEC_ROLE_PROFILES: Record<ExecSessionRole, ExecRoleProfile> = {
   },
 }
 
-export function normalizeExecSessionRole(raw: unknown): ExecSessionRole | null {
-  if (raw === 'admin' || raw === 'executive' || raw === 'exec_admin') {
+export function normalizeExecSessionRole(raw: unknown): ExecRole | null {
+  const key = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  if (key === 'admin' || key === 'executive' || key === 'exec_admin') {
     return 'admin'
   }
-  if (raw === 'gm') return 'gm'
-  if (raw === 'dgm') return 'dgm'
-  if (raw === 'ops') return 'ops'
-  if (raw === 'cfo') return 'cfo'
-  if (raw === 'marketing') return 'marketing'
-  if (raw === 'supply') return 'supply'
-  if (raw === 'auditor') return 'auditor'
+  if (key === 'gm') return 'gm'
+  if (key === 'dgm') return 'dgm'
+  if (key === 'ops') return 'ops'
+  if (key === 'cfo') return 'cfo'
+  if (key === 'marketing') return 'marketing'
+  if (key === 'supply') return 'supply'
+  if (key === 'auditor') return 'auditor'
   return null
+}
+
+export function isValidExecRole(raw: unknown): raw is ExecRole {
+  return normalizeExecSessionRole(raw) !== null
 }
 
 export function resolveExecRoleProfile(rawRole?: unknown): ExecRoleProfile {

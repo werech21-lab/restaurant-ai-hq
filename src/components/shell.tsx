@@ -1,5 +1,9 @@
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
+import {
+  normalizeExecSessionRole,
+  resolveExecRoleProfile,
+} from '@/lib/auth/exec-role-meta'
 import { ScopeProvider } from '@/components/ScopeProvider'
 import { BiFilterProvider } from '@/components/aether/BiFilterContext'
 import { GlobalFilterProvider } from '@/components/aether/GlobalFilterContext'
@@ -21,6 +25,9 @@ import { getActiveScope } from '@/lib/scope'
 export async function Shell({ children }: { children: React.ReactNode }) {
   await connection()
   const user = await requireUser()
+  const sessionRole = normalizeExecSessionRole(user.sessionRole) ?? 'admin'
+  const roleBadge = resolveExecRoleProfile(sessionRole)
+  const isAuditor = roleBadge.isAuditor
   const scope = await getActiveScope()
   const [enabledKeys, company] = await Promise.all([enabledModuleKeys(), getCompany()])
   const locked = new Set<string>(LOCKED_MODULES)
@@ -39,25 +46,35 @@ export async function Shell({ children }: { children: React.ReactNode }) {
       }}
     >
       <BiFilterProvider>
-        <GlobalFilterProvider>
-          <GovernanceProvider>
+        <GlobalFilterProvider isAuditor={isAuditor} sessionRole={roleBadge.role}>
+          <GovernanceProvider isAuditor={isAuditor} sessionRole={roleBadge.role}>
             <div
               id="ae-root"
               className="relative z-0 bg-[#F6F7F8] text-[14.5px] leading-relaxed dark:bg-[#090E0C]"
               data-erp-shell="persistent"
               data-rail-choreography="252px-76px-clip-flip"
+              data-session-role={roleBadge.role}
+              data-role-title-ar={roleBadge.titleAr}
+              data-role-title-en={roleBadge.titleEn}
             >
               <div className="ae-ambient" aria-hidden>
                 <span />
                 <span />
                 <span />
               </div>
-              <Sidebar user={user} enabledKeys={visibleKeys} />
+              <Sidebar
+                user={user}
+                enabledKeys={visibleKeys}
+                isAuditor={isAuditor}
+                sessionRole={roleBadge.role}
+              />
               <div className="ae-content-col w-full flex-1 min-w-0 transition-[max-width,transform] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none">
                 <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-28 sm:pb-12 lg:pb-8 min-w-0 space-y-3 text-[14.5px] leading-relaxed">
                   <TopFilterBar
                     companyNameAr={company.name}
                     notifications={<GovernanceBellTrigger />}
+                    isAuditor={isAuditor}
+                    sessionRole={roleBadge.role}
                     userEmail={user.email}
                   />
                   <main className="w-full max-w-none min-w-0">

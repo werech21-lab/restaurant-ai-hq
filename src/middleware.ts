@@ -13,6 +13,27 @@ import {
   resolveRoleRedirectForForbiddenRoute,
 } from '@/lib/auth/role-access-policy'
 
+export type ExecRole =
+  | 'admin'
+  | 'gm'
+  | 'dgm'
+  | 'ops'
+  | 'cfo'
+  | 'marketing'
+  | 'supply'
+  | 'auditor'
+
+export const EXEC_ROLE_WHITELIST: ReadonlySet<ExecRole> = new Set<ExecRole>([
+  'admin',
+  'gm',
+  'dgm',
+  'ops',
+  'cfo',
+  'marketing',
+  'supply',
+  'auditor',
+])
+
 export const PERMISSIONS_POLICY_VALUE =
   'camera=(self), microphone=(self), geolocation=()'
 const ROBOTS_TAG_VALUE = 'noindex, nofollow, noarchive'
@@ -184,7 +205,7 @@ export async function middleware(request: NextRequest) {
       request.cookies.get('aether_exec_session')?.value
     const execSession = await verifyExecSessionToken(rawToken)
 
-    if (execSession) {
+    if (execSession && EXEC_ROLE_WHITELIST.has(execSession.role)) {
       const method = request.method.toUpperCase()
       if (
         (path === '/api/erp/terminal-mappings' ||

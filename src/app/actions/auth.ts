@@ -12,6 +12,7 @@ import {
   execCookieOptions,
   sanitizeExecNextPath,
 } from "@/lib/auth/exec-session";
+import { resolvePostLoginRedirectForRole } from "@/lib/auth/role-access-policy";
 import { firstAllowedHref, type AccessUser } from "@/lib/permissions";
 import { SESSION_COOKIE, sessionCookieOptions, signSessionToken } from "@/lib/session";
 
@@ -37,8 +38,9 @@ export async function login(
   }
 
   const email = String(formData.get("email") || "").trim().toLowerCase().slice(0, 160);
-  const password = String(formData.get("password") || "").slice(0, 256);
-  const nextPath = sanitizeExecNextPath(String(formData.get("next") || ""), "/erp");
+  const password = String(formData.get("password") || "").trim().slice(0, 256);
+  const rawNext = String(formData.get("next") || "").trim();
+  const nextPath = sanitizeExecNextPath(rawNext, "/erp");
   const accountKey = `acct:${clientIp}:${email || "anonymous"}`;
   if (loginAccountFailureLimiter.peekBlocked(accountKey).blocked) {
     return { error: "تم تجاوز الحد المسموح للمحاولات — يرجى الانتظار قليلاً ثم المحاولة مجدداً." };
@@ -55,8 +57,12 @@ export async function login(
     loginAccountFailureLimiter.reset(accountKey);
     const execToken = await createExecSessionToken(execMatch.email, execMatch.role);
     const jar = await cookies();
-    jar.set(EXEC_SESSION_COOKIE, execToken, execCookieOptions(isSecure));
-    redirect(nextPath);
+    jar.set(
+      EXEC_SESSION_COOKIE,
+      execToken,
+      execCookieOptions(process.env.NODE_ENV === "production"),
+    );
+    redirect(resolvePostLoginRedirectForRole(execMatch.role, rawNext ? nextPath : ""));
   }
 
   if (password.length < 8 || email === "admin@aetherbi.com") {

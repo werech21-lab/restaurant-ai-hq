@@ -16,7 +16,7 @@ type LoginApiResponse = {
   errorEn?: string
 }
 
-export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
+export function LoginForm({ nextPath = '' }: LoginFormProps) {
   const { t, locale, companyName } = useI18n()
   const isAr = locale === 'ar'
   const [submitting, setSubmitting] = useState(false)
@@ -29,10 +29,10 @@ export function LoginForm({ nextPath = '/erp' }: LoginFormProps) {
     if (submitting) return
 
     const formData = new FormData(event.currentTarget)
-    const email = String(formData.get('email') || '').trim()
-    const password = String(formData.get('password') || '')
+    const email = String(formData.get('email') || '').trim().toLowerCase()
+    const password = String(formData.get('password') || '').trim()
 
-    let next = nextPath || '/erp'
+    let next = nextPath || ''
     if (typeof window !== 'undefined') {
       const fromQuery = new URLSearchParams(window.location.search).get('next')
       if (fromQuery && fromQuery.startsWith('/') && !fromQuery.startsWith('//')) {

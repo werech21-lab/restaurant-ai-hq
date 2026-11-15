@@ -4,12 +4,13 @@ import {
   EXEC_SESSION_COOKIE,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
+import { resolveRoleDefaultHome } from '@/lib/auth/role-access-policy'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * Root entrypoint: middleware redirects unauthenticated requests to /login
- * and authenticated requests to /erp. RSC guard mirrors the same contract.
+ * and authenticated requests to their role's default home route.
  */
 export default async function RootPage(): Promise<never> {
   const jar = await cookies()
@@ -19,5 +20,5 @@ export default async function RootPage(): Promise<never> {
   if (!session) {
     redirect('/login')
   }
-  redirect('/erp')
+  redirect(resolveRoleDefaultHome(session.role))
 }

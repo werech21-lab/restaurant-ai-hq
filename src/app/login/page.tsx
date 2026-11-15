@@ -9,6 +9,7 @@ import {
   sanitizeExecNextPath,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
+import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 
 export const metadata: Metadata = {
   title: 'Sign in | Venture Foods · Aether BI',
@@ -35,7 +36,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const rawNext = Array.isArray(resolvedParams?.next)
     ? resolvedParams?.next[0]
     : resolvedParams?.next
-  const safeNext = sanitizeExecNextPath(rawNext, '/erp')
+  const explicitNext = rawNext ? sanitizeExecNextPath(rawNext, '') : ''
 
   try {
     const jar = await cookies()
@@ -43,7 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       jar.get(EXEC_SESSION_COOKIE)?.value,
     )
     if (existing) {
-      redirect(safeNext)
+      redirect(resolvePostLoginRedirectForRole(existing.role, explicitNext))
     }
   } catch (err) {
     if (
@@ -64,7 +65,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       </div>
       <section className="flex min-w-0 items-center justify-center px-4 pb-8 pt-16 sm:px-8 lg:px-12 lg:py-8">
         <div className="w-full max-w-md min-w-0">
-          <LoginForm nextPath={safeNext} />
+          <LoginForm nextPath={explicitNext} />
         </div>
       </section>
       <LoginHero />

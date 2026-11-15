@@ -5236,7 +5236,7 @@ import { middleware } from './src/middleware';
         mktAuth.titleAr === 'مسؤول التسويق • مكتب المدير العام ونائبه' &&
         mktAliasAuth.valid &&
         mktLogin.status === 200 &&
-        mktLoginJson.redirectTo === '/erp' &&
+        mktLoginJson.redirectTo === '/erp/cores' &&
         mktRoutePass &&
         shouldMaskInternalCostsForRole('marketing') === true &&
         !canTriggerManualOdooSync('marketing'),

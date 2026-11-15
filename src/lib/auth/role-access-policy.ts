@@ -123,9 +123,13 @@ export function resolveRoleRedirectForForbiddenRoute(role: ExecSessionRole): str
 }
 
 /**
- * Default landing route after login or root `/` visit for each executive role.
+ * Default landing route after login or root `/` visit for each executive role:
+ * - `marketing` -> `/erp/cores`
+ * - `supply`    -> `/erp/warehouse-chain`
+ * - `admin` | `gm` | `dgm` | `ops` | `cfo` | `auditor` -> `/erp`
  */
 export function resolveRoleDefaultHome(role: ExecSessionRole): string {
+  if (role === 'marketing') return '/erp/cores'
   if (role === 'supply') return '/erp/warehouse-chain'
   return '/erp'
 }
@@ -139,7 +143,11 @@ export function resolvePostLoginRedirectForRole(
 ): string {
   const defaultHome = resolveRoleDefaultHome(role)
   const candidate = String(sanitizedNext || '').trim()
-  if (!candidate || candidate === '/' || (candidate === '/erp' && role === 'supply')) {
+  if (
+    !candidate ||
+    candidate === '/' ||
+    (candidate === '/erp' && (role === 'supply' || role === 'marketing'))
+  ) {
     return defaultHome
   }
   const pathOnly = candidate.split('?')[0] || candidate

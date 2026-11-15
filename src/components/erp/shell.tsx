@@ -19,11 +19,16 @@ import {
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
 import { ExecutiveFooter } from '@/components/erp/ExecutiveFooter'
 import {
+  EXEC_ROLE_WHITELIST,
   normalizeExecSessionRole,
+  resolveExecRoleProfile,
+  type ExecRole,
+  type ExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
 import {
   EXEC_SESSION_COOKIE,
+  inferExecRoleFromEmail,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
 import { getCompany } from '@/lib/company'
@@ -36,9 +41,17 @@ export {
   SIDEBAR_ITEMS,
   SIDEBAR_SECTIONS,
   RAIL_TOGGLE_EVENT,
+  type ExecRole,
   type NavItem,
   type SidebarSection,
   type SidebarSectionId,
+}
+
+export function resolveShellRoleBadge(rawRole?: unknown): ExecRoleProfile {
+  const normalized = normalizeExecSessionRole(rawRole)
+  const validRole: ExecRole =
+    normalized && EXEC_ROLE_WHITELIST.has(normalized) ? normalized : 'admin'
+  return resolveExecRoleProfile(validRole)
 }
 
 async function resolveActiveSessionRole(user: {
@@ -46,29 +59,34 @@ async function resolveActiveSessionRole(user: {
   role?: { name?: string }
   sessionRole?: string
   isAuditor?: boolean
-}): Promise<ExecSessionRole> {
-  if (
-    user.isAuditor === true ||
-    user.sessionRole === 'auditor' ||
-    user.role?.name === 'Read-Only Auditor' ||
-    (typeof user.email === 'string' && user.email.toLowerCase().includes('auditor'))
-  ) {
-    return 'auditor'
-  }
-  const fromUser = normalizeExecSessionRole(user.sessionRole)
+}): Promise<ExecRole> {
   try {
     const cookieStore = await cookies()
     const rawToken =
       cookieStore.get(EXEC_SESSION_COOKIE)?.value ??
       cookieStore.get('aether_exec_session')?.value
     const verified = await verifyExecSessionToken(rawToken)
-    if (verified) {
+    if (verified && EXEC_ROLE_WHITELIST.has(verified.role)) {
       return verified.role
     }
   } catch {
     // safe fallback when cookies are unavailable
   }
-  return fromUser ?? 'admin'
+  const fromUser = normalizeExecSessionRole(user.sessionRole)
+  if (fromUser && EXEC_ROLE_WHITELIST.has(fromUser)) {
+    return fromUser
+  }
+  if (
+    user.isAuditor === true ||
+    user.role?.name === 'Read-Only Auditor' ||
+    (typeof user.email === 'string' && user.email.toLowerCase().includes('auditor'))
+  ) {
+    return 'auditor'
+  }
+  if (typeof user.email === 'string' && user.email.trim().length > 0) {
+    return inferExecRoleFromEmail(user.email)
+  }
+  return 'admin'
 }
 
 /**
@@ -79,7 +97,7 @@ async function resolveActiveSessionRole(user: {
 export async function ErpShell({ children }: { children: React.ReactNode }) {
   await connection()
   const user = await requireUser()
-  const sessionRole = await resolveActiveSessionRole(
+  const resolvedRole = await resolveActiveSessionRole(
     user as {
       email?: string
       role?: { name?: string }
@@ -87,7 +105,9 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
       isAuditor?: boolean
     },
   )
-  const isAuditor = sessionRole === 'auditor'
+  const roleBadge = resolveShellRoleBadge(resolvedRole)
+  const sessionRole = roleBadge.role
+  const isAuditor = roleBadge.isAuditor
   const scope = await getActiveScope()
   const [enabledKeys, company] = await Promise.all([enabledModuleKeys(), getCompany()])
   const locked = new Set<string>(LOCKED_MODULES)
@@ -115,6 +135,8 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
               data-rail-choreography="252px-76px-clip-flip"
               data-auditor={isAuditor ? 'true' : 'false'}
               data-session-role={sessionRole}
+              data-role-title-ar={roleBadge.titleAr}
+              data-role-title-en={roleBadge.titleEn}
             >
               <div className="ae-ambient" aria-hidden>
                 <span />
@@ -141,7 +163,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                       {children}
                     </div>
                   </main>
-                  <ExecutiveFooter sessionRole={sessionRole} />
+                  <ExecutiveFooter isAuditor={isAuditor} sessionRole={sessionRole} />
                 </div>
               </div>
               <ExecutiveCommandPalette />

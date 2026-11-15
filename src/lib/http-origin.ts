@@ -37,9 +37,19 @@ function hostOf(origin: string): string | null {
  */
 function selfHosts(request: NextRequest): Set<string> {
   const hosts = new Set<string>()
-  const header = request.headers.get('host')
-  if (header) hosts.add(header.toLowerCase())
+  const header = request.headers.get('host')?.split(',')[0]?.trim().toLowerCase()
+  if (header) hosts.add(header)
+  const forwardedHost = request.headers
+    .get('x-forwarded-host')
+    ?.split(',')[0]
+    ?.trim()
+    .toLowerCase()
+  if (forwardedHost) hosts.add(forwardedHost)
   if (request.nextUrl.host) hosts.add(request.nextUrl.host.toLowerCase())
+  if (hosts.has('aetherbi.com') || hosts.has('www.aetherbi.com')) {
+    hosts.add('aetherbi.com')
+    hosts.add('www.aetherbi.com')
+  }
   return hosts
 }
 

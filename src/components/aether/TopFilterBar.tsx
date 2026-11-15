@@ -28,6 +28,7 @@ import {
   resolveExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import { resolveRoleDefaultHome } from '@/lib/auth/role-access-policy'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { PanelHeaderBar } from '@/components/panel-chrome'
 import { openCommandPalette } from '@/components/aether/BiFilterContext'
@@ -974,7 +975,7 @@ export function TopFilterBar({
           {/* Start: VF Brand Badge + Single Concise Active Page Title */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <Link
-              href="/erp"
+              href={resolveRoleDefaultHome(topRoleProfile.role)}
               aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
               className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-xs font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
             >

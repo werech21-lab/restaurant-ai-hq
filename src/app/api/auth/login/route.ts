@@ -13,12 +13,11 @@ import {
   authenticateExecutiveCredentials,
   createExecSessionToken,
   EXEC_SESSION_COOKIE,
-  execCookieOptions,
-  isSecureRequest,
+  EXEC_SESSION_MAX_AGE,
   resolveExecRoleProfile,
   sanitizeExecNextPath,
   verifyExecutiveCredentials,
-  type ExecSessionRole,
+  type ExecRole,
 } from '@/lib/auth/exec-session'
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 import { checkRequestOrigin } from '@/lib/http-origin'
@@ -46,8 +45,11 @@ async function parseLoginCredentials(request: Request): Promise<{
       const body = (await request.json()) as Record<string, unknown>
       return {
         email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
-        password: typeof body?.password === 'string' ? body.password.slice(0, 256) : '',
-        next: typeof body?.next === 'string' ? body.next.slice(0, 256) : '',
+        password:
+          typeof body?.password === 'string'
+            ? body.password.trim().slice(0, 256)
+            : '',
+        next: typeof body?.next === 'string' ? body.next.trim().slice(0, 256) : '',
       }
     } catch {
       return { email: '', password: '', next: '' }
@@ -62,8 +64,8 @@ async function parseLoginCredentials(request: Request): Promise<{
       const formData = await request.formData()
       return {
         email: String(formData.get('email') ?? '').trim().toLowerCase().slice(0, 160),
-        password: String(formData.get('password') ?? '').slice(0, 256),
-        next: String(formData.get('next') ?? '').slice(0, 256),
+        password: String(formData.get('password') ?? '').trim().slice(0, 256),
+        next: String(formData.get('next') ?? '').trim().slice(0, 256),
       }
     } catch {
       return { email: '', password: '', next: '' }
@@ -74,8 +76,11 @@ async function parseLoginCredentials(request: Request): Promise<{
     const body = (await request.json()) as Record<string, unknown>
     return {
       email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
-      password: typeof body?.password === 'string' ? body.password.slice(0, 256) : '',
-      next: typeof body?.next === 'string' ? body.next.slice(0, 256) : '',
+      password:
+        typeof body?.password === 'string'
+          ? body.password.trim().slice(0, 256)
+          : '',
+      next: typeof body?.next === 'string' ? body.next.trim().slice(0, 256) : '',
     }
   } catch {
     return { email: '', password: '', next: '' }
@@ -116,7 +121,7 @@ export async function POST(request: NextRequest) {
   const safeNext = sanitizeExecNextPath(next, '/erp')
 
   let authenticatedEmail: string | null = null
-  let authenticatedRole: ExecSessionRole = 'admin'
+  let authenticatedRole: ExecRole = 'admin'
   let prismaUserId: string | null = null
 
   if (email && password) {
@@ -175,7 +180,7 @@ export async function POST(request: NextRequest) {
 
   loginAccountFailureLimiter.reset(accountKey)
 
-  const isSecure = isSecureRequest(request)
+  const isProduction = process.env.NODE_ENV === 'production'
   const profile = resolveExecRoleProfile(authenticatedRole)
   const roleScopedRedirect = resolvePostLoginRedirectForRole(
     authenticatedRole,
@@ -201,18 +206,20 @@ export async function POST(request: NextRequest) {
     },
   )
 
-  response.cookies.set(
-    EXEC_SESSION_COOKIE,
-    execToken,
-    execCookieOptions(isSecure),
-  )
+  response.cookies.set(EXEC_SESSION_COOKIE, execToken, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isProduction,
+    maxAge: EXEC_SESSION_MAX_AGE,
+  })
 
   if (prismaUserId && authenticatedRole !== 'auditor') {
     try {
       const legacyToken = await signSessionToken(prismaUserId)
       response.cookies.set(SESSION_COOKIE, legacyToken, {
         ...sessionCookieOptions,
-        secure: isSecure,
+        secure: isProduction,
       })
     } catch {
       // Primary exec session cookie is already issued.
