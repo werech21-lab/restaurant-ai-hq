@@ -910,7 +910,7 @@ function computeCubeSliceTotals(
   const completedOrders = Math.round(orders)
   const aovKwd = completedOrders > 0 ? r2(netSalesKwd / completedOrders) : 0
   const unattributedSalesKwd = scope.includeUnattributed
-    ? r1(cube.totals.unattributedSalesKwd)
+    ? reconcileUnattributed1dp(cube)
     : 0
   const unattributedOrders = scope.includeUnattributed
     ? Math.round(cube.totals.unattributedOrders)
@@ -1147,15 +1147,28 @@ function buildChartBuckets(
   return buckets
 }
 
+function reconcileUnattributed1dp(cube: OdooPeriodCube): number {
+  const rawUnattr = cube.unattributed?.netKwd ?? cube.totals.unattributedSalesKwd ?? 0
+  if (rawUnattr <= 0) return 0
+  const totalNet1 = r1(cube.totals.netSalesKwd)
+  const mappedSum1 = r1(
+    APPROVED_BRANCH_IDS.reduce((acc, brId) => acc + r1(cube.byBranch[brId]?.netKwd ?? 0), 0),
+  )
+  const residual1 = r1(Math.max(0, totalNet1 - mappedSum1))
+  return Math.abs(residual1 - rawUnattr) <= 0.15 ? residual1 : r1(rawUnattr)
+}
+
 function computeBranchCell(
   cube: OdooPeriodCube | null,
   rowId: BranchEntityId | typeof UNATTRIBUTED_BRANCH_ROW_ID,
   scope: ResolvedEntityScope,
   cutoffHour24: number | null,
-): { salesKwd: number; orders: number } {
-  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+): { salesKwd: number; rawSalesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
   const allBrands = scope.brandIds.length === APPROVED_BRAND_IDS.length
   const allChannels = scope.channelIds.length === APPROVED_CHANNEL_IDS.length
+  const allBranches =
+    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
 
   if (cutoffHour24 !== null && allBrands && allChannels) {
     let sales = 0
@@ -1166,19 +1179,23 @@ function computeBranchCell(
         orders += h.orders
       }
     }
-    return { salesKwd: r1(sales), orders: Math.round(orders) }
+    return { salesKwd: r1(sales), rawSalesKwd: sales, orders: Math.round(orders) }
   }
 
   if (allBrands && allChannels) {
     if (rowId === UNATTRIBUTED_BRANCH_ROW_ID) {
+      const rawSales = cube.unattributed.netKwd
       return {
-        salesKwd: r1(cube.unattributed.netKwd),
+        salesKwd: allBranches ? reconcileUnattributed1dp(cube) : r1(rawSales),
+        rawSalesKwd: rawSales,
         orders: Math.round(cube.unattributed.orders),
       }
     }
     const br = cube.byBranch[rowId]
+    const rawSales = br?.netKwd ?? 0
     return {
-      salesKwd: r1(br?.netKwd ?? 0),
+      salesKwd: r1(rawSales),
+      rawSalesKwd: rawSales,
       orders: Math.round(br?.orders ?? 0),
     }
   }
@@ -1196,7 +1213,7 @@ function computeBranchCell(
         orders += chMap[ch]?.orders ?? 0
       }
     }
-    return { salesKwd: r1(sales), orders: Math.round(orders) }
+    return { salesKwd: r1(sales), rawSalesKwd: sales, orders: Math.round(orders) }
   }
 
   const bMap = cube.brandByBranch[rowId]
@@ -1208,21 +1225,23 @@ function computeBranchCell(
       lines += bMap[bId]?.linesCount ?? 0
     }
   }
-  return { salesKwd: r1(sales), orders: Math.round(lines) }
+  return { salesKwd: r1(sales), rawSalesKwd: sales, orders: Math.round(lines) }
 }
 
 function computeBrandCell(
   cube: OdooPeriodCube | null,
   brandId: BrandEntityId,
   scope: ResolvedEntityScope,
-): { salesKwd: number; orders: number } {
-  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+): { salesKwd: number; rawSalesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
   const allBranches =
     scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const bRow = cube.byBrand[brandId]
+    const rawSales = bRow?.netKwd ?? 0
     return {
-      salesKwd: r1(bRow?.netKwd ?? 0),
+      salesKwd: r1(rawSales),
+      rawSalesKwd: rawSales,
       orders: Math.round(bRow?.orders ?? 0),
     }
   }
@@ -1239,21 +1258,23 @@ function computeBrandCell(
       lines += cell.linesCount
     }
   }
-  return { salesKwd: r1(sales), orders: Math.round(lines) }
+  return { salesKwd: r1(sales), rawSalesKwd: sales, orders: Math.round(lines) }
 }
 
 function computeChannelCell(
   cube: OdooPeriodCube | null,
   channelId: ChannelEntityId,
   scope: ResolvedEntityScope,
-): { salesKwd: number; orders: number } {
-  if (!cube || !cube.connected) return { salesKwd: 0, orders: 0 }
+): { salesKwd: number; rawSalesKwd: number; orders: number } {
+  if (!cube || !cube.connected) return { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
   const allBranches =
     scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const chRow = cube.byChannel[channelId]
+    const rawSales = chRow?.netKwd ?? 0
     return {
-      salesKwd: r1(chRow?.netKwd ?? 0),
+      salesKwd: r1(rawSales),
+      rawSalesKwd: rawSales,
       orders: Math.round(chRow?.orders ?? 0),
     }
   }
@@ -1273,7 +1294,7 @@ function computeChannelCell(
       orders += cell.orders
     }
   }
-  return { salesKwd: r1(sales), orders: Math.round(orders) }
+  return { salesKwd: r1(sales), rawSalesKwd: sales, orders: Math.round(orders) }
 }
 
 function classifyRowTier(deltaPct: number): 'green' | 'yellow' | 'red' {
@@ -1322,7 +1343,7 @@ function buildBreakdownRows(
           : scopeB.channelIds.includes(id as ChannelEntityId)
 
     const cellA = !inA
-      ? { salesKwd: 0, orders: 0 }
+      ? { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
       : dimension === 'branch'
         ? computeBranchCell(
             cubeA,
@@ -1335,7 +1356,7 @@ function buildBreakdownRows(
           : computeChannelCell(cubeA, id as ChannelEntityId, scopeA)
 
     const cellB = !inB
-      ? { salesKwd: 0, orders: 0 }
+      ? { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
       : dimension === 'branch'
         ? computeBranchCell(
             cubeB,
@@ -1365,7 +1386,7 @@ function buildBreakdownRows(
     const meta = getEntityNames(dimension, id)
     const isUnattributed = id === UNATTRIBUTED_BRANCH_ROW_ID
     const deltaKwd = r1(cellA.salesKwd - cellB.salesKwd)
-    const deltaPct = safePctDelta(cellA.salesKwd, cellB.salesKwd)
+    const deltaPct = safePctDelta(cellA.rawSalesKwd, cellB.rawSalesKwd)
     const ordersDelta = cellA.orders - cellB.orders
     return {
       id,

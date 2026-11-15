@@ -1102,7 +1102,13 @@ async function runPosOrdersTool(params: {
   const totalNet1 = round1(cube.totals.netSalesKwd)
   const totalOrdersInt = Math.round(cube.totals.orders)
   const totalAov1 = totalOrdersInt > 0 ? round1(cube.totals.netSalesKwd / totalOrdersInt) : 0
-  const unattributedNet1 = round1(cube.unattributed.netKwd)
+  const mappedRoundedSum1 = round1(branchRows.reduce((acc, r) => acc + r.netKwd, 0))
+  const rawUnattributed1 = round1(cube.unattributed.netKwd)
+  const residualUnattributed1 = round1(Math.max(0, totalNet1 - mappedRoundedSum1))
+  const unattributedNet1 =
+    cube.unattributed.netKwd > 0 && Math.abs(residualUnattributed1 - cube.unattributed.netKwd) <= 0.15
+      ? residualUnattributed1
+      : rawUnattributed1
   const unattributedOrdersInt = Math.round(cube.unattributed.orders)
 
   if (targetBranchId) {
