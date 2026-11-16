@@ -37,7 +37,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       aria-label={ariaLabel}
       title={ariaLabel}
       data-no-translate=""
-      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all duration-[160ms] active:scale-95 ${
+      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
         isDark
           ? 'bg-[#101C17] text-emerald-300 ring-1 ring-emerald-500/25 hover:ring-emerald-400/50'
           : 'bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.06] hover:bg-slate-50 hover:ring-slate-900/15'

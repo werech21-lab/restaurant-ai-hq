@@ -53,6 +53,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
               className="relative z-0 bg-[#F6F7F8] text-[14.5px] leading-relaxed dark:bg-[#090E0C]"
               data-erp-shell="persistent"
               data-rail-choreography="252px-76px-clip-flip"
+              data-auditor={isAuditor ? 'true' : 'false'}
               data-session-role={roleBadge.role}
               data-role-title-ar={roleBadge.titleAr}
               data-role-title-en={roleBadge.titleEn}

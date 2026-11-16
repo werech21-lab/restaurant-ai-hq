@@ -270,7 +270,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   type="button"
                   onClick={() => setSheetOpen(false)}
                   aria-label={isAr ? 'إغلاق القائمة' : 'Close menu'}
-                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-slate-600 transition-colors hover:text-slate-950 dark:bg-white/[0.08] dark:text-slate-300"
+                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-white/[0.08] dark:text-slate-300"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -307,7 +307,8 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <button
                     type="button"
                     onClick={handleOpenGovBell}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/15"
+                    aria-label={isAr ? 'الإشعارات والاعتمادات' : 'Notifications and approvals'}
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/15"
                   >
                     <Bell className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span dir="ltr" className="font-bold tabular-nums">
@@ -325,7 +326,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <button
                     type="button"
                     onClick={handleLockPin}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 dark:bg-[#101C17] dark:text-rose-300"
+                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#101C17] dark:text-rose-300"
                   >
                     <span>{isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}</span>
                   </button>
@@ -333,7 +334,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <button
                     type="button"
                     onClick={handleUnlockPin}
-                    className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                    className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-emerald-500 dark:text-[#04130D]"
                   >
                     <span>{isAr ? 'فتح الصلاحية 🔓' : 'Unlock PIN 🔓'}</span>
                   </button>
@@ -345,7 +346,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <div className="space-y-4">
               {visibleMobileSections.map((section) => (
                 <div key={section.id} className="space-y-1.5">
-                  <div className="px-1 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                  <div className="px-1 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
                     {isAr ? section.labelAr : section.labelEn}
                   </div>
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -358,7 +359,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                           href={item.href}
                           onClick={() => setSheetOpen(false)}
                           aria-current={active ? 'page' : undefined}
-                          className={`flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-[13px] transition-all duration-[160ms] active:scale-[0.99] ${
+                          className={`flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-[13px] transition-all duration-[160ms] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
                             active
                               ? 'bg-emerald-50 font-bold text-emerald-950 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
                               : 'bg-[#F6F7F8] font-medium text-slate-700 hover:bg-neutral-200/60 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-white/[0.08]'
@@ -412,10 +413,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href={dockHomeHref}
             aria-current={homeActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
               homeActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
             <LayoutDashboard className="h-5 w-5" />
@@ -434,10 +435,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href={dockTab2Href}
             aria-current={salesActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
               salesActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
             <TrendingUp className="h-5 w-5" />
@@ -456,7 +457,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href="/erp/feryal-ai"
             aria-current={feryalActive ? 'page' : undefined}
-            className="flex flex-col items-center justify-center gap-0.5 py-1 text-xs"
+            className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
           >
             <span
               className={`btn-colored flex h-9 w-12 items-center justify-center rounded-2xl transition-all duration-[160ms] active:scale-95 ${
@@ -482,10 +483,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href={dockTab4Href}
             aria-current={opsActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
+            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
               opsActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
             <Activity className="h-5 w-5" />
@@ -506,10 +507,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             onClick={() => setSheetOpen((v) => !v)}
             aria-expanded={sheetOpen}
             aria-label={isAr ? 'فتح جميع الأقسام (13 شاشة)' : 'Open All 13 Modules'}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-1 py-1.5 text-xs transition-colors duration-[160ms] ${
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
               menuActive
                 ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
             <Grid2x2 className="h-5 w-5" />

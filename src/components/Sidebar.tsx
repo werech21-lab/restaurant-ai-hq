@@ -6,14 +6,15 @@ import DepartmentTree from '@/components/erp/DepartmentTree'
 import { useI18n } from '@/lib/i18n'
 
 export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useI18n()
+  const { t, dir } = useI18n()
 
   return (
     <>
       {open ? (
-        <button type="button" aria-label={t('closeMenu')} onClick={onClose} className="fixed inset-0 z-30 bg-black/60 md:hidden" />
+        <button type="button" aria-label={t('closeMenu')} onClick={onClose} className="fixed inset-0 z-30 bg-black/60 md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/50" />
       ) : null}
       <aside
+        dir={dir}
         className={`fixed inset-y-0 start-0 z-40 flex h-screen w-[min(17.5rem,86vw)] shrink-0 flex-col border-e border-gold-300/10 bg-ink-900 transition-transform duration-200 md:static md:w-[17.5rem] md:translate-x-0 ${
           open ? 'translate-x-0' : 'max-md:ltr:-translate-x-full max-md:rtl:translate-x-full'
         }`}
@@ -24,11 +25,11 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
           </div>
           <div className="min-w-0">
             <p dir="ltr" className="text-xs font-semibold tracking-[0.18em] text-gold-400">Aether BI</p>
-            <h1 className="truncate text-[15px] font-bold text-mist-100">{t('brand')}</h1>
+            <p className="truncate text-[15px] font-bold text-mist-100">{t('brand')}</p>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-          <Link href="#erp-apps" onClick={onClose} className="mb-2 flex w-full items-center rounded-2xl border border-gold-300/25 bg-gold-400/10 px-3 py-2.5 text-sm font-semibold text-gold-300">
+          <Link href="/erp" onClick={onClose} className="mb-2 flex w-full items-center rounded-2xl border border-gold-300/25 bg-gold-400/10 px-3 py-2.5 text-sm font-semibold text-gold-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/50">
             {t('hub.title')}
           </Link>
           <Suspense fallback={null}>

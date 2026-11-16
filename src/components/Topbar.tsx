@@ -48,6 +48,7 @@ export default function Topbar({
   useEffect(() => {
     setDateLabel(
       new Date().toLocaleDateString(locale === 'ar' ? 'ar-KW' : 'en-GB', {
+        timeZone: 'Asia/Kuwait',
         numberingSystem: 'latn',
         weekday: 'long',
         day: 'numeric',
@@ -90,7 +91,7 @@ export default function Topbar({
           type="button"
           aria-label={t('openMenu')}
           onClick={onMenu}
-          className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl border border-white/10 text-mist-300 transition duration-300 hover:border-gold-400/30 hover:bg-white/[0.04] hover:text-mist-100 md:hidden"
+          className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl border border-white/10 text-mist-300 transition duration-300 hover:border-gold-400/30 hover:bg-white/[0.04] hover:text-mist-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40 md:hidden"
         >
           <Glyph>
             <path d="M4 7h16M4 12h16M4 17h16" />
@@ -114,6 +115,7 @@ export default function Topbar({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('searchPlaceholder')}
+            aria-label={t('searchPlaceholder')}
             className="w-full rounded-full border border-gold-300/15 bg-black/30 py-2 pe-3 ps-10 text-sm text-mist-100 outline-none transition placeholder:text-mist-500 focus:border-gold-300/40 focus:ring-2 focus:ring-gold-400/15"
           />
         </label>
