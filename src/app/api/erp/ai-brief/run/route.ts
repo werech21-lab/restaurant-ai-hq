@@ -57,6 +57,31 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }
+  const lockedList = await safeListDailyBriefs(14)
+  if (lockedList.error) {
+    await releaseManualRunLock(holder)
+    return NextResponse.json(
+      { ok: false, error: 'RATE_LIMIT_UNAVAILABLE' },
+      { status: 503, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+  const lockedRetryAt = manualRetryAt(
+    latestManualAtMs(
+      lockedList.briefs.map((brief) => ({
+        createdAtMs: brief.createdAt.getTime(),
+        trigger: parseStoredBrief(brief.reply)?.trigger ?? null,
+      })),
+    ),
+    Date.now(),
+  )
+  if (lockedRetryAt) {
+    await releaseManualRunLock(holder)
+    const retryAfterSeconds = Math.max(1, Math.ceil((Date.parse(lockedRetryAt) - Date.now()) / 1000))
+    return NextResponse.json(
+      { ok: false, error: 'RATE_LIMIT', retryAt: lockedRetryAt },
+      { status: 429, headers: { ...ENTERPRISE_API_SECURITY_HEADERS, 'Retry-After': String(retryAfterSeconds) } },
+    )
+  }
   try {
     const result = await runBackgroundAnalysis({
       trigger: 'manual',
