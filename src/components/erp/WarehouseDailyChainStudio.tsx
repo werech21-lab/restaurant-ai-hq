@@ -88,6 +88,7 @@ export function WarehouseDailyChainStudio() {
   const [ledgerPage, setLedgerPage] = useState<number>(1)
   const [warehouseChain, setWarehouseChain] = useState<OdooLiveWarehouseChainPayload | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [timedOut, setTimedOut] = useState(false)
   const [reloadNonce, setReloadNonce] = useState<number>(0)
 
   const periodWindow = useMemo(
@@ -103,7 +104,9 @@ export function WarehouseDailyChainStudio() {
   useEffect(() => {
     let cancelled = false
     const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 20_000)
     setLoading(true)
+    setTimedOut(false)
 
     const qs = new URLSearchParams({
       from: periodWindow.fromIso,
@@ -124,15 +127,19 @@ export function WarehouseDailyChainStudio() {
           setWarehouseChain(null)
         }
       })
-      .catch(() => {
-        if (!cancelled) setWarehouseChain(null)
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setWarehouseChain(null)
+        setTimedOut(error instanceof DOMException && error.name === 'AbortError')
       })
       .finally(() => {
+        window.clearTimeout(timeout)
         if (!cancelled) setLoading(false)
       })
 
     return () => {
       cancelled = true
+      window.clearTimeout(timeout)
       controller.abort()
     }
   }, [periodWindow.fromIso, periodWindow.toInclusiveIso, reloadNonce])
@@ -250,6 +257,13 @@ export function WarehouseDailyChainStudio() {
       {loading ? (
         <div className={`${CARD_CLS} py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300`}>
           {T('Loading warehouse movements from Odoo 17...', 'جاري تحميل حركات المخزن من أودو 17...')}
+        </div>
+      ) : timedOut ? (
+        <div className={`${CARD_CLS} py-12 text-center text-sm font-semibold text-amber-800 dark:text-amber-200`}>
+          {T(
+            'The warehouse request timed out. Odoo did not answer in time.',
+            'انتهت مهلة جلب حركات المخزن من أودو. لم يصل الرد في الوقت المحدد.',
+          )}
         </div>
       ) : !snap.connected || snap.noData ? (
         <section

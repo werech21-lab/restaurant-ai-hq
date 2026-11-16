@@ -132,6 +132,7 @@ export function CoresHubStudio({
   const [isAdFormOpen, setIsAdFormOpen] = useState(false)
   const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(null)
   const [cubeLoading, setCubeLoading] = useState(false)
+  const [cubeTimedOut, setCubeTimedOut] = useState(false)
 
   // Manual campaign form state (strictly 6 approved brands)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -216,9 +217,12 @@ export function CoresHubStudio({
     const toIso = periodWin.toInclusiveIso
     if (!fromIso || !toIso) return
     setCubeLoading(true)
+    setCubeTimedOut(false)
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 20_000)
     fetch(
       `/api/erp/live-comparison?dateA=${encodeURIComponent(fromIso)}&toA=${encodeURIComponent(toIso)}&dateB=${encodeURIComponent(fromIso)}&toB=${encodeURIComponent(toIso)}`,
-      { cache: 'no-store' },
+      { cache: 'no-store', signal: controller.signal },
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
@@ -229,14 +233,19 @@ export function CoresHubStudio({
           setLiveCube(null)
         }
       })
-      .catch(() => {
-        if (!cancelled) setLiveCube(null)
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setLiveCube(null)
+        setCubeTimedOut(error instanceof DOMException && error.name === 'AbortError')
       })
       .finally(() => {
+        window.clearTimeout(timeout)
         if (!cancelled) setCubeLoading(false)
       })
     return () => {
       cancelled = true
+      window.clearTimeout(timeout)
+      controller.abort()
     }
   }, [periodWin.fromIso, periodWin.toInclusiveIso])
 
@@ -667,6 +676,12 @@ export function CoresHubStudio({
             {cubeLoading && hourlyBars.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">
                 {isAr ? 'جاري تحميل التوزيع الساعي من Odoo...' : 'Loading hourly distribution from Odoo...'}
+              </div>
+            ) : cubeTimedOut && hourlyBars.length === 0 ? (
+              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {isAr
+                  ? 'انتهت مهلة جلب التوزيع الساعي من أودو.'
+                  : 'The hourly chart request to Odoo timed out.'}
               </div>
             ) : hourlyBars.length > 0 ? (
               <InteractiveHoverBarChart
