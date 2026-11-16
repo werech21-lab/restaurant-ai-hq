@@ -199,8 +199,8 @@ describe('Odoo source links', () => {
       provider: 'anthropic',
       modelId: 'claude-sonnet-4-6',
       text: JSON.stringify({
-        findings: [{ factIds: [fact.id], text: `ملاحظة ${fact.value}` }],
-        recommendations: [{ factIds: [fact.id], solution: `إجراء ${fact.value}`, stance: 'support' }],
+        findings: [{ factIds: [fact.id], text: `راجع ${fact.value}` }],
+        recommendations: [{ factIds: [fact.id], solution: `راجع ${fact.value}`, stance: 'support' }],
       }),
       facts: built.facts,
     })
@@ -208,8 +208,8 @@ describe('Odoo source links', () => {
       provider: 'google',
       modelId: 'gemini-3.1-pro-preview',
       text: JSON.stringify({
-        findings: [{ factIds: [fact.id], text: `ملاحظة ${fact.value}` }],
-        recommendations: [{ factIds: [fact.id], solution: `إجراء ${fact.value}`, stance: 'support' }],
+        findings: [{ factIds: [fact.id], text: `راجع ${fact.value}` }],
+        recommendations: [{ factIds: [fact.id], solution: `راجع ${fact.value}`, stance: 'support' }],
       }),
       facts: built.facts,
     })

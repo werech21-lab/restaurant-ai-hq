@@ -1,3 +1,4 @@
+import { directionSign } from './claims'
 import { Decimal } from './decimal'
 
 const ARABIC_INDIC = '٠١٢٣٤٥٦٧٨٩'
@@ -129,26 +130,44 @@ function matchesRounded(exact: Decimal, written: Decimal, scale: number): boolea
   return exact.roundHalfUp(scale).compare(written) === 0
 }
 
-function matchesDerived(written: Decimal, scale: number, values: readonly Decimal[], percent: boolean): boolean {
+function pairMatches(
+  written: Decimal,
+  scale: number,
+  values: readonly Decimal[],
+  mode: 'delta' | 'ratio' | 'share' | 'growth',
+): boolean {
+  const hundred = Decimal.parse('100') ?? Decimal.fromParts(100n, 0)
   for (let i = 0; i < values.length; i += 1) {
     for (let j = 0; j < values.length; j += 1) {
       if (i === j) continue
       const left = values[i]
       const right = values[j]
       if (!left || !right) continue
-      if (percent) {
-        const ratio = left.div(right, scale + 6)
-        if (!ratio) continue
-        const pct = ratio.mul(Decimal.parse('100') ?? Decimal.fromParts(100n, 0)).roundHalfUp(scale)
-        if (pct.compare(written) === 0) return true
+      if (mode === 'delta') {
+        if (matchesRounded(left.sub(right), written, scale)) return true
         continue
       }
-      if (matchesRounded(left.sub(right), written, scale)) return true
-      const ratio = left.div(right, scale + 6)
-      if (ratio && matchesRounded(ratio, written, scale)) return true
+      if (mode === 'ratio') {
+        const ratio = left.div(right, scale + 6)
+        if (ratio && matchesRounded(ratio, written, scale)) return true
+        continue
+      }
+      if (right.sign() === 0) continue
+      const ratio = mode === 'growth' ? left.sub(right).div(right, scale + 8) : left.div(right, scale + 8)
+      if (!ratio) continue
+      const pct = ratio.mul(hundred).roundHalfUp(scale)
+      if (pct.compare(written) === 0) return true
     }
   }
   return false
+}
+
+function hasCue(text: string, kind: 'difference' | 'ratio' | 'growth'): boolean {
+  if (kind === 'difference') {
+    return /(?:^|[^\p{L}\p{N}])(?:difference|delta|gap|فرق|الفارق|الفرق|بفارق)(?=$|[^\p{L}\p{N}])/iu.test(text)
+  }
+  if (kind === 'ratio') return /%\s*of\b|\bratio\b|\bshare\b|\bof\b|نسبة/iu.test(text)
+  return /(?:^|[^\p{L}\p{N}])(?:growth|percent|change|نمو|نسبة)(?=$|[^\p{L}\p{N}])/iu.test(text)
 }
 
 interface FactValueRow {
@@ -184,30 +203,24 @@ function periodDeltaSign(facts: unknown): -1 | 0 | 1 | null {
   return [...signs][0] ?? null
 }
 
-function directionWordSign(text: string): -1 | 0 | 1 {
-  const rise = /(?:^|[^\p{L}\p{N}])(rose|risen|increased|increase|grew|grown|higher|gained|ارتفع|ارتفعت|ارتفاع|زاد|زادت|زيادة)(?=$|[^\p{L}\p{N}])/iu.test(text)
-  const fall = /(?:^|[^\p{L}\p{N}])(fell|fallen|decreased|decrease|dropped|declined|انخفض|انخفضت|انخفاض|نقص|نقصت|تراجع|تراجعت|هبط|هبطت)(?=$|[^\p{L}\p{N}])/iu.test(text)
-  if (rise === fall) return 0
-  return rise ? 1 : -1
-}
-
 function directionMatches(text: string, facts: unknown): boolean {
   FROM_TO.lastIndex = 0
-  let sawPair = false
+  const pairs: Array<-1 | 0 | 1> = []
   for (const match of text.matchAll(FROM_TO)) {
-    sawPair = true
     const start = match.index ?? 0
-    const window = text.slice(Math.max(0, start - 48), start + match[0].length)
-    const word = directionWordSign(window)
-    if (word === 0) continue
+    const end = start + match[0].length
+    const window = text.slice(Math.max(0, start - 64), Math.min(text.length, end + 64))
     const from = Decimal.parse(match[1] ?? '')
     const to = Decimal.parse(match[2] ?? '')
     if (!from || !to) return false
-    if (to.sub(from).sign() !== word) return false
+    const pairSign = to.sub(from).sign()
+    pairs.push(pairSign)
+    const word = directionSign(window)
+    if (word !== 0 && pairSign !== word) return false
   }
-  const whole = directionWordSign(text)
+  const whole = directionSign(text)
   if (whole === 0) return true
-  if (sawPair) return true
+  if (pairs.length > 0) return pairs.every((pairSign) => pairSign === whole)
   const delta = periodDeltaSign(facts)
   return delta != null && delta === whole
 }
@@ -244,6 +257,11 @@ export function guardAnswerAgainstFacts(answer: string, facts: unknown): NumberG
     const decimal = Decimal.parse(token)
     return decimal ? [decimal] : []
   })
+  FROM_TO.lastIndex = 0
+  const explainedGrowth = hasCue(normalized, 'growth') || FROM_TO.test(normalized)
+  FROM_TO.lastIndex = 0
+  const explainedRatio = hasCue(normalized, 'ratio')
+  const explainedDifference = hasCue(normalized, 'difference')
   const offending: string[] = []
   const seen = new Set<string>()
   for (const match of normalized.matchAll(NUMBER_OR_PERCENT)) {
@@ -256,8 +274,11 @@ export function guardAnswerAgainstFacts(answer: string, facts: unknown): NumberG
     seen.add(`${percent ? '%' : ''}${canonical}`)
     const scale = writtenScale(numeric)
     const ok = percent
-      ? matchesDerived(written, scale, parsed, true)
-      : valueSet.has(canonical) || matchesDerived(written, scale, parsed, false)
+      ? (explainedGrowth && pairMatches(written, scale, parsed, 'growth')) ||
+        (explainedRatio && pairMatches(written, scale, parsed, 'share'))
+      : valueSet.has(canonical) ||
+        (explainedDifference && pairMatches(written, scale, parsed, 'delta')) ||
+        (explainedRatio && pairMatches(written, scale, parsed, 'ratio'))
     if (!ok) offending.push(canonical)
   }
   if (!directionMatches(normalized, facts)) offending.push('DIRECTION')

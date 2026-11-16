@@ -35,7 +35,7 @@ describe('phase 3 truth guard', () => {
     const orders = fact('orders|company|2026-11-15', '4')
     const facts = [sales, orders]
     const agreed = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'صافي المبيعات 40.5' }],
+      findings: [{ factIds: [sales.id], text: 'راجع صافي المبيعات 40.5' }],
       recommendations: [{ factIds: [sales.id], solution: 'راجع صافي 40.5', stance: 'support' }],
       advisory: [],
     })
@@ -95,7 +95,7 @@ describe('phase 3 truth guard', () => {
       totals: { netSalesKwd: 40.5, orders: 4 },
     }
     const agreed = JSON.stringify({
-      findings: [{ factIds: [salesId], text: 'صافي المبيعات 40.5' }],
+      findings: [{ factIds: [salesId], text: 'راجع صافي المبيعات 40.5' }],
       recommendations: [],
       advisory: [],
     })

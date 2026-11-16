@@ -114,7 +114,7 @@ describe('phase 4 reports and advisory', () => {
           provider: 'anthropic',
           modelId: 'claude-test',
           text: JSON.stringify({
-            findings: [{ factIds: [fact.id], text: 'صافي 40.5' }],
+            findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
             recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
             advisory: [{ topic: 'organization', text: 'رتب متابعة الفروع يومياً.' }],
           }),
@@ -124,7 +124,7 @@ describe('phase 4 reports and advisory', () => {
           provider: 'google',
           modelId: 'gemini-test',
           text: JSON.stringify({
-            findings: [{ factIds: [fact.id], text: 'صافي 40.5' }],
+            findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
             recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
             advisory: [{ topic: 'strategic_plan', text: 'الخطة تركز على الفروع المرتبطة.' }],
           }),
@@ -181,7 +181,7 @@ describe('phase 4 reports and advisory', () => {
             provider: 'anthropic',
             modelId: 'claude-test',
             text: JSON.stringify({
-              findings: [{ factIds: [fact.id], text: 'صافي 40.5' }],
+              findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
               recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
               advisory: [{ topic: 'organization', text: 'رتب متابعة الفروع يومياً.' }],
             }),
@@ -191,7 +191,7 @@ describe('phase 4 reports and advisory', () => {
             provider: 'google',
             modelId: 'gemini-test',
             text: JSON.stringify({
-              findings: [{ factIds: [fact.id], text: 'صافي 40.5' }],
+              findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
               recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
               advisory: [],
             }),

@@ -17,7 +17,7 @@ import type {
   ReviewedBriefModel,
   StoredBriefReport,
 } from './brief-types'
-import { claimKey, claimsContradict, normalizeClaim, type NormalizedClaim } from './claims'
+import { claimKey, claimRecognised, claimsContradict, normalizeClaim, type NormalizedClaim } from './claims'
 import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
 import { factForGuard, parseFactSource } from './source-links'
 
@@ -244,7 +244,7 @@ export function assembleBriefReport(input: {
     )
     for (const group of bucket) {
       const supporters = new Set(group.notes.map((note) => note.provider))
-      if (!contradicted && supporters.size >= 2) {
+      if (!contradicted && supporters.size >= 2 && claimRecognised(group.claim)) {
         findings.push({ factIds: group.factIds, citations: group.citations, notes: group.notes })
         continue
       }
@@ -334,18 +334,17 @@ export function assembleBriefReport(input: {
     }
     for (const cluster of clusters) {
       const providers = new Set(cluster.map((side) => side.provider))
-      if (providers.size >= 2) {
+      if (providers.size >= 2 && cluster[0] && claimRecognised(cluster[0].claim)) {
         recommendations.push({ factIds: group.factIds, citations, supporters: cluster.map(asStored) })
         continue
       }
-      if (cluster.length === 1) {
-        const only = cluster[0]
+      for (const side of cluster) {
         dropped.push({
           factIds: group.factIds,
           citations,
-          provider: only.provider,
-          modelId: only.modelId,
-          solution: only.solution,
+          provider: side.provider,
+          modelId: side.modelId,
+          solution: side.solution,
         })
       }
     }

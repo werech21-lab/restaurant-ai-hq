@@ -67,8 +67,8 @@ function packFor(accounting?: BriefCubeInput['accounting']) {
 function claim(factIds: string[], values: string[], stance: 'support' | 'dispute' = 'support'): string {
   const quoted = values.join(' و ')
   return JSON.stringify({
-    findings: [{ factIds, text: `ملاحظة ${quoted}` }],
-    recommendations: [{ factIds, solution: `إجراء ${quoted}`, stance }],
+    findings: [{ factIds, text: `راجع ${quoted}` }],
+    recommendations: [{ factIds, solution: `راجع ${quoted}`, stance }],
   })
 }
 

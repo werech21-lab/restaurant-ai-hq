@@ -11,7 +11,7 @@ import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
 import { readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
-import { claimAction, claimDirection } from './claims'
+import { claimDirection, readClaim } from './claims'
 import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
 import { persistAiRuns, type AiRunDraft } from './persist'
 import {
@@ -90,8 +90,10 @@ function attribution(provider: string, modelId: string): string {
 }
 
 export function chatClaimKey(text: string): string {
+  const read = readClaim(text)
+  const action = read.negated && read.action !== 'none' ? `not-${read.action}` : read.action
   const numbers = [...new Set(extractCanonicalDecimals(text))].sort().join(',')
-  return `${claimAction(text)}|${claimDirection(text)}|${numbers}`
+  return `${action}|${claimDirection(text)}|${numbers}`
 }
 
 export function composeCouncilReply(input: {
