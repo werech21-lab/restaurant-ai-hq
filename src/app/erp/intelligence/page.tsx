@@ -17,12 +17,12 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
   const query = await searchParams
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <main className="w-full max-w-none px-4 py-6 md:px-6">
+    <div className="w-full max-w-none min-w-0 px-3 py-5 sm:px-6 sm:py-6">
       <IntelligenceWorkspace
         permissions={permissions}
         initialTab={tab ?? 'radar'}
         isAuditor={sessionRole === 'auditor'}
       />
-    </main>
+    </div>
   )
 }

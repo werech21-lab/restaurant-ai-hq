@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
 import { useDebounced, type ListPage } from '@/components/erp/common'
-import { inputClass, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { Num } from '@/components/ui'
+import { formatInt } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { formatMinor } from '@/lib/money'
 import type { Item } from '@/modules/inventory/client'
+import { CrmMoney, crmInputClass, crmSubcardClass } from '@/modules/crm/ui/shared'
 
 type Props = {
   value: Item | null
@@ -16,7 +16,8 @@ type Props = {
 
 /** Live search over the active products. Each result shows the stock on hand across warehouses and the selling price. */
 export function ItemPicker({ value, onChange }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale = locale === 'en' ? 'en' : 'ar'
   const [query, setQuery] = useState('')
   const debounced = useDebounced(query.trim(), 250)
   const [results, setResults] = useState<Item[]>([])
@@ -43,11 +44,15 @@ export function ItemPicker({ value, onChange }: Props) {
 
   if (value) {
     return (
-      <div className="mt-1.5 flex items-center justify-between gap-3 rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-gray-100">
+      <div className={`${crmSubcardClass} mt-1.5 flex items-center justify-between gap-3 text-sm text-slate-900 dark:text-white`}>
         <span className="min-w-0 truncate">
-          <Num className="font-semibold text-blue-300">{value.sku}</Num> · {value.name}
+          <Num className="font-semibold text-emerald-700 dark:text-emerald-300">{value.sku}</Num> · {value.name}
         </span>
-        <button type="button" onClick={() => onChange(null)} className="shrink-0 text-blue-400 hover:text-blue-300">
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="shrink-0 cursor-pointer rounded-md px-1.5 py-0.5 font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-300 dark:hover:bg-white/[0.06]"
+        >
           {t('crm.picker.change')}
         </button>
       </div>
@@ -62,14 +67,14 @@ export function ItemPicker({ value, onChange }: Props) {
         onChange={(event) => setQuery(event.target.value)}
         placeholder={t('crm.qb.searchItem')}
         aria-label={t('crm.qb.searchItem')}
-        className={inputClass}
+        className={crmInputClass}
         autoComplete="off"
       />
       {debounced !== '' ? (
-        <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-[#30363d] bg-[#0d1117]">
-          {searching && results.length === 0 ? <p className="px-3 py-3 text-sm text-gray-400">{t('erp.loading')}</p> : null}
-          {failure ? <p className="px-3 py-3 text-sm text-red-300">{t(failure)}</p> : null}
-          {!searching && !failure && results.length === 0 ? <p className="px-3 py-3 text-sm text-gray-400">{t('crm.picker.none')}</p> : null}
+        <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-slate-200 bg-white dark:border-emerald-500/20 dark:bg-[#0B1410]">
+          {searching && results.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600 dark:text-slate-300">{t('erp.loading')}</p> : null}
+          {failure ? <p role="alert" className="px-3 py-3 text-sm text-rose-700 dark:text-rose-300">{t(failure)}</p> : null}
+          {!searching && !failure && results.length === 0 ? <p className="px-3 py-3 text-sm text-slate-600 dark:text-slate-300">{t('crm.picker.none')}</p> : null}
           <ul>
             {results.map((item) => (
               <li key={item.id}>
@@ -79,16 +84,16 @@ export function ItemPicker({ value, onChange }: Props) {
                     onChange(item)
                     setQuery('')
                   }}
-                  className={`${secondaryButton} flex w-full items-center justify-between gap-3 rounded-none border-0 border-b border-[#30363d]/60 px-3 py-2 text-start last:border-b-0`}
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 border-b border-slate-100 px-3 py-2 text-start text-sm text-slate-800 hover:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 last:border-b-0 dark:border-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.06]"
                 >
                   <span className="min-w-0 truncate">
-                    <Num className="font-semibold text-blue-300">{item.sku}</Num> · {item.name}
+                    <Num className="font-semibold text-emerald-700 dark:text-emerald-300">{item.sku}</Num> · {item.name}
                   </span>
-                  <span className="flex shrink-0 items-center gap-3 text-xs text-gray-400">
+                  <span className="flex shrink-0 items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
                     <span>
-                      {t('crm.qb.available')}: <Num>{item.currentStock.toLocaleString('en-US')}</Num>
+                      {t('crm.qb.available')}: <Num>{formatInt(item.currentStock, fmtLocale)}</Num>
                     </span>
-                    <Money value={formatMinor(item.sellingPriceMinor)} />
+                    <CrmMoney minor={item.sellingPriceMinor} className="font-semibold" />
                   </span>
                 </button>
               </li>

@@ -2,11 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import { useDebounced } from '@/components/erp/common'
-import { errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { Num, StateBlock } from '@/components/ui'
 import { useI18n } from '@/lib/i18n'
 import { effectiveStatus, quotationStatuses, type Quotation, type QuotationStatus } from '@/modules/crm/client'
-import { minorText, QuotationStatusBadge, quotationStatusLabels, todayUtc } from '@/modules/crm/ui/shared'
+import {
+  CrmMoney,
+  QuotationStatusBadge,
+  crmErrorClass,
+  crmInputClass,
+  crmPanelClass,
+  crmSecondaryBtn,
+  quotationStatusLabels,
+  todayUtc,
+} from '@/modules/crm/ui/shared'
 import { usePagedList } from '@/modules/crm/ui/usePagedList'
 
 type SortKey = 'createdAt' | 'validUntil' | 'totalMinor'
@@ -17,7 +25,8 @@ type Props = {
 }
 
 export function QuotationList({ reloadToken, onOpen }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale = locale === 'en' ? 'en' : 'ar'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<QuotationStatus | ''>('')
   const [sort, setSort] = useState<SortKey>('createdAt')
@@ -35,7 +44,7 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
   const today = todayUtc()
 
   return (
-    <div className={panelClass}>
+    <div className={crmPanelClass}>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
         <input
           type="search"
@@ -43,13 +52,13 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('crm.q.search')}
           aria-label={t('crm.q.search')}
-          className={`${inputClass} mt-0 lg:col-span-5`}
+          className={`${crmInputClass} mt-0 lg:col-span-5`}
         />
         <select
           value={status}
           onChange={(event) => setStatus(event.target.value as QuotationStatus | '')}
           aria-label={t('crm.col.status')}
-          className={`${inputClass} mt-0 lg:col-span-3`}
+          className={`${crmInputClass} mt-0 lg:col-span-3`}
         >
           <option value="">{t('crm.q.allStatuses')}</option>
           {quotationStatuses.map((value) => (
@@ -59,7 +68,12 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
           ))}
         </select>
         <div className="flex gap-2 lg:col-span-4">
-          <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)} aria-label={t('erp.sortBy')} className={`${inputClass} mt-0`}>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SortKey)}
+            aria-label={t('erp.sortBy')}
+            className={`${crmInputClass} mt-0`}
+          >
             <option value="createdAt">{t('crm.sort.createdAt')}</option>
             <option value="validUntil">{t('crm.sort.validUntil')}</option>
             <option value="totalMinor">{t('crm.sort.totalMinor')}</option>
@@ -68,7 +82,7 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
             value={direction}
             onChange={(event) => setDirection(event.target.value as 'asc' | 'desc')}
             aria-label={t('erp.sortBy')}
-            className={`${inputClass} mt-0`}
+            className={`${crmInputClass} mt-0`}
           >
             <option value="asc">{t('erp.sort.asc')}</option>
             <option value="desc">{t('erp.sort.desc')}</option>
@@ -76,38 +90,39 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
         </div>
       </div>
 
-      {list.phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p> : null}
+      {list.phase === 'loading' ? (
+        <StateBlock state="loading" locale={fmtLocale} title={t('erp.loading')} />
+      ) : null}
 
       {list.phase === 'error' ? (
-        <div className="space-y-3 py-6 text-center">
-          <p role="alert" className={`${errorClass} inline-block`}>
-            {t(list.error)}
-          </p>
-          <div>
-            <button type="button" onClick={list.reload} className={secondaryButton}>
-              {t('erp.retry')}
-            </button>
-          </div>
-        </div>
+        <StateBlock
+          state="error"
+          locale={fmtLocale}
+          title={t(list.error)}
+          onRetry={list.reload}
+          retryLabel={t('erp.retry')}
+        />
       ) : null}
 
       {list.phase === 'ready' && list.rows.length === 0 ? (
-        <div className="py-10 text-center">
-          <p className="text-gray-200">{t('crm.q.empty')}</p>
-          <p className="mt-1 text-sm text-gray-400">{t('crm.q.emptyHint')}</p>
-        </div>
+        <StateBlock
+          state="empty"
+          locale={fmtLocale}
+          title={t('crm.q.empty')}
+          description={t('crm.q.emptyHint')}
+        />
       ) : null}
 
       {list.phase === 'ready' && list.rows.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[44rem] text-sm">
-            <thead className="text-gray-400">
-              <tr className="border-b border-[#30363d]">
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.number')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.customer')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.validUntil')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.total')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.status')}</th>
+            <thead className="text-slate-600 dark:text-slate-300">
+              <tr className="border-b border-slate-200 dark:border-emerald-500/15">
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.number')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.customer')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.validUntil')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.total')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -119,19 +134,25 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
                     tabIndex={0}
                     onClick={() => onOpen(quotation)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') onOpen(quotation)
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        onOpen(quotation)
+                      }
                     }}
-                    className="cursor-pointer border-b border-[#30363d]/60 text-gray-200 hover:bg-white/[0.04] focus:bg-white/[0.04] focus:outline-none"
+                    className="cursor-pointer border-b border-slate-100 text-slate-800 hover:bg-emerald-50/50 focus-visible:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04] dark:focus-visible:bg-white/[0.04]"
                   >
-                    <td className="px-3 py-2.5 font-semibold text-blue-300">
+                    <td className="px-3 py-2.5 font-semibold text-emerald-700 dark:text-emerald-300">
                       <Num>{quotation.quoteNumber}</Num>
                     </td>
                     <td className="px-3 py-2.5">{quotation.customerName}</td>
-                    <td className={`px-3 py-2.5 ${pastDue ? 'text-amber-300' : ''}`} title={pastDue ? t('crm.q.pastDue') : undefined}>
+                    <td
+                      className={`px-3 py-2.5 ${pastDue ? 'font-semibold text-amber-700 dark:text-amber-300' : ''}`}
+                      title={pastDue ? t('crm.q.pastDue') : undefined}
+                    >
                       <Num>{quotation.validUntil}</Num>
                     </td>
                     <td className="px-3 py-2.5">
-                      <Money value={minorText(quotation.totalMinor)} />
+                      <CrmMoney minor={quotation.totalMinor} className="font-semibold" />
                     </td>
                     <td className="px-3 py-2.5">
                       <QuotationStatusBadge quotation={quotation} />
@@ -145,13 +166,13 @@ export function QuotationList({ reloadToken, onOpen }: Props) {
       ) : null}
 
       {list.moreError ? (
-        <p role="alert" className={`${errorClass} mt-3`}>
+        <p role="alert" className={`${crmErrorClass} mt-3`}>
           {t(list.moreError)}
         </p>
       ) : null}
       {list.hasMore && list.phase === 'ready' ? (
         <div className="mt-4 text-center">
-          <button type="button" onClick={list.loadMore} disabled={list.loadingMore} className={secondaryButton}>
+          <button type="button" onClick={list.loadMore} disabled={list.loadingMore} className={crmSecondaryBtn}>
             {list.loadingMore ? t('erp.loading') : t('erp.loadMore')}
           </button>
         </div>

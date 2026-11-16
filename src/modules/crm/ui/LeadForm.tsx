@@ -2,7 +2,6 @@
 
 import { FormEvent, useRef, useState } from 'react'
 import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
-import { errorClass, inputClass, labelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { minorToInput, parseKwdToMinor, parseWholeNumber } from '@/lib/money'
 import {
@@ -15,7 +14,16 @@ import {
   type TeamMember,
 } from '@/modules/crm/client'
 import { CustomerPicker } from '@/modules/crm/ui/CustomerPicker'
-import { memberName, stageLabels } from '@/modules/crm/ui/shared'
+import {
+  crmErrorClass,
+  crmInputClass,
+  crmLabelClass,
+  crmPrimaryBtn,
+  crmSecondaryBtn,
+  crmSubcardClass,
+  memberName,
+  stageLabels,
+} from '@/modules/crm/ui/shared'
 
 type Props = {
   lead?: Lead
@@ -91,29 +99,29 @@ export function LeadForm({ lead, customer, team, onSaved, onCancel }: Props) {
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       {lead ? (
         <div>
-          <span className={labelClass}>{t('crm.lead.customer')}</span>
-          <p className="mt-1.5 rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm font-semibold text-gray-100">{lead.customerName}</p>
+          <span className={crmLabelClass}>{t('crm.lead.customer')}</span>
+          <p className={`${crmSubcardClass} mt-1.5 text-sm font-semibold text-slate-900 dark:text-white`}>{lead.customerName}</p>
         </div>
       ) : (
         <CustomerPicker value={selected} onChange={setSelected} label={t('crm.lead.customer')} />
       )}
-      <label className={`${labelClass} block`}>
+      <label className={crmLabelClass}>
         {t('crm.lead.title')}
-        <input value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} className={inputClass} />
+        <input value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} className={crmInputClass} />
       </label>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.lead.revenue')}
-          <input inputMode="decimal" dir="ltr" value={revenue} onChange={(event) => setRevenue(event.target.value)} className={inputClass} />
+          <input inputMode="decimal" dir="ltr" value={revenue} onChange={(event) => setRevenue(event.target.value)} className={`${crmInputClass} tabular-nums`} />
         </label>
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.lead.probability')}
-          <input inputMode="numeric" dir="ltr" value={probability} onChange={(event) => setProbability(event.target.value)} className={inputClass} />
+          <input inputMode="numeric" dir="ltr" value={probability} onChange={(event) => setProbability(event.target.value)} className={`${crmInputClass} tabular-nums`} />
         </label>
         {lead ? null : (
-          <label className={labelClass}>
+          <label className={crmLabelClass}>
             {t('crm.lead.stage')}
-            <select value={stage} onChange={(event) => setStage(event.target.value as OpenLeadStage)} className={inputClass}>
+            <select value={stage} onChange={(event) => setStage(event.target.value as OpenLeadStage)} className={crmInputClass}>
               {openLeadStages.map((value) => (
                 <option key={value} value={value}>
                   {t(stageLabels[value])}
@@ -122,9 +130,9 @@ export function LeadForm({ lead, customer, team, onSaved, onCancel }: Props) {
             </select>
           </label>
         )}
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.lead.assignee')}
-          <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className={inputClass}>
+          <select value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)} className={crmInputClass}>
             <option value="">{t('crm.lead.noAssignee')}</option>
             {team.map((member) => (
               <option key={member.userId} value={member.userId}>
@@ -133,18 +141,18 @@ export function LeadForm({ lead, customer, team, onSaved, onCancel }: Props) {
             ))}
           </select>
         </label>
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.lead.closeDate')}
-          <input type="date" dir="ltr" value={closeDate} onChange={(event) => setCloseDate(event.target.value)} className={inputClass} />
+          <input type="date" dir="ltr" value={closeDate} onChange={(event) => setCloseDate(event.target.value)} className={`${crmInputClass} tabular-nums`} />
         </label>
       </div>
-      <label className={`${labelClass} block`}>
+      <label className={crmLabelClass}>
         {t('crm.lead.notes')}
-        <textarea value={notes} rows={2} maxLength={2000} onChange={(event) => setNotes(event.target.value)} className={inputClass} />
+        <textarea value={notes} rows={2} maxLength={2000} onChange={(event) => setNotes(event.target.value)} className={crmInputClass} />
       </label>
 
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} space-y-1`}>
+        <ul role="alert" className={`${crmErrorClass} space-y-1`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
@@ -152,10 +160,10 @@ export function LeadForm({ lead, customer, team, onSaved, onCancel }: Props) {
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={pending} className={primaryButton}>
+        <button type="submit" disabled={pending} className={crmPrimaryBtn}>
           {pending ? t('erp.working') : t('erp.save')}
         </button>
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={crmSecondaryBtn}>
           {t('erp.cancel')}
         </button>
       </div>

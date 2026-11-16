@@ -25,6 +25,14 @@ import {
   type MultiSeriesBarDatum,
 } from '@/components/aether/InteractiveHoverCharts'
 import { useLang } from '@/components/aether/ui'
+import { StateBlock } from '@/components/ui'
+import {
+  UNAVAILABLE_DASH,
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+} from '@/lib/format'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -53,10 +61,10 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               active
                 ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
-                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                : 'text-slate-700 hover:bg-white/80 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <span>{opt.label}</span>
@@ -66,18 +74,6 @@ function EmeraldPillTabs<K extends string>({
     </div>
   )
 }
-
-const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-const f1 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
-const f3 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })
 
 type BoothPreset = 'month30' | 'weekend4' | 'season90' | 'custom'
 
@@ -121,6 +117,8 @@ const diffInclusiveDays = (startIso: string, endIso: string): number => {
  */
 export function BoothStudyV5() {
   const { isAr, T } = useLang()
+  const locale = isAr ? 'ar' : 'en'
+  const unavailableTip = getUnavailableTooltip(locale)
   const [preset, setPreset] = useState<BoothPreset>('month30')
   const [eventName, setEventName] = useState('')
   const [startDate, setStartDate] = useState('2026-11-20')
@@ -137,6 +135,7 @@ export function BoothStudyV5() {
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [contractReview, setContractReview] = useState<ContractDeepAuditResult | null>(null)
+  const [contractError, setContractError] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const applyPreset = (next: BoothPreset) => {
@@ -183,7 +182,13 @@ export function BoothStudyV5() {
     }
   }
 
-  const kwd = useCallback((n: number) => (isAr ? `${f0(n)} د.ك` : `${f0(n)} KWD`), [isAr])
+  const kwd = useCallback((n: number | null | undefined) => formatKwd(n, locale), [locale])
+  const intFmt = useCallback((n: number | null | undefined) => formatInt(n, locale), [locale])
+  const pctFmt = useCallback(
+    (n: number | null | undefined, signed = false) =>
+      formatPct(n, { locale, decimals: 1, signed }),
+    [locale],
+  )
   const brandOpt = BOOTH_BRAND_OPTIONS.find((b) => b.id === brandId) ?? BOOTH_BRAND_OPTIONS[0]
   const basket = Math.max(0.25, avgTicketKwd)
 
@@ -214,6 +219,7 @@ export function BoothStudyV5() {
 
   const handleCheckContract = async () => {
     setBusy(true)
+    setContractError(false)
     try {
       const attachmentBase64 = file ? await toBase64(file) : undefined
       const res = await analyzeEventContractWithGemini({
@@ -228,6 +234,8 @@ export function BoothStudyV5() {
         lang: isAr ? 'ar' : 'en',
       })
       setContractReview(res)
+    } catch {
+      setContractError(true)
     } finally {
       setBusy(false)
     }
@@ -257,13 +265,10 @@ export function BoothStudyV5() {
   const base = model.scenarios[1]
   const low = model.scenarios[0]
   const high = model.scenarios[2]
-  const be = Number.isFinite(model.breakEven) ? model.breakEven : 0
-  const beCoveragePct = be > 0 ? Math.min(100, Math.round((dailyOrders / be) * 100)) : 100
-  const totalBoothBudgetKwd = Math.max(
-    0,
-    Math.round(model.fixed + base.revenue * (foodCostPct / 100)),
-  )
-  const dailyCostCapKwd = Math.max(0, Math.round(totalBoothBudgetKwd / Math.max(1, days)))
+  const be = Number.isFinite(model.breakEven) && model.breakEven > 0 ? model.breakEven : null
+  const beCoveragePct = be ? Math.min(100, Math.round((dailyOrders / be) * 100)) : 100
+  const totalBoothBudgetKwd = Math.max(0, model.fixed + base.revenue * (foodCostPct / 100))
+  const dailyCostCapKwd = Math.max(0, totalBoothBudgetKwd / Math.max(1, days))
 
   const scenarioChartData: MultiSeriesBarDatum[] = useMemo(
     () =>
@@ -273,21 +278,21 @@ export function BoothStudyV5() {
         tooltipTitle: isAr ? s.ar : s.en,
         primaryValue: Math.max(0, s.revenue),
         secondaryValue: Math.max(0, s.profit),
-        badgeText: `${s.profit >= 0 ? '+' : ''}${f0(s.roi)}%`,
+        badgeText: pctFmt(s.roi, true),
         badgeTone: s.profit > 0 ? 'emerald' : s.profit === 0 ? 'amber' : 'rose',
         lines: [
-          { label: T('Hypothetical Orders', 'الطلبات الافتراضية'), value: f0(s.orders), tone: 'neutral' },
+          { label: T('Hypothetical Orders', 'الطلبات الافتراضية'), value: intFmt(s.orders), tone: 'neutral' },
           { label: T('Hypothetical Sales', 'المبيعات الافتراضية'), value: kwd(s.revenue), tone: 'neutral', bold: true },
           { label: T('Fixed Cost Input', 'التكاليف الثابتة المدخلة'), value: kwd(model.fixed), tone: 'slate' },
           {
             label: T('Hypothetical Net', 'الصافي الافتراضي'),
-            value: `${s.profit >= 0 ? '+' : '-'}${kwd(Math.abs(s.profit))}`,
+            value: formatKwd(s.profit, { locale, signed: true }),
             tone: s.profit >= 0 ? 'emerald' : 'rose',
             bold: true,
           },
         ],
       })),
-    [isAr, kwd, model.fixed, model.scenarios, T],
+    [intFmt, isAr, kwd, locale, model.fixed, model.scenarios, pctFmt, T],
   )
 
   const boothDonutSlices: DonutSliceDatum[] = useMemo(() => {
@@ -296,7 +301,7 @@ export function BoothStudyV5() {
     const rentVal = Math.max(0, rent)
     const setupStaffVal = Math.max(0, setup + staff)
     const netVal = Math.max(0, base.profit)
-    const pct = (v: number) => `${f1((v / revBase) * 100)}%`
+    const pct = (v: number) => pctFmt((v / revBase) * 100)
 
     return [
       {
@@ -332,20 +337,20 @@ export function BoothStudyV5() {
         color: '#64748B',
       },
     ]
-  }, [base.gp, base.profit, base.revenue, kwd, rent, setup, staff, T])
+  }, [base.gp, base.profit, base.revenue, kwd, pctFmt, rent, setup, staff, T])
 
   const pros = [
-    be > 0 &&
+    be !== null &&
       be <= dailyOrders * 0.6 &&
       T(
-        `Covers entered fixed costs at ${f0(be)} orders/day.`,
-        `يغطي التكاليف المدخلة عند ${f0(be)} طلب باليوم.`,
+        `Covers entered fixed costs at ${intFmt(be)} orders/day.`,
+        `يغطي التكاليف المدخلة عند ${intFmt(be)} طلب باليوم.`,
       ),
     model.rentShare > 0 &&
       model.rentShare <= 20 &&
       T(
-        `Entered rent represents ${f1(model.rentShare)}% of hypothetical sales.`,
-        `الإيجار المدخل يمثل ${f1(model.rentShare)}% من المبيعات الافتراضية.`,
+        `Entered rent represents ${pctFmt(model.rentShare)} of hypothetical sales.`,
+        `الإيجار المدخل يمثل ${pctFmt(model.rentShare)} من المبيعات الافتراضية.`,
       ),
     base.profit > 0 &&
       T(
@@ -355,10 +360,11 @@ export function BoothStudyV5() {
   ].filter(Boolean) as string[]
 
   const risks = [
-    be > dailyOrders &&
+    be !== null &&
+      be > dailyOrders &&
       T(
-        `Needs ${f0(be)} orders/day vs ${f0(dailyOrders)} entered.`,
-        `يحتاج ${f0(be)} طلب يومياً لتغطية التكلفة مقابل ${f0(dailyOrders)} مدخلة.`,
+        `Needs ${intFmt(be)} orders/day vs ${intFmt(dailyOrders)} entered.`,
+        `يحتاج ${intFmt(be)} طلب يومياً لتغطية التكلفة مقابل ${intFmt(dailyOrders)} مدخلة.`,
       ),
     low.profit < 0 &&
       T(
@@ -367,19 +373,19 @@ export function BoothStudyV5() {
       ),
     model.rentShare > 25 &&
       T(
-        `Rent consumes ${f1(model.rentShare)}% of hypothetical sales.`,
-        `الإيجار يستهلك ${f1(model.rentShare)}% من المبيعات الافتراضية.`,
+        `Rent consumes ${pctFmt(model.rentShare)} of hypothetical sales.`,
+        `الإيجار يستهلك ${pctFmt(model.rentShare)} من المبيعات الافتراضية.`,
       ),
   ].filter(Boolean) as string[]
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 pb-10">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] min-w-0 mx-auto space-y-4 pb-10">
       {/* Prominent Mandatory Disclaimer Banner: «أداة افتراضية — ليست بيانات» */}
       <div className="rounded-2xl bg-amber-100/95 px-4 py-3.5 text-amber-950 ring-2 ring-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100 dark:ring-amber-400/35">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-200/90 text-amber-950 dark:bg-amber-900/80 dark:text-amber-100">
-              <Calculator className="h-5 w-5" />
+              <Calculator className="h-5 w-5" aria-hidden />
             </span>
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -420,72 +426,75 @@ export function BoothStudyV5() {
         />
 
         <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/50 dark:text-amber-200">
-          <Calculator className="h-3.5 w-3.5" />
+          <Calculator className="h-3.5 w-3.5" aria-hidden />
           <span>{isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}</span>
         </span>
       </div>
 
       {/* 4 Top Hypothetical Summary Cards */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
             <span>{T('Simulator Verdict', 'نتيجة المحاكاة')}</span>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10.5px] font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
               {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical'}
             </span>
           </div>
           <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
             {isAr ? verdictUi.ar : verdictUi.en}
           </div>
-          <p className="mt-1 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">
-            {isAr ? `${brandOpt.ar} • ${days} يوم (مدخل يدوي)` : `${brandOpt.en} • ${days}d manual input`}
+          <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
+            {isAr ? `${brandOpt.ar} • ${intFmt(days)} يوم (مدخل يدوي)` : `${brandOpt.en} • ${intFmt(days)}d manual input`}
           </p>
         </div>
 
-        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
             {T('Hypothetical Net (100%)', 'الصافي الافتراضي (100%)')}
           </div>
           <div
             dir="ltr"
-            className={`mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums ${
+            className={`mt-1.5 sm:mt-2 text-lg sm:text-2xl xl:text-3xl font-semibold tracking-tight tabular-nums ${
               base.profit >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {base.profit >= 0 ? '+' : '-'}
-            {kwd(Math.abs(base.profit))}
+            {formatKwd(base.profit, { locale, signed: true })}
           </div>
-          <p className="mt-1 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
             {T(`Hypothetical sales ${kwd(base.revenue)}`, `من مبيعات افتراضية ${kwd(base.revenue)}`)}
           </p>
         </div>
 
-        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
             {T('Break-Even Orders', 'نقطة التعادل الافتراضية')}
           </div>
-          <div className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white">
-            {be ? `${f0(be)} ${T('orders/d', 'طلب/يوم')}` : '—'}
+          <div
+            dir="ltr"
+            title={be === null ? unavailableTip : undefined}
+            className="mt-1.5 sm:mt-2 text-lg sm:text-2xl xl:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white"
+          >
+            {be !== null ? `${intFmt(be)} ${T('orders/d', 'طلب/يوم')}` : UNAVAILABLE_DASH}
           </div>
-          <p className="mt-1 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
             {T(
-              `Gross margin/order ${f3(model.gpPerOrder)} KWD`,
-              `هامش الطلب الافتراضي ${f3(model.gpPerOrder)} د.ك`,
+              `Gross margin/order ${kwd(model.gpPerOrder)}`,
+              `هامش الطلب الافتراضي ${kwd(model.gpPerOrder)}`,
             )}
           </p>
         </div>
 
-        <div className="ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-500 dark:text-slate-400">
+        <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
             {T('Max Break-Even Rent (60%)', 'سقف الإيجار الافتراضي الآمن')}
           </div>
           <div
             dir="ltr"
-            className="mt-1.5 sm:mt-2 text-xl sm:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white"
+            className="mt-1.5 sm:mt-2 text-lg sm:text-2xl xl:text-3xl font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white"
           >
             {kwd(model.rentCeiling)}
           </div>
-          <p className="mt-1 text-[12.5px] leading-snug text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
             {rent > model.rentCeiling
               ? T(`Reduce rent by ${kwd(rent - model.rentCeiling)}`, `أعلى من السقف بـ ${kwd(rent - model.rentCeiling)}`)
               : T('Within 60% traffic break-even', 'ضمن تعادل سيناريو 60%')}
@@ -495,13 +504,13 @@ export function BoothStudyV5() {
 
       {/* Scenarios Bar Chart + Allocation Donut */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className={`${card} space-y-4 xl:col-span-8`}>
+        <div className={`${card} min-w-0 space-y-4 xl:col-span-8`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
                 {T('Hypothetical Traffic Scenarios', 'مقارنة حالات الإقبال الافتراضية')}
               </h2>
-              <p className="text-xs text-neutral-400 dark:text-slate-400">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 {T(
                   `${startDate} -> ${endDate} · What-If Simulator Output`,
                   `${startDate} ← ${endDate} · مخرجات محاكاة افتراضية بحتة`,
@@ -517,8 +526,7 @@ export function BoothStudyV5() {
                     : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200'
                 }`}
               >
-                60%: {low.profit >= 0 ? '+' : '-'}
-                {kwd(Math.abs(low.profit))}
+                60%: {formatKwd(low.profit, { locale, signed: true })}
               </span>
               <span
                 dir="ltr"
@@ -528,15 +536,13 @@ export function BoothStudyV5() {
                     : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200'
                 }`}
               >
-                100%: {base.profit >= 0 ? '+' : '-'}
-                {kwd(Math.abs(base.profit))}
+                100%: {formatKwd(base.profit, { locale, signed: true })}
               </span>
               <span
                 dir="ltr"
                 className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200"
               >
-                130%: {high.profit >= 0 ? '+' : '-'}
-                {kwd(Math.abs(high.profit))}
+                130%: {formatKwd(high.profit, { locale, signed: true })}
               </span>
             </div>
           </div>
@@ -552,14 +558,14 @@ export function BoothStudyV5() {
           />
 
           <div className="ae-bento-subcard space-y-2 rounded-2xl p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-slate-700 dark:text-slate-200">
                 {T(
-                  `Simulator Breakeven: ${f0(dailyOrders)} entered vs ${be ? f0(be) : '—'} break-even orders/day`,
-                  `تعادل المحاكاة: ${f0(dailyOrders)} طلب مدخل مقابل ${be ? f0(be) : '—'} طلب تعادل/يوم`,
+                  `Simulator Breakeven: ${intFmt(dailyOrders)} entered vs ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} break-even orders/day`,
+                  `تعادل المحاكاة: ${intFmt(dailyOrders)} طلب مدخل مقابل ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} طلب تعادل/يوم`,
                 )}
               </span>
-              <span className="font-extrabold tabular-nums text-amber-800 dark:text-amber-300">
+              <span dir="ltr" className="font-extrabold tabular-nums text-amber-800 dark:text-amber-300">
                 {T(
                   `Hypothetical Daily Cost: ${kwd(dailyCostCapKwd)}/day`,
                   `متوسط التكلفة الافتراضية: ${kwd(dailyCostCapKwd)}/يوم`,
@@ -570,25 +576,25 @@ export function BoothStudyV5() {
               <div
                 style={{ width: `${Math.max(6, beCoveragePct)}%` }}
                 className={`h-full rounded-full transition-all duration-150 ${
-                  dailyOrders >= be ? 'bg-emerald-500' : 'bg-amber-500'
+                  be !== null && dailyOrders >= be ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
               />
             </div>
           </div>
         </div>
 
-        <div className={`${card} flex flex-col justify-between xl:col-span-4`}>
+        <div className={`${card} min-w-0 flex flex-col justify-between xl:col-span-4`}>
           <div className="mb-3">
             <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('Hypothetical Revenue Split', 'توزيع المبيعات الافتراضية')}
             </h2>
-            <p className="text-xs text-neutral-400 dark:text-slate-400">
+            <p className="text-xs text-slate-600 dark:text-slate-300">
               {T('Based strictly on manual simulator inputs', 'مبني حصراً على المدخلات اليدوية')}
             </p>
           </div>
           <InteractiveDonutChart
             slices={boothDonutSlices}
-            centerValue={`${f1(model.rentShare)}%`}
+            centerValue={pctFmt(model.rentShare)}
             centerLabel={T('Rent Share', 'نسبة الإيجار')}
             summaryRows={[
               {
@@ -598,7 +604,7 @@ export function BoothStudyV5() {
               },
               {
                 label: T('Hypothetical Net', 'الصافي الافتراضي'),
-                value: `${base.profit >= 0 ? '+' : '-'}${kwd(Math.abs(base.profit))}`,
+                value: formatKwd(base.profit, { locale, signed: true }),
                 tone: base.profit >= 0 ? 'emerald' : 'rose',
               },
             ]}
@@ -609,12 +615,12 @@ export function BoothStudyV5() {
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
         {/* Left: User Simulator Inputs */}
-        <section className={`${card} grid grid-cols-1 gap-4 sm:grid-cols-2 xl:sticky xl:top-24 xl:col-span-5`}>
+        <section className={`${card} min-w-0 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:sticky xl:top-24 xl:col-span-5`}>
           <div className="sm:col-span-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/10">
             <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">
               {T('Manual Simulator Inputs', 'مدخلات المحاكاة اليدوية')}
             </h3>
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
               {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical'}
             </span>
           </div>
@@ -750,15 +756,16 @@ export function BoothStudyV5() {
           </label>
 
           <div className="flex flex-col justify-end gap-2.5">
-            <label className="ae-bento-subcard inline-flex cursor-pointer items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 hover:opacity-90 dark:text-slate-200">
-              <FileUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <label className="ae-bento-subcard inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold text-slate-700 focus-within:ring-2 focus-within:ring-emerald-500/60 hover:opacity-90 dark:text-slate-200">
+              <FileUp className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span className="truncate">
                 {file ? file.name : T('Attach Contract', 'إرفاق العقد')}
               </span>
               <input
                 type="file"
                 accept="application/pdf,image/*"
-                className="hidden"
+                aria-label={T('Attach Contract', 'إرفاق العقد')}
+                className="sr-only"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
             </label>
@@ -766,12 +773,12 @@ export function BoothStudyV5() {
               type="button"
               onClick={handleCheckContract}
               disabled={busy}
-              className="btn-colored inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-[14px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+              className="btn-colored inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-2.5 text-[14px] font-bold text-white shadow-sm transition duration-150 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
             >
               {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
-                <ShieldCheck className="h-4 w-4" />
+                <ShieldCheck className="h-4 w-4" aria-hidden />
               )}
               {T('Review Contract Terms', 'مراجعة شروط العقد')}
             </button>
@@ -780,13 +787,35 @@ export function BoothStudyV5() {
 
         {/* Right: Simulator Output Breakdown */}
         <div className="min-w-0 space-y-5 xl:col-span-7">
+          {busy ? (
+            <StateBlock
+              state="loading"
+              compact
+              locale={locale}
+              title={T('Reviewing contract clauses…', 'جارٍ مراجعة شروط العقد…')}
+            />
+          ) : null}
+          {contractError ? (
+            <StateBlock
+              state="error"
+              compact
+              locale={locale}
+              title={T('Unable to review contract right now', 'تعذّر إتمام مراجعة العقد حالياً')}
+              description={T(
+                'Please check the uploaded file or text and try again.',
+                'يرجى التحقق من النص أو الملف المرفق ثم المحاولة مجدداً.',
+              )}
+              onRetry={() => void handleCheckContract()}
+            />
+          ) : null}
+
           {/* 1. Simulator Verdict */}
           <section className={`rounded-2xl p-6 ring-1 ${verdictUi.cls}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[12px] font-bold opacity-80">
+              <span className="text-[12px] font-bold opacity-85">
                 {T('Simulator Output', 'مخرجات المحاكاة الافتراضية')}
               </span>
-              <span className="rounded-full bg-amber-950/10 px-2.5 py-0.5 text-xs font-extrabold">
+              <span className="rounded-full bg-amber-950/10 px-2.5 py-0.5 text-xs font-extrabold dark:bg-white/10 dark:text-amber-200">
                 {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}
               </span>
             </div>
@@ -798,8 +827,8 @@ export function BoothStudyV5() {
             </div>
             <p className="mt-2 text-[14px] font-medium leading-relaxed">
               {T(
-                `Hypothetical ${base.profit >= 0 ? 'net' : 'loss'}: ${kwd(Math.abs(base.profit))} · Break-even: ${be ? f0(be) : '—'} orders/day.`,
-                `${base.profit >= 0 ? 'الصافي الافتراضي' : 'الخسارة الافتراضية'}: ${kwd(Math.abs(base.profit))} · نقطة التعادل الافتراضية: ${be ? f0(be) : '—'} طلب/يوم.`,
+                `Hypothetical ${base.profit >= 0 ? 'net' : 'loss'}: ${kwd(Math.abs(base.profit))} · Break-even: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} orders/day.`,
+                `${base.profit >= 0 ? 'الصافي الافتراضي' : 'الخسارة الافتراضية'}: ${kwd(Math.abs(base.profit))} · نقطة التعادل الافتراضية: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} طلب/يوم.`,
               )}
             </p>
             {contractReview ? (
@@ -816,7 +845,7 @@ export function BoothStudyV5() {
                 <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
                   {T('Hypothetical Budget Envelope', 'ملخص الميزانية الافتراضية للمحاكاة')}
                 </h2>
-                <p className="text-xs text-neutral-500 dark:text-slate-400">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
                   {T(
                     'Calculated strictly from Fixed Costs + (Hypothetical Sales × Food Cost %). Official circulars are disabled for simulator estimates.',
                     'المعادلة الظاهرة: التكاليف الثابتة المدخلة + (المبيعات الافتراضية × نسبة المواد المدخلة). التعميم الرسمي معطّل لأن الأرقام افتراضية.',
@@ -831,9 +860,9 @@ export function BoothStudyV5() {
                     ? 'معطّل — هذه أداة افتراضية وليست بيانات فعلية من Odoo'
                     : 'Disabled — hypothetical simulator tool, not actual Odoo data'
                 }
-                className="ae-bento-subcard inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-[12px] font-bold text-slate-500 opacity-55 dark:text-slate-400"
+                className="ae-bento-subcard inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-bold text-slate-600 opacity-65 dark:text-slate-300"
               >
-                <FileText className="h-3.5 w-3.5" />
+                <FileText className="h-3.5 w-3.5" aria-hidden />
                 <span>
                   {T(
                     'Print Official Circular (Disabled)',
@@ -845,7 +874,7 @@ export function BoothStudyV5() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="ae-bento-subcard rounded-2xl p-3">
-                <div className="text-xs font-semibold text-neutral-500 dark:text-slate-400">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {T('Hypothetical Total Spend', 'إجمالي التكلفة الافتراضية (ثابت + مواد)')}
                 </div>
                 <div
@@ -854,13 +883,13 @@ export function BoothStudyV5() {
                 >
                   {kwd(totalBoothBudgetKwd)}
                 </div>
-                <div className="mt-0.5 text-xs font-medium text-neutral-400">
+                <div className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
                   {T('Fixed + Variable Food Input', 'التكاليف الثابتة + تكلفة المواد الافتراضية')}
                 </div>
               </div>
 
               <div className="ae-bento-subcard rounded-2xl p-3">
-                <div className="text-xs font-semibold text-neutral-500 dark:text-slate-400">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {T('Hypothetical Daily Spend', 'المتوسط اليومي الافتراضي للتكلفة')}
                 </div>
                 <div
@@ -869,7 +898,7 @@ export function BoothStudyV5() {
                 >
                   {kwd(dailyCostCapKwd)}/{isAr ? 'يوم' : 'day'}
                 </div>
-                <div className="mt-0.5 text-xs font-medium tabular-nums text-neutral-400">
+                <div dir="ltr" className="mt-0.5 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-400">
                   {startDate} {'->'} {endDate}
                 </div>
               </div>
@@ -884,7 +913,7 @@ export function BoothStudyV5() {
               </h2>
 
               <div className="space-y-1.5">
-                <div className="text-[12px] font-bold text-emerald-700 dark:text-emerald-400">
+                <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                   {T('Strengths (What-If)', 'نقاط القوة الافتراضية')}
                 </div>
                 {pros.length ? (
@@ -894,12 +923,17 @@ export function BoothStudyV5() {
                     </p>
                   ))
                 ) : (
-                  <p className="text-[13.5px] text-slate-400">—</p>
+                  <p className="text-[13px] text-slate-600 dark:text-slate-300">
+                    {T(
+                      'No standout strengths triggered under current inputs.',
+                      'لا توجد نقاط قوة إضافية ضمن المدخلات الحالية.',
+                    )}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <div className="text-[12px] font-bold text-rose-700 dark:text-rose-400">
+                <div className="text-xs font-bold text-rose-700 dark:text-rose-400">
                   {T('Risks (What-If)', 'المخاطر الافتراضية')}
                 </div>
                 {risks.length ? (
@@ -909,13 +943,18 @@ export function BoothStudyV5() {
                     </p>
                   ))
                 ) : (
-                  <p className="text-[13.5px] text-slate-400">—</p>
+                  <p className="text-[13px] text-slate-600 dark:text-slate-300">
+                    {T(
+                      'No risk flags triggered under current inputs.',
+                      'لا توجد مخاطر مسجلة ضمن المدخلات الحالية.',
+                    )}
+                  </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-[12px] font-bold text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                   {T('Contract Notes', 'ملاحظات العقد')}
                 </div>
                 {contractReview ? (
@@ -925,7 +964,7 @@ export function BoothStudyV5() {
                     </p>
                   ))
                 ) : (
-                  <p className="text-[13px] text-slate-500 dark:text-slate-400">
+                  <p className="text-[13px] text-slate-600 dark:text-slate-300">
                     {T(
                       'Attach or paste the contract to review terms.',
                       'أرفق العقد أو الصق بنوده لمراجعة الشروط.',
@@ -941,37 +980,41 @@ export function BoothStudyV5() {
                 {T('Simulator Formula Table', 'جدول معادلات المحاكاة الافتراضية')}
               </h2>
 
-              <div className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center">
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {T('Avg Ticket Input', 'متوسط الفاتورة المدخل')}
                   </div>
-                  <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
-                    {isAr ? `${f3(basket)} د.ك` : `${f3(basket)} KWD`}
+                  <div dir="ltr" className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                    {kwd(basket)}
                   </div>
                 </div>
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {T('Margin / Order', 'هامش الطلب الافتراضي')}
                   </div>
-                  <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
-                    {isAr ? `${f3(model.gpPerOrder)} د.ك` : `${f3(model.gpPerOrder)} KWD`}
+                  <div dir="ltr" className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
+                    {kwd(model.gpPerOrder)}
                   </div>
                 </div>
                 <div className="ae-bento-subcard rounded-xl p-3">
-                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {T('Break-Even', 'نقطة التعادل')}
                   </div>
-                  <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
-                    {be ? f0(be) : '—'}
+                  <div
+                    dir="ltr"
+                    title={be === null ? unavailableTip : undefined}
+                    className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white"
+                  >
+                    {be !== null ? intFmt(be) : UNAVAILABLE_DASH}
                   </div>
                 </div>
               </div>
 
               <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
                 <div className="w-full overflow-hidden rounded-xl ring-1 ring-slate-950/[0.04] dark:ring-emerald-500/10">
-                  <table className="w-full min-w-[400px] text-[14px]">
-                    <thead className="bg-[#F4F6F9] text-slate-600 dark:bg-[#09110E] dark:text-slate-300">
+                  <table className="w-full min-w-[420px] text-[14px]">
+                    <thead className="bg-[#F4F6F9] text-slate-700 dark:bg-[#09110E] dark:text-slate-300">
                       <tr>
                         <th className="whitespace-nowrap px-3 py-2.5 text-start font-bold">
                           {T('Case', 'الحالة الافتراضية')}
@@ -993,20 +1036,21 @@ export function BoothStudyV5() {
                           <td className="whitespace-nowrap px-3 py-2.5 font-bold text-slate-900 dark:text-white">
                             {isAr ? s.ar : s.en}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">
-                            {f0(s.orders)}
+                          <td dir="ltr" className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">
+                            {intFmt(s.orders)}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">
+                          <td dir="ltr" className="whitespace-nowrap px-3 py-2.5 text-end tabular-nums">
                             {kwd(s.revenue)}
                           </td>
                           <td
+                            dir="ltr"
                             className={`whitespace-nowrap px-3 py-2.5 text-end font-extrabold tabular-nums ${
                               s.profit >= 0
                                 ? 'text-emerald-700 dark:text-emerald-400'
                                 : 'text-rose-600 dark:text-rose-400'
                             }`}
                           >
-                            {kwd(s.profit)}
+                            {formatKwd(s.profit, { locale, signed: true })}
                           </td>
                         </tr>
                       ))}

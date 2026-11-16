@@ -4,10 +4,10 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorDetail, errorKey, isAbort, newIdempotencyKey } from '@/components/erp/api'
 import type { ListPage, Phase } from '@/components/erp/common'
-import { dangerButton, errorClass, inputClass, labelClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Badge, Money, Num } from '@/components/ui'
+import { Num, StateBlock } from '@/components/ui'
+import { UNAVAILABLE_DASH, formatInt, getUnavailableTooltip } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { bpsToInput, formatMinor, minorToInput, parseKwdToMinor, parsePercentToBps } from '@/lib/money'
+import { bpsToInput, minorToInput, parseKwdToMinor, parsePercentToBps } from '@/lib/money'
 import {
   addDays,
   createQuotationSchema,
@@ -20,7 +20,21 @@ import {
 } from '@/modules/crm/client'
 import { CustomerPicker } from '@/modules/crm/ui/CustomerPicker'
 import { ItemPicker } from '@/modules/crm/ui/ItemPicker'
-import { QuotationStatusBadge, stageLabels, todayUtc } from '@/modules/crm/ui/shared'
+import {
+  CrmMoney,
+  CrmPill,
+  QuotationStatusBadge,
+  crmDangerBtn,
+  crmErrorClass,
+  crmInputClass,
+  crmLabelClass,
+  crmNoticeClass,
+  crmPrimaryBtn,
+  crmSecondaryBtn,
+  crmSubcardClass,
+  stageLabels,
+  todayUtc,
+} from '@/modules/crm/ui/shared'
 import { computeTotals, requiresApproval } from '@/modules/finance/client'
 import type { InvoiceSummary } from '@/modules/finance/client'
 import type { Item, StockBalance, Warehouse } from '@/modules/inventory/client'
@@ -42,11 +56,9 @@ type LineDraft = {
 type Failure = { key: MessageKey; detail: string | null; conflict: boolean }
 
 type Props = {
-  /** Open an existing quotation. Without it the builder creates a new one. */
   quotationId?: string
   initialCustomer?: CustomerRef | null
   initialLeadId?: string | null
-  /** Called after any change the lists behind this dialog should reload for. */
   onChanged: (message: MessageKey) => void
   onClose: () => void
 }
@@ -91,7 +103,9 @@ function stockKey(itemId: string, warehouseId: string): string {
  * read-only and moves only by explicit actions. The convert button runs quote-to-cash and works only on an accepted one.
  */
 export function QuotationBuilder({ quotationId, initialCustomer = null, initialLeadId = null, onChanged, onClose }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale = locale === 'en' ? 'en' : 'ar'
+  const unavailableTip = getUnavailableTooltip(fmtLocale)
   const [detail, setDetail] = useState<QuotationDetail | null>(null)
   const [phase, setPhase] = useState<Phase>(quotationId ? 'loading' : 'ready')
   const [loadError, setLoadError] = useState<MessageKey>('erp.err.generic')
@@ -117,7 +131,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
   const [confirming, setConfirming] = useState(false)
   const [threshold, setThreshold] = useState<number | null>(null)
   const [result, setResult] = useState<ConversionResult | null>(null)
-  // One key per create and per conversion attempt: a retry after a lost response replays instead of duplicating.
   const createKey = useRef(newIdempotencyKey())
   const convertKey = useRef(newIdempotencyKey())
 
@@ -157,10 +170,9 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
       setBaseline(serialize(next.customerId, next.leadId ?? '', next.validUntil, next.notes ?? '', nextLines))
       nextLines.forEach((line) => loadBalances(line.itemId))
     },
-    [loadBalances]
+    [loadBalances],
   )
 
-  // Load an existing quotation.
   useEffect(() => {
     if (!quotationId) return
     const controller = new AbortController()
@@ -177,7 +189,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     return () => controller.abort()
   }, [quotationId, reloadCount, applyDetail])
 
-  // Active warehouses for the per-line picks. Without inventory access only service lines are offered.
   useEffect(() => {
     const controller = new AbortController()
     apiRequest<ListPage<Warehouse>>('/api/v1/inventory/warehouses?limit=100&status=active', { signal: controller.signal })
@@ -191,7 +202,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     return () => controller.abort()
   }, [])
 
-  // Open opportunities of the chosen customer, to link the quotation to one.
   useEffect(() => {
     if (customerId === '') {
       setOpenLeads([])
@@ -213,7 +223,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     }
   }, [lines])
 
-  // Quantity wanted per item and warehouse, summed over every line, so two lines cannot both claim the same stock.
   const required = useMemo(() => {
     const map = new Map<string, number>()
     for (const line of lines) {
@@ -240,7 +249,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     setLines((existing) => existing.map((line) => (line.key === key ? { ...line, ...patch } : line)))
   }
 
-  /** Picking a product fills an empty description and the selling price, then the warehouse holding the most stock. */
   function chooseItem(key: string, item: Item) {
     setLines((existing) =>
       existing.map((line) =>
@@ -253,8 +261,8 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
               price: line.price.trim() === '' ? minorToInput(item.sellingPriceMinor) : line.price,
               warehouseId: '',
             }
-          : line
-      )
+          : line,
+      ),
     )
     apiRequest<ListPage<StockBalance>>(`/api/v1/inventory/balances?itemId=${item.id}&limit=100`)
       .then((page) => {
@@ -267,8 +275,8 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
           existing.map((line) =>
             line.key === key && line.itemId === item.id && line.warehouseId === ''
               ? { ...line, warehouseId: best ? best.warehouseId : fallback }
-              : line
-          )
+              : line,
+          ),
         )
       })
       .catch(() => undefined)
@@ -286,7 +294,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     try {
       await task()
     } catch (error) {
-      // Keep the key only when the outcome is unknown (network or server failure), so the retry replays.
       if (keyToReset && !(error instanceof ApiError && (error.status === 0 || error.status >= 500))) {
         keyToReset.current = newIdempotencyKey()
       }
@@ -300,7 +307,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     }
   }
 
-  /** Validates with the API's own schema and saves. Returns null when validation fails. */
   async function persist(): Promise<QuotationDetail | null> {
     const candidate = {
       customerId,
@@ -337,7 +343,6 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     })
   }
 
-  /** Runs a state change. A draft with unsaved edits is saved first so the customer sees what was on screen. */
   function transition(path: 'send' | 'accept' | 'reject' | 'expire', message: MessageKey) {
     void run(async () => {
       let target = detail
@@ -379,27 +384,22 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
     }, convertKey)
   }
 
-  if (phase === 'loading') return <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p>
+  if (phase === 'loading') {
+    return <StateBlock state="loading" locale={fmtLocale} title={t('erp.loading')} />
+  }
 
   if (phase === 'error') {
     return (
-      <div className="space-y-3 py-6 text-center">
-        <p role="alert" className={`${errorClass} inline-block`}>
-          {t(loadError)}
-        </p>
-        <div>
-          <button
-            type="button"
-            onClick={() => {
-              setPhase('loading')
-              setReloadCount((value) => value + 1)
-            }}
-            className={secondaryButton}
-          >
-            {t('erp.retry')}
-          </button>
-        </div>
-      </div>
+      <StateBlock
+        state="error"
+        locale={fmtLocale}
+        title={t(loadError)}
+        onRetry={() => {
+          setPhase('loading')
+          setReloadCount((value) => value + 1)
+        }}
+        retryLabel={t('erp.retry')}
+      />
     )
   }
 
@@ -409,28 +409,28 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold text-gray-100">
+        <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
           {detail ? (
             <>
-              <Num className="text-blue-300">{detail.quoteNumber}</Num>
+              <Num className="text-emerald-700 dark:text-emerald-300">{detail.quoteNumber}</Num>
               <QuotationStatusBadge quotation={detail} />
             </>
           ) : (
             t('crm.qb.new')
           )}
         </h3>
-        {detail?.status === 'converted' && detail.invoiceId ? <Badge tone="gold">{t('crm.qb.convertedNote')}</Badge> : null}
+        {detail?.status === 'converted' && detail.invoiceId ? <CrmPill tone="gold">{t('crm.qb.convertedNote')}</CrmPill> : null}
       </div>
 
       {result ? (
-        <div role="status" className="space-y-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+        <div role="status" className="space-y-1.5 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-950/45 dark:text-emerald-200">
           <p className="font-semibold">{t('crm.qb.doneTitle')}</p>
           <p>
             {t('crm.qb.invoice')}: <Num className="font-semibold">{result.invoice.number}</Num>
           </p>
           <p>{t(result.stockDeducted ? 'crm.qb.doneIssued' : 'crm.qb.donePending')}</p>
           {result.lead ? <p>{t('crm.qb.doneLead')}</p> : null}
-          <Link href="/erp/finance" className="inline-block text-blue-300 underline">
+          <Link href="/erp/finance" className="inline-block font-semibold text-emerald-700 underline dark:text-emerald-300">
             {t('crm.qb.openFinance')}
           </Link>
         </div>
@@ -440,8 +440,8 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
         <div className="sm:col-span-2">
           {detail ? (
             <div>
-              <span className={labelClass}>{t('crm.qb.customer')}</span>
-              <p className="mt-1.5 rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm font-semibold text-gray-100">
+              <span className={crmLabelClass}>{t('crm.qb.customer')}</span>
+              <p className={`${crmSubcardClass} mt-1.5 text-sm font-semibold text-slate-900 dark:text-white`}>
                 {detail.customerName}
               </p>
             </div>
@@ -449,13 +449,13 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             <CustomerPicker value={customer} onChange={setCustomer} label={t('crm.qb.customer')} />
           )}
         </div>
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.qb.lead')}
           <select
             value={leadId}
             disabled={!editable}
             onChange={(event) => setLeadId(event.target.value)}
-            className={`${inputClass} disabled:opacity-60`}
+            className={`${crmInputClass} disabled:opacity-60`}
           >
             <option value="">{t('crm.qb.noLead')}</option>
             {openLeads.map((lead) => (
@@ -466,7 +466,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             {leadId !== '' && !openLeads.some((lead) => lead.id === leadId) ? <option value={leadId}>{leadId.slice(0, 8)}</option> : null}
           </select>
         </label>
-        <label className={labelClass}>
+        <label className={crmLabelClass}>
           {t('crm.qb.validUntil')}
           <input
             type="date"
@@ -474,14 +474,14 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             value={validUntil}
             disabled={!editable}
             onChange={(event) => setValidUntil(event.target.value)}
-            className={`${inputClass} disabled:opacity-60`}
+            className={`${crmInputClass} tabular-nums disabled:opacity-60`}
           />
-          <span className="mt-1 block text-xs text-gray-500">{t('crm.qb.validUntilHint')}</span>
+          <span className="mt-1 block text-xs text-slate-600 dark:text-slate-300">{t('crm.qb.validUntilHint')}</span>
         </label>
       </div>
 
       <div>
-        <h4 className="mb-2 text-sm font-semibold text-gray-200">{t('crm.qb.lines')}</h4>
+        <h4 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">{t('crm.qb.lines')}</h4>
         <div className="space-y-3">
           {lines.map((line) => {
             const numbers = toNumbers(line)
@@ -490,7 +490,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             const short = have !== null && wanted > have
             const chipSku = line.sku !== '' ? line.sku : balances[line.itemId]?.[0]?.sku ?? ''
             return (
-              <div key={line.key} className="grid grid-cols-2 gap-3 rounded-xl border border-[#30363d] p-3 sm:grid-cols-12">
+              <div key={line.key} className="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-12 dark:border-emerald-500/15">
                 {editable && stockEnabled ? (
                   <div className="col-span-2 flex gap-2 text-xs sm:col-span-12">
                     {(['item', 'service'] as const).map((kind) => (
@@ -499,8 +499,10 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                         type="button"
                         aria-pressed={line.kind === kind}
                         onClick={() => updateLine(line.key, kind === 'service' ? { kind, itemId: '', sku: '', warehouseId: '' } : { kind })}
-                        className={`rounded-full border px-3 py-1 ${
-                          line.kind === kind ? 'border-blue-500/50 bg-blue-500/15 text-blue-200' : 'border-[#30363d] text-gray-400 hover:text-gray-200'
+                        className={`cursor-pointer rounded-full border px-3 py-1 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                          line.kind === kind
+                            ? 'border-emerald-500/60 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200'
+                            : 'border-slate-300 text-slate-600 hover:text-slate-900 dark:border-white/15 dark:text-slate-300 dark:hover:text-white'
                         }`}
                       >
                         {t(kind === 'item' ? 'crm.qb.stockItem' : 'crm.qb.service')}
@@ -512,12 +514,16 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                 {line.kind === 'item' ? (
                   <div className="col-span-2 sm:col-span-12">
                     {line.itemId !== '' ? (
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm text-gray-100">
+                      <div className={`${crmSubcardClass} flex items-center justify-between gap-3 text-sm text-slate-900 dark:text-white`}>
                         <span className="min-w-0 truncate">
-                          {chipSku !== '' ? <Num className="font-semibold text-blue-300">{chipSku}</Num> : <Badge tone="info">{t('crm.qb.stockItem')}</Badge>}
+                          {chipSku !== '' ? <Num className="font-semibold text-emerald-700 dark:text-emerald-300">{chipSku}</Num> : <CrmPill tone="info">{t('crm.qb.stockItem')}</CrmPill>}
                         </span>
                         {editable ? (
-                          <button type="button" onClick={() => clearItem(line.key)} className="shrink-0 text-blue-400 hover:text-blue-300">
+                          <button
+                            type="button"
+                            onClick={() => clearItem(line.key)}
+                            className="shrink-0 cursor-pointer rounded-md px-1.5 py-0.5 font-semibold text-emerald-700 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-300 dark:hover:bg-white/[0.06]"
+                          >
                             {t('crm.picker.change')}
                           </button>
                         ) : null}
@@ -528,16 +534,16 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                   </div>
                 ) : null}
 
-                <label className={`${labelClass} col-span-2 sm:col-span-5`}>
+                <label className={`${crmLabelClass} col-span-2 sm:col-span-5`}>
                   {t('erp.form.description')}
                   <input
                     value={line.description}
                     disabled={!editable}
                     onChange={(event) => updateLine(line.key, { description: event.target.value })}
-                    className={`${inputClass} disabled:opacity-60`}
+                    className={`${crmInputClass} disabled:opacity-60`}
                   />
                 </label>
-                <label className={`${labelClass} sm:col-span-2`}>
+                <label className={`${crmLabelClass} sm:col-span-2`}>
                   {t('erp.form.quantity')}
                   <input
                     inputMode="numeric"
@@ -545,10 +551,10 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                     value={line.quantity}
                     disabled={!editable}
                     onChange={(event) => updateLine(line.key, { quantity: event.target.value })}
-                    className={`${inputClass} disabled:opacity-60`}
+                    className={`${crmInputClass} tabular-nums disabled:opacity-60`}
                   />
                 </label>
-                <label className={`${labelClass} sm:col-span-2`}>
+                <label className={`${crmLabelClass} sm:col-span-2`}>
                   {t('erp.form.unitPrice')}
                   <input
                     inputMode="decimal"
@@ -556,10 +562,10 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                     value={line.price}
                     disabled={!editable}
                     onChange={(event) => updateLine(line.key, { price: event.target.value })}
-                    className={`${inputClass} disabled:opacity-60`}
+                    className={`${crmInputClass} tabular-nums disabled:opacity-60`}
                   />
                 </label>
-                <label className={`${labelClass} sm:col-span-2`}>
+                <label className={`${crmLabelClass} sm:col-span-2`}>
                   {t('erp.form.tax')}
                   <input
                     inputMode="decimal"
@@ -567,7 +573,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                     value={line.tax}
                     disabled={!editable}
                     onChange={(event) => updateLine(line.key, { tax: event.target.value })}
-                    className={`${inputClass} disabled:opacity-60`}
+                    className={`${crmInputClass} tabular-nums disabled:opacity-60`}
                   />
                 </label>
                 {editable ? (
@@ -578,7 +584,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                       aria-label={t('erp.form.removeLine')}
                       title={t('erp.form.removeLine')}
                       onClick={() => setLines((existing) => existing.filter((item) => item.key !== line.key))}
-                      className={`${dangerButton} w-full px-2`}
+                      className={`${crmDangerBtn} w-full px-2`}
                     >
                       ×
                     </button>
@@ -587,13 +593,13 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
 
                 {line.kind === 'item' && line.itemId !== '' ? (
                   <div className="col-span-2 sm:col-span-12">
-                    <label className={labelClass}>
+                    <label className={crmLabelClass}>
                       {t('crm.qb.warehouse')}
                       <select
                         value={line.warehouseId}
                         disabled={!editable}
                         onChange={(event) => updateLine(line.key, { warehouseId: event.target.value })}
-                        className={`${inputClass} disabled:opacity-60`}
+                        className={`${crmInputClass} disabled:opacity-60`}
                       >
                         <option value="">{t('crm.qb.pickWarehouse')}</option>
                         {warehouses.map((warehouse) => {
@@ -601,7 +607,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                           return (
                             <option key={warehouse.id} value={warehouse.id}>
                               {warehouse.code} · {warehouse.name}
-                              {quantity === null ? '' : ` — ${t('crm.qb.available')}: ${quantity.toLocaleString('en-US')}`}
+                              {quantity === null ? '' : ` — ${t('crm.qb.available')}: ${formatInt(quantity, fmtLocale)}`}
                             </option>
                           )
                         })}
@@ -611,9 +617,9 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                       </select>
                     </label>
                     {editable && have !== null ? (
-                      <p className={`mt-1.5 text-xs ${short ? 'text-red-300' : 'text-emerald-300'}`}>
-                        {short ? t('crm.qb.short') : t('crm.qb.enough')} · {t('crm.qb.need')}: <Num>{wanted.toLocaleString('en-US')}</Num> ·{' '}
-                        {t('crm.qb.have')}: <Num>{have.toLocaleString('en-US')}</Num>
+                      <p className={`mt-1.5 text-xs font-medium ${short ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
+                        {short ? t('crm.qb.short') : t('crm.qb.enough')} · {t('crm.qb.need')}: <Num>{formatInt(wanted, fmtLocale)}</Num> ·{' '}
+                        {t('crm.qb.have')}: <Num>{formatInt(have, fmtLocale)}</Num>
                       </p>
                     ) : null}
                   </div>
@@ -627,7 +633,7 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             type="button"
             disabled={lines.length >= 200}
             onClick={() => setLines((existing) => [...existing, emptyLine(stockEnabled ? 'item' : 'service')])}
-            className={`${secondaryButton} mt-3`}
+            className={`${crmSecondaryBtn} mt-3`}
           >
             {t('crm.qb.addLine')}
           </button>
@@ -635,20 +641,20 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
       </div>
 
       {serverShortages.length > 0 ? (
-        <div role="alert" className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">
+        <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200">
           <p className="font-semibold">{t('crm.qb.shortTitle')}</p>
           <ul className="mt-1 space-y-0.5">
             {serverShortages.map((shortage) => (
               <li key={`${shortage.itemId}-${shortage.warehouseId}`}>
                 <Num>{shortage.sku}</Num> · <Num>{shortage.warehouseCode}</Num> — {t('crm.qb.need')}:{' '}
-                <Num>{shortage.required.toLocaleString('en-US')}</Num> · {t('crm.qb.have')}: <Num>{shortage.available.toLocaleString('en-US')}</Num>
+                <Num>{formatInt(shortage.required, fmtLocale)}</Num> · {t('crm.qb.have')}: <Num>{formatInt(shortage.available, fmtLocale)}</Num>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      <label className={`${labelClass} block`}>
+      <label className={crmLabelClass}>
         {t('crm.qb.notes')}
         <textarea
           value={notes}
@@ -656,40 +662,72 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
           onChange={(event) => setNotes(event.target.value)}
           rows={2}
           maxLength={2000}
-          className={`${inputClass} disabled:opacity-60`}
+          className={`${crmInputClass} disabled:opacity-60`}
         />
       </label>
 
-      <dl className="space-y-1.5 rounded-xl border border-[#30363d] bg-[#0d1117] p-4 text-sm">
+      <dl className={`${crmSubcardClass} space-y-1.5 text-sm`}>
         <div className="flex items-center justify-between gap-3">
-          <dt className="text-gray-400">{t('erp.form.subtotal')}</dt>
-          <dd>{totals ? <Money value={formatMinor(totals.subtotalMinor)} /> : <Num>—</Num>}</dd>
+          <dt className="text-slate-600 dark:text-slate-300">{t('erp.form.subtotal')}</dt>
+          <dd>
+            {totals ? (
+              <CrmMoney minor={totals.subtotalMinor} />
+            ) : (
+              <span title={unavailableTip} className="tabular-nums text-slate-500 dark:text-slate-400">
+                {UNAVAILABLE_DASH}
+              </span>
+            )}
+          </dd>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <dt className="text-gray-400">{t('erp.form.taxTotal')}</dt>
-          <dd>{totals ? <Money value={formatMinor(totals.taxMinor)} /> : <Num>—</Num>}</dd>
+          <dt className="text-slate-600 dark:text-slate-300">{t('erp.form.taxTotal')}</dt>
+          <dd>
+            {totals ? (
+              <CrmMoney minor={totals.taxMinor} />
+            ) : (
+              <span title={unavailableTip} className="tabular-nums text-slate-500 dark:text-slate-400">
+                {UNAVAILABLE_DASH}
+              </span>
+            )}
+          </dd>
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-[#30363d] pt-2 font-semibold text-gray-100">
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-2 font-semibold text-slate-900 dark:border-white/10 dark:text-white">
           <dt>{t('erp.form.total')}</dt>
-          <dd>{totals ? <Money value={formatMinor(totals.totalMinor)} /> : <Num>—</Num>}</dd>
+          <dd>
+            {totals ? (
+              <CrmMoney minor={totals.totalMinor} className="font-bold" />
+            ) : (
+              <span title={unavailableTip} className="tabular-nums text-slate-500 dark:text-slate-400">
+                {UNAVAILABLE_DASH}
+              </span>
+            )}
+          </dd>
         </div>
       </dl>
 
-      {pastDue ? <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">{t('crm.qb.expiredNote')}</p> : null}
-      {detail && (detail.status === 'rejected' || detail.status === 'expired') ? (
-        <p className="rounded-lg border border-[#30363d] px-3 py-2 text-sm text-gray-400">{t('crm.qb.closedNote')}</p>
+      {pastDue ? (
+        <p className="rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200">
+          {t('crm.qb.expiredNote')}
+        </p>
       ) : null}
-      {detail && detail.status === 'sent' && !pastDue ? <p className="text-xs text-gray-400">{t('crm.qb.sentNote')}</p> : null}
+      {detail && (detail.status === 'rejected' || detail.status === 'expired') ? (
+        <p className="rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-600 dark:border-emerald-500/15 dark:text-slate-300">
+          {t('crm.qb.closedNote')}
+        </p>
+      ) : null}
+      {detail && detail.status === 'sent' && !pastDue ? (
+        <p className="text-xs text-slate-600 dark:text-slate-300">{t('crm.qb.sentNote')}</p>
+      ) : null}
 
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} space-y-1`}>
+        <ul role="alert" className={`${crmErrorClass} space-y-1`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
         </ul>
       ) : null}
       {failure ? (
-        <div role="alert" className={`${errorClass} space-y-1`}>
+        <div role="alert" className={`${crmErrorClass} space-y-1`}>
           <p>{t(failure.key)}</p>
           {failure.detail ? <p className="text-xs">{failure.detail}</p> : null}
           {failure.conflict && quotationId ? (
@@ -699,18 +737,18 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
                 setFailure(null)
                 setReloadCount((value) => value + 1)
               }}
-              className="text-blue-300 underline"
+              className="cursor-pointer font-semibold text-emerald-700 underline dark:text-emerald-300"
             >
               {t('erp.retry')}
             </button>
           ) : null}
         </div>
       ) : null}
-      {notice ? <p role="status" className={noticeClass}>{t(notice)}</p> : null}
+      {notice ? <p role="status" className={crmNoticeClass}>{t(notice)}</p> : null}
 
       {confirming && detail ? (
-        <div className="space-y-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-sm text-gray-200">
-          <p className="font-semibold text-gray-100">{t('crm.qb.convertTitle')}</p>
+        <div className="space-y-2 rounded-xl border border-sky-300 bg-sky-50 p-4 text-sm text-slate-800 dark:border-sky-500/30 dark:bg-sky-950/40 dark:text-slate-100">
+          <p className="font-semibold text-slate-900 dark:text-white">{t('crm.qb.convertTitle')}</p>
           <p>{t('crm.qb.convertIntro')}</p>
           <ul className="list-disc space-y-1 ps-5">
             <li>{t('crm.qb.convertStep1')}</li>
@@ -719,14 +757,14 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
             {detail.leadId ? <li>{t('crm.qb.convertLead')}</li> : null}
           </ul>
           <p>
-            {t('crm.qb.convertTotal')}: <Money value={formatMinor(detail.totalMinor)} className="font-semibold" />
+            {t('crm.qb.convertTotal')}: <CrmMoney minor={detail.totalMinor} className="font-semibold" />
           </p>
-          {needsApproval ? <p className="text-yellow-200">{t('crm.qb.convertApproval')}</p> : null}
+          {needsApproval ? <p className="font-medium text-amber-800 dark:text-amber-300">{t('crm.qb.convertApproval')}</p> : null}
           <div className="flex flex-wrap gap-2 pt-1">
-            <button type="button" onClick={convert} disabled={pending} className={primaryButton}>
+            <button type="button" onClick={convert} disabled={pending} className={crmPrimaryBtn}>
               {pending ? t('erp.working') : t('crm.qb.convertGo')}
             </button>
-            <button type="button" onClick={() => setConfirming(false)} disabled={pending} className={secondaryButton}>
+            <button type="button" onClick={() => setConfirming(false)} disabled={pending} className={crmSecondaryBtn}>
               {t('erp.cancel')}
             </button>
           </div>
@@ -735,12 +773,12 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
 
       <div className="flex flex-wrap items-center gap-2">
         {editable ? (
-          <button type="button" onClick={save} disabled={pending || !dirty} className={primaryButton}>
+          <button type="button" onClick={save} disabled={pending || !dirty} className={crmPrimaryBtn}>
             {pending ? t('erp.working') : detail ? t('crm.qb.save') : t('crm.qb.create')}
           </button>
         ) : null}
         {editable ? (
-          <button type="button" onClick={() => transition('send', 'crm.msg.quoteSent')} disabled={pending} className={secondaryButton}>
+          <button type="button" onClick={() => transition('send', 'crm.msg.quoteSent')} disabled={pending} className={crmSecondaryBtn}>
             {t('crm.qb.send')}
           </button>
         ) : null}
@@ -750,17 +788,17 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
               type="button"
               onClick={() => transition('accept', 'crm.msg.quoteAccepted')}
               disabled={pending || pastDue}
-              className={secondaryButton}
+              className={crmSecondaryBtn}
             >
               {t('crm.qb.accept')}
             </button>
-            <button type="button" onClick={() => transition('reject', 'crm.msg.quoteRejected')} disabled={pending} className={secondaryButton}>
+            <button type="button" onClick={() => transition('reject', 'crm.msg.quoteRejected')} disabled={pending} className={crmSecondaryBtn}>
               {t('crm.qb.reject')}
             </button>
           </>
         ) : null}
         {pastDue ? (
-          <button type="button" onClick={() => transition('expire', 'crm.msg.quoteExpired')} disabled={pending} className={secondaryButton}>
+          <button type="button" onClick={() => transition('expire', 'crm.msg.quoteExpired')} disabled={pending} className={crmSecondaryBtn}>
             {t('crm.qb.expire')}
           </button>
         ) : null}
@@ -771,14 +809,14 @@ export function QuotationBuilder({ quotationId, initialCustomer = null, initialL
               onClick={openConfirm}
               disabled={pending || !canConvert || confirming}
               title={canConvert ? undefined : t('crm.qb.convertNeedsAccepted')}
-              className={primaryButton}
+              className={crmPrimaryBtn}
             >
               {t('crm.qb.convert')}
             </button>
-            {!canConvert ? <span className="text-xs text-gray-500">{t('crm.qb.convertNeedsAccepted')}</span> : null}
+            {!canConvert ? <span className="text-xs text-slate-600 dark:text-slate-300">{t('crm.qb.convertNeedsAccepted')}</span> : null}
           </span>
         ) : null}
-        <button type="button" onClick={onClose} className={`${secondaryButton} ms-auto`}>
+        <button type="button" onClick={onClose} className={`${crmSecondaryBtn} ms-auto`}>
           {t('erp.close')}
         </button>
       </div>
