@@ -98,6 +98,82 @@ function pgErrorCode(error: unknown): string {
   return 'AI_RUN_PERSIST'
 }
 
+const LOCK_STALE_SECONDS = 90
+
+export async function tryAcquireManualRunLock(holder: string): Promise<'acquired' | 'busy' | 'unavailable'> {
+  const pool = postgresPool()
+  if (pool) {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ai_manual_run_lock (
+          id TEXT PRIMARY KEY,
+          status TEXT NOT NULL,
+          holder TEXT NOT NULL,
+          acquired_at TIMESTAMPTZ NOT NULL
+        )
+      `)
+      await pool.query(
+        `INSERT INTO ai_manual_run_lock (id, status, holder, acquired_at)
+         VALUES ('manual', 'idle', '', NOW())
+         ON CONFLICT (id) DO NOTHING`,
+      )
+      const updated = await pool.query(
+        `UPDATE ai_manual_run_lock
+         SET status = 'running', holder = $1, acquired_at = NOW()
+         WHERE id = 'manual'
+           AND (status <> 'running' OR acquired_at < NOW() - ($2::int * INTERVAL '1 second'))
+         RETURNING id`,
+        [holder, LOCK_STALE_SECONDS],
+      )
+      return updated.rowCount === 1 ? 'acquired' : 'busy'
+    } catch (error) {
+      logger.error('manual run lock failed', { ...errorFields(error), errorCode: 'MANUAL_RUN_LOCK' })
+      return 'unavailable'
+    }
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS ai_manual_run_lock (
+        id TEXT NOT NULL PRIMARY KEY,
+        status TEXT NOT NULL,
+        holder TEXT NOT NULL,
+        acquired_at TEXT NOT NULL
+      )
+    `)
+    await prisma.$executeRawUnsafe(
+      `INSERT OR IGNORE INTO ai_manual_run_lock (id, status, holder, acquired_at) VALUES ('manual', 'idle', '', datetime('now'))`,
+    )
+    const changed = await prisma.$executeRaw`
+      UPDATE ai_manual_run_lock
+      SET status = 'running', holder = ${holder}, acquired_at = datetime('now')
+      WHERE id = 'manual'
+        AND (status <> 'running' OR acquired_at < datetime('now', ${`-${LOCK_STALE_SECONDS} seconds`}))
+    `
+    return Number(changed) === 1 ? 'acquired' : 'busy'
+  } catch (error) {
+    logger.error('manual run lock failed', { ...errorFields(error), errorCode: 'MANUAL_RUN_LOCK' })
+    return 'unavailable'
+  }
+}
+
+export async function releaseManualRunLock(holder: string): Promise<void> {
+  const pool = postgresPool()
+  try {
+    if (pool) {
+      await pool.query(
+        `UPDATE ai_manual_run_lock SET status = 'idle', holder = '' WHERE id = 'manual' AND holder = $1`,
+        [holder],
+      )
+      return
+    }
+    await prisma.$executeRaw`
+      UPDATE ai_manual_run_lock SET status = 'idle', holder = '' WHERE id = 'manual' AND holder = ${holder}
+    `
+  } catch (error) {
+    logger.error('manual run unlock failed', { ...errorFields(error), errorCode: 'MANUAL_RUN_LOCK' })
+  }
+}
+
 export function ensureAiTables(): Promise<void> {
   if (!tablesReady) {
     tablesReady = (async () => {

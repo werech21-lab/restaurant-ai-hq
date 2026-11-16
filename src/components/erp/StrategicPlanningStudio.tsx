@@ -29,7 +29,6 @@ import {
   resolveStrategicBriefing,
   sanitizeStrategicPhases,
   STRATEGIC_ROADMAP_STORAGE_KEY,
-  stripStrategicMarkdown,
   type ForecastHorizonId,
   type ScenarioTierId,
   type StrategicRoadmapPhase,
@@ -221,67 +220,15 @@ export function StrategicPlanningStudio() {
       isAr,
     )
 
-    try {
-      const res = await fetch('/api/erp/planning/forecast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          locale: isAr ? 'ar' : 'en',
-          horizonLabel: isAr ? snap.horizonLabelAr : snap.horizonLabelEn,
-          scopeLabel: isAr ? cleanSubtitleAr : workspace.subtitleEn,
-          monthlyBaselineSalesKwd: snap.monthlyBaselineSalesKwd,
-          monthlyBaselineCostsKwd: snap.monthlyBaselineCostsKwd,
-          monthlyBaselineNetKwd: snap.monthlyBaselineNetKwd,
-          dailyAverageSalesKwd: snap.dailyAverageSalesKwd,
-          ardiyaFoodPct: snap.ardiyaFoodPct,
-          deliveryFeePct: snap.deliveryFeePct,
-          directChannelSharePct: snap.directChannelSharePct,
-          paydayLiftPct: snap.paydayLiftPct,
-          scenarioBadge: isAr ? activeScenario.badgeAr : activeScenario.badgeEn,
-          projectedSalesKwd: activeScenario.projectedSalesKwd,
-          projectedCostsKwd: activeScenario.projectedCostsKwd,
-          projectedNetCashKwd: activeScenario.projectedNetCashKwd,
-          netMarginPct: activeScenario.netMarginPct,
-          paybackLabel: isAr ? activeScenario.paybackLabelAr : activeScenario.paybackLabelEn,
-          fallbackPlainText: deterministicBaseline.fullPlainText,
-        }),
-      })
-
-      if (res.ok) {
-        const data = (await res.json()) as {
-          ok?: boolean
-          text?: string
-          engineLabelAr?: string
-          engineLabelEn?: string
-        }
-        const cleaned = stripStrategicMarkdown(data.text ?? '')
-        const localized = isAr ? localizeArabicPlanningCopy(cleaned) : cleaned
-        setAiForecastText(localized || deterministicBaseline.fullPlainText)
-        setAiForecastModel(
-          isAr
-            ? data.engineLabelAr || 'قراءة تقديرية استرشادية • أودو 17'
-            : data.engineLabelEn || 'Strategic Estimate Synthesis • Odoo 17',
-        )
-      } else {
-        setAiForecastText(deterministicBaseline.fullPlainText)
-        setAiForecastModel(
-          isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17',
-        )
-      }
-    } catch {
-      setAiForecastText(deterministicBaseline.fullPlainText)
-      setAiForecastModel(
-        isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17',
-      )
-    } finally {
-      setAiForecastUpdatedAt(
-        new Date().toLocaleTimeString('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      )
-      setAiForecastLoading(false)
-    }
+    setAiForecastText(deterministicBaseline.fullPlainText)
+    setAiForecastModel(isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17')
+    setAiForecastUpdatedAt(
+      new Date().toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    )
+    setAiForecastLoading(false)
   }, [activeScenario, cleanSubtitleAr, isAr, snap, workspace.subtitleEn])
 
   const totalCostCap = useMemo(

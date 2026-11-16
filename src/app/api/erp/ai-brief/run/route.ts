@@ -5,7 +5,7 @@ import { logger, errorFields } from '@/lib/logger'
 import { runBackgroundAnalysis } from '@/server/ai/brief'
 import { parseStoredBrief } from '@/server/ai/consensus'
 import { latestManualAtMs, manualRetryAt } from '@/server/ai/manual-run'
-import { safeListDailyBriefs } from '@/server/ai/persist'
+import { releaseManualRunLock, safeListDailyBriefs, tryAcquireManualRunLock } from '@/server/ai/persist'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -43,6 +43,20 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: { ...ENTERPRISE_API_SECURITY_HEADERS, 'Retry-After': String(retryAfterSeconds) } },
     )
   }
+  const holder = `${guard.session.sub}:${crypto.randomUUID()}`
+  const lock = await tryAcquireManualRunLock(holder)
+  if (lock === 'unavailable') {
+    return NextResponse.json(
+      { ok: false, error: 'RUN_LOCK_UNAVAILABLE' },
+      { status: 503, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+  if (lock === 'busy') {
+    return NextResponse.json(
+      { ok: false, error: 'RUN_IN_PROGRESS' },
+      { status: 429, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
   try {
     const result = await runBackgroundAnalysis({
       trigger: 'manual',
@@ -68,5 +82,7 @@ export async function POST(request: NextRequest) {
       { ok: false, error: 'DAILY_BRIEF_FAILED' },
       { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
+  } finally {
+    await releaseManualRunLock(holder)
   }
 }
