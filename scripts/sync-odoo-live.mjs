@@ -199,7 +199,8 @@ export async function runSyncOdooLive(options = {}) {
   )
 
   /* master data (whitelisted registers only) */
-  const configs = await safe(
+  const configsRaw = await salesQuery(
+    'pos.config',
     'pos.config search_read',
     () =>
       ek(
@@ -208,15 +209,17 @@ export async function runSyncOdooLive(options = {}) {
         [[['id', 'in', ALLOWED], ['active', 'in', [true, false]]]],
         { fields: ['id', 'name', 'active', 'company_id'], context: { active_test: false } },
       ),
-    [],
   )
+  const configs = configsRaw ?? []
   const configById = new Map(configs.map((c) => [c.id, c]))
   const locationOfConfig = (id) => REGISTRY.registers[String(id)]?.location ?? null
-  const posCategories = await safe(
+  const posCategoriesRaw = await salesQuery(
+    'pos.category',
     'pos.category search_read',
     () => ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] }),
-    [],
   )
+  const posCategoriesReadable = posCategoriesRaw !== null
+  const posCategories = posCategoriesRaw ?? []
   const catById = new Map(posCategories.map((c) => [c.id, c]))
   const rootOf = (id) => {
     let c = catById.get(id)
@@ -231,11 +234,12 @@ export async function runSyncOdooLive(options = {}) {
       posCategories.find((c) => !c.parent_id && c.name === b.posRoot)?.id ?? null,
     ]),
   )
-  const payMethods = await safe(
+  const payMethodsRaw = await salesQuery(
+    'pos.payment.method',
     'pos.payment.method search_read',
     () => ek('pos.payment.method', 'search_read', [[]], { fields: ['id', 'name'] }),
-    [],
   )
+  const payMethods = payMethodsRaw ?? []
   const methodsOfChannel = new Map()
   for (const p of payMethods) {
     const ch = channelOf(p.name)
@@ -297,6 +301,7 @@ export async function runSyncOdooLive(options = {}) {
 
   /* product lines per register → brand & category */
   const linesByCfg = new Map()
+  let linesReadable = posCategoriesReadable && sessionOrdersReadable
   for (const r of registers) {
     const cfgRows = await salesQuery(
       'pos.order.line',
@@ -313,7 +318,11 @@ export async function runSyncOdooLive(options = {}) {
           { lazy: false },
         ),
     )
-    if (cfgRows !== null) linesByCfg.set(r.posConfigId, cfgRows)
+    if (cfgRows === null) {
+      linesReadable = false
+    } else {
+      linesByCfg.set(r.posConfigId, cfgRows)
+    }
   }
   const productIds = [
     ...new Set([...linesByCfg.values()].flat().map((g) => m2oId(g.product_id)).filter(Boolean)),
@@ -658,6 +667,7 @@ export async function runSyncOdooLive(options = {}) {
       limit: 300000,
     }),
   )
+  if (discLines === null) linesReadable = false
   let discountKwd = 0
   const brandDiscount = new Map()
   for (const l of discLines ?? []) {
@@ -881,6 +891,20 @@ export async function runSyncOdooLive(options = {}) {
 
   const brandItemTotal = [...brandNet.values()].reduce((s, v) => s + v, 0)
   const brands = REGISTRY.brands.map((b) => {
+    if (!linesReadable) {
+      return {
+        id: b.id,
+        en: b.en,
+        ar: b.ar,
+        posRoot: b.posRoot,
+        netKwd: null,
+        orders: null,
+        aovKwd: null,
+        qty: null,
+        sharePct: null,
+        discountKwd: discLines === null ? null : r3(brandDiscount.get(b.id) || 0),
+      }
+    }
     const net = brandNet.get(b.id) || 0
     const orders = brandOrders.has(b.id) ? brandOrders.get(b.id) : 0
     return {
@@ -893,7 +917,7 @@ export async function runSyncOdooLive(options = {}) {
       aovKwd: orders === null ? null : orders ? r3(net / orders) : 0,
       qty: r3(brandQty.get(b.id) || 0),
       sharePct: pct(net, brandItemTotal),
-      discountKwd: r3(brandDiscount.get(b.id) || 0),
+      discountKwd: discLines === null ? null : r3(brandDiscount.get(b.id) || 0),
     }
   })
 
@@ -1117,6 +1141,7 @@ export async function runSyncOdooLive(options = {}) {
         lazy: false,
       }),
     )
+    const bLinesReadable = bLines !== null && posCategoriesReadable
     await ensureProducts((bLines ?? []).map((g) => m2oId(g.product_id)).filter(Boolean))
     const bBrand = new Map()
     for (const g of bLines ?? []) {
@@ -1127,26 +1152,31 @@ export async function runSyncOdooLive(options = {}) {
       cur.qty += Number(g.qty) || 0
       bBrand.set(b, cur)
     }
-    const rawBrandMap = new Map(
-      ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, bBrand.get(bid)?.rawNetKwd || 0)]),
-    )
-    const reconciledBrandNet = reconcileAmounts(rawBrandMap, ACTIVE_BRAND_IDS, targetNet)
+    const reconciledBrandNet = bLinesReadable
+      ? reconcileAmounts(
+          new Map(ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, bBrand.get(bid)?.rawNetKwd || 0)])),
+          ACTIVE_BRAND_IDS,
+          targetNet,
+        )
+      : null
 
-    for (const bid of ACTIVE_BRAND_IDS) {
-      const cur = bBrand.get(bid) || { rawNetKwd: 0, qty: 0, orders: 0 }
-      const root = rootCatIdOfBrand.get(bid)
-      if ((reconciledBrandNet.get(bid) || 0) > 0) {
-        cur.orders = root
-          ? await salesQuery('pos.order', `bucket(${key}) brand orders ${bid}`, () =>
-              ek('pos.order', 'search_count', [
-                [...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]],
-              ]),
-            )
-          : null
-      } else if (!bucketSessionsReadable) {
-        cur.orders = null
+    if (bLinesReadable && reconciledBrandNet) {
+      for (const bid of ACTIVE_BRAND_IDS) {
+        const cur = bBrand.get(bid) || { rawNetKwd: 0, qty: 0, orders: 0 }
+        const root = rootCatIdOfBrand.get(bid)
+        if ((reconciledBrandNet.get(bid) || 0) > 0) {
+          cur.orders = root
+            ? await salesQuery('pos.order', `bucket(${key}) brand orders ${bid}`, () =>
+                ek('pos.order', 'search_count', [
+                  [...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]],
+                ]),
+              )
+            : null
+        } else if (!bucketSessionsReadable) {
+          cur.orders = null
+        }
+        bBrand.set(bid, cur)
       }
-      bBrand.set(bid, cur)
     }
 
     const bAml = await safe(
@@ -1226,11 +1256,29 @@ export async function runSyncOdooLive(options = {}) {
 
     const byLocation = {}
     const aggUiChannels = Object.fromEntries(
-      UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: bPayReadable ? 0 : null }]),
+      UI_CHANNEL_KEYS.map((ck) => [
+        ck,
+        bPayReadable ? { netKwd: 0, orders: 0 } : { netKwd: null, orders: null },
+      ]),
     )
     for (const loc of RESTAURANT_LOC_IDS) {
       const lt = locTot.get(loc) || { netKwd: 0, orders: 0 }
       const locTarget = reconciledLocNet.get(loc) || 0
+      if (!bPayReadable) {
+        const locUiChannels = Object.fromEntries(
+          UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: null, orders: null }]),
+        )
+        byLocation[loc] = {
+          netKwd: bucketSessionsReadable ? locTarget : null,
+          orders: bucketSessionsReadable ? lt.orders : null,
+          hallShopKwd: null,
+          hallShopOrders: null,
+          directTakeawayKwd: null,
+          directTakeawayOrders: null,
+          uiChannels: locUiChannels,
+        }
+        continue
+      }
       const lm = bLocCh.get(loc) || new Map()
       const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
       const rawUi = buildRawUiChannels(
@@ -1288,6 +1336,15 @@ export async function runSyncOdooLive(options = {}) {
 
     const byBrand = {}
     for (const bid of ACTIVE_BRAND_IDS) {
+      if (!bLinesReadable || !reconciledBrandNet) {
+        byBrand[bid] = {
+          netKwd: null,
+          itemSalesKwd: null,
+          orders: null,
+          qty: null,
+        }
+        continue
+      }
       const cur = bBrand.get(bid) || { rawNetKwd: 0, orders: 0, qty: 0 }
       byBrand[bid] = {
         netKwd: reconciledBrandNet.get(bid) || 0,
@@ -1451,6 +1508,7 @@ export async function runSyncOdooLive(options = {}) {
     const { journey, locDishQty } = await extractJourney({
       ek,
       safe,
+      salesQuery,
       REGISTRY,
       WINDOWS,
       ALLOWED,
@@ -1469,9 +1527,10 @@ export async function runSyncOdooLive(options = {}) {
     snapshot.journey = { ...journey, locDishQty }
     snapshot.permissions.audit = journey.access
     const compact = { source: ODOO_URL, syncedAt: snapshot.syncedAt, ...journey }
-    writeFile(JOURNEY_OUT, JSON.stringify(compact) + '\n')
+    const compactJson = JSON.stringify(compact) + '\n'
+    writeFile(JOURNEY_OUT, compactJson)
     log(
-      `✔ Journey intelligence written → ${path.relative(ROOT, JOURNEY_OUT)} (${Math.round(statSync(JOURNEY_OUT).size / 1024)} KB, aggregates only)`,
+      `✔ Journey intelligence written → ${path.relative(ROOT, JOURNEY_OUT)} (${Math.round(Buffer.byteLength(compactJson, 'utf8') / 1024)} KB, aggregates only)`,
     )
 
     const aa = journey.opex?.analyticArchitecture
@@ -1505,14 +1564,16 @@ export async function runSyncOdooLive(options = {}) {
   )
   log('\n■ Locations:')
   for (const l of locations) {
+    const lNetStr = l.netKwd == null ? 'null' : l.netKwd.toFixed(3)
     log(
-      `   - [${l.unit}] ${l.en.padEnd(34)} ${l.netKwd.toFixed(3).padStart(12)} KWD ${String(l.orders).padStart(6)} orders  ${l.sharePct}%  regs ${l.registers.join(',')}`,
+      `   - [${l.unit}] ${l.en.padEnd(34)} ${lNetStr.padStart(12)} KWD ${String(l.orders).padStart(6)} orders  ${l.sharePct}%  regs ${l.registers.join(',')}`,
     )
   }
   log('\n■ Brands:')
   for (const b of brands) {
+    const bNetStr = b.netKwd == null ? 'null' : b.netKwd.toFixed(3)
     log(
-      `   - ${b.en.padEnd(22)} ${b.netKwd.toFixed(3).padStart(12)} KWD ${String(b.orders).padStart(6)} orders  AOV ${b.aovKwd}  ${b.sharePct}%`,
+      `   - ${b.en.padEnd(22)} ${bNetStr.padStart(12)} KWD ${String(b.orders).padStart(6)} orders  AOV ${b.aovKwd}  ${b.sharePct}%`,
     )
   }
   log('\n■ Channels:', snapshot.channels.map((c) => `${c.name}=${c.amountKwd}`).join(' | '))

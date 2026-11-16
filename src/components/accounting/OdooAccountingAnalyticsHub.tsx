@@ -234,12 +234,16 @@ export function OdooAccountingAnalyticsHub({
             <Landmark className="h-4 w-4 text-sky-600" />
           </div>
           <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
-            {fmtKwd(rec.openReceivableKwd)}
+            {rec.unavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(rec.openReceivableKwd)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            {isAr
-              ? `${rec.unreconciledLineCount.toLocaleString('en-US')} سطر ذمم غير مسوّى`
-              : `${rec.unreconciledLineCount.toLocaleString('en-US')} unreconciled AR lines`}
+            {rec.unavailable
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : isAr
+                ? `${rec.unreconciledLineCount.toLocaleString('en-US')} سطر ذمم غير مسوّى`
+                : `${rec.unreconciledLineCount.toLocaleString('en-US')} unreconciled AR lines`}
           </p>
           <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
             {isAr

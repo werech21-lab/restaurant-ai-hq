@@ -53,15 +53,15 @@ export interface OdooBrandRecord {
   cuisineEn: string
   cuisineAr: string
   active: boolean
-  netKwd: number
-  itemSalesKwd: number
+  netKwd: number | null
+  itemSalesKwd: number | null
   orders: number | null
   aovKwd: number | null
-  qty: number
+  qty: number | null
   itemsPerOrder: number | null
-  sharePct: number
-  discountKwd: number
-  drinksPct: number
+  sharePct: number | null
+  discountKwd: number | null
+  drinksPct: number | null
   bestSeller: { name: string; qty: number; netKwd: number } | null
 }
 
@@ -91,11 +91,11 @@ export interface OdooChannelRecord {
   color: string
   commissionPct: number
   riderCostPerOrder: number
-  netKwd: number
+  netKwd: number | null
   itemSalesKwd: number
   promoKwd: number
   orders: number | null
-  sharePct: number
+  sharePct: number | null
 }
 
 export interface OdooMenuRecord {

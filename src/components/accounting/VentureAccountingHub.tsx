@@ -20,19 +20,31 @@ import {
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
 import { useI18n } from '@/lib/i18n'
 import { OdooAccountingAnalyticsHub } from './OdooAccountingAnalyticsHub'
+
+export type VentureAccountingTabId =
+  | 'glSummary'
+  | 'receivables'
+  | 'pettyCash'
+  | 'cheques'
+  | 'leases'
+  | 'fleet'
+  | 'localDb'
 
 export function VentureAccountingHub({
   locale = 'ar',
   isAuditor = false,
   embeddedInErp = false,
+  initialTab = 'glSummary',
   liveChildren,
 }: {
   locale?: 'ar' | 'en'
   isAuditor?: boolean
   embeddedInErp?: boolean
+  initialTab?: VentureAccountingTabId
   liveChildren?: React.ReactNode
 }) {
   let ctxLocale: 'ar' | 'en' | null = null
@@ -50,9 +62,7 @@ export function VentureAccountingHub({
   const effectiveAuditor = Boolean(isAuditor || ctxAuditor)
   const isAr = currentLocale === 'ar'
 
-  const [activeTab, setActiveTab] = useState<
-    'glSummary' | 'receivables' | 'pettyCash' | 'cheques' | 'leases' | 'fleet' | 'localDb'
-  >('glSummary')
+  const [activeTab, setActiveTab] = useState<VentureAccountingTabId>(initialTab)
 
   const periodWindow = formatPeriodCalendarWindow(filters.period ?? 'month', {
     customFrom: filters.customFrom,
@@ -209,6 +219,8 @@ export function VentureAccountingHub({
         </nav>
       </header>
 
+      {!embeddedInErp ? <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} /> : null}
+
       {activeTab === 'glSummary' && (
         <OdooAccountingAnalyticsHub
           isAr={isAr}
@@ -233,7 +245,11 @@ export function VentureAccountingHub({
                   {isAr ? 'صافي الذمم المدينة المفتوحة' : 'Net Open Receivables'}
                 </p>
                 <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
-                  {fmtKwd(workspace.receivables.openReceivableKwd)}
+                  {workspace.receivables.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(workspace.receivables.openReceivableKwd)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -256,7 +272,11 @@ export function VentureAccountingHub({
                   {isAr ? 'إجمالي الأرصدة المدينة الموجبة' : 'Gross Positive Receivables'}
                 </p>
                 <p className="mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
-                  {fmtKwd(workspace.receivables.grossPositiveReceivableKwd)}
+                  {workspace.receivables.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(workspace.receivables.grossPositiveReceivableKwd)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -279,7 +299,11 @@ export function VentureAccountingHub({
                   {isAr ? 'مقاصة التسويات الدائنة قيد التصفية' : 'Credit Clearing Offset'}
                 </p>
                 <p className="mt-2 text-2xl font-extrabold tabular-nums text-sky-700 dark:text-sky-400">
-                  {fmtKwd(workspace.receivables.creditClearingOffsetKwd)}
+                  {workspace.receivables.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(workspace.receivables.creditClearingOffsetKwd)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge

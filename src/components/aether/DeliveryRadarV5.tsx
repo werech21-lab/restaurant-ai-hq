@@ -660,12 +660,20 @@ export function DeliveryRadarV5() {
                     dir="ltr"
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
                   >
-                    {fmtKwd(workspace.receivables.openReceivableKwd, isAr)}
+                    {workspace.receivables.unavailable
+                      ? isAr
+                        ? 'غير متاح'
+                        : '—'
+                      : fmtKwd(workspace.receivables.openReceivableKwd, isAr)}
                   </div>
                   <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {isAr
-                      ? `${f0(workspace.receivables.unreconciledLineCount)} قيد غير مسوّى في دفتر الذمم`
-                      : `${f0(workspace.receivables.unreconciledLineCount)} unreconciled receivable lines`}
+                    {workspace.receivables.unavailable
+                      ? isAr
+                        ? 'غير متاح'
+                        : '—'
+                      : isAr
+                        ? `${f0(workspace.receivables.unreconciledLineCount)} قيد غير مسوّى في دفتر الذمم`
+                        : `${f0(workspace.receivables.unreconciledLineCount)} unreconciled receivable lines`}
                   </p>
                 </>
               )}

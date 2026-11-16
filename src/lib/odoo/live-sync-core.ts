@@ -142,10 +142,12 @@ export type OdooUnavailableSectionKey =
   | 'stockTransfers'
   | 'receivables'
   | 'excluded.month'
+  | 'gl.accounts'
   | 'gl.today'
   | 'gl.week'
   | 'gl.month'
   | 'gl.year'
+  | 'pos.category'
   | 'sessions'
   | 'products'
 
@@ -232,15 +234,15 @@ export interface OdooLiveSummary {
   unattributedOrders?: number | null
   unattributedBranch?: OdooUnattributedBranchRow | null
   companyTotals?: {
-    grossPreExclusionKwd?: number
-    excludedEntitiesKwd?: number
-    excludedEntitiesOrders?: number
+    grossPreExclusionKwd?: number | null
+    excludedEntitiesKwd?: number | null
+    excludedEntitiesOrders?: number | null
     mappedBranchesNetKwd?: number | null
     netSalesKwd: number | null
     orders: number | null
     unmappedTerminalsNetKwd: number | null
     unmappedTerminalsOrders: number | null
-    reconciliationGapKwd?: number
+    reconciliationGapKwd?: number | null
     reconciledExact?: boolean
   }
   unmappedTerminals?: {

@@ -275,14 +275,17 @@ export function buildLiveEnterpriseDepartments(
         ]
       : []
 
-  const arRows: Record<string, string | number>[] = connected
-    ? rec.byAccount.map((r) => ({
-        code: r.accountCode,
-        accountName: isAr ? r.labelAr || r.accountName : r.labelEn || r.accountName,
-        lineCount: r.linesCount,
-        netResidualKwd: r.residualKwd.toFixed(3),
-      }))
-    : []
+  const arRows: Record<string, string | number>[] =
+    connected && !rec.unavailable
+      ? rec.byAccount.map((r) => ({
+          code: r.accountCode,
+          accountName: isAr ? r.labelAr || r.accountName : r.labelEn || r.accountName,
+          lineCount: r.linesCount,
+          netResidualKwd: r.residualKwd.toFixed(3),
+        }))
+      : []
+  const brandsReportUnavailable = connected && (totalsUnavailable || bucket?.byBrand === null)
+  const branchesReportUnavailable = connected && (totalsUnavailable || bucket?.byLocation === null)
 
   return [
     {
@@ -306,12 +309,12 @@ export function buildLiveEnterpriseDepartments(
           summaryEn: 'Net sales, order counts, and average ticket per brand from Odoo POS orders.',
           headlineMetricAr: !connected
             ? 'لا توجد بيانات من Odoo لهذه الفترة'
-            : totalsUnavailable
+            : brandsReportUnavailable
               ? 'غير متاح'
               : fmtKwd(totalSales, true),
           headlineMetricEn: !connected
             ? 'No data from Odoo for this period'
-            : totalsUnavailable
+            : brandsReportUnavailable
               ? '—'
               : fmtKwd(totalSales, false),
           recordCount: brandRows.length,
@@ -384,12 +387,12 @@ export function buildLiveEnterpriseDepartments(
           summaryEn: 'Sales across the 7 approved branches plus a standalone row for POS configs not mapped to a physical branch.',
           headlineMetricAr: !connected
             ? 'لا توجد بيانات من Odoo لهذه الفترة'
-            : totalsUnavailable
+            : branchesReportUnavailable
               ? 'غير متاح'
               : `${fmtKwd(workspace.unattributedSalesKwd, true)} غير منسوب`,
           headlineMetricEn: !connected
             ? 'No data from Odoo for this period'
-            : totalsUnavailable
+            : branchesReportUnavailable
               ? '—'
               : `${fmtKwd(workspace.unattributedSalesKwd, false)} unattributed`,
           recordCount: branchRows.length,
@@ -399,7 +402,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'إجمالي مبيعات الفترة',
                   labelEn: 'Total Period Sales',
-                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(totalSales, isAr),
+                  value: branchesReportUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(totalSales, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: 'SUM(pos.order net sales)',
@@ -407,7 +414,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'غير منسوب لفرع',
                   labelEn: 'Unattributed to Branch',
-                  value: totalsUnavailable
+                  value: branchesReportUnavailable
                     ? isAr
                       ? 'غير متاح'
                       : '—'
@@ -625,12 +632,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'account.move.line',
           summaryAr: 'أرصدة حسابات الذمم المدينة غير المسواة من Odoo شاملة الذمم الموجبة ومقاصة التسويات الدائنة.',
           summaryEn: 'Unreconciled receivable account balances from Odoo including gross positive AR and credit clearing offsets.',
-          headlineMetricAr: connected
-            ? fmtKwd(rec.openReceivableKwd, true)
-            : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected
-            ? fmtKwd(rec.openReceivableKwd, false)
-            : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : rec.unavailable
+              ? 'غير متاح'
+              : fmtKwd(rec.openReceivableKwd, true),
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : rec.unavailable
+              ? '—'
+              : fmtKwd(rec.openReceivableKwd, false),
           recordCount: arRows.length,
           auditedDate: `${rec.fromDate} → ${rec.toDate}`,
           kpis: connected
@@ -638,7 +649,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'صافي الذمم المفتوحة',
                   labelEn: 'Net Open AR',
-                  value: fmtKwd(rec.openReceivableKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.openReceivableKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: rec.reconciliationFormulaAr,
@@ -646,7 +661,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'الذمم المدينة الموجبة',
                   labelEn: 'Gross Positive AR',
-                  value: fmtKwd(rec.grossPositiveReceivableKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.grossPositiveReceivableKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "SUM(amount_residual > 0) WHERE account_type='asset_receivable' AND reconciled=false",
@@ -654,7 +673,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'مقاصة التسويات الدائنة',
                   labelEn: 'Credit Clearing Offset',
-                  value: fmtKwd(rec.creditClearingOffsetKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.creditClearingOffsetKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "ABS(SUM(amount_residual < 0)) WHERE account_type='asset_receivable' AND reconciled=false",

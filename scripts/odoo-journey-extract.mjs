@@ -149,6 +149,16 @@ export const EQUIPMENT_LABELS = {
  */
 export async function extractJourney(ctx) {
   const { ek, safe, REGISTRY, WINDOWS, ALLOWED, brandOfProduct, catNameOfProduct, priceOfProduct, channelOf } = ctx
+  const salesQuery = ctx.salesQuery ?? ((_model, label, fn) => safe(label, fn, null))
+  const POS_MODELS = new Set([
+    'pos.order',
+    'pos.order.line',
+    'pos.payment',
+    'pos.session',
+    'pos.config',
+    'pos.category',
+    'pos.payment.method',
+  ])
   const ALLOWED_SET = new Set(ALLOWED)
   const EXCLUDED_ANALYTIC_SET = new Set(REGISTRY.excludedBranchAnalyticIds ?? [])
   const R = WINDOWS.rolling30
@@ -162,8 +172,8 @@ export async function extractJourney(ctx) {
   const regName = new Map((ctx.registers ?? []).map((r) => [r.posConfigId, r.name]))
   const issues = []
 
-  const searchReadAll = async (label, model, domain, fields, pageSize = 5000, max = 400000) =>
-    safe(label, async () => {
+  const searchReadAll = async (label, model, domain, fields, pageSize = 5000, max = 400000) => {
+    const runPaged = async () => {
       const out = []
       for (let offset = 0; offset < max; offset += pageSize) {
         const page = await ek(model, 'search_read', [domain], { fields, order: 'id asc', limit: pageSize, offset })
@@ -171,9 +181,23 @@ export async function extractJourney(ctx) {
         if (page.length < pageSize) break
       }
       return out
-    }, [])
-  const readMany = async (label, model, ids, fields) =>
-    safe(label, async () => { const out = []; for (const part of chunk(ids, 400)) out.push(...(await ek(model, 'read', [part, fields]))); return out }, [])
+    }
+    if (POS_MODELS.has(model)) {
+      return (await salesQuery(model, label, runPaged)) ?? []
+    }
+    return safe(label, runPaged, [])
+  }
+  const readMany = async (label, model, ids, fields) => {
+    const runChunks = async () => {
+      const out = []
+      for (const part of chunk(ids, 400)) out.push(...(await ek(model, 'read', [part, fields])))
+      return out
+    }
+    if (POS_MODELS.has(model)) {
+      return (await salesQuery(model, label, runChunks)) ?? []
+    }
+    return safe(label, runChunks, [])
+  }
 
   /* ─────────────────────────── access audit (incl. Odoo 17 Analytic Cost Centers) ─────────────────────────── */
   const AUDIT_MODELS = [
@@ -200,8 +224,16 @@ export async function extractJourney(ctx) {
   }
   const pulseOf = async (w, label) => {
     const dom = [['date_order', '>=', `${w.from} 00:00:00`], ['date_order', '<', `${w.to} 00:00:00`], ['session_id.config_id', 'in', ALLOWED]]
-    const groups = await safe(`pos.order read_group pulse ${label}`, () => ek('pos.order', 'read_group', [[...dom, ['state', 'in', ['paid', 'done', 'invoiced']]], ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }), [])
-    const cancelled = await safe(`pos.order search_count cancel ${label}`, () => ek('pos.order', 'search_count', [[...dom, ['state', '=', 'cancel']]]), 0)
+    const groups = await salesQuery('pos.order', `pos.order read_group pulse ${label}`, () => ek('pos.order', 'read_group', [[...dom, ['state', 'in', ['paid', 'done', 'invoiced']]], ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }))
+    const cancelled = await salesQuery('pos.order', `pos.order search_count cancel ${label}`, () => ek('pos.order', 'search_count', [[...dom, ['state', '=', 'cancel']]]))
+    if (groups === null) {
+      return {
+        from: w.from, to: w.to, days: w.days,
+        netKwd: null, orders: null, aovKwd: null, perDayKwd: null,
+        allUnitsNetKwd: null, allUnitsOrders: null,
+        cancelledOrders: cancelled, byLocation: null,
+      }
+    }
     await ensureSessions([...new Set(groups.map((g) => m2oId(g.session_id)))])
     const byLoc = {}
     let net = 0; let orders = 0; let restNet = 0; let restOrders = 0
@@ -225,7 +257,8 @@ export async function extractJourney(ctx) {
   }
   const pulse = { rolling30: await pulseOf(R, 'rolling30'), prior30: await pulseOf(P, 'prior30'), mtd: await pulseOf(M, 'mtd') }
   const brandPulse = async (w, label) => {
-    const rows = await safe(`pos.order.line read_group brand ${label}`, () => ek('pos.order.line', 'read_group', [[['order_id.date_order', '>=', `${w.from} 00:00:00`], ['order_id.date_order', '<', `${w.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', ALLOWED]], ['price_subtotal:sum'], ['product_id']], { lazy: false }), [])
+    const rows = await salesQuery('pos.order.line', `pos.order.line read_group brand ${label}`, () => ek('pos.order.line', 'read_group', [[['order_id.date_order', '>=', `${w.from} 00:00:00`], ['order_id.date_order', '<', `${w.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', ALLOWED]], ['price_subtotal:sum'], ['product_id']], { lazy: false }))
+    if (rows === null) return null
     await ctx.ensureProducts(rows.map((g) => m2oId(g.product_id)).filter(Boolean))
     const out = {}
     for (const g of rows) { const b = brandOfProduct(m2oId(g.product_id)); if (!b || !ACTIVE_BRAND_SET.has(b)) continue; out[b] = r3((out[b] || 0) + (Number(g.price_subtotal) || 0)) }

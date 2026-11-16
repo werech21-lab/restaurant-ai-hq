@@ -12,7 +12,12 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = process.cwd()
 const r3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000
-const pct1 = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : 0)
+const pct1 = (a, b) =>
+  a === null || a === undefined || b === null || b === undefined
+    ? null
+    : b
+      ? Math.round((a / b) * 1000) / 10
+      : 0
 
 /* channel metadata — contract commission terms are configuration, not POS data */
 const CHANNEL_META = {
@@ -72,11 +77,16 @@ export function buildOdooDataset(snap, _registry) {
       color: m.color,
       commissionPct: m.commissionPct,
       riderCostPerOrder: m.riderCostPerOrder,
-      netKwd: c.amountKwd,
+      netKwd: c.amountKwd === undefined ? null : c.amountKwd,
       itemSalesKwd: items,
-      promoKwd: r3(Math.max(0, items - c.amountKwd)),
+      promoKwd: c.amountKwd == null ? 0 : r3(Math.max(0, items - c.amountKwd)),
       orders: rawOrders,
-      sharePct: snap.totals.netSalesKwd ? pct1(c.amountKwd, snap.totals.netSalesKwd) : 0,
+      sharePct:
+        c.amountKwd == null || snap.totals.netSalesKwd == null
+          ? null
+          : snap.totals.netSalesKwd
+            ? pct1(c.amountKwd, snap.totals.netSalesKwd)
+            : 0,
     }
   })
 
@@ -91,7 +101,7 @@ export function buildOdooDataset(snap, _registry) {
     if (ACTIVE_BRAND_SET.has(p.brand)) (prodsByBrand[p.brand] ||= []).push(p)
   }
   const monthByBrand = snap.buckets?.month?.byBrand ?? null
-  const monthTargetNet = snap.buckets?.month?.totals?.restaurantNetKwd ?? 0
+  const monthTargetNet = snap.buckets?.month?.totals?.restaurantNetKwd ?? null
   const brands = (snap.brands ?? [])
     .filter((b) => ACTIVE_BRAND_SET.has(b.id))
     .map((b) => {
@@ -102,33 +112,47 @@ export function buildOdooDataset(snap, _registry) {
       const reconciledNet = mb ? mb.netKwd : b.netKwd
       const reconciledOrders = mb ? mb.orders : b.orders
       const aovKwd =
-        reconciledOrders === null || reconciledOrders === undefined
+        reconciledNet === null ||
+        reconciledNet === undefined ||
+        reconciledOrders === null ||
+        reconciledOrders === undefined
           ? null
           : reconciledOrders
             ? r3(reconciledNet / reconciledOrders)
             : 0
       const itemsPerOrder =
-        reconciledOrders === null || reconciledOrders === undefined
+        b.qty === null ||
+        b.qty === undefined ||
+        reconciledOrders === null ||
+        reconciledOrders === undefined
           ? null
           : reconciledOrders
             ? Math.round((b.qty / reconciledOrders) * 100) / 100
             : 0
+      const sharePct =
+        reconciledNet === null || reconciledNet === undefined
+          ? null
+          : monthTargetNet !== null && monthTargetNet > 0
+            ? pct1(reconciledNet, monthTargetNet)
+            : b.sharePct === undefined
+              ? null
+              : b.sharePct
       return {
         id: b.id,
         en: b.en,
         ar: b.ar,
         posRoot: b.posRoot,
         ...BRAND_META[b.id],
-        active: reconciledNet > 0,
-        netKwd: reconciledNet,
-        itemSalesKwd: b.netKwd,
+        active: typeof reconciledNet === 'number' && reconciledNet > 0,
+        netKwd: reconciledNet === undefined ? null : reconciledNet,
+        itemSalesKwd: b.netKwd === undefined ? null : b.netKwd,
         orders: reconciledOrders === undefined ? null : reconciledOrders,
         aovKwd,
-        qty: b.qty,
+        qty: b.qty === undefined ? null : b.qty,
         itemsPerOrder,
-        sharePct: monthTargetNet && monthTargetNet > 0 ? pct1(reconciledNet, monthTargetNet) : b.sharePct,
-        discountKwd: b.discountKwd,
-        drinksPct: pct1(drinkNet, b.netKwd),
+        sharePct,
+        discountKwd: b.discountKwd === undefined ? null : b.discountKwd,
+        drinksPct: b.netKwd == null ? null : pct1(drinkNet, b.netKwd),
         bestSeller: top
           ? { name: top.name.replace(/^\[[^\]]+\]\s*/, '').trim(), qty: top.qty, netKwd: top.netKwd }
           : null,

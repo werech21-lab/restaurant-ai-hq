@@ -226,15 +226,15 @@ interface CachedCoreSnapshot {
   todayOrdersCount: number
   todaySalesKwd: number
   companyTotals: {
-    grossPreExclusionKwd?: number
-    excludedEntitiesKwd?: number
-    excludedEntitiesOrders?: number
-    mappedBranchesNetKwd?: number
+    grossPreExclusionKwd?: number | null
+    excludedEntitiesKwd?: number | null
+    excludedEntitiesOrders?: number | null
+    mappedBranchesNetKwd?: number | null
     netSalesKwd: number
     orders: number
     unmappedTerminalsNetKwd: number
     unmappedTerminalsOrders: number
-    reconciliationGapKwd?: number
+    reconciliationGapKwd?: number | null
     reconciledExact?: boolean
   }
   buckets: Record<OdooPeriodBucketKey, OdooBucketSummary>
@@ -1355,6 +1355,7 @@ export function buildReconciledBucket(params: {
   totalsUnavailable?: boolean
   channelsUnavailable?: boolean
   brandsUnavailable?: boolean
+  excludedUnavailable?: boolean
 }): OdooBucketSummary {
   const {
     key,
@@ -1377,6 +1378,7 @@ export function buildReconciledBucket(params: {
     totalsUnavailable = false,
     channelsUnavailable = false,
     brandsUnavailable = false,
+    excludedUnavailable = false,
   } = params
 
   const mappedBranchNet = r3(
@@ -1510,10 +1512,14 @@ export function buildReconciledBucket(params: {
         netSalesKwd: null,
         orders: null,
       },
-      excludedSummary: {
-        netSalesKwd: r3(Math.max(0, excludedNetKwd)),
-        orders: Math.max(0, Math.round(excludedOrders)),
-      },
+      ...(excludedUnavailable
+        ? {}
+        : {
+            excludedSummary: {
+              netSalesKwd: r3(Math.max(0, excludedNetKwd)),
+              orders: Math.max(0, Math.round(excludedOrders)),
+            },
+          }),
       uiChannels: channelsUnavailable ? null : aggUiChannels,
       ...(accounting !== undefined ? { accounting } : {}),
     }
@@ -1542,10 +1548,14 @@ export function buildReconciledBucket(params: {
       netSalesKwd: unattributedSalesKwd,
       orders: unattributedOrders,
     },
-    excludedSummary: {
-      netSalesKwd: r3(Math.max(0, excludedNetKwd)),
-      orders: Math.max(0, Math.round(excludedOrders)),
-    },
+    ...(excludedUnavailable
+      ? {}
+      : {
+          excludedSummary: {
+            netSalesKwd: r3(Math.max(0, excludedNetKwd)),
+            orders: Math.max(0, Math.round(excludedOrders)),
+          },
+        }),
     uiChannels: channelsUnavailable ? null : aggUiChannels,
     ...(accounting !== undefined ? { accounting } : {}),
   }
@@ -1600,6 +1610,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           { fields: ['id', 'name', 'parent_id'] },
         ),
       [],
+      markFailure('pos.category'),
     ),
     safeSubQuery(
       () =>
@@ -1618,6 +1629,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           { fields: ['id', 'code', 'name', 'account_type'] },
         ),
       [],
+      markFailure('gl.accounts'),
     ),
     safeSubQuery(
       () =>
@@ -2087,86 +2099,94 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         [[], []],
         markFailure('channels.year'),
       ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-            'pos.order.line',
-            'read_group',
-            [
-              [
-                ['order_id.date_order', '>=', boundsMonth.fromUtc],
-                ['order_id.date_order', '<', boundsMonth.toUtc],
-                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                ...excludedPosLineDomain,
-              ],
-              ['price_subtotal:sum', 'qty:sum'],
-              ['product_id'],
-            ],
-            { lazy: false },
+      unavailableSectionSet.has('pos.category')
+        ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
+        : safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                'pos.order.line',
+                'read_group',
+                [
+                  [
+                    ['order_id.date_order', '>=', boundsMonth.fromUtc],
+                    ['order_id.date_order', '<', boundsMonth.toUtc],
+                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                    ...excludedPosLineDomain,
+                  ],
+                  ['price_subtotal:sum', 'qty:sum'],
+                  ['product_id'],
+                ],
+                { lazy: false },
+              ),
+            [],
+            markFailure('brands.month'),
           ),
-        [],
-        markFailure('brands.month'),
-      ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-            'pos.order.line',
-            'read_group',
-            [
-              [
-                ['order_id.date_order', '>=', boundsWeek.fromUtc],
-                ['order_id.date_order', '<', boundsWeek.toUtc],
-                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                ...excludedPosLineDomain,
-              ],
-              ['price_subtotal:sum', 'qty:sum'],
-              ['product_id'],
-            ],
-            { lazy: false },
+      unavailableSectionSet.has('pos.category')
+        ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
+        : safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                'pos.order.line',
+                'read_group',
+                [
+                  [
+                    ['order_id.date_order', '>=', boundsWeek.fromUtc],
+                    ['order_id.date_order', '<', boundsWeek.toUtc],
+                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                    ...excludedPosLineDomain,
+                  ],
+                  ['price_subtotal:sum', 'qty:sum'],
+                  ['product_id'],
+                ],
+                { lazy: false },
+              ),
+            [],
+            markFailure('brands.week'),
           ),
-        [],
-        markFailure('brands.week'),
-      ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-            'pos.order.line',
-            'read_group',
-            [
-              [
-                ['order_id.date_order', '>=', boundsToday.fromUtc],
-                ['order_id.date_order', '<', boundsToday.toUtc],
-                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                ...excludedPosLineDomain,
-              ],
-              ['price_subtotal:sum', 'qty:sum'],
-              ['product_id'],
-            ],
-            { lazy: false },
+      unavailableSectionSet.has('pos.category')
+        ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
+        : safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                'pos.order.line',
+                'read_group',
+                [
+                  [
+                    ['order_id.date_order', '>=', boundsToday.fromUtc],
+                    ['order_id.date_order', '<', boundsToday.toUtc],
+                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                    ...excludedPosLineDomain,
+                  ],
+                  ['price_subtotal:sum', 'qty:sum'],
+                  ['product_id'],
+                ],
+                { lazy: false },
+              ),
+            [],
+            markFailure('brands.today'),
           ),
-        [],
-        markFailure('brands.today'),
-      ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-            'pos.order.line',
-            'read_group',
-            [
-              [
-                ['order_id.date_order', '>=', boundsYear.fromUtc],
-                ['order_id.date_order', '<', boundsYear.toUtc],
-                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                ...excludedPosLineDomain,
-              ],
-              ['price_subtotal:sum', 'qty:sum'],
-              ['product_id'],
-            ],
-            { lazy: false },
+      unavailableSectionSet.has('pos.category')
+        ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
+        : safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                'pos.order.line',
+                'read_group',
+                [
+                  [
+                    ['order_id.date_order', '>=', boundsYear.fromUtc],
+                    ['order_id.date_order', '<', boundsYear.toUtc],
+                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                    ...excludedPosLineDomain,
+                  ],
+                  ['price_subtotal:sum', 'qty:sum'],
+                  ['product_id'],
+                ],
+                { lazy: false },
+              ),
+            [],
+            markFailure('brands.year'),
           ),
-        [],
-        markFailure('brands.year'),
-      ),
       safeSubQuery(
         () =>
           Promise.all([
@@ -2239,23 +2259,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             limit: 40,
           },
         ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<number>(
-              'stock.picking',
-              'search_count',
-              [[['state', '=', 'done'], ['date_done', '>=', boundsMonth.fromUtc]]],
-            ),
-          0,
+        executeOdooKw<number>(
+          'stock.picking',
+          'search_count',
+          [[['state', '=', 'done'], ['date_done', '>=', boundsMonth.fromUtc]]],
         ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<number>(
-              'stock.picking',
-              'search_count',
-              [[['state', 'in', ['assigned', 'waiting', 'confirmed']]]],
-            ),
-          0,
+        executeOdooKw<number>(
+          'stock.picking',
+          'search_count',
+          [[['state', 'in', ['assigned', 'waiting', 'confirmed']]]],
         ),
       ])
       // Strictly strip any decommissioned warehouse/branch records so ONLY Ardiya Central Kitchen & 7 active branches appear
@@ -2332,35 +2344,23 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             ),
           [],
         ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [[...arDomain, ['date', '>=', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
-              { lazy: false },
-            ),
-          [],
+        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+          'account.move.line',
+          'read_group',
+          [[...arDomain, ['date', '>=', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
+          { lazy: false },
         ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [[...arDomain, ['date', '>=', ar60CutIso], ['date', '<', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
-              { lazy: false },
-            ),
-          [],
+        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+          'account.move.line',
+          'read_group',
+          [[...arDomain, ['date', '>=', ar60CutIso], ['date', '<', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
+          { lazy: false },
         ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [[...arDomain, ['date', '<', ar60CutIso]], ['amount_residual:sum'], ['account_id']],
-              { lazy: false },
-            ),
-          [],
+        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+          'account.move.line',
+          'read_group',
+          [[...arDomain, ['date', '<', ar60CutIso]], ['amount_residual:sum'], ['account_id']],
+          { lazy: false },
         ),
       ])
 
@@ -2634,15 +2634,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const [sessionRecords, productRecords] = await Promise.all([
     allSessionIds.length > 0
-      ? safeSubQuery(
-          () =>
-            executeOdooKw<{ id: number; config_id: M2O }[]>(
-              'pos.session',
-              'read',
-              [allSessionIds, ['id', 'config_id']],
-            ),
-          [],
-          markFailure('sessions'),
+      ? executeOdooKw<{ id: number; config_id: M2O }[]>(
+          'pos.session',
+          'read',
+          [allSessionIds, ['id', 'config_id']],
         )
       : Promise.resolve([]),
     allProductIds.length > 0
@@ -2914,27 +2909,30 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }),
   )
 
-  recordLiveDiscoveredPosLedger({
-    candidateTerminals: [...discoveredCandidateMap.values()].sort(
-      (a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id,
-    ),
-    nativeMappedTerminals: nativeMappedTerminalsLive.filter(
-      (row): row is typeof row & { branch_id: ActiveVentureBranchId } =>
-        (ACTIVE_VENTURE_BRANCH_IDS as readonly string[]).includes(row.branch_id),
-    ),
-    baseBranches: Object.fromEntries(
-      ACTIVE_VENTURE_BRANCH_IDS.map((id) => [
-        id,
-        nativeBranchMonthStats[id] ?? { netSalesKwd: 0, orders: 0 },
-      ]),
-    ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>,
-    excludedEntitiesKwd: r3(excludedMonthNet),
-    excludedEntitiesOrders: Math.round(excludedMonthOrd),
-    excludedPos24Kwd: r3(excludedPos24Net),
-    excludedPos24Orders: Math.round(excludedPos24Ord),
-    excludedPos36Kwd: r3(excludedPos36Net),
-    excludedPos36Orders: Math.round(excludedPos36Ord),
-  })
+  const excludedMonthFailed = unavailableSectionSet.has('excluded.month')
+  if (!excludedMonthFailed) {
+    recordLiveDiscoveredPosLedger({
+      candidateTerminals: [...discoveredCandidateMap.values()].sort(
+        (a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id,
+      ),
+      nativeMappedTerminals: nativeMappedTerminalsLive.filter(
+        (row): row is typeof row & { branch_id: ActiveVentureBranchId } =>
+          (ACTIVE_VENTURE_BRANCH_IDS as readonly string[]).includes(row.branch_id),
+      ),
+      baseBranches: Object.fromEntries(
+        ACTIVE_VENTURE_BRANCH_IDS.map((id) => [
+          id,
+          nativeBranchMonthStats[id] ?? { netSalesKwd: 0, orders: 0 },
+        ]),
+      ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>,
+      excludedEntitiesKwd: r3(excludedMonthNet),
+      excludedEntitiesOrders: Math.round(excludedMonthOrd),
+      excludedPos24Kwd: r3(excludedPos24Net),
+      excludedPos24Orders: Math.round(excludedPos24Ord),
+      excludedPos36Kwd: r3(excludedPos36Net),
+      excludedPos36Orders: Math.round(excludedPos36Ord),
+    })
+  }
 
   for (const hRow of mergedHourRows) {
     const rawHourFromUtc = hRow.hourFromUtc
@@ -3097,46 +3095,53 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const todayInclusiveIso = shiftIsoDate(todayBucketTo, -1)
   const canonicalInclusiveIso = shiftIsoDate(canonicalBucketToExclusive, -1)
-  const liveTodayAccounting = unavailableSectionSet.has('gl.today')
-    ? null
-    : activeGlAccountIds.length > 0
-      ? buildLedgerAccountingFromGroups({
-          fromIso: todayBucketFrom,
-          toInclusiveIso: todayInclusiveIso >= todayBucketFrom ? todayInclusiveIso : todayBucketFrom,
-          accountById: activeGlAccountById,
-          rows: glTodayRows,
-        })
-      : undefined
-  const liveWeekAccounting = unavailableSectionSet.has('gl.week')
-    ? null
-    : activeGlAccountIds.length > 0
-      ? buildLedgerAccountingFromGroups({
-          fromIso: weekFromKwIso,
-          toInclusiveIso: canonicalInclusiveIso,
-          accountById: activeGlAccountById,
-          rows: glWeekRows,
-        })
-      : undefined
-  const liveMonthAccounting = unavailableSectionSet.has('gl.month')
-    ? null
-    : activeGlAccountIds.length > 0
-      ? buildLedgerAccountingFromGroups({
-          fromIso: monthFromKwIso,
-          toInclusiveIso: canonicalInclusiveIso,
-          accountById: activeGlAccountById,
-          rows: glMonthRows,
-        })
-      : undefined
-  const liveYearAccounting = unavailableSectionSet.has('gl.year')
-    ? null
-    : activeGlAccountIds.length > 0
-      ? buildLedgerAccountingFromGroups({
-          fromIso: yearFromKwIso,
-          toInclusiveIso: canonicalInclusiveIso,
-          accountById: activeGlAccountById,
-          rows: glYearRows,
-        })
-      : undefined
+  const glAccountsFailed = unavailableSectionSet.has('gl.accounts')
+  const brandMetaFailed =
+    unavailableSectionSet.has('products') || unavailableSectionSet.has('pos.category')
+  const liveTodayAccounting =
+    glAccountsFailed || unavailableSectionSet.has('gl.today')
+      ? null
+      : activeGlAccountIds.length > 0
+        ? buildLedgerAccountingFromGroups({
+            fromIso: todayBucketFrom,
+            toInclusiveIso: todayInclusiveIso >= todayBucketFrom ? todayInclusiveIso : todayBucketFrom,
+            accountById: activeGlAccountById,
+            rows: glTodayRows,
+          })
+        : undefined
+  const liveWeekAccounting =
+    glAccountsFailed || unavailableSectionSet.has('gl.week')
+      ? null
+      : activeGlAccountIds.length > 0
+        ? buildLedgerAccountingFromGroups({
+            fromIso: weekFromKwIso,
+            toInclusiveIso: canonicalInclusiveIso,
+            accountById: activeGlAccountById,
+            rows: glWeekRows,
+          })
+        : undefined
+  const liveMonthAccounting =
+    glAccountsFailed || unavailableSectionSet.has('gl.month')
+      ? null
+      : activeGlAccountIds.length > 0
+        ? buildLedgerAccountingFromGroups({
+            fromIso: monthFromKwIso,
+            toInclusiveIso: canonicalInclusiveIso,
+            accountById: activeGlAccountById,
+            rows: glMonthRows,
+          })
+        : undefined
+  const liveYearAccounting =
+    glAccountsFailed || unavailableSectionSet.has('gl.year')
+      ? null
+      : activeGlAccountIds.length > 0
+        ? buildLedgerAccountingFromGroups({
+            fromIso: yearFromKwIso,
+            toInclusiveIso: canonicalInclusiveIso,
+            accountById: activeGlAccountById,
+            rows: glYearRows,
+          })
+        : undefined
 
   const todayBucket = buildReconciledBucket({
     key: 'today',
@@ -3156,7 +3161,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: builtTodayUi.unmappedUi,
     accounting: liveTodayAccounting,
     channelsUnavailable: channelsTodayFailed,
-    brandsUnavailable: unavailableSectionSet.has('brands.today'),
+    brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.today'),
+    excludedUnavailable: excludedMonthFailed,
   })
 
   const weekBucket = buildReconciledBucket({
@@ -3176,7 +3182,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: builtWeekUi.unmappedUi,
     accounting: liveWeekAccounting,
     channelsUnavailable: channelsWeekFailed,
-    brandsUnavailable: unavailableSectionSet.has('brands.week'),
+    brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.week'),
+    excludedUnavailable: excludedMonthFailed,
   })
 
   const monthBucket = buildReconciledBucket({
@@ -3196,7 +3203,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: unmappedUi30,
     accounting: liveMonthAccounting,
     channelsUnavailable: channelsMonthFailed,
-    brandsUnavailable: unavailableSectionSet.has('brands.month'),
+    brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.month'),
+    excludedUnavailable: excludedMonthFailed,
   })
 
   const yearBucket = buildReconciledBucket({
@@ -3215,7 +3223,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveYearAccounting,
     totalsUnavailable: yearTotalsFailed,
     channelsUnavailable: channelsYearFailed,
-    brandsUnavailable: unavailableSectionSet.has('brands.year'),
+    brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.year'),
   })
 
   const mtdDays = Math.max(
@@ -3276,11 +3284,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const liveMappedBranchesNet = r3(
     ACTIVE_BRANCH_IDS.reduce((s, lid) => s + (locMonthNet.get(lid) ?? 0), 0),
   )
-  const liveExcludedMonthNet = r3(excludedMonthNet)
-  const liveExcludedMonthOrd = Math.round(excludedMonthOrd)
+  const liveExcludedMonthNet = excludedMonthFailed ? null : r3(excludedMonthNet)
+  const liveExcludedMonthOrd = excludedMonthFailed ? null : Math.round(excludedMonthOrd)
   const monthCompanyNet = monthBucket.totals.netSalesKwd ?? 0
   const monthCompanyOrd = monthBucket.totals.orders ?? 0
-  const liveGrossPreExclusionNet = r3(monthCompanyNet + liveExcludedMonthNet)
+  const liveGrossPreExclusionNet =
+    liveExcludedMonthNet === null ? null : r3(monthCompanyNet + liveExcludedMonthNet)
   const unavailableSections = [...unavailableSectionSet]
   const partial = unavailableSections.length > 0
 
@@ -3306,8 +3315,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       orders: monthCompanyOrd,
       unmappedTerminalsNetKwd: r3(unmappedMonthNet),
       unmappedTerminalsOrders: Math.round(unmappedMonthOrd),
-      reconciliationGapKwd: 0,
-      reconciledExact: true,
+      reconciliationGapKwd: excludedMonthFailed ? null : 0,
+      reconciledExact: !excludedMonthFailed,
     },
     buckets: {
       today: todayBucket,
@@ -3401,21 +3410,39 @@ function formatEnvelopeFromCore(
     branchSumNet === null || bktUnmappedNet === null ? null : r3(branchSumNet + bktUnmappedNet)
   const bucketCompanyOrd =
     branchSumOrd === null || bktUnmappedOrd === null ? null : branchSumOrd + bktUnmappedOrd
-  const bktExcludedNet = bkt.excludedSummary
-    ? r3(Math.max(0, bkt.excludedSummary.netSalesKwd))
-    : bucketKey === 'month' && !options.customBucket
-      ? r3(Math.max(0, core.companyTotals.excludedEntitiesKwd ?? 0))
-      : 0
-  const bktExcludedOrd = bkt.excludedSummary
-    ? Math.max(0, Math.round(bkt.excludedSummary.orders))
-    : bucketKey === 'month' && !options.customBucket
-      ? Math.max(0, Math.round(core.companyTotals.excludedEntitiesOrders ?? 0))
-      : 0
-  const bucketGrossPreExclusionNet =
-    bucketCompanyNet === null ? 0 : r3(bucketCompanyNet + bktExcludedNet)
-  const bucketReconciliationGap =
-    bucketCompanyNet === null || branchSumNet === null || bktUnmappedNet === null
-      ? 0
+  const excludedUnavailableForBucket =
+    !options.customBucket &&
+    bucketKey !== 'year' &&
+    core.unavailableSections.includes('excluded.month')
+  const bktExcludedNet: number | null = excludedUnavailableForBucket
+    ? null
+    : bkt.excludedSummary
+      ? r3(Math.max(0, bkt.excludedSummary.netSalesKwd))
+      : bucketKey === 'month' && !options.customBucket
+        ? core.companyTotals.excludedEntitiesKwd === null
+          ? null
+          : r3(Math.max(0, core.companyTotals.excludedEntitiesKwd ?? 0))
+        : 0
+  const bktExcludedOrd: number | null = excludedUnavailableForBucket
+    ? null
+    : bkt.excludedSummary
+      ? Math.max(0, Math.round(bkt.excludedSummary.orders))
+      : bucketKey === 'month' && !options.customBucket
+        ? core.companyTotals.excludedEntitiesOrders === null
+          ? null
+          : Math.max(0, Math.round(core.companyTotals.excludedEntitiesOrders ?? 0))
+        : 0
+  const bucketGrossPreExclusionNet: number | null =
+    bucketCompanyNet === null || bktExcludedNet === null
+      ? null
+      : r3(bucketCompanyNet + bktExcludedNet)
+  const bucketReconciliationGap: number | null =
+    bucketCompanyNet === null ||
+    branchSumNet === null ||
+    bktUnmappedNet === null ||
+    bucketGrossPreExclusionNet === null ||
+    bktExcludedNet === null
+      ? null
       : r3(
           Math.max(
             Math.abs(r3(bucketGrossPreExclusionNet - bktExcludedNet) - bucketCompanyNet),

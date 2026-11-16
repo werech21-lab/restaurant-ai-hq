@@ -197,6 +197,8 @@ export interface CoresHubSnapshot {
   sales: {
     hourlyUnavailable: boolean
     channelsUnavailable: boolean
+    branchesUnavailable: boolean
+    brandsUnavailable: boolean
     peakHourLabelAr: string
     peakHourLabelEn: string
     peakHourShortAr: string
@@ -233,6 +235,7 @@ export interface CoresHubSnapshot {
     channelRanking: SalesPoint[]
   }
   menu: {
+    menuUnavailable: boolean
     bomLinked: boolean
     totalActiveSkus: number
     totalUnitsSold: number
@@ -460,6 +463,8 @@ export function computeCoresHubSnapshot(
       sales: {
         hourlyUnavailable: false,
         channelsUnavailable: false,
+        branchesUnavailable: false,
+        brandsUnavailable: false,
         peakHourLabelAr: '—',
         peakHourLabelEn: '—',
         peakHourShortAr: '—',
@@ -496,6 +501,7 @@ export function computeCoresHubSnapshot(
         channelRanking: [],
       },
       menu: {
+        menuUnavailable: false,
         bomLinked: false,
         totalActiveSkus: 0,
         totalUnitsSold: 0,
@@ -672,10 +678,13 @@ export function computeCoresHubSnapshot(
       : liveSummary?.buckets?.[filters.period] ?? liveSummary?.buckets?.month
 
   // 3. Brand Share (6 brands strictly)
+  const unavailableSet = new Set(liveSummary?.unavailableSections ?? [])
   const brandsUnavailable = Boolean(
     !liveCube &&
-      activeBucket &&
-      (activeBucket.byBrand === null || activeBucket.totals.restaurantNetKwd === null),
+      (unavailableSet.has('products') ||
+        unavailableSet.has('pos.category') ||
+        (activeBucket &&
+          (activeBucket.byBrand === null || activeBucket.totals.restaurantNetKwd === null))),
   )
   const brandIds =
     filters.brand === 'all' ? [...APPROVED_BRAND_IDS] : [filters.brand]
@@ -713,41 +722,51 @@ export function computeCoresHubSnapshot(
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
   // 4. Branch Ranking (7 branches + explicit 8th row `غير منسوب لفرع`)
+  const branchesUnavailable = Boolean(
+    !liveCube &&
+      activeBucket &&
+      (activeBucket.byLocation === null ||
+        activeBucket.mappedByLocation === null ||
+        activeBucket.totals.restaurantNetKwd === null),
+  )
   const branchIds: string[] =
     filters.branch === 'all' ? [...APPROVED_BRANCH_IDS, 'school-canteens'] : [filters.branch]
-  const branchRowsRaw = branchIds.map((lid) => {
-    if (liveCube) {
-      if (filters.brand !== 'all') {
-        const net = safeNum(liveCube.brandByBranch?.[lid]?.[filters.brand])
-        return { lid, salesKwd: net, orders: 0 }
-      }
-      const lRow = liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
-      return { lid, salesKwd: safeNum(lRow?.netKwd), orders: safeNum(lRow?.orders) }
-    }
-    const bktLoc = activeBucket?.mappedByLocation?.[lid] ?? activeBucket?.byLocation?.[lid]
-    if (bktLoc) {
-      return { lid, salesKwd: safeNum(bktLoc.netKwd), orders: safeNum(bktLoc.orders) }
-    }
-    const wsOpt = ws.cascadingOptions.branches.find((x) => x.id === lid)
-    return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
-  })
+  const branchRowsRaw = branchesUnavailable
+    ? []
+    : branchIds.map((lid) => {
+        if (liveCube) {
+          if (filters.brand !== 'all') {
+            const net = safeNum(liveCube.brandByBranch?.[lid]?.[filters.brand])
+            return { lid, salesKwd: net, orders: 0 }
+          }
+          const lRow =
+            liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
+          return { lid, salesKwd: safeNum(lRow?.netKwd), orders: safeNum(lRow?.orders) }
+        }
+        const bktLoc = activeBucket?.mappedByLocation?.[lid] ?? activeBucket?.byLocation?.[lid]
+        if (bktLoc) {
+          return { lid, salesKwd: safeNum(bktLoc.netKwd), orders: safeNum(bktLoc.orders) }
+        }
+        const wsOpt = ws.cascadingOptions.branches.find((x) => x.id === lid)
+        return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+      })
 
   const unattributedSalesKwd =
-    filters.branch === 'all'
-      ? round3(
+    branchesUnavailable || filters.branch !== 'all'
+      ? 0
+      : round3(
           liveCube
             ? safeNum(liveCube.unattributed?.netKwd)
             : safeNum(ws.unattributedSalesKwd),
         )
-      : 0
   const unattributedOrders =
-    filters.branch === 'all'
-      ? Math.round(
+    branchesUnavailable || filters.branch !== 'all'
+      ? 0
+      : Math.round(
           liveCube
             ? safeNum(liveCube.unattributed?.orders)
             : safeNum(ws.unattributedOrders),
         )
-      : 0
 
   const branchDenomKwd =
     branchRowsRaw.reduce((s, r) => s + r.salesKwd, 0) + unattributedSalesKwd
@@ -766,8 +785,9 @@ export function computeCoresHubSnapshot(
     )
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
-  const branchRanking: SalesPoint[] =
-    filters.branch === 'all'
+  const branchRanking: SalesPoint[] = branchesUnavailable
+    ? []
+    : filters.branch === 'all'
       ? [
           ...mappedBranchPoints,
           toSalesPoint({
@@ -912,6 +932,13 @@ export function computeCoresHubSnapshot(
   const posAvgDiscountPct = round2(liveCube?.totals.avgDiscountPct ?? 0)
   const posDiscountedLinesCount = liveCube?.totals.discountedLinesCount ?? 0
 
+  const menuUnavailable = Boolean(
+    !liveCube &&
+      (brandsUnavailable ||
+        unavailableSet.has('products') ||
+        unavailableSet.has('pos.category')),
+  )
+
   return {
     connected: true,
     noData: false,
@@ -945,9 +972,11 @@ export function computeCoresHubSnapshot(
       growthPlays: [],
       dishOfTheWeek: null,
     },
-  sales: {
+    sales: {
       hourlyUnavailable,
       channelsUnavailable,
+      branchesUnavailable,
+      brandsUnavailable,
       peakHourLabelAr,
       peakHourLabelEn,
       peakHourShortAr,
@@ -984,6 +1013,7 @@ export function computeCoresHubSnapshot(
       channelRanking,
     },
     menu: {
+      menuUnavailable,
       bomLinked: false,
       totalActiveSkus: dishes.length,
       totalUnitsSold,

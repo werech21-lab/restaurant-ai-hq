@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileText, Wallet } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useLang } from '@/components/aether/ui'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 
 const fInt = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
 const f3 = (n: number) =>
@@ -62,6 +63,8 @@ export function ReceivablesAgingStudio() {
         </div>
       </section>
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       {/* 4 Top Summary KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="ae-kpi-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
@@ -69,7 +72,7 @@ export function ReceivablesAgingStudio() {
             {T('Net Open Receivables Balance', 'صافي الرصيد المفتوح للذمم المدينة')}
           </p>
           <div dir="ltr" className="mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
-            {f3(ar.openReceivableKwd)} {kwd}
+            {ar.unavailable ? (isAr ? 'غير متاح' : '—') : `${f3(ar.openReceivableKwd)} ${kwd}`}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
             {isAr ? `من ${ar.fromDate} إلى ${ar.toDate}` : `${ar.fromDate} → ${ar.toDate}`}
@@ -81,7 +84,11 @@ export function ReceivablesAgingStudio() {
             {T('Gross Positive Platform & Trade AR', 'إجمالي الذمم المدينة الموجبة (قبل المقاصة)')}
           </p>
           <div dir="ltr" className="mt-2 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white">
-            +{f3(ar.grossPositiveReceivableKwd)} {kwd}
+            {ar.unavailable
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : `+${f3(ar.grossPositiveReceivableKwd)} ${kwd}`}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
             {T('Talabat, Trade AR, Hesabe, Jahez & Keeta', 'طلبات، ذمم شركات، حسابي، جاهز وكيتا')}
@@ -93,7 +100,11 @@ export function ReceivablesAgingStudio() {
             {T('Unapplied Credit Clearing Offset', 'أرصدة دفعات ومقاصة دائنة قيد التطبيق')}
           </p>
           <div dir="ltr" className="mt-2 text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300">
-            -{f3(ar.creditClearingOffsetKwd)} {kwd}
+            {ar.unavailable
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : `-${f3(ar.creditClearingOffsetKwd)} ${kwd}`}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
             {T('Deliveroo, POS Clearing (10552) & Snoonu', 'ديليفرو، مقاصة نقاط البيع 10552 وسنونو')}
@@ -105,25 +116,33 @@ export function ReceivablesAgingStudio() {
             {T('Unreconciled Move Lines Breakdown', 'تفصيل عدد القيود غير المسوّاة')}
           </p>
           <div dir="ltr" className="mt-2 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white">
-            {fInt(ar.unreconciledLineCount)}
+            {ar.unavailable ? (isAr ? 'غير متاح' : '—') : fInt(ar.unreconciledLineCount)}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
-            {isAr
-              ? `${fInt(ar.posClearingLinesCount)} قيد كاشير (10552) + ${fInt(ar.platformAndCorporateLinesCount)} قيد منصات وشركات`
-              : `${fInt(ar.posClearingLinesCount)} POS clearing (10552) + ${fInt(ar.platformAndCorporateLinesCount)} platform/trade`}
+            {ar.unavailable
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : isAr
+                ? `${fInt(ar.posClearingLinesCount)} قيد كاشير (10552) + ${fInt(ar.platformAndCorporateLinesCount)} قيد منصات وشركات`
+                : `${fInt(ar.posClearingLinesCount)} POS clearing (10552) + ${fInt(ar.platformAndCorporateLinesCount)} platform/trade`}
           </p>
         </article>
       </div>
 
-      {/* Explanation of 66,569 Open Lines */}
+      {/* Explanation of Open Lines */}
       <section className="ae-bento-card rounded-2xl bg-amber-50/70 p-4 sm:p-5 ring-1 ring-amber-500/25 dark:bg-amber-950/25 dark:ring-amber-400/20">
         <div className="flex items-start gap-3">
           <FileText className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
           <div className="space-y-1">
             <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
-              {isAr
-                ? `تفسير الـ ${fInt(ar.unreconciledLineCount)} سطراً المفتوحة في دفتر أستاذ أودو 17`
-                : `Why ${fInt(ar.unreconciledLineCount)} Open Move Lines Exist in Odoo 17`}
+              {ar.unavailable
+                ? isAr
+                  ? 'تفسير السطور المفتوحة في دفتر أستاذ أودو 17: غير متاح'
+                  : 'Open Move Lines Breakdown in Odoo 17: —'
+                : isAr
+                  ? `تفسير الـ ${fInt(ar.unreconciledLineCount)} سطراً المفتوحة في دفتر أستاذ أودو 17`
+                  : `Why ${fInt(ar.unreconciledLineCount)} Open Move Lines Exist in Odoo 17`}
             </h3>
             <p className="text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
               {isAr ? ar.openLinesExplanationAr : ar.openLinesExplanationEn}

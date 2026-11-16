@@ -284,21 +284,32 @@ export function ExecutivePnlStudio() {
           </div>
           <div className="space-y-2.5">
             {brandRows.map((b) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof b.salesKwd !== 'number' || totalNet === null
               const sales = b.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? Math.min(100, (sales / workspace.salesKwd) * 100) : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? Math.min(100, (sales / totalNet) * 100)
+                  : 0
               return (
                 <div key={b.id} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-200">{isAr ? b.ar : b.en}</span>
                     <span className="font-mono text-emerald-400 font-bold">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'} ({share.toFixed(1)}%)
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : '—'
+                        : `${sales.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'} (${share.toFixed(1)}%)`}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-emerald-500"
-                      style={{ width: `${Math.max(2, share)}%` }}
-                    />
+                    {!unavailable ? (
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${Math.max(2, share)}%` }}
+                      />
+                    ) : null}
                   </div>
                 </div>
               )
@@ -315,21 +326,32 @@ export function ExecutivePnlStudio() {
           </div>
           <div className="space-y-2.5">
             {branchRows.map((br) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof br.salesKwd !== 'number' || totalNet === null
               const sales = br.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? Math.min(100, (sales / workspace.salesKwd) * 100) : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? Math.min(100, (sales / totalNet) * 100)
+                  : 0
               return (
                 <div key={br.id} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-200">{isAr ? br.ar : br.en}</span>
                     <span className="font-mono text-cyan-300 font-bold">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'} ({share.toFixed(1)}%)
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : '—'
+                        : `${sales.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'} (${share.toFixed(1)}%)`}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-cyan-500"
-                      style={{ width: `${Math.max(2, share)}%` }}
-                    />
+                    {!unavailable ? (
+                      <div
+                        className="h-full rounded-full bg-cyan-500"
+                        style={{ width: `${Math.max(2, share)}%` }}
+                      />
+                    ) : null}
                   </div>
                 </div>
               )

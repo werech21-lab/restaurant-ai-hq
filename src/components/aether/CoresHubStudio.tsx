@@ -627,16 +627,24 @@ export function CoresHubStudio({
               <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">
                 {isAr ? UNATTRIBUTED_BRANCH_LABEL_AR : UNATTRIBUTED_BRANCH_LABEL_EN}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300">
-                {f3(snapshot.sales.unattributedSalesKwd)}{' '}
-                <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
-              </div>
-              <div className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-300/80">
-                {f0(snapshot.sales.unattributedOrders)}{' '}
-                {isAr
-                  ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
-                  : 'orders on unmapped POS configs'}
-              </div>
+              {snapshot.sales.branchesUnavailable ? (
+                <div className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300">
+                  {isAr ? 'غير متاح' : '—'}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300">
+                    {f3(snapshot.sales.unattributedSalesKwd)}{' '}
+                    <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-300/80">
+                    {f0(snapshot.sales.unattributedOrders)}{' '}
+                    {isAr
+                      ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
+                      : 'orders on unmapped POS configs'}
+                  </div>
+                </>
+              )}
               <KpiProvenanceBadge
                 odooModel="pos.order + pos.config"
                 dateRange={dateRangeLabel}
@@ -752,31 +760,37 @@ export function CoresHubStudio({
                   : 'Mapped branch sales plus unattributed POS sales with zero forced allocation'}
               </p>
               <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
-                {snapshot.sales.branchRanking.map((b) => {
-                  const isUnattr = b.id === 'unattributed'
-                  return (
-                    <div
-                      key={b.id}
-                      className={`flex items-center justify-between py-2.5 text-xs ${
-                        isUnattr
-                          ? 'rounded-lg bg-amber-50/70 px-2 font-semibold text-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
-                          : ''
-                      }`}
-                    >
-                      <div>
-                        <div className="font-semibold">
-                          {isAr ? b.labelAr : b.labelEn}
+                {snapshot.sales.branchesUnavailable ? (
+                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                    {isAr ? 'غير متاح' : '—'}
+                  </div>
+                ) : (
+                  snapshot.sales.branchRanking.map((b) => {
+                    const isUnattr = b.id === 'unattributed'
+                    return (
+                      <div
+                        key={b.id}
+                        className={`flex items-center justify-between py-2.5 text-xs ${
+                          isUnattr
+                            ? 'rounded-lg bg-amber-50/70 px-2 font-semibold text-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
+                            : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="font-semibold">
+                            {isAr ? b.labelAr : b.labelEn}
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {f0(b.orders)} {isAr ? 'طلب' : 'orders'} · {f1(b.sharePct)}%
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {f0(b.orders)} {isAr ? 'طلب' : 'orders'} · {f1(b.sharePct)}%
+                        <div className="font-mono font-bold">
+                          {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'}
                         </div>
                       </div>
-                      <div className="font-mono font-bold">
-                        {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'}
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line + pos.config"
@@ -796,7 +810,11 @@ export function CoresHubStudio({
                 {isAr ? 'توزيع المبيعات حسب العلامة التجارية في Odoo' : 'Sales split by brand in Odoo'}
               </p>
               <div className="mt-4">
-                {brandDonut.length > 0 ? (
+                {snapshot.sales.brandsUnavailable ? (
+                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                    {isAr ? 'غير متاح' : '—'}
+                  </div>
+                ) : brandDonut.length > 0 ? (
                   <InteractiveDonutChart
                     slices={brandDonut}
                     centerValue={f0(brandDonut.reduce((s, x) => s + x.value, 0))}
@@ -806,18 +824,20 @@ export function CoresHubStudio({
                   />
                 ) : null}
               </div>
-              <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
-                {snapshot.sales.brandShare.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between py-2 text-xs">
-                    <span className="font-medium text-slate-800 dark:text-slate-200">
-                      {isAr ? b.labelAr : b.labelEn}
-                    </span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'} ({f1(b.sharePct)}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {!snapshot.sales.brandsUnavailable ? (
+                <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
+                  {snapshot.sales.brandShare.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between py-2 text-xs">
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
+                        {isAr ? b.labelAr : b.labelEn}
+                      </span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">
+                        {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'} ({f1(b.sharePct)}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <KpiProvenanceBadge
                 odooModel="pos.order.line + pos.category"
                 dateRange={dateRangeLabel}
@@ -874,7 +894,11 @@ export function CoresHubStudio({
                 {isAr ? 'عدد الأصناف المباعة (أعلى الأصناف)' : 'Sold SKUs (Top Items)'}
               </div>
               <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f0(snapshot.menu.totalActiveSkus)}
+                {snapshot.menu.menuUnavailable
+                  ? isAr
+                    ? 'غير متاح'
+                    : '—'
+                  : f0(snapshot.menu.totalActiveSkus)}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -890,7 +914,11 @@ export function CoresHubStudio({
                 {isAr ? 'إجمالي الوحدات المباعة' : 'Total Units Sold'}
               </div>
               <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f0(snapshot.menu.totalUnitsSold)}
+                {snapshot.menu.menuUnavailable
+                  ? isAr
+                    ? 'غير متاح'
+                    : '—'
+                  : f0(snapshot.menu.totalUnitsSold)}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -907,8 +935,18 @@ export function CoresHubStudio({
                 {isAr ? 'صافي مبيعات الأصناف المعروضة' : 'Displayed SKUs Net Sales'}
               </div>
               <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f3(snapshot.menu.totalSalesKwd)}{' '}
-                <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
+                {snapshot.menu.menuUnavailable ? (
+                  isAr ? (
+                    'غير متاح'
+                  ) : (
+                    '—'
+                  )
+                ) : (
+                  <>
+                    {f3(snapshot.menu.totalSalesKwd)}{' '}
+                    <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
+                  </>
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -966,6 +1004,10 @@ export function CoresHubStudio({
             {cubeLoading && pagedDishes.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">
                 {isAr ? 'جاري تحميل سطور الأصناف من Odoo...' : 'Loading item lines from Odoo...'}
+              </div>
+            ) : snapshot.menu.menuUnavailable && pagedDishes.length === 0 ? (
+              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {isAr ? 'غير متاح' : '—'}
               </div>
             ) : pagedDishes.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">

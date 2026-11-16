@@ -1280,11 +1280,16 @@ export function FullJourney360() {
                             dir="ltr"
                             className="text-lg font-extrabold tabular-nums text-amber-900 dark:text-amber-200"
                           >
-                            {fmtKwdVal(workspace.receivables.openReceivableKwd)}
+                            {workspace.receivables.unavailable
+                              ? isAr
+                                ? 'غير متاح'
+                                : '—'
+                              : fmtKwdVal(workspace.receivables.openReceivableKwd)}
                           </span>
                         </div>
 
-                        {workspace.receivables.agingBuckets.length > 0 ? (
+                        {!workspace.receivables.unavailable &&
+                        workspace.receivables.agingBuckets.length > 0 ? (
                           <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
                             {workspace.receivables.agingBuckets.map((bkt) => (
                               <div
@@ -1306,9 +1311,13 @@ export function FullJourney360() {
                         ) : null}
 
                         <p className="mt-2 text-xs font-medium text-slate-600 dark:text-[#8FA39B]">
-                          {isAr
-                            ? `${f0(workspace.receivables.unreconciledLineCount)} قيد غير مسوّى (${f0(workspace.receivables.posClearingLinesCount)} مقاصة كاشير + ${f0(workspace.receivables.platformAndCorporateLinesCount)} ذمم منصات وشركات)`
-                            : `${f0(workspace.receivables.unreconciledLineCount)} unreconciled lines (${f0(workspace.receivables.posClearingLinesCount)} POS clearing + ${f0(workspace.receivables.platformAndCorporateLinesCount)} platform/corporate)`}
+                          {workspace.receivables.unavailable
+                            ? isAr
+                              ? 'غير متاح'
+                              : '—'
+                            : isAr
+                              ? `${f0(workspace.receivables.unreconciledLineCount)} قيد غير مسوّى (${f0(workspace.receivables.posClearingLinesCount)} مقاصة كاشير + ${f0(workspace.receivables.platformAndCorporateLinesCount)} ذمم منصات وشركات)`
+                              : `${f0(workspace.receivables.unreconciledLineCount)} unreconciled lines (${f0(workspace.receivables.posClearingLinesCount)} POS clearing + ${f0(workspace.receivables.platformAndCorporateLinesCount)} platform/corporate)`}
                         </p>
                       </Link>
 

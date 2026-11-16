@@ -16,15 +16,21 @@ export function SalesScorecardStudio() {
   const deltaPct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
   const deltaBadge = formatSignedDelta(deltaPct)
 
-  const brands = [...workspace.cascadingOptions.brands.filter((b) => b.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
-  const branches = [...workspace.cascadingOptions.branches.filter((b) => b.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
-  const channels = [...workspace.cascadingOptions.channels.filter((c) => c.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
+  const sortOptions = <T extends { salesKwd?: number }>(list: T[]): T[] =>
+    [...list].sort((a, b) => {
+      const aOk = typeof a.salesKwd === 'number'
+      const bOk = typeof b.salesKwd === 'number'
+      if (aOk && bOk) return (b.salesKwd as number) - (a.salesKwd as number)
+      if (aOk) return -1
+      if (bOk) return 1
+      return 0
+    })
+
+  const brands = sortOptions(workspace.cascadingOptions.brands.filter((b) => b.id !== 'all'))
+  const branches = sortOptions(workspace.cascadingOptions.branches.filter((b) => b.id !== 'all'))
+  const channels = sortOptions(workspace.cascadingOptions.channels.filter((c) => c.id !== 'all'))
+  const hasBrandSales =
+    workspace.nullableSalesKwd !== null && brands.some((b) => typeof b.salesKwd === 'number')
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6">
@@ -124,12 +130,20 @@ export function SalesScorecardStudio() {
             {isAr ? 'العلامة المتصدرة' : 'Top Performing Brand'}
           </span>
           <div className="mt-1 text-xl font-black text-white truncate">
-            {brands[0] ? (isAr ? brands[0].ar : brands[0].en) : '—'}
+            {hasBrandSales && brands[0]
+              ? isAr
+                ? brands[0].ar
+                : brands[0].en
+              : isAr
+                ? 'غير متاح'
+                : '—'}
           </div>
           <span className="mt-1 block text-xs text-emerald-400 font-mono font-bold">
-            {brands[0]?.salesKwd
+            {hasBrandSales && typeof brands[0]?.salesKwd === 'number'
               ? `${brands[0].salesKwd.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`
-              : '—'}
+              : isAr
+                ? 'غير متاح'
+                : '—'}
           </span>
         </div>
       </div>
@@ -144,8 +158,13 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-800/70">
             {brands.map((b, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof b.salesKwd !== 'number' || totalNet === null
               const sales = b.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
               return (
                 <button
                   key={b.id}
@@ -161,9 +180,15 @@ export function SalesScorecardStudio() {
                   </div>
                   <div className="text-end font-mono">
                     <span className="font-bold text-emerald-400 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : '—'
+                        : `${sales.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {unavailable ? '—' : `${share.toFixed(1)}%`}
+                    </span>
                   </div>
                 </button>
               )
@@ -180,8 +205,13 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-800/70">
             {branches.map((br, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof br.salesKwd !== 'number' || totalNet === null
               const sales = br.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
               return (
                 <button
                   key={br.id}
@@ -197,9 +227,15 @@ export function SalesScorecardStudio() {
                   </div>
                   <div className="text-end font-mono">
                     <span className="font-bold text-cyan-300 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : '—'
+                        : `${sales.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {unavailable ? '—' : `${share.toFixed(1)}%`}
+                    </span>
                   </div>
                 </button>
               )
@@ -216,8 +252,13 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-800/70">
             {channels.map((ch, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof ch.salesKwd !== 'number' || totalNet === null
               const sales = ch.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
               return (
                 <button
                   key={ch.id}
@@ -233,9 +274,15 @@ export function SalesScorecardStudio() {
                   </div>
                   <div className="text-end font-mono">
                     <span className="font-bold text-amber-300 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : '—'
+                        : `${sales.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                    <span className="text-slate-400">
+                      {unavailable ? '—' : `${share.toFixed(1)}%`}
+                    </span>
                   </div>
                 </button>
               )
