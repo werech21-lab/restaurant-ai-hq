@@ -13,6 +13,8 @@ import type {
 } from '@/lib/odoo-live-connector'
 import type { OdooReceivableClearingSummary } from '@/lib/odoo/live-sync-core'
 import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
+import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
+import type { ComparableFact } from '@/server/ai/structured-claim'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
 const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -263,6 +265,8 @@ export interface AskFeryalOdooAgentResult {
   verifier: FeryalNumericVerificationResult
   toolNumbers: number[]
   period: { from: string; to: string } | null
+  /** Numeric Odoo facts from structuredFacts. Comparisons cite these ids. */
+  facts: ComparableFact[]
   auditEntry: FeryalAuditLogEntry
 }
 
@@ -2919,6 +2923,7 @@ export async function askFeryalOdooAgent(
     verifier: FeryalNumericVerificationResult
     toolNumbers: number[]
     period: { from: string; to: string } | null
+    structuredFacts?: Record<string, unknown>
     llmCandidateRejected?: boolean
   }): Promise<AskFeryalOdooAgentResult> => {
     const auditEntry: FeryalAuditLogEntry = {
@@ -2944,6 +2949,7 @@ export async function askFeryalOdooAgent(
       verifier: params.verifier,
       toolNumbers: params.toolNumbers,
       period: params.period,
+      facts: numericFactsFromStructured(params.structuredFacts ?? null, params.period),
       auditEntry,
     }
   }
@@ -3130,6 +3136,7 @@ export async function askFeryalOdooAgent(
             verifier: candidateCheck.verifier,
             toolNumbers: toolOutput.toolNumbers,
             period: activePeriod,
+            structuredFacts: toolOutput.structuredFacts,
           })
         }
         llmCandidateRejected = true
@@ -3155,6 +3162,7 @@ export async function askFeryalOdooAgent(
       verifier: verified.verifier,
       toolNumbers: toolOutput.toolNumbers,
       period: activePeriod,
+      structuredFacts: toolOutput.structuredFacts,
       llmCandidateRejected,
     })
   }
@@ -3166,6 +3174,7 @@ export async function askFeryalOdooAgent(
     verifier: verified.verifier,
     toolNumbers: toolOutput.toolNumbers,
     period: activePeriod,
+    structuredFacts: toolOutput.structuredFacts,
     llmCandidateRejected,
   })
 }

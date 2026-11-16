@@ -109,7 +109,8 @@ describe('phase 8 structured claims', () => {
       ],
     })
     expect(split.recommendations).toEqual([])
-    expect(split.disputed).toHaveLength(1)
+    expect(split.disputed).toEqual([])
+    expect(split.dropped.map((item) => item.provider)).toEqual(['anthropic'])
   })
 
   it('does not adopt action none', () => {
@@ -190,18 +191,18 @@ describe('phase 8 number computer', () => {
     expect(reviewed.status).toBe('rejected')
   })
 
-  it('derives a delta sign from the facts and rejects a mismatched direction', () => {
+  it('derives a delta sign from the earlier date and rejects a mismatched direction', () => {
     const delta = structuredClaim([later, earlier], {
       action: 'monitor',
       operation: 'delta',
-      direction: 'down',
+      direction: 'up',
       targetType: 'company',
       targetName: 'company',
     })
     const figure = computeClaimFigure(delta, [later, earlier])
-    expect(figure?.value).toBe('-100')
-    expect(figure?.sign).toBe(-1)
-    expect(computeClaimFigure({ ...delta, direction: 'up' }, [later, earlier])).toBeNull()
+    expect(figure?.value).toBe('100')
+    expect(figure?.sign).toBe(1)
+    expect(computeClaimFigure({ ...delta, direction: 'down' }, [later, earlier])).toBeNull()
   })
 })
 

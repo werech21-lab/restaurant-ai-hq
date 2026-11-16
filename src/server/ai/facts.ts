@@ -88,6 +88,21 @@ function idsOf(cube: BriefCubeInput | null): PeriodOdooIds | null {
   return sanitizePeriodOdooIds(cube.posConfigIds)
 }
 
+function factDate(period: string): string | undefined {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(period)) return period
+  const range = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(period)
+  if (range && range[1] === range[2]) return range[1]
+  return undefined
+}
+
+function entityFields(metric: string, scope: string, entityId?: string): Pick<BriefFact, 'entityType' | 'entityId'> {
+  if (metric.startsWith('hourly')) return { entityType: 'hour', entityId: scope }
+  if (metric.startsWith('product')) return { entityType: 'product', entityId }
+  if (metric.startsWith('brand')) return { entityType: 'brand', entityId: scope }
+  if (scope === 'company') return { entityType: 'company', entityId: 'company' }
+  return { entityType: 'branch', entityId: scope }
+}
+
 function pushAmount(
   facts: BriefFact[],
   metric: string,
@@ -103,8 +118,10 @@ function pushAmount(
   addFact(facts, {
     id: `${metric}|${scope}|${period}`,
     metric,
+    date: factDate(period),
     period,
     scope,
+    ...entityFields(metric, scope),
     value,
     unit,
     source: sourceForMetric({ metric, period, scope, productId: null, ids }),
@@ -140,8 +157,10 @@ function appendSales(facts: BriefFact[], cube: BriefCubeInput, fallbackPeriod: s
     addFact(facts, {
       id: `product_net_sales_kwd|${identity}|${period}`,
       metric: 'product_net_sales_kwd',
+      date: factDate(period),
       period,
       scope: name,
+      ...entityFields('product_net_sales_kwd', name, typeof row.productId === 'number' ? String(row.productId) : undefined),
       value,
       unit: 'KWD',
       source: sourceForMetric({

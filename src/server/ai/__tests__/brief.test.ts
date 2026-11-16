@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { runBackgroundAnalysis, type BriefSources } from '@/server/ai/brief'
-import { assembleBriefReport, githubIssueDraft, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
+import { assembleBriefReport, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
 import type { CouncilKeys } from '@/server/ai/env'
 import { buildBriefFactPack, kuwaitBriefDays, type BriefCubeInput } from '@/server/ai/facts'
 import { latestManualAtMs, manualRetryAt, MANUAL_RUN_COOLDOWN_MS } from '@/server/ai/manual-run'
@@ -414,18 +414,14 @@ describe('background Odoo brief', () => {
       facts: pack.facts,
       models: [reviewed],
     })
-    expect(reviewed.status).toBe('ran')
+    expect(reviewed.status).toBe('rejected')
+    expect(reviewed.advisory).toEqual([])
     expect(report.findings).toHaveLength(0)
     expect(report.recommendations).toHaveLength(0)
-    expect(report.advisory.map((item) => item.topic)).toEqual(['organization', 'app_capability'])
-    expect(report.advisory.every((item) => item.kind === 'opinion')).toBe(true)
-    expect(report.proposals).toHaveLength(1)
-    expect(report.proposals[0].status).toBe('proposed')
-    const draft = githubIssueDraft(report.proposals[0])
-    expect(draft).toContain('Status: proposed')
-    expect(draft).toContain('opinion')
-    expect(draft).toContain('does not write code')
-    expect(draft).not.toMatch(/https?:\/\//)
+    expect(report.advisory).toEqual([])
+    expect(report.proposals).toEqual([])
+    expect(JSON.stringify(report)).not.toContain('999.9')
+    expect(JSON.stringify(report)).not.toContain('رتبوا مسؤولية')
     const route = readFileSync(path.join(process.cwd(), 'src/app/api/erp/ai-brief/run/route.ts'), 'utf8')
     const brief = readFileSync(path.join(process.cwd(), 'src/server/ai/brief.ts'), 'utf8')
     expect(`${route}\n${brief}`).not.toMatch(/api\.github\.com|octokit/)

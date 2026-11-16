@@ -48,8 +48,13 @@ export interface FactSource {
 export interface BriefFact {
   id: string
   metric: string
+  /** Calendar day when the period is one day. A multi-day range has no single date. */
+  date?: string
   period: string
   scope: string
+  /** Branch, product, brand, company, or hour. An hour is not a product. */
+  entityType?: 'branch' | 'product' | 'shift' | 'staff' | 'discount' | 'brand' | 'company' | 'warehouse' | 'hour'
+  entityId?: string
   value: string
   unit: 'KWD' | 'orders'
   source?: FactSource | null

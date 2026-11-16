@@ -828,8 +828,15 @@ export async function POST(request: NextRequest) {
       }
       const current = await loadEnvelopeFromDatabase()
       const pinPlan = pinPlanFor(current)
+      // A default stored hash can be checked via the env PIN. This path does not replace that hash.
+      if (pinPlan === 'deny' || current.pinHash === DEFAULT_MASTER_PIN_HASH) {
+        return NextResponse.json(
+          { ok: false, error: 'GOVERNANCE_UNAVAILABLE' },
+          { status: 503, headers: GOVERNANCE_RESPONSE_HEADERS },
+        )
+      }
       const writePlan = planPinWrite({
-        loadFailed: current.loadFailed || pinPlan === 'deny',
+        loadFailed: current.loadFailed,
         postgresConfigured: postgresConfigured(),
         poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
         purpose: 'change-pin',

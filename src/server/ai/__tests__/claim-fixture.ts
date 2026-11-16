@@ -13,7 +13,13 @@ export function structuredClaim(
   return {
     action: options.action ?? 'monitor',
     target: {
-      type: options.targetType ?? (first.scope === 'company' ? 'company' : 'branch'),
+      type:
+        options.targetType ??
+        (first.entityType && first.entityType !== 'hour'
+          ? first.entityType
+          : first.scope === 'company'
+            ? 'company'
+            : 'branch'),
       name: options.targetName ?? first.scope,
     },
     metric: first.metric,

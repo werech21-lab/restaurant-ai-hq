@@ -19,6 +19,7 @@ import {
   normalizeComparison,
   renderComparisonText,
   sharesFact,
+  type ComparableFact,
 } from './structured-claim'
 import { persistAiRuns, type AiRunDraft } from './persist'
 import {
@@ -36,8 +37,8 @@ export const COUNCIL_ANALYSIS_TIMEOUT_MS = 20_000
 
 const SYSTEM_PROMPT = [
   'You receive Odoo facts as JSON. Return one JSON object and no other text.',
-  'Shape: {"comparison":{"subject_id":"canonical id or name","relation":"better|worse|best|worst|equal","object_id":"canonical id or name or null","metric":"metric","cited_fact_ids":["id"]}}',
-  'subject_id, object_id, and metric must be copied from the fact ids, names, or scopes. Do not invent one.',
+  'Shape: {"comparison":{"subject_id":"entity id","relation":"better|worse|best|worst|equal","object_id":"entity id or null","metric":"metric","cited_fact_ids":["fact id"]}}',
+  'cited_fact_ids must be ids from facts. subject_id and object_id must be entity ids on those facts. Do not cite a name as a fact id.',
   'Do not write a number, a percent, or a sentence. The server computes every figure and writes the Arabic and English reply.',
   'relation worse means the subject is worse than the object. best and worst may use object_id null.',
 ].join('\n')
@@ -165,26 +166,13 @@ export function composeCouncilReply(input: {
   }
 }
 
-function factsForModel(result: AskFeryalOdooAgentResult): unknown {
-  const records = (result as AskFeryalOdooAgentResult & { records?: unknown }).records ?? []
-  const full = {
-    reply: result.reply,
-    toolNumbers: result.toolNumbers,
-    period: result.period,
-    executedQueries: result.executedQueries,
-    records,
-  }
-  if (JSON.stringify(full).length <= 24_000) return full
-  return {
-    reply: result.reply,
-    toolNumbers: result.toolNumbers,
-    period: result.period,
-  }
+function factsForModel(result: AskFeryalOdooAgentResult): ComparableFact[] {
+  return result.facts ?? []
 }
 
 function reviewAnswer(
   text: string,
-  facts: unknown,
+  facts: readonly ComparableFact[],
   factsJson: string,
 ): { status: 'ok' | 'guard_rejected'; errorCode: string | null; offending: string[] } {
   if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) {

@@ -1,6 +1,20 @@
-import { copyFileSync, existsSync, mkdirSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
+
+/** Delete one vitest SQLite copy and its journals. The source database is never removed. */
+export function removeVitestSqliteCopy(target: string): void {
+  if (!target.includes('aetherbi-vitest-')) return
+  if (target.includes(`${path.sep}prisma${path.sep}`) || target.endsWith(`${path.sep}dev.db`)) return
+  for (const suffix of ['', '-journal', '-wal', '-shm']) {
+    const file = `${target}${suffix}`
+    try {
+      if (existsSync(file)) unlinkSync(file)
+    } catch {
+      // The name can already be gone. Linux removes the directory entry while a handle is open.
+    }
+  }
+}
 
 /**
  * Prisma erp-pro SQLite must NEVER overwrite process.env.DATABASE_URL.
@@ -12,6 +26,9 @@ function resolveSqliteUrl() {
   if (testing && existsSync(source)) {
     const target = path.join('/tmp', `aetherbi-vitest-${process.pid}.db`)
     copyFileSync(source, target)
+    process.once('exit', () => {
+      removeVitestSqliteCopy(target)
+    })
     const url = `file:${target}`
     process.env.SQLITE_URL = url
     return url

@@ -56,14 +56,20 @@ describe('phase 5 proposals never auto-apply', () => {
       facts: [FACT],
       models: [model, { ...model, provider: 'google', modelId: 'gemini-test' }],
     })
-    expect(report.proposals).toHaveLength(2)
-    expect(report.proposals.every((item) => item.status === 'proposed' && item.kind === 'opinion')).toBe(true)
-    expect(report.advisory.some((item) => item.topic === 'organization')).toBe(true)
-    expect(report.proposals.every((item) => item.text === 'أضف صفحة متابعة للفروع المرتبطة.')).toBe(true)
-    const draft = githubIssueDraft(report.proposals[0])
+    expect(report.proposals).toEqual([])
+    expect(report.advisory).toEqual([])
+    expect(JSON.stringify(report)).not.toContain('أضف صفحة متابعة للفروع المرتبطة.')
+    expect(JSON.stringify(report)).not.toContain('رتب المتابعة اليومية.')
+    const draft = githubIssueDraft({
+      id: 'draft-1',
+      text: 'أضف صفحة متابعة للفروع المرتبطة.',
+      provider: 'anthropic',
+      modelId: 'claude-test',
+      status: 'proposed',
+      kind: 'opinion',
+    })
     expect(draft).toContain('Status: proposed')
     expect(draft).toContain('Kind: opinion, not an Odoo data finding')
-    expect(draft).toContain('أضف صفحة متابعة للفروع المرتبطة.')
     expect(draft).toContain('A person reviews this draft. The council does not write code and does not deploy.')
     expect(draft).not.toMatch(FORBIDDEN)
   })
@@ -110,10 +116,9 @@ describe('phase 5 proposals never auto-apply', () => {
         includeAdminRuns: false,
       }),
     )
-    expect(visible).toContain('proposed · opinion')
-    expect(visible).toContain('نسخ مسودة GitHub')
-    expect(visible).toContain('أضف صفحة متابعة للفروع المرتبطة.')
-    expect(visible).toContain('The council does not write code and does not deploy.')
+    expect(visible).not.toContain('أضف صفحة متابعة للفروع المرتبطة.')
+    expect(visible).not.toContain('نسخ مسودة GitHub')
+    expect(visible).toContain('لا توجد مقترحات')
     const hidden = renderToStaticMarkup(
       createElement(ReportBody, {
         report,

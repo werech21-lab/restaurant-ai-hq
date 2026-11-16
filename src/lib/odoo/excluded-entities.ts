@@ -45,6 +45,21 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'brand',
     ids: [],
+    nameParts: ['heisenburg'],
+  },
+  {
+    kind: 'brand',
+    ids: [],
+    nameParts: ['haisenberg'],
+  },
+  {
+    kind: 'brand',
+    ids: [],
+    nameParts: ['هايزنبرغ'],
+  },
+  {
+    kind: 'brand',
+    ids: [],
     nameParts: ['هايزن'],
   },
   {
@@ -56,6 +71,16 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
     kind: 'branch',
     ids: [],
     nameParts: ['qurain'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['kurain'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['قرين'],
   },
   {
     kind: 'branch',
@@ -81,6 +106,11 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
     kind: 'branch',
     ids: [],
     nameParts: ['\u0627\u0644\u062c\u0647\u0631\u0627'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['جهرا'],
   },
   {
     kind: 'branch',
@@ -151,10 +181,11 @@ const NAME_FRAGMENTS = ODOO_EXCLUSION_RULES.map((rule) => joined(rule.nameParts)
   (fragment) => fragment.length > 0,
 )
 
-const SUBSTRING_FRAGMENTS = NAME_FRAGMENTS.filter((fragment) => !WORD_ONLY.has(normalizeEntityLabel(fragment)))
+const DOMAIN_FRAGMENTS = NAME_FRAGMENTS.filter((fragment) => !WORD_ONLY.has(normalizeEntityLabel(fragment)))
+const TOKEN_MARKS = new Set(NAME_FRAGMENTS.map((fragment) => normalizeEntityLabel(fragment)))
 
 export function exclusionDomainFragments(): readonly string[] {
-  return SUBSTRING_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
+  return DOMAIN_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
 }
 
 /** School-canteen POS names. The closed restaurant district is not one of these markers. */
@@ -203,13 +234,36 @@ export function isExcludedRecordId(kind: ExclusionKind, id: number | null | unde
 }
 
 const CLITIC = /^(?:لل|ب|و|ل)/
-const COLLAPSED_MARKS = ['heisenberg', 'heizenberg', 'hizenberg']
+const COLLAPSED_MARKS = new Set(['heisenberg', 'heizenberg', 'hizenberg', 'heisenburg', 'haisenberg'])
+const ARABIC_BRAND_STEM = 'هايزن'
 const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d+$/
 
-function wordTokenHit(token: string): boolean {
-  if (WORD_ONLY.has(token) || CODE_WITH_DIGITS.test(token)) return true
+function markHit(token: string): boolean {
+  if (CODE_WITH_DIGITS.test(token) || TOKEN_MARKS.has(token) || WORD_ONLY.has(token)) return true
+  return token.startsWith(ARABIC_BRAND_STEM)
+}
+
+function tokenExcluded(token: string, school: boolean): boolean {
   const stripped = token.replace(CLITIC, '')
-  return stripped !== token && (WORD_ONLY.has(stripped) || CODE_WITH_DIGITS.test(stripped))
+  const candidates = stripped === token ? [token] : [token, stripped]
+  for (const candidate of candidates) {
+    if (!markHit(candidate)) continue
+    if (school && isClosedBranchFamilyFragment(candidate)) continue
+    return true
+  }
+  return false
+}
+
+function collapsedWindowHit(tokens: readonly string[]): boolean {
+  for (let start = 0; start < tokens.length; start += 1) {
+    let joined = ''
+    for (let index = start; index < tokens.length && index < start + 12; index += 1) {
+      joined += tokens[index]?.replace(/[^a-z0-9]+/g, '') ?? ''
+      if (COLLAPSED_MARKS.has(joined)) return true
+      if (joined.length > 16) break
+    }
+  }
+  return false
 }
 
 export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
@@ -217,34 +271,48 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   const text = normalizeEntityLabel(String(raw))
   if (!text) return false
   const school = isSchoolCanteenLabel(text)
-  const fragments = school
-    ? SUBSTRING_FRAGMENTS.filter((fragment) => !isClosedBranchFamilyFragment(fragment))
-    : SUBSTRING_FRAGMENTS
-  if (fragments.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
-  const collapsed = text.replace(/[^a-z0-9]+/g, '')
-  if (COLLAPSED_MARKS.some((mark) => collapsed.includes(mark))) return true
-  return text.split(' ').some((token) => {
-    const stripped = token.replace(CLITIC, '')
-    if (
-      school &&
-      (isClosedBranchFamilyFragment(token) || (stripped !== token && isClosedBranchFamilyFragment(stripped)))
-    ) {
-      return false
+  const tokens = text.split(' ')
+  if (!school && collapsedWindowHit(tokens)) return true
+  return tokens.some((token) => tokenExcluded(token, school))
+}
+
+function tokenLikePatterns(fragment: string): string[] {
+  const separators = [' ', '-', '/', ',', '(', ')']
+  const patterns = new Set<string>([fragment])
+  for (const separator of separators) {
+    patterns.add(`${fragment}${separator}%`)
+    patterns.add(`%${separator}${fragment}`)
+    patterns.add(`%${separator}${fragment}${separator}%`)
+  }
+  if (/^[\u0600-\u06ff]/.test(fragment)) {
+    for (const prefix of ['\u0628', '\u0648', '\u0644', '\u0644\u0644']) {
+      patterns.add(`${prefix}${fragment}`)
+      for (const separator of [' ', '-', '/']) {
+        patterns.add(`${prefix}${fragment}${separator}%`)
+        patterns.add(`%${separator}${prefix}${fragment}`)
+      }
     }
-    return wordTokenHit(token)
-  })
+  }
+  return [...patterns]
+}
+
+function pushNegatedToken(domain: unknown[], nameField: string, fragment: string): void {
+  const patterns = tokenLikePatterns(fragment)
+  domain.push('!')
+  for (let i = 0; i < patterns.length - 1; i += 1) domain.push('|')
+  for (const pattern of patterns) domain.push([nameField, '=ilike', pattern])
 }
 
 export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
   for (const fragment of exclusionDomainFragments()) {
     if (!isClosedBranchFamilyFragment(fragment)) {
-      domain.push([nameField, 'not ilike', fragment])
+      pushNegatedToken(domain, nameField, fragment)
       continue
     }
-    const terms: unknown[] = SCHOOL_NAME_MARKERS.map((mark) => [nameField, 'ilike', mark])
-    terms.push([nameField, 'not ilike', fragment])
-    for (let i = 0; i < terms.length - 1; i += 1) domain.push('|')
-    for (const term of terms) domain.push(term)
+    const schoolTerms = SCHOOL_NAME_MARKERS.map((mark) => [nameField, 'ilike', mark])
+    for (let i = 0; i < schoolTerms.length; i += 1) domain.push('|')
+    for (const term of schoolTerms) domain.push(term)
+    pushNegatedToken(domain, nameField, fragment)
   }
 }
 

@@ -37,11 +37,20 @@ function odooAnswer(status: 'answered' | 'no_odoo_data' = 'answered') {
     verifier: { valid: status === 'answered', extractedNumbers: status === 'answered' ? [10.5] : [], unverifiedNumbers: [] },
     toolNumbers: status === 'answered' ? [10.5] : [],
     period: { from: '2026-11-15', to: '2026-11-15' },
-    records:
+    facts:
       status === 'answered'
         ? [
-            { id: 'company', name: 'company', metric: 'net_sales' },
-            { id: 'fact-net', name: 'company', metric: 'net_sales' },
+            {
+              id: 'fact-net',
+              metric: 'net_sales',
+              period: '2026-11-15',
+              date: '2026-11-15',
+              unit: 'KWD',
+              value: '10.5',
+              entityType: 'company',
+              entityId: 'company',
+              entityName: 'company',
+            },
           ]
         : [],
     auditEntry: {

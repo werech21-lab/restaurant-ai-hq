@@ -105,7 +105,7 @@ describe('phase 8 pin and database', () => {
         purpose: 'change-pin',
       }),
     ).toBe('refuse')
-    expect(planPinCheck({ ...down, loadFailed: false, poolAvailable: true, pinHash: DEFAULT_MASTER_PIN_HASH, initialEmpty: false })).toBe('deny')
+    expect(planPinCheck({ ...down, loadFailed: false, poolAvailable: true, pinHash: DEFAULT_MASTER_PIN_HASH, initialEmpty: false })).toBe('stored')
     const route = source('src/app/api/erp/governance/route.ts')
     expect(route).toContain('failedGovernanceEnvelope')
     expect(route).toContain("pinHash: ''")

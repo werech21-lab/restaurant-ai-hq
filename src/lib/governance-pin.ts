@@ -1,5 +1,3 @@
-import { DEFAULT_MASTER_PIN_HASH } from '@/lib/governance-compliance'
-
 /** Keep a previously stored governance hash. A settings save never takes a client hash. */
 export function keepStoredPinHash(raw: unknown, fallback: string): string {
   if (typeof raw === 'string' && (raw.startsWith('vfh1_') || raw.startsWith('vfsha256_'))) return raw
@@ -27,7 +25,8 @@ export function postgresGovernanceConfigured(databaseUrl: string | undefined): b
 
 /**
  * A failed or unavailable database read never checks a PIN.
- * The hardcoded default is not accepted once a stored hash exists, or when Postgres is configured.
+ * A stored hash, including one that still equals the install default, is checked.
+ * The route tries `AETHER_MANAGER_PIN` before it refuses that default hash, and it does not write a new hash.
  * `initial` is only a local install that has not stored a hash yet.
  */
 export function planPinCheck(input: {
@@ -39,8 +38,8 @@ export function planPinCheck(input: {
 }): PinCheckPlan {
   if (input.loadFailed || (input.postgresConfigured && !input.poolAvailable)) return 'deny'
   const stored = readStoredPinHash(input.pinHash)
-  if (stored && stored !== DEFAULT_MASTER_PIN_HASH) return 'stored'
-  if (input.postgresConfigured || stored === DEFAULT_MASTER_PIN_HASH) return 'deny'
+  if (stored) return 'stored'
+  if (input.postgresConfigured) return 'deny'
   if (input.initialEmpty) return 'initial'
   return 'deny'
 }

@@ -23,9 +23,10 @@ export function odooConsoleExtractor(): string {
   function rowKept(row) {
     var blob = JSON.stringify(row || {}).toLowerCase();
     var school = schoolMarkers.some(function (mark) { return blob.indexOf(String(mark).toLowerCase()) !== -1; });
+    var parts = blob.split(/[^0-9a-z\u0600-\u06ff]+/);
     return excluded.every(function (fragment) {
       if (school && closedBranchFamily.indexOf(fragment) !== -1) return true;
-      return blob.indexOf(fragment) === -1;
+      return parts.indexOf(String(fragment).toLowerCase()) === -1;
     });
   }
   const company = { allowed_company_ids: [${ODOO_COMPANY_ID}], cids: ${ODOO_COMPANY_ID} };

@@ -106,32 +106,6 @@ const DIRECTION_EN: Record<StructuredClaim['direction'], string> = {
   flat: 'flat',
 }
 
-const ID_KEYS = new Set(['id', 'name', 'scope', 'code', 'metric', 'odoo_id', 'scopeLabel'])
-
-export function collectCanonicalIds(payload: unknown): Set<string> {
-  const ids = new Set<string>()
-  const walk = (node: unknown, key: string | null) => {
-    if (key && ID_KEYS.has(key) && (typeof node === 'string' || typeof node === 'number')) {
-      const value = String(node).trim()
-      if (value) ids.add(value)
-      return
-    }
-    if (Array.isArray(node)) {
-      for (const item of node) walk(item, null)
-      return
-    }
-    if (node && typeof node === 'object') {
-      for (const [childKey, child] of Object.entries(node)) walk(child, childKey)
-    }
-  }
-  walk(payload, null)
-  return ids
-}
-
-export function factTokens(facts: readonly BriefFact[]): Set<string> {
-  return collectCanonicalIds(facts)
-}
-
 export function claimIdentity(claim: StructuredClaim): string {
   const target =
     claim.target.odoo_id !== undefined ? `id:${String(claim.target.odoo_id)}` : `name:${claim.target.name ?? ''}`
@@ -159,49 +133,138 @@ function parseValue(raw: string): Decimal | null {
   return Decimal.parse(raw.trim())
 }
 
-/** Every displayed figure is this function. The model does not supply the number. */
-export function computeClaimFigure(claim: StructuredClaim, cited: readonly BriefFact[]): ComputedFigure | null {
+/** The calendar day a fact belongs to. A missing or ranged period is not a change base. */
+export function factDate(fact: BriefFact): string | null {
+  if (fact.date && /^\d{4}-\d{2}-\d{2}$/.test(fact.date)) return fact.date
+  const period = fact.period.trim()
+  const single = /^(\d{4}-\d{2}-\d{2})$/.exec(period)
+  if (single) return single[1]
+  const range = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(period)
+  if (range && range[1] === range[2]) return range[1]
+  return null
+}
+
+export interface FactEntity {
+  type: string
+  name: string
+  id?: string
+}
+
+/** Entity comes from the fact, not from a number that happens to match an id. */
+export function entityOf(fact: BriefFact): FactEntity | null {
+  if (!fact.metric || !fact.scope || !fact.unit || !factDate(fact)) return null
+  if (fact.entityType) return { type: fact.entityType, name: fact.scope, id: fact.entityId }
+  if (fact.metric.startsWith('hourly') || fact.metric.includes('hour')) {
+    return { type: 'hour', name: fact.scope, id: fact.scope }
+  }
+  if (fact.metric.startsWith('product')) return { type: 'product', name: fact.scope, id: fact.entityId }
+  if (fact.metric.startsWith('brand')) return { type: 'brand', name: fact.scope, id: fact.entityId ?? fact.scope }
+  if (fact.scope === 'company') return { type: 'company', name: fact.scope, id: fact.entityId ?? 'company' }
+  return { type: 'branch', name: fact.scope, id: fact.entityId ?? fact.scope }
+}
+
+function citedFacts(claim: StructuredClaim, cited: readonly BriefFact[]): BriefFact[] | null {
   const ordered = claim.cited_fact_ids.flatMap((id) => {
     const fact = cited.find((item) => item.id === id)
     return fact ? [fact] : []
   })
   if (ordered.length !== claim.cited_fact_ids.length || ordered.length === 0) return null
-  if (!claim.operation) {
-    if (claim.direction !== 'flat') return null
-    const parsed = parseValue(ordered[0]?.value ?? '')
-    if (!parsed) return null
-    return { kind: 'value', value: parsed.canonical(), sign: 0 }
+  if (ordered.some((fact) => !entityOf(fact) || !fact.metric || !fact.unit)) return null
+  return ordered
+}
+
+/** Earlier day is the base. Same day, mixed unit, or mixed entity is not a change. */
+function trendPair(facts: readonly BriefFact[]): [BriefFact, BriefFact] | null {
+  if (facts.length !== 2) return null
+  const [left, right] = facts
+  if (!left || !right) return null
+  if (left.metric !== right.metric || left.unit !== right.unit || left.scope !== right.scope) return null
+  const leftDate = factDate(left)
+  const rightDate = factDate(right)
+  if (!leftDate || !rightDate || leftDate === rightDate) return null
+  return leftDate < rightDate ? [left, right] : [right, left]
+}
+
+/**
+ * Share and ratio pick a role. Citation order is not the role.
+ * Share: the claim metric is the part, or a narrower entity over company.
+ * Ratio: the claim metric is the numerator and the other fact is the denominator.
+ */
+function rolePair(claim: StructuredClaim, facts: readonly BriefFact[]): [BriefFact, BriefFact] | null {
+  if (facts.length !== 2) return null
+  const [left, right] = facts
+  if (!left || !right || left.unit !== right.unit) return null
+  const leftDate = factDate(left)
+  const rightDate = factDate(right)
+  if (!leftDate || !rightDate || leftDate !== rightDate || left.period !== right.period) return null
+  if (claim.operation === 'share' && left.metric === right.metric) {
+    const company = [left, right].filter((fact) => entityOf(fact)?.type === 'company')
+    const part = [left, right].filter((fact) => entityOf(fact)?.type !== 'company')
+    if (company.length !== 1 || part.length !== 1) return null
+    return [part[0]!, company[0]!]
   }
-  if (ordered.length < 2) return null
-  const base = parseValue(ordered[0]?.value ?? '')
-  const next = parseValue(ordered[1]?.value ?? '')
-  if (!base || !next) return null
+  const numerators = [left, right].filter((fact) => fact.metric === claim.metric)
+  const denominators = [left, right].filter((fact) => fact.metric !== claim.metric)
+  if (numerators.length !== 1 || denominators.length !== 1) return null
+  return [numerators[0]!, denominators[0]!]
+}
+
+/** Every displayed figure is this function. The model does not supply the number. */
+export function computeClaimFigure(claim: StructuredClaim, cited: readonly BriefFact[]): ComputedFigure | null {
+  const ordered = citedFacts(claim, cited)
+  if (!ordered) return null
+  if (!claim.operation) {
+    if (claim.direction !== 'flat' || ordered.length === 0) return null
+    const dated = ordered.flatMap((item) => {
+      const parsed = parseValue(item.value)
+      const date = factDate(item)
+      return parsed ? [{ item, parsed, date }] : []
+    })
+    if (dated.length !== ordered.length) return null
+    if (dated.some((entry) => !entry.date)) {
+      if (dated.length !== 1) return null
+      return { kind: 'value', value: dated[0]?.parsed.canonical() ?? '', sign: 0 }
+    }
+    const latest = dated.reduce((best, entry) => (entry.date! > best.date! ? entry : best))
+    const latestValues = new Set(dated.filter((entry) => entry.date === latest.date).map((entry) => entry.parsed.canonical()))
+    if (latestValues.size !== 1) return null
+    return { kind: 'value', value: latest.parsed.canonical(), sign: 0 }
+  }
   const hundred = Decimal.parse('100')
   if (!hundred) return null
-  if (claim.operation === 'delta') {
-    const delta = next.sub(base)
-    const sign = delta.sign()
+  if (claim.operation === 'delta' || claim.operation === 'pct_change') {
+    const pair = trendPair(ordered)
+    if (!pair) return null
+    const base = parseValue(pair[0].value)
+    const next = parseValue(pair[1].value)
+    if (!base || !next) return null
+    if (claim.operation === 'delta') {
+      const delta = next.sub(base)
+      const sign = delta.sign()
+      if (signToDirection(sign) !== claim.direction) return null
+      return { kind: 'delta', value: delta.canonical(), sign }
+    }
+    if (base.sign() === 0) return null
+    const ratio = next.sub(base).div(base, 8)
+    if (!ratio) return null
+    const percent = ratio.mul(hundred).roundHalfUp(0)
+    const sign = percent.sign()
     if (signToDirection(sign) !== claim.direction) return null
-    return { kind: 'delta', value: delta.canonical(), sign }
+    return { kind: 'pct_change', value: percent.canonical(), sign }
   }
+  const roles = rolePair(claim, ordered)
+  if (!roles || claim.direction !== 'flat') return null
+  const base = parseValue(roles[0].value)
+  const next = parseValue(roles[1].value)
+  if (!base || !next || next.sign() === 0) return null
   if (claim.operation === 'ratio') {
-    if (next.sign() === 0 || claim.direction !== 'flat') return null
     const ratio = base.div(next, 4)
     if (!ratio) return null
     return { kind: 'ratio', value: ratio.canonical(), sign: 0 }
   }
-  if (next.sign() === 0 && claim.operation === 'share') return null
-  if (base.sign() === 0 && claim.operation === 'pct_change') return null
-  const ratio =
-    claim.operation === 'pct_change' ? next.sub(base).div(base, 8) : base.div(next, 8)
+  const ratio = base.div(next, 8)
   if (!ratio) return null
   const percent = ratio.mul(hundred).roundHalfUp(0)
-  const sign = percent.sign()
-  if (claim.operation === 'pct_change') {
-    if (signToDirection(sign) !== claim.direction) return null
-    return { kind: 'pct_change', value: percent.canonical(), sign }
-  }
-  if (claim.direction !== 'flat') return null
   return { kind: 'share', value: percent.canonical(), sign: 0 }
 }
 
@@ -227,11 +290,20 @@ export function renderClaimText(claim: StructuredClaim, figure: ComputedFigure):
 }
 
 export function targetMatchesFacts(claim: StructuredClaim, cited: readonly BriefFact[]): boolean {
-  const tokens = factTokens(cited)
-  const nameOk = claim.target.name ? tokens.has(claim.target.name) : false
-  const idOk = claim.target.odoo_id !== undefined ? tokens.has(String(claim.target.odoo_id)) : false
-  if (!nameOk && !idOk) return false
-  return cited.some((fact) => fact.metric === claim.metric)
+  const described = cited.flatMap((fact) => {
+    const entity = entityOf(fact)
+    return entity ? [{ fact, entity }] : []
+  })
+  if (described.length !== cited.length || described.length === 0) return false
+  const matched = described.filter(({ fact, entity }) => {
+    if (entity.type !== claim.target.type) return false
+    const nameOk = claim.target.name != null && claim.target.name === entity.name
+    const idOk =
+      claim.target.odoo_id !== undefined && entity.id !== undefined && String(entity.id) === String(claim.target.odoo_id)
+    if (!nameOk && !idOk) return false
+    return fact.metric === claim.metric
+  })
+  return matched.length > 0
 }
 
 /** 'Y worse than X' is the same comparison as 'X better than Y'. */
@@ -250,13 +322,59 @@ export function comparisonKey(comparison: StructuredComparison): string {
   return [normalized.subject_id, normalized.relation, normalized.object_id ?? '', normalized.metric].join('|')
 }
 
-export function comparisonMatchesFacts(comparison: StructuredComparison, payload: unknown): boolean {
-  const tokens = collectCanonicalIds(payload)
+export interface ComparableFact {
+  id: string
+  metric: string
+  period: string
+  date: string
+  unit: string
+  value: string
+  entityType: string
+  entityId: string
+  entityName: string
+}
+
+function sideFact(id: string, cited: readonly ComparableFact[], metric: string): ComparableFact | null {
+  const matches = cited.filter((fact) => fact.metric === metric && (fact.entityId === id || fact.entityName === id))
+  return matches.length === 1 ? matches[0] ?? null : null
+}
+
+/** The relation is computed from the cited numeric facts. A name is not a fact. */
+export function comparisonMatchesFacts(comparison: StructuredComparison, facts: readonly ComparableFact[]): boolean {
+  const byId = new Map(facts.map((fact) => [fact.id, fact]))
+  const cited: ComparableFact[] = []
+  for (const id of comparison.cited_fact_ids) {
+    const fact = byId.get(id)
+    if (!fact || !fact.date || !fact.unit || !fact.metric || !fact.entityId || !parseValue(fact.value)) return false
+    cited.push(fact)
+  }
   const normalized = normalizeComparison(comparison)
-  if (!tokens.has(normalized.subject_id)) return false
-  if (normalized.object_id && !tokens.has(normalized.object_id)) return false
-  if (!tokens.has(normalized.metric)) return false
-  return comparison.cited_fact_ids.every((id) => tokens.has(id))
+  if (cited.length === 0 || cited.some((fact) => fact.metric !== normalized.metric)) return false
+  const unit = cited[0]?.unit
+  const period = cited[0]?.period
+  if (!unit || !period || cited.some((fact) => fact.unit !== unit || fact.period !== period)) return false
+  const subject = sideFact(normalized.subject_id, cited, normalized.metric)
+  if (!subject) return false
+  const subjectValue = parseValue(subject.value)
+  if (!subjectValue) return false
+  if (normalized.relation === 'best' || normalized.relation === 'worst') {
+    const others = cited.filter((fact) => fact.id !== subject.id)
+    return others.every((other) => {
+      const value = parseValue(other.value)
+      if (!value) return false
+      const compared = subjectValue.compare(value)
+      return normalized.relation === 'best' ? compared > 0 : compared < 0
+    })
+  }
+  if (!normalized.object_id) return false
+  const object = sideFact(normalized.object_id, cited, normalized.metric)
+  if (!object || object.id === subject.id) return false
+  const objectValue = parseValue(object.value)
+  if (!objectValue) return false
+  const compared = subjectValue.compare(objectValue)
+  if (normalized.relation === 'better') return compared > 0
+  if (normalized.relation === 'equal') return compared === 0
+  return false
 }
 
 export function renderComparisonText(comparison: StructuredComparison): string {

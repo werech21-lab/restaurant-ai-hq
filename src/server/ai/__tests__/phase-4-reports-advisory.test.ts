@@ -219,6 +219,7 @@ describe('phase 4 reports and advisory', () => {
     expect(html).toContain('/erp/weekday-comparison?')
     expect(html).toContain('/erp/ai-brief#report-brief-1')
     expect(html).toContain('رأي')
+    expect(html).not.toContain('رتب متابعة الفروع يومياً.')
     expect(html).not.toContain('/odoo/action')
     expect(html).not.toContain('77')
 

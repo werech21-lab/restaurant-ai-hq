@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type {
   BriefAdvisory,
@@ -17,7 +16,6 @@ import type {
   ReviewedBriefModel,
   StoredBriefReport,
 } from './brief-types'
-import { extractCanonicalDecimals } from './number-guard'
 import { factForGuard, parseFactSource } from './source-links'
 import {
   claimIdentity,
@@ -66,11 +64,8 @@ function citationsFor(factIds: readonly string[], byId: ReadonlyMap<string, Brie
   })
 }
 
-function reviewAdvisory(text: string, facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
-  const factsJson = JSON.stringify(facts)
-  if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) return { ok: false, code: 'GUARD' }
-  if (extractCanonicalDecimals(text).length > 0) return { ok: false, code: 'GUARD' }
-  return { ok: true }
+function reviewAdvisory(_text: string, _facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
+  return { ok: false, code: 'GUARD' }
 }
 
 function reviewStructuredClaim(
@@ -110,26 +105,15 @@ function reviewStructuredClaim(
 
 function readAdvisory(value: unknown, facts: readonly BriefFact[]): { items: ReviewedAdvisoryItem[]; sawGuard: boolean } {
   if (!Array.isArray(value)) return { items: [], sawGuard: false }
-  const items: ReviewedAdvisoryItem[] = []
   let sawGuard = false
   for (const entry of value) {
     const record = asRecord(entry)
-    const topic = record?.topic
     const text = typeof record?.text === 'string' ? record.text.trim() : ''
-    if (topic !== 'organization' && topic !== 'strategic_plan' && topic !== 'app_capability') continue
     if (!text) continue
     const review = reviewAdvisory(text, facts)
-    if (!review.ok) {
-      sawGuard = true
-      continue
-    }
-    items.push({ topic, text })
+    if (!review.ok) sawGuard = true
   }
-  return { items, sawGuard }
-}
-
-function proposalId(provider: string, text: string): string {
-  return createHash('sha256').update(`${provider}\n${text}`).digest('hex').slice(0, 16)
+  return { items: [], sawGuard }
 }
 
 export function githubIssueDraft(proposal: BriefProposal): string {
@@ -257,6 +241,32 @@ function groupByKey(votes: readonly ClaimVote[]): ClaimVote[][] {
   return [...grouped.values()]
 }
 
+const OPPOSITE_ACTION: Record<string, string> = {
+  expand: 'close',
+  close: 'expand',
+  increase: 'reduce',
+  reduce: 'increase',
+  start: 'stop',
+  stop: 'start',
+  hire: 'cut',
+  cut: 'hire',
+}
+
+function claimParts(key: string): { action: string; type: string; target: string; metric: string; direction: string; polarity: string } {
+  const [action = '', type = '', target = '', metric = '', direction = '', polarity = ''] = key.split('|')
+  return { action, type, target, metric, direction, polarity }
+}
+
+/** Expand versus close on the same target conflicts. A monitor claim on another target does not. */
+function claimsConflict(left: string, right: string): boolean {
+  const a = claimParts(left)
+  const b = claimParts(right)
+  if (a.type !== b.type || a.target !== b.target || a.metric !== b.metric) return false
+  if (a.polarity !== b.polarity) return true
+  if (OPPOSITE_ACTION[a.action] === b.action) return true
+  return a.action === b.action && a.direction !== b.direction
+}
+
 function agreeingVotes(votes: readonly ClaimVote[]): ClaimVote[] {
   const kept = votes.filter((vote, index) =>
     votes.some(
@@ -265,6 +275,16 @@ function agreeingVotes(votes: readonly ClaimVote[]): ClaimVote[] {
     ),
   )
   return new Set(kept.map((vote) => vote.provider)).size >= 2 ? kept : []
+}
+
+function adoptedGroups(component: readonly ClaimVote[]): { conflicting: boolean; groups: ClaimVote[][] } {
+  const keys = [...new Set(component.map((vote) => vote.claimKey))]
+  const conflicting = keys.some((key, index) => keys.slice(index + 1).some((other) => claimsConflict(key, other)))
+  if (conflicting) return { conflicting: true, groups: [] }
+  const groups = groupByKey(component)
+    .map((group) => agreeingVotes(group))
+    .filter((group) => group.length >= 2 && !group[0]?.claimKey.startsWith('none|'))
+  return { conflicting: false, groups }
 }
 
 function sharedFactIds(votes: readonly ClaimVote[]): string[] {
@@ -304,20 +324,30 @@ export function assembleBriefReport(input: {
   const findings: BriefFinding[] = []
   const unadoptedFindings: BriefUnadoptedFinding[] = []
   for (const component of connectedByFacts(findingVotes)) {
-    const keys = new Set(component.map((vote) => vote.claimKey))
-    const adoptable = [...keys].every((key) => !key.startsWith('none|'))
-    const grouped = groupByKey(component)
-    const agreed = adoptable && keys.size === 1 ? agreeingVotes(grouped[0] ?? []) : []
-    if (agreed.length >= 2) {
-      const factIds = sharedFactIds(agreed)
+    const adopted = adoptedGroups(component)
+    if (adopted.conflicting || adopted.groups.length === 0) {
+      for (const vote of component) {
+        unadoptedFindings.push({
+          factIds: vote.factIds,
+          citations: citationsFor(vote.factIds, byId),
+          provider: vote.provider,
+          modelId: vote.modelId,
+          text: vote.text,
+        })
+      }
+      continue
+    }
+    const adoptedKeys = new Set(adopted.groups.map((group) => group[0]?.claimKey))
+    for (const group of adopted.groups) {
+      const factIds = sharedFactIds(group)
       findings.push({
         factIds,
         citations: citationsFor(factIds, byId),
-        notes: agreed.map((vote) => ({ provider: vote.provider, modelId: vote.modelId, text: vote.text })),
+        notes: group.map((vote) => ({ provider: vote.provider, modelId: vote.modelId, text: vote.text })),
       })
-      continue
     }
     for (const vote of component) {
+      if (adoptedKeys.has(vote.claimKey)) continue
       unadoptedFindings.push({
         factIds: vote.factIds,
         citations: citationsFor(vote.factIds, byId),
@@ -330,26 +360,6 @@ export function assembleBriefReport(input: {
 
   const advisory: BriefAdvisory[] = []
   const proposals: BriefProposal[] = []
-  for (const model of input.models) {
-    for (const item of model.advisory) {
-      advisory.push({
-        topic: item.topic,
-        text: item.text,
-        provider: model.provider,
-        modelId: model.modelId,
-        kind: 'opinion',
-      })
-      if (item.topic !== 'app_capability') continue
-      proposals.push({
-        id: proposalId(model.provider, item.text),
-        text: item.text,
-        provider: model.provider,
-        modelId: model.modelId,
-        status: 'proposed',
-        kind: 'opinion',
-      })
-    }
-  }
 
   const recommendationVotes: ClaimVote[] = []
   for (const model of input.models) {
@@ -369,11 +379,21 @@ export function assembleBriefReport(input: {
   const disputed: BriefDispute[] = []
   const dropped: BriefDropped[] = []
   const asStored = (vote: ClaimVote) => ({ provider: vote.provider, modelId: vote.modelId, solution: vote.text })
+  const dropVote = (vote: ClaimVote) => {
+    dropped.push({
+      factIds: vote.factIds,
+      citations: citationsFor(vote.factIds, byId),
+      provider: vote.provider,
+      modelId: vote.modelId,
+      solution: vote.text,
+    })
+  }
   for (const component of connectedByFacts(recommendationVotes)) {
     const keys = [...new Set(component.map((vote) => vote.claimKey))]
     const factIds = [...new Set(component.flatMap((vote) => vote.factIds))].sort()
     const citations = citationsFor(factIds, byId)
-    if (keys.length > 1) {
+    const adopted = adoptedGroups(component)
+    if (adopted.conflicting || (adopted.groups.length === 0 && keys.length > 1)) {
       const grouped = groupByKey(component)
       disputed.push({
         factIds,
@@ -383,36 +403,21 @@ export function assembleBriefReport(input: {
       })
       continue
     }
-    if (keys[0]?.startsWith('none|')) {
-      for (const vote of component) {
-        dropped.push({
-          factIds: vote.factIds,
-          citations: citationsFor(vote.factIds, byId),
-          provider: vote.provider,
-          modelId: vote.modelId,
-          solution: vote.text,
-        })
-      }
+    if (adopted.groups.length === 0) {
+      for (const vote of component) dropVote(vote)
       continue
     }
-    const agreed = agreeingVotes(component)
-    if (agreed.length >= 2) {
-      const shared = sharedFactIds(agreed)
+    const adoptedKeys = new Set(adopted.groups.map((group) => group[0]?.claimKey))
+    for (const group of adopted.groups) {
+      const shared = sharedFactIds(group)
       recommendations.push({
         factIds: shared,
         citations: citationsFor(shared, byId),
-        supporters: agreed.map(asStored),
+        supporters: group.map(asStored),
       })
-      continue
     }
     for (const vote of component) {
-      dropped.push({
-        factIds: vote.factIds,
-        citations: citationsFor(vote.factIds, byId),
-        provider: vote.provider,
-        modelId: vote.modelId,
-        solution: vote.text,
-      })
+      if (!adoptedKeys.has(vote.claimKey)) dropVote(vote)
     }
   }
 
@@ -623,34 +628,8 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
           ]
         })
       : [],
-    advisory: Array.isArray(body.advisory)
-      ? body.advisory.flatMap((entry) => {
-          const record = asRecord(entry)
-          const provider = record ? asProvider(record.provider) : null
-          const topic = record?.topic
-          if (!record || !provider || typeof record.text !== 'string' || record.kind !== 'opinion') return []
-          if (topic !== 'organization' && topic !== 'strategic_plan' && topic !== 'app_capability') return []
-          return [{ topic, text: record.text, provider, modelId: typeof record.modelId === 'string' ? record.modelId : '', kind: 'opinion' as const }]
-        })
-      : [],
-    proposals: Array.isArray(body.proposals)
-      ? body.proposals.flatMap((entry) => {
-          const record = asRecord(entry)
-          const provider = record ? asProvider(record.provider) : null
-          if (!record || !provider || typeof record.text !== 'string' || typeof record.id !== 'string') return []
-          if (record.status !== 'proposed' || record.kind !== 'opinion') return []
-          return [
-            {
-              id: record.id,
-              text: record.text,
-              provider,
-              modelId: typeof record.modelId === 'string' ? record.modelId : '',
-              status: 'proposed' as const,
-              kind: 'opinion' as const,
-            },
-          ]
-        })
-      : [],
+    advisory: [],
+    proposals: [],
     models,
   }
 }

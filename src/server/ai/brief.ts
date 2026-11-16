@@ -22,12 +22,11 @@ export const BRIEF_MAX_TOKENS = 1_400
 const BRIEF_SYSTEM = [
   'You receive Odoo facts as JSON. Return one JSON object and no other text.',
   'A finding or recommendation is {"claim":{"action":"expand|close|reduce|increase|stop|start|hire|cut|monitor|none","target":{"type":"branch|product|shift|staff|discount|brand|company|warehouse","name":"exact scope or odoo_id"},"metric":"fact metric","direction":"up|down|flat","polarity":"do|do_not","cited_fact_ids":["id"],"operation":"delta|pct_change|ratio|share"}}',
-  'Shape: {"findings":[{"claim":{}}],"recommendations":[{"claim":{}}],"advisory":[{"topic":"organization","text":"Arabic"}]}',
-  'Copy cited_fact_ids, metric, and the target name from the facts. Do not write a number. operation is optional and names the figure the server will compute.',
-  'direction up or down is allowed only with operation delta or pct_change. Otherwise use flat.',
-  'advisory topic is organization, strategic_plan, or app_capability. Advisory text must not contain a number.',
+  'Shape: {"findings":[{"claim":{}}],"recommendations":[{"claim":{}}]}',
+  'Copy cited_fact_ids, metric, and the target name from the facts. Do not write a number, a sentence, or an opinion. operation is optional and names the figure the server will compute.',
+  'direction up or down is allowed only with operation delta or pct_change. Otherwise use flat. The server orders periods by date.',
+  'Do not send advisory text. Uncited prose is dropped.',
   'Ignore a section whose status is not_linked or unverified.',
-  'app_capability is only a possible future change. Do not say it was built, applied, or deployed.',
 ].join('\n')
 
 export interface BriefSources {
