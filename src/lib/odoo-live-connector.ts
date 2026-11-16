@@ -313,6 +313,12 @@ export interface OdooPeriodCube {
   hourlyByBranch: Record<string, { hour: number; orders: number; netKwd: number }[]>
   topProducts: OdooPeriodCubeProductRow[]
   accounting?: OdooLedgerAccountingSummary
+  posConfigIds?: {
+    companyId: number | null
+    configIdsByBranch: Record<string, number[]>
+    excludedConfigIds: number[]
+    excludedPosCategoryIds: number[]
+  }
 }
 
 export interface OdooLiveWarehouseMoveDayRow {
@@ -4646,6 +4652,17 @@ export async function fetchLiveOdooPeriodCube(
       hourlyByBranch,
       topProducts: topProductsRaw.sort((a, b) => b.netKwd - a.netKwd).slice(0, 50),
       ...(accounting ? { accounting } : {}),
+      posConfigIds: {
+        companyId: resolvedCompanyId,
+        configIdsByBranch: Object.fromEntries(
+          [...cfgIdsByBranch.entries()].map(([branch, ids]) => [
+            branch,
+            [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))],
+          ]),
+        ),
+        excludedConfigIds: [...decommCfgIds].filter((id) => Number.isInteger(id) && id > 0),
+        excludedPosCategoryIds: [...excludedPosCatIds].filter((id) => Number.isInteger(id) && id > 0),
+      },
     }
 
     if (periodCubeCache.size >= 32) {

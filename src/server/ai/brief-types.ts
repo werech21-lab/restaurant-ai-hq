@@ -4,6 +4,47 @@ export type BriefModelStatus = 'ran' | 'failed' | 'rejected' | 'not_configured' 
 
 export type BriefSectionStatus = 'linked' | 'not_linked' | 'unverified'
 
+export const ODOO_SOURCE_MODELS = [
+  'pos.order',
+  'pos.order.line',
+  'product.product',
+  'account.move.line',
+  'purchase.order',
+] as const
+
+export type OdooSourceModel = (typeof ODOO_SOURCE_MODELS)[number]
+
+export type OdooDomainOperator = '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'not in'
+
+export type OdooDomainValue = string | number | boolean | string[] | number[]
+
+export interface OdooDomainTerm {
+  field: string
+  operator: OdooDomainOperator
+  value: OdooDomainValue
+}
+
+export type FactSourceGap =
+  | 'missing_config_ids'
+  | 'brand_unresolved'
+  | 'commission_classifier'
+  | 'aging_unverified'
+  | 'missing_product_id'
+
+export interface FactRecordRef {
+  model: 'product.product'
+  id: number
+}
+
+/** Odoo model, domain, and record ids that produced a fact. A URL is built later from ODOO_URL. */
+export interface FactSource {
+  model: OdooSourceModel
+  domain: OdooDomainTerm[]
+  records: FactRecordRef[]
+  gap: FactSourceGap | null
+  scopeLabel: string
+}
+
 export interface BriefFact {
   id: string
   metric: string
@@ -11,6 +52,7 @@ export interface BriefFact {
   scope: string
   value: string
   unit: 'KWD' | 'orders'
+  source?: FactSource | null
 }
 
 export interface BriefSection {
@@ -25,6 +67,7 @@ export interface BriefCitation {
   scope: string
   value: string
   unit: string
+  source?: FactSource | null
 }
 
 export interface BriefModelNote {

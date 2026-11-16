@@ -6,6 +6,14 @@ import { isBackgroundAnalysisEnabled, missingCouncilKeyNames } from '@/server/ai
 import { latestManualAtMs, manualRetryAt } from '@/server/ai/manual-run'
 import { safeListDailyBriefs, type ListedDailyBrief } from '@/server/ai/persist'
 import type { BriefCitation, StoredBriefReport } from '@/server/ai/brief-types'
+import {
+  linksForCitation,
+  linksForRecommendation,
+  odooWebBase,
+  reportSectionNotes,
+  type ReportSectionNote,
+  type SourceLink,
+} from '@/server/ai/source-links'
 import { CopyIssueDraft } from './copy-draft'
 import { RunBriefButton } from './run-button'
 
@@ -50,10 +58,47 @@ function scopeLabel(scope: string): string {
   return scope
 }
 
-function CitationList({ citations }: { citations: BriefCitation[] }) {
+function LinkList({ links }: { links: SourceLink[] }) {
+  if (links.length === 0) return null
+  return (
+    <ul className="mt-2 space-y-2">
+      {links.map((link, index) => (
+        <li key={`${link.kind}-${link.href ?? link.domainText ?? link.label}-${index}`} className="text-xs text-slate-700">
+          {link.href ? (
+            <a
+              href={link.href}
+              className="font-bold text-sky-800 underline"
+              {...(link.href.startsWith('https://') ? { target: '_blank', rel: 'noreferrer' } : {})}
+            >
+              {link.label}
+            </a>
+          ) : (
+            <span className="font-bold">{link.model ?? link.label}</span>
+          )}
+          {link.domainText ? (
+            <span className="mt-1 block font-mono text-[11px] text-slate-600" dir="ltr">
+              {link.domainText}
+            </span>
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function SectionAdvice({ note }: { note: ReportSectionNote }) {
+  return (
+    <div className="rounded-xl bg-white p-3 ring-1 ring-slate-200">
+      <p className="text-sm text-slate-800">{note.recommendationAr}</p>
+      <LinkList links={note.links} />
+    </div>
+  )
+}
+
+function CitationList({ citations, odooBase }: { citations: BriefCitation[]; odooBase: string | null }) {
   if (citations.length === 0) return null
   return (
-    <ul className="mt-2 space-y-1">
+    <ul className="mt-2 space-y-3">
       {citations.map((citation, index) => (
         <li key={`${citation.metric}-${citation.period}-${citation.scope}-${index}`} className="text-xs text-slate-600">
           <span>{METRIC_LABELS[citation.metric] ?? citation.metric}</span>
@@ -65,6 +110,7 @@ function CitationList({ citations }: { citations: BriefCitation[] }) {
           <span dir="ltr" className="font-mono">
             {citation.value} {citation.unit}
           </span>
+          <LinkList links={linksForCitation(citation, odooBase)} />
         </li>
       ))}
     </ul>
@@ -77,11 +123,56 @@ const ADVISORY_LABELS = {
   app_capability: 'قدرة مقترحة للتطبيق',
 } as const
 
-function ReportBody({ report, canExport }: { report: StoredBriefReport; canExport: boolean }) {
+function ReportBody({
+  report,
+  canExport,
+  odooBase,
+  reportHref,
+  includeAdminRuns,
+}: {
+  report: StoredBriefReport
+  canExport: boolean
+  odooBase: string | null
+  reportHref: string
+  includeAdminRuns: boolean
+}) {
+  const notes = reportSectionNotes({ report, base: odooBase, reportHref, includeAdminRuns })
+  const note = (id: ReportSectionNote['id']) => notes.find((item) => item.id === id)
   return (
     <div className="space-y-6">
+      {report.configuration === 'not_configured' ? (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          غير مُهيأ. المفاتيح الناقصة: {report.missingKeys.join('، ') || '—'}. لم يُستدعَ أي نموذج.
+        </p>
+      ) : null}
+
+      {report.odoo === 'not_linked' && report.configuration === 'configured' ? (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Odoo غير مرتبط لهذه الفترة. لا توجد نتائج، ولم يُستدعَ أي نموذج.
+        </p>
+      ) : null}
+
       <section>
-        <h2 className="text-sm font-black text-slate-900">حالة النماذج</h2>
+        <h2 className="text-sm font-black text-slate-900">حالة نظافة البيانات</h2>
+        {note('cleanliness') ? <div className="mt-2"><SectionAdvice note={note('cleanliness')!} /></div> : null}
+        {report.sections.length > 0 ? (
+          <ul className="mt-2 space-y-1 text-sm text-slate-700">
+            {report.sections.map((section) => (
+              <li key={section.id}>
+                <span className="font-mono">{section.id}</span>
+                <span> · </span>
+                <span className="font-mono">{section.status}</span>
+                {section.noteAr ? <span> · {section.noteAr}</span> : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section>
+        <h2 className="text-sm font-black text-slate-900">التحليل الخلفي</h2>
+        {note('analysis') ? <div className="mt-2"><SectionAdvice note={note('analysis')!} /></div> : null}
+        <h3 className="mt-4 text-sm font-black text-slate-900">حالة النماذج</h3>
         <div className="mt-2 overflow-x-auto rounded-2xl ring-1 ring-slate-200">
           <table className="min-w-full border-collapse text-start text-sm">
             <thead className="bg-slate-50 text-slate-600">
@@ -106,46 +197,15 @@ function ReportBody({ report, canExport }: { report: StoredBriefReport; canExpor
             </tbody>
           </table>
         </div>
-      </section>
-
-      {report.configuration === 'not_configured' ? (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          غير مُهيأ. المفاتيح الناقصة: {report.missingKeys.join('، ') || '—'}. لم يُستدعَ أي نموذج.
-        </p>
-      ) : null}
-
-      {report.odoo === 'not_linked' && report.configuration === 'configured' ? (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          Odoo غير مرتبط لهذه الفترة. لا توجد نتائج، ولم يُستدعَ أي نموذج.
-        </p>
-      ) : null}
-
-      {report.sections.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-black text-slate-900">مصادر Odoo</h2>
-          <ul className="mt-2 space-y-1 text-sm text-slate-700">
-            {report.sections.map((section) => (
-              <li key={section.id}>
-                <span className="font-mono">{section.id}</span>
-                <span> · </span>
-                <span className="font-mono">{section.status}</span>
-                {section.noteAr ? <span> · {section.noteAr}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <h2 className="text-sm font-black text-slate-900">أ) نتائج البيانات</h2>
-        <p className="mt-1 text-xs text-slate-500">تظهر فقط إذا استندت إلى حقيقة Odoo ودعمها نموذجان على الأقل.</p>
+        <h3 className="mt-4 text-sm font-black text-slate-900">أ) نتائج البيانات</h3>
+        <p className="mt-1 text-xs text-slate-500">تظهر فقط إذا استندت إلى حقيقة Odoo ودعمها نموذجان على الأقل، ومع كل رقم رابط مصدره.</p>
         {report.findings.length === 0 ? (
           <p className="mt-2 text-sm text-slate-600">لا توجد نتيجة بيانات يدعمها نموذجان.</p>
         ) : (
           <div className="mt-2 space-y-3">
             {report.findings.map((finding, index) => (
               <article key={index} className="rounded-2xl bg-white p-3 ring-1 ring-slate-200">
-                <CitationList citations={finding.citations} />
+                <CitationList citations={finding.citations} odooBase={odooBase} />
                 {finding.notes.map((note, noteIndex) => (
                   <p key={noteIndex} className="mt-2 text-sm text-slate-800">
                     <span className="font-mono text-xs text-slate-500" dir="ltr">
@@ -161,15 +221,68 @@ function ReportBody({ report, canExport }: { report: StoredBriefReport; canExpor
       </section>
 
       <section>
+        <h2 className="text-sm font-black text-slate-900">حارس الحقيقة</h2>
+        {note('guard') ? <div className="mt-2"><SectionAdvice note={note('guard')!} /></div> : null}
+        {report.unadoptedFindings.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            <h3 className="text-sm font-black text-slate-500">ملاحظة لم تبلغ إجماع نموذجين</h3>
+            {report.unadoptedFindings.map((item, index) => (
+              <article key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <CitationList citations={item.citations} odooBase={odooBase} />
+                <p className="mt-2 text-sm text-slate-600">
+                  <span dir="ltr">{item.provider}/{item.modelId}</span> — {item.text}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {report.disputed.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            <h3 className="text-sm font-black text-amber-900">متنازع — لا يُعرض كحقيقة</h3>
+            {report.disputed.map((item, index) => (
+              <article key={index} className="rounded-2xl bg-amber-50 p-3 ring-1 ring-amber-200">
+                <CitationList citations={item.citations} odooBase={odooBase} />
+                {item.support.map((supporter, supporterIndex) => (
+                  <p key={`s-${supporterIndex}`} className="mt-2 text-sm text-slate-800">
+                    دعم · <span dir="ltr">{supporter.provider}/{supporter.modelId}</span> — {supporter.solution}
+                  </p>
+                ))}
+                {item.dispute.map((supporter, supporterIndex) => (
+                  <p key={`d-${supporterIndex}`} className="mt-2 text-sm text-slate-800">
+                    اعتراض · <span dir="ltr">{supporter.provider}/{supporter.modelId}</span> — {supporter.solution}
+                  </p>
+                ))}
+              </article>
+            ))}
+          </div>
+        ) : null}
+        {report.dropped.length > 0 ? (
+          <div className="mt-3 space-y-3">
+            <h3 className="text-sm font-black text-slate-500">لم يُعتمد — دعمه نموذج واحد</h3>
+            {report.dropped.map((item, index) => (
+              <article key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                <CitationList citations={item.citations} odooBase={odooBase} />
+                <p className="mt-2 text-sm text-slate-600">
+                  <span dir="ltr">{item.provider}/{item.modelId}</span> — {item.solution}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section>
         <h2 className="text-sm font-black text-slate-900">ب) التوصيات والحلول</h2>
-        <p className="mt-1 text-xs text-slate-500">كل توصية تذكر حقيقة Odoo ويؤيدها نموذجان على الأقل.</p>
+        {note('recommendations') ? <div className="mt-2"><SectionAdvice note={note('recommendations')!} /></div> : null}
+        <p className="mt-2 text-xs text-slate-500">كل توصية تذكر حقيقة Odoo ويؤيدها نموذجان على الأقل، وتربط بصفحة التطبيق وبقيد هذا التقرير.</p>
         {report.recommendations.length === 0 ? (
           <p className="mt-2 text-sm text-slate-600">لا توجد توصية يدعمها نموذجان على الأقل.</p>
         ) : (
           <div className="mt-2 space-y-3">
             {report.recommendations.map((item, index) => (
               <article key={index} className="rounded-2xl bg-white p-3 ring-1 ring-emerald-200">
-                <CitationList citations={item.citations} />
+                <CitationList citations={item.citations} odooBase={odooBase} />
+                <LinkList links={linksForRecommendation(item, odooBase, reportHref).filter((link) => link.kind !== 'odoo')} />
                 {item.supporters.map((supporter, supporterIndex) => (
                   <p key={supporterIndex} className="mt-2 text-sm text-slate-800">
                     <span className="font-mono text-xs text-slate-500" dir="ltr">
@@ -184,25 +297,10 @@ function ReportBody({ report, canExport }: { report: StoredBriefReport; canExpor
         )}
       </section>
 
-      {report.unadoptedFindings.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-black text-slate-500">ملاحظة لم تبلغ إجماع نموذجين</h2>
-          <div className="mt-2 space-y-3">
-            {report.unadoptedFindings.map((item, index) => (
-              <article key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                <CitationList citations={item.citations} />
-                <p className="mt-2 text-sm text-slate-600">
-                  <span dir="ltr">{item.provider}/{item.modelId}</span> — {item.text}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <section className="rounded-2xl bg-violet-50 p-3 ring-1 ring-violet-200">
         <h2 className="text-sm font-black text-violet-950">ج) رأي استشاري — ليس بياناً من Odoo</h2>
-        <p className="mt-1 text-xs text-violet-900">رأي النماذج عن التنظيم والخطة وقدرات يمكن إضافتها لاحقاً. لا يُطبَّق شيء تلقائياً.</p>
+        {note('advisory') ? <div className="mt-2"><SectionAdvice note={note('advisory')!} /></div> : null}
+        <p className="mt-2 text-xs text-violet-900">رأي. ليس بياناً من Odoo.</p>
         {report.advisory.length === 0 ? (
           <p className="mt-2 text-sm text-violet-900">لا يوجد رأي اجتاز الفحص.</p>
         ) : (
@@ -218,10 +316,16 @@ function ReportBody({ report, canExport }: { report: StoredBriefReport; canExpor
             ))}
           </div>
         )}
-        {report.proposals.length > 0 ? (
-          <div className="mt-4 space-y-3">
-            <h3 className="text-sm font-black text-violet-950">مقترحات بحالة proposed</h3>
-            <p className="text-xs text-violet-900">مسودة للنسخ فقط. لم يُكتب كود ولم يُنشر شيء.</p>
+      </section>
+
+      <section className="rounded-2xl bg-violet-50 p-3 ring-1 ring-violet-200">
+        <h2 className="text-sm font-black text-violet-950">مقترحات بحالة proposed</h2>
+        {note('proposals') ? <div className="mt-2"><SectionAdvice note={note('proposals')!} /></div> : null}
+        <p className="mt-2 text-xs text-violet-900">مسودة للنسخ فقط. لم يُكتب كود ولم يُنشر شيء.</p>
+        {report.proposals.length === 0 ? (
+          <p className="mt-2 text-sm text-violet-900">لا توجد مقترحات في هذا التقرير.</p>
+        ) : (
+          <div className="mt-2 space-y-3">
             {report.proposals.map((proposal) => (
               <article key={proposal.id} className="rounded-xl bg-white p-3">
                 <p className="font-mono text-xs text-slate-500">proposed · opinion · {proposal.provider}/{proposal.modelId}</p>
@@ -230,61 +334,39 @@ function ReportBody({ report, canExport }: { report: StoredBriefReport; canExpor
               </article>
             ))}
           </div>
-        ) : null}
+        )}
       </section>
-
-      {report.disputed.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-black text-amber-900">متنازع — لا يُعرض كحقيقة</h2>
-          <div className="mt-2 space-y-3">
-            {report.disputed.map((item, index) => (
-              <article key={index} className="rounded-2xl bg-amber-50 p-3 ring-1 ring-amber-200">
-                <CitationList citations={item.citations} />
-                {item.support.map((supporter, supporterIndex) => (
-                  <p key={`s-${supporterIndex}`} className="mt-2 text-sm text-slate-800">
-                    دعم · <span dir="ltr">{supporter.provider}/{supporter.modelId}</span> — {supporter.solution}
-                  </p>
-                ))}
-                {item.dispute.map((supporter, supporterIndex) => (
-                  <p key={`d-${supporterIndex}`} className="mt-2 text-sm text-slate-800">
-                    اعتراض · <span dir="ltr">{supporter.provider}/{supporter.modelId}</span> — {supporter.solution}
-                  </p>
-                ))}
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {report.dropped.length > 0 ? (
-        <section>
-          <h2 className="text-sm font-black text-slate-500">لم يُعتمد — دعمه نموذج واحد</h2>
-          <div className="mt-2 space-y-3">
-            {report.dropped.map((item, index) => (
-              <article key={index} className="rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                <CitationList citations={item.citations} />
-                <p className="mt-2 text-sm text-slate-600">
-                  <span dir="ltr">{item.provider}/{item.modelId}</span> — {item.solution}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   )
 }
 
-function StoredReport({ brief, canExport }: { brief: ListedDailyBrief; canExport: boolean }) {
+function StoredReport({
+  brief,
+  canExport,
+  includeAdminRuns,
+}: {
+  brief: ListedDailyBrief
+  canExport: boolean
+  includeAdminRuns: boolean
+}) {
   const report = parseStoredBrief(brief.reply)
+  const reportHref = `/erp/ai-brief#report-${brief.id}`
   return (
-    <article className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
+    <article id={`report-${brief.id}`} className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
       <p className="text-xs text-slate-500">
-        {formatKuwait(brief.createdAt)} · {brief.status}
+        <a href={reportHref} className="font-bold text-sky-800 underline">
+          {formatKuwait(brief.createdAt)} · {brief.status}
+        </a>
       </p>
       {report ? (
         <div className="mt-3">
-          <ReportBody report={report} canExport={canExport} />
+          <ReportBody
+            report={report}
+            canExport={canExport}
+            odooBase={odooWebBase(process.env.ODOO_URL)}
+            reportHref={reportHref}
+            includeAdminRuns={includeAdminRuns}
+          />
         </div>
       ) : (
         <p className="mt-2 text-sm text-slate-600">الصف المخزّن ليس تقريراً منظماً.</p>
@@ -334,7 +416,7 @@ export default async function AiBriefPage() {
       {!error && !latest ? <p className="mt-6 text-sm text-slate-600">لا يوجد تقرير مخزّن بعد.</p> : null}
       {latest ? (
         <div className="mt-6">
-          <StoredReport brief={latest} canExport={canRun} />
+          <StoredReport brief={latest} canExport={canRun} includeAdminRuns={role === 'admin'} />
         </div>
       ) : null}
       {older.length > 0 ? (
@@ -346,7 +428,7 @@ export default async function AiBriefPage() {
                 {formatKuwait(brief.createdAt)} · {brief.status}
               </summary>
               <div className="mt-3">
-                <StoredReport brief={brief} canExport={canRun} />
+                <StoredReport brief={brief} canExport={canRun} includeAdminRuns={role === 'admin'} />
               </div>
             </details>
           ))}

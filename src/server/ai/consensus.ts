@@ -18,6 +18,7 @@ import type {
   StoredBriefReport,
 } from './brief-types'
 import { collectAllowedDecimals, extractCanonicalDecimals, guardAnswerNumbers } from './number-guard'
+import { factForGuard, parseFactSource } from './source-links'
 
 const PROVIDERS: readonly BriefProvider[] = ['anthropic', 'google', 'xai']
 
@@ -55,6 +56,7 @@ function citationsFor(factIds: readonly string[], byId: ReadonlyMap<string, Brie
       scope: fact?.scope ?? '',
       value: fact?.value ?? '',
       unit: fact?.unit ?? '',
+      source: parseFactSource(fact?.source) ?? null,
     }
   })
 }
@@ -145,7 +147,7 @@ export function reviewModelText(input: {
   text: string
   facts: readonly BriefFact[]
 }): ReviewedBriefModel {
-  const byId = new Map(input.facts.map((fact) => [fact.id, fact]))
+  const byId = new Map(input.facts.map((fact) => [fact.id, factForGuard(fact)]))
   const parsed = parseJsonObject(input.text)
   const body = asRecord(parsed)
   if (!body) {
@@ -361,6 +363,7 @@ function asCitations(value: unknown): BriefCitation[] {
         scope: typeof record.scope === 'string' ? record.scope : '',
         value: record.value,
         unit: typeof record.unit === 'string' ? record.unit : '',
+        source: parseFactSource(record.source),
       },
     ]
   })

@@ -1,6 +1,7 @@
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { BriefFact, BriefSection } from './brief-types'
 import { decimalFromNumber } from './number-guard'
+import { factForGuard, sanitizePeriodOdooIds, sourceForMetric, type PeriodOdooIds } from './source-links'
 
 const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
 const MAX_PRODUCTS = 12
@@ -17,6 +18,12 @@ export interface BriefCubeInput {
   unattributed?: { netKwd?: number; orders?: number }
   hourlySeries?: { hour?: number; netKwd?: number; orders?: number }[]
   topProducts?: { productId?: number; name?: string; netKwd?: number }[]
+  posConfigIds?: {
+    companyId?: number | null
+    configIdsByBranch?: Record<string, number[]>
+    excludedConfigIds?: number[]
+    excludedPosCategoryIds?: number[]
+  } | null
   accounting?: {
     available?: boolean
     glIncomplete?: boolean
@@ -76,6 +83,11 @@ function addFact(facts: BriefFact[], fact: BriefFact): void {
   facts.push(fact)
 }
 
+function idsOf(cube: BriefCubeInput | null): PeriodOdooIds | null {
+  if (!cube?.posConfigIds) return null
+  return sanitizePeriodOdooIds(cube.posConfigIds)
+}
+
 function pushAmount(
   facts: BriefFact[],
   metric: string,
@@ -83,6 +95,7 @@ function pushAmount(
   scope: string,
   amount: number | undefined,
   unit: BriefFact['unit'],
+  ids: PeriodOdooIds | null,
 ): void {
   if (typeof amount !== 'number') return
   const value = decimalFromNumber(amount)
@@ -94,23 +107,25 @@ function pushAmount(
     scope,
     value,
     unit,
+    source: sourceForMetric({ metric, period, scope, productId: null, ids }),
   })
 }
 
 function appendSales(facts: BriefFact[], cube: BriefCubeInput, fallbackPeriod: string): { productsTruncated: boolean; hoursTruncated: boolean } {
   const period = periodOf(cube, fallbackPeriod)
-  pushAmount(facts, 'net_sales_kwd', period, 'company', cube.totals?.netSalesKwd, 'KWD')
-  pushAmount(facts, 'orders', period, 'company', cube.totals?.orders, 'orders')
+  const ids = idsOf(cube)
+  pushAmount(facts, 'net_sales_kwd', period, 'company', cube.totals?.netSalesKwd, 'KWD', ids)
+  pushAmount(facts, 'orders', period, 'company', cube.totals?.orders, 'orders', ids)
   for (const [branch, row] of Object.entries(cube.byBranch ?? {})) {
-    pushAmount(facts, 'net_sales_kwd', period, branch, row?.netKwd, 'KWD')
-    pushAmount(facts, 'orders', period, branch, row?.orders, 'orders')
+    pushAmount(facts, 'net_sales_kwd', period, branch, row?.netKwd, 'KWD', ids)
+    pushAmount(facts, 'orders', period, branch, row?.orders, 'orders', ids)
   }
   if (cube.unattributed) {
-    pushAmount(facts, 'net_sales_kwd', period, 'unattributed', cube.unattributed.netKwd, 'KWD')
-    pushAmount(facts, 'orders', period, 'unattributed', cube.unattributed.orders, 'orders')
+    pushAmount(facts, 'net_sales_kwd', period, 'unattributed', cube.unattributed.netKwd, 'KWD', ids)
+    pushAmount(facts, 'orders', period, 'unattributed', cube.unattributed.orders, 'orders', ids)
   }
   for (const [brand, row] of Object.entries(cube.byBrand ?? {})) {
-    pushAmount(facts, 'brand_net_sales_kwd', period, brand, row?.netKwd, 'KWD')
+    pushAmount(facts, 'brand_net_sales_kwd', period, brand, row?.netKwd, 'KWD', ids)
   }
 
   const products = (cube.topProducts ?? [])
@@ -129,6 +144,13 @@ function appendSales(facts: BriefFact[], cube: BriefCubeInput, fallbackPeriod: s
       scope: name,
       value,
       unit: 'KWD',
+      source: sourceForMetric({
+        metric: 'product_net_sales_kwd',
+        period,
+        scope: name,
+        productId: typeof row.productId === 'number' ? row.productId : null,
+        ids,
+      }),
     })
   }
 
@@ -136,12 +158,12 @@ function appendSales(facts: BriefFact[], cube: BriefCubeInput, fallbackPeriod: s
     .filter((row) => typeof row.hour === 'number' && Number.isInteger(row.hour) && ((row.netKwd ?? 0) !== 0 || (row.orders ?? 0) !== 0))
     .sort((a, b) => (b.netKwd ?? 0) - (a.netKwd ?? 0))
   for (const row of hours.slice(0, MAX_HOURS)) {
-    pushAmount(facts, 'hourly_net_sales_kwd', period, String(row.hour), row.netKwd, 'KWD')
+    pushAmount(facts, 'hourly_net_sales_kwd', period, String(row.hour), row.netKwd, 'KWD', ids)
   }
   return { productsTruncated: products.length > MAX_PRODUCTS, hoursTruncated: hours.length > MAX_HOURS }
 }
 
-function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, period: string, sections: BriefSection[]): void {
+function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, period: string, sections: BriefSection[], ids: PeriodOdooIds | null): void {
   const accounting = cube?.accounting
   if (!cubeReady(cube) || !accounting) {
     sections.push({ id: 'cogs', status: 'not_linked', noteAr: 'لا توجد تكلفة مبيعات مرتبطة من قيود Odoo لهذه الفترة.' })
@@ -155,7 +177,7 @@ function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, perio
     return
   }
   if (typeof accounting.cogs === 'number') {
-    pushAmount(facts, 'cogs_kwd', citedPeriod, 'company', accounting.cogs, 'KWD')
+    pushAmount(facts, 'cogs_kwd', citedPeriod, 'company', accounting.cogs, 'KWD', ids)
     sections.push({ id: 'cogs', status: 'linked', noteAr: 'من قيود Odoo المرحلة.' })
   } else {
     sections.push({ id: 'cogs', status: 'not_linked', noteAr: 'لا توجد تكلفة مبيعات مرتبطة من قيود Odoo لهذه الفترة.' })
@@ -165,7 +187,7 @@ function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, perio
     return
   }
   if (typeof accounting.deliveryCommissions === 'number') {
-    pushAmount(facts, 'delivery_commission_kwd', citedPeriod, 'company', accounting.deliveryCommissions, 'KWD')
+    pushAmount(facts, 'delivery_commission_kwd', citedPeriod, 'company', accounting.deliveryCommissions, 'KWD', ids)
     sections.push({ id: 'commissions', status: 'linked', noteAr: 'من قيود Odoo المرحلة.' })
   } else {
     sections.push({ id: 'commissions', status: 'not_linked', noteAr: 'لا توجد عمولة توصيل مرتبطة من قيود Odoo لهذه الفترة.' })
@@ -217,18 +239,18 @@ export function buildBriefFactPack(input: {
     noteAr: hoursTruncated ? 'الساعات المعروضة جزء من ساعات اليوم ذات المبيعات.' : facts.some((fact) => fact.metric === 'hourly_net_sales_kwd') ? '' : 'لا توجد مبيعات ساعية في الفترة.',
   })
 
-  appendAccounting(facts, input.current, input.yesterday, sections)
+  appendAccounting(facts, input.current, input.yesterday, sections, idsOf(input.current))
 
   const purchasePeriod = input.yesterday
   if (input.purchases?.connected && !input.purchases.noData && typeof input.purchases.totals?.totalAmountKwd === 'number') {
-    pushAmount(facts, 'purchase_total_kwd', purchasePeriod, 'company', input.purchases.totals.totalAmountKwd, 'KWD')
+    pushAmount(facts, 'purchase_total_kwd', purchasePeriod, 'company', input.purchases.totals.totalAmountKwd, 'KWD', idsOf(input.current))
     sections.push({ id: 'purchases', status: 'linked', noteAr: 'إجمالي أوامر الشراء للفترة، وليس تكلفة المبيعات.' })
   } else {
     sections.push({ id: 'purchases', status: 'not_linked', noteAr: 'لا توجد أوامر شراء مرتبطة لهذه الفترة.' })
   }
 
   if (input.receivables?.readable && typeof input.receivables.openReceivableKwd === 'number') {
-    pushAmount(facts, 'open_receivable_kwd', input.yesterday, 'company', input.receivables.openReceivableKwd, 'KWD')
+    pushAmount(facts, 'open_receivable_kwd', input.yesterday, 'company', input.receivables.openReceivableKwd, 'KWD', null)
     sections.push({ id: 'receivables', status: 'linked', noteAr: 'الرصيد المفتوح من Odoo.' })
   } else {
     sections.push({ id: 'receivables', status: 'not_linked', noteAr: 'لا توجد أرصدة مدينة مقروءة من Odoo.' })
@@ -260,6 +282,6 @@ export function briefPromptPayload(pack: BriefFactPack): string {
   return JSON.stringify({
     periods: pack.periods,
     sections: pack.sections,
-    facts: pack.facts,
+    facts: pack.facts.map((fact) => factForGuard(fact)),
   })
 }
