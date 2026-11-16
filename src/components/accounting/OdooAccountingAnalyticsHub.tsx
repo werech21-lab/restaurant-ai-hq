@@ -79,6 +79,42 @@ export function OdooAccountingAnalyticsHub({
               ? `${acc.lineCount.toLocaleString('en-US')} قيد مرحّل في الفترة`
               : `${acc.lineCount.toLocaleString('en-US')} posted journal lines`}
           </p>
+          <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            {isAr ? 'يشمل إيرادات غير الكاشير' : 'Includes non-cashier revenue'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {acc.totalRevenueKwd == null
+              ? isAr
+                ? 'فرق دفتر الأستاذ عن نقاط البيع: غير مُتحقق'
+                : 'GL versus POS gap: unverified'
+              : isAr
+                ? `صافي نقاط البيع ${fmtKwd(workspace.salesKwd)} · الفرق عن دفتر الأستاذ ${fmtKwd(
+                    acc.totalRevenueKwd - workspace.salesKwd,
+                  )}`
+                : `POS net ${fmtKwd(workspace.salesKwd)} · gap versus GL ${fmtKwd(
+                    acc.totalRevenueKwd - workspace.salesKwd,
+                  )}`}
+          </p>
+          <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+            {(acc.revenueAccounts ?? []).length > 0 ? (
+              acc.revenueAccounts?.map((account) => (
+                <li key={`${account.code}-${account.name}`}>
+                  {account.code} {account.name} · {fmtKwd(account.amountKwd)} ·{' '}
+                  {account.accountType === 'income'
+                    ? isAr
+                      ? 'إيراد'
+                      : 'income'
+                    : isAr
+                      ? 'إيرادات أخرى'
+                      : 'other income'}
+                </li>
+              ))
+            ) : (
+              <li className="font-semibold text-amber-800 dark:text-amber-300">
+                {isAr ? 'قائمة الحسابات: غير مُتحقق' : 'Account list: unverified'}
+              </li>
+            )}
+          </ul>
           <div className="mt-3">
             <KpiProvenanceBadge
               model="account.move.line"
@@ -204,6 +240,11 @@ export function OdooAccountingAnalyticsHub({
             {isAr
               ? `${rec.unreconciledLineCount.toLocaleString('en-US')} سطر ذمم غير مسوّى`
               : `${rec.unreconciledLineCount.toLocaleString('en-US')} unreconciled AR lines`}
+          </p>
+          <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
+            {isAr
+              ? 'أعمار الذمم حسب الشريك (0–30 / 31–60 / +60): غير مُتحقق'
+              : 'Partner ageing (0–30 / 31–60 / 60+): unverified'}
           </p>
           <div className="mt-3">
             <KpiProvenanceBadge

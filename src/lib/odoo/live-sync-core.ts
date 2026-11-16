@@ -96,6 +96,12 @@ export interface OdooLedgerAccountingSummary {
   aggregatorCommissionDisplayAr?: string
   unavailableReasonAr?: string
   unavailableReasonEn?: string
+  revenueAccounts?: {
+    code: string
+    name: string
+    accountType: 'income' | 'income_other'
+    amountKwd: number
+  }[]
 }
 
 export interface OdooUnattributedBranchRow {

@@ -573,6 +573,12 @@ export interface WorkspaceLedgerAccounting {
   netProfitPct: number | null
   unavailableReasonAr: string | null
   unavailableReasonEn: string | null
+  revenueAccounts?: {
+    code: string
+    name: string
+    accountType: 'income' | 'income_other'
+    amountKwd: number
+  }[]
 }
 
 export interface WorkspaceReceivablesMeta {
@@ -1422,6 +1428,7 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
+      revenueAccounts: rawGl?.revenueAccounts ?? [],
     }
   } else {
     const cogsVal = Math.max(0, safeNum(rawGl.cogs))
@@ -1459,6 +1466,7 @@ export function computeGlobalWorkspace(
       netProfitPct: Math.round((opProfitVal / rawGlRev) * 1000) / 10,
       unavailableReasonAr: null,
       unavailableReasonEn: null,
+      revenueAccounts: rawGl.revenueAccounts ?? [],
     }
   }
 

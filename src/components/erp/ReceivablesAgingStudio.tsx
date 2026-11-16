@@ -142,6 +142,12 @@ export function ReceivablesAgingStudio() {
               'شرائح أعمار الذمم المدينة (0–30، 31–60، أكثر من 60 يوماً)',
             )}
           </h3>
+          <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
+            {T(
+              'Per-partner ageing is unverified',
+              'أعمار الذمم حسب الشريك: غير مُتحقق',
+            )}
+          </p>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {ar.agingBuckets.map((b) => (
