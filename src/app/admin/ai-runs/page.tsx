@@ -100,16 +100,15 @@ export default async function AiRunsPage() {
 }
 
 function BriefPanel({ brief }: { brief: ListedDailyBrief | null }) {
-  if (!brief) {
-    return <p className="mt-4 text-sm text-slate-600">لا يوجد موجز يومي مخزّن.</p>
-  }
   return (
     <section className="mt-4 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
-      <h2 className="text-sm font-black text-slate-900">آخر موجز يومي</h2>
+      <h2 className="text-sm font-black text-slate-900">تقرير التحليل اليومي</h2>
       <p className="mt-1 text-xs text-slate-500">
-        {formatKuwait(brief.createdAt)} — {brief.status} — {brief.agreedModels}
+        {brief ? `${formatKuwait(brief.createdAt)} — ${brief.status}` : 'لا يوجد تقرير مخزّن.'}
       </p>
-      <pre className="mt-2 whitespace-pre-wrap text-sm text-slate-800">{brief.reply}</pre>
+      <a href="/erp/ai-brief" className="mt-2 inline-block text-sm font-bold text-slate-900 underline">
+        صفحة التقرير
+      </a>
     </section>
   )
 }

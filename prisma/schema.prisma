@@ -789,7 +789,7 @@ model AiRun {
   @@map("ai_runs")
 }
 
-/// Composed daily brief produced by the same council. Empty until the cron flag is on.
+/// Stored background report. `reply` is the report JSON. The schedule is on unless AI_DAILY_BRIEF_ENABLED is 0, false, or off.
 model AiDailyBrief {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now())

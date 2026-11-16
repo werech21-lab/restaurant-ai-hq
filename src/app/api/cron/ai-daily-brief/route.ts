@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomUUID } from 'node:crypto'
 import { constantTimeHexEqual, ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import { logger, errorFields } from '@/lib/logger'
-import { isAiDailyBriefEnabled } from '@/server/ai/env'
-import { DAILY_BRIEF_QUESTION, runFeryalCouncil } from '@/server/ai/council'
-import { persistDailyBrief } from '@/server/ai/persist'
+import { runBackgroundAnalysis } from '@/server/ai/brief'
+import { isBackgroundAnalysisEnabled } from '@/server/ai/env'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,6 +15,20 @@ function cronAuthorized(request: NextRequest): boolean {
   return constantTimeHexEqual(header, `Bearer ${secret}`)
 }
 
+function publicBody(result: Awaited<ReturnType<typeof runBackgroundAnalysis>>) {
+  return {
+    ok: true,
+    status: result.status,
+    missingKeys: result.report.missingKeys,
+    models: result.report.models.map((model) => ({
+      provider: model.provider,
+      modelId: model.modelId,
+      status: model.status,
+      errorCode: model.errorCode,
+    })),
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
     return NextResponse.json(
@@ -24,39 +36,18 @@ export async function GET(request: NextRequest) {
       { status: 401, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }
-  if (!isAiDailyBriefEnabled()) {
+  if (!isBackgroundAnalysisEnabled()) {
     return NextResponse.json(
       { ok: true, skipped: true, reason: 'AI_DAILY_BRIEF_ENABLED' },
       { headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   }
   try {
-    const result = await runFeryalCouncil({
-      question: DAILY_BRIEF_QUESTION,
+    const result = await runBackgroundAnalysis({
+      trigger: 'schedule',
       userId: 'system:daily-brief',
-      userRole: 'admin',
     })
-    await persistDailyBrief({
-      id: randomUUID(),
-      questionHash: result.questionHash,
-      status: result.status,
-      reply: result.reply,
-      agreedModels: JSON.stringify(result.agreed),
-    })
-    return NextResponse.json(
-      {
-        ok: result.status !== 'council_failed',
-        status: result.status,
-        agreed: result.agreed,
-        participants: result.participants.map((item) => ({
-          provider: item.provider,
-          modelId: item.modelId,
-          status: item.status,
-          errorCode: item.errorCode,
-        })),
-      },
-      { headers: ENTERPRISE_API_SECURITY_HEADERS },
-    )
+    return NextResponse.json(publicBody(result), { headers: ENTERPRISE_API_SECURITY_HEADERS })
   } catch (error) {
     logger.error('daily brief failed', errorFields(error))
     return NextResponse.json(

@@ -376,10 +376,12 @@ describe('ai key vault', () => {
     }
   })
 
-  it('keeps the daily brief disabled unless the flag is explicitly on', () => {
-    expect(isAiDailyBriefEnabled('')).toBe(false)
-    expect(isAiDailyBriefEnabled('0')).toBe(false)
+  it('keeps the background schedule on unless the flag explicitly turns it off', () => {
+    expect(isAiDailyBriefEnabled('')).toBe(true)
     expect(isAiDailyBriefEnabled('true')).toBe(true)
     expect(isAiDailyBriefEnabled('1')).toBe(true)
+    expect(isAiDailyBriefEnabled('0')).toBe(false)
+    expect(isAiDailyBriefEnabled('false')).toBe(false)
+    expect(isAiDailyBriefEnabled('off')).toBe(false)
   })
 })

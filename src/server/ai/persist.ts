@@ -336,6 +336,51 @@ export async function listLatestDailyBrief(): Promise<ListedDailyBrief | null> {
   return row
 }
 
+async function listBriefsPostgres(limit: number): Promise<ListedDailyBrief[] | null> {
+  const pool = postgresPool()
+  if (!pool) return null
+  try {
+    const result = await pool.query<{
+      id: string
+      createdAt: Date
+      questionHash: string
+      status: string
+      reply: string
+      agreedModels: string
+    }>(
+      `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
+       FROM public.ai_daily_briefs
+       ORDER BY "createdAt" DESC
+       LIMIT $1`,
+      [limit],
+    )
+    return result.rows.map((row) => ({ ...row, createdAt: asDate(row.createdAt) }))
+  } catch (error) {
+    logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
+    return null
+  }
+}
+
+export async function listDailyBriefs(limit: number): Promise<ListedDailyBrief[]> {
+  const safeLimit = Math.max(1, Math.min(30, limit))
+  const fromPostgres = await listBriefsPostgres(safeLimit)
+  if (fromPostgres !== null) return fromPostgres
+  await ensureAiTables()
+  return prisma.aiDailyBrief.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: safeLimit,
+  })
+}
+
+export async function safeListDailyBriefs(limit: number): Promise<{ briefs: ListedDailyBrief[]; error: boolean }> {
+  try {
+    return { briefs: await listDailyBriefs(limit), error: false }
+  } catch (error) {
+    logger.error('ai brief list failed', errorFields(error))
+    return { briefs: [], error: true }
+  }
+}
+
 export type AiRunStore = 'postgres' | 'panel'
 
 export async function safeListAiRuns(limit: number): Promise<{

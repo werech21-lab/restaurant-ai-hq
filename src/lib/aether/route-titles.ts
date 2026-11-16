@@ -113,6 +113,15 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
     },
   },
   {
+    match: '/erp/ai-brief',
+    title: {
+      en: 'Daily Odoo analysis',
+      ar: 'تحليل أودو اليومي',
+      mobileEn: 'Daily analysis',
+      mobileAr: 'التحليل اليومي',
+    },
+  },
+  {
     match: '/erp/feryal-ai',
     title: {
       en: 'Ask Feryal (Vision & Video)',

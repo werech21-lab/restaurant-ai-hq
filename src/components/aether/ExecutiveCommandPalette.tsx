@@ -312,6 +312,20 @@ export function ExecutiveCommandPalette() {
           run: () => go('/erp/feryal-ai'),
         },
       },
+      {
+        href: '/erp/ai-brief',
+        cmd: {
+          id: 'p-ai-brief',
+          group: 'pages',
+          en: 'Daily Odoo analysis',
+          ar: 'تحليل أودو اليومي',
+          hintEn: 'Morning report from three models on Odoo sales, cost, and receivables',
+          hintAr: 'تقرير الصباح من ثلاثة نماذج على حقائق أودو',
+          keywords: 'daily brief council claude gemini grok analysis تقرير يومي تحليل أودو',
+          icon: <BarChart3 className="h-4 w-4" />,
+          run: () => go('/erp/ai-brief'),
+        },
+      },
 
       // 4) الحوكمة والتخطيط (Governance & Strategy)
       {

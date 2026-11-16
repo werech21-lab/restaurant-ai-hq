@@ -14,6 +14,7 @@ export interface ProviderCallInput {
   system: string
   user: string
   timeoutMs: number
+  maxTokens?: number
   fetchImpl?: typeof fetch
 }
 
@@ -103,10 +104,14 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+function tokenBudget(input: ProviderCallInput): number {
+  return input.maxTokens && input.maxTokens > 0 ? input.maxTokens : ANALYSIS_MAX_TOKENS
+}
+
 function anthropicBody(input: ProviderCallInput): string {
   return JSON.stringify({
     model: input.model,
-    max_tokens: ANALYSIS_MAX_TOKENS,
+    max_tokens: tokenBudget(input),
     system: input.system,
     messages: [{ role: 'user', content: input.user }],
   })
@@ -116,14 +121,14 @@ function geminiBody(input: ProviderCallInput): string {
   return JSON.stringify({
     systemInstruction: { parts: [{ text: input.system }] },
     contents: [{ role: 'user', parts: [{ text: input.user }] }],
-    generationConfig: { maxOutputTokens: ANALYSIS_MAX_TOKENS },
+    generationConfig: { maxOutputTokens: tokenBudget(input) },
   })
 }
 
 function xaiBody(input: ProviderCallInput): string {
   return JSON.stringify({
     model: input.model,
-    max_tokens: ANALYSIS_MAX_TOKENS,
+    max_tokens: tokenBudget(input),
     messages: [
       { role: 'system', content: input.system },
       { role: 'user', content: input.user },
