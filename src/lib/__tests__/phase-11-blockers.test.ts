@@ -211,12 +211,12 @@ describe('phase 11 blocker 3 & should-fix 1 & should-fix 3: pinned canteen ids, 
     expect(resolveRestaurantBranchForConfig(999, 'Exhibition School Fair')).toBeNull()
     expect(resolveRestaurantBranchForConfig(998, 'Test canteen')).toBeNull()
 
-    // Exclusions win over inclusion -> "Hawally School Street Branch" stays excluded even with an approved ID
+    // Exclusions win on non-canteen IDs while pinned canteen IDs allow closed-district names
     const streetBranch = `${closedBranch[0]?.toUpperCase()}${closedBranch.slice(1)} School Street Branch`
     expect(isExcludedOdooEntity(streetBranch)).toBe(true)
     expect(companyPosConfigAllowed(3, streetBranch, true)).toBe(false)
-    expect(companyPosConfigAllowed(pinnedCanteens[0]!, streetBranch, true)).toBe(false)
-    expect(resolveRestaurantBranchForConfig(pinnedCanteens[0]!, streetBranch)).toBeNull()
+    expect(companyPosConfigAllowed(pinnedCanteens[0]!, streetBranch, true)).toBe(true)
+    expect(resolveRestaurantBranchForConfig(pinnedCanteens[0]!, streetBranch)).toBe('school-canteens')
   })
 
   it('includes pinned canteen device ids in the tooltip query by default', () => {
@@ -318,8 +318,8 @@ describe('phase 11 should-fix 4: refunds do not add +1 to order count', () => {
   it('keeps refund KWD negative while contributing 0 to the order count and excludes negative orders from search_count', () => {
     expect(posOrderNet(-12.5, 0)).toBe(-12.5)
     expect(posOrderCount(1, -12.5, 0)).toBe(0)
-    expect(posOrderCount(3, -30, -1.5)).toBe(0)
-    expect(posOrderCount(5, 100, 5)).toBe(5)
+    expect(() => posOrderCount(3, -30, -1.5)).toThrow(RangeError)
+    expect(posOrderCount(1, 100, 5)).toBe(1)
 
     const countQuery = describePosOrderQuery({
       fromKuwaitDate: '2026-11-16',

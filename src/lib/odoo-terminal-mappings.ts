@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
-import { isPinnedSchoolCanteenConfigId } from '@/lib/odoo/company-pos'
+import { companyPosConfigAllowed, isPinnedSchoolCanteenConfigId } from '@/lib/odoo/company-pos'
 import { errorFields, logger } from '@/lib/logger'
 import {
   clearPosTerminalMap,
@@ -63,7 +63,7 @@ export function sanitizePosTerminalDisplayName(
 ): string {
   const tid = Number.isInteger(terminalId) && terminalId > 0 ? terminalId : 0
   const trimmed = String(rawName ?? '').trim()
-  if (isPinnedSchoolCanteenConfigId(tid) && !isExcludedOdooEntity(trimmed)) {
+  if (isPinnedSchoolCanteenConfigId(tid) && companyPosConfigAllowed(tid, trimmed, true)) {
     const cleaned = trimmed.replace(FORBIDDEN_TERMINAL_DISTRICT_RE, ' ').replace(/\s+/g, ' ').trim()
     const inactive = /inactive|متوقف/i.test(trimmed)
     const label = cleaned || (tid > 0 ? `School canteen #${tid}` : 'School canteen')

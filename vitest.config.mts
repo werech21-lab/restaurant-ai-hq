@@ -1,6 +1,10 @@
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 
+const vitestRunId =
+  process.env.AETHERBI_VITEST_RUN_ID || `run-${process.pid}-${Date.now().toString(36)}`
+process.env.AETHERBI_VITEST_RUN_ID = vitestRunId
+
 export default defineConfig({
   oxc: {
     jsx: {

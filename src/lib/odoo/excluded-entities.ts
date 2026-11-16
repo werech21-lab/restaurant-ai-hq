@@ -176,33 +176,60 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
 
 /** Whole tokens only. A substring would also match nearby Arabic words. */
 const WORD_ONLY = new Set(['\u062d\u0648\u0644\u064a', 'qrn', 'jhr', 'hwl'])
+const SHORT_CODE_ONLY = new Set(['qrn', 'jhr', 'hwl'])
 
 const NAME_FRAGMENTS = ODOO_EXCLUSION_RULES.map((rule) => joined(rule.nameParts)).filter(
   (fragment) => fragment.length > 0,
 )
 
-const DOMAIN_FRAGMENTS = NAME_FRAGMENTS.filter((fragment) => !WORD_ONLY.has(normalizeEntityLabel(fragment)))
+const DOMAIN_FRAGMENTS = NAME_FRAGMENTS.filter((fragment) => !SHORT_CODE_ONLY.has(normalizeEntityLabel(fragment)))
 const TOKEN_MARKS = new Set(NAME_FRAGMENTS.map((fragment) => normalizeEntityLabel(fragment)))
 
 export function exclusionDomainFragments(): readonly string[] {
   return DOMAIN_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
 }
 
-/**
- * Named NPIS school-canteen label check used ONLY so the closed-branch district word
- * inside our NPIS school canteen label does not false-exclude the canteen.
- * Generic words (school, canteen, مقصف, مدرسة) NEVER exempt an excluded entity,
- * and POS device inclusion is strictly by pinned pos.config IDs.
- */
-function isNamedNpisCanteenOnly(rawNormalized: string): boolean {
-  if (!/\bnpis\b/.test(rawNormalized)) return false
-  if (/\b(?:branch|street|restaurant|exhibition|exebition|fair|test|demo)\b|\u0641\u0631\u0639|\u0634\u0627\u0631\u0639|\u0645\u0637\u0639\u0645/.test(rawNormalized)) {
-    return false
-  }
-  return true
+const CLITIC = /^(?:لل|ب|و|ل)/
+const STRONG_CANTEEN_TOKENS = new Set(['npis', 'faips', 'fas', 'canteen', 'canteens'])
+const ARABIC_CANTEEN_FORMS = new Set(['\u0645\u0642\u0635\u0641', '\u0627\u0644\u0645\u0642\u0635\u0641'])
+const ARABIC_SINGULAR_SCHOOL_FORMS = new Set([
+  '\u0645\u062f\u0631\u0633\u0647',
+  '\u0627\u0644\u0645\u062f\u0631\u0633\u0647',
+])
+const ARABIC_STREET_FORMS = new Set(['\u0634\u0627\u0631\u0639', '\u0627\u0644\u0634\u0627\u0631\u0639'])
+
+function matchesArabicForm(token: string, forms: ReadonlySet<string>): boolean {
+  if (forms.has(token)) return true
+  const stripped = token.replace(CLITIC, '')
+  return stripped !== token && forms.has(stripped)
 }
 
-/** District fragments that the named NPIS school canteen contains without leaving the company. */
+/**
+ * Closed-branch-family canteen exemption helper.
+ * Applies ONLY to closed-branch-family district tokens without joined digits;
+ * Jahra, Qurain, and Heisenberg are never exempted, and POS register inclusion
+ * remains strictly governed by pinned pos.config IDs.
+ */
+function hasClosedBranchCanteenExemption(rawNormalized: string): boolean {
+  if (!rawNormalized) return false
+  if (/\bschool canteens?\b/.test(rawNormalized)) return true
+  const tokens = rawNormalized.split(' ').filter(Boolean)
+  for (const tok of tokens) {
+    if (STRONG_CANTEEN_TOKENS.has(tok) || matchesArabicForm(tok, ARABIC_CANTEEN_FORMS)) {
+      return true
+    }
+  }
+  const hasSingularArabicSchool = tokens.some((tok) =>
+    matchesArabicForm(tok, ARABIC_SINGULAR_SCHOOL_FORMS),
+  )
+  if (!hasSingularArabicSchool) return false
+  const hasStreetMarker = tokens.some(
+    (tok) => tok === 'street' || tok === 'streets' || matchesArabicForm(tok, ARABIC_STREET_FORMS),
+  )
+  return !hasStreetMarker
+}
+
+/** District fragments that a school canteen in the closed-branch district may contain without leaving the company. */
 export function isClosedBranchFamilyFragment(fragment: string): boolean {
   const normalized = normalizeEntityLabel(fragment)
   return normalized.startsWith('haw') || normalized === '\u062d\u0648\u0644\u064a' || normalized === 'hwl'
@@ -234,7 +261,6 @@ export function isExcludedRecordId(kind: ExclusionKind, id: number | null | unde
   return ODOO_EXCLUSION_RULES.some((rule) => rule.kind === kind && rule.ids.includes(id))
 }
 
-const CLITIC = /^(?:لل|ب|و|ل)/
 const LATIN_AL_PREFIX = /^al(?=[a-z]{4,})/
 const JOINED_SUFFIX = /(?:kw|kwt|kuwait|wh|pos)$/
 const COLLAPSED_MARKS = new Set(['heisenberg', 'heizenberg', 'hizenberg', 'heisenburg', 'haisenberg'])
@@ -263,11 +289,11 @@ function markHit(token: string): boolean {
   return token.startsWith(ARABIC_BRAND_STEM)
 }
 
-function tokenExcluded(token: string, npisCanteen: boolean, rawOriginalToken?: string): boolean {
+function tokenExcluded(token: string, closedBranchCanteen: boolean, rawOriginalToken?: string): boolean {
   const hasJoinedDigit = rawOriginalToken ? /\d/.test(rawOriginalToken) : false
   for (const candidate of expandTokenCandidates(token)) {
     if (!markHit(candidate)) continue
-    if (npisCanteen && !hasJoinedDigit && isClosedBranchFamilyFragment(candidate)) continue
+    if (closedBranchCanteen && !hasJoinedDigit && isClosedBranchFamilyFragment(candidate)) continue
     return true
   }
   return false
@@ -290,7 +316,7 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   const rawStr = String(raw)
   const text = normalizeEntityLabel(rawStr)
   if (!text) return false
-  const npisCanteen = isNamedNpisCanteenOnly(text)
+  const closedBranchCanteen = hasClosedBranchCanteenExemption(text)
   const rawTokens = rawStr
     .normalize('NFKD')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
@@ -299,26 +325,48 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
     .filter(Boolean)
   for (const rawTok of rawTokens) {
     const subTokens = normalizeEntityLabel(rawTok).split(' ').filter(Boolean)
-    if (subTokens.some((tok) => tokenExcluded(tok, npisCanteen, rawTok))) return true
+    if (subTokens.some((tok) => tokenExcluded(tok, closedBranchCanteen, rawTok))) return true
   }
   const tokens = text.split(' ')
   if (collapsedWindowHit(tokens)) return true
   return false
 }
 
-function tokenLikePatterns(fragment: string): string[] {
-  const separators = [' ', '-', '/', ',', '(', ')', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-  const patterns = new Set<string>([fragment])
-  for (const separator of separators) {
+const TOKEN_SEPARATORS = [' ', '-', '/', ',', ':', '(', ')']
+const DIGIT_SEPARATORS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+
+function wordBoundaryLikePatterns(fragment: string): string[] {
+  const patterns = new Set<string>([
+    fragment,
+    `%(${fragment})%`,
+    `%(${fragment} %`,
+    `%-${fragment} %`,
+    `%/${fragment} %`,
+    `% ${fragment}:%`,
+    `% ${fragment},%`,
+    `% ${fragment})%`,
+    `% ${fragment}-%`,
+    `% ${fragment}/%`,
+  ])
+  for (const separator of TOKEN_SEPARATORS) {
     patterns.add(`${fragment}${separator}%`)
     patterns.add(`%${separator}${fragment}`)
     patterns.add(`%${separator}${fragment}${separator}%`)
   }
+  return [...patterns]
+}
+
+function wordAndAffixLikePatterns(fragment: string): string[] {
+  const patterns = new Set<string>(wordBoundaryLikePatterns(fragment))
   if (/^[a-z]/i.test(fragment)) {
     patterns.add(`al${fragment}`)
     patterns.add(`al${fragment}%`)
+    patterns.add(`% al${fragment}`)
+    patterns.add(`% al${fragment}%`)
     patterns.add(`${fragment}kw`)
     patterns.add(`${fragment}kw%`)
+    patterns.add(`% ${fragment}kw`)
+    patterns.add(`% ${fragment}kw%`)
   }
   if (/^[\u0600-\u06ff]/.test(fragment)) {
     for (const prefix of ['\u0628', '\u0648', '\u0644', '\u0644\u0644']) {
@@ -326,31 +374,81 @@ function tokenLikePatterns(fragment: string): string[] {
       for (const separator of [' ', '-', '/']) {
         patterns.add(`${prefix}${fragment}${separator}%`)
         patterns.add(`%${separator}${prefix}${fragment}`)
+        patterns.add(`%${separator}${prefix}${fragment}${separator}%`)
       }
     }
   }
   return [...patterns]
 }
 
-function pushNegatedToken(domain: unknown[], nameField: string, fragment: string): void {
-  const patterns = tokenLikePatterns(fragment)
+function digitJoinedLikePatterns(fragment: string): string[] {
+  const patterns = new Set<string>()
+  for (const digit of DIGIT_SEPARATORS) {
+    patterns.add(`${fragment}${digit}%`)
+    patterns.add(`%${digit}${fragment}`)
+    patterns.add(`%${digit}${fragment}${digit}%`)
+    patterns.add(`% ${fragment}${digit}%`)
+    patterns.add(`%-${fragment}${digit}%`)
+  }
+  return [...patterns]
+}
+
+function tokenLikePatterns(fragment: string): string[] {
+  return [...new Set([...wordAndAffixLikePatterns(fragment), ...digitJoinedLikePatterns(fragment)])]
+}
+
+function pushNegatedPatterns(domain: unknown[], nameField: string, patterns: readonly string[]): void {
+  if (patterns.length === 0) return
   domain.push('!')
   for (let i = 0; i < patterns.length - 1; i += 1) domain.push('|')
   for (const pattern of patterns) domain.push([nameField, '=ilike', pattern])
 }
 
+function pushNegatedToken(domain: unknown[], nameField: string, fragment: string): void {
+  pushNegatedPatterns(domain, nameField, tokenLikePatterns(fragment))
+}
+
+function pushClosedBranchCanteenExemption(domain: unknown[], nameField: string): void {
+  const fasPatterns = wordBoundaryLikePatterns('fas')
+  // Clauses: NPIS, FAIPS, canteen, مقصف, each FAS token pattern, and (مدرسة|مدرسه) & !شارع & !street
+  const clauseCount = 4 + fasPatterns.length + 1
+  for (let i = 0; i < clauseCount - 1; i += 1) domain.push('|')
+  domain.push([nameField, 'ilike', 'NPIS'])
+  domain.push([nameField, 'ilike', 'FAIPS'])
+  domain.push([nameField, 'ilike', 'canteen'])
+  domain.push([nameField, 'ilike', '\u0645\u0642\u0635\u0641'])
+  for (const pattern of fasPatterns) {
+    domain.push([nameField, '=ilike', pattern])
+  }
+  domain.push('&')
+  domain.push('|')
+  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0629'])
+  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0647'])
+  domain.push('&')
+  domain.push('!')
+  domain.push([nameField, 'ilike', '\u0634\u0627\u0631\u0639'])
+  domain.push('!')
+  domain.push([nameField, 'ilike', 'street'])
+}
+
 export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
+  const closedWordPatterns = new Set<string>()
+  const closedDigitPatterns = new Set<string>()
   for (const fragment of exclusionDomainFragments()) {
     if (!isClosedBranchFamilyFragment(fragment)) {
       pushNegatedToken(domain, nameField, fragment)
       continue
     }
+    for (const p of wordAndAffixLikePatterns(fragment)) closedWordPatterns.add(p)
+    for (const p of digitJoinedLikePatterns(fragment)) closedDigitPatterns.add(p)
+  }
+  if (closedDigitPatterns.size > 0) {
+    pushNegatedPatterns(domain, nameField, [...closedDigitPatterns])
+  }
+  if (closedWordPatterns.size > 0) {
     domain.push('|')
-    domain.push('&')
-    domain.push([nameField, 'ilike', 'NPIS'])
-    domain.push('!')
-    domain.push([nameField, 'ilike', 'branch'])
-    pushNegatedToken(domain, nameField, fragment)
+    pushClosedBranchCanteenExemption(domain, nameField)
+    pushNegatedPatterns(domain, nameField, [...closedWordPatterns])
   }
 }
 

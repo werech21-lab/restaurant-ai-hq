@@ -6,6 +6,7 @@ export function setup(): void {
 }
 
 export async function teardown(): Promise<void> {
-  sweepVitestSqliteCopies('/tmp')
-  sweepVitestSqliteCopies(os.tmpdir())
+  const runId = process.env.AETHERBI_VITEST_RUN_ID
+  sweepVitestSqliteCopies('/tmp', runId)
+  sweepVitestSqliteCopies(os.tmpdir(), runId)
 }

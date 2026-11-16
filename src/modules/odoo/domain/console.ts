@@ -18,23 +18,86 @@ export function odooConsoleExtractor(): string {
   const excluded = ${excluded};
   const closedBranchFamily = ${closedBranchFamily};
   function rowKept(row) {
-    var rawBlob = JSON.stringify(row || {});
-    var expanded = rawBlob
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-      .replace(/([a-z\\u0600-\\u06ff])(\\d)/gi, '$1 $2')
-      .replace(/(\\d)([a-z\\u0600-\\u06ff])/gi, '$1 $2')
-      .toLowerCase();
-    var npisCanteen = /\\bnpis\\b/.test(expanded) && !/\\b(?:branch|street|restaurant)\\b/.test(expanded);
-    var parts = expanded.split(/[^0-9a-z\\u0600-\\u06ff]+/);
+    var cliticRe = /^(?:\\u0644\\u0644|\\u0628|\\u0648|\\u0644)/;
+    function stripAr(t) {
+      return t.replace(cliticRe, '');
+    }
+    function norm(s) {
+      return String(s || '')
+        .normalize('NFKD')
+        .replace(/[\\u064b-\\u0652\\u0670\\u0640]/g, '')
+        .replace(/[\\u0623\\u0625\\u0622]/g, '\\u0627')
+        .replace(/\\u0649/g, '\\u064a')
+        .replace(/\\u0629/g, '\\u0647')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+        .replace(/([a-z\\u0600-\\u06ff])(\\d)/gi, '$1 $2')
+        .replace(/(\\d)([a-z\\u0600-\\u06ff])/gi, '$1 $2')
+        .toLowerCase();
+    }
+    function rowTexts(val, out) {
+      if (typeof val === 'string') { out.push(val); return; }
+      if (!val || typeof val !== 'object') return;
+      if (Array.isArray(val)) {
+        for (var i = 0; i < val.length; i += 1) rowTexts(val[i], out);
+        return;
+      }
+      var keys = Object.keys(val);
+      for (var k = 0; k < keys.length; k += 1) {
+        if (keys[k] === 'image_128') continue;
+        rowTexts(val[keys[k]], out);
+      }
+    }
+    function hasCanteenExemption(expanded, parts) {
+      if (/\\bschool\\s+canteens?\\b/.test(expanded)) return true;
+      var hasSingularSchool = false;
+      var hasStreet = false;
+      for (var i = 0; i < parts.length; i += 1) {
+        var tok = parts[i];
+        var ar = stripAr(tok);
+        if (tok === 'npis' || tok === 'faips' || tok === 'fas' || tok === 'canteen' || tok === 'canteens') return true;
+        if (tok === '\\u0645\\u0642\\u0635\\u0641' || tok === '\\u0627\\u0644\\u0645\\u0642\\u0635\\u0641' || ar === '\\u0645\\u0642\\u0635\\u0641' || ar === '\\u0627\\u0644\\u0645\\u0642\\u0635\\u0641') return true;
+        if (tok === '\\u0645\\u062f\\u0631\\u0633\\u0647' || tok === '\\u0627\\u0644\\u0645\\u062f\\u0631\\u0633\\u0647' || ar === '\\u0645\\u062f\\u0631\\u0633\\u0647' || ar === '\\u0627\\u0644\\u0645\\u062f\\u0631\\u0633\\u0647') hasSingularSchool = true;
+        if (tok === 'street' || tok === 'streets' || tok === '\\u0634\\u0627\\u0631\\u0639' || tok === '\\u0627\\u0644\\u0634\\u0627\\u0631\\u0639' || ar === '\\u0634\\u0627\\u0631\\u0639' || ar === '\\u0627\\u0644\\u0634\\u0627\\u0631\\u0639') hasStreet = true;
+      }
+      return hasSingularSchool && !hasStreet;
+    }
+    function tokenCandidates(tok) {
+      var list = [tok];
+      var ar = stripAr(tok);
+      if (ar && ar !== tok) list.push(ar);
+      var al = tok.replace(/^al(?=[a-z]{4,})/, '');
+      if (al && al !== tok) list.push(al);
+      var baseLen = list.length;
+      for (var i = 0; i < baseLen; i += 1) {
+        var suf = list[i].replace(/(?:kw|kwt|kuwait|wh|pos)$/, '');
+        if (suf !== list[i] && suf.length >= 3) list.push(suf);
+      }
+      return list;
+    }
+    var texts = [];
+    rowTexts(row, texts);
+    var rawBlob = texts.join(' ');
+    var expanded = norm(rawBlob);
+    var parts = expanded.split(/[^0-9a-z\\u0600-\\u06ff]+/).filter(Boolean);
+    var canteenExempt = hasCanteenExemption(expanded, parts);
+    var rawWords = rawBlob.normalize('NFKD').split(/[^0-9a-zA-Z\\u0600-\\u06ff]+/).filter(Boolean);
     return excluded.every(function (fragment) {
-      var low = String(fragment).toLowerCase();
-      if (npisCanteen && closedBranchFamily.indexOf(fragment) !== -1) return true;
-      return parts.every(function (tok) {
-        if (tok === low) return false;
-        if (tok.replace(/^al(?=[a-z]{4,})/, '') === low) return false;
-        if (tok.replace(/(?:kw|kwt|kuwait|wh|pos)$/, '') === low) return false;
-        return true;
+      var low = norm(fragment).trim();
+      var isClosed = closedBranchFamily.indexOf(fragment) !== -1;
+      return rawWords.every(function (rawWord) {
+        var hasDigit = /\\d/.test(rawWord);
+        var subParts = norm(rawWord).split(/[^0-9a-z\\u0600-\\u06ff]+/).filter(Boolean);
+        return subParts.every(function (tok) {
+          var cands = tokenCandidates(tok);
+          for (var c = 0; c < cands.length; c += 1) {
+            if (cands[c] === low) {
+              if (isClosed && canteenExempt && !hasDigit) continue;
+              return false;
+            }
+          }
+          return true;
+        });
       });
     });
   }

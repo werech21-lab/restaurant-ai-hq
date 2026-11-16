@@ -38,6 +38,14 @@ describe('phase 9 company POS', () => {
     expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
     expect(isPinnedSchoolCanteenConfigId(99)).toBe(false)
     expect(isExcludedOdooEntity(nipsCanteen)).toBe(false)
+    expect(isExcludedOdooEntity(`${nipsCanteen} (Inactive)`)).toBe(false)
+    expect(isExcludedOdooEntity(`\u0645\u0642\u0635\u0641 ${closedArabic}`)).toBe(false)
+    // TODO(Abdullah): confirm
+    expect(
+      isExcludedOdooEntity(
+        `Cash On Hand/ NPIS ${['Haw', 'ally'].join('')} Branch Cashier - \u0641\u0631\u0639 ${closedArabic} - NPIS`,
+      ),
+    ).toBe(false)
     expect(isExcludedOdooEntity('FAIPS Ahmadi')).toBe(false)
     expect(isExcludedOdooEntity(closedBranch)).toBe(true)
     expect(isExcludedOdooEntity(closedArabic)).toBe(true)

@@ -1,7 +1,16 @@
 import registry from './pos-registry.json'
-import { isExcludedOdooEntity, isExcludedRecordId } from './excluded-entities'
+import {
+  ODOO_EXCLUSION_RULES,
+  isClosedBranchFamilyFragment,
+  isExcludedOdooEntity,
+  isExcludedRecordId,
+  normalizeEntityLabel,
+} from './excluded-entities'
 
 export const SCHOOL_CANTEEN_BRANCH_ID = 'school-canteens'
+
+// TODO(Abdullah): confirm whether archived pinned pos.config 16 (Promenade) should remain active-only or include historical orders.
+export const ARCHIVED_PINNED_REGISTER_POLICY = 'active_only_todo_abdullah' as const
 
 type Place = { en?: string; ar?: string; code?: string; unit?: string }
 
@@ -9,6 +18,7 @@ const registers = registry.registers as Record<string, { location?: string }>
 const locations = registry.locations as Record<string, Place>
 
 // TODO(Abdullah): supply the verified real Odoo pos.config IDs for the NPIS and FAIPS school canteens.
+// TODO(Abdullah): confirm whether pos.config 43 FAS Fahaheel is a school canteen.
 const PINNED_SCHOOL_CANTEEN_CONFIG_IDS: readonly number[] = Array.isArray(
   (registry as { schoolCanteenPosConfigIds?: unknown }).schoolCanteenPosConfigIds,
 )
@@ -31,6 +41,65 @@ function placeExcluded(id: string): boolean {
 }
 
 const NON_OPERATING_CONFIG_LABEL_RE = /\b(?:exhibition|exebition|exb|test|demo|training)\b/i
+
+const NON_CANTEEN_EXCLUSION_MARKS = new Set(
+  ODOO_EXCLUSION_RULES.map((rule) => normalizeEntityLabel(rule.nameParts.join(''))).filter(
+    (mark) => mark.length > 0 && !isClosedBranchFamilyFragment(mark),
+  ),
+)
+
+const ARABIC_CLITIC_RE = /^(?:لل|ب|و|ل)/
+const LATIN_AL_PREFIX_RE = /^al(?=[a-z]{4,})/
+const JOINED_SUFFIX_RE = /(?:kw|kwt|kuwait|wh|pos)$/
+const NON_CANTEEN_CODE_DIGITS_RE = /^(?:qrn|jhr)\d*$/
+const LATIN_BRAND_PREFIX_RE = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
+const ARABIC_BRAND_STEM = 'هايزن'
+
+function expandTokenCandidates(token: string): string[] {
+  const set = new Set<string>([token])
+  const arStripped = token.replace(ARABIC_CLITIC_RE, '')
+  if (arStripped !== token && arStripped.length > 0) set.add(arStripped)
+  const alStripped = token.replace(LATIN_AL_PREFIX_RE, '')
+  if (alStripped !== token && alStripped.length > 0) set.add(alStripped)
+  for (const current of [...set]) {
+    const suffixStripped = current.replace(JOINED_SUFFIX_RE, '')
+    if (suffixStripped !== current && suffixStripped.length >= 3) {
+      set.add(suffixStripped)
+    }
+  }
+  return [...set]
+}
+
+function hasPinnedCanteenVetoExclusion(raw: string | null | undefined): boolean {
+  if (raw == null) return false
+  const text = normalizeEntityLabel(String(raw))
+  if (!text) return false
+  const tokens = text.split(' ').filter(Boolean)
+  for (const token of tokens) {
+    for (const candidate of expandTokenCandidates(token)) {
+      if (isClosedBranchFamilyFragment(candidate)) continue
+      if (
+        NON_CANTEEN_CODE_DIGITS_RE.test(candidate) ||
+        NON_CANTEEN_EXCLUSION_MARKS.has(candidate) ||
+        LATIN_BRAND_PREFIX_RE.test(candidate) ||
+        candidate.startsWith(ARABIC_BRAND_STEM)
+      ) {
+        return true
+      }
+    }
+  }
+  for (let start = 0; start < tokens.length; start += 1) {
+    let joined = ''
+    for (let index = start; index < tokens.length && index < start + 12; index += 1) {
+      joined += tokens[index]?.replace(/[^a-z0-9]+/g, '') ?? ''
+      if (!isClosedBranchFamilyFragment(joined) && LATIN_BRAND_PREFIX_RE.test(joined)) {
+        return true
+      }
+      if (joined.length > 16) break
+    }
+  }
+  return false
+}
 
 /** Restaurant registers on the approved list. Exhibitions and school canteens are not included here. */
 export function restaurantRegisterIds(): number[] {
@@ -70,9 +139,9 @@ export function companyPosRegisterIds(): number[] {
 
 /**
  * Company POS allow-list:
- * 1. Archived (`active === false`) configs are NEVER included.
- * 2. Exclusions ALWAYS win over inclusion (a closed-branch street label stays excluded).
- * 3. Only explicit pinned restaurant or school-canteen config IDs are included (no name-keyword inclusion).
+ * 1. Archived (`active === false`) configs are NEVER included (`ARCHIVED_PINNED_REGISTER_POLICY`).
+ * 2. Pinned school-canteen config IDs are excluded ONLY when Jahra, Qurain, or Heisenberg markers appear in `name`.
+ * 3. Non-canteen config IDs must pass full entity & non-operating checks and belong to `restaurantRegisterIds()`.
  */
 export function companyPosConfigAllowed(
   id: number,
@@ -83,9 +152,12 @@ export function companyPosConfigAllowed(
   if (!Number.isInteger(id) || id <= 0) return false
   if (isExcludedRecordId('pos_config', id)) return false
   const label = name ?? ''
+  if (isPinnedSchoolCanteenConfigId(id)) {
+    return !hasPinnedCanteenVetoExclusion(label)
+  }
   if (isExcludedOdooEntity(label)) return false
   if (NON_OPERATING_CONFIG_LABEL_RE.test(label)) return false
-  return companyPosRegisterIds().includes(id)
+  return restaurantRegisterIds().includes(id)
 }
 
 /** Signed POS net. A refund stays negative instead of being clamped to zero. */
@@ -98,18 +170,27 @@ export function posOrderNet(amountTotal: unknown, amountTax: unknown): number {
 }
 
 /**
- * Order count helper: a refund (`amount_total < 0` or negative net) must NEVER add +1 to the order count.
+ * Single-order count helper (`0` or `1` ONLY):
+ * A refund (`amount_total < 0` or negative net) contributes `0` orders.
+ * Throws `RangeError` if `Number(count) > 1` so grouped rows can never call it and zero a negative-net group.
  */
 export function posOrderCount(
   count: unknown,
   amountTotal: unknown,
   amountTax: unknown = 0,
 ): number {
+  const numeric = count == null || count === '' ? 0 : Number(count)
+  if (!Number.isFinite(numeric)) return 0
+  if (numeric > 1) {
+    throw new RangeError(
+      `posOrderCount is restricted to single orders (0 or 1); received ${String(count)}`,
+    )
+  }
+  if (numeric <= 0) return 0
   const total = Number(amountTotal)
   if (Number.isFinite(total) && total < 0) return 0
   if (posOrderNet(amountTotal, amountTax) < 0) return 0
-  const parsed = Math.round(Number(count) || 0)
-  return parsed > 0 ? parsed : 0
+  return Math.round(numeric) > 0 ? 1 : 0
 }
 
 export function signedKwd(value: unknown): number {
@@ -124,7 +205,9 @@ export function anchorKuwaitDay(todayKwIso: string, _newestOrderKwIso?: string |
 
 /** Odoo search domain: explicit approved config IDs (restaurants + pinned canteens), active only. */
 export function companyPosSearchDomain(approvedIdsIn?: readonly number[]): unknown[] {
-  const ids = approvedIdsIn ? [...new Set([...approvedIdsIn, ...schoolCanteenRegisterIds()])] : companyPosRegisterIds()
+  const ids = approvedIdsIn
+    ? [...new Set([...approvedIdsIn, ...schoolCanteenRegisterIds()])]
+    : companyPosRegisterIds()
   return [
     ['id', 'in', ids],
     ['active', '=', true],

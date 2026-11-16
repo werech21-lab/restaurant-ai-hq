@@ -47,12 +47,20 @@ import {
   anchorKuwaitDay,
   companyPosConfigAllowed,
   isPinnedSchoolCanteenConfigId,
-  posOrderCount,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   signedKwd,
 } from '@/lib/odoo/company-pos'
-import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
+import {
+  buildPosOrderUtcDomain,
+  buildPosPaymentUtcDomain,
+  kuwaitDateBoundsToOdooUtc,
+  mergeDaySessionPricelistGroups,
+  mergeHourGroups,
+  mergeSessionGroups,
+  mergeSessionHourGroups,
+  mergeSessionPaymentGroups,
+} from '@/lib/odoo/pos-order-query'
 import {
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
@@ -890,25 +898,31 @@ export function isDecommissionedWarehouseRecord(rawText?: string | null): boolea
  * Any active company terminal not tied to a single mall branch (e.g. Central / Multi-Branch POS Terminals)
  * returns `null` here and is rolled 100% into reconciled `companyNet` (`0.000 KWD` variance).
  */
+const NON_OPERATING_TERMINAL_NAME_RE = /\b(?:test|training|demo|closed|cancelled)\b/i
+
 export function resolveRestaurantBranchForConfig(
   cfgId: number,
   cfgName: string,
   extraContext = '',
   options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
-  const combined = `${cfgName || ''} ${extraContext || ''}`.trim()
-  if (isDecommissionedWarehouseRecord(combined) || isExcludedRecordId('pos_config', cfgId)) {
-    return null
-  }
-  const lower = combined.toLowerCase()
-  if (/test|training|demo|closed|cancelled/i.test(lower)) {
-    return null
-  }
-  if (/exhibition|exebition|\bexb\b|bazaar|booth|catering/i.test(lower)) {
+  if (isExcludedRecordId('pos_config', cfgId)) {
     return null
   }
   if (isPinnedSchoolCanteenConfigId(cfgId)) {
-    return SCHOOL_CANTEEN_BRANCH_ID
+    return companyPosConfigAllowed(cfgId, cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
+  }
+  const ownName = (cfgName || '').trim()
+  if (NON_OPERATING_TERMINAL_NAME_RE.test(ownName)) {
+    return null
+  }
+  const combined = `${ownName} ${extraContext || ''}`.trim()
+  if (isDecommissionedWarehouseRecord(combined)) {
+    return null
+  }
+  const lower = combined.toLowerCase()
+  if (/\b(?:exhibition|exebition|exb|bazaar|booth|catering)\b/i.test(lower)) {
+    return null
   }
 
   if (!options?.ignoreAdminOverride) {
@@ -1443,9 +1457,7 @@ export function buildReconciledBucket(params: {
     for (const ck of UI_CHANNEL_KEYS) {
       const uEntry = unmappedUiRaw[ck]
       if (!uEntry) continue
-      aggUiChannels[ck].netKwd = r3(
-        aggUiChannels[ck].netKwd + Math.max(0, Number(uEntry.netKwd) || 0),
-      )
+      aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + signedKwd(uEntry.netKwd))
       aggUiChannels[ck].orders += Math.max(0, Math.round(Number(uEntry.orders) || 0))
     }
   }
@@ -1592,11 +1604,29 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const combined = `${c.name} ${extraCtx}`.trim()
     configNameById.set(c.id, combined)
     displayConfigNameById.set(c.id, sanitizePosTerminalDisplayName(c.id, c.name))
-    if (c.active === false || isDecommissionedWarehouseRecord(combined)) {
-      decommissionedConfigIds.add(c.id)
+    if (c.active === false) {
+      const isGenuinelyDecommissioned =
+        isExcludedRecordId('pos_config', c.id) ||
+        (isPinnedSchoolCanteenConfigId(c.id)
+          ? !companyPosConfigAllowed(c.id, c.name, true)
+          : isDecommissionedWarehouseRecord(c.name))
+      if (isGenuinelyDecommissioned) {
+        decommissionedConfigIds.add(c.id)
+      }
       continue
     }
-    if (!companyPosConfigAllowed(c.id, combined, true)) continue
+    if (isPinnedSchoolCanteenConfigId(c.id)) {
+      if (!companyPosConfigAllowed(c.id, c.name, true)) {
+        decommissionedConfigIds.add(c.id)
+        continue
+      }
+    } else {
+      if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
+        decommissionedConfigIds.add(c.id)
+        continue
+      }
+      if (!companyPosConfigAllowed(c.id, c.name, true)) continue
+    }
     companyConfigIds.add(c.id)
     const nativeBranch = resolveRestaurantBranchForConfig(c.id, c.name, extraCtx, {
       ignoreAdminOverride: true,
@@ -1707,25 +1737,56 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const boundsYear = kuwaitRangeToOdooUtcStrings(yearFromKwIso, anchorTomorrowKwIso)
   const boundsPrior30 = kuwaitRangeToOdooUtcStrings(prior30FromKwIso, monthFromKwIso)
 
-  const excludedPaymentDomain: unknown[][] = [
-    ...(resolvedCompanyId !== null ? [['pos_order_id.company_id', '=', resolvedCompanyId]] : []),
-    ...companyConfigClause,
-  ]
+  const companyConfigList = [...companyConfigIds]
+  const posOrderDomainOf = (
+    b: { fromUtc: string; toUtc: string },
+    nonRefundOnly = false,
+  ): unknown[][] =>
+    companyConfigList.length > 0
+      ? buildPosOrderUtcDomain({
+          fromUtc: b.fromUtc,
+          toExclusiveUtc: b.toUtc,
+          companyId: resolvedCompanyId,
+          configIds: companyConfigList,
+          nonRefundOnly,
+        })
+      : [['id', '=', 0]]
+  const posPaymentDomainOf = (
+    b: { fromUtc: string; toUtc: string },
+    nonRefundOnly = false,
+  ): unknown[][] =>
+    companyConfigList.length > 0
+      ? buildPosPaymentUtcDomain({
+          fromUtc: b.fromUtc,
+          toExclusiveUtc: b.toUtc,
+          companyId: resolvedCompanyId,
+          configIds: companyConfigList,
+          nonRefundOnly,
+        })
+      : [['id', '=', 0]]
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals
   const [
     ordersByDaySessionPricelistRows,
+    ordersByDaySessionPricelistCountRows,
     ordersByHourRows,
+    ordersByHourCountRows,
     payments30Rows,
+    payments30CountRows,
     paymentsWeekRows,
+    paymentsWeekCountRows,
     paymentsTodayRows,
+    paymentsTodayCountRows,
     paymentsYearRows,
+    paymentsYearCountRows,
     productLines30Rows,
     productLinesWeekRows,
     productLinesTodayRows,
     productLinesYearRows,
     ytdAggRows,
+    ytdAggCountRows,
     prior30AggRows,
+    prior30NonRefundCount,
     stockTransfers,
     aggregatorReceivables,
     decommissionedOrders30Rows,
@@ -1747,16 +1808,32 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       'pos.order',
       'read_group',
       [
-        [
-          ['date_order', '>=', bounds65.fromUtc],
-          ['date_order', '<', bounds65.toUtc],
-          ['state', 'in', ['paid', 'done', 'invoiced']],
-          ...excludedPosDomain,
-        ],
+        posOrderDomainOf(bounds65, false),
         ['amount_total:sum', 'amount_tax:sum'],
         ['session_id', 'pricelist_id', 'date_order:day'],
       ],
       { lazy: false, context: { tz: 'Asia/Kuwait' } },
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            __count?: number
+            session_id: M2O
+            pricelist_id?: M2O
+            __range?: { 'date_order:day'?: { from?: string; to?: string } }
+          }[]
+        >(
+          'pos.order',
+          'read_group',
+          [
+            posOrderDomainOf(bounds65, true),
+            ['amount_total:sum'],
+            ['session_id', 'pricelist_id', 'date_order:day'],
+          ],
+          { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        ),
+      [],
     ),
     safeSubQuery(
       () =>
@@ -1771,13 +1848,27 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.order',
           'read_group',
           [
-            [
-              ['date_order', '>=', boundsMonth.fromUtc],
-              ['date_order', '<', boundsMonth.toUtc],
-              ['state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosDomain,
-            ],
+            posOrderDomainOf(boundsMonth, false),
             ['amount_total:sum', 'amount_tax:sum'],
+            ['date_order:hour'],
+          ],
+          { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            __count?: number
+            __range?: { 'date_order:hour'?: { from?: string; to?: string } }
+          }[]
+        >(
+          'pos.order',
+          'read_group',
+          [
+            posOrderDomainOf(boundsMonth, true),
+            ['amount_total:sum'],
             ['date_order:hour'],
           ],
           { lazy: false, context: { tz: 'Asia/Kuwait' } },
@@ -1797,12 +1888,27 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.payment',
           'read_group',
           [
-            [
-              ['pos_order_id.date_order', '>=', boundsMonth.fromUtc],
-              ['pos_order_id.date_order', '<', boundsMonth.toUtc],
-              ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPaymentDomain,
-            ],
+            posPaymentDomainOf(boundsMonth, false),
+            ['amount:sum'],
+            ['session_id', 'payment_method_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            session_id: M2O
+            payment_method_id: M2O
+            __count?: number
+          }[]
+        >(
+          'pos.payment',
+          'read_group',
+          [
+            posPaymentDomainOf(boundsMonth, true),
             ['amount:sum'],
             ['session_id', 'payment_method_id'],
           ],
@@ -1823,12 +1929,27 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.payment',
           'read_group',
           [
-            [
-              ['pos_order_id.date_order', '>=', boundsWeek.fromUtc],
-              ['pos_order_id.date_order', '<', boundsWeek.toUtc],
-              ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPaymentDomain,
-            ],
+            posPaymentDomainOf(boundsWeek, false),
+            ['amount:sum'],
+            ['session_id', 'payment_method_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            session_id: M2O
+            payment_method_id: M2O
+            __count?: number
+          }[]
+        >(
+          'pos.payment',
+          'read_group',
+          [
+            posPaymentDomainOf(boundsWeek, true),
             ['amount:sum'],
             ['session_id', 'payment_method_id'],
           ],
@@ -1849,12 +1970,27 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.payment',
           'read_group',
           [
-            [
-              ['pos_order_id.date_order', '>=', boundsToday.fromUtc],
-              ['pos_order_id.date_order', '<', boundsToday.toUtc],
-              ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPaymentDomain,
-            ],
+            posPaymentDomainOf(boundsToday, false),
+            ['amount:sum'],
+            ['session_id', 'payment_method_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            session_id: M2O
+            payment_method_id: M2O
+            __count?: number
+          }[]
+        >(
+          'pos.payment',
+          'read_group',
+          [
+            posPaymentDomainOf(boundsToday, true),
             ['amount:sum'],
             ['session_id', 'payment_method_id'],
           ],
@@ -1875,12 +2011,27 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.payment',
           'read_group',
           [
-            [
-              ['pos_order_id.date_order', '>=', boundsYear.fromUtc],
-              ['pos_order_id.date_order', '<', boundsYear.toUtc],
-              ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPaymentDomain,
-            ],
+            posPaymentDomainOf(boundsYear, false),
+            ['amount:sum'],
+            ['session_id', 'payment_method_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<
+          {
+            session_id: M2O
+            payment_method_id: M2O
+            __count?: number
+          }[]
+        >(
+          'pos.payment',
+          'read_group',
+          [
+            posPaymentDomainOf(boundsYear, true),
             ['amount:sum'],
             ['session_id', 'payment_method_id'],
           ],
@@ -1970,13 +2121,22 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.order',
           'read_group',
           [
-            [
-              ['date_order', '>=', boundsYear.fromUtc],
-              ['date_order', '<', boundsYear.toUtc],
-              ['state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosDomain,
-            ],
+            posOrderDomainOf(boundsYear, false),
             ['amount_total:sum', 'amount_tax:sum'],
+            ['session_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<{ session_id: M2O; __count?: number }[]>(
+          'pos.order',
+          'read_group',
+          [
+            posOrderDomainOf(boundsYear, true),
+            ['amount_total:sum'],
             ['session_id'],
           ],
           { lazy: false },
@@ -1989,18 +2149,22 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           'pos.order',
           'read_group',
           [
-            [
-              ['date_order', '>=', boundsPrior30.fromUtc],
-              ['date_order', '<', boundsPrior30.toUtc],
-              ['state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosDomain,
-            ],
+            posOrderDomainOf(boundsPrior30, false),
             ['amount_total:sum', 'amount_tax:sum'],
             [],
           ],
           { lazy: false },
         ),
       [],
+    ),
+    safeSubQuery(
+      () =>
+        executeOdooKw<number>(
+          'pos.order',
+          'search_count',
+          [posOrderDomainOf(boundsPrior30, true)],
+        ),
+      0,
     ),
     safeSubQuery<OdooStockTransferSummary | undefined>(async () => {
       const [pickings, doneCount30, pendingCountTotal] = await Promise.all([
@@ -2369,17 +2533,31 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       : Promise.resolve([]),
   ])
 
+  const mergedDaySessionPricelistRows = mergeDaySessionPricelistGroups(
+    ordersByDaySessionPricelistRows,
+    ordersByDaySessionPricelistCountRows,
+  )
+  const mergedHourRows = mergeHourGroups(ordersByHourRows, ordersByHourCountRows)
+  const mergedPayments30Rows = mergeSessionPaymentGroups(payments30Rows, payments30CountRows)
+  const mergedPaymentsWeekRows = mergeSessionPaymentGroups(paymentsWeekRows, paymentsWeekCountRows)
+  const mergedPaymentsTodayRows = mergeSessionPaymentGroups(
+    paymentsTodayRows,
+    paymentsTodayCountRows,
+  )
+  const mergedPaymentsYearRows = mergeSessionPaymentGroups(paymentsYearRows, paymentsYearCountRows)
+  const mergedYtdSessionRows = mergeSessionGroups(ytdAggRows, ytdAggCountRows)
+
   // 4. Resolve session -> config_id + product -> brand mapping
   const allSessionIds = [
     ...new Set(
       [
-        ...ordersByDaySessionPricelistRows.map((o) => m2oId(o.session_id)),
+        ...mergedDaySessionPricelistRows.map((o) => o.sessionId),
         ...decommissionedOrders30Rows.map((o) => m2oId(o.session_id)),
-        ...payments30Rows.map((p) => m2oId(p.session_id)),
-        ...paymentsWeekRows.map((p) => m2oId(p.session_id)),
-        ...paymentsTodayRows.map((p) => m2oId(p.session_id)),
-        ...paymentsYearRows.map((p) => m2oId(p.session_id)),
-        ...ytdAggRows.map((o) => m2oId(o.session_id)),
+        ...mergedPayments30Rows.map((p) => p.sessionId),
+        ...mergedPaymentsWeekRows.map((p) => p.sessionId),
+        ...mergedPaymentsTodayRows.map((p) => p.sessionId),
+        ...mergedPaymentsYearRows.map((p) => p.sessionId),
+        ...mergedYtdSessionRows.map((o) => o.sessionId),
       ].filter((x): x is number => x !== null),
     ),
   ]
@@ -2527,17 +2705,17 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
 
-  for (const row of ordersByDaySessionPricelistRows) {
-    const rawFromUtc = row.__range?.['date_order:day']?.from
+  for (const row of mergedDaySessionPricelistRows) {
+    const rawFromUtc = row.dayFromUtc
     const parsedRange = rawFromUtc ? odooUtcToKuwaitIso(rawFromUtc) : null
     if (!parsedRange) continue
 
     const dayIso = parsedRange.kuwaitDate
-    const net = posOrderNet(row.amount_total, row.amount_tax)
-    const ordCount = posOrderCount(row.__count, row.amount_total, row.amount_tax)
+    const net = row.netKwd
+    const ordCount = row.orders
     if (ordCount <= 0 && net === 0) continue
 
-    const sid = m2oId(row.session_id)
+    const sid = row.sessionId
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) {
       continue
@@ -2585,7 +2763,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         unmappedMonthNet += net
         unmappedMonthOrd += ordCount
         const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-        const plName = m2oName(row.pricelist_id) ?? ''
+        const plName = row.pricelistName
         const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, false)
         unmappedPricelistUiHints30[hintedCh].netKwd += net
         unmappedPricelistUiHints30[hintedCh].orders += ordCount
@@ -2617,7 +2795,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
       const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
       const isDelivCfg = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
-      const plName = m2oName(row.pricelist_id) ?? ''
+      const plName = row.pricelistName
       const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, isDelivCfg)
       const hintRow = pricelistUiHints30.get(branch)!
       hintRow[hintedCh].netKwd += net
@@ -2650,10 +2828,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   }
   for (const c of allConfigs) {
     if (
+      c.active !== false &&
+      companyConfigIds.has(c.id) &&
       !decommissionedConfigIds.has(c.id) &&
       !nativeBranchOfConfigId.has(c.id) &&
       !discoveredCandidateMap.has(c.id) &&
-      !/test|training|demo|closed|cancelled/i.test(c.name || '')
+      !NON_OPERATING_TERMINAL_NAME_RE.test(c.name || '')
     ) {
       discoveredCandidateMap.set(c.id, {
         terminal_id: c.id,
@@ -2697,19 +2877,17 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     excludedPos36Orders: Math.round(excludedPos36Ord),
   })
 
-  for (const hRow of ordersByHourRows) {
-    const rawHourFromUtc = hRow.__range?.['date_order:hour']?.from
+  for (const hRow of mergedHourRows) {
+    const rawHourFromUtc = hRow.hourFromUtc
     const parsedHour = rawHourFromUtc ? odooUtcToKuwaitIso(rawHourFromUtc) : null
     if (!parsedHour) continue
     const kwHour = parsedHour.kuwaitHour
-    const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
-    const ordCount = posOrderCount(hRow.__count, hRow.amount_total, hRow.amount_tax)
-    hourlyAcc[kwHour].orders += ordCount
-    hourlyAcc[kwHour].netKwd += net
+    hourlyAcc[kwHour].orders += hRow.orders
+    hourlyAcc[kwHour].netKwd += hRow.netKwd
   }
 
   const dailySeries = [...dailyMap.entries()]
-    .filter(([, v]) => v.orders > 0 || v.netKwd > 0)
+    .filter(([, v]) => v.orders > 0 || v.netKwd !== 0)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([day, v]) => ({ day, orders: Math.round(v.orders), netKwd: r3(v.netKwd) }))
 
@@ -2775,7 +2953,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const brandYear = buildBrandMaps(productLinesYearRows)
 
   const buildLocAndUnmappedUiMap = (
-    payRows: { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[],
+    payRows: { sessionId: number | null; paymentMethodName: string; netKwd: number; orders: number }[],
   ) => {
     const locMap = new Map<string, Record<string, { netKwd: number; orders: number }>>()
     for (const lid of ACTIVE_BRANCH_IDS) {
@@ -2788,15 +2966,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
     )
     for (const p of payRows) {
-      const sid = m2oId(p.session_id)
+      const sid = p.sessionId
       const cfgId = sid !== null ? configOfSession.get(sid) : undefined
       if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
       const lid = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
       const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
       const isDelivCfg = lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
-      const uiKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDelivCfg)
-      const amt = signedKwd(p.amount)
-      const cnt = posOrderCount(p.__count, amt, 0)
+      const uiKey = resolveUiChannelHint(p.paymentMethodName, isDelivCfg)
+      const amt = p.netKwd
+      const cnt = p.orders
       if (!lid) {
         unmappedUi[uiKey].netKwd += amt
         unmappedUi[uiKey].orders += cnt
@@ -2809,26 +2987,26 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     return { locMap, unmappedUi }
   }
 
-  const has30Payments = payments30Rows.some((p) => signedKwd(p.amount) !== 0)
-  const built30Ui = buildLocAndUnmappedUiMap(payments30Rows)
+  const has30Payments = mergedPayments30Rows.some((p) => p.netKwd !== 0 || p.orders > 0)
+  const built30Ui = buildLocAndUnmappedUiMap(mergedPayments30Rows)
   const locUi30 = has30Payments ? built30Ui.locMap : pricelistUiHints30
   const unmappedUi30 = has30Payments ? built30Ui.unmappedUi : unmappedPricelistUiHints30
 
-  const builtWeekUi = buildLocAndUnmappedUiMap(paymentsWeekRows)
-  const builtTodayUi = buildLocAndUnmappedUiMap(paymentsTodayRows)
-  const builtYearUi = buildLocAndUnmappedUiMap(paymentsYearRows)
+  const builtWeekUi = buildLocAndUnmappedUiMap(mergedPaymentsWeekRows)
+  const builtTodayUi = buildLocAndUnmappedUiMap(mergedPaymentsTodayRows)
+  const builtYearUi = buildLocAndUnmappedUiMap(mergedPaymentsYearRows)
 
   // 7. Build YTD bucket (`year`) strictly from live `ytdAggRows` (`session_id -> config_id`) without forced reconciliation
   const locYearNet = new Map<string, number>()
   const locYearOrd = new Map<string, number>()
   let unmappedYearNet = 0
   let unmappedYearOrd = 0
-  for (const yrRow of ytdAggRows) {
-    const sid = m2oId(yrRow.session_id)
+  for (const yrRow of mergedYtdSessionRows) {
+    const sid = yrRow.sessionId
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
-    const net = posOrderNet(yrRow.amount_total, yrRow.amount_tax)
-    const ord = posOrderCount(yrRow.__count, yrRow.amount_total, yrRow.amount_tax)
+    const net = yrRow.netKwd
+    const ord = yrRow.orders
     if (ord <= 0 && net === 0) continue
     const branch = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
     if (!branch) {
@@ -2959,13 +3137,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   })
 
   const prior30Net = r3(
-    Math.max(
-      0,
-      (Number(prior30AggRows?.[0]?.amount_total) || 0) -
-        (Number(prior30AggRows?.[0]?.amount_tax) || 0),
-    ),
+    posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
   )
-  const prior30Orders = Math.max(0, Number(prior30AggRows?.[0]?.__count ?? 0))
+  const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
   const mtdDays = Math.max(
     1,
     Math.round(
@@ -3862,11 +4036,29 @@ export async function fetchLiveOdooPeriodCube(
       const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
       const combined = `${c.name} ${extra}`.trim()
       cfgNameMap.set(c.id, combined)
-      if (c.active === false || isDecommissionedWarehouseRecord(combined)) {
-        decommCfgIds.add(c.id)
+      if (c.active === false) {
+        const isGenuinelyDecommissioned =
+          isExcludedRecordId('pos_config', c.id) ||
+          (isPinnedSchoolCanteenConfigId(c.id)
+            ? !companyPosConfigAllowed(c.id, c.name, true)
+            : isDecommissionedWarehouseRecord(c.name))
+        if (isGenuinelyDecommissioned) {
+          decommCfgIds.add(c.id)
+        }
         continue
       }
-      if (!companyPosConfigAllowed(c.id, combined, true)) continue
+      if (isPinnedSchoolCanteenConfigId(c.id)) {
+        if (!companyPosConfigAllowed(c.id, c.name, true)) {
+          decommCfgIds.add(c.id)
+          continue
+        }
+      } else {
+        if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
+          decommCfgIds.add(c.id)
+          continue
+        }
+        if (!companyPosConfigAllowed(c.id, c.name, true)) continue
+      }
       companyCfgIds.add(c.id)
       const mb = resolveRestaurantBranchForConfig(c.id, c.name, extra)
       if (mb) {
@@ -3924,19 +4116,31 @@ export async function fetchLiveOdooPeriodCube(
     }
     const activeAccIds = [...activeAccMap.keys()]
 
-    const cubeConfigClause: unknown[][] =
-      companyCfgIds.size > 0
-        ? [['session_id.config_id', 'in', [...companyCfgIds]]]
+    const companyCfgList = [...companyCfgIds]
+    const cubeOrderDomain = (nonRefundOnly = false): unknown[][] =>
+      companyCfgList.length > 0
+        ? buildPosOrderUtcDomain({
+            fromUtc: bounds.fromUtc,
+            toExclusiveUtc: bounds.toExclusiveUtc,
+            companyId: resolvedCompanyId,
+            configIds: companyCfgList,
+            nonRefundOnly,
+          })
+        : [['id', '=', 0]]
+    const cubePaymentDomain = (nonRefundOnly = false): unknown[][] =>
+      companyCfgList.length > 0
+        ? buildPosPaymentUtcDomain({
+            fromUtc: bounds.fromUtc,
+            toExclusiveUtc: bounds.toExclusiveUtc,
+            companyId: resolvedCompanyId,
+            configIds: companyCfgList,
+            nonRefundOnly,
+          })
         : [['id', '=', 0]]
     const cubeLineClause: unknown[][] =
       companyCfgIds.size > 0
-        ? [['order_id.session_id.config_id', 'in', [...companyCfgIds]]]
+        ? [['order_id.session_id.config_id', 'in', companyCfgList]]
         : [['id', '=', 0]]
-    const exclPosOrderDomain: unknown[][] = [...companyDomain, ...cubeConfigClause]
-    const exclPaymentDomain: unknown[][] = [
-      ...(resolvedCompanyId !== null ? [['pos_order_id.company_id', '=', resolvedCompanyId]] : []),
-      ...cubeConfigClause,
-    ]
     const exclLineDomain: unknown[][] = [
       ...companyDomain,
       ...cubeLineClause,
@@ -3955,8 +4159,11 @@ export async function fetchLiveOdooPeriodCube(
 
     const [
       dailyOrderRows,
+      dailyOrderCountRows,
       hourlyOrderRows,
+      hourlyOrderCountRows,
       paymentRows,
+      paymentCountRows,
       lineRowsAll,
       discountedLineRows,
       decommOrderRows,
@@ -3975,16 +4182,32 @@ export async function fetchLiveOdooPeriodCube(
         'pos.order',
         'read_group',
         [
-          [
-            ['date_order', '>=', bounds.fromUtc],
-            ['date_order', '<', bounds.toExclusiveUtc],
-            ['state', 'in', ['paid', 'done', 'invoiced']],
-            ...exclPosOrderDomain,
-          ],
+          cubeOrderDomain(false),
           ['amount_total:sum', 'amount_tax:sum'],
           ['session_id', 'pricelist_id', 'date_order:day'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<
+            {
+              __count?: number
+              session_id: M2O
+              pricelist_id?: M2O
+              __range?: { 'date_order:day'?: { from?: string; to?: string } }
+            }[]
+          >(
+            'pos.order',
+            'read_group',
+            [
+              cubeOrderDomain(true),
+              ['amount_total:sum'],
+              ['session_id', 'pricelist_id', 'date_order:day'],
+            ],
+            { lazy: false, context: { tz: 'Asia/Kuwait' } },
+          ),
+        [],
       ),
       executeOdooKw<
         {
@@ -3998,16 +4221,31 @@ export async function fetchLiveOdooPeriodCube(
         'pos.order',
         'read_group',
         [
-          [
-            ['date_order', '>=', bounds.fromUtc],
-            ['date_order', '<', bounds.toExclusiveUtc],
-            ['state', 'in', ['paid', 'done', 'invoiced']],
-            ...exclPosOrderDomain,
-          ],
+          cubeOrderDomain(false),
           ['amount_total:sum', 'amount_tax:sum'],
           ['session_id', 'date_order:hour'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<
+            {
+              __count?: number
+              session_id: M2O
+              __range?: { 'date_order:hour'?: { from?: string; to?: string } }
+            }[]
+          >(
+            'pos.order',
+            'read_group',
+            [
+              cubeOrderDomain(true),
+              ['amount_total:sum'],
+              ['session_id', 'date_order:hour'],
+            ],
+            { lazy: false, context: { tz: 'Asia/Kuwait' } },
+          ),
+        [],
       ),
       executeOdooKw<
         {
@@ -4020,16 +4258,31 @@ export async function fetchLiveOdooPeriodCube(
         'pos.payment',
         'read_group',
         [
-          [
-            ['pos_order_id.date_order', '>=', bounds.fromUtc],
-            ['pos_order_id.date_order', '<', bounds.toExclusiveUtc],
-            ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
-            ...exclPaymentDomain,
-          ],
+          cubePaymentDomain(false),
           ['amount:sum'],
           ['session_id', 'payment_method_id'],
         ],
         { lazy: false },
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              cubePaymentDomain(true),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+        [],
       ),
       executeOdooKw<LineGroupRow[]>(
         'pos.order.line',
@@ -4165,12 +4418,16 @@ export async function fetchLiveOdooPeriodCube(
       }
     }
 
+    const mergedDailyOrderRows = mergeDaySessionPricelistGroups(dailyOrderRows, dailyOrderCountRows)
+    const mergedHourlyOrderRows = mergeSessionHourGroups(hourlyOrderRows, hourlyOrderCountRows)
+    const mergedPaymentRows = mergeSessionPaymentGroups(paymentRows, paymentCountRows)
+
     const allSessionIds = [
       ...new Set(
         [
-          ...dailyOrderRows.map((o) => m2oId(o.session_id)),
-          ...hourlyOrderRows.map((o) => m2oId(o.session_id)),
-          ...paymentRows.map((p) => m2oId(p.session_id)),
+          ...mergedDailyOrderRows.map((o) => o.sessionId),
+          ...mergedHourlyOrderRows.map((o) => o.sessionId),
+          ...mergedPaymentRows.map((p) => p.sessionId),
         ].filter((x): x is number => x !== null),
       ),
     ]
@@ -4254,21 +4511,21 @@ export async function fetchLiveOdooPeriodCube(
     >()
     const dailyLocMap = new Map<string, Map<(typeof ACTIVE_BRANCH_IDS)[number], { netKwd: number; orders: number }>>()
 
-    for (const row of dailyOrderRows) {
-      const rawFromUtc = row.__range?.['date_order:day']?.from
+    for (const row of mergedDailyOrderRows) {
+      const rawFromUtc = row.dayFromUtc
       const conv = rawFromUtc ? odooUtcToKuwaitIso(rawFromUtc) : null
       const dayIso = conv?.kuwaitDate ?? dateRange.from
-      const sid = m2oId(row.session_id)
+      const sid = row.sessionId
       const cid = sid !== null ? cfgOfSession.get(sid) : undefined
       if (cid !== undefined && decommCfgIds.has(cid)) continue
 
-      const net = posOrderNet(row.amount_total, row.amount_tax)
-      const ord = posOrderCount(row.__count, row.amount_total, row.amount_tax)
+      const net = row.netKwd
+      const ord = row.orders
       if (ord <= 0 && net === 0) continue
 
       const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
       const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
-      const plNm = m2oName(row.pricelist_id) ?? ''
+      const plNm = row.pricelistName
 
       const dPrev = dailyTotalsMap.get(dayIso) ?? {
         orders: 0,
@@ -4308,18 +4565,18 @@ export async function fetchLiveOdooPeriodCube(
       dailyTotalsMap.set(dayIso, dPrev)
     }
 
-    const hasPayments = paymentRows.some((p) => signedKwd(p.amount) !== 0)
+    const hasPayments = mergedPaymentRows.some((p) => p.netKwd !== 0 || p.orders > 0)
     if (hasPayments) {
-      for (const p of paymentRows) {
-        const sid = m2oId(p.session_id)
+      for (const p of mergedPaymentRows) {
+        const sid = p.sessionId
         const cid = sid !== null ? cfgOfSession.get(sid) : undefined
         if (cid !== undefined && decommCfgIds.has(cid)) continue
         const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
         const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
         const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
-        const chKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDeliv)
-        const amt = signedKwd(p.amount)
-        const cnt = posOrderCount(p.__count, amt, 0)
+        const chKey = resolveUiChannelHint(p.paymentMethodName, isDeliv)
+        const amt = p.netKwd
+        const cnt = p.orders
         if (!branch) {
           unattributedChannels[chKey].netKwd += amt
           unattributedChannels[chKey].orders += cnt
@@ -4376,15 +4633,15 @@ export async function fetchLiveOdooPeriodCube(
         netKwd: 0,
       }))
     }
-    for (const hRow of hourlyOrderRows) {
-      const rawHourUtc = hRow.__range?.['date_order:hour']?.from
+    for (const hRow of mergedHourlyOrderRows) {
+      const rawHourUtc = hRow.hourFromUtc
       const conv = rawHourUtc ? odooUtcToKuwaitIso(rawHourUtc) : null
       if (!conv) continue
-      const sid = m2oId(hRow.session_id)
+      const sid = hRow.sessionId
       const cid = sid !== null ? cfgOfSession.get(sid) : undefined
       if (cid !== undefined && decommCfgIds.has(cid)) continue
-      const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
-      const ord = posOrderCount(hRow.__count, hRow.amount_total, hRow.amount_tax)
+      const net = hRow.netKwd
+      const ord = hRow.orders
       const hr = conv.kuwaitHour
       hourlyAcc[hr].orders += ord
       hourlyAcc[hr].netKwd += net

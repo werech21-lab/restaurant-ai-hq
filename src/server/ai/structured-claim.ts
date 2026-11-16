@@ -421,6 +421,7 @@ export function comparisonMatchesFacts(
   if (!normalized.object_id) return false
   const object = sideFact(normalized.object_id, cited, normalized.metric)
   if (!object || object.id === subject.id) return false
+  if (subject.entityType !== object.entityType) return false
   const objectValue = parseValue(object.value)
   if (!objectValue) return false
   const compared = subjectValue.compare(objectValue)

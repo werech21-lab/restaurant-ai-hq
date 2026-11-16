@@ -1,6 +1,6 @@
 {
   "_doc": "Positive whitelist of Odoo pos.config registers used by Aether BI. Anything not listed here is ignored by the sync script, the live API and every page. Locations are strictly the 7 active Venture Foods restaurant locations, pinned School Canteens, plus Exhibitions & Booths (EXB).",
-  "_canteenTodo": "TODO(Abdullah): supply/confirm the real Odoo pos.config IDs for the NPIS and FAIPS school canteens.",
+  "_canteenTodo": "TODO(Abdullah): supply/confirm the real Odoo pos.config IDs for the NPIS and FAIPS school canteens. TODO(Abdullah): confirm whether pos.config 43 FAS Fahaheel is a school canteen.",
   "schoolCanteenPosConfigIds": [41, 42],
   "allowedPosConfigIds": [3, 8, 9, 10, 11, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 41, 42],
   "registers": {

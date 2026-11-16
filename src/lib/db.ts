@@ -1,12 +1,51 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, unlinkSync } from 'fs'
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs'
+import os from 'os'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient
+  __aetherbiVitestExitHooked?: boolean
+  __aetherbiCreatedVitestDbPaths?: Set<string>
+}
+
+const createdVitestDbPaths =
+  globalForPrisma.__aetherbiCreatedVitestDbPaths ?? new Set<string>()
+globalForPrisma.__aetherbiCreatedVitestDbPaths = createdVitestDbPaths
+
+function isProtectedSqlitePath(candidate: string): boolean {
+  const normalized = candidate.replace(/\\/g, '/')
+  return (
+    normalized.includes('/prisma') ||
+    normalized.endsWith('/dev.db') ||
+    normalized === 'dev.db' ||
+    normalized.endsWith('aetherbi-erp.db')
+  )
+}
+
+function vitestRunManifestPath(runId: string): string {
+  const safeRunId = runId.trim().replace(/[\\/]/g, '_')
+  return path.join(os.tmpdir(), `vf-vitest-run-${safeRunId}.manifest`)
+}
+
+/** Record a vitest SQLite copy in the per-run manifest so global teardown sweeps only this run's files. */
+export function recordVitestSqliteCopyForRun(target: string, runId: string): void {
+  const trimmed = runId.trim()
+  if (!trimmed) return
+  if (!target.includes('aetherbi-vitest-') || isProtectedSqlitePath(target)) return
+  try {
+    const tmp = os.tmpdir()
+    if (!existsSync(tmp)) mkdirSync(tmp, { recursive: true })
+    appendFileSync(vitestRunManifestPath(trimmed), `${target}\n`, 'utf8')
+  } catch {
+    // Ignore manifest write errors.
+  }
+}
 
 /** Delete one vitest SQLite copy and its journals. The source database is never removed. */
 export function removeVitestSqliteCopy(target: string): void {
   if (!target.includes('aetherbi-vitest-')) return
-  const normalized = target.replace(/\\/g, '/')
-  if (normalized.includes('/prisma/') || normalized.endsWith('/dev.db')) return
+  if (isProtectedSqlitePath(target)) return
   for (const suffix of ['', '-journal', '-wal', '-shm']) {
     const file = `${target}${suffix}`
     try {
@@ -17,34 +56,37 @@ export function removeVitestSqliteCopy(target: string): void {
   }
 }
 
-/** Sweep a temporary directory for any leftover `aetherbi-vitest-*` SQLite copies or temp folders. */
-export function sweepVitestSqliteCopies(dirPath = '/tmp'): void {
+/** Sweep leftover `aetherbi-vitest-*` SQLite copies recorded by this process or run manifest. */
+export function sweepVitestSqliteCopies(
+  dirPath = '/tmp',
+  runId = process.env.AETHERBI_VITEST_RUN_ID,
+): void {
   try {
-    if (!existsSync(dirPath)) return
-    const normalizedDir = dirPath.replace(/\\/g, '/')
-    if (normalizedDir.includes('/prisma')) return
-    for (const name of readdirSync(dirPath)) {
-      if (!name.startsWith('aetherbi-vitest-')) continue
-      const full = path.join(dirPath, name)
-      try {
-        const st = statSync(full)
-        if (st.isDirectory()) {
-          rmSync(full, { recursive: true, force: true })
-        } else {
-          unlinkSync(full)
+    if (isProtectedSqlitePath(dirPath)) return
+    for (const p of createdVitestDbPaths) {
+      removeVitestSqliteCopy(p)
+    }
+    const trimmedRunId = runId?.trim() ?? ''
+    if (trimmedRunId.length > 0) {
+      const manifestPath = vitestRunManifestPath(trimmedRunId)
+      if (existsSync(manifestPath)) {
+        const content = readFileSync(manifestPath, 'utf8')
+        for (const rawLine of content.split(/\r?\n/)) {
+          const line = rawLine.trim()
+          if (line.length > 0) {
+            removeVitestSqliteCopy(line)
+          }
         }
-      } catch {
-        // Ignore racing removal.
+        try {
+          unlinkSync(manifestPath)
+        } catch {
+          // Ignore racing manifest removal.
+        }
       }
     }
   } catch {
-    // Ignore missing /tmp directory.
+    // Ignore missing temporary directory or manifest race.
   }
-}
-
-const globalForPrisma = globalThis as unknown as {
-  prisma?: PrismaClient
-  __aetherbiVitestExitHooked?: boolean
 }
 
 /**
@@ -59,6 +101,11 @@ function resolveSqliteUrl() {
     if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true })
     const target = path.join(targetDir, `aetherbi-vitest-${process.pid}.db`)
     copyFileSync(source, target)
+    createdVitestDbPaths.add(target)
+    const runId = process.env.AETHERBI_VITEST_RUN_ID?.trim() || ''
+    if (runId) {
+      recordVitestSqliteCopyForRun(target, runId)
+    }
     if (!globalForPrisma.__aetherbiVitestExitHooked) {
       globalForPrisma.__aetherbiVitestExitHooked = true
       let beforeExitCleaned = false
@@ -70,10 +117,14 @@ function resolveSqliteUrl() {
         } catch {
           // Ignore disconnect errors at shutdown.
         }
-        removeVitestSqliteCopy(target)
+        for (const p of createdVitestDbPaths) {
+          removeVitestSqliteCopy(p)
+        }
       })
       process.once('exit', () => {
-        removeVitestSqliteCopy(target)
+        for (const p of createdVitestDbPaths) {
+          removeVitestSqliteCopy(p)
+        }
       })
     }
     const url = `file:${target.replace(/\\/g, '/')}`
