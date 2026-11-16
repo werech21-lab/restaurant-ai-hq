@@ -21,13 +21,16 @@ export const BRIEF_MAX_TOKENS = 1_400
 
 const BRIEF_SYSTEM = [
   'You receive Odoo facts as JSON. Return one JSON object and no other text.',
-  'Shape: {"findings":[{"factIds":["id"],"text":"Arabic"}],"recommendations":[{"factIds":["id"],"solution":"Arabic","stance":"support"}]}',
+  'Shape: {"findings":[{"factIds":["id"],"text":"Arabic"}],"recommendations":[{"factIds":["id"],"solution":"Arabic","stance":"support"}],"advisory":[{"topic":"organization","text":"Arabic"}]}',
+  'advisory topic is organization, strategic_plan, or app_capability.',
   'Copy factIds from the facts. Every finding and every recommendation cites at least one.',
   'Repeat each cited value exactly as the value string. Do not add, round, or calculate a number.',
-  'Do not give advice that cites no fact. Do not name anything that is absent from the facts.',
+  'Do not give a finding or a recommendation that cites no fact. Do not name anything that is absent from the facts.',
   'stance is support or dispute. dispute means those cited facts do not support acting.',
   'A comparison of two periods must cite both fact ids.',
   'Ignore a section whose status is not_linked or unverified. Do not invent a figure for it.',
+  'Advisory is opinion, not a data finding. Do not put a number in advisory text unless that exact number is already in the facts.',
+  'app_capability is only a possible future change. Do not say it was built, applied, or deployed.',
 ].join('\n')
 
 export interface BriefSources {
@@ -114,9 +117,12 @@ export async function runBackgroundAnalysis(input: RunBriefInput, options: RunBr
       periods,
       sections: [],
       findings: [],
+      unadoptedFindings: [],
       recommendations: [],
       disputed: [],
       dropped: [],
+      advisory: [],
+      proposals: [],
       models: idleModels('not_configured', 'NOT_CONFIGURED'),
     }
     await storeReport(report, input.userId, options)
@@ -148,9 +154,12 @@ export async function runBackgroundAnalysis(input: RunBriefInput, options: RunBr
       periods,
       sections: pack.sections,
       findings: [],
+      unadoptedFindings: [],
       recommendations: [],
       disputed: [],
       dropped: [],
+      advisory: [],
+      proposals: [],
       models: idleModels('not_called', 'NO_ODOO_DATA'),
     }
     await storeReport(report, input.userId, options)
@@ -182,6 +191,7 @@ export async function runBackgroundAnalysis(input: RunBriefInput, options: RunBr
         errorCode: call.errorCode,
         findings: [],
         recommendations: [],
+        advisory: [],
       }
     }
     return reviewModelText({

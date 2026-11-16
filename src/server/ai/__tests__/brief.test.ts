@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { runBackgroundAnalysis, type BriefSources } from '@/server/ai/brief'
-import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
+import { assembleBriefReport, githubIssueDraft, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
 import type { CouncilKeys } from '@/server/ai/env'
 import { buildBriefFactPack, kuwaitBriefDays, type BriefCubeInput } from '@/server/ai/facts'
+import { latestManualAtMs, manualRetryAt, MANUAL_RUN_COOLDOWN_MS } from '@/server/ai/manual-run'
 import type { CouncilModels } from '@/server/ai/models'
 import type { AiDailyBriefDraft, AiRunDraft } from '@/server/ai/persist'
 
@@ -185,6 +187,9 @@ describe('background Odoo brief', () => {
     expect(report.recommendations).toHaveLength(1)
     expect(report.recommendations[0].supporters.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
     expect(report.recommendations[0].citations.map((item) => item.value).sort()).toEqual(['10.5', '8.25'])
+    expect(report.findings).toHaveLength(1)
+    expect(report.findings[0].notes.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
+    expect(report.unadoptedFindings.map((item) => item.provider)).toEqual(['xai'])
     expect(report.dropped.map((item) => item.provider)).toEqual(['xai'])
     expect(report.disputed).toHaveLength(0)
   })
@@ -363,6 +368,7 @@ describe('background Odoo brief', () => {
     )
     expect(result.status).toBe('reported')
     expect(result.report.recommendations).toHaveLength(1)
+    expect(result.report.findings).toHaveLength(1)
     expect(result.report.recommendations[0].supporters.map((item) => `${item.provider}/${item.modelId}`).sort()).toEqual([
       `anthropic/${RETURNED.anthropic}`,
       `google/${RETURNED.google}`,
@@ -375,5 +381,113 @@ describe('background Odoo brief', () => {
     expect(saved[0]?.status).toBe('reported')
     expect(runs.map((run) => run.modelId).sort()).toEqual(Object.values(RETURNED).sort())
     expect(runs.find((run) => run.provider === 'xai')?.status).toBe('guard_rejected')
+  })
+
+  it('keeps advisory opinion separate and saves an app idea only as a proposal', () => {
+    const pack = packFor()
+    const fact = pack.facts.find((item) => item.metric === 'net_sales_kwd' && item.scope === 'company' && item.period === '2026-11-15')
+    expect(fact).toBeTruthy()
+    const reviewed = reviewModelText({
+      provider: 'anthropic',
+      modelId: RETURNED.anthropic,
+      text: JSON.stringify({
+        findings: [],
+        recommendations: [],
+        advisory: [
+          { topic: 'organization', text: 'رتبوا مسؤولية إغلاق اليوم على مدير الفرع.' },
+          { topic: 'strategic_plan', text: `راجعوا اليوم الذي صافي مبيعاته ${fact!.value}.` },
+          { topic: 'app_capability', text: 'أضيفوا شاشة توضح المقترحات دون تطبيقها.' },
+          { topic: 'organization', text: 'ارفعوا الهدف إلى 999.9.' },
+        ],
+      }),
+      facts: pack.facts,
+    })
+    const report = assembleBriefReport({
+      generatedAt: '2026-11-16T03:00:00.000Z',
+      trigger: 'schedule',
+      periods: pack.periods,
+      sections: pack.sections,
+      facts: pack.facts,
+      models: [reviewed],
+    })
+    expect(reviewed.status).toBe('ran')
+    expect(report.findings).toHaveLength(0)
+    expect(report.recommendations).toHaveLength(0)
+    expect(report.advisory.map((item) => item.topic)).toEqual(['organization', 'strategic_plan', 'app_capability'])
+    expect(report.advisory.every((item) => item.kind === 'opinion')).toBe(true)
+    expect(report.proposals).toHaveLength(1)
+    expect(report.proposals[0].status).toBe('proposed')
+    const draft = githubIssueDraft(report.proposals[0])
+    expect(draft).toContain('Status: proposed')
+    expect(draft).toContain('opinion')
+    expect(draft).toContain('does not write code')
+    expect(draft).not.toMatch(/https?:\/\//)
+    const route = readFileSync(path.join(process.cwd(), 'src/app/api/erp/ai-brief/run/route.ts'), 'utf8')
+    const brief = readFileSync(path.join(process.cwd(), 'src/server/ai/brief.ts'), 'utf8')
+    expect(`${route}\n${brief}`).not.toMatch(/api\.github\.com|octokit/)
+    expect(canTriggerManualOdooSync('gm')).toBe(true)
+    expect(canTriggerManualOdooSync('admin')).toBe(true)
+    expect(canTriggerManualOdooSync('marketing')).toBe(false)
+    expect(canTriggerManualOdooSync('auditor')).toBe(false)
+  })
+
+  it('rejects advisory whose only content is a number absent from Odoo', () => {
+    const reviewed = reviewModelText({
+      provider: 'google',
+      modelId: RETURNED.google,
+      text: JSON.stringify({
+        findings: [],
+        recommendations: [],
+        advisory: [{ topic: 'strategic_plan', text: 'ارفعوا الهدف إلى 999.9.' }],
+      }),
+      facts: packFor().facts,
+    })
+    expect(reviewed.status).toBe('rejected')
+    expect(reviewed.errorCode).toBe('GUARD_REJECTED')
+    expect(reviewed.advisory).toEqual([])
+  })
+
+  it('reads an older report and ignores a proposal that is not proposed', () => {
+    const parsed = parseStoredBrief(
+      JSON.stringify({
+        generatedAt: '2026-11-16T03:00:00.000Z',
+        trigger: 'manual',
+        configuration: 'configured',
+        missingKeys: [],
+        odoo: 'linked',
+        periods: { yesterday: '2026-11-15', prior: '2026-11-14' },
+        sections: [],
+        findings: [],
+        recommendations: [],
+        disputed: [],
+        dropped: [],
+        models: [{ provider: 'anthropic', modelId: 'claude', status: 'ran', errorCode: null }],
+        proposals: [
+          {
+            id: 'abc',
+            text: 'idea',
+            provider: 'anthropic',
+            modelId: 'claude',
+            status: 'applied',
+            kind: 'opinion',
+          },
+        ],
+      }),
+    )
+    expect(parsed?.trigger).toBe('manual')
+    expect(parsed?.unadoptedFindings).toEqual([])
+    expect(parsed?.advisory).toEqual([])
+    expect(parsed?.proposals).toEqual([])
+  })
+
+  it('allows a manual run once each ten minutes', () => {
+    const now = Date.parse('2026-11-16T03:00:00.000Z')
+    const last = latestManualAtMs([
+      { createdAtMs: now - 60_000, trigger: 'schedule' },
+      { createdAtMs: now - 60_000, trigger: 'manual' },
+    ])
+    expect(manualRetryAt(last, now)).toBe(new Date(now - 60_000 + MANUAL_RUN_COOLDOWN_MS).toISOString())
+    expect(manualRetryAt(last, now - 60_000 + MANUAL_RUN_COOLDOWN_MS)).toBeNull()
+    expect(manualRetryAt(latestManualAtMs([{ createdAtMs: now, trigger: 'schedule' }]), now)).toBeNull()
   })
 })

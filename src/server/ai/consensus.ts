@@ -1,13 +1,18 @@
+import { createHash } from 'node:crypto'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type {
+  BriefAdvisory,
   BriefCitation,
   BriefDispute,
   BriefDropped,
   BriefFact,
   BriefFinding,
   BriefModelState,
+  BriefProposal,
   BriefProvider,
   BriefRecommendation,
+  BriefUnadoptedFinding,
+  ReviewedAdvisoryItem,
   ReviewedBriefItem,
   ReviewedBriefModel,
   StoredBriefReport,
@@ -74,6 +79,51 @@ function reviewText(text: string, factIds: readonly string[], byId: ReadonlyMap<
   return { ok: true }
 }
 
+function reviewAdvisory(text: string, facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
+  const factsJson = JSON.stringify(facts)
+  if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) return { ok: false, code: 'GUARD' }
+  const guard = guardAnswerNumbers(text, collectAllowedDecimals(facts))
+  return guard.ok ? { ok: true } : { ok: false, code: 'GUARD' }
+}
+
+function readAdvisory(value: unknown, facts: readonly BriefFact[]): { items: ReviewedAdvisoryItem[]; sawGuard: boolean } {
+  if (!Array.isArray(value)) return { items: [], sawGuard: false }
+  const items: ReviewedAdvisoryItem[] = []
+  let sawGuard = false
+  for (const entry of value) {
+    const record = asRecord(entry)
+    const topic = record?.topic
+    const text = typeof record?.text === 'string' ? record.text.trim() : ''
+    if (topic !== 'organization' && topic !== 'strategic_plan' && topic !== 'app_capability') continue
+    if (!text) continue
+    const review = reviewAdvisory(text, facts)
+    if (!review.ok) {
+      sawGuard = true
+      continue
+    }
+    items.push({ topic, text })
+  }
+  return { items, sawGuard }
+}
+
+function proposalId(provider: string, text: string): string {
+  return createHash('sha256').update(`${provider}\n${text}`).digest('hex').slice(0, 16)
+}
+
+export function githubIssueDraft(proposal: BriefProposal): string {
+  return [
+    'Title: Proposed app capability',
+    '',
+    'Status: proposed',
+    'Kind: opinion, not an Odoo data finding',
+    `Model: ${proposal.provider}/${proposal.modelId || 'unknown'}`,
+    '',
+    proposal.text,
+    '',
+    'A person reviews this draft. The council does not write code and does not deploy.',
+  ].join('\n')
+}
+
 function readItems(value: unknown, field: 'text' | 'solution'): { factIds: string[]; text: string; stance: 'support' | 'dispute' }[] {
   if (!Array.isArray(value)) return []
   const items: { factIds: string[]; text: string; stance: 'support' | 'dispute' }[] = []
@@ -106,6 +156,7 @@ export function reviewModelText(input: {
       errorCode: 'BAD_RESPONSE',
       findings: [],
       recommendations: [],
+      advisory: [],
     }
   }
   const findings: ReviewedBriefItem[] = []
@@ -123,7 +174,9 @@ export function reviewModelText(input: {
   }
   for (const item of readItems(body.findings, 'text')) accept(item, findings)
   for (const item of readItems(body.recommendations, 'solution')) accept(item, recommendations)
-  if (findings.length === 0 && recommendations.length === 0) {
+  const advisory = readAdvisory(body.advisory, input.facts)
+  if (advisory.sawGuard) sawGuard = true
+  if (findings.length === 0 && recommendations.length === 0 && advisory.items.length === 0) {
     return {
       provider: input.provider,
       modelId: input.modelId,
@@ -131,6 +184,7 @@ export function reviewModelText(input: {
       errorCode: sawGuard ? 'GUARD_REJECTED' : sawCitation ? 'MISSING_CITATION' : 'EMPTY_CLAIMS',
       findings: [],
       recommendations: [],
+      advisory: [],
     }
   }
   return {
@@ -140,6 +194,7 @@ export function reviewModelText(input: {
     errorCode: null,
     findings,
     recommendations,
+    advisory: advisory.items,
   }
 }
 
@@ -163,6 +218,48 @@ export function assembleBriefReport(input: {
       }
       group.notes.push({ provider: model.provider, modelId: model.modelId, text: item.text })
       findingGroups.set(key, group)
+    }
+  }
+
+  const findings: BriefFinding[] = []
+  const unadoptedFindings: BriefUnadoptedFinding[] = []
+  for (const group of findingGroups.values()) {
+    const supporters = new Set(group.notes.map((note) => note.provider))
+    if (supporters.size >= 2) {
+      findings.push(group)
+      continue
+    }
+    const only = group.notes[0]
+    if (!only) continue
+    unadoptedFindings.push({
+      factIds: group.factIds,
+      citations: group.citations,
+      provider: only.provider,
+      modelId: only.modelId,
+      text: only.text,
+    })
+  }
+
+  const advisory: BriefAdvisory[] = []
+  const proposals: BriefProposal[] = []
+  for (const model of input.models) {
+    for (const item of model.advisory) {
+      advisory.push({
+        topic: item.topic,
+        text: item.text,
+        provider: model.provider,
+        modelId: model.modelId,
+        kind: 'opinion',
+      })
+      if (item.topic !== 'app_capability') continue
+      proposals.push({
+        id: proposalId(model.provider, item.text),
+        text: item.text,
+        provider: model.provider,
+        modelId: model.modelId,
+        status: 'proposed',
+        kind: 'opinion',
+      })
     }
   }
 
@@ -230,10 +327,13 @@ export function assembleBriefReport(input: {
     odoo: input.facts.length > 0 ? 'linked' : 'not_linked',
     periods: input.periods,
     sections: input.sections,
-    findings: [...findingGroups.values()],
+    findings,
+    unadoptedFindings,
     recommendations,
     disputed,
     dropped,
+    advisory,
+    proposals,
     models,
   }
 }
@@ -388,6 +488,50 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
               provider,
               modelId: typeof record.modelId === 'string' ? record.modelId : '',
               solution: record.solution,
+            },
+          ]
+        })
+      : [],
+    unadoptedFindings: Array.isArray(body.unadoptedFindings)
+      ? body.unadoptedFindings.flatMap((entry) => {
+          const record = asRecord(entry)
+          const provider = record ? asProvider(record.provider) : null
+          if (!record || !provider || typeof record.text !== 'string') return []
+          return [
+            {
+              factIds: [],
+              citations: asCitations(record.citations),
+              provider,
+              modelId: typeof record.modelId === 'string' ? record.modelId : '',
+              text: record.text,
+            },
+          ]
+        })
+      : [],
+    advisory: Array.isArray(body.advisory)
+      ? body.advisory.flatMap((entry) => {
+          const record = asRecord(entry)
+          const provider = record ? asProvider(record.provider) : null
+          const topic = record?.topic
+          if (!record || !provider || typeof record.text !== 'string' || record.kind !== 'opinion') return []
+          if (topic !== 'organization' && topic !== 'strategic_plan' && topic !== 'app_capability') return []
+          return [{ topic, text: record.text, provider, modelId: typeof record.modelId === 'string' ? record.modelId : '', kind: 'opinion' as const }]
+        })
+      : [],
+    proposals: Array.isArray(body.proposals)
+      ? body.proposals.flatMap((entry) => {
+          const record = asRecord(entry)
+          const provider = record ? asProvider(record.provider) : null
+          if (!record || !provider || typeof record.text !== 'string' || typeof record.id !== 'string') return []
+          if (record.status !== 'proposed' || record.kind !== 'opinion') return []
+          return [
+            {
+              id: record.id,
+              text: record.text,
+              provider,
+              modelId: typeof record.modelId === 'string' ? record.modelId : '',
+              status: 'proposed' as const,
+              kind: 'opinion' as const,
             },
           ]
         })

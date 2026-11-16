@@ -66,6 +66,33 @@ export interface BriefDropped {
   solution: string
 }
 
+export interface BriefUnadoptedFinding {
+  factIds: string[]
+  citations: BriefCitation[]
+  provider: BriefProvider
+  modelId: string
+  text: string
+}
+
+export type AdvisoryTopic = 'organization' | 'strategic_plan' | 'app_capability'
+
+export interface BriefAdvisory {
+  topic: AdvisoryTopic
+  text: string
+  provider: BriefProvider
+  modelId: string
+  kind: 'opinion'
+}
+
+export interface BriefProposal {
+  id: string
+  text: string
+  provider: BriefProvider
+  modelId: string
+  status: 'proposed'
+  kind: 'opinion'
+}
+
 export interface BriefModelState {
   provider: BriefProvider
   modelId: string
@@ -82,9 +109,12 @@ export interface StoredBriefReport {
   periods: { yesterday: string; prior: string } | null
   sections: BriefSection[]
   findings: BriefFinding[]
+  unadoptedFindings: BriefUnadoptedFinding[]
   recommendations: BriefRecommendation[]
   disputed: BriefDispute[]
   dropped: BriefDropped[]
+  advisory: BriefAdvisory[]
+  proposals: BriefProposal[]
   models: BriefModelState[]
 }
 
@@ -94,6 +124,11 @@ export interface ReviewedBriefItem {
   stance: 'support' | 'dispute'
 }
 
+export interface ReviewedAdvisoryItem {
+  topic: AdvisoryTopic
+  text: string
+}
+
 export interface ReviewedBriefModel {
   provider: BriefProvider
   modelId: string
@@ -101,4 +136,5 @@ export interface ReviewedBriefModel {
   errorCode: string | null
   findings: ReviewedBriefItem[]
   recommendations: ReviewedBriefItem[]
+  advisory: ReviewedAdvisoryItem[]
 }
