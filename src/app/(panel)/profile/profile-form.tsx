@@ -16,27 +16,7 @@ export function ProfileForm({ name }: { name: string }) {
         </label>
         <input id="name" name="name" defaultValue={name} className={fieldClass} required />
       </div>
-      <div>
-        <label className={labelClass} htmlFor="currentPassword">
-          كلمة المرور الحالية
-        </label>
-        <input id="currentPassword" name="currentPassword" type="password" dir="ltr" className={`${fieldClass} text-left`} />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelClass} htmlFor="newPassword">
-            كلمة المرور الجديدة
-          </label>
-          <input id="newPassword" name="newPassword" type="password" dir="ltr" className={`${fieldClass} text-left`} />
-        </div>
-        <div>
-          <label className={labelClass} htmlFor="confirmPassword">
-            تأكيد كلمة المرور
-          </label>
-          <input id="confirmPassword" name="confirmPassword" type="password" dir="ltr" className={`${fieldClass} text-left`} />
-        </div>
-      </div>
-      <p className="text-xs text-slate-500">اترك حقول كلمة المرور فارغة إذا أردت تغيير الاسم فقط.</p>
+      <p className="text-xs text-slate-500">كلمة المرور الحالية تبقى كما هي.</p>
       <button className={btnPrimary} disabled={pending}>
         {pending ? "جارٍ الحفظ..." : "حفظ الملف الشخصي"}
       </button>

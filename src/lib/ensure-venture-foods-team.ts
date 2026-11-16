@@ -4,7 +4,6 @@ import { MODULES } from '@/lib/modules'
 import {
   AETHER_ADMIN_PASSWORD,
   VF_TEAM,
-  isLegacyDemoEmail,
   type VfTeamMember,
 } from '@/lib/venture-foods-team'
 
@@ -59,13 +58,7 @@ async function ensureRole(member: VfTeamMember) {
 
 async function upsertUser(email: string, name: string, roleId: string, password: string) {
   const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { name, roleId, isActive: true },
-    })
-    return existing.id
-  }
+  if (existing) return existing.id
   const passwordHash = await bcrypt.hash(password, 10)
   const created = await prisma.user.create({
     data: { name, email, roleId, isActive: true, passwordHash },
@@ -74,7 +67,8 @@ async function upsertUser(email: string, name: string, roleId: string, password:
 }
 
 /**
- * Provisions a missing leadership account. Never rewrites passwordHash on a user that already exists.
+ * Provisions a missing leadership account.
+ * An existing user is left untouched: no password hash, no rename, no deactivation.
  * Not called from page renders.
  */
 export async function ensureVentureFoodsTeam() {
@@ -93,38 +87,6 @@ export async function ensureVentureFoodsTeam() {
       const name =
         email.toLowerCase() === 'admin@aetherbi.com' ? 'Ahmed Al-Ebrahim (CEO)' : member.nameEn
       await upsertUser(email, name, roleId, password)
-    }
-  }
-
-  // Retire classic Arabic demo emails if they still linger.
-  const legacy = await prisma.user.findMany({
-    where: { email: { in: ['accountant@erp.com', 'store@erp.com', 'sales@erp.com'] } },
-  })
-  for (const user of legacy) {
-    if (!isLegacyDemoEmail(user.email)) continue
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { isActive: false, name: `[retired] ${user.name}` },
-    })
-  }
-
-  // Rename any leftover Arabic placeholder names still pointing at active users.
-  const arabicPlaceholders = ['أحمد المدير', 'سارة المحاسبة', 'خالد أمين المخزن', 'ليلى المبيعات']
-  const leftovers = await prisma.user.findMany({
-    where: { name: { in: arabicPlaceholders }, isActive: true },
-  })
-  for (const user of leftovers) {
-    // Prefer mapping by known legacy emails; otherwise deactivate.
-    if (user.email.toLowerCase() === 'admin@erp.com') {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { name: 'Ahmed Al-Ebrahim (CEO)' },
-      })
-    } else {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { isActive: false, name: `[retired] ${user.name}` },
-      })
     }
   }
 

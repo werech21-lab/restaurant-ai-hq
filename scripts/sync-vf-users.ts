@@ -9,7 +9,6 @@ import { MODULES } from '../src/lib/modules'
 import {
   AETHER_ADMIN_PASSWORD,
   VF_TEAM,
-  isLegacyDemoEmail,
   type VfTeamMember,
 } from '../src/lib/venture-foods-team'
 
@@ -54,15 +53,9 @@ async function ensureRole(member: VfTeamMember) {
 }
 
 async function upsertUser(email: string, name: string, roleId: string, password: string) {
-  const passwordHash = await bcrypt.hash(password, 10)
   const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { name, roleId, isActive: true, passwordHash },
-    })
-    return
-  }
+  if (existing) return
+  const passwordHash = await bcrypt.hash(password, 10)
   await prisma.user.create({
     data: { name, email, roleId, isActive: true, passwordHash },
   })
@@ -77,18 +70,6 @@ async function main() {
       await upsertUser(email, member.nameEn, roleId, password)
       console.log('upsert', email, '→', member.nameEn, '/', member.roleEn)
     }
-  }
-
-  const legacy = await prisma.user.findMany({
-    where: { email: { in: ['accountant@erp.com', 'store@erp.com', 'sales@erp.com'] } },
-  })
-  for (const user of legacy) {
-    if (!isLegacyDemoEmail(user.email)) continue
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { isActive: false, name: `[retired] ${user.name}` },
-    })
-    console.log('retired', user.email)
   }
 
   const arabicRoles = ['مدير النظام', 'محاسب', 'أمين مخزن', 'مندوب مبيعات']

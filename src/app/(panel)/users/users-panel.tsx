@@ -211,7 +211,7 @@ function UserDialog({
       id: row?.id,
       name: String(form.get("name") || ""),
       email: String(form.get("email") || ""),
-      password: String(form.get("password") || ""),
+      password: row ? "" : String(form.get("password") || ""),
       roleId: role?.id ?? "",
       isActive: active,
     });
@@ -250,18 +250,22 @@ function UserDialog({
             required
           />
         </div>
-        <div>
-          <label className={labelClass}>
-            {row ? (en ? "New password (optional)" : "كلمة المرور الجديدة (اختياري)") : en ? "Password" : "كلمة المرور"}
-          </label>
-          <input
-            name="password"
-            type="password"
-            dir="ltr"
-            className={`${fieldClass} text-left`}
-            placeholder="123456"
-          />
-        </div>
+        {row ? (
+          <p className="text-xs text-slate-500">
+            {en ? "The current password stays as it is." : "كلمة المرور الحالية تبقى كما هي."}
+          </p>
+        ) : (
+          <div>
+            <label className={labelClass}>{en ? "Password" : "كلمة المرور"}</label>
+            <input
+              name="password"
+              type="password"
+              dir="ltr"
+              className={`${fieldClass} text-left`}
+              placeholder="123456"
+            />
+          </div>
+        )}
         <SearchSelect
           label={en ? "Role" : "الدور الوظيفي والصلاحيات"}
           placeholder={en ? "Search for a role" : "ابحث عن الدور الوظيفي..."}
