@@ -770,6 +770,38 @@ model KitchenTicket {
   @@index([warehouseId, status])
 }
 
+/// One provider call inside a Feryal council turn. estCostMicroUsd is an estimated provider cost in micro-USD.
+model AiRun {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  userId          String
+  questionHash    String
+  provider        String
+  modelId         String
+  latencyMs       Int
+  tokensIn        Int?
+  tokensOut       Int?
+  estCostMicroUsd Int?
+  status          String
+  errorCode       String?
+
+  @@index([createdAt])
+  @@map("ai_runs")
+}
+
+/// Composed daily brief produced by the same council. Empty until the cron flag is on.
+model AiDailyBrief {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  questionHash  String
+  status        String
+  reply         String
+  agreedModels  String
+
+  @@index([createdAt])
+  @@map("ai_daily_briefs")
+}
+
 model KitchenTicketItem {
   id        String        @id @default(cuid())
   ticketId  String

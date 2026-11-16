@@ -7,7 +7,6 @@
 export const AI_KEY_STORAGE_KEYS = {
   anthropic: 'aether_anthropic_key',
   gemini: 'aetherbi_gemini_api_key',
-  xai: 'aetherbi_xai_api_key',
   openai: 'aetherbi_openai_api_key',
 } as const
 
@@ -49,10 +48,6 @@ export function getGeminiBrowserOverride(): string {
 
 export function hasGeminiBrowserOverride(): boolean {
   return Boolean(getGeminiBrowserOverride())
-}
-
-export function getXaiBrowserOverride(): string {
-  return readBrowserOverride(AI_KEY_STORAGE_KEYS.xai)
 }
 
 export function getOpenAiBrowserOverride(): string {

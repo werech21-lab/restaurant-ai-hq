@@ -96,6 +96,14 @@ interface VerifierBadgeState {
   reason?: string
 }
 
+interface CouncilChip {
+  provider: string
+  modelId: string
+  status: string
+  errorCode?: string | null
+  offendingNumbers?: string[]
+}
+
 interface ChatUiMessage extends StoredChatMessage {
   userPrompt?: string
   providerBadge?: string
@@ -105,6 +113,7 @@ interface ChatUiMessage extends StoredChatMessage {
   executedQueries?: ExecutedOdooQueryBadge[]
   verifier?: VerifierBadgeState
   replyStatus?: string
+  council?: CouncilChip[]
 }
 
 interface ServerAuditLogRow {
@@ -525,7 +534,18 @@ export function FeryalGovernanceStudio({
         let verifier: VerifierBadgeState | undefined
         let replyStatus = 'no_odoo_data'
 
-        if (res.ok) {
+        let council: CouncilChip[] | undefined
+        if (!res.ok) {
+          try {
+            const payload = (await res.json()) as { reply?: string; status?: string }
+            if (typeof payload.reply === 'string' && payload.reply.trim()) replyText = payload.reply
+            replyStatus = payload.status || 'council_failed'
+            modelBadge = isAr ? 'تعذّر التحليل' : 'Analysis failed'
+          } catch {
+            replyStatus = 'council_failed'
+            modelBadge = isAr ? 'تعذّر التحليل' : 'Analysis failed'
+          }
+        } else {
           const payload = (await res.json()) as {
             ok?: boolean
             reply?: string
@@ -533,6 +553,7 @@ export function FeryalGovernanceStudio({
             model?: string
             executedQueries?: ExecutedOdooQueryBadge[]
             verifier?: VerifierBadgeState
+            participants?: CouncilChip[]
           }
           if (payload.ok && typeof payload.reply === 'string') {
             replyText = payload.reply
@@ -540,7 +561,16 @@ export function FeryalGovernanceStudio({
             if (replyStatus !== 'no_odoo_data') {
               setChatSyncAt(new Date().toISOString())
             }
-            modelBadge = payload.model ? `Odoo (${payload.model})` : 'Odoo'
+            council = Array.isArray(payload.participants) ? payload.participants : undefined
+            const agreed = (council ?? []).filter((item) => item.status === 'ok' && item.modelId)
+            modelBadge =
+              agreed.length > 0
+                ? agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
+                : payload.status === 'council_failed'
+                  ? isAr
+                    ? 'تعذّر التحليل'
+                    : 'Analysis failed'
+                  : payload.model || 'Odoo'
             executedQueries = Array.isArray(payload.executedQueries) ? payload.executedQueries : []
             verifier = payload.verifier
           }
@@ -559,6 +589,7 @@ export function FeryalGovernanceStudio({
           executedQueries,
           verifier,
           replyStatus,
+          council,
         }
 
         const updated = [...optimisticList, feryalMsg]
@@ -1082,6 +1113,23 @@ export function FeryalGovernanceStudio({
                                 {msg.providerBadge}
                               </span>
                             )}
+                            {msg.council?.map((chip) => (
+                              <span
+                                key={`${chip.provider}-${chip.modelId}-${chip.status}`}
+                                className={`rounded-md px-2 py-0.5 font-mono text-[10.5px] font-bold ${
+                                  chip.status === 'ok'
+                                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
+                                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
+                                }`}
+                              >
+                                {chip.provider}
+                                {chip.modelId ? `/${chip.modelId}` : ''} · {chip.status}
+                                {chip.errorCode ? ` · ${chip.errorCode}` : ''}
+                                {chip.offendingNumbers && chip.offendingNumbers.length > 0
+                                  ? ` · رقم مرفوض خارج الحقائق: ${chip.offendingNumbers.join(' ')}`
+                                  : ''}
+                              </span>
+                            ))}
                             {msg.complianceTier && (
                               <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
                             )}
