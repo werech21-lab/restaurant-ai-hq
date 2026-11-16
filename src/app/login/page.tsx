@@ -3,13 +3,13 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/app/login/login-form'
 import { LoginHero } from '@/app/login/login-hero'
-import { LanguageSwitch } from '@/lib/i18n'
 import {
   EXEC_SESSION_COOKIE,
   sanitizeExecNextPath,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
+import { LanguageSwitch } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'تسجيل الدخول | فنتشر فودز · إيثر لذكاء الأعمال',
@@ -58,7 +58,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <main className="relative grid min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F6F7F8] text-slate-900 dark:bg-[#090F15] dark:text-slate-100 lg:grid-cols-2">
+    <main className="relative grid min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F6F7F8] text-slate-900 dark:bg-[#090E0C] dark:text-slate-100 lg:grid-cols-2">
       {/* Prominent 1-click top-corner AR / EN language pill before sign-in */}
       <div className="fixed end-4 top-4 z-40 sm:end-6 sm:top-5">
         <LanguageSwitch />
