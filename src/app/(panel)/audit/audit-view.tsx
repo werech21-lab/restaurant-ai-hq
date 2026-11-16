@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { PageHeader, PaginationBar, btnPrimary } from "@/components/erp-ui";
+import { PageHeader, PaginationBar } from "@/components/erp-ui";
+import { btnPrimary } from "@/components/erp-ui-classes";
 import { SectionCard, StateBlock } from "@/components/ui";
 import { ExportCsvButton } from "@/components/ui/export-button";
 import { UNAVAILABLE_DASH, formatDateTime, formatInt, getUnavailableTooltip } from "@/lib/format";

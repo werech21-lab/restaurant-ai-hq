@@ -47,6 +47,7 @@ export {
 } from './SlidingPillTabs'
 export { Modal } from './modal'
 export { ExportCsvButton } from './export-button'
+export { cx } from './cx'
 export {
   Badge,
   Button,
@@ -55,5 +56,4 @@ export {
   Num,
   PageHeader,
   Stat,
-  cx,
 } from './primitives'

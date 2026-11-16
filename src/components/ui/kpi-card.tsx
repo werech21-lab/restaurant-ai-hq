@@ -12,7 +12,7 @@ import {
   getUnavailableTooltip,
   type FormatLocale,
 } from '@/lib/format'
-import { cx } from './primitives'
+import { cx } from './cx'
 
 export type KpiValueFormat = 'kwd' | 'int' | 'pct' | 'raw'
 export type KpiDeltaTone = 'positive' | 'negative' | 'neutral' | 'warning'

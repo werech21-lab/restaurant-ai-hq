@@ -1,4 +1,4 @@
-import { cardClass } from "@/components/erp-ui";
+import { cardClass } from "@/components/erp-ui-classes";
 
 export function StatCard({
   href,

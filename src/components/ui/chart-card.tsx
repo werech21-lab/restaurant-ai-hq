@@ -7,7 +7,7 @@ import {
   type FormatLocale,
 } from '@/lib/format'
 import { PartialWarningBanner } from './partial-warning-banner'
-import { cx } from './primitives'
+import { cx } from './cx'
 import { StateBlock, type StateBlockState } from './state-block'
 
 /**

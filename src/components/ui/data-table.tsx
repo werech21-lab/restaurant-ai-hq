@@ -12,7 +12,7 @@ import {
 } from '@/lib/format'
 import { PAGE_SIZE, pageCount } from '@/lib/pagination'
 import { PartialWarningBanner } from './partial-warning-banner'
-import { cx } from './primitives'
+import { cx } from './cx'
 import { StateBlock } from './state-block'
 
 export interface LegacyDataTableProps {

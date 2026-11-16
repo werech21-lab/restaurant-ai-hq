@@ -2,10 +2,9 @@
 
 import type { ReactNode } from 'react'
 import { useI18n } from '@/lib/i18n'
+import { cx } from './cx'
 
-export function cx(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(' ')
-}
+export { cx } from './cx'
 
 /** Keeps digits in source order. "18/20" stays 18/20 inside the RTL page. */
 export function Num({ children, className = '' }: { children: ReactNode; className?: string }) {

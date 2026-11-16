@@ -1,7 +1,7 @@
 import React, { type ReactNode } from 'react'
 import { AlertCircle, AlertTriangle, Inbox, Link2Off, Lock, Slash } from 'lucide-react'
 import { UNAVAILABLE_DASH, getUnavailableTooltip, type FormatLocale } from '@/lib/format'
-import { cx } from './primitives'
+import { cx } from './cx'
 
 export type StateBlockState =
   | 'loading'
