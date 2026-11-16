@@ -4,6 +4,8 @@
  */
 
 import type { GlobalBranch } from '@/lib/aether/global-filter-engine'
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 
 export type RegulationTrackId =
   | 'municipality-pafn'
@@ -65,6 +67,23 @@ export function sanitizeRegulations(raw: unknown): RegulationPlaybookItem[] {
     if (!item || typeof item !== 'object') continue
     const r = item as Partial<RegulationPlaybookItem>
     if (!r.id || !r.titleAr) continue
+    const textFields = [
+      r.titleAr,
+      r.titleEn,
+      r.authorityAr,
+      r.authorityEn,
+      r.summaryAr,
+      r.summaryEn,
+      ...(Array.isArray(r.mitigationStepsAr) ? r.mitigationStepsAr.map(String) : []),
+      ...(Array.isArray(r.mitigationStepsEn) ? r.mitigationStepsEn.map(String) : []),
+    ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    if (
+      textFields.some(
+        (txt) => isExcludedOdooEntity(txt) || isNonCompanyCatalogItem(null, txt),
+      )
+    ) {
+      continue
+    }
     const track: RegulationTrackId =
       r.track && validTracks.has(r.track) ? r.track : 'municipality-pafn'
     out.push({

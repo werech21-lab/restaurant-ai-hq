@@ -52,6 +52,7 @@ import {
   SCHOOL_CANTEEN_BRANCH_ID,
   signedKwd,
 } from '@/lib/odoo/company-pos'
+import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import {
   buildPosOrderUtcDomain,
   buildPosPaymentUtcDomain,
@@ -2664,7 +2665,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   for (const p of productRecords) {
     const posCatId = m2oId(p.pos_categ_id)
     if (posCatId !== null && excludedPosCategoryIds.has(posCatId)) continue
-    if (isExcludedOdooEntity(p.name)) continue
+    if (isExcludedOdooEntity(p.name) || isNonCompanyCatalogItem(null, p.name)) continue
     const rootName = resolveRootCatName(posCatId)
     const bid =
       (rootName ? brandByPosRoot.get(rootName) : undefined) ??
@@ -2995,7 +2996,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     for (const r of rows) {
       const pid = m2oId(r.product_id)
       const pName = m2oName(r.product_id) ?? ''
-      if (isExcludedOdooEntity(pName)) continue
+      if (isExcludedOdooEntity(pName) || isNonCompanyCatalogItem(null, pName)) continue
       const bid =
         (pid !== null ? brandOfProductId.get(pid) : undefined) ??
         resolveBrandHintFromText(pName)
@@ -4643,7 +4644,7 @@ export async function fetchLiveOdooPeriodCube(
       const posCatId = m2oId(p.pos_categ_id)
       if (posCatId !== null && excludedPosCatIds.has(posCatId)) continue
       const pName = (p.name ?? '').trim()
-      if (isExcludedOdooEntity(pName)) continue
+      if (isExcludedOdooEntity(pName) || isNonCompanyCatalogItem(null, pName)) continue
       const rootName = resolveRootCat(posCatId)?.name ?? null
       const bid =
         (rootName ? brandByPosRoot.get(rootName) : undefined) ??
@@ -4883,7 +4884,7 @@ export async function fetchLiveOdooPeriodCube(
       const pid = m2oId(lRow.product_id)
       if (pid === null) continue
       const rawLabel = m2oName(lRow.product_id) ?? ''
-      if (isExcludedOdooEntity(rawLabel)) continue
+      if (isExcludedOdooEntity(rawLabel) || isNonCompanyCatalogItem(null, rawLabel)) continue
       const meta = productMetaById.get(pid)
       const fallbackBid = resolveBrandHintFromText(rawLabel)
       const bid = (meta?.brandId ?? fallbackBid) as (typeof ACTIVE_BRAND_IDS)[number] | null
@@ -4955,7 +4956,7 @@ export async function fetchLiveOdooPeriodCube(
         const pid = m2oId(r.product_id)
         if (pid === null) continue
         const rawLabel = m2oName(r.product_id) ?? ''
-        if (isExcludedOdooEntity(rawLabel)) continue
+        if (isExcludedOdooEntity(rawLabel) || isNonCompanyCatalogItem(null, rawLabel)) continue
         const meta = productMetaById.get(pid)
         const fallbackBid = resolveBrandHintFromText(rawLabel)
         const bid = (meta?.brandId ?? fallbackBid) as (typeof ACTIVE_BRAND_IDS)[number] | null
@@ -5137,6 +5138,9 @@ function resolveStockLocationRole(
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
   if (usage === 'internal') {
+    if (/\b(?:npis|faips|canteen|canteens)\b|مقصف/i.test(lower)) {
+      return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
+    }
     if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
@@ -5513,14 +5517,19 @@ export async function fetchLiveOdooWarehouseChain(
     for (const p of prodRecords) {
       const posCatId = m2oId(p.pos_categ_id)
       const nm = (p.name || `Product #${p.id}`).trim()
+      const skuCode =
+        typeof p.default_code === 'string' && p.default_code.trim()
+          ? p.default_code.trim()
+          : `ODOO-${p.id}`
       const catNm = m2oName(p.categ_id) ?? 'General'
       const excluded =
         (posCatId !== null && excludedPosCatIds.has(posCatId)) ||
         isExcludedOdooEntity(nm) ||
-        isExcludedOdooEntity(catNm)
+        isExcludedOdooEntity(catNm) ||
+        isNonCompanyCatalogItem(skuCode, nm)
       prodInfoById.set(p.id, {
         name: nm,
-        skuCode: typeof p.default_code === 'string' && p.default_code.trim() ? p.default_code.trim() : `ODOO-${p.id}`,
+        skuCode,
         unitCostKwd: Math.max(0, Number(p.standard_price) || 0),
         categoryName: catNm,
         uomName: m2oName(p.uom_id) ?? 'Unit',
@@ -5531,7 +5540,13 @@ export async function fetchLiveOdooWarehouseChain(
     const productAgg = new Map<number, OdooLiveWarehouseProductRow>()
     const ensureProdRow = (pid: number, fallbackLabel: string): OdooLiveWarehouseProductRow | null => {
       const meta = prodInfoById.get(pid)
-      if (meta?.excluded || isExcludedOdooEntity(fallbackLabel)) return null
+      if (
+        meta?.excluded ||
+        isExcludedOdooEntity(fallbackLabel) ||
+        isNonCompanyCatalogItem(meta?.skuCode ?? null, fallbackLabel)
+      ) {
+        return null
+      }
       let row = productAgg.get(pid)
       if (!row) {
         row = {
@@ -6041,7 +6056,11 @@ export async function fetchLiveOdooPurchaseOrders(
     for (const ln of poLines) {
       const pName = m2oName(ln.product_id) ?? ''
       const vName = m2oName(ln.partner_id) ?? ''
-      if (isDecommissionedWarehouseRecord(`${pName} ${vName}`) || isExcludedOdooEntity(pName)) {
+      if (
+        isDecommissionedWarehouseRecord(`${pName} ${vName}`) ||
+        isExcludedOdooEntity(pName) ||
+        isNonCompanyCatalogItem(null, pName)
+      ) {
         continue
       }
       const vId = m2oId(ln.partner_id)

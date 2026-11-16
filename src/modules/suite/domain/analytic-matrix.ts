@@ -1,5 +1,7 @@
 /** Deterministic analytic P&L decomposition for Venture Foods brand × branch cells (fils, half-up). */
 
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+
 export type AnalyticCell = {
   brandName: string
   branchName: string
@@ -40,13 +42,18 @@ export function cellHealth(netProfitMinor: number, revenueMinor: number): Analyt
 export function buildAnalyticMatrix(
   rows: readonly { brandName: string; branchName: string; amountMinor: number }[],
 ): AnalyticCell[] {
-  return rows.map((row) => {
-    const parts = decomposeRevenue(row.amountMinor)
-    return {
-      brandName: row.brandName,
-      branchName: row.branchName,
-      ...parts,
-      health: cellHealth(parts.netProfitMinor, parts.revenueMinor),
-    }
-  })
+  return rows
+    .filter(
+      (row) =>
+        !isExcludedOdooEntity(row.brandName) && !isExcludedOdooEntity(row.branchName),
+    )
+    .map((row) => {
+      const parts = decomposeRevenue(row.amountMinor)
+      return {
+        brandName: row.brandName,
+        branchName: row.branchName,
+        ...parts,
+        health: cellHealth(parts.netProfitMinor, parts.revenueMinor),
+      }
+    })
 }

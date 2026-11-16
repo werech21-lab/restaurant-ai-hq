@@ -6,6 +6,9 @@
  * have been purged. Only pure mathematical break-even calculators remain.
  */
 
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
+
 export type EventStatus = 'feasibility' | 'licensing' | 'active' | 'closed'
 
 export type EventType = 'mega_expo' | 'ministry_camp' | 'hotel_popup' | 'youth_sports' | 'seasonal'
@@ -449,9 +452,15 @@ export function calculateThreeScenarios(input: ThreeScenarioInput): ThreeScenari
   const realistic = buildScenario(1.0, 'السيناريو الأساسي (100% تقدير)', 'Baseline (100% Estimate)')
   const optimistic = buildScenario(1.25, 'السيناريو المتفائل (125% تقدير)', 'Optimistic (125% Estimate)')
 
-  const brandCount = Math.max(1, input.selectedBrands.length)
+  const cleanSelectedBrands = input.selectedBrands.filter(
+    (brandName) =>
+      Boolean(brandName && brandName.trim()) &&
+      !isExcludedOdooEntity(brandName) &&
+      !isNonCompanyCatalogItem(null, brandName),
+  )
+  const brandCount = Math.max(1, cleanSelectedBrands.length)
   const share = 100 / brandCount
-  const brandBreakdown = input.selectedBrands.map((brandName) => {
+  const brandBreakdown = cleanSelectedBrands.map((brandName) => {
     const brandSales = realistic.grossSalesKwd * (share / 100)
     const brandCogs = brandSales * (input.estimatedCogsPercent / 100)
     return {

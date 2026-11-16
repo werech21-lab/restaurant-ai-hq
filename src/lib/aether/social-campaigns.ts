@@ -4,7 +4,9 @@
  * when Odoo is connected.
  */
 
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import {
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
@@ -136,7 +138,7 @@ function shiftIsoDate(iso: string, deltaDays: number): string {
 function parseValidCampaignList(raw: unknown): SocialCampaign[] {
   if (!Array.isArray(raw)) return []
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
-  const validBranches = new Set<string>(APPROVED_BRANCH_IDS)
+  const validBranches = new Set<string>([...APPROVED_BRANCH_IDS, 'school-canteens'])
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
   const todayIso = new Date().toISOString().slice(0, 10)
   const out: SocialCampaign[] = []
@@ -147,6 +149,16 @@ function parseValidCampaignList(raw: unknown): SocialCampaign[] {
     const id =
       typeof rec.id === 'string' && rec.id ? rec.id : `camp-${Date.now()}-${out.length}`
     if (LEGACY_REMOVED_IDS.has(id)) continue
+    const textFields = [rec.campaignName, rec.campaignNameEn, rec.promotedItem].filter(
+      (v): v is string => typeof v === 'string' && v.trim().length > 0,
+    )
+    if (
+      textFields.some(
+        (txt) => isExcludedOdooEntity(txt) || isNonCompanyCatalogItem(null, txt),
+      )
+    ) {
+      continue
+    }
     const adType: SocialAdType =
       rec.adType && validTypes.has(rec.adType) ? (rec.adType as SocialAdType) : 'instagram'
     const branch: GlobalBranch =
