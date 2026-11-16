@@ -69,6 +69,11 @@ export interface ExecutiveComparisonControlBarProps {
   syncUrlParams?: boolean
   syncGlobalScope?: boolean
   extraActions?: React.ReactNode
+  /**
+   * Gap between the sum of the rows on this page and the Odoo total.
+   * `null` while the page is still loading. Omit to derive it from the shared live summary.
+   */
+  odooGap?: { connected: boolean; gapKwd: number | null } | null
 }
 
 type OpenDropdownId = 'brand' | 'branch' | 'channel' | 'entityA' | 'entityB' | null
@@ -185,6 +190,76 @@ export function readInitialComparisonQueryFromEnv(
   }
 }
 
+function formatGapAmount(gap: number): string {
+  return Math.abs(gap).toLocaleString('en-US', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
+}
+
+function gapFromLiveSummary(
+  summary: {
+    connected?: boolean
+    branches?: { netSalesKwd: number }[]
+    unattributedSalesKwd?: number
+    companyTotals?: { netSalesKwd?: number }
+    totals?: { netSalesKwd?: number }
+  } | null | undefined,
+): { connected: boolean; gapKwd: number | null } {
+  if (!summary || summary.connected !== true) return { connected: false, gapKwd: null }
+  const rowSum =
+    (summary.branches ?? []).reduce((sum, row) => sum + (Number(row.netSalesKwd) || 0), 0) +
+    (Number(summary.unattributedSalesKwd) || 0)
+  const odooTotal = summary.companyTotals?.netSalesKwd ?? summary.totals?.netSalesKwd
+  if (typeof odooTotal !== 'number' || !Number.isFinite(odooTotal)) {
+    return { connected: true, gapKwd: null }
+  }
+  return { connected: true, gapKwd: Math.round((rowSum - odooTotal) * 1000) / 1000 }
+}
+
+function OdooGapPill({
+  isAr,
+  odooGap,
+  liveSummary,
+}: {
+  isAr: boolean
+  odooGap?: { connected: boolean; gapKwd: number | null } | null
+  liveSummary: Parameters<typeof gapFromLiveSummary>[0]
+}) {
+  const resolved = odooGap === undefined ? gapFromLiveSummary(liveSummary) : odooGap
+  if (resolved === null) {
+    return (
+      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 rounded-full bg-slate-400" />
+        <span>{isAr ? 'جارٍ مطابقة أودو' : 'Checking the Odoo gap'}</span>
+      </div>
+    )
+  }
+  if (!resolved.connected || resolved.gapKwd === null) {
+    return (
+      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 rounded-full bg-slate-400" />
+        <span>{isAr ? 'غير متصل' : 'Disconnected'}</span>
+      </div>
+    )
+  }
+  const mismatch = resolved.gapKwd !== 0
+  return (
+    <div
+      className={`flex items-center gap-2 text-[13px] font-medium tabular-nums ${
+        mismatch ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'
+      }`}
+    >
+      <span className={`h-2 w-2 rounded-full ${mismatch ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+      <span>
+        {isAr
+          ? `متزامن مع أودو 17 • الفارق ${formatGapAmount(resolved.gapKwd)} د.ك`
+          : `Synced with Odoo 17 • gap ${formatGapAmount(resolved.gapKwd)} KWD`}
+      </span>
+    </div>
+  )
+}
+
 export function ExecutiveComparisonControlBar({
   query,
   onQueryChange,
@@ -198,6 +273,7 @@ export function ExecutiveComparisonControlBar({
   syncUrlParams = true,
   syncGlobalScope = true,
   extraActions,
+  odooGap,
 }: ExecutiveComparisonControlBarProps) {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
@@ -1360,15 +1436,8 @@ export function ExecutiveComparisonControlBar({
           </div>
         </div>
 
-        {/* Reconciliation & Ledger Integrity Pill */}
-        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span>
-            {isAr
-              ? 'متزامن مع أودو 17 • تطابق 0.000 د.ك'
-              : 'Synced with Odoo 17 POS • 0.000 KWD Gap'}
-          </span>
-        </div>
+        {/* Reconciliation pill: sum of displayed rows versus the Odoo total */}
+        <OdooGapPill isAr={isAr} odooGap={odooGap} liveSummary={liveSummary} />
       </div>
     </section>
   )

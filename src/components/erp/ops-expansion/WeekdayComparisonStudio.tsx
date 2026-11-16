@@ -430,6 +430,19 @@ export function WeekdayComparisonStudio() {
           setQuery(buildDefaultStudioQuery())
         }}
         onExportCsv={handleExportCsv}
+        odooGap={
+          loading
+            ? null
+            : {
+                connected: Boolean(
+                  apiConnected && !apiNoData && comparison.connected && !comparison.noData,
+                ),
+                gapKwd:
+                  apiConnected && !apiNoData && comparison.connected && !comparison.noData
+                    ? comparison.reconciliation.maxSalesGapKwd
+                    : null,
+              }
+        }
         extraActions={
           <button
             type="button"

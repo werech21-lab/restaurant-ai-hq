@@ -438,6 +438,19 @@ export function BeforeAfterStudio() {
       <div className="print:hidden">
         <ExecutiveComparisonControlBar
           query={query}
+          odooGap={
+            loading
+              ? null
+              : {
+                  connected: Boolean(
+                    apiConnected && !apiNoData && comparison.connected && !comparison.noData,
+                  ),
+                  gapKwd:
+                    apiConnected && !apiNoData && comparison.connected && !comparison.noData
+                      ? comparison.reconciliation.maxSalesGapKwd
+                      : null,
+                }
+          }
           order="b-first"
           labelBEn="Before (Baseline)"
           labelBAr="قبل (الأساس)"
