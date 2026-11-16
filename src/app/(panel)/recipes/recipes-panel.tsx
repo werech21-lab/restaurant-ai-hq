@@ -2,12 +2,17 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { deleteRecipeAction, saveRecipeAction } from '@/app/actions/recipes'
-import { Alert, btnGhost, btnPrimary, cardClass, fieldClass, labelClass } from '@/components/erp-ui'
+import { Alert, btnGhost, btnPrimary, labelClass } from '@/components/erp-ui'
+import { DataTable, SectionCard, type DataTableColumn } from '@/components/ui'
+import { formatPct } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import type { RecipeCostRow } from '@/services/recipe.service'
 
 type ProductOpt = { id: string; code: string; name: string; sellingPrice: number; costPrice: number }
 type LineDraft = { ingredientProductId: string; quantity: string; unit: string; wastagePercent: string }
+
+const inputCls =
+  'ds-surface-subtle ds-focus-ring w-full rounded-xl px-3 py-2 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]'
 
 export function RecipesPanel({
   rows,
@@ -24,7 +29,9 @@ export function RecipesPanel({
   canEdit: boolean
   canDelete: boolean
 }) {
-  const { t, money, locale } = useI18n()
+  const { t, locale } = useI18n()
+  const isEn = locale === 'en'
+  const uiLocale = isEn ? 'en' : 'ar'
   const [pending, start] = useTransition()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -75,219 +82,306 @@ export function RecipesPanel({
         setError(result.message)
         return
       }
-      setNotice(locale === 'en' ? 'Recipe saved' : 'تم حفظ الوصفة')
+      setNotice(isEn ? 'Recipe saved' : 'تم حفظ الوصفة')
       resetForm()
     })
   }
 
+  const columns: ReadonlyArray<DataTableColumn<RecipeCostRow>> = [
+    {
+      key: 'recipe',
+      header: isEn ? 'Recipe' : 'الوصفة',
+      render: (row) => (
+        <div>
+          <p className="font-semibold" style={{ color: 'var(--ds-text-primary)' }}>
+            {isEn && row.nameEn ? row.nameEn : row.name}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--ds-text-muted)' }}>
+            {row.menuName} ·{' '}
+            <span dir="ltr" className="ds-num font-mono">
+              {row.menuCode}
+            </span>
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'sellingPrice',
+      header: isEn ? 'Sell' : 'البيع',
+      format: 'kwd',
+      align: 'numeric',
+      accessor: (row) => row.sellingPrice,
+    },
+    {
+      key: 'ingredientCost',
+      header: isEn ? 'Food cost' : 'تكلفة الغذاء',
+      format: 'kwd',
+      align: 'numeric',
+      accessor: (row) => row.ingredientCost,
+    },
+    {
+      key: 'foodCostPercent',
+      header: isEn ? 'Food Cost %' : 'نسبة تكلفة الغذاء %',
+      align: 'numeric',
+      render: (row) => (
+        <span
+          className="font-bold"
+          style={{ color: row.overTarget ? 'var(--ds-negative)' : 'var(--ds-positive)' }}
+        >
+          {formatPct(row.foodCostPercent, { locale: uiLocale })}
+          {row.overTarget
+            ? ` > ${formatPct(row.targetFoodCostPercent, { locale: uiLocale, decimals: 0 })}`
+            : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'marginPercent',
+      header: isEn ? 'Margin' : 'الهامش',
+      format: 'pct',
+      align: 'numeric',
+      accessor: (row) => row.marginPercent,
+    },
+    {
+      key: 'actions',
+      header: isEn ? 'Actions' : 'إجراءات',
+      render: (row) => (
+        <div className="flex flex-wrap gap-2">
+          {canEdit ? (
+            <button
+              type="button"
+              className={`${btnGhost} ds-focus-ring min-h-9`}
+              onClick={() => {
+                setEditingId(row.id)
+                setMenuProductId(row.menuProductId)
+                setName(row.name)
+                setNameEn(row.nameEn)
+                setBrandCode(row.brandCode || '')
+                setTarget(String(row.targetFoodCostPercent))
+              }}
+            >
+              {t('action.edit')}
+            </button>
+          ) : null}
+          {canDelete ? (
+            <button
+              type="button"
+              className={`${btnGhost} ds-focus-ring min-h-9`}
+              onClick={() =>
+                start(async () => {
+                  const result = await deleteRecipeAction(row.id)
+                  if (!result.ok) setError(result.message)
+                })
+              }
+            >
+              {t('action.delete')}
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+  ]
+
   return (
-    <div className="space-y-4">
+    <div dir={isEn ? 'ltr' : 'rtl'} className="space-y-4">
       {error ? <Alert kind="error">{error}</Alert> : null}
       {notice ? <Alert kind="ok">{notice}</Alert> : null}
 
       {(canCreate || canEdit) && (
-        <section className={`${cardClass} space-y-3 p-5`}>
-          <h2 className="font-bold text-mist-100">{editingId ? t('action.edit') : t('action.add')} · {locale === 'en' ? 'BOM' : 'بطاقة الوصفة والمكونات المعيارية'}</h2>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Menu item' : 'صنف المنيو'}</label>
-              <select className={fieldClass} value={menuProductId} onChange={(e) => setMenuProductId(e.target.value)}>
-                {menuOptions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Recipe name (AR)' : 'اسم الوصفة'}</label>
-              <input className={fieldClass} value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Recipe name (EN)' : 'الاسم بالإنجليزية'}</label>
-              <input className={fieldClass} value={nameEn} onChange={(e) => setNameEn(e.target.value)} dir="ltr" />
-            </div>
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Brand' : 'البراند'}</label>
-              <select className={fieldClass} value={brandCode} onChange={(e) => setBrandCode(e.target.value)}>
-                <option value="">{locale === 'en' ? 'All brands' : 'كل البراندات'}</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {locale === 'en' ? b.nameEn : b.nameAr}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Recipe wastage %' : 'هدر الوصفة %'}</label>
-              <input className={fieldClass} dir="ltr" value={wastagePercent} onChange={(e) => setWastagePercent(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>{locale === 'en' ? 'Target food cost %' : 'هدف تكلفة الغذاء %'}</label>
-              <input className={fieldClass} dir="ltr" value={targetFoodCostPercent} onChange={(e) => setTarget(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-mist-300">{locale === 'en' ? 'Ingredients' : 'المكونات الخام'}</p>
-            {lines.map((line, index) => (
-              <div key={index} className="grid gap-2 md:grid-cols-5">
+        <SectionCard
+          locale={uiLocale}
+          title={`${editingId ? t('action.edit') : t('action.add')} · ${
+            isEn ? 'BOM' : 'بطاقة الوصفة والمكونات المعيارية'
+          }`}
+        >
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div>
+                <label htmlFor="recipe-menu-item" className={labelClass}>
+                  {isEn ? 'Menu item' : 'صنف المنيو'}
+                </label>
                 <select
-                  className={`${fieldClass} md:col-span-2`}
-                  value={line.ingredientProductId}
-                  onChange={(e) => {
-                    const next = [...lines]
-                    next[index] = { ...line, ingredientProductId: e.target.value }
-                    setLines(next)
-                  }}
+                  id="recipe-menu-item"
+                  className={inputCls}
+                  value={menuProductId}
+                  onChange={(e) => setMenuProductId(e.target.value)}
                 >
-                  {products.map((p) => (
+                  {menuOptions.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} ({p.code})
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label htmlFor="recipe-name-ar" className={labelClass}>
+                  {isEn ? 'Recipe name (AR)' : 'اسم الوصفة'}
+                </label>
+                <input id="recipe-name-ar" className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="recipe-name-en" className={labelClass}>
+                  {isEn ? 'Recipe name (EN)' : 'الاسم بالإنجليزية'}
+                </label>
                 <input
-                  className={fieldClass}
+                  id="recipe-name-en"
+                  className={inputCls}
+                  value={nameEn}
+                  onChange={(e) => setNameEn(e.target.value)}
                   dir="ltr"
-                  placeholder="Qty"
-                  value={line.quantity}
-                  onChange={(e) => {
-                    const next = [...lines]
-                    next[index] = { ...line, quantity: e.target.value }
-                    setLines(next)
-                  }}
-                />
-                <select
-                  className={fieldClass}
-                  value={line.unit}
-                  onChange={(e) => {
-                    const next = [...lines]
-                    next[index] = { ...line, unit: e.target.value }
-                    setLines(next)
-                  }}
-                >
-                  <option value="g">{locale === 'en' ? 'g' : 'غرام'}</option>
-                  <option value="ml">{locale === 'en' ? 'ml' : 'مل'}</option>
-                  <option value="pc">{locale === 'en' ? 'pc' : 'حبة'}</option>
-                </select>
-                <input
-                  className={fieldClass}
-                  dir="ltr"
-                  placeholder="Waste %"
-                  value={line.wastagePercent}
-                  onChange={(e) => {
-                    const next = [...lines]
-                    next[index] = { ...line, wastagePercent: e.target.value }
-                    setLines(next)
-                  }}
                 />
               </div>
-            ))}
-            <button
-              type="button"
-              className={btnGhost}
-              onClick={() =>
-                setLines((current) => [
-                  ...current,
-                  { ingredientProductId: products[0]?.id || '', quantity: '10', unit: 'g', wastagePercent: '0' },
-                ])
-              }
-            >
-              + {locale === 'en' ? 'Ingredient' : 'مكوّن'}
-            </button>
-          </div>
+              <div>
+                <label htmlFor="recipe-brand" className={labelClass}>
+                  {isEn ? 'Brand' : 'البراند'}
+                </label>
+                <select
+                  id="recipe-brand"
+                  className={inputCls}
+                  value={brandCode}
+                  onChange={(e) => setBrandCode(e.target.value)}
+                >
+                  <option value="">{isEn ? 'All brands' : 'كل البراندات'}</option>
+                  {brands.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {isEn ? b.nameEn : b.nameAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="recipe-wastage" className={labelClass}>
+                  {isEn ? 'Recipe wastage %' : 'هدر الوصفة %'}
+                </label>
+                <input
+                  id="recipe-wastage"
+                  className={inputCls}
+                  dir="ltr"
+                  value={wastagePercent}
+                  onChange={(e) => setWastagePercent(e.target.value)}
+                />
+              </div>
+              <div>
+                <label htmlFor="recipe-target-fc" className={labelClass}>
+                  {isEn ? 'Target food cost %' : 'هدف تكلفة الغذاء %'}
+                </label>
+                <input
+                  id="recipe-target-fc"
+                  className={inputCls}
+                  dir="ltr"
+                  value={targetFoodCostPercent}
+                  onChange={(e) => setTarget(e.target.value)}
+                />
+              </div>
+            </div>
 
-          <div className="flex gap-2">
-            <button type="button" className={btnPrimary} disabled={pending || (!canCreate && !editingId)} onClick={submit}>
-              {pending ? '…' : t('action.save')}
-            </button>
-            {editingId ? (
-              <button type="button" className={btnGhost} onClick={resetForm}>
-                {t('action.cancel')}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold" style={{ color: 'var(--ds-text-secondary)' }}>
+                {isEn ? 'Ingredients' : 'المكونات الخام'}
+              </p>
+              {lines.map((line, index) => (
+                <div key={index} className="grid gap-2 md:grid-cols-5">
+                  <select
+                    aria-label={isEn ? `Ingredient ${index + 1}` : `مكوّن ${index + 1}`}
+                    className={`${inputCls} md:col-span-2`}
+                    value={line.ingredientProductId}
+                    onChange={(e) => {
+                      const next = [...lines]
+                      next[index] = { ...line, ingredientProductId: e.target.value }
+                      setLines(next)
+                    }}
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={isEn ? `Ingredient quantity ${index + 1}` : `كمية المكوّن ${index + 1}`}
+                    className={inputCls}
+                    dir="ltr"
+                    placeholder={isEn ? 'Qty' : 'الكمية'}
+                    value={line.quantity}
+                    onChange={(e) => {
+                      const next = [...lines]
+                      next[index] = { ...line, quantity: e.target.value }
+                      setLines(next)
+                    }}
+                  />
+                  <select
+                    aria-label={isEn ? `Ingredient unit ${index + 1}` : `وحدة المكوّن ${index + 1}`}
+                    className={inputCls}
+                    value={line.unit}
+                    onChange={(e) => {
+                      const next = [...lines]
+                      next[index] = { ...line, unit: e.target.value }
+                      setLines(next)
+                    }}
+                  >
+                    <option value="g">{isEn ? 'g' : 'غرام'}</option>
+                    <option value="ml">{isEn ? 'ml' : 'مل'}</option>
+                    <option value="pc">{isEn ? 'pc' : 'حبة'}</option>
+                  </select>
+                  <input
+                    aria-label={isEn ? `Ingredient waste % ${index + 1}` : `نسبة الهدر ${index + 1}`}
+                    className={inputCls}
+                    dir="ltr"
+                    placeholder={isEn ? 'Waste %' : 'الهدر %'}
+                    value={line.wastagePercent}
+                    onChange={(e) => {
+                      const next = [...lines]
+                      next[index] = { ...line, wastagePercent: e.target.value }
+                      setLines(next)
+                    }}
+                  />
+                </div>
+              ))}
+              <button
+                type="button"
+                className={`${btnGhost} ds-focus-ring min-h-10`}
+                onClick={() =>
+                  setLines((current) => [
+                    ...current,
+                    { ingredientProductId: products[0]?.id || '', quantity: '10', unit: 'g', wastagePercent: '0' },
+                  ])
+                }
+              >
+                + {isEn ? 'Ingredient' : 'مكوّن'}
               </button>
-            ) : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`${btnPrimary} ds-focus-ring min-h-10`}
+                disabled={pending || (!canCreate && !editingId)}
+                onClick={submit}
+              >
+                {pending ? '…' : t('action.save')}
+              </button>
+              {editingId ? (
+                <button type="button" className={`${btnGhost} ds-focus-ring min-h-10`} onClick={resetForm}>
+                  {t('action.cancel')}
+                </button>
+              ) : null}
+            </div>
           </div>
-        </section>
+        </SectionCard>
       )}
 
-      <section className={`${cardClass} overflow-hidden`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-mist-400">
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Recipe' : 'الوصفة'}</th>
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Sell' : 'البيع'}</th>
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Food cost' : 'تكلفة الغذاء'}</th>
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Food Cost %' : 'نسبة تكلفة الغذاء %'}</th>
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Margin' : 'الهامش'}</th>
-                <th className="px-4 py-3 text-start">{locale === 'en' ? 'Actions' : 'إجراءات'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-8 text-mist-400" colSpan={6}>
-                    {locale === 'en' ? 'No recipes yet.' : 'لا وصفات بعد.'}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row.id} className="border-t border-white/10">
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-mist-100">{locale === 'en' && row.nameEn ? row.nameEn : row.name}</p>
-                      <p className="text-xs text-mist-400">
-                        {row.menuName} · {row.menuCode}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 font-semibold">{money(row.sellingPrice)}</td>
-                    <td className="px-4 py-3">{money(row.ingredientCost)}</td>
-                    <td className={`px-4 py-3 font-bold ${row.overTarget ? 'text-red-400' : 'text-[#8cc63f]'}`}>
-                      {row.foodCostPercent.toFixed(1)}%
-                      {row.overTarget ? ` > ${row.targetFoodCostPercent}%` : ''}
-                    </td>
-                    <td className="px-4 py-3">{row.marginPercent.toFixed(1)}%</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        {canEdit ? (
-                          <button
-                            type="button"
-                            className={btnGhost}
-                            onClick={() => {
-                              setEditingId(row.id)
-                              setMenuProductId(row.menuProductId)
-                              setName(row.name)
-                              setNameEn(row.nameEn)
-                              setBrandCode(row.brandCode || '')
-                              setTarget(String(row.targetFoodCostPercent))
-                            }}
-                          >
-                            {t('action.edit')}
-                          </button>
-                        ) : null}
-                        {canDelete ? (
-                          <button
-                            type="button"
-                            className={btnGhost}
-                            onClick={() =>
-                              start(async () => {
-                                const result = await deleteRecipeAction(row.id)
-                                if (!result.ok) setError(result.message)
-                              })
-                            }
-                          >
-                            {t('action.delete')}
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <DataTable<RecipeCostRow>
+        locale={uiLocale}
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        emptyTitle={isEn ? 'No recipes yet.' : 'لا توجد وصفات بعد.'}
+        emptyDescription={
+          isEn
+            ? 'Add a standard BOM recipe above to calculate food-cost % and margin.'
+            : 'أضف بطاقة وصفة معيارية أعلاه لحساب تكلفة الغذاء والهامش.'
+        }
+      />
     </div>
   )
 }

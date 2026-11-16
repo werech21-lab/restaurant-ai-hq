@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import { bumpTicketAction, markReadyAction, startPrepAction, toggleItemDoneAction } from '@/app/actions/kds'
+import { StateBlock } from '@/components/ui'
+import { formatInt, getUnavailableTooltip, UNAVAILABLE_DASH } from '@/lib/format'
 import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 type Ticket = {
@@ -25,9 +27,9 @@ function elapsedMs(createdAt: string) {
 
 function slaClass(createdAt: string) {
   const mins = elapsedMs(createdAt) / 60000
-  if (mins > 15) return 'border-red-500/80 bg-red-950/40 shadow-[0_0_24px_rgba(239,68,68,0.35)] animate-pulse'
-  if (mins >= 8) return 'border-amber-400/70 bg-amber-950/30'
-  return 'border-[#8cc63f]/50 bg-[#102016]/80'
+  if (mins > 15) return 'border-red-500/85 bg-red-950/60 shadow-[0_0_24px_rgba(239,68,68,0.35)]'
+  if (mins >= 8) return 'border-amber-400/80 bg-amber-950/45'
+  return 'border-emerald-400/60 bg-[#102016]'
 }
 
 function timerLabel(createdAt: string) {
@@ -37,12 +39,25 @@ function timerLabel(createdAt: string) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+function statusLabel(status: string, isEn: boolean): string {
+  if (status === 'NEW') return isEn ? 'NEW' : 'جديد'
+  if (status === 'IN_PREP' || status === 'PREPARING') return isEn ? 'PREPARING' : 'قيد التحضير'
+  if (status === 'READY') return isEn ? 'READY' : 'جاهز'
+  if (status === 'BUMPED') return isEn ? 'BUMPED' : 'تم التسليم'
+  return status
+}
+
 export function KdsBoard() {
   const { locale, t } = useI18n()
+  const isEn = locale === 'en'
+  const uiLocale = isEn ? 'en' : 'ar'
+  const unavailableTip = getUnavailableTooltip(uiLocale)
+
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [stats, setStats] = useState({ avgPrepMinutes: 0, completed24h: 0 })
   const [scopeLabel, setScopeLabel] = useState('')
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [pending, start] = useTransition()
   const [now, setNow] = useState(0)
 
@@ -56,9 +71,11 @@ export function KdsBoard() {
       setTickets(json.data.tickets)
       setStats(json.data.stats)
       setScopeLabel(locale === 'en' ? json.data.scopeLabelEn : json.data.scopeLabelAr)
-      setError('')
+      setError(false)
     } catch {
-      setError(locale === 'en' ? 'Unable to load kitchen tickets' : 'تعذر تحميل تذاكر المطبخ')
+      setError(true)
+    } finally {
+      setLoading(false)
     }
   }, [locale])
 
@@ -73,58 +90,109 @@ export function KdsBoard() {
   }, [refresh])
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-gold-300/15 bg-[#07090f]/95 backdrop-blur">
+    <div dir={isEn ? 'ltr' : 'rtl'} className="min-h-screen bg-[#07090f] text-slate-50">
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-[#090E0C]/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-4 py-3">
-          <a href="/dashboard" className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-mist-300">
+          <a
+            href="/dashboard"
+            className="ds-focus-ring inline-flex min-h-11 items-center rounded-xl border border-white/20 bg-[#141F1B] px-4 py-2 text-sm font-bold text-slate-100 hover:border-emerald-400/50"
+          >
             {t('nav.backSystem')}
           </a>
-          <h1 className="text-lg font-black text-gold-300">{locale === 'en' ? 'Kitchen Display' : 'شاشة المطبخ'}</h1>
+          <h1 className="text-lg font-black text-amber-300 sm:text-xl">
+            {isEn ? 'Kitchen Display' : 'شاشة المطبخ'}
+          </h1>
           <LanguageSwitch />
-          {/* Scope bar purged */}
-          <span className="rounded-full border border-[#8cc63f]/30 bg-[#8cc63f]/10 px-3 py-1 text-xs font-bold text-[#8cc63f]">
-            {scopeLabel}
-          </span>
-          <div className="ms-auto flex gap-3 text-xs text-mist-300">
+          {scopeLabel ? (
+            <span className="inline-flex min-h-11 items-center rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3.5 py-1.5 text-xs font-bold text-emerald-200">
+              {scopeLabel}
+            </span>
+          ) : null}
+          <div className="ms-auto flex flex-wrap items-center gap-4 text-sm text-slate-200">
             <span>
-              {locale === 'en' ? 'Avg prep' : 'متوسط التحضير'}: <strong className="text-mist-100">{stats.avgPrepMinutes}m</strong>
+              {isEn ? 'Avg prep' : 'متوسط التحضير'}:{' '}
+              <strong dir="ltr" className="ds-num font-black text-white tabular-nums">
+                {formatInt(stats.avgPrepMinutes, uiLocale)}m
+              </strong>
             </span>
             <span>
-              24h: <strong className="text-mist-100">{stats.completed24h}</strong>
+              {isEn ? '24h completed' : 'منجز 24 ساعة'}:{' '}
+              <strong dir="ltr" className="ds-num font-black text-white tabular-nums">
+                {formatInt(stats.completed24h, uiLocale)}
+              </strong>
             </span>
           </div>
         </div>
       </header>
 
-      {error ? <p className="px-4 py-3 text-sm text-red-300">{error}</p> : null}
-
       <main className="mx-auto grid max-w-[1600px] gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {tickets.length === 0 ? (
-          <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-10 text-center text-mist-400">
-            {locale === 'en' ? 'Waiting for POS kitchen tickets…' : 'بانتظار تذاكر من نقطة البيع…'}
-          </p>
+        {error ? (
+          <div className="col-span-full">
+            <StateBlock
+              state="error"
+              locale={uiLocale}
+              title={isEn ? 'Unable to load kitchen tickets' : 'تعذر تحميل تذاكر المطبخ'}
+              onRetry={() => void refresh()}
+            />
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="col-span-full">
+            <StateBlock
+              state="loading"
+              locale={uiLocale}
+              title={isEn ? 'Loading kitchen tickets…' : 'جارٍ تحميل تذاكر المطبخ…'}
+              skeletonRows={4}
+            />
+          </div>
+        ) : tickets.length === 0 ? (
+          <div className="col-span-full">
+            <StateBlock
+              state="empty"
+              locale={uiLocale}
+              title={isEn ? 'Waiting for POS kitchen tickets…' : 'بانتظار تذاكر من نقطة البيع…'}
+              description={
+                isEn
+                  ? 'Active kitchen prep orders will appear here automatically as they arrive.'
+                  : 'ستظهر تذاكر التحضير الجديدة هنا تلقائياً فور إرسالها من نقطة البيع.'
+              }
+            />
+          </div>
         ) : (
           tickets.map((ticket) => (
-            <article key={ticket.id} className={`flex flex-col rounded-2xl border-2 p-4 ${slaClass(ticket.createdAt)}`} data-now={now}>
+            <article
+              key={ticket.id}
+              className={`flex flex-col rounded-2xl border-2 p-4 text-slate-50 ${slaClass(ticket.createdAt)}`}
+              data-now={now}
+            >
               <div className="mb-3 flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-2xl font-black tracking-wide" dir="ltr">
+                  <p className="ds-num text-2xl font-black tracking-wide text-white tabular-nums" dir="ltr">
                     {ticket.ticketNumber}
                   </p>
-                  <p className="text-xs text-mist-300">
-                    {(ticket.brandCode || '—') + ' · ' + (ticket.branchCode || '—')}
+                  <p className="text-xs font-medium text-slate-200">
+                    {ticket.brandCode ? ticket.brandCode : <span title={unavailableTip}>{UNAVAILABLE_DASH}</span>}
+                    {' · '}
+                    {ticket.branchCode ? ticket.branchCode : <span title={unavailableTip}>{UNAVAILABLE_DASH}</span>}
                   </p>
-                  <p className="mt-1 text-sm font-semibold text-mist-100">
+                  <p className="mt-1 text-sm font-bold text-slate-100">
                     {ticket.orderType}
-                    {ticket.tableNo ? ` · #${ticket.tableNo}` : ''}
+                    {ticket.tableNo ? (
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        {` · #${ticket.tableNo}`}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
-                <div className="rounded-xl bg-black/40 px-3 py-2 text-center">
-                  <p className="text-[10px] uppercase text-mist-400">SLA</p>
-                  <p className="font-mono text-xl font-black" dir="ltr">
+                <div className="rounded-xl border border-white/15 bg-black/55 px-3 py-2 text-center">
+                  <p className="text-xs font-semibold uppercase text-slate-300">SLA</p>
+                  <p className="ds-num font-mono text-xl font-black text-white tabular-nums" dir="ltr">
                     {timerLabel(ticket.createdAt)}
                   </p>
-                  <p className="text-[10px] font-bold text-mist-300">{ticket.status}</p>
+                  <p className="text-xs font-bold text-emerald-300">
+                    {statusLabel(ticket.status, isEn)}
+                  </p>
                 </div>
               </div>
 
@@ -134,35 +202,47 @@ export function KdsBoard() {
                     <button
                       type="button"
                       disabled={pending}
+                      aria-pressed={item.isDone}
+                      aria-label={
+                        isEn
+                          ? `Toggle ${item.name} (${item.isDone ? 'done' : 'pending'})`
+                          : `تحديد حالة ${item.name}`
+                      }
                       onClick={() =>
                         start(async () => {
                           await toggleItemDoneAction(item.id, !item.isDone)
                           await refresh()
                         })
                       }
-                      className={`flex w-full items-start justify-between rounded-xl border px-3 py-2 text-start ${
-                        item.isDone ? 'border-white/5 bg-black/20 text-mist-500 line-through' : 'border-white/10 bg-black/30'
+                      className={`ds-focus-ring flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-3 text-start transition ${
+                        item.isDone
+                          ? 'border-white/10 bg-black/30 text-slate-400 line-through'
+                          : 'border-white/20 bg-black/45 text-white hover:border-emerald-400/60'
                       }`}
                     >
                       <span>
-                        <span className="block text-lg font-black">{item.name}</span>
-                        {item.note ? <span className="block text-xs text-amber-200">{item.note}</span> : null}
+                        <span className="block text-base font-black sm:text-lg">{item.name}</span>
+                        {item.note ? <span className="block text-xs font-semibold text-amber-200">{item.note}</span> : null}
                       </span>
-                      <span className="text-xl font-black" dir="ltr">
-                        ×{item.quantity}
+                      <span className="ds-num shrink-0 text-xl font-black tabular-nums" dir="ltr">
+                        ×{formatInt(item.quantity, uiLocale)}
                       </span>
                     </button>
                   </li>
                 ))}
               </ul>
 
-              {ticket.notes ? <p className="mt-3 rounded-lg bg-black/30 px-3 py-2 text-sm text-amber-100">{ticket.notes}</p> : null}
+              {ticket.notes ? (
+                <p className="mt-3 rounded-xl border border-amber-400/30 bg-black/45 px-3 py-2 text-sm font-medium text-amber-100">
+                  {ticket.notes}
+                </p>
+              ) : null}
 
               <div className="mt-4 grid grid-cols-1 gap-2">
                 {ticket.status === 'NEW' ? (
                   <button
                     type="button"
-                    className="rounded-xl bg-[#8cc63f] px-4 py-3 text-sm font-black text-ink-950"
+                    className="ds-focus-ring min-h-11 rounded-xl bg-emerald-400 px-4 py-3 text-base font-black text-slate-950 hover:bg-emerald-300 disabled:opacity-50"
                     disabled={pending}
                     onClick={() =>
                       start(async () => {
@@ -171,13 +251,13 @@ export function KdsBoard() {
                       })
                     }
                   >
-                    {locale === 'en' ? 'Start Prep' : 'بدء التحضير'}
+                    {isEn ? 'Start Prep' : 'بدء التحضير'}
                   </button>
                 ) : null}
                 {ticket.status !== 'READY' && ticket.status !== 'BUMPED' ? (
                   <button
                     type="button"
-                    className="rounded-xl border border-amber-300/40 bg-amber-400/15 px-4 py-3 text-sm font-black text-amber-100"
+                    className="ds-focus-ring min-h-11 rounded-xl border-2 border-amber-300/70 bg-amber-400/20 px-4 py-3 text-base font-black text-amber-100 hover:bg-amber-400/30 disabled:opacity-50"
                     disabled={pending}
                     onClick={() =>
                       start(async () => {
@@ -186,13 +266,13 @@ export function KdsBoard() {
                       })
                     }
                   >
-                    {locale === 'en' ? 'Ready / Bump queue' : 'الطلب جاهز للتسليم'}
+                    {isEn ? 'Ready / Bump queue' : 'الطلب جاهز للتسليم'}
                   </button>
                 ) : null}
                 {ticket.status === 'READY' ? (
                   <button
                     type="button"
-                    className="rounded-xl bg-gold-400 px-4 py-3 text-sm font-black text-ink-950"
+                    className="ds-focus-ring min-h-11 rounded-xl bg-amber-300 px-4 py-3 text-base font-black text-slate-950 hover:bg-amber-200 disabled:opacity-50"
                     disabled={pending}
                     onClick={() =>
                       start(async () => {
@@ -201,7 +281,7 @@ export function KdsBoard() {
                       })
                     }
                   >
-                    {locale === 'en' ? 'Bump / Clear' : 'إزالة من الشاشة'}
+                    {isEn ? 'Bump / Clear' : 'إزالة من الشاشة'}
                   </button>
                 ) : null}
               </div>

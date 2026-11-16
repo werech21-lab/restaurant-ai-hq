@@ -10,12 +10,11 @@ import {
 } from "@/app/actions/purchases";
 import { searchSuppliers } from "@/app/actions/search";
 import { requireUser } from "@/lib/erp-auth";
-import { DocumentDetail } from "@/components/document-detail";
 import { TradePanel } from "@/components/trade-panel";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatQty } from "@/lib/format";
-import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
-import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
+import { formatDate, formatKwd } from "@/lib/format";
+import { getLocale, tx } from "@/lib/i18n/server";
+import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { visiblePurchaseWhere } from "@/lib/panel-visibility";
@@ -33,6 +32,7 @@ const statuses = new Set(["PAID", "PARTIAL", "UNPAID"]);
 async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
   const locale = await getLocale();
+  const uiLocale = locale === "en" ? "en" : "ar";
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "purchases", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -108,9 +108,9 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
   }
 
   const legacyLiveChildren = (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
-        <h4 className="text-sm font-bold text-blue-400">
+    <div dir={uiLocale === "en" ? "ltr" : "rtl"} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--ds-border-hairline)] pb-3">
+        <h4 className="text-sm font-bold" style={{ color: "var(--ds-accent)" }}>
           {tx(locale, "فواتير ومستندات الشراء الحية بقاعدة البيانات (Prisma DB)", "Prisma Database Purchase Transactions")}
         </h4>
         <SmartIngestLaunchButton module="purchases" locale={locale} />
@@ -153,9 +153,9 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
           id: row.id,
           number: row.orderNumber,
           party: row.supplier.name,
-          dateLabel: dateFor(locale, row.createdAt),
-          totalLabel: moneyFor(locale, row.totalAmount),
-          paidLabel: moneyFor(locale, row.paidAmount),
+          dateLabel: formatDate(row.createdAt, { locale: uiLocale }),
+          totalLabel: formatKwd(row.totalAmount, { locale: uiLocale }),
+          paidLabel: formatKwd(row.paidAmount, { locale: uiLocale }),
           status: row.status,
         }))}
         parties={parties.map((row) => ({
@@ -164,7 +164,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
           phone: row.phone ?? "",
           email: row.email ?? "",
           balance: row.balance,
-          balanceLabel: moneyFor(locale, row.balance),
+          balanceLabel: formatKwd(row.balance, { locale: uiLocale }),
           customData: row.customData,
         }))}
       />
@@ -173,7 +173,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
 
   return (
     <VenturePurchasesHub
-      locale={locale === "en" ? "en" : "ar"}
+      locale={uiLocale}
       liveChildren={legacyLiveChildren}
     />
   );

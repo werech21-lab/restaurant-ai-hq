@@ -18,6 +18,7 @@ async function DeliveryHubContent() {
   const user = await requireUser()
   if (!can(user, 'delivery-hub', 'view')) return <Forbidden href={firstAllowedHref(user)} />
   const locale = await getLocale()
+  const uiLocale = locale === 'en' ? 'en' : 'ar'
   if (!(await isModuleEnabled('delivery-hub'))) {
     return <DisabledModule title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')} />
   }
@@ -32,7 +33,7 @@ async function DeliveryHubContent() {
   const [platforms, orders] = await Promise.all([aggregatorSummary(filter), listOpenOrders(filter)])
 
   return (
-    <div>
+    <div dir={uiLocale === 'en' ? 'ltr' : 'rtl'} className="space-y-4">
       <PageHeader
         title={tx(locale, 'منصات التوصيل', 'Delivery aggregators')}
         description={`${scopeLabel} · Talabat · Deliveroo · Jahez · In-House`}

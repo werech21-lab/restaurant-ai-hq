@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
+import { Utensils } from 'lucide-react'
+import { SectionCard, StateBlock } from '@/components/ui'
 
 export function VentureRecipesHub({
   locale = 'ar',
@@ -10,41 +11,53 @@ export function VentureRecipesHub({
   locale?: 'ar' | 'en'
   liveChildren?: React.ReactNode
 }) {
-  const isAr = locale === 'ar'
+  const isAr = locale !== 'en'
+  const resolvedLocale = isAr ? 'ar' : 'en'
   const [showLocalDb, setShowLocalDb] = useState(false)
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-            {isAr ? 'الوصفات المعيارية وتكاليف الإنتاج (BOM)' : 'Standard Recipes & BOM Costing'}
-          </h1>
-        </div>
-        {liveChildren ? (
-          <button
-            type="button"
-            onClick={() => setShowLocalDb((v) => !v)}
-            className="rounded-xl border border-slate-300 px-4 py-2 text-xs font-bold text-slate-700 dark:border-slate-700 dark:text-slate-200"
-          >
-            {isAr ? 'سجلات الوصفات المحلية' : 'Local Recipe Records'}
-          </button>
-        ) : null}
-      </div>
-
-      {showLocalDb && liveChildren ? (
-        <div>{liveChildren}</div>
-      ) : (
-        <UnlinkedSourceNotice
-          isAr={isAr}
-          titleAr="غير مربوط بمصدر — تكاليف الوصفات المعيارية (BOM)"
-          titleEn="غير مربوط بمصدر — Recipe BOM Costing"
-          reasonAr="قوائم المكونات المعيارية وانحرافات الهدر المعياري غير مربوطة بصلاحية قراءة من وحدة التصنيع في Odoo حالياً، وتم حذف جميع الوصفات والأوزان الافتراضية."
-          reasonEn="Standard BOM recipes and theoretical yield variances are not currently linked to Odoo Manufacturing, and all static sample recipes have been purged."
-          requiredSourceAr="تفعيل صلاحية قراءة mrp.bom و mrp.bom.line لحساب تكلفة كل طبق من فواتير الموردين في Odoo 17."
-          requiredSourceEn="Grant read access to mrp.bom and mrp.bom.line in Odoo 17."
-        />
-      )}
+    <div dir={isAr ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+      <SectionCard
+        locale={resolvedLocale}
+        icon={<Utensils className="h-5 w-5" aria-hidden />}
+        title={isAr ? 'الوصفات المعيارية وتكاليف الإنتاج (BOM)' : 'Standard Recipes & BOM Costing'}
+        subtitle={
+          isAr
+            ? 'بطاقات الوصفات ونسبة تكلفة الغذاء المستهدفة'
+            : 'Recipe BOM cards and target food-cost percentages'
+        }
+        actions={
+          liveChildren ? (
+            <button
+              type="button"
+              aria-pressed={showLocalDb}
+              onClick={() => setShowLocalDb((v) => !v)}
+              className="ds-surface ds-motion ds-focus-ring inline-flex min-h-10 items-center rounded-xl px-4 py-2 text-xs font-bold hover:bg-[var(--ds-bg-hover)]"
+            >
+              {isAr ? 'سجلات الوصفات المحلية' : 'Local Recipe Records'}
+            </button>
+          ) : null
+        }
+      >
+        {showLocalDb && liveChildren ? (
+          <div>{liveChildren}</div>
+        ) : (
+          <StateBlock
+            state="unlinked"
+            locale={resolvedLocale}
+            title={
+              isAr
+                ? 'تكاليف الوصفات المعيارية (BOM) غير مربوطة بمصدر'
+                : 'Recipe BOM Costing Not Connected'
+            }
+            description={
+              isAr
+                ? 'قوائم المكونات المعيارية وانحرافات الهدر المعياري غير مربوطة بصلاحية قراءة من وحدة التصنيع في Odoo حالياً، وتم حذف جميع الوصفات والأوزان الافتراضية.'
+                : 'Standard BOM recipes and theoretical yield variances are not currently linked to Odoo Manufacturing (mrp.bom / mrp.bom.line), and all static sample recipes have been purged.'
+            }
+          />
+        )}
+      </SectionCard>
     </div>
   )
 }

@@ -39,13 +39,13 @@ async function RecipesContent() {
     rows = fetchedRows
     products = fetchedProducts
   } catch {
-    // Graceful fallback to static recipes hub
+    // Graceful fallback to unlinked recipes hub
   }
 
   const legacyChildren = (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
-        <h4 className="text-sm font-bold text-emerald-400">
+    <div dir={locale === 'en' ? 'ltr' : 'rtl'} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--ds-border-hairline)] pb-3">
+        <h4 className="text-sm font-bold" style={{ color: 'var(--ds-accent)' }}>
           {tx(locale, 'تكويد وربط الوصفات وقوائم المواد في قاعدة البيانات', 'Database Recipes & Material Setup')}
         </h4>
         <SmartIngestLaunchButton module="inventory" locale={locale} />
