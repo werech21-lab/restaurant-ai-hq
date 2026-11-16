@@ -35,8 +35,8 @@ export function saveCustomAvatar(code: string, dataUrl: string): void {
     current[code] = dataUrl
     localStorage.setItem(STORAGE_AVATARS_KEY, JSON.stringify(current))
     window.dispatchEvent(new CustomEvent('venture-avatar-updated', { detail: { code, dataUrl } }))
-  } catch (err) {
-    console.error('Failed to save avatar to localStorage:', err)
+  } catch {
+    // Ignore localStorage write errors (quota / private mode)
   }
 }
 
@@ -47,8 +47,8 @@ export function saveCustomAvatarsBatch(updates: Record<string, string>): void {
     const merged = { ...current, ...updates }
     localStorage.setItem(STORAGE_AVATARS_KEY, JSON.stringify(merged))
     window.dispatchEvent(new CustomEvent('venture-avatar-batch-updated', { detail: updates }))
-  } catch (err) {
-    console.error('Failed to batch save avatars:', err)
+  } catch {
+    // Ignore localStorage write errors (quota / private mode)
   }
 }
 
@@ -82,8 +82,8 @@ export function saveCustomDocs(code: string, newDoc: CustomEmployeeDoc): void {
     current[code] = [newDoc, ...empDocs]
     localStorage.setItem(STORAGE_DOCS_KEY, JSON.stringify(current))
     window.dispatchEvent(new CustomEvent('venture-docs-updated', { detail: { code, newDoc } }))
-  } catch (err) {
-    console.error('Failed to save document:', err)
+  } catch {
+    // Ignore localStorage write errors (quota / private mode)
   }
 }
 

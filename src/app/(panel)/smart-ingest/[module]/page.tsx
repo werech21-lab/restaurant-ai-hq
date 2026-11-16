@@ -1,14 +1,35 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 import { requireUser } from '@/lib/erp-auth'
 import { Forbidden, PageHeader, PageSkeleton } from '@/components/erp-ui'
+import { SmartDepartmentFolderUpload } from '@/components/SmartDepartmentFolderUpload'
+import { routeTitle } from '@/lib/aether/route-titles'
 import { getLocale, tx } from '@/lib/i18n/server'
 import { can, firstAllowedHref } from '@/lib/permissions'
 import { isSmartIngestModule, permissionModulesFor, SMART_INGEST_META } from '@/lib/smart-ingest-modules'
-import { SmartDepartmentFolderUpload } from '@/components/SmartDepartmentFolderUpload'
 
 export const metadata = { title: 'Smart Department Folder Upload | AetherBI' }
+
+const EXTRA_ROUTE_LABELS: Record<string, { ar: string; en: string }> = {
+  '/erp/governance': { ar: 'الحوكمة والامتثال', en: 'Governance & Compliance' },
+  '/erp/compliance': { ar: 'التشريعات والتراخيص', en: 'Compliance & Licensing' },
+  '/erp/sales-crm': { ar: 'المبيعات والعملاء', en: 'Sales & CRM' },
+  '/erp/projects': { ar: 'المشاريع والفعاليات', en: 'Projects & Events' },
+  '/recipes': { ar: 'الوصفات وتكلفة الغذاء', en: 'Recipes & Food Cost' },
+  '/stock-count': { ar: 'الجرد والهدر', en: 'Stock Count & Waste' },
+  '/central-kitchen': { ar: 'المطبخ المركزي', en: 'Central Kitchen' },
+  '/delivery-hub': { ar: 'منصات التوصيل', en: 'Delivery Platforms' },
+}
+
+function resolveLaunchLabel(href: string, locale: 'ar' | 'en'): string {
+  const title = routeTitle(href)
+  if (title) return locale === 'en' ? title.en : title.ar
+  const extra = EXTRA_ROUTE_LABELS[href]
+  if (extra) return locale === 'en' ? extra.en : extra.ar
+  return href
+}
 
 async function Content({ moduleParam }: { moduleParam: string }) {
   await connection()
@@ -25,20 +46,27 @@ async function Content({ moduleParam }: { moduleParam: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div dir={locale === 'en' ? 'ltr' : 'rtl'} className="space-y-4 min-w-0">
       <PageHeader
         title={locale === 'en' ? meta.titleEn : meta.titleAr}
         description={locale === 'en' ? meta.descEn : meta.descAr}
       />
       <div className="flex flex-wrap gap-2 text-sm">
         {meta.launchHrefs.map((href) => (
-          <a key={href} href={href} className="rounded-lg border border-white/10 bg-[#11161f] px-3 py-1.5 font-semibold text-mist-200 hover:border-emerald-500/40">
-            {href}
-          </a>
+          <Link
+            key={href}
+            href={href}
+            className="ds-focus-ring ds-surface rounded-xl px-3.5 py-2 text-xs font-semibold text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
+          >
+            {resolveLaunchLabel(href, locale)}
+          </Link>
         ))}
-        <a href="/hr/smart-folder-upload" className="rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-3 py-1.5 font-semibold text-emerald-300">
+        <Link
+          href="/hr/smart-folder-upload"
+          className="ds-focus-ring rounded-xl border border-[var(--ds-border-accent)] bg-[var(--ds-accent-soft)] px-3.5 py-2 text-xs font-semibold text-[var(--ds-text-primary)] hover:brightness-95"
+        >
           {tx(locale, 'رفع HR الذكي', 'HR smart upload')}
-        </a>
+        </Link>
       </div>
       <SmartDepartmentFolderUpload module={moduleParam} locale={locale} />
     </div>
