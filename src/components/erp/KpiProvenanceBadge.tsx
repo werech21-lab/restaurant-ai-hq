@@ -136,8 +136,9 @@ export function KpiProvenanceBadge({
   compact = false,
   className = '',
 }: KpiProvenanceBadgeProps) {
-  const odooModel = rawOdooModel || model || 'pos.order'
   const isAr = useSafeIsAr(explicitIsAr)
+  const suppliedModel = (rawOdooModel || model || '').trim()
+  const odooModel = suppliedModel || (isAr ? 'غير محدد' : 'unspecified')
   const kindMeta = normalizeKind(kind)
   const rangeStr =
     typeof dateRange === 'string'
