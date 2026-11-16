@@ -87,7 +87,7 @@ export function JournalLineEditor({ lines, onChange }: Props) {
                 onChange={(event) => update(line.key, { amount: event.target.value })}
                 inputMode="decimal"
                 dir="ltr"
-                className={inputClass}
+                className={`${inputClass} tabular-nums`}
               />
             </label>
 

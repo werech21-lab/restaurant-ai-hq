@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
@@ -20,6 +19,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
 import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
+import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import { useI18n } from '@/lib/i18n'
 import {
   buildLiveEnterpriseDepartments,
@@ -48,7 +48,7 @@ export function DepartmentalReportsHub({
     if (ctxLocale) setCurrentLocale(ctxLocale)
   }, [ctxLocale])
 
-  const { filters, workspace, liveSummary, setPeriod } = useGlobalFilter()
+  const { filters, workspace, liveSummary, syncingOdoo, setPeriod } = useGlobalFilter()
   const isAr = currentLocale === 'ar'
 
   const [selectedReportId, setSelectedReportId] = useState<string | null>(initialReportId || null)
@@ -117,16 +117,29 @@ export function DepartmentalReportsHub({
     URL.revokeObjectURL(url)
   }
 
+  if (syncingOdoo && !liveSummary) {
+    return (
+      <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
+        <StateBlock
+          state="loading"
+          locale={currentLocale}
+          skeletonRows={5}
+          title={isAr ? 'جارٍ تحميل مركز التقارير التنفيذية…' : 'Loading executive reports hub…'}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
-      <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6 min-w-0">
+      <header className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <FileText className="h-3.5 w-3.5" />
+              <FileText className="h-3.5 w-3.5" aria-hidden />
               {isAr ? 'مركز التقارير المرتبط بـ Odoo 17' : 'Odoo 17 Connected Reports Center'}
             </span>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white break-words">
               {isAr
                 ? 'مركز التقارير التنفيذية والمالية — فنتشر فودز'
                 : 'Executive & Financial Reports Hub — Venture Foods'}
@@ -146,8 +159,9 @@ export function DepartmentalReportsHub({
                   <button
                     key={opt.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setPeriod(opt.id as GlobalPeriod)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`ds-focus-ring rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       active
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -162,10 +176,11 @@ export function DepartmentalReportsHub({
             {liveDbChildren && (
               <button
                 type="button"
+                aria-expanded={showLocalDb}
                 onClick={() => setShowLocalDb((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                <Database className="h-3.5 w-3.5" />
+                <Database className="h-3.5 w-3.5" aria-hidden />
                 {isAr ? 'جداول النظام المحلي' : 'Local DB Tables'}
               </button>
             )}
@@ -177,8 +192,9 @@ export function DepartmentalReportsHub({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
+                aria-pressed={activeDeptFilter === 'all'}
                 onClick={() => setActiveDeptFilter('all')}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                className={`ds-focus-ring rounded-xl px-3 py-1.5 text-xs font-bold ${
                   activeDeptFilter === 'all'
                     ? 'bg-slate-900 text-white dark:bg-emerald-600'
                     : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -190,8 +206,9 @@ export function DepartmentalReportsHub({
                 <button
                   key={dept.id}
                   type="button"
+                  aria-pressed={activeDeptFilter === dept.id}
                   onClick={() => setActiveDeptFilter(dept.id)}
-                  className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                  className={`ds-focus-ring rounded-xl px-3 py-1.5 text-xs font-bold ${
                     activeDeptFilter === dept.id
                       ? 'bg-slate-900 text-white dark:bg-emerald-600'
                       : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -203,18 +220,21 @@ export function DepartmentalReportsHub({
             </div>
 
             <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-slate-400" aria-hidden />
               <input
                 type="search"
+                aria-label={isAr ? 'بحث في التقارير' : 'Search reports'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isAr ? 'بحث في التقارير...' : 'Search reports...'}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pe-3 ps-9 text-xs text-slate-900 focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                className="ds-focus-ring w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pe-3 ps-9 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
           </div>
         )}
       </header>
+
+      <PartialWarningBanner summary={liveSummary} isAr={isAr} />
 
       {showLocalDb && liveDbChildren && <div>{liveDbChildren}</div>}
 
@@ -224,9 +244,9 @@ export function DepartmentalReportsHub({
             <button
               type="button"
               onClick={() => setSelectedReportId(null)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
-              {isAr ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {isAr ? <ArrowRight className="h-4 w-4" aria-hidden /> : <ArrowLeft className="h-4 w-4" aria-hidden />}
               {isAr ? 'العودة إلى دليل التقارير' : 'Back to Reports Directory'}
             </button>
 
@@ -235,17 +255,17 @@ export function DepartmentalReportsHub({
                 <button
                   type="button"
                   onClick={() => handleExportCsv(currentReport)}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500"
+                  className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-500"
                 >
-                  <Download className="h-3.5 w-3.5" />
+                  <Download className="h-3.5 w-3.5" aria-hidden />
                   {isAr ? 'تصدير CSV' : 'Export CSV'}
                 </button>
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                 >
-                  <Printer className="h-3.5 w-3.5" />
+                  <Printer className="h-3.5 w-3.5" aria-hidden />
                   {isAr ? 'طباعة' : 'Print'}
                 </button>
               </div>
@@ -261,16 +281,15 @@ export function DepartmentalReportsHub({
               reasonEn={currentReport.unlinkedReasonEn}
             />
           ) : !workspace.odooConnected || workspace.noData || currentReport.rows.length === 0 ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-8 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
-              <AlertCircle className="mx-auto mb-3 h-8 w-8 text-amber-600 dark:text-amber-400" />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                لا توجد بيانات من Odoo لهذه الفترة
-              </h2>
-            </div>
+            <StateBlock
+              state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+              locale={currentLocale}
+              title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo data for this period'}
+            />
           ) : (
-            <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="ds-surface space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
               <div>
-                <span className="text-xs font-bold text-emerald-600">{currentReport.code}</span>
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{currentReport.code}</span>
                 <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-white">
                   {isAr ? currentReport.titleAr : currentReport.titleEn}
                 </h2>
@@ -280,9 +299,12 @@ export function DepartmentalReportsHub({
               </div>
 
               {currentReport.glIncomplete && (
-                <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-                  <span>قيود غير مكتملة لهذه الفترة</span>
+                <div
+                  role="status"
+                  className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                  <span>{isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}</span>
                 </div>
               )}
 
@@ -293,10 +315,10 @@ export function DepartmentalReportsHub({
                       key={idx}
                       className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                     >
-                      <p className="text-xs font-semibold text-slate-500">
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                         {isAr ? kpi.labelAr : kpi.labelEn}
                       </p>
-                      <p className="mt-1.5 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                      <p dir="auto" className="ds-num mt-1.5 text-xl font-extrabold tabular-nums text-slate-900 dark:text-white">
                         {kpi.value}
                       </p>
                       {kpi.subtextAr && (
@@ -323,11 +345,14 @@ export function DepartmentalReportsHub({
               )}
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[520px] text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 dark:border-slate-800">
+                    <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
                       {currentReport.columns.map((col) => (
-                        <th key={col.key} className="px-3 py-2.5 text-start">
+                        <th
+                          key={col.key}
+                          className={`px-3 py-2.5 ${col.isCurrency || col.isPercent ? 'text-end' : 'text-start'}`}
+                        >
                           {isAr ? col.labelAr : col.labelEn}
                         </th>
                       ))}
@@ -339,14 +364,20 @@ export function DepartmentalReportsHub({
                         key={idx}
                         className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
                       >
-                        {currentReport.columns.map((col) => (
-                          <td
-                            key={col.key}
-                            className="px-3 py-2.5 font-medium tabular-nums text-slate-900 dark:text-slate-100"
-                          >
-                            {String(row[col.key] ?? '—')}
-                          </td>
-                        ))}
+                        {currentReport.columns.map((col) => {
+                          const numeric = Boolean(col.isCurrency || col.isPercent)
+                          return (
+                            <td
+                              key={col.key}
+                              dir={numeric ? 'ltr' : 'auto'}
+                              className={`px-3 py-2.5 font-medium tabular-nums text-slate-900 dark:text-slate-100 ${
+                                numeric ? 'ds-num text-end' : 'text-start'
+                              }`}
+                            >
+                              {String(row[col.key] ?? '—')}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -358,24 +389,37 @@ export function DepartmentalReportsHub({
       ) : (
         <div className="space-y-6">
           {!workspace.odooConnected || workspace.noData ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-6 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
-              <AlertCircle className="mx-auto mb-2 h-7 w-7 text-amber-600 dark:text-amber-400" />
-              <p className="text-base font-bold text-slate-900 dark:text-white">
-                لا توجد بيانات من Odoo لهذه الفترة
-              </p>
-            </div>
+            <StateBlock
+              state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+              locale={currentLocale}
+              compact
+              title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo data for this period'}
+            />
+          ) : null}
+
+          {filteredDepartments.length === 0 ? (
+            <StateBlock
+              state="empty"
+              locale={currentLocale}
+              title={isAr ? 'لا توجد تقارير مطابقة للبحث' : 'No matching reports found'}
+              description={
+                isAr
+                  ? 'جرّب مسح نص البحث أو اختيار كل الأقسام.'
+                  : 'Try clearing the search query or selecting All departments.'
+              }
+            />
           ) : null}
 
           {filteredDepartments.map((dept) => (
             <section
               key={dept.id}
-              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+              className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900"
             >
               <div className="mb-4">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                   {dept.icon} {isAr ? dept.titleAr : dept.titleEn}
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
                   {isAr ? dept.descriptionAr : dept.descriptionEn}
                 </p>
               </div>
@@ -386,20 +430,22 @@ export function DepartmentalReportsHub({
                     key={report.id}
                     type="button"
                     onClick={() => setSelectedReportId(report.id)}
-                    className="flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-start transition hover:border-emerald-500 hover:bg-white dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-emerald-500"
+                    className="ds-focus-ring flex flex-col justify-between rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-start transition hover:border-emerald-500 hover:bg-white dark:border-slate-800 dark:bg-slate-800/40 dark:hover:border-emerald-500"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold text-slate-500">{report.code}</span>
+                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{report.code}</span>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                             report.sourceState === 'unlinked'
                               ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
                               : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                           }`}
                         >
                           {report.sourceState === 'unlinked'
-                            ? 'غير مربوط بمصدر'
+                            ? isAr
+                              ? 'غير مربوط بمصدر'
+                              : 'Not linked'
                             : report.odooModel ?? 'Odoo'}
                         </span>
                       </div>

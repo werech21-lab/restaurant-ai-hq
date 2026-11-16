@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from '@/components/erp/common'
-import { inputClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { Money, Num, StateBlock } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
+import { formatKuwaitDateTime } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { accountTypes, entryStatuses, type Account, type FiscalPeriod, type JournalEntry } from '@/modules/finance/client'
 import { AccountDialog } from '@/modules/finance/ui/AccountDialog'
@@ -14,7 +15,6 @@ import { PeriodDialog } from '@/modules/finance/ui/PeriodDialog'
 import { accountTypeLabels, ActiveBadge, EntryStatusBadge, entryStatusLabels, PeriodStatusBadge, sourceTypeLabels } from '@/modules/finance/ui/shared'
 import { TrialBalancePanel } from '@/modules/finance/ui/TrialBalancePanel'
 import { minorText } from '@/components/erp/actions'
-import { dateTimeText } from '@/components/erp/common'
 import { PagedTable } from '@/components/erp/PagedTable'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
 
@@ -52,7 +52,8 @@ export default function LedgerWorkspace({
 }
 
 function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | null; initialTab?: string }) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const canReadAccounts = useCan(tabPermission.accounts)
   const canReadJournal = useCan(tabPermission.entries)
   const canManageAccounts = useCan(permissions.financeAccountManage)
@@ -124,28 +125,28 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
   })()
 
   return (
-    <div>
-      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
+    <div dir={resolvedLocale === 'ar' ? 'rtl' : 'ltr'} className="min-w-0">
+      <Link href="/erp" className="ds-focus-ring mb-6 inline-block rounded-lg text-sm text-blue-400 hover:text-blue-300">
         {t('erp.back')}
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-mist-100">{t('led.title')}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-400">{t('led.subtitle')}</p>
+          <p className="mt-1 max-w-2xl text-sm text-gray-300">{t('led.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManageAccounts ? (
-            <button type="button" onClick={() => setDialog({ kind: 'account' })} className={secondaryButton}>
+            <button type="button" onClick={() => setDialog({ kind: 'account' })} className={`${secondaryButton} ds-focus-ring`}>
               {t('led.acc.new')}
             </button>
           ) : null}
           {canManagePeriods ? (
-            <button type="button" onClick={() => setDialog({ kind: 'period' })} className={secondaryButton}>
+            <button type="button" onClick={() => setDialog({ kind: 'period' })} className={`${secondaryButton} ds-focus-ring`}>
               {t('led.per.new')}
             </button>
           ) : null}
           {canCreateEntry ? (
-            <button type="button" onClick={() => setDialog({ kind: 'entry' })} className={primaryButton}>
+            <button type="button" onClick={() => setDialog({ kind: 'entry' })} className={`${primaryButton} ds-focus-ring`}>
               {t('led.je.new')}
             </button>
           ) : null}
@@ -159,14 +160,14 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
       ) : null}
 
       {tab === null ? (
-        <div className={panelClass}>
-          <p role="status" className="py-8 text-center text-sm text-gray-300">
-            {t('led.noAccess')}
-          </p>
-        </div>
+        <StateBlock state="forbidden" locale={resolvedLocale} description={t('led.noAccess')} />
       ) : (
         <>
-          <div role="tablist" aria-label={t('led.title')} className="mb-4 flex flex-wrap gap-1 border-b border-[#30363d]">
+          <div
+            role="tablist"
+            aria-label={t('led.title')}
+            className="no-scrollbar mb-4 flex gap-1 overflow-x-auto border-b border-[#30363d]"
+          >
             {visibleTabs.map((value) => (
               <button
                 key={value}
@@ -176,8 +177,8 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                 aria-selected={tab === value}
                 aria-controls={`led-panel-${value}`}
                 onClick={() => setTab(value)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm transition ${
-                  tab === value ? 'border-blue-500 font-semibold text-blue-300' : 'border-transparent text-gray-400 hover:text-gray-200'
+                className={`ds-focus-ring -mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm transition ${
+                  tab === value ? 'border-blue-500 font-semibold text-blue-300' : 'border-transparent text-gray-300 hover:text-gray-100'
                 }`}
               >
                 {t(`led.tab.${value}`)}
@@ -278,7 +279,7 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                   { header: 'led.per.name', cell: (row) => row.name },
                   { header: 'led.per.startsOn', cell: (row) => <Num>{row.startsOn}</Num> },
                   { header: 'led.per.endsOn', cell: (row) => <Num>{row.endsOn}</Num> },
-                  { header: 'led.per.closedAt', cell: (row) => (row.closedAt ? dateTimeText(row.closedAt) : '—') },
+                  { header: 'led.per.closedAt', cell: (row) => (row.closedAt ? <Num>{formatKuwaitDateTime(row.closedAt, resolvedLocale)}</Num> : '—') },
                   { header: 'led.col.status', cell: (row) => <PeriodStatusBadge status={row.status} /> },
                 ]}
               />

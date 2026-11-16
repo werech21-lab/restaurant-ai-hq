@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { errorClass, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { Money, Num, StateBlock } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
+import { formatKuwaitDateTime } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import {
   assertPostable,
@@ -17,7 +18,7 @@ import { draftFromJournalLine, draftTotals, emptyJournalLine, journalIssue, jour
 import { JournalLineEditor } from '@/modules/finance/ui/JournalLineEditor'
 import { EntryStatusBadge, FormIssues, LedgerFailure, sourceTypeLabels } from '@/modules/finance/ui/shared'
 import { Fact, Field, minorText, todayUtc, useIdempotencyKey, useRunner } from '@/components/erp/actions'
-import { dateTimeText, type Phase } from '@/components/erp/common'
+import type { Phase } from '@/components/erp/common'
 import { useCan } from '@/components/erp/permissions'
 
 type Props = {
@@ -38,7 +39,8 @@ function startingLines(): JournalLineDraft[] {
  * it. Every amount is integer fils shown as KWD with three decimals.
  */
 export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }: Props) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const [detail, setDetail] = useState<JournalEntryDetail | null>(null)
   const [phase, setPhase] = useState<Phase>(entryId ? 'loading' : 'ready')
   const [loadError, setLoadError] = useState<MessageKey>('erp.err.generic')
@@ -162,19 +164,17 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
     }, reverseKey)
   }
 
-  if (phase === 'loading') return <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p>
+  if (phase === 'loading') return <StateBlock state="loading" locale={resolvedLocale} compact title={t('erp.loading')} />
   if (phase === 'error') {
     return (
-      <div className="space-y-3 py-6 text-center">
-        <p role="alert" className={`${errorClass} inline-block`}>
-          {t(loadError)}
-        </p>
-        <div>
-          <button type="button" onClick={reload} className={secondaryButton}>
-            {t('erp.retry')}
-          </button>
-        </div>
-      </div>
+      <StateBlock
+        state="error"
+        locale={resolvedLocale}
+        description={t(loadError)}
+        onRetry={reload}
+        retryLabel={t('erp.retry')}
+        compact
+      />
     )
   }
 
@@ -219,7 +219,7 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
             <Num>{entryDate}</Num>
           </Fact>
         )}
-        {detail?.postedAt ? <Fact label={t('led.je.postedAt')}>{dateTimeText(detail.postedAt)}</Fact> : null}
+        {detail?.postedAt ? <Fact label={t('led.je.postedAt')}><Num>{formatKuwaitDateTime(detail.postedAt, resolvedLocale)}</Num></Fact> : null}
         {detail ? <Fact label={t('led.je.currency')}>{detail.currency}</Fact> : null}
         {editable ? (
           <Field label={t('led.je.memo')} className="sm:col-span-3">
@@ -230,17 +230,17 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
         )}
       </div>
 
-      {detail && detail.status === 'posted' ? <p className="text-xs text-gray-500">{t('led.je.postedNote')}</p> : null}
+      {detail && detail.status === 'posted' ? <p className="text-xs text-gray-300">{t('led.je.postedNote')}</p> : null}
 
       {reversesId !== null || reversedById !== null ? (
         <div className="flex flex-wrap gap-2">
           {reversesId !== null ? (
-            <button type="button" onClick={() => onOpenEntry(reversesId)} className={secondaryButton}>
+            <button type="button" onClick={() => onOpenEntry(reversesId)} className={`${secondaryButton} ds-focus-ring`}>
               {t('led.je.openOriginal')}
             </button>
           ) : null}
           {reversedById !== null ? (
-            <button type="button" onClick={() => onOpenEntry(reversedById)} className={secondaryButton}>
+            <button type="button" onClick={() => onOpenEntry(reversedById)} className={`${secondaryButton} ds-focus-ring`}>
               {t('led.je.openReversal')}
             </button>
           ) : null}
@@ -255,12 +255,12 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[34rem] text-sm">
-            <thead className="text-gray-400">
+            <thead className="text-gray-300">
               <tr className="border-b border-[#30363d]">
                 <th className="px-3 py-2 text-start font-medium">{t('led.line.account')}</th>
                 <th className="px-3 py-2 text-start font-medium">{t('led.line.description')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('led.line.debit')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('led.line.credit')}</th>
+                <th className="px-3 py-2 text-end font-medium">{t('led.line.debit')}</th>
+                <th className="px-3 py-2 text-end font-medium">{t('led.line.credit')}</th>
               </tr>
             </thead>
             <tbody>
@@ -270,8 +270,12 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
                     <Num className="font-semibold text-blue-300">{line.accountCode}</Num> {line.accountName}
                   </td>
                   <td className="px-3 py-2">{line.description === '' ? '—' : line.description}</td>
-                  <td className="px-3 py-2">{line.debitMinor > 0 ? <Money value={minorText(line.debitMinor)} /> : '—'}</td>
-                  <td className="px-3 py-2">{line.creditMinor > 0 ? <Money value={minorText(line.creditMinor)} /> : '—'}</td>
+                  <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
+                    {line.debitMinor > 0 ? <Money value={minorText(line.debitMinor)} /> : '—'}
+                  </td>
+                  <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
+                    {line.creditMinor > 0 ? <Money value={minorText(line.creditMinor)} /> : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -303,7 +307,7 @@ export function JournalEntryDialog({ entryId, onChanged, onClose, onOpenEntry }:
         </Fact>
       </div>
 
-      {editable ? <p className="text-xs text-gray-500">{t('led.je.draftNote')}</p> : null}
+      {editable ? <p className="text-xs text-gray-300">{t('led.je.draftNote')}</p> : null}
 
       {reversing && detail ? (
         <section className="space-y-3 rounded-xl border border-[#30363d] p-4" aria-label={t('led.je.reverseTitle')}>

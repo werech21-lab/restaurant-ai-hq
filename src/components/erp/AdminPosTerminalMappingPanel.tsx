@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronDown, Link2, RefreshCw, RotateCcw, ShieldC
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatAdminUnmappedAlertCopy } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
+import { formatInt, formatKwd } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
 interface BranchDropdownOption {
@@ -105,12 +106,9 @@ const DEFAULT_BRANCH_OPTIONS: BranchDropdownOption[] = [
   { id: 'assima', labelEn: 'Assima', labelAr: 'العاصمة', code: 'ASM' },
 ]
 
-const fmtInt = (n: number) => Math.round(Number(n) || 0).toLocaleString('en-US')
-const fmtKwd = (n: number) =>
-  (Number(n) || 0).toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })
+const fmtInt = (n: number | null | undefined, locale: 'ar' | 'en') => formatInt(n, locale)
+const fmtKwd = (n: number | null | undefined, locale: 'ar' | 'en') =>
+  formatKwd(n, { locale, showUnit: false })
 
 /**
  * Admin-Only Odoo 17 POS Terminal Auto-Discovery & Branch Mapping Panel
@@ -122,7 +120,8 @@ const fmtKwd = (n: number) =>
  */
 export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole }) {
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
+  const isAr = resolvedLocale === 'ar'
   const { sessionRole, isAuditor } = useGlobalFilter()
   const effectiveRole: ExecSessionRole = isAuditor ? 'auditor' : (role ?? sessionRole)
 
@@ -145,7 +144,14 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        setErrorMsg(
+          isAr
+            ? 'تعذّر تحميل بيانات أجهزة نقاط البيع غير المربوطة حالياً.'
+            : 'Unable to load POS terminal mappings right now.',
+        )
+        return
+      }
       const payload = (await res.json()) as TerminalMappingsApiResponse
       if (payload?.ok) {
         setData(payload)
@@ -160,11 +166,15 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         })
       }
     } catch {
-      // Keep UI quiet on transient network hiccups
+      setErrorMsg(
+        isAr
+          ? 'تعذّر الاتصال بالخادم لتحميل أجهزة الكاشير.'
+          : 'Network error while loading POS terminal mappings.',
+      )
     } finally {
       setLoading(false)
     }
-  }, [effectiveRole])
+  }, [effectiveRole, isAr])
 
   useEffect(() => {
     if (effectiveRole !== 'admin') return
@@ -269,9 +279,9 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
           type="button"
           onClick={() => void loadMappings()}
           disabled={loading}
-          className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-[#F6F7F8] px-3.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-60 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.12] dark:hover:bg-white/[0.08]"
+          className="ds-focus-ring inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-[#F6F7F8] px-3.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-60 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.12] dark:hover:bg-white/[0.08]"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
           <span>{isAr ? 'تحديث الاكتشاف' : 'Refresh Discovery'}</span>
         </button>
       </div>
@@ -308,7 +318,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               dir="ltr"
               className="block text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
             >
-              {fmtKwd(totals.mappedBranchesNetKwd)} KWD ({fmtInt(totals.mappedBranchesOrders)}{' '}
+              {fmtKwd(totals.mappedBranchesNetKwd, resolvedLocale)} KWD ({fmtInt(totals.mappedBranchesOrders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -323,7 +333,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               dir="ltr"
               className="block text-[15px] font-semibold tabular-nums text-amber-700 dark:text-amber-300"
             >
-              {fmtKwd(totals.unmappedTerminalsNetKwd)} KWD ({fmtInt(totals.unmappedTerminalsOrders)}{' '}
+              {fmtKwd(totals.unmappedTerminalsNetKwd, resolvedLocale)} KWD ({fmtInt(totals.unmappedTerminalsOrders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -336,7 +346,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               dir="ltr"
               className="block text-[15px] font-semibold tabular-nums text-slate-950 dark:text-white"
             >
-              {fmtKwd(totals.netSalesKwd)} KWD ({fmtInt(totals.orders)}{' '}
+              {fmtKwd(totals.netSalesKwd, resolvedLocale)} KWD ({fmtInt(totals.orders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -405,13 +415,13 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                       dir="ltr"
                       className="px-3.5 py-2.5 text-end font-mono text-[13px] font-semibold tabular-nums text-slate-700 dark:text-slate-200"
                     >
-                      {fmtInt(term.orders_count)}
+                      {fmtInt(term.orders_count, resolvedLocale)}
                     </td>
                     <td
                       dir="ltr"
                       className="px-3.5 py-2.5 text-end font-mono text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
                     >
-                      {fmtKwd(term.net_sales_kwd)}
+                      {fmtKwd(term.net_sales_kwd, resolvedLocale)}
                     </td>
                     <td className="px-3.5 py-2.5">
                       <select
@@ -445,12 +455,12 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                         onClick={() =>
                           void handleSaveTerminal(term.terminal_id, chosenBranch)
                         }
-                        className="btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D]"
+                        className="ds-focus-ring btn-colored inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 text-xs font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D]"
                       >
                         {justSaved ? (
-                          <Check className="h-3.5 w-3.5" />
+                          <Check className="h-3.5 w-3.5" aria-hidden />
                         ) : (
-                          <Link2 className="h-3.5 w-3.5" />
+                          <Link2 className="h-3.5 w-3.5" aria-hidden />
                         )}
                         <span>
                           {isSaving
@@ -507,16 +517,16 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                     : item.assigned_branch_label_en}
                 </span>
                 <span dir="ltr" className="font-mono tabular-nums">
-                  ({fmtKwd(item.net_sales_kwd)} KWD)
+                  ({fmtKwd(item.net_sales_kwd, resolvedLocale)} KWD)
                 </span>
                 <button
                   type="button"
                   disabled={savingTerminalId === item.terminal_id}
                   onClick={() => void handleSaveTerminal(item.terminal_id, null)}
                   title={isAr ? 'إلغاء الربط' : 'Unlink terminal'}
-                  className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:text-rose-600 dark:bg-white/10 dark:text-slate-200 dark:hover:text-rose-300"
+                  className="ds-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:text-rose-600 dark:bg-white/10 dark:text-slate-200 dark:hover:text-rose-300"
                 >
-                  <RotateCcw className="h-3 w-3" />
+                  <RotateCcw className="h-3 w-3" aria-hidden />
                   <span>{isAr ? 'فك' : 'Unlink'}</span>
                 </button>
               </div>
@@ -532,10 +542,10 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
             type="button"
             aria-expanded={showReconciliationTable}
             onClick={() => setShowReconciliationTable((prev) => !prev)}
-            className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl bg-[#F6F7F8] px-3.5 py-2.5 text-start text-[13px] font-semibold text-slate-800 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50/70 dark:bg-[#141F1B] dark:text-emerald-100 dark:ring-emerald-400/20 dark:hover:bg-emerald-500/10"
+            className="ds-focus-ring flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl bg-[#F6F7F8] px-3.5 py-2.5 text-start text-[13px] font-semibold text-slate-800 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50/70 dark:bg-[#141F1B] dark:text-emerald-100 dark:ring-emerald-400/20 dark:hover:bg-emerald-500/10"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span>
                 {isAr
                   ? 'تقرير المطابقة المحاسبية وجدول ربط الأجهزة (terminal_id -> branch_id)'
@@ -545,12 +555,13 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                 dir="ltr"
                 className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:text-emerald-200"
               >
-                {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} −{' '}
-                {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} ={' '}
-                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD ({data.reconciliationReport.periodFrom} → {data.reconciliationReport.periodTo})
+                {fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} −{' '}
+                {fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} ={' '}
+                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD ({data.reconciliationReport.periodFrom} → {data.reconciliationReport.periodTo})
               </span>
             </div>
             <ChevronDown
+              aria-hidden
               className={`h-4 w-4 shrink-0 transition-transform duration-150 ${
                 showReconciliationTable ? 'rotate-180' : ''
               }`}
@@ -567,10 +578,10 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                       : `1) Exclusion Identity (${data.reconciliationReport.periodFrom} → ${data.reconciliationReport.periodTo})`}
                   </div>
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
-                    {fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} −{' '}
-                    {fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong> (Δ{' '}
-                    {fmtKwd(data.reconciliationReport.exclusionGapKwd)})
+                    {fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} −{' '}
+                    {fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD</strong> (Δ{' '}
+                    {fmtKwd(data.reconciliationReport.exclusionGapKwd, resolvedLocale)})
                   </div>
                 </div>
                 <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
@@ -580,22 +591,22 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                       : '2) 7-Branch + Unmapped Allocation Identity'}
                   </div>
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
-                    {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)} +{' '}
-                    {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd)} KWD</strong> (Δ{' '}
-                    {fmtKwd(data.reconciliationReport.allocationGapKwd)})
+                    {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd, resolvedLocale)} +{' '}
+                    {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd, resolvedLocale)} ={' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD</strong> (Δ{' '}
+                    {fmtKwd(data.reconciliationReport.allocationGapKwd, resolvedLocale)})
                   </div>
                 </div>
                 <div className="rounded-xl bg-emerald-50/80 p-3 text-xs leading-relaxed text-emerald-950 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:text-emerald-100 dark:ring-emerald-400/20">
                   <div className="font-bold">
                     {isAr
-                      ? `3) إثبات مطابقة خارج الفروع الـ 7 (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} د.ك)`
-                      : `3) Non-Branch Reconciliation Proof (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} KWD)`}
+                      ? `3) إثبات مطابقة خارج الفروع الـ 7 (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd), resolvedLocale)} د.ك)`
+                      : `3) Non-Branch Reconciliation Proof (${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd), resolvedLocale)} KWD)`}
                   </div>
-                  <div className="mt-1 text-xs font-mono tabular-nums">
+                  <div dir="ltr" className="mt-1 text-xs font-mono tabular-nums">
                     {isAr
-                      ? `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} د.ك (غير مربوط) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} د.ك (مستبعد) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} د.ك (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)})`
-                      : `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd)} (unmapped) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd)} (excluded) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd))} KWD (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd)})`}
+                      ? `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd, resolvedLocale)} د.ك (غير مربوط) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} د.ك (مستبعد) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd), resolvedLocale)} د.ك (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd, resolvedLocale)})`
+                      : `${fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd, resolvedLocale)} (unmapped) + ${fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} (excluded) = ${fmtKwd(data.reconciliationReport.nonBranchBridgeTotalKwd ?? (data.reconciliationReport.unmappedTerminalsNetKwd + data.reconciliationReport.excludedEntitiesKwd), resolvedLocale)} KWD (${fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} − ${fmtKwd(data.reconciliationReport.mappedBranchesNetKwd, resolvedLocale)})`}
                   </div>
                 </div>
               </div>
@@ -627,13 +638,13 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                           {isAr ? ex.reason_ar : ex.reason_en}
                         </td>
                         <td dir="ltr" className="px-3 py-2 text-end font-mono tabular-nums">
-                          {fmtInt(ex.orders_count)}
+                          {fmtInt(ex.orders_count, resolvedLocale)}
                         </td>
                         <td
                           dir="ltr"
                           className="px-3 py-2 text-end font-mono font-bold tabular-nums text-rose-700 dark:text-rose-300"
                         >
-                          -{fmtKwd(ex.net_sales_kwd)} KWD
+                          -{fmtKwd(ex.net_sales_kwd, resolvedLocale)} KWD
                         </td>
                       </tr>
                     ))}
@@ -676,13 +687,13 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                           {isAr ? row.branch_label_ar : row.branch_label_en}
                         </td>
                         <td dir="ltr" className="px-3 py-2 text-end font-mono tabular-nums">
-                          {fmtInt(row.orders_count)}
+                          {fmtInt(row.orders_count, resolvedLocale)}
                         </td>
                         <td
                           dir="ltr"
                           className="px-3 py-2 text-end font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
                         >
-                          {fmtKwd(row.net_sales_kwd)} KWD
+                          {fmtKwd(row.net_sales_kwd, resolvedLocale)} KWD
                         </td>
                       </tr>
                     ))}

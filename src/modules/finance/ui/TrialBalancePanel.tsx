@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
-import { Badge, Money, Num } from '@/components/ui'
+import { errorClass, inputClass, panelClass } from '@/components/erp/styles'
+import { Badge, Money, Num, StateBlock } from '@/components/ui'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { trialBalanceQuerySchema, type TrialBalance } from '@/modules/finance/client'
 import { accountTypeLabels } from '@/modules/finance/ui/shared'
@@ -15,7 +15,8 @@ import type { Phase } from '@/components/erp/common'
  * already netted per account, so this screen only shows it; with a balanced ledger the two totals are equal to the fils.
  */
 export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const [from, setFrom] = useState('')
   const [to, setTo] = useState(todayUtc)
   const [report, setReport] = useState<TrialBalance | null>(null)
@@ -54,14 +55,14 @@ export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-gray-100">{t('led.tb.title')}</h3>
-          <p className="mt-1 text-sm text-gray-400">{t('led.tb.hint')}</p>
+          <p className="mt-1 text-sm text-gray-300">{t('led.tb.hint')}</p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="block text-xs text-gray-400">
+          <label className="block text-xs text-gray-300">
             {t('led.tb.from')}
             <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} dir="ltr" className={`${inputClass} w-auto`} />
           </label>
-          <label className="block text-xs text-gray-400">
+          <label className="block text-xs text-gray-300">
             {t('led.tb.to')}
             <input type="date" value={to} onChange={(event) => setTo(event.target.value)} dir="ltr" className={`${inputClass} w-auto`} />
           </label>
@@ -74,30 +75,39 @@ export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
         </p>
       ) : null}
 
-      {path !== null && phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p> : null}
+      {path !== null && phase === 'loading' ? (
+        <div className="mt-4">
+          <StateBlock state="loading" locale={resolvedLocale} compact title={t('erp.loading')} />
+        </div>
+      ) : null}
 
       {path !== null && phase === 'error' ? (
-        <div className="space-y-3 py-6 text-center">
-          <p role="alert" className={`${errorClass} inline-block`}>
-            {t(loadError)}
-          </p>
-          <div>
-            <button type="button" onClick={() => setRetry((value) => value + 1)} className={secondaryButton}>
-              {t('erp.retry')}
-            </button>
-          </div>
+        <div className="mt-4">
+          <StateBlock
+            state="error"
+            locale={resolvedLocale}
+            description={t(loadError)}
+            onRetry={() => setRetry((value) => value + 1)}
+            retryLabel={t('erp.retry')}
+            compact
+          />
         </div>
       ) : null}
 
       {path !== null && phase === 'ready' && report ? (
         report.rows.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-200">{t('led.tb.empty')}</p>
-            <p className="mt-1 text-sm text-gray-400">{t('led.tb.emptyHint')}</p>
+          <div className="mt-4">
+            <StateBlock
+              state="empty"
+              locale={resolvedLocale}
+              title={t('led.tb.empty')}
+              description={t('led.tb.emptyHint')}
+              compact
+            />
           </div>
         ) : (
           <>
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-300">
               <span>
                 {report.from === null ? t('led.tb.allTime') : <Num>{report.from}</Num>}
                 {' → '}
@@ -107,13 +117,13 @@ export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
             </div>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[34rem] text-sm">
-                <thead className="text-gray-400">
+                <thead className="text-gray-300">
                   <tr className="border-b border-[#30363d]">
                     <th className="px-3 py-2 text-start font-medium">{t('led.acc.code')}</th>
                     <th className="px-3 py-2 text-start font-medium">{t('led.acc.name')}</th>
                     <th className="px-3 py-2 text-start font-medium">{t('led.acc.type')}</th>
-                    <th className="px-3 py-2 text-start font-medium">{t('led.line.debit')}</th>
-                    <th className="px-3 py-2 text-start font-medium">{t('led.line.credit')}</th>
+                    <th className="px-3 py-2 text-end font-medium">{t('led.line.debit')}</th>
+                    <th className="px-3 py-2 text-end font-medium">{t('led.line.credit')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -124,8 +134,12 @@ export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
                       </td>
                       <td className="px-3 py-2">{row.name}</td>
                       <td className="px-3 py-2">{t(accountTypeLabels[row.type])}</td>
-                      <td className="px-3 py-2">{row.debitMinor > 0 ? <Money value={minorText(row.debitMinor)} /> : '—'}</td>
-                      <td className="px-3 py-2">{row.creditMinor > 0 ? <Money value={minorText(row.creditMinor)} /> : '—'}</td>
+                      <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
+                        {row.debitMinor > 0 ? <Money value={minorText(row.debitMinor)} /> : '—'}
+                      </td>
+                      <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
+                        {row.creditMinor > 0 ? <Money value={minorText(row.creditMinor)} /> : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -134,10 +148,10 @@ export function TrialBalancePanel({ reloadToken }: { reloadToken: number }) {
                     <td className="px-3 py-2" colSpan={3}>
                       {t('led.tb.totals')}
                     </td>
-                    <td className="px-3 py-2">
+                    <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
                       <Money value={minorText(report.totalDebitMinor)} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td dir="ltr" className="px-3 py-2 text-end tabular-nums">
                       <Money value={minorText(report.totalCreditMinor)} />
                     </td>
                   </tr>

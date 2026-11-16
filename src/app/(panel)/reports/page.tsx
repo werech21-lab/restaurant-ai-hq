@@ -1,12 +1,13 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { connection } from "next/server";
 import { requireUser } from "@/lib/erp-auth";
 import { DataCard, Forbidden, PageSkeleton, PaginationBar, btnGhost, btnPrimary } from "@/components/erp-ui";
-import { StatCard } from "@/components/ui/stat-card";
-import { formatQty, monthRange } from "@/lib/format";
+import { KpiCard, StateBlock } from "@/components/ui";
+import { formatKwd, formatKuwaitDateTime, formatQty, monthRange } from "@/lib/format";
 import type { Locale } from "@/lib/i18n";
 import { paymentVoucherLabel } from "@/lib/i18n/auto-translate";
-import { datetimeFor, getLocale, moneyFor, monthFor, tx } from "@/lib/i18n/server";
+import { getLocale, monthFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -40,23 +41,23 @@ async function LiveDbReportsSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 dark:border-slate-700/60">
         <div className="flex flex-wrap gap-2">
-          <a href="/reports?tab=pnl" className={tab === "pnl" ? btnPrimary : btnGhost}>
+          <Link href="/reports?tab=pnl" aria-current={tab === "pnl" ? "page" : undefined} className={`${tab === "pnl" ? btnPrimary : btnGhost} ds-focus-ring`}>
             {tx(locale, "الأرباح والخسائر", "Profit & loss")}
-          </a>
-          <a href="/reports?tab=stock" className={tab === "stock" ? btnPrimary : btnGhost}>
+          </Link>
+          <Link href="/reports?tab=stock" aria-current={tab === "stock" ? "page" : undefined} className={`${tab === "stock" ? btnPrimary : btnGhost} ds-focus-ring`}>
             {tx(locale, "تقييم المخزون", "Inventory valuation")}
-          </a>
-          <a href="/reports?tab=customers" className={tab === "customers" ? btnPrimary : btnGhost}>
+          </Link>
+          <Link href="/reports?tab=customers" aria-current={tab === "customers" ? "page" : undefined} className={`${tab === "customers" ? btnPrimary : btnGhost} ds-focus-ring`}>
             {tx(locale, "ديون العملاء", "Customer receivables")}
-          </a>
-          <a href="/reports?tab=suppliers" className={tab === "suppliers" ? btnPrimary : btnGhost}>
+          </Link>
+          <Link href="/reports?tab=suppliers" aria-current={tab === "suppliers" ? "page" : undefined} className={`${tab === "suppliers" ? btnPrimary : btnGhost} ds-focus-ring`}>
             {tx(locale, "ديون الموردين", "Supplier payables")}
-          </a>
-          <a href="/reports?tab=payments" className={tab === "payments" ? btnPrimary : btnGhost}>
+          </Link>
+          <Link href="/reports?tab=payments" aria-current={tab === "payments" ? "page" : undefined} className={`${tab === "payments" ? btnPrimary : btnGhost} ds-focus-ring`}>
             {tx(locale, "سندات القبض والصرف", "Receipts & payments")}
-          </a>
+          </Link>
         </div>
         <SmartIngestLaunchButton module="accounting" locale={locale} />
       </div>
@@ -87,6 +88,7 @@ async function ProfitReport({
   monthLabel: string;
   warehouseIds: string[];
 }) {
+  const resolvedLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
   const [monthSales, allSales, monthCogs, allCogs] = await Promise.all([
     salesSummary(start, end, warehouseIds),
     salesSummary(undefined, undefined, warehouseIds),
@@ -96,9 +98,17 @@ async function ProfitReport({
 
   if (monthSales.total === 0 && allSales.total === 0) {
     return (
-      <div className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-6 text-center text-sm text-slate-300">
-        {tx(locale, "لا توجد بيانات مسجلة في الجداول المحلية لهذه الفترة — راجع تقارير Odoo 17 أعلاه.", "No local database entries recorded for this period — refer to the Odoo 17 reports above.")}
-      </div>
+      <StateBlock
+        state="empty"
+        locale={resolvedLocale}
+        compact
+        title={tx(locale, "لا توجد بيانات محلية لهذه الفترة", "No local database entries for this period")}
+        description={tx(
+          locale,
+          "لا توجد بيانات مسجلة في الجداول المحلية لهذه الفترة — راجع تقارير Odoo 17 أعلاه.",
+          "No local database entries recorded for this period — refer to the Odoo 17 reports above."
+        )}
+      />
     );
   }
 
@@ -112,9 +122,9 @@ async function ProfitReport({
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
       {blocks.map((block) => (
-        <StatCard key={block.label} label={block.label} value={moneyFor(locale, block.value)} />
+        <KpiCard key={block.label} label={block.label} value={block.value} format="kwd" locale={resolvedLocale} />
       ))}
     </div>
   );
@@ -133,6 +143,7 @@ async function StockReport({
   skip: number;
   warehouseIds: string[];
 }) {
+  const resolvedLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
   const valuationIds = await scopeWarehouseIds(warehouseIds);
   const valuation = await inventoryValuation(warehouseIds);
   let rows: Array<{
@@ -201,63 +212,68 @@ async function StockReport({
   );
 
   return (
-    <div>
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
-        <section className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
-          <p className="text-sm text-slate-400">{tx(locale, "قيمة المخزون بسعر التكلفة", "Inventory at cost")}</p>
-          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, valuation.costValue)}</p>
-        </section>
-        <section className="rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
-          <p className="text-sm text-slate-400">{tx(locale, "قيمة المخزون بسعر البيع", "Inventory at sell price")}</p>
-          <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, valuation.sellValue)}</p>
-        </section>
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <KpiCard
+          label={tx(locale, "قيمة المخزون بسعر التكلفة", "Inventory at cost")}
+          value={valuation.costValue}
+          format="kwd"
+          locale={resolvedLocale}
+        />
+        <KpiCard
+          label={tx(locale, "قيمة المخزون بسعر البيع", "Inventory at sell price")}
+          value={valuation.sellValue}
+          format="kwd"
+          locale={resolvedLocale}
+        />
       </div>
       <DataCard>
-        <form method="get" className="flex gap-2 border-b border-slate-800 p-4">
+        <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4 dark:border-slate-800">
           <input type="hidden" name="tab" value="stock" />
           <input
             name="q"
             defaultValue={q}
+            aria-label={tx(locale, "بحث عن صنف", "Search items")}
             placeholder={tx(locale, "بحث عن صنف", "Search items")}
-            className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="ds-focus-ring w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
-          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
+          <button type="submit" className={`${btnPrimary} ds-focus-ring`}>{tx(locale, "بحث", "Search")}</button>
         </form>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[680px] text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الصنف", "Item")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الكمية", "Qty")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التكلفة", "Cost")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البيع", "Sell")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "قيمة التكلفة", "Cost value")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "قيمة البيع", "Sell value")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التوقع الذكي", "Forecast")}</th>
+              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                <th className="px-4 py-3 text-start">{tx(locale, "الصنف", "Item")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "الكمية", "Qty")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "التكلفة", "Cost")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "البيع", "Sell")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "قيمة التكلفة", "Cost value")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "قيمة البيع", "Sell value")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "التوقع الذكي", "Forecast")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-600 dark:text-slate-300">
                     {tx(locale, "لا توجد بيانات مخزون محلية مسجلة.", "No local inventory records found.")}
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-900/40">
+                  <tr key={row.id} className="border-b border-slate-200/70 last:border-0 hover:bg-slate-50/70 dark:border-slate-800/60 dark:hover:bg-slate-900/40">
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-white">{row.name}</p>
-                      <p className="text-xs text-slate-400" dir="ltr">
+                      <p className="font-semibold text-slate-900 dark:text-white">{row.name}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400" dir="ltr">
                         {row.code}
                       </p>
                     </td>
-                    <td className="px-4 py-3">{formatQty(row.currentStock)}</td>
-                    <td className="px-4 py-3">{moneyFor(locale, row.costPrice)}</td>
-                    <td className="px-4 py-3">{moneyFor(locale, row.sellingPrice)}</td>
-                    <td className="px-4 py-3 font-semibold text-amber-300">{moneyFor(locale, row.currentStock * row.costPrice)}</td>
-                    <td className="px-4 py-3 font-semibold text-emerald-400">{moneyFor(locale, row.currentStock * row.sellingPrice)}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-blue-400">{forecasts.get(row.id) ?? "—"}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end tabular-nums">{formatQty(row.currentStock)}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end tabular-nums">{formatKwd(row.costPrice, resolvedLocale)}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end tabular-nums">{formatKwd(row.sellingPrice, resolvedLocale)}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end font-semibold tabular-nums text-amber-700 dark:text-amber-300">{formatKwd(row.currentStock * row.costPrice, resolvedLocale)}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{formatKwd(row.currentStock * row.sellingPrice, resolvedLocale)}</td>
+                    <td className="px-4 py-3 text-xs font-semibold text-blue-700 dark:text-blue-400">{forecasts.get(row.id) ?? "—"}</td>
                   </tr>
                 ))
               )}
@@ -283,6 +299,7 @@ async function DebtReport({
   page: number;
   skip: number;
 }) {
+  const resolvedLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
   const isCustomer = kind === "customers";
   const partyWhere = {
     balance: { gt: 0 },
@@ -313,57 +330,60 @@ async function DebtReport({
   const actualTotal = totalSum._sum?.balance ?? 0;
 
   return (
-    <div>
-      <section className="mb-4 rounded-2xl border border-slate-800 bg-[#0f172a]/70 p-5 shadow-sm">
-        <p className="text-sm text-slate-400">
-          {isCustomer
+    <div className="space-y-4">
+      <KpiCard
+        label={
+          isCustomer
             ? tx(locale, "إجمالي مديونية العملاء المسجلة محلياً", "Total local customer receivables")
-            : tx(locale, "إجمالي المستحق للموردين المسجل محلياً", "Total local supplier payables")}
-        </p>
-        <p className="mt-2 text-2xl font-bold text-white">{moneyFor(locale, actualTotal)}</p>
-      </section>
+            : tx(locale, "إجمالي المستحق للموردين المسجل محلياً", "Total local supplier payables")
+        }
+        value={actualTotal}
+        format="kwd"
+        locale={resolvedLocale}
+      />
       <DataCard>
-        <form method="get" className="flex gap-2 border-b border-slate-800 p-4">
+        <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4 dark:border-slate-800">
           <input type="hidden" name="tab" value={kind} />
           <input
             name="q"
             defaultValue={q}
+            aria-label={tx(locale, "بحث بالاسم أو الهاتف", "Search by name or phone")}
             placeholder={tx(locale, "بحث بالاسم أو الهاتف", "Search by name or phone")}
-            className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="ds-focus-ring w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
-          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
-          <a href={pageHref("/reports", { tab: kind })} className={btnGhost}>
+          <button type="submit" className={`${btnPrimary} ds-focus-ring`}>{tx(locale, "بحث", "Search")}</button>
+          <Link href={pageHref("/reports", { tab: kind })} className={`${btnGhost} ds-focus-ring`}>
             {tx(locale, "مسح", "Clear")}
-          </a>
+          </Link>
         </form>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[540px] text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الاسم", "Name")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الهاتف", "Phone")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "البريد", "Email")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الرصيد", "Balance")}</th>
+              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                <th className="px-4 py-3 text-start">{tx(locale, "الاسم", "Name")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "الهاتف", "Phone")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "البريد", "Email")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "الرصيد", "Balance")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-600 dark:text-slate-300">
                     {tx(locale, "لا توجد أرصدة محلية مسجلة — راجع تقرير الذمم المدينة من Odoo 17 أعلاه.", "No local balances recorded — refer to the Odoo 17 receivables report above.")}
                   </td>
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-900/40">
-                    <td className="px-4 py-3 font-semibold text-white">{row.name}</td>
-                    <td className="px-4 py-3 text-slate-400" dir="ltr">
+                  <tr key={row.id} className="border-b border-slate-200/70 last:border-0 hover:bg-slate-50/70 dark:border-slate-800/60 dark:hover:bg-slate-900/40">
+                    <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">{row.name}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400" dir="ltr">
                       {row.phone || "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400" dir="ltr">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400" dir="ltr">
                       {row.email || "—"}
                     </td>
-                    <td className="px-4 py-3 font-bold text-amber-300">{moneyFor(locale, row.balance)}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end font-bold tabular-nums text-amber-700 dark:text-amber-300">{formatKwd(row.balance, resolvedLocale)}</td>
                   </tr>
                 ))
               )}
@@ -377,58 +397,60 @@ async function DebtReport({
 }
 
 async function PaymentsReport({ locale, q, page, skip }: { locale: Locale; q: string; page: number; skip: number }) {
+  const resolvedLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
   const data = await listPayments({ q, skip, take: PAGE_SIZE });
 
   return (
-    <div>
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
-        <StatCard label={tx(locale, "إجمالي سندات القبض المسجلة محلياً", "Total Local Receipts")} value={moneyFor(locale, data.receipts)} />
-        <StatCard label={tx(locale, "إجمالي سندات الصرف المسجلة محلياً", "Total Local Payments")} value={moneyFor(locale, data.payments)} />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <KpiCard label={tx(locale, "إجمالي سندات القبض المسجلة محلياً", "Total Local Receipts")} value={data.receipts} format="kwd" locale={resolvedLocale} />
+        <KpiCard label={tx(locale, "إجمالي سندات الصرف المسجلة محلياً", "Total Local Payments")} value={data.payments} format="kwd" locale={resolvedLocale} />
       </div>
       <DataCard>
-        <form method="get" className="flex gap-2 border-b border-slate-800 p-4">
+        <form method="get" className="flex flex-wrap gap-2 border-b border-slate-200 p-4 dark:border-slate-800">
           <input type="hidden" name="tab" value="payments" />
           <input
             name="q"
             defaultValue={q}
+            aria-label={tx(locale, "بحث بالمرجع أو البيان", "Search by reference or description")}
             placeholder={tx(locale, "بحث بالمرجع أو البيان", "Search by reference or description")}
-            className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+            className="ds-focus-ring w-full max-w-sm rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           />
-          <button className={btnPrimary}>{tx(locale, "بحث", "Search")}</button>
-          <a href={pageHref("/reports", { tab: "payments" })} className={btnGhost}>
+          <button type="submit" className={`${btnPrimary} ds-focus-ring`}>{tx(locale, "بحث", "Search")}</button>
+          <Link href={pageHref("/reports", { tab: "payments" })} className={`${btnGhost} ds-focus-ring`}>
             {tx(locale, "مسح", "Clear")}
-          </a>
+          </Link>
         </form>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[660px] text-sm">
             <thead>
-              <tr className="border-b border-slate-800 text-slate-400">
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "التاريخ", "Date")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "النوع", "Type")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "الطرف", "Party")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المبلغ", "Amount")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المرجع", "Reference")}</th>
-                <th className="px-4 py-3 text-right font-semibold">{tx(locale, "المستخدم", "User")}</th>
+              <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                <th className="px-4 py-3 text-start">{tx(locale, "التاريخ", "Date")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "النوع", "Type")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "الطرف", "Party")}</th>
+                <th className="px-4 py-3 text-end">{tx(locale, "المبلغ", "Amount")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "المرجع", "Reference")}</th>
+                <th className="px-4 py-3 text-start">{tx(locale, "المستخدم", "User")}</th>
               </tr>
             </thead>
             <tbody>
               {data.rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-600 dark:text-slate-300">
                     {tx(locale, "لا توجد سندات محلية مسجلة لهذه الفترة.", "No local payment vouchers recorded for this period.")}
                   </td>
                 </tr>
               ) : (
                 data.rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-900/40">
-                    <td className="px-4 py-3 text-slate-300">{datetimeFor(locale, row.createdAt)}</td>
-                    <td className="px-4 py-3 font-semibold text-white">{paymentVoucherLabel(locale, row.type)}</td>
-                    <td className="px-4 py-3 text-slate-300">{row.partyName}</td>
-                    <td className="px-4 py-3 font-bold text-amber-300">{moneyFor(locale, row.amount)}</td>
-                    <td className="px-4 py-3 text-slate-400" dir="ltr">
+                  <tr key={row.id} className="border-b border-slate-200/70 last:border-0 hover:bg-slate-50/70 dark:border-slate-800/60 dark:hover:bg-slate-900/40">
+                    <td dir="ltr" className="ds-num px-4 py-3 text-slate-700 dark:text-slate-300 tabular-nums">{formatKuwaitDateTime(row.createdAt, resolvedLocale)}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">{paymentVoucherLabel(locale, row.type)}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{row.partyName}</td>
+                    <td dir="ltr" className="ds-num px-4 py-3 text-end font-bold tabular-nums text-amber-700 dark:text-amber-300">{formatKwd(row.amount, resolvedLocale)}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400" dir="ltr">
                       {row.reference || "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-400">{row.createdBy.name}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{row.createdBy.name}</td>
                   </tr>
                 ))
               )}

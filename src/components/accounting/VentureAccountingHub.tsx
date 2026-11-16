@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
-  AlertCircle,
   BookOpen,
   Building2,
   CreditCard,
@@ -20,8 +20,14 @@ import {
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
+import { PartialWarningBanner, StateBlock } from '@/components/ui'
+import {
+  UNAVAILABLE_DASH,
+  formatInt,
+  formatKwd,
+  getUnavailableTooltip,
+} from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import { OdooAccountingAnalyticsHub } from './OdooAccountingAnalyticsHub'
 
@@ -61,6 +67,7 @@ export function VentureAccountingHub({
   const { filters, workspace, liveSummary, isAuditor: ctxAuditor, setPeriod } = useGlobalFilter()
   const effectiveAuditor = Boolean(isAuditor || ctxAuditor)
   const isAr = currentLocale === 'ar'
+  const unavailableTooltip = getUnavailableTooltip(currentLocale)
 
   const [activeTab, setActiveTab] = useState<VentureAccountingTabId>(initialTab)
 
@@ -69,11 +76,6 @@ export function VentureAccountingHub({
     customTo: filters.customTo,
     liveSummary,
   })
-
-  const fmtKwd = (v: number) =>
-    `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${
-      isAr ? 'د.ك' : 'KWD'
-    }`
 
   const tabs: Array<{
     id: typeof activeTab
@@ -85,37 +87,37 @@ export function VentureAccountingHub({
       id: 'glSummary',
       labelAr: 'ملخص دفتر الأستاذ (Odoo GL)',
       labelEn: 'Odoo General Ledger',
-      icon: <BookOpen className="h-4 w-4" />,
+      icon: <BookOpen className="h-4 w-4" aria-hidden />,
     },
     {
       id: 'receivables',
       labelAr: 'الذمم المدينة وأعمار الديون',
       labelEn: 'Receivables & Aging',
-      icon: <Landmark className="h-4 w-4" />,
+      icon: <Landmark className="h-4 w-4" aria-hidden />,
     },
     {
       id: 'pettyCash',
       labelAr: 'العهد النثرية',
       labelEn: 'Petty Cash',
-      icon: <Wallet className="h-4 w-4" />,
+      icon: <Wallet className="h-4 w-4" aria-hidden />,
     },
     {
       id: 'cheques',
       labelAr: 'الشيكات والتسويات البنكية',
       labelEn: 'Cheques & Bank Recon',
-      icon: <CreditCard className="h-4 w-4" />,
+      icon: <CreditCard className="h-4 w-4" aria-hidden />,
     },
     {
       id: 'leases',
       labelAr: 'عقود الإيجارات',
       labelEn: 'Branch Leases',
-      icon: <Building2 className="h-4 w-4" />,
+      icon: <Building2 className="h-4 w-4" aria-hidden />,
     },
     {
       id: 'fleet',
       labelAr: 'مصروفات الأسطول',
       labelEn: 'Fleet Expenses',
-      icon: <Truck className="h-4 w-4" />,
+      icon: <Truck className="h-4 w-4" aria-hidden />,
     },
     ...(liveChildren && !embeddedInErp
       ? [
@@ -123,26 +125,28 @@ export function VentureAccountingHub({
             id: 'localDb' as const,
             labelAr: 'سجلات النظام المحلي',
             labelEn: 'Local Ledger Records',
-            icon: <Database className="h-4 w-4" />,
+            icon: <Database className="h-4 w-4" aria-hidden />,
           },
         ]
       : []),
   ]
 
+  const HeadingTag = embeddedInErp ? 'h2' : 'h1'
+
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
-      <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                <Landmark className="h-3.5 w-3.5" />
+                <Landmark className="h-3.5 w-3.5" aria-hidden />
                 {isAr ? 'الإدارة المالية ومحاسبة Odoo 17' : 'Financial Accounting & Odoo 17 GL'}
               </span>
 
               {effectiveAuditor ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-200">
-                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
                   {isAr ? 'وضع المراجع الخارجي — قراءة فقط' : 'External Auditor Mode — Read Only'}
                 </span>
               ) : (
@@ -152,11 +156,11 @@ export function VentureAccountingHub({
               )}
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            <HeadingTag className="text-2xl font-bold text-slate-900 dark:text-white break-words">
               {isAr
                 ? 'مركز المحاسبة ودفتر الأستاذ العام — شركة فنتشر فودز'
                 : 'General Ledger & Accounting Hub — Venture Foods W.L.L.'}
-            </h1>
+            </HeadingTag>
             <p className="text-sm text-slate-600 dark:text-slate-300">
               {isAr
                 ? `الفترة المحاسبية المختارة: ${periodWindow.labelAr} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`
@@ -172,8 +176,9 @@ export function VentureAccountingHub({
                   <button
                     key={opt.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => setPeriod(opt.id as GlobalPeriod)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`ds-focus-ring rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       active
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -186,26 +191,32 @@ export function VentureAccountingHub({
             </div>
 
             {!effectiveAuditor && (
-              <a
+              <Link
                 href="/accounting?tab=entry"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" aria-hidden />
                 {isAr ? 'قيد يومية جديد' : 'New Journal Entry'}
-              </a>
+              </Link>
             )}
           </div>
         </div>
 
-        <nav className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800">
+        <nav
+          role="tablist"
+          aria-label={isAr ? 'أقسام المحاسبة' : 'Accounting sections'}
+          className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800"
+        >
           {tabs.map((tab) => {
             const active = activeTab === tab.id
             return (
               <button
                 key={tab.id}
                 type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                className={`ds-focus-ring inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
                   active
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
@@ -219,7 +230,7 @@ export function VentureAccountingHub({
         </nav>
       </header>
 
-      {!embeddedInErp ? <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} /> : null}
+      {!embeddedInErp ? <PartialWarningBanner summary={liveSummary} isAr={isAr} /> : null}
 
       {activeTab === 'glSummary' && (
         <OdooAccountingAnalyticsHub
@@ -231,25 +242,30 @@ export function VentureAccountingHub({
 
       {activeTab === 'receivables' && (
         !workspace.odooConnected || workspace.noData ? (
-          <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-8 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
-            <AlertCircle className="mx-auto mb-3 h-8 w-8 text-amber-600 dark:text-amber-400" />
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              لا توجد بيانات من Odoo لهذه الفترة
-            </h3>
-          </section>
+          <StateBlock
+            state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+            locale={currentLocale}
+            title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo receivables data for this period'}
+          />
         ) : (
           <section className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <p className="text-xs font-semibold text-slate-500">
+              <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'صافي الذمم المدينة المفتوحة' : 'Net Open Receivables'}
                 </p>
-                <p className="mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                <p
+                  dir="ltr"
+                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white"
+                >
                   {workspace.receivables.unavailable
                     ? isAr
                       ? 'غير متاح'
-                      : '—'
-                    : fmtKwd(workspace.receivables.openReceivableKwd)}
+                      : UNAVAILABLE_DASH
+                    : formatKwd(workspace.receivables.openReceivableKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -267,16 +283,22 @@ export function VentureAccountingHub({
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <p className="text-xs font-semibold text-slate-500">
+              <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'إجمالي الأرصدة المدينة الموجبة' : 'Gross Positive Receivables'}
                 </p>
-                <p className="mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400">
+                <p
+                  dir="ltr"
+                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400"
+                >
                   {workspace.receivables.unavailable
                     ? isAr
                       ? 'غير متاح'
-                      : '—'
-                    : fmtKwd(workspace.receivables.grossPositiveReceivableKwd)}
+                      : UNAVAILABLE_DASH
+                    : formatKwd(workspace.receivables.grossPositiveReceivableKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -294,16 +316,22 @@ export function VentureAccountingHub({
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <p className="text-xs font-semibold text-slate-500">
+              <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'مقاصة التسويات الدائنة قيد التصفية' : 'Credit Clearing Offset'}
                 </p>
-                <p className="mt-2 text-2xl font-extrabold tabular-nums text-sky-700 dark:text-sky-400">
+                <p
+                  dir="ltr"
+                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-sky-700 dark:text-sky-400"
+                >
                   {workspace.receivables.unavailable
                     ? isAr
                       ? 'غير متاح'
-                      : '—'
-                    : fmtKwd(workspace.receivables.creditClearingOffsetKwd)}
+                      : UNAVAILABLE_DASH
+                    : formatKwd(workspace.receivables.creditClearingOffsetKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -322,15 +350,24 @@ export function VentureAccountingHub({
               </article>
             </div>
 
-            {workspace.receivables.agingBuckets.length > 0 && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            {workspace.receivables.unavailable ? (
+              <StateBlock state="unavailable" locale={currentLocale} compact />
+            ) : workspace.receivables.agingBuckets.length === 0 ? (
+              <StateBlock
+                state="empty"
+                locale={currentLocale}
+                compact
+                title={isAr ? 'لا توجد شرائح أعمار ذمم مسجلة' : 'No receivable aging buckets recorded'}
+              />
+            ) : (
+              <div className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
                   {isAr ? 'توزيع أعمار الذمم المدينة من Odoo' : 'Odoo Receivable Aging Buckets'}
                 </h2>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[460px] text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500 dark:border-slate-800">
+                      <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
                         <th className="px-3 py-2.5 text-start">{isAr ? 'الفئة العمرية' : 'Aging Bucket'}</th>
                         <th className="px-3 py-2.5 text-center">{isAr ? 'عدد السطور' : 'Lines'}</th>
                         <th className="px-3 py-2.5 text-end">{isAr ? 'صافي الرصيد' : 'Net Amount'}</th>
@@ -345,9 +382,11 @@ export function VentureAccountingHub({
                           <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
                             {isAr ? b.labelAr : b.labelEn}
                           </td>
-                          <td className="px-3 py-2.5 text-center tabular-nums">{b.linesCount}</td>
-                          <td className="px-3 py-2.5 text-end font-bold tabular-nums">
-                            {fmtKwd(b.residualKwd)}
+                          <td dir="ltr" className="ds-num px-3 py-2.5 text-center tabular-nums">
+                            {formatInt(b.linesCount, currentLocale)}
+                          </td>
+                          <td dir="ltr" className="ds-num px-3 py-2.5 text-end font-bold tabular-nums">
+                            {formatKwd(b.residualKwd, currentLocale)}
                           </td>
                         </tr>
                       ))}

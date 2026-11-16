@@ -150,18 +150,18 @@ export function AccountDialog({ account, onSaved, onCancel }: Props) {
         )}
       </div>
 
-      <p className="text-xs text-gray-500">{t(account ? 'led.acc.identityNote' : 'led.acc.postableHint')}</p>
+      <p className="text-xs text-gray-300">{t(account ? 'led.acc.identityNote' : 'led.acc.postableHint')}</p>
 
       <FormIssues issues={issues} />
       <LedgerFailure failure={failure} />
 
       <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
         {canManage ? (
-          <button type="button" onClick={save} disabled={pending} className={primaryButton}>
+          <button type="button" onClick={save} disabled={pending} className={`${primaryButton} ds-focus-ring`}>
             {pending ? t('erp.loading') : t('led.save')}
           </button>
         ) : null}
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={`${secondaryButton} ds-focus-ring`}>
           {t('erp.cancel')}
         </button>
       </div>
