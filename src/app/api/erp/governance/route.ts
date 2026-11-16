@@ -21,7 +21,14 @@ import {
   type ExecApproverRole,
 } from '@/lib/auth/exec-role-meta'
 import { prisma } from '@/lib/db'
-import { pinHashForSettingsSave, planGovernanceWrite, readStoredPinHash } from '@/lib/governance-pin'
+import {
+  pinHashForSettingsSave,
+  planGovernanceWrite,
+  planPinCheck,
+  planPinWrite,
+  postgresGovernanceConfigured,
+  readStoredPinHash,
+} from '@/lib/governance-pin'
 import { sslOptions } from '@/lib/db-ssl'
 import { APPROVED_BRANCH_IDS, type GlobalBranch } from '@/lib/aether/global-filter-engine'
 import {
@@ -93,7 +100,7 @@ function readTmpFallback(): ServerGovernanceEnvelope {
   }
   const initial: ServerGovernanceEnvelope = {
     store: createInitialGovernanceStore(),
-    pinHash: DEFAULT_MASTER_PIN_HASH,
+    pinHash: '',
     initialEmpty: true,
     loadFailed: false,
     updatedAtIso: new Date().toISOString(),
@@ -159,7 +166,26 @@ function getGovernancePgPool(): Pool | null {
   }
 }
 
+function postgresConfigured(): boolean {
+  return postgresGovernanceConfigured(process.env.DATABASE_URL)
+}
+
+function failedGovernanceEnvelope(): ServerGovernanceEnvelope {
+  return {
+    store: createInitialGovernanceStore(),
+    pinHash: '',
+    initialEmpty: false,
+    loadFailed: true,
+    updatedAtIso: new Date().toISOString(),
+    backend: 'server-cache',
+  }
+}
+
 async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
+  if (postgresConfigured()) {
+    const pgPool = getGovernancePgPool()
+    if (!pgPool) return failedGovernanceEnvelope()
+  }
   const pgPool = getGovernancePgPool()
   if (pgPool) {
     try {
@@ -198,18 +224,18 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
         if (stored) writeTmpFallback(env)
         return env
       }
-      const fallback = readTmpFallback()
-      return { ...fallback, backend: 'postgres', loadFailed: false }
+      return {
+        store: createInitialGovernanceStore(),
+        pinHash: '',
+        initialEmpty: true,
+        loadFailed: false,
+        updatedAtIso: new Date().toISOString(),
+        backend: 'postgres',
+      }
     } catch {
       globalForGov.__vfGovPgHealthy = false
       globalForGov.__vfGovPgCheckedAt = Date.now()
-      const fallback = readTmpFallback()
-      return {
-        ...fallback,
-        backend: 'server-cache',
-        loadFailed: true,
-        pinHash: readStoredPinHash(fallback.pinHash) ?? '',
-      }
+      return failedGovernanceEnvelope()
     }
   }
 
@@ -241,13 +267,7 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
         return env
       }
     } catch {
-      const fallback = readTmpFallback()
-      return {
-        ...fallback,
-        backend: 'server-cache',
-        loadFailed: true,
-        pinHash: readStoredPinHash(fallback.pinHash) ?? '',
-      }
+      return failedGovernanceEnvelope()
     }
   }
 
@@ -259,7 +279,13 @@ async function saveEnvelopeToDatabase(
   pinHash: string,
   purpose: 'settings' | 'change-pin',
 ): Promise<ServerGovernanceEnvelope> {
-  const plan = planGovernanceWrite({ loadFailed: false, purpose })
+  const plan = planPinWrite({
+    loadFailed: false,
+    postgresConfigured: postgresConfigured(),
+    poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
+    purpose,
+  })
+  if (plan === 'refuse') throw new Error('governance-pin-unavailable')
   const writePin = plan === 'change-pin'
   const nowIso = new Date().toISOString()
   const stampedStore: PersistedGovernanceStore = {
@@ -626,7 +652,11 @@ function hashServerManagerPin(pin: string): Buffer {
     .digest()
 }
 
-function verifyServerManagerPin(candidatePin: string, storedPinHash: string): boolean {
+function verifyServerManagerPin(
+  candidatePin: string,
+  storedPinHash: string,
+  plan: 'stored' | 'initial',
+): boolean {
   const clean = candidatePin.trim()
   if (!/^\d{4}$/.test(clean)) return false
 
@@ -635,23 +665,34 @@ function verifyServerManagerPin(candidatePin: string, storedPinHash: string): bo
     return timingSafeEqual(hashServerManagerPin(clean), hashServerManagerPin(envOverride))
   }
 
-  if (storedPinHash && storedPinHash.startsWith('vfsha256_')) {
+  if (plan === 'stored' && storedPinHash.startsWith('vfsha256_')) {
     const hex = storedPinHash.slice('vfsha256_'.length)
     if (/^[0-9a-f]{64}$/i.test(hex)) {
       return timingSafeEqual(hashServerManagerPin(clean), Buffer.from(hex, 'hex'))
     }
   }
 
-  if (storedPinHash && storedPinHash.startsWith('vfh1_') && storedPinHash !== DEFAULT_MASTER_PIN_HASH) {
+  if (plan === 'stored' && storedPinHash.startsWith('vfh1_') && storedPinHash !== DEFAULT_MASTER_PIN_HASH) {
     const a = createHash('sha256').update(hashManagerPin(clean)).digest()
     const b = createHash('sha256').update(storedPinHash).digest()
     return timingSafeEqual(a, b)
   }
 
-  return timingSafeEqual(
-    hashServerManagerPin(clean),
-    Buffer.from(DEFAULT_MANAGER_PIN_SHA256, 'hex'),
-  )
+  if (plan === 'initial' && !readStoredPinHash(storedPinHash)) {
+    return timingSafeEqual(hashServerManagerPin(clean), Buffer.from(DEFAULT_MANAGER_PIN_SHA256, 'hex'))
+  }
+
+  return false
+}
+
+function pinPlanFor(current: ServerGovernanceEnvelope) {
+  return planPinCheck({
+    loadFailed: current.loadFailed,
+    postgresConfigured: postgresConfigured(),
+    poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
+    pinHash: current.pinHash,
+    initialEmpty: current.initialEmpty,
+  })
 }
 
 async function resolveAuthenticatedApproverRole(
@@ -766,7 +807,8 @@ export async function POST(request: NextRequest) {
         return buildRateLimitedJsonResponse(blocked.retryAfterSeconds)
       }
       const current = await loadEnvelopeFromDatabase()
-      const valid = verifyServerManagerPin(String(body.pin ?? ''), current.pinHash)
+      const pinPlan = pinPlanFor(current)
+      const valid = pinPlan === 'deny' ? false : verifyServerManagerPin(String(body.pin ?? ''), current.pinHash, pinPlan)
       if (!valid) {
         const fail = managerPinFailureLimiter.check(pinKey)
         if (!fail.allowed) {
@@ -785,7 +827,20 @@ export async function POST(request: NextRequest) {
         return buildRateLimitedJsonResponse(blocked.retryAfterSeconds)
       }
       const current = await loadEnvelopeFromDatabase()
-      const curOk = verifyServerManagerPin(String(body.currentPin ?? ''), current.pinHash)
+      const pinPlan = pinPlanFor(current)
+      const writePlan = planPinWrite({
+        loadFailed: current.loadFailed || pinPlan === 'deny',
+        postgresConfigured: postgresConfigured(),
+        poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
+        purpose: 'change-pin',
+      })
+      if (writePlan !== 'change-pin') {
+        return NextResponse.json(
+          { ok: false, error: 'GOVERNANCE_UNAVAILABLE' },
+          { status: 503, headers: GOVERNANCE_RESPONSE_HEADERS },
+        )
+      }
+      const curOk = verifyServerManagerPin(String(body.currentPin ?? ''), current.pinHash, pinPlan === 'initial' ? 'initial' : 'stored')
       const nextClean = String(body.newPin ?? '').trim()
       if (!curOk || !/^\d{4}$/.test(nextClean)) {
         const fail = managerPinFailureLimiter.check(pinKey)
@@ -798,12 +853,6 @@ export async function POST(request: NextRequest) {
         )
       }
       managerPinFailureLimiter.reset(pinKey)
-      if (current.loadFailed || planGovernanceWrite({ loadFailed: current.loadFailed, purpose: 'change-pin' }) === 'refuse') {
-        return NextResponse.json(
-          { ok: false, error: 'GOVERNANCE_UNAVAILABLE' },
-          { status: 503, headers: GOVERNANCE_RESPONSE_HEADERS },
-        )
-      }
       const nextShaHex = hashServerManagerPin(nextClean).toString('hex')
       await saveEnvelopeToDatabase(current.store, `vfsha256_${nextShaHex}`, 'change-pin')
       return NextResponse.json({ ok: true, valid: true }, { headers: GOVERNANCE_RESPONSE_HEADERS })
@@ -827,7 +876,14 @@ export async function POST(request: NextRequest) {
       auditLog: current.store.auditLog ?? [],
       liveBreaches,
     }
-    if (planGovernanceWrite({ loadFailed: current.loadFailed, purpose: 'settings' }) === 'refuse') {
+    if (
+      planPinWrite({
+        loadFailed: current.loadFailed,
+        postgresConfigured: postgresConfigured(),
+        poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
+        purpose: 'settings',
+      }) === 'refuse'
+    ) {
       return NextResponse.json(
         { ok: false, error: 'GOVERNANCE_UNAVAILABLE' },
         { status: 503, headers: GOVERNANCE_RESPONSE_HEADERS },
@@ -1183,7 +1239,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const refreshedBreaches = await evaluateServerLiveOdooBreaches(nextStore)
-    if (planGovernanceWrite({ loadFailed: current.loadFailed, purpose: 'settings' }) === 'refuse') {
+    if (
+      planPinWrite({
+        loadFailed: current.loadFailed,
+        postgresConfigured: postgresConfigured(),
+        poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
+        purpose: 'settings',
+      }) === 'refuse'
+    ) {
       return NextResponse.json(
         { ok: false, error: 'GOVERNANCE_UNAVAILABLE' },
         { status: 503, headers: GOVERNANCE_RESPONSE_HEADERS },
