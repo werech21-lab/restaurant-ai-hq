@@ -559,7 +559,6 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
 
           {showReconciliationTable ? (
             <div className="mt-3 space-y-3">
-              {/* Three Mathematical Identity Pills proving 158,168 - 21,590 = 136,578 and 28,581 = 6,991 + 21,590 */}
               <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
                 <div className="rounded-xl bg-[#F6F7F8] p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/15">
                   <div className="font-bold text-slate-900 dark:text-white">
