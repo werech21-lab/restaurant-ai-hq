@@ -11,7 +11,8 @@ import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
 import { readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
-import { collectAllowedDecimals, guardAnswerNumbers } from './number-guard'
+import { claimAction, claimDirection } from './claims'
+import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
 import { persistAiRuns, type AiRunDraft } from './persist'
 import {
   callProvider,
@@ -28,7 +29,8 @@ export const COUNCIL_ANALYSIS_TIMEOUT_MS = 20_000
 
 const SYSTEM_PROMPT = [
   'You explain only the Odoo facts in the user message.',
-  'Copy every numeral exactly as it appears in the facts. Do not calculate, round, convert, or introduce a numeral.',
+  'Copy amounts and quantities from the fact values. A difference, ratio, or percent is allowed only when it is the exact Decimal result of those values.',
+  'A rise or a fall must match the sign of that difference. Do not use an id, a date, an hour, or a code as a number.',
   'Mention only names that appear in the facts. Do not name a brand, branch, product, or person that is absent from the facts.',
   'Do not forecast, and do not add a cause that the facts do not state.',
   'Reply in Arabic.',
@@ -87,27 +89,41 @@ function attribution(provider: string, modelId: string): string {
   return modelId ? `${provider}/${modelId}` : provider
 }
 
+export function chatClaimKey(text: string): string {
+  const numbers = [...new Set(extractCanonicalDecimals(text))].sort().join(',')
+  return `${claimAction(text)}|${claimDirection(text)}|${numbers}`
+}
+
 export function composeCouncilReply(input: {
   odooReply: string
   passed: ReadonlyArray<{ provider: ProviderId; modelId: string; text: string }>
   failed: ReadonlyArray<{ provider: ProviderId; modelId: string; errorCode: string | null }>
 }): { reply: string; agreed: CouncilAgreement[] } {
-  const agreed = input.passed.map((item) => ({ provider: item.provider, modelId: item.modelId }))
   const failureLines = input.failed.map(
     (item) => `- ${attribution(item.provider, item.modelId)}: ${item.errorCode ?? 'ERROR'}`,
   )
-  if (agreed.length === 0) {
+  const clusters = new Map<string, Array<(typeof input.passed)[number]>>()
+  for (const item of input.passed) {
+    const key = chatClaimKey(item.text)
+    const cluster = clusters.get(key) ?? []
+    cluster.push(item)
+    clusters.set(key, cluster)
+  }
+  const agreedCluster = [...clusters.values()]
+    .filter((cluster) => new Set(cluster.map((item) => item.provider)).size >= 2)
+    .sort((a, b) => b.length - a.length)[0]
+  const agreed = (agreedCluster ?? []).map((item) => ({ provider: item.provider, modelId: item.modelId }))
+  if (agreed.length < 2) {
+    const headline =
+      input.passed.length === 0
+        ? 'تعذّر التحليل. لم ينجح أي نموذج في شرح حقائق Odoo ضمن فاحص الأرقام.'
+        : 'لا اتفاق. لم يتفق نموذجان على نفس الاستنتاج.'
     return {
-      agreed,
-      reply: [
-        'تعذّر التحليل. لم ينجح أي نموذج في شرح حقائق Odoo ضمن فاحص الأرقام.',
-        ...failureLines,
-        'حقائق Odoo 17 دون تحليل:',
-        input.odooReply,
-      ].join('\n'),
+      agreed: [],
+      reply: [headline, ...failureLines, 'حقائق Odoo 17 دون تحليل:', input.odooReply].join('\n'),
     }
   }
-  const blocks = input.passed.map((item) => `${attribution(item.provider, item.modelId)}\n${item.text}`)
+  const blocks = (agreedCluster ?? []).map((item) => `${attribution(item.provider, item.modelId)}\n${item.text}`)
   return {
     agreed,
     reply: [
@@ -137,10 +153,10 @@ function factsForModel(result: AskFeryalOdooAgentResult): unknown {
 
 function reviewAnswer(
   text: string,
-  allowed: ReadonlySet<string>,
+  facts: unknown,
   factsJson: string,
 ): { status: 'ok' | 'guard_rejected'; errorCode: string | null; offending: string[] } {
-  const numbers = guardAnswerNumbers(text, allowed)
+  const numbers = guardAnswerAgainstFacts(text, facts)
   if (!numbers.ok) {
     return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: numbers.offending }
   }
@@ -222,7 +238,6 @@ export async function runFeryalCouncil(
 
   const facts = factsForModel(odoo)
   const factsJson = JSON.stringify(facts)
-  const allowed = collectAllowedDecimals(facts)
   const keys = options.keys ?? readCouncilKeys()
   const models = options.models ?? resolveCouncilModels()
   const userMessage = `Question:\n${question}\n\nOdoo facts JSON:\n${factsJson}`
@@ -246,7 +261,7 @@ export async function runFeryalCouncil(
   const drafts: AiRunDraft[] = []
 
   for (const call of calls) {
-    const review = call.status === 'ok' ? reviewAnswer(call.text, allowed, factsJson) : null
+    const review = call.status === 'ok' ? reviewAnswer(call.text, facts, factsJson) : null
     const participant = participantFrom(call, review)
     participants.push(participant)
     if (participant.status === 'ok') {
@@ -279,7 +294,7 @@ export async function runFeryalCouncil(
 
   return {
     reply: composed.reply,
-    status: passed.length === 0 ? 'council_failed' : 'answered',
+    status: composed.agreed.length >= 2 ? 'answered' : 'council_failed',
     participants,
     agreed: composed.agreed,
     executedQueries: odoo.executedQueries,

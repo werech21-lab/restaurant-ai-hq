@@ -17,7 +17,8 @@ import type {
   ReviewedBriefModel,
   StoredBriefReport,
 } from './brief-types'
-import { collectAllowedDecimals, extractCanonicalDecimals, guardAnswerNumbers } from './number-guard'
+import { claimKey, claimsContradict, normalizeClaim, type NormalizedClaim } from './claims'
+import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
 import { factForGuard, parseFactSource } from './source-links'
 
 const PROVIDERS: readonly BriefProvider[] = ['anthropic', 'google', 'xai']
@@ -71,8 +72,7 @@ function reviewText(text: string, factIds: readonly string[], byId: ReadonlyMap<
   }
   const citedJson = JSON.stringify(cited)
   if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(citedJson)) return { ok: false, code: 'GUARD' }
-  const allowed = collectAllowedDecimals(cited)
-  const guard = guardAnswerNumbers(text, allowed)
+  const guard = guardAnswerAgainstFacts(text, cited)
   if (!guard.ok) return { ok: false, code: 'GUARD' }
   const present = new Set(extractCanonicalDecimals(text))
   for (const fact of cited) {
@@ -84,7 +84,7 @@ function reviewText(text: string, factIds: readonly string[], byId: ReadonlyMap<
 function reviewAdvisory(text: string, facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
   const factsJson = JSON.stringify(facts)
   if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) return { ok: false, code: 'GUARD' }
-  const guard = guardAnswerNumbers(text, collectAllowedDecimals(facts))
+  const guard = guardAnswerAgainstFacts(text, facts)
   return guard.ok ? { ok: true } : { ok: false, code: 'GUARD' }
 }
 
@@ -209,14 +209,21 @@ export function assembleBriefReport(input: {
   models: readonly ReviewedBriefModel[]
 }): StoredBriefReport {
   const byId = new Map(input.facts.map((fact) => [fact.id, fact]))
-  const findingGroups = new Map<string, BriefFinding>()
+  const findingGroups = new Map<string, BriefFinding & { claim: NormalizedClaim }>()
   for (const model of input.models) {
     for (const item of model.findings) {
-      const key = factKey(item.factIds)
+      const factIds = [...item.factIds].sort()
+      const cited = factIds.flatMap((id) => {
+        const fact = byId.get(id)
+        return fact ? [fact] : []
+      })
+      const claim = normalizeClaim(item.text, cited)
+      const key = `${factKey(factIds)}#${claimKey(claim)}`
       const group = findingGroups.get(key) ?? {
-        factIds: [...item.factIds].sort(),
-        citations: citationsFor([...item.factIds].sort(), byId),
+        factIds,
+        citations: citationsFor(factIds, byId),
         notes: [],
+        claim,
       }
       group.notes.push({ provider: model.provider, modelId: model.modelId, text: item.text })
       findingGroups.set(key, group)
@@ -225,21 +232,32 @@ export function assembleBriefReport(input: {
 
   const findings: BriefFinding[] = []
   const unadoptedFindings: BriefUnadoptedFinding[] = []
+  const findingsByFacts = new Map<string, Array<BriefFinding & { claim: NormalizedClaim }>>()
   for (const group of findingGroups.values()) {
-    const supporters = new Set(group.notes.map((note) => note.provider))
-    if (supporters.size >= 2) {
-      findings.push(group)
-      continue
+    const bucket = findingsByFacts.get(factKey(group.factIds)) ?? []
+    bucket.push(group)
+    findingsByFacts.set(factKey(group.factIds), bucket)
+  }
+  for (const bucket of findingsByFacts.values()) {
+    const contradicted = bucket.some((left, index) =>
+      bucket.slice(index + 1).some((right) => claimsContradict(left.claim, right.claim)),
+    )
+    for (const group of bucket) {
+      const supporters = new Set(group.notes.map((note) => note.provider))
+      if (!contradicted && supporters.size >= 2) {
+        findings.push({ factIds: group.factIds, citations: group.citations, notes: group.notes })
+        continue
+      }
+      for (const note of group.notes) {
+        unadoptedFindings.push({
+          factIds: group.factIds,
+          citations: group.citations,
+          provider: note.provider,
+          modelId: note.modelId,
+          text: note.text,
+        })
+      }
     }
-    const only = group.notes[0]
-    if (!only) continue
-    unadoptedFindings.push({
-      factIds: group.factIds,
-      citations: group.citations,
-      provider: only.provider,
-      modelId: only.modelId,
-      text: only.text,
-    })
   }
 
   const advisory: BriefAdvisory[] = []
@@ -265,15 +283,21 @@ export function assembleBriefReport(input: {
     }
   }
 
-  type Side = { provider: BriefProvider; modelId: string; solution: string }
+  type Side = { provider: BriefProvider; modelId: string; solution: string; claim: NormalizedClaim }
   const recommendationGroups = new Map<string, { factIds: string[]; support: Side[]; dispute: Side[] }>()
   for (const model of input.models) {
     for (const item of model.recommendations) {
-      const key = factKey(item.factIds)
-      const group = recommendationGroups.get(key) ?? { factIds: [...item.factIds].sort(), support: [], dispute: [] }
+      const factIds = [...item.factIds].sort()
+      const cited = factIds.flatMap((id) => {
+        const fact = byId.get(id)
+        return fact ? [fact] : []
+      })
+      const claim = normalizeClaim(item.text, cited)
+      const key = factKey(factIds)
+      const group = recommendationGroups.get(key) ?? { factIds, support: [], dispute: [] }
       const side = item.stance === 'dispute' ? group.dispute : group.support
-      if (!side.some((entry) => entry.provider === model.provider)) {
-        side.push({ provider: model.provider, modelId: model.modelId, solution: item.text })
+      if (!side.some((entry) => entry.provider === model.provider && claimKey(entry.claim) === claimKey(claim))) {
+        side.push({ provider: model.provider, modelId: model.modelId, solution: item.text, claim })
       }
       recommendationGroups.set(key, group)
     }
@@ -282,25 +306,48 @@ export function assembleBriefReport(input: {
   const recommendations: BriefRecommendation[] = []
   const disputed: BriefDispute[] = []
   const dropped: BriefDropped[] = []
+  const asStored = (side: Side) => ({ provider: side.provider, modelId: side.modelId, solution: side.solution })
   for (const group of recommendationGroups.values()) {
     const citations = citationsFor(group.factIds, byId)
-    if (group.support.length >= 2 && group.dispute.length === 0) {
-      recommendations.push({ factIds: group.factIds, citations, supporters: group.support })
-      continue
+    const explicitDispute = group.dispute.length > 0
+    const supportClusters = new Map<string, Side[]>()
+    for (const side of group.support) {
+      const key = claimKey(side.claim)
+      const cluster = supportClusters.get(key) ?? []
+      cluster.push(side)
+      supportClusters.set(key, cluster)
     }
-    if (group.support.length >= 1 && group.dispute.length >= 1) {
-      disputed.push({ factIds: group.factIds, citations, support: group.support, dispute: group.dispute })
-      continue
-    }
-    if (group.support.length === 1 && group.dispute.length === 0) {
-      const only = group.support[0]
-      dropped.push({
+    const clusters = [...supportClusters.values()]
+    const contradicted =
+      explicitDispute ||
+      clusters.some((left, index) =>
+        clusters.slice(index + 1).some((right) => right[0] && left[0] && claimsContradict(left[0].claim, right[0].claim)),
+      )
+    if (contradicted) {
+      disputed.push({
         factIds: group.factIds,
         citations,
-        provider: only.provider,
-        modelId: only.modelId,
-        solution: only.solution,
+        support: (explicitDispute ? group.support : (clusters[0] ?? [])).map(asStored),
+        dispute: (explicitDispute ? group.dispute : clusters.slice(1).flat()).map(asStored),
       })
+      continue
+    }
+    for (const cluster of clusters) {
+      const providers = new Set(cluster.map((side) => side.provider))
+      if (providers.size >= 2) {
+        recommendations.push({ factIds: group.factIds, citations, supporters: cluster.map(asStored) })
+        continue
+      }
+      if (cluster.length === 1) {
+        const only = cluster[0]
+        dropped.push({
+          factIds: group.factIds,
+          citations,
+          provider: only.provider,
+          modelId: only.modelId,
+          solution: only.solution,
+        })
+      }
     }
   }
 
