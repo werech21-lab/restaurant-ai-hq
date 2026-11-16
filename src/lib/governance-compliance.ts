@@ -96,38 +96,45 @@ export function verifyManagerPin(candidatePin: string): boolean {
   return hashManagerPin(candidatePin.trim()) === storedHash
 }
 
-export function changeManagerPin(
+export async function changeManagerPin(
   currentPin: string,
   newPin: string,
-): { ok: boolean; errorAr?: string; errorEn?: string } {
-  if (!verifyManagerPin(currentPin)) {
+): Promise<{ ok: boolean; errorAr?: string; errorEn?: string }> {
+  const currentClean = currentPin.trim()
+  const trimmedNext = newPin.trim()
+  if (!/^\d{4}$/.test(currentClean) || !/^\d{4}$/.test(trimmedNext)) {
     return {
       ok: false,
-      errorAr: 'رمز المدير الحالي غير صحيح',
-      errorEn: 'Current Manager PIN is incorrect',
+      errorAr: 'يجب أن يتكون الرمز من ٤ أرقام',
+      errorEn: 'PIN must be exactly 4 digits',
     }
   }
-  const trimmedNext = newPin.trim()
-  if (!/^\d{4}$/.test(trimmedNext)) {
-    return {
-      ok: false,
-      errorAr: 'يجب أن يتكون الرمز الجديد من ٤ أرقام',
-      errorEn: 'New PIN must be exactly 4 digits',
-    }
+  if (typeof window === 'undefined') {
+    return { ok: false, errorAr: 'تعذر حفظ الرمز', errorEn: 'Could not persist the PIN' }
   }
   try {
-    const nextHash = hashManagerPin(trimmedNext)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(MANAGER_PIN_HASH_KEY, nextHash)
-      emitGovernanceSync()
-      void pushGovernancePatchToServer({ action: 'updatePinHash', pinHash: nextHash })
+    const res = await fetch('/api/erp/governance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'changePin', currentPin: currentClean, newPin: trimmedNext }),
+      cache: 'no-store',
+    })
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; valid?: boolean }
+    if (!res.ok || !json.ok || json.valid === false) {
+      return {
+        ok: false,
+        errorAr: 'رمز المدير الحالي غير صحيح',
+        errorEn: 'Current Manager PIN is incorrect',
+      }
     }
+    window.localStorage.setItem(MANAGER_PIN_HASH_KEY, hashManagerPin(trimmedNext))
+    emitGovernanceSync()
     return { ok: true }
   } catch {
     return {
       ok: false,
-      errorAr: 'تعذر حفظ الرمز الجديد في المتصفح',
-      errorEn: 'Could not persist new PIN in browser storage',
+      errorAr: 'تعذر حفظ الرمز الجديد',
+      errorEn: 'Could not persist the new PIN',
     }
   }
 }
@@ -786,18 +793,16 @@ export async function pushGovernanceStoreToServer(
 ): Promise<PersistedGovernanceStore | null> {
   if (typeof window === 'undefined' || isReadOnlyAuditorDom()) return null
   try {
-    const pinHash = ensureManagerPinInitialized()
     const res = await fetch('/api/erp/governance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ store, pinHash }),
+      body: JSON.stringify({ store }),
       cache: 'no-store',
     })
     if (!res.ok) return null
     const json = (await res.json()) as {
       ok?: boolean
       store?: PersistedGovernanceStore
-      pinHash?: string
     }
     if (json?.ok && json.store) {
       const currentLocal = loadGovernanceStore()

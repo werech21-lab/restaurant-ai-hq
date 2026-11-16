@@ -21,6 +21,7 @@ import {
   type ExecApproverRole,
 } from '@/lib/auth/exec-role-meta'
 import { prisma } from '@/lib/db'
+import { keepStoredPinHash, pinHashForSettingsSave } from '@/lib/governance-pin'
 import { sslOptions } from '@/lib/db-ssl'
 import { APPROVED_BRANCH_IDS, type GlobalBranch } from '@/lib/aether/global-filter-engine'
 import {
@@ -182,10 +183,7 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
         const row = res.rows[0]
         const env: ServerGovernanceEnvelope = {
           store: normalizeGovernanceStore(row.payload),
-          pinHash:
-            typeof row.pin_hash === 'string' && row.pin_hash.startsWith('vfh1_')
-              ? row.pin_hash
-              : DEFAULT_MASTER_PIN_HASH,
+          pinHash: keepStoredPinHash(row.pin_hash, DEFAULT_MASTER_PIN_HASH),
           initialEmpty: false,
           updatedAtIso:
             row.updated_at instanceof Date
@@ -221,10 +219,7 @@ async function loadEnvelopeFromDatabase(): Promise<ServerGovernanceEnvelope> {
         const r = rows[0]
         const env: ServerGovernanceEnvelope = {
           store: normalizeGovernanceStore(JSON.parse(r.payload)),
-          pinHash:
-            typeof r.pin_hash === 'string' && r.pin_hash.startsWith('vfh1_')
-              ? r.pin_hash
-              : DEFAULT_MASTER_PIN_HASH,
+          pinHash: keepStoredPinHash(r.pin_hash, DEFAULT_MASTER_PIN_HASH),
           initialEmpty: false,
           updatedAtIso: r.updated_at || new Date().toISOString(),
           backend: 'prisma',
@@ -773,13 +768,7 @@ export async function POST(request: NextRequest) {
       auditLog: current.store.auditLog ?? [],
       liveBreaches,
     }
-    const nextPinHash =
-      typeof body?.pinHash === 'string' &&
-      (body.pinHash.startsWith('vfh1_') || body.pinHash.startsWith('vfsha256_'))
-        ? body.pinHash
-        : current.pinHash
-
-    const saved = await saveEnvelopeToDatabase(finalStore, nextPinHash)
+    const saved = await saveEnvelopeToDatabase(finalStore, pinHashForSettingsSave(current.pinHash))
     return NextResponse.json(
       {
         ok: true,
@@ -904,12 +893,8 @@ export async function PATCH(request: NextRequest) {
         }
         break
       }
-      case 'updatePinHash': {
-        if (typeof body.pinHash === 'string' && body.pinHash.startsWith('vfh1_')) {
-          nextPinHash = body.pinHash
-        }
+      case 'updatePinHash':
         break
-      }
       case 'upsertApproval': {
         if (body.approval?.refKey) {
           const idx = nextStore.approvals.findIndex((a) => a.refKey === body.approval?.refKey)
