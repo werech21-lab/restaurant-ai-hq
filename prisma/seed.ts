@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { paymentStatus, round2 } from "../src/lib/format";
 import { MODULES as MODULE_DEFS } from "../src/lib/modules";
 import { AETHER_ADMIN_PASSWORD, VF_TEAM } from "../src/lib/venture-foods-team";
+import { demoCatalogSeedAllowed } from "../src/lib/demo-catalog";
 import { clearEnterprise, seedEnterprise } from "./bootstrap";
 
 const prisma = new PrismaClient();
@@ -28,6 +29,8 @@ function permissionsFor(full: boolean, write: string[], viewOnly: string[] = [])
 async function main() {
     await prisma.$transaction(async (tx) => {
     await clearEnterprise(tx);
+    const seedDemoCatalog = demoCatalogSeedAllowed();
+    if (seedDemoCatalog) {
     await tx.paymentTransaction.deleteMany();
     await tx.activityLog.deleteMany();
     await tx.salesInvoiceItem.deleteMany();
@@ -40,6 +43,7 @@ async function main() {
     await tx.category.deleteMany();
     await tx.customer.deleteMany();
     await tx.supplier.deleteMany();
+    }
 
     // Existing accounts stay as they are. A password hash is written only when the user table is empty.
     const keptUsers = await tx.user.findMany({ select: { id: true, email: true, roleId: true } });
@@ -96,6 +100,7 @@ async function main() {
     }
     }
 
+    if (seedDemoCatalog) {
     const categoryInput = [
       { key: "elec", name: "معدات مطابخ", description: "أجهزة تحضير وطهي لفروع المطاعم" },
       { key: "office", name: "تغليف وتقديم", description: "عبوات، أكواب، ومستلزمات الخدمة" },
@@ -411,6 +416,7 @@ async function main() {
         { code: "FD-3003", quantity: 5, unitPrice: 13 },
       ],
     });
+    }
     await seedEnterprise(tx, adminId);
   }, { timeout: 60000 });
 

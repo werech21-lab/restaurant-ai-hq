@@ -20,12 +20,12 @@ type Item = {
   docLabelEn: string
   expiryDate: string | null
   daysLeft: number | null
-  band: 'expired' | 'd30' | 'd60' | 'valid' | 'missing'
+  band: 'expired' | 'd30' | 'd60' | 'valid' | 'missing' | 'unknown'
 }
 
 type Radar = {
   totals: Record<string, number>
-  groups: { expired: Item[]; d30: Item[]; d60: Item[]; valid: Item[]; missing: Item[] }
+  groups: { expired: Item[]; d30: Item[]; d60: Item[]; valid: Item[]; missing: Item[]; unknown?: Item[] }
   renewalDispatch: {
     body: string
     recipients: Array<{ name: string; mobile: string; email: string; whatsapp: string; mailto: string }>
@@ -59,6 +59,7 @@ function badgeClass(band: Item['band']) {
 }
 
 function daysLabel(item: Item | undefined, locale: 'ar' | 'en') {
+  if (item?.band === 'unknown') return locale === 'en' ? 'Unknown' : 'غير معروف'
   if (!item || item.daysLeft == null) return locale === 'en' ? 'Missing' : 'غير مسجّل'
   if (item.daysLeft < 0) {
     return locale === 'en' ? `Expired ${Math.abs(item.daysLeft)}d` : `منتهي منذ ${Math.abs(item.daysLeft)} يوم`
@@ -83,7 +84,7 @@ export function ComplianceRadarClient({ initial, locale }: { initial: Radar; loc
   const [q, setQ] = useState('')
 
   const allItems = useMemo(
-    () => [...initial.groups.expired, ...initial.groups.d30, ...initial.groups.d60, ...initial.groups.valid, ...initial.groups.missing],
+    () => [...initial.groups.expired, ...initial.groups.d30, ...initial.groups.d60, ...initial.groups.valid, ...initial.groups.missing, ...(initial.groups.unknown ?? [])],
     [initial.groups],
   )
 

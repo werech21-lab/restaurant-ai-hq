@@ -10,6 +10,7 @@ import { datetimeFor, getLocale, moneyFor, monthFor, tx } from "@/lib/i18n/serve
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { DEMO_CUSTOMER_EMAILS, DEMO_PRODUCT_CODES, DEMO_SUPPLIER_EMAILS, demoCatalogReadsHidden } from "@/lib/demo-catalog";
 import { costOfGoods, inventoryValuation, salesSummary } from "@/lib/reports";
 import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
@@ -145,7 +146,10 @@ async function StockReport({
 
   if (warehouseIds.length) {
     const stocks = await prisma.warehouseStock.findMany({
-      where: { warehouseId: { in: warehouseIds } },
+      where: {
+        warehouseId: { in: warehouseIds },
+        ...(demoCatalogReadsHidden() ? { product: { code: { notIn: [...DEMO_PRODUCT_CODES] } } } : {}),
+      },
       include: { product: { select: { id: true, code: true, name: true, costPrice: true, sellingPrice: true } } },
     });
     const merged = new Map<string, (typeof rows)[number]>();
@@ -172,7 +176,10 @@ async function StockReport({
     total = rows.length;
     rows = rows.slice(skip, skip + PAGE_SIZE);
   } else {
-    const where = q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {};
+    const where = {
+      ...(demoCatalogReadsHidden() ? { code: { notIn: [...DEMO_PRODUCT_CODES] } } : {}),
+      ...(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}),
+    };
     const [count, productRows] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
@@ -275,11 +282,14 @@ async function DebtReport({
   page: number;
   skip: number;
 }) {
+  const isCustomer = kind === "customers";
   const where = {
     balance: { gt: 0 },
+    ...(demoCatalogReadsHidden()
+      ? { email: { notIn: [...(isCustomer ? DEMO_CUSTOMER_EMAILS : DEMO_SUPPLIER_EMAILS)] } }
+      : {}),
     ...(q ? { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } : {}),
   };
-  const isCustomer = kind === "customers";
   const [totalSum, total, rows] = isCustomer
     ? await Promise.all([
         prisma.customer.aggregate({ where, _sum: { balance: true } }),

@@ -4,6 +4,7 @@ import { WarehouseForms } from "@/app/(panel)/warehouses/warehouse-forms";
 import { requireUser } from "@/lib/erp-auth";
 import { DisabledModule, Forbidden, PageSkeleton, PaginationBar } from "@/components/erp-ui";
 import { prisma } from "@/lib/db";
+import { DEMO_PRODUCT_CODES, demoCatalogReadsHidden } from "@/lib/demo-catalog";
 import { formatQty } from "@/lib/format";
 import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
 import { isModuleEnabled } from "@/lib/modules-db";
@@ -49,6 +50,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
     selected ? warehouseStock(selected) : Promise.resolve([]),
     listTransfers((query.page - 1) * PAGE_SIZE, PAGE_SIZE),
     prisma.product.findMany({
+      where: demoCatalogReadsHidden() ? { code: { notIn: [...DEMO_PRODUCT_CODES] } } : {},
       orderBy: { name: "asc" },
       select: { id: true, name: true, code: true },
       take: 500,

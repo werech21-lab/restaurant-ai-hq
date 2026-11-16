@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { round3 } from "@/lib/format";
 import { runTx, txError } from "@/lib/tx";
 import { fail, ok } from "@/lib/types";
+import { DEMO_PRODUCT_CODES, demoCatalogReadsHidden } from "@/lib/demo-catalog";
 import { adjustWarehouseStock, warehouseQuantity } from "@/services/warehouse.engine";
 
 const DECOMMISSIONED_SITE_RE = new RegExp(
@@ -42,11 +43,14 @@ export async function warehouseStock(warehouseId: string) {
   ) {
     return [];
   }
-  return prisma.warehouseStock.findMany({
+  const rows = await prisma.warehouseStock.findMany({
     where: { warehouseId },
     include: { product: { select: { name: true, code: true, currentStock: true } } },
     orderBy: { product: { name: "asc" } },
   });
+  if (!demoCatalogReadsHidden()) return rows;
+  const hidden = new Set<string>(DEMO_PRODUCT_CODES);
+  return rows.filter((row) => !hidden.has(row.product.code));
 }
 
 export async function listTransfers(skip: number, take: number) {

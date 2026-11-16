@@ -76,6 +76,8 @@ export const baselineSentinels = {
   '0045_odoo_hot_cold_indexes.sql': ['fn:erp_odoo_hot_cold_indexes_marker()'],
   '0046_notification_smtp_server_dispatch.sql': ['fn:erp_notification_smtp_dispatch_marker()'],
   '0047_ai_runs.sql': ['public.ai_runs', 'public.ai_daily_briefs', 'fn:erp_ai_runs_marker()'],
+  '0048_deactivate_non_company_items.sql': ['fn:erp_deactivate_non_company_items_marker()'],
+  '0049_flag_unsourced_hr_expiries.sql': ['fn:erp_flag_unsourced_hr_expiries_marker()'],
 }
 
 /**

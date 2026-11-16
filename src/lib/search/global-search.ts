@@ -1,3 +1,4 @@
+import { nonCompanyItemSql } from '@/lib/odoo/non-company-products'
 import type { Queryable } from '@/lib/pg'
 import { erpSectors } from '@/lib/erp-sectors'
 import { ventureBrands } from '@/modules/governance/client'
@@ -70,9 +71,11 @@ export async function globalSearch(tx: Queryable, tenantId: string, rawQuery: st
     hits.push({ id: row.id, kind: 'branch', title: row.name, subtitle: row.code, href: `/erp/org` })
   }
 
+  const itemParams: unknown[] = [tenantId, pattern]
+  const itemHide = nonCompanyItemSql('sku', 'name', itemParams)
   const items = await tx.query<{ id: string; name: string; sku: string }>(
-    `select id, name, sku from items where tenant_id = $1 and is_active = true and (name ilike $2 or sku ilike $2) order by name limit 10`,
-    [tenantId, pattern],
+    `select id, name, sku from items where tenant_id = $1 and is_active = true and (name ilike $2 or sku ilike $2)${itemHide} order by name limit 10`,
+    itemParams,
   )
   for (const row of items.rows) {
     hits.push({ id: row.id, kind: 'item', title: row.name, subtitle: row.sku, href: `/erp/inventory?tab=catalog&item=${row.id}` })
