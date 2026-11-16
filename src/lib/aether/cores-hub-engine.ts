@@ -8,6 +8,7 @@
  */
 
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
   APPROVED_BRANCH_IDS,
@@ -830,6 +831,7 @@ export function computeCoresHubSnapshot(
 
   // 6. Live Menu Products from `pos.order.line` (no invented BOM recipes)
   const rawProducts = (liveCube?.topProducts ?? []).filter((p) => {
+    if (isExcludedOdooEntity(p.name)) return false
     if (!p.brandId || !APPROVED_BRAND_IDS.includes(p.brandId)) return false
     if (filters.brand !== 'all' && p.brandId !== filters.brand) return false
     return p.netKwd > 0 && p.qty > 0

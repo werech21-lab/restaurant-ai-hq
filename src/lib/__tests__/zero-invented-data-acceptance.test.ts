@@ -559,6 +559,9 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       expect(isExcludedOdooEntity('Al-Qurain Kitchen')).toBe(true)
       expect(isExcludedOdooEntity('هايزن بريج')).toBe(true)
       expect(isExcludedOdooEntity('Heisenberg')).toBe(true)
+      expect(isExcludedOdooEntity('هايزنبرغ')).toBe(true)
+      expect(isExcludedOdooEntity('الجهراء')).toBe(true)
+      expect(isExcludedOdooEntity('Jahra')).toBe(true)
       expect(isExcludedOdooEntity('Promenade')).toBe(false)
       expect(isExcludedOdooEntity('مول 360')).toBe(false)
 

@@ -45,6 +45,7 @@ import {
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
   isExcludedOdooEntity,
+  isExcludedRecordId,
   sliceDailySeriesToPeriod,
 } from '@/lib/aether/period-delta'
 
@@ -1053,6 +1054,7 @@ export function buildLedgerAccountingFromGroups(params: {
   let depreciation = 0
   let accrualSignalTotal = 0
   let lineCount = 0
+  const revenueAccounts: NonNullable<OdooLedgerAccountingSummary['revenueAccounts']> = []
 
   for (const r of rows) {
     const accId = m2oId(r.account_id)
@@ -1062,10 +1064,18 @@ export function buildLedgerAccountingFromGroups(params: {
     const bal = Number(r.balance) || 0
     const cnt = Math.max(0, Number(r.__count) || 0)
     lineCount += cnt
-    if (acc.account_type === 'income') {
-      income += -bal
-    } else if (acc.account_type === 'income_other') {
-      otherIncome += -bal
+    if (acc.account_type === 'income' || acc.account_type === 'income_other') {
+      const amount = r3(-bal)
+      if (acc.account_type === 'income') income += -bal
+      else otherIncome += -bal
+      if (amount !== 0) {
+        revenueAccounts.push({
+          code: acc.code,
+          name: acc.name,
+          accountType: acc.account_type,
+          amountKwd: amount,
+        })
+      }
     } else if (acc.account_type === 'expense_direct_cost') {
       cogs += bal
     } else if (acc.account_type === 'expense') {
@@ -1109,6 +1119,7 @@ export function buildLedgerAccountingFromGroups(params: {
     to: toInclusiveIso,
     sourceModel: 'account.move.line',
     lineCount,
+    revenueAccounts: revenueAccounts.sort((a, b) => Math.abs(b.amountKwd) - Math.abs(a.amountKwd)),
     income: cleanIncome,
     otherIncome: cleanOtherIncome,
     totalRevenue,
@@ -1633,8 +1644,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   for (const c of posCategories) {
     const root = resolveRootCat(c.id)
     if (
-      c.id === 150 ||
-      root?.id === 150 ||
+      isExcludedRecordId('pos_category', c.id) ||
+      isExcludedRecordId('pos_category', root?.id) ||
       isExcludedOdooEntity(c.name) ||
       isExcludedOdooEntity(root?.name)
     ) {
@@ -3741,7 +3752,7 @@ export async function fetchLiveOdooPeriodCube(
 
   const cacheKey = `${dateRange.from}..${dateRange.to}`
   const cached = periodCubeCache.get(cacheKey)
-  if (cached && referenceNowMs - cached.fetchedAtMs < LIVE_SNAPSHOT_TTL_MS) {
+  if (cached && referenceNowMs - cached.fetchedAtMs < 5 * 60_000) {
     return cached.cube
   }
 
@@ -3881,8 +3892,8 @@ export async function fetchLiveOdooPeriodCube(
     for (const c of posCategories) {
       const root = resolveRootCat(c.id)
       if (
-        c.id === 150 ||
-        root?.id === 150 ||
+        isExcludedRecordId('pos_category', c.id) ||
+        isExcludedRecordId('pos_category', root?.id) ||
         isExcludedOdooEntity(c.name) ||
         isExcludedOdooEntity(root?.name)
       ) {
@@ -4437,6 +4448,7 @@ export async function fetchLiveOdooPeriodCube(
 
       const net = Math.max(0, Number(lRow.price_subtotal) || 0)
       const qty = Math.max(0, Number(lRow.qty) || 0)
+      if (net <= 0 && qty <= 0) continue
       const cnt = Math.max(0, Math.round(Number(lRow.__count) || 0))
       const avgDisc = Math.max(0, Number(lRow.discount) || 0)
       const discMeta = discountByProductId.get(pid)
@@ -4752,7 +4764,7 @@ export async function fetchLiveOdooWarehouseChain(
 
   const cacheKey = `${dateRange.from}..${dateRange.to}`
   const cached = warehouseChainCache.get(cacheKey)
-  if (cached && referenceNowMs - cached.fetchedAtMs < LIVE_SNAPSHOT_TTL_MS) {
+  if (cached && referenceNowMs - cached.fetchedAtMs < 5 * 60_000) {
     return cached.payload
   }
 
@@ -4839,8 +4851,8 @@ export async function fetchLiveOdooWarehouseChain(
         if (cur) root = { id: cur.id, name: cur.name }
       }
       if (
-        c.id === 150 ||
-        root.id === 150 ||
+        isExcludedRecordId('pos_category', c.id) ||
+        isExcludedRecordId('pos_category', root.id) ||
         isExcludedOdooEntity(c.name) ||
         isExcludedOdooEntity(root.name)
       ) {
