@@ -12,10 +12,18 @@ import {
   X,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import {
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
+import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
   formatPeriodCalendarWindow,
@@ -27,6 +35,7 @@ import {
   type GlobalBranch,
   type GlobalBrand,
 } from '@/lib/aether/global-filter-engine'
+import { isBrokenOrEmptyCampaignName } from '@/lib/aether/period-delta'
 import { shiftIsoDate } from '@/lib/erp-comparison-engine'
 import {
   REAL_SOCIAL_CAMPAIGNS_STORAGE_KEY,
@@ -56,27 +65,19 @@ export type CoreTabId = 'marketing' | 'sales' | 'menu'
 type MenuSortKey = 'sales' | 'units' | 'discount'
 type MenuPageSize = 12 | 25 | 'all'
 
-const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-const f1 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
-const f2 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-const f3 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })
+const f0 = (n: number | null | undefined, locale: FormatLocale = 'en') =>
+  formatInt(n, locale)
+const f1Pct = (n: number | null | undefined, locale: FormatLocale = 'en') =>
+  formatPct(n, { locale, decimals: 1 })
+const f2Pct = (n: number | null | undefined, locale: FormatLocale = 'en') =>
+  formatPct(n, { locale, decimals: 2 })
+const f3 = (n: number | null | undefined, locale: FormatLocale = 'en') =>
+  formatKwd(n, { locale, showUnit: false, decimals: 3 })
 
 const CARD_CLS =
   'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CARD_CLS =
-  'rounded-2xl bg-white p-4 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/10'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -104,7 +105,7 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               active
                 ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
@@ -125,7 +126,9 @@ export function CoresHubStudio({
   initialTab?: CoreTabId
 } = {}) {
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const resolvedLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
+  const isAr = resolvedLocale === 'ar'
+  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const { filters, workspace, liveSummary } = useGlobalFilter()
 
   const [activeTab, setActiveTab] = useState<CoreTabId>(initialTab)
@@ -134,6 +137,8 @@ export function CoresHubStudio({
   const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(null)
   const [cubeLoading, setCubeLoading] = useState(false)
   const [cubeTimedOut, setCubeTimedOut] = useState(false)
+  const [cubeError, setCubeError] = useState(false)
+  const [cubeRetryTick, setCubeRetryTick] = useState(0)
 
   // Manual campaign form state (strictly 6 approved brands)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -211,21 +216,41 @@ export function CoresHubStudio({
     }
   }, [filters.branch, editingId])
 
+  useEffect(() => {
+    if (!isAdFormOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsAdFormOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isAdFormOpen])
+
   // Fetch period-accurate OdooPeriodCube (`pos.order.line`, `pos.order`, `pos.payment`)
   useEffect(() => {
+    if (!workspace.odooConnected || workspace.noData) {
+      setLiveCube(null)
+      setCubeError(false)
+      setCubeTimedOut(false)
+      setCubeLoading(false)
+      return
+    }
     let cancelled = false
     const fromIso = periodWin.fromIso
     const toIso = periodWin.toInclusiveIso
     if (!fromIso || !toIso) return
     setCubeLoading(true)
     setCubeTimedOut(false)
+    setCubeError(false)
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 20_000)
     fetch(
       `/api/erp/live-comparison?dateA=${encodeURIComponent(fromIso)}&toA=${encodeURIComponent(toIso)}&dateB=${encodeURIComponent(fromIso)}&toB=${encodeURIComponent(toIso)}`,
       { cache: 'no-store', signal: controller.signal },
     )
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error('HTTP_ERROR')
+        return r.json()
+      })
       .then((data) => {
         if (cancelled) return
         if (data?.cubeA) {
@@ -237,7 +262,9 @@ export function CoresHubStudio({
       .catch((error: unknown) => {
         if (cancelled) return
         setLiveCube(null)
-        setCubeTimedOut(error instanceof DOMException && error.name === 'AbortError')
+        const timedOut = error instanceof DOMException && error.name === 'AbortError'
+        setCubeTimedOut(timedOut)
+        if (!timedOut) setCubeError(true)
       })
       .finally(() => {
         window.clearTimeout(timeout)
@@ -248,7 +275,13 @@ export function CoresHubStudio({
       window.clearTimeout(timeout)
       controller.abort()
     }
-  }, [periodWin.fromIso, periodWin.toInclusiveIso])
+  }, [
+    periodWin.fromIso,
+    periodWin.toInclusiveIso,
+    workspace.odooConnected,
+    workspace.noData,
+    cubeRetryTick,
+  ])
 
   const persistCampaigns = useCallback((next: SocialCampaign[]) => {
     const clean = sanitizeRealCampaigns(next)
@@ -383,16 +416,16 @@ export function CoresHubStudio({
         lines: [
           {
             label: isAr ? 'صافي مبيعات POS' : 'POS Net Sales',
-            value: `${f1(pt.salesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
+            value: formatChartKwdTooltip(pt.salesKwd, resolvedLocale),
             bold: true,
           },
           {
             label: isAr ? 'الطلبات' : 'Orders',
-            value: f0(pt.orders),
+            value: f0(pt.orders, resolvedLocale),
           },
         ],
       })),
-    [snapshot.sales.timeline, isAr],
+    [snapshot.sales.timeline, isAr, resolvedLocale],
   )
 
   const hourlyBars: MultiSeriesBarDatum[] = useMemo(
@@ -406,16 +439,16 @@ export function CoresHubStudio({
         lines: [
           {
             label: isAr ? 'صافي المبيعات' : 'Net Sales',
-            value: `${f1(pt.salesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
+            value: formatChartKwdTooltip(pt.salesKwd, resolvedLocale),
             bold: true,
           },
           {
             label: isAr ? 'الطلبات' : 'Orders',
-            value: f0(pt.orders),
+            value: f0(pt.orders, resolvedLocale),
           },
         ],
       })),
-    [snapshot.sales.hourly, isAr],
+    [snapshot.sales.hourly, isAr, resolvedLocale],
   )
 
   const brandDonut: DonutSliceDatum[] = useMemo(
@@ -426,11 +459,11 @@ export function CoresHubStudio({
           id: b.id,
           label: isAr ? b.labelAr : b.labelEn,
           value: b.salesKwd,
-          valueFormatted: `${f1(b.salesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
-          pctFormatted: `${f1(b.sharePct)}%`,
+          valueFormatted: formatKwd(b.salesKwd, { locale: resolvedLocale }),
+          pctFormatted: f1Pct(b.sharePct, resolvedLocale),
           color: b.color ?? '#10B981',
         })),
-    [snapshot.sales.brandShare, isAr],
+    [snapshot.sales.brandShare, isAr, resolvedLocale],
   )
 
   const channelRanks: HorizontalRankDatum[] = useMemo(
@@ -439,40 +472,42 @@ export function CoresHubStudio({
         id: c.id,
         label: isAr ? c.labelAr : c.labelEn,
         value: c.salesKwd,
-        valueFormatted: `${f1(c.salesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
-        subLabel: `${f0(c.orders)} ${isAr ? 'طلب' : 'orders'} · ${f1(c.sharePct)}%`,
+        valueFormatted: formatKwd(c.salesKwd, { locale: resolvedLocale }),
+        subLabel: `${f0(c.orders, resolvedLocale)} ${isAr ? 'طلب' : 'orders'} · ${f1Pct(c.sharePct, resolvedLocale)}`,
         color: c.color ?? '#10B981',
         lines: [
           {
             label: isAr ? 'صافي المبيعات' : 'Net Sales',
-            value: `${f3(c.salesKwd)} ${isAr ? 'د.ك' : 'KWD'}`,
+            value: formatKwd(c.salesKwd, { locale: resolvedLocale }),
             bold: true,
           },
           {
             label: isAr ? 'الطلبات' : 'Orders',
-            value: f0(c.orders),
+            value: f0(c.orders, resolvedLocale),
           },
           {
             label: isAr ? 'الحصة' : 'Share',
-            value: `${f1(c.sharePct)}%`,
+            value: f1Pct(c.sharePct, resolvedLocale),
           },
         ],
       })),
-    [snapshot.sales.channelRanking, isAr],
+    [snapshot.sales.channelRanking, isAr, resolvedLocale],
   )
 
-  const noOdooData = !workspace.odooConnected || workspace.noData || snapshot.noData
+  const isInitialLoading = liveSummary === null
+  const noOdooData =
+    liveSummary !== null && (!workspace.odooConnected || workspace.noData || snapshot.noData)
 
   return (
     <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header & Core Tabs */}
       <div className={`${CARD_CLS} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
             {isAr
               ? 'نواة المبيعات والقنوات والمينيو والتسويق'
               : 'Sales, Channels, Menu & Marketing Core'}
-          </h1>
+          </h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {isAr
               ? `الفترة المختارة: ${getPeriodLabel(filters.period, true)} (${dateRangeLabel})`
@@ -506,53 +541,70 @@ export function CoresHubStudio({
 
       <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
 
+      {/* Initial loading skeleton before liveSummary resolves */}
+      {isInitialLoading ? (
+        <StateBlock state="loading" locale={resolvedLocale} skeletonRows={4} />
+      ) : null}
+
       {/* Disconnected / Empty Odoo state — zero invented numbers */}
       {noOdooData ? (
-        <div className="rounded-2xl border border-amber-300/70 bg-amber-50/70 p-8 text-center dark:border-amber-500/30 dark:bg-amber-950/20">
-          <div className="text-base font-bold text-amber-950 dark:text-amber-200">
-            {isAr
-              ? 'لا توجد بيانات من Odoo لهذه الفترة'
-              : 'No data from Odoo for this period'}
-          </div>
-          <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-300/90">
-            {workspace.noDataMessageAr ||
-              (isAr
-                ? 'تعذّر جلب سجلات نقاط البيع الفعليّة للفترة المحددة أو لا توجد حركات مسجّلة في Odoo.'
-                : 'Could not retrieve POS records for the selected window or zero movements exist in Odoo.')}
-          </p>
-        </div>
+        <StateBlock
+          state="empty"
+          locale={resolvedLocale}
+          title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No data from Odoo for this period'}
+          description={
+            isAr
+              ? workspace.noDataMessageAr ||
+                'تعذّر جلب سجلات نقاط البيع الفعليّة للفترة المحددة أو لا توجد حركات مسجّلة في Odoo.'
+              : 'Could not retrieve POS records for the selected window or zero movements exist in Odoo.'
+          }
+        />
       ) : null}
 
       {/* =================================================================== */}
       {/* TAB 1: SALES & CHANNELS                                             */}
       {/* =================================================================== */}
-      {!noOdooData && activeTab === 'sales' ? (
+      {!isInitialLoading && !noOdooData && activeTab === 'sales' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className={KPI_CARD_CLS}>
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'إجمالي صافي المبيعات' : 'Total Net Sales'}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {liveCube
-                  ? `${f3(liveCube.totals.netSalesKwd)} `
-                  : workspace.nullableSalesKwd === null
-                    ? isAr
-                      ? 'غير متاح'
-                      : '—'
-                    : `${f3(workspace.nullableSalesKwd)} `}
-                {liveCube || workspace.nullableSalesKwd !== null ? (
-                  <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
-                ) : null}
+              <div
+                dir="ltr"
+                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+              >
+                {liveCube ? (
+                  <>
+                    {f3(liveCube.totals.netSalesKwd, resolvedLocale)}{' '}
+                    <span className="text-xs font-normal text-slate-500">
+                      {isAr ? 'د.ك' : 'KWD'}
+                    </span>
+                  </>
+                ) : workspace.nullableSalesKwd === null ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : (
+                  <>
+                    {f3(workspace.nullableSalesKwd, resolvedLocale)}{' '}
+                    <span className="text-xs font-normal text-slate-500">
+                      {isAr ? 'د.ك' : 'KWD'}
+                    </span>
+                  </>
+                )}
               </div>
-              <div className="mt-1 text-[11px] text-slate-500">
+              <div className="mt-1 text-xs text-slate-500 tabular-nums">
                 {liveCube
-                  ? `${f0(liveCube.totals.orders)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
+                  ? `${f0(liveCube.totals.orders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
                   : workspace.nullableOrders === null
-                    ? isAr
-                      ? 'غير متاح'
-                      : '—'
-                    : `${f0(workspace.nullableOrders)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`}
+                    ? (
+                        <span data-unavailable="true" title={unavailableTip}>
+                          {isAr ? 'غير متاح' : '—'}
+                        </span>
+                      )
+                    : `${f0(workspace.nullableOrders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -568,19 +620,31 @@ export function CoresHubStudio({
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'متوسط الفاتورة (AOV)' : 'Average Order Value'}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {liveCube
-                  ? `${f3(liveCube.totals.aovKwd)} `
-                  : workspace.nullableAovKwd === null
-                    ? isAr
-                      ? 'غير متاح'
-                      : '—'
-                    : `${f3(workspace.nullableAovKwd)} `}
-                {liveCube || workspace.nullableAovKwd !== null ? (
-                  <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
-                ) : null}
+              <div
+                dir="ltr"
+                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+              >
+                {liveCube ? (
+                  <>
+                    {f3(liveCube.totals.aovKwd, resolvedLocale)}{' '}
+                    <span className="text-xs font-normal text-slate-500">
+                      {isAr ? 'د.ك' : 'KWD'}
+                    </span>
+                  </>
+                ) : workspace.nullableAovKwd === null ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : (
+                  <>
+                    {f3(workspace.nullableAovKwd, resolvedLocale)}{' '}
+                    <span className="text-xs font-normal text-slate-500">
+                      {isAr ? 'د.ك' : 'KWD'}
+                    </span>
+                  </>
+                )}
               </div>
-              <div className="mt-1 text-[11px] text-slate-500">
+              <div className="mt-1 text-xs text-slate-500">
                 {isAr ? 'صافي المبيعات ÷ عدد الطلبات' : 'Net sales ÷ orders'}
               </div>
               <KpiProvenanceBadge
@@ -597,19 +661,24 @@ export function CoresHubStudio({
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'القنوات المباشرة مقابل التطبيقات' : 'Direct vs Aggregators'}
               </div>
-              {snapshot.sales.channelsUnavailable ? (
-                <div className="mt-1.5 font-mono text-lg font-bold text-slate-700 dark:text-slate-200">
+              {snapshot.sales.channelsUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
+                <div
+                  data-unavailable="true"
+                  title={unavailableTip}
+                  aria-label={unavailableTip}
+                  className="mt-1.5 font-mono text-lg font-bold text-slate-700 dark:text-slate-200"
+                >
                   {isAr ? 'غير متاح' : '—'}
                 </div>
               ) : (
                 <>
-                  <div className="mt-1.5 font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                    {f1(snapshot.sales.zeroCommSalesKwd)} {isAr ? 'د.ك مباشر' : 'KWD direct'} (
-                    {f1(snapshot.sales.zeroCommSharePct)}%)
+                  <div className="mt-1.5 font-mono text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    <span dir="ltr">{formatKwd(snapshot.sales.zeroCommSalesKwd, { locale: resolvedLocale })}</span>{' '}
+                    {isAr ? 'مباشر' : 'direct'} ({f1Pct(snapshot.sales.zeroCommSharePct, resolvedLocale)})
                   </div>
-                  <div className="mt-0.5 text-[11px] font-mono text-sky-700 dark:text-sky-300">
-                    {f1(snapshot.sales.aggregatorSalesKwd)} {isAr ? 'د.ك تطبيقات' : 'KWD apps'} (
-                    {f1(snapshot.sales.aggregatorSharePct)}%)
+                  <div className="mt-0.5 font-mono text-xs tabular-nums text-sky-700 dark:text-sky-300">
+                    <span dir="ltr">{formatKwd(snapshot.sales.aggregatorSalesKwd, { locale: resolvedLocale })}</span>{' '}
+                    {isAr ? 'تطبيقات' : 'apps'} ({f1Pct(snapshot.sales.aggregatorSharePct, resolvedLocale)})
                   </div>
                 </>
               )}
@@ -628,17 +697,25 @@ export function CoresHubStudio({
                 {isAr ? UNATTRIBUTED_BRANCH_LABEL_AR : UNATTRIBUTED_BRANCH_LABEL_EN}
               </div>
               {snapshot.sales.branchesUnavailable ? (
-                <div className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300">
+                <div
+                  data-unavailable="true"
+                  title={unavailableTip}
+                  aria-label={unavailableTip}
+                  className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300"
+                >
                   {isAr ? 'غير متاح' : '—'}
                 </div>
               ) : (
                 <>
-                  <div className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300">
-                    {f3(snapshot.sales.unattributedSalesKwd)}{' '}
+                  <div
+                    dir="ltr"
+                    className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-amber-800 dark:text-amber-300"
+                  >
+                    {f3(snapshot.sales.unattributedSalesKwd, resolvedLocale)}{' '}
                     <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
                   </div>
-                  <div className="mt-1 text-[11px] text-amber-700/90 dark:text-amber-300/80">
-                    {f0(snapshot.sales.unattributedOrders)}{' '}
+                  <div className="mt-1 text-xs text-amber-700/90 tabular-nums dark:text-amber-300/80">
+                    {f0(snapshot.sales.unattributedOrders, resolvedLocale)}{' '}
                     {isAr
                       ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
                       : 'orders on unmapped POS configs'}
@@ -665,8 +742,8 @@ export function CoresHubStudio({
                 </h2>
                 <p className="text-xs text-slate-500">
                   {isAr
-                    ? `أقوى يوم في الفترة: ${snapshot.sales.strongestDayLabelAr}`
-                    : `Strongest day in window: ${snapshot.sales.strongestDayLabelEn}`}
+                    ? `أقوى يوم في الفترة: ${snapshot.sales.strongestDayLabelAr} · ${dateRangeLabel} · د.ك`
+                    : `Strongest day in window: ${snapshot.sales.strongestDayLabelEn} · ${dateRangeLabel} · KWD`}
                 </p>
               </div>
               <KpiProvenanceBadge
@@ -682,12 +759,17 @@ export function CoresHubStudio({
                 data={timelineBars}
                 isAr={isAr}
                 primaryLegend={isAr ? 'صافي مبيعات POS' : 'POS Net Sales'}
+                yAxisLabel={isAr ? 'صافي المبيعات (د.ك)' : 'Net Sales (KWD)'}
+                xAxisLabel={isAr ? 'الأيام (توقيت الكويت)' : 'Days (Asia/Kuwait)'}
                 heightClass="h-56"
               />
             ) : (
-              <div className="py-8 text-center text-xs text-slate-500">
-                {isAr ? 'لا توجد نقاط يومية لهذه الفترة' : 'No daily points in this window'}
-              </div>
+              <StateBlock
+                state="empty"
+                compact
+                locale={resolvedLocale}
+                title={isAr ? 'لا توجد نقاط يومية لهذه الفترة' : 'No daily points in this window'}
+              />
             )}
           </div>
 
@@ -698,14 +780,16 @@ export function CoresHubStudio({
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   {isAr ? 'التوزيع الساعي لطلبات نقاط البيع' : 'Hourly POS Sales Profile'}
                 </h2>
-                <p className="text-xs text-slate-500">
-                  {snapshot.sales.hourlyUnavailable
-                    ? isAr
-                      ? 'غير متاح'
-                      : '—'
+                <p className="text-xs text-slate-500 tabular-nums">
+                  {snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null)
+                    ? (
+                        <span data-unavailable="true" title={unavailableTip}>
+                          {isAr ? 'غير متاح' : '—'}
+                        </span>
+                      )
                     : isAr
-                      ? `ذروة المبيعات: ${snapshot.sales.peakHourLabelAr} · الفترة 3–6 م: ${f1(snapshot.sales.quietWindowSalesKwd)} د.ك (${f0(snapshot.sales.quietWindowOrders)} طلب)`
-                      : `Peak hour: ${snapshot.sales.peakHourLabelEn} · 3–6 PM: ${f1(snapshot.sales.quietWindowSalesKwd)} KWD (${f0(snapshot.sales.quietWindowOrders)} orders)`}
+                      ? `ذروة المبيعات: ${snapshot.sales.peakHourShortAr} (${formatKwd(snapshot.sales.peakHourSalesKwd, { locale: resolvedLocale })}) · الفترة 3–6 م: ${formatKwd(snapshot.sales.quietWindowSalesKwd, { locale: resolvedLocale })} (${f0(snapshot.sales.quietWindowOrders, resolvedLocale)} طلب)`
+                      : `Peak hour: ${snapshot.sales.peakHourShortEn} (${formatKwd(snapshot.sales.peakHourSalesKwd, { locale: resolvedLocale })}) · 3–6 PM: ${formatKwd(snapshot.sales.quietWindowSalesKwd, { locale: resolvedLocale })} (${f0(snapshot.sales.quietWindowOrders, resolvedLocale)} orders)`}
                 </p>
               </div>
               <KpiProvenanceBadge
@@ -717,31 +801,33 @@ export function CoresHubStudio({
                 queryOrFormula="Grouped by Asia/Kuwait hour of pos.order.date_order"
               />
             </div>
-            {snapshot.sales.hourlyUnavailable ? (
-              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {isAr ? 'غير متاح' : '—'}
-              </div>
+            {snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
+              <StateBlock state="unavailable" compact locale={resolvedLocale} />
             ) : cubeLoading && hourlyBars.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500">
-                {isAr ? 'جاري تحميل التوزيع الساعي من Odoo...' : 'Loading hourly distribution from Odoo...'}
-              </div>
-            ) : cubeTimedOut && hourlyBars.length === 0 ? (
-              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {isAr
-                  ? 'انتهت مهلة جلب التوزيع الساعي من أودو.'
-                  : 'The hourly chart request to Odoo timed out.'}
-              </div>
+              <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={3} />
+            ) : (cubeTimedOut || cubeError) && hourlyBars.length === 0 ? (
+              <StateBlock
+                state="error"
+                compact
+                locale={resolvedLocale}
+                onRetry={() => setCubeRetryTick((n) => n + 1)}
+              />
             ) : hourlyBars.length > 0 ? (
               <InteractiveHoverBarChart
                 data={hourlyBars}
                 isAr={isAr}
                 primaryLegend={isAr ? 'صافي المبيعات الساعية' : 'Hourly Net Sales'}
+                yAxisLabel={isAr ? 'صافي المبيعات (د.ك)' : 'Net Sales (KWD)'}
+                xAxisLabel={isAr ? 'الساعة (توقيت الكويت)' : 'Hour (Asia/Kuwait)'}
                 heightClass="h-52"
               />
             ) : (
-              <div className="py-8 text-center text-xs text-slate-500">
-                {isAr ? 'لا توجد بيانات ساعية لهذه الفترة' : 'No hourly data for this period'}
-              </div>
+              <StateBlock
+                state="empty"
+                compact
+                locale={resolvedLocale}
+                title={isAr ? 'لا توجد بيانات ساعية لهذه الفترة' : 'No hourly data for this period'}
+              />
             )}
           </div>
 
@@ -754,14 +840,19 @@ export function CoresHubStudio({
                   ? 'الفروع السبعة + غير منسوب لفرع'
                   : '7 Branches + Unattributed Row'}
               </h3>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500">
                 {isAr
                   ? 'مبيعات الفروع المربوطة وسطر المبيعات غير المنسوبة دون أي توزيع اصطناعي'
                   : 'Mapped branch sales plus unattributed POS sales with zero forced allocation'}
               </p>
               <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
                 {snapshot.sales.branchesUnavailable ? (
-                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                  <div
+                    data-unavailable="true"
+                    title={unavailableTip}
+                    aria-label={unavailableTip}
+                    className="py-6 text-center text-xs font-semibold text-slate-500"
+                  >
                     {isAr ? 'غير متاح' : '—'}
                   </div>
                 ) : (
@@ -770,22 +861,23 @@ export function CoresHubStudio({
                     return (
                       <div
                         key={b.id}
-                        className={`flex items-center justify-between py-2.5 text-xs ${
+                        className={`flex items-center justify-between gap-2 py-2.5 text-xs ${
                           isUnattr
                             ? 'rounded-lg bg-amber-50/70 px-2 font-semibold text-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
                             : ''
                         }`}
                       >
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-semibold">
                             {isAr ? b.labelAr : b.labelEn}
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {f0(b.orders)} {isAr ? 'طلب' : 'orders'} · {f1(b.sharePct)}%
+                          <div className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                            {f0(b.orders, resolvedLocale)} {isAr ? 'طلب' : 'orders'} ·{' '}
+                            {f1Pct(b.sharePct, resolvedLocale)}
                           </div>
                         </div>
-                        <div className="font-mono font-bold">
-                          {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'}
+                        <div dir="ltr" className="shrink-0 font-mono font-bold tabular-nums">
+                          {formatKwd(b.salesKwd, { locale: resolvedLocale })}
                         </div>
                       </div>
                     )
@@ -806,18 +898,26 @@ export function CoresHubStudio({
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 {isAr ? 'العلامات التجارية الست' : '6 Restaurant Brands'}
               </h3>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500">
                 {isAr ? 'توزيع المبيعات حسب العلامة التجارية في Odoo' : 'Sales split by brand in Odoo'}
               </p>
               <div className="mt-4">
                 {snapshot.sales.brandsUnavailable ? (
-                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                  <div
+                    data-unavailable="true"
+                    title={unavailableTip}
+                    aria-label={unavailableTip}
+                    className="py-6 text-center text-xs font-semibold text-slate-500"
+                  >
                     {isAr ? 'غير متاح' : '—'}
                   </div>
                 ) : brandDonut.length > 0 ? (
                   <InteractiveDonutChart
                     slices={brandDonut}
-                    centerValue={f0(brandDonut.reduce((s, x) => s + x.value, 0))}
+                    centerValue={formatKwd(
+                      brandDonut.reduce((s, x) => s + x.value, 0),
+                      { locale: resolvedLocale, showUnit: false },
+                    )}
                     centerSubValue={isAr ? 'د.ك' : 'KWD'}
                     centerLabel={isAr ? 'العلامات' : 'Brands'}
                     isAr={isAr}
@@ -827,12 +927,15 @@ export function CoresHubStudio({
               {!snapshot.sales.brandsUnavailable ? (
                 <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
                   {snapshot.sales.brandShare.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between py-2 text-xs">
+                    <div key={b.id} className="flex items-center justify-between gap-2 py-2 text-xs">
                       <span className="font-medium text-slate-800 dark:text-slate-200">
                         {isAr ? b.labelAr : b.labelEn}
                       </span>
-                      <span className="font-mono font-bold text-slate-900 dark:text-white">
-                        {f3(b.salesKwd)} {isAr ? 'د.ك' : 'KWD'} ({f1(b.sharePct)}%)
+                      <span
+                        dir="ltr"
+                        className="shrink-0 font-mono font-bold tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {formatKwd(b.salesKwd, { locale: resolvedLocale })} ({f1Pct(b.sharePct, resolvedLocale)})
                       </span>
                     </div>
                   ))}
@@ -852,12 +955,17 @@ export function CoresHubStudio({
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 {isAr ? 'قنوات البيع والتوصيل' : 'Sales & Delivery Channels'}
               </h3>
-              <p className="mt-0.5 text-[11px] text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500">
                 {isAr ? 'حسب طرق الدفع وأجهزة نقاط البيع في Odoo' : 'Classified via POS payment methods & configs'}
               </p>
               <div className="mt-4">
-                {snapshot.sales.channelsUnavailable ? (
-                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                {snapshot.sales.channelsUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
+                  <div
+                    data-unavailable="true"
+                    title={unavailableTip}
+                    aria-label={unavailableTip}
+                    className="py-6 text-center text-xs font-semibold text-slate-500"
+                  >
                     {isAr ? 'غير متاح' : '—'}
                   </div>
                 ) : (
@@ -879,7 +987,7 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {/* TAB 2: POS MENU ITEMS                                               */}
       {/* =================================================================== */}
-      {!noOdooData && activeTab === 'menu' ? (
+      {!isInitialLoading && !noOdooData && activeTab === 'menu' ? (
         <div className="space-y-6">
           <UnlinkedSourceNotice
             titleAr="تكلفة الوصفات المعيارية (BOM) غير مربوطة بمصدر"
@@ -890,15 +998,20 @@ export function CoresHubStudio({
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'عدد الأصناف المباعة (أعلى الأصناف)' : 'Sold SKUs (Top Items)'}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {snapshot.menu.menuUnavailable
-                  ? isAr
-                    ? 'غير متاح'
-                    : '—'
-                  : f0(snapshot.menu.totalActiveSkus)}
+              <div
+                dir="ltr"
+                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+              >
+                {snapshot.menu.menuUnavailable ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : (
+                  f0(snapshot.menu.totalActiveSkus, resolvedLocale)
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -910,15 +1023,20 @@ export function CoresHubStudio({
             </div>
 
             <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'إجمالي الوحدات المباعة' : 'Total Units Sold'}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {snapshot.menu.menuUnavailable
-                  ? isAr
-                    ? 'غير متاح'
-                    : '—'
-                  : f0(snapshot.menu.totalUnitsSold)}
+              <div
+                dir="ltr"
+                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+              >
+                {snapshot.menu.menuUnavailable ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : (
+                  f0(snapshot.menu.totalUnitsSold, resolvedLocale)
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -931,19 +1049,20 @@ export function CoresHubStudio({
             </div>
 
             <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'صافي مبيعات الأصناف المعروضة' : 'Displayed SKUs Net Sales'}
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
+              <div
+                dir="ltr"
+                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+              >
                 {snapshot.menu.menuUnavailable ? (
-                  isAr ? (
-                    'غير متاح'
-                  ) : (
-                    '—'
-                  )
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
                 ) : (
                   <>
-                    {f3(snapshot.menu.totalSalesKwd)}{' '}
+                    {f3(snapshot.menu.totalSalesKwd, resolvedLocale)}{' '}
                     <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
                   </>
                 )}
@@ -962,24 +1081,29 @@ export function CoresHubStudio({
           <div className={CARD_CLS}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="relative min-w-[220px] flex-1">
-                <Search className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
+                <Search
+                  className="pointer-events-none absolute top-2.5 start-3 h-4 w-4 text-slate-400"
+                  aria-hidden
+                />
                 <input
                   type="text"
                   value={dishSearch}
+                  aria-label={isAr ? 'ابحث باسم الصنف أو العلامة' : 'Search item or brand'}
                   onChange={(e) => {
                     setDishSearch(e.target.value)
                     setMenuPage(1)
                   }}
                   placeholder={isAr ? 'ابحث باسم الصنف أو العلامة...' : 'Search item or brand...'}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pr-9 pl-3 text-xs dark:border-white/10 dark:bg-white/5"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 ps-9 pe-3 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-white/5"
                 />
               </div>
 
               <div className="flex items-center gap-2 text-xs">
                 <select
                   value={dishSort}
+                  aria-label={isAr ? 'ترتيب الأصناف' : 'Sort menu items'}
                   onChange={(e) => setDishSort(e.target.value as MenuSortKey)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                 >
                   <option value="sales">{isAr ? 'ترتيب: الأعلى مبيعات' : 'Sort: Highest Sales'}</option>
                   <option value="units">{isAr ? 'ترتيب: الأعلى كمية' : 'Sort: Highest Units'}</option>
@@ -987,12 +1111,13 @@ export function CoresHubStudio({
                 </select>
                 <select
                   value={String(menuPageSize)}
+                  aria-label={isAr ? 'عدد الصفوف في الصفحة' : 'Items per page'}
                   onChange={(e) => {
                     const v = e.target.value
                     setMenuPageSize(v === 'all' ? 'all' : (Number(v) as 12 | 25))
                     setMenuPage(1)
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                  className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                 >
                   <option value="12">12</option>
                   <option value="25">25</option>
@@ -1002,20 +1127,26 @@ export function CoresHubStudio({
             </div>
 
             {cubeLoading && pagedDishes.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500">
-                {isAr ? 'جاري تحميل سطور الأصناف من Odoo...' : 'Loading item lines from Odoo...'}
-              </div>
+              <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={4} />
+            ) : (cubeTimedOut || cubeError) && pagedDishes.length === 0 ? (
+              <StateBlock
+                state="error"
+                compact
+                locale={resolvedLocale}
+                onRetry={() => setCubeRetryTick((n) => n + 1)}
+              />
             ) : snapshot.menu.menuUnavailable && pagedDishes.length === 0 ? (
-              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
-                {isAr ? 'غير متاح' : '—'}
-              </div>
+              <StateBlock state="unavailable" compact locale={resolvedLocale} />
             ) : pagedDishes.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-500">
-                {isAr ? 'لا توجد أصناف مطابقة في هذه الفترة' : 'No matching POS items in this period'}
-              </div>
+              <StateBlock
+                state="empty"
+                compact
+                locale={resolvedLocale}
+                title={isAr ? 'لا توجد أصناف مطابقة في هذه الفترة' : 'No matching POS items in this period'}
+              />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full min-w-[600px] text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 dark:border-white/10">
                       <th className="py-2.5 text-start">{isAr ? 'الصنف' : 'Item'}</th>
@@ -1026,20 +1157,31 @@ export function CoresHubStudio({
                       <th className="py-2.5 text-end">{isAr ? 'صافي المبيعات' : 'Net Sales'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                  <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/5">
                     {pagedDishes.map((d) => (
                       <tr key={d.id}>
                         <td className="py-2.5 font-semibold text-slate-900 dark:text-white">{d.name}</td>
                         <td className="py-2.5 text-slate-600 dark:text-slate-300">
                           {isAr ? d.brandAr : d.brandEn}
                         </td>
-                        <td className="py-2.5 text-end font-mono">{f0(d.unitsSold)}</td>
-                        <td className="py-2.5 text-end font-mono">{f3(d.unitPriceKwd)}</td>
-                        <td className="py-2.5 text-end font-mono text-amber-700 dark:text-amber-300">
-                          {f3(d.discountKwd)} ({f1(d.avgDiscountPct)}%)
+                        <td dir="ltr" className="py-2.5 text-end font-mono tabular-nums">
+                          {f0(d.unitsSold, resolvedLocale)}
                         </td>
-                        <td className="py-2.5 text-end font-mono font-bold text-slate-900 dark:text-white">
-                          {f3(d.salesKwd)} {isAr ? 'د.ك' : 'KWD'}
+                        <td dir="ltr" className="py-2.5 text-end font-mono tabular-nums">
+                          {formatKwd(d.unitPriceKwd, { locale: resolvedLocale })}
+                        </td>
+                        <td
+                          dir="ltr"
+                          className="py-2.5 text-end font-mono tabular-nums text-amber-700 dark:text-amber-300"
+                        >
+                          {formatKwd(d.discountKwd, { locale: resolvedLocale })} (
+                          {f1Pct(d.avgDiscountPct, resolvedLocale)})
+                        </td>
+                        <td
+                          dir="ltr"
+                          className="py-2.5 text-end font-mono font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {formatKwd(d.salesKwd, { locale: resolvedLocale })}
                         </td>
                       </tr>
                     ))}
@@ -1050,7 +1192,7 @@ export function CoresHubStudio({
 
             {menuPageSize !== 'all' && totalMenuPages > 1 ? (
               <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-                <span>
+                <span className="tabular-nums">
                   {isAr
                     ? `صفحة ${menuPage} من ${totalMenuPages}`
                     : `Page ${menuPage} of ${totalMenuPages}`}
@@ -1060,7 +1202,7 @@ export function CoresHubStudio({
                     type="button"
                     disabled={menuPage <= 1}
                     onClick={() => setMenuPage((p) => Math.max(1, p - 1))}
-                    className="rounded-lg border border-slate-200 px-3 py-1 disabled:opacity-40 dark:border-white/10"
+                    className="rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
                   >
                     {isAr ? 'السابق' : 'Prev'}
                   </button>
@@ -1068,7 +1210,7 @@ export function CoresHubStudio({
                     type="button"
                     disabled={menuPage >= totalMenuPages}
                     onClick={() => setMenuPage((p) => Math.min(totalMenuPages, p + 1))}
-                    className="rounded-lg border border-slate-200 px-3 py-1 disabled:opacity-40 dark:border-white/10"
+                    className="rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
                   >
                     {isAr ? 'التالي' : 'Next'}
                   </button>
@@ -1082,7 +1224,7 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {/* TAB 3: MARKETING & POS DISCOUNTS                                    */}
       {/* =================================================================== */}
-      {!noOdooData && activeTab === 'marketing' ? (
+      {!isInitialLoading && !noOdooData && activeTab === 'marketing' ? (
         <div className="space-y-6">
           <UnlinkedSourceNotice
             titleAr="منصات الإعلانات الخارجية وعائد المشاهير — غير مربوط بمصدر"
@@ -1092,59 +1234,96 @@ export function CoresHubStudio({
           />
 
           {/* Actual Odoo POS Discounts Card */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
-                {isAr ? 'إجمالي خصومات نقاط البيع المسجّلة' : 'Recorded POS Line Discounts'}
+          {cubeLoading && !liveCube ? (
+            <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={2} />
+          ) : (cubeError || cubeTimedOut) && !liveCube ? (
+            <StateBlock
+              state="error"
+              compact
+              locale={resolvedLocale}
+              onRetry={() => setCubeRetryTick((n) => n + 1)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className={KPI_CARD_CLS}>
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isAr ? 'إجمالي خصومات نقاط البيع المسجّلة' : 'Recorded POS Line Discounts'}
+                </div>
+                <div
+                  dir="ltr"
+                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                >
+                  {!liveCube ? (
+                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                      {isAr ? 'غير متاح' : '—'}
+                    </span>
+                  ) : (
+                    formatKwd(snapshot.marketing.posDiscountsKwd, { locale: resolvedLocale })
+                  )}
+                </div>
+                <KpiProvenanceBadge
+                  odooModel="pos.order.line"
+                  dateRange={dateRangeLabel}
+                  lastSyncAt={lastSyncAt}
+                  isStale24h={isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="sum(price_unit * qty * discount / 100)"
+                />
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f3(snapshot.marketing.posDiscountsKwd)}{' '}
-                <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="sum(price_unit * qty * discount / 100)"
-              />
-            </div>
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
-                {isAr ? 'متوسط نسبة الخصم في POS' : 'Average POS Discount %'}
+              <div className={KPI_CARD_CLS}>
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isAr ? 'متوسط نسبة الخصم في POS' : 'Average POS Discount %'}
+                </div>
+                <div
+                  dir="ltr"
+                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                >
+                  {!liveCube ? (
+                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                      {isAr ? 'غير متاح' : '—'}
+                    </span>
+                  ) : (
+                    f2Pct(snapshot.marketing.posAvgDiscountPct, resolvedLocale)
+                  )}
+                </div>
+                <KpiProvenanceBadge
+                  odooModel="pos.order.line"
+                  dateRange={dateRangeLabel}
+                  lastSyncAt={lastSyncAt}
+                  isStale24h={isStale24h}
+                  kind="محسوب بمعادلة"
+                  queryOrFormula="totalDiscountKwd / grossBeforeDiscountKwd * 100"
+                />
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f2(snapshot.marketing.posAvgDiscountPct)}%
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="محسوب بمعادلة"
-                queryOrFormula="totalDiscountKwd / grossBeforeDiscountKwd * 100"
-              />
-            </div>
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500">
-                {isAr ? 'عدد السطور المخصومة في POS' : 'Discounted POS Lines'}
+              <div className={KPI_CARD_CLS}>
+                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {isAr ? 'عدد السطور المخصومة في POS' : 'Discounted POS Lines'}
+                </div>
+                <div
+                  dir="ltr"
+                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                >
+                  {!liveCube ? (
+                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                      {isAr ? 'غير متاح' : '—'}
+                    </span>
+                  ) : (
+                    f0(snapshot.marketing.posDiscountedLinesCount, resolvedLocale)
+                  )}
+                </div>
+                <KpiProvenanceBadge
+                  odooModel="pos.order.line"
+                  dateRange={dateRangeLabel}
+                  lastSyncAt={lastSyncAt}
+                  isStale24h={isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="count(pos.order.line where discount > 0)"
+                />
               </div>
-              <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f0(snapshot.marketing.posDiscountedLinesCount)}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="count(pos.order.line where discount > 0)"
-              />
             </div>
-          </div>
+          )}
 
           {/* User-entered Manual Campaign Window Comparison (0 seeded rows) */}
           <div className={CARD_CLS}>
@@ -1163,13 +1342,14 @@ export function CoresHubStudio({
               </div>
               <button
                 type="button"
+                aria-expanded={isAdFormOpen}
                 onClick={() => {
                   resetCampaignForm()
                   setIsAdFormOpen((v) => !v)
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
               >
-                {isAdFormOpen ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                {isAdFormOpen ? <X className="h-3.5 w-3.5" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
                 <span>{isAr ? 'إضافة فترة حملة يدوية' : 'Log Campaign Window'}</span>
               </button>
             </div>
@@ -1180,13 +1360,14 @@ export function CoresHubStudio({
                 className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-3 dark:border-white/10 dark:bg-white/[0.03]"
               >
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-brand" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'العلامة التجارية (6 علامات)' : 'Brand (6 brands)'}
                   </label>
                   <select
+                    id="camp-brand"
                     value={formBrand}
                     onChange={(e) => setFormBrand(e.target.value as Exclude<GlobalBrand, 'all'>)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                   >
                     {GLOBAL_BRAND_OPTIONS.filter((o) => o.id !== 'all').map((o) => (
                       <option key={o.id} value={o.id}>
@@ -1197,13 +1378,14 @@ export function CoresHubStudio({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-branch" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'الفرع المستهدف' : 'Target Branch'}
                   </label>
                   <select
+                    id="camp-branch"
                     value={formBranch}
                     onChange={(e) => setFormBranch(e.target.value as GlobalBranch)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                   >
                     {GLOBAL_BRANCH_OPTIONS.map((o) => (
                       <option key={o.id} value={o.id}>
@@ -1214,13 +1396,14 @@ export function CoresHubStudio({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-type" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'نوع الحملة' : 'Type'}
                   </label>
                   <select
+                    id="camp-type"
                     value={formAdType}
                     onChange={(e) => setFormAdType(e.target.value as SocialAdType)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                   >
                     {SOCIAL_AD_TYPE_OPTIONS.map((o) => (
                       <option key={o.id} value={o.id}>
@@ -1231,48 +1414,56 @@ export function CoresHubStudio({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-name" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'اسم الحملة' : 'Campaign Name'}
                   </label>
                   <input
+                    id="camp-name"
                     type="text"
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-spend" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'التكلفة المدفوعة (د.ك)' : 'Spend (KWD)'}
                   </label>
                   <input
+                    id="camp-spend"
                     type="number"
                     min="0"
                     step="0.001"
                     value={formSpend}
                     onChange={(e) => setFormSpend(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                  <label htmlFor="camp-start" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'تاريخ البداية والنهاية' : 'Start & End Dates'}
                   </label>
                   <div className="mt-1 flex gap-1.5">
                     <input
+                      id="camp-start"
                       type="date"
+                      dir="ltr"
+                      aria-label={isAr ? 'تاريخ بداية الحملة' : 'Campaign start date'}
                       value={formStartDate}
                       onChange={(e) => setFormStartDate(e.target.value)}
-                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                     />
                     <input
+                      id="camp-end"
                       type="date"
+                      dir="ltr"
+                      aria-label={isAr ? 'تاريخ نهاية الحملة' : 'Campaign end date'}
                       value={formEndDate}
                       onChange={(e) => setFormEndDate(e.target.value)}
-                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs dark:border-white/10 dark:bg-[#0B1410]"
+                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                     />
                   </div>
                 </div>
@@ -1281,13 +1472,13 @@ export function CoresHubStudio({
                   <button
                     type="button"
                     onClick={() => setIsAdFormOpen(false)}
-                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs dark:border-white/10"
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10"
                   >
                     {isAr ? 'إلغاء' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
-                    className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white"
+                    className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
                   >
                     {isAr ? 'حفظ الحملة' : 'Save'}
                   </button>
@@ -1303,59 +1494,82 @@ export function CoresHubStudio({
               </div>
             ) : (
               <div className="mt-4 space-y-3">
-                {snapshot.marketing.evaluations.map((ev) => (
-                  <div
-                    key={ev.campaign.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-xs dark:border-white/10"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-900 dark:text-white">
-                        {resolveCampaignDisplayName(ev.campaign, isAr)} ·{' '}
-                        {getBrandLabel(ev.campaign.brand, isAr)} (
-                        {getBranchLabel(ev.campaign.branch ?? 'all', isAr)})
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-slate-500">
-                        {ev.startDate} → {ev.endDate} ·{' '}
-                        {isAr ? 'الإنفاق المدخل:' : 'Spend:'} {f1(ev.campaign.spendKwd)}{' '}
-                        {isAr ? 'د.ك' : 'KWD'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-end font-mono">
-                        <div>
-                          {isAr ? 'فرق المبيعات اليومية:' : 'Daily Sales Delta:'}{' '}
-                          <span className="font-bold">
-                            {ev.liftSalesKwd >= 0 ? '+' : ''}
-                            {f1(ev.liftSalesKwd)} {isAr ? 'د.ك' : 'KWD'}
+                {snapshot.marketing.evaluations.map((ev) => {
+                  const displayTitle = isBrokenOrEmptyCampaignName(ev.campaign.campaignName)
+                    ? isAr
+                      ? 'بدون حملة'
+                      : 'No campaign'
+                    : resolveCampaignDisplayName(ev.campaign, isAr)
+                  return (
+                    <div
+                      key={ev.campaign.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-xs dark:border-white/10"
+                    >
+                      <div>
+                        <div className="font-bold text-slate-900 dark:text-white">
+                          {displayTitle} · {getBrandLabel(ev.campaign.brand, isAr)} (
+                          {getBranchLabel(ev.campaign.branch ?? 'all', isAr)})
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500 tabular-nums">
+                          <span dir="ltr">
+                            {ev.startDate} → {ev.endDate}
+                          </span>{' '}
+                          · {isAr ? 'الإنفاق المدخل:' : 'Spend:'}{' '}
+                          <span dir="ltr">
+                            {formatKwd(ev.campaign.spendKwd, { locale: resolvedLocale })}
                           </span>
                         </div>
-                        <KpiProvenanceBadge
-                          odooModel="pos.order.line"
-                          dateRange={`${ev.startDate} → ${ev.endDate}`}
-                          lastSyncAt={lastSyncAt}
-                          isStale24h={isStale24h}
-                          kind="محسوب بمعادلة"
-                        />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleEditCampaign(ev.campaign)}
-                        className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10"
-                        aria-label="edit"
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCampaign(ev.campaign.id)}
-                        className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        aria-label="delete"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <div className="text-end font-mono tabular-nums">
+                          <div>
+                            {isAr ? 'فرق المبيعات اليومية:' : 'Daily Sales Delta:'}{' '}
+                            {ev.noData ? (
+                              <span
+                                data-unavailable="true"
+                                title={unavailableTip}
+                                aria-label={unavailableTip}
+                                className="font-bold text-slate-500"
+                              >
+                                {isAr ? 'غير متاح' : '—'}
+                              </span>
+                            ) : (
+                              <span dir="ltr" className="font-bold">
+                                {formatKwd(ev.liftSalesKwd, {
+                                  locale: resolvedLocale,
+                                  signed: true,
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          <KpiProvenanceBadge
+                            odooModel="pos.order.line"
+                            dateRange={`${ev.startDate} → ${ev.endDate}`}
+                            lastSyncAt={lastSyncAt}
+                            isStale24h={isStale24h}
+                            kind="محسوب بمعادلة"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleEditCampaign(ev.campaign)}
+                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-white/10"
+                          aria-label={isAr ? 'تعديل الحملة' : 'Edit campaign'}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCampaign(ev.campaign.id)}
+                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 dark:hover:bg-rose-950/30"
+                          aria-label={isAr ? 'حذف الحملة' : 'Delete campaign'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

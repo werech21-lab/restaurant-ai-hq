@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   Building2,
-  Database,
   FileText,
   Search,
   Truck,
@@ -20,10 +19,21 @@ import {
   type GlobalBranch,
   type GlobalChannel,
 } from '@/lib/aether/global-filter-engine'
-import { UNATTRIBUTED_BRANCH_LABEL_AR } from '@/lib/aether/cores-hub-engine'
+import {
+  UNATTRIBUTED_BRANCH_LABEL_AR,
+  UNATTRIBUTED_BRANCH_LABEL_EN,
+} from '@/lib/aether/cores-hub-engine'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
+import { ChartCard, StateBlock } from '@/components/ui'
+import {
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import { shouldMaskInternalCostsForRole } from '@/lib/auth/role-access-policy'
 import { useLang } from '@/components/aether/ui'
 
@@ -53,34 +63,24 @@ const DIRECT_CHANNELS: readonly Exclude<GlobalChannel, 'all' | AggregatorChannel
 ]
 
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
+const NO_ODOO_DATA_EN = 'No data from Odoo for this period'
 const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
+const UNPOSTED_COMMISSION_EN = 'Not posted yet'
 const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 
 const safeNum = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : 0
 
-const f0 = (n: number) => Math.round(safeNum(n)).toLocaleString('en-US')
-const f1 = (n: number) =>
-  safeNum(n).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
-const f2 = (n: number) =>
-  safeNum(n).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+const f0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
+const f1Pct = (n: number, locale: FormatLocale = 'en') =>
+  formatPct(n, { locale, decimals: 1 })
 
 function fmtKwd(v: number | null | undefined, isAr: boolean): string {
   if (v === null || v === undefined || !Number.isFinite(v)) {
     return isAr ? 'غير متاح' : '—'
   }
-  const clean = safeNum(v)
-  const absV = Math.abs(clean)
-  const sign = clean < 0 ? '-' : ''
-  const hasTenths = Math.abs(absV - Math.round(absV)) >= 0.05
-  const num = absV >= 1000 && !hasTenths ? f0(absV) : hasTenths ? f1(absV) : f0(absV)
-  return isAr ? `${sign}${num} د.ك` : `${sign}${num} KWD`
+  return formatKwd(v, { locale: isAr ? 'ar' : 'en', decimals: 3 })
 }
 
 interface BranchChannelMatrixRow {
@@ -106,6 +106,8 @@ interface BranchChannelMatrixRow {
  */
 export function DeliveryRadarV5() {
   const { isAr, T } = useLang()
+  const resolvedLocale: FormatLocale = isAr ? 'ar' : 'en'
+  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const { filters, workspace, liveSummary, sessionRole } = useGlobalFilter()
   const maskInternalCosts = shouldMaskInternalCostsForRole(sessionRole)
 
@@ -113,6 +115,8 @@ export function DeliveryRadarV5() {
   const [searchQuery, setSearchQuery] = useState('')
   const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(null)
   const [loadingCube, setLoadingCube] = useState(false)
+  const [cubeError, setCubeError] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
 
   const periodWindow = useMemo(
     () =>
@@ -135,11 +139,13 @@ export function DeliveryRadarV5() {
   useEffect(() => {
     if (!workspace.odooConnected || workspace.noData) {
       setLiveCube(null)
+      setCubeError(false)
       return
     }
     let cancelled = false
     const controller = new AbortController()
     setLoadingCube(true)
+    setCubeError(false)
 
     const qs = new URLSearchParams({
       fromA: periodWindow.fromIso,
@@ -153,7 +159,10 @@ export function DeliveryRadarV5() {
       credentials: 'same-origin',
       signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error('HTTP_ERROR')
+        return res.json()
+      })
       .then((data) => {
         if (cancelled) return
         if (data?.cubeA && data.cubeA.connected && !data.cubeA.noData) {
@@ -162,8 +171,11 @@ export function DeliveryRadarV5() {
           setLiveCube(null)
         }
       })
-      .catch(() => {
-        if (!cancelled) setLiveCube(null)
+      .catch((err: unknown) => {
+        if (cancelled) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setLiveCube(null)
+        setCubeError(true)
       })
       .finally(() => {
         if (!cancelled) setLoadingCube(false)
@@ -178,6 +190,7 @@ export function DeliveryRadarV5() {
     periodWindow.toInclusiveIso,
     workspace.noData,
     workspace.odooConnected,
+    retryTick,
   ])
 
   const activeBucket = useMemo(() => {
@@ -209,7 +222,9 @@ export function DeliveryRadarV5() {
   const channelsUnavailable = Boolean(
     !liveCube &&
       activeBucket &&
-      (activeBucket.uiChannels === null || activeBucket.totals.restaurantNetKwd === null),
+      (activeBucket.uiChannels === null ||
+        activeBucket.totals.restaurantNetKwd === null ||
+        (filters.branch !== 'all' && activeBucket.byLocation?.[filters.branch]?.uiChannels === null)),
   )
 
   // Channel Totals (6 Aggregator Platforms + Direct Channels) directly from Odoo pos.payment
@@ -346,7 +361,7 @@ export function DeliveryRadarV5() {
             {
               id: 'unattributed',
               labelAr: UNATTRIBUTED_BRANCH_LABEL_AR,
-              labelEn: UNATTRIBUTED_BRANCH_LABEL_AR,
+              labelEn: UNATTRIBUTED_BRANCH_LABEL_EN,
               isUnattributed: true,
             },
           ]
@@ -370,18 +385,29 @@ export function DeliveryRadarV5() {
           salesKwd = null
           orders = null
         } else if (br.isUnattributed) {
-          const uCell = liveCube?.unattributed?.channels?.[ch.key]
-          salesKwd = safeNum(uCell?.netKwd)
-          orders = Math.round(safeNum(uCell?.orders))
+          if (!liveCube) {
+            salesKwd = null
+            orders = null
+          } else {
+            const uCell = liveCube.unattributed?.channels?.[ch.key]
+            salesKwd = safeNum(uCell?.netKwd)
+            orders = Math.round(safeNum(uCell?.orders))
+          }
         } else if (liveCube) {
           const bCell = liveCube.byBranch?.[br.id as Exclude<GlobalBranch, 'all'>]?.channels?.[ch.key]
           salesKwd = safeNum(bCell?.netKwd)
           orders = Math.round(safeNum(bCell?.orders))
         } else if (activeBucket) {
-          const bCell =
-            activeBucket.byLocation?.[br.id as Exclude<GlobalBranch, 'all'>]?.uiChannels?.[ch.key]
-          salesKwd = safeNum(bCell?.netKwd)
-          orders = Math.round(safeNum(bCell?.orders))
+          const locUiChannels =
+            activeBucket.byLocation?.[br.id as Exclude<GlobalBranch, 'all'>]?.uiChannels
+          if (locUiChannels === null) {
+            salesKwd = null
+            orders = null
+          } else {
+            const bCell = locUiChannels?.[ch.key]
+            salesKwd = safeNum(bCell?.netKwd)
+            orders = Math.round(safeNum(bCell?.orders))
+          }
         }
 
         out.push({
@@ -441,15 +467,19 @@ export function DeliveryRadarV5() {
       .map((p) => ({
         id: p.key,
         label: isAr ? p.labelAr : p.labelEn,
-        subLabel: isAr ? `${f0(p.orders)} طلب` : `${f0(p.orders)} orders`,
+        subLabel: isAr
+          ? `${f0(p.orders, resolvedLocale)} طلب`
+          : `${f0(p.orders, resolvedLocale)} orders`,
         value: p.salesKwd,
         valueFormatted: fmtKwd(p.salesKwd, isAr),
-        pctFormatted: `${f1(p.sharePct)}%`,
+        pctFormatted: f1Pct(p.sharePct, resolvedLocale),
         color: p.color,
       }))
-  }, [channelsUnavailable, isAr, platformSummaries])
+  }, [channelsUnavailable, isAr, platformSummaries, resolvedLocale])
 
-  const isDisconnectedOrEmpty = !workspace.odooConnected || workspace.noData
+  const isInitialLoading = liveSummary === null
+  const isDisconnectedOrEmpty =
+    liveSummary !== null && (!workspace.odooConnected || workspace.noData)
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 pb-16">
@@ -457,11 +487,11 @@ export function DeliveryRadarV5() {
       <div className="ae-bento-card flex flex-col gap-3 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] lg:flex-row lg:items-center lg:justify-between dark:bg-[#101815] dark:ring-emerald-400/[0.09]">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
               {T('Delivery Platforms & Commissions Radar', 'رادار منصات التوصيل والعمولات')}
-            </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Truck className="h-3.5 w-3.5" />
+            </h2>
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
+              <Truck className="h-3.5 w-3.5" aria-hidden />
               <span>pos.payment + account.move.line</span>
             </span>
           </div>
@@ -482,9 +512,9 @@ export function DeliveryRadarV5() {
                 ? 'معطّل حتى تتوفر تنبيهات مبنية فعلياً من استعلامات Odoo مع سقوف يحفظها الأدمن'
                 : 'Disabled until real Odoo alerts with admin-saved server thresholds exist'
             }
-            className="inline-flex h-9.5 cursor-not-allowed items-center gap-1.5 rounded-full bg-slate-100 px-4 text-xs font-bold text-slate-400 opacity-65 ring-1 ring-slate-900/10 dark:bg-white/[0.05] dark:text-slate-500 dark:ring-white/10"
+            className="inline-flex h-9 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-100 px-4 text-xs font-bold text-slate-400 opacity-65 ring-1 ring-slate-900/10 dark:bg-white/[0.05] dark:text-slate-500 dark:ring-white/10"
           >
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="h-3.5 w-3.5" aria-hidden />
             <span>{T('Print / Export Official Circular', 'طباعة / تصدير تعميم رسمي')}</span>
           </button>
         </div>
@@ -503,26 +533,32 @@ export function DeliveryRadarV5() {
         </div>
       ) : null}
 
-      {isDisconnectedOrEmpty ? (
-        <section
-          role="status"
-          data-odoo-no-data="true"
-          className="ae-bento-card mx-auto my-6 max-w-3xl rounded-3xl border border-amber-300/70 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-[#101815]"
-        >
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/90 text-amber-700 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-300">
-            <Database className="h-7 w-7" aria-hidden />
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">
-            {NO_ODOO_DATA_AR}
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-300">
-            {isAr
-              ? (workspace.noDataMessageAr ?? NO_ODOO_DATA_AR)
-              : `${NO_ODOO_DATA_AR} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`}
-          </p>
-        </section>
+      {isInitialLoading ? (
+        <StateBlock state="loading" locale={resolvedLocale} skeletonRows={4} />
+      ) : isDisconnectedOrEmpty ? (
+        <div data-odoo-no-data="true">
+          <StateBlock
+            state="empty"
+            locale={resolvedLocale}
+            title={isAr ? NO_ODOO_DATA_AR : NO_ODOO_DATA_EN}
+            description={
+              isAr
+                ? (workspace.noDataMessageAr ?? NO_ODOO_DATA_AR)
+                : `${NO_ODOO_DATA_EN} (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso})`
+            }
+          />
+        </div>
       ) : (
         <>
+          {cubeError ? (
+            <StateBlock
+              state="error"
+              compact
+              locale={resolvedLocale}
+              onRetry={() => setRetryTick((n) => n + 1)}
+            />
+          ) : null}
+
           {/* 4 KPI Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* KPI 1: Aggregator Gross POS Sales */}
@@ -532,18 +568,43 @@ export function DeliveryRadarV5() {
               </p>
               <div
                 dir="ltr"
+                data-unavailable={totalAggregatorSalesKwd === null ? 'true' : undefined}
+                title={totalAggregatorSalesKwd === null ? unavailableTip : undefined}
+                aria-label={totalAggregatorSalesKwd === null ? unavailableTip : undefined}
                 className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-slate-950 dark:text-white"
               >
                 {fmtKwd(totalAggregatorSalesKwd, isAr)}
               </div>
               <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                {totalAggregatorOrders === null || totalAggregatorSalesKwd === null
-                  ? isAr
-                    ? 'غير متاح'
-                    : '—'
-                  : isAr
-                    ? `${f0(totalAggregatorOrders)} طلب • متوسط ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} د.ك`
-                    : `${f0(totalAggregatorOrders)} orders • AOV ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} KWD`}
+                {totalAggregatorOrders === null || totalAggregatorSalesKwd === null ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : isAr ? (
+                  <>
+                    {f0(totalAggregatorOrders, 'ar')} طلب • متوسط{' '}
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtKwd(
+                        totalAggregatorOrders > 0
+                          ? totalAggregatorSalesKwd / totalAggregatorOrders
+                          : 0,
+                        true,
+                      )}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {f0(totalAggregatorOrders, 'en')} orders • AOV{' '}
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtKwd(
+                        totalAggregatorOrders > 0
+                          ? totalAggregatorSalesKwd / totalAggregatorOrders
+                          : 0,
+                        false,
+                      )}
+                    </span>
+                  </>
+                )}
               </p>
               <KpiProvenanceBadge
                 odooModel="pos.payment + pos.order"
@@ -563,18 +624,23 @@ export function DeliveryRadarV5() {
               </p>
               <div
                 dir="ltr"
+                data-unavailable={directSalesSummary.salesKwd === null ? 'true' : undefined}
+                title={directSalesSummary.salesKwd === null ? unavailableTip : undefined}
+                aria-label={directSalesSummary.salesKwd === null ? unavailableTip : undefined}
                 className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300"
               >
                 {fmtKwd(directSalesSummary.salesKwd, isAr)}
               </div>
               <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                {directSalesSummary.orders === null
-                  ? isAr
-                    ? 'غير متاح'
-                    : '—'
-                  : isAr
-                    ? `${f0(directSalesSummary.orders)} طلب مباشر بدون عمولة تطبيقات`
-                    : `${f0(directSalesSummary.orders)} direct orders without aggregator commission`}
+                {directSalesSummary.orders === null ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : isAr ? (
+                  `${f0(directSalesSummary.orders, 'ar')} طلب مباشر بدون عمولة تطبيقات`
+                ) : (
+                  `${f0(directSalesSummary.orders, 'en')} direct orders without aggregator commission`
+                )}
               </p>
               <KpiProvenanceBadge
                 odooModel="pos.payment + pos.order"
@@ -603,8 +669,8 @@ export function DeliveryRadarV5() {
                     data-commission-unposted="true"
                     className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-1.5 text-base font-extrabold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
                   >
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <span>{UNPOSTED_COMMISSION_AR}</span>
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                    <span>{isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}</span>
                   </span>
                   <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
                     {isAr
@@ -618,14 +684,16 @@ export function DeliveryRadarV5() {
                     dir="ltr"
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-rose-700 dark:text-rose-300"
                   >
-                    {fmtKwd(gl.deliveryCommissionsKwd ?? 0, isAr)}
+                    {fmtKwd(gl.deliveryCommissionsKwd, isAr)}
                   </div>
                   <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                     {gl.deliveryCommPct !== null
                       ? isAr
-                        ? `${f1(gl.deliveryCommPct)}% من إجمالي إيراد الدفتر المرحّل`
-                        : `${f1(gl.deliveryCommPct)}% of posted GL revenue`
-                      : GL_INCOMPLETE_AR}
+                        ? `${f1Pct(gl.deliveryCommPct, 'ar')} من إجمالي إيراد الدفتر المرحّل`
+                        : `${f1Pct(gl.deliveryCommPct, 'en')} of posted GL revenue`
+                      : isAr
+                        ? GL_INCOMPLETE_AR
+                        : GL_INCOMPLETE_EN}
                   </p>
                 </>
               )}
@@ -647,7 +715,7 @@ export function DeliveryRadarV5() {
                 <p className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                   {T('Open Unreconciled Receivables', 'الذمم المدينة المفتوحة للمنصات والمقاصة')}
                 </p>
-                <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
               </div>
 
               {maskInternalCosts ? (
@@ -658,6 +726,9 @@ export function DeliveryRadarV5() {
                 <>
                   <div
                     dir="ltr"
+                    data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                    title={workspace.receivables.unavailable ? unavailableTip : undefined}
+                    aria-label={workspace.receivables.unavailable ? unavailableTip : undefined}
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
                   >
                     {workspace.receivables.unavailable
@@ -667,13 +738,15 @@ export function DeliveryRadarV5() {
                       : fmtKwd(workspace.receivables.openReceivableKwd, isAr)}
                   </div>
                   <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {workspace.receivables.unavailable
-                      ? isAr
-                        ? 'غير متاح'
-                        : '—'
-                      : isAr
-                        ? `${f0(workspace.receivables.unreconciledLineCount)} قيد غير مسوّى في دفتر الذمم`
-                        : `${f0(workspace.receivables.unreconciledLineCount)} unreconciled receivable lines`}
+                    {workspace.receivables.unavailable ? (
+                      <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                        {isAr ? 'غير متاح' : '—'}
+                      </span>
+                    ) : isAr ? (
+                      `${f0(workspace.receivables.unreconciledLineCount, 'ar')} قيد غير مسوّى في دفتر الذمم`
+                    ) : (
+                      `${f0(workspace.receivables.unreconciledLineCount, 'en')} unreconciled receivable lines`
+                    )}
                   </p>
                 </>
               )}
@@ -723,10 +796,11 @@ export function DeliveryRadarV5() {
                   <button
                     key={p.key}
                     type="button"
+                    aria-pressed={channelFilter === p.key}
                     onClick={() =>
                       setChannelFilter((prev) => (prev === p.key ? 'all' : p.key))
                     }
-                    className={`flex cursor-pointer flex-col justify-between rounded-2xl p-3.5 text-start ring-1 transition-all ${
+                    className={`flex cursor-pointer flex-col justify-between rounded-2xl p-3.5 text-start ring-1 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       channelFilter === p.key
                         ? 'bg-emerald-50 ring-2 ring-emerald-600 dark:bg-emerald-950/40 dark:ring-emerald-400'
                         : 'bg-[#F6F7F8] ring-slate-900/[0.05] hover:bg-slate-100/80 dark:bg-[#141F1B] dark:ring-white/[0.07]'
@@ -735,39 +809,45 @@ export function DeliveryRadarV5() {
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-2 text-sm font-bold text-slate-950 dark:text-white">
                         <span
-                          className="h-2.5 w-2.5 rounded-full"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: p.color }}
+                          aria-hidden
                         />
                         {isAr ? p.labelAr : p.labelEn}
                       </span>
                       <span
                         dir="ltr"
-                        className="rounded-full bg-white px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                        className="shrink-0 whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200"
                       >
-                        {p.sharePct === null ? '—' : `${f1(p.sharePct)}%`}
+                        {p.sharePct === null ? '—' : f1Pct(p.sharePct, resolvedLocale)}
                       </span>
                     </div>
 
                     <div
                       dir="ltr"
+                      data-unavailable={p.salesKwd === null ? 'true' : undefined}
+                      title={p.salesKwd === null ? unavailableTip : undefined}
+                      aria-label={p.salesKwd === null ? unavailableTip : undefined}
                       className="mt-3 text-xl font-extrabold tabular-nums text-slate-950 dark:text-white"
                     >
                       {fmtKwd(p.salesKwd, isAr)}
                     </div>
 
-                    <div className="mt-1 flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
-                      <span>
-                        {p.orders === null
-                          ? isAr
-                            ? 'غير متاح'
-                            : '—'
-                          : isAr
-                            ? `${f0(p.orders)} طلب`
-                            : `${f0(p.orders)} orders`}
+                    <div className="mt-1 flex items-center justify-between gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+                      <span className="tabular-nums">
+                        {p.orders === null ? (
+                          <span data-unavailable="true" title={unavailableTip}>
+                            {isAr ? 'غير متاح' : '—'}
+                          </span>
+                        ) : isAr ? (
+                          `${f0(p.orders, 'ar')} طلب`
+                        ) : (
+                          `${f0(p.orders, 'en')} orders`
+                        )}
                       </span>
-                      <span dir="ltr">
+                      <span dir="ltr" className="tabular-nums">
                         {p.orders !== null && p.orders > 0 && p.aovKwd !== null
-                          ? `${f2(p.aovKwd)} ${isAr ? 'د.ك' : 'KWD'}`
+                          ? fmtKwd(p.aovKwd, isAr)
                           : '—'}
                       </span>
                     </div>
@@ -776,30 +856,46 @@ export function DeliveryRadarV5() {
               </div>
             </div>
 
-            <div className="ae-bento-card flex flex-col justify-between rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-emerald-400/[0.09] xl:col-span-5">
-              <div className="mb-3">
-                <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
-                  {T('Aggregator Mix Share', 'توزيع حصص منصات التوصيل')}
-                </h2>
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {T('Share of total aggregator POS sales', 'نسبة كل منصة من إجمالي مبيعات التطبيقات')}
-                </p>
-              </div>
-
-              {donutSlices.length > 0 && totalAggregatorOrders !== null ? (
+            <div className="xl:col-span-5">
+              <ChartCard
+                title={T('Aggregator Mix Share', 'توزيع حصص منصات التوصيل')}
+                subtitle={T('Share of total aggregator POS sales', 'نسبة كل منصة من إجمالي مبيعات التطبيقات')}
+                period={`${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}`}
+                unit={isAr ? 'د.ك (KWD)' : 'KWD'}
+                locale={resolvedLocale}
+                showGridBackdrop={false}
+                state={
+                  channelsUnavailable
+                    ? 'unavailable'
+                    : donutSlices.length === 0 || totalAggregatorOrders === null
+                      ? 'empty'
+                      : 'ready'
+                }
+                stateTitle={
+                  channelsUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : 'Unavailable'
+                    : isAr
+                      ? NO_ODOO_DATA_AR
+                      : NO_ODOO_DATA_EN
+                }
+              >
                 <InteractiveDonutChart
                   slices={donutSlices}
                   centerValue={fmtKwd(totalAggregatorSalesKwd, isAr)}
-                  centerSubValue={isAr ? `${f0(totalAggregatorOrders)} طلب` : `${f0(totalAggregatorOrders)} orders`}
+                  centerSubValue={
+                    totalAggregatorOrders === null
+                      ? undefined
+                      : isAr
+                        ? `${f0(totalAggregatorOrders, 'ar')} طلب`
+                        : `${f0(totalAggregatorOrders, 'en')} orders`
+                  }
                   centerLabel={T('Aggregators', 'منصات التوصيل')}
                   isAr={isAr}
                   legendLayout="beside"
                 />
-              ) : (
-                <p className="my-8 text-center text-sm font-semibold text-slate-500">
-                  {channelsUnavailable ? T('—', 'غير متاح') : NO_ODOO_DATA_AR}
-                </p>
-              )}
+              </ChartCard>
             </div>
           </div>
 
@@ -825,111 +921,140 @@ export function DeliveryRadarV5() {
                   <button
                     type="button"
                     onClick={() => setChannelFilter('all')}
-                    className="cursor-pointer rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    className="cursor-pointer rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
                     {T('Show All Platforms', 'عرض كل المنصات')}
                   </button>
                 ) : null}
 
                 <div className="relative">
-                  <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search
+                    className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                    aria-hidden
+                  />
                   <input
                     type="search"
                     value={searchQuery}
+                    aria-label={T('Filter branch or platform', 'بحث بالفرع أو المنصة')}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={T('Filter branch or platform...', 'بحث بالفرع أو المنصة...')}
-                    className="h-9 rounded-xl border border-slate-200 bg-[#F6F7F8] ps-9 pe-3 text-xs font-medium text-slate-900 focus:border-emerald-500 focus:outline-none dark:border-white/10 dark:bg-[#141F1B] dark:text-white"
+                    className="h-9 rounded-xl border border-slate-200 bg-[#F6F7F8] ps-9 pe-3 text-xs font-medium text-slate-900 focus:border-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#141F1B] dark:text-white"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
-                    <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
-                    <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
-                    <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                    <th className="py-2.5 text-end">{T('Orders', 'الطلبات')}</th>
-                    <th className="py-2.5 text-end">{T('Avg Basket', 'متوسط الطلب')}</th>
-                    <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
-                    <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
-                  {matrixRows.map((row) => (
-                    <tr
-                      key={row.rowId}
-                      className={
-                        row.isUnattributed
-                          ? 'bg-amber-50/50 dark:bg-amber-950/15'
-                          : 'hover:bg-slate-50/80 dark:hover:bg-white/[0.03]'
-                      }
-                    >
-                      <td className="py-2.5 font-bold text-slate-900 dark:text-white">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Building2
-                            className={`h-3.5 w-3.5 ${
-                              row.isUnattributed ? 'text-amber-600' : 'text-emerald-600'
-                            }`}
-                          />
-                          {row.isUnattributed
-                            ? UNATTRIBUTED_BRANCH_LABEL_AR
-                            : isAr
-                              ? row.branchLabelAr
-                              : row.branchLabelEn}
-                        </span>
-                      </td>
-                      <td className="py-2.5 font-semibold text-slate-700 dark:text-slate-200">
-                        {isAr ? row.channelLabelAr : row.channelLabelEn}
-                      </td>
-                      <td
-                        dir="ltr"
-                        className="py-2.5 text-end font-extrabold tabular-nums text-slate-950 dark:text-white"
-                      >
-                        {fmtKwd(row.salesKwd, isAr)}
-                      </td>
-                      <td
-                        dir="ltr"
-                        className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
-                      >
-                        {row.orders === null ? '—' : f0(row.orders)}
-                      </td>
-                      <td
-                        dir="ltr"
-                        className="py-2.5 text-end font-medium tabular-nums text-slate-600 dark:text-slate-400"
-                      >
-                        {row.orders !== null && row.orders > 0 && row.aovKwd !== null
-                          ? fmtKwd(row.aovKwd, isAr)
-                          : '—'}
-                      </td>
-                      <td
-                        dir="ltr"
-                        className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
-                      >
-                        {row.shareOfAggregatorPct === null ? '—' : `${f1(row.shareOfAggregatorPct)}%`}
-                      </td>
-                      <td className="py-2.5 text-end">
-                        {maskInternalCosts ? (
-                          <span className="text-xs font-semibold text-slate-500">
-                            {T('Restricted', 'محجوب')}
-                          </span>
-                        ) : commissionUnposted ? (
-                          <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                            {UNPOSTED_COMMISSION_AR}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                            {T('Posted at company GL level', 'مرحّلة بإجمالي الدفتر العام')}
-                          </span>
-                        )}
-                      </td>
+            {matrixRows.length === 0 ? (
+              <StateBlock
+                state="empty"
+                compact
+                locale={resolvedLocale}
+                title={
+                  isAr
+                    ? 'لا توجد صفوف مطابقة للتصفية الحالية'
+                    : 'No rows match the active filter'
+                }
+                description={
+                  isAr
+                    ? 'جرّب مسح نص البحث أو اختيار قناة توصيل مختلفة.'
+                    : 'Try clearing the search query or selecting a different channel filter.'
+                }
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[680px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
+                      <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
+                      <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
+                      <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
+                      <th className="py-2.5 text-end">{T('Orders', 'الطلبات')}</th>
+                      <th className="py-2.5 text-end">{T('Avg Basket', 'متوسط الطلب')}</th>
+                      <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
+                      <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/[0.06]">
+                    {matrixRows.map((row) => (
+                      <tr
+                        key={row.rowId}
+                        className={
+                          row.isUnattributed
+                            ? 'bg-amber-50/50 dark:bg-amber-950/15'
+                            : 'hover:bg-slate-50/80 dark:hover:bg-white/[0.03]'
+                        }
+                      >
+                        <td className="py-2.5 font-bold text-slate-900 dark:text-white">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Building2
+                              className={`h-3.5 w-3.5 ${
+                                row.isUnattributed ? 'text-amber-600' : 'text-emerald-600'
+                              }`}
+                              aria-hidden
+                            />
+                            {isAr ? row.branchLabelAr : row.branchLabelEn}
+                          </span>
+                        </td>
+                        <td className="py-2.5 font-semibold text-slate-700 dark:text-slate-200">
+                          {isAr ? row.channelLabelAr : row.channelLabelEn}
+                        </td>
+                        <td
+                          dir="ltr"
+                          data-unavailable={row.salesKwd === null ? 'true' : undefined}
+                          title={row.salesKwd === null ? unavailableTip : undefined}
+                          className="py-2.5 text-end font-extrabold tabular-nums text-slate-950 dark:text-white"
+                        >
+                          {fmtKwd(row.salesKwd, isAr)}
+                        </td>
+                        <td
+                          dir="ltr"
+                          data-unavailable={row.orders === null ? 'true' : undefined}
+                          title={row.orders === null ? unavailableTip : undefined}
+                          className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
+                        >
+                          {row.orders === null ? '—' : f0(row.orders, resolvedLocale)}
+                        </td>
+                        <td
+                          dir="ltr"
+                          data-unavailable={row.aovKwd === null ? 'true' : undefined}
+                          title={row.aovKwd === null ? unavailableTip : undefined}
+                          className="py-2.5 text-end font-medium tabular-nums text-slate-600 dark:text-slate-400"
+                        >
+                          {row.orders !== null && row.orders > 0 && row.aovKwd !== null
+                            ? fmtKwd(row.aovKwd, isAr)
+                            : '—'}
+                        </td>
+                        <td
+                          dir="ltr"
+                          data-unavailable={row.shareOfAggregatorPct === null ? 'true' : undefined}
+                          title={row.shareOfAggregatorPct === null ? unavailableTip : undefined}
+                          className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
+                        >
+                          {row.shareOfAggregatorPct === null
+                            ? '—'
+                            : f1Pct(row.shareOfAggregatorPct, resolvedLocale)}
+                        </td>
+                        <td className="py-2.5 text-end">
+                          {maskInternalCosts ? (
+                            <span className="text-xs font-semibold text-slate-500">
+                              {T('Restricted', 'محجوب')}
+                            </span>
+                          ) : commissionUnposted ? (
+                            <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+                              {isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}
+                            </span>
+                          ) : (
+                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                              {T('Posted at company GL level', 'مرحّلة بإجمالي الدفتر العام')}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </>
       )}

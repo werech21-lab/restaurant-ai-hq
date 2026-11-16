@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useId, useRef, useState } from 'react'
+import { formatPct } from '@/lib/format'
 
 /**
  * Normalizes YYYY-MM-DD ("2026-10-29") or MM-DD ("10-29", "11-01") date labels
@@ -71,6 +72,12 @@ export function BeforeAfterDualBarChart({
   afterLegend,
   formatAxisValue,
   heightClass = 'h-72',
+  title,
+  periodLabel,
+  unitLabel,
+  xAxisLabel,
+  yAxisLabel,
+  ariaLabel,
 }: {
   data: DualBarDatum[]
   isAr: boolean
@@ -78,6 +85,12 @@ export function BeforeAfterDualBarChart({
   afterLegend: string
   formatAxisValue?: (v: number) => string
   heightClass?: string
+  title?: string
+  periodLabel?: string
+  unitLabel?: string
+  xAxisLabel?: string
+  yAxisLabel?: string
+  ariaLabel?: string
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const isTouchRef = useRef(false)
@@ -93,21 +106,47 @@ export function BeforeAfterDualBarChart({
   const fmtAxis = formatAxisValue ?? ((v: number) => formatCompactKwdTick(v, isAr))
 
   const activeDatum = hoveredIdx !== null ? data[hoveredIdx] : null
+  const metaSubtitle = [periodLabel, unitLabel].filter(Boolean).join(' · ')
+  const resolvedAriaLabel =
+    ariaLabel ??
+    ([title, periodLabel, unitLabel].filter(Boolean).join(' — ') ||
+      (isAr ? 'مخطط مقارنة قبل وبعد' : 'Before vs After comparison chart'))
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="relative select-none space-y-3">
+    <div
+      role="region"
+      aria-label={resolvedAriaLabel}
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="relative select-none space-y-3"
+    >
+      {title || metaSubtitle ? (
+        <div className="space-y-0.5">
+          {title ? (
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+          ) : null}
+          {metaSubtitle ? (
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{metaSubtitle}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Legend */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-2 font-semibold text-slate-600 dark:text-slate-300">
-            <span className="h-3 w-3 rounded-full bg-[#CBD5E1] dark:bg-slate-500" />
+            <span className="h-3 w-3 rounded-full bg-[#CBD5E1] dark:bg-slate-500" aria-hidden />
             {beforeLegend}
           </span>
           <span className="inline-flex items-center gap-2 font-bold text-slate-900 dark:text-white">
-            <span className="h-3 w-3 rounded-full bg-[#10B981]" />
+            <span className="h-3 w-3 rounded-full bg-[#10B981]" aria-hidden />
             {afterLegend}
           </span>
         </div>
+        {yAxisLabel ? (
+          <span data-chart-axis-y="true" className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {yAxisLabel}
+          </span>
+        ) : null}
       </div>
 
       {/* Plot Canvas */}
@@ -245,8 +284,11 @@ export function BeforeAfterDualBarChart({
                   if (!isTouchRef.current) setHoveredIdx(idx)
                 }}
                 onBlur={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setHoveredIdx(null)
+                }}
                 onClick={() => setHoveredIdx((prev) => (prev === idx ? null : idx))}
-                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none sm:px-1 ${
+                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 sm:px-1 ${
                   isHovered
                     ? 'bg-white/90 ring-1 ring-emerald-500/30 dark:bg-white/[0.07]'
                     : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
@@ -287,6 +329,14 @@ export function BeforeAfterDualBarChart({
           })}
         </div>
       </div>
+      {xAxisLabel ? (
+        <div
+          data-chart-axis-x="true"
+          className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400"
+        >
+          {xAxisLabel}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -319,6 +369,12 @@ export function InteractiveHoverBarChart({
   stacked = false,
   formatAxisValue,
   heightClass = 'h-64',
+  title,
+  periodLabel,
+  unitLabel,
+  xAxisLabel,
+  yAxisLabel,
+  ariaLabel,
 }: {
   data: MultiSeriesBarDatum[]
   isAr: boolean
@@ -329,6 +385,12 @@ export function InteractiveHoverBarChart({
   stacked?: boolean
   formatAxisValue?: (v: number) => string
   heightClass?: string
+  title?: string
+  periodLabel?: string
+  unitLabel?: string
+  xAxisLabel?: string
+  yAxisLabel?: string
+  ariaLabel?: string
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const isTouchRef = useRef(false)
@@ -345,6 +407,11 @@ export function InteractiveHoverBarChart({
   const fmtAxis = formatAxisValue ?? ((v: number) => formatCompactKwdTick(v, isAr))
 
   const activeDatum = hoveredIdx !== null ? data[hoveredIdx] : null
+  const metaSubtitle = [periodLabel, unitLabel].filter(Boolean).join(' · ')
+  const resolvedAriaLabel =
+    ariaLabel ??
+    ([title, primaryLegend, periodLabel, unitLabel].filter(Boolean).join(' — ') ||
+      (isAr ? 'مخطط أعمدة بياني' : 'Interactive bar chart'))
 
   // Normalize ultra-dark #0F172A / #0B1220 primary bars so they stay visible against dark cards too
   const resolvePrimaryColor = (c?: string) => {
@@ -353,20 +420,41 @@ export function InteractiveHoverBarChart({
   }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="relative select-none space-y-3">
+    <div
+      role="region"
+      aria-label={resolvedAriaLabel}
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="relative select-none space-y-3"
+    >
+      {title || metaSubtitle ? (
+        <div className="space-y-0.5">
+          {title ? (
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+          ) : null}
+          {metaSubtitle ? (
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{metaSubtitle}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
         <div className="flex flex-wrap items-center gap-4">
           <span className="inline-flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: resolvePrimaryColor() }} />
+            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: resolvePrimaryColor() }} aria-hidden />
             {primaryLegend}
           </span>
           {secondaryLegend ? (
             <span className="inline-flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: secondaryColor }} />
+              <span className="h-3 w-3 rounded-full" style={{ backgroundColor: secondaryColor }} aria-hidden />
               {secondaryLegend}
             </span>
           ) : null}
         </div>
+        {yAxisLabel ? (
+          <span data-chart-axis-y="true" className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            {yAxisLabel}
+          </span>
+        ) : null}
       </div>
 
       <div className="ae-bento-subcard relative rounded-2xl bg-[#F4F6F9] px-2.5 py-3.5 pt-6 sm:p-4 sm:pt-6">
@@ -467,8 +555,11 @@ export function InteractiveHoverBarChart({
                   if (!isTouchRef.current) setHoveredIdx(idx)
                 }}
                 onBlur={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') setHoveredIdx(null)
+                }}
                 onClick={() => setHoveredIdx((prev) => (prev === idx ? null : idx))}
-                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none sm:px-0.5 ${
+                className={`group flex h-full min-w-0 flex-1 cursor-pointer flex-col justify-end rounded-2xl px-0 pt-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 sm:px-0.5 ${
                   isHovered
                     ? 'bg-white/90 ring-1 ring-emerald-500/30 dark:bg-white/[0.07]'
                     : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
@@ -478,7 +569,7 @@ export function InteractiveHoverBarChart({
                   <div className="flex h-full w-full items-end justify-center">
                     <div
                       style={{ height: `${totalPct}%` }}
-                      className="ae-bar-grow flex w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] sm:max-w-[22px] flex-col justify-end overflow-hidden rounded-full"
+                      className="ae-bar-grow flex w-full min-w-[6px] sm:min-w-[10px] max-w-[16px] sm:max-w-[22px] flex-col justify-end overflow-hidden rounded-xl"
                     >
                       {sVal > 0 ? (
                         <div
@@ -537,6 +628,14 @@ export function InteractiveHoverBarChart({
           })}
         </div>
       </div>
+      {xAxisLabel ? (
+        <div
+          data-chart-axis-x="true"
+          className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400"
+        >
+          {xAxisLabel}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -563,12 +662,22 @@ export function SalesNetComboChart({
   salesLegend,
   netLegend,
   heightClass = 'h-60',
+  title,
+  periodLabel,
+  unitLabel,
+  xAxisLabel,
+  ariaLabel,
 }: {
   data: ComboBarLineDatum[]
   isAr: boolean
   salesLegend: string
   netLegend: string
   heightClass?: string
+  title?: string
+  periodLabel?: string
+  unitLabel?: string
+  xAxisLabel?: string
+  ariaLabel?: string
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const isTouchRef = useRef(false)
@@ -635,9 +744,30 @@ export function SalesNetComboChart({
   const activeDatum = hoveredIdx !== null ? data[hoveredIdx] : null
   const activePoint = hoveredIdx !== null ? points[hoveredIdx] : null
   const axisRatios = [1, 0.75, 0.5, 0.25, 0] as const
+  const metaSubtitle = [periodLabel, unitLabel].filter(Boolean).join(' · ')
+  const resolvedAriaLabel =
+    ariaLabel ??
+    ([title, salesLegend, netLegend, periodLabel, unitLabel].filter(Boolean).join(' — ') ||
+      (isAr ? 'مخطط المبيعات وصافي الربح' : 'Sales and net profit chart'))
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="relative select-none space-y-3">
+    <div
+      role="region"
+      aria-label={resolvedAriaLabel}
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="relative select-none space-y-3"
+    >
+      {title || metaSubtitle ? (
+        <div className="space-y-0.5">
+          {title ? (
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+          ) : null}
+          {metaSubtitle ? (
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{metaSubtitle}</p>
+          ) : null}
+        </div>
+      ) : null}
+
       {/* Legend & Dual-Scale Key */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
         <div className="flex flex-wrap items-center gap-4">
@@ -678,7 +808,7 @@ export function SalesNetComboChart({
                 dir="ltr"
                 className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-extrabold tabular-nums text-emerald-700"
               >
-                {activeDatum.netMarginPct.toFixed(1)}%
+                {formatPct(activeDatum.netMarginPct, { locale: isAr ? 'ar' : 'en' })}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -767,8 +897,11 @@ export function SalesNetComboChart({
                         if (!isTouchRef.current) setHoveredIdx(idx)
                       }}
                       onBlur={() => setHoveredIdx((cur) => (cur === idx ? null : cur))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') setHoveredIdx(null)
+                      }}
                       onClick={() => setHoveredIdx((prev) => (prev === idx ? null : idx))}
-                      className={`group flex h-full min-w-0 cursor-pointer items-end justify-center rounded-xl px-[1.5px] sm:px-1 transition-colors duration-150 focus:outline-none ${
+                      className={`group flex h-full min-w-0 cursor-pointer items-end justify-center rounded-xl px-[1.5px] sm:px-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                         isHovered ? 'bg-emerald-500/[0.06] dark:bg-emerald-400/[0.08]' : ''
                       }`}
                     >
@@ -886,6 +1019,14 @@ export function SalesNetComboChart({
           </div>
         </div>
       </div>
+      {xAxisLabel ? (
+        <div
+          data-chart-axis-x="true"
+          className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400"
+        >
+          {xAxisLabel}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -935,21 +1076,21 @@ export function InteractiveHorizontalRankList({
             aria-pressed={isInteractive ? Boolean(item.active) : undefined}
             tabIndex={0}
             onClick={isInteractive ? () => onSelect(item.id) : undefined}
-            onKeyDown={
-              isInteractive
-                ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSelect(item.id)
-                    }
-                  }
-                : undefined
-            }
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setHoveredId(null)
+                return
+              }
+              if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault()
+                onSelect(item.id)
+              }
+            }}
             onMouseEnter={() => setHoveredId(item.id)}
             onMouseLeave={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
             onFocus={() => setHoveredId(item.id)}
             onBlur={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
-            className={`relative rounded-xl p-3 transition-all duration-[180ms] focus:outline-none ${
+            className={`relative rounded-xl p-3 transition-all duration-[180ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               isInteractive ? 'cursor-pointer' : ''
             } ${
               item.active
@@ -1021,7 +1162,7 @@ export function InteractiveHorizontalRankList({
             {isHovered ? (
               <div
                 role="tooltip"
-                className="pointer-events-none absolute inset-x-3 bottom-full z-30 mb-1.5 rounded-2xl bg-white p-3 text-[12px] text-slate-950"
+                className="pointer-events-none absolute inset-x-3 bottom-full z-30 mb-1.5 rounded-2xl bg-white p-3 text-[12px] text-slate-950 shadow-lg ring-1 ring-slate-900/10"
               >
                 <div className="mb-1.5 font-semibold text-slate-950">{item.label}</div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
@@ -1081,6 +1222,7 @@ export function InteractiveDonutChart({
   isAr,
   legendColumns = 2,
   legendLayout = 'below',
+  ariaLabel,
 }: {
   slices: DonutSliceDatum[]
   centerValue: string
@@ -1093,6 +1235,7 @@ export function InteractiveDonutChart({
   isAr: boolean
   legendColumns?: 1 | 2
   legendLayout?: 'below' | 'beside'
+  ariaLabel?: string
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
@@ -1121,11 +1264,13 @@ export function InteractiveDonutChart({
   const hoveredSlice = hoveredId ? slices.find((s) => s.id === hoveredId) ?? null : null
   const activeCenterText = hoveredSlice ? hoveredSlice.pctFormatted : centerValue
   const centerFontCls =
-    activeCenterText.length > 8
-      ? 'text-[15px]'
-      : activeCenterText.length > 6
-        ? 'text-[18px]'
-        : 'text-[22px]'
+    activeCenterText.length > 10
+      ? 'text-[13px]'
+      : activeCenterText.length > 8
+        ? 'text-[15px]'
+        : activeCenterText.length > 6
+          ? 'text-[18px]'
+          : 'text-[22px]'
 
   const resolvePillToneCls = (tone?: DonutSummaryPill['tone']) =>
     tone === 'amber'
@@ -1151,9 +1296,19 @@ export function InteractiveDonutChart({
       ? [summaryPill]
       : []
 
+  const resolvedDonutAria =
+    ariaLabel ??
+    ([centerLabel, centerValue].filter(Boolean).join(' — ') ||
+      (isAr ? 'مخطط دائري لتوزيع الحصص' : 'Distribution donut chart'))
+
   const ringBlock = (
     <div className="relative mx-auto flex h-48 w-48 shrink-0 items-center justify-center">
-      <svg viewBox="0 0 192 192" className="h-full w-full overflow-visible">
+      <svg
+        viewBox="0 0 192 192"
+        role="img"
+        aria-label={resolvedDonutAria}
+        className="h-full w-full overflow-visible"
+      >
         <circle
           cx="96"
           cy="96"
@@ -1191,7 +1346,7 @@ export function InteractiveDonutChart({
 
       {/* Strictly Padded Circular Center Safe Zone: 102px inside 141px clear ring (>19px radial padding all around) */}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="mx-auto flex h-[102px] w-[102px] max-w-[62%] flex-col items-center justify-center rounded-full px-1.5 text-center tabular-nums">
+        <div className="mx-auto flex h-[102px] w-[102px] max-w-[62%] flex-col items-center justify-center px-1.5 text-center tabular-nums">
           <span
             dir="ltr"
             className={`${centerFontCls} max-w-[92px] whitespace-nowrap font-semibold leading-none tracking-tight tabular-nums text-neutral-950 dark:text-white`}
@@ -1236,21 +1391,21 @@ export function InteractiveDonutChart({
             aria-pressed={onSelectSlice ? isSelected : undefined}
             tabIndex={0}
             onClick={onSelectSlice ? () => onSelectSlice(s.id) : undefined}
-            onKeyDown={
-              onSelectSlice
-                ? (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSelectSlice(s.id)
-                    }
-                  }
-                : undefined
-            }
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setHoveredId(null)
+                return
+              }
+              if (onSelectSlice && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault()
+                onSelectSlice(s.id)
+              }
+            }}
             onMouseEnter={() => setHoveredId(s.id)}
             onMouseLeave={() => setHoveredId((cur) => (cur === s.id ? null : cur))}
             onFocus={() => setHoveredId(s.id)}
             onBlur={() => setHoveredId((cur) => (cur === s.id ? null : cur))}
-            className={`ae-bento-subcard flex cursor-pointer flex-col justify-center gap-1 rounded-xl px-3 py-2.5 transition-all duration-150 focus:outline-none ${
+            className={`ae-bento-subcard flex cursor-pointer flex-col justify-center gap-1 rounded-xl px-3 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               isSelected
                 ? 'bg-emerald-50/90 ring-1 ring-emerald-500/50 dark:bg-emerald-950/45 dark:ring-emerald-400/40'
                 : isHovered
@@ -1275,7 +1430,7 @@ export function InteractiveDonutChart({
                 {s.valueFormatted}
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 ps-4.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0.5 ps-4">
               {s.subLabel ? (
                 <p className="whitespace-normal text-xs font-medium leading-snug text-slate-600 dark:text-slate-300 tabular-nums">
                   {s.subLabel}
