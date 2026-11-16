@@ -165,6 +165,8 @@ export interface ReviewedBriefItem {
   factIds: string[]
   text: string
   stance: 'support' | 'dispute'
+  /** Identity of the structured claim. Display text is never model prose. */
+  claimKey: string
 }
 
 export interface ReviewedAdvisoryItem {

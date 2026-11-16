@@ -17,9 +17,17 @@ import type {
   ReviewedBriefModel,
   StoredBriefReport,
 } from './brief-types'
-import { claimKey, claimRecognised, claimsContradict, normalizeClaim, type NormalizedClaim } from './claims'
-import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
+import { extractCanonicalDecimals } from './number-guard'
 import { factForGuard, parseFactSource } from './source-links'
+import {
+  claimIdentity,
+  computeClaimFigure,
+  renderClaimText,
+  sharesFact,
+  structuredClaimSchema,
+  targetMatchesFacts,
+  type StructuredClaim,
+} from './structured-claim'
 
 const PROVIDERS: readonly BriefProvider[] = ['anthropic', 'google', 'xai']
 
@@ -44,10 +52,6 @@ function parseJsonObject(text: string): unknown {
   }
 }
 
-function factKey(factIds: readonly string[]): string {
-  return [...factIds].sort().join('|')
-}
-
 function citationsFor(factIds: readonly string[], byId: ReadonlyMap<string, BriefFact>): BriefCitation[] {
   return factIds.map((id) => {
     const fact = byId.get(id)
@@ -62,30 +66,46 @@ function citationsFor(factIds: readonly string[], byId: ReadonlyMap<string, Brie
   })
 }
 
-function reviewText(text: string, factIds: readonly string[], byId: ReadonlyMap<string, BriefFact>): { ok: true } | { ok: false; code: 'GUARD' | 'CITATION' } {
-  if (!text.trim() || factIds.length === 0) return { ok: false, code: 'CITATION' }
+function reviewAdvisory(text: string, facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
+  const factsJson = JSON.stringify(facts)
+  if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) return { ok: false, code: 'GUARD' }
+  if (extractCanonicalDecimals(text).length > 0) return { ok: false, code: 'GUARD' }
+  return { ok: true }
+}
+
+function reviewStructuredClaim(
+  value: unknown,
+  byId: ReadonlyMap<string, BriefFact>,
+): { ok: true; item: ReviewedBriefItem } | { ok: false; code: 'GUARD' | 'CITATION' } {
+  const record = asRecord(value)
+  if (!record || !('claim' in record) || 'text' in record || 'solution' in record || 'factIds' in record) {
+    return { ok: false, code: 'GUARD' }
+  }
+  const parsed = structuredClaimSchema.safeParse(record.claim)
+  if (!parsed.success) return { ok: false, code: 'GUARD' }
+  const claim: StructuredClaim = parsed.data
   const cited: BriefFact[] = []
-  for (const id of factIds) {
+  for (const id of claim.cited_fact_ids) {
     const fact = byId.get(id)
     if (!fact) return { ok: false, code: 'CITATION' }
     cited.push(fact)
   }
-  const citedJson = JSON.stringify(cited)
-  if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(citedJson)) return { ok: false, code: 'GUARD' }
-  const guard = guardAnswerAgainstFacts(text, cited)
-  if (!guard.ok) return { ok: false, code: 'GUARD' }
-  const present = new Set(extractCanonicalDecimals(text))
-  for (const fact of cited) {
-    if (!present.has(fact.value)) return { ok: false, code: 'CITATION' }
+  if (!targetMatchesFacts(claim, cited)) return { ok: false, code: 'CITATION' }
+  const targetLabel = claim.target.name ?? String(claim.target.odoo_id ?? '')
+  if (isExcludedOdooEntity(targetLabel) && !isExcludedOdooEntity(JSON.stringify(cited))) {
+    return { ok: false, code: 'GUARD' }
   }
-  return { ok: true }
-}
-
-function reviewAdvisory(text: string, facts: readonly BriefFact[]): { ok: true } | { ok: false; code: 'GUARD' } {
-  const factsJson = JSON.stringify(facts)
-  if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) return { ok: false, code: 'GUARD' }
-  const guard = guardAnswerAgainstFacts(text, facts)
-  return guard.ok ? { ok: true } : { ok: false, code: 'GUARD' }
+  const figure = computeClaimFigure(claim, cited)
+  if (!figure) return { ok: false, code: 'GUARD' }
+  return {
+    ok: true,
+    item: {
+      factIds: [...claim.cited_fact_ids],
+      text: renderClaimText(claim, figure),
+      stance: claim.polarity === 'do_not' ? 'dispute' : 'support',
+      claimKey: claimIdentity(claim),
+    },
+  }
 }
 
 function readAdvisory(value: unknown, facts: readonly BriefFact[]): { items: ReviewedAdvisoryItem[]; sawGuard: boolean } {
@@ -126,19 +146,8 @@ export function githubIssueDraft(proposal: BriefProposal): string {
   ].join('\n')
 }
 
-function readItems(value: unknown, field: 'text' | 'solution'): { factIds: string[]; text: string; stance: 'support' | 'dispute' }[] {
-  if (!Array.isArray(value)) return []
-  const items: { factIds: string[]; text: string; stance: 'support' | 'dispute' }[] = []
-  for (const entry of value) {
-    const record = asRecord(entry)
-    if (!record || !Array.isArray(record.factIds)) continue
-    const factIds = [...new Set(record.factIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0))]
-    const text = typeof record[field] === 'string' ? record[field].trim() : ''
-    const stance = record.stance === 'dispute' ? 'dispute' : 'support'
-    if (factIds.length === 0 || !text) continue
-    items.push({ factIds, text, stance })
-  }
-  return items
+function readClaimEntries(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
 }
 
 export function reviewModelText(input: {
@@ -165,17 +174,17 @@ export function reviewModelText(input: {
   const recommendations: ReviewedBriefItem[] = []
   let sawGuard = false
   let sawCitation = false
-  const accept = (item: { factIds: string[]; text: string; stance: 'support' | 'dispute' }, bucket: ReviewedBriefItem[]) => {
-    const review = reviewText(item.text, item.factIds, byId)
+  const accept = (entry: unknown, bucket: ReviewedBriefItem[]) => {
+    const review = reviewStructuredClaim(entry, byId)
     if (!review.ok) {
       if (review.code === 'GUARD') sawGuard = true
       else sawCitation = true
       return
     }
-    bucket.push(item)
+    bucket.push(review.item)
   }
-  for (const item of readItems(body.findings, 'text')) accept(item, findings)
-  for (const item of readItems(body.recommendations, 'solution')) accept(item, recommendations)
+  for (const item of readClaimEntries(body.findings)) accept(item, findings)
+  for (const item of readClaimEntries(body.recommendations)) accept(item, recommendations)
   const advisory = readAdvisory(body.advisory, input.facts)
   if (advisory.sawGuard) sawGuard = true
   if (findings.length === 0 && recommendations.length === 0 && advisory.items.length === 0) {
@@ -200,6 +209,75 @@ export function reviewModelText(input: {
   }
 }
 
+type ClaimVote = {
+  provider: BriefProvider
+  modelId: string
+  text: string
+  claimKey: string
+  factIds: string[]
+  stance: 'support' | 'dispute'
+}
+
+function connectedByFacts(votes: readonly ClaimVote[]): ClaimVote[][] {
+  const parent = votes.map((_, index) => index)
+  const find = (index: number): number => {
+    let cursor = index
+    while (parent[cursor] !== cursor) cursor = parent[cursor] ?? cursor
+    return cursor
+  }
+  const unite = (left: number, right: number) => {
+    const a = find(left)
+    const b = find(right)
+    if (a !== b) parent[b] = a
+  }
+  for (let i = 0; i < votes.length; i += 1) {
+    for (let j = i + 1; j < votes.length; j += 1) {
+      const left = votes[i]
+      const right = votes[j]
+      if (left && right && sharesFact(left.factIds, right.factIds)) unite(i, j)
+    }
+  }
+  const groups = new Map<number, ClaimVote[]>()
+  votes.forEach((vote, index) => {
+    const root = find(index)
+    const list = groups.get(root) ?? []
+    list.push(vote)
+    groups.set(root, list)
+  })
+  return [...groups.values()]
+}
+
+function groupByKey(votes: readonly ClaimVote[]): ClaimVote[][] {
+  const grouped = new Map<string, ClaimVote[]>()
+  for (const vote of votes) {
+    const list = grouped.get(vote.claimKey) ?? []
+    list.push(vote)
+    grouped.set(vote.claimKey, list)
+  }
+  return [...grouped.values()]
+}
+
+function agreeingVotes(votes: readonly ClaimVote[]): ClaimVote[] {
+  const kept = votes.filter((vote, index) =>
+    votes.some(
+      (other, otherIndex) =>
+        otherIndex !== index && other.provider !== vote.provider && sharesFact(vote.factIds, other.factIds),
+    ),
+  )
+  return new Set(kept.map((vote) => vote.provider)).size >= 2 ? kept : []
+}
+
+function sharedFactIds(votes: readonly ClaimVote[]): string[] {
+  const counts = new Map<string, number>()
+  for (const vote of votes) {
+    for (const id of new Set(vote.factIds)) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count >= 2)
+    .map(([id]) => id)
+    .sort()
+}
+
 export function assembleBriefReport(input: {
   generatedAt: string
   trigger: 'schedule' | 'manual'
@@ -209,54 +287,44 @@ export function assembleBriefReport(input: {
   models: readonly ReviewedBriefModel[]
 }): StoredBriefReport {
   const byId = new Map(input.facts.map((fact) => [fact.id, fact]))
-  const findingGroups = new Map<string, BriefFinding & { claim: NormalizedClaim }>()
+  const findingVotes: ClaimVote[] = []
   for (const model of input.models) {
     for (const item of model.findings) {
-      const factIds = [...item.factIds].sort()
-      const cited = factIds.flatMap((id) => {
-        const fact = byId.get(id)
-        return fact ? [fact] : []
+      findingVotes.push({
+        provider: model.provider,
+        modelId: model.modelId,
+        text: item.text,
+        claimKey: item.claimKey,
+        factIds: [...item.factIds],
+        stance: item.stance,
       })
-      const claim = normalizeClaim(item.text, cited)
-      const key = `${factKey(factIds)}#${claimKey(claim)}`
-      const group = findingGroups.get(key) ?? {
-        factIds,
-        citations: citationsFor(factIds, byId),
-        notes: [],
-        claim,
-      }
-      group.notes.push({ provider: model.provider, modelId: model.modelId, text: item.text })
-      findingGroups.set(key, group)
     }
   }
 
   const findings: BriefFinding[] = []
   const unadoptedFindings: BriefUnadoptedFinding[] = []
-  const findingsByFacts = new Map<string, Array<BriefFinding & { claim: NormalizedClaim }>>()
-  for (const group of findingGroups.values()) {
-    const bucket = findingsByFacts.get(factKey(group.factIds)) ?? []
-    bucket.push(group)
-    findingsByFacts.set(factKey(group.factIds), bucket)
-  }
-  for (const bucket of findingsByFacts.values()) {
-    const contradicted = bucket.some((left, index) =>
-      bucket.slice(index + 1).some((right) => claimsContradict(left.claim, right.claim)),
-    )
-    for (const group of bucket) {
-      const supporters = new Set(group.notes.map((note) => note.provider))
-      if (!contradicted && supporters.size >= 2 && claimRecognised(group.claim)) {
-        findings.push({ factIds: group.factIds, citations: group.citations, notes: group.notes })
-        continue
-      }
-      for (const note of group.notes) {
-        unadoptedFindings.push({
-          factIds: group.factIds,
-          citations: group.citations,
-          provider: note.provider,
-          modelId: note.modelId,
-          text: note.text,
-        })
-      }
+  for (const component of connectedByFacts(findingVotes)) {
+    const keys = new Set(component.map((vote) => vote.claimKey))
+    const adoptable = [...keys].every((key) => !key.startsWith('none|'))
+    const grouped = groupByKey(component)
+    const agreed = adoptable && keys.size === 1 ? agreeingVotes(grouped[0] ?? []) : []
+    if (agreed.length >= 2) {
+      const factIds = sharedFactIds(agreed)
+      findings.push({
+        factIds,
+        citations: citationsFor(factIds, byId),
+        notes: agreed.map((vote) => ({ provider: vote.provider, modelId: vote.modelId, text: vote.text })),
+      })
+      continue
+    }
+    for (const vote of component) {
+      unadoptedFindings.push({
+        factIds: vote.factIds,
+        citations: citationsFor(vote.factIds, byId),
+        provider: vote.provider,
+        modelId: vote.modelId,
+        text: vote.text,
+      })
     }
   }
 
@@ -283,70 +351,68 @@ export function assembleBriefReport(input: {
     }
   }
 
-  type Side = { provider: BriefProvider; modelId: string; solution: string; claim: NormalizedClaim }
-  const recommendationGroups = new Map<string, { factIds: string[]; support: Side[]; dispute: Side[] }>()
+  const recommendationVotes: ClaimVote[] = []
   for (const model of input.models) {
     for (const item of model.recommendations) {
-      const factIds = [...item.factIds].sort()
-      const cited = factIds.flatMap((id) => {
-        const fact = byId.get(id)
-        return fact ? [fact] : []
+      recommendationVotes.push({
+        provider: model.provider,
+        modelId: model.modelId,
+        text: item.text,
+        claimKey: item.claimKey,
+        factIds: [...item.factIds],
+        stance: item.stance,
       })
-      const claim = normalizeClaim(item.text, cited)
-      const key = factKey(factIds)
-      const group = recommendationGroups.get(key) ?? { factIds, support: [], dispute: [] }
-      const side = item.stance === 'dispute' ? group.dispute : group.support
-      if (!side.some((entry) => entry.provider === model.provider && claimKey(entry.claim) === claimKey(claim))) {
-        side.push({ provider: model.provider, modelId: model.modelId, solution: item.text, claim })
-      }
-      recommendationGroups.set(key, group)
     }
   }
 
   const recommendations: BriefRecommendation[] = []
   const disputed: BriefDispute[] = []
   const dropped: BriefDropped[] = []
-  const asStored = (side: Side) => ({ provider: side.provider, modelId: side.modelId, solution: side.solution })
-  for (const group of recommendationGroups.values()) {
-    const citations = citationsFor(group.factIds, byId)
-    const explicitDispute = group.dispute.length > 0
-    const supportClusters = new Map<string, Side[]>()
-    for (const side of group.support) {
-      const key = claimKey(side.claim)
-      const cluster = supportClusters.get(key) ?? []
-      cluster.push(side)
-      supportClusters.set(key, cluster)
-    }
-    const clusters = [...supportClusters.values()]
-    const contradicted =
-      explicitDispute ||
-      clusters.some((left, index) =>
-        clusters.slice(index + 1).some((right) => right[0] && left[0] && claimsContradict(left[0].claim, right[0].claim)),
-      )
-    if (contradicted) {
+  const asStored = (vote: ClaimVote) => ({ provider: vote.provider, modelId: vote.modelId, solution: vote.text })
+  for (const component of connectedByFacts(recommendationVotes)) {
+    const keys = [...new Set(component.map((vote) => vote.claimKey))]
+    const factIds = [...new Set(component.flatMap((vote) => vote.factIds))].sort()
+    const citations = citationsFor(factIds, byId)
+    if (keys.length > 1) {
+      const grouped = groupByKey(component)
       disputed.push({
-        factIds: group.factIds,
+        factIds,
         citations,
-        support: (explicitDispute ? group.support : (clusters[0] ?? [])).map(asStored),
-        dispute: (explicitDispute ? group.dispute : clusters.slice(1).flat()).map(asStored),
+        support: (grouped[0] ?? []).map(asStored),
+        dispute: grouped.slice(1).flat().map(asStored),
       })
       continue
     }
-    for (const cluster of clusters) {
-      const providers = new Set(cluster.map((side) => side.provider))
-      if (providers.size >= 2 && cluster[0] && claimRecognised(cluster[0].claim)) {
-        recommendations.push({ factIds: group.factIds, citations, supporters: cluster.map(asStored) })
-        continue
-      }
-      for (const side of cluster) {
+    if (keys[0]?.startsWith('none|')) {
+      for (const vote of component) {
         dropped.push({
-          factIds: group.factIds,
-          citations,
-          provider: side.provider,
-          modelId: side.modelId,
-          solution: side.solution,
+          factIds: vote.factIds,
+          citations: citationsFor(vote.factIds, byId),
+          provider: vote.provider,
+          modelId: vote.modelId,
+          solution: vote.text,
         })
       }
+      continue
+    }
+    const agreed = agreeingVotes(component)
+    if (agreed.length >= 2) {
+      const shared = sharedFactIds(agreed)
+      recommendations.push({
+        factIds: shared,
+        citations: citationsFor(shared, byId),
+        supporters: agreed.map(asStored),
+      })
+      continue
+    }
+    for (const vote of component) {
+      dropped.push({
+        factIds: vote.factIds,
+        citations: citationsFor(vote.factIds, byId),
+        provider: vote.provider,
+        modelId: vote.modelId,
+        solution: vote.text,
+      })
     }
   }
 

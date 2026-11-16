@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { ReportBody } from '@/app/erp/ai-brief/report-body'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
 import type { BriefCitation, BriefFact, StoredBriefReport } from '@/server/ai/brief-types'
 import {
@@ -113,9 +114,9 @@ describe('phase 4 reports and advisory', () => {
         reviewModelText({
           provider: 'anthropic',
           modelId: 'claude-test',
-          text: JSON.stringify({
-            findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
-            recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
+          text: claimResponse({
+            findings: [structuredClaim([fact])],
+            recommendations: [structuredClaim([fact])],
             advisory: [{ topic: 'organization', text: 'رتب متابعة الفروع يومياً.' }],
           }),
           facts: [fact],
@@ -123,9 +124,9 @@ describe('phase 4 reports and advisory', () => {
         reviewModelText({
           provider: 'google',
           modelId: 'gemini-test',
-          text: JSON.stringify({
-            findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
-            recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
+          text: claimResponse({
+            findings: [structuredClaim([fact])],
+            recommendations: [structuredClaim([fact])],
             advisory: [{ topic: 'strategic_plan', text: 'الخطة تركز على الفروع المرتبطة.' }],
           }),
           facts: [fact],
@@ -180,9 +181,9 @@ describe('phase 4 reports and advisory', () => {
           reviewModelText({
             provider: 'anthropic',
             modelId: 'claude-test',
-            text: JSON.stringify({
-              findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
-              recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
+            text: claimResponse({
+              findings: [structuredClaim([fact])],
+              recommendations: [structuredClaim([fact])],
               advisory: [{ topic: 'organization', text: 'رتب متابعة الفروع يومياً.' }],
             }),
             facts: [fact],
@@ -190,11 +191,10 @@ describe('phase 4 reports and advisory', () => {
           reviewModelText({
             provider: 'google',
             modelId: 'gemini-test',
-            text: JSON.stringify({
-              findings: [{ factIds: [fact.id], text: 'راجع صافي 40.5' }],
-              recommendations: [{ factIds: [fact.id], solution: 'راجع 40.5', stance: 'support' }],
-              advisory: [],
-            }),
+          text: claimResponse({
+            findings: [structuredClaim([fact])],
+            recommendations: [structuredClaim([fact])],
+          }),
             facts: [fact],
           }),
         ],

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
 import { runBackgroundAnalysis } from '@/server/ai/brief'
 import { kuwaitBriefDays, type BriefCubeInput } from '@/server/ai/facts'
@@ -34,16 +35,11 @@ describe('phase 3 truth guard', () => {
     const sales = fact('net_sales_kwd|company|2026-11-15', '40.5')
     const orders = fact('orders|company|2026-11-15', '4')
     const facts = [sales, orders]
-    const agreed = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'راجع صافي المبيعات 40.5' }],
-      recommendations: [{ factIds: [sales.id], solution: 'راجع صافي 40.5', stance: 'support' }],
-      advisory: [],
+    const agreed = claimResponse({
+      findings: [structuredClaim([sales])],
+      recommendations: [structuredClaim([sales])],
     })
-    const alone = JSON.stringify({
-      findings: [{ factIds: [orders.id], text: 'الطلبات 4' }],
-      recommendations: [],
-      advisory: [],
-    })
+    const alone = claimResponse({ findings: [structuredClaim([orders])] })
     const rejected = JSON.stringify({
       findings: [{ factIds: [sales.id], text: 'صافي المبيعات 99' }],
       recommendations: [],
@@ -94,11 +90,8 @@ describe('phase 3 truth guard', () => {
       dateRange: { from: periods.yesterday, to: periods.yesterday },
       totals: { netSalesKwd: 40.5, orders: 4 },
     }
-    const agreed = JSON.stringify({
-      findings: [{ factIds: [salesId], text: 'راجع صافي المبيعات 40.5' }],
-      recommendations: [],
-      advisory: [],
-    })
+    const salesFact = fact(salesId, '40.5')
+    const agreed = claimResponse({ findings: [structuredClaim([salesFact])] })
     const rejected = JSON.stringify({
       findings: [{ factIds: [salesId], text: 'صافي المبيعات 99' }],
       recommendations: [],

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { claimResponse, comparisonResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
 import { composeCouncilReply } from '@/server/ai/council'
 import type { BriefFact } from '@/server/ai/brief-types'
-import { guardAnswerAgainstFacts } from '@/server/ai/number-guard'
+import { computeClaimFigure } from '@/server/ai/structured-claim'
 
 function fact(id: string, value: string): BriefFact {
   const [metric, scope, period] = id.split('|')
@@ -13,15 +14,11 @@ describe('phase 6 claim consensus', () => {
   it('drops expand versus close even when both cite the same fact', () => {
     const sales = fact('net_sales_kwd|avenues|2026-11-15', '1000')
     const facts = [sales]
-    const expand = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'صافي 1000' }],
-      recommendations: [{ factIds: [sales.id], solution: 'وسّع الفرع 1000', stance: 'support' }],
-      advisory: [],
+    const expand = claimResponse({
+      recommendations: [structuredClaim([sales], { action: 'expand', targetType: 'branch', targetName: 'avenues' })],
     })
-    const close = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'صافي 1000' }],
-      recommendations: [{ factIds: [sales.id], solution: 'أغلق الفرع 1000', stance: 'support' }],
-      advisory: [],
+    const close = claimResponse({
+      recommendations: [structuredClaim([sales], { action: 'close', targetType: 'branch', targetName: 'avenues' })],
     })
     const report = assembleBriefReport({
       generatedAt: '2026-11-16T03:00:00.000Z',
@@ -36,21 +33,18 @@ describe('phase 6 claim consensus', () => {
     })
     expect(report.recommendations).toEqual([])
     expect(report.disputed).toHaveLength(1)
-    expect(report.disputed[0]?.support[0]?.solution).toContain('وسّع')
-    expect(report.disputed[0]?.dispute[0]?.solution).toContain('أغلق')
+    const text = report.disputed[0]?.support.concat(report.disputed[0]?.dispute ?? []).map((item) => item.solution).join(' ')
+    expect(text).toContain('توسيع')
+    expect(text).toContain('إغلاق')
   })
 
-  it('adopts a recommendation only when two models share the claim', () => {
+  it('does not adopt a shared fact when a third model names a different action', () => {
     const sales = fact('net_sales_kwd|avenues|2026-11-15', '1000')
-    const text = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'صافي 1000' }],
-      recommendations: [{ factIds: [sales.id], solution: 'راجع صافي 1000', stance: 'support' }],
-      advisory: [],
+    const text = claimResponse({
+      recommendations: [structuredClaim([sales], { action: 'close', targetType: 'branch', targetName: 'avenues' })],
     })
-    const lone = JSON.stringify({
-      findings: [{ factIds: [sales.id], text: 'صافي 1000' }],
-      recommendations: [{ factIds: [sales.id], solution: 'وسّع الفرع 1000', stance: 'support' }],
-      advisory: [],
+    const lone = claimResponse({
+      recommendations: [structuredClaim([sales], { action: 'expand', targetType: 'branch', targetName: 'avenues' })],
     })
     const report = assembleBriefReport({
       generatedAt: '2026-11-16T03:00:00.000Z',
@@ -64,37 +58,52 @@ describe('phase 6 claim consensus', () => {
         reviewModelText({ provider: 'xai', modelId: 'x', text: lone, facts: [sales] }),
       ],
     })
-    expect(report.recommendations).toHaveLength(1)
-    expect(report.recommendations[0]?.supporters.map((side) => side.provider).sort()).toEqual(['anthropic', 'google'])
-    expect(report.dropped.map((item) => item.provider)).toEqual(['xai'])
+    expect(report.recommendations).toEqual([])
+    expect(report.disputed).toHaveLength(1)
   })
 })
 
 describe('phase 6 number guard', () => {
-  it('rejects a percent that only matches an hour', () => {
-    const facts = [{ id: 'hour-row', metric: 'net_sales_kwd', period: '2026-11-15', scope: '20', value: '1000' }]
-    const result = guardAnswerAgainstFacts('20% of sales', facts)
-    expect(result.ok).toBe(false)
-    expect(result.offending).toContain('20')
+  it('rejects prose that only matches an hour', () => {
+    const hour = fact('net_sales_kwd|20|2026-11-15', '1000')
+    const reviewed = reviewModelText({
+      provider: 'anthropic',
+      modelId: 'claude-test',
+      text: JSON.stringify({ findings: [{ factIds: [hour.id], text: '20% of sales' }], recommendations: [] }),
+      facts: [hour],
+    })
+    expect(reviewed.status).toBe('rejected')
+    expect(reviewed.errorCode).toBe('GUARD_REJECTED')
   })
 
-  it('rejects a rise whose written endpoints move the other way', () => {
-    const facts = [
-      { metric: 'net_sales_kwd', period: '2026-11-14', scope: 'company', value: '1000' },
-      { metric: 'net_sales_kwd', period: '2026-11-15', scope: 'company', value: '900' },
-    ]
-    expect(guardAnswerAgainstFacts('rose from 1000 to 900', facts).ok).toBe(false)
-    expect(guardAnswerAgainstFacts('rose from 1000 to 900', facts).offending).toContain('DIRECTION')
-    expect(guardAnswerAgainstFacts('انخفض من 1000 إلى 900', facts).ok).toBe(true)
+  it('rejects a written rise whose endpoints move the other way', () => {
+    const earlier = fact('net_sales_kwd|company|2026-11-14', '1000')
+    const later = fact('net_sales_kwd|company|2026-11-15', '900')
+    const reviewed = reviewModelText({
+      provider: 'anthropic',
+      modelId: 'claude-test',
+      text: JSON.stringify({ findings: [{ text: 'انخفض من 1000 إلى 900' }], recommendations: [] }),
+      facts: [earlier, later],
+    })
+    expect(reviewed.status).toBe('rejected')
   })
 
-  it('accepts a percent only after recomputing it from fact values', () => {
-    const facts = [
-      { metric: 'part', period: '2026-11-15', scope: 'company', value: '50' },
-      { metric: 'whole', period: '2026-11-15', scope: 'company', value: '200' },
-    ]
-    expect(guardAnswerAgainstFacts('25% of sales', facts).ok).toBe(true)
-    expect(guardAnswerAgainstFacts('20% of sales', facts).ok).toBe(false)
+  it('computes a share from cited facts and rejects a mismatched percent', () => {
+    const part = fact('part|company|2026-11-15', '50')
+    const whole = fact('whole|company|2026-11-15', '200')
+    const figure = computeClaimFigure(
+      structuredClaim([part, whole], { operation: 'share', direction: 'flat', targetType: 'company', targetName: 'company' }),
+      [part, whole],
+    )
+    expect(figure?.value).toBe('25')
+    const wrong = computeClaimFigure(
+      {
+        ...structuredClaim([part, whole], { operation: 'share', direction: 'flat', targetType: 'company', targetName: 'company' }),
+        direction: 'up',
+      },
+      [part, whole],
+    )
+    expect(wrong).toBeNull()
   })
 })
 
@@ -114,17 +123,32 @@ describe('phase 6 feryal agreement', () => {
   })
 
   it('lists only the models that share the conclusion', () => {
+    const shared = comparisonResponse({
+      subject_id: 'avenues',
+      relation: 'better',
+      object_id: 'salmiya',
+      metric: 'net_sales',
+      cited_fact_ids: ['fact-avenues'],
+    })
+    const other = comparisonResponse({
+      subject_id: 'salmiya',
+      relation: 'better',
+      object_id: 'avenues',
+      metric: 'net_sales',
+      cited_fact_ids: ['fact-avenues'],
+    })
     const composed = composeCouncilReply({
       odooReply: 'صافي المبيعات 10.5',
       passed: [
-        { provider: 'anthropic', modelId: 'claude', text: 'راجع الصافي 10.5' },
-        { provider: 'google', modelId: 'gemini', text: 'راجع الصافي 10.5' },
-        { provider: 'xai', modelId: 'grok', text: 'أغلق الفرع والصافي 10.5' },
+        { provider: 'anthropic', modelId: 'claude', text: shared },
+        { provider: 'google', modelId: 'gemini', text: shared },
+        { provider: 'xai', modelId: 'grok', text: other },
       ],
       failed: [],
     })
     expect(composed.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
     expect(composed.reply).toContain('اجتازت الفحص:')
     expect(composed.reply).not.toContain('xai/grok')
+    expect(composed.reply).toContain('avenues أفضل من salmiya')
   })
 })

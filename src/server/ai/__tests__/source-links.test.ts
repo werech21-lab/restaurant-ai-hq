@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo-live-connector'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
 import { briefPromptPayload, buildBriefFactPack, type BriefCubeInput } from '@/server/ai/facts'
 import {
@@ -198,18 +199,18 @@ describe('Odoo source links', () => {
     const reviewed = reviewModelText({
       provider: 'anthropic',
       modelId: 'claude-sonnet-4-6',
-      text: JSON.stringify({
-        findings: [{ factIds: [fact.id], text: `راجع ${fact.value}` }],
-        recommendations: [{ factIds: [fact.id], solution: `راجع ${fact.value}`, stance: 'support' }],
+      text: claimResponse({
+        findings: [structuredClaim([fact])],
+        recommendations: [structuredClaim([fact])],
       }),
       facts: built.facts,
     })
     const also = reviewModelText({
       provider: 'google',
       modelId: 'gemini-3.1-pro-preview',
-      text: JSON.stringify({
-        findings: [{ factIds: [fact.id], text: `راجع ${fact.value}` }],
-        recommendations: [{ factIds: [fact.id], solution: `راجع ${fact.value}`, stance: 'support' }],
+      text: claimResponse({
+        findings: [structuredClaim([fact])],
+        recommendations: [structuredClaim([fact])],
       }),
       facts: built.facts,
     })

@@ -21,15 +21,12 @@ export const BRIEF_MAX_TOKENS = 1_400
 
 const BRIEF_SYSTEM = [
   'You receive Odoo facts as JSON. Return one JSON object and no other text.',
-  'Shape: {"findings":[{"factIds":["id"],"text":"Arabic"}],"recommendations":[{"factIds":["id"],"solution":"Arabic","stance":"support"}],"advisory":[{"topic":"organization","text":"Arabic"}]}',
-  'advisory topic is organization, strategic_plan, or app_capability.',
-  'Copy factIds from the facts. Every finding and every recommendation cites at least one.',
-  'Repeat each cited value exactly as the value string. Do not add, round, or calculate a number.',
-  'Do not give a finding or a recommendation that cites no fact. Do not name anything that is absent from the facts.',
-  'stance is support or dispute. dispute means those cited facts do not support acting.',
-  'A comparison of two periods must cite both fact ids.',
-  'Ignore a section whose status is not_linked or unverified. Do not invent a figure for it.',
-  'Advisory is opinion, not a data finding. Do not put a number in advisory text unless that exact number is already in the facts.',
+  'A finding or recommendation is {"claim":{"action":"expand|close|reduce|increase|stop|start|hire|cut|monitor|none","target":{"type":"branch|product|shift|staff|discount|brand|company|warehouse","name":"exact scope or odoo_id"},"metric":"fact metric","direction":"up|down|flat","polarity":"do|do_not","cited_fact_ids":["id"],"operation":"delta|pct_change|ratio|share"}}',
+  'Shape: {"findings":[{"claim":{}}],"recommendations":[{"claim":{}}],"advisory":[{"topic":"organization","text":"Arabic"}]}',
+  'Copy cited_fact_ids, metric, and the target name from the facts. Do not write a number. operation is optional and names the figure the server will compute.',
+  'direction up or down is allowed only with operation delta or pct_change. Otherwise use flat.',
+  'advisory topic is organization, strategic_plan, or app_capability. Advisory text must not contain a number.',
+  'Ignore a section whose status is not_linked or unverified.',
   'app_capability is only a possible future change. Do not say it was built, applied, or deployed.',
 ].join('\n')
 

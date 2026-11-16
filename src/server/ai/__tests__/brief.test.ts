@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { runBackgroundAnalysis, type BriefSources } from '@/server/ai/brief'
 import { assembleBriefReport, githubIssueDraft, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
 import type { CouncilKeys } from '@/server/ai/env'
@@ -64,12 +65,12 @@ function packFor(accounting?: BriefCubeInput['accounting']) {
   })
 }
 
-function claim(factIds: string[], values: string[], stance: 'support' | 'dispute' = 'support'): string {
-  const quoted = values.join(' و ')
-  return JSON.stringify({
-    findings: [{ factIds, text: `راجع ${quoted}` }],
-    recommendations: [{ factIds, solution: `راجع ${quoted}`, stance }],
-  })
+function claim(
+  facts: Array<{ id: string; scope: string; metric: string; period: string; value: string; unit: 'KWD' | 'orders' }>,
+  polarity: 'do' | 'do_not' = 'do',
+): string {
+  const structured = structuredClaim(facts, { polarity })
+  return claimResponse({ findings: [structured], recommendations: [structured] })
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -161,19 +162,19 @@ describe('background Odoo brief', () => {
     const agreed = reviewModelText({
       provider: 'anthropic',
       modelId: RETURNED.anthropic,
-      text: claim(pair, [yesterday!.value, prior!.value]),
+      text: claim([yesterday!, prior!]),
       facts: pack.facts,
     })
     const also = reviewModelText({
       provider: 'google',
       modelId: RETURNED.google,
-      text: claim(pair, [prior!.value, yesterday!.value]),
+      text: claim([yesterday!, prior!]),
       facts: pack.facts,
     })
     const alone = reviewModelText({
       provider: 'xai',
       modelId: RETURNED.xai,
-      text: claim([yesterday!.id], [yesterday!.value]),
+      text: claim([pack.facts.find((item) => item.metric === 'purchase_total_kwd')!]),
       facts: pack.facts,
     })
     const report = assembleBriefReport({
@@ -201,13 +202,13 @@ describe('background Odoo brief', () => {
     const support = reviewModelText({
       provider: 'anthropic',
       modelId: 'model-a',
-      text: claim([fact!.id], [fact!.value], 'support'),
+      text: claim([fact!], 'do'),
       facts: pack.facts,
     })
     const dispute = reviewModelText({
       provider: 'google',
       modelId: 'model-b',
-      text: claim([fact!.id], [fact!.value], 'dispute'),
+      text: claim([fact!], 'do_not'),
       facts: pack.facts,
     })
     const report = assembleBriefReport({
@@ -231,7 +232,10 @@ describe('background Odoo brief', () => {
     const invented = reviewModelText({
       provider: 'google',
       modelId: 'model-b',
-      text: claim([fact!.id], ['999.9']),
+      text: JSON.stringify({
+        findings: [{ factIds: [fact!.id], text: 'راجع 999.9' }],
+        recommendations: [],
+      }),
       facts: pack.facts,
     })
     const excluded = reviewModelText({
@@ -333,8 +337,8 @@ describe('background Odoo brief', () => {
     const fact = pack.facts.find((item) => item.scope === 'avenues' && item.period === days.yesterday && item.metric === 'net_sales_kwd')
     expect(fact).toBeTruthy()
     const texts = {
-      anthropic: claim([fact!.id], [fact!.value]),
-      google: claim([fact!.id], [fact!.value]),
+      anthropic: claim([fact!]),
+      google: claim([fact!]),
       xai: 'this is not json',
     }
     const saved: AiDailyBriefDraft[] = []
@@ -413,7 +417,7 @@ describe('background Odoo brief', () => {
     expect(reviewed.status).toBe('ran')
     expect(report.findings).toHaveLength(0)
     expect(report.recommendations).toHaveLength(0)
-    expect(report.advisory.map((item) => item.topic)).toEqual(['organization', 'strategic_plan', 'app_capability'])
+    expect(report.advisory.map((item) => item.topic)).toEqual(['organization', 'app_capability'])
     expect(report.advisory.every((item) => item.kind === 'opinion')).toBe(true)
     expect(report.proposals).toHaveLength(1)
     expect(report.proposals[0].status).toBe('proposed')

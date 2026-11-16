@@ -37,6 +37,13 @@ function odooAnswer(status: 'answered' | 'no_odoo_data' = 'answered') {
     verifier: { valid: status === 'answered', extractedNumbers: status === 'answered' ? [10.5] : [], unverifiedNumbers: [] },
     toolNumbers: status === 'answered' ? [10.5] : [],
     period: { from: '2026-11-15', to: '2026-11-15' },
+    records:
+      status === 'answered'
+        ? [
+            { id: 'company', name: 'company', metric: 'net_sales' },
+            { id: 'fact-net', name: 'company', metric: 'net_sales' },
+          ]
+        : [],
     auditEntry: {
       id: 'audit-1',
       timestampIso: '2026-11-16T00:00:00.000Z',
@@ -130,10 +137,19 @@ describe('feryal council', () => {
     persist?: (rows: readonly AiRunDraft[]) => Promise<void>
     fetchImpl?: typeof fetch
   }) {
+    const agreed = JSON.stringify({
+      comparison: {
+        subject_id: 'company',
+        relation: 'best',
+        object_id: null,
+        metric: 'net_sales',
+        cited_fact_ids: ['fact-net'],
+      },
+    })
     const texts = {
-      anthropic: 'الصافي المسجّل 10.5',
-      google: 'تظهر الحقائق 10.50',
-      xai: 'البيان 10.5',
+      anthropic: agreed,
+      google: agreed,
+      xai: agreed,
       ...options.texts,
     }
     let inFlight = 0
@@ -237,8 +253,9 @@ describe('feryal council', () => {
     const { pending } = run({ texts: { xai: 'رقم مختلف 999.9' } })
     const result = await pending
     expect(result.status).toBe('answered')
-    expect(result.reply).toContain('الصافي المسجّل 10.5')
-    expect(result.reply).toContain('تظهر الحقائق 10.50')
+    expect(result.reply).toContain('company هو الأفضل في net_sales')
+    expect(result.reply).toContain('صافي المبيعات 10.5')
+    expect(result.reply).not.toContain('الصافي المسجّل')
     expect(result.reply).toContain(`اجتازت الفحص: anthropic/${RETURNED.anthropic}، google/${RETURNED.google}`)
     expect(result.reply).toContain(`xai/${RETURNED.xai}: GUARD_REJECTED`)
     expect(result.agreed).toHaveLength(2)

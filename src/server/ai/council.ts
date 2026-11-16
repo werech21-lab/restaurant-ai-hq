@@ -11,8 +11,15 @@ import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
 import { readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
-import { claimDirection, readClaim } from './claims'
-import { extractCanonicalDecimals, guardAnswerAgainstFacts } from './number-guard'
+import { extractCanonicalDecimals } from './number-guard'
+import {
+  comparisonKey,
+  comparisonMatchesFacts,
+  comparisonSchema,
+  normalizeComparison,
+  renderComparisonText,
+  sharesFact,
+} from './structured-claim'
 import { persistAiRuns, type AiRunDraft } from './persist'
 import {
   callProvider,
@@ -28,12 +35,11 @@ export const DAILY_BRIEF_QUESTION =
 export const COUNCIL_ANALYSIS_TIMEOUT_MS = 20_000
 
 const SYSTEM_PROMPT = [
-  'You explain only the Odoo facts in the user message.',
-  'Copy amounts and quantities from the fact values. A difference, ratio, or percent is allowed only when it is the exact Decimal result of those values.',
-  'A rise or a fall must match the sign of that difference. Do not use an id, a date, an hour, or a code as a number.',
-  'Mention only names that appear in the facts. Do not name a brand, branch, product, or person that is absent from the facts.',
-  'Do not forecast, and do not add a cause that the facts do not state.',
-  'Reply in Arabic.',
+  'You receive Odoo facts as JSON. Return one JSON object and no other text.',
+  'Shape: {"comparison":{"subject_id":"canonical id or name","relation":"better|worse|best|worst|equal","object_id":"canonical id or name or null","metric":"metric","cited_fact_ids":["id"]}}',
+  'subject_id, object_id, and metric must be copied from the fact ids, names, or scopes. Do not invent one.',
+  'Do not write a number, a percent, or a sentence. The server computes every figure and writes the Arabic and English reply.',
+  'relation worse means the subject is worse than the object. best and worst may use object_id null.',
 ].join('\n')
 
 export type CouncilStatus = FeryalReplyStatus | 'council_failed'
@@ -89,11 +95,24 @@ function attribution(provider: string, modelId: string): string {
   return modelId ? `${provider}/${modelId}` : provider
 }
 
-export function chatClaimKey(text: string): string {
-  const read = readClaim(text)
-  const action = read.negated && read.action !== 'none' ? `not-${read.action}` : read.action
-  const numbers = [...new Set(extractCanonicalDecimals(text))].sort().join(',')
-  return `${action}|${claimDirection(text)}|${numbers}`
+function parseComparisonText(text: string): { key: string; rendered: string; factIds: string[] } | null {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(trimmed)
+  } catch {
+    return null
+  }
+  const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as { comparison?: unknown }) : null
+  const candidate = body && 'comparison' in body ? body.comparison : parsed
+  const result = comparisonSchema.safeParse(candidate)
+  if (!result.success) return null
+  const normalized = normalizeComparison(result.data)
+  return {
+    key: comparisonKey(normalized),
+    rendered: renderComparisonText(normalized),
+    factIds: [...normalized.cited_fact_ids],
+  }
 }
 
 export function composeCouncilReply(input: {
@@ -104,18 +123,27 @@ export function composeCouncilReply(input: {
   const failureLines = input.failed.map(
     (item) => `- ${attribution(item.provider, item.modelId)}: ${item.errorCode ?? 'ERROR'}`,
   )
-  const clusters = new Map<string, Array<(typeof input.passed)[number]>>()
+  const clusters = new Map<string, Array<{ provider: ProviderId; modelId: string; rendered: string; factIds: string[] }>>()
   for (const item of input.passed) {
-    const key = chatClaimKey(item.text)
-    const cluster = clusters.get(key) ?? []
-    cluster.push(item)
-    clusters.set(key, cluster)
+    const parsed = parseComparisonText(item.text)
+    if (!parsed) continue
+    const cluster = clusters.get(parsed.key) ?? []
+    cluster.push({ provider: item.provider, modelId: item.modelId, rendered: parsed.rendered, factIds: parsed.factIds })
+    clusters.set(parsed.key, cluster)
   }
   const agreedCluster = [...clusters.values()]
+    .map((cluster) =>
+      cluster.filter((item, index) =>
+        cluster.some(
+          (other, otherIndex) =>
+            otherIndex !== index && other.provider !== item.provider && sharesFact(item.factIds, other.factIds),
+        ),
+      ),
+    )
     .filter((cluster) => new Set(cluster.map((item) => item.provider)).size >= 2)
     .sort((a, b) => b.length - a.length)[0]
   const agreed = (agreedCluster ?? []).map((item) => ({ provider: item.provider, modelId: item.modelId }))
-  if (agreed.length < 2) {
+  if (!agreedCluster || agreed.length < 2) {
     const headline =
       input.passed.length === 0
         ? 'تعذّر التحليل. لم ينجح أي نموذج في شرح حقائق Odoo ضمن فاحص الأرقام.'
@@ -125,13 +153,12 @@ export function composeCouncilReply(input: {
       reply: [headline, ...failureLines, 'حقائق Odoo 17 دون تحليل:', input.odooReply].join('\n'),
     }
   }
-  const blocks = (agreedCluster ?? []).map((item) => `${attribution(item.provider, item.modelId)}\n${item.text}`)
   return {
     agreed,
     reply: [
       'حقائق Odoo 17:',
       input.odooReply,
-      ...blocks,
+      agreedCluster[0]?.rendered ?? '',
       `اجتازت الفحص: ${agreed.map((item) => attribution(item.provider, item.modelId)).join('، ')}`,
       ...failureLines,
     ].join('\n\n'),
@@ -139,11 +166,13 @@ export function composeCouncilReply(input: {
 }
 
 function factsForModel(result: AskFeryalOdooAgentResult): unknown {
+  const records = (result as AskFeryalOdooAgentResult & { records?: unknown }).records ?? []
   const full = {
     reply: result.reply,
     toolNumbers: result.toolNumbers,
     period: result.period,
     executedQueries: result.executedQueries,
+    records,
   }
   if (JSON.stringify(full).length <= 24_000) return full
   return {
@@ -158,12 +187,25 @@ function reviewAnswer(
   facts: unknown,
   factsJson: string,
 ): { status: 'ok' | 'guard_rejected'; errorCode: string | null; offending: string[] } {
-  const numbers = guardAnswerAgainstFacts(text, facts)
-  if (!numbers.ok) {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: numbers.offending }
-  }
   if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) {
     return { status: 'guard_rejected', errorCode: 'EXCLUDED_ENTITY', offending: [] }
+  }
+  const parsed = parseComparisonText(text)
+  if (!parsed) {
+    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extractCanonicalDecimals(text) }
+  }
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  let body: unknown
+  try {
+    body = JSON.parse(trimmed)
+  } catch {
+    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: [] }
+  }
+  const record = body && typeof body === 'object' && !Array.isArray(body) ? (body as { comparison?: unknown }) : null
+  const candidate = record && 'comparison' in record ? record.comparison : body
+  const result = comparisonSchema.safeParse(candidate)
+  if (!result.success || !comparisonMatchesFacts(result.data, facts)) {
+    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extractCanonicalDecimals(text) }
   }
   return { status: 'ok', errorCode: null, offending: [] }
 }
