@@ -650,9 +650,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   })
   const [bySession, bySessionCount, byPayment, byPaymentCount] = await Promise.all([
     ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]>,
-    ek('pos.order', 'read_group', [nonRefundOrderDomain, ['amount_total:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }).catch(() => []) as Promise<{ session_id: M2O; __count?: number }[]>,
+    ek('pos.order', 'read_group', [nonRefundOrderDomain, ['amount_total:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; __count?: number }[]>,
     ek('pos.payment', 'read_group', [paymentDomain, ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]>,
-    ek('pos.payment', 'read_group', [nonRefundPaymentDomain, ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }).catch(() => []) as Promise<{ session_id: M2O; payment_method_id: M2O; __count?: number }[]>,
+    ek('pos.payment', 'read_group', [nonRefundPaymentDomain, ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; payment_method_id: M2O; __count?: number }[]>,
   ])
   const mergedSessions = mergeSessionGroups(bySession, bySessionCount)
   const mergedPayments = mergeSessionPaymentGroups(byPayment, byPaymentCount)
@@ -820,7 +820,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
           configIds: visibleConfigIds,
           nonRefundOnly: true,
         }),
-      ]).catch(() => 0) as Promise<number>,
+      ]) as Promise<number>,
     ])
     const net = posOrderNet(rows[0]?.amount_total, rows[0]?.amount_tax)
     const orders = Math.max(0, Math.round(Number(nonRefundCount) || 0))

@@ -9,7 +9,7 @@ import {
 
 export const SCHOOL_CANTEEN_BRANCH_ID = 'school-canteens'
 
-// TODO(Abdullah): confirm whether archived pinned pos.config 16 (Promenade) should remain active-only or include historical orders.
+// TODO(Abdullah): confirm whether archived pinned registers #16 E-Mall (Promenade) and #35 Delivery (Ardiya Temp) should remain active-only or include historical orders.
 export const ARCHIVED_PINNED_REGISTER_POLICY = 'active_only_todo_abdullah' as const
 
 type Place = { en?: string; ar?: string; code?: string; unit?: string }

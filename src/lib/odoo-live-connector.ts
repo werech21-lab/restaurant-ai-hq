@@ -1765,28 +1765,23 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         })
       : [['id', '=', 0]]
 
-  // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals
+  // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
+  // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
+  // leaves real KWD paired with 0 orders or a distorted average ticket.
   const [
     ordersByDaySessionPricelistRows,
     ordersByDaySessionPricelistCountRows,
-    ordersByHourRows,
-    ordersByHourCountRows,
-    payments30Rows,
-    payments30CountRows,
-    paymentsWeekRows,
-    paymentsWeekCountRows,
-    paymentsTodayRows,
-    paymentsTodayCountRows,
-    paymentsYearRows,
-    paymentsYearCountRows,
+    [ordersByHourRows, ordersByHourCountRows],
+    [payments30Rows, payments30CountRows],
+    [paymentsWeekRows, paymentsWeekCountRows],
+    [paymentsTodayRows, paymentsTodayCountRows],
+    [paymentsYearRows, paymentsYearCountRows],
     productLines30Rows,
     productLinesWeekRows,
     productLinesTodayRows,
     productLinesYearRows,
-    ytdAggRows,
-    ytdAggCountRows,
-    prior30AggRows,
-    prior30NonRefundCount,
+    [ytdAggRows, ytdAggCountRows],
+    prior30Pair,
     stockTransfers,
     aggregatorReceivables,
     decommissionedOrders30Rows,
@@ -1814,230 +1809,216 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       ],
       { lazy: false, context: { tz: 'Asia/Kuwait' } },
     ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            __count?: number
-            session_id: M2O
-            pricelist_id?: M2O
-            __range?: { 'date_order:day'?: { from?: string; to?: string } }
-          }[]
-        >(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(bounds65, true),
-            ['amount_total:sum'],
-            ['session_id', 'pricelist_id', 'date_order:day'],
-          ],
-          { lazy: false, context: { tz: 'Asia/Kuwait' } },
-        ),
-      [],
+    executeOdooKw<
+      {
+        __count?: number
+        session_id: M2O
+        pricelist_id?: M2O
+        __range?: { 'date_order:day'?: { from?: string; to?: string } }
+      }[]
+    >(
+      'pos.order',
+      'read_group',
+      [
+        posOrderDomainOf(bounds65, true),
+        ['amount_total:sum'],
+        ['session_id', 'pricelist_id', 'date_order:day'],
+      ],
+      { lazy: false, context: { tz: 'Asia/Kuwait' } },
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<
-          {
-            __count?: number
-            amount_total?: number
-            amount_tax?: number
-            __range?: { 'date_order:hour'?: { from?: string; to?: string } }
-          }[]
-        >(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(boundsMonth, false),
-            ['amount_total:sum', 'amount_tax:sum'],
-            ['date_order:hour'],
-          ],
-          { lazy: false, context: { tz: 'Asia/Kuwait' } },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<
+            {
+              __count?: number
+              amount_total?: number
+              amount_tax?: number
+              __range?: { 'date_order:hour'?: { from?: string; to?: string } }
+            }[]
+          >(
+            'pos.order',
+            'read_group',
+            [
+              posOrderDomainOf(boundsMonth, false),
+              ['amount_total:sum', 'amount_tax:sum'],
+              ['date_order:hour'],
+            ],
+            { lazy: false, context: { tz: 'Asia/Kuwait' } },
+          ),
+          executeOdooKw<
+            {
+              __count?: number
+              __range?: { 'date_order:hour'?: { from?: string; to?: string } }
+            }[]
+          >(
+            'pos.order',
+            'read_group',
+            [
+              posOrderDomainOf(boundsMonth, true),
+              ['amount_total:sum'],
+              ['date_order:hour'],
+            ],
+            { lazy: false, context: { tz: 'Asia/Kuwait' } },
+          ),
+        ]),
+      [[], []],
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<
-          {
-            __count?: number
-            __range?: { 'date_order:hour'?: { from?: string; to?: string } }
-          }[]
-        >(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(boundsMonth, true),
-            ['amount_total:sum'],
-            ['date_order:hour'],
-          ],
-          { lazy: false, context: { tz: 'Asia/Kuwait' } },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              amount: number
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsMonth, false),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsMonth, true),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+        ]),
+      [[], []],
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            amount: number
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsMonth, false),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              amount: number
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsWeek, false),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsWeek, true),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+        ]),
+      [[], []],
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsMonth, true),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              amount: number
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsToday, false),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsToday, true),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+        ]),
+      [[], []],
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            amount: number
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsWeek, false),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsWeek, true),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            amount: number
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsToday, false),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsToday, true),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            amount: number
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsYear, false),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<
-          {
-            session_id: M2O
-            payment_method_id: M2O
-            __count?: number
-          }[]
-        >(
-          'pos.payment',
-          'read_group',
-          [
-            posPaymentDomainOf(boundsYear, true),
-            ['amount:sum'],
-            ['session_id', 'payment_method_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              amount: number
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsYear, false),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<
+            {
+              session_id: M2O
+              payment_method_id: M2O
+              __count?: number
+            }[]
+          >(
+            'pos.payment',
+            'read_group',
+            [
+              posPaymentDomainOf(boundsYear, true),
+              ['amount:sum'],
+              ['session_id', 'payment_method_id'],
+            ],
+            { lazy: false },
+          ),
+        ]),
+      [[], []],
     ),
     safeSubQuery(
       () =>
@@ -2117,54 +2098,52 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(boundsYear, false),
-            ['amount_total:sum', 'amount_tax:sum'],
-            ['session_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
+        Promise.all([
+          executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
+            'pos.order',
+            'read_group',
+            [
+              posOrderDomainOf(boundsYear, false),
+              ['amount_total:sum', 'amount_tax:sum'],
+              ['session_id'],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<{ session_id: M2O; __count?: number }[]>(
+            'pos.order',
+            'read_group',
+            [
+              posOrderDomainOf(boundsYear, true),
+              ['amount_total:sum'],
+              ['session_id'],
+            ],
+            { lazy: false },
+          ),
+        ]),
+      [[], []],
     ),
-    safeSubQuery(
+    safeSubQuery<
+      [{ amount_total?: number; amount_tax?: number; __count?: number }[], number] | null
+    >(
       () =>
-        executeOdooKw<{ session_id: M2O; __count?: number }[]>(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(boundsYear, true),
-            ['amount_total:sum'],
-            ['session_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
-          'pos.order',
-          'read_group',
-          [
-            posOrderDomainOf(boundsPrior30, false),
-            ['amount_total:sum', 'amount_tax:sum'],
-            [],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<number>(
-          'pos.order',
-          'search_count',
-          [posOrderDomainOf(boundsPrior30, true)],
-        ),
-      0,
+        Promise.all([
+          executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
+            'pos.order',
+            'read_group',
+            [
+              posOrderDomainOf(boundsPrior30, false),
+              ['amount_total:sum', 'amount_tax:sum'],
+              [],
+            ],
+            { lazy: false },
+          ),
+          executeOdooKw<number>(
+            'pos.order',
+            'search_count',
+            [posOrderDomainOf(boundsPrior30, true)],
+          ),
+        ]),
+      null,
     ),
     safeSubQuery<OdooStockTransferSummary | undefined>(async () => {
       const [pickings, doneCount30, pendingCountTotal] = await Promise.all([
@@ -3136,10 +3115,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveYearAccounting,
   })
 
-  const prior30Net = r3(
-    posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
-  )
-  const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
   const mtdDays = Math.max(
     1,
     Math.round(
@@ -3148,32 +3123,41 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
   )
 
-  const journeyPulse: OdooLiveSummary['journeyPulse'] = {
-    rolling30: {
-      from: monthFromKwIso,
-      to: todayBucketFrom,
-      days: 30,
-      netKwd: monthBucket.totals.restaurantNetKwd,
-      orders: monthBucket.totals.restaurantOrders,
-      perDayKwd: r3(monthBucket.totals.restaurantNetKwd / 30),
-    },
-    prior30: {
-      from: prior30FromKwIso,
-      to: shiftIsoDate(monthFromKwIso, -1),
-      days: 30,
-      netKwd: prior30Net,
-      orders: prior30Orders,
-      perDayKwd: r3(prior30Net / 30),
-    },
-    mtd: {
-      from: mtdFromKwIso,
-      to: todayBucketFrom,
-      days: mtdDays,
-      netKwd: r3(mtdNet),
-      orders: mtdOrders,
-      perDayKwd: r3(mtdNet / mtdDays),
-    },
-  }
+  const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = prior30Pair
+    ? (() => {
+        const [prior30AggRows, prior30NonRefundCount] = prior30Pair
+        const prior30Net = r3(
+          posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
+        )
+        const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
+        return {
+          rolling30: {
+            from: monthFromKwIso,
+            to: todayBucketFrom,
+            days: 30,
+            netKwd: monthBucket.totals.restaurantNetKwd,
+            orders: monthBucket.totals.restaurantOrders,
+            perDayKwd: r3(monthBucket.totals.restaurantNetKwd / 30),
+          },
+          prior30: {
+            from: prior30FromKwIso,
+            to: shiftIsoDate(monthFromKwIso, -1),
+            days: 30,
+            netKwd: prior30Net,
+            orders: prior30Orders,
+            perDayKwd: r3(prior30Net / 30),
+          },
+          mtd: {
+            from: mtdFromKwIso,
+            to: todayBucketFrom,
+            days: mtdDays,
+            netKwd: r3(mtdNet),
+            orders: mtdOrders,
+            perDayKwd: r3(mtdNet / mtdDays),
+          },
+        }
+      })()
+    : undefined
 
   const fetchedAtMs = Date.now()
   const resolvedLatestRecordAt =
@@ -3223,7 +3207,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     hourlySeries,
     ...(stockTransfers ? { stockTransfers } : {}),
     ...(aggregatorReceivables ? { aggregatorReceivables } : {}),
-    journeyPulse,
+    ...(journeyPulse ? { journeyPulse } : {}),
   }
 }
 
@@ -4188,26 +4172,22 @@ export async function fetchLiveOdooPeriodCube(
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
       ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<
-            {
-              __count?: number
-              session_id: M2O
-              pricelist_id?: M2O
-              __range?: { 'date_order:day'?: { from?: string; to?: string } }
-            }[]
-          >(
-            'pos.order',
-            'read_group',
-            [
-              cubeOrderDomain(true),
-              ['amount_total:sum'],
-              ['session_id', 'pricelist_id', 'date_order:day'],
-            ],
-            { lazy: false, context: { tz: 'Asia/Kuwait' } },
-          ),
-        [],
+      executeOdooKw<
+        {
+          __count?: number
+          session_id: M2O
+          pricelist_id?: M2O
+          __range?: { 'date_order:day'?: { from?: string; to?: string } }
+        }[]
+      >(
+        'pos.order',
+        'read_group',
+        [
+          cubeOrderDomain(true),
+          ['amount_total:sum'],
+          ['session_id', 'pricelist_id', 'date_order:day'],
+        ],
+        { lazy: false, context: { tz: 'Asia/Kuwait' } },
       ),
       executeOdooKw<
         {
@@ -4227,25 +4207,21 @@ export async function fetchLiveOdooPeriodCube(
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
       ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<
-            {
-              __count?: number
-              session_id: M2O
-              __range?: { 'date_order:hour'?: { from?: string; to?: string } }
-            }[]
-          >(
-            'pos.order',
-            'read_group',
-            [
-              cubeOrderDomain(true),
-              ['amount_total:sum'],
-              ['session_id', 'date_order:hour'],
-            ],
-            { lazy: false, context: { tz: 'Asia/Kuwait' } },
-          ),
-        [],
+      executeOdooKw<
+        {
+          __count?: number
+          session_id: M2O
+          __range?: { 'date_order:hour'?: { from?: string; to?: string } }
+        }[]
+      >(
+        'pos.order',
+        'read_group',
+        [
+          cubeOrderDomain(true),
+          ['amount_total:sum'],
+          ['session_id', 'date_order:hour'],
+        ],
+        { lazy: false, context: { tz: 'Asia/Kuwait' } },
       ),
       executeOdooKw<
         {
@@ -4264,25 +4240,21 @@ export async function fetchLiveOdooPeriodCube(
         ],
         { lazy: false },
       ),
-      safeSubQuery(
-        () =>
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
-            'read_group',
-            [
-              cubePaymentDomain(true),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
-            ],
-            { lazy: false },
-          ),
-        [],
+      executeOdooKw<
+        {
+          session_id: M2O
+          payment_method_id: M2O
+          __count?: number
+        }[]
+      >(
+        'pos.payment',
+        'read_group',
+        [
+          cubePaymentDomain(true),
+          ['amount:sum'],
+          ['session_id', 'payment_method_id'],
+        ],
+        { lazy: false },
       ),
       executeOdooKw<LineGroupRow[]>(
         'pos.order.line',
