@@ -1,16 +1,25 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Fact, Field, useRunner } from '@/components/erp/actions'
+import { useRunner } from '@/components/erp/actions'
 import { apiRequest } from '@/components/erp/api'
+import {
+  FormIssues,
+  IamFact,
+  IamField,
+  IamPill,
+  RequestFailure,
+  fieldIssue,
+  iamInputClass,
+  iamPrimaryBtn,
+  iamSecondaryBtn,
+} from '@/components/erp/iam/shared'
 import { useCan } from '@/components/erp/permissions'
-import { inputClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Badge, Num } from '@/components/ui'
 import { allPermissions, permissions } from '@/lib/auth/permissions'
+import { formatInt, type FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { createRoleSchema, updateRoleSchema } from '@/lib/iam/schemas'
 import type { Role } from '@/lib/iam/types'
-import { fieldIssue, FormIssues, RequestFailure } from '@/components/erp/iam/shared'
 
 type Props = {
   role?: Role
@@ -40,18 +49,23 @@ type GroupId = keyof typeof groupLabel
 
 function groupId(permission: string): GroupId {
   const prefix = permission.split('.')[0]
-  if (prefix !== undefined && Object.prototype.hasOwnProperty.call(groupLabel, prefix)) return prefix as GroupId
+  if (prefix !== undefined && Object.prototype.hasOwnProperty.call(groupLabel, prefix)) {
+    return prefix as GroupId
+  }
   return 'other'
 }
 
 /** A role and the permissions it grants. A built-in role is shown and cannot be edited. */
 export function RoleDialog({ role, onSaved, onCancel, onReload }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const canManage = useCan(permissions.iamRoleManage)
   const locked = !canManage || role?.isSystem === true
   const [name, setName] = useState(role?.name ?? '')
   const [description, setDescription] = useState(role?.description ?? '')
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(role?.permissions ?? []))
+  const [selected, setSelected] = useState<ReadonlySet<string>>(
+    () => new Set(role?.permissions ?? []),
+  )
   const [issues, setIssues] = useState<MessageKey[]>([])
   const { pending, failure, run } = useRunner()
 
@@ -80,10 +94,17 @@ export function RoleDialog({ role, onSaved, onCancel, onReload }: Props) {
     setIssues([])
     const permissionsField = [...selected]
     const parsed = role
-      ? updateRoleSchema.safeParse({ version: role.version, name, description, permissions: permissionsField })
+      ? updateRoleSchema.safeParse({
+          version: role.version,
+          name,
+          description,
+          permissions: permissionsField,
+        })
       : createRoleSchema.safeParse({ name, description, permissions: permissionsField })
     if (!parsed.success) {
-      setIssues(Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))))
+      setIssues(
+        Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))),
+      )
       return
     }
     void run(async () => {
@@ -99,42 +120,76 @@ export function RoleDialog({ role, onSaved, onCancel, onReload }: Props) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label={t('iam.role.name')}>
-          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} disabled={locked} className={inputClass} />
-        </Field>
-        <Field label={t('iam.role.description')} className="sm:col-span-2">
-          <textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={3} disabled={locked} className={inputClass} />
-        </Field>
+        <IamField label={t('iam.role.name')}>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            disabled={locked}
+            className={iamInputClass}
+          />
+        </IamField>
+        <IamField label={t('iam.role.description')} className="sm:col-span-2">
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            maxLength={500}
+            rows={3}
+            disabled={locked}
+            className={iamInputClass}
+          />
+        </IamField>
         {role ? (
           <>
-            <Fact label={t('iam.role.kind')}>
-              <Badge tone={role.isSystem ? 'gold' : 'neutral'}>{t(role.isSystem ? 'iam.role.system' : 'iam.role.custom')}</Badge>
-            </Fact>
-            <Fact label={t('iam.role.members')}>
-              <Num>{role.memberCount}</Num>
-            </Fact>
+            <IamFact label={t('iam.role.kind')}>
+              <IamPill tone={role.isSystem ? 'gold' : 'neutral'}>
+                {t(role.isSystem ? 'iam.role.system' : 'iam.role.custom')}
+              </IamPill>
+            </IamFact>
+            <IamFact label={t('iam.role.members')}>
+              <span dir="ltr" className="ds-num tabular-nums">
+                {formatInt(role.memberCount, fmtLocale)}
+              </span>
+            </IamFact>
           </>
         ) : null}
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-gray-200">{t('iam.role.permissions')}</h3>
-        <Num>{selected.size}</Num>
+        <h3 className="text-sm font-semibold text-[var(--ds-text-primary)]">
+          {t('iam.role.permissions')}
+        </h3>
+        <span dir="ltr" className="ds-num text-sm font-bold tabular-nums text-[var(--ds-text-secondary)]">
+          {formatInt(selected.size, fmtLocale)}
+        </span>
       </div>
-      {role?.isSystem ? <p className="text-xs text-gray-500">{t('iam.role.locked')}</p> : null}
+      {role?.isSystem ? (
+        <p className="text-xs text-[var(--ds-text-muted)]">{t('iam.role.locked')}</p>
+      ) : null}
 
-      <div className="max-h-80 space-y-4 overflow-y-auto pe-1">
+      <div className="max-h-80 space-y-4 overflow-y-auto rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] p-3 pe-2">
         {(Object.keys(groupLabel) as GroupId[]).map((id) => {
           const items = grouped.get(id) ?? []
           if (items.length === 0) return null
           return (
             <fieldset key={id} className="space-y-2">
-              <legend className="text-xs font-medium text-gray-400">{t(groupLabel[id])}</legend>
+              <legend className="text-xs font-bold text-[var(--ds-text-secondary)]">
+                {t(groupLabel[id])}
+              </legend>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {items.map((permission) => (
-                  <label key={permission} className="flex items-center gap-2 text-sm text-gray-200">
-                    <input type="checkbox" checked={selected.has(permission)} disabled={locked} onChange={() => toggle(permission)} className="h-4 w-4" />
-                    <span dir="ltr" className="text-xs">
+                  <label
+                    key={permission}
+                    className="flex cursor-pointer items-center gap-2 text-sm text-[var(--ds-text-primary)]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(permission)}
+                      disabled={locked}
+                      onChange={() => toggle(permission)}
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                    <span dir="ltr" className="font-mono text-xs">
                       {permission}
                     </span>
                   </label>
@@ -147,13 +202,13 @@ export function RoleDialog({ role, onSaved, onCancel, onReload }: Props) {
 
       <FormIssues issues={issues} />
       <RequestFailure failure={failure} onReload={onReload} />
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
         {canManage && role?.isSystem !== true ? (
-          <button type="button" onClick={save} disabled={pending} className={primaryButton}>
+          <button type="button" onClick={save} disabled={pending} className={iamPrimaryBtn}>
             {pending ? t('erp.loading') : t('erp.save')}
           </button>
         ) : null}
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={iamSecondaryBtn}>
           {t('erp.cancel')}
         </button>
       </div>

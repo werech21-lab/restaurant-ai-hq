@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
+import { formatDateTime } from "@/lib/format";
+import { getLocale, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -14,8 +15,16 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   return {
-    title: tx(locale, "إدارة المستخدمين والصلاحيات | شركة فنتشر فودز ذ.م.م.", "Users & Permissions Management | Venture Foods W.L.L."),
-    description: "إدارة حسابات المستخدمين وصلاحيات الوصول لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+    title: tx(
+      locale,
+      "إدارة المستخدمين والصلاحيات | شركة فنتشر فودز ذ.م.م.",
+      "Users & Permissions Management | Venture Foods W.L.L.",
+    ),
+    description: tx(
+      locale,
+      "إدارة حسابات المستخدمين وصلاحيات الوصول لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.",
+      "Manage user accounts and role-based access permissions for Venture Foods W.L.L.",
+    ),
   };
 }
 
@@ -64,7 +73,7 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
         isActive: row.isActive,
         roleId: row.role.id,
         roleName: row.role.name,
-        createdAtLabel: datetimeFor(locale, row.createdAt),
+        createdAtLabel: formatDateTime(row.createdAt, locale),
       }))}
     />
   );
@@ -72,7 +81,7 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
 export default function UsersPage({ searchParams }: { searchParams: Promise<RawQuery> }) {
   return (
-    <div className="w-full max-w-none">
+    <div className="w-full max-w-none min-w-0">
       <Suspense fallback={<PageSkeleton title="إدارة المستخدمين والصلاحيات" />}>
         <UsersContent searchParams={searchParams} />
       </Suspense>

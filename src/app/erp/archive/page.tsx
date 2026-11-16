@@ -1,18 +1,32 @@
-import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
+import type { Metadata } from 'next'
+import { readSessionPermissions, requirePageUser } from '@/lib/auth/context'
+import { getLocale, tx } from '@/lib/i18n/server'
 import ArchiveWorkspace from '@/modules/governance/ui/ArchiveWorkspace'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata = {
-  title: 'أرشيف المستندات والوثائق والتعرف الضوئي | شركة فنتشر فودز ذ.م.م.',
-  description: 'الأرشيف الإلكتروني الذكي للوثائق والعقود والفواتير مع استخراج النصوص التلقائي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  return {
+    title: tx(
+      locale,
+      'أرشيف المستندات والوثائق والتعرف الضوئي | شركة فنتشر فودز ذ.م.م.',
+      'Document Archive & OCR Routing | Venture Foods W.L.L.',
+    ),
+    description: tx(
+      locale,
+      'الأرشيف الإلكتروني الذكي للوثائق والعقود والفواتير مع استخراج النصوص التلقائي لشركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
+      'Smart electronic archive for documents, contracts, and invoices with automated routing for Venture Foods W.L.L.',
+    ),
+  }
 }
 
-export default function ArchivePage() {
-  const permissions = [...panelBridgePermissionSet()].sort()
+export default async function ArchivePage() {
+  await requirePageUser('/erp/archive')
+  const permissions = await readSessionPermissions()
   return (
-    <main className="w-full max-w-none px-4 py-8 sm:px-6">
+    <div className="w-full max-w-none min-w-0 overflow-x-hidden px-3 py-6 sm:px-6 sm:py-8">
       <ArchiveWorkspace permissions={permissions} />
-    </main>
+    </div>
   )
 }

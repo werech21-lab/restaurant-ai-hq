@@ -3,18 +3,40 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, apiRequest, errorKey, isAbort, newIdempotencyKey } from '@/components/erp/api'
-import { dateTimeText, type ListPage, type Phase } from '@/components/erp/common'
-import { dangerButton, errorClass, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import type { ListPage, Phase } from '@/components/erp/common'
+import { StateBlock } from '@/components/ui/state-block'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { Approval, ApprovalStatus, ScenarioOptionKey } from '@/modules/ai/client'
-import { ActionBadge, ApprovalStatusBadge, Impact, recordHref, refLabels } from '@/modules/ai/ui/labels'
+import {
+  ActionBadge,
+  AiMoney,
+  ApprovalStatusBadge,
+  Impact,
+  aiCardClass,
+  aiDangerBtn,
+  aiErrorClass,
+  aiInputClass,
+  aiLabelClass,
+  aiNoticeClass,
+  aiPrimaryBtn,
+  aiSecondaryBtn,
+  formatAiDateTime,
+  recordHref,
+  refLabels,
+} from '@/modules/ai/ui/labels'
 
 type StatusFilter = ApprovalStatus | 'all'
 
 const filters: readonly StatusFilter[] = ['pending', 'executed', 'rejected', 'all']
 const PAGE_SIZE = 20
 // After these errors the request on screen is out of date, so the list is read again.
-const refreshCodes: ReadonlySet<string> = new Set(['version_conflict', 'invalid_transition', 'not_found', 'proposal_stale'])
+const refreshCodes: ReadonlySet<string> = new Set([
+  'version_conflict',
+  'invalid_transition',
+  'not_found',
+  'proposal_stale',
+])
 
 function isWhatsappUrl(value: string): boolean {
   return value.startsWith('https://wa.me/')
@@ -39,13 +61,16 @@ function Result({ approval }: { approval: Approval }) {
   }
 
   return (
-    <div className="mt-3 space-y-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-sm">
-      <p className="text-emerald-200">{result.summaryAr}</p>
+    <div className="mt-3 space-y-3 rounded-xl border border-[var(--ds-positive-border)] bg-[var(--ds-positive-bg)] p-3.5 text-sm">
+      <p className="font-medium text-[var(--ds-positive)]">{result.summaryAr}</p>
       {result.refs.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {result.refs.map((ref) => (
             <li key={`${ref.type}:${ref.id}`}>
-              <Link href={recordHref(ref.type, ref.id)} className="rounded-lg border border-[#30363d] px-2.5 py-1 text-xs text-blue-300 hover:bg-white/5">
+              <Link
+                href={recordHref(ref.type, ref.id)}
+                className={`${aiSecondaryBtn} min-h-8 px-2.5 py-1 text-xs`}
+              >
                 {t(refLabels[ref.type])}
               </Link>
             </li>
@@ -54,20 +79,28 @@ function Result({ approval }: { approval: Approval }) {
       ) : null}
       {message ? (
         <div className="space-y-2">
-          <p className="text-xs text-gray-400">{t('ai.dec.message')}</p>
-          <pre dir="rtl" className="whitespace-pre-wrap rounded-lg border border-[#30363d] bg-[#0d1117] p-3 font-cairo text-sm leading-7 text-gray-100">
+          <p className="text-xs font-medium text-[var(--ds-text-muted)]">{t('ai.dec.message')}</p>
+          <pre
+            dir="rtl"
+            className="whitespace-pre-wrap rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-surface)] p-3 font-cairo text-sm leading-7 text-[var(--ds-text-primary)]"
+          >
             {message.textAr}
           </pre>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void copy()} className={secondaryButton}>
+            <button type="button" onClick={() => void copy()} className={aiSecondaryBtn}>
               {copied ? t('ai.dec.copied') : t('ai.dec.copy')}
             </button>
             {message.whatsappUrl && isWhatsappUrl(message.whatsappUrl) ? (
-              <a href={message.whatsappUrl} target="_blank" rel="noopener noreferrer" className={primaryButton}>
+              <a
+                href={message.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={aiPrimaryBtn}
+              >
                 {t('ai.dec.whatsapp')}
               </a>
             ) : (
-              <span className="text-xs text-gray-500">{t('ai.dec.noPhone')}</span>
+              <span className="text-xs text-[var(--ds-text-muted)]">{t('ai.dec.noPhone')}</span>
             )}
           </div>
         </div>
@@ -84,7 +117,12 @@ type CardProps = {
   onReject: (approval: Approval, note: string) => void
 }
 
-type ScenarioChoice = { key: ScenarioOptionKey; titleAr: string; summaryAr: string; impactMinor: number }
+type ScenarioChoice = {
+  key: ScenarioOptionKey
+  titleAr: string
+  summaryAr: string
+  impactMinor: number
+}
 
 function scenarioChoices(payload: Record<string, unknown>): ScenarioChoice[] {
   const raw = payload.options
@@ -100,36 +138,60 @@ function scenarioChoices(payload: Record<string, unknown>): ScenarioChoice[] {
     ) {
       return []
     }
-    return [{ key: row.key, titleAr: row.titleAr, summaryAr: row.summaryAr, impactMinor: row.impactMinor }]
+    return [
+      {
+        key: row.key,
+        titleAr: row.titleAr,
+        summaryAr: row.summaryAr,
+        impactMinor: row.impactMinor,
+      },
+    ]
   })
 }
 
 function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [noteOpen, setNoteOpen] = useState(false)
   const [note, setNote] = useState('')
-  const choices = approval.actionType === 'scenario_choice' ? scenarioChoices(approval.payloadJson) : []
+  const choices =
+    approval.actionType === 'scenario_choice' ? scenarioChoices(approval.payloadJson) : []
   const [optionKey, setOptionKey] = useState<ScenarioOptionKey | null>(choices[0]?.key ?? null)
   const pending = approval.status === 'pending'
 
   return (
-    <li className="rounded-xl border border-[#30363d] bg-[#1c2128] p-4" data-approval-id={approval.id} data-status={approval.status}>
+    <li className={aiCardClass} data-approval-id={approval.id} data-status={approval.status}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <ActionBadge type={approval.actionType} />
             <ApprovalStatusBadge status={approval.status} />
           </div>
-          <h3 className="font-semibold text-gray-100">{approval.titleAr}</h3>
-          <p className="mt-1 text-sm leading-7 text-gray-400">{approval.summaryAr}</p>
-          <p className="mt-2 text-xs text-gray-500">
-            {t('ai.dec.requested')}: {dateTimeText(approval.requestedByAiAt)}
-            {approval.decidedAt ? ` · ${t('ai.dec.decided')}: ${dateTimeText(approval.decidedAt)}` : ''}
+          <h3 className="font-semibold text-[var(--ds-text-primary)]">{approval.titleAr}</h3>
+          <p className="mt-1 text-sm leading-7 text-[var(--ds-text-secondary)]">
+            {approval.summaryAr}
           </p>
-          {approval.decisionNote ? <p className="mt-1 text-xs text-gray-400">{approval.decisionNote}</p> : null}
+          <p className="mt-2 text-xs text-[var(--ds-text-muted)]">
+            {t('ai.dec.requested')}:{' '}
+            <span dir="ltr" className="ds-num tabular-nums">
+              {formatAiDateTime(approval.requestedByAiAt, fmtLocale)}
+            </span>
+            {approval.decidedAt ? (
+              <>
+                {' · '}
+                {t('ai.dec.decided')}:{' '}
+                <span dir="ltr" className="ds-num tabular-nums">
+                  {formatAiDateTime(approval.decidedAt, fmtLocale)}
+                </span>
+              </>
+            ) : null}
+          </p>
+          {approval.decisionNote ? (
+            <p className="mt-1 text-xs text-[var(--ds-text-secondary)]">{approval.decisionNote}</p>
+          ) : null}
         </div>
         <div className="text-end">
-          <div className="text-xs text-gray-400">{t('ai.dec.impact')}</div>
+          <div className="text-xs text-[var(--ds-text-muted)]">{t('ai.dec.impact')}</div>
           <div className="mt-1 text-lg">
             <Impact minor={approval.estimatedImpactFils} />
           </div>
@@ -139,7 +201,7 @@ function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps)
       {approval.status === 'executed' ? <Result approval={approval} /> : null}
 
       {error ? (
-        <p role="alert" className={`${errorClass} mt-3`}>
+        <p role="alert" className={`${aiErrorClass} mt-3`}>
           {t(error)}
         </p>
       ) : null}
@@ -148,22 +210,30 @@ function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps)
         <div className="mt-4 space-y-3">
           {choices.length > 0 ? (
             <fieldset className="space-y-2">
-              <legend className="text-sm text-gray-300">{t('ai.scenario.choose')}</legend>
+              <legend className="text-sm font-medium text-[var(--ds-text-secondary)]">
+                {t('ai.scenario.choose')}
+              </legend>
               {choices.map((choice) => (
-                <label key={choice.key} className="flex items-start gap-2 rounded-lg border border-[#30363d] p-3 text-sm text-gray-200">
+                <label
+                  key={choice.key}
+                  className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] p-3 text-sm text-[var(--ds-text-primary)]"
+                >
                   <input
                     type="radio"
                     name={`scenario-${approval.id}`}
                     value={choice.key}
                     checked={optionKey === choice.key}
                     disabled={busy}
+                    className="mt-1 accent-emerald-600"
                     onChange={() => setOptionKey(choice.key)}
                   />
-                  <span>
+                  <span className="min-w-0">
                     <span className="font-semibold">{choice.titleAr}</span>
-                    <span className="mt-1 block text-gray-400">{choice.summaryAr}</span>
+                    <span className="mt-1 block text-[var(--ds-text-secondary)]">
+                      {choice.summaryAr}
+                    </span>
                     <span className="mt-1 block">
-                      <Impact minor={choice.impactMinor} />
+                      <AiMoney minor={choice.impactMinor} signed />
                     </span>
                   </span>
                 </label>
@@ -171,27 +241,42 @@ function ApprovalCard({ approval, busy, error, onApprove, onReject }: CardProps)
             </fieldset>
           ) : null}
           {noteOpen ? (
-            <label className="block text-sm text-gray-400">
+            <label className={aiLabelClass}>
               {t('ai.dec.note')}
               <textarea
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={500}
                 rows={2}
-                className={inputClass}
+                className={aiInputClass}
                 disabled={busy}
               />
             </label>
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" disabled={busy || (choices.length > 0 && optionKey === null)} onClick={() => onApprove(approval, note, optionKey)} className={primaryButton}>
+            <button
+              type="button"
+              disabled={busy || (choices.length > 0 && optionKey === null)}
+              onClick={() => onApprove(approval, note, optionKey)}
+              className={aiPrimaryBtn}
+            >
               {busy ? t('ai.dec.working') : t('ai.dec.approve')}
             </button>
-            <button type="button" disabled={busy} onClick={() => onReject(approval, note)} className={dangerButton}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onReject(approval, note)}
+              className={aiDangerBtn}
+            >
               {t('ai.dec.reject')}
             </button>
             {!noteOpen ? (
-              <button type="button" disabled={busy} onClick={() => setNoteOpen(true)} className="text-xs text-gray-400 hover:text-gray-200">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setNoteOpen(true)}
+                className="ds-focus-ring cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-[var(--ds-text-muted)] hover:text-[var(--ds-text-primary)]"
+              >
                 {t('ai.dec.addNote')}
               </button>
             ) : null}
@@ -212,8 +297,14 @@ type Props = {
 }
 
 /** Live `ai_action_approvals`: approve-and-execute and reject buttons, the result of what was executed, and the history. */
-export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, reloadToken, onChanged }: Props) {
-  const { t } = useI18n()
+export function DecisionsPanel({
+  initialStatus = 'pending',
+  showFilter = false,
+  reloadToken,
+  onChanged,
+}: Props) {
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [status, setStatus] = useState<StatusFilter>(initialStatus)
   const [rows, setRows] = useState<Approval[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -240,7 +331,7 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
       if (after) params.set('cursor', after)
       return `/api/v1/ai/approvals?${params.toString()}`
     },
-    [status]
+    [status],
   )
 
   useEffect(() => {
@@ -291,7 +382,12 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
     })
   }
 
-  async function decide(approval: Approval, decision: 'approve' | 'reject', note: string, optionKey: ScenarioOptionKey | null = null) {
+  async function decide(
+    approval: Approval,
+    decision: 'approve' | 'reject',
+    note: string,
+    optionKey: ScenarioOptionKey | null = null,
+  ) {
     const id = approval.id
     setBusyFor(id, true)
     setErrors((current) => {
@@ -323,31 +419,36 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
       // A network failure keeps the key. Any answer from the server means the attempt is over.
       if (!(error instanceof ApiError && error.status === 0)) keys.current.delete(id)
       setErrors((current) => ({ ...current, [id]: errorKey(error) }))
-      if (error instanceof ApiError && refreshCodes.has(error.code)) setReload((value) => value + 1)
+      if (error instanceof ApiError && refreshCodes.has(error.code)) {
+        setReload((value) => value + 1)
+      }
     } finally {
       setBusyFor(id, false)
     }
   }
 
   const rowIds = new Set(rows.map((row) => row.id))
-  const extra = status === 'pending' ? Object.values(finished).filter((approval) => !rowIds.has(approval.id)) : []
+  const extra =
+    status === 'pending'
+      ? Object.values(finished).filter((approval) => !rowIds.has(approval.id))
+      : []
   const shown = [...extra, ...rows.map((row) => finished[row.id] ?? row)]
 
   return (
     <section aria-label={t('ai.dec.title')} className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-100">{t('ai.dec.title')}</h2>
-          <p className="mt-1 max-w-2xl text-sm text-gray-400">{t('ai.dec.subtitle')}</p>
+          <h2 className="text-lg font-semibold text-[var(--ds-text-primary)]">{t('ai.dec.title')}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--ds-text-muted)]">{t('ai.dec.subtitle')}</p>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           {showFilter ? (
-            <label className="text-sm text-gray-400">
+            <label className={aiLabelClass}>
               {t('ai.dec.filter')}
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value as StatusFilter)}
-                className={`${inputClass} mt-1 w-auto min-w-[8rem]`}
+                className={`${aiInputClass} mt-1 w-auto min-w-[8rem]`}
               >
                 {filters.map((value) => (
                   <option key={value} value={value}>
@@ -363,7 +464,7 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
               setFinished({})
               setReload((value) => value + 1)
             }}
-            className={secondaryButton}
+            className={aiSecondaryBtn}
           >
             {t('ai.refresh')}
           </button>
@@ -371,30 +472,33 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
       </div>
 
       {notice ? (
-        <p role="status" className={noticeClass}>
+        <p role="status" className={aiNoticeClass}>
           {t(notice)}
         </p>
       ) : null}
 
-      {phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('ai.loading')}</p> : null}
+      {phase === 'loading' ? (
+        <StateBlock state="loading" locale={fmtLocale} title={t('ai.loading')} skeletonRows={3} />
+      ) : null}
 
       {phase === 'error' ? (
-        <div className="space-y-3 rounded-xl border border-[#30363d] bg-[#1c2128] py-8 text-center">
-          <p role="alert" className={`${errorClass} inline-block`}>
-            {t(listError)}
-          </p>
-          <div>
-            <button type="button" onClick={() => setReload((value) => value + 1)} className={secondaryButton}>
-              {t('ai.retry')}
-            </button>
-          </div>
-        </div>
+        <StateBlock
+          state={listError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+          locale={fmtLocale}
+          title={t(listError)}
+          onRetry={
+            listError === 'erp.err.forbidden' ? undefined : () => setReload((value) => value + 1)
+          }
+          retryLabel={t('ai.retry')}
+        />
       ) : null}
 
       {phase === 'ready' && shown.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#30363d] px-4 py-10 text-center text-sm text-gray-400">
-          {t(status === 'pending' ? 'ai.dec.empty' : 'ai.dec.emptyFiltered')}
-        </p>
+        <StateBlock
+          state="empty"
+          locale={fmtLocale}
+          title={t(status === 'pending' ? 'ai.dec.empty' : 'ai.dec.emptyFiltered')}
+        />
       ) : null}
 
       {phase === 'ready' && shown.length > 0 ? (
@@ -413,13 +517,18 @@ export function DecisionsPanel({ initialStatus = 'pending', showFilter = false, 
       ) : null}
 
       {moreError ? (
-        <p role="alert" className={errorClass}>
+        <p role="alert" className={aiErrorClass}>
           {t(moreError)}
         </p>
       ) : null}
       {phase === 'ready' && cursor ? (
         <div className="text-center">
-          <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className={secondaryButton}>
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+            className={aiSecondaryBtn}
+          >
             {loadingMore ? t('ai.loading') : t('ai.loadMore')}
           </button>
         </div>

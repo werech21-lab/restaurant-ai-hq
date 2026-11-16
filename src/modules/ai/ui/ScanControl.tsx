@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { apiRequest, errorKey } from '@/components/erp/api'
-import { errorClass, noticeClass, primaryButton } from '@/components/erp/styles'
-import { Num } from '@/components/ui'
+import { formatInt, type FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { ScanResult } from '@/modules/ai/client'
+import { aiErrorClass, aiNoticeClass, aiPrimaryBtn } from '@/modules/ai/ui/labels'
 
 const skipLabels = {
   missing_permission: 'ai.skip.missing_permission',
@@ -15,7 +15,8 @@ const skipLabels = {
 
 /** What a scan did, in numbers, and which rules could not run. */
 export function ScanSummary({ result }: { result: ScanResult }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const stats: Array<{ label: MessageKey; value: number }> = [
     { label: 'ai.scan.created', value: result.insightsCreated },
     { label: 'ai.scan.updated', value: result.insightsUpdated },
@@ -24,19 +25,24 @@ export function ScanSummary({ result }: { result: ScanResult }) {
     { label: 'ai.scan.withdrawn', value: result.approvalsWithdrawn },
   ]
   return (
-    <div role="status" className={`${noticeClass} space-y-2`}>
+    <div role="status" className={`${aiNoticeClass} space-y-2`}>
       <p className="font-semibold">{t('ai.cp.scanDone')}</p>
       <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
         {stats.map((stat) => (
           <li key={stat.label}>
-            {t(stat.label)}: <Num>{stat.value}</Num>
+            {t(stat.label)}:{' '}
+            <span dir="ltr" className="ds-num font-bold tabular-nums">
+              {formatInt(stat.value, fmtLocale)}
+            </span>
           </li>
         ))}
       </ul>
       {result.skipped.length > 0 ? (
-        <div className="text-xs text-amber-200">
+        <div className="text-xs font-medium text-[var(--ds-warning)]">
           <span>{t('ai.scan.skipped')}: </span>
-          {result.skipped.map((skip) => `${t(`ai.rulekey.${skip.ruleKey}`)} (${t(skipLabels[skip.reason])})`).join('، ')}
+          {result.skipped
+            .map((skip) => `${t(`ai.rulekey.${skip.ruleKey}`)} (${t(skipLabels[skip.reason])})`)
+            .join(locale === 'en' ? ', ' : '، ')}
         </div>
       ) : null}
     </div>
@@ -53,7 +59,10 @@ export function ScanButton({ onScanned }: { onScanned: (result: ScanResult) => v
     setRunning(true)
     setError(null)
     try {
-      const payload = await apiRequest<{ data: ScanResult }>('/api/v1/ai/scan', { method: 'POST', body: {} })
+      const payload = await apiRequest<{ data: ScanResult }>('/api/v1/ai/scan', {
+        method: 'POST',
+        body: {},
+      })
       onScanned(payload.data)
     } catch (failure) {
       setError(errorKey(failure))
@@ -64,11 +73,11 @@ export function ScanButton({ onScanned }: { onScanned: (result: ScanResult) => v
 
   return (
     <div className="space-y-2">
-      <button type="button" onClick={() => void run()} disabled={running} className={primaryButton}>
+      <button type="button" onClick={() => void run()} disabled={running} className={aiPrimaryBtn}>
         {running ? t('ai.scan.running') : t('ai.scan.run')}
       </button>
       {error ? (
-        <p role="alert" className={errorClass}>
+        <p role="alert" className={aiErrorClass}>
           {t(error)}
         </p>
       ) : null}

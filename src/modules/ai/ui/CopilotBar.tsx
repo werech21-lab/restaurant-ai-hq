@@ -3,12 +3,20 @@
 import Link from 'next/link'
 import { FormEvent, useState } from 'react'
 import { apiRequest, errorKey } from '@/components/erp/api'
-import { errorClass, inputClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Badge } from '@/components/ui'
+import { SectionCard } from '@/components/ui/section-card'
+import { StateBlock } from '@/components/ui/state-block'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { CommandOutcome, CommandResultKind } from '@/modules/ai/client'
 import { InsightRow } from '@/modules/ai/ui/InsightRow'
 import { ScanSummary } from '@/modules/ai/ui/ScanControl'
+import {
+  AiPill,
+  aiErrorClass,
+  aiInputClass,
+  aiPrimaryBtn,
+  aiSecondaryBtn,
+} from '@/modules/ai/ui/labels'
 
 const kindLabels: Record<CommandResultKind, MessageKey> = {
   invoice: 'ai.kind.invoice',
@@ -16,7 +24,13 @@ const kindLabels: Record<CommandResultKind, MessageKey> = {
   customer: 'ai.kind.customer',
 }
 
-const chips: ReadonlyArray<MessageKey> = ['ai.cp.chipScan', 'ai.cp.chipCritical', 'ai.cp.chipInventory', 'ai.cp.chipFinance', 'ai.cp.chipCrm']
+const chips: ReadonlyArray<MessageKey> = [
+  'ai.cp.chipScan',
+  'ai.cp.chipCritical',
+  'ai.cp.chipInventory',
+  'ai.cp.chipFinance',
+  'ai.cp.chipCrm',
+]
 
 type Props = {
   /** Called when the bar ran a scan, so the screen reads its numbers again. */
@@ -28,7 +42,8 @@ type Props = {
  * filter alerts, or search invoices, items and customers and give a direct link to each match.
  */
 export function CopilotBar({ onScanned }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [text, setText] = useState('')
   const [running, setRunning] = useState(false)
   const [error, setError] = useState<MessageKey | null>(null)
@@ -40,7 +55,10 @@ export function CopilotBar({ onScanned }: Props) {
     setRunning(true)
     setError(null)
     try {
-      const payload = await apiRequest<{ data: CommandOutcome }>('/api/v1/ai/command', { method: 'POST', body: { text: trimmed } })
+      const payload = await apiRequest<{ data: CommandOutcome }>('/api/v1/ai/command', {
+        method: 'POST',
+        body: { text: trimmed },
+      })
       setOutcome(payload.data)
       if (payload.data.intent === 'scan') onScanned()
     } catch (failure) {
@@ -56,13 +74,16 @@ export function CopilotBar({ onScanned }: Props) {
     void run(text)
   }
 
-  const empty = outcome !== null && outcome.intent !== 'scan' && outcome.insights.length === 0 && outcome.results.length === 0
+  const empty =
+    outcome !== null &&
+    outcome.intent !== 'scan' &&
+    outcome.insights.length === 0 &&
+    outcome.results.length === 0
 
   return (
-    <section aria-label={t('ai.cp.title')} className="rounded-xl border border-gold-300/20 bg-[#1c2128] p-5">
-      <h2 className="text-lg font-semibold text-gray-100">{t('ai.cp.title')}</h2>
-      <form onSubmit={submit} className="mt-3 flex flex-wrap items-end gap-2">
-        <label className="min-w-[14rem] flex-1 text-sm text-gray-400">
+    <SectionCard title={t('ai.cp.title')} ariaLabel={t('ai.cp.title')} locale={fmtLocale}>
+      <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
+        <label className="min-w-[14rem] flex-1 text-sm text-[var(--ds-text-muted)]">
           <span className="sr-only">{t('ai.cp.label')}</span>
           <input
             type="text"
@@ -71,13 +92,14 @@ export function CopilotBar({ onScanned }: Props) {
             maxLength={200}
             placeholder={t('ai.cp.placeholder')}
             aria-label={t('ai.cp.label')}
-            className={`${inputClass} mt-0`}
+            className={`${aiInputClass} mt-0`}
           />
         </label>
-        <button type="submit" disabled={running || text.trim() === ''} className={primaryButton}>
+        <button type="submit" disabled={running || text.trim() === ''} className={aiPrimaryBtn}>
           {running ? t('ai.cp.running') : t('ai.cp.run')}
         </button>
       </form>
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {chips.map((chip) => (
           <button
@@ -89,16 +111,16 @@ export function CopilotBar({ onScanned }: Props) {
               setText(value)
               void run(value)
             }}
-            className="rounded-full border border-[#30363d] px-3 py-1 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-50"
+            className="ds-focus-ring cursor-pointer rounded-full border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-1 text-xs font-medium text-[var(--ds-text-secondary)] transition hover:bg-[var(--ds-bg-hover)] hover:text-[var(--ds-text-primary)] disabled:opacity-50"
           >
             {t(chip)}
           </button>
         ))}
       </div>
-      <p className="mt-2 text-xs text-gray-500">{t('ai.cp.hint')}</p>
+      <p className="mt-2 text-xs text-[var(--ds-text-muted)]">{t('ai.cp.hint')}</p>
 
       {error ? (
-        <p role="alert" className={`${errorClass} mt-3`}>
+        <p role="alert" className={`${aiErrorClass} mt-3`}>
           {t(error)}
         </p>
       ) : null}
@@ -109,7 +131,9 @@ export function CopilotBar({ onScanned }: Props) {
 
           {outcome.insights.length > 0 ? (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300">{t('ai.cp.insights')}</h3>
+              <h3 className="text-sm font-semibold text-[var(--ds-text-secondary)]">
+                {t('ai.cp.insights')}
+              </h3>
               <ul className="space-y-2">
                 {outcome.insights.map((insight) => (
                   <InsightRow key={insight.id} insight={insight} actions={null} />
@@ -120,19 +144,23 @@ export function CopilotBar({ onScanned }: Props) {
 
           {outcome.results.length > 0 ? (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-300">{t('ai.cp.records')}</h3>
+              <h3 className="text-sm font-semibold text-[var(--ds-text-secondary)]">
+                {t('ai.cp.records')}
+              </h3>
               <ul className="space-y-2">
                 {outcome.results.map((result) => (
                   <li key={`${result.kind}:${result.id}`}>
                     <Link
                       href={result.href}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm hover:border-blue-500/60"
+                      className="ds-focus-ring flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] px-3.5 py-2.5 text-sm transition hover:border-[var(--ds-border-accent)] hover:bg-[var(--ds-bg-hover)]"
                     >
                       <span className="flex items-center gap-2">
-                        <Badge tone="info">{t(kindLabels[result.kind])}</Badge>
-                        <span className="font-medium text-gray-100">{result.label}</span>
+                        <AiPill tone="info">{t(kindLabels[result.kind])}</AiPill>
+                        <span className="font-medium text-[var(--ds-text-primary)]">
+                          {result.label}
+                        </span>
                       </span>
-                      <span className="text-xs text-gray-400">{result.detail}</span>
+                      <span className="text-xs text-[var(--ds-text-muted)]">{result.detail}</span>
                     </Link>
                   </li>
                 ))}
@@ -140,13 +168,13 @@ export function CopilotBar({ onScanned }: Props) {
             </div>
           ) : null}
 
-          {empty ? <p className="text-sm text-gray-400">{t('ai.cp.nothing')}</p> : null}
+          {empty ? <StateBlock state="empty" compact locale={fmtLocale} title={t('ai.cp.nothing')} /> : null}
 
-          <button type="button" onClick={() => setOutcome(null)} className={secondaryButton}>
+          <button type="button" onClick={() => setOutcome(null)} className={aiSecondaryBtn}>
             {t('ai.cp.clear')}
           </button>
         </div>
       ) : null}
-    </section>
+    </SectionCard>
   )
 }

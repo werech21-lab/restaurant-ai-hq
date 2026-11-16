@@ -3,11 +3,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, apiRequest, errorKey, isAbort } from '@/components/erp/api'
 import { useDebounced, type ListPage, type Phase } from '@/components/erp/common'
-import { errorClass, inputClass, noticeClass, secondaryButton } from '@/components/erp/styles'
+import { StateBlock } from '@/components/ui/state-block'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { insightCategories, insightSeverities, type Insight, type InsightCategory, type InsightSeverity } from '@/modules/ai/client'
+import {
+  insightCategories,
+  insightSeverities,
+  type Insight,
+  type InsightCategory,
+  type InsightSeverity,
+} from '@/modules/ai/client'
 import { InsightRow } from '@/modules/ai/ui/InsightRow'
-import { categoryLabels, severityLabels } from '@/modules/ai/ui/labels'
+import {
+  aiErrorClass,
+  aiInputClass,
+  aiLabelClass,
+  aiNoticeClass,
+  aiSecondaryBtn,
+  categoryLabels,
+  severityLabels,
+} from '@/modules/ai/ui/labels'
 
 const PAGE_SIZE = 20
 const statusFilters = ['live', 'open', 'acknowledged', 'resolved', 'all'] as const
@@ -20,7 +35,8 @@ type Props = {
 
 /** Alerts and insights with server-side filters, search and paging, and the acknowledge and resolve actions. */
 export function InsightList({ reloadToken, onChanged }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [status, setStatus] = useState<StatusFilter>('live')
   const [severity, setSeverity] = useState<InsightSeverity | ''>('')
   const [category, setCategory] = useState<InsightCategory | ''>('')
@@ -47,7 +63,7 @@ export function InsightList({ reloadToken, onChanged }: Props) {
       if (after) params.set('cursor', after)
       return `/api/v1/ai/insights?${params.toString()}`
     },
-    [status, severity, category, query]
+    [status, severity, category, query],
   )
 
   useEffect(() => {
@@ -102,7 +118,10 @@ export function InsightList({ reloadToken, onChanged }: Props) {
       onChanged()
     } catch (error) {
       setActionError(errorKey(error))
-      if (error instanceof ApiError && (error.code === 'version_conflict' || error.code === 'invalid_transition')) {
+      if (
+        error instanceof ApiError &&
+        (error.code === 'version_conflict' || error.code === 'invalid_transition')
+      ) {
         setReload((value) => value + 1)
       }
     } finally {
@@ -113,19 +132,23 @@ export function InsightList({ reloadToken, onChanged }: Props) {
   return (
     <section aria-label={t('ai.ins.title')} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="text-sm text-gray-400 lg:col-span-1">
+        <label className={`${aiLabelClass} lg:col-span-1`}>
           {t('ai.ins.search')}
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             maxLength={100}
-            className={inputClass}
+            className={aiInputClass}
           />
         </label>
-        <label className="text-sm text-gray-400">
+        <label className={aiLabelClass}>
           {t('ai.ins.status')}
-          <select value={status} onChange={(event) => setStatus(event.target.value as StatusFilter)} className={inputClass}>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value as StatusFilter)}
+            className={aiInputClass}
+          >
             {statusFilters.map((value) => (
               <option key={value} value={value}>
                 {t(`ai.ist.${value}`)}
@@ -133,9 +156,13 @@ export function InsightList({ reloadToken, onChanged }: Props) {
             ))}
           </select>
         </label>
-        <label className="text-sm text-gray-400">
+        <label className={aiLabelClass}>
           {t('ai.ins.allSeverities')}
-          <select value={severity} onChange={(event) => setSeverity(event.target.value as InsightSeverity | '')} className={inputClass}>
+          <select
+            value={severity}
+            onChange={(event) => setSeverity(event.target.value as InsightSeverity | '')}
+            className={aiInputClass}
+          >
             <option value="">{t('ai.ins.allSeverities')}</option>
             {insightSeverities.map((value) => (
               <option key={value} value={value}>
@@ -144,9 +171,13 @@ export function InsightList({ reloadToken, onChanged }: Props) {
             ))}
           </select>
         </label>
-        <label className="text-sm text-gray-400">
+        <label className={aiLabelClass}>
           {t('ai.ins.allCategories')}
-          <select value={category} onChange={(event) => setCategory(event.target.value as InsightCategory | '')} className={inputClass}>
+          <select
+            value={category}
+            onChange={(event) => setCategory(event.target.value as InsightCategory | '')}
+            className={aiInputClass}
+          >
             <option value="">{t('ai.ins.allCategories')}</option>
             {insightCategories.map((value) => (
               <option key={value} value={value}>
@@ -158,33 +189,32 @@ export function InsightList({ reloadToken, onChanged }: Props) {
       </div>
 
       {notice ? (
-        <p role="status" className={noticeClass}>
+        <p role="status" className={aiNoticeClass}>
           {t(notice)}
         </p>
       ) : null}
       {actionError ? (
-        <p role="alert" className={errorClass}>
+        <p role="alert" className={aiErrorClass}>
           {t(actionError)}
         </p>
       ) : null}
 
-      {phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('ai.loading')}</p> : null}
+      {phase === 'loading' ? (
+        <StateBlock state="loading" locale={fmtLocale} title={t('ai.loading')} skeletonRows={3} />
+      ) : null}
 
       {phase === 'error' ? (
-        <div className="space-y-3 rounded-xl border border-[#30363d] bg-[#1c2128] py-8 text-center">
-          <p role="alert" className={`${errorClass} inline-block`}>
-            {t(listError)}
-          </p>
-          <div>
-            <button type="button" onClick={() => setReload((value) => value + 1)} className={secondaryButton}>
-              {t('ai.retry')}
-            </button>
-          </div>
-        </div>
+        <StateBlock
+          state={listError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+          locale={fmtLocale}
+          title={t(listError)}
+          onRetry={listError === 'erp.err.forbidden' ? undefined : () => setReload((value) => value + 1)}
+          retryLabel={t('ai.retry')}
+        />
       ) : null}
 
       {phase === 'ready' && rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-[#30363d] px-4 py-10 text-center text-sm text-gray-400">{t('ai.ins.empty')}</p>
+        <StateBlock state="empty" locale={fmtLocale} title={t('ai.ins.empty')} />
       ) : null}
 
       {phase === 'ready' && rows.length > 0 ? (
@@ -204,13 +234,18 @@ export function InsightList({ reloadToken, onChanged }: Props) {
       ) : null}
 
       {moreError ? (
-        <p role="alert" className={errorClass}>
+        <p role="alert" className={aiErrorClass}>
           {t(moreError)}
         </p>
       ) : null}
       {phase === 'ready' && cursor ? (
         <div className="text-center">
-          <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className={secondaryButton}>
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+            className={aiSecondaryBtn}
+          >
             {loadingMore ? t('ai.loading') : t('ai.loadMore')}
           </button>
         </div>
