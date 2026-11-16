@@ -1,10 +1,16 @@
-import { exclusionDomainFragments } from '@/lib/odoo/excluded-entities'
+import {
+  closedBranchFamilyFragments,
+  exclusionDomainFragments,
+  SCHOOL_NAME_MARKERS,
+} from '@/lib/odoo/excluded-entities'
 import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, type OdooModel } from '@/modules/odoo/domain/odoo'
 
 /** A same-origin snippet. It uses the open Odoo cookie and downloads a file. It does not send the cookie anywhere else. */
 export function odooConsoleExtractor(): string {
   const fields = JSON.stringify(Object.fromEntries((Object.keys(odooFields) as OdooModel[]).map((model) => [model, [...odooFields[model]]])))
   const excluded = JSON.stringify(exclusionDomainFragments())
+  const schoolMarkers = JSON.stringify([...SCHOOL_NAME_MARKERS])
+  const closedBranchFamily = JSON.stringify(closedBranchFamilyFragments())
   return `(async function () {
   if (location.origin !== ${JSON.stringify(ODOO_ORIGIN)}) {
     console.error('Open https://venturefoods.walnutss.com first.');
@@ -12,9 +18,15 @@ export function odooConsoleExtractor(): string {
   }
   const fields = ${fields};
   const excluded = ${excluded};
+  const schoolMarkers = ${schoolMarkers};
+  const closedBranchFamily = ${closedBranchFamily};
   function rowKept(row) {
     var blob = JSON.stringify(row || {}).toLowerCase();
-    return excluded.every(function (fragment) { return blob.indexOf(fragment) === -1; });
+    var school = schoolMarkers.some(function (mark) { return blob.indexOf(String(mark).toLowerCase()) !== -1; });
+    return excluded.every(function (fragment) {
+      if (school && closedBranchFamily.indexOf(fragment) !== -1) return true;
+      return blob.indexOf(fragment) === -1;
+    });
   }
   const company = { allowed_company_ids: [${ODOO_COMPANY_ID}], cids: ${ODOO_COMPANY_ID} };
   const infoResponse = await fetch('/web/session/get_session_info', {

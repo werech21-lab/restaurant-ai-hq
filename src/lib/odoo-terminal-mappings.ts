@@ -1,9 +1,14 @@
 import 'server-only'
 
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
+import { isSchoolCanteenLabel } from '@/lib/odoo/excluded-entities'
+import { errorFields, logger } from '@/lib/logger'
+import {
+  clearPosTerminalMap,
+  deletePosTerminalMap,
+  readPosTerminalMap,
+  writePosTerminalMap,
+} from '@/lib/odoo/terminal-mapping-store'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -58,11 +63,14 @@ export function sanitizePosTerminalDisplayName(
 ): string {
   const tid = Number.isInteger(terminalId) && terminalId > 0 ? terminalId : 0
   const trimmed = String(rawName ?? '').trim()
-  if (tid === 40 || (FORBIDDEN_TERMINAL_DISTRICT_RE.test(trimmed) && /inactive|متوقف/i.test(trimmed))) {
-    return 'مقصف مدرسة NPIS #40 (متوقف)'
+  if (isSchoolCanteenLabel(trimmed)) {
+    const cleaned = trimmed.replace(FORBIDDEN_TERMINAL_DISTRICT_RE, ' ').replace(/\s+/g, ' ').trim()
+    const inactive = /inactive|متوقف/i.test(trimmed)
+    const label = cleaned || (tid > 0 ? `School canteen #${tid}` : 'School canteen')
+    return inactive ? `${label} (\u0645\u062a\u0648\u0642\u0641)` : label
   }
-  if (tid === 41 || FORBIDDEN_TERMINAL_DISTRICT_RE.test(trimmed)) {
-    return tid > 0 ? `مقصف مدرسة NPIS #${tid}` : 'مقصف مدرسة NPIS'
+  if (FORBIDDEN_TERMINAL_DISTRICT_RE.test(trimmed)) {
+    return tid > 0 ? `POS #${tid}` : 'POS'
   }
   return trimmed || (tid > 0 ? `POS #${tid}` : 'POS')
 }
@@ -209,13 +217,12 @@ interface LiveDiscoveredCache {
 }
 
 type GlobalMappingState = {
-  loadedFromDisk: boolean
+  loadedFromDb: boolean
   overrides: Record<string, PosTerminalMappingOverride>
   liveDiscovered: LiveDiscoveredCache | null
 }
 
 const GLOBAL_KEY = '__aetherPosTerminalMappingStateV1' as const
-const PERSIST_FILE_PATH = path.join(os.tmpdir(), 'aether-pos-terminal-mappings-v1.json')
 
 const r3 = (n: number): number => Math.round((Number(n) || 0) * 1000) / 1000
 const pct1 = (part: number, whole: number): number =>
@@ -272,56 +279,40 @@ function getGlobalState(): GlobalMappingState {
   const g = globalThis as unknown as Record<string, GlobalMappingState | undefined>
   if (!g[GLOBAL_KEY]) {
     g[GLOBAL_KEY] = {
-      loadedFromDisk: false,
+      loadedFromDb: false,
       overrides: {},
       liveDiscovered: null,
     }
   }
-  const state = g[GLOBAL_KEY]!
-  if (!state.loadedFromDisk) {
-    state.loadedFromDisk = true
-    try {
-      if (fs.existsSync(PERSIST_FILE_PATH)) {
-        const raw = JSON.parse(fs.readFileSync(PERSIST_FILE_PATH, 'utf8')) as Record<
-          string,
-          PosTerminalMappingOverride
-        >
-        if (raw && typeof raw === 'object') {
-          for (const [k, v] of Object.entries(raw)) {
-            const tid = Number(v?.terminalId ?? k)
-            if (
-              Number.isInteger(tid) &&
-              tid > 0 &&
-              isValidActiveVentureBranchId(v?.branchId)
-            ) {
-              state.overrides[String(tid)] = {
-                terminalId: tid,
-                branchId: v.branchId,
-                updatedAt:
-                  typeof v.updatedAt === 'string'
-                    ? v.updatedAt
-                    : new Date().toISOString(),
-                updatedBy:
-                  typeof v.updatedBy === 'string' ? v.updatedBy : 'admin',
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // Safe fallback to in-memory store on read-only serverless filesystems
-    }
-  }
-  return state
+  return g[GLOBAL_KEY]!
 }
 
-function persistOverridesToDisk(
-  overrides: Record<string, PosTerminalMappingOverride>,
-): void {
+function applyStoredRows(rows: Awaited<ReturnType<typeof readPosTerminalMap>>): void {
+  const state = getGlobalState()
+  const next: Record<string, PosTerminalMappingOverride> = {}
+  for (const row of rows) {
+    if (!Number.isInteger(row.terminalId) || row.terminalId <= 0) continue
+    if (!isValidActiveVentureBranchId(row.branchId)) continue
+    next[String(row.terminalId)] = {
+      terminalId: row.terminalId,
+      branchId: row.branchId,
+      updatedAt: row.updatedAt,
+      updatedBy: row.updatedBy,
+    }
+  }
+  state.overrides = next
+  state.loadedFromDb = true
+}
+
+/** Loads admin mappings from the database into the process cache. */
+export async function hydrateAdminPosTerminalMappings(options?: {
+  required?: boolean
+}): Promise<void> {
   try {
-    fs.writeFileSync(PERSIST_FILE_PATH, JSON.stringify(overrides, null, 2), 'utf8')
-  } catch {
-    // Ephemeral / read-only filesystem: in-memory state remains authoritative
+    applyStoredRows(await readPosTerminalMap())
+  } catch (error) {
+    if (options?.required) throw error
+    logger.error('POS terminal mapping load failed', errorFields(error))
   }
 }
 
@@ -340,14 +331,25 @@ export function getAdminPosTerminalBranch(
   return hit && isValidActiveVentureBranchId(hit.branchId) ? hit.branchId : null
 }
 
-export function setAdminPosTerminalMapping(params: {
+export async function setAdminPosTerminalMapping(params: {
   terminalId: number
   branchId: ActiveVentureBranchId | null
   updatedBy: string
-}): Record<string, PosTerminalMappingOverride> {
+}): Promise<Record<string, PosTerminalMappingOverride>> {
   const { terminalId, branchId, updatedBy } = params
   if (!Number.isInteger(terminalId) || terminalId <= 0) {
     throw new Error('Invalid POS terminal_id')
+  }
+  const updatedAt = new Date().toISOString()
+  if (branchId === null) {
+    await deletePosTerminalMap(terminalId)
+  } else {
+    await writePosTerminalMap({
+      terminalId,
+      branchId,
+      updatedAt,
+      updatedBy: updatedBy || 'admin',
+    })
   }
   const state = getGlobalState()
   const key = String(terminalId)
@@ -357,18 +359,23 @@ export function setAdminPosTerminalMapping(params: {
     state.overrides[key] = {
       terminalId,
       branchId,
-      updatedAt: new Date().toISOString(),
+      updatedAt,
       updatedBy: updatedBy || 'admin',
     }
   }
-  persistOverridesToDisk(state.overrides)
+  state.loadedFromDb = true
   return { ...state.overrides }
 }
 
-export function resetAdminPosTerminalMappingsForTests(): void {
+export function clearAdminPosTerminalMappingMemoryForTests(): void {
   const state = getGlobalState()
   state.overrides = {}
-  persistOverridesToDisk(state.overrides)
+  state.loadedFromDb = true
+}
+
+export async function resetAdminPosTerminalMappingsForTests(): Promise<void> {
+  await clearPosTerminalMap()
+  clearAdminPosTerminalMappingMemoryForTests()
 }
 
 /**

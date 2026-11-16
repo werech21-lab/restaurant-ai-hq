@@ -51,6 +51,7 @@ export type GlobalBranch =
   | 'salmiya'
   | 'al-kout'
   | 'ardiya'
+  | 'school-canteens'
 
 export type GlobalChannel =
   | 'all'
@@ -164,9 +165,10 @@ export const GLOBAL_BRANCH_OPTIONS: readonly FilterOption<GlobalBranch>[] = [
   { id: 'salmiya', ar: 'السالمية', en: 'Salmiya' },
   { id: 'al-kout', ar: 'الكوت', en: 'Al-Kout' },
   { id: 'ardiya', ar: 'مطبخ العارضية', en: 'Ardiya' },
+  { id: 'school-canteens', ar: 'مقاصف المدارس', en: 'School canteens' },
 ] as const
 
-export const APPROVED_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all'>[] = [
+export const APPROVED_BRANCH_IDS = [
   'avenues',
   '360-mall',
   'assima',
@@ -174,7 +176,7 @@ export const APPROVED_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all'>[] = [
   'salmiya',
   'al-kout',
   'ardiya',
-] as const
+] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
   { id: 'all', ar: 'كل القنوات', en: 'All Channels' },

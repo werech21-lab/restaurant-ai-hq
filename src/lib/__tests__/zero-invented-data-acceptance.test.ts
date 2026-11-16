@@ -411,6 +411,7 @@ function buildNov14AcceptanceCube(includeTopProducts = true): OdooPeriodCube {
       promenade: { netKwd: 517.911, orders: 107, aovKwd: 4.84, channels: emptyChannels() },
       avenues: { netKwd: 495.512, orders: 106, aovKwd: 4.675, channels: emptyChannels() },
       assima: { netKwd: 427.862, orders: 86, aovKwd: 4.975, channels: emptyChannels() },
+      'school-canteens': { netKwd: 0, orders: 0, aovKwd: 0, channels: emptyChannels() },
     },
     unattributed: {
       id: 'unattributed',

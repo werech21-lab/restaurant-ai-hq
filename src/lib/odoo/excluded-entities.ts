@@ -157,6 +157,33 @@ export function exclusionDomainFragments(): readonly string[] {
   return SUBSTRING_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
 }
 
+/** School-canteen POS names. The closed restaurant district is not one of these markers. */
+export const SCHOOL_NAME_MARKERS = [
+  'NPIS',
+  'FAIPS',
+  'canteen',
+  'school',
+  '\u0645\u0642\u0635\u0641',
+  '\u0645\u062f\u0631\u0633\u0629',
+] as const
+
+const SCHOOL_LABEL_RE = /\bnpis\b|\bfaips\b|\bcanteen\b|\bschool\b|\u0645\u0642\u0635\u0641|\u0645\u062f\u0631\u0633\u0647/
+
+export function isSchoolCanteenLabel(raw: string | null | undefined): boolean {
+  if (raw == null) return false
+  return SCHOOL_LABEL_RE.test(normalizeEntityLabel(String(raw)))
+}
+
+/** District fragments that a school canteen may contain without leaving the company. */
+export function isClosedBranchFamilyFragment(fragment: string): boolean {
+  const normalized = normalizeEntityLabel(fragment)
+  return normalized.startsWith('haw') || normalized === '\u062d\u0648\u0644\u064a' || normalized === 'hwl'
+}
+
+export function closedBranchFamilyFragments(): readonly string[] {
+  return exclusionDomainFragments().filter((fragment) => isClosedBranchFamilyFragment(fragment))
+}
+
 export function normalizeEntityLabel(raw: string): string {
   return raw
     .normalize('NFKD')
@@ -189,15 +216,35 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   if (raw == null) return false
   const text = normalizeEntityLabel(String(raw))
   if (!text) return false
-  if (SUBSTRING_FRAGMENTS.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
+  const school = isSchoolCanteenLabel(text)
+  const fragments = school
+    ? SUBSTRING_FRAGMENTS.filter((fragment) => !isClosedBranchFamilyFragment(fragment))
+    : SUBSTRING_FRAGMENTS
+  if (fragments.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
   const collapsed = text.replace(/[^a-z0-9]+/g, '')
   if (COLLAPSED_MARKS.some((mark) => collapsed.includes(mark))) return true
-  return text.split(' ').some((token) => wordTokenHit(token))
+  return text.split(' ').some((token) => {
+    const stripped = token.replace(CLITIC, '')
+    if (
+      school &&
+      (isClosedBranchFamilyFragment(token) || (stripped !== token && isClosedBranchFamilyFragment(stripped)))
+    ) {
+      return false
+    }
+    return wordTokenHit(token)
+  })
 }
 
 export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
   for (const fragment of exclusionDomainFragments()) {
-    domain.push([nameField, 'not ilike', fragment])
+    if (!isClosedBranchFamilyFragment(fragment)) {
+      domain.push([nameField, 'not ilike', fragment])
+      continue
+    }
+    const terms: unknown[] = SCHOOL_NAME_MARKERS.map((mark) => [nameField, 'ilike', mark])
+    terms.push([nameField, 'not ilike', fragment])
+    for (let i = 0; i < terms.length - 1; i += 1) domain.push('|')
+    for (const term of terms) domain.push(term)
   }
 }
 
@@ -257,5 +304,5 @@ export function isPeriodSaleProduct(input: {
 }): boolean {
   if (isExcludedOdooEntity(input.name)) return false
   if (!input.brandId || !input.approvedBrandIds.includes(input.brandId)) return false
-  return input.netKwd > 0 || input.qty > 0
+  return input.netKwd !== 0 || input.qty !== 0
 }

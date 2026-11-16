@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useId, useRef, useState } from 'react'
 import { useI18n } from '@/lib/i18n'
 
 export type KpiMetricKindAr = 'فعلي' | 'محسوب بمعادلة' | 'تقدير'
@@ -122,7 +122,7 @@ function formatSyncShort(lastSyncAt?: string | null): {
  *   3. Last sync timestamp (`Asia/Kuwait`)
  *   4. Metric type (`فعلي` | `محسوب بمعادلة` | `تقدير`)
  *   5. `قديمة` badge whenever data is older than 24 hours
- *   6. Exact Odoo query or mathematical formula on `title` / hover
+ *   6. Exact Odoo query or mathematical formula, opened below the badge
  */
 export function KpiProvenanceBadge({
   odooModel: rawOdooModel,
@@ -137,6 +137,24 @@ export function KpiProvenanceBadge({
   className = '',
 }: KpiProvenanceBadgeProps) {
   const isAr = useSafeIsAr(explicitIsAr)
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const tooltipId = useId()
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
   const suppliedModel = (rawOdooModel || model || '').trim()
   const odooModel = suppliedModel || (isAr ? 'غير محدد' : 'unspecified')
   const kindMeta = normalizeKind(kind)
@@ -170,12 +188,13 @@ export function KpiProvenanceBadge({
 
   return (
     <div
+      ref={rootRef}
       dir={isAr ? 'rtl' : 'ltr'}
-      title={fullTitle}
       data-kpi-provenance={kindMeta.ar}
       data-odoo-model={odooModel}
       data-kpi-stale={stale ? 'true' : 'false'}
-      className={`group relative mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-tight tabular-nums ${className}`}
+      data-compact={compact ? 'true' : 'false'}
+      className={`relative mt-2 flex flex-wrap items-center gap-1.5 text-[11px] leading-tight tabular-nums ${className}`}
     >
       <span
         className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-extrabold ring-1 ${kindMeta.toneClass}`}
@@ -207,9 +226,22 @@ export function KpiProvenanceBadge({
         </span>
       ) : null}
 
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={tooltipId}
+        aria-label={fullTitle}
+        onClick={() => setOpen((current) => !current)}
+        className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
+      >
+        {isAr ? 'التفاصيل' : 'Details'}
+      </button>
+
+      {open ? (
       <div
+        id={tooltipId}
         role="tooltip"
-        className="pointer-events-none invisible absolute bottom-full start-0 z-40 mb-1.5 w-72 max-w-[90vw] rounded-xl border border-slate-200 bg-white p-2.5 text-[11px] text-slate-700 opacity-0 shadow-lg transition-opacity duration-150 group-hover:visible group-hover:opacity-100 dark:border-white/15 dark:bg-[#0E1713] dark:text-slate-200"
+        className="absolute top-full start-0 z-40 mt-1.5 w-72 max-w-[90vw] rounded-xl border border-slate-200 bg-white p-2.5 text-[11px] text-slate-700 shadow-lg dark:border-white/15 dark:bg-[#0E1713] dark:text-slate-200"
       >
         <div className="font-bold text-slate-900 dark:text-white">
           {isAr ? `${kindMeta.ar} — ${odooModel}` : `${kindMeta.en} — ${odooModel}`}
@@ -227,6 +259,7 @@ export function KpiProvenanceBadge({
           {queryOrFormula}
         </div>
       </div>
+      ) : null}
     </div>
   )
 }

@@ -62,6 +62,7 @@ function buildDayNov14Cube(): OdooPeriodCube {
       promenade: { netKwd: 517.9, orders: 107, aovKwd: 4.84, channels: emptyChannels() },
       avenues: { netKwd: 495.5, orders: 86, aovKwd: 5.762, channels: emptyChannels() },
       assima: { netKwd: 427.9, orders: 74, aovKwd: 5.782, channels: emptyChannels() },
+      'school-canteens': { netKwd: 0, orders: 0, aovKwd: 0, channels: emptyChannels() },
     },
     unattributed: {
       id: 'unattributed',

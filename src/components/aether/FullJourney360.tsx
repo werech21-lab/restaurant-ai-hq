@@ -47,6 +47,8 @@ import {
   formatStaticMarginPill,
 } from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
+import { formatKwdAmount } from '@/lib/format-kwd'
+import { describePosOrderQuery } from '@/lib/odoo/pos-order-query'
 
 interface EmeraldPillOption<K extends string> {
   id: K
@@ -216,14 +218,31 @@ export function FullJourney360() {
 
   const fmtKwdVal = useCallback(
     (v: number) => {
-      const clean = Number.isFinite(v) ? v : 0
-      const absV = Math.abs(clean)
-      const sign = clean < 0 ? '-' : ''
-      const hasTenths = Math.abs(absV - Math.round(absV)) >= 0.05
-      const num = absV >= 1000 && !hasTenths ? f0(absV) : hasTenths ? f1(absV) : f0(absV)
-      return isAr ? `${sign}${num} د.ك` : `${sign}${num} KWD`
+      const num = formatKwdAmount(v)
+      return isAr ? `${num} د.ك` : `${num} KWD`
     },
     [isAr],
+  )
+  const companyId = typeof liveSummary?.odooCompanyId === 'number' ? liveSummary.odooCompanyId : null
+  const posSalesQuery = useMemo(
+    () =>
+      describePosOrderQuery({
+        fromKuwaitDate: provenanceRange.from,
+        toInclusiveKuwaitDate: provenanceRange.to,
+        companyId,
+        aggregate: 'read_group',
+      }),
+    [companyId, provenanceRange.from, provenanceRange.to],
+  )
+  const posOrdersQuery = useMemo(
+    () =>
+      describePosOrderQuery({
+        fromKuwaitDate: provenanceRange.from,
+        toInclusiveKuwaitDate: provenanceRange.to,
+        companyId,
+        aggregate: 'search_count',
+      }),
+    [companyId, provenanceRange.from, provenanceRange.to],
   )
 
   const coresSnap = useMemo(
@@ -738,7 +757,7 @@ export function FullJourney360() {
                       lastSyncAt={lastSyncIso}
                       isStale24h={isStale24h}
                       kind="فعلي"
-                      queryOrFormula={`pos.order.read_group([['state','in',['paid','done','invoiced']], ['date_order','>=','${provenanceRange.from}'], ['date_order','<=','${provenanceRange.to}']], ['amount_total:sum','amount_tax:sum'])`}
+                      queryOrFormula={posSalesQuery}
                       compact
                       className="!mt-0"
                     />
@@ -746,13 +765,11 @@ export function FullJourney360() {
                 </div>
               </article>
 
-              {/* Card 2: Total Orders & Before Rent */}
+              {/* Card 2: order count. Before-rent money stays in its own pill. */}
               <article className="ae-kpi-card flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#111A17] dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]">
                 <div className="flex items-start justify-between gap-2">
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {maskInternalCosts
-                      ? T('Total Orders', 'إجمالي الطلبات')
-                      : T('Orders & Before Rent', 'الطلبات والباقي قبل الإيجار')}
+                    {T('Total Orders', 'إجمالي الطلبات')}
                   </p>
                   <Link
                     href="/erp/cores"
@@ -802,7 +819,7 @@ export function FullJourney360() {
                     lastSyncAt={lastSyncIso}
                     isStale24h={isStale24h}
                     kind="فعلي"
-                    queryOrFormula={`pos.order.search_count([['state','in',['paid','done','invoiced']], ['date_order','>=','${provenanceRange.from}'], ['date_order','<=','${provenanceRange.to}']])`}
+                    queryOrFormula={posOrdersQuery}
                     compact
                   />
                 </div>

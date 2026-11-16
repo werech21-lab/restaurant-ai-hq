@@ -33,8 +33,10 @@ import {
   type OdooUnattributedBranchRow,
 } from '@/lib/odoo/live-sync-core'
 import {
+  ACTIVE_VENTURE_BRANCH_IDS,
   clearLiveDiscoveredPosLedger,
   getAdminPosTerminalBranch,
+  hydrateAdminPosTerminalMappings,
   recordLiveDiscoveredPosLedger,
   sanitizePosTerminalDisplayName,
   UNMAPPED_BUCKET_LABEL_AR,
@@ -42,12 +44,21 @@ import {
   type ActiveVentureBranchId,
 } from '@/lib/odoo-terminal-mappings'
 import {
+  anchorKuwaitDay,
+  companyPosConfigAllowed,
+  posOrderNet,
+  SCHOOL_CANTEEN_BRANCH_ID,
+  signedKwd,
+} from '@/lib/odoo/company-pos'
+import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
+import {
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
   isExcludedOdooEntity,
   isExcludedRecordId,
   sliceDailySeriesToPeriod,
 } from '@/lib/aether/period-delta'
+import { isSchoolCanteenLabel } from '@/lib/odoo/excluded-entities'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -102,6 +113,7 @@ const ACTIVE_BRANCH_IDS = [
   'salmiya',
   'al-kout',
   'ardiya',
+  SCHOOL_CANTEEN_BRANCH_ID,
 ] as const
 
 const UI_CHANNEL_KEYS = [
@@ -523,39 +535,7 @@ export function normalizeOdooBaseUrl(rawUrl?: string | null): string {
   return baseUrl
 }
 
-/**
- * Converts Kuwait (`Asia/Kuwait`, UTC+3) calendar date boundaries (`YYYY-MM-DD 00:00:00` .. `23:59:59 +03:00`)
- * into exact Odoo naive UTC datetime strings (`YYYY-MM-DD HH:MM:SS`).
- */
-export function kuwaitDateBoundsToOdooUtc(
-  fromKuwaitDate: string,
-  toInclusiveKuwaitDate = fromKuwaitDate,
-): {
-  fromUtc: string
-  toInclusiveUtc: string
-  toExclusiveUtc: string
-} {
-  const cleanFrom = /^\d{4}-\d{2}-\d{2}$/.test(fromKuwaitDate)
-    ? fromKuwaitDate
-    : getKuwaitTodayIso()
-  const cleanTo =
-    /^\d{4}-\d{2}-\d{2}$/.test(toInclusiveKuwaitDate) && toInclusiveKuwaitDate >= cleanFrom
-      ? toInclusiveKuwaitDate
-      : cleanFrom
-
-  const startUtcMs = Date.parse(`${cleanFrom}T00:00:00.000Z`) - KUWAIT_OFFSET_MS
-  const endInclusiveUtcMs = Date.parse(`${cleanTo}T23:59:59.000Z`) - KUWAIT_OFFSET_MS
-  const endExclusiveUtcMs = Date.parse(`${cleanTo}T00:00:00.000Z`) + 86_400_000 - KUWAIT_OFFSET_MS
-
-  const fmtOdooUtc = (ms: number): string =>
-    new Date(ms).toISOString().slice(0, 19).replace('T', ' ')
-
-  return {
-    fromUtc: fmtOdooUtc(startUtcMs),
-    toInclusiveUtc: fmtOdooUtc(endInclusiveUtcMs),
-    toExclusiveUtc: fmtOdooUtc(endExclusiveUtcMs),
-  }
-}
+export { kuwaitDateBoundsToOdooUtc }
 
 /**
  * Converts an Odoo naive UTC `date_order` (`YYYY-MM-DD HH:MM:SS`) or ISO UTC string
@@ -916,6 +896,9 @@ export function resolveRestaurantBranchForConfig(
   options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
   const combined = `${cfgName || ''} ${extraContext || ''}`.trim()
+  if (isSchoolCanteenLabel(combined) && !isExcludedOdooEntity(combined)) {
+    return SCHOOL_CANTEEN_BRANCH_ID
+  }
   if (isDecommissionedWarehouseRecord(combined)) {
     return null
   }
@@ -953,7 +936,7 @@ export function resolveRestaurantBranchForConfig(
   if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
   if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
   if (/\bkot\b|\bkout\b|كوت|الكوت|fahaheel|الفحيحيل/.test(lower)) return 'al-kout'
-  if (/\bard\b|\bck\b|ardiya|central|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
+  if (/\bard\b|\bck\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
   return null
 }
 
@@ -1358,7 +1341,7 @@ export function buildReconciledBucket(params: {
   } = params
 
   const mappedBranchNet = r3(
-    ACTIVE_BRANCH_IDS.reduce((acc, lid) => acc + Math.max(0, locNetMap.get(lid) ?? 0), 0),
+    ACTIVE_BRANCH_IDS.reduce((acc, lid) => acc + (locNetMap.get(lid) ?? 0), 0),
   )
   const mappedBranchOrders = Math.max(
     0,
@@ -1367,7 +1350,7 @@ export function buildReconciledBucket(params: {
     ),
   )
 
-  const unattributedSalesKwd = r3(Math.max(0, unmappedNetKwd))
+  const unattributedSalesKwd = r3(unmappedNetKwd)
   const unattributedOrders = Math.max(0, Math.round(unmappedOrders))
   const companyNet = r3(mappedBranchNet + unattributedSalesKwd)
   const companyOrders = Math.max(0, mappedBranchOrders + unattributedOrders)
@@ -1383,11 +1366,11 @@ export function buildReconciledBucket(params: {
 
   const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
   const totalBrandRawNet = ACTIVE_BRAND_IDS.reduce(
-    (acc, bid) => acc + Math.max(0, brandRawWeights.get(bid) ?? 0),
+    (acc, bid) => acc + (brandRawWeights.get(bid) ?? 0),
     0,
   )
   for (const bid of ACTIVE_BRAND_IDS) {
-    const nv = r3(Math.max(0, brandRawWeights.get(bid) ?? 0))
+    const nv = r3(brandRawWeights.get(bid) ?? 0)
     const explicitOrd = brandOrdersMap?.get(bid)
     const bOrd =
       explicitOrd !== undefined
@@ -1409,7 +1392,7 @@ export function buildReconciledBucket(params: {
   )
 
   for (const lid of ACTIVE_BRANCH_IDS) {
-    const locRealNet = r3(Math.max(0, locNetMap.get(lid) ?? 0))
+    const locRealNet = r3(locNetMap.get(lid) ?? 0)
     const locRealOrd = Math.max(0, Math.round(locOrdersMap.get(lid) ?? 0))
     const rawUi =
       locUiRawMap.get(lid) ??
@@ -1419,7 +1402,7 @@ export function buildReconciledBucket(params: {
       UI_CHANNEL_KEYS.map((ck) => [
         ck,
         {
-          netKwd: Math.max(0, Number(rawUi[ck]?.netKwd) || 0),
+          netKwd: signedKwd(rawUi[ck]?.netKwd),
           orders: Math.max(0, Math.round(Number(rawUi[ck]?.orders) || 0)),
         },
       ]),
@@ -1499,6 +1482,7 @@ export function buildReconciledBucket(params: {
 }
 
 async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
+  await hydrateAdminPosTerminalMappings()
   const cfg = readServerOdooConfig()
   if (!cfg) {
     throw new OdooConnectorError(
@@ -1602,14 +1586,18 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const configNameById = new Map<number, string>()
   const displayConfigNameById = new Map<number, string>()
   const decommissionedConfigIds = new Set<number>()
+  const companyConfigIds = new Set<number>()
   for (const c of allConfigs) {
     const extraCtx = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
-    configNameById.set(c.id, `${c.name} ${extraCtx}`.trim())
+    const combined = `${c.name} ${extraCtx}`.trim()
+    configNameById.set(c.id, combined)
     displayConfigNameById.set(c.id, sanitizePosTerminalDisplayName(c.id, c.name))
-    if (isDecommissionedWarehouseRecord(`${c.name} ${extraCtx}`)) {
+    if (isDecommissionedWarehouseRecord(combined)) {
       decommissionedConfigIds.add(c.id)
       continue
     }
+    if (!companyPosConfigAllowed(c.id, combined)) continue
+    companyConfigIds.add(c.id)
     const nativeBranch = resolveRestaurantBranchForConfig(c.id, c.name, extraCtx, {
       ignoreAdminOverride: true,
     })
@@ -1622,14 +1610,17 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
   for (const cfgId of REG.allowedPosConfigIds) {
-    if (!nativeBranchOfConfigId.has(cfgId) && !decommissionedConfigIds.has(cfgId)) {
-      const nb = resolveRestaurantBranchForConfig(cfgId, configNameById.get(cfgId) ?? '', '', {
+    const knownName = configNameById.get(cfgId) ?? ''
+    if (decommissionedConfigIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName)) continue
+    companyConfigIds.add(cfgId)
+    if (!nativeBranchOfConfigId.has(cfgId)) {
+      const nb = resolveRestaurantBranchForConfig(cfgId, knownName, '', {
         ignoreAdminOverride: true,
       })
       if (nb) nativeBranchOfConfigId.set(cfgId, nb)
     }
-    if (!branchOfConfigId.has(cfgId) && !decommissionedConfigIds.has(cfgId)) {
-      const b = resolveRestaurantBranchForConfig(cfgId, configNameById.get(cfgId) ?? '')
+    if (!branchOfConfigId.has(cfgId)) {
+      const b = resolveRestaurantBranchForConfig(cfgId, knownName)
       if (b) branchOfConfigId.set(cfgId, b)
     }
   }
@@ -1659,17 +1650,18 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
 
-  const excludedPosDomain: unknown[][] = [
-    ...companyDomain,
-    ...(decommissionedConfigIds.size > 0
-      ? [['session_id.config_id', 'not in', [...decommissionedConfigIds]]]
-      : []),
-  ]
+  const companyConfigClause: unknown[][] =
+    companyConfigIds.size > 0
+      ? [['session_id.config_id', 'in', [...companyConfigIds]]]
+      : [['id', '=', 0]]
+  const companyLineClause: unknown[][] =
+    companyConfigIds.size > 0
+      ? [['order_id.session_id.config_id', 'in', [...companyConfigIds]]]
+      : [['id', '=', 0]]
+  const excludedPosDomain: unknown[][] = [...companyDomain, ...companyConfigClause]
   const excludedPosLineDomain: unknown[][] = [
     ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...(decommissionedConfigIds.size > 0
-      ? [['order_id.session_id.config_id', 'not in', [...decommissionedConfigIds]]]
-      : []),
+    ...companyLineClause,
     ...(excludedPosCategoryIds.size > 0
       ? [['product_id.pos_categ_id', 'not in', [...excludedPosCategoryIds]]]
       : []),
@@ -1694,12 +1686,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }) ?? latestOrderCandidates[0]
   const newestOrderConverted = odooUtcToKuwaitIso(newestActiveOrderRow?.date_order)
 
-  const anchorDayKwIso =
-    newestOrderConverted?.kuwaitDate && newestOrderConverted.kuwaitDate <= todayKwIso
-      ? newestOrderConverted.kuwaitDate
-      : todayKwIso
+  const anchorDayKwIso = anchorKuwaitDay(todayKwIso, newestOrderConverted?.kuwaitDate ?? null)
   const anchorTomorrowKwIso = shiftIsoDate(anchorDayKwIso, 1)
-  const todayIsFallbackDay = anchorDayKwIso !== todayKwIso
+  const todayIsFallbackDay = false
 
   const weekFromKwIso = shiftIsoDate(anchorDayKwIso, -6)
   const monthFromKwIso = shiftIsoDate(anchorDayKwIso, -29)
@@ -1718,9 +1707,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const excludedPaymentDomain: unknown[][] = [
     ...(resolvedCompanyId !== null ? [['pos_order_id.company_id', '=', resolvedCompanyId]] : []),
-    ...(decommissionedConfigIds.size > 0
-      ? [['session_id.config_id', 'not in', [...decommissionedConfigIds]]]
-      : []),
+    ...companyConfigClause,
   ]
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals
@@ -2494,7 +2481,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const nativeTerminalMonthStats = new Map<number, { orders: number; net: number }>()
   const nativeBranchMonthStats = Object.fromEntries(
     ACTIVE_BRANCH_IDS.map((id) => [id, { netSalesKwd: 0, orders: 0 }]),
-  ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>
+  ) as Record<(typeof ACTIVE_BRANCH_IDS)[number], { netSalesKwd: number; orders: number }>
 
   let excludedMonthNet = 0
   let excludedMonthOrd = 0
@@ -2513,8 +2500,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     if (!parsedRange) continue
     const dayIso = parsedRange.kuwaitDate
     const ordCount = Math.max(0, Number(exRow.__count ?? 0))
-    const net = Math.max(0, (Number(exRow.amount_total) || 0) - (Number(exRow.amount_tax) || 0))
-    if (ordCount <= 0 && net <= 0) continue
+    const net = posOrderNet(exRow.amount_total, exRow.amount_tax)
+    if (ordCount <= 0 && net === 0) continue
     const sid = m2oId(exRow.session_id)
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (dayIso >= monthFromKwIso && dayIso <= anchorDayKwIso) {
@@ -2545,8 +2532,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
     const dayIso = parsedRange.kuwaitDate
     const ordCount = Math.max(0, Number(row.__count ?? 0))
-    const net = Math.max(0, (Number(row.amount_total) || 0) - (Number(row.amount_tax) || 0))
-    if (ordCount <= 0 && net <= 0) continue
+    const net = posOrderNet(row.amount_total, row.amount_tax)
+    if (ordCount <= 0 && net === 0) continue
 
     const sid = m2oId(row.session_id)
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
@@ -2597,7 +2584,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         unmappedMonthOrd += ordCount
         const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
         const plName = m2oName(row.pricelist_id) ?? ''
-        const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, true)
+        const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, false)
         unmappedPricelistUiHints30[hintedCh].netKwd += net
         unmappedPricelistUiHints30[hintedCh].orders += ordCount
       }
@@ -2690,8 +2677,16 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     candidateTerminals: [...discoveredCandidateMap.values()].sort(
       (a, b) => b.net_sales_kwd - a.net_sales_kwd || a.terminal_id - b.terminal_id,
     ),
-    nativeMappedTerminals: nativeMappedTerminalsLive,
-    baseBranches: nativeBranchMonthStats,
+    nativeMappedTerminals: nativeMappedTerminalsLive.filter(
+      (row): row is typeof row & { branch_id: ActiveVentureBranchId } =>
+        (ACTIVE_VENTURE_BRANCH_IDS as readonly string[]).includes(row.branch_id),
+    ),
+    baseBranches: Object.fromEntries(
+      ACTIVE_VENTURE_BRANCH_IDS.map((id) => [
+        id,
+        nativeBranchMonthStats[id] ?? { netSalesKwd: 0, orders: 0 },
+      ]),
+    ) as Record<ActiveVentureBranchId, { netSalesKwd: number; orders: number }>,
     excludedEntitiesKwd: r3(excludedMonthNet),
     excludedEntitiesOrders: Math.round(excludedMonthOrd),
     excludedPos24Kwd: r3(excludedPos24Net),
@@ -2706,7 +2701,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     if (!parsedHour) continue
     const kwHour = parsedHour.kuwaitHour
     const ordCount = Math.max(0, Number(hRow.__count ?? 0))
-    const net = Math.max(0, (Number(hRow.amount_total) || 0) - (Number(hRow.amount_tax) || 0))
+    const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
     hourlyAcc[kwHour].orders += ordCount
     hourlyAcc[kwHour].netKwd += net
   }
@@ -2766,7 +2761,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         (pid !== null ? brandOfProductId.get(pid) : undefined) ??
         resolveBrandHintFromText(pName)
       if (!bid || !(ACTIVE_BRAND_IDS as readonly string[]).includes(bid)) continue
-      netMap.set(bid, (netMap.get(bid) ?? 0) + Math.max(0, Number(r.price_subtotal) || 0))
+      netMap.set(bid, (netMap.get(bid) ?? 0) + signedKwd(r.price_subtotal))
       qtyMap.set(bid, (qtyMap.get(bid) ?? 0) + Math.max(0, Number(r.qty) || 0))
     }
     return { netMap, qtyMap }
@@ -2796,9 +2791,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
       const lid = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
       const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-      const isDelivCfg = !lid || lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
+      const isDelivCfg = lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
       const uiKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDelivCfg)
-      const amt = Math.max(0, Number(p.amount) || 0)
+      const amt = signedKwd(p.amount)
       const cnt = Math.max(0, Number(p.__count) || 0)
       if (!lid) {
         unmappedUi[uiKey].netKwd += amt
@@ -2812,7 +2807,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     return { locMap, unmappedUi }
   }
 
-  const has30Payments = payments30Rows.some((p) => (Number(p.amount) || 0) > 0)
+  const has30Payments = payments30Rows.some((p) => signedKwd(p.amount) !== 0)
   const built30Ui = buildLocAndUnmappedUiMap(payments30Rows)
   const locUi30 = has30Payments ? built30Ui.locMap : pricelistUiHints30
   const unmappedUi30 = has30Payments ? built30Ui.unmappedUi : unmappedPricelistUiHints30
@@ -2830,9 +2825,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const sid = m2oId(yrRow.session_id)
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
-    const net = Math.max(0, (Number(yrRow.amount_total) || 0) - (Number(yrRow.amount_tax) || 0))
+    const net = posOrderNet(yrRow.amount_total, yrRow.amount_tax)
     const ord = Math.max(0, Number(yrRow.__count ?? 0))
-    if (ord <= 0 && net <= 0) continue
+    if (ord <= 0 && net === 0) continue
     const branch = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
     if (!branch) {
       unmappedYearNet += net
@@ -3011,7 +3006,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     newestOrderConverted?.kuwaitDate ?? anchorDayKwIso
 
   const liveMappedBranchesNet = r3(
-    ACTIVE_BRANCH_IDS.reduce((s, lid) => s + Math.max(0, locMonthNet.get(lid) ?? 0), 0),
+    ACTIVE_BRANCH_IDS.reduce((s, lid) => s + (locMonthNet.get(lid) ?? 0), 0),
   )
   const liveExcludedMonthNet = r3(excludedMonthNet)
   const liveExcludedMonthOrd = Math.round(excludedMonthOrd)
@@ -3093,8 +3088,8 @@ function formatEnvelopeFromCore(
     const ord = Math.max(0, Math.round(branchSource?.[lid]?.orders ?? 0))
     return {
       id: lid,
-      name: REG.locations[lid]?.en ?? lid,
-      unit: 'restaurant',
+      name: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'School canteens' : (REG.locations[lid]?.en ?? lid),
+      unit: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'school-canteen' : 'restaurant',
       netSalesKwd: nv,
       orders: ord,
     }
@@ -3103,8 +3098,8 @@ function formatEnvelopeFromCore(
   const branchSumNet = r3(rawBranches.reduce((acc, b) => acc + b.netSalesKwd, 0))
   const branchSumOrd = rawBranches.reduce((acc, b) => acc + b.orders, 0)
   const bktUnmappedNet = bkt.unmappedSummary
-    ? r3(Math.max(0, bkt.unmappedSummary.netSalesKwd))
-    : r3(Math.max(0, bkt.unattributedSalesKwd ?? 0))
+    ? r3(bkt.unmappedSummary.netSalesKwd)
+    : r3(bkt.unattributedSalesKwd ?? 0)
   const bktUnmappedOrd = bkt.unmappedSummary
     ? Math.max(0, Math.round(bkt.unmappedSummary.orders))
     : Math.max(0, Math.round(bkt.unattributedOrders ?? 0))
@@ -3739,6 +3734,7 @@ export async function fetchLiveOdooPeriodCube(
   referenceNowMs = Date.now(),
 ): Promise<OdooPeriodCube> {
   assertServerRuntime()
+  await hydrateAdminPosTerminalMappings()
   const isoRe = /^\d{4}-\d{2}-\d{2}$/
   const fallbackToday = getKuwaitTodayIso(referenceNowMs)
   const rawFrom = isoRe.test(fromKwIso) ? fromKwIso : fallbackToday
@@ -3854,6 +3850,7 @@ export async function fetchLiveOdooPeriodCube(
       resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []
 
     const decommCfgIds = new Set<number>()
+    const companyCfgIds = new Set<number>()
     const branchOfCfg = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
     const cfgIdsByBranch = new Map<(typeof ACTIVE_BRANCH_IDS)[number], number[]>()
     for (const lid of ACTIVE_BRANCH_IDS) {
@@ -3862,11 +3859,14 @@ export async function fetchLiveOdooPeriodCube(
     const cfgNameMap = new Map<number, string>()
     for (const c of allConfigs) {
       const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
-      cfgNameMap.set(c.id, `${c.name} ${extra}`.trim())
-      if (isDecommissionedWarehouseRecord(`${c.name} ${extra}`)) {
+      const combined = `${c.name} ${extra}`.trim()
+      cfgNameMap.set(c.id, combined)
+      if (isDecommissionedWarehouseRecord(combined)) {
         decommCfgIds.add(c.id)
         continue
       }
+      if (!companyPosConfigAllowed(c.id, combined)) continue
+      companyCfgIds.add(c.id)
       const mb = resolveRestaurantBranchForConfig(c.id, c.name, extra)
       if (mb) {
         branchOfCfg.set(c.id, mb)
@@ -3874,8 +3874,11 @@ export async function fetchLiveOdooPeriodCube(
       }
     }
     for (const cfgId of REG.allowedPosConfigIds) {
-      if (!branchOfCfg.has(cfgId) && !decommCfgIds.has(cfgId)) {
-        const mb = resolveRestaurantBranchForConfig(cfgId, cfgNameMap.get(cfgId) ?? '')
+      const knownName = cfgNameMap.get(cfgId) ?? ''
+      if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName)) continue
+      companyCfgIds.add(cfgId)
+      if (!branchOfCfg.has(cfgId)) {
+        const mb = resolveRestaurantBranchForConfig(cfgId, knownName)
         if (mb) {
           branchOfCfg.set(cfgId, mb)
           cfgIdsByBranch.get(mb)!.push(cfgId)
@@ -3918,19 +3921,22 @@ export async function fetchLiveOdooPeriodCube(
     }
     const activeAccIds = [...activeAccMap.keys()]
 
-    const exclPosOrderDomain: unknown[][] = [
-      ...companyDomain,
-      ...(decommCfgIds.size > 0 ? [['session_id.config_id', 'not in', [...decommCfgIds]]] : []),
-    ]
+    const cubeConfigClause: unknown[][] =
+      companyCfgIds.size > 0
+        ? [['session_id.config_id', 'in', [...companyCfgIds]]]
+        : [['id', '=', 0]]
+    const cubeLineClause: unknown[][] =
+      companyCfgIds.size > 0
+        ? [['order_id.session_id.config_id', 'in', [...companyCfgIds]]]
+        : [['id', '=', 0]]
+    const exclPosOrderDomain: unknown[][] = [...companyDomain, ...cubeConfigClause]
     const exclPaymentDomain: unknown[][] = [
       ...(resolvedCompanyId !== null ? [['pos_order_id.company_id', '=', resolvedCompanyId]] : []),
-      ...(decommCfgIds.size > 0 ? [['session_id.config_id', 'not in', [...decommCfgIds]]] : []),
+      ...cubeConfigClause,
     ]
     const exclLineDomain: unknown[][] = [
       ...companyDomain,
-      ...(decommCfgIds.size > 0
-        ? [['order_id.session_id.config_id', 'not in', [...decommCfgIds]]]
-        : []),
+      ...cubeLineClause,
       ...(excludedPosCatIds.size > 0
         ? [['product_id.pos_categ_id', 'not in', [...excludedPosCatIds]]]
         : []),
@@ -4104,9 +4110,8 @@ export async function fetchLiveOdooPeriodCube(
     ])
 
     // Per-branch `pos.order.line` read_group in 2 small waves of <=4 to preserve Odoo worker pool
-    const allMappedAndDecommCfgIds = [
-      ...new Set([...branchOfCfg.keys(), ...decommCfgIds]),
-    ]
+    const unmappedCompanyCfgIds = [...companyCfgIds].filter((id) => !branchOfCfg.has(id))
+    const allMappedAndDecommCfgIds = unmappedCompanyCfgIds
     const branchLineTargets: { key: string; domain: unknown[][] }[] = []
     for (const lid of ACTIVE_BRANCH_IDS) {
       const cids = cfgIdsByBranch.get(lid) ?? []
@@ -4121,8 +4126,8 @@ export async function fetchLiveOdooPeriodCube(
       key: 'unattributed',
       domain:
         allMappedAndDecommCfgIds.length > 0
-          ? [['order_id.session_id.config_id', 'not in', allMappedAndDecommCfgIds]]
-          : [],
+          ? [['order_id.session_id.config_id', 'in', allMappedAndDecommCfgIds]]
+          : [['id', '=', 0]],
     })
 
     const lineRowsByTarget = new Map<string, LineGroupRow[]>()
@@ -4255,8 +4260,8 @@ export async function fetchLiveOdooPeriodCube(
       if (cid !== undefined && decommCfgIds.has(cid)) continue
 
       const ord = Math.max(0, Number(row.__count ?? 0))
-      const net = Math.max(0, (Number(row.amount_total) || 0) - (Number(row.amount_tax) || 0))
-      if (ord <= 0 && net <= 0) continue
+      const net = posOrderNet(row.amount_total, row.amount_tax)
+      if (ord <= 0 && net === 0) continue
 
       const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
       const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
@@ -4276,7 +4281,7 @@ export async function fetchLiveOdooPeriodCube(
         unattributedOrders += ord
         dPrev.unattributedNetKwd += net
         dPrev.unattributedOrders += ord
-        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, true)
+        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, false)
         pricelistFallbackUnattributed[chKey].netKwd += net
         pricelistFallbackUnattributed[chKey].orders += ord
       } else {
@@ -4300,7 +4305,7 @@ export async function fetchLiveOdooPeriodCube(
       dailyTotalsMap.set(dayIso, dPrev)
     }
 
-    const hasPayments = paymentRows.some((p) => (Number(p.amount) || 0) > 0)
+    const hasPayments = paymentRows.some((p) => signedKwd(p.amount) !== 0)
     if (hasPayments) {
       for (const p of paymentRows) {
         const sid = m2oId(p.session_id)
@@ -4308,9 +4313,9 @@ export async function fetchLiveOdooPeriodCube(
         if (cid !== undefined && decommCfgIds.has(cid)) continue
         const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
         const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
-        const isDeliv = !branch || branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
+        const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
         const chKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDeliv)
-        const amt = Math.max(0, Number(p.amount) || 0)
+        const amt = signedKwd(p.amount)
         const cnt = Math.max(0, Number(p.__count) || 0)
         if (!branch) {
           unattributedChannels[chKey].netKwd += amt
@@ -4376,7 +4381,7 @@ export async function fetchLiveOdooPeriodCube(
       const cid = sid !== null ? cfgOfSession.get(sid) : undefined
       if (cid !== undefined && decommCfgIds.has(cid)) continue
       const ord = Math.max(0, Number(hRow.__count ?? 0))
-      const net = Math.max(0, (Number(hRow.amount_total) || 0) - (Number(hRow.amount_tax) || 0))
+      const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
       const hr = conv.kuwaitHour
       hourlyAcc[hr].orders += ord
       hourlyAcc[hr].netKwd += net
@@ -4414,7 +4419,7 @@ export async function fetchLiveOdooPeriodCube(
       const meta = productMetaById.get(pid)
       const fallbackBid = resolveBrandHintFromText(m2oName(dRow.product_id) ?? '')
       if (!meta && !fallbackBid) continue
-      const sub = Math.max(0, Number(dRow.price_subtotal) || 0)
+      const sub = signedKwd(dRow.price_subtotal)
       const discPct = Math.min(99.9, Math.max(0, Number(dRow.discount) || 0))
       const cnt = Math.max(0, Math.round(Number(dRow.__count) || 0))
       const discKwd =
@@ -4452,9 +4457,9 @@ export async function fetchLiveOdooPeriodCube(
       const bid = (meta?.brandId ?? fallbackBid) as (typeof ACTIVE_BRAND_IDS)[number] | null
       if (!bid || !(ACTIVE_BRAND_IDS as readonly string[]).includes(bid)) continue
 
-      const net = Math.max(0, Number(lRow.price_subtotal) || 0)
-      const qty = Math.max(0, Number(lRow.qty) || 0)
-      if (net <= 0 && qty <= 0) continue
+      const net = signedKwd(lRow.price_subtotal)
+      const qty = signedKwd(lRow.qty)
+      if (net === 0 && qty === 0) continue
       const cnt = Math.max(0, Math.round(Number(lRow.__count) || 0))
       const avgDisc = Math.max(0, Number(lRow.discount) || 0)
       const discMeta = discountByProductId.get(pid)
@@ -4523,7 +4528,7 @@ export async function fetchLiveOdooPeriodCube(
         const fallbackBid = resolveBrandHintFromText(rawLabel)
         const bid = (meta?.brandId ?? fallbackBid) as (typeof ACTIVE_BRAND_IDS)[number] | null
         if (!bid || !(ACTIVE_BRAND_IDS as readonly string[]).includes(bid)) continue
-        const net = Math.max(0, Number(r.price_subtotal) || 0)
+        const net = signedKwd(r.price_subtotal)
         const qty = Math.max(0, Number(r.qty) || 0)
         const cnt = Math.max(0, Math.round(Number(r.__count) || 0))
         const avgDisc = Math.max(0, Number(r.discount) || 0)
@@ -5616,7 +5621,7 @@ export async function fetchLiveOdooPurchaseOrders(
 
       const qty = Math.max(0, Number(ln.product_qty) || 0)
       const unitPrice = Math.max(0, Number(ln.price_unit) || 0)
-      const sub = Math.max(0, Number(ln.price_subtotal) || 0)
+      const sub = signedKwd(ln.price_subtotal)
       activeLinesCount += 1
 
       let st = productStatsMap.get(pId)

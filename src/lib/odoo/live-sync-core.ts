@@ -8,7 +8,13 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
-import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId } from './excluded-entities'
+import {
+  companyPosConfigAllowed,
+  companyPosSearchDomain,
+  posOrderNet,
+  SCHOOL_CANTEEN_BRANCH_ID,
+} from './company-pos'
+import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId, isSchoolCanteenLabel } from './excluded-entities'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -583,8 +589,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const loc = REG.registers[String(cfgId)]?.location
     return Boolean(loc && REG.locations[loc]?.unit === 'restaurant' && !locationExcluded(loc))
   })
-  const configs = ((await ek('pos.config', 'search_read', [[['id', 'in', restaurantAllowed], ['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[])
-    .filter((config) => !isExcludedOdooRecord({ id: config.id, name: config.name, kind: 'pos_config' }))
+  const configs = ((await ek('pos.config', 'search_read', [companyPosSearchDomain(restaurantAllowed)], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[])
+    .filter((config) => companyPosConfigAllowed(config.id, config.name) && !isExcludedOdooRecord({ id: config.id, name: config.name, kind: 'pos_config' }))
   const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
   const allowedSet = new Set(visibleConfigIds)
   const configNameById = new Map(configs.map((c) => [c.id, c.name]))
@@ -621,33 +627,45 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
 
   const locAgg = new Map<string, { net: number; orders: number }>()
+  let schoolNet = 0
+  let schoolOrders = 0
   for (const g of bySession) {
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
+    const name = configNameById.get(cfg) ?? ''
+    const net = posOrderNet(g.amount_total, g.amount_tax)
+    const orders = Math.max(0, g.__count || 0)
+    if (isSchoolCanteenLabel(name)) {
+      schoolNet += net
+      schoolOrders += orders
+      continue
+    }
     const loc = REG.registers[String(cfg)]?.location
     if (!loc || REG.locations[loc]?.unit !== 'restaurant' || locationExcluded(loc)) continue
     const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
-    b.net += Math.max(0, (g.amount_total || 0) - (g.amount_tax || 0))
-    b.orders += Math.max(0, g.__count || 0)
+    b.net += net
+    b.orders += orders
     locAgg.set(loc, b)
   }
-  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0))
-  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0)
+  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0) + schoolNet)
+  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0) + schoolOrders
   const rawLocNet = new Map(restaurantLocIds.map((loc) => [loc, r3(locAgg.get(loc)?.net ?? 0)]))
 
   const locRawUi = new Map<string, Record<string, { netKwd: number; orders: number }>>()
   for (const loc of restaurantLocIds) {
     locRawUi.set(loc, Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])))
   }
+  const schoolUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
+    UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
+  )
   for (const g of byPayment) {
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
-    const loc = REG.registers[String(cfg)]?.location
-    if (!loc || !locRawUi.has(loc)) continue
-    const ch = channelOfPaymentMethod(m2oName(g.payment_method_id) ?? '')
-    const amt = Math.max(0, g.amount || 0)
+    const payName = m2oName(g.payment_method_id) ?? ''
+    const ch = channelOfPaymentMethod(payName)
+    const amt = Number(g.amount) || 0
     const cnt = Math.max(0, g.__count || 0)
-    const row = locRawUi.get(loc)!
+    const cfgName = configNameById.get(cfg) ?? ''
     let uiKey: (typeof UI_CHANNEL_KEYS)[number] = 'dine-in'
     if (ch === 'Talabat Go') uiKey = 'talabat-tgo'
     else if (ch === 'Talabat MP') uiKey = 'talabat-tmp'
@@ -657,6 +675,14 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     else if (ch === 'Snoonu') uiKey = 'snoonu'
     else if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') uiKey = 'takeaway-direct'
     else uiKey = isDeliveryCfg(cfg) ? 'takeaway-direct' : 'dine-in'
+    if (isSchoolCanteenLabel(cfgName)) {
+      schoolUi[uiKey].netKwd += amt
+      schoolUi[uiKey].orders += cnt
+      continue
+    }
+    const loc = REG.registers[String(cfg)]?.location
+    if (!loc || !locRawUi.has(loc)) continue
+    const row = locRawUi.get(loc)!
     row[uiKey].netKwd += amt
     row[uiKey].orders += cnt
   }
@@ -684,6 +710,19 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       orders: locAgg.get(loc)?.orders ?? 0,
       uiChannels: locUi,
     }
+  }
+  const schoolUiRounded: Record<string, { netKwd: number; orders: number }> = {}
+  for (const ck of UI_CHANNEL_KEYS) {
+    const nv = r3(schoolUi[ck].netKwd)
+    const ov = Math.max(0, Math.round(schoolUi[ck].orders || 0))
+    schoolUiRounded[ck] = { netKwd: nv, orders: ov }
+    aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
+    aggUiChannels[ck].orders += ov
+  }
+  byLocation[SCHOOL_CANTEEN_BRANCH_ID] = {
+    netKwd: r3(schoolNet),
+    orders: schoolOrders,
+    uiChannels: schoolUiRounded,
   }
 
   const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', visibleConfigIds], ['product_id.pos_categ_id', '!=', 150]]
@@ -820,10 +859,20 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       const nv = byBrand[bid]?.netKwd ?? 0
       return { id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: nv, sharePct: pct(nv, targetNet) }
     }).sort((a, b) => b.netKwd - a.netKwd),
-    branches: restaurantLocIds.map((lid) => {
-      const nv = rawLocNet.get(lid) ?? 0
-      return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
-    }).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
+    branches: [
+      ...restaurantLocIds.map((lid) => {
+        const nv = rawLocNet.get(lid) ?? 0
+        return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
+      }),
+      {
+        id: SCHOOL_CANTEEN_BRANCH_ID,
+        name: 'School canteens',
+        unit: 'school-canteen',
+        netSalesKwd: r3(schoolNet),
+        orders: schoolOrders,
+        sharePct: pct(r3(schoolNet), targetNet),
+      },
+    ].sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: UI_CHANNEL_KEYS.map((ck) => ({ name: ck, amountKwd: aggUiChannels[ck].netKwd })).sort((a, b) => b.amountKwd - a.amountKwd),
     ...(liveBucket && bucket ? { buckets: { [bucket]: liveBucket } } : {}),
     ...(pulse ? { journeyPulse: pulse } : {}),

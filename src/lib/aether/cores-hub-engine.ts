@@ -701,15 +701,15 @@ export function computeCoresHubSnapshot(
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
   // 4. Branch Ranking (7 branches + explicit 8th row `غير منسوب لفرع`)
-  const branchIds =
-    filters.branch === 'all' ? [...APPROVED_BRANCH_IDS] : [filters.branch]
+  const branchIds: string[] =
+    filters.branch === 'all' ? [...APPROVED_BRANCH_IDS, 'school-canteens'] : [filters.branch]
   const branchRowsRaw = branchIds.map((lid) => {
     if (liveCube) {
       if (filters.brand !== 'all') {
         const net = safeNum(liveCube.brandByBranch?.[lid]?.[filters.brand])
         return { lid, salesKwd: net, orders: 0 }
       }
-      const lRow = liveCube.byBranch?.[lid]
+      const lRow = liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
       return { lid, salesKwd: safeNum(lRow?.netKwd), orders: safeNum(lRow?.orders) }
     }
     const bktLoc = activeBucket?.mappedByLocation?.[lid] ?? activeBucket?.byLocation?.[lid]
@@ -744,8 +744,8 @@ export function computeCoresHubSnapshot(
     .map((r) =>
       toSalesPoint({
         id: r.lid,
-        labelAr: getBranchLabel(r.lid, true),
-        labelEn: getBranchLabel(r.lid, false),
+        labelAr: getBranchLabel(r.lid as GlobalBranch, true),
+        labelEn: getBranchLabel(r.lid as GlobalBranch, false),
         salesKwd: r.salesKwd,
         orders: r.orders,
         denominatorKwd: branchDenomKwd,
