@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
+import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
   canAuditorFetchColdLiveOdoo,
@@ -171,12 +172,12 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
     void _omitAuditorEnv
     void _omitAuditorTerms
     return NextResponse.json(
-      sanitizeOdooPublicPayload({
+      sanitizeOdooPublicPayload(stripExcludedOdooTree({
         ...cleanRoPayload,
         ok: true,
         readOnly: true,
         role: 'auditor',
-      }),
+      })),
       { status: 200, headers: odooSyncResponseHeaders },
     )
   }
@@ -203,7 +204,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
   const { diagnosticCode, envConfigured, unmappedTerminals, ...restPayload } = payload
 
   return NextResponse.json(
-    sanitizeOdooPublicPayload({
+    sanitizeOdooPublicPayload(stripExcludedOdooTree({
       ...restPayload,
       ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
       ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
@@ -221,7 +222,7 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
       ok: true,
       readOnly: false,
       role: caller.role,
-    }),
+    })),
     { status: 200, headers: odooSyncResponseHeaders },
   )
 }
@@ -309,7 +310,7 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
   } = syncedPayload
 
   return NextResponse.json(
-    sanitizeOdooPublicPayload({
+    sanitizeOdooPublicPayload(stripExcludedOdooTree({
       ...restSyncedPayload,
       ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
       ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
@@ -328,7 +329,7 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
       readOnly: false,
       role: caller.role,
       manualRefresh: true,
-    }),
+    })),
     { status: 200, headers: odooSyncResponseHeaders },
   )
 }

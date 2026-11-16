@@ -8,6 +8,7 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
+import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId } from './excluded-entities'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -571,13 +572,21 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const restaurantLocIds = Object.entries(REG.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
+  const locationExcluded = (id: string) => {
+    const loc = REG.locations[id]
+    return isExcludedOdooEntity(id) || isExcludedOdooEntity(loc?.en) || isExcludedOdooEntity(loc?.ar) || isExcludedOdooEntity(loc?.code)
+  }
+  const restaurantLocIds = Object.entries(REG.locations)
+    .filter(([id, v]) => v.unit === 'restaurant' && !locationExcluded(id))
+    .map(([id]) => id)
   const restaurantAllowed = ALLOWED_POS_CONFIG_IDS.filter((cfgId) => {
     const loc = REG.registers[String(cfgId)]?.location
-    return Boolean(loc && REG.locations[loc]?.unit === 'restaurant')
+    return Boolean(loc && REG.locations[loc]?.unit === 'restaurant' && !locationExcluded(loc))
   })
-  const allowedSet = new Set(restaurantAllowed)
-  const configs = (await ek('pos.config', 'search_read', [[['id', 'in', restaurantAllowed], ['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[]
+  const configs = ((await ek('pos.config', 'search_read', [[['id', 'in', restaurantAllowed], ['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[])
+    .filter((config) => !isExcludedOdooRecord({ id: config.id, name: config.name, kind: 'pos_config' }))
+  const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
+  const allowedSet = new Set(visibleConfigIds)
   const configNameById = new Map(configs.map((c) => [c.id, c.name]))
   const isDeliveryCfg = (cfgId: number) => {
     const loc = REG.registers[String(cfgId)]?.location
@@ -585,7 +594,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     return loc === 'ardiya' || /delivery|call\s*center/i.test(nm)
   }
 
-  const categories = (await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[]
+  const categories = ((await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[])
+    .filter((category) => !isExcludedRecordId('pos_category', category.id) && !isExcludedOdooEntity(category.name))
   const catById = new Map(categories.map((c) => [c.id, c]))
   const rootName = (catId: number | null) => {
     let c = catId ? catById.get(catId) : undefined
@@ -603,9 +613,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const periodFromUtc = kwDateToUtc(period.from)
   const periodToUtc = kwDateToUtc(period.to)
 
-  const orderDomain = [['date_order', '>=', periodFromUtc], ['date_order', '<', periodToUtc], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]]
+  const orderDomain = [['date_order', '>=', periodFromUtc], ['date_order', '<', periodToUtc], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]]
   const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
-  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', periodFromUtc], ['pos_order_id.date_order', '<', periodToUtc], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
+  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', periodFromUtc], ['pos_order_id.date_order', '<', periodToUtc], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
   const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
@@ -615,7 +625,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
     const loc = REG.registers[String(cfg)]?.location
-    if (!loc || REG.locations[loc]?.unit !== 'restaurant') continue
+    if (!loc || REG.locations[loc]?.unit !== 'restaurant' || locationExcluded(loc)) continue
     const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
     b.net += Math.max(0, (g.amount_total || 0) - (g.amount_tax || 0))
     b.orders += Math.max(0, g.__count || 0)
@@ -676,16 +686,19 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     }
   }
 
-  const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
+  const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', visibleConfigIds], ['product_id.pos_categ_id', '!=', 150]]
   const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { product_id: M2O; price_subtotal: number; qty?: number; __count?: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
   const categOf = new Map(products.map((p) => [p.id, m2oId(p.pos_categ_id)]))
   const brandAgg = new Map<string, { rawNet: number; qty: number; linesCount: number }>()
   for (const g of byProduct) {
-    const root = rootName(categOf.get(m2oId(g.product_id) ?? -1) ?? null)
+    const categId = categOf.get(m2oId(g.product_id) ?? -1) ?? null
+    if (isExcludedRecordId('pos_category', categId)) continue
+    const root = rootName(categId)
+    if (isExcludedOdooEntity(root)) continue
     const brand = root ? brandOfRoot.get(root) : undefined
-    if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id)) continue
+    if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id) || isExcludedOdooEntity(brand.en) || isExcludedOdooEntity(brand.ar)) continue
     const prev = brandAgg.get(brand.id) ?? { rawNet: 0, qty: 0, linesCount: 0 }
     prev.rawNet += Math.max(0, g.price_subtotal || 0)
     prev.qty += Math.max(0, g.qty || 0)
@@ -705,7 +718,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   // Journey pulse (3 grouped totals) and the access audit run in parallel; neither may fail the summary.
   const windows = journeyWindows()
   const pulseOf = async (w: { from: string; to: string; days: number }) => {
-    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { amount_total: number; amount_tax: number; __count: number }[]
+    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { amount_total: number; amount_tax: number; __count: number }[]
     const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
     return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
@@ -732,7 +745,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       ek(
         'pos.order',
         'search_read',
-        [[['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['date_order']],
+        [[['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['date_order']],
         { order: 'date_order desc', limit: 1 },
       ) as Promise<{ id?: number; date_order?: string }[]>
     )

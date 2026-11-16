@@ -1,5 +1,6 @@
 import { AppError } from '@/lib/api/errors'
-import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, payloadFromOdoo, type OdooModel, type OdooPayload } from '@/modules/odoo/domain/odoo'
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import { ODOO_COMPANY_ID, ODOO_ORIGIN, displayName, odooFields, payloadFromOdoo, type OdooModel, type OdooPayload } from '@/modules/odoo/domain/odoo'
 
 export type OdooTransport = (url: string, body: unknown, secret: string) => Promise<unknown>
 
@@ -34,7 +35,7 @@ async function readModel(transport: OdooTransport, url: string, database: string
   if (!Array.isArray(rows)) return []
   return rows.slice(0, PAGE).map((row) => (
     typeof row === 'object' && row !== null && !Array.isArray(row) ? payloadFromOdoo(model, row as Record<string, unknown>) : payloadFromOdoo(model, {})
-  ))
+  )).filter((payload) => !isExcludedOdooEntity(displayName(model, payload, '')))
 }
 
 export async function fetchOdooModels(
@@ -121,7 +122,7 @@ export async function fetchOdooSession(
     const rows = Array.isArray(result)
       ? result.slice(0, PAGE).map((row) => (
         typeof row === 'object' && row !== null && !Array.isArray(row) ? payloadFromOdoo(model, row as Record<string, unknown>) : payloadFromOdoo(model, {})
-      ))
+      )).filter((payload) => !isExcludedOdooEntity(displayName(model, payload, '')))
       : []
     if (rows.length > 0) sawRows = true
     pulled.push({ model, rows })

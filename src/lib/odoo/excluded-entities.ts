@@ -87,11 +87,35 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
     ids: [],
     nameParts: ['\u062d', '\u0648', '\u0644', '\u064a'],
   },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['qrn'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['jhr'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['hwl'],
+  },
 ]
+
+/** Whole tokens only. A substring would also match nearby Arabic words. */
+const WORD_ONLY = new Set(['\u062d\u0648\u0644\u064a', 'qrn', 'jhr', 'hwl'])
 
 const NAME_FRAGMENTS = ODOO_EXCLUSION_RULES.map((rule) => joined(rule.nameParts)).filter(
   (fragment) => fragment.length > 0,
 )
+
+const SUBSTRING_FRAGMENTS = NAME_FRAGMENTS.filter((fragment) => !WORD_ONLY.has(normalizeEntityLabel(fragment)))
+
+export function exclusionDomainFragments(): readonly string[] {
+  return SUBSTRING_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
+}
 
 export function normalizeEntityLabel(raw: string): string {
   return raw
@@ -115,7 +139,39 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   if (raw == null) return false
   const text = normalizeEntityLabel(String(raw))
   if (!text) return false
-  return NAME_FRAGMENTS.some((fragment) => text.includes(normalizeEntityLabel(fragment)))
+  if (SUBSTRING_FRAGMENTS.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
+  return text.split(' ').some((token) => WORD_ONLY.has(token))
+}
+
+export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
+  for (const fragment of exclusionDomainFragments()) {
+    domain.push([nameField, 'not ilike', fragment])
+  }
+}
+
+export function stripExcludedOdooTree<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => !namedRowExcluded(item))
+      .map((item) => stripExcludedOdooTree(item)) as T
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      if (isExcludedOdooEntity(key)) continue
+      out[key] = stripExcludedOdooTree(child)
+    }
+    return out as T
+  }
+  return value
+}
+
+const NAME_FIELDS = ['name', 'label', 'labelAr', 'labelEn', 'branch', 'branchName', 'vendorName', 'productName', 'locationName', 'categoryName', 'skuCode', 'code', 'scope']
+
+function namedRowExcluded(item: unknown): boolean {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return false
+  const record = item as Record<string, unknown>
+  return NAME_FIELDS.some((field) => typeof record[field] === 'string' && isExcludedOdooEntity(record[field]))
 }
 
 export function isExcludedOdooRecord(input: {

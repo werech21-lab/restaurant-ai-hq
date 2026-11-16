@@ -16,6 +16,7 @@ import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveWarehouseChainPayload } from '@/lib/odoo-live-connector'
 import {
   computeWarehouseDailyChain,
@@ -122,7 +123,7 @@ export function WarehouseDailyChainStudio() {
       .then((data) => {
         if (cancelled) return
         if (data?.warehouseChain && data.connected) {
-          setWarehouseChain(data.warehouseChain as OdooLiveWarehouseChainPayload)
+          setWarehouseChain(stripExcludedOdooTree(data.warehouseChain) as OdooLiveWarehouseChainPayload)
         } else {
           setWarehouseChain(null)
         }

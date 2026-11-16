@@ -1,14 +1,21 @@
+import { exclusionDomainFragments } from '@/lib/odoo/excluded-entities'
 import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, type OdooModel } from '@/modules/odoo/domain/odoo'
 
 /** A same-origin snippet. It uses the open Odoo cookie and downloads a file. It does not send the cookie anywhere else. */
 export function odooConsoleExtractor(): string {
   const fields = JSON.stringify(Object.fromEntries((Object.keys(odooFields) as OdooModel[]).map((model) => [model, [...odooFields[model]]])))
+  const excluded = JSON.stringify(exclusionDomainFragments())
   return `(async function () {
   if (location.origin !== ${JSON.stringify(ODOO_ORIGIN)}) {
     console.error('Open https://venturefoods.walnutss.com first.');
     return;
   }
   const fields = ${fields};
+  const excluded = ${excluded};
+  function rowKept(row) {
+    var blob = JSON.stringify(row || {}).toLowerCase();
+    return excluded.every(function (fragment) { return blob.indexOf(fragment) === -1; });
+  }
   const company = { allowed_company_ids: [${ODOO_COMPANY_ID}], cids: ${ODOO_COMPANY_ID} };
   const infoResponse = await fetch('/web/session/get_session_info', {
     method: 'POST',
@@ -57,7 +64,7 @@ export function odooConsoleExtractor(): string {
     for (let offset = 0; offset < 1000; offset += 200) {
       const page = await callKw(model, 'search_read', [[]], { fields: use, limit: 200, offset: offset, context: company });
       const list = Array.isArray(page) ? page : [];
-      rows.push.apply(rows, list);
+      rows.push.apply(rows, list.filter(rowKept));
       if (!Array.isArray(page) || list.length < 200) break;
     }
     dump.models[model] = rows;

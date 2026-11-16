@@ -12,6 +12,7 @@ import type {
   OdooPeriodCubeProductRow,
 } from '@/lib/odoo-live-connector'
 import type { OdooReceivableClearingSummary } from '@/lib/odoo/live-sync-core'
+import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
 const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -268,6 +269,23 @@ export interface AskFeryalOdooAgentResult {
 const BRANCH_META_BY_ID = new Map<ApprovedFeryalBranchId, FeryalBranchMeta>(
   APPROVED_FERYAL_BRANCHES.map((b) => [b.id, b]),
 )
+
+function configIdsForBranch(branchId: string): number[] {
+  return Object.entries(posRegistry.registers)
+    .filter(([, meta]) => meta.location === branchId)
+    .map(([id]) => Number(id))
+    .filter((id) => Number.isFinite(id) && id > 0)
+}
+
+function withCentralExclusion(domain: unknown[], nameField: string, branchId?: string | null, lineModel = false): unknown[] {
+  appendOdooNameExclusion(domain, nameField)
+  if (lineModel) domain.push(['product_id.pos_categ_id', '!=', 150])
+  if (branchId) {
+    const ids = configIdsForBranch(branchId)
+    if (ids.length > 0) domain.push([lineModel ? 'order_id.config_id' : 'config_id', 'in', ids])
+  }
+  return domain
+}
 
 function normalizeDigits(text: string): string {
   const arabicIndic = '٠١٢٣٤٥٦٧٨٩'
@@ -1425,6 +1443,7 @@ async function runPosOrdersTool(params: {
   if (cube?.odooCompanyId) {
     domain.push(['company_id', '=', cube.odooCompanyId])
   }
+  withCentralExclusion(domain, 'session_id.config_id.name', targetBranchId)
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -1613,9 +1632,7 @@ async function runPosOrderLinesTool(params: {
   if (cube?.odooCompanyId) {
     domain.push(['company_id', '=', cube.odooCompanyId])
   }
-  if (targetBranchId) {
-    domain.push(['branch_scope', '=', targetBranchId])
-  }
+  withCentralExclusion(domain, 'order_id.config_id.name', targetBranchId, true)
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -1771,6 +1788,7 @@ async function runAccountMoveLinesTool(params: {
   if (cube?.odooCompanyId) {
     domain.push(['company_id', '=', cube.odooCompanyId])
   }
+  withCentralExclusion(domain, 'name')
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -1935,6 +1953,9 @@ async function runPurchaseOrdersTool(params: {
   if (po?.odooCompanyId) {
     domain.push(['company_id', '=', po.odooCompanyId])
   }
+  withCentralExclusion(domain, 'partner_id.name')
+  const lineDomain: unknown[] = [['order_id.state', 'in', ['purchase', 'done']]]
+  withCentralExclusion(lineDomain, 'product_id.name')
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -1947,7 +1968,7 @@ async function runPurchaseOrdersTool(params: {
     {
       model: 'purchase.order.line',
       method: 'read_group',
-      domain: [['order_id.state', 'in', ['purchase', 'done']]],
+      domain: lineDomain,
       groupby: ['partner_id', 'product_id'],
       period: { from: period.from, to: period.to },
     },
@@ -2118,6 +2139,8 @@ async function runStockMovesAndScrapTool(params: {
     moveDomain.push(['company_id', '=', wh.odooCompanyId])
     scrapDomain.push(['company_id', '=', wh.odooCompanyId])
   }
+  withCentralExclusion(moveDomain, 'product_id.name')
+  withCentralExclusion(scrapDomain, 'product_id.name')
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -2208,12 +2231,15 @@ async function runPosComparisonTool(params: {
   ])
 
   const companyId = cubeA?.odooCompanyId ?? cubeB?.odooCompanyId ?? null
-  const buildDomain = (p: { from: string; to: string }): unknown[] => [
-    ['date_order', '>=', `${p.from} 00:00:00`],
-    ['date_order', '<=', `${p.to} 23:59:59`],
-    ['state', 'in', ['paid', 'done', 'invoiced']],
-    ...(companyId ? [['company_id', '=', companyId]] : []),
-  ]
+  const buildDomain = (p: { from: string; to: string }): unknown[] => {
+    const domain: unknown[] = [
+      ['date_order', '>=', `${p.from} 00:00:00`],
+      ['date_order', '<=', `${p.to} 23:59:59`],
+      ['state', 'in', ['paid', 'done', 'invoiced']],
+      ...(companyId ? [['company_id', '=', companyId]] : []),
+    ]
+    return withCentralExclusion(domain, 'session_id.config_id.name', targetBranchId)
+  }
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -2363,9 +2389,7 @@ async function runPosBrandsTool(params: {
   if (cube?.odooCompanyId) {
     domain.push(['company_id', '=', cube.odooCompanyId])
   }
-  if (targetBranchId) {
-    domain.push(['branch_scope', '=', targetBranchId])
-  }
+  withCentralExclusion(domain, 'order_id.config_id.name', targetBranchId, true)
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
@@ -2552,6 +2576,7 @@ async function runHrEmployeesTool(params: {
   if (hr?.odooCompanyId) {
     domain.push(['company_id', '=', hr.odooCompanyId])
   }
+  withCentralExclusion(domain, 'name')
 
   const executedQueries: FeryalExecutedOdooQuery[] = [
     {
