@@ -68,8 +68,9 @@ export function visibleSupplierWhere(where: Prisma.SupplierWhereInput = {}): Pri
 }
 
 /**
- * Demo invoices are recognised by a demo customer email or a hidden product line.
- * Document numbers are not a marker: the first real invoice receives INV-00001.
+ * Demo invoices are recognised by a demo customer email.
+ * A hidden product line is left off the document when another line is real.
+ * An invoice whose every line is hidden is omitted. Document numbers are not a marker.
  */
 export function visibleInvoiceWhere(where: Prisma.SalesInvoiceWhereInput = {}): Prisma.SalesInvoiceWhereInput {
   const emailGate: Prisma.SalesInvoiceWhereInput = demoCatalogReadsHidden()
@@ -81,12 +82,12 @@ export function visibleInvoiceWhere(where: Prisma.SalesInvoiceWhereInput = {}): 
     AND: [
       where,
       emailGate,
-      { NOT: { items: { some: { product: { code: { in: [...HIDDEN_PANEL_PRODUCT_CODES] } } } } } },
+      { items: { some: { product: visibleProductWhere() } } },
     ],
   }
 }
 
-/** Demo purchase orders are recognised by a demo supplier email or a hidden product line. */
+/** Demo purchase orders are recognised by a demo supplier email. A hidden line is omitted, not the whole order, when another line is real. */
 export function visiblePurchaseWhere(where: Prisma.PurchaseOrderWhereInput = {}): Prisma.PurchaseOrderWhereInput {
   const emailGate: Prisma.PurchaseOrderWhereInput = demoCatalogReadsHidden()
     ? {
@@ -97,7 +98,7 @@ export function visiblePurchaseWhere(where: Prisma.PurchaseOrderWhereInput = {})
     AND: [
       where,
       emailGate,
-      { NOT: { items: { some: { product: { code: { in: [...HIDDEN_PANEL_PRODUCT_CODES] } } } } } },
+      { items: { some: { product: visibleProductWhere() } } },
     ],
   }
 }

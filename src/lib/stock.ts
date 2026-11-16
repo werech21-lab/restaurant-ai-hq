@@ -2,14 +2,14 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { PAGE_SIZE, likeContains } from '@/lib/pagination'
 import { HIDDEN_PANEL_PRODUCT_CODES, isHiddenPanelProduct, withVisibleProducts } from '@/lib/panel-visibility'
-import { visibleWarehouseIds } from '@/lib/reports'
+import { scopeWarehouseIds } from '@/lib/reports'
 
 const hiddenProductSql = Prisma.sql`AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})`
 
 export async function countLowStock(warehouseIds: string[] = []) {
-  const visibleIds = await visibleWarehouseIds(warehouseIds)
-  if (warehouseIds.length && !visibleIds.length) return 0
-  if (visibleIds.length) {
+  const visibleIds = await scopeWarehouseIds(warehouseIds)
+  if (!visibleIds.length) return 0
+  {
     const stocks = await prisma.warehouseStock.findMany({
       where: { warehouseId: { in: visibleIds }, product: { code: { notIn: [...HIDDEN_PANEL_PRODUCT_CODES] } } },
       include: { product: { select: { code: true, name: true, reorderLevel: true } } },
@@ -23,17 +23,12 @@ export async function countLowStock(warehouseIds: string[] = []) {
     }
     return Array.from(byProduct.values()).filter((row) => row.qty <= row.reorder).length
   }
-  const rows = await prisma.$queryRaw<Array<{ count: number | bigint | null }>>`
-    SELECT COUNT(*) as count FROM Product WHERE currentStock <= reorderLevel
-    ${hiddenProductSql}
-  `
-  return Number(rows[0]?.count ?? 0)
 }
 
 export async function listLowStock(limit: number, warehouseIds: string[] = []) {
-  const visibleIds = await visibleWarehouseIds(warehouseIds)
-  if (warehouseIds.length && !visibleIds.length) return []
-  if (visibleIds.length) {
+  const visibleIds = await scopeWarehouseIds(warehouseIds)
+  if (!visibleIds.length) return []
+  {
     const stocks = await prisma.warehouseStock.findMany({
       where: { warehouseId: { in: visibleIds }, product: { code: { notIn: [...HIDDEN_PANEL_PRODUCT_CODES] } } },
       include: {
@@ -57,14 +52,6 @@ export async function listLowStock(limit: number, warehouseIds: string[] = []) {
       .sort((a, b) => b.reorderLevel - b.currentStock - (a.reorderLevel - a.currentStock))
       .slice(0, limit)
   }
-  const ids = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM Product
-    WHERE currentStock <= reorderLevel
-    ${hiddenProductSql}
-    ORDER BY (reorderLevel - currentStock) DESC, name ASC
-    LIMIT ${limit}
-  `
-  return hydrateProducts(ids.map((row) => row.id))
 }
 
 export async function queryProducts(options: {
@@ -74,7 +61,7 @@ export async function queryProducts(options: {
   warehouseIds?: string[]
 }) {
   const requested = options.warehouseIds ?? []
-  const warehouseIds = await visibleWarehouseIds(requested)
+  const warehouseIds = requested.length ? await scopeWarehouseIds(requested) : []
   const skip = (options.page - 1) * PAGE_SIZE
   if (requested.length && !warehouseIds.length) return { total: 0, rows: [] }
 

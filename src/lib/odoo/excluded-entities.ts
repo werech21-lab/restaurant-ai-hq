@@ -35,6 +35,11 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'brand',
     ids: [],
+    nameParts: ['heizenberg'],
+  },
+  {
+    kind: 'brand',
+    ids: [],
     nameParts: ['hizenberg'],
   },
   {
@@ -65,7 +70,17 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
+    nameParts: ['jahara'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
     nameParts: ['\u062c\u0647\u0631\u0627\u0621'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['\u0627\u0644\u062c\u0647\u0631\u0627'],
   },
   {
     kind: 'branch',
@@ -95,7 +110,17 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
+    nameParts: ['haw', 'aly'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
     nameParts: ['qu', 'rein'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['gu', 'rain'],
   },
   {
     kind: 'branch',
@@ -150,7 +175,8 @@ export function isExcludedRecordId(kind: ExclusionKind, id: number | null | unde
   return ODOO_EXCLUSION_RULES.some((rule) => rule.kind === kind && rule.ids.includes(id))
 }
 
-const CLITIC = /^(?:لل|ب|و|ل|ك|ف)/
+const CLITIC = /^(?:لل|ب|و|ل)/
+const COLLAPSED_MARKS = ['heisenberg', 'heizenberg', 'hizenberg']
 const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d+$/
 
 function wordTokenHit(token: string): boolean {
@@ -164,6 +190,8 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   const text = normalizeEntityLabel(String(raw))
   if (!text) return false
   if (SUBSTRING_FRAGMENTS.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
+  const collapsed = text.replace(/[^a-z0-9]+/g, '')
+  if (COLLAPSED_MARKS.some((mark) => collapsed.includes(mark))) return true
   return text.split(' ').some((token) => wordTokenHit(token))
 }
 

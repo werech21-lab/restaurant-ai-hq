@@ -8,6 +8,14 @@ import { PrismaClient } from '@prisma/client'
  */
 function resolveSqliteUrl() {
   const source = path.join(process.cwd(), 'prisma', 'dev.db')
+  const testing = process.env.VITEST === 'true' || process.env.NODE_ENV === 'test'
+  if (testing && existsSync(source)) {
+    const target = path.join('/tmp', `aetherbi-vitest-${process.pid}.db`)
+    copyFileSync(source, target)
+    const url = `file:${target}`
+    process.env.SQLITE_URL = url
+    return url
+  }
   if (process.env.VERCEL) {
     const targetDir = '/tmp'
     const target = path.join(targetDir, 'aetherbi-erp.db')

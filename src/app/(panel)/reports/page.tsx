@@ -11,7 +11,7 @@ import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination"
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { isHiddenPanelProduct, visibleCustomerWhere, visibleProductWhere, visibleSupplierWhere, withVisibleProducts } from "@/lib/panel-visibility";
-import { costOfGoods, inventoryValuation, salesSummary, visibleWarehouseIds } from "@/lib/reports";
+import { costOfGoods, inventoryValuation, salesSummary, scopeWarehouseIds } from "@/lib/reports";
 import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
 import { forecastLabels } from "@/services/forecast.service";
@@ -133,8 +133,8 @@ async function StockReport({
   skip: number;
   warehouseIds: string[];
 }) {
-  const valuationIds = await visibleWarehouseIds(warehouseIds);
-  const valuation = await inventoryValuation(valuationIds);
+  const valuationIds = await scopeWarehouseIds(warehouseIds);
+  const valuation = await inventoryValuation(warehouseIds);
   let rows: Array<{
     id: string;
     code: string;

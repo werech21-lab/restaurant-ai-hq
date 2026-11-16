@@ -18,6 +18,7 @@ import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { visiblePurchaseWhere } from "@/lib/panel-visibility";
 import { getActiveScope, purchaseOrderNumbersForScope } from "@/lib/scope";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VenturePurchasesHub } from "@/components/purchases/VenturePurchasesHub";
@@ -71,7 +72,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
     total = count;
     parties = rows;
   } else {
-    const where: Prisma.PurchaseOrderWhereInput = {
+    const where: Prisma.PurchaseOrderWhereInput = visiblePurchaseWhere({
       ...(purchaseNumbers ? { orderNumber: { in: purchaseNumbers.length ? purchaseNumbers : ["__none__"] } } : {}),
       ...(status ? { status } : {}),
       ...(query.q
@@ -83,7 +84,7 @@ async function PurchasesContent({ searchParams }: { searchParams: Promise<RawQue
             ],
           }
         : {}),
-    };
+    });
     const [count, rows] = await Promise.all([
       prisma.purchaseOrder.count({ where }),
       prisma.purchaseOrder.findMany({

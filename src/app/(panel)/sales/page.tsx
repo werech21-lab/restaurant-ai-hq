@@ -14,8 +14,9 @@ import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { visibleCustomerWhere, visibleInvoiceWhere } from "@/lib/panel-visibility";
-import { getActiveScope, salesWhereForScope } from "@/lib/scope";
+import { visibleCustomerWhere, visibleInvoiceWhere, visibleProductWhere } from "@/lib/panel-visibility";
+import { scopeWarehouseIds } from "@/lib/reports";
+import { getActiveScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { SalesCommandCenter } from "@/components/sales/SalesCommandCenter";
@@ -44,6 +45,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     status: string;
     createdAt: Date;
     customer: { name: string };
+    items: Array<{ totalPrice: number }>;
   }> = [];
   let parties: Array<{
     id: string;
@@ -67,18 +69,26 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     total = count;
     parties = rows;
   } else {
+    const warehouseIds = await scopeWarehouseIds(scope.warehouseIds);
     const where: Prisma.SalesInvoiceWhereInput = visibleInvoiceWhere({
-      ...salesWhereForScope(scope.warehouseIds),
-      ...(status ? { status } : {}),
-      ...(query.q
-        ? { OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }
-        : {}),
+      AND: [
+        scope.warehouseIds.length
+          ? { warehouseId: { in: warehouseIds.length ? warehouseIds : ["__none__"] } }
+          : { OR: [{ warehouseId: null }, { warehouseId: { in: warehouseIds.length ? warehouseIds : ["__none__"] } }] },
+        ...(status ? [{ status }] : []),
+        ...(query.q
+          ? [{ OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }]
+          : []),
+      ],
     });
     const [count, rows] = await Promise.all([
       prisma.salesInvoice.count({ where }),
       prisma.salesInvoice.findMany({
         where,
-        include: { customer: { select: { name: true } } },
+        include: {
+          customer: { select: { name: true } },
+          items: { where: { product: visibleProductWhere() }, select: { totalPrice: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: PAGE_SIZE,
@@ -89,18 +99,19 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
   }
 
   const detail = query.doc
-    ? await prisma.salesInvoice.findUnique({
-        where: { id: query.doc },
-        include: { customer: true, items: { include: { product: true } } },
+    ? await prisma.salesInvoice.findFirst({
+        where: visibleInvoiceWhere({ id: query.doc }),
+        include: { customer: true, items: { where: { product: visibleProductWhere() }, include: { product: true } } },
       })
     : null;
+  const visibleDetailTotal = detail ? detail.items.reduce((sum, item) => sum + item.totalPrice, 0) : 0;
   const pendingLink = detail
     ? await prisma.paymentLink.findFirst({
         where: { invoiceId: detail.id, status: "PENDING" },
         orderBy: { createdAt: "desc" },
       })
     : null;
-  const due = detail ? detail.totalAmount - detail.paidAmount : 0;
+  const due = detail ? Math.max(0, visibleDetailTotal - detail.paidAmount) : 0;
 
   const initialTab =
     query.doc || query.tab === "parties" || query.tab === "documents" || query.tab === "live-invoices"
@@ -126,9 +137,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
               dateLabel={dateFor(locale, detail.createdAt)}
               status={detail.status}
               discountLabel={moneyFor(locale, detail.discount)}
-              totalLabel={moneyFor(locale, detail.totalAmount)}
+              totalLabel={moneyFor(locale, visibleDetailTotal)}
               paidLabel={moneyFor(locale, detail.paidAmount)}
-              dueLabel={moneyFor(locale, detail.totalAmount - detail.paidAmount)}
+              dueLabel={moneyFor(locale, Math.max(0, visibleDetailTotal - detail.paidAmount))}
               printHref={`/sales/${detail.id}/print`}
               extra={
                 <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 px-5 py-4">
@@ -147,7 +158,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
                           quantity: formatQty(item.quantity),
                           total: moneyFor(locale, item.totalPrice),
                         })),
-                        total: moneyFor(locale, detail.totalAmount),
+                        total: moneyFor(locale, visibleDetailTotal),
                         payUrl: pendingLink ? payUrl(pendingLink.token) : undefined,
                       }),
                     )}
@@ -202,7 +213,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
               number: row.invoiceNumber,
               party: row.customer.name,
               dateLabel: dateFor(locale, row.createdAt),
-              totalLabel: moneyFor(locale, row.totalAmount),
+              totalLabel: moneyFor(locale, row.items.reduce((sum, item) => sum + item.totalPrice, 0)),
               paidLabel: moneyFor(locale, row.paidAmount),
               status: row.status,
             }))}

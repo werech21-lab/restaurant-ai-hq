@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { planGovernanceWrite, readStoredPinHash } from '@/lib/governance-pin'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { NON_COMPANY_ITEM_SKUS } from '@/lib/odoo/non-company-products'
-import { HIDDEN_PANEL_PRODUCT_CODES, isInventedPanelLead, visibleProductWhere } from '@/lib/panel-visibility'
+import { HIDDEN_PANEL_PRODUCT_CODES, isHiddenWarehouseLabel, isInventedPanelLead, visibleProductWhere } from '@/lib/panel-visibility'
 import { inventoryValuation } from '@/lib/reports'
 import { listLeads } from '@/services/crm.service'
 import { listWarehouses } from '@/services/warehouse.service'
@@ -33,14 +33,18 @@ describe('phase 7 panel reads', () => {
     expect(await inventoryValuation([jahra?.id ?? ''])).toEqual({ costValue: 0, sellValue: 0 })
 
     const valuation = await inventoryValuation()
-    const all = await prisma.product.aggregate({ _sum: { currentStock: true } })
-    const visibleRows = await prisma.product.findMany({
-      where: visibleProductWhere(),
-      select: { currentStock: true, costPrice: true },
+    const stocks = await prisma.warehouseStock.findMany({
+      where: { product: visibleProductWhere() },
+      include: {
+        product: { select: { costPrice: true } },
+        warehouse: { select: { code: true, name: true, location: true } },
+      },
     })
-    const visibleStock = visibleRows.reduce((sum, row) => sum + row.currentStock, 0)
-    const visibleCost = visibleRows.reduce((sum, row) => sum + row.currentStock * row.costPrice, 0)
-    expect(all._sum.currentStock ?? 0).toBeGreaterThan(visibleStock)
+    const visibleCost = stocks
+      .filter((row) => !isHiddenWarehouseLabel([row.warehouse.code, row.warehouse.name, row.warehouse.location]))
+      .reduce((sum, row) => sum + row.quantity * row.product.costPrice, 0)
+    const allCost = stocks.reduce((sum, row) => sum + row.quantity * row.product.costPrice, 0)
+    expect(allCost).toBeGreaterThan(visibleCost)
     expect(valuation.costValue).toBeCloseTo(visibleCost, 4)
   })
 
