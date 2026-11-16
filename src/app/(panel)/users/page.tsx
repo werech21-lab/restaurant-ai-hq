@@ -8,7 +8,6 @@ import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { UsersPanel } from "@/app/(panel)/users/users-panel";
-import { ensureVentureFoodsTeam } from "@/lib/ensure-venture-foods-team";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +26,6 @@ async function UsersContent({ searchParams }: { searchParams: Promise<RawQuery> 
   if (user.isAuditor || user.sessionRole === "auditor" || !can(user, "users", "view")) {
     return <Forbidden href={firstAllowedHref(user)} />;
   }
-  await ensureVentureFoodsTeam();
   const query = await readQuery(searchParams);
 
   const where = {

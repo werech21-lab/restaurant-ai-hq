@@ -58,15 +58,15 @@ async function ensureRole(member: VfTeamMember) {
 }
 
 async function upsertUser(email: string, name: string, roleId: string, password: string) {
-  const passwordHash = await bcrypt.hash(password, 10)
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
     await prisma.user.update({
       where: { id: existing.id },
-      data: { name, roleId, isActive: true, passwordHash },
+      data: { name, roleId, isActive: true },
     })
     return existing.id
   }
+  const passwordHash = await bcrypt.hash(password, 10)
   const created = await prisma.user.create({
     data: { name, email, roleId, isActive: true, passwordHash },
   })
@@ -74,8 +74,8 @@ async function upsertUser(email: string, name: string, roleId: string, password:
 }
 
 /**
- * Idempotent: replaces legacy Arabic demo accounts with the real Venture Foods leadership team.
- * Safe to call on /login and /users — never wipes unrelated custom users.
+ * Provisions a missing leadership account. Never rewrites passwordHash on a user that already exists.
+ * Not called from page renders.
  */
 export async function ensureVentureFoodsTeam() {
   const roleIds = new Map<string, string>()
