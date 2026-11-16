@@ -387,7 +387,7 @@ function toSalesPoint(params: {
     salesKwd,
     displaySalesKwd: Math.round(salesKwd),
     orders,
-    aovKwd: orders > 0 ? round2(salesKwd / orders) : 0,
+    aovKwd: orders > 0 ? round3(salesKwd / orders) : 0,
     sharePct: denom > 0 ? round1((salesKwd / denom) * 100) : 0,
     color: params.color,
   }
@@ -693,8 +693,12 @@ export function computeCoresHubSnapshot(
     : brandIds.map((bid) => {
         if (liveCube) {
           if (filters.branch !== 'all') {
-            const net = safeNum(liveCube.brandByBranch?.[filters.branch]?.[bid])
-            return { bid, salesKwd: net, orders: 0 }
+            const cell = liveCube.brandByBranch?.[filters.branch]?.[bid]
+            return {
+              bid,
+              salesKwd: safeNum(cell?.netKwd),
+              orders: safeNum(cell?.linesCount),
+            }
           }
           const bRow = liveCube.byBrand?.[bid]
           return { bid, salesKwd: safeNum(bRow?.netKwd), orders: safeNum(bRow?.orders) }
@@ -736,8 +740,12 @@ export function computeCoresHubSnapshot(
     : branchIds.map((lid) => {
         if (liveCube) {
           if (filters.brand !== 'all') {
-            const net = safeNum(liveCube.brandByBranch?.[lid]?.[filters.brand])
-            return { lid, salesKwd: net, orders: 0 }
+            const cell = liveCube.brandByBranch?.[lid]?.[filters.brand]
+            return {
+              lid,
+              salesKwd: safeNum(cell?.netKwd),
+              orders: safeNum(cell?.linesCount),
+            }
           }
           const lRow =
             liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']

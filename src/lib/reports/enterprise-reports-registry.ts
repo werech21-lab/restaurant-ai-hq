@@ -122,20 +122,33 @@ export function buildLiveEnterpriseDepartments(
   const connected = Boolean(workspace.odooConnected && !workspace.noData)
   const rangeStr = `${workspace.dateRange.from} → ${workspace.dateRange.to}`
 
+  const isSubScoped =
+    workspace.filters.brand !== 'all' ||
+    workspace.filters.branch !== 'all' ||
+    workspace.filters.channel !== 'all' ||
+    workspace.filters.kuwaitSlice !== 'all'
+
   const rawTotalSales = connected
-    ? bucket
-      ? bucket.totals.netSalesKwd
-      : workspace.nullableSalesKwd
+    ? isSubScoped
+      ? workspace.nullableSalesKwd
+      : bucket
+        ? bucket.totals.netSalesKwd
+        : workspace.nullableSalesKwd
     : 0
   const rawTotalOrders = connected
-    ? bucket
-      ? bucket.totals.orders
-      : workspace.nullableOrders
+    ? isSubScoped
+      ? workspace.nullableOrders
+      : bucket
+        ? bucket.totals.orders
+        : workspace.nullableOrders
     : 0
   const totalsUnavailable = connected && (rawTotalSales === null || rawTotalOrders === null)
   const totalSales = rawTotalSales ?? 0
   const totalOrders = rawTotalOrders ?? 0
-  const aov = !totalsUnavailable && totalOrders > 0 ? totalSales / totalOrders : 0
+  const aov =
+    !totalsUnavailable && totalOrders > 0
+      ? Math.round((totalSales / totalOrders) * 1000) / 1000
+      : 0
 
   // 1. Brand Sales Report (6 approved brands)
   const brandRows =
@@ -153,20 +166,30 @@ export function buildLiveEnterpriseDepartments(
             net,
             ord,
             share,
-            aov: ord > 0 ? net / ord : 0,
+            aov: ord > 0 ? Math.round((net / ord) * 1000) / 1000 : 0,
           }
         }).sort((a, b) => b.net - a.net)
       : []
 
-  // 2. Branch Sales Report (7 approved branches + explicit 8th «غير منسوب لفرع»)
+  // 2. Branch Sales Report (7 approved branches + school-canteens + explicit «غير منسوب لفرع»)
+  const targetBranchIds: readonly Exclude<GlobalBranch, 'all'>[] =
+    workspace.filters.branch === 'all'
+      ? [...APPROVED_BRANCH_IDS, 'school-canteens']
+      : [workspace.filters.branch]
   const branchRows =
     connected && !totalsUnavailable && bucket?.byLocation !== null
       ? [
-          ...APPROVED_BRANCH_IDS.map((branchId) => {
+          ...targetBranchIds.map((branchId) => {
             const loc = bucket?.mappedByLocation?.[branchId] ?? bucket?.byLocation?.[branchId]
             const summaryHit = (liveSummary?.branches ?? []).find((b) => b.id === branchId)
-            const net = loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0
-            const ord = loc?.orders ?? summaryHit?.orders ?? 0
+            const net =
+              workspace.filters.branch !== 'all' && isSubScoped
+                ? totalSales
+                : (loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0)
+            const ord =
+              workspace.filters.branch !== 'all' && isSubScoped
+                ? totalOrders
+                : (loc?.orders ?? summaryHit?.orders ?? 0)
             const share = totalSales > 0 ? (net / totalSales) * 100 : 0
             return {
               id: branchId,
@@ -175,27 +198,36 @@ export function buildLiveEnterpriseDepartments(
               net,
               ord,
               share,
-              aov: ord > 0 ? net / ord : 0,
+              aov: ord > 0 ? Math.round((net / ord) * 1000) / 1000 : 0,
             }
           }),
-          {
-            id: 'unattributed',
-            labelAr: 'غير منسوب لفرع',
-            labelEn: 'Unattributed to Branch',
-            net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
-            ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
-            share:
-              totalSales > 0
-                ? ((bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                    totalSales) *
-                  100
-                : 0,
-            aov:
-              (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
-                ? (bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                  (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)
-                : 0,
-          },
+          ...(workspace.filters.branch === 'all'
+            ? [
+                {
+                  id: 'unattributed',
+                  labelAr: 'غير منسوب لفرع',
+                  labelEn: 'Unattributed to Branch',
+                  net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
+                  ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
+                  share:
+                    totalSales > 0
+                      ? ((bucket?.unattributedBranch?.netSalesKwd ??
+                          workspace.unattributedSalesKwd) /
+                          totalSales) *
+                        100
+                      : 0,
+                  aov:
+                    (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
+                      ? Math.round(
+                          ((bucket?.unattributedBranch?.netSalesKwd ??
+                            workspace.unattributedSalesKwd) /
+                            (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)) *
+                            1000,
+                        ) / 1000
+                      : 0,
+                },
+              ]
+            : []),
         ]
       : []
 

@@ -487,7 +487,7 @@ export function isBrandBranchCompatible(brand: GlobalBrand, branch: GlobalBranch
   if (brand === 'all' || branch === 'all') return true
   return (
     (APPROVED_BRAND_IDS as readonly string[]).includes(brand) &&
-    (APPROVED_BRANCH_IDS as readonly string[]).includes(branch)
+    ((APPROVED_BRANCH_IDS as readonly string[]).includes(branch) || branch === 'school-canteens')
   )
 }
 

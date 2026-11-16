@@ -46,6 +46,7 @@ export type ApprovedFeryalBranchId =
   | 'promenade'
   | 'avenues'
   | 'assima'
+  | 'school-canteens'
 
 export type ApprovedFeryalBrandId =
   | 'china-garden'
@@ -106,6 +107,24 @@ export const APPROVED_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
     aliases: ['العاصمة', 'العاصمه', 'عاصمة مول', 'assima', 'al-assima'],
   },
 ] as const
+
+export const SCHOOL_CANTEEN_FERYAL_BRANCH: FeryalBranchMeta = {
+  id: 'school-canteens',
+  nameAr: 'مقاصف المدارس',
+  nameEn: 'School canteens',
+  aliases: [
+    'مقاصف المدارس',
+    'المقاصف المدرسية',
+    'مقصف المدارس',
+    'school-canteens',
+    'school canteens',
+  ],
+}
+
+const ALL_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
+  ...APPROVED_FERYAL_BRANCHES,
+  SCHOOL_CANTEEN_FERYAL_BRANCH,
+]
 
 export const APPROVED_FERYAL_BRANDS: Readonly<Record<ApprovedFeryalBrandId, string>> = {
   'china-garden': 'تشاينا جاردن',
@@ -271,7 +290,7 @@ export interface AskFeryalOdooAgentResult {
 }
 
 const BRANCH_META_BY_ID = new Map<ApprovedFeryalBranchId, FeryalBranchMeta>(
-  APPROVED_FERYAL_BRANCHES.map((b) => [b.id, b]),
+  ALL_FERYAL_BRANCHES.map((b) => [b.id, b]),
 )
 
 function configIdsForBranch(branchId: string): number[] {
@@ -774,7 +793,7 @@ export function detectTargetBranchFromQuestion(question: string): {
     )
 
   const matchedIds: ApprovedFeryalBranchId[] = []
-  for (const branch of APPROVED_FERYAL_BRANCHES) {
+  for (const branch of ALL_FERYAL_BRANCHES) {
     for (const rawAlias of branch.aliases) {
       const aliasNorm = normalizeArabicText(rawAlias)
       if (!aliasNorm) continue
@@ -1472,7 +1491,16 @@ async function runPosOrdersTool(params: {
     }
   }
 
-  const branchRows = APPROVED_FERYAL_BRANCHES.map((meta) => {
+  const canteenRaw = cube.byBranch['school-canteens']
+  const includeCanteenInRows =
+    targetBranchId === 'school-canteens' ||
+    (canteenRaw?.netKwd ?? 0) !== 0 ||
+    (canteenRaw?.orders ?? 0) > 0
+  const activeBranchMetas = includeCanteenInRows
+    ? ALL_FERYAL_BRANCHES
+    : APPROVED_FERYAL_BRANCHES
+
+  const branchRows = activeBranchMetas.map((meta) => {
     const raw = cube.byBranch[meta.id] ?? { netKwd: 0, orders: 0, aovKwd: 0 }
     const net1 = round1(raw.netKwd)
     const ordersInt = Math.round(raw.orders)
