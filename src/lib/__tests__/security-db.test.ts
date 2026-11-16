@@ -24,7 +24,7 @@ import { createItem, createWarehouse, recordMovement } from '@/modules/inventory
 const pg = () => getPglite()
 
 /** Tables nobody but the server may read: RLS is on and there is deliberately no policy. */
-const DENY_ALL_TABLES = ['ai_daily_briefs', 'ai_runs', 'idempotency_keys', 'tenant_sequences'] as const
+const DENY_ALL_TABLES = ['ai_daily_briefs', 'ai_runs', 'idempotency_keys', 'tenant_sequences', 'vf_executive_governance_sync'] as const
 /** Functions that signed-in users may execute. Everything else that is not a trigger function must be closed. */
 const CALLABLE_BY_AUTHENTICATED = ['auth_has_permission', 'auth_tenant_ids']
 

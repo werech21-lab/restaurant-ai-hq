@@ -78,6 +78,7 @@ export const baselineSentinels = {
   '0047_ai_runs.sql': ['public.ai_runs', 'public.ai_daily_briefs', 'fn:erp_ai_runs_marker()'],
   '0048_deactivate_non_company_items.sql': ['fn:erp_deactivate_non_company_items_marker()'],
   '0049_flag_unsourced_hr_expiries.sql': ['fn:erp_flag_unsourced_hr_expiries_marker()'],
+  '0050_governance_sync_rls.sql': ['public.vf_executive_governance_sync', 'fn:erp_governance_sync_rls_marker()'],
 }
 
 /**
