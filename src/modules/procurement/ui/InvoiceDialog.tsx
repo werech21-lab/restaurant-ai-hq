@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { dangerButton, errorClass, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Badge, Money, Num } from '@/components/ui'
+import { useDebounced } from '@/components/erp/common'
+import { Badge, Num } from '@/components/ui'
+import { StateBlock } from '@/components/ui/state-block'
+import { permissions } from '@/lib/auth/permissions'
+import { formatDate, formatInt, formatPct, type FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { bpsToInput, minorToInput, parseKwdToMinor, parsePercentToBps } from '@/lib/money'
-import { permissions } from '@/lib/auth/permissions'
-import { useDebounced } from '@/components/erp/common'
 import { computeTotals } from '@/modules/finance/client'
 import {
   canVoidInvoice,
@@ -30,7 +31,14 @@ import {
   Field,
   InvoiceStatusBadge,
   dateTimeText,
-  minorText,
+  formatMinorKwd,
+  proDangerButton,
+  proErrorClass,
+  proInputClass,
+  proNoticeClass,
+  proPrimaryButton,
+  proSecondaryButton,
+  proSubtleClass,
   todayUtc,
   useIdempotencyKey,
   useRunner,
@@ -38,9 +46,7 @@ import {
 } from '@/modules/procurement/ui/shared'
 
 type Props = {
-  /** Open one existing invoice. */
   invoiceId?: string
-  /** Bill received goods of this order. */
   orderId?: string
   onChanged: (message: MessageKey) => void
   onClose: () => void
@@ -54,7 +60,11 @@ const matchLabels: Record<MatchStatus, MessageKey> = {
   within_tolerance: 'pro.match.within_tolerance',
   blocked: 'pro.match.blocked',
 }
-const matchTones: Record<MatchStatus, 'good' | 'warn' | 'bad'> = { matched: 'good', within_tolerance: 'warn', blocked: 'bad' }
+const matchTones: Record<MatchStatus, 'good' | 'warn' | 'bad'> = {
+  matched: 'good',
+  within_tolerance: 'warn',
+  blocked: 'bad',
+}
 
 const issueLabels: Record<MatchIssueCode, MessageKey> = {
   over_invoice: 'pro.err.over_invoice',
@@ -72,20 +82,28 @@ const paymentLabels: Record<SupplierPaymentStatus, MessageKey> = {
   paid: 'pro.paystate.paid',
   credited: 'pro.paystate.credited',
 }
-const paymentTones: Record<SupplierPaymentStatus, 'warn' | 'info' | 'good' | 'neutral'> = {
+const paymentTones: Record<
+  SupplierPaymentStatus,
+  'warn' | 'info' | 'good' | 'neutral'
+> = {
   unpaid: 'warn',
   partially_paid: 'info',
   paid: 'good',
   credited: 'neutral',
 }
 
-/**
- * Books a supplier invoice for received goods, matched against the order and what was received, or shows a posted one with
- * what was paid and credited, and lets an authorised user pay, credit or void it. Hidden buttons are only a convenience: the
- * server and the database check every permission and rule again.
- */
-export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, onPay, onCredit }: Props) {
-  const { t } = useI18n()
+/** Supplier invoice booking and three-way match dialog. */
+export function InvoiceDialog({
+  invoiceId,
+  orderId,
+  onChanged,
+  onClose,
+  onBack,
+  onPay,
+  onCredit,
+}: Props) {
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const canCreate = useCan(permissions.procurementInvoiceCreate)
   const canVoid = useCan(permissions.procurementInvoiceVoid)
   const canPay = useCan(permissions.procurementPaymentCreate)
@@ -119,16 +137,41 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
     const controller = new AbortController()
     setPhase('loading')
     const load = invoiceId
-      ? apiRequest<{ data: SupplierInvoiceDetail }>(`/api/v1/procurement/invoices/${invoiceId}`, { signal: controller.signal }).then((payload) => {
+      ? apiRequest<{ data: SupplierInvoiceDetail }>(
+          `/api/v1/procurement/invoices/${invoiceId}`,
+          { signal: controller.signal },
+        ).then((payload) => {
           setInvoice(payload.data)
         })
-      : apiRequest<{ data: PurchaseOrderDetail }>(`/api/v1/procurement/orders/${orderId}`, { signal: controller.signal }).then((payload) => {
+      : apiRequest<{ data: PurchaseOrderDetail }>(
+          `/api/v1/procurement/orders/${orderId}`,
+          { signal: controller.signal },
+        ).then((payload) => {
           setOrder(payload.data)
-          // Start from everything received and not yet billed. The user lowers it for a partial invoice.
-          setQuantities(Object.fromEntries(payload.data.lines.map((line) => [line.id, String(invoiceableQuantity(line))])))
-          // The supplier's price and rate start at the order's, so a plain invoice is a match; the user changes them to what is printed.
-          setPrices(Object.fromEntries(payload.data.lines.map((line) => [line.id, minorToInput(line.unitCostMinor)])))
-          setRates(Object.fromEntries(payload.data.lines.map((line) => [line.id, bpsToInput(line.taxRateBps)])))
+          setQuantities(
+            Object.fromEntries(
+              payload.data.lines.map((line) => [
+                line.id,
+                String(invoiceableQuantity(line)),
+              ]),
+            ),
+          )
+          setPrices(
+            Object.fromEntries(
+              payload.data.lines.map((line) => [
+                line.id,
+                minorToInput(line.unitCostMinor),
+              ]),
+            ),
+          )
+          setRates(
+            Object.fromEntries(
+              payload.data.lines.map((line) => [
+                line.id,
+                bpsToInput(line.taxRateBps),
+              ]),
+            ),
+          )
         })
     load
       .then(() => setPhase('ready'))
@@ -144,14 +187,13 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
     setReloadCount((value) => value + 1)
   }
 
-  /**
-   * The lines as typed: quantity, and the supplier's price and rate. A price or rate equal to the order's is sent as null so the
-   * server uses the order's own. A value that is not a number stays NaN so the schema rejects it and the screen says so.
-   */
   const chosen = useMemo(() => {
     if (!order) return []
     return order.lines
-      .map((line) => ({ line, text: (quantities[line.id] ?? '').trim() }))
+      .map((line) => ({
+        line,
+        text: (quantities[line.id] ?? '').trim(),
+      }))
       .filter((entry) => entry.text !== '' && entry.text !== '0')
       .map(({ line, text }) => {
         const price = parseKwdToMinor(prices[line.id] ?? '')
@@ -159,13 +201,18 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
         return {
           orderLineId: line.id,
           quantity: /^\d{1,7}$/.test(text) ? Number(text) : Number.NaN,
-          unitCostMinor: price === null ? Number.NaN : price === line.unitCostMinor ? null : price,
-          taxRateBps: rate === null ? Number.NaN : rate === line.taxRateBps ? null : rate,
+          unitCostMinor:
+            price === null
+              ? Number.NaN
+              : price === line.unitCostMinor
+                ? null
+                : price,
+          taxRateBps:
+            rate === null ? Number.NaN : rate === line.taxRateBps ? null : rate,
         }
       })
   }, [order, quantities, prices, rates])
 
-  /** The totals the server will compute from the billed prices and rates, shown before anything is booked. */
   const preview = useMemo(() => {
     if (!order) return null
     const lines = chosen.flatMap((entry) => {
@@ -173,7 +220,9 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
       if (!source || !Number.isInteger(entry.quantity) || entry.quantity < 1) return []
       const price = entry.unitCostMinor === null ? source.unitCostMinor : entry.unitCostMinor
       const rate = entry.taxRateBps === null ? source.taxRateBps : entry.taxRateBps
-      return Number.isInteger(price) && Number.isInteger(rate) ? [{ quantity: entry.quantity, unitPriceMinor: price, taxRateBps: rate }] : []
+      return Number.isInteger(price) && Number.isInteger(rate)
+        ? [{ quantity: entry.quantity, unitPriceMinor: price, taxRateBps: rate }]
+        : []
     })
     if (lines.length === 0) return null
     try {
@@ -183,7 +232,6 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
     }
   }, [order, chosen])
 
-  // The three-way match is asked of the server (it holds the tolerances and the quantities received) once the typing pauses.
   const matchBody = useMemo(() => {
     if (!order || !canCreate || chosen.length === 0) return null
     const parsed = createSupplierInvoiceSchema.safeParse({
@@ -230,16 +278,25 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
       supplierInvoiceNumber: number,
       invoiceDate,
       currency: 'KWD',
-      expectedTotalMinor: expected.trim() === '' ? null : (parseKwdToMinor(expected) ?? Number.NaN),
+      expectedTotalMinor:
+        expected.trim() === '' ? null : (parseKwdToMinor(expected) ?? Number.NaN),
       notes: notes.trim() === '' ? null : notes,
       lines,
     })
     if (!parsed.success) {
       const keys = parsed.error.issues.map((issue): MessageKey => {
-        if (issue.path[0] === 'supplierInvoiceNumber') return 'pro.err.form.invoiceNumber'
+        if (issue.path[0] === 'supplierInvoiceNumber') {
+          return 'pro.err.form.invoiceNumber'
+        }
         if (issue.path[0] === 'invoiceDate') return 'pro.err.form.date'
-        if (issue.path[0] === 'expectedTotalMinor') return 'pro.err.form.expectedTotal'
-        if (issue.path[0] === 'lines' && issue.path.length > 1) return issue.path[2] === 'quantity' ? 'pro.err.form.quantity' : 'pro.err.form.billedPrice'
+        if (issue.path[0] === 'expectedTotalMinor') {
+          return 'pro.err.form.expectedTotal'
+        }
+        if (issue.path[0] === 'lines' && issue.path.length > 1) {
+          return issue.path[2] === 'quantity'
+            ? 'pro.err.form.quantity'
+            : 'pro.err.form.billedPrice'
+        }
         return 'pro.err.form.invoiceLines'
       })
       setErrors(Array.from(new Set(keys)))
@@ -252,11 +309,14 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
       return
     }
     void run(async () => {
-      const result = await apiRequest<{ data: SupplierInvoiceDetail }>('/api/v1/procurement/invoices', {
-        method: 'POST',
-        body: parsed.data,
-        idempotencyKey: key.ref.current,
-      })
+      const result = await apiRequest<{ data: SupplierInvoiceDetail }>(
+        '/api/v1/procurement/invoices',
+        {
+          method: 'POST',
+          body: parsed.data,
+          idempotencyKey: key.ref.current,
+        },
+      )
       key.reset()
       setInvoice(result.data)
       setNotice('pro.msg.invoicePosted')
@@ -267,16 +327,20 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
   function voidInvoice() {
     if (!invoice) return
     setErrors([])
-    const parsed = voidSupplierInvoiceSchema.safeParse({ version: invoice.version, reason: voidReason, entryDate: voidDate })
+    const parsed = voidSupplierInvoiceSchema.safeParse({
+      version: invoice.version,
+      reason: voidReason,
+      entryDate: voidDate,
+    })
     if (!parsed.success) {
       setErrors(['pro.err.form.void'])
       return
     }
     void run(async () => {
-      const result = await apiRequest<{ data: SupplierInvoiceDetail }>(`/api/v1/procurement/invoices/${invoice.id}/void`, {
-        method: 'POST',
-        body: parsed.data,
-      })
+      const result = await apiRequest<{ data: SupplierInvoiceDetail }>(
+        `/api/v1/procurement/invoices/${invoice.id}/void`,
+        { method: 'POST', body: parsed.data },
+      )
       setInvoice(result.data)
       setVoiding(false)
       setNotice('pro.msg.invoiceVoided')
@@ -284,31 +348,38 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
     })
   }
 
-  if (phase === 'loading') return <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p>
+  if (phase === 'loading') {
+    return (
+      <StateBlock
+        state="loading"
+        locale={fmtLocale}
+        skeletonRows={5}
+        title={t('erp.loading')}
+      />
+    )
+  }
   if (phase === 'error') {
     return (
-      <div className="space-y-3 py-6 text-center">
-        <p role="alert" className={`${errorClass} inline-block`}>
-          {t(loadError)}
-        </p>
-        <div>
-          <button type="button" onClick={reload} className={secondaryButton}>
-            {t('erp.retry')}
-          </button>
-        </div>
-      </div>
+      <StateBlock
+        state={loadError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+        locale={fmtLocale}
+        title={t(loadError)}
+        onRetry={loadError === 'erp.err.forbidden' ? undefined : reload}
+      />
     )
   }
 
   if (invoice) {
     return (
       <div className="space-y-5">
-        <h3 className="flex flex-wrap items-center gap-2 text-lg font-bold text-gray-100">
-          <Num className="text-blue-300">SI-{invoice.number}</Num>
+        <h4 className="flex flex-wrap items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-50">
+          <Num className="text-emerald-700 dark:text-emerald-300">
+            SI-{invoice.number}
+          </Num>
           <InvoiceStatusBadge status={invoice.status} />
-        </h3>
+        </h4>
         {notice ? (
-          <p role="status" className={noticeClass}>
+          <p role="status" className={proNoticeClass}>
             {t(notice)}
           </p>
         ) : null}
@@ -318,84 +389,110 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
             <Num>{invoice.supplierInvoiceNumber}</Num>
           </Fact>
           <Fact label={t('pro.rcv.order')}>
-            <button type="button" onClick={() => onBack(invoice.orderId)} className="text-blue-300 underline">
+            <button
+              type="button"
+              onClick={() => onBack(invoice.orderId)}
+              className="ds-focus-ring cursor-pointer rounded font-semibold text-emerald-700 underline dark:text-emerald-300"
+            >
               <Num>PO-{invoice.orderNumber}</Num>
             </button>
           </Fact>
           <Fact label={t('pro.inv.date')}>
-            <Num>{invoice.invoiceDate}</Num>
+            <Num>{formatDate(invoice.invoiceDate, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('pro.inv.dueDate')}>
-            <Num>{invoice.dueDate}</Num>
+            <Num>{formatDate(invoice.dueDate, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('erp.form.subtotal')}>
-            <Money value={minorText(invoice.subtotalMinor)} />
+            <Num>{formatMinorKwd(invoice.subtotalMinor, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('erp.form.taxTotal')}>
-            <Money value={minorText(invoice.taxMinor)} />
+            <Num>{formatMinorKwd(invoice.taxMinor, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('erp.form.total')}>
-            <Money value={minorText(invoice.totalMinor)} className="font-semibold" />
+            <Num className="font-semibold">
+              {formatMinorKwd(invoice.totalMinor, fmtLocale)}
+            </Num>
           </Fact>
         </div>
 
         {invoice.status === 'posted' ? (
-          <section aria-label={t('pro.inv.settlement')} className="space-y-3 rounded-xl border border-[#30363d] p-4">
+          <section
+            aria-label={t('pro.inv.settlement')}
+            className={`${proSubtleClass} space-y-3`}
+          >
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-sm font-semibold text-gray-200">{t('pro.inv.settlement')}</h4>
-              <Badge tone={paymentTones[invoice.paymentStatus]}>{t(paymentLabels[invoice.paymentStatus])}</Badge>
-              <Badge tone="info">{t(invoice.accountingBasis === 'receipt_basis' ? 'pro.acct.basis.receipt' : 'pro.acct.basis.invoice')}</Badge>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {t('pro.inv.settlement')}
+              </h4>
+              <Badge tone={paymentTones[invoice.paymentStatus]}>
+                {t(paymentLabels[invoice.paymentStatus])}
+              </Badge>
+              <Badge tone="info">
+                {t(
+                  invoice.accountingBasis === 'receipt_basis'
+                    ? 'pro.acct.basis.receipt'
+                    : 'pro.acct.basis.invoice',
+                )}
+              </Badge>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
               <Fact label={t('pro.inv.paid')}>
-                <Money value={minorText(invoice.paidMinor)} />
+                <Num>{formatMinorKwd(invoice.paidMinor, fmtLocale)}</Num>
               </Fact>
               <Fact label={t('pro.inv.credited')}>
-                <Money value={minorText(invoice.creditedMinor)} />
+                <Num>{formatMinorKwd(invoice.creditedMinor, fmtLocale)}</Num>
               </Fact>
               <Fact label={t('pro.inv.balance')}>
-                <Money value={minorText(invoice.balanceMinor)} className="font-semibold" />
+                <Num className="font-semibold">
+                  {formatMinorKwd(invoice.balanceMinor, fmtLocale)}
+                </Num>
               </Fact>
               <Fact label={t('pro.inv.priceVariance')}>
-                <Money value={minorText(invoice.priceVarianceMinor)} />
+                <Num>{formatMinorKwd(invoice.priceVarianceMinor, fmtLocale)}</Num>
               </Fact>
               <Fact label={t('pro.inv.taxVariance')}>
-                <Money value={minorText(invoice.taxVarianceMinor)} />
+                <Num>{formatMinorKwd(invoice.taxVarianceMinor, fmtLocale)}</Num>
               </Fact>
             </div>
           </section>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <div className="w-full overflow-x-auto">
           <table className="w-full min-w-[34rem] text-sm">
-            <thead className="text-gray-400">
-              <tr className="border-b border-[#30363d]">
-                <th className="px-3 py-2 text-start font-medium">{t('erp.form.description')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('erp.form.quantity')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('pro.inv.poPrice')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('pro.inv.billedPrice')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('erp.form.tax')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('pro.cn.credited')}</th>
+            <thead className="border-b border-[var(--ds-border-hairline)] text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <tr>
+                <th className="px-3 py-2 text-start">{t('erp.form.description')}</th>
+                <th className="px-3 py-2 text-end">{t('erp.form.quantity')}</th>
+                <th className="px-3 py-2 text-end">{t('pro.inv.poPrice')}</th>
+                <th className="px-3 py-2 text-end">{t('pro.inv.billedPrice')}</th>
+                <th className="px-3 py-2 text-end">{t('erp.form.tax')}</th>
+                <th className="px-3 py-2 text-end">{t('pro.cn.credited')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-[var(--ds-border-hairline)] text-slate-800 dark:text-slate-100">
               {invoice.lines.map((line) => (
-                <tr key={line.id} className="border-b border-[#30363d]/60 text-gray-200">
+                <tr key={line.id}>
                   <td className="px-3 py-2">{line.description}</td>
-                  <td className="px-3 py-2">
-                    <Num>{line.quantity.toLocaleString('en-US')}</Num>
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatInt(line.quantity, fmtLocale)}</Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Money value={minorText(line.poUnitCostMinor)} />
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatMinorKwd(line.poUnitCostMinor, fmtLocale)}</Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Money value={minorText(line.unitCostMinor)} />
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatMinorKwd(line.unitCostMinor, fmtLocale)}</Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Num>{(line.taxRateBps / 100).toFixed(2)}%</Num>
+                  <td className="px-3 py-2 text-end">
+                    <Num>
+                      {formatPct(line.taxRateBps / 100, {
+                        locale: fmtLocale,
+                        decimals: 2,
+                      })}
+                    </Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Num>{line.creditedQuantity.toLocaleString('en-US')}</Num>
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatInt(line.creditedQuantity, fmtLocale)}</Num>
                   </td>
                 </tr>
               ))}
@@ -403,42 +500,76 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
           </table>
         </div>
 
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           {t('pro.inv.ledger')}{' '}
           {invoice.journalEntryId ? (
-            <Link href={`/erp/ledger?entry=${invoice.journalEntryId}`} className="text-blue-300 underline">
+            <Link
+              href={`/erp/ledger?entry=${invoice.journalEntryId}`}
+              className="font-semibold text-emerald-700 underline dark:text-emerald-300"
+            >
               {t('pro.inv.openLedger')}
             </Link>
           ) : (
-            <Link href="/erp/finance" className="text-blue-300 underline">
+            <Link
+              href="/erp/finance"
+              className="font-semibold text-emerald-700 underline dark:text-emerald-300"
+            >
               {t('pro.inv.openFinance')}
             </Link>
           )}
         </p>
 
         {invoice.status === 'void' ? (
-          <div className="grid grid-cols-2 gap-4 rounded-xl border border-[#30363d] p-4">
-            {invoice.voidedAt ? <Fact label={t('pro.inv.voidedAt')}>{dateTimeText(invoice.voidedAt)}</Fact> : null}
-            {invoice.voidReason ? <Fact label={t('pro.reason')}>{invoice.voidReason}</Fact> : null}
+          <div className={`${proSubtleClass} grid grid-cols-2 gap-4`}>
+            {invoice.voidedAt ? (
+              <Fact label={t('pro.inv.voidedAt')}>
+                <Num>{dateTimeText(invoice.voidedAt, fmtLocale)}</Num>
+              </Fact>
+            ) : null}
+            {invoice.voidReason ? (
+              <Fact label={t('pro.reason')}>{invoice.voidReason}</Fact>
+            ) : null}
           </div>
         ) : null}
 
         {voiding ? (
-          <section className="space-y-3 rounded-xl border border-red-500/30 p-4">
-            <p className="text-sm text-gray-300">{t('pro.inv.voidHint')}</p>
+          <section className="space-y-3 rounded-xl border border-rose-500/35 bg-rose-50/50 p-4 dark:bg-rose-950/20">
+            <p className="text-sm text-slate-700 dark:text-slate-200">
+              {t('pro.inv.voidHint')}
+            </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label={t('pro.inv.voidDate')}>
-                <input type="date" value={voidDate} onChange={(event) => setVoidDate(event.target.value)} dir="ltr" className={inputClass} />
+                <input
+                  type="date"
+                  value={voidDate}
+                  onChange={(event) => setVoidDate(event.target.value)}
+                  dir="ltr"
+                  className={proInputClass}
+                />
               </Field>
               <Field label={t('pro.reason')}>
-                <input value={voidReason} onChange={(event) => setVoidReason(event.target.value)} maxLength={500} className={inputClass} />
+                <input
+                  value={voidReason}
+                  onChange={(event) => setVoidReason(event.target.value)}
+                  maxLength={500}
+                  className={proInputClass}
+                />
               </Field>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={voidInvoice} disabled={pending || voidReason.trim() === ''} className={dangerButton}>
+              <button
+                type="button"
+                onClick={voidInvoice}
+                disabled={pending || voidReason.trim() === ''}
+                className={proDangerButton}
+              >
                 {t('pro.inv.void')}
               </button>
-              <button type="button" onClick={() => setVoiding(false)} className={secondaryButton}>
+              <button
+                type="button"
+                onClick={() => setVoiding(false)}
+                className={proSecondaryButton}
+              >
                 {t('erp.cancel')}
               </button>
             </div>
@@ -446,7 +577,7 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
         ) : null}
 
         {errors.length > 0 ? (
-          <ul role="alert" className={`${errorClass} list-disc space-y-1 ps-6`}>
+          <ul role="alert" className={`${proErrorClass} list-disc space-y-1 ps-6`}>
             {errors.map((message) => (
               <li key={message}>{t(message)}</li>
             ))}
@@ -454,14 +585,24 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
         ) : null}
         <FailureMessage failure={failure} onReload={reload} />
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
           {invoice.status === 'posted' && invoice.balanceMinor > 0 && canPay ? (
-            <button type="button" onClick={() => onPay({ supplierId: invoice.supplierId, invoiceId: invoice.id })} className={primaryButton}>
+            <button
+              type="button"
+              onClick={() =>
+                onPay({ supplierId: invoice.supplierId, invoiceId: invoice.id })
+              }
+              className={proPrimaryButton}
+            >
               {t('pro.inv.pay')}
             </button>
           ) : null}
           {invoice.status === 'posted' && canCredit ? (
-            <button type="button" onClick={() => onCredit(invoice.id)} className={secondaryButton}>
+            <button
+              type="button"
+              onClick={() => onCredit(invoice.id)}
+              className={proSecondaryButton}
+            >
               {t('pro.inv.credit')}
             </button>
           ) : null}
@@ -470,13 +611,17 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
               type="button"
               onClick={() => setVoiding(true)}
               disabled={invoice.paidMinor > 0 || invoice.creditedMinor > 0}
-              title={invoice.paidMinor > 0 || invoice.creditedMinor > 0 ? t('pro.inv.voidBlocked') : undefined}
-              className={`${dangerButton} disabled:cursor-not-allowed disabled:opacity-50`}
+              title={
+                invoice.paidMinor > 0 || invoice.creditedMinor > 0
+                  ? t('pro.inv.voidBlocked')
+                  : undefined
+              }
+              className={proDangerButton}
             >
               {t('pro.inv.void')}
             </button>
           ) : null}
-          <button type="button" onClick={onClose} className={secondaryButton}>
+          <button type="button" onClick={onClose} className={proSecondaryButton}>
             {t('erp.close')}
           </button>
         </div>
@@ -490,77 +635,109 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Fact label={t('pro.rcv.order')}>
-          <Num className="text-blue-300">PO-{order.number}</Num> · {order.supplierName}
+          <Num className="text-emerald-700 dark:text-emerald-300">
+            PO-{order.number}
+          </Num>{' '}
+          · {order.supplierName}
         </Fact>
         <Field label={t('pro.inv.supplierNumber')}>
-          <input value={number} onChange={(event) => setNumber(event.target.value)} maxLength={60} dir="ltr" className={inputClass} />
+          <input
+            value={number}
+            onChange={(event) => setNumber(event.target.value)}
+            maxLength={60}
+            dir="ltr"
+            className={proInputClass}
+          />
         </Field>
         <Field label={t('pro.inv.date')}>
-          <input type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} dir="ltr" className={inputClass} />
+          <input
+            type="date"
+            value={invoiceDate}
+            onChange={(event) => setInvoiceDate(event.target.value)}
+            dir="ltr"
+            className={proInputClass}
+          />
         </Field>
       </div>
 
-      <p className="text-xs text-gray-400">{t('pro.inv.priceNote')}</p>
+      <p className="text-xs text-slate-600 dark:text-slate-400">
+        {t('pro.inv.priceNote')}
+      </p>
 
-      <div className="overflow-x-auto">
+      <div className="w-full overflow-x-auto">
         <table className="w-full min-w-[44rem] text-sm">
-          <thead className="text-gray-400">
-            <tr className="border-b border-[#30363d]">
-              <th className="px-3 py-2 text-start font-medium">{t('erp.form.description')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.ord.received')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.ord.invoiced')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.inv.poPrice')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.inv.billNow')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.inv.billedPrice')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('erp.form.tax')}</th>
+          <thead className="border-b border-[var(--ds-border-hairline)] text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <tr>
+              <th className="px-3 py-2 text-start">{t('erp.form.description')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.ord.received')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.ord.invoiced')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.inv.poPrice')}</th>
+              <th className="px-3 py-2 text-start">{t('pro.inv.billNow')}</th>
+              <th className="px-3 py-2 text-start">{t('pro.inv.billedPrice')}</th>
+              <th className="px-3 py-2 text-start">{t('erp.form.tax')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--ds-border-hairline)] text-slate-800 dark:text-slate-100">
             {order.lines.map((line) => {
               const open = invoiceableQuantity(line)
               return (
-                <tr key={line.id} className="border-b border-[#30363d]/60 text-gray-200">
+                <tr key={line.id}>
                   <td className="px-3 py-2">{line.description}</td>
-                  <td className="px-3 py-2">
-                    <Num>{line.receivedQuantity.toLocaleString('en-US')}</Num>
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatInt(line.receivedQuantity, fmtLocale)}</Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Num>{line.invoicedQuantity.toLocaleString('en-US')}</Num>
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatInt(line.invoicedQuantity, fmtLocale)}</Num>
                   </td>
-                  <td className="px-3 py-2">
-                    <Money value={minorText(line.unitCostMinor)} />
+                  <td className="px-3 py-2 text-end">
+                    <Num>{formatMinorKwd(line.unitCostMinor, fmtLocale)}</Num>
                   </td>
                   <td className="px-3 py-2">
                     <input
                       value={quantities[line.id] ?? ''}
-                      onChange={(event) => setQuantities((current) => ({ ...current, [line.id]: event.target.value }))}
+                      onChange={(event) =>
+                        setQuantities((current) => ({
+                          ...current,
+                          [line.id]: event.target.value,
+                        }))
+                      }
                       disabled={open === 0}
                       inputMode="numeric"
                       dir="ltr"
                       aria-label={`${t('pro.inv.billNow')} — ${line.description}`}
-                      className={`${inputClass} mt-0 w-24`}
+                      className={`${proInputClass} mt-0 w-24`}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       value={prices[line.id] ?? ''}
-                      onChange={(event) => setPrices((current) => ({ ...current, [line.id]: event.target.value }))}
+                      onChange={(event) =>
+                        setPrices((current) => ({
+                          ...current,
+                          [line.id]: event.target.value,
+                        }))
+                      }
                       disabled={open === 0}
                       inputMode="decimal"
                       dir="ltr"
                       aria-label={`${t('pro.inv.billedPrice')} — ${line.description}`}
-                      className={`${inputClass} mt-0 w-28`}
+                      className={`${proInputClass} mt-0 w-28`}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       value={rates[line.id] ?? ''}
-                      onChange={(event) => setRates((current) => ({ ...current, [line.id]: event.target.value }))}
+                      onChange={(event) =>
+                        setRates((current) => ({
+                          ...current,
+                          [line.id]: event.target.value,
+                        }))
+                      }
                       disabled={open === 0}
                       inputMode="decimal"
                       dir="ltr"
                       aria-label={`${t('erp.form.tax')} — ${line.description}`}
-                      className={`${inputClass} mt-0 w-20`}
+                      className={`${proInputClass} mt-0 w-20`}
                     />
                   </td>
                 </tr>
@@ -572,68 +749,95 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={t('pro.inv.expectedTotal')}>
-          <input value={expected} onChange={(event) => setExpected(event.target.value)} inputMode="decimal" dir="ltr" className={inputClass} />
-          <span className="mt-1 block text-xs text-gray-500">{t('pro.inv.expectedHint')}</span>
+          <input
+            value={expected}
+            onChange={(event) => setExpected(event.target.value)}
+            inputMode="decimal"
+            dir="ltr"
+            className={proInputClass}
+          />
+          <span className="mt-1 block text-xs text-slate-600 dark:text-slate-400">
+            {t('pro.inv.expectedHint')}
+          </span>
         </Field>
         <Field label={t('erp.form.notes')}>
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={1000} rows={2} className={inputClass} />
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={1000}
+            rows={2}
+            className={proInputClass}
+          />
         </Field>
       </div>
 
       {preview ? (
-        <div className="grid grid-cols-3 gap-4 rounded-xl border border-[#30363d] p-4">
+        <div className={`${proSubtleClass} grid grid-cols-1 gap-4 sm:grid-cols-3`}>
           <Fact label={t('erp.form.subtotal')}>
-            <Money value={minorText(preview.subtotalMinor)} />
+            <Num>{formatMinorKwd(preview.subtotalMinor, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('erp.form.taxTotal')}>
-            <Money value={minorText(preview.taxMinor)} />
+            <Num>{formatMinorKwd(preview.taxMinor, fmtLocale)}</Num>
           </Fact>
           <Fact label={t('erp.form.total')}>
-            <Money value={minorText(preview.totalMinor)} className="font-semibold" />
+            <Num className="font-semibold">
+              {formatMinorKwd(preview.totalMinor, fmtLocale)}
+            </Num>
           </Fact>
         </div>
       ) : null}
 
       {match ? (
-        <section aria-label={t('pro.match.title')} className="space-y-3 rounded-xl border border-[#30363d] p-4">
+        <section aria-label={t('pro.match.title')} className={`${proSubtleClass} space-y-3`}>
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="text-sm font-semibold text-gray-200">{t('pro.match.title')}</h4>
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {t('pro.match.title')}
+            </h4>
             <Badge tone={matchTones[match.status]}>{t(matchLabels[match.status])}</Badge>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Fact label={t('pro.match.poNet')}>
-              <Money value={minorText(match.poNetMinor)} />
+              <Num>{formatMinorKwd(match.poNetMinor, fmtLocale)}</Num>
             </Fact>
             <Fact label={t('pro.match.billedNet')}>
-              <Money value={minorText(match.subtotalMinor)} />
+              <Num>{formatMinorKwd(match.subtotalMinor, fmtLocale)}</Num>
             </Fact>
             <Fact label={t('pro.inv.priceVariance')}>
-              <Money value={minorText(match.priceVarianceMinor)} />
+              <Num>{formatMinorKwd(match.priceVarianceMinor, fmtLocale)}</Num>
             </Fact>
             <Fact label={t('pro.inv.taxVariance')}>
-              <Money value={minorText(match.taxVarianceMinor)} />
+              <Num>{formatMinorKwd(match.taxVarianceMinor, fmtLocale)}</Num>
             </Fact>
           </div>
-          <p className="text-xs text-gray-500">
-            {t('pro.match.tolerance')} <Num>{(match.priceToleranceBps / 100).toFixed(2)}%</Num> · <Money value={minorText(match.taxToleranceMinor)} />
+          <p className="text-xs text-slate-600 dark:text-slate-400">
+            {t('pro.match.tolerance')}{' '}
+            <Num>
+              {formatPct(match.priceToleranceBps / 100, {
+                locale: fmtLocale,
+                decimals: 2,
+              })}
+            </Num>{' '}
+            · <Num>{formatMinorKwd(match.taxToleranceMinor, fmtLocale)}</Num>
           </p>
           {match.issues.length > 0 ? (
-            <ul role="alert" className={`${errorClass} list-disc space-y-1 ps-6`}>
+            <ul role="alert" className={`${proErrorClass} list-disc space-y-1 ps-6`}>
               {match.issues.map((issue, index) => (
-                <li key={`${issue.code}-${issue.orderLineId ?? index}`}>{t(issueLabels[issue.code])}</li>
+                <li key={`${issue.code}-${issue.orderLineId ?? index}`}>
+                  {t(issueLabels[issue.code])}
+                </li>
               ))}
             </ul>
           ) : null}
         </section>
       ) : null}
       {matchFailed ? (
-        <p role="alert" className={errorClass}>
+        <p role="alert" className={proErrorClass}>
           {t(matchFailed)}
         </p>
       ) : null}
 
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} list-disc space-y-1 ps-6`}>
+        <ul role="alert" className={`${proErrorClass} list-disc space-y-1 ps-6`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
@@ -641,11 +845,20 @@ export function InvoiceDialog({ invoiceId, orderId, onChanged, onClose, onBack, 
       ) : null}
       <FailureMessage failure={failure} onReload={reload} />
 
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
-        <button type="button" onClick={book} disabled={pending || !canCreate || match?.status === 'blocked'} className={`${primaryButton} disabled:cursor-not-allowed disabled:opacity-50`}>
+      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
+        <button
+          type="button"
+          onClick={book}
+          disabled={pending || !canCreate || match?.status === 'blocked'}
+          className={proPrimaryButton}
+        >
           {pending ? t('erp.loading') : t('pro.inv.book')}
         </button>
-        <button type="button" onClick={() => onBack(order.id)} className={secondaryButton}>
+        <button
+          type="button"
+          onClick={() => onBack(order.id)}
+          className={proSecondaryButton}
+        >
           {t('pro.backToOrder')}
         </button>
       </div>

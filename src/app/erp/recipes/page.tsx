@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
-import { PageSkeleton } from '@/components/erp-ui'
+import { requirePageUser } from '@/lib/auth/context'
+import { getLocale } from '@/lib/i18n/server'
 import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
+import { StateBlock } from '@/components/ui/state-block'
 
 export const metadata = {
   title: 'الوصفات وهندسة تكلفة الغذاء المعيارية | فنتشر فودز · AetherBI',
@@ -9,10 +11,24 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic'
 
-export default function ErpRecipesPage() {
+export default async function ErpRecipesPage() {
+  await requirePageUser('/erp/recipes')
+  const rawLocale = await getLocale().catch(() => 'ar')
+  const locale = rawLocale === 'en' ? 'en' : 'ar'
+
   return (
-    <Suspense fallback={<PageSkeleton title="Recipes" />}>
-      <VentureRecipesHub locale="ar" />
-    </Suspense>
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden px-4 py-5 sm:px-6">
+      <Suspense
+        fallback={
+          <StateBlock
+            state="loading"
+            locale={locale}
+            title={locale === 'en' ? 'Loading recipes…' : 'جارٍ تحميل الوصفات…'}
+          />
+        }
+      >
+        <VentureRecipesHub locale={locale} />
+      </Suspense>
+    </div>
   )
 }

@@ -2,9 +2,18 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { inputClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Badge, Money, Num } from '@/components/ui'
+import { ShoppingCart } from 'lucide-react'
+import { Badge, Num } from '@/components/ui'
+import { SectionCard } from '@/components/ui/section-card'
+import { StateBlock } from '@/components/ui/state-block'
 import { permissions } from '@/lib/auth/permissions'
+import {
+  UNAVAILABLE_DASH,
+  formatDate,
+  formatInt,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import {
   invoiceStatuses,
@@ -38,16 +47,29 @@ import {
   RequestStatusBadge,
   SupplierStatusBadge,
   dateTimeText,
+  formatMinorKwd,
   invoiceStatusLabels,
-  minorText,
   orderStatusLabels,
+  proInputClass,
+  proNoticeClass,
+  proPrimaryButton,
+  proSecondaryButton,
   requestStatusLabels,
 } from '@/modules/procurement/ui/shared'
 
-const allTabs = ['requests', 'orders', 'invoices', 'returns', 'creditnotes', 'payments', 'suppliers', 'reconciliation', 'settings'] as const
+const allTabs = [
+  'requests',
+  'orders',
+  'invoices',
+  'returns',
+  'creditnotes',
+  'payments',
+  'suppliers',
+  'reconciliation',
+  'settings',
+] as const
 type Tab = (typeof allTabs)[number]
 
-/** The permission that lets a user see each tab. A tab the user may not read is not shown. */
 const tabPermission: Record<Tab, string> = {
   requests: permissions.procurementRequestRead,
   orders: permissions.procurementOrderRead,
@@ -77,7 +99,10 @@ const paymentStateLabels: Record<SupplierPaymentStatus, MessageKey> = {
   paid: 'pro.paystate.paid',
   credited: 'pro.paystate.credited',
 }
-const paymentStateTones: Record<SupplierPaymentStatus, 'warn' | 'info' | 'good' | 'neutral'> = {
+const paymentStateTones: Record<
+  SupplierPaymentStatus,
+  'warn' | 'info' | 'good' | 'neutral'
+> = {
   unpaid: 'warn',
   partially_paid: 'info',
   paid: 'good',
@@ -86,15 +111,21 @@ const paymentStateTones: Record<SupplierPaymentStatus, 'warn' | 'info' | 'good' 
 
 function DocumentStatusBadge({ status }: { status: 'posted' | 'void' }) {
   const { t } = useI18n()
-  return <Badge tone={status === 'posted' ? 'good' : 'neutral'}>{t(invoiceStatusLabels[status])}</Badge>
+  return (
+    <Badge tone={status === 'posted' ? 'good' : 'neutral'}>
+      {t(invoiceStatusLabels[status])}
+    </Badge>
+  )
 }
 
-/**
- * The purchase-to-pay screen: requests, orders with receiving and returns, supplier invoices with the three-way match, credit
- * notes, payments, suppliers, the ledger reconciliation and the accounting settings. `permissions` come from the server page
- * and only decide what is shown: every API call and database write is checked again.
- */
-export default function ProcurementWorkspace({ permissions: held, initialTab }: { permissions: readonly string[]; initialTab?: string }) {
+/** Purchase-to-pay procurement workspace. */
+export default function ProcurementWorkspace({
+  permissions: held,
+  initialTab,
+}: {
+  permissions: readonly string[]
+  initialTab?: string
+}) {
   return (
     <PermissionProvider permissions={held}>
       <Workspace initialTab={initialTab} />
@@ -103,7 +134,11 @@ export default function ProcurementWorkspace({ permissions: held, initialTab }: 
 }
 
 function Workspace({ initialTab }: { initialTab?: string }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
+  const isAr = fmtLocale === 'ar'
+  const unavailableTooltip = getUnavailableTooltip(fmtLocale)
+
   const canReadRequests = useCan(tabPermission.requests)
   const canReadOrders = useCan(tabPermission.orders)
   const canReadInvoices = useCan(tabPermission.invoices)
@@ -130,13 +165,25 @@ function Workspace({ initialTab }: { initialTab?: string }) {
       settings: canManageSettings,
     }
     return allTabs.filter((value) => allowed[value])
-  }, [canReadRequests, canReadOrders, canReadInvoices, canReadReturns, canReadCredits, canReadPayments, canReadSuppliers, canManageSettings])
+  }, [
+    canReadRequests,
+    canReadOrders,
+    canReadInvoices,
+    canReadReturns,
+    canReadCredits,
+    canReadPayments,
+    canReadSuppliers,
+    canManageSettings,
+  ])
 
-  const [chosenTab, setTab] = useState<Tab>(allTabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'requests')
-  const tab: Tab | null = visibleTabs.includes(chosenTab) ? chosenTab : (visibleTabs[0] ?? null)
+  const [chosenTab, setTab] = useState<Tab>(
+    allTabs.includes(initialTab as Tab) ? (initialTab as Tab) : 'requests',
+  )
+  const tab: Tab | null = visibleTabs.includes(chosenTab)
+    ? chosenTab
+    : (visibleTabs[0] ?? null)
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<MessageKey | null>(null)
-  // Bumped after any change so every list and open settings panel reloads.
   const [reloadToken, setReloadToken] = useState(0)
   const [requestStatus, setRequestStatus] = useState('all')
   const [orderStatus, setOrderStatus] = useState('all')
@@ -181,16 +228,40 @@ function Workspace({ initialTab }: { initialTab?: string }) {
     }
   })()
 
-  const requestPath = useMemo(() => `/api/v1/procurement/requests?limit=25&status=${requestStatus}`, [requestStatus])
-  const orderPath = useMemo(() => `/api/v1/procurement/orders?limit=25&status=${orderStatus}`, [orderStatus])
-  const invoicePath = useMemo(() => `/api/v1/procurement/invoices?limit=25&status=${invoiceStatus}&settlement=${settlement}`, [invoiceStatus, settlement])
+  const requestPath = useMemo(
+    () => `/api/v1/procurement/requests?limit=25&status=${requestStatus}`,
+    [requestStatus],
+  )
+  const orderPath = useMemo(
+    () => `/api/v1/procurement/orders?limit=25&status=${orderStatus}`,
+    [orderStatus],
+  )
+  const invoicePath = useMemo(
+    () =>
+      `/api/v1/procurement/invoices?limit=25&status=${invoiceStatus}&settlement=${settlement}`,
+    [invoiceStatus, settlement],
+  )
   const returnPath = '/api/v1/procurement/returns?limit=25'
-  const creditPath = useMemo(() => `/api/v1/procurement/credit-notes?limit=25&status=${creditStatus}`, [creditStatus])
-  const paymentPath = useMemo(() => `/api/v1/procurement/payments?limit=25&status=${paymentStatus}`, [paymentStatus])
-  const supplierPath = useMemo(() => `/api/v1/procurement/suppliers?limit=25&status=${supplierStatus}`, [supplierStatus])
+  const creditPath = useMemo(
+    () => `/api/v1/procurement/credit-notes?limit=25&status=${creditStatus}`,
+    [creditStatus],
+  )
+  const paymentPath = useMemo(
+    () => `/api/v1/procurement/payments?limit=25&status=${paymentStatus}`,
+    [paymentStatus],
+  )
+  const supplierPath = useMemo(
+    () => `/api/v1/procurement/suppliers?limit=25&status=${supplierStatus}`,
+    [supplierStatus],
+  )
 
   const statusFilter = (value: string, onChange: (next: string) => void) => (
-    <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={t('pro.col.status')} className={`${inputClass} mt-0 w-auto`}>
+    <select
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={t('pro.col.status')}
+      className={`${proInputClass} mt-0 w-auto`}
+    >
       <option value="all">{t('pro.allStatuses')}</option>
       {invoiceStatuses.map((status) => (
         <option key={status} value={status}>
@@ -201,253 +272,454 @@ function Workspace({ initialTab }: { initialTab?: string }) {
   )
 
   return (
-    <div>
-      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-0 space-y-5">
+      <Link
+        href="/erp"
+        className="ds-focus-ring inline-block rounded text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
+      >
         {t('erp.back')}
       </Link>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-mist-100">{t('pro.title')}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-400">{t('pro.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canCreateSupplier ? (
-            <button type="button" onClick={() => setDialog({ kind: 'supplier' })} className={secondaryButton}>
-              {t('pro.sup.new')}
-            </button>
-          ) : null}
-          {canCreateOrder ? (
-            <button type="button" onClick={() => setDialog({ kind: 'order' })} className={secondaryButton}>
-              {t('pro.ord.new')}
-            </button>
-          ) : null}
-          {canCreatePayment ? (
-            <button type="button" onClick={() => setDialog({ kind: 'payment' })} className={secondaryButton}>
-              {t('pro.pay.new')}
-            </button>
-          ) : null}
-          {canCreateRequest ? (
-            <button type="button" onClick={() => setDialog({ kind: 'request' })} className={primaryButton}>
-              {t('pro.req.new')}
-            </button>
-          ) : null}
-        </div>
-      </div>
 
-      {notice ? (
-        <p role="status" className={`${noticeClass} mb-4`}>
-          {t(notice)}
-        </p>
-      ) : null}
-
-      {tab === null ? (
-        <div className={panelClass}>
-          <p role="status" className="py-8 text-center text-sm text-gray-300">
-            {t('pro.noAccess')}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div role="tablist" aria-label={t('pro.title')} className="mb-4 flex flex-wrap gap-1 border-b border-[#30363d]">
-            {visibleTabs.map((value) => (
+      <SectionCard
+        locale={fmtLocale}
+        icon={<ShoppingCart className="h-4 w-4" aria-hidden />}
+        title={t('pro.title')}
+        subtitle={t('pro.subtitle')}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {canCreateSupplier ? (
               <button
-                key={value}
                 type="button"
-                role="tab"
-                id={`pro-tab-${value}`}
-                aria-selected={tab === value}
-                aria-controls={`pro-panel-${value}`}
-                onClick={() => setTab(value)}
-                className={`-mb-px border-b-2 px-4 py-2.5 text-sm transition ${
-                  tab === value ? 'border-blue-500 font-semibold text-blue-300' : 'border-transparent text-gray-400 hover:text-gray-200'
-                }`}
+                onClick={() => setDialog({ kind: 'supplier' })}
+                className={proSecondaryButton}
               >
-                {t(`pro.tab.${value}`)}
+                {t('pro.sup.new')}
               </button>
-            ))}
+            ) : null}
+            {canCreateOrder ? (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'order' })}
+                className={proSecondaryButton}
+              >
+                {t('pro.ord.new')}
+              </button>
+            ) : null}
+            {canCreatePayment ? (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'payment' })}
+                className={proSecondaryButton}
+              >
+                {t('pro.pay.new')}
+              </button>
+            ) : null}
+            {canCreateRequest ? (
+              <button
+                type="button"
+                onClick={() => setDialog({ kind: 'request' })}
+                className={proPrimaryButton}
+              >
+                {t('pro.req.new')}
+              </button>
+            ) : null}
           </div>
+        }
+      >
+        {notice ? (
+          <p role="status" className={`${proNoticeClass} mb-4`}>
+            {t(notice)}
+          </p>
+        ) : null}
 
-          <div role="tabpanel" id={`pro-panel-${tab}`} aria-labelledby={`pro-tab-${tab}`}>
-            {tab === 'requests' ? (
-              <PagedTable<PurchaseRequest>
-                path={requestPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'request', requestId: row.id })}
-                emptyTitle="pro.req.empty"
-                emptyHint="pro.req.emptyHint"
-                toolbar={
-                  <select value={requestStatus} onChange={(event) => setRequestStatus(event.target.value)} aria-label={t('pro.col.status')} className={`${inputClass} mt-0 w-auto`}>
-                    <option value="all">{t('pro.allStatuses')}</option>
-                    {requestStatuses.map((value) => (
-                      <option key={value} value={value}>
-                        {t(requestStatusLabels[value])}
-                      </option>
-                    ))}
-                  </select>
-                }
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">PR-{row.number}</Num> },
-                  { header: 'pro.col.neededBy', cell: (row) => (row.neededBy ? <Num>{row.neededBy}</Num> : '—') },
-                  { header: 'pro.col.lines', cell: (row) => <Num>{row.lineCount}</Num> },
-                  { header: 'pro.col.created', cell: (row) => dateTimeText(row.createdAt) },
-                  { header: 'pro.col.status', cell: (row) => <RequestStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
+        {tab === null ? (
+          <StateBlock
+            state="forbidden"
+            locale={fmtLocale}
+            title={t('pro.noAccess')}
+          />
+        ) : (
+          <>
+            <div
+              role="tablist"
+              aria-label={t('pro.title')}
+              className="mb-4 flex flex-wrap gap-1 border-b border-[var(--ds-border-hairline)]"
+            >
+              {visibleTabs.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  id={`pro-tab-${value}`}
+                  aria-selected={tab === value}
+                  aria-controls={`pro-panel-${value}`}
+                  onClick={() => setTab(value)}
+                  className={`ds-focus-ring -mb-px cursor-pointer border-b-2 px-4 py-2.5 text-sm transition ${
+                    tab === value
+                      ? 'border-emerald-600 font-bold text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
+                      : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'
+                  }`}
+                >
+                  {t(`pro.tab.${value}`)}
+                </button>
+              ))}
+            </div>
 
-            {tab === 'orders' ? (
-              <PagedTable<PurchaseOrder>
-                path={orderPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'order', orderId: row.id })}
-                emptyTitle="pro.ord.empty"
-                emptyHint="pro.ord.emptyHint"
-                toolbar={
-                  <select value={orderStatus} onChange={(event) => setOrderStatus(event.target.value)} aria-label={t('pro.col.status')} className={`${inputClass} mt-0 w-auto`}>
-                    <option value="all">{t('pro.allStatuses')}</option>
-                    {orderStatuses.map((value) => (
-                      <option key={value} value={value}>
-                        {t(orderStatusLabels[value])}
-                      </option>
-                    ))}
-                  </select>
-                }
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">PO-{row.number}</Num> },
-                  { header: 'pro.col.supplier', cell: (row) => row.supplierName },
-                  { header: 'pro.col.date', cell: (row) => <Num>{row.orderDate}</Num> },
-                  { header: 'pro.col.total', cell: (row) => <Money value={minorText(row.totalMinor)} /> },
-                  { header: 'pro.col.status', cell: (row) => <OrderStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
-
-            {tab === 'invoices' ? (
-              <PagedTable<SupplierInvoice>
-                path={invoicePath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'invoice', invoiceId: row.id })}
-                emptyTitle="pro.inv.empty"
-                emptyHint="pro.inv.emptyHint"
-                toolbar={
-                  <>
-                    <select value={invoiceStatus} onChange={(event) => setInvoiceStatus(event.target.value)} aria-label={t('pro.col.status')} className={`${inputClass} mt-0 w-auto`}>
+            <div
+              role="tabpanel"
+              id={`pro-panel-${tab}`}
+              aria-labelledby={`pro-tab-${tab}`}
+            >
+              {tab === 'requests' ? (
+                <PagedTable<PurchaseRequest>
+                  path={requestPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'request', requestId: row.id })}
+                  emptyTitle="pro.req.empty"
+                  emptyHint="pro.req.emptyHint"
+                  toolbar={
+                    <select
+                      value={requestStatus}
+                      onChange={(event) => setRequestStatus(event.target.value)}
+                      aria-label={t('pro.col.status')}
+                      className={`${proInputClass} mt-0 w-auto`}
+                    >
                       <option value="all">{t('pro.allStatuses')}</option>
-                      {invoiceStatuses.map((value) => (
+                      {requestStatuses.map((value) => (
                         <option key={value} value={value}>
-                          {t(invoiceStatusLabels[value])}
+                          {t(requestStatusLabels[value])}
                         </option>
                       ))}
                     </select>
-                    <select value={settlement} onChange={(event) => setSettlement(event.target.value)} aria-label={t('pro.inv.paymentStatus')} className={`${inputClass} mt-0 w-auto`}>
-                      <option value="all">{t('pro.inv.settleAll')}</option>
-                      <option value="open">{t('pro.inv.settleOpen')}</option>
+                  }
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          PR-{row.number}
+                        </Num>
+                      ),
+                    },
+                    {
+                      header: 'pro.col.neededBy',
+                      cell: (row) =>
+                        row.neededBy ? (
+                          <Num>{formatDate(row.neededBy, fmtLocale)}</Num>
+                        ) : (
+                          <span title={unavailableTooltip}>{UNAVAILABLE_DASH}</span>
+                        ),
+                    },
+                    {
+                      header: 'pro.col.lines',
+                      cell: (row) => <Num>{formatInt(row.lineCount, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.created',
+                      cell: (row) => <Num>{dateTimeText(row.createdAt, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <RequestStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
+
+              {tab === 'orders' ? (
+                <PagedTable<PurchaseOrder>
+                  path={orderPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'order', orderId: row.id })}
+                  emptyTitle="pro.ord.empty"
+                  emptyHint="pro.ord.emptyHint"
+                  toolbar={
+                    <select
+                      value={orderStatus}
+                      onChange={(event) => setOrderStatus(event.target.value)}
+                      aria-label={t('pro.col.status')}
+                      className={`${proInputClass} mt-0 w-auto`}
+                    >
+                      <option value="all">{t('pro.allStatuses')}</option>
+                      {orderStatuses.map((value) => (
+                        <option key={value} value={value}>
+                          {t(orderStatusLabels[value])}
+                        </option>
+                      ))}
                     </select>
-                  </>
-                }
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">SI-{row.number}</Num> },
-                  { header: 'pro.col.supplier', cell: (row) => row.supplierName },
-                  { header: 'pro.inv.supplierNumber', cell: (row) => <Num>{row.supplierInvoiceNumber}</Num> },
-                  { header: 'pro.inv.dueDate', cell: (row) => <Num>{row.dueDate}</Num> },
-                  { header: 'pro.col.total', cell: (row) => <Money value={minorText(row.totalMinor)} /> },
-                  { header: 'pro.inv.balance', cell: (row) => <Money value={minorText(row.balanceMinor)} /> },
-                  {
-                    header: 'pro.inv.paymentStatus',
-                    cell: (row) => (row.status === 'posted' ? <Badge tone={paymentStateTones[row.paymentStatus]}>{t(paymentStateLabels[row.paymentStatus])}</Badge> : '—'),
-                  },
-                  { header: 'pro.col.status', cell: (row) => <InvoiceStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
+                  }
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          PO-{row.number}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.col.supplier', cell: (row) => row.supplierName },
+                    {
+                      header: 'pro.col.date',
+                      cell: (row) => <Num>{formatDate(row.orderDate, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.total',
+                      cell: (row) => <Num>{formatMinorKwd(row.totalMinor, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <OrderStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'returns' ? (
-              <PagedTable<PurchaseReturn>
-                path={returnPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'return', returnId: row.id })}
-                emptyTitle="pro.ret.empty"
-                emptyHint="pro.ret.emptyHint"
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">RT-{row.number}</Num> },
-                  { header: 'pro.col.supplier', cell: (row) => row.supplierName },
-                  { header: 'pro.rcv.order', cell: (row) => <Num>PO-{row.orderNumber}</Num> },
-                  { header: 'pro.ret.date', cell: (row) => <Num>{row.returnDate}</Num> },
-                  { header: 'pro.ret.value', cell: (row) => <Money value={minorText(row.valueMinor)} /> },
-                ]}
-              />
-            ) : null}
+              {tab === 'invoices' ? (
+                <PagedTable<SupplierInvoice>
+                  path={invoicePath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'invoice', invoiceId: row.id })}
+                  emptyTitle="pro.inv.empty"
+                  emptyHint="pro.inv.emptyHint"
+                  toolbar={
+                    <>
+                      <select
+                        value={invoiceStatus}
+                        onChange={(event) => setInvoiceStatus(event.target.value)}
+                        aria-label={t('pro.col.status')}
+                        className={`${proInputClass} mt-0 w-auto`}
+                      >
+                        <option value="all">{t('pro.allStatuses')}</option>
+                        {invoiceStatuses.map((value) => (
+                          <option key={value} value={value}>
+                            {t(invoiceStatusLabels[value])}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={settlement}
+                        onChange={(event) => setSettlement(event.target.value)}
+                        aria-label={t('pro.inv.paymentStatus')}
+                        className={`${proInputClass} mt-0 w-auto`}
+                      >
+                        <option value="all">{t('pro.inv.settleAll')}</option>
+                        <option value="open">{t('pro.inv.settleOpen')}</option>
+                      </select>
+                    </>
+                  }
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          SI-{row.number}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.col.supplier', cell: (row) => row.supplierName },
+                    {
+                      header: 'pro.inv.supplierNumber',
+                      cell: (row) => <Num>{row.supplierInvoiceNumber}</Num>,
+                    },
+                    {
+                      header: 'pro.inv.dueDate',
+                      cell: (row) => <Num>{formatDate(row.dueDate, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.total',
+                      cell: (row) => <Num>{formatMinorKwd(row.totalMinor, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.inv.balance',
+                      cell: (row) => <Num>{formatMinorKwd(row.balanceMinor, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.inv.paymentStatus',
+                      cell: (row) =>
+                        row.status === 'posted' ? (
+                          <Badge tone={paymentStateTones[row.paymentStatus]}>
+                            {t(paymentStateLabels[row.paymentStatus])}
+                          </Badge>
+                        ) : (
+                          <span title={unavailableTooltip}>{UNAVAILABLE_DASH}</span>
+                        ),
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <InvoiceStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'creditnotes' ? (
-              <PagedTable<SupplierCreditNote>
-                path={creditPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'creditnote', creditNoteId: row.id })}
-                emptyTitle="pro.cn.empty"
-                emptyHint="pro.cn.emptyHint"
-                toolbar={statusFilter(creditStatus, setCreditStatus)}
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">CN-{row.number}</Num> },
-                  { header: 'pro.col.supplier', cell: (row) => row.supplierName },
-                  { header: 'pro.cn.invoice', cell: (row) => <Num>SI-{row.invoiceNumber}</Num> },
-                  { header: 'pro.cn.supplierNumber', cell: (row) => <Num>{row.supplierCreditNoteNumber}</Num> },
-                  { header: 'pro.col.total', cell: (row) => <Money value={minorText(row.totalMinor)} /> },
-                  { header: 'pro.col.status', cell: (row) => <DocumentStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
+              {tab === 'returns' ? (
+                <PagedTable<PurchaseReturn>
+                  path={returnPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'return', returnId: row.id })}
+                  emptyTitle="pro.ret.empty"
+                  emptyHint="pro.ret.emptyHint"
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          RT-{row.number}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.col.supplier', cell: (row) => row.supplierName },
+                    {
+                      header: 'pro.rcv.order',
+                      cell: (row) => <Num>PO-{row.orderNumber}</Num>,
+                    },
+                    {
+                      header: 'pro.ret.date',
+                      cell: (row) => <Num>{formatDate(row.returnDate, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.ret.value',
+                      cell: (row) => <Num>{formatMinorKwd(row.valueMinor, fmtLocale)}</Num>,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'payments' ? (
-              <PagedTable<SupplierPayment>
-                path={paymentPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'payment', paymentId: row.id })}
-                emptyTitle="pro.pay.empty"
-                emptyHint="pro.pay.emptyHint"
-                toolbar={statusFilter(paymentStatus, setPaymentStatus)}
-                columns={[
-                  { header: 'pro.col.number', cell: (row) => <Num className="font-semibold text-blue-300">PAY-{row.number}</Num> },
-                  { header: 'pro.col.supplier', cell: (row) => row.supplierName },
-                  { header: 'pro.pay.date', cell: (row) => <Num>{row.paymentDate}</Num> },
-                  { header: 'pro.pay.method', cell: (row) => t(`pro.pay.method.${row.method}`) },
-                  { header: 'pro.pay.amount', cell: (row) => <Money value={minorText(row.amountMinor)} /> },
-                  { header: 'pro.col.status', cell: (row) => <DocumentStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
+              {tab === 'creditnotes' ? (
+                <PagedTable<SupplierCreditNote>
+                  path={creditPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'creditnote', creditNoteId: row.id })}
+                  emptyTitle="pro.cn.empty"
+                  emptyHint="pro.cn.emptyHint"
+                  toolbar={statusFilter(creditStatus, setCreditStatus)}
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          CN-{row.number}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.col.supplier', cell: (row) => row.supplierName },
+                    {
+                      header: 'pro.cn.invoice',
+                      cell: (row) => <Num>SI-{row.invoiceNumber}</Num>,
+                    },
+                    {
+                      header: 'pro.cn.supplierNumber',
+                      cell: (row) => <Num>{row.supplierCreditNoteNumber}</Num>,
+                    },
+                    {
+                      header: 'pro.col.total',
+                      cell: (row) => <Num>{formatMinorKwd(row.totalMinor, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <DocumentStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'suppliers' ? (
-              <PagedTable<Supplier>
-                path={supplierPath}
-                reloadToken={reloadToken}
-                onOpen={(row) => setDialog({ kind: 'supplier', supplier: row })}
-                emptyTitle="pro.sup.empty"
-                emptyHint="pro.sup.emptyHint"
-                toolbar={
-                  <select value={supplierStatus} onChange={(event) => setSupplierStatus(event.target.value)} aria-label={t('pro.col.status')} className={`${inputClass} mt-0 w-auto`}>
-                    <option value="all">{t('pro.allStatuses')}</option>
-                    <option value="active">{t('pro.sstatus.active')}</option>
-                    <option value="blocked">{t('pro.sstatus.blocked')}</option>
-                  </select>
-                }
-                columns={[
-                  { header: 'pro.sup.code', cell: (row) => <Num className="font-semibold text-blue-300">{row.code}</Num> },
-                  { header: 'pro.sup.name', cell: (row) => row.name },
-                  { header: 'pro.sup.terms', cell: (row) => <Num>{row.paymentTermsDays}</Num> },
-                  { header: 'pro.col.status', cell: (row) => <SupplierStatusBadge status={row.status} /> },
-                ]}
-              />
-            ) : null}
+              {tab === 'payments' ? (
+                <PagedTable<SupplierPayment>
+                  path={paymentPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'payment', paymentId: row.id })}
+                  emptyTitle="pro.pay.empty"
+                  emptyHint="pro.pay.emptyHint"
+                  toolbar={statusFilter(paymentStatus, setPaymentStatus)}
+                  columns={[
+                    {
+                      header: 'pro.col.number',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          PAY-{row.number}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.col.supplier', cell: (row) => row.supplierName },
+                    {
+                      header: 'pro.pay.date',
+                      cell: (row) => <Num>{formatDate(row.paymentDate, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.pay.method',
+                      cell: (row) => t(`pro.pay.method.${row.method}`),
+                    },
+                    {
+                      header: 'pro.pay.amount',
+                      cell: (row) => <Num>{formatMinorKwd(row.amountMinor, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <DocumentStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'reconciliation' ? <ReconciliationPanel reloadToken={reloadToken} /> : null}
+              {tab === 'suppliers' ? (
+                <PagedTable<Supplier>
+                  path={supplierPath}
+                  reloadToken={reloadToken}
+                  onOpen={(row) => setDialog({ kind: 'supplier', supplier: row })}
+                  emptyTitle="pro.sup.empty"
+                  emptyHint="pro.sup.emptyHint"
+                  toolbar={
+                    <select
+                      value={supplierStatus}
+                      onChange={(event) => setSupplierStatus(event.target.value)}
+                      aria-label={t('pro.col.status')}
+                      className={`${proInputClass} mt-0 w-auto`}
+                    >
+                      <option value="all">{t('pro.allStatuses')}</option>
+                      <option value="active">{t('pro.sstatus.active')}</option>
+                      <option value="blocked">{t('pro.sstatus.blocked')}</option>
+                    </select>
+                  }
+                  columns={[
+                    {
+                      header: 'pro.sup.code',
+                      cell: (row) => (
+                        <Num className="font-semibold text-emerald-700 dark:text-emerald-300">
+                          {row.code}
+                        </Num>
+                      ),
+                    },
+                    { header: 'pro.sup.name', cell: (row) => row.name },
+                    {
+                      header: 'pro.sup.terms',
+                      cell: (row) => <Num>{formatInt(row.paymentTermsDays, fmtLocale)}</Num>,
+                    },
+                    {
+                      header: 'pro.col.status',
+                      cell: (row) => <SupplierStatusBadge status={row.status} />,
+                    },
+                  ]}
+                />
+              ) : null}
 
-            {tab === 'settings' ? <AccountingSettings reloadToken={reloadToken} onChanged={changed} /> : null}
-          </div>
-        </>
-      )}
+              {tab === 'reconciliation' ? (
+                <ReconciliationPanel reloadToken={reloadToken} />
+              ) : null}
+
+              {tab === 'settings' ? (
+                <AccountingSettings reloadToken={reloadToken} onChanged={changed} />
+              ) : null}
+            </div>
+          </>
+        )}
+      </SectionCard>
 
       {dialog ? (
-        <Modal title={title} onClose={closeDialog} size={dialog.kind === 'supplier' ? 'md' : 'xl'}>
+        <Modal
+          title={title}
+          onClose={closeDialog}
+          size={dialog.kind === 'supplier' ? 'md' : 'xl'}
+        >
           {dialog.kind === 'request' ? (
             <RequestDialog
               requestId={dialog.requestId}

@@ -2,11 +2,8 @@
 
 import { useState } from 'react'
 import { apiRequest } from '@/components/erp/api'
-import { inputClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import type { MessageKey } from '@/lib/i18n'
 import { permissions } from '@/lib/auth/permissions'
-import { useI18n } from '@/lib/i18n'
-import { useCan } from '@/modules/procurement/ui/permissions'
+import { useI18n, type MessageKey } from '@/lib/i18n'
 import {
   createSupplierSchema,
   supplierStatuses,
@@ -14,8 +11,17 @@ import {
   type Supplier,
   type SupplierStatus,
 } from '@/modules/procurement/client'
-import { FailureMessage, Field, supplierStatusLabels, useRunner } from '@/modules/procurement/ui/shared'
-import { errorClass } from '@/components/erp/styles'
+import { useCan } from '@/modules/procurement/ui/permissions'
+import {
+  FailureMessage,
+  Field,
+  proErrorClass,
+  proInputClass,
+  proPrimaryButton,
+  proSecondaryButton,
+  supplierStatusLabels,
+  useRunner,
+} from '@/modules/procurement/ui/shared'
 
 type Props = {
   supplier?: Supplier
@@ -25,7 +31,6 @@ type Props = {
 
 /** Create a supplier, or edit one. The code is its identity and is fixed once created. */
 export function SupplierDialog({ supplier, onSaved, onCancel }: Props) {
-  // Without the permission the supplier is shown but there is nothing to save. The server checks it again.
   const canManage = useCan(permissions.procurementSupplierManage)
   const { t } = useI18n()
   const [code, setCode] = useState(supplier?.code ?? '')
@@ -55,17 +60,22 @@ export function SupplierDialog({ supplier, onSaved, onCancel }: Props) {
               if (issue.path[0] === 'name') return 'pro.err.form.name'
               if (issue.path[0] === 'paymentTermsDays') return 'pro.err.form.terms'
               return 'pro.err.form.generic'
-            })
-          )
-        )
+            }),
+          ),
+        ),
       )
       return
     }
     void run(async () => {
-      await apiRequest(supplier ? `/api/v1/procurement/suppliers/${supplier.id}` : '/api/v1/procurement/suppliers', {
-        method: supplier ? 'PATCH' : 'POST',
-        body: parsed.data,
-      })
+      await apiRequest(
+        supplier
+          ? `/api/v1/procurement/suppliers/${supplier.id}`
+          : '/api/v1/procurement/suppliers',
+        {
+          method: supplier ? 'PATCH' : 'POST',
+          body: parsed.data,
+        },
+      )
       onSaved('pro.msg.supplierSaved')
     })
   }
@@ -74,17 +84,39 @@ export function SupplierDialog({ supplier, onSaved, onCancel }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label={t('pro.sup.code')}>
-          <input value={code} onChange={(event) => setCode(event.target.value)} disabled={supplier !== undefined} maxLength={20} dir="ltr" className={inputClass} />
+          <input
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            disabled={supplier !== undefined}
+            maxLength={20}
+            dir="ltr"
+            className={proInputClass}
+          />
         </Field>
         <Field label={t('pro.sup.name')}>
-          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={200} className={inputClass} />
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={200}
+            className={proInputClass}
+          />
         </Field>
         <Field label={t('pro.sup.terms')}>
-          <input value={terms} onChange={(event) => setTerms(event.target.value)} inputMode="numeric" dir="ltr" className={inputClass} />
+          <input
+            value={terms}
+            onChange={(event) => setTerms(event.target.value)}
+            inputMode="numeric"
+            dir="ltr"
+            className={proInputClass}
+          />
         </Field>
         {supplier ? (
           <Field label={t('pro.col.status')}>
-            <select value={status} onChange={(event) => setStatus(event.target.value as SupplierStatus)} className={inputClass}>
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as SupplierStatus)}
+              className={proInputClass}
+            >
               {supplierStatuses.map((value) => (
                 <option key={value} value={value}>
                   {t(supplierStatusLabels[value])}
@@ -94,24 +126,35 @@ export function SupplierDialog({ supplier, onSaved, onCancel }: Props) {
           </Field>
         ) : null}
         <Field label={t('erp.form.notes')} className="sm:col-span-2">
-          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={2000} rows={2} className={inputClass} />
+          <textarea
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={2000}
+            rows={2}
+            className={proInputClass}
+          />
         </Field>
       </div>
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} list-disc space-y-1 ps-6`}>
+        <ul role="alert" className={`${proErrorClass} list-disc space-y-1 ps-6`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
         </ul>
       ) : null}
       <FailureMessage failure={failure} />
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
         {canManage ? (
-          <button type="button" onClick={save} disabled={pending} className={primaryButton}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={pending}
+            className={proPrimaryButton}
+          >
             {pending ? t('erp.loading') : t('pro.save')}
           </button>
         ) : null}
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={proSecondaryButton}>
           {t('erp.cancel')}
         </button>
       </div>

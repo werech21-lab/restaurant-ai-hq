@@ -2,25 +2,48 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { errorClass, inputClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { SectionCard } from '@/components/ui/section-card'
+import { StateBlock } from '@/components/ui/state-block'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { bpsToInput, minorToInput, parseKwdToMinor, parsePercentToBps } from '@/lib/money'
+import {
+  bpsToInput,
+  minorToInput,
+  parseKwdToMinor,
+  parsePercentToBps,
+} from '@/lib/money'
 import {
   accountingBases,
   costingMethods,
   updateAccountingSchema,
+  updateSettingsSchema,
   type AccountingBasis,
   type CostingMethod,
-  updateSettingsSchema,
   type ProcurementAccounting,
   type ProcurementSettings,
 } from '@/modules/procurement/client'
 import { AccountSelect } from '@/modules/procurement/ui/Selects'
-import { FailureMessage, Field, useRunner, type Phase } from '@/modules/procurement/ui/shared'
+import {
+  FailureMessage,
+  Field,
+  proErrorClass,
+  proInputClass,
+  proNoticeClass,
+  proPrimaryButton,
+  useRunner,
+  type Phase,
+} from '@/modules/procurement/ui/shared'
 
-/** The two company decisions the cycle depends on: where supplier invoices post, and the order approval limit. */
-export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: number; onChanged: (message: MessageKey) => void }) {
-  const { t } = useI18n()
+/** Procurement accounting mappings and approval threshold settings. */
+export function AccountingSettings({
+  reloadToken,
+  onChanged,
+}: {
+  reloadToken: number
+  onChanged: (message: MessageKey) => void
+}) {
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [phase, setPhase] = useState<Phase>('loading')
   const [loadError, setLoadError] = useState<MessageKey>('erp.err.generic')
   const [retry, setRetry] = useState(0)
@@ -33,7 +56,9 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
   const [basis, setBasis] = useState<AccountingBasis>('invoice_basis')
   const [grniId, setGrniId] = useState('')
   const [ppvId, setPpvId] = useState('')
-  const [costingMethod, setCostingMethod] = useState<CostingMethod>('moving_weighted_average')
+  const [costingMethod, setCostingMethod] = useState<CostingMethod>(
+    'moving_weighted_average',
+  )
   const [cogsId, setCogsId] = useState('')
   const [priceTolerance, setPriceTolerance] = useState('0.00')
   const [taxTolerance, setTaxTolerance] = useState('0.000')
@@ -43,28 +68,40 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
   const accountsRun = useRunner()
   const limitRun = useRunner()
 
-  const apply = useCallback((nextAccounting: ProcurementAccounting, nextSettings: ProcurementSettings) => {
-    setAccounting(nextAccounting)
-    setSettings(nextSettings)
-    setInventoryId(nextAccounting.inventoryAccountId ?? '')
-    setPayableId(nextAccounting.payableAccountId ?? '')
-    setTaxId(nextAccounting.inputTaxAccountId ?? '')
-    setBasis(nextAccounting.accountingBasis)
-    setGrniId(nextAccounting.grniAccountId ?? '')
-    setPpvId(nextAccounting.ppvAccountId ?? '')
-    setCostingMethod(nextAccounting.costingMethod)
-    setCogsId(nextAccounting.cogsAccountId ?? '')
-    setPriceTolerance(bpsToInput(nextAccounting.priceToleranceBps))
-    setTaxTolerance(minorToInput(nextAccounting.taxToleranceMinor))
-    setThreshold(nextSettings.approvalThresholdMinor === null ? '' : minorToInput(nextSettings.approvalThresholdMinor))
-  }, [])
+  const apply = useCallback(
+    (nextAccounting: ProcurementAccounting, nextSettings: ProcurementSettings) => {
+      setAccounting(nextAccounting)
+      setSettings(nextSettings)
+      setInventoryId(nextAccounting.inventoryAccountId ?? '')
+      setPayableId(nextAccounting.payableAccountId ?? '')
+      setTaxId(nextAccounting.inputTaxAccountId ?? '')
+      setBasis(nextAccounting.accountingBasis)
+      setGrniId(nextAccounting.grniAccountId ?? '')
+      setPpvId(nextAccounting.ppvAccountId ?? '')
+      setCostingMethod(nextAccounting.costingMethod)
+      setCogsId(nextAccounting.cogsAccountId ?? '')
+      setPriceTolerance(bpsToInput(nextAccounting.priceToleranceBps))
+      setTaxTolerance(minorToInput(nextAccounting.taxToleranceMinor))
+      setThreshold(
+        nextSettings.approvalThresholdMinor === null
+          ? ''
+          : minorToInput(nextSettings.approvalThresholdMinor),
+      )
+    },
+    [],
+  )
 
   useEffect(() => {
     const controller = new AbortController()
     setPhase('loading')
     Promise.all([
-      apiRequest<{ data: ProcurementAccounting }>('/api/v1/procurement/accounting', { signal: controller.signal }),
-      apiRequest<{ data: ProcurementSettings }>('/api/v1/procurement/settings', { signal: controller.signal }),
+      apiRequest<{ data: ProcurementAccounting }>(
+        '/api/v1/procurement/accounting',
+        { signal: controller.signal },
+      ),
+      apiRequest<{ data: ProcurementSettings }>('/api/v1/procurement/settings', {
+        signal: controller.signal,
+      }),
     ])
       .then(([a, s]) => {
         apply(a.data, s.data)
@@ -87,7 +124,6 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
       setErrors(['pro.acct.errTolerance'])
       return
     }
-    // Every field is sent, because saving replaces them all: leaving one out would put it back to its default.
     const parsed = updateAccountingSchema.safeParse({
       version: accounting.version,
       inventoryAccountId: inventoryId,
@@ -102,13 +138,26 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
       taxToleranceMinor: taxMinor,
     })
     if (!parsed.success) {
-      const needsReceiptAccounts = parsed.error.issues.some((issue) => issue.path[0] === 'grniAccountId')
-      const needsCosting = parsed.error.issues.some((issue) => issue.path[0] === 'cogsAccountId')
-      setErrors([needsReceiptAccounts ? 'pro.acct.errReceiptBasis' : needsCosting ? 'pro.acct.errCosting' : 'pro.acct.errRequired'])
+      const needsReceiptAccounts = parsed.error.issues.some(
+        (issue) => issue.path[0] === 'grniAccountId',
+      )
+      const needsCosting = parsed.error.issues.some(
+        (issue) => issue.path[0] === 'cogsAccountId',
+      )
+      setErrors([
+        needsReceiptAccounts
+          ? 'pro.acct.errReceiptBasis'
+          : needsCosting
+            ? 'pro.acct.errCosting'
+            : 'pro.acct.errRequired',
+      ])
       return
     }
     void accountsRun.run(async () => {
-      const saved = await apiRequest<{ data: ProcurementAccounting }>('/api/v1/procurement/accounting', { method: 'PATCH', body: parsed.data })
+      const saved = await apiRequest<{ data: ProcurementAccounting }>(
+        '/api/v1/procurement/accounting',
+        { method: 'PATCH', body: parsed.data },
+      )
       setAccounting(saved.data)
       setNotice('pro.msg.accountsSaved')
       onChanged('pro.msg.accountsSaved')
@@ -120,141 +169,270 @@ export function AccountingSettings({ reloadToken, onChanged }: { reloadToken: nu
     setErrors([])
     const parsed = updateSettingsSchema.safeParse({
       version: settings.version,
-      approvalThresholdMinor: threshold.trim() === '' ? null : (parseKwdToMinor(threshold) ?? Number.NaN),
+      approvalThresholdMinor:
+        threshold.trim() === '' ? null : (parseKwdToMinor(threshold) ?? Number.NaN),
     })
     if (!parsed.success) {
       setErrors(['pro.acct.errLimit'])
       return
     }
     void limitRun.run(async () => {
-      const saved = await apiRequest<{ data: ProcurementSettings }>('/api/v1/procurement/settings', { method: 'PATCH', body: parsed.data })
+      const saved = await apiRequest<{ data: ProcurementSettings }>(
+        '/api/v1/procurement/settings',
+        { method: 'PATCH', body: parsed.data },
+      )
       setSettings(saved.data)
       setNotice('pro.msg.limitSaved')
       onChanged('pro.msg.limitSaved')
     })
   }
 
-  if (phase === 'loading') return <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p>
+  if (phase === 'loading') {
+    return (
+      <StateBlock
+        state="loading"
+        locale={fmtLocale}
+        skeletonRows={5}
+        title={t('erp.loading')}
+      />
+    )
+  }
   if (phase === 'error') {
     return (
-      <div className="space-y-3 py-6 text-center">
-        <p role="alert" className={`${errorClass} inline-block`}>
-          {t(loadError)}
-        </p>
-        <div>
-          <button type="button" onClick={() => setRetry((value) => value + 1)} className={secondaryButton}>
-            {t('erp.retry')}
-          </button>
-        </div>
-      </div>
+      <StateBlock
+        state={loadError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+        locale={fmtLocale}
+        title={t(loadError)}
+        onRetry={
+          loadError === 'erp.err.forbidden'
+            ? undefined
+            : () => setRetry((value) => value + 1)
+        }
+      />
     )
   }
 
-  const configured = accounting !== null && accounting.inventoryAccountId !== null && accounting.payableAccountId !== null
+  const configured =
+    accounting !== null &&
+    accounting.inventoryAccountId !== null &&
+    accounting.payableAccountId !== null
 
   return (
     <div className="space-y-5">
       {notice ? (
-        <p role="status" className={noticeClass}>
+        <p role="status" className={proNoticeClass}>
           {t(notice)}
         </p>
       ) : null}
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} list-disc space-y-1 ps-6`}>
+        <ul role="alert" className={`${proErrorClass} list-disc space-y-1 ps-6`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
         </ul>
       ) : null}
 
-      <section className={panelClass} aria-label={t('pro.acct.title')}>
-        <h3 className="text-base font-semibold text-gray-100">{t('pro.acct.title')}</h3>
-        <p className="mt-1 text-sm text-gray-400">{t('pro.acct.hint')}</p>
+      <SectionCard
+        locale={fmtLocale}
+        ariaLabel={t('pro.acct.title')}
+        title={t('pro.acct.title')}
+        subtitle={t('pro.acct.hint')}
+      >
         {!configured ? (
-          <p role="status" className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <p
+            role="status"
+            className="mb-4 rounded-xl border border-amber-500/35 bg-amber-50 px-3.5 py-2.5 text-sm font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+          >
             {t('pro.acct.notConfigured')}
           </p>
         ) : null}
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <AccountSelect type="asset" value={inventoryId} onChange={setInventoryId} label={t('pro.acct.inventory')} />
-          <AccountSelect type="liability" value={payableId} onChange={setPayableId} label={t('pro.acct.payable')} />
-          <AccountSelect type="asset" value={taxId} onChange={setTaxId} label={t('pro.acct.inputTax')} />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <AccountSelect
+            type="asset"
+            value={inventoryId}
+            onChange={setInventoryId}
+            label={t('pro.acct.inventory')}
+          />
+          <AccountSelect
+            type="liability"
+            value={payableId}
+            onChange={setPayableId}
+            label={t('pro.acct.payable')}
+          />
+          <AccountSelect
+            type="asset"
+            value={taxId}
+            onChange={setTaxId}
+            label={t('pro.acct.inputTax')}
+          />
         </div>
-        <p className="mt-2 text-xs text-gray-500">{t('pro.acct.taxHint')}</p>
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+          {t('pro.acct.taxHint')}
+        </p>
 
-        <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.basisTitle')}</h4>
-        <p className="mt-1 text-sm text-gray-400">{t(basis === 'receipt_basis' ? 'pro.acct.basis.receiptHint' : 'pro.acct.basis.invoiceHint')}</p>
+        <h3 className="mt-6 text-sm font-bold text-slate-900 dark:text-slate-100">
+          {t('pro.acct.basisTitle')}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          {t(
+            basis === 'receipt_basis'
+              ? 'pro.acct.basis.receiptHint'
+              : 'pro.acct.basis.invoiceHint',
+          )}
+        </p>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t('pro.acct.basis')}>
-            <select value={basis} onChange={(event) => setBasis(event.target.value as AccountingBasis)} className={inputClass}>
+            <select
+              value={basis}
+              onChange={(event) => setBasis(event.target.value as AccountingBasis)}
+              className={proInputClass}
+            >
               {accountingBases.map((value) => (
                 <option key={value} value={value}>
-                  {t(value === 'receipt_basis' ? 'pro.acct.basis.receipt' : 'pro.acct.basis.invoice')}
+                  {t(
+                    value === 'receipt_basis'
+                      ? 'pro.acct.basis.receipt'
+                      : 'pro.acct.basis.invoice',
+                  )}
                 </option>
               ))}
             </select>
           </Field>
           {basis === 'receipt_basis' ? (
             <>
-              <AccountSelect type="liability" value={grniId} onChange={setGrniId} label={t('pro.acct.grni')} />
-              <AccountSelect type="expense" value={ppvId} onChange={setPpvId} label={t('pro.acct.ppv')} />
+              <AccountSelect
+                type="liability"
+                value={grniId}
+                onChange={setGrniId}
+                label={t('pro.acct.grni')}
+              />
+              <AccountSelect
+                type="expense"
+                value={ppvId}
+                onChange={setPpvId}
+                label={t('pro.acct.ppv')}
+              />
             </>
           ) : null}
         </div>
-        <p className="mt-2 text-xs text-gray-500">{t('pro.acct.basisLocked')}</p>
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+          {t('pro.acct.basisLocked')}
+        </p>
 
-        <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.costingTitle')}</h4>
-        <p className="mt-1 text-sm text-gray-400">{t('pro.acct.costingHint')}</p>
-        {accounting?.version === 0 ? <p className="mt-1 text-xs text-amber-200/90">{t('pro.acct.costingUnsaved')}</p> : null}
+        <h3 className="mt-6 text-sm font-bold text-slate-900 dark:text-slate-100">
+          {t('pro.acct.costingTitle')}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          {t('pro.acct.costingHint')}
+        </p>
+        {accounting?.version === 0 ? (
+          <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+            {t('pro.acct.costingUnsaved')}
+          </p>
+        ) : null}
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t('pro.acct.costing')}>
-            <select value={costingMethod} onChange={(event) => setCostingMethod(event.target.value as CostingMethod)} className={inputClass}>
+            <select
+              value={costingMethod}
+              onChange={(event) => setCostingMethod(event.target.value as CostingMethod)}
+              className={proInputClass}
+            >
               {costingMethods.map((value) => (
                 <option key={value} value={value}>
-                  {t(value === 'moving_weighted_average' ? 'pro.acct.costing.mwa' : 'pro.acct.costing.order')}
+                  {t(
+                    value === 'moving_weighted_average'
+                      ? 'pro.acct.costing.mwa'
+                      : 'pro.acct.costing.order',
+                  )}
                 </option>
               ))}
             </select>
           </Field>
           {costingMethod === 'moving_weighted_average' ? (
-            <AccountSelect type="expense" value={cogsId} onChange={setCogsId} label={t('pro.acct.cogs')} />
+            <AccountSelect
+              type="expense"
+              value={cogsId}
+              onChange={setCogsId}
+              label={t('pro.acct.cogs')}
+            />
           ) : null}
         </div>
 
-        <h4 className="mt-6 text-sm font-semibold text-gray-200">{t('pro.acct.matchTitle')}</h4>
-        <p className="mt-1 text-sm text-gray-400">{t('pro.acct.matchHint')}</p>
+        <h3 className="mt-6 text-sm font-bold text-slate-900 dark:text-slate-100">
+          {t('pro.acct.matchTitle')}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          {t('pro.acct.matchHint')}
+        </p>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t('pro.acct.priceTolerance')}>
-            <input value={priceTolerance} onChange={(event) => setPriceTolerance(event.target.value)} inputMode="decimal" dir="ltr" className={inputClass} />
+            <input
+              value={priceTolerance}
+              onChange={(event) => setPriceTolerance(event.target.value)}
+              inputMode="decimal"
+              dir="ltr"
+              className={proInputClass}
+            />
           </Field>
           <Field label={t('pro.acct.taxTolerance')}>
-            <input value={taxTolerance} onChange={(event) => setTaxTolerance(event.target.value)} inputMode="decimal" dir="ltr" className={inputClass} />
+            <input
+              value={taxTolerance}
+              onChange={(event) => setTaxTolerance(event.target.value)}
+              inputMode="decimal"
+              dir="ltr"
+              className={proInputClass}
+            />
           </Field>
         </div>
 
         <div className="mt-4 space-y-3">
-          <FailureMessage failure={accountsRun.failure} onReload={() => setRetry((value) => value + 1)} />
-          <button type="button" onClick={saveAccounts} disabled={accountsRun.pending} className={primaryButton}>
+          <FailureMessage
+            failure={accountsRun.failure}
+            onReload={() => setRetry((value) => value + 1)}
+          />
+          <button
+            type="button"
+            onClick={saveAccounts}
+            disabled={accountsRun.pending}
+            className={proPrimaryButton}
+          >
             {accountsRun.pending ? t('erp.loading') : t('pro.save')}
           </button>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className={panelClass} aria-label={t('pro.acct.limitTitle')}>
-        <h3 className="text-base font-semibold text-gray-100">{t('pro.acct.limitTitle')}</h3>
-        <p className="mt-1 text-sm text-gray-400">{t('pro.acct.limitHint')}</p>
-        <div className="mt-4 max-w-xs">
+      <SectionCard
+        locale={fmtLocale}
+        ariaLabel={t('pro.acct.limitTitle')}
+        title={t('pro.acct.limitTitle')}
+        subtitle={t('pro.acct.limitHint')}
+      >
+        <div className="max-w-xs">
           <Field label={t('pro.acct.limit')}>
-            <input value={threshold} onChange={(event) => setThreshold(event.target.value)} inputMode="decimal" dir="ltr" className={inputClass} />
+            <input
+              value={threshold}
+              onChange={(event) => setThreshold(event.target.value)}
+              inputMode="decimal"
+              dir="ltr"
+              className={proInputClass}
+            />
           </Field>
         </div>
         <div className="mt-4 space-y-3">
-          <FailureMessage failure={limitRun.failure} onReload={() => setRetry((value) => value + 1)} />
-          <button type="button" onClick={saveLimit} disabled={limitRun.pending} className={primaryButton}>
+          <FailureMessage
+            failure={limitRun.failure}
+            onReload={() => setRetry((value) => value + 1)}
+          />
+          <button
+            type="button"
+            onClick={saveLimit}
+            disabled={limitRun.pending}
+            className={proPrimaryButton}
+          >
             {limitRun.pending ? t('erp.loading') : t('pro.save')}
           </button>
         </div>
-      </section>
+      </SectionCard>
     </div>
   )
 }

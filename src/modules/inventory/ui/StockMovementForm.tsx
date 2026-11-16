@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { apiRequest, errorDetail, errorKey, isAbort, newIdempotencyKey } from '@/components/erp/api'
-import { errorClass, inputClass, labelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { parseWholeNumber } from '@/lib/money'
 import {
@@ -13,11 +12,18 @@ import {
   type StockBalance,
   type Warehouse,
 } from '@/modules/inventory/client'
-import { Quantity, type ListPage } from '@/modules/inventory/ui/shared'
+import {
+  Quantity,
+  invErrorClass,
+  invInputClass,
+  invLabelClass,
+  invPrimaryButton,
+  invSecondaryButton,
+  type ListPage,
+} from '@/modules/inventory/ui/shared'
 
 type Props = {
   warehouses: Warehouse[]
-  /** Pre-selects a product, for example from a catalog row. */
   initialItem?: Item
   onSaved: (message: MessageKey) => void
   onCancel: () => void
@@ -41,10 +47,15 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
 
   useEffect(() => {
     const controller = new AbortController()
-    apiRequest<ListPage<Item>>('/api/v1/inventory/items?limit=100&status=active&sort=name&direction=asc', { signal: controller.signal })
+    apiRequest<ListPage<Item>>(
+      '/api/v1/inventory/items?limit=100&status=active&sort=name&direction=asc',
+      { signal: controller.signal },
+    )
       .then((page) => {
         setItems((current) => {
-          const extra = current.filter((item) => !page.data.some((candidate) => candidate.id === item.id))
+          const extra = current.filter(
+            (item) => !page.data.some((candidate) => candidate.id === item.id),
+          )
           return [...extra, ...page.data]
         })
       })
@@ -60,27 +71,41 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
       return
     }
     const controller = new AbortController()
-    apiRequest<ListPage<StockBalance>>(`/api/v1/inventory/balances?itemId=${itemId}&limit=100`, { signal: controller.signal })
-      .then((page) => setOnHand(Object.fromEntries(page.data.map((balance) => [balance.warehouseId, balance.onHand]))))
+    apiRequest<ListPage<StockBalance>>(
+      `/api/v1/inventory/balances?itemId=${itemId}&limit=100`,
+      { signal: controller.signal },
+    )
+      .then((page) =>
+        setOnHand(
+          Object.fromEntries(
+            page.data.map((balance) => [balance.warehouseId, balance.onHand]),
+          ),
+        ),
+      )
       .catch((error: unknown) => {
         if (!isAbort(error)) setOnHand({})
       })
     return () => controller.abort()
   }, [itemId])
 
-  const activeWarehouses = useMemo(() => warehouses.filter((warehouse) => warehouse.status === 'active'), [warehouses])
-  // A warehouse that is switched off cannot receive stock, but it can still be emptied.
+  const activeWarehouses = useMemo(
+    () => warehouses.filter((warehouse) => warehouse.status === 'active'),
+    [warehouses],
+  )
   const sourceWarehouses = type === 'IN' ? activeWarehouses : warehouses
   const selectedItem = items.find((item) => item.id === itemId)
-  const available = warehouseId ? onHand[warehouseId] ?? 0 : null
-  const showAvailable = type !== 'IN' && itemId !== '' && warehouseId !== '' && available !== null
+  const available = warehouseId ? (onHand[warehouseId] ?? 0) : null
+  const showAvailable =
+    type !== 'IN' && itemId !== '' && warehouseId !== '' && available !== null
 
   function changeType(next: MovementType) {
     setType(next)
     setErrors([])
     setDetail(null)
     if (next === 'IN') {
-      setWarehouseId((current) => (activeWarehouses.some((warehouse) => warehouse.id === current) ? current : ''))
+      setWarehouseId((current) =>
+        activeWarehouses.some((warehouse) => warehouse.id === current) ? current : '',
+      )
     }
   }
 
@@ -90,10 +115,23 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
     const found: MessageKey[] = []
     const amount = parseWholeNumber(quantity)
     if (!itemId) found.push('inv.mv.errItem')
-    if (!warehouseId || (type === 'TRANSFER' && !toWarehouseId)) found.push('inv.mv.errWarehouse')
-    if (type === 'TRANSFER' && warehouseId && toWarehouseId && warehouseId === toWarehouseId) found.push('inv.mv.errSame')
-    if (amount === null || amount < 1 || amount > 1_000_000) found.push('inv.mv.errQuantity')
-    if (found.length === 0 && amount !== null && type !== 'IN' && (onHand[warehouseId] ?? 0) < amount) found.push('inv.mv.errExceeds')
+    if (!warehouseId || (type === 'TRANSFER' && !toWarehouseId)) {
+      found.push('inv.mv.errWarehouse')
+    }
+    if (type === 'TRANSFER' && warehouseId && toWarehouseId && warehouseId === toWarehouseId) {
+      found.push('inv.mv.errSame')
+    }
+    if (amount === null || amount < 1 || amount > 1_000_000) {
+      found.push('inv.mv.errQuantity')
+    }
+    if (
+      found.length === 0 &&
+      amount !== null &&
+      type !== 'IN' &&
+      (onHand[warehouseId] ?? 0) < amount
+    ) {
+      found.push('inv.mv.errExceeds')
+    }
     if (found.length > 0) {
       setErrors(found)
       return
@@ -102,8 +140,21 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
     const trimmed = note.trim()
     const candidate =
       type === 'TRANSFER'
-        ? { type, itemId, fromWarehouseId: warehouseId, toWarehouseId, quantity: amount, note: trimmed === '' ? null : trimmed }
-        : { type, itemId, warehouseId, quantity: amount, note: trimmed === '' ? null : trimmed }
+        ? {
+            type,
+            itemId,
+            fromWarehouseId: warehouseId,
+            toWarehouseId,
+            quantity: amount,
+            note: trimmed === '' ? null : trimmed,
+          }
+        : {
+            type,
+            itemId,
+            warehouseId,
+            quantity: amount,
+            note: trimmed === '' ? null : trimmed,
+          }
     const parsed = createMovementSchema.safeParse(candidate)
     if (!parsed.success) {
       setErrors(['erp.form.errGeneric'])
@@ -112,7 +163,11 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
     setErrors([])
     setPending(true)
     try {
-      await apiRequest('/api/v1/inventory/movements', { method: 'POST', body: parsed.data, idempotencyKey: idempotencyKey.current })
+      await apiRequest('/api/v1/inventory/movements', {
+        method: 'POST',
+        body: parsed.data,
+        idempotencyKey: idempotencyKey.current,
+      })
       idempotencyKey.current = newIdempotencyKey()
       onSaved('inv.msg.moved')
     } catch (error) {
@@ -126,8 +181,10 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
   if (warehouses.length === 0) {
     return (
       <div className="space-y-4">
-        <p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-200">{t('inv.mv.noWarehouses')}</p>
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <p className="rounded-xl border border-amber-500/30 bg-amber-50 px-3.5 py-2.5 text-sm font-medium text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          {t('inv.mv.noWarehouses')}
+        </p>
+        <button type="button" onClick={onCancel} className={invSecondaryButton}>
           {t('erp.close')}
         </button>
       </div>
@@ -137,25 +194,38 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4">
       <fieldset>
-        <legend className={labelClass}>{t('inv.mv.type')}</legend>
+        <legend className={invLabelClass}>{t('inv.mv.type')}</legend>
         <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {movementTypes.map((value) => (
             <label
               key={value}
-              className={`cursor-pointer rounded-xl border px-3 py-2.5 text-center text-sm transition ${
-                type === value ? 'border-blue-500 bg-blue-500/10 text-blue-200' : 'border-[#30363d] text-gray-300 hover:bg-white/5'
+              className={`ds-focus-ring cursor-pointer rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition ${
+                type === value
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/50 dark:text-emerald-200'
+                  : 'border-slate-300/90 text-slate-700 hover:bg-slate-50 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/[0.05]'
               }`}
             >
-              <input type="radio" name="movement-type" value={value} checked={type === value} onChange={() => changeType(value)} className="sr-only" />
+              <input
+                type="radio"
+                name="movement-type"
+                value={value}
+                checked={type === value}
+                onChange={() => changeType(value)}
+                className="sr-only"
+              />
               {t(`inv.mv.${value}`)}
             </label>
           ))}
         </div>
       </fieldset>
 
-      <label className={`${labelClass} block`}>
+      <label className={`${invLabelClass} block`}>
         {t('inv.mv.item')}
-        <select value={itemId} onChange={(event) => setItemId(event.target.value)} className={inputClass}>
+        <select
+          value={itemId}
+          onChange={(event) => setItemId(event.target.value)}
+          className={invInputClass}
+        >
           <option value="">{t('inv.mv.selectItem')}</option>
           {items.map((item) => (
             <option key={item.id} value={item.id}>
@@ -166,9 +236,13 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
       </label>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label className={labelClass}>
+        <label className={invLabelClass}>
           {type === 'TRANSFER' ? t('inv.mv.from') : t('inv.mv.warehouse')}
-          <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className={inputClass}>
+          <select
+            value={warehouseId}
+            onChange={(event) => setWarehouseId(event.target.value)}
+            className={invInputClass}
+          >
             <option value="">{t('inv.mv.selectWarehouse')}</option>
             {sourceWarehouses.map((warehouse) => (
               <option key={warehouse.id} value={warehouse.id}>
@@ -178,9 +252,13 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
           </select>
         </label>
         {type === 'TRANSFER' ? (
-          <label className={labelClass}>
+          <label className={invLabelClass}>
             {t('inv.mv.to')}
-            <select value={toWarehouseId} onChange={(event) => setToWarehouseId(event.target.value)} className={inputClass}>
+            <select
+              value={toWarehouseId}
+              onChange={(event) => setToWarehouseId(event.target.value)}
+              className={invInputClass}
+            >
               <option value="">{t('inv.mv.selectWarehouse')}</option>
               {activeWarehouses
                 .filter((warehouse) => warehouse.id !== warehouseId)
@@ -192,29 +270,40 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
             </select>
           </label>
         ) : null}
-        <label className={labelClass}>
+        <label className={invLabelClass}>
           {t('inv.mv.quantity')}
-          <input inputMode="numeric" dir="ltr" value={quantity} onChange={(event) => setQuantity(event.target.value)} className={inputClass} />
+          <input
+            inputMode="numeric"
+            dir="ltr"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+            className={invInputClass}
+          />
         </label>
         {showAvailable && available !== null ? (
-          <p className="self-end pb-2.5 text-sm text-gray-400">
+          <p className="self-end pb-2.5 text-sm text-slate-600 dark:text-slate-300">
             {t('inv.mv.onHand')}: <Quantity value={available} unit={selectedItem?.unit} />
           </p>
         ) : null}
       </div>
 
-      <label className={`${labelClass} block`}>
+      <label className={`${invLabelClass} block`}>
         {t('inv.mv.note')}
-        <input value={note} onChange={(event) => setNote(event.target.value)} maxLength={200} className={inputClass} />
+        <input
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          maxLength={200}
+          className={invInputClass}
+        />
       </label>
 
       {errors.length > 0 ? (
-        <ul role="alert" className={`${errorClass} space-y-1`}>
+        <ul role="alert" className={`${invErrorClass} space-y-1`}>
           {errors.map((message) => (
             <li key={message}>{t(message)}</li>
           ))}
           {detail ? (
-            <li dir="ltr" className="text-start text-xs text-red-200">
+            <li dir="ltr" className="text-start text-xs opacity-90">
               {detail}
             </li>
           ) : null}
@@ -222,10 +311,10 @@ export function StockMovementForm({ warehouses, initialItem, onSaved, onCancel }
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={pending} className={primaryButton}>
+        <button type="submit" disabled={pending} className={invPrimaryButton}>
           {pending ? t('erp.working') : t('inv.mv.submit')}
         </button>
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={invSecondaryButton}>
           {t('erp.cancel')}
         </button>
       </div>

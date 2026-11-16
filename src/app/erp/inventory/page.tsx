@@ -14,8 +14,12 @@ export default async function InventoryPage({
   const permissions = await readSessionPermissions()
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
-      <InventoryHub permissions={permissions} initialTab={tab ?? 'stock'} itemId={deepLinkId(query.item)} />
-    </main>
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden px-4 py-5 sm:px-6">
+      <InventoryHub
+        permissions={permissions}
+        initialTab={tab ?? 'stock'}
+        itemId={deepLinkId(query.item)}
+      />
+    </div>
   )
 }
