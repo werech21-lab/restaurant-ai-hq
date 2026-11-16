@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { publishPageOdooSync } from '@/lib/odoo-page-sync'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
@@ -267,6 +268,17 @@ export function WeekdayComparisonStudio() {
     query.granularity,
     query.sameHoursLikeForLike,
   ])
+
+  useEffect(() => {
+    if (loading) return undefined
+    const connected = Boolean(apiConnected && !apiNoData && apiLastSyncAt)
+    publishPageOdooSync(
+      connected
+        ? { connected: true, lastSyncAt: apiLastSyncAt, source: 'live-comparison' }
+        : { connected: false, lastSyncAt: null, source: 'live-comparison' },
+    )
+    return () => publishPageOdooSync(null)
+  }, [apiConnected, apiLastSyncAt, apiNoData, loading])
 
   const comparison = useMemo(
     () =>

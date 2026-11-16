@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { publishPageOdooSync } from '@/lib/odoo-page-sync'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
 import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
 import { FeryalSidebarNotebooks } from '@/components/aether/FeryalSidebarNotebooks'
@@ -194,6 +195,22 @@ export function FeryalGovernanceStudio({
   const isAr = locale === 'ar'
   const isAuditor = sessionRole === 'auditor'
   const { workspace } = useGlobalFilter()
+  const [chatSyncAt, setChatSyncAt] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fromWorkspace = Boolean(workspace.odooConnected && workspace.lastSyncAt)
+    const lastSyncAt = fromWorkspace ? workspace.lastSyncAt : chatSyncAt
+    publishPageOdooSync(
+      lastSyncAt
+        ? {
+            connected: true,
+            lastSyncAt,
+            source: fromWorkspace ? 'odoo-sync' : 'feryal-chat',
+          }
+        : null,
+    )
+    return () => publishPageOdooSync(null)
+  }, [chatSyncAt, workspace.lastSyncAt, workspace.odooConnected])
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chats' | 'notes'>('chats')
@@ -520,6 +537,9 @@ export function FeryalGovernanceStudio({
           if (payload.ok && typeof payload.reply === 'string') {
             replyText = payload.reply
             replyStatus = payload.status || 'answered'
+            if (replyStatus !== 'no_odoo_data') {
+              setChatSyncAt(new Date().toISOString())
+            }
             modelBadge = payload.model ? `Odoo (${payload.model})` : 'Odoo'
             executedQueries = Array.isArray(payload.executedQueries) ? payload.executedQueries : []
             verifier = payload.verifier

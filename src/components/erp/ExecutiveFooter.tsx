@@ -14,6 +14,7 @@ import {
   computeOdooFreshnessStatus,
   type OdooLiveSummary,
 } from '@/lib/odoo/live-sync-core'
+import { subscribePageOdooSync, type PageOdooSyncDetail } from '@/lib/odoo-page-sync'
 
 const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v12'
 const FIFTEEN_MINUTES_MS = 15 * 60 * 1000
@@ -69,7 +70,10 @@ export function ExecutiveFooter({
   const [syncing, setSyncing] = useState(false)
   const [adminDiagOpen, setAdminDiagOpen] = useState(false)
   const [lastSyncedRecordIso, setLastSyncedRecordIso] = useState<string | undefined>(undefined)
+  const [pageSync, setPageSync] = useState<PageOdooSyncDetail | null>(null)
   const [referenceNowMs, setReferenceNowMs] = useState<number>(() => Date.now())
+
+  useEffect(() => subscribePageOdooSync(setPageSync), [])
 
   useEffect(() => {
     setReferenceNowMs(Date.now())
@@ -137,14 +141,19 @@ export function ExecutiveFooter({
     }
   }, [roleProfile.isAuditor, triggerLedgerSync])
 
-  const isConnected = Boolean(liveSummary?.connected)
-  const activeLatestRecordIso = isConnected
-    ? (lastSyncedRecordIso ??
-      liveSummary?.latestOdooRecordAt ??
-      liveSummary?.latestRecordAt ??
-      liveSummary?.syncedAt ??
-      null)
-    : null
+  const pageLive = Boolean(pageSync?.connected && pageSync.lastSyncAt)
+  const summaryLive = Boolean(liveSummary?.connected)
+  const isConnected = pageLive || summaryLive
+  const syncResolved = liveSummary !== null || pageSync !== null
+  const activeLatestRecordIso = pageLive
+    ? pageSync?.lastSyncAt ?? null
+    : summaryLive
+      ? (lastSyncedRecordIso ??
+        liveSummary?.latestOdooRecordAt ??
+        liveSummary?.latestRecordAt ??
+        liveSummary?.syncedAt ??
+        null)
+      : null
 
   const syncStamp = useMemo(
     () => formatWesternSyncStamp(activeLatestRecordIso),
@@ -161,7 +170,11 @@ export function ExecutiveFooter({
 
   const isStale = Boolean(!isConnected || !freshness || freshness.isStaleOver24h || liveSummary?.isStale24h)
 
-  const statusSentence = !isConnected
+  const statusSentence = !syncResolved
+    ? isAr
+      ? 'بانتظار استجابة المزامنة من Odoo 17'
+      : 'Awaiting sync response from Odoo 17'
+    : !isConnected
     ? isAr
       ? 'لا توجد بيانات من Odoo لهذه الفترة — الاتصال بـ Odoo غير متاح حالياً'
       : 'No data from Odoo for this period — Odoo connection unavailable'
