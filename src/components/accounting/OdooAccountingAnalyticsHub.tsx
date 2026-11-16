@@ -83,16 +83,16 @@ export function OdooAccountingAnalyticsHub({
             {isAr ? 'يشمل إيرادات غير الكاشير' : 'Includes non-cashier revenue'}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            {acc.totalRevenueKwd == null
+            {acc.totalRevenueKwd == null || workspace.nullableSalesKwd == null
               ? isAr
-                ? 'فرق دفتر الأستاذ عن نقاط البيع: غير مُتحقق'
-                : 'GL versus POS gap: unverified'
+                ? 'فرق دفتر الأستاذ عن نقاط البيع: غير متاح'
+                : 'GL versus POS gap: —'
               : isAr
-                ? `صافي نقاط البيع ${fmtKwd(workspace.salesKwd)} · الفرق عن دفتر الأستاذ ${fmtKwd(
-                    acc.totalRevenueKwd - workspace.salesKwd,
+                ? `صافي نقاط البيع ${fmtKwd(workspace.nullableSalesKwd)} · الفرق عن دفتر الأستاذ ${fmtKwd(
+                    acc.totalRevenueKwd - workspace.nullableSalesKwd,
                   )}`
-                : `POS net ${fmtKwd(workspace.salesKwd)} · gap versus GL ${fmtKwd(
-                    acc.totalRevenueKwd - workspace.salesKwd,
+                : `POS net ${fmtKwd(workspace.nullableSalesKwd)} · gap versus GL ${fmtKwd(
+                    acc.totalRevenueKwd - workspace.nullableSalesKwd,
                   )}`}
           </p>
           <ul className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">

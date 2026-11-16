@@ -233,12 +233,10 @@ describe('phase 13 blocker N1: non-refund order counts never silently fall back 
 
     expect(envelope.connected).toBe(true)
     expect(envelope.totals).toEqual({ netSalesKwd: 150, orders: 6, aovKwd: 25 })
-    const hours = envelope.hourlySeries ?? []
-    expect(hours.length).toBe(24)
-    for (const h of hours) {
-      expect(h.netKwd !== 0 && h.orders === 0).toBe(false)
-    }
-    expect(hours[13]).toEqual({ hour: 13, netKwd: 0, orders: 0 })
+    expect(envelope.partial).toBe(true)
+    expect(envelope.unavailableSections).toContain('hourly')
+    expect(envelope.diagnosticCode).toBe('PARTIAL_LIVE')
+    expect(envelope.hourlySeries).toBeNull()
   })
 
   it('drops payment/channel, YTD, and prior30 pairs atomically when their non-refund count queries throw', async () => {
@@ -351,29 +349,37 @@ describe('phase 13 blocker N1: non-refund order counts never silently fall back 
       throw new Error('Expected all 4 buckets to be defined')
     }
 
-    // Month channel falls back to pricelistUiHints30 (which has BOTH real net 250 and real count 8), never Keeta 250 with 0 orders
-    for (const [chKey, chVal] of Object.entries(buckets.month.uiChannels ?? {})) {
-      expect(chVal.netKwd !== 0 && chVal.orders === 0, `month channel ${chKey}`).toBe(false)
-    }
-    expect(buckets.month.uiChannels?.keeta).toEqual({ netKwd: 0, orders: 0 })
-    expect(buckets.month.uiChannels?.['talabat-tgo']).toEqual({ netKwd: 250, orders: 8 })
+    expect(envelope.partial).toBe(true)
+    expect(envelope.diagnosticCode).toBe('PARTIAL_LIVE')
+    expect(envelope.unavailableSections).toEqual(
+      expect.arrayContaining([
+        'channels.month',
+        'channels.week',
+        'channels.today',
+        'channels.year',
+        'year',
+        'journeyPulse',
+      ]),
+    )
 
-    // Week, Today, and Year payment channels dropped both net and count together
-    for (const periodKey of ['today', 'week', 'year'] as const) {
-      const periodBucket = buckets[periodKey]
-      for (const [chKey, chVal] of Object.entries(periodBucket?.uiChannels ?? {})) {
-        expect(chVal.netKwd !== 0 && chVal.orders === 0, `${periodKey} channel ${chKey}`).toBe(
-          false,
-        )
-      }
-    }
+    // Failed payment/channel sections are null (never positive net with 0 orders, and never 0)
+    expect(buckets.month.uiChannels, 'month uiChannels').toBeNull()
+    expect(buckets.today.uiChannels, 'today uiChannels').toBeNull()
+    expect(buckets.week.uiChannels, 'week uiChannels').toBeNull()
+    expect(buckets.year.uiChannels, 'year uiChannels').toBeNull()
 
-    // YTD bucket dropped both net and count together (never 9000 KWD with 0 orders)
+    // YTD bucket dropped both net and count together as null (never 9000 KWD with 0 orders, and never 0)
     expect(buckets.year.totals.netSalesKwd !== 0 && buckets.year.totals.orders === 0).toBe(false)
-    expect(buckets.year.totals).toMatchObject({ restaurantNetKwd: 0, restaurantOrders: 0 })
+    expect(buckets.year.totals).toEqual({
+      netSalesKwd: null,
+      orders: null,
+      aovKwd: null,
+      restaurantNetKwd: null,
+      restaurantOrders: null,
+    })
 
-    // journeyPulse is omitted/unavailable because prior30 search_count failed
-    expect(envelope.summary?.journeyPulse).toBeUndefined()
+    // journeyPulse is null because prior30 search_count failed
+    expect(envelope.summary?.journeyPulse).toBeNull()
   })
 
   it.each(['daily', 'hourly', 'payment'] as const)(

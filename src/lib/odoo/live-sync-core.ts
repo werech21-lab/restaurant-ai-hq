@@ -127,6 +127,28 @@ export interface OdooUnattributedBranchRow {
   sharePct: number
 }
 
+export type OdooUnavailableSectionKey =
+  | 'hourly'
+  | 'channels.month'
+  | 'channels.week'
+  | 'channels.today'
+  | 'channels.year'
+  | 'year'
+  | 'journeyPulse'
+  | 'brands.month'
+  | 'brands.week'
+  | 'brands.today'
+  | 'brands.year'
+  | 'stockTransfers'
+  | 'receivables'
+  | 'excluded.month'
+  | 'gl.today'
+  | 'gl.week'
+  | 'gl.month'
+  | 'gl.year'
+  | 'sessions'
+  | 'products'
+
 export interface OdooBucketSummary {
   key: OdooPeriodBucketKey | 'custom'
   from: string
@@ -134,23 +156,30 @@ export interface OdooBucketSummary {
   days: number
   isLatestOperationalDay?: boolean
   totals: {
-    netSalesKwd: number
-    orders: number
-    aovKwd: number
-    restaurantNetKwd: number
-    restaurantOrders: number
+    netSalesKwd: number | null
+    orders: number | null
+    aovKwd: number | null
+    restaurantNetKwd: number | null
+    restaurantOrders: number | null
   }
-  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }>
-  byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
-  mappedByLocation?: Record<string, { netKwd: number; orders: number }>
-  unattributedSalesKwd?: number
-  unattributedOrders?: number
-  unattributedBranch?: OdooUnattributedBranchRow
-  unmappedSummary?: { netSalesKwd: number; orders: number }
+  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }> | null
+  byLocation?: Record<
+    string,
+    {
+      netKwd: number
+      orders: number
+      uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+    }
+  > | null
+  mappedByLocation?: Record<string, { netKwd: number; orders: number }> | null
+  unattributedSalesKwd?: number | null
+  unattributedOrders?: number | null
+  unattributedBranch?: OdooUnattributedBranchRow | null
+  unmappedSummary?: { netSalesKwd: number | null; orders: number | null }
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
-  uiChannels?: Record<string, { netKwd: number; orders: number }>
-  accounting?: OdooLedgerAccountingSummary
+  uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+  accounting?: OdooLedgerAccountingSummary | null
 }
 
 export interface OdooLiveSummary {
@@ -159,6 +188,10 @@ export interface OdooLiveSummary {
   connected?: boolean
   sourceMode?: 'odoo17-live' | 'cached-live' | 'disconnected' | 'verified-baseline'
   noData?: boolean
+  partial?: boolean
+  unavailableSections?: string[]
+  warningAr?: string
+  warningEn?: string
   messageAr?: string
   messageEn?: string
   lastSyncAt?: string | null
@@ -194,19 +227,19 @@ export interface OdooLiveSummary {
   period: { from: string; to: string }
   /** Strictly `null` in all browser-facing responses so `ODOO_DB` never leaves the server. */
   database: string | null
-  totals: { netSalesKwd: number; orders: number; aovKwd: number }
-  unattributedSalesKwd?: number
-  unattributedOrders?: number
-  unattributedBranch?: OdooUnattributedBranchRow
+  totals: { netSalesKwd: number | null; orders: number | null; aovKwd: number | null }
+  unattributedSalesKwd?: number | null
+  unattributedOrders?: number | null
+  unattributedBranch?: OdooUnattributedBranchRow | null
   companyTotals?: {
     grossPreExclusionKwd?: number
     excludedEntitiesKwd?: number
     excludedEntitiesOrders?: number
-    mappedBranchesNetKwd?: number
-    netSalesKwd: number
-    orders: number
-    unmappedTerminalsNetKwd: number
-    unmappedTerminalsOrders: number
+    mappedBranchesNetKwd?: number | null
+    netSalesKwd: number | null
+    orders: number | null
+    unmappedTerminalsNetKwd: number | null
+    unmappedTerminalsOrders: number | null
     reconciliationGapKwd?: number
     reconciledExact?: boolean
   }
@@ -216,9 +249,11 @@ export interface OdooLiveSummary {
     orders_count: number
     net_sales_kwd: number
   }[]
-  brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
-  branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
-  channels: { name: string; amountKwd: number }[]
+  brands: { id: string; brand: string; netKwd: number; sharePct: number }[] | null
+  branches:
+    | { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
+    | null
+  channels: { name: string; amountKwd: number }[] | null
   buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
   customBucket?: OdooBucketSummary
   /** Live Kuwait daily POS series (`YYYY-MM-DD`) overlaid on Custom Range & Comparison Engine. */
@@ -228,13 +263,16 @@ export interface OdooLiveSummary {
   /** Live Kuwait unattributed daily POS series (`day -> { netKwd, orders }`). */
   dailyUnattributed?: Record<string, { netKwd: number; orders: number }>
   /** Live Kuwait 24-hour POS distribution (`0..23`) overlaid on Hourly Comparison Curves. */
-  hourlySeries?: { hour: number; orders: number; netKwd: number }[]
+  hourlySeries?: { hour: number; orders: number; netKwd: number }[] | null
   /** Optional Ardiya Central Kitchen -> Branch transfer telemetry from `stock.picking`. */
-  stockTransfers?: OdooStockTransferSummary
+  stockTransfers?: OdooStockTransferSummary | null
   /** Optional open aggregator/receivable clearing balance from `account.move.line`. */
-  aggregatorReceivables?: OdooReceivableClearingSummary
+  aggregatorReceivables?: OdooReceivableClearingSummary | null
   /** Rolling 30-day vs prior 30-day vs month-to-date totals (whitelisted registers, Kuwait calendar days). */
-  journeyPulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
+  journeyPulse?: Record<
+    'rolling30' | 'prior30' | 'mtd',
+    { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }
+  > | null
   /** Read-permission audit of the 7 journey stages for the BI service user. */
   access?: { readable: string[]; restricted: string[] }
   /** Odoo 17 Analytic Cost-Center access & unallocated expense pulse. */

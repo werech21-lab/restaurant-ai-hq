@@ -14,6 +14,7 @@ import {
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
@@ -503,6 +504,8 @@ export function CoresHubStudio({
         />
       </div>
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       {/* Disconnected / Empty Odoo state — zero invented numbers */}
       {noOdooData ? (
         <div className="rounded-2xl border border-amber-300/70 bg-amber-50/70 p-8 text-center dark:border-amber-500/30 dark:bg-amber-950/20">
@@ -531,12 +534,25 @@ export function CoresHubStudio({
                 {isAr ? 'إجمالي صافي المبيعات' : 'Total Net Sales'}
               </div>
               <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f3(liveCube ? liveCube.totals.netSalesKwd : workspace.salesKwd)}{' '}
-                <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+                {liveCube
+                  ? `${f3(liveCube.totals.netSalesKwd)} `
+                  : workspace.nullableSalesKwd === null
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : `${f3(workspace.nullableSalesKwd)} `}
+                {liveCube || workspace.nullableSalesKwd !== null ? (
+                  <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+                ) : null}
               </div>
               <div className="mt-1 text-[11px] text-slate-500">
-                {f0(liveCube ? liveCube.totals.orders : workspace.orders)}{' '}
-                {isAr ? 'طلب مسجّل' : 'POS orders'}
+                {liveCube
+                  ? `${f0(liveCube.totals.orders)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
+                  : workspace.nullableOrders === null
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : `${f0(workspace.nullableOrders)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -553,8 +569,16 @@ export function CoresHubStudio({
                 {isAr ? 'متوسط الفاتورة (AOV)' : 'Average Order Value'}
               </div>
               <div className="mt-1.5 font-mono text-2xl font-bold text-slate-900 dark:text-white">
-                {f3(liveCube ? liveCube.totals.aovKwd : workspace.aovKwd)}{' '}
-                <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+                {liveCube
+                  ? `${f3(liveCube.totals.aovKwd)} `
+                  : workspace.nullableAovKwd === null
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : `${f3(workspace.nullableAovKwd)} `}
+                {liveCube || workspace.nullableAovKwd !== null ? (
+                  <span className="text-xs font-normal text-slate-500">{isAr ? 'د.ك' : 'KWD'}</span>
+                ) : null}
               </div>
               <div className="mt-1 text-[11px] text-slate-500">
                 {isAr ? 'صافي المبيعات ÷ عدد الطلبات' : 'Net sales ÷ orders'}
@@ -573,14 +597,22 @@ export function CoresHubStudio({
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 {isAr ? 'القنوات المباشرة مقابل التطبيقات' : 'Direct vs Aggregators'}
               </div>
-              <div className="mt-1.5 font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                {f1(snapshot.sales.zeroCommSalesKwd)} {isAr ? 'د.ك مباشر' : 'KWD direct'} (
-                {f1(snapshot.sales.zeroCommSharePct)}%)
-              </div>
-              <div className="mt-0.5 text-[11px] font-mono text-sky-700 dark:text-sky-300">
-                {f1(snapshot.sales.aggregatorSalesKwd)} {isAr ? 'د.ك تطبيقات' : 'KWD apps'} (
-                {f1(snapshot.sales.aggregatorSharePct)}%)
-              </div>
+              {snapshot.sales.channelsUnavailable ? (
+                <div className="mt-1.5 font-mono text-lg font-bold text-slate-700 dark:text-slate-200">
+                  {isAr ? 'غير متاح' : '—'}
+                </div>
+              ) : (
+                <>
+                  <div className="mt-1.5 font-mono text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {f1(snapshot.sales.zeroCommSalesKwd)} {isAr ? 'د.ك مباشر' : 'KWD direct'} (
+                    {f1(snapshot.sales.zeroCommSharePct)}%)
+                  </div>
+                  <div className="mt-0.5 text-[11px] font-mono text-sky-700 dark:text-sky-300">
+                    {f1(snapshot.sales.aggregatorSalesKwd)} {isAr ? 'د.ك تطبيقات' : 'KWD apps'} (
+                    {f1(snapshot.sales.aggregatorSharePct)}%)
+                  </div>
+                </>
+              )}
               <KpiProvenanceBadge
                 odooModel="pos.order.line + pos.payment"
                 dateRange={dateRangeLabel}
@@ -659,9 +691,13 @@ export function CoresHubStudio({
                   {isAr ? 'التوزيع الساعي لطلبات نقاط البيع' : 'Hourly POS Sales Profile'}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  {isAr
-                    ? `ذروة المبيعات: ${snapshot.sales.peakHourLabelAr} · الفترة 3–6 م: ${f1(snapshot.sales.quietWindowSalesKwd)} د.ك (${f0(snapshot.sales.quietWindowOrders)} طلب)`
-                    : `Peak hour: ${snapshot.sales.peakHourLabelEn} · 3–6 PM: ${f1(snapshot.sales.quietWindowSalesKwd)} KWD (${f0(snapshot.sales.quietWindowOrders)} orders)`}
+                  {snapshot.sales.hourlyUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : isAr
+                      ? `ذروة المبيعات: ${snapshot.sales.peakHourLabelAr} · الفترة 3–6 م: ${f1(snapshot.sales.quietWindowSalesKwd)} د.ك (${f0(snapshot.sales.quietWindowOrders)} طلب)`
+                      : `Peak hour: ${snapshot.sales.peakHourLabelEn} · 3–6 PM: ${f1(snapshot.sales.quietWindowSalesKwd)} KWD (${f0(snapshot.sales.quietWindowOrders)} orders)`}
                 </p>
               </div>
               <KpiProvenanceBadge
@@ -673,7 +709,11 @@ export function CoresHubStudio({
                 queryOrFormula="Grouped by Asia/Kuwait hour of pos.order.date_order"
               />
             </div>
-            {cubeLoading && hourlyBars.length === 0 ? (
+            {snapshot.sales.hourlyUnavailable ? (
+              <div className="py-8 text-center text-xs font-semibold text-amber-800 dark:text-amber-200">
+                {isAr ? 'غير متاح' : '—'}
+              </div>
+            ) : cubeLoading && hourlyBars.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">
                 {isAr ? 'جاري تحميل التوزيع الساعي من Odoo...' : 'Loading hourly distribution from Odoo...'}
               </div>
@@ -796,7 +836,13 @@ export function CoresHubStudio({
                 {isAr ? 'حسب طرق الدفع وأجهزة نقاط البيع في Odoo' : 'Classified via POS payment methods & configs'}
               </p>
               <div className="mt-4">
-                <InteractiveHorizontalRankList items={channelRanks} isAr={isAr} />
+                {snapshot.sales.channelsUnavailable ? (
+                  <div className="py-6 text-center text-xs font-semibold text-slate-500">
+                    {isAr ? 'غير متاح' : '—'}
+                  </div>
+                ) : (
+                  <InteractiveHorizontalRankList items={channelRanks} isAr={isAr} />
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line + pos.payment"

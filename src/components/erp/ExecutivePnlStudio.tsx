@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { useI18n } from '@/lib/i18n'
 
 function fmtKwd(value: number | null | undefined, isAr: boolean): string {
@@ -36,7 +37,7 @@ function fmtPct(value: number | null | undefined, isAr: boolean): string {
 export function ExecutivePnlStudio() {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
-  const { workspace } = useGlobalFilter()
+  const { workspace, liveSummary } = useGlobalFilter()
   const gl = workspace.accounting
 
   const brandRows = workspace.cascadingOptions.brands.filter((b) => b.id !== 'all')
@@ -169,16 +170,22 @@ export function ExecutivePnlStudio() {
         )}
       </div>
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4 space-y-1">
           <span className="text-xs font-bold text-slate-400">
             {isAr ? 'صافي مبيعات نقاط البيع (POS)' : 'POS Net Sales (pos.order)'}
           </span>
           <div className="text-xl sm:text-2xl font-black font-mono text-white">
-            {fmtKwd(workspace.salesKwd, isAr)}
+            {fmtKwd(workspace.nullableSalesKwd, isAr)}
           </div>
           <span className="text-xs text-emerald-400 font-semibold block">
-            {workspace.orders.toLocaleString('en-US')} {isAr ? 'طلب مقبوض' : 'settled orders'}
+            {workspace.nullableOrders === null
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : `${workspace.nullableOrders.toLocaleString('en-US')} ${isAr ? 'طلب مقبوض' : 'settled orders'}`}
           </span>
         </div>
 

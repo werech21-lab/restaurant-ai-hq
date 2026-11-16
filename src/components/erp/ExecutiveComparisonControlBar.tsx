@@ -200,13 +200,16 @@ function formatGapAmount(gap: number): string {
 function gapFromLiveSummary(
   summary: {
     connected?: boolean
-    branches?: { netSalesKwd: number }[]
-    unattributedSalesKwd?: number
-    companyTotals?: { netSalesKwd?: number }
-    totals?: { netSalesKwd?: number }
+    branches?: { netSalesKwd: number }[] | null
+    unattributedSalesKwd?: number | null
+    companyTotals?: { netSalesKwd?: number | null }
+    totals?: { netSalesKwd?: number | null }
   } | null | undefined,
 ): { connected: boolean; gapKwd: number | null } {
   if (!summary || summary.connected !== true) return { connected: false, gapKwd: null }
+  if (summary.branches === null || summary.unattributedSalesKwd === null) {
+    return { connected: true, gapKwd: null }
+  }
   const rowSum =
     (summary.branches ?? []).reduce((sum, row) => sum + (Number(row.netSalesKwd) || 0), 0) +
     (Number(summary.unattributedSalesKwd) || 0)

@@ -40,6 +40,7 @@ import {
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { routeTitle } from '@/lib/aether/route-titles'
 import {
@@ -54,6 +55,17 @@ import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
 export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
 export type ErpOverviewSubtab = 'summary' | 'plays'
+
+const ROUTES_WITH_OWN_PARTIAL_BANNER = new Set([
+  '/erp',
+  '/erp/cores',
+  '/erp/sales-analysis',
+  '/erp/menu-engineering',
+  '/erp/aggregator-radar',
+  '/erp/commissions',
+  '/erp/sales-scorecard',
+  '/erp/executive-pnl',
+])
 
 const ROUTES_WITH_OWN_H1 = new Set([
   '/erp/food-safety',
@@ -1808,6 +1820,9 @@ export function TopFilterBar({
           ) : null}
         </div>
       </header>
+      {pathname.startsWith('/erp') && !ROUTES_WITH_OWN_PARTIAL_BANNER.has(pathname) ? (
+        <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+      ) : null}
     </>
   )
 }

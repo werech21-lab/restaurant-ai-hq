@@ -539,8 +539,16 @@ export function GlobalFilterProvider({
       }
       const qs = params.toString()
       const deepUrl = `${origin}${targetPath}${qs ? `?${qs}` : ''}`
-      const salesFmt = Math.round(workspace.salesKwd).toLocaleString('en-US')
-      const ordFmt = workspace.orders.toLocaleString('en-US')
+      const salesFmt =
+        workspace.nullableSalesKwd === null
+          ? isAr
+            ? 'غير متاح'
+            : '—'
+          : Math.round(workspace.nullableSalesKwd).toLocaleString('en-US')
+      const ordFmt =
+        workspace.nullableOrders === null
+          ? '—'
+          : workspace.nullableOrders.toLocaleString('en-US')
 
       const netLabelAr =
         workspace.accounting.netProfitPct !== null

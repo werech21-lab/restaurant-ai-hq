@@ -14,8 +14,19 @@ type SyncState = {
 const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v11'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
-const fmt = (n: number) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const fmt = (n: number | null | undefined, isAr = false) =>
+  n == null || !Number.isFinite(n)
+    ? isAr
+      ? 'غير متاح'
+      : '—'
+    : n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+
+const fmtInt = (n: number | null | undefined, isAr = false) =>
+  n == null || !Number.isFinite(n)
+    ? isAr
+      ? 'غير متاح'
+      : '—'
+    : n.toLocaleString('en-US')
 
 /**
  * Odoo 17 Sync Pill in the Single-Row Executive Command Bar.
@@ -123,8 +134,11 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
           ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to}${mtdSuffixAr}`
           : `Last 30d: ${s.period.from} → ${s.period.to}${mtdSuffixEn}`,
         isAr
-          ? `صافي المبيعات: ${fmt(s.totals.netSalesKwd)} د.ك · ${s.totals.orders.toLocaleString('en-US')} طلب`
-          : `Net sales: ${fmt(s.totals.netSalesKwd)} KWD · ${s.totals.orders.toLocaleString('en-US')} orders`,
+          ? `صافي المبيعات: ${s.totals.netSalesKwd == null ? 'غير متاح' : `${fmt(s.totals.netSalesKwd, true)} د.ك`} · ${s.totals.orders == null ? 'غير متاح' : `${fmtInt(s.totals.orders, true)} طلب`}`
+          : `Net sales: ${s.totals.netSalesKwd == null ? '—' : `${fmt(s.totals.netSalesKwd, false)} KWD`} · ${s.totals.orders == null ? '—' : `${fmtInt(s.totals.orders, false)} orders`}`,
+        ...(s.partial
+          ? [isAr ? s.warningAr || 'بعض الأرقام غير متاحة الآن' : s.warningEn || 'Some figures are temporarily unavailable']
+          : []),
       ].join('\n')
     : isAr
       ? 'مزامنة Odoo 17 — اضغط لتحديث الأرقام الآن'

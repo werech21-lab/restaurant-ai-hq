@@ -636,6 +636,14 @@ export interface GlobalWorkspaceSlice {
   odooConnected: boolean
   noData: boolean
   noDataMessageAr: string | null
+  partial: boolean
+  unavailableSections: string[]
+  warningAr: string | null
+  warningEn: string | null
+  sectionUnavailable: boolean
+  nullableSalesKwd: number | null
+  nullableOrders: number | null
+  nullableAovKwd: number | null
   lastSyncAt: string | null
   isStale24h: boolean
   odooCompanyId: number | null
@@ -1106,6 +1114,14 @@ export function computeGlobalWorkspace(
       odooConnected: false,
       noData: true,
       noDataMessageAr,
+      partial: false,
+      unavailableSections: [],
+      warningAr: null,
+      warningEn: null,
+      sectionUnavailable: false,
+      nullableSalesKwd: 0,
+      nullableOrders: 0,
+      nullableAovKwd: 0,
       lastSyncAt: liveSummary?.lastSyncAt ?? null,
       isStale24h: Boolean(liveSummary?.isStale24h),
       odooCompanyId: liveSummary?.odooCompanyId ?? null,
@@ -1315,10 +1331,27 @@ export function computeGlobalWorkspace(
   }
 
   const { brand, branch, channel } = filters
+  const bucketTotalsUnavailable = Boolean(
+    activeBkt &&
+      (activeBkt.totals.restaurantNetKwd === null || activeBkt.totals.restaurantOrders === null),
+  )
+  const channelsSectionUnavailable = Boolean(activeBkt && activeBkt.uiChannels === null)
+  const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand === null)
+  const hourlySectionUnavailable = Boolean(liveSummary.hourlySeries === null)
+  const sectionUnavailable = Boolean(
+    bucketTotalsUnavailable ||
+      (channel !== 'all' && channelsSectionUnavailable) ||
+      (brand !== 'all' && brandsSectionUnavailable) ||
+      (filters.kuwaitSlice === 'quiet-hours' && hourlySectionUnavailable),
+  )
+
   const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const salesKwd = activeSlice.salesKwd
   const orders = activeSlice.orders
   const aovKwd = orders > 0 ? Math.round((salesKwd / orders) * 1000) / 1000 : 0
+  const nullableSalesKwd = sectionUnavailable ? null : salesKwd
+  const nullableOrders = sectionUnavailable ? null : orders
+  const nullableAovKwd = sectionUnavailable ? null : aovKwd
 
   const unattributedSalesKwd = safeNum(
     activeBkt?.unattributedSalesKwd,
@@ -1506,34 +1539,61 @@ export function computeGlobalWorkspace(
 
   // Cascading Filter Options strictly from live Odoo POS
   const cascadingBrands: FilterOption<GlobalBrand>[] = GLOBAL_BRAND_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && (brandsSectionUnavailable || bucketTotalsUnavailable)) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(opt.id, branch, channel)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === brand,
     }
   })
 
   const cascadingBranches: FilterOption<GlobalBranch>[] = GLOBAL_BRANCH_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && bucketTotalsUnavailable) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(brand, opt.id, channel)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === branch,
     }
   })
 
   const cascadingChannels: FilterOption<GlobalChannel>[] = GLOBAL_CHANNEL_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && channelsSectionUnavailable) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(brand, branch, opt.id)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === channel,
     }
   })
@@ -1667,10 +1727,19 @@ export function computeGlobalWorkspace(
       : (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
   const glMarginLabelEn =
     accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'Incomplete GL entries'
-  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | غير منسوب لفرع: ${fKwd(unattributedSalesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | صافي الربح المحاسبي: ${glMarginLabelAr} | عمولات المنصات: ${aggregatorCommissionDisplayAr ?? 'مرحّلة'}]`
-  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Unattributed: ${fKwd(unattributedSalesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | GL Margin: ${glMarginLabelEn}]`
+  const feryalSalesAr = nullableSalesKwd === null ? 'غير متاح' : fKwd(nullableSalesKwd, true)
+  const feryalSalesEn = nullableSalesKwd === null ? '—' : fKwd(nullableSalesKwd, false)
+  const feryalOrdersStr = nullableOrders === null ? '—' : nullableOrders.toLocaleString('en-US')
+  const feryalAovAr = nullableAovKwd === null ? 'غير متاح' : `${nullableAovKwd.toFixed(2)} د.ك`
+  const feryalAovEn = nullableAovKwd === null ? '—' : `${nullableAovKwd.toFixed(2)} KWD`
+  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${feryalSalesAr} | غير منسوب لفرع: ${fKwd(unattributedSalesKwd, true)} | الطلبات: ${feryalOrdersStr} | متوسط الفاتورة: ${feryalAovAr} | صافي الربح المحاسبي: ${glMarginLabelAr} | عمولات المنصات: ${aggregatorCommissionDisplayAr ?? 'مرحّلة'}]`
+  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${feryalSalesEn} | Unattributed: ${fKwd(unattributedSalesKwd, false)} | Orders: ${feryalOrdersStr} | AOV: ${feryalAovEn} | GL Margin: ${glMarginLabelEn}]`
 
-  const noData = Boolean(liveSummary.noData || (salesKwd <= 0 && orders <= 0))
+  const noData = Boolean(
+    !sectionUnavailable && (liveSummary.noData || (salesKwd <= 0 && orders <= 0)),
+  )
+  const partial = Boolean(liveSummary.partial)
+  const unavailableSections = liveSummary.unavailableSections ?? []
 
   return {
     filters,
@@ -1678,6 +1747,14 @@ export function computeGlobalWorkspace(
     odooConnected: true,
     noData,
     noDataMessageAr: noData ? (liveSummary.messageAr ?? 'لا توجد بيانات من Odoo لهذه الفترة') : null,
+    partial,
+    unavailableSections,
+    warningAr: partial ? (liveSummary.warningAr ?? 'بعض الأرقام غير متاحة الآن') : null,
+    warningEn: partial ? (liveSummary.warningEn ?? 'Some figures are temporarily unavailable') : null,
+    sectionUnavailable,
+    nullableSalesKwd,
+    nullableOrders,
+    nullableAovKwd,
     lastSyncAt: liveSummary.lastSyncAt ?? liveSummary.syncedAt ?? null,
     isStale24h: Boolean(liveSummary.isStale24h ?? liveSummary.isStaleOver24h),
     odooCompanyId: liveSummary.odooCompanyId ?? null,

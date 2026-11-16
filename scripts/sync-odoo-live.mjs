@@ -12,7 +12,9 @@
  *   - brands               → the approved Venture Foods brands (root POS category per brand)
  *   - excludedBranchAnalyticIds → accounting analytic accounts removed from the P&L reconciliation
  *
- * Every Odoo query runs in its own try/catch; a missing read permission is logged and reported.
+ * Order/sales queries exit non-zero BEFORE writing any file if they fail for any reason other
+ * than a missing Odoo read permission (`AccessError`), in which case `null` is recorded alongside
+ * `permissions.missingRead` (never `0` and never derived from KWD).
  *
  * Windows (Kuwait calendar days, end exclusive):
  *   - Rolling 30 days   : the 30 complete days before today (primary analysis period)
@@ -31,16 +33,16 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { extractJourney } from './odoo-journey-extract.mjs'
 
 const ROOT = process.cwd()
-const SNAPSHOT = path.join(ROOT, 'src', 'lib', 'odoo-live-snapshot.json')
-const JOURNEY_OUT = path.join(ROOT, 'src', 'lib', 'odoo', 'odoo-journey.json')
-const REGISTRY = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'pos-registry.json'), 'utf8'))
-const ALLOWED = REGISTRY.allowedPosConfigIds
-const ALLOWED_SET = new Set(ALLOWED)
+const DEFAULT_SNAPSHOT = path.join(ROOT, 'src', 'lib', 'odoo-live-snapshot.json')
+const DEFAULT_JOURNEY_OUT = path.join(ROOT, 'src', 'lib', 'odoo', 'odoo-journey.json')
+const DEFAULT_REGISTRY = JSON.parse(
+  fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'pos-registry.json'), 'utf8'),
+)
 
-/* ------------------------------------------------------------------ env */
 function loadEnvFile(file) {
   if (!fs.existsSync(file)) return {}
   const out = {}
@@ -50,67 +52,27 @@ function loadEnvFile(file) {
   }
   return out
 }
-const fileEnv = loadEnvFile(path.join(ROOT, '.env.local'))
-const env = (k) => process.env[k] || fileEnv[k] || ''
-const ODOO_URL = env('ODOO_URL').replace(/\/+$/, '')
-const ODOO_DB = env('ODOO_DB')
-const ODOO_LOGIN = env('ODOO_LOGIN')
-const ODOO_API_KEY = env('ODOO_API_KEY')
 
-const argv = process.argv.slice(2)
-const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined }
 const isoDay = (d) => d.toISOString().slice(0, 10)
-const addDays = (s, n) => { const d = new Date(`${s}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return isoDay(d) }
-const dayDiff = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 86400000)
-/** Today in Kuwait (UTC+3). */
-const TODAY = isoDay(new Date(Date.now() + 3 * 3600 * 1000))
-function defaultPeriod() {
-  return { from: addDays(TODAY, -30), to: TODAY }
+const addDays = (s, n) => {
+  const d = new Date(`${s}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return isoDay(d)
 }
-const PERIOD = { ...defaultPeriod(), ...(arg('--from') ? { from: arg('--from') } : {}), ...(arg('--to') ? { to: arg('--to') } : {}) }
-const WINDOWS = {
-  rolling30: { from: PERIOD.from, to: PERIOD.to, days: dayDiff(PERIOD.from, PERIOD.to) },
-  prior30: { from: addDays(PERIOD.from, -dayDiff(PERIOD.from, PERIOD.to)), to: PERIOD.from, days: dayDiff(PERIOD.from, PERIOD.to) },
-  mtd: { from: `${TODAY.slice(0, 8)}01`, to: addDays(TODAY, 1), days: Number(TODAY.slice(8, 10)) },
-}
-const SKIP_JOURNEY = argv.includes('--skip-journey')
+const dayDiff = (a, b) =>
+  Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 86400000)
 
-function fail(msg) { console.error(`\n✖ ${msg}`); process.exit(1) }
-for (const [k, v] of Object.entries({ ODOO_URL, ODOO_DB, ODOO_LOGIN, ODOO_API_KEY })) if (!v) fail(`${k} is missing in .env.local`)
+export const isAccessError = (e) =>
+  /AccessError|access right|not allowed to access|AccessDenied|record rules/i.test(
+    `${e?.message ?? ''} ${JSON.stringify(e?.odoo ?? {})}`,
+  )
 
-/* ------------------------------------------------------------------ rpc */
-let rpcId = 0
-async function rpc(service, method, args) {
-  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', method: 'call', id: ++rpcId, params: { service, method, args } }),
-    signal: AbortSignal.timeout(120_000),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const json = await res.json()
-  if (json.error) { const e = new Error(json.error.data?.message || json.error.message || 'Odoo error'); e.odoo = json.error; throw e }
-  return json.result
-}
-let UID = 0
-const ek = (model, method, args = [], kwargs = {}) => rpc('object', 'execute_kw', [ODOO_DB, UID, ODOO_API_KEY, model, method, args, kwargs])
-const MISSING_READ = new Map()
-const isAccessError = (e) => /AccessError|access right|not allowed to access|AccessDenied|record rules/i.test(`${e.message} ${JSON.stringify(e.odoo ?? {})}`)
-async function safe(label, fn, fallback) {
-  try { return await fn() } catch (e) {
-    const model = label.split(' ')[0]
-    if (isAccessError(e)) { MISSING_READ.set(model, String(e.message).slice(0, 200)); console.warn(`  ⛔ no read permission on ${model} (${label})`) }
-    else console.warn(`  ! ${label}: ${String(e.message).slice(0, 200)}`)
-    return fallback
-  }
-}
 const m2oId = (v) => (Array.isArray(v) ? v[0] : null)
 const m2oName = (v) => (Array.isArray(v) ? v[1] : null)
 const r3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000
 const pct = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : 0)
 
-/* ------------------------------------------------------------- channels */
-function channelOf(pm) {
+export function channelOf(pm) {
   const n = (pm || '').toLowerCase()
   if (/talabat go/.test(n)) return 'Talabat Go'
   if (/talabat mp/.test(n)) return 'Talabat MP'
@@ -127,68 +89,279 @@ function channelOf(pm) {
   return 'Shop Sales'
 }
 
-async function main() {
-  console.log(`▶ Odoo ${ODOO_URL} · db=${ODOO_DB} · period ${PERIOD.from} → ${PERIOD.to} (exclusive)`)
+export async function runSyncOdooLive(options = {}) {
+  const REGISTRY = options.registry ?? DEFAULT_REGISTRY
+  const ALLOWED = REGISTRY.allowedPosConfigIds
+  const ALLOWED_SET = new Set(ALLOWED)
+  const SNAPSHOT = options.snapshotPath ?? DEFAULT_SNAPSHOT
+  const JOURNEY_OUT = options.journeyOutPath ?? DEFAULT_JOURNEY_OUT
+  const silent = Boolean(options.silent)
+  const log = silent ? () => {} : (...a) => console.log(...a)
+  const warn = silent ? () => {} : (...a) => console.warn(...a)
+
+  const ODOO_URL = String(options.odooUrl ?? '').replace(/\/+$/, '')
+  const ODOO_DB = String(options.odooDb ?? '')
+  const ODOO_LOGIN = String(options.odooLogin ?? '')
+  const ODOO_API_KEY = String(options.odooApiKey ?? '')
+
+  for (const [k, v] of Object.entries({ ODOO_URL, ODOO_DB, ODOO_LOGIN, ODOO_API_KEY })) {
+    if (!v) throw new Error(`${k} is missing in .env.local`)
+  }
+
+  const TODAY = options.today ?? isoDay(new Date(Date.now() + 3 * 3600 * 1000))
+  const PERIOD = options.period ?? { from: addDays(TODAY, -30), to: TODAY }
+  const WINDOWS = {
+    rolling30: { from: PERIOD.from, to: PERIOD.to, days: dayDiff(PERIOD.from, PERIOD.to) },
+    prior30: {
+      from: addDays(PERIOD.from, -dayDiff(PERIOD.from, PERIOD.to)),
+      to: PERIOD.from,
+      days: dayDiff(PERIOD.from, PERIOD.to),
+    },
+    mtd: { from: `${TODAY.slice(0, 8)}01`, to: addDays(TODAY, 1), days: Number(TODAY.slice(8, 10)) },
+  }
+  const SKIP_JOURNEY = Boolean(options.skipJourney)
+
+  const writeFile = options.writeFileImpl ?? ((fp, data) => fs.writeFileSync(fp, data))
+  const existsSync = options.existsSyncImpl ?? ((fp) => fs.existsSync(fp))
+  const readFileSync = options.readFileSyncImpl ?? ((fp, enc) => fs.readFileSync(fp, enc))
+  const statSync = options.statSyncImpl ?? ((fp) => fs.statSync(fp))
+
+  let rpcId = 0
+  const defaultRpc = async (service, method, args) => {
+    const res = await fetch(`${ODOO_URL}/jsonrpc`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'call',
+        id: ++rpcId,
+        params: { service, method, args },
+      }),
+      signal: AbortSignal.timeout(120_000),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    if (json.error) {
+      const e = new Error(json.error.data?.message || json.error.message || 'Odoo error')
+      e.odoo = json.error
+      throw e
+    }
+    return json.result
+  }
+  const rpc = options.rpcImpl ?? defaultRpc
+
+  let UID = 0
+  const ek = (model, method, args = [], kwargs = {}) =>
+    rpc('object', 'execute_kw', [ODOO_DB, UID, ODOO_API_KEY, model, method, args, kwargs])
+  const MISSING_READ = new Map()
+
+  async function safe(label, fn, fallback) {
+    try {
+      return await fn()
+    } catch (e) {
+      const model = label.split(' ')[0]
+      if (isAccessError(e)) {
+        MISSING_READ.set(model, String(e.message).slice(0, 200))
+        warn(`  ⛔ no read permission on ${model} (${label})`)
+      } else {
+        warn(`  ! ${label}: ${String(e.message).slice(0, 200)}`)
+      }
+      return fallback
+    }
+  }
+
+  /**
+   * Order/sales query runner:
+   * - Missing read permission (`isAccessError`) -> records model in `MISSING_READ` and returns `null` (never `[]` or `0`).
+   * - Any other failure -> throws immediately so the process exits non-zero BEFORE writing any snapshot file.
+   */
+  async function salesQuery(model, label, fn) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (isAccessError(e)) {
+        MISSING_READ.set(model, String(e.message).slice(0, 200))
+        warn(`  ⛔ no read permission on ${model} (${label})`)
+        return null
+      }
+      throw new Error(`${label}: ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  log(`▶ Odoo ${ODOO_URL} · db=${ODOO_DB} · period ${PERIOD.from} → ${PERIOD.to} (exclusive)`)
   const version = await safe('common version', () => rpc('common', 'version', []), {})
   UID = await rpc('common', 'authenticate', [ODOO_DB, ODOO_LOGIN, ODOO_API_KEY, {}])
-  if (!Number.isInteger(UID) || UID <= 0) fail('Authentication refused (check ODOO_LOGIN / ODOO_API_KEY / ODOO_DB).')
-  console.log(`▶ Authenticated uid=${UID} · server ${version.server_version ?? '?'} · ${ALLOWED.length} whitelisted registers`)
+  if (!Number.isInteger(UID) || UID <= 0) {
+    throw new Error('Authentication refused (check ODOO_LOGIN / ODOO_API_KEY / ODOO_DB).')
+  }
+  log(
+    `▶ Authenticated uid=${UID} · server ${version.server_version ?? '?'} · ${ALLOWED.length} whitelisted registers`,
+  )
 
   /* master data (whitelisted registers only) */
-  const configs = await safe('pos.config search_read', () => ek('pos.config', 'search_read', [[['id', 'in', ALLOWED], ['active', 'in', [true, false]]]], { fields: ['id', 'name', 'active', 'company_id'], context: { active_test: false } }), [])
+  const configs = await safe(
+    'pos.config search_read',
+    () =>
+      ek(
+        'pos.config',
+        'search_read',
+        [[['id', 'in', ALLOWED], ['active', 'in', [true, false]]]],
+        { fields: ['id', 'name', 'active', 'company_id'], context: { active_test: false } },
+      ),
+    [],
+  )
   const configById = new Map(configs.map((c) => [c.id, c]))
   const locationOfConfig = (id) => REGISTRY.registers[String(id)]?.location ?? null
-  const posCategories = await safe('pos.category search_read', () => ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] }), [])
+  const posCategories = await safe(
+    'pos.category search_read',
+    () => ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] }),
+    [],
+  )
   const catById = new Map(posCategories.map((c) => [c.id, c]))
-  const rootOf = (id) => { let c = catById.get(id); let g = 0; while (c && c.parent_id && g++ < 10) c = catById.get(m2oId(c.parent_id)); return c ?? null }
+  const rootOf = (id) => {
+    let c = catById.get(id)
+    let g = 0
+    while (c && c.parent_id && g++ < 10) c = catById.get(m2oId(c.parent_id))
+    return c ?? null
+  }
   const brandByRoot = new Map(REGISTRY.brands.filter((b) => b.posRoot).map((b) => [b.posRoot, b]))
-  const rootCatIdOfBrand = new Map(REGISTRY.brands.map((b) => [b.id, posCategories.find((c) => !c.parent_id && c.name === b.posRoot)?.id ?? null]))
-  const payMethods = await safe('pos.payment.method search_read', () => ek('pos.payment.method', 'search_read', [[]], { fields: ['id', 'name'] }), [])
+  const rootCatIdOfBrand = new Map(
+    REGISTRY.brands.map((b) => [
+      b.id,
+      posCategories.find((c) => !c.parent_id && c.name === b.posRoot)?.id ?? null,
+    ]),
+  )
+  const payMethods = await safe(
+    'pos.payment.method search_read',
+    () => ek('pos.payment.method', 'search_read', [[]], { fields: ['id', 'name'] }),
+    [],
+  )
   const methodsOfChannel = new Map()
-  for (const p of payMethods) { const ch = channelOf(p.name); methodsOfChannel.set(ch, [...(methodsOfChannel.get(ch) || []), p.id]) }
+  for (const p of payMethods) {
+    const ch = channelOf(p.name)
+    methodsOfChannel.set(ch, [...(methodsOfChannel.get(ch) || []), p.id])
+  }
 
-  const base = [['date_order', '>=', `${PERIOD.from} 00:00:00`], ['date_order', '<', `${PERIOD.to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]]
-  const lineBase = [['order_id.date_order', '>=', `${PERIOD.from} 00:00:00`], ['order_id.date_order', '<', `${PERIOD.to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', ALLOWED]]
+  const base = [
+    ['date_order', '>=', `${PERIOD.from} 00:00:00`],
+    ['date_order', '<', `${PERIOD.to} 00:00:00`],
+    ['state', 'in', ['paid', 'done', 'invoiced']],
+    ['session_id.config_id', 'in', ALLOWED],
+  ]
+  const lineBase = [
+    ['order_id.date_order', '>=', `${PERIOD.from} 00:00:00`],
+    ['order_id.date_order', '<', `${PERIOD.to} 00:00:00`],
+    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+    ['order_id.session_id.config_id', 'in', ALLOWED],
+  ]
 
   /* orders & net by register (via session) */
-  const bySession = await safe('pos.order read_group session', () => ek('pos.order', 'read_group', [base, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }), [])
-  const sessionIds = [...new Set(bySession.map((g) => m2oId(g.session_id)).filter(Boolean))]
-  const sessions = sessionIds.length ? await safe('pos.session read', () => ek('pos.session', 'read', [sessionIds, ['id', 'config_id']]), []) : []
-  const cfgOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
+  const bySession = await salesQuery('pos.order', 'pos.order read_group session', () =>
+    ek('pos.order', 'read_group', [base, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], {
+      lazy: false,
+    }),
+  )
+  const sessionIds = bySession
+    ? [...new Set(bySession.map((g) => m2oId(g.session_id)).filter(Boolean))]
+    : []
+  const sessions = sessionIds.length
+    ? await salesQuery('pos.session', 'pos.session read', () =>
+        ek('pos.session', 'read', [sessionIds, ['id', 'config_id']]),
+      )
+    : []
+  const cfgOfSession = new Map((sessions ?? []).map((s) => [s.id, m2oId(s.config_id)]))
+  const sessionOrdersReadable = bySession !== null && sessions !== null
+
   const regAgg = new Map()
-  for (const g of bySession) {
-    const cfg = cfgOfSession.get(m2oId(g.session_id))
-    if (!ALLOWED_SET.has(cfg)) continue
-    const r = regAgg.get(cfg) || { orders: 0, net: 0 }
-    r.orders += g.__count || 0
-    r.net += (g.amount_total || 0) - (g.amount_tax || 0)
-    regAgg.set(cfg, r)
+  if (sessionOrdersReadable) {
+    for (const g of bySession) {
+      const cfg = cfgOfSession.get(m2oId(g.session_id))
+      if (!ALLOWED_SET.has(cfg)) continue
+      const r = regAgg.get(cfg) || { orders: 0, net: 0 }
+      r.orders += g.__count || 0
+      r.net += (g.amount_total || 0) - (g.amount_tax || 0)
+      regAgg.set(cfg, r)
+    }
   }
-  const registers = [...regAgg.entries()].map(([id, r]) => ({ posConfigId: id, name: configById.get(id)?.name ?? `POS ${id}`, location: locationOfConfig(id), orders: r.orders, netKwd: r3(r.net) })).sort((a, b) => a.posConfigId - b.posConfigId)
-  const totalNet = registers.reduce((s, r) => s + r.netKwd, 0)
-  const totalOrders = registers.reduce((s, r) => s + r.orders, 0)
+  const registers = [...regAgg.entries()]
+    .map(([id, r]) => ({
+      posConfigId: id,
+      name: configById.get(id)?.name ?? `POS ${id}`,
+      location: locationOfConfig(id),
+      orders: r.orders,
+      netKwd: r3(r.net),
+    }))
+    .sort((a, b) => a.posConfigId - b.posConfigId)
+  const totalNet = sessionOrdersReadable ? registers.reduce((s, r) => s + r.netKwd, 0) : null
+  const totalOrders = sessionOrdersReadable ? registers.reduce((s, r) => s + r.orders, 0) : null
 
   /* product lines per register → brand & category */
   const linesByCfg = new Map()
   for (const r of registers) {
-    linesByCfg.set(r.posConfigId, await safe(`pos.order.line read_group cfg ${r.posConfigId}`, () => ek('pos.order.line', 'read_group', [[...lineBase.slice(0, 3), ['order_id.session_id.config_id', '=', r.posConfigId]], ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false }), []))
+    const cfgRows = await salesQuery(
+      'pos.order.line',
+      `pos.order.line read_group cfg ${r.posConfigId}`,
+      () =>
+        ek(
+          'pos.order.line',
+          'read_group',
+          [
+            [...lineBase.slice(0, 3), ['order_id.session_id.config_id', '=', r.posConfigId]],
+            ['price_subtotal:sum', 'qty:sum'],
+            ['product_id'],
+          ],
+          { lazy: false },
+        ),
+    )
+    if (cfgRows !== null) linesByCfg.set(r.posConfigId, cfgRows)
   }
-  const productIds = [...new Set([...linesByCfg.values()].flat().map((g) => m2oId(g.product_id)).filter(Boolean))]
-  const productInfo = productIds.length ? await safe('product.product read', () => ek('product.product', 'read', [productIds, ['id', 'pos_categ_id', 'lst_price']]), []) : []
-  // Product cost is a restricted field in Odoo; read it separately so a missing right never breaks the brand mapping.
-  const productCost = productIds.length ? await safe('product.product standard_price', () => ek('product.product', 'read', [productIds, ['id', 'standard_price']]), []) : []
+  const productIds = [
+    ...new Set([...linesByCfg.values()].flat().map((g) => m2oId(g.product_id)).filter(Boolean)),
+  ]
+  const productInfo = productIds.length
+    ? await safe(
+        'product.product read',
+        () => ek('product.product', 'read', [productIds, ['id', 'pos_categ_id', 'lst_price']]),
+        [],
+      )
+    : []
+  const productCost = productIds.length
+    ? await safe(
+        'product.product standard_price',
+        () => ek('product.product', 'read', [productIds, ['id', 'standard_price']]),
+        [],
+      )
+    : []
   const costOfProduct = new Map(productCost.map((p) => [p.id, Number(p.standard_price) || 0]))
   const catOfProduct = new Map(productInfo.map((p) => [p.id, m2oId(p.pos_categ_id)]))
-  const priceOfProduct = new Map(productInfo.map((p) => [p.id, { list: Number(p.lst_price) || 0, cost: costOfProduct.get(p.id) ?? 0 }]))
-  const brandOfProduct = (pid) => { const root = rootOf(catOfProduct.get(pid)); return root ? brandByRoot.get(root.name)?.id ?? (root.name === 'Admin' ? null : 'uncategorised') : 'uncategorised' }
+  const priceOfProduct = new Map(
+    productInfo.map((p) => [
+      p.id,
+      { list: Number(p.lst_price) || 0, cost: costOfProduct.get(p.id) ?? 0 },
+    ]),
+  )
+  const brandOfProduct = (pid) => {
+    const root = rootOf(catOfProduct.get(pid))
+    return root
+      ? (brandByRoot.get(root.name)?.id ?? (root.name === 'Admin' ? null : 'uncategorised'))
+      : 'uncategorised'
+  }
   const nameOfProductId = new Map()
-  for (const rows of linesByCfg.values()) for (const g of rows) { const pid = m2oId(g.product_id); if (pid) nameOfProductId.set(pid, m2oName(g.product_id)) }
-  /** Lazily loads category / list price / name for products first seen outside the main window. */
+  for (const rows of linesByCfg.values()) {
+    for (const g of rows) {
+      const pid = m2oId(g.product_id)
+      if (pid) nameOfProductId.set(pid, m2oName(g.product_id))
+    }
+  }
   const ensureProducts = async (ids) => {
     const need = [...new Set(ids)].filter((id) => id && !catOfProduct.has(id))
     for (let i = 0; i < need.length; i += 400) {
       const part = need.slice(i, i + 400)
-      for (const p of await safe('product.product read (lazy)', () => ek('product.product', 'read', [part, ['id', 'pos_categ_id', 'lst_price', 'display_name']]), [])) {
+      for (const p of await safe(
+        'product.product read (lazy)',
+        () => ek('product.product', 'read', [part, ['id', 'pos_categ_id', 'lst_price', 'display_name']]),
+        [],
+      )) {
         catOfProduct.set(p.id, m2oId(p.pos_categ_id))
         priceOfProduct.set(p.id, { list: Number(p.lst_price) || 0, cost: 0 })
         if (!nameOfProductId.has(p.id)) nameOfProductId.set(p.id, p.display_name)
@@ -197,7 +370,11 @@ async function main() {
     }
   }
 
-  const brandNet = new Map(); const brandQty = new Map(); const locBrandNet = new Map(); const productAgg = new Map(); const catAgg = new Map()
+  const brandNet = new Map()
+  const brandQty = new Map()
+  const locBrandNet = new Map()
+  const productAgg = new Map()
+  const catAgg = new Map()
   let promoAdjustments = 0
   for (const [cfg, rows] of linesByCfg) {
     const loc = locationOfConfig(cfg)
@@ -207,46 +384,118 @@ async function main() {
       const net = Number(g.price_subtotal) || 0
       const qty = Number(g.qty) || 0
       if (brand === null) continue
-      if (brand === 'uncategorised') { promoAdjustments += net; continue }
+      if (brand === 'uncategorised') {
+        promoAdjustments += net
+        continue
+      }
       brandNet.set(brand, (brandNet.get(brand) || 0) + net)
       brandQty.set(brand, (brandQty.get(brand) || 0) + qty)
       const k = `${loc}|${brand}`
       locBrandNet.set(k, (locBrandNet.get(k) || 0) + net)
-      const p = productAgg.get(pid) || { productId: pid, name: m2oName(g.product_id), brand, category: catById.get(catOfProduct.get(pid))?.name ?? 'Other', listPrice: r3(priceOfProduct.get(pid)?.list), unitCost: r3(priceOfProduct.get(pid)?.cost), qty: 0, netKwd: 0 }
-      p.qty += qty; p.netKwd += net; productAgg.set(pid, p)
+      const p = productAgg.get(pid) || {
+        productId: pid,
+        name: m2oName(g.product_id),
+        brand,
+        category: catById.get(catOfProduct.get(pid))?.name ?? 'Other',
+        listPrice: r3(priceOfProduct.get(pid)?.list),
+        unitCost: r3(priceOfProduct.get(pid)?.cost),
+        qty: 0,
+        netKwd: 0,
+      }
+      p.qty += qty
+      p.netKwd += net
+      productAgg.set(pid, p)
       const catName = catById.get(catOfProduct.get(pid))?.name ?? 'Other'
       const ck = `${brand}|${catName}`
       const c = catAgg.get(ck) || { brand, name: catName, qty: 0, netKwd: 0 }
-      c.qty += qty; c.netKwd += net; catAgg.set(ck, c)
+      c.qty += qty
+      c.netKwd += net
+      catAgg.set(ck, c)
     }
   }
 
   /* real order counts: orders containing at least one item of the brand (overall, per location, per channel) */
   const locIds = [...new Set(registers.map((r) => r.location))]
   const cfgsOfLoc = (loc) => ALLOWED.filter((id) => locationOfConfig(id) === loc)
-  const brandOrders = new Map(); const locBrandOrders = new Map()
+  const brandOrders = new Map()
+  const locBrandOrders = new Map()
   for (const b of REGISTRY.brands) {
     const root = rootCatIdOfBrand.get(b.id)
-    if (!root || !(brandNet.get(b.id) > 0)) continue
-    brandOrders.set(b.id, await safe(`pos.order search_count brand ${b.id}`, () => ek('pos.order', 'search_count', [[...base, ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0))
+    if (!(brandNet.get(b.id) > 0)) {
+      brandOrders.set(b.id, sessionOrdersReadable ? 0 : null)
+      continue
+    }
+    if (!root) {
+      brandOrders.set(b.id, null)
+      continue
+    }
+    brandOrders.set(
+      b.id,
+      await salesQuery('pos.order', `pos.order search_count brand ${b.id}`, () =>
+        ek('pos.order', 'search_count', [
+          [...base, ['lines.product_id.pos_categ_id', 'child_of', root]],
+        ]),
+      ),
+    )
     for (const loc of locIds) {
       if (!(locBrandNet.get(`${loc}|${b.id}`) > 0)) continue
-      locBrandOrders.set(`${loc}|${b.id}`, await safe(`pos.order search_count ${b.id}@${loc}`, () => ek('pos.order', 'search_count', [[...base.slice(0, 3), ['session_id.config_id', 'in', cfgsOfLoc(loc)], ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0))
+      locBrandOrders.set(
+        `${loc}|${b.id}`,
+        await salesQuery('pos.order', `pos.order search_count ${b.id}@${loc}`, () =>
+          ek('pos.order', 'search_count', [
+            [
+              ...base.slice(0, 3),
+              ['session_id.config_id', 'in', cfgsOfLoc(loc)],
+              ['lines.product_id.pos_categ_id', 'child_of', root],
+            ],
+          ]),
+        ),
+      )
     }
   }
 
   /* payments → channels (overall, per location) */
-  const byPayment = await safe('pos.payment read_group', () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${PERIOD.from} 00:00:00`], ['pos_order_id.date_order', '<', `${PERIOD.to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', ALLOWED]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
-  const paySessionIds = [...new Set(byPayment.map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)))]
-  if (paySessionIds.length) for (const s of await safe('pos.session read (payments)', () => ek('pos.session', 'read', [paySessionIds, ['id', 'config_id']]), [])) cfgOfSession.set(s.id, m2oId(s.config_id))
+  const byPayment = await salesQuery('pos.payment', 'pos.payment read_group', () =>
+    ek(
+      'pos.payment',
+      'read_group',
+      [
+        [
+          ['pos_order_id.date_order', '>=', `${PERIOD.from} 00:00:00`],
+          ['pos_order_id.date_order', '<', `${PERIOD.to} 00:00:00`],
+          ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
+          ['session_id.config_id', 'in', ALLOWED],
+        ],
+        ['amount:sum'],
+        ['session_id', 'payment_method_id'],
+      ],
+      { lazy: false },
+    ),
+  )
+  const paymentsReadable = byPayment !== null
+  const paySessionIds = paymentsReadable
+    ? [
+        ...new Set(
+          byPayment.map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)),
+        ),
+      ]
+    : []
+  if (paySessionIds.length) {
+    const paySessRows = await salesQuery('pos.session', 'pos.session read (payments)', () =>
+      ek('pos.session', 'read', [paySessionIds, ['id', 'config_id']]),
+    )
+    for (const s of paySessRows ?? []) cfgOfSession.set(s.id, m2oId(s.config_id))
+  }
   const isDeliveryConfig = (cfg) => {
     const loc = locationOfConfig(cfg)
     const nm = configById.get(cfg)?.name || ''
     return loc === 'ardiya' || loc === 'call-center' || /delivery|call\s*center/i.test(nm)
   }
-  const channelAgg = new Map(); const locChannel = new Map(); const methodAgg = new Map()
+  const channelAgg = new Map()
+  const locChannel = new Map()
+  const methodAgg = new Map()
   const locHallDirect = new Map()
-  for (const g of byPayment) {
+  for (const g of byPayment ?? []) {
     const cfg = cfgOfSession.get(m2oId(g.session_id))
     if (!ALLOWED_SET.has(cfg)) continue
     const loc = locationOfConfig(cfg)
@@ -255,76 +504,163 @@ async function main() {
     const amt = Number(g.amount) || 0
     const cnt = g.__count || 0
     const c = channelAgg.get(ch) || { name: ch, amountKwd: 0, payments: 0 }
-    c.amountKwd += amt; c.payments += cnt; channelAgg.set(ch, c)
+    c.amountKwd += amt
+    c.payments += cnt
+    channelAgg.set(ch, c)
     const lk = `${loc}|${ch}`
     const l = locChannel.get(lk) || { location: loc, channel: ch, amountKwd: 0, payments: 0 }
-    l.amountKwd += amt; l.payments += cnt; locChannel.set(lk, l)
+    l.amountKwd += amt
+    l.payments += cnt
+    locChannel.set(lk, l)
     const m = methodAgg.get(pm) || { name: pm, channel: ch, amountKwd: 0, payments: 0 }
-    m.amountKwd += amt; m.payments += cnt; methodAgg.set(pm, m)
-    const hd = locHallDirect.get(loc) || { hallShopKwd: 0, hallShopOrders: 0, directTakeawayKwd: 0, directTakeawayOrders: 0 }
+    m.amountKwd += amt
+    m.payments += cnt
+    methodAgg.set(pm, m)
+    const hd = locHallDirect.get(loc) || {
+      hallShopKwd: 0,
+      hallShopOrders: 0,
+      directTakeawayKwd: 0,
+      directTakeawayOrders: 0,
+    }
     if (ch === 'Online payment link' || ch === 'Cash on delivery') {
-      hd.directTakeawayKwd += amt; hd.directTakeawayOrders += cnt
+      hd.directTakeawayKwd += amt
+      hd.directTakeawayOrders += cnt
     } else if (ch === 'Shop Sales') {
       if (isDeliveryConfig(cfg)) {
-        hd.directTakeawayKwd += amt; hd.directTakeawayOrders += cnt
+        hd.directTakeawayKwd += amt
+        hd.directTakeawayOrders += cnt
       } else {
-        hd.hallShopKwd += amt; hd.hallShopOrders += cnt
+        hd.hallShopKwd += amt
+        hd.hallShopOrders += cnt
       }
     }
     locHallDirect.set(loc, hd)
   }
 
-  /* brand × channel: lines of orders paid through the channel's payment methods (orders with split tenders count once per channel) */
+  /* brand × channel: lines of orders paid through the channel's payment methods */
   const brandChannel = []
   for (const [ch, methodIds] of methodsOfChannel) {
     if (!channelAgg.has(ch)) continue
-    const rows = await safe(`pos.order.line read_group channel ${ch}`, () => ek('pos.order.line', 'read_group', [[...lineBase, ['order_id.payment_ids.payment_method_id', 'in', methodIds]], ['price_subtotal:sum'], ['product_id']], { lazy: false }), [])
+    const rows = await salesQuery('pos.order.line', `pos.order.line read_group channel ${ch}`, () =>
+      ek(
+        'pos.order.line',
+        'read_group',
+        [
+          [...lineBase, ['order_id.payment_ids.payment_method_id', 'in', methodIds]],
+          ['price_subtotal:sum'],
+          ['product_id'],
+        ],
+        { lazy: false },
+      ),
+    )
+    if (rows === null) continue
     const per = new Map()
-    for (const g of rows) { const b = brandOfProduct(m2oId(g.product_id)); if (b && b !== 'uncategorised') per.set(b, (per.get(b) || 0) + (Number(g.price_subtotal) || 0)) }
+    for (const g of rows) {
+      const b = brandOfProduct(m2oId(g.product_id))
+      if (b && b !== 'uncategorised')
+        per.set(b, (per.get(b) || 0) + (Number(g.price_subtotal) || 0))
+    }
     for (const [b, net] of per) {
       if (net <= 0) continue
       const root = rootCatIdOfBrand.get(b)
-      const orders = root ? await safe(`pos.order search_count ${b}/${ch}`, () => ek('pos.order', 'search_count', [[...base, ['payment_ids.payment_method_id', 'in', methodIds], ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0) : 0
+      const orders = root
+        ? await salesQuery('pos.order', `pos.order search_count ${b}/${ch}`, () =>
+            ek('pos.order', 'search_count', [
+              [
+                ...base,
+                ['payment_ids.payment_method_id', 'in', methodIds],
+                ['lines.product_id.pos_categ_id', 'child_of', root],
+              ],
+            ]),
+          )
+        : null
       brandChannel.push({ brand: b, channel: ch, netKwd: r3(net), orders })
     }
   }
 
-  /* brand × location × channel net cube (lines of orders at the location paid through the channel) */
+  /* brand × location × channel net cube */
   const cube = []
   for (const loc of locIds) {
     for (const [ch, methodIds] of methodsOfChannel) {
       if (!locChannel.has(`${loc}|${ch}`)) continue
-      const rows = await safe(`pos.order.line read_group cube ${loc}/${ch}`, () => ek('pos.order.line', 'read_group', [[...lineBase.slice(0, 3), ['order_id.session_id.config_id', 'in', cfgsOfLoc(loc)], ['order_id.payment_ids.payment_method_id', 'in', methodIds]], ['price_subtotal:sum'], ['product_id']], { lazy: false }), [])
+      const rows = await salesQuery(
+        'pos.order.line',
+        `pos.order.line read_group cube ${loc}/${ch}`,
+        () =>
+          ek(
+            'pos.order.line',
+            'read_group',
+            [
+              [
+                ...lineBase.slice(0, 3),
+                ['order_id.session_id.config_id', 'in', cfgsOfLoc(loc)],
+                ['order_id.payment_ids.payment_method_id', 'in', methodIds],
+              ],
+              ['price_subtotal:sum'],
+              ['product_id'],
+            ],
+            { lazy: false },
+          ),
+      )
+      if (rows === null) continue
       const per = new Map()
-      for (const g of rows) { const b = brandOfProduct(m2oId(g.product_id)); if (b && b !== 'uncategorised') per.set(b, (per.get(b) || 0) + (Number(g.price_subtotal) || 0)) }
+      for (const g of rows) {
+        const b = brandOfProduct(m2oId(g.product_id))
+        if (b && b !== 'uncategorised')
+          per.set(b, (per.get(b) || 0) + (Number(g.price_subtotal) || 0))
+      }
       for (const [b, net] of per) if (net > 0) cube.push({ brand: b, location: loc, channel: ch, netKwd: r3(net) })
     }
   }
 
   /* time profile: every whitelisted order's timestamp (Odoo stores UTC; Kuwait = UTC+3) */
-  const orderTimes = await safe('pos.order search_read times', () => ek('pos.order', 'search_read', [base], { fields: ['date_order', 'amount_total', 'amount_tax'], limit: 200000 }), [])
-  const daily = {}; const hourly = Array.from({ length: 24 }, () => ({ orders: 0, netKwd: 0 })); const weekHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ orders: 0, netKwd: 0 })))
-  for (const o of orderTimes) {
-    const t = new Date(String(o.date_order).replace(' ', 'T') + 'Z')
-    const k = new Date(t.getTime() + 3 * 3600 * 1000)
-    const day = k.toISOString().slice(0, 10)
-    const h = k.getUTCHours()
-    const dow = (k.getUTCDay() + 6) % 7 // Monday = 0
-    const net = (Number(o.amount_total) || 0) - (Number(o.amount_tax) || 0)
-    const d = (daily[day] ||= { orders: 0, netKwd: 0 }); d.orders++; d.netKwd += net
-    hourly[h].orders++; hourly[h].netKwd += net
-    weekHour[dow][h].orders++; weekHour[dow][h].netKwd += net
-  }
-  const timeProfile = {
-    daily: Object.entries(daily).sort(([a], [b]) => a.localeCompare(b)).map(([day, v]) => ({ day, orders: v.orders, netKwd: r3(v.netKwd) })),
-    hourly: hourly.map((v, hour) => ({ hour, orders: v.orders, netKwd: r3(v.netKwd) })),
-    weekHour: weekHour.map((row) => row.map((v) => [v.orders, r3(v.netKwd)])),
+  const orderTimes = await salesQuery('pos.order', 'pos.order search_read times', () =>
+    ek('pos.order', 'search_read', [base], {
+      fields: ['date_order', 'amount_total', 'amount_tax'],
+      limit: 200000,
+    }),
+  )
+  let timeProfile = null
+  if (orderTimes !== null) {
+    const daily = {}
+    const hourly = Array.from({ length: 24 }, () => ({ orders: 0, netKwd: 0 }))
+    const weekHour = Array.from({ length: 7 }, () =>
+      Array.from({ length: 24 }, () => ({ orders: 0, netKwd: 0 })),
+    )
+    for (const o of orderTimes) {
+      const t = new Date(String(o.date_order).replace(' ', 'T') + 'Z')
+      const k = new Date(t.getTime() + 3 * 3600 * 1000)
+      const day = k.toISOString().slice(0, 10)
+      const h = k.getUTCHours()
+      const dow = (k.getUTCDay() + 6) % 7 // Monday = 0
+      const net = (Number(o.amount_total) || 0) - (Number(o.amount_tax) || 0)
+      const d = (daily[day] ||= { orders: 0, netKwd: 0 })
+      d.orders++
+      d.netKwd += net
+      hourly[h].orders++
+      hourly[h].netKwd += net
+      weekHour[dow][h].orders++
+      weekHour[dow][h].netKwd += net
+    }
+    timeProfile = {
+      daily: Object.entries(daily)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, v]) => ({ day, orders: v.orders, netKwd: r3(v.netKwd) })),
+      hourly: hourly.map((v, hour) => ({ hour, orders: v.orders, netKwd: r3(v.netKwd) })),
+      weekHour: weekHour.map((row) => row.map((v) => [v.orders, r3(v.netKwd)])),
+    }
   }
 
   /* discounts (discounted lines only; not groupable server-side) */
-  const discLines = await safe('pos.order.line discounted', () => ek('pos.order.line', 'search_read', [[...lineBase, ['discount', '>', 0]], ], { fields: ['price_unit', 'qty', 'discount', 'product_id'], limit: 300000 }), [])
-  let discountKwd = 0; const brandDiscount = new Map()
-  for (const l of discLines) {
+  const discLines = await salesQuery('pos.order.line', 'pos.order.line discounted', () =>
+    ek('pos.order.line', 'search_read', [[...lineBase, ['discount', '>', 0]]], {
+      fields: ['price_unit', 'qty', 'discount', 'product_id'],
+      limit: 300000,
+    }),
+  )
+  let discountKwd = 0
+  const brandDiscount = new Map()
+  for (const l of discLines ?? []) {
     const d = (Number(l.price_unit) || 0) * (Number(l.qty) || 0) * ((Number(l.discount) || 0) / 100)
     discountKwd += d
     const b = brandOfProduct(m2oId(l.product_id))
@@ -332,66 +668,259 @@ async function main() {
   }
 
   /* accounting: posted P&L (company ledger) and the excluded locations' analytic share */
-  const aml = await safe('account.move.line read_group', () => ek('account.move.line', 'read_group', [[['date', '>=', PERIOD.from], ['date', '<', PERIOD.to], ['parent_state', '=', 'posted']], ['balance:sum'], ['account_id']], { lazy: false }), [])
+  const aml = await safe(
+    'account.move.line read_group',
+    () =>
+      ek(
+        'account.move.line',
+        'read_group',
+        [
+          [
+            ['date', '>=', PERIOD.from],
+            ['date', '<', PERIOD.to],
+            ['parent_state', '=', 'posted'],
+          ],
+          ['balance:sum'],
+          ['account_id'],
+        ],
+        { lazy: false },
+      ),
+    [],
+  )
   const accIds = aml.map((g) => m2oId(g.account_id)).filter(Boolean)
-  const accounts = accIds.length ? await safe('account.account read', () => ek('account.account', 'read', [accIds, ['id', 'account_type']]), []) : []
+  const accounts = accIds.length
+    ? await safe(
+        'account.account read',
+        () => ek('account.account', 'read', [accIds, ['id', 'account_type']]),
+        [],
+      )
+    : []
   const typeOf = new Map(accounts.map((a) => [a.id, a.account_type]))
-  const TYPES = { income: 'income', income_other: 'otherIncome', expense_direct_cost: 'cogs', expense: 'expense', expense_depreciation: 'depreciation' }
+  const TYPES = {
+    income: 'income',
+    income_other: 'otherIncome',
+    expense_direct_cost: 'cogs',
+    expense: 'expense',
+    expense_depreciation: 'depreciation',
+  }
   const posted = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
-  for (const g of aml) { const t = TYPES[typeOf.get(m2oId(g.account_id))]; if (t) posted[t] += t === 'income' || t === 'otherIncome' ? -(g.balance || 0) : g.balance || 0 }
-  const aal = await safe('account.analytic.line read_group', () => ek('account.analytic.line', 'read_group', [[['date', '>=', PERIOD.from], ['date', '<', PERIOD.to], ['account_id', 'in', REGISTRY.excludedBranchAnalyticIds]], ['amount:sum'], ['general_account_id']], { lazy: false }), [])
+  for (const g of aml) {
+    const t = TYPES[typeOf.get(m2oId(g.account_id))]
+    if (t) posted[t] += t === 'income' || t === 'otherIncome' ? -(g.balance || 0) : g.balance || 0
+  }
+  const aal = await safe(
+    'account.analytic.line read_group',
+    () =>
+      ek(
+        'account.analytic.line',
+        'read_group',
+        [
+          [
+            ['date', '>=', PERIOD.from],
+            ['date', '<', PERIOD.to],
+            ['account_id', 'in', REGISTRY.excludedBranchAnalyticIds],
+          ],
+          ['amount:sum'],
+          ['general_account_id'],
+        ],
+        { lazy: false },
+      ),
+    [],
+  )
   const aalAccIds = aal.map((g) => m2oId(g.general_account_id)).filter((id) => id && !typeOf.has(id))
-  if (aalAccIds.length) for (const a of await safe('account.account read (analytic)', () => ek('account.account', 'read', [aalAccIds, ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+  if (aalAccIds.length) {
+    for (const a of await safe(
+      'account.account read (analytic)',
+      () => ek('account.account', 'read', [aalAccIds, ['id', 'account_type']]),
+      [],
+    )) {
+      typeOf.set(a.id, a.account_type)
+    }
+  }
   const excluded = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
-  for (const g of aal) { const t = TYPES[typeOf.get(m2oId(g.general_account_id))]; if (t) excluded[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0) }
-  const journals = await safe('account.move.line read_group journal', () => ek('account.move.line', 'read_group', [[['date', '>=', PERIOD.from], ['date', '<', PERIOD.to], ['parent_state', '=', 'posted'], ['account_id.account_type', 'in', ['income', 'income_other']]], ['balance:sum'], ['journal_id']], { lazy: false }), [])
-  const saleOrders = await safe('sale.order read_group', () => ek('sale.order', 'read_group', [[['date_order', '>=', `${PERIOD.from} 00:00:00`], ['date_order', '<', `${PERIOD.to} 00:00:00`], ['state', 'in', ['sale', 'done']]], ['amount_untaxed:sum'], []], { lazy: false }), [])
-  const whitelisted = Object.fromEntries(Object.keys(posted).map((k) => [k, r3(posted[k] - excluded[k])]))
+  for (const g of aal) {
+    const t = TYPES[typeOf.get(m2oId(g.general_account_id))]
+    if (t) excluded[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0)
+  }
+  const journals = await safe(
+    'account.move.line read_group journal',
+    () =>
+      ek(
+        'account.move.line',
+        'read_group',
+        [
+          [
+            ['date', '>=', PERIOD.from],
+            ['date', '<', PERIOD.to],
+            ['parent_state', '=', 'posted'],
+            ['account_id.account_type', 'in', ['income', 'income_other']],
+          ],
+          ['balance:sum'],
+          ['journal_id'],
+        ],
+        { lazy: false },
+      ),
+    [],
+  )
+  const saleOrders = await safe(
+    'sale.order read_group',
+    () =>
+      ek(
+        'sale.order',
+        'read_group',
+        [
+          [
+            ['date_order', '>=', `${PERIOD.from} 00:00:00`],
+            ['date_order', '<', `${PERIOD.to} 00:00:00`],
+            ['state', 'in', ['sale', 'done']],
+          ],
+          ['amount_untaxed:sum'],
+          [],
+        ],
+        { lazy: false },
+      ),
+    [],
+  )
+  const whitelisted = Object.fromEntries(
+    Object.keys(posted).map((k) => [k, r3(posted[k] - excluded[k])]),
+  )
 
-  /* per-location P&L from the Branches analytic plan (real cost centres; shared costs reported separately) */
+  /* per-location P&L from the Branches analytic plan */
   const locAnalytic = {}
-  for (const [id, l] of Object.entries(REGISTRY.locations)) for (const a of l.analyticIds ?? (l.analyticId ? [l.analyticId] : [])) locAnalytic[a] = id
-  for (const [id, a] of Object.entries(REGISTRY.sharedCostAnalyticIds ?? {})) locAnalytic[a] = `shared:${id}`
-  const plRows = await safe('account.analytic.line read_group locations', () => ek('account.analytic.line', 'read_group', [[['date', '>=', PERIOD.from], ['date', '<', PERIOD.to], ['account_id', 'in', Object.keys(locAnalytic).map(Number)]], ['amount:sum'], ['account_id', 'general_account_id']], { lazy: false }), [])
+  for (const [id, l] of Object.entries(REGISTRY.locations)) {
+    for (const a of l.analyticIds ?? (l.analyticId ? [l.analyticId] : [])) locAnalytic[a] = id
+  }
+  for (const [id, a] of Object.entries(REGISTRY.sharedCostAnalyticIds ?? {})) {
+    locAnalytic[a] = `shared:${id}`
+  }
+  const plRows = await safe(
+    'account.analytic.line read_group locations',
+    () =>
+      ek(
+        'account.analytic.line',
+        'read_group',
+        [
+          [
+            ['date', '>=', PERIOD.from],
+            ['date', '<', PERIOD.to],
+            ['account_id', 'in', Object.keys(locAnalytic).map(Number)],
+          ],
+          ['amount:sum'],
+          ['account_id', 'general_account_id'],
+        ],
+        { lazy: false },
+      ),
+    [],
+  )
   const plAccIds = plRows.map((g) => m2oId(g.general_account_id)).filter((id) => id && !typeOf.has(id))
-  if (plAccIds.length) for (const a of await safe('account.account read (locations)', () => ek('account.account', 'read', [[...new Set(plAccIds)], ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+  if (plAccIds.length) {
+    for (const a of await safe(
+      'account.account read (locations)',
+      () => ek('account.account', 'read', [[...new Set(plAccIds)], ['id', 'account_type']]),
+      [],
+    )) {
+      typeOf.set(a.id, a.account_type)
+    }
+  }
   const locationPnl = {}
   for (const g of plRows) {
     const key = locAnalytic[m2oId(g.account_id)]
     const t = TYPES[typeOf.get(m2oId(g.general_account_id))]
     if (!key || !t) continue
-    const p = (locationPnl[key] ||= { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 })
+    const p = (locationPnl[key] ||= {
+      income: 0,
+      otherIncome: 0,
+      cogs: 0,
+      expense: 0,
+      depreciation: 0,
+    })
     p[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0)
   }
-  for (const p of Object.values(locationPnl)) { for (const k of Object.keys(p)) p[k] = r3(p[k]); p.operatingProfit = r3(p.income + p.otherIncome - p.cogs - p.expense - p.depreciation) }
+  for (const p of Object.values(locationPnl)) {
+    for (const k of Object.keys(p)) p[k] = r3(p[k])
+    p.operatingProfit = r3(p.income + p.otherIncome - p.cogs - p.expense - p.depreciation)
+  }
 
   /* assemble */
   const L = REGISTRY.locations
-  const locations = locIds.map((id) => {
-    const regs = registers.filter((r) => r.location === id)
-    const net = regs.reduce((s, r) => s + r.netKwd, 0)
-    const orders = regs.reduce((s, r) => s + r.orders, 0)
-    return {
-      id, en: L[id]?.en ?? id, ar: L[id]?.ar ?? id, code: L[id]?.code ?? id, unit: L[id]?.unit ?? 'restaurant',
-      netKwd: r3(net), orders, aovKwd: orders ? r3(net / orders) : 0, sharePct: pct(net, totalNet),
-      registers: regs.map((r) => r.posConfigId),
-      brands: REGISTRY.brands.map((b) => ({ brand: b.id, netKwd: r3(locBrandNet.get(`${id}|${b.id}`) || 0), orders: locBrandOrders.get(`${id}|${b.id}`) || 0 })).filter((x) => x.netKwd > 0),
-      channels: [...locChannel.values()].filter((c) => c.location === id).map((c) => ({ channel: c.channel, amountKwd: r3(c.amountKwd), payments: c.payments })).sort((a, b) => b.amountKwd - a.amountKwd),
-    }
-  }).sort((a, b) => b.netKwd - a.netKwd)
+  const locations = locIds
+    .map((id) => {
+      const regs = registers.filter((r) => r.location === id)
+      const net = regs.reduce((s, r) => s + r.netKwd, 0)
+      const orders = regs.reduce((s, r) => s + r.orders, 0)
+      return {
+        id,
+        en: L[id]?.en ?? id,
+        ar: L[id]?.ar ?? id,
+        code: L[id]?.code ?? id,
+        unit: L[id]?.unit ?? 'restaurant',
+        netKwd: r3(net),
+        orders,
+        aovKwd: orders ? r3(net / orders) : 0,
+        sharePct: totalNet ? pct(net, totalNet) : 0,
+        registers: regs.map((r) => r.posConfigId),
+        brands: REGISTRY.brands
+          .map((b) => {
+            const lbOrders = locBrandOrders.has(`${id}|${b.id}`)
+              ? locBrandOrders.get(`${id}|${b.id}`)
+              : 0
+            return {
+              brand: b.id,
+              netKwd: r3(locBrandNet.get(`${id}|${b.id}`) || 0),
+              orders: lbOrders,
+            }
+          })
+          .filter((x) => x.netKwd > 0),
+        channels: [...locChannel.values()]
+          .filter((c) => c.location === id)
+          .map((c) => ({ channel: c.channel, amountKwd: r3(c.amountKwd), payments: c.payments }))
+          .sort((a, b) => b.amountKwd - a.amountKwd),
+      }
+    })
+    .sort((a, b) => b.netKwd - a.netKwd)
+
   const brandItemTotal = [...brandNet.values()].reduce((s, v) => s + v, 0)
   const brands = REGISTRY.brands.map((b) => {
     const net = brandNet.get(b.id) || 0
-    const orders = brandOrders.get(b.id) || 0
-    return { id: b.id, en: b.en, ar: b.ar, posRoot: b.posRoot, netKwd: r3(net), orders, aovKwd: orders ? r3(net / orders) : 0, qty: r3(brandQty.get(b.id) || 0), sharePct: pct(net, brandItemTotal), discountKwd: r3(brandDiscount.get(b.id) || 0) }
+    const orders = brandOrders.has(b.id) ? brandOrders.get(b.id) : 0
+    return {
+      id: b.id,
+      en: b.en,
+      ar: b.ar,
+      posRoot: b.posRoot,
+      netKwd: r3(net),
+      orders,
+      aovKwd: orders === null ? null : orders ? r3(net / orders) : 0,
+      qty: r3(brandQty.get(b.id) || 0),
+      sharePct: pct(net, brandItemTotal),
+      discountKwd: r3(brandDiscount.get(b.id) || 0),
+    }
   })
 
   /* ---------------------------------------------------------------- multi-bucket extraction (today / week / month / year) */
-  const ACTIVE_BRAND_IDS = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria']
-  const RESTAURANT_LOC_IDS = Object.entries(REGISTRY.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
+  const ACTIVE_BRAND_IDS = [
+    'china-garden',
+    'franks',
+    'tahina',
+    'farm-brown',
+    'noodle-bar',
+    'karak-cafeteria',
+  ]
+  const RESTAURANT_LOC_IDS = Object.entries(REGISTRY.locations)
+    .filter(([, v]) => v.unit === 'restaurant')
+    .map(([k]) => k)
   const RESTAURANT_CONFIG_IDS = ALLOWED.filter((id) => L[locationOfConfig(id)]?.unit === 'restaurant')
   const RESTAURANT_CONFIG_SET = new Set(RESTAURANT_CONFIG_IDS)
-  const UI_CHANNEL_KEYS = ['dine-in', 'takeaway-direct', 'talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'snoonu']
+  const UI_CHANNEL_KEYS = [
+    'dine-in',
+    'takeaway-direct',
+    'talabat-tgo',
+    'talabat-tmp',
+    'keeta',
+    'deliveroo',
+    'jahez',
+    'snoonu',
+  ]
 
   function reconcileAmounts(rawMap, keys, targetTotal) {
     const target = Math.max(0, r3(targetTotal))
@@ -426,7 +955,10 @@ async function main() {
     return out
   }
 
-  const buildRawUiChannels = (chMap, hallKwd, hallOrders, directKwd, directOrders) => {
+  const buildRawUiChannels = (chMap, hallKwd, hallOrders, directKwd, directOrders, readable = true) => {
+    if (!readable) {
+      return Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: null }]))
+    }
     const get = (nm) => chMap.get(nm) || { amountKwd: 0, payments: 0 }
     const delGo = get('Deliveroo Go')
     const delMp = get('Deliveroo MP')
@@ -435,33 +967,96 @@ async function main() {
     return {
       'dine-in': { netKwd: Math.max(0, hallKwd), orders: Math.max(0, hallOrders) },
       'takeaway-direct': { netKwd: Math.max(0, directKwd), orders: Math.max(0, directOrders) },
-      'talabat-tgo': { netKwd: Math.max(0, get('Talabat Go').amountKwd), orders: Math.max(0, get('Talabat Go').payments) },
-      'talabat-tmp': { netKwd: Math.max(0, get('Talabat MP').amountKwd), orders: Math.max(0, get('Talabat MP').payments) },
-      keeta: { netKwd: Math.max(0, get('Keeta').amountKwd), orders: Math.max(0, get('Keeta').payments) },
-      deliveroo: { netKwd: Math.max(0, delGo.amountKwd + delMp.amountKwd), orders: Math.max(0, delGo.payments + delMp.payments) },
-      jahez: { netKwd: Math.max(0, jah.amountKwd + cari.amountKwd), orders: Math.max(0, jah.payments + cari.payments) },
-      snoonu: { netKwd: Math.max(0, get('Snoonu').amountKwd), orders: Math.max(0, get('Snoonu').payments) },
+      'talabat-tgo': {
+        netKwd: Math.max(0, get('Talabat Go').amountKwd),
+        orders: Math.max(0, get('Talabat Go').payments),
+      },
+      'talabat-tmp': {
+        netKwd: Math.max(0, get('Talabat MP').amountKwd),
+        orders: Math.max(0, get('Talabat MP').payments),
+      },
+      keeta: {
+        netKwd: Math.max(0, get('Keeta').amountKwd),
+        orders: Math.max(0, get('Keeta').payments),
+      },
+      deliveroo: {
+        netKwd: Math.max(0, delGo.amountKwd + delMp.amountKwd),
+        orders: Math.max(0, delGo.payments + delMp.payments),
+      },
+      jahez: {
+        netKwd: Math.max(0, jah.amountKwd + cari.amountKwd),
+        orders: Math.max(0, jah.payments + cari.payments),
+      },
+      snoonu: {
+        netKwd: Math.max(0, get('Snoonu').amountKwd),
+        orders: Math.max(0, get('Snoonu').payments),
+      },
     }
   }
 
   async function extractBucket({ key, from, to, isLatestOperationalDay = false }) {
     const days = Math.max(1, dayDiff(from, to))
-    const bDom = [['date_order', '>=', `${from} 00:00:00`], ['date_order', '<', `${to} 00:00:00`], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]]
-    const lDom = [['order_id.date_order', '>=', `${from} 00:00:00`], ['order_id.date_order', '<', `${to} 00:00:00`], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]]
+    const bDom = [
+      ['date_order', '>=', `${from} 00:00:00`],
+      ['date_order', '<', `${to} 00:00:00`],
+      ['state', 'in', ['paid', 'done', 'invoiced']],
+      ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS],
+    ]
+    const lDom = [
+      ['order_id.date_order', '>=', `${from} 00:00:00`],
+      ['order_id.date_order', '<', `${to} 00:00:00`],
+      ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+      ['order_id.session_id.config_id', 'in', RESTAURANT_CONFIG_IDS],
+    ]
 
-    const bSess = await safe(`bucket(${key}) pos.order session`, () => ek('pos.order', 'read_group', [bDom, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false }), [])
-    const bPay = await safe(`bucket(${key}) pos.payment`, () => ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', `${from} 00:00:00`], ['pos_order_id.date_order', '<', `${to} 00:00:00`], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false }), [])
-    const missSess = [...new Set([...bSess, ...bPay].map((g) => m2oId(g.session_id)).filter((id) => id && !cfgOfSession.has(id)))]
+    const bSess = await salesQuery('pos.order', `bucket(${key}) pos.order session`, () =>
+      ek('pos.order', 'read_group', [bDom, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], {
+        lazy: false,
+      }),
+    )
+    const bPay = await salesQuery('pos.payment', `bucket(${key}) pos.payment`, () =>
+      ek(
+        'pos.payment',
+        'read_group',
+        [
+          [
+            ['pos_order_id.date_order', '>=', `${from} 00:00:00`],
+            ['pos_order_id.date_order', '<', `${to} 00:00:00`],
+            ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
+            ['session_id.config_id', 'in', RESTAURANT_CONFIG_IDS],
+          ],
+          ['amount:sum'],
+          ['session_id', 'payment_method_id'],
+        ],
+        { lazy: false },
+      ),
+    )
+    const missSess = [
+      ...new Set(
+        [...(bSess ?? []), ...(bPay ?? [])]
+          .map((g) => m2oId(g.session_id))
+          .filter((id) => id && !cfgOfSession.has(id)),
+      ),
+    ]
+    let bucketSessionsReadable = bSess !== null
     if (missSess.length) {
       for (let i = 0; i < missSess.length; i += 400) {
         const chunk = missSess.slice(i, i + 400)
-        for (const s of await safe(`bucket(${key}) pos.session`, () => ek('pos.session', 'read', [chunk, ['id', 'config_id']]), [])) cfgOfSession.set(s.id, m2oId(s.config_id))
+        const sRows = await salesQuery('pos.session', `bucket(${key}) pos.session`, () =>
+          ek('pos.session', 'read', [chunk, ['id', 'config_id']]),
+        )
+        if (sRows === null) {
+          bucketSessionsReadable = false
+        } else {
+          for (const s of sRows) cfgOfSession.set(s.id, m2oId(s.config_id))
+        }
       }
     }
 
     const locTot = new Map()
-    let restaurantNetKwd = 0; let restaurantOrders = 0
-    for (const g of bSess) {
+    let restaurantNetKwd = 0
+    let restaurantOrders = 0
+    for (const g of bSess ?? []) {
       const cfg = cfgOfSession.get(m2oId(g.session_id))
       if (!RESTAURANT_CONFIG_SET.has(cfg)) continue
       const loc = locationOfConfig(cfg)
@@ -471,16 +1066,19 @@ async function main() {
       restaurantNetKwd += net
       restaurantOrders += cnt
       const cur = locTot.get(loc) || { netKwd: 0, orders: 0 }
-      cur.netKwd += net; cur.orders += cnt; locTot.set(loc, cur)
+      cur.netKwd += net
+      cur.orders += cnt
+      locTot.set(loc, cur)
     }
-    const targetNet = r3(restaurantNetKwd)
+    const targetNet = bucketSessionsReadable ? r3(restaurantNetKwd) : 0
     const rawLocMap = new Map(RESTAURANT_LOC_IDS.map((loc) => [loc, locTot.get(loc)?.netKwd || 0]))
     const reconciledLocNet = reconcileAmounts(rawLocMap, RESTAURANT_LOC_IDS, targetNet)
 
+    const bPayReadable = bPay !== null
     const bCh = new Map()
     const bLocCh = new Map()
     const bLocHd = new Map()
-    for (const g of bPay) {
+    for (const g of bPay ?? []) {
       const cfg = cfgOfSession.get(m2oId(g.session_id))
       if (!RESTAURANT_CONFIG_SET.has(cfg)) continue
       const loc = locationOfConfig(cfg)
@@ -489,27 +1087,39 @@ async function main() {
       const amt = Math.max(0, Number(g.amount) || 0)
       const cnt = Math.max(0, g.__count || 0)
       const c = bCh.get(ch) || { amountKwd: 0, payments: 0 }
-      c.amountKwd += amt; c.payments += cnt; bCh.set(ch, c)
+      c.amountKwd += amt
+      c.payments += cnt
+      bCh.set(ch, c)
       const lm = bLocCh.get(loc) || new Map()
       const lc = lm.get(ch) || { amountKwd: 0, payments: 0 }
-      lc.amountKwd += amt; lc.payments += cnt; lm.set(ch, lc); bLocCh.set(loc, lm)
+      lc.amountKwd += amt
+      lc.payments += cnt
+      lm.set(ch, lc)
+      bLocCh.set(loc, lm)
       const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
       if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') {
-        hd.directKwd += amt; hd.directOrders += cnt
+        hd.directKwd += amt
+        hd.directOrders += cnt
       } else if (ch === 'Shop Sales' || ch === 'Staff & complimentary') {
         if (isDeliveryConfig(cfg)) {
-          hd.directKwd += amt; hd.directOrders += cnt
+          hd.directKwd += amt
+          hd.directOrders += cnt
         } else {
-          hd.hallKwd += amt; hd.hallOrders += cnt
+          hd.hallKwd += amt
+          hd.hallOrders += cnt
         }
       }
       bLocHd.set(loc, hd)
     }
 
-    const bLines = await safe(`bucket(${key}) pos.order.line`, () => ek('pos.order.line', 'read_group', [lDom, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false }), [])
-    await ensureProducts(bLines.map((g) => m2oId(g.product_id)).filter(Boolean))
+    const bLines = await salesQuery('pos.order.line', `bucket(${key}) pos.order.line`, () =>
+      ek('pos.order.line', 'read_group', [lDom, ['price_subtotal:sum', 'qty:sum'], ['product_id']], {
+        lazy: false,
+      }),
+    )
+    await ensureProducts((bLines ?? []).map((g) => m2oId(g.product_id)).filter(Boolean))
     const bBrand = new Map()
-    for (const g of bLines) {
+    for (const g of bLines ?? []) {
       const b = brandOfProduct(m2oId(g.product_id))
       if (!b || b === 'uncategorised' || !ACTIVE_BRAND_IDS.includes(b)) continue
       const cur = bBrand.get(b) || { rawNetKwd: 0, qty: 0, orders: 0 }
@@ -517,56 +1127,157 @@ async function main() {
       cur.qty += Number(g.qty) || 0
       bBrand.set(b, cur)
     }
-    const rawBrandMap = new Map(ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, bBrand.get(bid)?.rawNetKwd || 0)]))
+    const rawBrandMap = new Map(
+      ACTIVE_BRAND_IDS.map((bid) => [bid, Math.max(0, bBrand.get(bid)?.rawNetKwd || 0)]),
+    )
     const reconciledBrandNet = reconcileAmounts(rawBrandMap, ACTIVE_BRAND_IDS, targetNet)
 
     for (const bid of ACTIVE_BRAND_IDS) {
       const cur = bBrand.get(bid) || { rawNetKwd: 0, qty: 0, orders: 0 }
       const root = rootCatIdOfBrand.get(bid)
-      if ((reconciledBrandNet.get(bid) || 0) > 0 && root) {
-        cur.orders = await safe(`bucket(${key}) brand orders ${bid}`, () => ek('pos.order', 'search_count', [[...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]]]), 0)
+      if ((reconciledBrandNet.get(bid) || 0) > 0) {
+        cur.orders = root
+          ? await salesQuery('pos.order', `bucket(${key}) brand orders ${bid}`, () =>
+              ek('pos.order', 'search_count', [
+                [...bDom, ['lines.product_id.pos_categ_id', 'child_of', root]],
+              ]),
+            )
+          : null
+      } else if (!bucketSessionsReadable) {
+        cur.orders = null
       }
       bBrand.set(bid, cur)
     }
 
-    const bAml = await safe(`bucket(${key}) aml`, () => ek('account.move.line', 'read_group', [[['date', '>=', from], ['date', '<', to], ['parent_state', '=', 'posted']], ['balance:sum'], ['account_id']], { lazy: false }), [])
+    const bAml = await safe(
+      `bucket(${key}) aml`,
+      () =>
+        ek(
+          'account.move.line',
+          'read_group',
+          [
+            [
+              ['date', '>=', from],
+              ['date', '<', to],
+              ['parent_state', '=', 'posted'],
+            ],
+            ['balance:sum'],
+            ['account_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    )
     const bAccIds = bAml.map((g) => m2oId(g.account_id)).filter((id) => id && !typeOf.has(id))
-    if (bAccIds.length) for (const a of await safe(`bucket(${key}) acc`, () => ek('account.account', 'read', [[...new Set(bAccIds)], ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+    if (bAccIds.length) {
+      for (const a of await safe(
+        `bucket(${key}) acc`,
+        () => ek('account.account', 'read', [[...new Set(bAccIds)], ['id', 'account_type']]),
+        [],
+      )) {
+        typeOf.set(a.id, a.account_type)
+      }
+    }
     const bPosted = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
-    for (const g of bAml) { const t = TYPES[typeOf.get(m2oId(g.account_id))]; if (t) bPosted[t] += t === 'income' || t === 'otherIncome' ? -(g.balance || 0) : g.balance || 0 }
-    const bAal = await safe(`bucket(${key}) aal excl`, () => ek('account.analytic.line', 'read_group', [[['date', '>=', from], ['date', '<', to], ['account_id', 'in', REGISTRY.excludedBranchAnalyticIds]], ['amount:sum'], ['general_account_id']], { lazy: false }), [])
-    const bAalAccIds = bAal.map((g) => m2oId(g.general_account_id)).filter((id) => id && !typeOf.has(id))
-    if (bAalAccIds.length) for (const a of await safe(`bucket(${key}) aal acc`, () => ek('account.account', 'read', [[...new Set(bAalAccIds)], ['id', 'account_type']]), [])) typeOf.set(a.id, a.account_type)
+    for (const g of bAml) {
+      const t = TYPES[typeOf.get(m2oId(g.account_id))]
+      if (t) bPosted[t] += t === 'income' || t === 'otherIncome' ? -(g.balance || 0) : g.balance || 0
+    }
+    const bAal = await safe(
+      `bucket(${key}) aal excl`,
+      () =>
+        ek(
+          'account.analytic.line',
+          'read_group',
+          [
+            [
+              ['date', '>=', from],
+              ['date', '<', to],
+              ['account_id', 'in', REGISTRY.excludedBranchAnalyticIds],
+            ],
+            ['amount:sum'],
+            ['general_account_id'],
+          ],
+          { lazy: false },
+        ),
+      [],
+    )
+    const bAalAccIds = bAal
+      .map((g) => m2oId(g.general_account_id))
+      .filter((id) => id && !typeOf.has(id))
+    if (bAalAccIds.length) {
+      for (const a of await safe(
+        `bucket(${key}) aal acc`,
+        () => ek('account.account', 'read', [[...new Set(bAalAccIds)], ['id', 'account_type']]),
+        [],
+      )) {
+        typeOf.set(a.id, a.account_type)
+      }
+    }
     const bExcl = { income: 0, otherIncome: 0, cogs: 0, expense: 0, depreciation: 0 }
-    for (const g of bAal) { const t = TYPES[typeOf.get(m2oId(g.general_account_id))]; if (t) bExcl[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0) }
+    for (const g of bAal) {
+      const t = TYPES[typeOf.get(m2oId(g.general_account_id))]
+      if (t) bExcl[t] += t === 'income' || t === 'otherIncome' ? g.amount || 0 : -(g.amount || 0)
+    }
     const bWl = Object.fromEntries(Object.keys(bPosted).map((k) => [k, r3(bPosted[k] - bExcl[k])]))
-    bWl.operatingProfit = r3(bWl.income + bWl.otherIncome - bWl.cogs - bWl.expense - bWl.depreciation)
+    bWl.operatingProfit = r3(
+      bWl.income + bWl.otherIncome - bWl.cogs - bWl.expense - bWl.depreciation,
+    )
 
     const byLocation = {}
-    const aggUiChannels = Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]))
+    const aggUiChannels = Object.fromEntries(
+      UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: bPayReadable ? 0 : null }]),
+    )
     for (const loc of RESTAURANT_LOC_IDS) {
       const lt = locTot.get(loc) || { netKwd: 0, orders: 0 }
       const locTarget = reconciledLocNet.get(loc) || 0
       const lm = bLocCh.get(loc) || new Map()
       const hd = bLocHd.get(loc) || { hallKwd: 0, hallOrders: 0, directKwd: 0, directOrders: 0 }
-      const rawUi = buildRawUiChannels(lm, hd.hallKwd, hd.hallOrders, hd.directKwd, hd.directOrders)
+      const rawUi = buildRawUiChannels(
+        lm,
+        hd.hallKwd,
+        hd.hallOrders,
+        hd.directKwd,
+        hd.directOrders,
+        bPayReadable,
+      )
       const rawUiMap = new Map(UI_CHANNEL_KEYS.map((ck) => [ck, rawUi[ck].netKwd]))
       if (loc === 'ardiya' && (rawUiMap.get('dine-in') || 0) > 0) {
-        rawUiMap.set('takeaway-direct', (rawUiMap.get('takeaway-direct') || 0) + (rawUiMap.get('dine-in') || 0))
+        rawUiMap.set(
+          'takeaway-direct',
+          (rawUiMap.get('takeaway-direct') || 0) + (rawUiMap.get('dine-in') || 0),
+        )
         rawUiMap.set('dine-in', 0)
       }
-      const recUiNet = reconcileAmounts(rawUiMap, loc === 'ardiya' ? UI_CHANNEL_KEYS.filter((ck) => ck !== 'dine-in') : UI_CHANNEL_KEYS, locTarget)
+      const recUiNet = reconcileAmounts(
+        rawUiMap,
+        loc === 'ardiya' ? UI_CHANNEL_KEYS.filter((ck) => ck !== 'dine-in') : UI_CHANNEL_KEYS,
+        locTarget,
+      )
       const locUiChannels = {}
       for (const ck of UI_CHANNEL_KEYS) {
         const netVal = r3(recUiNet.get(ck) || 0)
-        const ordVal = netVal > 0 ? Math.max(1, rawUi[ck].orders || Math.round(netVal / 4.8)) : 0
+        const rawChannelOrders = rawUi[ck].orders
+        const ordVal =
+          rawChannelOrders === null
+            ? null
+            : netVal > 0
+              ? rawChannelOrders > 0
+                ? rawChannelOrders
+                : null
+              : rawChannelOrders > 0
+                ? rawChannelOrders
+                : 0
         locUiChannels[ck] = { netKwd: netVal, orders: ordVal }
         aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + netVal)
-        aggUiChannels[ck].orders += ordVal
+        aggUiChannels[ck].orders =
+          aggUiChannels[ck].orders === null || ordVal === null
+            ? null
+            : aggUiChannels[ck].orders + ordVal
       }
       byLocation[loc] = {
-        netKwd: locTarget,
-        orders: lt.orders,
+        netKwd: bucketSessionsReadable ? locTarget : null,
+        orders: bucketSessionsReadable ? lt.orders : null,
         hallShopKwd: locUiChannels['dine-in'].netKwd,
         hallShopOrders: locUiChannels['dine-in'].orders,
         directTakeawayKwd: locUiChannels['takeaway-direct'].netKwd,
@@ -589,6 +1300,15 @@ async function main() {
     const byChannel = {}
     for (const [ch, c] of bCh) byChannel[ch] = { amountKwd: r3(c.amountKwd), payments: c.payments }
 
+    const finalBucketNet = bucketSessionsReadable ? targetNet : null
+    const finalBucketOrd = bucketSessionsReadable ? restaurantOrders : null
+    const finalBucketAov =
+      finalBucketNet === null || finalBucketOrd === null
+        ? null
+        : finalBucketOrd
+          ? r3(finalBucketNet / finalBucketOrd)
+          : 0
+
     return {
       key,
       from,
@@ -596,11 +1316,11 @@ async function main() {
       days,
       isLatestOperationalDay,
       totals: {
-        netSalesKwd: targetNet,
-        orders: restaurantOrders,
-        aovKwd: restaurantOrders ? r3(targetNet / restaurantOrders) : 0,
-        restaurantNetKwd: targetNet,
-        restaurantOrders,
+        netSalesKwd: finalBucketNet,
+        orders: finalBucketOrd,
+        aovKwd: finalBucketAov,
+        restaurantNetKwd: finalBucketNet,
+        restaurantOrders: finalBucketOrd,
       },
       byBrand,
       byLocation,
@@ -610,19 +1330,51 @@ async function main() {
     }
   }
 
-  console.log(`\n▶ Extracting multi-period Odoo buckets (Today / Week 7d / Month 30d / Year 2026 YTD)...`)
-  let todayBucket = await extractBucket({ key: 'today', from: TODAY, to: addDays(TODAY, 1), isLatestOperationalDay: false })
+  log(`\n▶ Extracting multi-period Odoo buckets (Today / Week 7d / Month 30d / Year 2026 YTD)...`)
+  let todayBucket = await extractBucket({
+    key: 'today',
+    from: TODAY,
+    to: addDays(TODAY, 1),
+    isLatestOperationalDay: false,
+  })
   for (let back = 1; back <= 7 && todayBucket.totals.restaurantOrders === 0; back++) {
     const d = addDays(TODAY, -back)
-    todayBucket = await extractBucket({ key: 'today', from: d, to: addDays(d, 1), isLatestOperationalDay: true })
+    todayBucket = await extractBucket({
+      key: 'today',
+      from: d,
+      to: addDays(d, 1),
+      isLatestOperationalDay: true,
+    })
   }
   const weekTo = todayBucket.isLatestOperationalDay ? TODAY : addDays(TODAY, 1)
-  const weekBucket = await extractBucket({ key: 'week', from: addDays(weekTo, -7), to: weekTo, isLatestOperationalDay: false })
-  const monthBucket = await extractBucket({ key: 'month', from: PERIOD.from, to: PERIOD.to, isLatestOperationalDay: false })
-  const yearBucket = await extractBucket({ key: 'year', from: `${TODAY.slice(0, 4)}-01-01`, to: addDays(TODAY, 1), isLatestOperationalDay: false })
-  const buckets = { today: todayBucket, week: weekBucket, month: monthBucket, year: yearBucket }
+  const weekBucket = await extractBucket({
+    key: 'week',
+    from: addDays(weekTo, -7),
+    to: weekTo,
+    isLatestOperationalDay: false,
+  })
+  const monthBucket = await extractBucket({
+    key: 'month',
+    from: PERIOD.from,
+    to: PERIOD.to,
+    isLatestOperationalDay: false,
+  })
+  const yearBucket = await extractBucket({
+    key: 'year',
+    from: `${TODAY.slice(0, 4)}-01-01`,
+    to: addDays(TODAY, 1),
+    isLatestOperationalDay: false,
+  })
+  const buckets = {
+    today: todayBucket,
+    week: weekBucket,
+    month: monthBucket,
+    year: yearBucket,
+  }
   for (const [k, b] of Object.entries(buckets)) {
-    console.log(`   - [${k.padEnd(5)}] ${b.from} → ${b.to} (${b.days}d${b.isLatestOperationalDay ? ', latest active day' : ''}): ${b.totals.netSalesKwd} KWD (${b.totals.orders} orders · restaurants ${b.totals.restaurantNetKwd} KWD)`)
+    log(
+      `   - [${k.padEnd(5)}] ${b.from} → ${b.to} (${b.days}d${b.isLatestOperationalDay ? ', latest active day' : ''}): ${b.totals.netSalesKwd} KWD (${b.totals.orders} orders · restaurants ${b.totals.restaurantNetKwd} KWD)`,
+    )
   }
 
   const snapshot = {
@@ -632,77 +1384,199 @@ async function main() {
     syncedAt: new Date().toISOString(),
     period: PERIOD,
     scope: { allowedPosConfigIds: ALLOWED, brands: REGISTRY.brands.map((b) => b.id) },
-    totals: { netSalesKwd: r3(totalNet), orders: totalOrders, aovKwd: totalOrders ? r3(totalNet / totalOrders) : 0, brandItemsKwd: r3(brandItemTotal), promoAdjustmentsKwd: r3(promoAdjustments), discountKwd: r3(discountKwd), productsSold: productAgg.size },
+    totals: {
+      netSalesKwd: totalNet === null ? null : r3(totalNet),
+      orders: totalOrders,
+      aovKwd:
+        totalNet === null || totalOrders === null
+          ? null
+          : totalOrders
+            ? r3(totalNet / totalOrders)
+            : 0,
+      brandItemsKwd: r3(brandItemTotal),
+      promoAdjustmentsKwd: r3(promoAdjustments),
+      discountKwd: r3(discountKwd),
+      productsSold: productAgg.size,
+    },
     buckets,
     registers,
     locations,
     brands,
-    channels: [...channelAgg.values()].map((c) => ({ ...c, amountKwd: r3(c.amountKwd) })).sort((a, b) => b.amountKwd - a.amountKwd),
+    channels: paymentsReadable
+      ? [...channelAgg.values()]
+          .map((c) => ({ ...c, amountKwd: r3(c.amountKwd) }))
+          .sort((a, b) => b.amountKwd - a.amountKwd)
+      : [],
     brandChannel,
     cube,
     timeProfile,
-    paymentMethods: [...methodAgg.values()].map((m) => ({ ...m, amountKwd: r3(m.amountKwd) })).sort((a, b) => b.amountKwd - a.amountKwd),
-    categories: [...catAgg.values()].map((c) => ({ ...c, netKwd: r3(c.netKwd) })).sort((a, b) => b.netKwd - a.netKwd),
-    products: [...productAgg.values()].map((p) => ({ ...p, netKwd: r3(p.netKwd) })).filter((p) => p.qty > 0 && p.netKwd > 0).sort((a, b) => b.netKwd - a.netKwd),
+    paymentMethods: paymentsReadable
+      ? [...methodAgg.values()]
+          .map((m) => ({ ...m, amountKwd: r3(m.amountKwd) }))
+          .sort((a, b) => b.amountKwd - a.amountKwd)
+      : [],
+    categories: [...catAgg.values()]
+      .map((c) => ({ ...c, netKwd: r3(c.netKwd) }))
+      .sort((a, b) => b.netKwd - a.netKwd),
+    products: [...productAgg.values()]
+      .map((p) => ({ ...p, netKwd: r3(p.netKwd) }))
+      .filter((p) => p.qty > 0 && p.netKwd > 0)
+      .sort((a, b) => b.netKwd - a.netKwd),
     accounting: {
       postedCompany: Object.fromEntries(Object.entries(posted).map(([k, v]) => [k, r3(v)])),
-      excludedLocationsAnalytic: Object.fromEntries(Object.entries(excluded).map(([k, v]) => [k, r3(v)])),
+      excludedLocationsAnalytic: Object.fromEntries(
+        Object.entries(excluded).map(([k, v]) => [k, r3(v)]),
+      ),
       whitelisted,
       locationPnl,
-      incomeByJournal: journals.map((g) => ({ journal: m2oName(g.journal_id), lines: g.__count, incomeKwd: r3(-(g.balance || 0)) })),
-      saleOrders: { count: saleOrders[0]?.__count ?? 0, untaxedKwd: r3(saleOrders[0]?.amount_untaxed ?? 0) },
+      incomeByJournal: journals.map((g) => ({
+        journal: m2oName(g.journal_id),
+        lines: g.__count,
+        incomeKwd: r3(-(g.balance || 0)),
+      })),
+      saleOrders: {
+        count: saleOrders[0]?.__count ?? 0,
+        untaxedKwd: r3(saleOrders[0]?.amount_untaxed ?? 0),
+      },
     },
     permissions: { missingRead: [...MISSING_READ.keys()] },
   }
 
   /* 7-stage full-journey extraction (aggregates only; no vendor, employee or customer names) */
   if (!SKIP_JOURNEY) {
-    console.log(`\n▶ Full-journey extraction · rolling ${WINDOWS.rolling30.from} → ${WINDOWS.rolling30.to} · prior ${WINDOWS.prior30.from} → ${WINDOWS.prior30.to} · MTD ${WINDOWS.mtd.from} → ${WINDOWS.mtd.to}`)
+    log(
+      `\n▶ Full-journey extraction · rolling ${WINDOWS.rolling30.from} → ${WINDOWS.rolling30.to} · prior ${WINDOWS.prior30.from} → ${WINDOWS.prior30.to} · MTD ${WINDOWS.mtd.from} → ${WINDOWS.mtd.to}`,
+    )
     const catName = (pid) => catById.get(catOfProduct.get(pid))?.name ?? null
     const { journey, locDishQty } = await extractJourney({
-      ek, safe, REGISTRY, WINDOWS, ALLOWED, registers, locBrandNet, locChannel,
-      brandOfProduct, catNameOfProduct: catName, priceOfProduct: (pid) => priceOfProduct.get(pid), channelOf,
-      nameOfProduct: (pid) => nameOfProductId.get(pid) ?? null, ensureProducts, missingRead: [...MISSING_READ.keys()],
+      ek,
+      safe,
+      REGISTRY,
+      WINDOWS,
+      ALLOWED,
+      registers,
+      locBrandNet,
+      locChannel,
+      brandOfProduct,
+      catNameOfProduct: catName,
+      priceOfProduct: (pid) => priceOfProduct.get(pid),
+      channelOf,
+      nameOfProduct: (pid) => nameOfProductId.get(pid) ?? null,
+      ensureProducts,
+      missingRead: [...MISSING_READ.keys()],
     })
     snapshot.windows = WINDOWS
     snapshot.journey = { ...journey, locDishQty }
     snapshot.permissions.audit = journey.access
     const compact = { source: ODOO_URL, syncedAt: snapshot.syncedAt, ...journey }
-    fs.writeFileSync(JOURNEY_OUT, JSON.stringify(compact) + '\n')
-    console.log(`✔ Journey intelligence written → ${path.relative(ROOT, JOURNEY_OUT)} (${Math.round(fs.statSync(JOURNEY_OUT).size / 1024)} KB, aggregates only)`)
+    writeFile(JOURNEY_OUT, JSON.stringify(compact) + '\n')
+    log(
+      `✔ Journey intelligence written → ${path.relative(ROOT, JOURNEY_OUT)} (${Math.round(statSync(JOURNEY_OUT).size / 1024)} KB, aggregates only)`,
+    )
 
     const aa = journey.opex?.analyticArchitecture
     const un = journey.opex?.unallocated?.rolling30
-    console.log('\n■ Odoo Analytic Cost-Center Access Summary (service user: ' + ODOO_LOGIN + '):')
-    console.log(`   - account.analytic.plan    : ${aa?.plansReadable ? `✅ READ OK (${aa.plans.map((p) => p.name).join(', ')})` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
-    console.log(`   - account.analytic.account : ${aa?.accountsReadable ? `✅ READ OK (${aa.whitelistedCenters.length} whitelisted Venture Foods cost centers mapped)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
-    console.log(`   - account.analytic.line    : ${aa?.linesReadable ? `✅ READ OK (${aa.rolling30Lines.toLocaleString('en-US')} rolling-30d ledger postings across Branches, Brands & EXB)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`)
-    if (un) console.log(`   - Unallocated Expense Scan : ✅ READ OK (${un.grossDebitKwd} KWD gross debit · ${un.directOpexKwd} KWD direct unallocated OpEx across ${un.lines} lines with empty analytic_distribution)`)
-  } else if (fs.existsSync(SNAPSHOT)) {
+    log('\n■ Odoo Analytic Cost-Center Access Summary (service user: ' + ODOO_LOGIN + '):')
+    log(
+      `   - account.analytic.plan    : ${aa?.plansReadable ? `✅ READ OK (${aa.plans.map((p) => p.name).join(', ')})` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`,
+    )
+    log(
+      `   - account.analytic.account : ${aa?.accountsReadable ? `✅ READ OK (${aa.whitelistedCenters.length} whitelisted Venture Foods cost centers mapped)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`,
+    )
+    log(
+      `   - account.analytic.line    : ${aa?.linesReadable ? `✅ READ OK (${aa.rolling30Lines.toLocaleString('en-US')} rolling-30d ledger postings across Branches, Brands & EXB)` : '⛔ RESTRICTED — enable Odoo group "Analytic Accounting" / "Billing Read-Only"'}`,
+    )
+    if (un) {
+      log(
+        `   - Unallocated Expense Scan : ✅ READ OK (${un.grossDebitKwd} KWD gross debit · ${un.directOpexKwd} KWD direct unallocated OpEx across ${un.lines} lines with empty analytic_distribution)`,
+      )
+    }
+  } else if (existsSync(SNAPSHOT)) {
     try {
-      const prev = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'))
+      const prev = JSON.parse(readFileSync(SNAPSHOT, 'utf8'))
       if (prev.windows) snapshot.windows = prev.windows
       if (prev.journey) snapshot.journey = prev.journey
       if (prev.permissions?.audit) snapshot.permissions.audit = prev.permissions.audit
     } catch {}
   }
 
-  console.log(`\n■ Whitelisted POS: ${snapshot.totals.netSalesKwd} KWD · ${totalOrders} orders · AOV ${snapshot.totals.aovKwd} · promo/discount lines ${snapshot.totals.promoAdjustmentsKwd} · line discounts ${snapshot.totals.discountKwd}`)
-  console.log('\n■ Locations:')
-  for (const l of locations) console.log(`   - [${l.unit}] ${l.en.padEnd(34)} ${l.netKwd.toFixed(3).padStart(12)} KWD ${String(l.orders).padStart(6)} orders  ${l.sharePct}%  regs ${l.registers.join(',')}`)
-  console.log('\n■ Brands:')
-  for (const b of brands) console.log(`   - ${b.en.padEnd(22)} ${b.netKwd.toFixed(3).padStart(12)} KWD ${String(b.orders).padStart(6)} orders  AOV ${b.aovKwd}  ${b.sharePct}%`)
-  console.log('\n■ Channels:', snapshot.channels.map((c) => `${c.name}=${c.amountKwd}`).join(' | '))
-  console.log('\n■ Accounting (posted):', snapshot.accounting.postedCompany)
-  console.log('■ Excluded locations (analytic):', snapshot.accounting.excludedLocationsAnalytic)
-  console.log('■ Whitelisted accounting:', whitelisted)
-  console.log('■ Location P&L (analytic):', Object.entries(locationPnl).map(([k, p]) => `${k}: rev ${p.income} · cogs ${p.cogs} · opex ${p.expense} · dep ${p.depreciation} · op ${p.operatingProfit}`).join('\n   '))
-  console.log('■ Income by journal:', snapshot.accounting.incomeByJournal.map((j) => `${j.journal}=${j.incomeKwd}`).join(' | '), '· sale.order', snapshot.accounting.saleOrders)
+  log(
+    `\n■ Whitelisted POS: ${snapshot.totals.netSalesKwd} KWD · ${totalOrders} orders · AOV ${snapshot.totals.aovKwd} · promo/discount lines ${snapshot.totals.promoAdjustmentsKwd} · line discounts ${snapshot.totals.discountKwd}`,
+  )
+  log('\n■ Locations:')
+  for (const l of locations) {
+    log(
+      `   - [${l.unit}] ${l.en.padEnd(34)} ${l.netKwd.toFixed(3).padStart(12)} KWD ${String(l.orders).padStart(6)} orders  ${l.sharePct}%  regs ${l.registers.join(',')}`,
+    )
+  }
+  log('\n■ Brands:')
+  for (const b of brands) {
+    log(
+      `   - ${b.en.padEnd(22)} ${b.netKwd.toFixed(3).padStart(12)} KWD ${String(b.orders).padStart(6)} orders  AOV ${b.aovKwd}  ${b.sharePct}%`,
+    )
+  }
+  log('\n■ Channels:', snapshot.channels.map((c) => `${c.name}=${c.amountKwd}`).join(' | '))
+  log('\n■ Accounting (posted):', snapshot.accounting.postedCompany)
+  log('■ Excluded locations (analytic):', snapshot.accounting.excludedLocationsAnalytic)
+  log('■ Whitelisted accounting:', whitelisted)
+  log(
+    '■ Location P&L (analytic):',
+    Object.entries(locationPnl)
+      .map(
+        ([k, p]) =>
+          `${k}: rev ${p.income} · cogs ${p.cogs} · opex ${p.expense} · dep ${p.depreciation} · op ${p.operatingProfit}`,
+      )
+      .join('\n   '),
+  )
+  log(
+    '■ Income by journal:',
+    snapshot.accounting.incomeByJournal.map((j) => `${j.journal}=${j.incomeKwd}`).join(' | '),
+    '· sale.order',
+    snapshot.accounting.saleOrders,
+  )
 
-  fs.writeFileSync(SNAPSHOT, JSON.stringify(snapshot, null, 2) + '\n')
-  console.log(`\n✔ Snapshot written → ${path.relative(ROOT, SNAPSHOT)} (no credentials stored)`)
-  if (MISSING_READ.size) { console.log('\n■ Missing Odoo read permissions:'); for (const [m, msg] of MISSING_READ) console.log(`   - ${m}: ${msg}`) }
-  else console.log('■ Permissions: the service user could read every queried model.')
+  writeFile(SNAPSHOT, JSON.stringify(snapshot, null, 2) + '\n')
+  log(`\n✔ Snapshot written → ${path.relative(ROOT, SNAPSHOT)} (no credentials stored)`)
+  if (MISSING_READ.size) {
+    log('\n■ Missing Odoo read permissions:')
+    for (const [m, msg] of MISSING_READ) log(`   - ${m}: ${msg}`)
+  } else {
+    log('■ Permissions: the service user could read every queried model.')
+  }
+
+  return snapshot
 }
 
-main().catch((e) => fail(e.message))
+const isMainModule =
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+
+if (isMainModule) {
+  const fileEnv = loadEnvFile(path.join(ROOT, '.env.local'))
+  const env = (k) => process.env[k] || fileEnv[k] || ''
+  const argv = process.argv.slice(2)
+  const arg = (name) => {
+    const i = argv.indexOf(name)
+    return i >= 0 ? argv[i + 1] : undefined
+  }
+  const today = isoDay(new Date(Date.now() + 3 * 3600 * 1000))
+  const period = {
+    from: addDays(today, -30),
+    to: today,
+    ...(arg('--from') ? { from: arg('--from') } : {}),
+    ...(arg('--to') ? { to: arg('--to') } : {}),
+  }
+
+  runSyncOdooLive({
+    odooUrl: env('ODOO_URL'),
+    odooDb: env('ODOO_DB'),
+    odooLogin: env('ODOO_LOGIN'),
+    odooApiKey: env('ODOO_API_KEY'),
+    today,
+    period,
+    skipJourney: argv.includes('--skip-journey'),
+  }).catch((e) => {
+    console.error(`\n✖ ${e instanceof Error ? e.message : String(e)}`)
+    process.exit(1)
+  })
+}

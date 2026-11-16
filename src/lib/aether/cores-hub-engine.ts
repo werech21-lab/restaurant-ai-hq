@@ -195,6 +195,8 @@ export interface CoresHubSnapshot {
     } | null
   }
   sales: {
+    hourlyUnavailable: boolean
+    channelsUnavailable: boolean
     peakHourLabelAr: string
     peakHourLabelEn: string
     peakHourShortAr: string
@@ -456,6 +458,8 @@ export function computeCoresHubSnapshot(
         dishOfTheWeek: null,
       },
       sales: {
+        hourlyUnavailable: false,
+        channelsUnavailable: false,
         peakHourLabelAr: '—',
         peakHourLabelEn: '—',
         peakHourShortAr: '—',
@@ -595,14 +599,15 @@ export function computeCoresHubSnapshot(
   const strongestDayLabelAr = bestDow >= 0 ? dayNamesAr[bestDow] : '—'
   const strongestDayLabelEn = bestDow >= 0 ? dayNamesEn[bestDow] : '—'
 
-  // 2. Live hourly series (from liveCube when loaded)
+  // 2. Live hourly series (from liveCube when loaded, or liveSummary.hourlySeries)
+  const hourlyUnavailable = Boolean(!liveCube && liveSummary?.hourlySeries === null)
   const orderedHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1]
   const rawHourly =
     liveCube
       ? filters.branch !== 'all'
         ? liveCube.hourlyByBranch?.[filters.branch] ?? []
         : liveCube.hourlySeries ?? []
-      : []
+      : liveSummary?.hourlySeries ?? []
 
   const hourlyDenom = rawHourly.reduce((s, r) => s + safeNum(r.netKwd), 0)
   const hourlyPrelim: SalesPoint[] =
@@ -667,24 +672,31 @@ export function computeCoresHubSnapshot(
       : liveSummary?.buckets?.[filters.period] ?? liveSummary?.buckets?.month
 
   // 3. Brand Share (6 brands strictly)
+  const brandsUnavailable = Boolean(
+    !liveCube &&
+      activeBucket &&
+      (activeBucket.byBrand === null || activeBucket.totals.restaurantNetKwd === null),
+  )
   const brandIds =
     filters.brand === 'all' ? [...APPROVED_BRAND_IDS] : [filters.brand]
-  const brandRowsRaw = brandIds.map((bid) => {
-    if (liveCube) {
-      if (filters.branch !== 'all') {
-        const net = safeNum(liveCube.brandByBranch?.[filters.branch]?.[bid])
-        return { bid, salesKwd: net, orders: 0 }
-      }
-      const bRow = liveCube.byBrand?.[bid]
-      return { bid, salesKwd: safeNum(bRow?.netKwd), orders: safeNum(bRow?.orders) }
-    }
-    const bktBrand = activeBucket?.byBrand?.[bid]
-    if (bktBrand) {
-      return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: safeNum(bktBrand.orders) }
-    }
-    const wsOpt = ws.cascadingOptions.brands.find((x) => x.id === bid)
-    return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
-  })
+  const brandRowsRaw = brandsUnavailable
+    ? []
+    : brandIds.map((bid) => {
+        if (liveCube) {
+          if (filters.branch !== 'all') {
+            const net = safeNum(liveCube.brandByBranch?.[filters.branch]?.[bid])
+            return { bid, salesKwd: net, orders: 0 }
+          }
+          const bRow = liveCube.byBrand?.[bid]
+          return { bid, salesKwd: safeNum(bRow?.netKwd), orders: safeNum(bRow?.orders) }
+        }
+        const bktBrand = activeBucket?.byBrand?.[bid]
+        if (bktBrand) {
+          return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: safeNum(bktBrand.orders) }
+        }
+        const wsOpt = ws.cascadingOptions.brands.find((x) => x.id === bid)
+        return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+      })
   const brandTotalKwd = brandRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
   const brandShare: SalesPoint[] = brandRowsRaw
     .map((r) =>
@@ -773,30 +785,33 @@ export function computeCoresHubSnapshot(
       : mappedBranchPoints
 
   // 5. Channel Ranking (from live POS channel classification)
+  const channelsUnavailable = Boolean(!liveCube && activeBucket && activeBucket.uiChannels === null)
   const channelIds =
     filters.channel === 'all' ? [...APPROVED_CHANNEL_IDS] : [filters.channel]
-  const channelRowsRaw = channelIds.map((cid) => {
-    if (liveCube && filters.brand === 'all') {
-      if (filters.branch !== 'all') {
-        const ch = liveCube.byBranch?.[filters.branch]?.channels?.[cid]
-        return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
-      }
-      const ch = liveCube.byChannel?.[cid]
-      return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
-    }
-    if (filters.branch !== 'all') {
-      const chLoc = activeBucket?.byLocation?.[filters.branch]?.uiChannels?.[cid]
-      if (chLoc) {
-        return { cid, salesKwd: safeNum(chLoc.netKwd), orders: safeNum(chLoc.orders) }
-      }
-    }
-    const chBkt = activeBucket?.uiChannels?.[cid]
-    if (chBkt) {
-      return { cid, salesKwd: safeNum(chBkt.netKwd), orders: safeNum(chBkt.orders) }
-    }
-    const wsOpt = ws.cascadingOptions.channels.find((x) => x.id === cid)
-    return { cid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
-  })
+  const channelRowsRaw = channelsUnavailable
+    ? []
+    : channelIds.map((cid) => {
+        if (liveCube && filters.brand === 'all') {
+          if (filters.branch !== 'all') {
+            const ch = liveCube.byBranch?.[filters.branch]?.channels?.[cid]
+            return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
+          }
+          const ch = liveCube.byChannel?.[cid]
+          return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
+        }
+        if (filters.branch !== 'all') {
+          const chLoc = activeBucket?.byLocation?.[filters.branch]?.uiChannels?.[cid]
+          if (chLoc) {
+            return { cid, salesKwd: safeNum(chLoc.netKwd), orders: safeNum(chLoc.orders) }
+          }
+        }
+        const chBkt = activeBucket?.uiChannels?.[cid]
+        if (chBkt) {
+          return { cid, salesKwd: safeNum(chBkt.netKwd), orders: safeNum(chBkt.orders) }
+        }
+        const wsOpt = ws.cascadingOptions.channels.find((x) => x.id === cid)
+        return { cid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+      })
   const channelDenomKwd = channelRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
   const channelRanking: SalesPoint[] = channelRowsRaw
     .map((r) =>
@@ -930,7 +945,9 @@ export function computeCoresHubSnapshot(
       growthPlays: [],
       dishOfTheWeek: null,
     },
-    sales: {
+  sales: {
+      hourlyUnavailable,
+      channelsUnavailable,
       peakHourLabelAr,
       peakHourLabelEn,
       peakHourShortAr,

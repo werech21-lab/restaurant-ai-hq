@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { Award, ArrowUpRight, BarChart3, Store, Tag, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { computePeriodOverPeriodDeltaPct, formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { useI18n } from '@/lib/i18n'
 
@@ -58,13 +59,19 @@ export function SalesScorecardStudio() {
         </div>
       </div>
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4">
           <span className="text-xs font-bold text-slate-400">
             {isAr ? 'صافي المبيعات الإجمالي' : 'Total Net Sales'}
           </span>
           <div className="mt-1 text-2xl font-black font-mono text-white">
-            {Math.round(workspace.salesKwd).toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+            {workspace.nullableSalesKwd === null
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : `${Math.round(workspace.nullableSalesKwd).toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`}
           </div>
           <span
             className={`mt-1 inline-block text-xs font-bold ${
@@ -76,7 +83,7 @@ export function SalesScorecardStudio() {
             }`}
             dir="ltr"
           >
-            {deltaBadge.text}
+            {workspace.nullableSalesKwd === null ? '—' : deltaBadge.text}
           </span>
         </div>
 
@@ -85,7 +92,11 @@ export function SalesScorecardStudio() {
             {isAr ? 'عدد الطلبات المقبوضة' : 'Settled Orders'}
           </span>
           <div className="mt-1 text-2xl font-black font-mono text-emerald-400">
-            {workspace.orders.toLocaleString('en-US')}
+            {workspace.nullableOrders === null
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : workspace.nullableOrders.toLocaleString('en-US')}
           </div>
           <span className="mt-1 block text-xs text-slate-400">
             {isAr ? `خلال ${workspace.periodDays} يوم` : `Across ${workspace.periodDays} days`}
@@ -97,7 +108,11 @@ export function SalesScorecardStudio() {
             {isAr ? 'متوسط قيمة الفاتورة (AOV)' : 'Average Order Value (AOV)'}
           </span>
           <div className="mt-1 text-2xl font-black font-mono text-amber-300">
-            {workspace.aovKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+            {workspace.nullableAovKwd === null
+              ? isAr
+                ? 'غير متاح'
+                : '—'
+              : `${workspace.nullableAovKwd.toFixed(3)} ${isAr ? 'د.ك' : 'KWD'}`}
           </div>
           <span className="mt-1 block text-xs text-slate-400">
             {isAr ? 'متوسط السلة الفعلي في أودو' : 'Actual Odoo POS basket'}

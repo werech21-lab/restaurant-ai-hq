@@ -17,6 +17,7 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
 import { AdminPosTerminalMappingPanel } from '@/components/erp/AdminPosTerminalMappingPanel'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import {
   canTriggerManualOdooSync,
   isErpRouteAllowedForRole,
@@ -258,7 +259,14 @@ export function FullJourney360() {
 
   // 7 Mapped Branches + Explicit 8th Row «غير منسوب لفرع»
   const branchCards = useMemo<BranchCardRow[]>(() => {
-    if (!workspace.odooConnected || workspace.noData) return []
+    if (
+      !workspace.odooConnected ||
+      workspace.noData ||
+      workspace.sectionUnavailable ||
+      (activeBucket && activeBucket.totals.restaurantNetKwd === null)
+    ) {
+      return []
+    }
 
     const mappedRows: BranchCardRow[] = APPROVED_BRANCH_IDS.map((branchId) => {
       const bktLoc =
@@ -314,6 +322,7 @@ export function FullJourney360() {
     filters.channel,
     workspace.noData,
     workspace.odooConnected,
+    workspace.sectionUnavailable,
     workspace.unattributedOrders,
     workspace.unattributedSalesKwd,
   ])
@@ -556,8 +565,9 @@ export function FullJourney360() {
   )
 
   const heroDelta = useMemo(() => {
-    const rolling30Net = liveSummary?.journeyPulse?.rolling30?.netKwd ?? 0
-    const prior30Net = liveSummary?.journeyPulse?.prior30?.netKwd ?? 0
+    if (workspace.nullableSalesKwd === null) {
+      return { badgeLabel: '—', tone: 'neutral' as const }
+    }
     const isUnfilteredMonth =
       filters.period === 'month' &&
       filters.brand === 'all' &&
@@ -565,6 +575,11 @@ export function FullJourney360() {
       filters.channel === 'all' &&
       filters.kuwaitSlice === 'all' &&
       filters.lens === 'all'
+    if (isUnfilteredMonth && liveSummary?.journeyPulse === null) {
+      return { badgeLabel: '—', tone: 'neutral' as const }
+    }
+    const rolling30Net = liveSummary?.journeyPulse?.rolling30?.netKwd ?? 0
+    const prior30Net = liveSummary?.journeyPulse?.prior30?.netKwd ?? 0
     if (isUnfilteredMonth && rolling30Net > 0 && prior30Net > 0) {
       return computePeriodDelta(rolling30Net, prior30Net)
     }
@@ -628,6 +643,8 @@ export function FullJourney360() {
           </Link>
         </div>
       </div>
+
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
 
       {/* Honest Empty / Disconnected State — Zero Invented Numbers */}
       {isDisconnectedOrEmpty ? (
@@ -720,7 +737,9 @@ export function FullJourney360() {
                   dir="ltr"
                   className="mt-3 text-2xl sm:text-[34px] font-semibold leading-tight tracking-tight tabular-nums text-white"
                 >
-                  {fmtKwdVal(workspace.salesKwd)}
+                  {workspace.nullableSalesKwd === null
+                    ? T('—', 'غير متاح')
+                    : fmtKwdVal(workspace.nullableSalesKwd)}
                 </div>
 
                 <div className="mt-3.5 space-y-2">
@@ -738,7 +757,13 @@ export function FullJourney360() {
                       {heroDelta.badgeLabel} {T('vs prior period', 'مقارنة بالفترة السابقة')}
                     </span>
                     <span className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
-                      {isAr ? `• متوسط ${f2(workspace.aovKwd)} د.ك` : `• AOV ${f2(workspace.aovKwd)} KWD`}
+                      {workspace.nullableAovKwd === null
+                        ? isAr
+                          ? '• متوسط غير متاح'
+                          : '• AOV —'
+                        : isAr
+                          ? `• متوسط ${f2(workspace.nullableAovKwd)} د.ك`
+                          : `• AOV ${f2(workspace.nullableAovKwd)} KWD`}
                     </span>
                   </div>
                   {workspace.unattributedSalesKwd > 0 &&
@@ -784,7 +809,7 @@ export function FullJourney360() {
                   dir="ltr"
                   className="mt-3 text-2xl sm:text-[32px] font-semibold leading-tight tracking-tight tabular-nums text-slate-950 dark:text-white"
                 >
-                  {f0(workspace.orders)}
+                  {workspace.nullableOrders === null ? T('—', 'غير متاح') : f0(workspace.nullableOrders)}
                 </div>
 
                 <div className="mt-3.5 space-y-1.5">

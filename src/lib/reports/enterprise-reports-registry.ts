@@ -122,87 +122,101 @@ export function buildLiveEnterpriseDepartments(
   const connected = Boolean(workspace.odooConnected && !workspace.noData)
   const rangeStr = `${workspace.dateRange.from} → ${workspace.dateRange.to}`
 
-  const totalSales = connected ? (bucket?.totals.netSalesKwd ?? workspace.salesKwd) : 0
-  const totalOrders = connected ? (bucket?.totals.orders ?? workspace.orders) : 0
-  const aov = totalOrders > 0 ? totalSales / totalOrders : 0
+  const rawTotalSales = connected
+    ? bucket
+      ? bucket.totals.netSalesKwd
+      : workspace.nullableSalesKwd
+    : 0
+  const rawTotalOrders = connected
+    ? bucket
+      ? bucket.totals.orders
+      : workspace.nullableOrders
+    : 0
+  const totalsUnavailable = connected && (rawTotalSales === null || rawTotalOrders === null)
+  const totalSales = rawTotalSales ?? 0
+  const totalOrders = rawTotalOrders ?? 0
+  const aov = !totalsUnavailable && totalOrders > 0 ? totalSales / totalOrders : 0
 
   // 1. Brand Sales Report (6 approved brands)
-  const brandRows = connected
-    ? APPROVED_BRAND_IDS.map((brandId) => {
-        const bktHit = bucket?.byBrand?.[brandId]
-        const summaryHit = liveSummary?.brands.find((b) => b.id === brandId)
-        const net = bktHit?.netKwd ?? summaryHit?.netKwd ?? 0
-        const ord = bktHit?.orders ?? 0
-        const share = totalSales > 0 ? (net / totalSales) * 100 : 0
-        return {
-          id: brandId,
-          labelAr: getBrandLabel(brandId as GlobalBrand, true),
-          labelEn: getBrandLabel(brandId as GlobalBrand, false),
-          net,
-          ord,
-          share,
-          aov: ord > 0 ? net / ord : 0,
-        }
-      }).sort((a, b) => b.net - a.net)
-    : []
-
-  // 2. Branch Sales Report (7 approved branches + explicit 8th «غير منسوب لفرع»)
-  const branchRows = connected
-    ? [
-        ...APPROVED_BRANCH_IDS.map((branchId) => {
-          const loc = bucket?.mappedByLocation?.[branchId] ?? bucket?.byLocation?.[branchId]
-          const summaryHit = liveSummary?.branches.find((b) => b.id === branchId)
-          const net = loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0
-          const ord = loc?.orders ?? summaryHit?.orders ?? 0
+  const brandRows =
+    connected && !totalsUnavailable && bucket?.byBrand !== null
+      ? APPROVED_BRAND_IDS.map((brandId) => {
+          const bktHit = bucket?.byBrand?.[brandId]
+          const summaryHit = (liveSummary?.brands ?? []).find((b) => b.id === brandId)
+          const net = bktHit?.netKwd ?? summaryHit?.netKwd ?? 0
+          const ord = bktHit?.orders ?? 0
           const share = totalSales > 0 ? (net / totalSales) * 100 : 0
           return {
-            id: branchId,
-            labelAr: getBranchLabel(branchId as GlobalBranch, true),
-            labelEn: getBranchLabel(branchId as GlobalBranch, false),
+            id: brandId,
+            labelAr: getBrandLabel(brandId as GlobalBrand, true),
+            labelEn: getBrandLabel(brandId as GlobalBrand, false),
             net,
             ord,
             share,
             aov: ord > 0 ? net / ord : 0,
           }
-        }),
-        {
-          id: 'unattributed',
-          labelAr: 'غير منسوب لفرع',
-          labelEn: 'Unattributed to Branch',
-          net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
-          ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
-          share:
-            totalSales > 0
-              ? ((bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                  totalSales) *
-                100
-              : 0,
-          aov:
-            (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
-              ? (bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)
-              : 0,
-        },
-      ]
-    : []
+        }).sort((a, b) => b.net - a.net)
+      : []
+
+  // 2. Branch Sales Report (7 approved branches + explicit 8th «غير منسوب لفرع»)
+  const branchRows =
+    connected && !totalsUnavailable && bucket?.byLocation !== null
+      ? [
+          ...APPROVED_BRANCH_IDS.map((branchId) => {
+            const loc = bucket?.mappedByLocation?.[branchId] ?? bucket?.byLocation?.[branchId]
+            const summaryHit = (liveSummary?.branches ?? []).find((b) => b.id === branchId)
+            const net = loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0
+            const ord = loc?.orders ?? summaryHit?.orders ?? 0
+            const share = totalSales > 0 ? (net / totalSales) * 100 : 0
+            return {
+              id: branchId,
+              labelAr: getBranchLabel(branchId as GlobalBranch, true),
+              labelEn: getBranchLabel(branchId as GlobalBranch, false),
+              net,
+              ord,
+              share,
+              aov: ord > 0 ? net / ord : 0,
+            }
+          }),
+          {
+            id: 'unattributed',
+            labelAr: 'غير منسوب لفرع',
+            labelEn: 'Unattributed to Branch',
+            net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
+            ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
+            share:
+              totalSales > 0
+                ? ((bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
+                    totalSales) *
+                  100
+                : 0,
+            aov:
+              (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
+                ? (bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
+                  (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)
+                : 0,
+          },
+        ]
+      : []
 
   // 3. Channel Sales Report (8 approved channels)
-  const channelRows = connected
-    ? APPROVED_CHANNEL_IDS.map((channelId) => {
-        const hit = bucket?.uiChannels?.[channelId]
-        const net = hit?.netKwd ?? 0
-        const ord = hit?.orders ?? 0
-        const share = totalSales > 0 ? (net / totalSales) * 100 : 0
-        return {
-          id: channelId,
-          labelAr: getChannelLabel(channelId as GlobalChannel, true),
-          labelEn: getChannelLabel(channelId as GlobalChannel, false),
-          net,
-          ord,
-          share,
-        }
-      }).sort((a, b) => b.net - a.net)
-    : []
+  const channelRows =
+    connected && bucket?.uiChannels !== null
+      ? APPROVED_CHANNEL_IDS.map((channelId) => {
+          const hit = bucket?.uiChannels?.[channelId]
+          const net = hit?.netKwd ?? 0
+          const ord = hit?.orders ?? 0
+          const share = totalSales > 0 ? (net / totalSales) * 100 : 0
+          return {
+            id: channelId,
+            labelAr: getChannelLabel(channelId as GlobalChannel, true),
+            labelEn: getChannelLabel(channelId as GlobalChannel, false),
+            net,
+            ord,
+            share,
+          }
+        }).sort((a, b) => b.net - a.net)
+      : []
 
   const acc = workspace.accounting
   const rec = workspace.receivables
@@ -290,8 +304,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.order',
           summaryAr: 'صافي المبيعات وعدد الطلبات ومتوسط التذكرة لكل علامة تجارية من أوامر نقاط البيع في Odoo.',
           summaryEn: 'Net sales, order counts, and average ticket per brand from Odoo POS orders.',
-          headlineMetricAr: connected ? fmtKwd(totalSales, true) : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected ? fmtKwd(totalSales, false) : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : totalsUnavailable
+              ? 'غير متاح'
+              : fmtKwd(totalSales, true),
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : totalsUnavailable
+              ? '—'
+              : fmtKwd(totalSales, false),
           recordCount: brandRows.length,
           auditedDate: rangeStr,
           kpis: connected
@@ -299,7 +321,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'صافي المبيعات',
                   labelEn: 'Net POS Sales',
-                  value: fmtKwd(totalSales, isAr),
+                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(totalSales, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "SUM(pos.order.amount_total - amount_tax) WHERE state IN ('paid','done','invoiced')",
@@ -307,7 +329,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'إجمالي الطلبات',
                   labelEn: 'Total Orders',
-                  value: totalOrders.toLocaleString('en-US'),
+                  value: totalsUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : totalOrders.toLocaleString('en-US'),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "COUNT(pos.order) WHERE state IN ('paid','done','invoiced')",
@@ -315,7 +341,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'متوسط الفاتورة',
                   labelEn: 'Average Ticket',
-                  value: fmtKwd(aov, isAr),
+                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(aov, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'محسوب بمعادلة',
                   queryOrFormula: 'صافي المبيعات ÷ إجمالي الطلبات',
@@ -356,12 +382,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.order',
           summaryAr: 'توزيع المبيعات على الفروع السبعة المعتمدة بالإضافة إلى سطر مستقل للمبيعات غير المربوطة بفرع تشغيلي.',
           summaryEn: 'Sales across the 7 approved branches plus a standalone row for POS configs not mapped to a physical branch.',
-          headlineMetricAr: connected
-            ? `${fmtKwd(workspace.unattributedSalesKwd, true)} غير منسوب`
-            : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected
-            ? `${fmtKwd(workspace.unattributedSalesKwd, false)} unattributed`
-            : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : totalsUnavailable
+              ? 'غير متاح'
+              : `${fmtKwd(workspace.unattributedSalesKwd, true)} غير منسوب`,
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : totalsUnavailable
+              ? '—'
+              : `${fmtKwd(workspace.unattributedSalesKwd, false)} unattributed`,
           recordCount: branchRows.length,
           auditedDate: rangeStr,
           kpis: connected
@@ -369,7 +399,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'إجمالي مبيعات الفترة',
                   labelEn: 'Total Period Sales',
-                  value: fmtKwd(totalSales, isAr),
+                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(totalSales, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: 'SUM(pos.order net sales)',
@@ -377,10 +407,14 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'غير منسوب لفرع',
                   labelEn: 'Unattributed to Branch',
-                  value: fmtKwd(
-                    bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
-                    isAr,
-                  ),
+                  value: totalsUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(
+                        bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
+                        isAr,
+                      ),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: 'SUM(pos.order) WHERE config_id NOT IN 7 physical branch mappings',
@@ -421,8 +455,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.payment',
           summaryAr: 'المبالغ الفعلية المحصلة عبر طرق الدفع ومنصات التوصيل المسجلة في Odoo POS.',
           summaryEn: 'Actual tender amounts collected per POS payment method in Odoo.',
-          headlineMetricAr: connected ? `${channelRows.length} قنوات` : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected ? `${channelRows.length} channels` : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : bucket?.uiChannels === null
+              ? 'غير متاح'
+              : `${channelRows.length} قنوات`,
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : bucket?.uiChannels === null
+              ? '—'
+              : `${channelRows.length} channels`,
           recordCount: channelRows.length,
           auditedDate: rangeStr,
           kpis: connected

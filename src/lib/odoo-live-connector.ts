@@ -31,6 +31,7 @@ import {
   type OdooReceivableClearingSummary,
   type OdooStockTransferSummary,
   type OdooUnattributedBranchRow,
+  type OdooUnavailableSectionKey,
 } from '@/lib/odoo/live-sync-core'
 import {
   ACTIVE_VENTURE_BRANCH_IDS,
@@ -84,8 +85,12 @@ const CIRCUIT_BREAKER_THRESHOLD = 2
 const CIRCUIT_OPEN_DURATION_MS = 20_000
 const MAX_COMPARISON_CACHE_ENTRIES = 32
 
+export const PARTIAL_ODOO_WARNING_AR = 'بعض الأرقام غير متاحة الآن'
+export const PARTIAL_ODOO_WARNING_EN = 'Some figures are temporarily unavailable'
+
 export type OdooDiagnosticCode =
   | 'OK_LIVE'
+  | 'PARTIAL_LIVE'
   | 'ENV_NOT_CONFIGURED'
   | 'AUTH_REJECTED_CHECK_DB_OR_USER_LOGIN'
   | 'CIRCUIT_OPEN_DISCONNECTED'
@@ -175,6 +180,10 @@ export interface OdooLiveSyncEnvelope extends OdooLiveSummary {
   connected: boolean
   sourceMode: 'odoo17-live' | 'cached-live' | 'disconnected' | 'verified-baseline'
   noData: boolean
+  partial: boolean
+  unavailableSections: string[]
+  warningAr?: string
+  warningEn?: string
   messageAr?: string
   messageEn?: string
   summary: OdooLiveSummary | null
@@ -182,8 +191,8 @@ export interface OdooLiveSyncEnvelope extends OdooLiveSummary {
   isStale24h: boolean
   odooCompanyId: number | null
   dateRange: { from: string; to: string }
-  unattributedSalesKwd: number
-  unattributedOrders: number
+  unattributedSalesKwd: number | null
+  unattributedOrders: number | null
   envConfigured: boolean
   latestRecordAt: string
   latestOdooRecordAt: string
@@ -210,6 +219,8 @@ interface CachedCoreSnapshot {
   envConfigured: boolean
   odooCompanyId: number | null
   diagnosticCode: OdooDiagnosticCode
+  partial: boolean
+  unavailableSections: OdooUnavailableSectionKey[]
   latestRecordAt: string
   latestOperationalDate: string
   todayOrdersCount: number
@@ -230,9 +241,9 @@ interface CachedCoreSnapshot {
   dailySeries: { day: string; orders: number; netKwd: number }[]
   dailyByBranch?: Record<string, Record<string, { netKwd: number; orders: number }>>
   dailyUnattributed?: Record<string, { netKwd: number; orders: number }>
-  hourlySeries: { hour: number; orders: number; netKwd: number }[]
-  stockTransfers?: OdooStockTransferSummary
-  aggregatorReceivables?: OdooReceivableClearingSummary
+  hourlySeries: { hour: number; orders: number; netKwd: number }[] | null
+  stockTransfers?: OdooStockTransferSummary | null
+  aggregatorReceivables?: OdooReceivableClearingSummary | null
   journeyPulse?: OdooLiveSummary['journeyPulse']
   note?: string
 }
@@ -1266,6 +1277,8 @@ export function buildDisconnectedOdooEnvelope(options?: {
     connected: false,
     sourceMode: 'disconnected',
     noData: true,
+    partial: false,
+    unavailableSections: [],
     messageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
     messageEn: 'No data from Odoo for this period',
     summary: null,
@@ -1308,10 +1321,15 @@ export function buildDisconnectedOdooEnvelope(options?: {
   return sanitizeOdooPublicPayload(envelope)
 }
 
-async function safeSubQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+async function safeSubQuery<T>(
+  fn: () => Promise<T>,
+  fallback: T,
+  onFailure?: { collector: Set<OdooUnavailableSectionKey>; section: OdooUnavailableSectionKey },
+): Promise<T> {
   try {
     return await fn()
   } catch {
+    onFailure?.collector.add(onFailure.section)
     return fallback
   }
 }
@@ -1334,6 +1352,9 @@ export function buildReconciledBucket(params: {
   locUiRawMap: Map<string, Record<string, { netKwd: number; orders: number }>>
   unmappedUiRaw?: Record<string, { netKwd: number; orders: number }>
   accounting?: OdooBucketSummary['accounting']
+  totalsUnavailable?: boolean
+  channelsUnavailable?: boolean
+  brandsUnavailable?: boolean
 }): OdooBucketSummary {
   const {
     key,
@@ -1353,6 +1374,9 @@ export function buildReconciledBucket(params: {
     locUiRawMap,
     unmappedUiRaw,
     accounting,
+    totalsUnavailable = false,
+    channelsUnavailable = false,
+    brandsUnavailable = false,
   } = params
 
   const mappedBranchNet = r3(
@@ -1445,7 +1469,7 @@ export function buildReconciledBucket(params: {
     byLocation[lid] = {
       netKwd: locRealNet,
       orders: locRealOrd,
-      uiChannels: locUi,
+      uiChannels: channelsUnavailable ? null : locUi,
     }
     mappedByLocation[lid] = {
       netKwd: locRealNet,
@@ -1453,12 +1477,45 @@ export function buildReconciledBucket(params: {
     }
   }
 
-  if (unmappedUiRaw) {
+  if (!channelsUnavailable && unmappedUiRaw) {
     for (const ck of UI_CHANNEL_KEYS) {
       const uEntry = unmappedUiRaw[ck]
       if (!uEntry) continue
       aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + signedKwd(uEntry.netKwd))
       aggUiChannels[ck].orders += Math.max(0, Math.round(Number(uEntry.orders) || 0))
+    }
+  }
+
+  if (totalsUnavailable) {
+    return {
+      key,
+      from,
+      to,
+      days,
+      ...(isLatestOperationalDay ? { isLatestOperationalDay: true } : {}),
+      totals: {
+        netSalesKwd: null,
+        orders: null,
+        aovKwd: null,
+        restaurantNetKwd: null,
+        restaurantOrders: null,
+      },
+      byBrand: null,
+      byLocation: null,
+      mappedByLocation: null,
+      unattributedSalesKwd: null,
+      unattributedOrders: null,
+      unattributedBranch: null,
+      unmappedSummary: {
+        netSalesKwd: null,
+        orders: null,
+      },
+      excludedSummary: {
+        netSalesKwd: r3(Math.max(0, excludedNetKwd)),
+        orders: Math.max(0, Math.round(excludedOrders)),
+      },
+      uiChannels: channelsUnavailable ? null : aggUiChannels,
+      ...(accounting !== undefined ? { accounting } : {}),
     }
   }
 
@@ -1475,7 +1532,7 @@ export function buildReconciledBucket(params: {
       restaurantNetKwd: companyNet,
       restaurantOrders: companyOrders,
     },
-    byBrand,
+    byBrand: brandsUnavailable ? null : byBrand,
     byLocation,
     mappedByLocation,
     unattributedSalesKwd,
@@ -1489,8 +1546,8 @@ export function buildReconciledBucket(params: {
       netSalesKwd: r3(Math.max(0, excludedNetKwd)),
       orders: Math.max(0, Math.round(excludedOrders)),
     },
-    uiChannels: aggUiChannels,
-    ...(accounting ? { accounting } : {}),
+    uiChannels: channelsUnavailable ? null : aggUiChannels,
+    ...(accounting !== undefined ? { accounting } : {}),
   }
 }
 
@@ -1505,6 +1562,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   }
 
   const uid = await authenticateOdoo()
+  const unavailableSectionSet = new Set<OdooUnavailableSectionKey>()
+  const markFailure = (section: OdooUnavailableSectionKey) => ({
+    collector: unavailableSectionSet,
+    section,
+  })
 
   // 1. Discover & map all POS configs (`id`, `name`, `company_id`, `picking_type_id`), POS categories, GL Chart of Accounts, user's company_id, and latest order timestamp
   const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderCandidates] = await Promise.all([
@@ -1859,293 +1921,304 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               ['amount_total:sum'],
               ['date_order:hour'],
             ],
-            { lazy: false, context: { tz: 'Asia/Kuwait' } },
-          ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery(
-      () =>
-        Promise.all([
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              amount: number
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
+              { lazy: false, context: { tz: 'Asia/Kuwait' } },
+            ),
+          ]),
+        [[], []],
+        markFailure('hourly'),
+      ),
+      safeSubQuery(
+        () =>
+          Promise.all([
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                amount: number
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsMonth, false),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsMonth, true),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+          ]),
+        [[], []],
+        markFailure('channels.month'),
+      ),
+      safeSubQuery(
+        () =>
+          Promise.all([
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                amount: number
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsWeek, false),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsWeek, true),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+          ]),
+        [[], []],
+        markFailure('channels.week'),
+      ),
+      safeSubQuery(
+        () =>
+          Promise.all([
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                amount: number
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsToday, false),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsToday, true),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+          ]),
+        [[], []],
+        markFailure('channels.today'),
+      ),
+      safeSubQuery(
+        () =>
+          Promise.all([
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                amount: number
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsYear, false),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<
+              {
+                session_id: M2O
+                payment_method_id: M2O
+                __count?: number
+              }[]
+            >(
+              'pos.payment',
+              'read_group',
+              [
+                posPaymentDomainOf(boundsYear, true),
+                ['amount:sum'],
+                ['session_id', 'payment_method_id'],
+              ],
+              { lazy: false },
+            ),
+          ]),
+        [[], []],
+        markFailure('channels.year'),
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+            'pos.order.line',
             'read_group',
             [
-              posPaymentDomainOf(boundsMonth, false),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
+              [
+                ['order_id.date_order', '>=', boundsMonth.fromUtc],
+                ['order_id.date_order', '<', boundsMonth.toUtc],
+                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                ...excludedPosLineDomain,
+              ],
+              ['price_subtotal:sum', 'qty:sum'],
+              ['product_id'],
             ],
             { lazy: false },
           ),
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
+        [],
+        markFailure('brands.month'),
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+            'pos.order.line',
             'read_group',
             [
-              posPaymentDomainOf(boundsMonth, true),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
+              [
+                ['order_id.date_order', '>=', boundsWeek.fromUtc],
+                ['order_id.date_order', '<', boundsWeek.toUtc],
+                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                ...excludedPosLineDomain,
+              ],
+              ['price_subtotal:sum', 'qty:sum'],
+              ['product_id'],
             ],
             { lazy: false },
           ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery(
-      () =>
-        Promise.all([
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              amount: number
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
+        [],
+        markFailure('brands.week'),
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+            'pos.order.line',
             'read_group',
             [
-              posPaymentDomainOf(boundsWeek, false),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
+              [
+                ['order_id.date_order', '>=', boundsToday.fromUtc],
+                ['order_id.date_order', '<', boundsToday.toUtc],
+                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                ...excludedPosLineDomain,
+              ],
+              ['price_subtotal:sum', 'qty:sum'],
+              ['product_id'],
             ],
             { lazy: false },
           ),
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
+        [],
+        markFailure('brands.today'),
+      ),
+      safeSubQuery(
+        () =>
+          executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+            'pos.order.line',
             'read_group',
             [
-              posPaymentDomainOf(boundsWeek, true),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
+              [
+                ['order_id.date_order', '>=', boundsYear.fromUtc],
+                ['order_id.date_order', '<', boundsYear.toUtc],
+                ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                ...excludedPosLineDomain,
+              ],
+              ['price_subtotal:sum', 'qty:sum'],
+              ['product_id'],
             ],
             { lazy: false },
           ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery(
-      () =>
-        Promise.all([
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              amount: number
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
-            'read_group',
-            [
-              posPaymentDomainOf(boundsToday, false),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
-            ],
-            { lazy: false },
-          ),
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
-            'read_group',
-            [
-              posPaymentDomainOf(boundsToday, true),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
-            ],
-            { lazy: false },
-          ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery(
-      () =>
-        Promise.all([
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              amount: number
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
-            'read_group',
-            [
-              posPaymentDomainOf(boundsYear, false),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
-            ],
-            { lazy: false },
-          ),
-          executeOdooKw<
-            {
-              session_id: M2O
-              payment_method_id: M2O
-              __count?: number
-            }[]
-          >(
-            'pos.payment',
-            'read_group',
-            [
-              posPaymentDomainOf(boundsYear, true),
-              ['amount:sum'],
-              ['session_id', 'payment_method_id'],
-            ],
-            { lazy: false },
-          ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-          'pos.order.line',
-          'read_group',
-          [
-            [
-              ['order_id.date_order', '>=', boundsMonth.fromUtc],
-              ['order_id.date_order', '<', boundsMonth.toUtc],
-              ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosLineDomain,
-            ],
-            ['price_subtotal:sum', 'qty:sum'],
-            ['product_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-          'pos.order.line',
-          'read_group',
-          [
-            [
-              ['order_id.date_order', '>=', boundsWeek.fromUtc],
-              ['order_id.date_order', '<', boundsWeek.toUtc],
-              ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosLineDomain,
-            ],
-            ['price_subtotal:sum', 'qty:sum'],
-            ['product_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-          'pos.order.line',
-          'read_group',
-          [
-            [
-              ['order_id.date_order', '>=', boundsToday.fromUtc],
-              ['order_id.date_order', '<', boundsToday.toUtc],
-              ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosLineDomain,
-            ],
-            ['price_subtotal:sum', 'qty:sum'],
-            ['product_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-          'pos.order.line',
-          'read_group',
-          [
-            [
-              ['order_id.date_order', '>=', boundsYear.fromUtc],
-              ['order_id.date_order', '<', boundsYear.toUtc],
-              ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-              ...excludedPosLineDomain,
-            ],
-            ['price_subtotal:sum', 'qty:sum'],
-            ['product_id'],
-          ],
-          { lazy: false },
-        ),
-      [],
-    ),
-    safeSubQuery(
-      () =>
-        Promise.all([
-          executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
-            'pos.order',
-            'read_group',
-            [
-              posOrderDomainOf(boundsYear, false),
-              ['amount_total:sum', 'amount_tax:sum'],
-              ['session_id'],
-            ],
-            { lazy: false },
-          ),
-          executeOdooKw<{ session_id: M2O; __count?: number }[]>(
-            'pos.order',
-            'read_group',
-            [
-              posOrderDomainOf(boundsYear, true),
-              ['amount_total:sum'],
-              ['session_id'],
-            ],
-            { lazy: false },
-          ),
-        ]),
-      [[], []],
-    ),
-    safeSubQuery<
-      [{ amount_total?: number; amount_tax?: number; __count?: number }[], number] | null
-    >(
-      () =>
-        Promise.all([
-          executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
-            'pos.order',
-            'read_group',
-            [
-              posOrderDomainOf(boundsPrior30, false),
-              ['amount_total:sum', 'amount_tax:sum'],
-              [],
-            ],
-            { lazy: false },
-          ),
-          executeOdooKw<number>(
-            'pos.order',
-            'search_count',
-            [posOrderDomainOf(boundsPrior30, true)],
-          ),
-        ]),
-      null,
-    ),
-    safeSubQuery<OdooStockTransferSummary | undefined>(async () => {
+        [],
+        markFailure('brands.year'),
+      ),
+      safeSubQuery(
+        () =>
+          Promise.all([
+            executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
+              'pos.order',
+              'read_group',
+              [
+                posOrderDomainOf(boundsYear, false),
+                ['amount_total:sum', 'amount_tax:sum'],
+                ['session_id'],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<{ session_id: M2O; __count?: number }[]>(
+              'pos.order',
+              'read_group',
+              [
+                posOrderDomainOf(boundsYear, true),
+                ['amount_total:sum'],
+                ['session_id'],
+              ],
+              { lazy: false },
+            ),
+          ]),
+        [[], []],
+        markFailure('year'),
+      ),
+      safeSubQuery<
+        [{ amount_total?: number; amount_tax?: number; __count?: number }[], number] | null
+      >(
+        () =>
+          Promise.all([
+            executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
+              'pos.order',
+              'read_group',
+              [
+                posOrderDomainOf(boundsPrior30, false),
+                ['amount_total:sum', 'amount_tax:sum'],
+                [],
+              ],
+              { lazy: false },
+            ),
+            executeOdooKw<number>(
+              'pos.order',
+              'search_count',
+              [posOrderDomainOf(boundsPrior30, true)],
+            ),
+          ]),
+        null,
+        markFailure('journeyPulse'),
+      ),
+    safeSubQuery<OdooStockTransferSummary | null | undefined>(async () => {
       const [pickings, doneCount30, pendingCountTotal] = await Promise.all([
         executeOdooKw<
           {
@@ -2213,8 +2286,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               : null,
         })),
       }
-    }, undefined),
-    safeSubQuery<OdooReceivableClearingSummary | undefined>(async () => {
+    }, null, markFailure('stockTransfers')),
+    safeSubQuery<OdooReceivableClearingSummary | null | undefined>(async () => {
       const arDomain: unknown[][] = [
         ['parent_state', '=', 'posted'],
         ['account_id.account_type', '=', 'asset_receivable'],
@@ -2391,7 +2464,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         byAccount,
         agingBuckets: computedAging,
       }
-    }, undefined),
+    }, null, markFailure('receivables')),
     decommissionedConfigIds.size > 0
       ? safeSubQuery(
           () =>
@@ -2420,6 +2493,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               { lazy: false, context: { tz: 'Asia/Kuwait' } },
             ),
           [],
+          markFailure('excluded.month'),
         )
       : Promise.resolve([]),
     activeGlAccountIds.length > 0
@@ -2442,6 +2516,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               { lazy: false },
             ),
           [],
+          markFailure('gl.today'),
         )
       : Promise.resolve([]),
     activeGlAccountIds.length > 0
@@ -2464,6 +2539,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               { lazy: false },
             ),
           [],
+          markFailure('gl.week'),
         )
       : Promise.resolve([]),
     activeGlAccountIds.length > 0
@@ -2486,6 +2562,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               { lazy: false },
             ),
           [],
+          markFailure('gl.month'),
         )
       : Promise.resolve([]),
     activeGlAccountIds.length > 0
@@ -2508,6 +2585,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               { lazy: false },
             ),
           [],
+          markFailure('gl.year'),
         )
       : Promise.resolve([]),
   ])
@@ -2564,6 +2642,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               [allSessionIds, ['id', 'config_id']],
             ),
           [],
+          markFailure('sessions'),
         )
       : Promise.resolve([]),
     allProductIds.length > 0
@@ -2575,6 +2654,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               [allProductIds, ['id', 'name', 'pos_categ_id']],
             ),
           [],
+          markFailure('products'),
         )
       : Promise.resolve([]),
   ])
@@ -2894,11 +2974,13 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
 
-  const hourlySeries = hourlyAcc.map((h) => ({
-    hour: h.hour,
-    orders: h.orders,
-    netKwd: r3(h.netKwd),
-  }))
+  const hourlySeries = unavailableSectionSet.has('hourly')
+    ? null
+    : hourlyAcc.map((h) => ({
+        hour: h.hour,
+        orders: h.orders,
+        netKwd: r3(h.netKwd),
+      }))
 
   const calendarTodayStats = dailyMap.get(todayKwIso) ?? { orders: 0, netKwd: 0 }
   const rawTodayOrdersCount = Math.max(0, Math.round(calendarTodayStats.orders))
@@ -2966,7 +3048,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     return { locMap, unmappedUi }
   }
 
-  const has30Payments = mergedPayments30Rows.some((p) => p.netKwd !== 0 || p.orders > 0)
+  const channelsMonthFailed = unavailableSectionSet.has('channels.month')
+  const channelsWeekFailed = unavailableSectionSet.has('channels.week')
+  const channelsTodayFailed = unavailableSectionSet.has('channels.today')
+  const channelsYearFailed = unavailableSectionSet.has('channels.year')
+  const yearTotalsFailed = unavailableSectionSet.has('year')
+  const journeyPulseFailed = unavailableSectionSet.has('journeyPulse')
+
+  const has30Payments =
+    !channelsMonthFailed && mergedPayments30Rows.some((p) => p.netKwd !== 0 || p.orders > 0)
   const built30Ui = buildLocAndUnmappedUiMap(mergedPayments30Rows)
   const locUi30 = has30Payments ? built30Ui.locMap : pricelistUiHints30
   const unmappedUi30 = has30Payments ? built30Ui.unmappedUi : unmappedPricelistUiHints30
@@ -3007,8 +3097,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const todayInclusiveIso = shiftIsoDate(todayBucketTo, -1)
   const canonicalInclusiveIso = shiftIsoDate(canonicalBucketToExclusive, -1)
-  const liveTodayAccounting =
-    activeGlAccountIds.length > 0
+  const liveTodayAccounting = unavailableSectionSet.has('gl.today')
+    ? null
+    : activeGlAccountIds.length > 0
       ? buildLedgerAccountingFromGroups({
           fromIso: todayBucketFrom,
           toInclusiveIso: todayInclusiveIso >= todayBucketFrom ? todayInclusiveIso : todayBucketFrom,
@@ -3016,8 +3107,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           rows: glTodayRows,
         })
       : undefined
-  const liveWeekAccounting =
-    activeGlAccountIds.length > 0
+  const liveWeekAccounting = unavailableSectionSet.has('gl.week')
+    ? null
+    : activeGlAccountIds.length > 0
       ? buildLedgerAccountingFromGroups({
           fromIso: weekFromKwIso,
           toInclusiveIso: canonicalInclusiveIso,
@@ -3025,8 +3117,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           rows: glWeekRows,
         })
       : undefined
-  const liveMonthAccounting =
-    activeGlAccountIds.length > 0
+  const liveMonthAccounting = unavailableSectionSet.has('gl.month')
+    ? null
+    : activeGlAccountIds.length > 0
       ? buildLedgerAccountingFromGroups({
           fromIso: monthFromKwIso,
           toInclusiveIso: canonicalInclusiveIso,
@@ -3034,8 +3127,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           rows: glMonthRows,
         })
       : undefined
-  const liveYearAccounting =
-    activeGlAccountIds.length > 0
+  const liveYearAccounting = unavailableSectionSet.has('gl.year')
+    ? null
+    : activeGlAccountIds.length > 0
       ? buildLedgerAccountingFromGroups({
           fromIso: yearFromKwIso,
           toInclusiveIso: canonicalInclusiveIso,
@@ -3061,6 +3155,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locUiRawMap: builtTodayUi.locMap,
     unmappedUiRaw: builtTodayUi.unmappedUi,
     accounting: liveTodayAccounting,
+    channelsUnavailable: channelsTodayFailed,
+    brandsUnavailable: unavailableSectionSet.has('brands.today'),
   })
 
   const weekBucket = buildReconciledBucket({
@@ -3079,6 +3175,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locUiRawMap: builtWeekUi.locMap,
     unmappedUiRaw: builtWeekUi.unmappedUi,
     accounting: liveWeekAccounting,
+    channelsUnavailable: channelsWeekFailed,
+    brandsUnavailable: unavailableSectionSet.has('brands.week'),
   })
 
   const monthBucket = buildReconciledBucket({
@@ -3097,6 +3195,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locUiRawMap: locUi30,
     unmappedUiRaw: unmappedUi30,
     accounting: liveMonthAccounting,
+    channelsUnavailable: channelsMonthFailed,
+    brandsUnavailable: unavailableSectionSet.has('brands.month'),
   })
 
   const yearBucket = buildReconciledBucket({
@@ -3113,6 +3213,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     locUiRawMap: builtYearUi.locMap,
     unmappedUiRaw: builtYearUi.unmappedUi,
     accounting: liveYearAccounting,
+    totalsUnavailable: yearTotalsFailed,
+    channelsUnavailable: channelsYearFailed,
+    brandsUnavailable: unavailableSectionSet.has('brands.year'),
   })
 
   const mtdDays = Math.max(
@@ -3123,41 +3226,46 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
   )
 
-  const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = prior30Pair
-    ? (() => {
-        const [prior30AggRows, prior30NonRefundCount] = prior30Pair
-        const prior30Net = r3(
-          posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
-        )
-        const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
-        return {
-          rolling30: {
-            from: monthFromKwIso,
-            to: todayBucketFrom,
-            days: 30,
-            netKwd: monthBucket.totals.restaurantNetKwd,
-            orders: monthBucket.totals.restaurantOrders,
-            perDayKwd: r3(monthBucket.totals.restaurantNetKwd / 30),
-          },
-          prior30: {
-            from: prior30FromKwIso,
-            to: shiftIsoDate(monthFromKwIso, -1),
-            days: 30,
-            netKwd: prior30Net,
-            orders: prior30Orders,
-            perDayKwd: r3(prior30Net / 30),
-          },
-          mtd: {
-            from: mtdFromKwIso,
-            to: todayBucketFrom,
-            days: mtdDays,
-            netKwd: r3(mtdNet),
-            orders: mtdOrders,
-            perDayKwd: r3(mtdNet / mtdDays),
-          },
-        }
-      })()
-    : undefined
+  const monthRestaurantNet = monthBucket.totals.restaurantNetKwd ?? 0
+  const monthRestaurantOrders = monthBucket.totals.restaurantOrders ?? 0
+
+  const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = journeyPulseFailed
+    ? null
+    : prior30Pair
+      ? (() => {
+          const [prior30AggRows, prior30NonRefundCount] = prior30Pair
+          const prior30Net = r3(
+            posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
+          )
+          const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
+          return {
+            rolling30: {
+              from: monthFromKwIso,
+              to: todayBucketFrom,
+              days: 30,
+              netKwd: monthRestaurantNet,
+              orders: monthRestaurantOrders,
+              perDayKwd: r3(monthRestaurantNet / 30),
+            },
+            prior30: {
+              from: prior30FromKwIso,
+              to: shiftIsoDate(monthFromKwIso, -1),
+              days: 30,
+              netKwd: prior30Net,
+              orders: prior30Orders,
+              perDayKwd: r3(prior30Net / 30),
+            },
+            mtd: {
+              from: mtdFromKwIso,
+              to: todayBucketFrom,
+              days: mtdDays,
+              netKwd: r3(mtdNet),
+              orders: mtdOrders,
+              perDayKwd: r3(mtdNet / mtdDays),
+            },
+          }
+        })()
+      : undefined
 
   const fetchedAtMs = Date.now()
   const resolvedLatestRecordAt =
@@ -3170,7 +3278,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   )
   const liveExcludedMonthNet = r3(excludedMonthNet)
   const liveExcludedMonthOrd = Math.round(excludedMonthOrd)
-  const liveGrossPreExclusionNet = r3(monthBucket.totals.netSalesKwd + liveExcludedMonthNet)
+  const monthCompanyNet = monthBucket.totals.netSalesKwd ?? 0
+  const monthCompanyOrd = monthBucket.totals.orders ?? 0
+  const liveGrossPreExclusionNet = r3(monthCompanyNet + liveExcludedMonthNet)
+  const unavailableSections = [...unavailableSectionSet]
+  const partial = unavailableSections.length > 0
 
   return {
     fetchedAtMs,
@@ -3178,7 +3290,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     sourceMode: 'odoo17-live',
     envConfigured: true,
     odooCompanyId: resolvedCompanyId,
-    diagnosticCode: 'OK_LIVE',
+    diagnosticCode: partial ? 'PARTIAL_LIVE' : 'OK_LIVE',
+    partial,
+    unavailableSections,
     latestRecordAt: resolvedLatestRecordAt,
     latestOperationalDate: resolvedOperationalDate,
     todayOrdersCount: rawTodayOrdersCount,
@@ -3188,8 +3302,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       excludedEntitiesKwd: liveExcludedMonthNet,
       excludedEntitiesOrders: liveExcludedMonthOrd,
       mappedBranchesNetKwd: liveMappedBranchesNet,
-      netSalesKwd: monthBucket.totals.netSalesKwd,
-      orders: monthBucket.totals.orders,
+      netSalesKwd: monthCompanyNet,
+      orders: monthCompanyOrd,
       unmappedTerminalsNetKwd: r3(unmappedMonthNet),
       unmappedTerminalsOrders: Math.round(unmappedMonthOrd),
       reconciliationGapKwd: 0,
@@ -3205,9 +3319,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     dailyByBranch,
     dailyUnattributed,
     hourlySeries,
-    ...(stockTransfers ? { stockTransfers } : {}),
-    ...(aggregatorReceivables ? { aggregatorReceivables } : {}),
-    ...(journeyPulse ? { journeyPulse } : {}),
+    ...(stockTransfers !== undefined ? { stockTransfers } : {}),
+    ...(aggregatorReceivables !== undefined ? { aggregatorReceivables } : {}),
+    ...(journeyPulse !== undefined ? { journeyPulse } : {}),
   }
 }
 
@@ -3228,43 +3342,65 @@ function formatEnvelopeFromCore(
 ): OdooLiveSyncEnvelope {
   const bkt = options.customBucket ?? core.buckets[bucketKey] ?? core.buckets.month
   const freshness = computeOdooFreshnessStatus(core.latestRecordAt, options.referenceNowMs)
-  const totalNet = bkt.totals.restaurantNetKwd
+  const bucketTotalsUnavailable =
+    bkt.totals.restaurantNetKwd === null || bkt.totals.restaurantOrders === null
+  const totalNet = bkt.totals.restaurantNetKwd ?? 0
 
-  const brands = ACTIVE_BRAND_IDS.map((bid) => {
-    const nv = bkt.byBrand?.[bid]?.netKwd ?? 0
-    return {
-      id: bid,
-      brand: REG.brands.find((b) => b.id === bid)?.en ?? bid,
-      netKwd: nv,
-      sharePct: pct1(nv, totalNet),
-    }
-  })
-    .filter((b) => b.netKwd > 0 && !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.brand))
-    .sort((a, b) => b.netKwd - a.netKwd)
+  const brands =
+    bucketTotalsUnavailable || bkt.byBrand === null
+      ? null
+      : ACTIVE_BRAND_IDS.map((bid) => {
+          const nv = bkt.byBrand?.[bid]?.netKwd ?? 0
+          return {
+            id: bid,
+            brand: REG.brands.find((b) => b.id === bid)?.en ?? bid,
+            netKwd: nv,
+            sharePct: pct1(nv, totalNet),
+          }
+        })
+          .filter(
+            (b) => b.netKwd > 0 && !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.brand),
+          )
+          .sort((a, b) => b.netKwd - a.netKwd)
 
   const branchSource = bkt.mappedByLocation ?? bkt.byLocation
-  const rawBranches = ACTIVE_BRANCH_IDS.map((lid) => {
-    const nv = r3(branchSource?.[lid]?.netKwd ?? 0)
-    const ord = Math.max(0, Math.round(branchSource?.[lid]?.orders ?? 0))
-    return {
-      id: lid,
-      name: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'School canteens' : (REG.locations[lid]?.en ?? lid),
-      unit: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'school-canteen' : 'restaurant',
-      netSalesKwd: nv,
-      orders: ord,
-    }
-  }).filter((b) => !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.name))
+  const rawBranches = bucketTotalsUnavailable
+    ? []
+    : ACTIVE_BRANCH_IDS.map((lid) => {
+        const nv = r3(branchSource?.[lid]?.netKwd ?? 0)
+        const ord = Math.max(0, Math.round(branchSource?.[lid]?.orders ?? 0))
+        return {
+          id: lid,
+          name:
+            lid === SCHOOL_CANTEEN_BRANCH_ID
+              ? 'School canteens'
+              : (REG.locations[lid]?.en ?? lid),
+          unit: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'school-canteen' : 'restaurant',
+          netSalesKwd: nv,
+          orders: ord,
+        }
+      }).filter((b) => !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.name))
 
-  const branchSumNet = r3(rawBranches.reduce((acc, b) => acc + b.netSalesKwd, 0))
-  const branchSumOrd = rawBranches.reduce((acc, b) => acc + b.orders, 0)
-  const bktUnmappedNet = bkt.unmappedSummary
-    ? r3(bkt.unmappedSummary.netSalesKwd)
-    : r3(bkt.unattributedSalesKwd ?? 0)
-  const bktUnmappedOrd = bkt.unmappedSummary
-    ? Math.max(0, Math.round(bkt.unmappedSummary.orders))
-    : Math.max(0, Math.round(bkt.unattributedOrders ?? 0))
-  const bucketCompanyNet = r3(branchSumNet + bktUnmappedNet)
-  const bucketCompanyOrd = branchSumOrd + bktUnmappedOrd
+  const branchSumNet = bucketTotalsUnavailable
+    ? null
+    : r3(rawBranches.reduce((acc, b) => acc + b.netSalesKwd, 0))
+  const branchSumOrd = bucketTotalsUnavailable
+    ? null
+    : rawBranches.reduce((acc, b) => acc + b.orders, 0)
+  const bktUnmappedNet = bucketTotalsUnavailable
+    ? null
+    : bkt.unmappedSummary && bkt.unmappedSummary.netSalesKwd !== null
+      ? r3(bkt.unmappedSummary.netSalesKwd)
+      : r3(bkt.unattributedSalesKwd ?? 0)
+  const bktUnmappedOrd = bucketTotalsUnavailable
+    ? null
+    : bkt.unmappedSummary && bkt.unmappedSummary.orders !== null
+      ? Math.max(0, Math.round(bkt.unmappedSummary.orders))
+      : Math.max(0, Math.round(bkt.unattributedOrders ?? 0))
+  const bucketCompanyNet =
+    branchSumNet === null || bktUnmappedNet === null ? null : r3(branchSumNet + bktUnmappedNet)
+  const bucketCompanyOrd =
+    branchSumOrd === null || bktUnmappedOrd === null ? null : branchSumOrd + bktUnmappedOrd
   const bktExcludedNet = bkt.excludedSummary
     ? r3(Math.max(0, bkt.excludedSummary.netSalesKwd))
     : bucketKey === 'month' && !options.customBucket
@@ -3275,25 +3411,34 @@ function formatEnvelopeFromCore(
     : bucketKey === 'month' && !options.customBucket
       ? Math.max(0, Math.round(core.companyTotals.excludedEntitiesOrders ?? 0))
       : 0
-  const bucketGrossPreExclusionNet = r3(bucketCompanyNet + bktExcludedNet)
-  const bucketReconciliationGap = r3(
-    Math.max(
-      Math.abs(r3(bucketGrossPreExclusionNet - bktExcludedNet) - bucketCompanyNet),
-      Math.abs(r3(branchSumNet + bktUnmappedNet) - bucketCompanyNet),
-    ),
-  )
+  const bucketGrossPreExclusionNet =
+    bucketCompanyNet === null ? 0 : r3(bucketCompanyNet + bktExcludedNet)
+  const bucketReconciliationGap =
+    bucketCompanyNet === null || branchSumNet === null || bktUnmappedNet === null
+      ? 0
+      : r3(
+          Math.max(
+            Math.abs(r3(bucketGrossPreExclusionNet - bktExcludedNet) - bucketCompanyNet),
+            Math.abs(r3(branchSumNet + bktUnmappedNet) - bucketCompanyNet),
+          ),
+        )
 
-  const branches = rawBranches
-    .map((b) => ({
-      ...b,
-      sharePct: pct1(b.netSalesKwd, bucketCompanyNet > 0 ? bucketCompanyNet : totalNet),
-    }))
-    .sort((a, b) => b.netSalesKwd - a.netSalesKwd)
+  const branches = bucketTotalsUnavailable
+    ? null
+    : rawBranches
+        .map((b) => ({
+          ...b,
+          sharePct: pct1(b.netSalesKwd, bucketCompanyNet !== null && bucketCompanyNet > 0 ? bucketCompanyNet : totalNet),
+        }))
+        .sort((a, b) => b.netSalesKwd - a.netSalesKwd)
 
-  const channels = UI_CHANNEL_KEYS.map((ck) => ({
-    name: ck,
-    amountKwd: bkt.uiChannels?.[ck]?.netKwd ?? 0,
-  })).sort((a, b) => b.amountKwd - a.amountKwd)
+  const channels =
+    bkt.uiChannels === null
+      ? null
+      : UI_CHANNEL_KEYS.map((ck) => ({
+          name: ck,
+          amountKwd: bkt.uiChannels?.[ck]?.netKwd ?? 0,
+        })).sort((a, b) => b.amountKwd - a.amountKwd)
 
   const effectiveConnected = options.connectedOverride ?? core.connected
   const effectiveSourceMode = options.sourceModeOverride ?? core.sourceMode
@@ -3316,21 +3461,39 @@ function formatEnvelopeFromCore(
 
   const lastSyncAt = formatUtcIsoFromMs(core.fetchedAtMs)
   const dateRange = { from: clampedPeriod.from, to: clampedPeriod.to }
-  const periodHasNoData = bucketCompanyOrd <= 0 && bucketCompanyNet <= 0
-  const unattributedBranch: OdooUnattributedBranchRow = bkt.unattributedBranch ?? {
-    id: 'unattributed',
-    labelAr: UNMAPPED_BUCKET_LABEL_AR,
-    labelEn: UNMAPPED_BUCKET_LABEL_EN,
-    netSalesKwd: bktUnmappedNet,
-    orders: bktUnmappedOrd,
-    sharePct: pct1(bktUnmappedNet, bucketCompanyNet),
-  }
+  const periodHasNoData =
+    !bucketTotalsUnavailable &&
+    bucketCompanyOrd !== null &&
+    bucketCompanyNet !== null &&
+    bucketCompanyOrd <= 0 &&
+    bucketCompanyNet <= 0
+  const unattributedBranch: OdooUnattributedBranchRow | null = bucketTotalsUnavailable
+    ? null
+    : (bkt.unattributedBranch ?? {
+        id: 'unattributed',
+        labelAr: UNMAPPED_BUCKET_LABEL_AR,
+        labelEn: UNMAPPED_BUCKET_LABEL_EN,
+        netSalesKwd: bktUnmappedNet ?? 0,
+        orders: bktUnmappedOrd ?? 0,
+        sharePct: pct1(bktUnmappedNet ?? 0, bucketCompanyNet ?? 0),
+      })
+
+  const partial = core.partial
+  const unavailableSections = [...core.unavailableSections]
 
   const summaryPayload: OdooLiveSummary = {
     source: 'live',
     connected: effectiveConnected,
     sourceMode: effectiveSourceMode,
     noData: periodHasNoData,
+    partial,
+    unavailableSections,
+    ...(partial
+      ? {
+          warningAr: PARTIAL_ODOO_WARNING_AR,
+          warningEn: PARTIAL_ODOO_WARNING_EN,
+        }
+      : {}),
     ...(periodHasNoData ? { messageAr: 'لا توجد بيانات من Odoo لهذه الفترة' } : {}),
     lastSyncAt,
     isStale24h: freshness.isStaleOver24h,
@@ -3376,25 +3539,27 @@ function formatEnvelopeFromCore(
     ...(core.dailyByBranch ? { dailyByBranch: core.dailyByBranch } : {}),
     ...(core.dailyUnattributed ? { dailyUnattributed: core.dailyUnattributed } : {}),
     hourlySeries: core.hourlySeries,
-    ...(core.stockTransfers ? { stockTransfers: core.stockTransfers } : {}),
-    ...(core.aggregatorReceivables
+    ...(core.stockTransfers !== undefined ? { stockTransfers: core.stockTransfers } : {}),
+    ...(core.aggregatorReceivables !== undefined
       ? { aggregatorReceivables: core.aggregatorReceivables }
       : {}),
-    ...(core.journeyPulse
-      ? {
-          journeyPulse: {
-            ...core.journeyPulse,
-            rolling30: {
-              ...core.journeyPulse.rolling30,
-              to: clampedPeriod.to,
+    ...(core.journeyPulse === null
+      ? { journeyPulse: null }
+      : core.journeyPulse
+        ? {
+            journeyPulse: {
+              ...core.journeyPulse,
+              rolling30: {
+                ...core.journeyPulse.rolling30,
+                to: clampedPeriod.to,
+              },
+              mtd: {
+                ...core.journeyPulse.mtd,
+                to: clampedPeriod.to,
+              },
             },
-            mtd: {
-              ...core.journeyPulse.mtd,
-              to: clampedPeriod.to,
-            },
-          },
-        }
-      : {}),
+          }
+        : {}),
     ...(noteText ? { note: redactOdooSecrets(noteText) } : {}),
   }
 
@@ -3404,6 +3569,14 @@ function formatEnvelopeFromCore(
     connected: effectiveConnected,
     sourceMode: effectiveSourceMode,
     noData: periodHasNoData,
+    partial,
+    unavailableSections,
+    ...(partial
+      ? {
+          warningAr: PARTIAL_ODOO_WARNING_AR,
+          warningEn: PARTIAL_ODOO_WARNING_EN,
+        }
+      : {}),
     ...(periodHasNoData ? { messageAr: 'لا توجد بيانات من Odoo لهذه الفترة' } : {}),
     summary: summaryPayload,
     lastSyncAt,

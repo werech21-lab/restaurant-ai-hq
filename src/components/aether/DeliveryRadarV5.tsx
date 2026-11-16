@@ -23,6 +23,7 @@ import {
 import { UNATTRIBUTED_BRANCH_LABEL_AR } from '@/lib/aether/cores-hub-engine'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { shouldMaskInternalCostsForRole } from '@/lib/auth/role-access-policy'
 import { useLang } from '@/components/aether/ui'
 
@@ -70,7 +71,10 @@ const f2 = (n: number) =>
     maximumFractionDigits: 2,
   })
 
-function fmtKwd(v: number, isAr: boolean): string {
+function fmtKwd(v: number | null | undefined, isAr: boolean): string {
+  if (v === null || v === undefined || !Number.isFinite(v)) {
+    return isAr ? 'غير متاح' : '—'
+  }
   const clean = safeNum(v)
   const absV = Math.abs(clean)
   const sign = clean < 0 ? '-' : ''
@@ -88,10 +92,10 @@ interface BranchChannelMatrixRow {
   channelKey: AggregatorChannelKey
   channelLabelAr: string
   channelLabelEn: string
-  salesKwd: number
-  orders: number
-  aovKwd: number
-  shareOfAggregatorPct: number
+  salesKwd: number | null
+  orders: number | null
+  aovKwd: number | null
+  shareOfAggregatorPct: number | null
 }
 
 /**
@@ -202,11 +206,30 @@ export function DeliveryRadarV5() {
     liveCube?.isStale24h || liveSummary?.isStale24h || workspace.isStale24h,
   )
 
+  const channelsUnavailable = Boolean(
+    !liveCube &&
+      activeBucket &&
+      (activeBucket.uiChannels === null || activeBucket.totals.restaurantNetKwd === null),
+  )
+
   // Channel Totals (6 Aggregator Platforms + Direct Channels) directly from Odoo pos.payment
   const platformSummaries = useMemo(() => {
     if (!workspace.odooConnected || workspace.noData) return []
 
     const rows = AGGREGATOR_CHANNELS.map(({ key, color }) => {
+      if (channelsUnavailable) {
+        return {
+          key,
+          color,
+          labelAr: getChannelLabel(key, true),
+          labelEn: getChannelLabel(key, false),
+          salesKwd: null as number | null,
+          orders: null as number | null,
+          aovKwd: null as number | null,
+          sharePct: null as number | null,
+        }
+      }
+
       let salesKwd = 0
       let orders = 0
 
@@ -237,25 +260,30 @@ export function DeliveryRadarV5() {
         color,
         labelAr: getChannelLabel(key, true),
         labelEn: getChannelLabel(key, false),
-        salesKwd,
-        orders,
-        aovKwd: orders > 0 ? salesKwd / orders : 0,
-        sharePct: 0,
+        salesKwd: salesKwd as number | null,
+        orders: orders as number | null,
+        aovKwd: (orders > 0 ? salesKwd / orders : 0) as number | null,
+        sharePct: 0 as number | null,
       }
     })
 
-    const totalAgg = rows.reduce((s, r) => s + r.salesKwd, 0)
+    if (channelsUnavailable) return rows
+
+    const totalAgg = rows.reduce((s, r) => s + (r.salesKwd ?? 0), 0)
     return rows
       .map((r) => ({
         ...r,
-        sharePct: totalAgg > 0 ? (r.salesKwd / totalAgg) * 100 : 0,
+        sharePct: totalAgg > 0 && r.salesKwd !== null ? (r.salesKwd / totalAgg) * 100 : 0,
       }))
-      .sort((a, b) => b.salesKwd - a.salesKwd)
-  }, [activeBucket, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
+      .sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
+  }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
 
-  const directSalesSummary = useMemo(() => {
+  const directSalesSummary = useMemo((): { salesKwd: number | null; orders: number | null } => {
     if (!workspace.odooConnected || workspace.noData) {
       return { salesKwd: 0, orders: 0 }
+    }
+    if (channelsUnavailable) {
+      return { salesKwd: null, orders: null }
     }
     let salesKwd = 0
     let orders = 0
@@ -277,16 +305,17 @@ export function DeliveryRadarV5() {
       }
     }
     return { salesKwd, orders }
-  }, [activeBucket, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
+  }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
 
-  const totalAggregatorSalesKwd = useMemo(
-    () => platformSummaries.reduce((s, r) => s + r.salesKwd, 0),
-    [platformSummaries],
-  )
-  const totalAggregatorOrders = useMemo(
-    () => platformSummaries.reduce((s, r) => s + r.orders, 0),
-    [platformSummaries],
-  )
+  const totalAggregatorSalesKwd = useMemo<number | null>(() => {
+    if (channelsUnavailable) return null
+    return platformSummaries.reduce((s, r) => s + (r.salesKwd ?? 0), 0)
+  }, [channelsUnavailable, platformSummaries])
+
+  const totalAggregatorOrders = useMemo<number | null>(() => {
+    if (channelsUnavailable) return null
+    return platformSummaries.reduce((s, r) => s + (r.orders ?? 0), 0)
+  }, [channelsUnavailable, platformSummaries])
 
   // Branch × Channel Matrix (7 Mapped Branches + Explicit 8th «غير منسوب لفرع»)
   const matrixRows = useMemo<BranchChannelMatrixRow[]>(() => {
@@ -335,9 +364,12 @@ export function DeliveryRadarV5() {
           continue
         }
 
-        let salesKwd = 0
-        let orders = 0
-        if (br.isUnattributed) {
+        let salesKwd: number | null = 0
+        let orders: number | null = 0
+        if (channelsUnavailable) {
+          salesKwd = null
+          orders = null
+        } else if (br.isUnattributed) {
           const uCell = liveCube?.unattributed?.channels?.[ch.key]
           salesKwd = safeNum(uCell?.netKwd)
           orders = Math.round(safeNum(uCell?.orders))
@@ -363,9 +395,14 @@ export function DeliveryRadarV5() {
           channelLabelEn: getChannelLabel(ch.key, false),
           salesKwd,
           orders,
-          aovKwd: orders > 0 ? salesKwd / orders : 0,
+          aovKwd:
+            salesKwd === null || orders === null ? null : orders > 0 ? salesKwd / orders : 0,
           shareOfAggregatorPct:
-            totalAggregatorSalesKwd > 0 ? (salesKwd / totalAggregatorSalesKwd) * 100 : 0,
+            salesKwd === null || totalAggregatorSalesKwd === null
+              ? null
+              : totalAggregatorSalesKwd > 0
+                ? (salesKwd / totalAggregatorSalesKwd) * 100
+                : 0,
         })
       }
     }
@@ -381,10 +418,11 @@ export function DeliveryRadarV5() {
         )
       : out
 
-    return filtered.sort((a, b) => b.salesKwd - a.salesKwd)
+    return channelsUnavailable ? filtered : filtered.sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
   }, [
     activeBucket,
     channelFilter,
+    channelsUnavailable,
     filters.branch,
     filters.channel,
     liveCube,
@@ -395,8 +433,11 @@ export function DeliveryRadarV5() {
   ])
 
   const donutSlices = useMemo<DonutSliceDatum[]>(() => {
+    if (channelsUnavailable) return []
     return platformSummaries
-      .filter((p) => p.salesKwd > 0)
+      .filter((p): p is typeof p & { salesKwd: number; orders: number; sharePct: number } =>
+        p.salesKwd !== null && p.salesKwd > 0 && p.orders !== null && p.sharePct !== null,
+      )
       .map((p) => ({
         id: p.key,
         label: isAr ? p.labelAr : p.labelEn,
@@ -406,7 +447,7 @@ export function DeliveryRadarV5() {
         pctFormatted: `${f1(p.sharePct)}%`,
         color: p.color,
       }))
-  }, [isAr, platformSummaries])
+  }, [channelsUnavailable, isAr, platformSummaries])
 
   const isDisconnectedOrEmpty = !workspace.odooConnected || workspace.noData
 
@@ -448,6 +489,8 @@ export function DeliveryRadarV5() {
           </button>
         </div>
       </div>
+
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
 
       {filters.brand !== 'all' ? (
         <div
@@ -494,9 +537,13 @@ export function DeliveryRadarV5() {
                 {fmtKwd(totalAggregatorSalesKwd, isAr)}
               </div>
               <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f0(totalAggregatorOrders)} طلب • متوسط ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} د.ك`
-                  : `${f0(totalAggregatorOrders)} orders • AOV ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} KWD`}
+                {totalAggregatorOrders === null || totalAggregatorSalesKwd === null
+                  ? isAr
+                    ? 'غير متاح'
+                    : '—'
+                  : isAr
+                    ? `${f0(totalAggregatorOrders)} طلب • متوسط ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} د.ك`
+                    : `${f0(totalAggregatorOrders)} orders • AOV ${f2(totalAggregatorOrders > 0 ? totalAggregatorSalesKwd / totalAggregatorOrders : 0)} KWD`}
               </p>
               <KpiProvenanceBadge
                 odooModel="pos.payment + pos.order"
@@ -521,9 +568,13 @@ export function DeliveryRadarV5() {
                 {fmtKwd(directSalesSummary.salesKwd, isAr)}
               </div>
               <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f0(directSalesSummary.orders)} طلب مباشر بدون عمولة تطبيقات`
-                  : `${f0(directSalesSummary.orders)} direct orders without aggregator commission`}
+                {directSalesSummary.orders === null
+                  ? isAr
+                    ? 'غير متاح'
+                    : '—'
+                  : isAr
+                    ? `${f0(directSalesSummary.orders)} طلب مباشر بدون عمولة تطبيقات`
+                    : `${f0(directSalesSummary.orders)} direct orders without aggregator commission`}
               </p>
               <KpiProvenanceBadge
                 odooModel="pos.payment + pos.order"
@@ -685,7 +736,7 @@ export function DeliveryRadarV5() {
                         dir="ltr"
                         className="rounded-full bg-white px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200"
                       >
-                        {f1(p.sharePct)}%
+                        {p.sharePct === null ? '—' : `${f1(p.sharePct)}%`}
                       </span>
                     </div>
 
@@ -697,9 +748,19 @@ export function DeliveryRadarV5() {
                     </div>
 
                     <div className="mt-1 flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
-                      <span>{isAr ? `${f0(p.orders)} طلب` : `${f0(p.orders)} orders`}</span>
+                      <span>
+                        {p.orders === null
+                          ? isAr
+                            ? 'غير متاح'
+                            : '—'
+                          : isAr
+                            ? `${f0(p.orders)} طلب`
+                            : `${f0(p.orders)} orders`}
+                      </span>
                       <span dir="ltr">
-                        {p.orders > 0 ? `${f2(p.aovKwd)} ${isAr ? 'د.ك' : 'KWD'}` : '—'}
+                        {p.orders !== null && p.orders > 0 && p.aovKwd !== null
+                          ? `${f2(p.aovKwd)} ${isAr ? 'د.ك' : 'KWD'}`
+                          : '—'}
                       </span>
                     </div>
                   </button>
@@ -717,7 +778,7 @@ export function DeliveryRadarV5() {
                 </p>
               </div>
 
-              {donutSlices.length > 0 ? (
+              {donutSlices.length > 0 && totalAggregatorOrders !== null ? (
                 <InteractiveDonutChart
                   slices={donutSlices}
                   centerValue={fmtKwd(totalAggregatorSalesKwd, isAr)}
@@ -728,7 +789,7 @@ export function DeliveryRadarV5() {
                 />
               ) : (
                 <p className="my-8 text-center text-sm font-semibold text-slate-500">
-                  {NO_ODOO_DATA_AR}
+                  {channelsUnavailable ? T('—', 'غير متاح') : NO_ODOO_DATA_AR}
                 </p>
               )}
             </div>
@@ -825,19 +886,21 @@ export function DeliveryRadarV5() {
                         dir="ltr"
                         className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
                       >
-                        {f0(row.orders)}
+                        {row.orders === null ? '—' : f0(row.orders)}
                       </td>
                       <td
                         dir="ltr"
                         className="py-2.5 text-end font-medium tabular-nums text-slate-600 dark:text-slate-400"
                       >
-                        {row.orders > 0 ? fmtKwd(row.aovKwd, isAr) : '—'}
+                        {row.orders !== null && row.orders > 0 && row.aovKwd !== null
+                          ? fmtKwd(row.aovKwd, isAr)
+                          : '—'}
                       </td>
                       <td
                         dir="ltr"
                         className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
                       >
-                        {f1(row.shareOfAggregatorPct)}%
+                        {row.shareOfAggregatorPct === null ? '—' : `${f1(row.shareOfAggregatorPct)}%`}
                       </td>
                       <td className="py-2.5 text-end">
                         {maskInternalCosts ? (
