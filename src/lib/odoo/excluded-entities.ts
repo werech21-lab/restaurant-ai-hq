@@ -65,6 +65,11 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
+    nameParts: ['\u062c\u0647\u0631\u0627\u0621'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
     nameParts: ['الجهراء'],
   },
   {
@@ -81,6 +86,16 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
     kind: 'branch',
     ids: [],
     nameParts: ['haw', 'alli'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['haw', 'ali'],
+  },
+  {
+    kind: 'branch',
+    ids: [],
+    nameParts: ['qu', 'rein'],
   },
   {
     kind: 'branch',
@@ -135,12 +150,21 @@ export function isExcludedRecordId(kind: ExclusionKind, id: number | null | unde
   return ODOO_EXCLUSION_RULES.some((rule) => rule.kind === kind && rule.ids.includes(id))
 }
 
+const CLITIC = /^(?:لل|ب|و|ل|ك|ف)/
+const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d+$/
+
+function wordTokenHit(token: string): boolean {
+  if (WORD_ONLY.has(token) || CODE_WITH_DIGITS.test(token)) return true
+  const stripped = token.replace(CLITIC, '')
+  return stripped !== token && (WORD_ONLY.has(stripped) || CODE_WITH_DIGITS.test(stripped))
+}
+
 export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   if (raw == null) return false
   const text = normalizeEntityLabel(String(raw))
   if (!text) return false
   if (SUBSTRING_FRAGMENTS.some((fragment) => text.includes(normalizeEntityLabel(fragment)))) return true
-  return text.split(' ').some((token) => WORD_ONLY.has(token))
+  return text.split(' ').some((token) => wordTokenHit(token))
 }
 
 export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {

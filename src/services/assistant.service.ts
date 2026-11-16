@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/erp-auth";
 import { prisma } from "@/lib/db";
+import { isInventedPanelLead, withVisibleProducts } from "@/lib/panel-visibility";
 import { dayRange, formatMoney, formatMonth, formatQty, monthRange } from "@/lib/format";
 import { can } from "@/lib/permissions";
 import { costOfGoods, salesSummary, purchaseSummary } from "@/lib/reports";
@@ -69,7 +70,7 @@ export async function answerQuestion(question: string): Promise<AssistantReply> 
   if (text.includes("ينفد") || text.includes("توقع") || text.includes("نفاد")) {
     if (!allow("inventory", "reports", "dashboard")) return denied();
     const products = await prisma.product.findMany({
-      where: { currentStock: { gt: 0 } },
+      where: withVisibleProducts({ currentStock: { gt: 0 } }),
       select: { id: true, code: true, name: true, currentStock: true },
     });
     const labels = await forecastLabels(products, now);
@@ -215,7 +216,7 @@ export async function answerQuestion(question: string): Promise<AssistantReply> 
   if (productName) {
     if (!allow("inventory", "reports", "dashboard")) return denied();
     const rows = await prisma.product.findMany({
-      where: { OR: [{ name: { contains: productName } }, { code: { contains: productName } }] },
+      where: withVisibleProducts({ OR: [{ name: { contains: productName } }, { code: { contains: productName } }] }),
       take: 5,
     });
     const labels = await forecastLabels(rows, now);
@@ -229,11 +230,13 @@ export async function answerQuestion(question: string): Promise<AssistantReply> 
 
   if (has(text, "فرص", "فرصه", "عملاء محتمل")) {
     if (!allow("crm", "dashboard")) return denied();
-    const rows = await prisma.lead.findMany({
-      where: { stage: { in: ["NEW", "QUALIFIED", "PROPOSAL"] } },
-      orderBy: { expectedValue: "desc" },
-      take: 8,
-    });
+    const rows = (
+      await prisma.lead.findMany({
+        where: { stage: { in: ["NEW", "QUALIFIED", "PROPOSAL"] } },
+        orderBy: { expectedValue: "desc" },
+        take: 8,
+      })
+    ).filter((row) => !isInventedPanelLead(row.title));
     const total = rows.reduce((sum, row) => sum + row.expectedValue, 0);
     return {
       title: "الفرص البيعية المفتوحة",

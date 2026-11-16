@@ -1,6 +1,7 @@
 import { writeActivity } from "@/lib/activity";
 import { checkPermission } from "@/lib/erp-auth";
 import { prisma } from "@/lib/db";
+import { withVisibleProducts } from "@/lib/panel-visibility";
 import { monthRange, round2 } from "@/lib/format";
 import { fail, type ActionResult } from "@/lib/types";
 import { runLowStockRules } from "@/services/automation.engine";
@@ -58,7 +59,7 @@ export async function executiveInsights(now = new Date()) {
       distinct: ["productId"],
     }),
     prisma.product.findMany({
-      where: { currentStock: { gt: 0 } },
+      where: withVisibleProducts({ currentStock: { gt: 0 } }),
       select: { id: true, name: true, code: true, currentStock: true, reorderLevel: true },
       take: 200,
     }),
@@ -69,7 +70,7 @@ export async function executiveInsights(now = new Date()) {
       take: 20,
     }),
     prisma.product.findMany({
-      where: { currentStock: { gt: 0 } },
+      where: withVisibleProducts({ currentStock: { gt: 0 } }),
       select: { id: true, name: true, code: true, currentStock: true },
       take: 80,
     }),

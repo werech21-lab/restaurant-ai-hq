@@ -1,33 +1,29 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
-import {
-  DEMO_CUSTOMER_EMAILS,
-  DEMO_INVOICE_NUMBERS,
-  DEMO_PRODUCT_CODES,
-  DEMO_PURCHASE_NUMBERS,
-  demoCatalogReadsHidden,
-} from '@/lib/demo-catalog'
+import { isHiddenWarehouseLabel, HIDDEN_PANEL_PRODUCT_CODES, visibleInvoiceWhere, visibleProductWhere, visiblePurchaseWhere } from '@/lib/panel-visibility'
 import { salesWhereForScope } from '@/lib/scope'
 
-function hideDemoSales() {
-  if (!demoCatalogReadsHidden()) return {}
-  return {
-    invoiceNumber: { notIn: [...DEMO_INVOICE_NUMBERS] },
-    customer: { email: { notIn: [...DEMO_CUSTOMER_EMAILS] } },
-  }
-}
-
-function hideDemoProducts() {
-  if (!demoCatalogReadsHidden()) return {}
-  return { code: { notIn: [...DEMO_PRODUCT_CODES] } }
+export async function visibleWarehouseIds(ids: string[]): Promise<string[]> {
+  if (!ids.length) return []
+  const rows = await prisma.warehouse.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, code: true, name: true, location: true },
+  })
+  const allowed = new Set(
+    rows
+      .filter((row) => !isHiddenWarehouseLabel([row.code, row.name, row.location]))
+      .map((row) => row.id),
+  )
+  return ids.filter((id) => allowed.has(id))
 }
 
 export async function salesSummary(start?: Date, end?: Date, warehouseIds: string[] = []) {
-  const where = {
+  const visibleIds = await visibleWarehouseIds(warehouseIds)
+  if (warehouseIds.length && !visibleIds.length) return { total: 0, count: 0 }
+  const where = visibleInvoiceWhere({
     ...(start && end ? { createdAt: { gte: start, lt: end } } : {}),
-    ...salesWhereForScope(warehouseIds),
-    ...hideDemoSales(),
-  }
+    ...salesWhereForScope(visibleIds),
+  })
   const aggregate = await prisma.salesInvoice.aggregate({
     where,
     _sum: { totalAmount: true },
@@ -40,19 +36,15 @@ export async function salesSummary(start?: Date, end?: Date, warehouseIds: strin
 }
 
 function excludedProductSql(column: string): Prisma.Sql {
-  if (!demoCatalogReadsHidden()) return Prisma.sql``
-  return Prisma.sql`AND ${Prisma.raw(column)} NOT IN (${Prisma.join([...DEMO_PRODUCT_CODES])})`
+  return Prisma.sql`AND ${Prisma.raw(column)} NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})`
 }
 
 export async function purchaseSummary(start?: Date, end?: Date, orderNumbers: string[] | null = null) {
-  const hidden: string[] = demoCatalogReadsHidden() ? [...DEMO_PURCHASE_NUMBERS] : []
-  const limited = orderNumbers ? orderNumbers.filter((number) => !hidden.includes(number)) : null
-  const where = {
+  const where = visiblePurchaseWhere({
     status: { not: 'DRAFT' },
     ...(start && end ? { createdAt: { gte: start, lt: end } } : {}),
-    ...(limited ? { orderNumber: { in: limited.length ? limited : ['__none__'] } } : {}),
-    ...(!limited && hidden.length ? { orderNumber: { notIn: hidden } } : {}),
-  }
+    ...(orderNumbers ? { orderNumber: { in: orderNumbers.length ? orderNumbers : ['__none__'] } } : {}),
+  })
   const aggregate = await prisma.purchaseOrder.aggregate({
     where,
     _sum: { totalAmount: true },
@@ -65,19 +57,20 @@ export async function purchaseSummary(start?: Date, end?: Date, orderNumbers: st
 }
 
 export async function costOfGoods(start?: Date, end?: Date, warehouseIds: string[] = []) {
-  if (warehouseIds.length) {
+  const visibleIds = await visibleWarehouseIds(warehouseIds)
+  if (warehouseIds.length && !visibleIds.length) return 0
+  if (visibleIds.length) {
     const invoices = await prisma.salesInvoice.findMany({
-      where: {
-        warehouseId: { in: warehouseIds },
+      where: visibleInvoiceWhere({
+        warehouseId: { in: visibleIds },
         ...(start && end ? { createdAt: { gte: start, lt: end } } : {}),
-        ...hideDemoSales(),
-      },
+      }),
       select: { id: true },
     })
     const ids = invoices.map((row) => row.id)
     if (!ids.length) return 0
     const items = await prisma.salesInvoiceItem.findMany({
-      where: { salesInvoiceId: { in: ids }, product: hideDemoProducts() },
+      where: { salesInvoiceId: { in: ids }, product: visibleProductWhere() },
       include: { product: { select: { costPrice: true } } },
     })
     return items.reduce((sum, item) => sum + item.quantity * item.product.costPrice, 0)
@@ -104,9 +97,11 @@ export async function costOfGoods(start?: Date, end?: Date, warehouseIds: string
 }
 
 export async function inventoryValuation(warehouseIds: string[] = []) {
-  if (warehouseIds.length) {
+  const visibleIds = await visibleWarehouseIds(warehouseIds)
+  if (warehouseIds.length && !visibleIds.length) return { costValue: 0, sellValue: 0 }
+  if (visibleIds.length) {
     const stocks = await prisma.warehouseStock.findMany({
-      where: { warehouseId: { in: warehouseIds }, product: hideDemoProducts() },
+      where: { warehouseId: { in: visibleIds }, product: visibleProductWhere() },
       include: { product: { select: { code: true, costPrice: true, sellingPrice: true } } },
     })
     return {

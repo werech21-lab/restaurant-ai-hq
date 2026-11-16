@@ -7,28 +7,39 @@ import { isModuleEnabled } from "@/lib/modules-db";
 import { runTx, txError } from "@/lib/tx";
 import { fail, ok } from "@/lib/types";
 import { notifyInvoiceIssued } from "@/services/notification.service";
+import { HIDDEN_PANEL_PRODUCT_CODES, isInventedPanelLead, visibleLeadWhere } from "@/lib/panel-visibility";
 import { issueInvoiceWithin } from "@/services/sales.service";
 
 const STAGES = ["NEW", "QUALIFIED", "PROPOSAL", "WON", "LOST"] as const;
 
 export async function listLeads() {
-  return prisma.lead.findMany({
+  const rows = await prisma.lead.findMany({
+    where: visibleLeadWhere(),
     orderBy: { createdAt: "desc" },
     take: 100,
     include: { assignedTo: { select: { name: true } } },
   });
+  return rows.filter((row) => !isInventedPanelLead(row.title));
 }
 
 export async function listQuotations(skip: number, take: number, q: string) {
-  const where = q
-    ? {
-        OR: [
-          { quoteNumber: { contains: q } },
-          { customer: { name: { contains: q } } },
-          { lead: { title: { contains: q } } },
-        ],
-      }
-    : {};
+  const where = {
+    AND: [
+      { OR: [{ leadId: null }, { lead: visibleLeadWhere() }] },
+      { items: { none: { product: { code: { in: [...HIDDEN_PANEL_PRODUCT_CODES] } } } } },
+      ...(q
+        ? [
+            {
+              OR: [
+                { quoteNumber: { contains: q } },
+                { customer: { name: { contains: q } } },
+                { lead: { title: { contains: q } } },
+              ],
+            },
+          ]
+        : []),
+    ],
+  };
   const [rows, total] = await Promise.all([
     prisma.quotation.findMany({
       where,

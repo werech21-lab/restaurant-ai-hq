@@ -5,16 +5,11 @@ import { prisma } from "@/lib/db";
 import { round3 } from "@/lib/format";
 import { runTx, txError } from "@/lib/tx";
 import { fail, ok } from "@/lib/types";
-import { DEMO_PRODUCT_CODES, demoCatalogReadsHidden } from "@/lib/demo-catalog";
+import { isHiddenPanelProduct, isHiddenWarehouseLabel } from "@/lib/panel-visibility";
 import { adjustWarehouseStock, warehouseQuantity } from "@/services/warehouse.engine";
 
-const DECOMMISSIONED_SITE_RE = new RegExp(
-  ["qur", "ain|\\bqr", "n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646"].join(""),
-  "i",
-);
-
 export function isDecommissionedSiteText(raw?: string | null): boolean {
-  return Boolean(raw && DECOMMISSIONED_SITE_RE.test(raw));
+  return isHiddenWarehouseLabel([raw]);
 }
 
 export async function listWarehouses() {
@@ -23,10 +18,7 @@ export async function listWarehouses() {
     take: 50,
   });
   return rows.filter(
-    (w) =>
-      !isDecommissionedSiteText(
-        `${w.code ?? ""} ${w.name ?? ""} ${w.location ?? ""}`,
-      ),
+    (w) => !isHiddenWarehouseLabel([w.code, w.name, w.location]),
   );
 }
 
@@ -35,22 +27,13 @@ export async function warehouseStock(warehouseId: string) {
     where: { id: warehouseId },
     select: { code: true, name: true, location: true },
   });
-  if (
-    wh &&
-    isDecommissionedSiteText(
-      `${wh.code ?? ""} ${wh.name ?? ""} ${wh.location ?? ""}`,
-    )
-  ) {
-    return [];
-  }
+  if (wh && isHiddenWarehouseLabel([wh.code, wh.name, wh.location])) return [];
   const rows = await prisma.warehouseStock.findMany({
     where: { warehouseId },
     include: { product: { select: { name: true, code: true, currentStock: true } } },
     orderBy: { product: { name: "asc" } },
   });
-  if (!demoCatalogReadsHidden()) return rows;
-  const hidden = new Set<string>(DEMO_PRODUCT_CODES);
-  return rows.filter((row) => !hidden.has(row.product.code));
+  return rows.filter((row) => !isHiddenPanelProduct(row.product.code, row.product.name));
 }
 
 export async function listTransfers(skip: number, take: number) {

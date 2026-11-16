@@ -14,6 +14,7 @@ import {
 } from "@/lib/format";
 import { MODULES } from "@/lib/modules";
 import { likeContains } from "@/lib/pagination";
+import { HIDDEN_PANEL_PRODUCT_CODES, withVisibleProducts } from "@/lib/panel-visibility";
 import { costOfGoods, inventoryValuation, purchaseSummary, salesSummary } from "@/lib/reports";
 import { countLowStock, listLowStock } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
@@ -223,15 +224,16 @@ export async function exportCsv(kind: string, search: string) {
         ? await prisma.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM Product
             WHERE currentStock <= reorderLevel
+              AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})
               AND (name LIKE ${like} ESCAPE '\\' OR code LIKE ${like} ESCAPE '\\')
             ORDER BY name ASC
           `
         : await prisma.$queryRaw<Array<{ id: string }>>`
-            SELECT id FROM Product WHERE currentStock <= reorderLevel ORDER BY name ASC
+            SELECT id FROM Product WHERE currentStock <= reorderLevel AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])}) ORDER BY name ASC
           `;
       const rows = ids.length
         ? await prisma.product.findMany({
-            where: { id: { in: ids.map((row) => row.id) } },
+            where: withVisibleProducts({ id: { in: ids.map((row) => row.id) } }),
             include: { category: true },
           })
         : [];
@@ -240,7 +242,7 @@ export async function exportCsv(kind: string, search: string) {
       return await productCsv(rows);
     }
     const rows = await prisma.product.findMany({
-      where: query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {},
+      where: withVisibleProducts(query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {}),
       include: { category: true },
       orderBy: { createdAt: "desc" },
     });
@@ -383,7 +385,7 @@ export async function exportCsv(kind: string, search: string) {
       );
     }
     const rows = await prisma.product.findMany({
-      where: query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {},
+      where: withVisibleProducts(query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {}),
       orderBy: { name: "asc" },
     });
     const labels = await forecastLabels(

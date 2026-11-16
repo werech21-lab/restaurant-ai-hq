@@ -9,6 +9,7 @@ import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
+import { visibleProductWhere } from "@/lib/panel-visibility";
 import { listLeads, listQuotations } from "@/services/crm.service";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { VentureCrmHub } from "@/components/crm/VentureCrmHub";
@@ -32,7 +33,7 @@ async function CrmContent({ searchParams }: { searchParams: Promise<RawQuery> })
     listLeads(),
     listQuotations((query.page - 1) * PAGE_SIZE, PAGE_SIZE, tab === "quotes" ? query.q : ""),
     prisma.customer.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true }, take: 100 }),
-    prisma.product.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, sellingPrice: true }, take: 100 }),
+    prisma.product.findMany({ where: visibleProductWhere(), orderBy: { name: "asc" }, select: { id: true, name: true, sellingPrice: true }, take: 100 }),
   ]);
 
   const legacyLiveChildren = (

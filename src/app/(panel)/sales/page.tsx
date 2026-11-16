@@ -14,7 +14,7 @@ import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { DEMO_CUSTOMER_EMAILS, DEMO_INVOICE_NUMBERS, demoCatalogReadsHidden } from "@/lib/demo-catalog";
+import { visibleCustomerWhere, visibleInvoiceWhere } from "@/lib/panel-visibility";
 import { getActiveScope, salesWhereForScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
@@ -55,12 +55,11 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
   }> = [];
 
   if (tab === "parties") {
-    const where: Prisma.CustomerWhereInput = {
-      ...(demoCatalogReadsHidden() ? { email: { notIn: [...DEMO_CUSTOMER_EMAILS] } } : {}),
-      ...(query.q
+    const where: Prisma.CustomerWhereInput = visibleCustomerWhere(
+      query.q
         ? { OR: [{ name: { contains: query.q } }, { phone: { contains: query.q } }, { email: { contains: query.q } }] }
-        : {}),
-    };
+        : {},
+    );
     const [count, rows] = await Promise.all([
       prisma.customer.count({ where }),
       prisma.customer.findMany({ where, orderBy: { name: "asc" }, skip, take: PAGE_SIZE }),
@@ -68,16 +67,13 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     total = count;
     parties = rows;
   } else {
-    const where: Prisma.SalesInvoiceWhereInput = {
+    const where: Prisma.SalesInvoiceWhereInput = visibleInvoiceWhere({
       ...salesWhereForScope(scope.warehouseIds),
       ...(status ? { status } : {}),
-      ...(demoCatalogReadsHidden()
-        ? { invoiceNumber: { notIn: [...DEMO_INVOICE_NUMBERS] }, customer: { email: { notIn: [...DEMO_CUSTOMER_EMAILS] } } }
-        : {}),
       ...(query.q
         ? { OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }
         : {}),
-    };
+    });
     const [count, rows] = await Promise.all([
       prisma.salesInvoice.count({ where }),
       prisma.salesInvoice.findMany({

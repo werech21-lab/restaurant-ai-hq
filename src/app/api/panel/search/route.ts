@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { getCurrentUser } from '@/lib/erp-auth'
 import { prisma } from '@/lib/db'
+import { visibleInvoiceWhere, withVisibleProducts } from '@/lib/panel-visibility'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -61,13 +62,13 @@ export async function GET(request: NextRequest) {
       select: { id: true, name: true, code: true, jobTitle: true, department: true },
     }),
     prisma.product.findMany({
-      where: { OR: [{ name: { contains: q } }, { code: { contains: q } }] },
+      where: withVisibleProducts({ OR: [{ name: { contains: q } }, { code: { contains: q } }] }),
       take: 12,
       orderBy: { name: 'asc' },
       select: { id: true, name: true, code: true },
     }),
     prisma.salesInvoice.findMany({
-      where: { OR: [{ invoiceNumber: { contains: q } }] },
+      where: visibleInvoiceWhere({ OR: [{ invoiceNumber: { contains: q } }] }),
       take: 8,
       orderBy: { createdAt: 'desc' },
       select: { id: true, invoiceNumber: true, totalAmount: true, customer: { select: { name: true } } },

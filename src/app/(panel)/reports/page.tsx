@@ -10,8 +10,8 @@ import { datetimeFor, getLocale, moneyFor, monthFor, tx } from "@/lib/i18n/serve
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { DEMO_CUSTOMER_EMAILS, DEMO_PRODUCT_CODES, DEMO_SUPPLIER_EMAILS, demoCatalogReadsHidden } from "@/lib/demo-catalog";
-import { costOfGoods, inventoryValuation, salesSummary } from "@/lib/reports";
+import { isHiddenPanelProduct, visibleCustomerWhere, visibleProductWhere, visibleSupplierWhere, withVisibleProducts } from "@/lib/panel-visibility";
+import { costOfGoods, inventoryValuation, salesSummary, visibleWarehouseIds } from "@/lib/reports";
 import { getActiveScope } from "@/lib/scope";
 import { listPayments } from "@/services/report.service";
 import { forecastLabels } from "@/services/forecast.service";
@@ -133,7 +133,8 @@ async function StockReport({
   skip: number;
   warehouseIds: string[];
 }) {
-  const valuation = await inventoryValuation(warehouseIds);
+  const valuationIds = await visibleWarehouseIds(warehouseIds);
+  const valuation = await inventoryValuation(valuationIds);
   let rows: Array<{
     id: string;
     code: string;
@@ -144,11 +145,14 @@ async function StockReport({
   }> = [];
   let total = 0;
 
-  if (warehouseIds.length) {
+  if (warehouseIds.length && !valuationIds.length) {
+    rows = [];
+    total = 0;
+  } else if (valuationIds.length) {
     const stocks = await prisma.warehouseStock.findMany({
       where: {
-        warehouseId: { in: warehouseIds },
-        ...(demoCatalogReadsHidden() ? { product: { code: { notIn: [...DEMO_PRODUCT_CODES] } } } : {}),
+        warehouseId: { in: valuationIds },
+        product: visibleProductWhere(),
       },
       include: { product: { select: { id: true, code: true, name: true, costPrice: true, sellingPrice: true } } },
     });
@@ -156,7 +160,7 @@ async function StockReport({
     for (const row of stocks) {
       const prev = merged.get(row.productId);
       if (prev) prev.currentStock += row.quantity;
-      else {
+      else if (!isHiddenPanelProduct(row.product.code, row.product.name)) {
         merged.set(row.productId, {
           id: row.product.id,
           code: row.product.code,
@@ -176,10 +180,7 @@ async function StockReport({
     total = rows.length;
     rows = rows.slice(skip, skip + PAGE_SIZE);
   } else {
-    const where = {
-      ...(demoCatalogReadsHidden() ? { code: { notIn: [...DEMO_PRODUCT_CODES] } } : {}),
-      ...(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}),
-    };
+    const where = withVisibleProducts(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {});
     const [count, productRows] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
@@ -283,26 +284,33 @@ async function DebtReport({
   skip: number;
 }) {
   const isCustomer = kind === "customers";
-  const where = {
+  const partyWhere = {
     balance: { gt: 0 },
-    ...(demoCatalogReadsHidden()
-      ? { email: { notIn: [...(isCustomer ? DEMO_CUSTOMER_EMAILS : DEMO_SUPPLIER_EMAILS)] } }
-      : {}),
     ...(q ? { OR: [{ name: { contains: q } }, { phone: { contains: q } }] } : {}),
   };
   const [totalSum, total, rows] = isCustomer
     ? await Promise.all([
-        prisma.customer.aggregate({ where, _sum: { balance: true } }),
-        prisma.customer.count({ where }),
-        prisma.customer.findMany({ where, orderBy: { balance: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.customer.aggregate({ where: visibleCustomerWhere(partyWhere), _sum: { balance: true } }),
+        prisma.customer.count({ where: visibleCustomerWhere(partyWhere) }),
+        prisma.customer.findMany({
+          where: visibleCustomerWhere(partyWhere),
+          orderBy: { balance: "desc" },
+          skip,
+          take: PAGE_SIZE,
+        }),
       ])
     : await Promise.all([
-        prisma.supplier.aggregate({ where, _sum: { balance: true } }),
-        prisma.supplier.count({ where }),
-        prisma.supplier.findMany({ where, orderBy: { balance: "desc" }, skip, take: PAGE_SIZE }),
+        prisma.supplier.aggregate({ where: visibleSupplierWhere(partyWhere), _sum: { balance: true } }),
+        prisma.supplier.count({ where: visibleSupplierWhere(partyWhere) }),
+        prisma.supplier.findMany({
+          where: visibleSupplierWhere(partyWhere),
+          orderBy: { balance: "desc" },
+          skip,
+          take: PAGE_SIZE,
+        }),
       ]);
 
-  const actualTotal = totalSum._sum.balance ?? 0;
+  const actualTotal = totalSum._sum?.balance ?? 0;
 
   return (
     <div>

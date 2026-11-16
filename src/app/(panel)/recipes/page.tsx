@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { getLocale, tx } from '@/lib/i18n/server'
 import { getActiveScope } from '@/lib/scope'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
+import { visibleProductWhere } from '@/lib/panel-visibility'
 import { listRecipeCosts } from '@/services/recipe.service'
 import { SmartIngestLaunchButton } from '@/components/SmartIngestLaunchButton'
 import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
@@ -29,6 +30,7 @@ async function RecipesContent() {
     const [fetchedRows, fetchedProducts] = await Promise.all([
       listRecipeCosts({ brandCode: scope.brandId }).catch(() => []),
       prisma.product.findMany({
+        where: visibleProductWhere(),
         orderBy: { name: 'asc' },
         take: 400,
         select: { id: true, code: true, name: true, sellingPrice: true, costPrice: true },
