@@ -16,7 +16,7 @@ export type VfTeamMember = {
   /** Modules with write access; empty + isAdmin = full. */
   writeModules: string[]
   viewOnlyModules?: string[]
-  /** Default demo password (panel SQLite). Official Aether admin keeps its own. */
+  /** Optional explicit password override; never defaults to 123456. */
   password?: string
 }
 
@@ -32,7 +32,6 @@ export const VF_TEAM: VfTeamMember[] = [
     roleDescriptionAr: 'الرئيس التنفيذي ومدير النظام بصلاحيات كاملة',
     isAdmin: true,
     writeModules: [],
-    password: '123456',
   },
   {
     key: 'choukrallah',
@@ -46,7 +45,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['inventory', 'warehouses', 'purchases', 'hr', 'delivery-hub', 'kds', 'recipes'],
     viewOnlyModules: ['dashboard', 'reports', 'audit', 'crm', 'sales'],
-    password: '123456',
   },
   {
     key: 'abdullah',
@@ -60,7 +58,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['crm', 'reports'],
     viewOnlyModules: ['dashboard', 'hr', 'audit', 'sales'],
-    password: '123456',
   },
   {
     key: 'mohamed',
@@ -74,7 +71,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['purchases', 'sales', 'accounting', 'payments'],
     viewOnlyModules: ['dashboard', 'reports', 'audit', 'crm', 'hr'],
-    password: '123456',
   },
   {
     key: 'samy',
@@ -88,7 +84,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['purchases', 'sales', 'accounting'],
     viewOnlyModules: ['dashboard', 'reports', 'audit', 'crm', 'payments'],
-    password: '123456',
   },
   {
     key: 'munir',
@@ -102,7 +97,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['inventory', 'warehouses'],
     viewOnlyModules: ['dashboard', 'purchases', 'reports'],
-    password: '123456',
   },
   {
     key: 'abdulrahman',
@@ -116,7 +110,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['crm', 'sales'],
     viewOnlyModules: ['dashboard', 'reports', 'pos'],
-    password: '123456',
   },
   {
     key: 'sheyam',
@@ -130,7 +123,6 @@ export const VF_TEAM: VfTeamMember[] = [
     isAdmin: false,
     writeModules: ['hr'],
     viewOnlyModules: ['dashboard', 'reports', 'audit'],
-    password: '123456',
   },
 ]
 

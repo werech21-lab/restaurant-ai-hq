@@ -65,6 +65,9 @@ export async function saveUser(input: UserInput): Promise<ActionResult> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("البريد الإلكتروني غير صالح");
   if (!input.roleId) return fail("اختر دوراً للمستخدم");
   if (!input.id && password.length < 6) return fail("كلمة المرور 6 أحرف على الأقل");
+  if (!input.id && password.trim() === "123456") {
+    return fail("لا يُسمح بكلمة المرور الافتراضية 123456 — أدخل كلمة مرور صريحة للحساب");
+  }
   if (input.id && password && password.length < 6) return fail("كلمة المرور 6 أحرف على الأقل");
 
   const role = await prisma.role.findUnique({ where: { id: input.roleId } });

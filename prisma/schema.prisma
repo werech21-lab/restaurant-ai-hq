@@ -814,3 +814,13 @@ model KitchenTicketItem {
 
   @@index([ticketId])
 }
+
+/// Admin POS terminal-to-branch overrides. Managed via migration; server/service role access only.
+model PosTerminalBranchMap {
+  terminalId Int     @id @map("terminal_id")
+  branchId   String? @map("branch_id")
+  updatedAt  String  @map("updated_at")
+  updatedBy  String? @map("updated_by")
+
+  @@map("pos_terminal_branch_map")
+}

@@ -1,6 +1,5 @@
 import { getKuwaitTodayIso } from '@/lib/aether/period-delta'
-import { restaurantRegisterIds, SCHOOL_CANTEEN_BRANCH_ID } from '@/lib/odoo/company-pos'
-import { SCHOOL_NAME_MARKERS } from '@/lib/odoo/excluded-entities'
+import { companyPosRegisterIds, SCHOOL_CANTEEN_BRANCH_ID } from '@/lib/odoo/company-pos'
 
 export const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
 
@@ -42,7 +41,7 @@ export function describePosOrderQuery(input: {
   aggregate: 'read_group' | 'search_count'
 }): string {
   const bounds = kuwaitDateBoundsToOdooUtc(input.fromKuwaitDate, input.toInclusiveKuwaitDate)
-  const configIds = input.configIds ?? restaurantRegisterIds()
+  const configIds = input.configIds ?? companyPosRegisterIds()
   const domain: unknown[] = [
     ['state', 'in', ['paid', 'done', 'invoiced']],
     ['date_order', '>=', bounds.fromUtc],
@@ -51,11 +50,13 @@ export function describePosOrderQuery(input: {
   if (input.companyId !== null && Number.isInteger(input.companyId)) {
     domain.push(['company_id', '=', input.companyId])
   }
+  if (input.aggregate === 'search_count') {
+    domain.push(['amount_total', '>=', 0])
+  }
   domain.push(['session_id.config_id', 'in', [...configIds]])
   const call =
     input.aggregate === 'search_count'
       ? `pos.order.search_count(${JSON.stringify(domain)})`
       : `pos.order.read_group(${JSON.stringify(domain)},["amount_total:sum","amount_tax:sum"])`
-  const school = SCHOOL_NAME_MARKERS.join('|')
-  return `${call} /* ${SCHOOL_CANTEEN_BRANCH_ID} names (${school}) stay in the config id list; other configs are omitted */`
+  return `${call} /* ${SCHOOL_CANTEEN_BRANCH_ID} pinned config ids included in session_id.config_id */`
 }

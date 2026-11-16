@@ -1,19 +1,19 @@
 /**
- * Sync Venture Foods leadership into the bundled SQLite DB (prisma/dev.db).
- * Run: npx tsx scripts/sync-vf-users.ts
+ * Sync Venture Foods leadership roles into the bundled SQLite DB (prisma/dev.db).
+ * Existing user rows are NEVER modified. Missing users require an explicit non-default
+ * password via VF_INITIAL_PASSWORD_<KEY> or --invite.
+ * Run: npx tsx scripts/sync-vf-users.ts [--invite]
  */
+import { randomBytes } from 'node:crypto'
 import path from 'node:path'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
 import { MODULES } from '../src/lib/modules'
-import {
-  AETHER_ADMIN_PASSWORD,
-  VF_TEAM,
-  type VfTeamMember,
-} from '../src/lib/venture-foods-team'
+import { VF_TEAM, type VfTeamMember } from '../src/lib/venture-foods-team'
 
 const sqliteUrl = `file:${path.join(process.cwd(), 'prisma', 'dev.db').replace(/\\/g, '/')}`
 const prisma = new PrismaClient({ datasources: { db: { url: sqliteUrl } } })
+const inviteFlag = process.argv.includes('--invite')
 
 function permissionsFor(member: VfTeamMember) {
   return MODULES.map((module) => {
@@ -52,23 +52,32 @@ async function ensureRole(member: VfTeamMember) {
   return created.id
 }
 
-async function upsertUser(email: string, name: string, roleId: string, password: string) {
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) return
-  const passwordHash = await bcrypt.hash(password, 10)
-  await prisma.user.create({
-    data: { name, email, roleId, isActive: true, passwordHash },
-  })
-}
-
 async function main() {
   for (const member of VF_TEAM) {
     const roleId = await ensureRole(member)
+    const envKey = `VF_INITIAL_PASSWORD_${member.key.toUpperCase()}`
+    const explicitPassword = (process.env[envKey] ?? '').trim()
     for (const email of member.emails) {
-      const password =
-        email.toLowerCase() === 'admin@aetherbi.com' ? AETHER_ADMIN_PASSWORD : member.password || '123456'
-      await upsertUser(email, member.nameEn, roleId, password)
-      console.log('upsert', email, '→', member.nameEn, '/', member.roleEn)
+      const existing = await prisma.user.findUnique({ where: { email } })
+      if (existing) {
+        console.log('kept existing user untouched:', email)
+        continue
+      }
+      if (explicitPassword.length >= 8 && !['password', '12345678'].includes(explicitPassword.toLowerCase())) {
+        const passwordHash = await bcrypt.hash(explicitPassword, 10)
+        await prisma.user.create({
+          data: { name: member.nameEn, email, roleId, isActive: true, passwordHash },
+        })
+        console.log('created missing user with explicit password:', email)
+      } else if (inviteFlag) {
+        const inviteMarker = `!INVITE_PENDING:${randomBytes(24).toString('hex')}`
+        await prisma.user.create({
+          data: { name: member.nameEn, email, roleId, isActive: true, passwordHash: inviteMarker },
+        })
+        console.log('created missing user with pending invite:', email)
+      } else {
+        console.log(`skipped missing user ${email}: provide ${envKey} (>=8 chars) or pass --invite`)
+      }
     }
   }
 
@@ -84,14 +93,6 @@ async function main() {
       console.log('removed unused role', name)
     }
   }
-
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    include: { role: true },
-    orderBy: { createdAt: 'asc' },
-  })
-  console.log('\nActive users:')
-  for (const u of users) console.log(` - ${u.name} <${u.email}> [${u.role.name}]`)
 }
 
 main()

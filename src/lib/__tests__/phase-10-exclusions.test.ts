@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { removeVitestSqliteCopy } from '@/lib/db'
-import { appendOdooNameExclusion, isExcludedOdooEntity, isSchoolCanteenLabel } from '@/lib/odoo/excluded-entities'
+import { isPinnedSchoolCanteenConfigId } from '@/lib/odoo/company-pos'
+import { appendOdooNameExclusion, isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { odooConsoleExtractor } from '@/modules/odoo/domain/console'
 
 const closed = ['haw', 'ally'].join('')
@@ -17,7 +18,7 @@ describe('phase 10 exclusions', () => {
     expect(isExcludedOdooEntity('جهرا')).toBe(true)
     expect(isExcludedOdooEntity(`NPIS ${closed}`)).toBe(false)
     expect(isExcludedOdooEntity('FAIPS Ahmadi')).toBe(false)
-    expect(isSchoolCanteenLabel('FAIPS Ahmadi')).toBe(true)
+    expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
     expect(isExcludedOdooEntity('NPIS Jahra')).toBe(true)
   })
 
@@ -52,5 +53,6 @@ describe('phase 10 temp database', () => {
     expect(existsSync(target)).toBe(false)
     expect(existsSync(`${target}-wal`)).toBe(false)
     expect(existsSync(source)).toBe(true)
+    rmSync(dir, { recursive: true, force: true })
   })
 })

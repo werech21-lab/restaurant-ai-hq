@@ -26,8 +26,8 @@ export function postgresGovernanceConfigured(databaseUrl: string | undefined): b
 /**
  * A failed or unavailable database read never checks a PIN.
  * A stored hash, including one that still equals the install default, is checked.
- * The route tries `AETHER_MANAGER_PIN` before it refuses that default hash, and it does not write a new hash.
- * `initial` is only a local install that has not stored a hash yet.
+ * The route tries `AETHER_MANAGER_PIN` before it refuses that default hash, and it does not overwrite an existing row.
+ * `initial` is allowed ONLY when no PIN row exists yet AND `AETHER_MANAGER_PIN` is configured server-side.
  */
 export function planPinCheck(input: {
   loadFailed: boolean
@@ -35,12 +35,12 @@ export function planPinCheck(input: {
   poolAvailable: boolean
   pinHash: string
   initialEmpty: boolean
+  envPinConfigured?: boolean
 }): PinCheckPlan {
   if (input.loadFailed || (input.postgresConfigured && !input.poolAvailable)) return 'deny'
   const stored = readStoredPinHash(input.pinHash)
   if (stored) return 'stored'
-  if (input.postgresConfigured) return 'deny'
-  if (input.initialEmpty) return 'initial'
+  if (input.initialEmpty && input.envPinConfigured) return 'initial'
   return 'deny'
 }
 

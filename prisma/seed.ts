@@ -62,7 +62,6 @@ async function main() {
     await tx.permission.deleteMany();
     await tx.role.deleteMany();
 
-    const passwordHash = await bcrypt.hash("123456", 10);
     const aetherHash = await bcrypt.hash(AETHER_ADMIN_PASSWORD, 10);
 
     for (const member of VF_TEAM) {
@@ -85,7 +84,9 @@ async function main() {
 
       for (const email of member.emails) {
         const hash =
-          email.toLowerCase() === "admin@aetherbi.com" ? aetherHash : passwordHash;
+          email.toLowerCase() === "admin@aetherbi.com"
+            ? aetherHash
+            : `!INVITE_PENDING:${member.key}:${Date.now()}`;
         const user = await tx.user.create({
           data: {
             name: member.nameEn,

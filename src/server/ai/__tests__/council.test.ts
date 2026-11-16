@@ -47,9 +47,20 @@ function odooAnswer(status: 'answered' | 'no_odoo_data' = 'answered') {
               date: '2026-11-15',
               unit: 'KWD',
               value: '10.5',
-              entityType: 'company',
-              entityId: 'company',
-              entityName: 'company',
+              entityType: 'branch',
+              entityId: 'avenues',
+              entityName: 'avenues',
+            },
+            {
+              id: 'fact-salmiya',
+              metric: 'net_sales',
+              period: '2026-11-15',
+              date: '2026-11-15',
+              unit: 'KWD',
+              value: '4.0',
+              entityType: 'branch',
+              entityId: 'salmiya',
+              entityName: 'salmiya',
             },
           ]
         : [],
@@ -148,11 +159,11 @@ describe('feryal council', () => {
   }) {
     const agreed = JSON.stringify({
       comparison: {
-        subject_id: 'company',
-        relation: 'best',
-        object_id: null,
+        subject_id: 'avenues',
+        relation: 'better',
+        object_id: 'salmiya',
         metric: 'net_sales',
-        cited_fact_ids: ['fact-net'],
+        cited_fact_ids: ['fact-net', 'fact-salmiya'],
       },
     })
     const texts = {
@@ -262,7 +273,7 @@ describe('feryal council', () => {
     const { pending } = run({ texts: { xai: 'رقم مختلف 999.9' } })
     const result = await pending
     expect(result.status).toBe('answered')
-    expect(result.reply).toContain('company هو الأفضل في net_sales')
+    expect(result.reply).toContain('avenues أفضل من salmiya في net_sales')
     expect(result.reply).toContain('صافي المبيعات 10.5')
     expect(result.reply).not.toContain('الصافي المسجّل')
     expect(result.reply).toContain(`اجتازت الفحص: anthropic/${RETURNED.anthropic}، google/${RETURNED.google}`)

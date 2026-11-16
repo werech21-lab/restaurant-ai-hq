@@ -1552,6 +1552,7 @@ async function runPosOrdersTool(params: {
         model: 'pos.order',
         period: { from: period.from, to: period.to },
         branch: targetRow,
+        branches: branchRows,
         companyTotalNetKwd: totalNet1,
         companyTotalOrders: totalOrdersInt,
         topBranch: { nameAr: topBranch.nameAr, netKwd: topBranch.netKwd },

@@ -16,6 +16,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/__tests__/**/*.test.ts'],
+    setupFiles: ['src/lib/__tests__/support/vitest-worker-setup.ts'],
+    globalSetup: ['src/lib/__tests__/support/vitest-global-setup.ts'],
     // Each database test file boots its own in-process Postgres and replays every migration. Several files start at once,
     // so the default 10 s hook limit fails on a busy machine.
     hookTimeout: 180_000,

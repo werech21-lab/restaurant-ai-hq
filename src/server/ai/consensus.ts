@@ -20,6 +20,7 @@ import { factForGuard, parseFactSource } from './source-links'
 import {
   claimIdentity,
   computeClaimFigure,
+  isRenderedStructuredClaimText,
   renderClaimText,
   sharesFact,
   structuredClaimSchema,
@@ -202,7 +203,7 @@ type ClaimVote = {
   stance: 'support' | 'dispute'
 }
 
-function connectedByFacts(votes: readonly ClaimVote[]): ClaimVote[][] {
+function connectedVotes(votes: readonly ClaimVote[]): ClaimVote[][] {
   const parent = votes.map((_, index) => index)
   const find = (index: number): number => {
     let cursor = index
@@ -218,7 +219,13 @@ function connectedByFacts(votes: readonly ClaimVote[]): ClaimVote[][] {
     for (let j = i + 1; j < votes.length; j += 1) {
       const left = votes[i]
       const right = votes[j]
-      if (left && right && sharesFact(left.factIds, right.factIds)) unite(i, j)
+      if (
+        left &&
+        right &&
+        (sharesFact(left.factIds, right.factIds) || claimsConflict(left.claimKey, right.claimKey))
+      ) {
+        unite(i, j)
+      }
     }
   }
   const groups = new Map<number, ClaimVote[]>()
@@ -241,15 +248,17 @@ function groupByKey(votes: readonly ClaimVote[]): ClaimVote[][] {
   return [...grouped.values()]
 }
 
-const OPPOSITE_ACTION: Record<string, string> = {
-  expand: 'close',
-  close: 'expand',
-  increase: 'reduce',
-  reduce: 'increase',
-  start: 'stop',
-  stop: 'start',
-  hire: 'cut',
-  cut: 'hire',
+const POSITIVE_ACTIONS = new Set(['expand', 'increase', 'start', 'hire'])
+const NEGATIVE_ACTIONS = new Set(['close', 'reduce', 'stop', 'cut'])
+
+function actionValence(action: string, polarity: string): 1 | -1 | 0 {
+  const base = POSITIVE_ACTIONS.has(action) ? 1 : NEGATIVE_ACTIONS.has(action) ? -1 : 0
+  if (base === 0) return 0
+  return polarity === 'do_not' ? (base === 1 ? -1 : 1) : base
+}
+
+function normalizeTargetId(raw: string): string {
+  return raw.trim().toLowerCase()
 }
 
 function claimParts(key: string): { action: string; type: string; target: string; metric: string; direction: string; polarity: string } {
@@ -257,13 +266,20 @@ function claimParts(key: string): { action: string; type: string; target: string
   return { action, type, target, metric, direction, polarity }
 }
 
-/** Expand versus close on the same target conflicts. A monitor claim on another target does not. */
+/**
+ * Opposite actions on the same target (e.g. close vs expand, cut vs increase) conflict across ANY metric.
+ * A monitor claim does not veto an action claim.
+ */
 function claimsConflict(left: string, right: string): boolean {
   const a = claimParts(left)
   const b = claimParts(right)
-  if (a.type !== b.type || a.target !== b.target || a.metric !== b.metric) return false
+  if (a.type !== b.type || normalizeTargetId(a.target) !== normalizeTargetId(b.target)) return false
+  if (a.action === b.action && a.polarity !== b.polarity && a.action !== 'monitor' && a.action !== 'none') return true
+  const valA = actionValence(a.action, a.polarity)
+  const valB = actionValence(b.action, b.polarity)
+  if (valA !== 0 && valB !== 0 && valA !== valB) return true
+  if (a.metric !== b.metric) return false
   if (a.polarity !== b.polarity) return true
-  if (OPPOSITE_ACTION[a.action] === b.action) return true
   return a.action === b.action && a.direction !== b.direction
 }
 
@@ -323,7 +339,7 @@ export function assembleBriefReport(input: {
 
   const findings: BriefFinding[] = []
   const unadoptedFindings: BriefUnadoptedFinding[] = []
-  for (const component of connectedByFacts(findingVotes)) {
+  for (const component of connectedVotes(findingVotes)) {
     const adopted = adoptedGroups(component)
     if (adopted.conflicting || adopted.groups.length === 0) {
       for (const vote of component) {
@@ -388,7 +404,7 @@ export function assembleBriefReport(input: {
       solution: vote.text,
     })
   }
-  for (const component of connectedByFacts(recommendationVotes)) {
+  for (const component of connectedVotes(recommendationVotes)) {
     const keys = [...new Set(component.map((vote) => vote.claimKey))]
     const factIds = [...new Set(component.flatMap((vote) => vote.factIds))].sort()
     const citations = citationsFor(factIds, byId)
@@ -537,18 +553,21 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
       ? body.findings.flatMap((entry) => {
           const record = asRecord(entry)
           if (!record) return []
+          const citations = asCitations(record.citations)
+          if (citations.length === 0) return []
           const notes = Array.isArray(record.notes)
             ? record.notes.flatMap((note) => {
                 const item = asRecord(note)
                 const provider = item ? asProvider(item.provider) : null
-                if (!item || !provider || typeof item.text !== 'string') return []
+                if (!item || !provider || typeof item.text !== 'string' || !isRenderedStructuredClaimText(item.text)) return []
                 return [{ provider, modelId: typeof item.modelId === 'string' ? item.modelId : '', text: item.text }]
               })
             : []
+          if (new Set(notes.map((note) => note.provider)).size < 2) return []
           return [
             {
               factIds: Array.isArray(record.factIds) ? record.factIds.filter((id): id is string => typeof id === 'string') : [],
-              citations: asCitations(record.citations),
+              citations,
               notes,
             },
           ]
@@ -558,16 +577,19 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
       ? body.recommendations.flatMap((entry) => {
           const record = asRecord(entry)
           if (!record || !Array.isArray(record.supporters)) return []
+          const citations = asCitations(record.citations)
+          if (citations.length === 0) return []
           const supporters = record.supporters.flatMap((item) => {
             const note = asRecord(item)
             const provider = note ? asProvider(note.provider) : null
-            if (!note || !provider || typeof note.solution !== 'string') return []
+            if (!note || !provider || typeof note.solution !== 'string' || !isRenderedStructuredClaimText(note.solution)) return []
             return [{ provider, modelId: typeof note.modelId === 'string' ? note.modelId : '', solution: note.solution }]
           })
+          if (new Set(supporters.map((supporter) => supporter.provider)).size < 2) return []
           return [
             {
               factIds: [],
-              citations: asCitations(record.citations),
+              citations,
               supporters,
             },
           ]
@@ -577,21 +599,26 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
       ? body.disputed.flatMap((entry) => {
           const record = asRecord(entry)
           if (!record) return []
+          const citations = asCitations(record.citations)
+          if (citations.length === 0) return []
           const readSide = (value: unknown) =>
             Array.isArray(value)
               ? value.flatMap((item) => {
                   const note = asRecord(item)
                   const provider = note ? asProvider(note.provider) : null
-                  if (!note || !provider || typeof note.solution !== 'string') return []
+                  if (!note || !provider || typeof note.solution !== 'string' || !isRenderedStructuredClaimText(note.solution)) return []
                   return [{ provider, modelId: typeof note.modelId === 'string' ? note.modelId : '', solution: note.solution }]
                 })
               : []
+          const support = readSide(record.support)
+          const dispute = readSide(record.dispute)
+          if (support.length === 0 || dispute.length === 0) return []
           return [
             {
               factIds: [],
-              citations: asCitations(record.citations),
-              support: readSide(record.support),
-              dispute: readSide(record.dispute),
+              citations,
+              support,
+              dispute,
             },
           ]
         })
@@ -600,11 +627,14 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
       ? body.dropped.flatMap((entry) => {
           const record = asRecord(entry)
           const provider = record ? asProvider(record.provider) : null
-          if (!record || !provider || typeof record.solution !== 'string') return []
+          const citations = record ? asCitations(record.citations) : []
+          if (!record || !provider || citations.length === 0 || typeof record.solution !== 'string' || !isRenderedStructuredClaimText(record.solution)) {
+            return []
+          }
           return [
             {
               factIds: [],
-              citations: asCitations(record.citations),
+              citations,
               provider,
               modelId: typeof record.modelId === 'string' ? record.modelId : '',
               solution: record.solution,
@@ -616,11 +646,14 @@ export function parseStoredBrief(reply: string): StoredBriefReport | null {
       ? body.unadoptedFindings.flatMap((entry) => {
           const record = asRecord(entry)
           const provider = record ? asProvider(record.provider) : null
-          if (!record || !provider || typeof record.text !== 'string') return []
+          const citations = record ? asCitations(record.citations) : []
+          if (!record || !provider || citations.length === 0 || typeof record.text !== 'string' || !isRenderedStructuredClaimText(record.text)) {
+            return []
+          }
           return [
             {
               factIds: [],
-              citations: asCitations(record.citations),
+              citations,
               provider,
               modelId: typeof record.modelId === 'string' ? record.modelId : '',
               text: record.text,

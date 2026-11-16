@@ -262,7 +262,7 @@ function UserDialog({
               type="password"
               dir="ltr"
               className={`${fieldClass} text-left`}
-              placeholder="123456"
+              placeholder={en ? "Enter explicit password" : "أدخل كلمة مرور صريحة"}
             />
           </div>
         )}

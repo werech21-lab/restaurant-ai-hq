@@ -1,19 +1,50 @@
-import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, unlinkSync } from 'fs'
 import path from 'path'
 import { PrismaClient } from '@prisma/client'
 
 /** Delete one vitest SQLite copy and its journals. The source database is never removed. */
 export function removeVitestSqliteCopy(target: string): void {
   if (!target.includes('aetherbi-vitest-')) return
-  if (target.includes(`${path.sep}prisma${path.sep}`) || target.endsWith(`${path.sep}dev.db`)) return
+  const normalized = target.replace(/\\/g, '/')
+  if (normalized.includes('/prisma/') || normalized.endsWith('/dev.db')) return
   for (const suffix of ['', '-journal', '-wal', '-shm']) {
     const file = `${target}${suffix}`
     try {
       if (existsSync(file)) unlinkSync(file)
     } catch {
-      // The name can already be gone. Linux removes the directory entry while a handle is open.
+      // Ignore if already removed or handle closed during teardown sweep.
     }
   }
+}
+
+/** Sweep a temporary directory for any leftover `aetherbi-vitest-*` SQLite copies or temp folders. */
+export function sweepVitestSqliteCopies(dirPath = '/tmp'): void {
+  try {
+    if (!existsSync(dirPath)) return
+    const normalizedDir = dirPath.replace(/\\/g, '/')
+    if (normalizedDir.includes('/prisma')) return
+    for (const name of readdirSync(dirPath)) {
+      if (!name.startsWith('aetherbi-vitest-')) continue
+      const full = path.join(dirPath, name)
+      try {
+        const st = statSync(full)
+        if (st.isDirectory()) {
+          rmSync(full, { recursive: true, force: true })
+        } else {
+          unlinkSync(full)
+        }
+      } catch {
+        // Ignore racing removal.
+      }
+    }
+  } catch {
+    // Ignore missing /tmp directory.
+  }
+}
+
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient
+  __aetherbiVitestExitHooked?: boolean
 }
 
 /**
@@ -24,12 +55,28 @@ function resolveSqliteUrl() {
   const source = path.join(process.cwd(), 'prisma', 'dev.db')
   const testing = process.env.VITEST === 'true' || process.env.NODE_ENV === 'test'
   if (testing && existsSync(source)) {
-    const target = path.join('/tmp', `aetherbi-vitest-${process.pid}.db`)
+    const targetDir = '/tmp'
+    if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true })
+    const target = path.join(targetDir, `aetherbi-vitest-${process.pid}.db`)
     copyFileSync(source, target)
-    process.once('exit', () => {
-      removeVitestSqliteCopy(target)
-    })
-    const url = `file:${target}`
+    if (!globalForPrisma.__aetherbiVitestExitHooked) {
+      globalForPrisma.__aetherbiVitestExitHooked = true
+      let beforeExitCleaned = false
+      process.once('beforeExit', async () => {
+        if (beforeExitCleaned) return
+        beforeExitCleaned = true
+        try {
+          await globalForPrisma.prisma?.$disconnect()
+        } catch {
+          // Ignore disconnect errors at shutdown.
+        }
+        removeVitestSqliteCopy(target)
+      })
+      process.once('exit', () => {
+        removeVitestSqliteCopy(target)
+      })
+    }
+    const url = `file:${target.replace(/\\/g, '/')}`
     process.env.SQLITE_URL = url
     return url
   }
@@ -39,7 +86,7 @@ function resolveSqliteUrl() {
     try {
       if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true })
       if (existsSync(source)) copyFileSync(source, target)
-      const url = `file:${target}`
+      const url = `file:${target.replace(/\\/g, '/')}`
       process.env.SQLITE_URL = url
       return url
     } catch {
@@ -52,8 +99,6 @@ function resolveSqliteUrl() {
 }
 
 resolveSqliteUrl()
-
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
 
 export const prisma =
   globalForPrisma.prisma ??

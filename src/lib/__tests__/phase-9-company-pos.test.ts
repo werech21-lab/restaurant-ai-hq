@@ -8,13 +8,14 @@ import { formatKwdAmount } from '@/lib/format-kwd'
 import {
   anchorKuwaitDay,
   companyPosConfigAllowed,
+  isPinnedSchoolCanteenConfigId,
   posOrderNet,
   restaurantRegisterIds,
+  schoolCanteenRegisterIds,
 } from '@/lib/odoo/company-pos'
 import {
   appendOdooNameExclusion,
   isExcludedOdooEntity,
-  isSchoolCanteenLabel,
 } from '@/lib/odoo/excluded-entities'
 import { describePosOrderQuery } from '@/lib/odoo/pos-order-query'
 import { resolveRestaurantBranchForConfig } from '@/lib/odoo-live-connector'
@@ -33,12 +34,11 @@ const closedArabic = ['\u062d', '\u0648', '\u0644', '\u064a'].join('')
 
 describe('phase 9 company POS', () => {
   it('keeps NPIS Hawally and FAIPS Ahmadi and excludes the closed branch and Jahra devices', () => {
-    expect(isSchoolCanteenLabel(nipsCanteen)).toBe(true)
-    expect(isSchoolCanteenLabel('FAIPS Ahmadi')).toBe(true)
+    expect(isPinnedSchoolCanteenConfigId(41)).toBe(true)
+    expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
+    expect(isPinnedSchoolCanteenConfigId(99)).toBe(false)
     expect(isExcludedOdooEntity(nipsCanteen)).toBe(false)
-    expect(isExcludedOdooEntity(`NPIS ${closedBranch} (Inactive)`)).toBe(false)
     expect(isExcludedOdooEntity('FAIPS Ahmadi')).toBe(false)
-    expect(isExcludedOdooEntity(`\u0645\u0642\u0635\u0641 ${closedArabic}`)).toBe(false)
     expect(isExcludedOdooEntity(closedBranch)).toBe(true)
     expect(isExcludedOdooEntity(closedArabic)).toBe(true)
     expect(isExcludedOdooEntity(`\u0628${closedArabic}`)).toBe(true)
@@ -48,6 +48,7 @@ describe('phase 9 company POS', () => {
     expect(isExcludedOdooEntity('NPIS Jahra')).toBe(true)
     expect(companyPosConfigAllowed(41, nipsCanteen)).toBe(true)
     expect(companyPosConfigAllowed(42, 'FAIPS Ahmadi')).toBe(true)
+    expect(companyPosConfigAllowed(40, `${nipsCanteen} (Inactive)`, false)).toBe(false)
     expect(companyPosConfigAllowed(25, 'Delivery (Jahra)')).toBe(false)
     expect(companyPosConfigAllowed(39, 'Tasty Snacks(Jahra)')).toBe(false)
     expect(companyPosConfigAllowed(26, 'Exhibition booth')).toBe(false)
@@ -55,6 +56,8 @@ describe('phase 9 company POS', () => {
     expect(restaurantRegisterIds()).toContain(3)
     expect(restaurantRegisterIds()).not.toContain(26)
     expect(restaurantRegisterIds()).not.toContain(41)
+    expect(schoolCanteenRegisterIds()).toContain(41)
+    expect(schoolCanteenRegisterIds()).toContain(42)
   })
 
   it('maps school canteens to their own branch and leaves the closed branch and central kitchen unmapped', async () => {
@@ -100,8 +103,8 @@ describe('phase 9 company POS', () => {
       domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'NPIS'),
     ).toBe(true)
     expect(
-      domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'FAIPS'),
-    ).toBe(true)
+      domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'school'),
+    ).toBe(false)
   })
 
   it('keeps refunds signed, anchors today on the Kuwait date, and formats KWD to 3 decimals', () => {
@@ -128,8 +131,7 @@ describe('phase 9 company POS', () => {
     expect(query).not.toContain('<=')
     expect(query).toContain('"company_id","=",1')
     expect(query).toContain('session_id.config_id')
-    expect(query).toContain('NPIS')
-    expect(query).toContain('FAIPS')
+    expect(query).toContain('41')
   })
 
   it('stores an admin terminal mapping in the database across a cold cache', async () => {

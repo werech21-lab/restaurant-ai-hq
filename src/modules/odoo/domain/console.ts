@@ -1,7 +1,6 @@
 import {
   closedBranchFamilyFragments,
   exclusionDomainFragments,
-  SCHOOL_NAME_MARKERS,
 } from '@/lib/odoo/excluded-entities'
 import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, type OdooModel } from '@/modules/odoo/domain/odoo'
 
@@ -9,7 +8,6 @@ import { ODOO_COMPANY_ID, ODOO_ORIGIN, odooFields, type OdooModel } from '@/modu
 export function odooConsoleExtractor(): string {
   const fields = JSON.stringify(Object.fromEntries((Object.keys(odooFields) as OdooModel[]).map((model) => [model, [...odooFields[model]]])))
   const excluded = JSON.stringify(exclusionDomainFragments())
-  const schoolMarkers = JSON.stringify([...SCHOOL_NAME_MARKERS])
   const closedBranchFamily = JSON.stringify(closedBranchFamilyFragments())
   return `(async function () {
   if (location.origin !== ${JSON.stringify(ODOO_ORIGIN)}) {
@@ -18,15 +16,26 @@ export function odooConsoleExtractor(): string {
   }
   const fields = ${fields};
   const excluded = ${excluded};
-  const schoolMarkers = ${schoolMarkers};
   const closedBranchFamily = ${closedBranchFamily};
   function rowKept(row) {
-    var blob = JSON.stringify(row || {}).toLowerCase();
-    var school = schoolMarkers.some(function (mark) { return blob.indexOf(String(mark).toLowerCase()) !== -1; });
-    var parts = blob.split(/[^0-9a-z\u0600-\u06ff]+/);
+    var rawBlob = JSON.stringify(row || {});
+    var expanded = rawBlob
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/([a-z\\u0600-\\u06ff])(\\d)/gi, '$1 $2')
+      .replace(/(\\d)([a-z\\u0600-\\u06ff])/gi, '$1 $2')
+      .toLowerCase();
+    var npisCanteen = /\\bnpis\\b/.test(expanded) && !/\\b(?:branch|street|restaurant)\\b/.test(expanded);
+    var parts = expanded.split(/[^0-9a-z\\u0600-\\u06ff]+/);
     return excluded.every(function (fragment) {
-      if (school && closedBranchFamily.indexOf(fragment) !== -1) return true;
-      return parts.indexOf(String(fragment).toLowerCase()) === -1;
+      var low = String(fragment).toLowerCase();
+      if (npisCanteen && closedBranchFamily.indexOf(fragment) !== -1) return true;
+      return parts.every(function (tok) {
+        if (tok === low) return false;
+        if (tok.replace(/^al(?=[a-z]{4,})/, '') === low) return false;
+        if (tok.replace(/(?:kw|kwt|kuwait|wh|pos)$/, '') === low) return false;
+        return true;
+      });
     });
   }
   const company = { allowed_company_ids: [${ODOO_COMPANY_ID}], cids: ${ODOO_COMPANY_ID} };

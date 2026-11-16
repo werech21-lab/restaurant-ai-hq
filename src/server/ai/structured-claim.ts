@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { BriefFact } from './brief-types'
 import { Decimal } from './decimal'
 
@@ -289,6 +290,21 @@ export function renderClaimText(claim: StructuredClaim, figure: ComputedFigure):
   return `${arabic}\n${english}`
 }
 
+const RENDERED_AR_LINE =
+  /^(?:لا تنفّذ: )?(?:توسيع|إغلاق|تخفيض|زيادة|إيقاف|بدء|توظيف|خفض|مراقبة|بدون إجراء) (?:branch|product|shift|staff|discount|brand|company|warehouse) [^\r\n]+\. (?:ارتفاع|هبوط|ثبات)\. (?:(?:التغيّر|الحصة) -?\d+(?:\.\d+)?%|(?:النسبة|الفرق|القيمة) -?\d+(?:\.\d+)?)\.$/
+
+const RENDERED_EN_LINE =
+  /^(?:Do not: )?(?:Expand|Close|Reduce|Increase|Stop|Start|Hire|Cut|Monitor|No action) (?:branch|product|shift|staff|discount|brand|company|warehouse) [^\r\n]+\. (?:up|down|flat)\. (?:(?:Change|Share) -?\d+(?:\.\d+)?%|(?:Ratio|Difference|Value) -?\d+(?:\.\d+)?)\.$/
+
+/** True only for deterministic two-line server claim output, never free-text model prose. */
+export function isRenderedStructuredClaimText(text: string): boolean {
+  const lines = text.split('\n')
+  if (lines.length !== 2) return false
+  const [ar = '', en = ''] = lines
+  if (!RENDERED_AR_LINE.test(ar) || !RENDERED_EN_LINE.test(en)) return false
+  return !isExcludedOdooEntity(text)
+}
+
 export function targetMatchesFacts(claim: StructuredClaim, cited: readonly BriefFact[]): boolean {
   const described = cited.flatMap((fact) => {
     const entity = entityOf(fact)
@@ -339,8 +355,20 @@ function sideFact(id: string, cited: readonly ComparableFact[], metric: string):
   return matches.length === 1 ? matches[0] ?? null : null
 }
 
-/** The relation is computed from the cited numeric facts. A name is not a fact. */
-export function comparisonMatchesFacts(comparison: StructuredComparison, facts: readonly ComparableFact[]): boolean {
+export interface ComparisonMatchOptions {
+  activeBranchIds?: readonly string[]
+}
+
+/**
+ * The relation is computed from the numeric facts. A name is not a fact.
+ * A "best" or "worst" claim is checked against ALL active peers for that metric and day,
+ * and is rejected if it cites only itself or if any uncited peer beats (or ties) it.
+ */
+export function comparisonMatchesFacts(
+  comparison: StructuredComparison,
+  facts: readonly ComparableFact[],
+  options?: ComparisonMatchOptions,
+): boolean {
   const byId = new Map(facts.map((fact) => [fact.id, fact]))
   const cited: ComparableFact[] = []
   for (const id of comparison.cited_fact_ids) {
@@ -358,8 +386,32 @@ export function comparisonMatchesFacts(comparison: StructuredComparison, facts: 
   const subjectValue = parseValue(subject.value)
   if (!subjectValue) return false
   if (normalized.relation === 'best' || normalized.relation === 'worst') {
-    const others = cited.filter((fact) => fact.id !== subject.id)
-    return others.every((other) => {
+    if (subject.entityType === 'company') return false
+    const citedPeers = cited.filter(
+      (fact) =>
+        fact.id !== subject.id &&
+        fact.entityId !== subject.entityId &&
+        fact.entityType === subject.entityType,
+    )
+    if (citedPeers.length === 0) return false
+    const allPeers = facts.filter(
+      (fact) =>
+        fact.entityType === subject.entityType &&
+        fact.metric === normalized.metric &&
+        fact.unit === unit &&
+        fact.period === period &&
+        fact.date === subject.date &&
+        fact.id !== subject.id &&
+        fact.entityId !== subject.entityId &&
+        !isExcludedOdooEntity(fact.entityId) &&
+        !isExcludedOdooEntity(fact.entityName),
+    )
+    if (allPeers.length === 0) return false
+    if (subject.entityType === 'branch' && options?.activeBranchIds && options.activeBranchIds.length > 0) {
+      const presentBranches = new Set([subject.entityId, ...allPeers.map((peer) => peer.entityId)])
+      if (!options.activeBranchIds.every((branchId) => presentBranches.has(branchId))) return false
+    }
+    return allPeers.every((other) => {
       const value = parseValue(other.value)
       if (!value) return false
       const compared = subjectValue.compare(value)

@@ -11,10 +11,12 @@
 import {
   companyPosConfigAllowed,
   companyPosSearchDomain,
+  isPinnedSchoolCanteenConfigId,
+  posOrderCount,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
 } from './company-pos'
-import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId, isSchoolCanteenLabel } from './excluded-entities'
+import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId } from './excluded-entities'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -589,8 +591,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const loc = REG.registers[String(cfgId)]?.location
     return Boolean(loc && REG.locations[loc]?.unit === 'restaurant' && !locationExcluded(loc))
   })
-  const configs = ((await ek('pos.config', 'search_read', [companyPosSearchDomain(restaurantAllowed)], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[])
-    .filter((config) => companyPosConfigAllowed(config.id, config.name) && !isExcludedOdooRecord({ id: config.id, name: config.name, kind: 'pos_config' }))
+  const configs = ((await ek('pos.config', 'search_read', [companyPosSearchDomain(restaurantAllowed)], { fields: ['id', 'name', 'active'] })) as { id: number; name: string; active?: boolean }[])
+    .filter((config) => config.active !== false && companyPosConfigAllowed(config.id, config.name, true) && !isExcludedOdooRecord({ id: config.id, name: config.name, kind: 'pos_config' }))
   const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
   const allowedSet = new Set(visibleConfigIds)
   const configNameById = new Map(configs.map((c) => [c.id, c.name]))
@@ -621,6 +623,12 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
 
   const orderDomain = [['date_order', '>=', periodFromUtc], ['date_order', '<', periodToUtc], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]]
   const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
+  const refundBySession = (await ek('pos.order', 'read_group', [[...orderDomain, ['amount_total', '<', 0]], ['amount_total:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }).catch(() => [])) as { session_id: M2O; __count?: number }[]
+  const refundSessionCounts = new Map<number, number>()
+  for (const rg of refundBySession) {
+    const rSid = m2oId(rg.session_id)
+    if (rSid !== null) refundSessionCounts.set(rSid, (refundSessionCounts.get(rSid) ?? 0) + Math.max(0, Number(rg.__count) || 0))
+  }
   const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', periodFromUtc], ['pos_order_id.date_order', '<', periodToUtc], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
   const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
@@ -630,12 +638,13 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   let schoolNet = 0
   let schoolOrders = 0
   for (const g of bySession) {
-    const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
+    const sid = m2oId(g.session_id) ?? -1
+    const cfg = configOfSession.get(sid)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
-    const name = configNameById.get(cfg) ?? ''
     const net = posOrderNet(g.amount_total, g.amount_tax)
-    const orders = Math.max(0, g.__count || 0)
-    if (isSchoolCanteenLabel(name)) {
+    const rawOrders = posOrderCount(g.__count, g.amount_total, g.amount_tax)
+    const orders = Math.max(0, rawOrders - (rawOrders > 0 ? (refundSessionCounts.get(sid) ?? 0) : 0))
+    if (isPinnedSchoolCanteenConfigId(cfg)) {
       schoolNet += net
       schoolOrders += orders
       continue
@@ -664,8 +673,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const payName = m2oName(g.payment_method_id) ?? ''
     const ch = channelOfPaymentMethod(payName)
     const amt = Number(g.amount) || 0
-    const cnt = Math.max(0, g.__count || 0)
-    const cfgName = configNameById.get(cfg) ?? ''
+    const cnt = posOrderCount(g.__count, amt, 0)
     let uiKey: (typeof UI_CHANNEL_KEYS)[number] = 'dine-in'
     if (ch === 'Talabat Go') uiKey = 'talabat-tgo'
     else if (ch === 'Talabat MP') uiKey = 'talabat-tmp'
@@ -675,7 +683,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     else if (ch === 'Snoonu') uiKey = 'snoonu'
     else if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') uiKey = 'takeaway-direct'
     else uiKey = isDeliveryCfg(cfg) ? 'takeaway-direct' : 'dine-in'
-    if (isSchoolCanteenLabel(cfgName)) {
+    if (isPinnedSchoolCanteenConfigId(cfg)) {
       schoolUi[uiKey].netKwd += amt
       schoolUi[uiKey].orders += cnt
       continue
@@ -758,8 +766,11 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const windows = journeyWindows()
   const pulseOf = async (w: { from: string; to: string; days: number }) => {
     const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { amount_total: number; amount_tax: number; __count: number }[]
-    const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
-    return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
+    const refundCount = (await ek('pos.order', 'search_count', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['amount_total', '<', 0], ['session_id.config_id', 'in', visibleConfigIds]]]).catch(() => 0)) as number
+    const net = posOrderNet(rows[0]?.amount_total, rows[0]?.amount_tax)
+    const rawCount = posOrderCount(rows[0]?.__count, rows[0]?.amount_total, rows[0]?.amount_tax)
+    const orders = Math.max(0, rawCount - (rawCount > 0 ? Math.max(0, Number(refundCount) || 0) : 0))
+    return { ...w, netKwd: r3(net), orders, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
   const [pulse, audit, unalloc, latestPosOrderIso] = await Promise.all([
     Promise.all([pulseOf(windows.rolling30), pulseOf(windows.prior30), pulseOf(windows.mtd)]).then(([rolling30, prior30, mtd]) => ({ rolling30, prior30, mtd })).catch(() => undefined),

@@ -46,6 +46,8 @@ import {
 import {
   anchorKuwaitDay,
   companyPosConfigAllowed,
+  isPinnedSchoolCanteenConfigId,
+  posOrderCount,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   signedKwd,
@@ -58,7 +60,6 @@ import {
   isExcludedRecordId,
   sliceDailySeriesToPeriod,
 } from '@/lib/aether/period-delta'
-import { isSchoolCanteenLabel } from '@/lib/odoo/excluded-entities'
 
 if (typeof window !== 'undefined') {
   throw new Error(
@@ -896,11 +897,18 @@ export function resolveRestaurantBranchForConfig(
   options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
   const combined = `${cfgName || ''} ${extraContext || ''}`.trim()
-  if (isSchoolCanteenLabel(combined) && !isExcludedOdooEntity(combined)) {
-    return SCHOOL_CANTEEN_BRANCH_ID
-  }
-  if (isDecommissionedWarehouseRecord(combined)) {
+  if (isDecommissionedWarehouseRecord(combined) || isExcludedRecordId('pos_config', cfgId)) {
     return null
+  }
+  const lower = combined.toLowerCase()
+  if (/test|training|demo|closed|cancelled/i.test(lower)) {
+    return null
+  }
+  if (/exhibition|exebition|\bexb\b|bazaar|booth|catering/i.test(lower)) {
+    return null
+  }
+  if (isPinnedSchoolCanteenConfigId(cfgId)) {
+    return SCHOOL_CANTEEN_BRANCH_ID
   }
 
   if (!options?.ignoreAdminOverride) {
@@ -923,13 +931,6 @@ export function resolveRestaurantBranchForConfig(
     return null
   }
 
-  const lower = combined.toLowerCase()
-  if (/test|training|demo|closed|cancelled/i.test(lower)) {
-    return null
-  }
-  if (/exhibition|exebition|\bexb\b|bazaar|booth|catering/i.test(lower)) {
-    return null
-  }
   if (/\bavn\b|avenue|افنيوز|الأفنيوز/.test(lower)) return 'avenues'
   if (/\b360\b|٣٦٠/.test(lower)) return '360-mall'
   if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
@@ -1497,24 +1498,23 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderCandidates] = await Promise.all([
     safeSubQuery(
       () =>
-        executeOdooKw<{ id: number; name: string; company_id?: M2O; picking_type_id?: M2O }[]>(
+        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
           'pos.config',
           'search_read',
-          [[['active', 'in', [true, false]]]],
+          [[['active', '=', true]]],
           {
-            fields: ['id', 'name', 'company_id', 'picking_type_id'],
-            context: { active_test: false },
+            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
           },
         ),
       [],
     ).then(async (rows) =>
       rows.length > 0
         ? rows
-        : executeOdooKw<{ id: number; name: string; company_id?: M2O; picking_type_id?: M2O }[]>(
+        : executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
             'pos.config',
             'search_read',
-            [[['active', 'in', [true, false]]]],
-            { fields: ['id', 'name', 'company_id'], context: { active_test: false } },
+            [[['active', '=', true]]],
+            { fields: ['id', 'name', 'active', 'company_id'] },
           ),
     ),
     safeSubQuery(
@@ -1592,11 +1592,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const combined = `${c.name} ${extraCtx}`.trim()
     configNameById.set(c.id, combined)
     displayConfigNameById.set(c.id, sanitizePosTerminalDisplayName(c.id, c.name))
-    if (isDecommissionedWarehouseRecord(combined)) {
+    if (c.active === false || isDecommissionedWarehouseRecord(combined)) {
       decommissionedConfigIds.add(c.id)
       continue
     }
-    if (!companyPosConfigAllowed(c.id, combined)) continue
+    if (!companyPosConfigAllowed(c.id, combined, true)) continue
     companyConfigIds.add(c.id)
     const nativeBranch = resolveRestaurantBranchForConfig(c.id, c.name, extraCtx, {
       ignoreAdminOverride: true,
@@ -1609,19 +1609,21 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       branchOfConfigId.set(c.id, mappedBranch)
     }
   }
-  for (const cfgId of REG.allowedPosConfigIds) {
-    const knownName = configNameById.get(cfgId) ?? ''
-    if (decommissionedConfigIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName)) continue
-    companyConfigIds.add(cfgId)
-    if (!nativeBranchOfConfigId.has(cfgId)) {
-      const nb = resolveRestaurantBranchForConfig(cfgId, knownName, '', {
-        ignoreAdminOverride: true,
-      })
-      if (nb) nativeBranchOfConfigId.set(cfgId, nb)
-    }
-    if (!branchOfConfigId.has(cfgId)) {
-      const b = resolveRestaurantBranchForConfig(cfgId, knownName)
-      if (b) branchOfConfigId.set(cfgId, b)
+  if (allConfigs.length === 0) {
+    for (const cfgId of REG.allowedPosConfigIds) {
+      const knownName = configNameById.get(cfgId) ?? ''
+      if (decommissionedConfigIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
+      companyConfigIds.add(cfgId)
+      if (!nativeBranchOfConfigId.has(cfgId)) {
+        const nb = resolveRestaurantBranchForConfig(cfgId, knownName, '', {
+          ignoreAdminOverride: true,
+        })
+        if (nb) nativeBranchOfConfigId.set(cfgId, nb)
+      }
+      if (!branchOfConfigId.has(cfgId)) {
+        const b = resolveRestaurantBranchForConfig(cfgId, knownName)
+        if (b) branchOfConfigId.set(cfgId, b)
+      }
     }
   }
 
@@ -2531,8 +2533,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     if (!parsedRange) continue
 
     const dayIso = parsedRange.kuwaitDate
-    const ordCount = Math.max(0, Number(row.__count ?? 0))
     const net = posOrderNet(row.amount_total, row.amount_tax)
+    const ordCount = posOrderCount(row.__count, row.amount_total, row.amount_tax)
     if (ordCount <= 0 && net === 0) continue
 
     const sid = m2oId(row.session_id)
@@ -2700,8 +2702,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const parsedHour = rawHourFromUtc ? odooUtcToKuwaitIso(rawHourFromUtc) : null
     if (!parsedHour) continue
     const kwHour = parsedHour.kuwaitHour
-    const ordCount = Math.max(0, Number(hRow.__count ?? 0))
     const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
+    const ordCount = posOrderCount(hRow.__count, hRow.amount_total, hRow.amount_tax)
     hourlyAcc[kwHour].orders += ordCount
     hourlyAcc[kwHour].netKwd += net
   }
@@ -2794,7 +2796,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       const isDelivCfg = lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
       const uiKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDelivCfg)
       const amt = signedKwd(p.amount)
-      const cnt = Math.max(0, Number(p.__count) || 0)
+      const cnt = posOrderCount(p.__count, amt, 0)
       if (!lid) {
         unmappedUi[uiKey].netKwd += amt
         unmappedUi[uiKey].orders += cnt
@@ -2826,7 +2828,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
     const net = posOrderNet(yrRow.amount_total, yrRow.amount_tax)
-    const ord = Math.max(0, Number(yrRow.__count ?? 0))
+    const ord = posOrderCount(yrRow.__count, yrRow.amount_total, yrRow.amount_tax)
     if (ord <= 0 && net === 0) continue
     const branch = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
     if (!branch) {
@@ -3771,20 +3773,19 @@ export async function fetchLiveOdooPeriodCube(
 
     const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderRows] =
       await Promise.all([
-        executeOdooKw<{ id: number; name: string; company_id?: M2O; picking_type_id?: M2O }[]>(
+        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
           'pos.config',
           'search_read',
-          [[['active', 'in', [true, false]]]],
+          [[['active', '=', true]]],
           {
-            fields: ['id', 'name', 'company_id', 'picking_type_id'],
-            context: { active_test: false },
+            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
           },
         ).catch(() =>
-          executeOdooKw<{ id: number; name: string; company_id?: M2O; picking_type_id?: M2O }[]>(
+          executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
             'pos.config',
             'search_read',
-            [[['active', 'in', [true, false]]]],
-            { fields: ['id', 'name', 'company_id'], context: { active_test: false } },
+            [[['active', '=', true]]],
+            { fields: ['id', 'name', 'active', 'company_id'] },
           ),
         ),
         safeSubQuery(
@@ -3861,11 +3862,11 @@ export async function fetchLiveOdooPeriodCube(
       const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
       const combined = `${c.name} ${extra}`.trim()
       cfgNameMap.set(c.id, combined)
-      if (isDecommissionedWarehouseRecord(combined)) {
+      if (c.active === false || isDecommissionedWarehouseRecord(combined)) {
         decommCfgIds.add(c.id)
         continue
       }
-      if (!companyPosConfigAllowed(c.id, combined)) continue
+      if (!companyPosConfigAllowed(c.id, combined, true)) continue
       companyCfgIds.add(c.id)
       const mb = resolveRestaurantBranchForConfig(c.id, c.name, extra)
       if (mb) {
@@ -3873,15 +3874,17 @@ export async function fetchLiveOdooPeriodCube(
         cfgIdsByBranch.get(mb)!.push(c.id)
       }
     }
-    for (const cfgId of REG.allowedPosConfigIds) {
-      const knownName = cfgNameMap.get(cfgId) ?? ''
-      if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName)) continue
-      companyCfgIds.add(cfgId)
-      if (!branchOfCfg.has(cfgId)) {
-        const mb = resolveRestaurantBranchForConfig(cfgId, knownName)
-        if (mb) {
-          branchOfCfg.set(cfgId, mb)
-          cfgIdsByBranch.get(mb)!.push(cfgId)
+    if (allConfigs.length === 0) {
+      for (const cfgId of REG.allowedPosConfigIds) {
+        const knownName = cfgNameMap.get(cfgId) ?? ''
+        if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
+        companyCfgIds.add(cfgId)
+        if (!branchOfCfg.has(cfgId)) {
+          const mb = resolveRestaurantBranchForConfig(cfgId, knownName)
+          if (mb) {
+            branchOfCfg.set(cfgId, mb)
+            cfgIdsByBranch.get(mb)!.push(cfgId)
+          }
         }
       }
     }
@@ -4259,8 +4262,8 @@ export async function fetchLiveOdooPeriodCube(
       const cid = sid !== null ? cfgOfSession.get(sid) : undefined
       if (cid !== undefined && decommCfgIds.has(cid)) continue
 
-      const ord = Math.max(0, Number(row.__count ?? 0))
       const net = posOrderNet(row.amount_total, row.amount_tax)
+      const ord = posOrderCount(row.__count, row.amount_total, row.amount_tax)
       if (ord <= 0 && net === 0) continue
 
       const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
@@ -4316,7 +4319,7 @@ export async function fetchLiveOdooPeriodCube(
         const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
         const chKey = resolveUiChannelHint(m2oName(p.payment_method_id) ?? '', isDeliv)
         const amt = signedKwd(p.amount)
-        const cnt = Math.max(0, Number(p.__count) || 0)
+        const cnt = posOrderCount(p.__count, amt, 0)
         if (!branch) {
           unattributedChannels[chKey].netKwd += amt
           unattributedChannels[chKey].orders += cnt
@@ -4380,8 +4383,8 @@ export async function fetchLiveOdooPeriodCube(
       const sid = m2oId(hRow.session_id)
       const cid = sid !== null ? cfgOfSession.get(sid) : undefined
       if (cid !== undefined && decommCfgIds.has(cid)) continue
-      const ord = Math.max(0, Number(hRow.__count ?? 0))
       const net = posOrderNet(hRow.amount_total, hRow.amount_tax)
+      const ord = posOrderCount(hRow.__count, hRow.amount_total, hRow.amount_tax)
       const hr = conv.kuwaitHour
       hourlyAcc[hr].orders += ord
       hourlyAcc[hr].netKwd += net

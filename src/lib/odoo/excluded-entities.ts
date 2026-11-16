@@ -188,24 +188,21 @@ export function exclusionDomainFragments(): readonly string[] {
   return DOMAIN_FRAGMENTS.filter((fragment) => /[a-z\u0600-\u06ff]/i.test(fragment) && fragment.length > 3)
 }
 
-/** School-canteen POS names. The closed restaurant district is not one of these markers. */
-export const SCHOOL_NAME_MARKERS = [
-  'NPIS',
-  'FAIPS',
-  'canteen',
-  'school',
-  '\u0645\u0642\u0635\u0641',
-  '\u0645\u062f\u0631\u0633\u0629',
-] as const
-
-const SCHOOL_LABEL_RE = /\bnpis\b|\bfaips\b|\bcanteen\b|\bschool\b|\u0645\u0642\u0635\u0641|\u0645\u062f\u0631\u0633\u0647/
-
-export function isSchoolCanteenLabel(raw: string | null | undefined): boolean {
-  if (raw == null) return false
-  return SCHOOL_LABEL_RE.test(normalizeEntityLabel(String(raw)))
+/**
+ * Named NPIS school-canteen label check used ONLY so the closed-branch district word
+ * inside our NPIS school canteen label does not false-exclude the canteen.
+ * Generic words (school, canteen, مقصف, مدرسة) NEVER exempt an excluded entity,
+ * and POS device inclusion is strictly by pinned pos.config IDs.
+ */
+function isNamedNpisCanteenOnly(rawNormalized: string): boolean {
+  if (!/\bnpis\b/.test(rawNormalized)) return false
+  if (/\b(?:branch|street|restaurant|exhibition|exebition|fair|test|demo)\b|\u0641\u0631\u0639|\u0634\u0627\u0631\u0639|\u0645\u0637\u0639\u0645/.test(rawNormalized)) {
+    return false
+  }
+  return true
 }
 
-/** District fragments that a school canteen may contain without leaving the company. */
+/** District fragments that the named NPIS school canteen contains without leaving the company. */
 export function isClosedBranchFamilyFragment(fragment: string): boolean {
   const normalized = normalizeEntityLabel(fragment)
   return normalized.startsWith('haw') || normalized === '\u062d\u0648\u0644\u064a' || normalized === 'hwl'
@@ -222,6 +219,10 @@ export function normalizeEntityLabel(raw: string): string {
     .replace(/[أإآ]/g, 'ا')
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([\p{L}])(\d)/gu, '$1 $2')
+    .replace(/(\d)([\p{L}])/gu, '$1 $2')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -234,21 +235,39 @@ export function isExcludedRecordId(kind: ExclusionKind, id: number | null | unde
 }
 
 const CLITIC = /^(?:لل|ب|و|ل)/
+const LATIN_AL_PREFIX = /^al(?=[a-z]{4,})/
+const JOINED_SUFFIX = /(?:kw|kwt|kuwait|wh|pos)$/
 const COLLAPSED_MARKS = new Set(['heisenberg', 'heizenberg', 'hizenberg', 'heisenburg', 'haisenberg'])
+const LATIN_BRAND_PREFIX = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
 const ARABIC_BRAND_STEM = 'هايزن'
-const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d+$/
+const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d*$/
+
+function expandTokenCandidates(token: string): string[] {
+  const set = new Set<string>([token])
+  const arStripped = token.replace(CLITIC, '')
+  if (arStripped !== token && arStripped.length > 0) set.add(arStripped)
+  const alStripped = token.replace(LATIN_AL_PREFIX, '')
+  if (alStripped !== token && alStripped.length > 0) set.add(alStripped)
+  for (const current of [...set]) {
+    const suffixStripped = current.replace(JOINED_SUFFIX, '')
+    if (suffixStripped !== current && suffixStripped.length >= 3) {
+      set.add(suffixStripped)
+    }
+  }
+  return [...set]
+}
 
 function markHit(token: string): boolean {
   if (CODE_WITH_DIGITS.test(token) || TOKEN_MARKS.has(token) || WORD_ONLY.has(token)) return true
+  if (LATIN_BRAND_PREFIX.test(token)) return true
   return token.startsWith(ARABIC_BRAND_STEM)
 }
 
-function tokenExcluded(token: string, school: boolean): boolean {
-  const stripped = token.replace(CLITIC, '')
-  const candidates = stripped === token ? [token] : [token, stripped]
-  for (const candidate of candidates) {
+function tokenExcluded(token: string, npisCanteen: boolean, rawOriginalToken?: string): boolean {
+  const hasJoinedDigit = rawOriginalToken ? /\d/.test(rawOriginalToken) : false
+  for (const candidate of expandTokenCandidates(token)) {
     if (!markHit(candidate)) continue
-    if (school && isClosedBranchFamilyFragment(candidate)) continue
+    if (npisCanteen && !hasJoinedDigit && isClosedBranchFamilyFragment(candidate)) continue
     return true
   }
   return false
@@ -259,7 +278,7 @@ function collapsedWindowHit(tokens: readonly string[]): boolean {
     let joined = ''
     for (let index = start; index < tokens.length && index < start + 12; index += 1) {
       joined += tokens[index]?.replace(/[^a-z0-9]+/g, '') ?? ''
-      if (COLLAPSED_MARKS.has(joined)) return true
+      if (COLLAPSED_MARKS.has(joined) || LATIN_BRAND_PREFIX.test(joined)) return true
       if (joined.length > 16) break
     }
   }
@@ -268,21 +287,38 @@ function collapsedWindowHit(tokens: readonly string[]): boolean {
 
 export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   if (raw == null) return false
-  const text = normalizeEntityLabel(String(raw))
+  const rawStr = String(raw)
+  const text = normalizeEntityLabel(rawStr)
   if (!text) return false
-  const school = isSchoolCanteenLabel(text)
+  const npisCanteen = isNamedNpisCanteenOnly(text)
+  const rawTokens = rawStr
+    .normalize('NFKD')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  for (const rawTok of rawTokens) {
+    const subTokens = normalizeEntityLabel(rawTok).split(' ').filter(Boolean)
+    if (subTokens.some((tok) => tokenExcluded(tok, npisCanteen, rawTok))) return true
+  }
   const tokens = text.split(' ')
-  if (!school && collapsedWindowHit(tokens)) return true
-  return tokens.some((token) => tokenExcluded(token, school))
+  if (collapsedWindowHit(tokens)) return true
+  return false
 }
 
 function tokenLikePatterns(fragment: string): string[] {
-  const separators = [' ', '-', '/', ',', '(', ')']
+  const separators = [' ', '-', '/', ',', '(', ')', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
   const patterns = new Set<string>([fragment])
   for (const separator of separators) {
     patterns.add(`${fragment}${separator}%`)
     patterns.add(`%${separator}${fragment}`)
     patterns.add(`%${separator}${fragment}${separator}%`)
+  }
+  if (/^[a-z]/i.test(fragment)) {
+    patterns.add(`al${fragment}`)
+    patterns.add(`al${fragment}%`)
+    patterns.add(`${fragment}kw`)
+    patterns.add(`${fragment}kw%`)
   }
   if (/^[\u0600-\u06ff]/.test(fragment)) {
     for (const prefix of ['\u0628', '\u0648', '\u0644', '\u0644\u0644']) {
@@ -309,9 +345,11 @@ export function appendOdooNameExclusion(domain: unknown[], nameField: string): v
       pushNegatedToken(domain, nameField, fragment)
       continue
     }
-    const schoolTerms = SCHOOL_NAME_MARKERS.map((mark) => [nameField, 'ilike', mark])
-    for (let i = 0; i < schoolTerms.length; i += 1) domain.push('|')
-    for (const term of schoolTerms) domain.push(term)
+    domain.push('|')
+    domain.push('&')
+    domain.push([nameField, 'ilike', 'NPIS'])
+    domain.push('!')
+    domain.push([nameField, 'ilike', 'branch'])
     pushNegatedToken(domain, nameField, fragment)
   }
 }

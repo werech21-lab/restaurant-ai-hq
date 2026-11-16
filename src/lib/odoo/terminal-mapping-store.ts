@@ -12,7 +12,7 @@ export interface PosTerminalMapRow {
 
 const TABLE = 'pos_terminal_branch_map'
 
-const DDL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
+const LOCAL_SQLITE_TEST_DDL = `CREATE TABLE IF NOT EXISTS ${TABLE} (
   terminal_id INTEGER PRIMARY KEY,
   branch_id TEXT,
   updated_at TEXT NOT NULL,
@@ -45,17 +45,17 @@ function postgresPool(url: string): Pool {
   return pool
 }
 
-async function ensureTable(): Promise<void> {
-  const url = postgresUrl()
-  if (url) {
-    await postgresPool(url).query(DDL)
-    return
-  }
-  await prisma.$executeRawUnsafe(DDL)
+/**
+ * Production and Postgres schemas are owned exclusively by migration files (0051_pos_terminal_branch_map.sql).
+ * Never run CREATE TABLE at runtime in production or against Postgres.
+ */
+async function ensureLocalSqliteTestTableOnly(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') return
+  if (postgresUrl()) return
+  await prisma.$executeRawUnsafe(LOCAL_SQLITE_TEST_DDL)
 }
 
 export async function readPosTerminalMap(): Promise<PosTerminalMapRow[]> {
-  await ensureTable()
   const url = postgresUrl()
   if (url) {
     const result = await postgresPool(url).query<{
@@ -73,6 +73,7 @@ export async function readPosTerminalMap(): Promise<PosTerminalMapRow[]> {
         updatedBy: row.updated_by ? String(row.updated_by) : 'admin',
       }))
   }
+  await ensureLocalSqliteTestTableOnly()
   const rows = await prisma.$queryRawUnsafe<
     Array<{
       terminal_id: number
@@ -92,7 +93,6 @@ export async function readPosTerminalMap(): Promise<PosTerminalMapRow[]> {
 }
 
 export async function writePosTerminalMap(row: PosTerminalMapRow): Promise<void> {
-  await ensureTable()
   const url = postgresUrl()
   if (url) {
     await postgresPool(url).query(
@@ -106,6 +106,7 @@ export async function writePosTerminalMap(row: PosTerminalMapRow): Promise<void>
     )
     return
   }
+  await ensureLocalSqliteTestTableOnly()
   await prisma.$executeRawUnsafe(
     `INSERT INTO ${TABLE} (terminal_id, branch_id, updated_at, updated_by)
      VALUES (?, ?, ?, ?)
@@ -121,21 +122,21 @@ export async function writePosTerminalMap(row: PosTerminalMapRow): Promise<void>
 }
 
 export async function deletePosTerminalMap(terminalId: number): Promise<void> {
-  await ensureTable()
   const url = postgresUrl()
   if (url) {
     await postgresPool(url).query(`DELETE FROM ${TABLE} WHERE terminal_id = $1`, [terminalId])
     return
   }
+  await ensureLocalSqliteTestTableOnly()
   await prisma.$executeRawUnsafe(`DELETE FROM ${TABLE} WHERE terminal_id = ?`, terminalId)
 }
 
 export async function clearPosTerminalMap(): Promise<void> {
-  await ensureTable()
   const url = postgresUrl()
   if (url) {
     await postgresPool(url).query(`DELETE FROM ${TABLE}`)
     return
   }
+  await ensureLocalSqliteTestTableOnly()
   await prisma.$executeRawUnsafe(`DELETE FROM ${TABLE}`)
 }

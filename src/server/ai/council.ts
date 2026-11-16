@@ -7,6 +7,7 @@ import {
   type FeryalNumericVerificationResult,
   type FeryalReplyStatus,
 } from '@/lib/feryal-odoo-agent'
+import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
 import { readCouncilKeys, type CouncilKeys } from './env'
@@ -192,7 +193,7 @@ function reviewAnswer(
   const record = body && typeof body === 'object' && !Array.isArray(body) ? (body as { comparison?: unknown }) : null
   const candidate = record && 'comparison' in record ? record.comparison : body
   const result = comparisonSchema.safeParse(candidate)
-  if (!result.success || !comparisonMatchesFacts(result.data, facts)) {
+  if (!result.success || !comparisonMatchesFacts(result.data, facts, { activeBranchIds: ACTIVE_VENTURE_BRANCH_IDS })) {
     return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extractCanonicalDecimals(text) }
   }
   return { status: 'ok', errorCode: null, offending: [] }

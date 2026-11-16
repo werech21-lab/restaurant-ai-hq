@@ -678,11 +678,71 @@ function verifyServerManagerPin(
     return timingSafeEqual(a, b)
   }
 
-  if (plan === 'initial' && !readStoredPinHash(storedPinHash)) {
-    return timingSafeEqual(hashServerManagerPin(clean), Buffer.from(DEFAULT_MANAGER_PIN_SHA256, 'hex'))
+  return false
+}
+
+function serverEnvManagerPin(): string | null {
+  const raw = process.env.AETHER_MANAGER_PIN?.trim() ?? ''
+  return /^\d{4}$/.test(raw) ? raw : null
+}
+
+/**
+ * One-time creation when NO PIN row exists in the database, strictly from `AETHER_MANAGER_PIN` server-side.
+ * Uses `ON CONFLICT (id) DO NOTHING` so an existing row can NEVER be overwritten.
+ */
+async function createMissingPinRowFromEnvOnce(store: PersistedGovernanceStore): Promise<boolean> {
+  const envPin = serverEnvManagerPin()
+  if (!envPin) return false
+  const pinHash = `vfsha256_${hashServerManagerPin(envPin).toString('hex')}`
+  const nowIso = new Date().toISOString()
+  const stampedStore: PersistedGovernanceStore = {
+    ...normalizeGovernanceStore(store),
+    updatedAtIso: nowIso,
   }
 
-  return false
+  const pgPool = getGovernancePgPool()
+  if (pgPool) {
+    try {
+      await pgPool.query(
+        `INSERT INTO vf_executive_governance_sync (id, payload, pin_hash, updated_at)
+         VALUES ($1, $2::jsonb, $3, NOW())
+         ON CONFLICT (id) DO NOTHING`,
+        [ROW_ID, JSON.stringify(stampedStore), pinHash],
+      )
+      return true
+    } catch {
+      globalForGov.__vfGovPgHealthy = false
+      globalForGov.__vfGovPgCheckedAt = Date.now()
+      return false
+    }
+  }
+
+  if (process.env.VERCEL || process.env.VF_GOVERNANCE_PRISMA === '1') {
+    try {
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO vf_executive_governance_sync (id, payload, pin_hash, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(id) DO NOTHING`,
+        ROW_ID,
+        JSON.stringify(stampedStore),
+        pinHash,
+        nowIso,
+      )
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  writeTmpFallback({
+    store: stampedStore,
+    pinHash,
+    initialEmpty: false,
+    loadFailed: false,
+    updatedAtIso: nowIso,
+    backend: 'server-cache',
+  })
+  return true
 }
 
 function pinPlanFor(current: ServerGovernanceEnvelope) {
@@ -692,6 +752,7 @@ function pinPlanFor(current: ServerGovernanceEnvelope) {
     poolAvailable: !postgresConfigured() || getGovernancePgPool() !== null,
     pinHash: current.pinHash,
     initialEmpty: current.initialEmpty,
+    envPinConfigured: serverEnvManagerPin() !== null,
   })
 }
 
@@ -816,6 +877,9 @@ export async function POST(request: NextRequest) {
         }
       } else {
         managerPinFailureLimiter.reset(pinKey)
+        if (pinPlan === 'initial' && current.initialEmpty && !current.loadFailed && !readStoredPinHash(current.pinHash)) {
+          await createMissingPinRowFromEnvOnce(current.store)
+        }
       }
       return NextResponse.json({ ok: true, valid }, { headers: GOVERNANCE_RESPONSE_HEADERS })
     }
