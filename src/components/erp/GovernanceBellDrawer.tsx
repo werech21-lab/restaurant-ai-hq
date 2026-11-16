@@ -31,6 +31,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { formatDateTime, formatKwd, type FormatLocale } from '@/lib/format'
 import {
   normalizeExecSessionRole,
   type ExecSessionRole,
@@ -171,8 +172,8 @@ export function buildStopDirectiveCircularDoc(
     approverRoleEn: issued?.approverRoleEn,
     approvedByAr: issued?.approvedByAr,
     approvedByEn: issued?.approvedByEn,
-    financialSummaryAr: `أثر التجاوز المحسوب من Odoo: ${breach.monthlyLeakKwd.toLocaleString('en-US')} د.ك`,
-    financialSummaryEn: `Odoo computed overrun impact: ${breach.monthlyLeakKwd.toLocaleString('en-US')} KWD`,
+    financialSummaryAr: `أثر التجاوز المحسوب من Odoo: ${formatKwd(breach.monthlyLeakKwd, { locale: 'ar' })}`,
+    financialSummaryEn: `Odoo computed overrun impact: ${formatKwd(breach.monthlyLeakKwd, { locale: 'en' })}`,
     mandatoryRulesAr: [
       breach.approvedRuleLimitAr,
       `مرجع Odoo (${breach.odooModel}): ${breach.odooMetricProofAr}`,
@@ -912,9 +913,8 @@ function formatCountdown(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export function GovernanceBellTrigger({
-  showInlinePin = false,
-}: { showInlinePin?: boolean } = {}) {
+export function GovernanceBellTrigger(props: { showInlinePin?: boolean }) {
+  const showInlinePin = props?.showInlinePin ?? false
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const {
@@ -1012,7 +1012,7 @@ export function GovernanceBellTrigger({
   )
 }
 
-function GovernanceSlideOverDrawer({
+export function GovernanceSlideOverDrawer({
   open,
   tab,
   onTabChange,
@@ -1024,8 +1024,11 @@ function GovernanceSlideOverDrawer({
   onClose: () => void
 }) {
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
+  const isAr = fmtLocale !== 'en'
   const [mounted, setMounted] = useState(false)
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
+  const lastFocusedRef = useRef<HTMLElement | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [execConfirmedIds, setExecConfirmedIds] = useState<Record<string, boolean>>({})
   const [thresholdsOpen, setThresholdsOpen] = useState(false)
@@ -1084,13 +1087,28 @@ function GovernanceSlideOverDrawer({
   }, [store.adminThresholds])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      if (lastFocusedRef.current && typeof lastFocusedRef.current.focus === 'function') {
+        lastFocusedRef.current.focus()
+        lastFocusedRef.current = null
+      }
+      return
+    }
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      lastFocusedRef.current = document.activeElement
+    }
+    const raf = window.requestAnimationFrame(() => {
+      closeBtnRef.current?.focus()
+    })
     void triggerCrossDeviceSync()
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onEsc)
-    return () => window.removeEventListener('keydown', onEsc)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      window.removeEventListener('keydown', onEsc)
+    }
   }, [onClose, open, triggerCrossDeviceSync])
 
   const sealedHistory = useMemo(
@@ -1269,29 +1287,33 @@ function GovernanceSlideOverDrawer({
                 <button
                   type="button"
                   onClick={() => setThresholdsOpen((v) => !v)}
+                  aria-label={isAr ? 'إعداد سقوف التنبيهات على الخادم' : 'Server Alert Thresholds'}
+                  aria-expanded={thresholdsOpen}
                   title={isAr ? 'إعداد سقوف التنبيهات على الخادم (للأدمن)' : 'Server Alert Thresholds (Admin)'}
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-white/[0.06] dark:text-slate-300"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-300"
                 >
-                  <Sliders className="h-3.5 w-3.5" />
+                  <Sliders className="h-3.5 w-3.5" aria-hidden />
                 </button>
               ) : null}
 
               <button
                 type="button"
                 onClick={() => void triggerCrossDeviceSync()}
+                aria-label={isAr ? 'مزامنة فورية مع الخادم' : 'Sync with server'}
                 title={isAr ? 'مزامنة فورية مع الخادم' : 'Sync with server'}
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-white/[0.06] dark:text-slate-300"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-300"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${syncingCrossDevice ? 'animate-spin text-emerald-600' : ''}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${syncingCrossDevice ? 'animate-spin text-emerald-600' : ''}`} aria-hidden />
               </button>
 
               <button
+                ref={closeBtnRef}
                 type="button"
                 onClick={onClose}
                 aria-label={isAr ? 'إغلاق' : 'Close'}
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 dark:bg-white/[0.06] dark:text-slate-300"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-100 text-neutral-600 transition-colors duration-150 hover:bg-neutral-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-300"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" aria-hidden />
               </button>
             </div>
           </div>
@@ -1476,15 +1498,21 @@ function GovernanceSlideOverDrawer({
           ) : null}
 
           {/* Filter Pills */}
-          <div className="mt-3 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]">
+          <div
+            role="tablist"
+            aria-label={isAr ? 'تصفية تنبيهات الحوكمة' : 'Filter governance alerts'}
+            className="mt-3 flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]"
+          >
             {tabs.map((t) => {
               const active = tab === t.id
               return (
                 <button
                   key={t.id}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => onTabChange(t.id)}
-                  className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150 ${
+                  className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                     active
                       ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
                       : 'text-neutral-600 hover:bg-white hover:text-neutral-950 dark:text-slate-300 dark:hover:bg-white/[0.06]'
@@ -1595,7 +1623,7 @@ function GovernanceSlideOverDrawer({
                         <span
                           dir="ltr"
                           title={`Odoo Domain: ${JSON.stringify(b.odooDomain)}`}
-                          className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-mono text-[11px] font-semibold text-neutral-700 dark:bg-white/10 dark:text-slate-200"
+                          className="rounded-full bg-neutral-100 px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-neutral-700 dark:bg-white/10 dark:text-slate-200"
                         >
                           {b.odooModel} · {b.computedValue} &gt; {b.adminThreshold}
                         </span>
@@ -1766,12 +1794,17 @@ function GovernanceSlideOverDrawer({
                       <div dir="ltr" className="flex items-center gap-2 text-xs font-semibold tabular-nums">
                         {req.budgetOrCostKwd > 0 ? (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                            {isAr ? `التكلفة: ${req.budgetOrCostKwd} د.ك` : `Cost: ${req.budgetOrCostKwd} KWD`}
+                            {isAr ? 'التكلفة:' : 'Cost:'}{' '}
+                            {formatKwd(req.budgetOrCostKwd, { locale: fmtLocale })}
                           </span>
                         ) : null}
                         {req.expectedMonthlyReturnKwd > 0 ? (
                           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                            +{req.expectedMonthlyReturnKwd} {isAr ? 'د.ك/شهر' : 'KWD/mo'}
+                            {formatKwd(req.expectedMonthlyReturnKwd, {
+                              locale: fmtLocale,
+                              signed: true,
+                            })}
+                            {isAr ? '/شهر' : '/mo'}
                           </span>
                         ) : null}
                       </div>
@@ -1880,8 +1913,11 @@ function GovernanceSlideOverDrawer({
                                 : (item.seal.approverRoleEn ?? item.seal.approvedByEn)}
                             </span>
                           </span>
-                          <span dir="ltr" className="tabular-nums text-neutral-400">
-                            {item.seal.approvedAtIso.slice(0, 16).replace('T', ' ')} UTC
+                          <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
+                            {formatDateTime(item.seal.approvedAtIso, {
+                              locale: fmtLocale,
+                              showZone: true,
+                            })}
                           </span>
                         </div>
                       ) : null}
@@ -1901,8 +1937,11 @@ function GovernanceSlideOverDrawer({
                           <span className="text-neutral-700 dark:text-slate-300">
                             {isAr ? entry.summaryAr : entry.summaryEn} ({entry.actorRole})
                           </span>
-                          <span dir="ltr" className="tabular-nums text-neutral-400">
-                            {entry.timestampIso.slice(0, 16).replace('T', ' ')}
+                          <span dir="ltr" className="tabular-nums text-neutral-500 dark:text-slate-400">
+                            {formatDateTime(entry.timestampIso, {
+                              locale: fmtLocale,
+                              showZone: true,
+                            })}
                           </span>
                         </div>
                       ))}

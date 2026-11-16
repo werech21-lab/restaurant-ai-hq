@@ -1,3 +1,4 @@
+import { requirePageUser, resolveServerExecSessionRole } from '@/lib/auth/context'
 import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
 import GovernanceDesk from '@/modules/governance/ui/GovernanceDesk'
 
@@ -9,12 +10,18 @@ export const metadata = {
 }
 
 export default async function GovernancePage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
-  const permissions = [...panelBridgePermissionSet()].sort()
+  await requirePageUser('/erp/governance')
+  const sessionRole = await resolveServerExecSessionRole()
+  const allPermissions = [...panelBridgePermissionSet()].sort()
+  const permissions =
+    sessionRole === 'auditor'
+      ? allPermissions.filter((perm) => !perm.endsWith('.manage') && !perm.endsWith('.dispatch'))
+      : allPermissions
   const query = await searchParams
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <main className="w-full max-w-none px-4 py-8 sm:px-6">
+    <div className="w-full max-w-none min-w-0 overflow-x-hidden px-4 py-6 sm:px-6">
       <GovernanceDesk permissions={permissions} initialTab={tab ?? 'violations'} />
-    </main>
+    </div>
   )
 }

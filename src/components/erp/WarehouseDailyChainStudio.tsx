@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
-  Database,
   Package,
   RefreshCw,
   ShoppingBag,
@@ -16,6 +15,16 @@ import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { PartialWarningBanner } from '@/components/ui/partial-warning-banner'
+import { StateBlock } from '@/components/ui/state-block'
+import {
+  UNAVAILABLE_DASH,
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveWarehouseChainPayload } from '@/lib/odoo-live-connector'
 import {
@@ -26,13 +35,13 @@ import {
 } from '@/lib/warehouse-prep-engine'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-white/10'
 const KPI_CARD_CLS =
-  'ae-kpi-card min-w-0 overflow-hidden rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-kpi-card min-w-0 overflow-hidden rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-white/10'
 const SEGMENT_TRACK_CLS =
   'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
 const SEGMENT_BTN_CLS =
-  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
+  'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60'
 const SEGMENT_BTN_ACTIVE_CLS =
   'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
 const SEGMENT_BTN_IDLE_CLS =
@@ -41,23 +50,42 @@ const SEGMENT_BTN_IDLE_CLS =
 const PAGE_SIZE = 12
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 
-const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-const f1 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
-const f2 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+const f1Nullable = (n: number | null | undefined) =>
+  typeof n === 'number' && Number.isFinite(n)
+    ? n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : UNAVAILABLE_DASH
+
+function ValueCell({
+  value,
+  locale,
+  text,
+  className = '',
+}: {
+  value: number | null | undefined
+  locale: FormatLocale
+  text: string
+  className?: string
+}) {
+  const unavailable = typeof value !== 'number' || !Number.isFinite(value)
+  const tooltip = getUnavailableTooltip(locale)
+  return (
+    <span
+      dir="ltr"
+      data-unavailable={unavailable ? 'true' : undefined}
+      title={unavailable ? tooltip : undefined}
+      aria-label={unavailable ? tooltip : undefined}
+      className={`tabular-nums ${className}`.trim()}
+    >
+      {unavailable ? UNAVAILABLE_DASH : text}
+    </span>
+  )
+}
 
 function HealthBadge({ status, isAr }: { status: ChainHealthStatus; isAr: boolean }) {
   if (status === 'critical') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
-        <span>🔴</span>
+        <span aria-hidden>🔴</span>
         <span>{isAr ? 'هدر مرتفع' : 'High Scrap'}</span>
       </span>
     )
@@ -65,31 +93,53 @@ function HealthBadge({ status, isAr }: { status: ChainHealthStatus; isAr: boolea
   if (status === 'watch') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-        <span>🟡</span>
+        <span aria-hidden>🟡</span>
         <span>{isAr ? 'مراقبة' : 'Monitor'}</span>
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-      <span>🟢</span>
+      <span aria-hidden>🟢</span>
       <span>{isAr ? 'ضمن النطاق' : 'Normal'}</span>
     </span>
   )
 }
 
-export function WarehouseDailyChainStudio() {
+export interface WarehouseDailyChainStudioProps {
+  initialWarehouseChain?: OdooLiveWarehouseChainPayload | null
+  initialLoading?: boolean
+  initialError?: boolean
+  initialTimedOut?: boolean
+}
+
+export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps) {
+  const {
+    initialWarehouseChain,
+    initialLoading,
+    initialError = false,
+    initialTimedOut = false,
+  } = props ?? {}
   const { locale } = useI18n()
-  const isAr = locale !== 'en'
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
+  const isAr = fmtLocale !== 'en'
   const T = useCallback((en: string, ar: string) => (isAr ? ar : en), [isAr])
 
   const { filters, workspace, liveSummary } = useGlobalFilter()
 
+  const hasInitialChain = initialWarehouseChain !== undefined
   const [materialCategory, setMaterialCategory] = useState<RawMaterialCategory>('all')
   const [ledgerPage, setLedgerPage] = useState<number>(1)
-  const [warehouseChain, setWarehouseChain] = useState<OdooLiveWarehouseChainPayload | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [timedOut, setTimedOut] = useState(false)
+  const [warehouseChain, setWarehouseChain] = useState<OdooLiveWarehouseChainPayload | null>(
+    initialWarehouseChain
+      ? (stripExcludedOdooTree(initialWarehouseChain) as OdooLiveWarehouseChainPayload)
+      : null,
+  )
+  const [loading, setLoading] = useState<boolean>(
+    initialLoading !== undefined ? initialLoading : !hasInitialChain && !initialError && !initialTimedOut,
+  )
+  const [timedOut, setTimedOut] = useState(initialTimedOut)
+  const [fetchError, setFetchError] = useState(initialError)
   const [reloadNonce, setReloadNonce] = useState<number>(0)
 
   const periodWindow = useMemo(
@@ -103,11 +153,16 @@ export function WarehouseDailyChainStudio() {
   )
 
   useEffect(() => {
+    if (hasInitialChain && reloadNonce === 0) return
+    if (initialLoading !== undefined && reloadNonce === 0) return
+    if ((initialError || initialTimedOut) && reloadNonce === 0) return
+
     let cancelled = false
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 20_000)
     setLoading(true)
     setTimedOut(false)
+    setFetchError(false)
 
     const qs = new URLSearchParams({
       from: periodWindow.fromIso,
@@ -119,7 +174,12 @@ export function WarehouseDailyChainStudio() {
       credentials: 'same-origin',
       signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('fetch_failed')
+        }
+        return res.json()
+      })
       .then((data) => {
         if (cancelled) return
         if (data?.warehouseChain && data.connected) {
@@ -131,7 +191,11 @@ export function WarehouseDailyChainStudio() {
       .catch((error: unknown) => {
         if (cancelled) return
         setWarehouseChain(null)
-        setTimedOut(error instanceof DOMException && error.name === 'AbortError')
+        const isAbort = error instanceof DOMException && error.name === 'AbortError'
+        setTimedOut(isAbort)
+        if (!isAbort) {
+          setFetchError(true)
+        }
       })
       .finally(() => {
         window.clearTimeout(timeout)
@@ -143,7 +207,15 @@ export function WarehouseDailyChainStudio() {
       window.clearTimeout(timeout)
       controller.abort()
     }
-  }, [periodWindow.fromIso, periodWindow.toInclusiveIso, reloadNonce])
+  }, [
+    hasInitialChain,
+    initialError,
+    initialLoading,
+    initialTimedOut,
+    periodWindow.fromIso,
+    periodWindow.toInclusiveIso,
+    reloadNonce,
+  ])
 
   useEffect(() => {
     setLedgerPage(1)
@@ -188,8 +260,16 @@ export function WarehouseDailyChainStudio() {
   )
 
   const fmtKwd = useCallback(
-    (v: number) => (isAr ? `${f2(v)} د.ك` : `${f2(v)} KWD`),
-    [isAr],
+    (v: number | null | undefined) => formatKwd(v, { locale: fmtLocale }),
+    [fmtLocale],
+  )
+  const fmtInt = useCallback(
+    (v: number | null | undefined) => formatInt(v, { locale: fmtLocale }),
+    [fmtLocale],
+  )
+  const fmtPct = useCallback(
+    (v: number | null | undefined) => formatPct(v, { locale: fmtLocale }),
+    [fmtLocale],
   )
 
   const reversedDays = useMemo(() => [...snap.days].reverse(), [snap.days])
@@ -200,26 +280,31 @@ export function WarehouseDailyChainStudio() {
   )
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-5 pb-16">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto min-w-0 space-y-5 pb-16">
+      <PartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       {/* Header */}
       <div className={`${CARD_CLS} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
-        <div className="space-y-1">
+        <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-950 dark:text-white">
               {T(
                 'Central Warehouse & Branch Stock Chain',
                 'سلسلة المخزن المركزي وحركات الفروع',
               )}
-            </h1>
+            </h2>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Package className="h-3.5 w-3.5" />
-              <span>stock.move • stock.scrap • stock.quant</span>
+              <Package className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span dir="ltr">stock.move • stock.scrap • stock.quant</span>
             </span>
           </div>
           <p className="text-[13px] font-medium text-slate-600 dark:text-slate-300">
             {isAr
-              ? `قراءة حركات المخزون الفعلية والتالف المسجّل والأرصدة الداخلية من أودو 17 للفترة (${provenanceRange.from} → ${provenanceRange.to}).`
-              : `Actual Odoo 17 stock moves, scrap orders, and internal quant balances for (${provenanceRange.from} → ${provenanceRange.to}).`}
+              ? 'قراءة حركات المخزون الفعلية والتالف المسجّل والأرصدة الداخلية من أودو 17 للفترة'
+              : 'Actual Odoo 17 stock moves, scrap orders, and internal quant balances for'}{' '}
+            <span dir="ltr" className="tabular-nums">
+              ({provenanceRange.from} → {provenanceRange.to})
+            </span>
           </p>
         </div>
 
@@ -228,9 +313,10 @@ export function WarehouseDailyChainStudio() {
             type="button"
             onClick={() => setReloadNonce((n) => n + 1)}
             disabled={loading}
-            className="ae-emerald-cta-pill inline-flex h-9.5 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-white disabled:opacity-60"
+            aria-label={T('Refresh Warehouse Data', 'تحديث بيانات المخزن')}
+            className="ae-emerald-cta-pill inline-flex h-9.5 cursor-pointer items-center gap-1.5 rounded-full px-4 text-xs font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-60"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
             <span>{T('Refresh Warehouse Data', 'تحديث بيانات المخزن')}</span>
           </button>
         </div>
@@ -256,54 +342,77 @@ export function WarehouseDailyChainStudio() {
       </div>
 
       {loading ? (
-        <div className={`${CARD_CLS} py-12 text-center text-sm font-semibold text-slate-500 dark:text-slate-300`}>
-          {T('Loading warehouse movements from Odoo 17...', 'جاري تحميل حركات المخزن من أودو 17...')}
-        </div>
+        <StateBlock
+          state="loading"
+          locale={fmtLocale}
+          skeletonRows={4}
+          minHeightClass="min-h-[240px]"
+          title={T('Loading warehouse movements from Odoo 17...', 'جاري تحميل حركات المخزن من أودو 17...')}
+        />
       ) : timedOut ? (
-        <div className={`${CARD_CLS} py-12 text-center text-sm font-semibold text-amber-800 dark:text-amber-200`}>
-          {T(
-            'The warehouse request timed out. Odoo did not answer in time.',
-            'انتهت مهلة جلب حركات المخزن من أودو. لم يصل الرد في الوقت المحدد.',
+        <StateBlock
+          state="error"
+          locale={fmtLocale}
+          onRetry={() => setReloadNonce((n) => n + 1)}
+          title={T(
+            'The warehouse request timed out',
+            'انتهت مهلة جلب حركات المخزن من أودو',
           )}
-        </div>
+          description={T(
+            'Odoo did not respond in time. Please try refreshing again.',
+            'لم يصل رد أودو في الوقت المحدد. يرجى إعادة المحاولة.',
+          )}
+        />
+      ) : fetchError ? (
+        <StateBlock
+          state="error"
+          locale={fmtLocale}
+          onRetry={() => setReloadNonce((n) => n + 1)}
+          title={T(
+            'Unable to load warehouse movements right now',
+            'تعذّر تحميل حركات المخزن حالياً',
+          )}
+          description={T(
+            'A temporary connection issue occurred while reading Odoo inventory telemetry.',
+            'حدث خلل مؤقت أثناء قراءة بيانات المخزن من أودو. يرجى المحاولة مجدداً.',
+          )}
+        />
       ) : !snap.connected || snap.noData ? (
-        <section
-          role="status"
-          data-odoo-no-data="true"
-          className="ae-bento-card mx-auto my-6 max-w-3xl rounded-3xl border border-amber-300/70 bg-white p-8 text-center shadow-xs dark:border-amber-500/30 dark:bg-[#101C17]"
-        >
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/90 text-amber-700 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-300">
-            <Database className="h-7 w-7" aria-hidden />
-          </div>
-          <h2 className="text-xl font-extrabold text-slate-950 dark:text-white">
-            {NO_ODOO_DATA_AR}
-          </h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-300">
-            {snap.messageAr ?? NO_ODOO_DATA_AR}
-          </p>
-        </section>
+        <StateBlock
+          state={!snap.connected ? 'unlinked' : 'empty'}
+          locale={fmtLocale}
+          onRetry={() => setReloadNonce((n) => n + 1)}
+          title={T('No Odoo warehouse data for this period', NO_ODOO_DATA_AR)}
+          description={
+            isAr
+              ? (snap.messageAr ?? NO_ODOO_DATA_AR)
+              : 'No completed stock moves, scrap orders, or internal quant balances found for this period.'
+          }
+        />
       ) : (
         <>
-          {/* 5 KPI Cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {/* 5 KPI Cards (2x2 mobile, 4-col lg, 5-col xl) */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
             {/* 1. Current Warehouse On-Hand */}
             <article className={KPI_CARD_CLS}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {T('Internal Stock On-Hand', 'رصيد المخزون الداخلي الحالي')}
                 </p>
-                <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <Package className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               </div>
-              <div
-                dir="ltr"
-                className="mt-2.5 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
-              >
-                {fmtKwd(snap.periodTotals.closingWarehouseKwd)}
+              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
+                <ValueCell
+                  value={snap.periodTotals.closingWarehouseKwd}
+                  locale={fmtLocale}
+                  text={fmtKwd(snap.periodTotals.closingWarehouseKwd)}
+                />
               </div>
-              <p className="mt-1 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f1(snap.periodTotals.closingWarehouseKg)} وحدة كمية حالية`
-                  : `${f1(snap.periodTotals.closingWarehouseKg)} current units`}
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span dir="ltr" className="tabular-nums">
+                  {f1Nullable(snap.periodTotals.closingWarehouseKg)}
+                </span>{' '}
+                {isAr ? 'وحدة كمية حالية' : 'current units'}
               </p>
               <KpiProvenanceBadge
                 odooModel="stock.quant"
@@ -314,7 +423,7 @@ export function WarehouseDailyChainStudio() {
                 queryOrFormula={
                   snap.quantHasValueField
                     ? "stock.quant.search_read([['location_id.usage','=','internal']]) -> sum(value)"
-                    : "stock.quant(quantity) × product.product(standard_price)"
+                    : 'stock.quant(quantity) × product.product(standard_price)'
                 }
                 compact
               />
@@ -326,18 +435,20 @@ export function WarehouseDailyChainStudio() {
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {T('Supplier Inbound Receipts', 'توريدات الموردين المستلمة')}
                 </p>
-                <ShoppingBag className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                <ShoppingBag className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" aria-hidden />
               </div>
-              <div
-                dir="ltr"
-                className="mt-2.5 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
-              >
-                {fmtKwd(snap.periodTotals.totalSupplierInboundKwd)}
+              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
+                <ValueCell
+                  value={snap.periodTotals.totalSupplierInboundKwd}
+                  locale={fmtLocale}
+                  text={fmtKwd(snap.periodTotals.totalSupplierInboundKwd)}
+                />
               </div>
-              <p className="mt-1 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f1(snap.periodTotals.totalSupplierInboundKg)} كمية واردة للفترة`
-                  : `${f1(snap.periodTotals.totalSupplierInboundKg)} inbound qty in period`}
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span dir="ltr" className="tabular-nums">
+                  {f1Nullable(snap.periodTotals.totalSupplierInboundKg)}
+                </span>{' '}
+                {isAr ? 'كمية واردة للفترة' : 'inbound qty in period'}
               </p>
               <KpiProvenanceBadge
                 odooModel="stock.move"
@@ -356,18 +467,20 @@ export function WarehouseDailyChainStudio() {
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {T('Transfers to Branches', 'تحويلات المطبخ المركزي للفروع')}
                 </p>
-                <Truck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <Truck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               </div>
-              <div
-                dir="ltr"
-                className="mt-2.5 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
-              >
-                {fmtKwd(snap.periodTotals.totalDispatchedKwd)}
+              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
+                <ValueCell
+                  value={snap.periodTotals.totalDispatchedKwd}
+                  locale={fmtLocale}
+                  text={fmtKwd(snap.periodTotals.totalDispatchedKwd)}
+                />
               </div>
-              <p className="mt-1 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f0(snap.periodTotals.totalDispatchMoves)} حركة مخزنية منفذة`
-                  : `${f0(snap.periodTotals.totalDispatchMoves)} completed stock moves`}
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span dir="ltr" className="tabular-nums">
+                  {fmtInt(snap.periodTotals.totalDispatchMoves)}
+                </span>{' '}
+                {isAr ? 'حركة مخزنية منفذة' : 'completed stock moves'}
               </p>
               <KpiProvenanceBadge
                 odooModel="stock.move"
@@ -386,18 +499,20 @@ export function WarehouseDailyChainStudio() {
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {T('Recorded Consumption Moves', 'المنصرف المخزني المسجّل للإنتاج والبيع')}
                 </p>
-                <Store className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <Store className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
               </div>
-              <div
-                dir="ltr"
-                className="mt-2.5 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
-              >
-                {fmtKwd(snap.periodTotals.totalBomTheoreticalKwd)}
+              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
+                <ValueCell
+                  value={snap.periodTotals.totalBomTheoreticalKwd}
+                  locale={fmtLocale}
+                  text={fmtKwd(snap.periodTotals.totalBomTheoreticalKwd)}
+                />
               </div>
-              <p className="mt-1 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f1(snap.periodTotals.totalBomTheoreticalKg)} كمية منصرفة`
-                  : `${f1(snap.periodTotals.totalBomTheoreticalKg)} outbound qty`}
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span dir="ltr" className="tabular-nums">
+                  {f1Nullable(snap.periodTotals.totalBomTheoreticalKg)}
+                </span>{' '}
+                {isAr ? 'كمية منصرفة' : 'outbound qty'}
               </p>
               <KpiProvenanceBadge
                 odooModel="stock.move"
@@ -416,18 +531,24 @@ export function WarehouseDailyChainStudio() {
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
                   {T('Recorded Stock Scrap', 'التالف والهدر الفعلي المسجّل')}
                 </p>
-                <Trash2 className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                <Trash2 className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
               </div>
-              <div
-                dir="ltr"
-                className="mt-2.5 text-2xl font-extrabold tabular-nums text-rose-700 dark:text-rose-300"
-              >
-                {fmtKwd(snap.periodTotals.totalAbnormalShrinkageKwd)}
+              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-rose-700 dark:text-rose-300">
+                <ValueCell
+                  value={snap.periodTotals.totalAbnormalShrinkageKwd}
+                  locale={fmtLocale}
+                  text={fmtKwd(snap.periodTotals.totalAbnormalShrinkageKwd)}
+                />
               </div>
-              <p className="mt-1 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? `${f0(snap.scraps.length)} أمر إتلاف • ${f1(snap.periodTotals.periodWastePct)}% من المنصرف`
-                  : `${f0(snap.scraps.length)} scrap orders • ${f1(snap.periodTotals.periodWastePct)}% of consumption`}
+              <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span dir="ltr" className="tabular-nums">
+                  {fmtInt(snap.scraps.length)}
+                </span>{' '}
+                {isAr ? 'أمر إتلاف' : 'scrap orders'} •{' '}
+                <span dir="ltr" className="tabular-nums">
+                  {fmtPct(snap.periodTotals.periodWastePct)}
+                </span>{' '}
+                {isAr ? 'من المنصرف' : 'of consumption'}
               </p>
               <KpiProvenanceBadge
                 odooModel="stock.scrap"
@@ -444,13 +565,13 @@ export function WarehouseDailyChainStudio() {
           {/* Branch Period Summary Table (7 Active Branches) */}
           <section className={CARD_CLS}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                   {T(
                     'Branch Stock Transfers, Scrap & On-Hand Summary',
                     'ملخص التحويلات والتالف والرصيد الحالي لكل فرع',
                   )}
-                </h2>
+                </h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {T(
                     'Strictly 7 mapped Venture Foods locations from Odoo 17 stock locations',
@@ -489,23 +610,47 @@ export function WarehouseDailyChainStudio() {
                       <td className="py-2.5 font-bold text-slate-900 dark:text-white">
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-semibold tabular-nums">
-                        {fmtKwd(b.dispatchedFromWarehouseKwd)}
+                      <td className="py-2.5 text-end font-semibold">
+                        <ValueCell
+                          value={b.dispatchedFromWarehouseKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(b.dispatchedFromWarehouseKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">
-                        {f0(b.transferMoves)}
+                      <td className="py-2.5 text-end text-slate-600 dark:text-slate-300">
+                        <ValueCell
+                          value={b.transferMoves}
+                          locale={fmtLocale}
+                          text={fmtInt(b.transferMoves)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-semibold tabular-nums">
-                        {fmtKwd(b.bomTheoreticalCostKwd)}
+                      <td className="py-2.5 text-end font-semibold">
+                        <ValueCell
+                          value={b.bomTheoreticalCostKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(b.bomTheoreticalCostKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-semibold tabular-nums text-rose-700 dark:text-rose-300">
-                        {fmtKwd(b.abnormalShrinkageKwd)}
+                      <td className="py-2.5 text-end font-semibold text-rose-700 dark:text-rose-300">
+                        <ValueCell
+                          value={b.abnormalShrinkageKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(b.abnormalShrinkageKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                        {fmtKwd(b.closingStockKwd)}
+                      <td className="py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
+                        <ValueCell
+                          value={b.closingStockKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(b.closingStockKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-semibold tabular-nums">
-                        {fmtKwd(b.posSalesKwd)}
+                      <td className="py-2.5 text-end font-semibold">
+                        <ValueCell
+                          value={b.posSalesKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(b.posSalesKwd)}
+                        />
                       </td>
                       <td className="py-2.5 text-end">
                         <HealthBadge status={b.health} isAr={isAr} />
@@ -520,14 +665,15 @@ export function WarehouseDailyChainStudio() {
           {/* Daily Stock Movement Ledger */}
           <section className={CARD_CLS}>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                   {T('Daily Warehouse Movement Ledger', 'دفتر حركات المخزن اليومية الفعلية')}
-                </h2>
+                </h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {isAr
-                    ? `${f0(snap.days.length)} يوم في الفترة المختارة`
-                    : `${f0(snap.days.length)} days in selected period`}
+                  <span dir="ltr" className="tabular-nums">
+                    {fmtInt(snap.days.length)}
+                  </span>{' '}
+                  {isAr ? 'يوم في الفترة المختارة' : 'days in selected period'}
                 </p>
               </div>
               {totalPages > 1 ? (
@@ -535,21 +681,23 @@ export function WarehouseDailyChainStudio() {
                   <button
                     type="button"
                     disabled={ledgerPage <= 1}
+                    aria-label={T('Previous page', 'الصفحة السابقة')}
                     onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-slate-100 disabled:opacity-40 dark:bg-white/10"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:bg-white/10"
                   >
-                    {isAr ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                    {isAr ? <ChevronRight className="h-4 w-4" aria-hidden /> : <ChevronLeft className="h-4 w-4" aria-hidden />}
                   </button>
-                  <span className="px-2 tabular-nums">
+                  <span dir="ltr" className="px-2 tabular-nums">
                     {ledgerPage} / {totalPages}
                   </span>
                   <button
                     type="button"
                     disabled={ledgerPage >= totalPages}
+                    aria-label={T('Next page', 'الصفحة التالية')}
                     onClick={() => setLedgerPage((p) => Math.min(totalPages, p + 1))}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-slate-100 disabled:opacity-40 dark:bg-white/10"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:bg-white/10"
                   >
-                    {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    {isAr ? <ChevronLeft className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
                   </button>
                 </div>
               ) : null}
@@ -574,23 +722,47 @@ export function WarehouseDailyChainStudio() {
                       <td className="py-2.5 font-semibold text-slate-900 dark:text-white">
                         {isAr ? `${d.weekdayAr} • ${d.dayLabelAr}` : `${d.weekdayEn} • ${d.dayLabelEn}`}
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums">
-                        {fmtKwd(d.supplierInboundKwd)}
+                      <td className="py-2.5 text-end">
+                        <ValueCell
+                          value={d.supplierInboundKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(d.supplierInboundKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums">
-                        {fmtKwd(d.warehouseDispatchedKwd)}
+                      <td className="py-2.5 text-end">
+                        <ValueCell
+                          value={d.warehouseDispatchedKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(d.warehouseDispatchedKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums text-slate-600 dark:text-slate-300">
-                        {f0(d.dispatchMoves)}
+                      <td className="py-2.5 text-end text-slate-600 dark:text-slate-300">
+                        <ValueCell
+                          value={d.dispatchMoves}
+                          locale={fmtLocale}
+                          text={fmtInt(d.dispatchMoves)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums">
-                        {fmtKwd(d.bomTheoreticalCostKwd)}
+                      <td className="py-2.5 text-end">
+                        <ValueCell
+                          value={d.bomTheoreticalCostKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(d.bomTheoreticalCostKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end tabular-nums text-rose-700 dark:text-rose-300">
-                        {fmtKwd(d.abnormalShrinkageKwd)}
+                      <td className="py-2.5 text-end text-rose-700 dark:text-rose-300">
+                        <ValueCell
+                          value={d.abnormalShrinkageKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(d.abnormalShrinkageKwd)}
+                        />
                       </td>
-                      <td dir="ltr" className="py-2.5 text-end font-semibold tabular-nums">
-                        {fmtKwd(d.branchesPosSalesKwd)}
+                      <td className="py-2.5 text-end font-semibold">
+                        <ValueCell
+                          value={d.branchesPosSalesKwd}
+                          locale={fmtLocale}
+                          text={fmtKwd(d.branchesPosSalesKwd)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -603,9 +775,9 @@ export function WarehouseDailyChainStudio() {
           {snap.skuFlows.length > 0 ? (
             <section className={CARD_CLS}>
               <div className="mb-4">
-                <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
+                <h3 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                   {T('Top Inventory Items (Odoo Products)', 'أعلى الأصناف المخزنية حركة ورصيداً في أودو')}
-                </h2>
+                </h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[720px] border-collapse text-sm">
@@ -632,17 +804,29 @@ export function WarehouseDailyChainStudio() {
                         <td className="py-2 text-xs text-slate-600 dark:text-slate-300">
                           {isAr ? sku.categoryLabelAr : sku.categoryLabelEn}
                         </td>
-                        <td dir="ltr" className="py-2 text-end tabular-nums">
-                          {fmtKwd(sku.unitCostKwd)}
+                        <td className="py-2 text-end">
+                          <ValueCell
+                            value={sku.unitCostKwd}
+                            locale={fmtLocale}
+                            text={fmtKwd(sku.unitCostKwd)}
+                          />
                         </td>
                         <td dir="ltr" className="py-2 text-end tabular-nums">
-                          {f1(sku.warehouseOnHandQty)} {sku.uom}
+                          {f1Nullable(sku.warehouseOnHandQty)} {sku.uom}
                         </td>
-                        <td dir="ltr" className="py-2 text-end font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                          {fmtKwd(sku.warehouseOnHandKwd)}
+                        <td className="py-2 text-end font-bold text-emerald-700 dark:text-emerald-300">
+                          <ValueCell
+                            value={sku.warehouseOnHandKwd}
+                            locale={fmtLocale}
+                            text={fmtKwd(sku.warehouseOnHandKwd)}
+                          />
                         </td>
-                        <td dir="ltr" className="py-2 text-end tabular-nums text-rose-700 dark:text-rose-300">
-                          {fmtKwd(sku.scrapValueKwd)}
+                        <td className="py-2 text-end text-rose-700 dark:text-rose-300">
+                          <ValueCell
+                            value={sku.scrapValueKwd}
+                            locale={fmtLocale}
+                            text={fmtKwd(sku.scrapValueKwd)}
+                          />
                         </td>
                       </tr>
                     ))}

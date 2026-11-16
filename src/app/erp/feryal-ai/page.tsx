@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { requirePageUser, resolveServerExecSessionRole } from '@/lib/auth/context'
 import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
+import { StateBlock } from '@/components/ui/state-block'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,12 @@ export default async function FeryalAiCommandPage() {
       <div className="w-full max-w-full min-w-0 overflow-x-hidden">
         <Suspense
           fallback={
-            <div className="min-h-[240px] w-full max-w-full animate-pulse rounded-2xl bg-white/80 dark:bg-[#101C17]/80" />
+            <StateBlock
+              state="loading"
+              locale="ar"
+              skeletonRows={5}
+              minHeightClass="min-h-[320px]"
+            />
           }
         >
           <FeryalGovernanceStudio sessionRole={sessionRole} />

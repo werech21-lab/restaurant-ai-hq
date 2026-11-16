@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { requirePageUser } from '@/lib/auth/context'
 import { WarehouseDailyChainStudio } from '@/components/erp/WarehouseDailyChainStudio'
+import { StateBlock } from '@/components/ui/state-block'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,10 +14,15 @@ export const metadata = {
 export default async function WarehouseDailyChainPage() {
   await requirePageUser('/erp/warehouse-chain')
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-x-hidden">
       <Suspense
         fallback={
-          <div className="h-[600px] w-full animate-pulse rounded-3xl bg-white/60 dark:bg-[#101C17]/60" />
+          <StateBlock
+            state="loading"
+            locale="ar"
+            skeletonRows={5}
+            minHeightClass="min-h-[320px]"
+          />
         }
       >
         <WarehouseDailyChainStudio />

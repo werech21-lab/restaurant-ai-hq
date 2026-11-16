@@ -37,6 +37,16 @@ import {
   FeryalPendingAttachmentsTray,
   FeryalVisionCompliancePill,
 } from '@/components/aether/FeryalMultimodalBar'
+import { PartialWarningBanner } from '@/components/ui/partial-warning-banner'
+import { StateBlock } from '@/components/ui/state-block'
+import {
+  UNAVAILABLE_DASH,
+  formatDateTime,
+  formatInt,
+  formatKwd,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import {
   buildDefaultMediaPrompt,
   callFeryalVisionInspector,
@@ -96,7 +106,7 @@ interface VerifierBadgeState {
   reason?: string
 }
 
-interface CouncilChip {
+export interface CouncilChip {
   provider: string
   modelId: string
   status: string
@@ -104,7 +114,12 @@ interface CouncilChip {
   offendingNumbers?: string[]
 }
 
-interface ChatUiMessage extends StoredChatMessage {
+export interface CouncilAgreementChip {
+  provider: string
+  modelId: string
+}
+
+export interface ChatUiMessage extends StoredChatMessage {
   userPrompt?: string
   providerBadge?: string
   learnedBadge?: string
@@ -114,9 +129,11 @@ interface ChatUiMessage extends StoredChatMessage {
   verifier?: VerifierBadgeState
   replyStatus?: string
   council?: CouncilChip[]
+  agreed?: CouncilAgreementChip[]
+  contradictoryActions?: boolean
 }
 
-interface ServerAuditLogRow {
+export interface ServerAuditLogRow {
   id: string
   timestampIso: string
   userSub: string
@@ -145,7 +162,12 @@ function nextUiId(prefix: string): string {
 
 function formatClockNow(): string {
   try {
-    return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Kuwait',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date())
   } catch {
     return '00:00'
   }
@@ -161,49 +183,65 @@ const LIVE_ODOO_STARTER_QUESTIONS: ReadonlyArray<{
     id: 'yesterday-by-branch',
     modelBadge: 'pos.order',
     ar: 'مبيعات أمس حسب الفرع',
-    en: 'مبيعات أمس حسب الفرع',
+    en: "Yesterday's sales by branch",
   },
   {
     id: 'promenade-yesterday',
     modelBadge: 'pos.order',
     ar: 'مبيعات بروميناد أمس',
-    en: 'مبيعات بروميناد أمس',
+    en: 'Promenade branch sales yesterday',
   },
   {
     id: 'top-5-items',
     modelBadge: 'pos.order.line',
     ar: 'أعلى 5 أصناف أمس',
-    en: 'أعلى 5 أصناف أمس',
+    en: 'Top 5 items sold yesterday',
   },
   {
     id: 'purchase-orders-summary',
     modelBadge: 'purchase.order',
     ar: 'إجمالي أوامر الشراء والموردين هذا الشهر',
-    en: 'إجمالي أوامر الشراء والموردين هذا الشهر',
+    en: 'Confirmed purchase orders & vendors this month',
   },
   {
     id: 'warehouse-transfers',
     modelBadge: 'stock.move / stock.scrap',
     ar: 'حركات التحويل المخزني والهدر هذا الشهر',
-    en: 'حركات التحويل المخزني والهدر هذا الشهر',
+    en: 'Warehouse transfers & scrap this month',
   },
   {
     id: 'gl-accounting',
     modelBadge: 'account.move.line',
     ar: 'الإيرادات والمصروفات وصافي الربح في دفتر الأستاذ هذا الشهر',
-    en: 'الإيرادات والمصروفات وصافي الربح في دفتر الأستاذ هذا الشهر',
+    en: 'GL revenue, expenses & net profit this month',
   },
 ]
 
-export function FeryalGovernanceStudio({
-  sessionRole,
-}: {
+export interface FeryalGovernanceStudioProps {
   sessionRole?: string
-} = {}) {
+  initialMainTab?: 'chat' | 'today-notes' | 'alerts' | 'audit'
+  initialMessages?: ChatUiMessage[]
+  initialBreaches?: ComplianceBreachItem[]
+  initialAuditLogs?: ServerAuditLogRow[]
+  initialBreachesError?: boolean
+  initialAuditError?: boolean
+}
+
+export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
+  const {
+    sessionRole,
+    initialMainTab = 'chat',
+    initialMessages,
+    initialBreaches,
+    initialAuditLogs,
+    initialBreachesError = false,
+    initialAuditError = false,
+  } = props ?? {}
   const { locale } = useI18n()
-  const isAr = locale === 'ar'
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
+  const isAr = fmtLocale === 'ar'
   const isAuditor = sessionRole === 'auditor'
-  const { workspace } = useGlobalFilter()
+  const { workspace, liveSummary } = useGlobalFilter()
   const [chatSyncAt, setChatSyncAt] = useState<string | null>(null)
 
   useEffect(() => {
@@ -223,24 +261,30 @@ export function FeryalGovernanceStudio({
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [sidebarTab, setSidebarTab] = useState<'chats' | 'notes'>('chats')
-  const [mainTab, setMainTab] = useState<'chat' | 'alerts' | 'audit'>('chat')
+  const [mainTab, setMainTab] = useState<'chat' | 'today-notes' | 'alerts' | 'audit'>(
+    initialMainTab,
+  )
   const [memoryDrawerOpen, setMemoryDrawerOpen] = useState(false)
   const [savedNotesCount, setSavedNotesCount] = useState(0)
 
   const [activeChatId, setActiveChatId] = useState<string>(() => nextUiId('chat'))
   const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
-  const [messages, setMessages] = useState<ChatUiMessage[]>([])
+  const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages ?? [])
   const [inputText, setInputText] = useState('')
   const [sending, setSending] = useState(false)
   const [activeMode, setActiveMode] = useState<BrainMode>('triple')
 
   // Live Governance Alerts strictly from `/api/erp/governance` (ZERO static alerts)
-  const [liveBreaches, setLiveBreaches] = useState<ComplianceBreachItem[]>([])
+  const [liveBreaches, setLiveBreaches] = useState<ComplianceBreachItem[]>(
+    initialBreaches ?? [],
+  )
   const [loadingBreaches, setLoadingBreaches] = useState(false)
+  const [breachesError, setBreachesError] = useState(initialBreachesError)
 
   // Transparent Server Audit Log from `GET /api/erp/feryal/chat`
-  const [auditLogs, setAuditLogs] = useState<ServerAuditLogRow[]>([])
+  const [auditLogs, setAuditLogs] = useState<ServerAuditLogRow[]>(initialAuditLogs ?? [])
   const [loadingAudit, setLoadingAudit] = useState(false)
+  const [auditError, setAuditError] = useState(initialAuditError)
 
   // Clean user-entered notes (ZERO pre-populated cards)
   const [userNotes, setUserNotes] = useState<UserFieldNote[]>([])
@@ -265,6 +309,7 @@ export function FeryalGovernanceStudio({
 
   const fetchServerGovernanceBreaches = useCallback(async () => {
     setLoadingBreaches(true)
+    setBreachesError(false)
     try {
       const res = await fetch('/api/erp/governance', {
         method: 'GET',
@@ -278,9 +323,11 @@ export function FeryalGovernanceStudio({
         setLiveBreaches(verified)
       } else {
         setLiveBreaches([])
+        setBreachesError(true)
       }
     } catch {
       setLiveBreaches([])
+      setBreachesError(true)
     } finally {
       setLoadingBreaches(false)
     }
@@ -288,6 +335,7 @@ export function FeryalGovernanceStudio({
 
   const fetchServerAuditLogs = useCallback(async () => {
     setLoadingAudit(true)
+    setAuditError(false)
     try {
       const res = await fetch('/api/erp/feryal/chat?limit=50', {
         method: 'GET',
@@ -296,9 +344,11 @@ export function FeryalGovernanceStudio({
       if (res.ok) {
         const data = (await res.json()) as { auditLogs?: ServerAuditLogRow[] }
         setAuditLogs(Array.isArray(data.auditLogs) ? data.auditLogs : [])
+      } else {
+        setAuditError(true)
       }
     } catch {
-      // keep existing audit list on network error
+      setAuditError(true)
     } finally {
       setLoadingAudit(false)
     }
@@ -356,9 +406,20 @@ export function FeryalGovernanceStudio({
   }, [])
 
   useEffect(() => {
-    void fetchServerGovernanceBreaches()
-    void fetchServerAuditLogs()
-  }, [fetchServerGovernanceBreaches, fetchServerAuditLogs])
+    if (initialBreaches === undefined && !initialBreachesError) {
+      void fetchServerGovernanceBreaches()
+    }
+    if (initialAuditLogs === undefined && !initialAuditError) {
+      void fetchServerAuditLogs()
+    }
+  }, [
+    fetchServerAuditLogs,
+    fetchServerGovernanceBreaches,
+    initialAuditError,
+    initialAuditLogs,
+    initialBreaches,
+    initialBreachesError,
+  ])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -503,7 +564,9 @@ export function FeryalGovernanceStudio({
 
           const replyText =
             visionRes?.reply ||
-            (isAr ? 'لا أملك بيانات من Odoo عن هذا' : 'لا أملك بيانات من Odoo عن هذا')
+            (isAr
+              ? 'لا أملك بيانات من Odoo عن هذا'
+              : 'No Odoo data available for this visual check')
           const tier: VisionComplianceTier | undefined = visionRes?.complianceTier
 
           const feryalMsg: ChatUiMessage = {
@@ -535,6 +598,7 @@ export function FeryalGovernanceStudio({
         let replyStatus = 'no_odoo_data'
 
         let council: CouncilChip[] | undefined
+        let agreedList: CouncilAgreementChip[] | undefined
         if (!res.ok) {
           try {
             const payload = (await res.json()) as { reply?: string; status?: string }
@@ -554,6 +618,7 @@ export function FeryalGovernanceStudio({
             executedQueries?: ExecutedOdooQueryBadge[]
             verifier?: VerifierBadgeState
             participants?: CouncilChip[]
+            agreed?: CouncilAgreementChip[]
           }
           if (payload.ok && typeof payload.reply === 'string') {
             replyText = payload.reply
@@ -562,10 +627,14 @@ export function FeryalGovernanceStudio({
               setChatSyncAt(new Date().toISOString())
             }
             council = Array.isArray(payload.participants) ? payload.participants : undefined
-            const agreed = (council ?? []).filter((item) => item.status === 'ok' && item.modelId)
+            agreedList = Array.isArray(payload.agreed)
+              ? payload.agreed
+              : (council ?? [])
+                  .filter((item) => item.status === 'ok' && item.modelId)
+                  .map((item) => ({ provider: item.provider, modelId: item.modelId }))
             modelBadge =
-              agreed.length > 0
-                ? agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
+              agreedList.length > 0
+                ? agreedList.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
                 : payload.status === 'council_failed'
                   ? isAr
                     ? 'تعذّر التحليل'
@@ -590,6 +659,7 @@ export function FeryalGovernanceStudio({
           verifier,
           replyStatus,
           council,
+          agreed: agreedList,
         }
 
         const updated = [...optimisticList, feryalMsg]
@@ -799,14 +869,107 @@ export function FeryalGovernanceStudio({
     [activeMode, isAr],
   )
 
+  const unavailableTooltip = getUnavailableTooltip(fmtLocale)
+  const rankedBranches = useMemo(() => {
+    if (!workspace.odooConnected) return []
+    const branchOptById = new Map(
+      workspace.cascadingOptions.branches.map((b) => [String(b.id), b]),
+    )
+    const canUseRawBucket =
+      workspace.filters.brand === 'all' &&
+      workspace.filters.channel === 'all' &&
+      workspace.filters.kuwaitSlice === 'all'
+    if (canUseRawBucket) {
+      const periodKey = workspace.filters.period
+      const bucketLoc =
+        periodKey === 'custom'
+          ? liveSummary?.customBucket?.mappedByLocation ?? liveSummary?.customBucket?.byLocation
+          : liveSummary?.buckets?.[periodKey]?.mappedByLocation ??
+            liveSummary?.buckets?.[periodKey]?.byLocation
+      if (bucketLoc) {
+        const liveRows = Object.entries(bucketLoc)
+          .filter(([id, row]) => {
+            const norm = id.trim()
+            return (
+              norm !== 'all' &&
+              norm !== 'unattributed' &&
+              row &&
+              typeof row.netKwd === 'number' &&
+              Number.isFinite(row.netKwd) &&
+              row.netKwd > 0
+            )
+          })
+          .map(([id, row]) => {
+            const opt = branchOptById.get(id)
+            const liveMeta = liveSummary?.branches?.find((b) => b.id === id)
+            return {
+              id,
+              ar: opt?.ar ?? liveMeta?.unit ?? liveMeta?.name ?? id,
+              en: opt?.en ?? liveMeta?.name ?? id,
+              salesKwd: row.netKwd,
+            }
+          })
+          .sort((a, b) => b.salesKwd - a.salesKwd)
+        if (liveRows.length > 0) return liveRows
+      }
+      if (
+        liveSummary?.branches &&
+        liveSummary.branches.length > 0 &&
+        workspace.filters.period === 'month'
+      ) {
+        const branchRows = liveSummary.branches
+          .filter(
+            (b) =>
+              String(b.id) !== 'all' &&
+              String(b.id) !== 'unattributed' &&
+              typeof b.netSalesKwd === 'number' &&
+              Number.isFinite(b.netSalesKwd) &&
+              b.netSalesKwd > 0,
+          )
+          .map((b) => {
+            const opt = branchOptById.get(b.id)
+            return {
+              id: b.id,
+              ar: opt?.ar ?? b.unit ?? b.name,
+              en: opt?.en ?? b.name,
+              salesKwd: b.netSalesKwd,
+            }
+          })
+          .sort((a, b) => b.salesKwd - a.salesKwd)
+        if (branchRows.length > 0) return branchRows
+      }
+    }
+    return workspace.cascadingOptions.branches
+      .filter(
+        (b) =>
+          b.id !== 'all' &&
+          String(b.id) !== 'unattributed' &&
+          typeof b.salesKwd === 'number' &&
+          Number.isFinite(b.salesKwd) &&
+          b.salesKwd > 0,
+      )
+      .sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
+  }, [
+    liveSummary,
+    workspace.cascadingOptions.branches,
+    workspace.filters.brand,
+    workspace.filters.channel,
+    workspace.filters.kuwaitSlice,
+    workspace.filters.period,
+    workspace.odooConnected,
+  ])
+
+  const bestBranch = rankedBranches[0] ?? null
+  const worstBranch = rankedBranches.length > 1 ? rankedBranches[rankedBranches.length - 1] : null
+
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="flex min-h-[calc(100vh-120px)] w-full flex-col lg:flex-row gap-4 rounded-3xl bg-[#F6F7F8] p-3 sm:p-4 dark:bg-[#08100D]"
+      className="flex min-h-[calc(100vh-120px)] w-full min-w-0 flex-col lg:flex-row gap-4 rounded-3xl bg-[#F6F7F8] p-3 sm:p-4 dark:bg-[#090E0C]"
     >
       {/* Sidebar: Saved Chats & User-Only Field Notes (Zero Static Cards) */}
       {sidebarOpen && (
-        <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#0D1713] dark:ring-emerald-500/15 overflow-hidden">
+        <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
           {sidebarTab === 'chats' ? (
             <FeryalSidebarNotebooks
               isAr={isAr}
@@ -826,18 +989,26 @@ export function FeryalGovernanceStudio({
           ) : (
             <div className="flex h-full flex-col p-3.5 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-white/[0.06]">
+                <div
+                  role="tablist"
+                  aria-label={isAr ? 'تبويبات القائمة الجانبية' : 'Sidebar tabs'}
+                  className="flex items-center gap-1 rounded-xl bg-neutral-100 p-1 dark:bg-white/[0.06]"
+                >
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected={false}
                     onClick={() => setSidebarTab('chats')}
-                    className="rounded-lg px-3 py-1.5 text-xs font-semibold text-neutral-600 dark:text-slate-300"
+                    className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-slate-300"
                   >
                     {isAr ? 'المحادثات' : 'Chats'}
                   </button>
                   <button
                     type="button"
+                    role="tab"
+                    aria-selected
                     onClick={() => setSidebarTab('notes')}
-                    className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-2xs dark:bg-emerald-500/20 dark:text-emerald-200"
+                    className="cursor-pointer rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-emerald-800 shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-emerald-500/20 dark:text-emerald-200"
                   >
                     {isAr ? 'ملاحظات المستخدم' : 'User Notes'}
                   </button>
@@ -847,44 +1018,52 @@ export function FeryalGovernanceStudio({
               {!isAuditor && (
                 <form
                   onSubmit={handleAddUserNote}
-                  className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2 dark:border-slate-800 dark:bg-slate-900/60"
+                  className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2 dark:border-white/10 dark:bg-[#141F1B]"
                 >
                   <input
                     type="text"
                     value={noteTitle}
                     onChange={(e) => setNoteTitle(e.target.value)}
+                    aria-label={isAr ? 'عنوان الملاحظة' : 'Note title'}
                     placeholder={isAr ? 'عنوان الملاحظة...' : 'Note title...'}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#090E0C] dark:text-white"
                   />
                   <textarea
                     rows={2}
                     value={noteDetail}
                     onChange={(e) => setNoteDetail(e.target.value)}
+                    aria-label={isAr ? 'تفاصيل الملاحظة الفعليّة' : 'Factual note details'}
                     placeholder={isAr ? 'تفاصيل الملاحظة الفعليّة...' : 'Factual note details...'}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#090E0C] dark:text-white"
                   />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700"
+                    className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    {isAr ? 'إضافة ملاحظة' : 'Add Note'}
+                    <Plus className="h-3.5 w-3.5" aria-hidden />
+                    <span>{isAr ? 'إضافة ملاحظة' : 'Add Note'}</span>
                   </button>
                 </form>
               )}
 
               <div className="flex-1 overflow-y-auto space-y-2">
                 {userNotes.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                    {isAr
-                      ? 'لا توجد ملاحظات مسجلة حالياً.'
-                      : 'No notes recorded yet.'}
-                  </div>
+                  <StateBlock
+                    state="empty"
+                    compact
+                    locale={fmtLocale}
+                    title={isAr ? 'لا توجد ملاحظات مسجلة حالياً.' : 'No notes recorded yet.'}
+                    description={
+                      isAr
+                        ? 'أضف ملاحظة ميدانية لمتابعتها مع فريال.'
+                        : 'Add a field note to track alongside Feryal insights.'
+                    }
+                  />
                 ) : (
                   userNotes.map((n) => (
                     <div
                       key={n.id}
-                      className="rounded-xl border border-slate-200/80 bg-white p-2.5 space-y-1 dark:border-slate-800 dark:bg-slate-900/70"
+                      className="rounded-xl border border-slate-200/80 bg-white p-2.5 space-y-1 dark:border-white/10 dark:bg-[#141F1B]"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-xs font-bold text-slate-900 dark:text-white">
@@ -894,16 +1073,19 @@ export function FeryalGovernanceStudio({
                           <button
                             type="button"
                             onClick={() => handleDeleteUserNote(n.id)}
-                            className="text-slate-400 hover:text-rose-600"
+                            aria-label={isAr ? `حذف الملاحظة ${n.title}` : `Delete note ${n.title}`}
+                            className="cursor-pointer rounded p-0.5 text-slate-400 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                           </button>
                         )}
                       </div>
                       {n.detail ? (
                         <p className="text-xs text-slate-600 dark:text-slate-300">{n.detail}</p>
                       ) : null}
-                      <div className="text-[11px] text-slate-400">{n.createdAt}</div>
+                      <div dir="ltr" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                        {n.createdAt}
+                      </div>
                     </div>
                   ))
                 )}
@@ -914,34 +1096,42 @@ export function FeryalGovernanceStudio({
       )}
 
       {/* Main Studio Area */}
-      <div className="flex min-w-0 flex-1 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#0D1713] dark:ring-emerald-500/15 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
+        {/* Partial Data Warning */}
+        {liveSummary?.partial ? (
+          <div className="px-4 pt-3">
+            <PartialWarningBanner summary={liveSummary} isAr={isAr} />
+          </div>
+        ) : null}
+
         {/* Top Bar */}
-        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-200/80 px-4 py-3 dark:border-emerald-500/15">
-          <div className="flex flex-wrap items-center gap-2">
+        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-200/80 px-4 py-3 dark:border-white/10">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setSidebarOpen((v) => !v)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-white/[0.06] dark:text-slate-200"
+              aria-label={isAr ? 'إظهار/إخفاء القائمة الجانبية' : 'Toggle sidebar'}
               title={isAr ? 'إظهار/إخفاء القائمة الجانبية' : 'Toggle sidebar'}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-200"
             >
               {sidebarOpen ? (
-                <PanelLeftClose className="h-4 w-4" />
+                <PanelLeftClose className="h-4 w-4" aria-hidden />
               ) : (
-                <PanelLeftOpen className="h-4 w-4" />
+                <PanelLeftOpen className="h-4 w-4" aria-hidden />
               )}
             </button>
 
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[15.5px] sm:text-[17px] font-black text-slate-900 dark:text-white">
+                <h2 className="text-[15.5px] sm:text-[17px] font-black text-slate-900 dark:text-white">
                   {isAr ? 'اسأل فريال — محرك بيانات Odoo 17' : 'Ask Feryal — Odoo 17 Data Engine'}
-                </h1>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
-                  <Database className="h-3 w-3" />
-                  {modeBadgeLabel}
+                </h2>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
+                  <Database className="h-3 w-3 shrink-0" aria-hidden />
+                  <span>{modeBadgeLabel}</span>
                 </span>
               </div>
-              <p className="text-[11.5px] text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {isAr
                   ? '6 علامات تجارية • 7 فروع مربوطة + بند غير منسوب لفرع • استعلام من Odoo 17 وفحص برمجي لكل رقم'
                   : '6 Brands • 7 Mapped Branches + Unattributed Bucket • Odoo 17 Queries & Strict Numeric Verifier'}
@@ -949,13 +1139,19 @@ export function FeryalGovernanceStudio({
             </div>
           </div>
 
-          {/* View Switcher: Chat | Odoo Governance Alerts | Odoo Query Log */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]">
+          {/* View Switcher: Chat | Today's Notes | Odoo Governance Alerts | Odoo Query Log */}
+          <div className="flex max-w-full flex-wrap items-center gap-1.5">
+            <div
+              role="tablist"
+              aria-label={isAr ? 'أقسام استوديو فريال' : 'Feryal Studio Views'}
+              className="flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]"
+            >
               <button
                 type="button"
+                role="tab"
+                aria-selected={mainTab === 'chat'}
                 onClick={() => setMainTab('chat')}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'chat'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
@@ -966,20 +1162,45 @@ export function FeryalGovernanceStudio({
 
               <button
                 type="button"
+                role="tab"
+                data-studio-tab="today-notes"
+                aria-selected={mainTab === 'today-notes'}
+                onClick={() => setMainTab('today-notes')}
+                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                  mainTab === 'today-notes'
+                    ? 'bg-emerald-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
+                }`}
+              >
+                <span>{isAr ? 'ملاحظات اليوم ⚡' : "Today's Notes ⚡"}</span>
+                {workspace.feryalNotes.length > 0 ? (
+                  <span
+                    dir="ltr"
+                    className="rounded-md bg-white/20 px-1.5 py-0.5 text-xs font-bold tabular-nums"
+                  >
+                    {workspace.feryalNotes.length}
+                  </span>
+                ) : null}
+              </button>
+
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mainTab === 'alerts'}
                 onClick={() => {
                   setMainTab('alerts')
                   void fetchServerGovernanceBreaches()
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'alerts'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
                 }`}
               >
-                <AlertTriangle className="h-3.5 w-3.5" />
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{isAr ? 'تنبيهات الحوكمة الفعلية' : 'Odoo Governance Alerts'}</span>
                 {liveBreaches.length > 0 && (
-                  <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[10.5px] font-black text-white">
+                  <span dir="ltr" className="rounded-full bg-rose-600 px-1.5 py-0.5 text-xs font-black tabular-nums text-white">
                     {liveBreaches.length}
                   </span>
                 )}
@@ -987,17 +1208,19 @@ export function FeryalGovernanceStudio({
 
               <button
                 type="button"
+                role="tab"
+                aria-selected={mainTab === 'audit'}
                 onClick={() => {
                   setMainTab('audit')
                   void fetchServerAuditLogs()
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'audit'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
                 }`}
               >
-                <History className="h-3.5 w-3.5" />
+                <History className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>
                   {isAr
                     ? `سجل الأسئلة والاستعلامات (${auditLogs.length})`
@@ -1009,9 +1232,9 @@ export function FeryalGovernanceStudio({
             <button
               type="button"
               onClick={() => setMemoryDrawerOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
             >
-              <Brain className="h-3.5 w-3.5 text-emerald-600" />
+              <Brain className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
               <span>
                 {isAr
                   ? savedNotesCount > 0
@@ -1037,10 +1260,10 @@ export function FeryalGovernanceStudio({
                     type="button"
                     disabled={sending}
                     onClick={() => handleQuickAuditChip(chip.id)}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 disabled:opacity-50 dark:border-slate-800 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                    className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
                   >
                     <span>{isAr ? chip.labelAr : chip.labelEn}</span>
-                    <span className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-[10.5px] font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                    <span dir="ltr" className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                       {isAr ? chip.badgeAr : chip.badgeEn}
                     </span>
                   </button>
@@ -1054,12 +1277,12 @@ export function FeryalGovernanceStudio({
                 <div className="mx-auto max-w-3xl py-6 space-y-5">
                   <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
                     <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
-                      <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <h2 className="text-[15px] font-black">
+                      <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                      <h3 className="text-[15px] font-black">
                         {isAr
                           ? 'فريال مربوطة حصرياً باستعلامات Odoo 17 الفعلية'
                           : 'Feryal Connected Exclusively to Odoo 17 Queries'}
-                      </h2>
+                      </h3>
                     </div>
                     <p className="mt-2 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
                       {isAr
@@ -1076,9 +1299,9 @@ export function FeryalGovernanceStudio({
                           type="button"
                           disabled={sending}
                           onClick={() => void sendQuestion(isAr ? q.ar : q.en)}
-                          className="flex flex-col items-start gap-1.5 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start transition hover:border-emerald-400 hover:bg-emerald-50/40 dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-emerald-500/40"
+                          className="flex cursor-pointer flex-col items-start gap-1.5 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start transition hover:border-emerald-400 hover:bg-emerald-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#141F1B] dark:hover:border-emerald-500/40"
                         >
-                          <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10.5px] font-bold text-emerald-700 dark:bg-slate-800 dark:text-emerald-300">
+                          <span dir="ltr" className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-emerald-700 dark:bg-white/[0.06] dark:text-emerald-300">
                             {q.modelBadge}
                           </span>
                           <span className="text-[13.5px] font-bold text-slate-900 dark:text-white">
@@ -1090,173 +1313,221 @@ export function FeryalGovernanceStudio({
                   )}
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
+                messages.map((msg) => {
+                  const councilParticipants = msg.council ?? []
+                  const agreedChips =
+                    msg.agreed ??
+                    councilParticipants
+                      .filter((item) => item.status === 'ok' && item.modelId)
+                      .map((item) => ({ provider: item.provider, modelId: item.modelId }))
+                  const agreedCount = agreedChips.length
+                  const councilTotal = Math.max(councilParticipants.length, agreedCount, 3)
+                  const hasConsensus =
+                    agreedCount >= 2 && msg.replyStatus !== 'council_failed' && !msg.contradictoryActions
+                  const hasContradictionOrDispute =
+                    Boolean(msg.contradictoryActions) ||
+                    msg.replyStatus === 'council_failed' ||
+                    (councilParticipants.length >= 2 && agreedCount < 2) ||
+                    /لا اتفاق|متنازع|disputed/i.test(msg.text)
+
+                  return (
                     <div
-                      className={`max-w-3xl rounded-2xl px-4 py-3.5 ${
-                        msg.sender === 'user'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'w-full bg-[#F8FAF9] text-slate-900 ring-1 ring-slate-900/[0.06] dark:bg-[#111E19] dark:text-slate-100 dark:ring-emerald-500/15'
-                      }`}
+                      key={msg.id}
+                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      {msg.sender === 'feryal' && (
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-xs font-black text-emerald-800 dark:text-emerald-300">
-                              {isAr ? 'فريال' : 'Feryal'}
-                            </span>
-                            {msg.providerBadge && (
-                              <span className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                {msg.providerBadge}
+                      <div
+                        className={`max-w-3xl rounded-2xl px-4 py-3.5 ${
+                          msg.sender === 'user'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'w-full bg-[#F8FAF9] text-slate-900 ring-1 ring-slate-900/[0.06] dark:bg-[#141F1B] dark:text-slate-100 dark:ring-white/10'
+                        }`}
+                      >
+                        {msg.sender === 'feryal' && (
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-xs font-black text-emerald-800 dark:text-emerald-300">
+                                {isAr ? 'فريال' : 'Feryal'}
                               </span>
-                            )}
-                            {msg.council?.map((chip) => (
-                              <span
-                                key={`${chip.provider}-${chip.modelId}-${chip.status}`}
-                                className={`rounded-md px-2 py-0.5 font-mono text-[10.5px] font-bold ${
-                                  chip.status === 'ok'
-                                    ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
-                                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
-                                }`}
-                              >
-                                {chip.provider}
-                                {chip.modelId ? `/${chip.modelId}` : ''} · {chip.status}
-                                {chip.errorCode ? ` · ${chip.errorCode}` : ''}
-                                {chip.offendingNumbers && chip.offendingNumbers.length > 0
-                                  ? ` · رقم مرفوض خارج الحقائق: ${chip.offendingNumbers.join(' ')}`
-                                  : ''}
-                              </span>
-                            ))}
-                            {msg.complianceTier && (
-                              <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
-                            )}
-                            {msg.verifier?.valid &&
-                              msg.executedQueries &&
-                              msg.executedQueries.length > 0 && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-[10.5px] font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  {isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}
+                              {msg.providerBadge && (
+                                <span dir="ltr" className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                  {msg.providerBadge}
                                 </span>
                               )}
-                          </div>
-                          <span className="text-[11px] text-slate-400">{msg.time}</span>
-                        </div>
-                      )}
-
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <FeryalMessageAttachmentsGallery
-                          attachmentsMeta={msg.attachments}
-                          isAr={isAr}
-                        />
-                      )}
-
-                      {msg.sender === 'user' ? (
-                        <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed font-medium">
-                          {msg.text}
-                        </p>
-                      ) : (
-                        <FeryalStudioMessage text={msg.text} />
-                      )}
-
-                      {/* Executed Odoo Queries Provenance Strip */}
-                      {msg.sender === 'feryal' &&
-                        msg.executedQueries &&
-                        msg.executedQueries.length > 0 && (
-                          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 pt-2.5 text-[11px] text-slate-600 dark:border-white/[0.07] dark:text-slate-300">
-                            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
-                            <span className="font-semibold">
-                              {isAr ? 'الاستعلام المنفذ:' : 'Executed Query:'}
+                              {hasConsensus ? (
+                                <span
+                                  data-feryal-consensus="agreed"
+                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  <span>
+                                    {isAr ? 'إجماع المجلس' : '2-of-3 Consensus'}{' '}
+                                    <span dir="ltr" className="tabular-nums">
+                                      ({agreedCount}/{councilTotal})
+                                    </span>
+                                  </span>
+                                </span>
+                              ) : hasContradictionOrDispute ? (
+                                <span
+                                  data-feryal-contradiction="true"
+                                  role="status"
+                                  className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                                >
+                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  <span>
+                                    {isAr
+                                      ? 'تعارض / عدم إجماع — لم يُعتمد رأي'
+                                      : 'Contradictory / No Consensus — Withheld'}
+                                  </span>
+                                </span>
+                              ) : null}
+                              {msg.council?.map((chip) => (
+                                <span
+                                  key={`${chip.provider}-${chip.modelId}-${chip.status}`}
+                                  dir="ltr"
+                                  className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${
+                                    chip.status === 'ok'
+                                      ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
+                                      : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
+                                  }`}
+                                >
+                                  {chip.provider}
+                                  {chip.modelId ? `/${chip.modelId}` : ''} · {chip.status}
+                                  {chip.errorCode ? ` · ${chip.errorCode}` : ''}
+                                  {chip.offendingNumbers && chip.offendingNumbers.length > 0
+                                    ? ` · ${isAr ? 'رقم مرفوض خارج الحقائق' : 'Unverified figure'}: ${chip.offendingNumbers.join(' ')}`
+                                    : ''}
+                                </span>
+                              ))}
+                              {msg.complianceTier && (
+                                <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
+                              )}
+                              {msg.verifier?.valid &&
+                                msg.executedQueries &&
+                                msg.executedQueries.length > 0 && (
+                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    <span>{isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}</span>
+                                  </span>
+                                )}
+                            </div>
+                            <span dir="ltr" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                              {msg.time}
                             </span>
-                            {msg.executedQueries.map((q, idx) => (
-                              <span
-                                key={`${q.model}-${idx}`}
-                                dir="ltr"
-                                className="rounded-md bg-white px-2 py-0.5 font-mono text-[10.5px] text-slate-700 ring-1 ring-slate-200 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
-                              >
-                                {q.model}.{q.method} ({q.period.from}
-                                {q.period.to !== q.period.from ? `..${q.period.to}` : ''})
-                              </span>
-                            ))}
                           </div>
                         )}
 
-                      {/* Action Footer */}
-                      {msg.sender === 'feryal' && (
-                        <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
-                          <button
-                            type="button"
-                            onClick={() => void handleCopyReply(msg)}
-                            className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
-                          >
-                            {copiedId === msg.id ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
-                            ) : (
-                              <ClipboardCopy className="h-3.5 w-3.5" />
-                            )}
-                            <span>
-                              {copiedId === msg.id
-                                ? isAr
-                                  ? 'تم النسخ'
-                                  : 'Copied'
-                                : isAr
-                                  ? 'نسخ الرد'
-                                  : 'Copy'}
-                            </span>
-                          </button>
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <FeryalMessageAttachmentsGallery
+                            attachmentsMeta={msg.attachments}
+                            isAr={isAr}
+                          />
+                        )}
 
-                          <button
-                            type="button"
-                            onClick={() => void handleSpeakMessage(msg)}
-                            className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700"
-                          >
-                            {speakingId === msg.id ? (
-                              <VolumeX className="h-3.5 w-3.5 text-rose-600" />
-                            ) : (
-                              <Volume2 className="h-3.5 w-3.5 text-emerald-600" />
-                            )}
-                            <span>
-                              {speakingId === msg.id
-                                ? isAr
-                                  ? 'إيقاف الصوت'
-                                  : 'Stop'
-                                : isAr
-                                  ? 'استماع'
-                                  : 'Listen'}
-                            </span>
-                          </button>
+                        {msg.sender === 'user' ? (
+                          <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed font-medium">
+                            {msg.text}
+                          </p>
+                        ) : (
+                          <FeryalStudioMessage text={msg.text} />
+                        )}
 
-                          {!isAuditor && msg.replyStatus === 'answered' && (
+                        {/* Executed Odoo Queries Provenance Strip */}
+                        {msg.sender === 'feryal' &&
+                          msg.executedQueries &&
+                          msg.executedQueries.length > 0 && (
+                            <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 pt-2.5 text-xs text-slate-600 dark:border-white/[0.07] dark:text-slate-300">
+                              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                              <span className="font-semibold">
+                                {isAr ? 'الاستعلام المنفذ:' : 'Executed Query:'}
+                              </span>
+                              {msg.executedQueries.map((q, idx) => (
+                                <span
+                                  key={`${q.model}-${idx}`}
+                                  dir="ltr"
+                                  className="rounded-md bg-white px-2 py-0.5 font-mono text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15"
+                                >
+                                  {q.model}.{q.method} ({q.period.from}
+                                  {q.period.to !== q.period.from ? `..${q.period.to}` : ''})
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                        {/* Action Footer */}
+                        {msg.sender === 'feryal' && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 pt-1">
                             <button
                               type="button"
-                              disabled={Boolean(submittedBellIds[msg.id])}
-                              onClick={() => handleEscalateToBell(msg)}
-                              className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 disabled:bg-emerald-800/60"
+                              onClick={() => void handleCopyReply(msg)}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15"
                             >
-                              <Bell className="h-3.5 w-3.5" />
+                              {copiedId === msg.id ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                              ) : (
+                                <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
+                              )}
                               <span>
-                                {submittedBellIds[msg.id]
+                                {copiedId === msg.id
                                   ? isAr
-                                    ? 'تم الرفع لجرس المدير'
-                                    : 'Sent to Manager Bell'
+                                    ? 'تم النسخ'
+                                    : 'Copied'
                                   : isAr
-                                    ? 'رفع التوصية لجرس المدير'
-                                    : 'Send to Manager Bell'}
+                                    ? 'نسخ الرد'
+                                    : 'Copy'}
                               </span>
                             </button>
-                          )}
-                        </div>
-                      )}
+
+                            <button
+                              type="button"
+                              onClick={() => void handleSpeakMessage(msg)}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15"
+                            >
+                              {speakingId === msg.id ? (
+                                <VolumeX className="h-3.5 w-3.5 text-rose-600" aria-hidden />
+                              ) : (
+                                <Volume2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                              )}
+                              <span>
+                                {speakingId === msg.id
+                                  ? isAr
+                                    ? 'إيقاف الصوت'
+                                    : 'Stop'
+                                  : isAr
+                                    ? 'استماع'
+                                    : 'Listen'}
+                              </span>
+                            </button>
+
+                            {!isAuditor && msg.replyStatus === 'answered' && (
+                              <button
+                                type="button"
+                                disabled={Boolean(submittedBellIds[msg.id])}
+                                onClick={() => handleEscalateToBell(msg)}
+                                className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:bg-emerald-800/60"
+                              >
+                                <Bell className="h-3.5 w-3.5" aria-hidden />
+                                <span>
+                                  {submittedBellIds[msg.id]
+                                    ? isAr
+                                      ? 'تم الرفع لجرس المدير'
+                                      : 'Sent to Manager Bell'
+                                    : isAr
+                                      ? 'رفع التوصية لجرس المدير'
+                                      : 'Send to Manager Bell'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
 
               {sending && (
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div role="status" aria-live="polite" className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                   <span>
                     {isAr
                       ? 'جارٍ استعلام Odoo 17 ومطابقة الأرقام...'
@@ -1270,7 +1541,7 @@ export function FeryalGovernanceStudio({
 
             {/* Composer */}
             {!isAuditor ? (
-              <div className="border-t border-slate-200/80 bg-white p-3.5 dark:border-emerald-500/15 dark:bg-[#0D1713]">
+              <div className="border-t border-slate-200/80 bg-white p-3.5 dark:border-white/10 dark:bg-[#101815]">
                 <FeryalPendingAttachmentsTray
                   isAr={isAr}
                   attachments={pendingAttachments}
@@ -1302,20 +1573,30 @@ export function FeryalGovernanceStudio({
                     type="button"
                     disabled={sending}
                     onClick={() => void handleToggleVoiceInput()}
+                    aria-label={
+                      recordingVoice
+                        ? isAr
+                          ? 'إيقاف التسجيل الصوتي'
+                          : 'Stop voice recording'
+                        : isAr
+                          ? 'إدخال صوتي'
+                          : 'Voice input'
+                    }
                     title={isAr ? 'إدخال صوتي' : 'Voice input'}
-                    className={`inline-flex h-[44px] sm:h-[48px] w-[42px] sm:w-[46px] shrink-0 items-center justify-center rounded-2xl transition ${
+                    className={`inline-flex h-[44px] sm:h-[48px] w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       recordingVoice
                         ? 'bg-rose-600 text-white animate-pulse'
-                        : 'bg-[#F6F7F8] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-200'
+                        : 'bg-[#F6F7F8] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#090E0C] dark:text-slate-200'
                     }`}
                   >
-                    {recordingVoice ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    {recordingVoice ? <Square className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
                   </button>
 
                   <textarea
                     rows={1}
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
+                    aria-label={isAr ? 'سؤال لفريال عن بيانات Odoo 17' : 'Ask Feryal about Odoo 17 data'}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault()
@@ -1327,21 +1608,21 @@ export function FeryalGovernanceStudio({
                         ? 'اسأل فريال عن مبيعات الفروع، الأصناف، أوامر الشراء، المخزن، أو القيود في Odoo...'
                         : 'Ask Feryal about branch POS sales, items, purchase orders, stock moves, or GL entries...'
                     }
-                    className="min-h-[44px] sm:min-h-[48px] max-h-36 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#F6F7F8] px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-[#09110E] dark:text-white"
+                    className="min-h-[44px] sm:min-h-[48px] max-h-36 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#F6F7F8] px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:border-white/15 dark:bg-[#090E0C] dark:text-white"
                   />
 
                   <button
                     type="submit"
                     disabled={sending || (!inputText.trim() && pendingAttachments.length === 0)}
-                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-45"
+                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45"
                   >
-                    <Send className="h-4 w-4" />
+                    <Send className="h-4 w-4" aria-hidden />
                     <span>{isAr ? 'إرسال' : 'Send'}</span>
                   </button>
                 </form>
               </div>
             ) : (
-              <div className="border-t border-slate-200/80 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-300">
+              <div className="border-t border-slate-200/80 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-[#090E0C] dark:text-slate-300">
                 {isAr
                   ? 'وضع المراجع الخارجي (للقراءة فقط) — يمكنك مراجعة التنبيهات وسجل الأسئلة والاستعلامات الكامل لـ Odoo 17.'
                   : 'Read-only External Reviewer Mode — inspect Odoo 17 alerts and the full Odoo query log.'}
@@ -1350,16 +1631,183 @@ export function FeryalGovernanceStudio({
           </div>
         )}
 
-        {/* Tab 2: Real Odoo Governance Breaches ONLY (`/api/erp/governance`) */}
+        {/* Tab 2: Today's Notes ⚡ & Executive Summary */}
+        {mainTab === 'today-notes' && (
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
+                  {isAr ? 'ملخص اليوم وآخر التنبيهات' : "Today's Executive Summary & Latest Alerts"}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+                </p>
+              </div>
+              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                {isAr ? workspace.periodCalendarWindowAr : workspace.periodCalendarWindowEn}
+              </span>
+            </div>
+
+            {/* Live Odoo KPI Strip (strictly nullable — renders "—" + Unavailable when null/disconnected) */}
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {isAr ? 'صافي المبيعات' : 'Net Sales'}
+                </div>
+                <div
+                  dir="ltr"
+                  data-unavailable={
+                    !workspace.odooConnected || workspace.nullableSalesKwd === null
+                      ? 'true'
+                      : undefined
+                  }
+                  title={
+                    !workspace.odooConnected || workspace.nullableSalesKwd === null
+                      ? unavailableTooltip
+                      : undefined
+                  }
+                  aria-label={
+                    !workspace.odooConnected || workspace.nullableSalesKwd === null
+                      ? unavailableTooltip
+                      : undefined
+                  }
+                  className="mt-1.5 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
+                >
+                  {workspace.odooConnected
+                    ? formatKwd(workspace.nullableSalesKwd, { locale: fmtLocale })
+                    : UNAVAILABLE_DASH}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {isAr ? 'عدد الطلبات' : 'Orders'}
+                </div>
+                <div
+                  dir="ltr"
+                  data-unavailable={!workspace.odooConnected ? 'true' : undefined}
+                  title={!workspace.odooConnected ? unavailableTooltip : undefined}
+                  aria-label={!workspace.odooConnected ? unavailableTooltip : undefined}
+                  className="mt-1.5 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
+                >
+                  {workspace.odooConnected
+                    ? formatInt(workspace.orders, { locale: fmtLocale })
+                    : UNAVAILABLE_DASH}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {isAr ? 'أعلى فرع مبيعاً' : 'Best Branch'}
+                </div>
+                <div className="mt-1 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                  {bestBranch ? (isAr ? bestBranch.ar : bestBranch.en) : UNAVAILABLE_DASH}
+                </div>
+                <div
+                  dir="ltr"
+                  data-unavailable={!bestBranch ? 'true' : undefined}
+                  title={!bestBranch ? unavailableTooltip : undefined}
+                  aria-label={!bestBranch ? unavailableTooltip : undefined}
+                  className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                >
+                  {bestBranch
+                    ? formatKwd(bestBranch.salesKwd, { locale: fmtLocale })
+                    : UNAVAILABLE_DASH}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  {isAr ? 'أقل فرع مبيعاً' : 'Lowest Branch'}
+                </div>
+                <div className="mt-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+                  {worstBranch ? (isAr ? worstBranch.ar : worstBranch.en) : UNAVAILABLE_DASH}
+                </div>
+                <div
+                  dir="ltr"
+                  data-unavailable={!worstBranch ? 'true' : undefined}
+                  title={!worstBranch ? unavailableTooltip : undefined}
+                  aria-label={!worstBranch ? unavailableTooltip : undefined}
+                  className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                >
+                  {worstBranch
+                    ? formatKwd(worstBranch.salesKwd, { locale: fmtLocale })
+                    : UNAVAILABLE_DASH}
+                </div>
+              </article>
+            </div>
+
+            {/* Live Feryal Notes */}
+            {workspace.feryalNotes.length === 0 ? (
+              <StateBlock
+                state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+                compact
+                locale={fmtLocale}
+                title={
+                  !workspace.odooConnected
+                    ? isAr
+                      ? 'مصدر Odoo غير متصل حالياً'
+                      : 'Odoo source is not connected'
+                    : isAr
+                      ? 'لا توجد ملاحظات يومية متاحة لهذه الشريحة'
+                      : 'No daily notes available for this slice'
+                }
+                description={
+                  isAr
+                    ? 'تُبنى الملاحظات اليومية تلقائياً من أرقام Odoo 17 الفعلية فقط دون أي بطاقات ثابتة.'
+                    : 'Daily notes are derived strictly from Odoo 17 metrics with zero static placeholders.'
+                }
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {workspace.feryalNotes.map((note) => (
+                  <article
+                    key={note.id}
+                    className="flex flex-col justify-between space-y-2.5 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-4 dark:border-white/10 dark:bg-[#141F1B]"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-[14px] font-bold text-slate-900 dark:text-white">
+                          {isAr ? note.titleAr : note.titleEn}
+                        </h4>
+                        <span
+                          dir="ltr"
+                          className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        >
+                          {isAr ? note.benefitAr : note.benefitEn}
+                        </span>
+                      </div>
+                      <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        {isAr ? note.summaryAr : note.summaryEn}
+                      </p>
+                    </div>
+                    {!isAuditor ? (
+                      <button
+                        type="button"
+                        disabled={sending}
+                        onClick={() => void sendQuestion(isAr ? note.promptAr : note.promptEn)}
+                        className="w-full cursor-pointer rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200"
+                      >
+                        {isAr ? 'اسأل فريال' : 'Ask Feryal'}
+                      </button>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Real Odoo Governance Breaches ONLY (`/api/erp/governance`) */}
         {mainTab === 'alerts' && (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
                     ? 'تنبيهات الحوكمة الفعلية من Odoo 17'
                     : 'Odoo 17 Governance Alerts'}
-                </h2>
+                </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isAr
                     ? 'تُعرض فقط المخالفات الناتجة فعلياً عن استعلام Odoo 17 مقابل السقوف المحفوظة من مسؤول النظام.'
@@ -1369,32 +1817,42 @@ export function FeryalGovernanceStudio({
               <button
                 type="button"
                 onClick={() => void fetchServerGovernanceBreaches()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingBreaches ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingBreaches ? 'animate-spin' : ''}`} aria-hidden />
                 <span>{isAr ? 'تحديث من Odoo' : 'Refresh'}</span>
               </button>
             </div>
 
             {loadingBreaches ? (
-              <div className="flex items-center justify-center py-12 text-xs font-semibold text-slate-500">
-                <Loader2 className="me-2 h-4 w-4 animate-spin text-emerald-600" />
-                {isAr ? 'جارٍ فحص قواعد الحوكمة على Odoo 17...' : 'Evaluating Odoo 17 governance rules...'}
-              </div>
+              <StateBlock
+                state="loading"
+                locale={fmtLocale}
+                skeletonRows={3}
+                title={isAr ? 'جارٍ فحص قواعد الحوكمة على Odoo 17...' : 'Evaluating Odoo 17 governance rules...'}
+              />
+            ) : breachesError ? (
+              <StateBlock
+                state="error"
+                locale={fmtLocale}
+                onRetry={() => void fetchServerGovernanceBreaches()}
+                title={isAr ? 'تعذّر جلب تنبيهات الحوكمة حالياً' : 'Unable to load governance alerts right now'}
+              />
             ) : liveBreaches.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-emerald-300/70 bg-emerald-50/40 p-8 text-center space-y-1.5 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-                <CheckCircle2 className="mx-auto h-7 w-7 text-emerald-600 dark:text-emerald-400" />
-                <div className="text-[14px] font-bold text-slate-900 dark:text-white">
-                  {isAr
+              <StateBlock
+                state="empty"
+                locale={fmtLocale}
+                title={
+                  isAr
                     ? 'لا توجد مخالفات فعلية مسجلة من Odoo 17 حالياً'
-                    : 'No active Odoo 17 governance breaches'}
-                </div>
-                <p className="text-xs text-slate-600 dark:text-slate-400">
-                  {isAr
+                    : 'No active Odoo 17 governance breaches'
+                }
+                description={
+                  isAr
                     ? 'لا يتم عرض أي تنبيه افتراضي أو ثابت عند عدم وجود تجاوز فعلي في بيانات Odoo 17.'
-                    : 'Zero static or synthetic alerts are shown when no Odoo 17 threshold is breached.'}
-                </p>
-              </div>
+                    : 'Zero static or synthetic alerts are shown when no Odoo 17 threshold is breached.'
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {liveBreaches.map((b) => (
@@ -1403,10 +1861,10 @@ export function FeryalGovernanceStudio({
                     className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-2 dark:border-rose-900/50 dark:bg-rose-950/20"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="rounded-md bg-rose-600 px-2 py-0.5 font-mono text-[11px] font-bold text-white">
+                      <span dir="ltr" className="rounded-md bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white">
                         {b.odooModel}
                       </span>
-                      <span className="text-xs font-semibold text-slate-500">
+                      <span dir="ltr" className="text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                         {b.period.from} → {b.period.to}
                       </span>
                     </div>
@@ -1425,10 +1883,10 @@ export function FeryalGovernanceStudio({
                           href={b.odooRecordUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline dark:text-emerald-300"
+                          className="inline-flex items-center gap-1 rounded font-bold text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-300"
                         >
                           <span>{isAr ? 'فتح السجل في Odoo' : 'Open in Odoo'}</span>
-                          <ExternalLink className="h-3.5 w-3.5" />
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                         </a>
                       )}
                     </div>
@@ -1439,16 +1897,16 @@ export function FeryalGovernanceStudio({
           </div>
         )}
 
-        {/* Tab 3: Transparent Odoo Query & Numeric Verifier Audit Log */}
+        {/* Tab 4: Transparent Odoo Query & Numeric Verifier Audit Log */}
         {mainTab === 'audit' && (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-[15px] font-black text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
                     ? 'سجل الأسئلة والاستعلامات لفريال'
                     : 'Feryal Odoo Query Log'}
-                </h2>
+                </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isAr
                     ? 'يوثق كل سؤال، ودور المستخدم، والطابع الزمني، واستعلامات Odoo 17 المنفذة، ونتيجة فحص الأرقام، والإجابة النهائية.'
@@ -1458,38 +1916,61 @@ export function FeryalGovernanceStudio({
               <button
                 type="button"
                 onClick={() => void fetchServerAuditLogs()}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingAudit ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${loadingAudit ? 'animate-spin' : ''}`} aria-hidden />
                 <span>{isAr ? 'تحديث السجل' : 'Refresh Log'}</span>
               </button>
             </div>
 
-            {auditLogs.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                {isAr
-                  ? 'لا توجد استعلامات مسجلة في سجل الأسئلة والاستعلامات حتى الآن.'
-                  : 'No queries recorded in the Odoo query log yet.'}
-              </div>
+            {loadingAudit ? (
+              <StateBlock
+                state="loading"
+                locale={fmtLocale}
+                skeletonRows={3}
+                title={isAr ? 'جارٍ تحميل سجل الاستعلامات...' : 'Loading Odoo query log...'}
+              />
+            ) : auditError ? (
+              <StateBlock
+                state="error"
+                locale={fmtLocale}
+                onRetry={() => void fetchServerAuditLogs()}
+                title={isAr ? 'تعذّر تحميل سجل الاستعلامات حالياً' : 'Unable to load Odoo query log right now'}
+              />
+            ) : auditLogs.length === 0 ? (
+              <StateBlock
+                state="empty"
+                locale={fmtLocale}
+                title={
+                  isAr
+                    ? 'لا توجد استعلامات مسجلة في سجل الأسئلة والاستعلامات حتى الآن.'
+                    : 'No queries recorded in the Odoo query log yet.'
+                }
+                description={
+                  isAr
+                    ? 'سيُوثق هنا كل سؤال يُرسل إلى فريال مع استعلام Odoo 17 المنفذ ونتيجة الفحص.'
+                    : 'Every query sent to Feryal will be logged here alongside executed Odoo 17 queries.'
+                }
+              />
             ) : (
               <div className="space-y-3">
                 {auditLogs.map((entry) => (
                   <div
                     key={entry.id}
-                    className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 dark:border-slate-800 dark:bg-slate-900/60"
+                    className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 dark:border-white/10 dark:bg-[#141F1B]"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-bold text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                        <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-bold text-slate-800 dark:bg-white/10 dark:text-slate-200">
                           {entry.userRole}
                         </span>
                         {!isAuditor && (
-                          <span className="font-mono text-[11px] text-slate-500">
+                          <span dir="ltr" className="font-mono text-xs text-slate-500 dark:text-slate-400">
                             {entry.userSub}
                           </span>
                         )}
                         <span
-                          className={`rounded-md px-2 py-0.5 text-[11px] font-bold ${
+                          className={`rounded-md px-2 py-0.5 text-xs font-bold ${
                             entry.verifier?.valid
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
@@ -1504,8 +1985,8 @@ export function FeryalGovernanceStudio({
                               : 'Verifier: Rejected'}
                         </span>
                       </div>
-                      <span dir="ltr" className="font-mono text-[11px] text-slate-400">
-                        {entry.timestampIso}
+                      <span dir="ltr" className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                        {formatDateTime(entry.timestampIso, { locale: fmtLocale, showZone: true })}
                       </span>
                     </div>
 
@@ -1515,7 +1996,7 @@ export function FeryalGovernanceStudio({
                     </div>
 
                     {entry.executedQueries.length > 0 && (
-                      <div className="space-y-1 rounded-xl bg-white p-2.5 text-[11.5px] ring-1 ring-slate-200/70 dark:bg-slate-950 dark:ring-slate-800">
+                      <div className="space-y-1 overflow-x-auto rounded-xl bg-white p-2.5 text-xs ring-1 ring-slate-200/70 dark:bg-[#090E0C] dark:ring-white/10">
                         {entry.executedQueries.map((q, qi) => (
                           <div key={`${entry.id}-q-${qi}`} dir="ltr" className="font-mono text-slate-700 dark:text-slate-300">
                             model={q.model} | groupby={JSON.stringify(q.groupby)} | period={q.period.from}..{q.period.to} | domain={JSON.stringify(q.domain)}
@@ -1524,7 +2005,7 @@ export function FeryalGovernanceStudio({
                       </div>
                     )}
 
-                    <div className="whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-200/60 dark:bg-slate-950/60 dark:text-slate-200 dark:ring-slate-800">
+                    <div className="whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-200/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/10">
                       {entry.finalReply}
                     </div>
                   </div>
