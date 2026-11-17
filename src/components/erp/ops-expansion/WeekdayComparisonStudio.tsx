@@ -54,18 +54,19 @@ import {
 } from '@/lib/erp-comparison-engine'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card rounded-2xl border border-slate-200/85 bg-white p-3.5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] transition-all duration-150 dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-kpi-card rounded-2xl border border-slate-200/85 bg-white p-3.5 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 dark:border-slate-800 dark:bg-slate-900/95'
 const SEGMENT_TRACK_CLS =
-  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar p-1 rounded-2xl bg-neutral-100/90 dark:bg-white/[0.06]'
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-slate-200/85 bg-slate-100/90 p-1 dark:border-slate-800 dark:bg-slate-900/80'
 const SEGMENT_BTN_CLS =
   'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
 const SEGMENT_BTN_ACTIVE_CLS =
-  'bg-white font-semibold text-emerald-900 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-900/[0.05] dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
+  'bg-white font-semibold text-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 dark:bg-sky-500/20 dark:text-sky-200 dark:ring-sky-400/25'
 const SEGMENT_BTN_IDLE_CLS =
-  'text-slate-600 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
-const TABLE_SCROLL_CLS = 'overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0'
+  'text-slate-600 hover:bg-white/75 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+const TABLE_SCROLL_CLS =
+  'overflow-x-auto rounded-2xl border border-slate-200/85 bg-slate-50/75 p-1 dark:border-slate-800 dark:bg-slate-950/60'
 
 type ChartMetricKey = 'sales' | 'orders' | 'cumulative'
 type SortColumnKey = 'valueA' | 'valueB' | 'deltaKwd' | 'deltaPct' | 'ordersA'
@@ -584,6 +585,34 @@ export function WeekdayComparisonStudio() {
   const showNoData =
     !loading && !apiError && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
   const dateRangeBadge = `${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} vs ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso}`
+  const isOrdersMetric = chartMetric === 'orders'
+  const chartHeadlineKpi = isOrdersMetric
+    ? comparison.selectionA.completedOrders === null
+      ? UNAVAILABLE_DASH
+      : `${fmt0(comparison.selectionA.completedOrders, resolvedLocale)} ${isAr ? 'طلب' : 'orders'}`
+    : formatChartKwdTooltip(comparison.selectionA.netSalesKwd, resolvedLocale)
+  const chartHeadlineDeltaPct = isOrdersMetric
+    ? comparison.kpis.completedOrders.available === false
+      ? null
+      : comparison.kpis.completedOrders.deltaPct
+    : comparison.kpis.netSales.deltaPct
+  const chartInfoContent = (
+    <div className="space-y-1.5 text-xs text-slate-700 dark:text-slate-200">
+      <p className="font-semibold">
+        {isAr
+          ? 'مقارنة فعلية مباشرة من مكعبات أودو 17 (pos.order + pos.order.line).'
+          : 'Computed directly from Odoo 17 period cubes (pos.order + pos.order.line).'}
+      </p>
+      <p className="text-slate-600 dark:text-slate-300">
+        <span dir="ltr" className="tabular-nums">
+          {dateRangeBadge}
+        </span>
+      </p>
+      <p className="text-slate-600 dark:text-slate-300">
+        {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
+      </p>
+    </div>
+  )
 
   return (
     <div
@@ -621,7 +650,7 @@ export function WeekdayComparisonStudio() {
             type="button"
             disabled={showNoData || loading}
             onClick={handleCopyReport}
-            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/85 bg-slate-50/90 px-3 text-[12.5px] font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800/80"
           >
             {copiedReport ? (
               <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
@@ -680,7 +709,7 @@ export function WeekdayComparisonStudio() {
       {!loading && !apiError && !showNoData ? (
         <>
           {/* 2. Summary Callout Strip */}
-          <section className="rounded-2xl bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12">
+          <section className="rounded-2xl border border-slate-200/85 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-start gap-2.5 sm:items-center">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -989,6 +1018,12 @@ export function WeekdayComparisonStudio() {
                 dailySeries={cumulativeTimeline.dailySeries}
                 hourlySeries={cumulativeTimeline.hourlySeries}
                 isAr={isAr}
+                title={seriesLabelA}
+                kpiValue={chartHeadlineKpi}
+                deltaPct={chartHeadlineDeltaPct}
+                deltaLabel={seriesLabelB}
+                infoLabel={isAr ? 'تفاصيل ومنهجية المقارنة' : 'Comparison details & basis'}
+                infoContent={chartInfoContent}
                 valueLabel={seriesLabelA}
                 secondaryLabel={seriesLabelB}
                 yAxisLabel={
@@ -1017,6 +1052,12 @@ export function WeekdayComparisonStudio() {
               <ComparisonBarChart
                 data={comparisonBarData}
                 isAr={isAr}
+                title={seriesLabelA}
+                kpiValue={chartHeadlineKpi}
+                deltaPct={chartHeadlineDeltaPct}
+                deltaLabel={seriesLabelB}
+                infoLabel={isAr ? 'تفاصيل ومنهجية المقارنة' : 'Comparison details & basis'}
+                infoContent={chartInfoContent}
                 primaryLabel={seriesLabelA}
                 comparisonLabel={seriesLabelB}
                 primaryColor={V35_CHART_COLORS.primary}
@@ -1090,7 +1131,7 @@ export function WeekdayComparisonStudio() {
                     role="tab"
                     aria-selected={tableTab === tab.id}
                     onClick={() => setTableTab(tab.id)}
-                    className={`${SEGMENT_BTN_CLS} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                    className={`${SEGMENT_BTN_CLS} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
                       tableTab === tab.id ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                     }`}
                   >
@@ -1101,10 +1142,10 @@ export function WeekdayComparisonStudio() {
             </div>
 
             <div className={TABLE_SCROLL_CLS}>
-              <table className="w-full min-w-[780px] border-collapse text-start text-[13.5px]">
-                <thead>
-                  <tr className="border-b border-slate-200/80 text-[12px] font-semibold text-slate-500 dark:border-white/[0.08] dark:text-slate-400">
-                    <th className="py-2.5 pe-3 text-start">
+              <table className="w-full min-w-[780px] border-collapse rounded-xl bg-white text-start text-[13.5px] dark:bg-slate-900/95">
+                <thead className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900">
+                  <tr className="border-b border-slate-200/85 text-[12px] font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                    <th className="py-2.5 ps-4 pe-3 text-start">
                       {tableTab === 'branch'
                         ? isAr
                           ? 'الفرع (7 فروع + غير منسوب لفرع)'
@@ -1121,7 +1162,7 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('valueA')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300"
                       >
                         <span>
                           {isAr
@@ -1135,7 +1176,7 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('valueB')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300"
                       >
                         <span>
                           {isAr
@@ -1149,7 +1190,7 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('deltaKwd')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300"
                       >
                         <span>{isAr ? `الفارق (${kwd})` : `Variance (${kwd})`}</span>
                         <ArrowUpDown className="h-3 w-3" aria-hidden />
@@ -1159,7 +1200,7 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('deltaPct')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300"
                       >
                         <span>{isAr ? 'التغير %' : 'Delta %'}</span>
                         <ArrowUpDown className="h-3 w-3" aria-hidden />
@@ -1169,22 +1210,22 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('ordersA')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300"
                       >
                         <span>{isAr ? 'الطلبات (أ / ب)' : 'Orders (A / B)'}</span>
                         <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
-                    <th className="py-2.5 ps-3 text-end">
+                    <th className="py-2.5 ps-3 pe-4 text-end">
                       {isAr ? 'متوسط الفاتورة (أ / ب)' : 'AOV (A / B)'}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/60 tabular-nums dark:divide-white/[0.06]">
+                <tbody className="divide-y divide-slate-200/60 tabular-nums dark:divide-slate-800/80">
                   {activeEntityRows.map((row) => (
                     <tr
                       key={row.id}
-                      className={`transition hover:bg-slate-50/90 dark:hover:bg-white/[0.03] ${
+                      className={`transition hover:bg-slate-50/90 dark:hover:bg-slate-800/40 ${
                         row.isUnattributed
                           ? 'bg-slate-50/85 dark:bg-slate-800/35'
                           : !row.isCompatible
@@ -1192,7 +1233,7 @@ export function WeekdayComparisonStudio() {
                             : ''
                       }`}
                     >
-                      <td className="py-3 pe-3">
+                      <td className="py-3 ps-4 pe-3">
                         <div className="font-semibold text-slate-950 dark:text-white">
                           {isAr ? row.nameAr : row.nameEn}
                         </div>
@@ -1241,7 +1282,7 @@ export function WeekdayComparisonStudio() {
                           </span>
                         </span>
                       </td>
-                      <td className="py-3 ps-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
+                      <td className="py-3 ps-3 pe-4 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
                         <span dir="ltr" className="tabular-nums">
                           {fmtKwd(row.aovA, resolvedLocale)} / {fmtKwd(row.aovB, resolvedLocale)}{' '}
                           {kwd}
@@ -1251,8 +1292,8 @@ export function WeekdayComparisonStudio() {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t-2 border-slate-200 bg-[#F7F8F9] font-semibold text-slate-950 tabular-nums dark:border-white/10 dark:bg-[#0B1410] dark:text-white">
-                    <td className="py-3 pe-3">
+                  <tr className="border-t-2 border-slate-200 bg-slate-50/90 font-semibold text-slate-950 tabular-nums dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
+                    <td className="py-3 ps-4 pe-3">
                       {isAr ? 'الإجمالي الفعلي (Odoo 17)' : 'Total (Odoo 17)'}
                     </td>
                     <td className="px-3 py-3">
@@ -1287,7 +1328,7 @@ export function WeekdayComparisonStudio() {
                         {fmt0(comparison.selectionB.completedOrders, resolvedLocale)}
                       </span>
                     </td>
-                    <td className="py-3 ps-3 text-end font-mono text-xs">
+                    <td className="py-3 ps-3 pe-4 text-end font-mono text-xs">
                       <span dir="ltr" className="tabular-nums">
                         {fmtKwd(comparison.selectionA.aovKwd, resolvedLocale)} /{' '}
                         {fmtKwd(comparison.selectionB.aovKwd, resolvedLocale)} {kwd}

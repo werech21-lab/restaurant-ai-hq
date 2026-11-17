@@ -1,13 +1,11 @@
 /**
- * V35 Polish — Wave 0 RED tests for `@/components/charts/v35-chart-kit`.
+ * V35 Polish — Shared chart-kit tests for `@/components/charts/v35-chart-kit` & `v35-chart-theme`.
  *
- * Uses dynamic `await import('@/components/charts/v35-chart-kit')` inside tests so
- * missing module cleanly fails RED before Lane 2 lands `v35-chart-kit.tsx`.
- *
- * Also documents the Recharts v3.10.1 SSR contract: `ResponsiveContainer` needs
- * `initialDimension={{ width: 640, height: 240 }}` to render `.recharts-wrapper` in SSR,
- * while `ReportChartSize` only writes Redux size inside `useEffect` (so SVG surface
- * mounts on client hydration; Recharts prop-wiring is verified via mocked Recharts below).
+ * Verifies Recharts v3.10.1 SSR `ResponsiveContainer` (`initialDimension`), AR RTL axes
+ * (`YAxis orientation="right"`, `XAxis reversed`), `TimelineAreaChart` (single-stat / hourly-area /
+ * daily-area, thin `monotone` stroke, `<linearGradient>`, comparison overlay), `ComparisonBarChart`
+ * (ghost-bar `background`, `[6, 6, 0, 0]` radius, slim `maxBarSize <= 24`), `V35DonutChart`,
+ * and Chart Library palette tokens.
  */
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -157,6 +155,35 @@ describe('V35 Polish — v35-chart-kit SSR render & RTL contracts', () => {
     expect(arDonut).toContain('6.500 د.ك')
     expect(arDonut).toContain('تكلفة المواد')
   })
+  it('V35_DONUT_PALETTE and V35_CHART_COLORS include cobalt, teal, violet, and amber tokens cleanly', async () => {
+    const {
+      V35_CHART_COLORS,
+      V35_CHART_PALETTE,
+      V35_DONUT_PALETTE,
+      V35_HEATMAP_SCALE_DARK,
+      V35_HEATMAP_SCALE_LIGHT,
+    } = await import('@/components/charts/v35-chart-theme')
+
+    expect(V35_CHART_COLORS.primary).toBe('#2563EB')
+    expect(V35_CHART_COLORS.teal).toBe('#0D9488')
+    expect(V35_CHART_COLORS.violet).toBe('#7C3AED')
+    expect(V35_CHART_COLORS.warning).toBe('#D97706')
+    expect(V35_CHART_COLORS.comparison).toBe('#94A3B8')
+
+    expect(V35_DONUT_PALETTE).toContain('#2563EB')
+    expect(V35_DONUT_PALETTE).toContain('#0D9488')
+    expect(V35_DONUT_PALETTE).toContain('#7C3AED')
+    expect(V35_DONUT_PALETTE).toContain('#D97706')
+    expect(V35_DONUT_PALETTE.slice(0, 4)).toEqual(['#2563EB', '#0D9488', '#7C3AED', '#D97706'])
+
+    expect(V35_CHART_PALETTE).toContain('#2563EB')
+    expect(V35_CHART_PALETTE).toContain('#0D9488')
+    expect(V35_CHART_PALETTE).toContain('#7C3AED')
+    expect(V35_CHART_PALETTE).toContain('#D97706')
+
+    expect(V35_HEATMAP_SCALE_LIGHT).toHaveLength(5)
+    expect(V35_HEATMAP_SCALE_DARK).toHaveLength(5)
+  })
 })
 
 describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Recharts surface)', () => {
@@ -165,11 +192,27 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
     vi.resetModules()
   })
 
-  it('wires ResponsiveContainer initialDimension, Area <path>, YAxis orientation="right", and reversed XAxis in RTL', async () => {
+  function installRechartsMock() {
     const capturedYAxis: Array<{ orientation?: string }> = []
     const capturedXAxis: Array<{ reversed?: boolean }> = []
     const capturedAreaData: unknown[][] = []
+    const capturedAreas: Array<{
+      dataKey?: string
+      type?: string
+      strokeWidth?: number
+      stroke?: string
+      fill?: string
+    }> = []
+    const capturedBars: Array<{
+      dataKey?: string
+      radius?: unknown
+      maxBarSize?: number
+      background?: unknown
+      fill?: string
+      stackId?: string
+    }> = []
     const capturedInitialDim: Array<{ width?: number; height?: number } | undefined> = []
+    const capturedMinHeights: Array<number | string | undefined> = []
 
     vi.resetModules()
     vi.doMock('recharts', async (importOriginal) => {
@@ -179,11 +222,14 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
         ResponsiveContainer: ({
           children,
           initialDimension,
+          minHeight,
         }: {
           children?: React.ReactNode
           initialDimension?: { width?: number; height?: number }
+          minHeight?: number | string
         }) => {
           capturedInitialDim.push(initialDimension)
+          capturedMinHeights.push(minHeight)
           return React.createElement(
             'div',
             {
@@ -216,10 +262,48 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
         },
         PieChart: ({ children }: { children?: React.ReactNode }) =>
           React.createElement('svg', { 'data-mock-chart': 'pie' }, children),
-        Area: ({ dataKey }: { dataKey?: string }) =>
-          React.createElement('path', { 'data-mock-area': String(dataKey ?? '') }),
-        Bar: ({ dataKey }: { dataKey?: string }) =>
-          React.createElement('rect', { 'data-mock-bar': String(dataKey ?? '') }),
+        Area: (props: {
+          dataKey?: string
+          type?: string
+          strokeWidth?: number
+          stroke?: string
+          fill?: string
+        }) => {
+          capturedAreas.push({
+            dataKey: props.dataKey,
+            type: props.type,
+            strokeWidth: props.strokeWidth,
+            stroke: props.stroke,
+            fill: props.fill,
+          })
+          return React.createElement('path', {
+            'data-mock-area': String(props.dataKey ?? ''),
+            'data-area-type': String(props.type ?? ''),
+            'data-stroke-width': String(props.strokeWidth ?? ''),
+          })
+        },
+        Bar: (props: {
+          dataKey?: string
+          radius?: unknown
+          maxBarSize?: number
+          background?: unknown
+          fill?: string
+          stackId?: string
+        }) => {
+          capturedBars.push({
+            dataKey: props.dataKey,
+            radius: props.radius,
+            maxBarSize: props.maxBarSize,
+            background: props.background,
+            fill: props.fill,
+            stackId: props.stackId,
+          })
+          return React.createElement('rect', {
+            'data-mock-bar': String(props.dataKey ?? ''),
+            'data-has-ghost': props.background ? 'true' : 'false',
+            'data-max-bar-size': String(props.maxBarSize ?? ''),
+          })
+        },
         Pie: ({ dataKey }: { dataKey?: string }) =>
           React.createElement('path', { 'data-mock-pie': String(dataKey ?? '') }),
         YAxis: ({ orientation }: { orientation?: string }) => {
@@ -237,8 +321,22 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
       }
     })
 
+    return {
+      capturedYAxis,
+      capturedXAxis,
+      capturedAreaData,
+      capturedAreas,
+      capturedBars,
+      capturedInitialDim,
+      capturedMinHeights,
+    }
+  }
+
+  it('TimelineAreaChart wires ResponsiveContainer initialDimension, monotone thin strokeWidth (<=2), gradient <linearGradient>, comparison overlay, and RTL axes', async () => {
+    const cap = installRechartsMock()
     const { TimelineAreaChart } = await import('@/components/charts/v35-chart-kit')
-    const html = renderToStaticMarkup(
+
+    const hourlyHtml = renderToStaticMarkup(
       React.createElement(TimelineAreaChart, {
         dailySeries: ONE_DAY_SERIES,
         hourlySeries: HOURLY_SERIES,
@@ -246,13 +344,128 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
       }),
     )
 
-    expect(html).toContain('<path')
-    expect(html).not.toContain('<rect')
-    expect(capturedInitialDim.some((d) => (d?.width ?? 0) > 0 && (d?.height ?? 0) > 0)).toBe(true)
-    expect(capturedYAxis.some((y) => y.orientation === 'right')).toBe(true)
-    const xReversedByProp = capturedXAxis.some((x) => x.reversed === true)
-    const firstPlotted = capturedAreaData[0]?.[0] as { hour?: number; label?: string } | undefined
+    expect(hourlyHtml).toContain('data-chart-mode="hourly-area"')
+    expect(hourlyHtml).toContain('<path')
+    expect(hourlyHtml).toContain('<linearGradient')
+    expect(hourlyHtml).not.toContain('<rect')
+    expect(cap.capturedInitialDim.some((d) => (d?.width ?? 0) > 0 && (d?.height ?? 0) > 0)).toBe(true)
+    expect(cap.capturedMinHeights.some((h) => Number(h) >= 220)).toBe(true)
+    expect(cap.capturedYAxis.some((y) => y.orientation === 'right')).toBe(true)
+    const xReversedByProp = cap.capturedXAxis.some((x) => x.reversed === true)
+    const firstPlotted = cap.capturedAreaData[0]?.[0] as { hour?: number; label?: string } | undefined
     const xReversedByOrder = firstPlotted?.hour === 18 || firstPlotted?.label === '18:00'
     expect(xReversedByProp || xReversedByOrder).toBe(true)
+
+    expect(cap.capturedAreas).toHaveLength(1)
+    expect(cap.capturedAreas[0].type).toBe('monotone')
+    expect(cap.capturedAreas[0].strokeWidth).toBeLessThanOrEqual(2)
+    expect(cap.capturedAreas[0].fill).toMatch(/^url\(#v35Area-/)
+
+    // Comparison overlay via secondarySeries + secondaryValue in RTL
+    cap.capturedAreas.length = 0
+    cap.capturedYAxis.length = 0
+    cap.capturedXAxis.length = 0
+
+    const comparisonHtml = renderToStaticMarkup(
+      React.createElement(TimelineAreaChart, {
+        dailySeries: [
+          { day: '2026-11-15', orders: 40, netKwd: 410.5 },
+          { day: '2026-11-16', orders: 46, netKwd: 485.25, secondaryValue: 440.0 },
+          { day: '2026-11-17', orders: 24, netKwd: 154.7 },
+        ],
+        secondarySeries: [
+          { day: '2026-11-15', value: 380.0 },
+          { day: '2026-11-17', value: 190.25 },
+        ],
+        isAr: true,
+        valueLabel: 'الحالي',
+        secondaryLabel: 'السابق',
+      }),
+    )
+
+    expect(comparisonHtml).toContain('data-chart-mode="daily-area"')
+    expect(comparisonHtml).toContain('v35Area-')
+    expect(comparisonHtml).toContain('v35AreaSec-')
+    expect((comparisonHtml.match(/<linearGradient/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    expect(cap.capturedYAxis.some((y) => y.orientation === 'right')).toBe(true)
+    expect(cap.capturedXAxis.some((x) => x.reversed === true)).toBe(true)
+
+    expect(cap.capturedAreas).toHaveLength(2)
+    const secArea = cap.capturedAreas.find((a) => a.dataKey === 'secondaryValue')
+    const priArea = cap.capturedAreas.find((a) => a.dataKey === 'value')
+    expect(secArea).toBeDefined()
+    expect(priArea).toBeDefined()
+    expect(secArea!.type).toBe('monotone')
+    expect(priArea!.type).toBe('monotone')
+    expect(secArea!.strokeWidth).toBeLessThanOrEqual(2)
+    expect(priArea!.strokeWidth).toBeLessThanOrEqual(2)
+    expect(secArea!.stroke).toBe('#94A3B8')
+    expect(priArea!.stroke).toBe('#2563EB')
+    expect(secArea!.fill).toMatch(/^url\(#v35AreaSec-/)
+    expect(priArea!.fill).toMatch(/^url\(#v35Area-/)
+  })
+
+  it('ComparisonBarChart wires ghost-bar background, rounded [6, 6, 0, 0] radius, slim maxBarSize (<= 24), and RTL axes when showGhostBars defaults to true', async () => {
+    const cap = installRechartsMock()
+    const { ComparisonBarChart } = await import('@/components/charts/v35-chart-kit')
+
+    const groupedHtml = renderToStaticMarkup(
+      React.createElement(ComparisonBarChart, {
+        data: [
+          { id: 'ardiya', label: 'العارضية', value: 99.35, comparisonValue: 85.0 },
+          { id: 'promenade', label: 'بروميناد', value: 31.55, comparisonValue: 28.0 },
+        ],
+        isAr: true,
+        primaryLabel: 'الحالي',
+        comparisonLabel: 'السابق',
+      }),
+    )
+
+    expect(groupedHtml).toContain('data-chart-kind="comparison-bar"')
+    expect(cap.capturedYAxis.some((y) => y.orientation === 'right')).toBe(true)
+    expect(cap.capturedXAxis.some((x) => x.reversed === true)).toBe(true)
+    expect(cap.capturedBars).toHaveLength(2)
+
+    for (const bar of cap.capturedBars) {
+      expect(bar.radius).toEqual([6, 6, 0, 0])
+      expect(bar.maxBarSize).toBeDefined()
+      expect(bar.maxBarSize!).toBeLessThanOrEqual(24)
+      expect(bar.background).toEqual(
+        expect.objectContaining({
+          fill: expect.stringContaining('--v35-chart-ghost'),
+          radius: 6,
+        }),
+      )
+    }
+
+    // Single-series default also stays slim (<= 24) with ghost bars, and showGhostBars=false omits background
+    cap.capturedBars.length = 0
+    renderToStaticMarkup(
+      React.createElement(ComparisonBarChart, {
+        data: [
+          { id: 'd1', label: '2026-11-16', value: 485.25 },
+          { id: 'd2', label: '2026-11-17', value: 154.7 },
+        ],
+        isAr: false,
+      }),
+    )
+    expect(cap.capturedBars).toHaveLength(1)
+    expect(cap.capturedBars[0].radius).toEqual([6, 6, 0, 0])
+    expect(cap.capturedBars[0].maxBarSize!).toBeLessThanOrEqual(24)
+    expect(cap.capturedBars[0].background).toBeDefined()
+
+    cap.capturedBars.length = 0
+    renderToStaticMarkup(
+      React.createElement(ComparisonBarChart, {
+        data: [
+          { id: 'd1', label: '2026-11-16', value: 485.25 },
+          { id: 'd2', label: '2026-11-17', value: 154.7 },
+        ],
+        isAr: false,
+        showGhostBars: false,
+      }),
+    )
+    expect(cap.capturedBars).toHaveLength(1)
+    expect(cap.capturedBars[0].background).toBeUndefined()
   })
 })

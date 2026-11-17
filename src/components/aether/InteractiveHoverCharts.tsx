@@ -1,14 +1,16 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, type ReactNode } from 'react'
 import {
   ComparisonBarChart,
   SalesNetComposedChart,
   TimelineAreaChart,
+  V35ChartCardHeader,
   V35DonutChart,
   type ChartTooltipLine,
   type ComparisonBarDatum,
   type TimelineHourlyDatum,
+  type V35ChartHeaderExtraProps,
 } from '@/components/charts/v35-chart-kit'
 import {
   V35_CHART_COLORS,
@@ -17,6 +19,7 @@ import {
   formatCompactAxisLabel,
   formatCompactKwdTick,
 } from '@/components/charts/v35-chart-theme'
+import { UnavailableState } from '@/components/ui/unavailable-state'
 
 export { formatCompactAxisLabel, formatCompactKwdTick }
 
@@ -75,11 +78,22 @@ export function BeforeAfterDualBarChart({
   formatAxisValue,
   heightClass = 'h-72',
   title,
+  subtitle,
   periodLabel,
   unitLabel,
   xAxisLabel,
   yAxisLabel,
   ariaLabel,
+  kpiValue,
+  deltaPct,
+  deltaLabel,
+  deltaHigherIsBetter,
+  infoContent,
+  infoLabel,
+  sparklineValues,
+  unavailableReason,
+  showGhostBars,
+  hourlyFallback,
 }: {
   data: DualBarDatum[]
   isAr: boolean
@@ -93,7 +107,9 @@ export function BeforeAfterDualBarChart({
   xAxisLabel?: string
   yAxisLabel?: string
   ariaLabel?: string
-}) {
+  showGhostBars?: boolean
+  hourlyFallback?: TimelineHourlyDatum[]
+} & V35ChartHeaderExtraProps) {
   const mapped: ComparisonBarDatum[] = data.map((d) => {
     const rawDelta = d.after - d.before
     const higherGood = d.higherIsBetter !== false
@@ -138,13 +154,24 @@ export function BeforeAfterDualBarChart({
       comparisonLabel={beforeLegend}
       primaryColor={V35_CHART_COLORS.primary}
       comparisonColor={V35_CHART_COLORS.comparison}
+      showGhostBars={showGhostBars}
+      hourlyFallback={hourlyFallback}
       formatTick={formatAxisValue}
       height={resolveHeightFromClass(heightClass, 288)}
       title={title}
+      subtitle={subtitle}
       periodLabel={periodLabel}
       unitLabel={unitLabel}
       xAxisLabel={xAxisLabel}
       yAxisLabel={yAxisLabel}
+      kpiValue={kpiValue}
+      deltaPct={deltaPct}
+      deltaLabel={deltaLabel}
+      deltaHigherIsBetter={deltaHigherIsBetter}
+      infoContent={infoContent}
+      infoLabel={infoLabel}
+      sparklineValues={sparklineValues}
+      unavailableReason={unavailableReason}
       ariaLabel={
         ariaLabel ??
         ([title, periodLabel, unitLabel].filter(Boolean).join(' — ') ||
@@ -183,11 +210,22 @@ export function InteractiveHoverBarChart({
   formatAxisValue,
   heightClass = 'h-64',
   title,
+  subtitle,
   periodLabel,
   unitLabel,
   xAxisLabel,
   yAxisLabel,
   ariaLabel,
+  kpiValue,
+  deltaPct,
+  deltaLabel,
+  deltaHigherIsBetter,
+  infoContent,
+  infoLabel,
+  sparklineValues,
+  unavailableReason,
+  showGhostBars,
+  hourlyFallback,
 }: {
   data: MultiSeriesBarDatum[]
   isAr: boolean
@@ -204,7 +242,9 @@ export function InteractiveHoverBarChart({
   xAxisLabel?: string
   yAxisLabel?: string
   ariaLabel?: string
-}) {
+  showGhostBars?: boolean
+  hourlyFallback?: TimelineHourlyDatum[]
+} & V35ChartHeaderExtraProps) {
   const mapped: ComparisonBarDatum[] = data.map((d) => ({
     id: d.id,
     label: d.label,
@@ -227,13 +267,24 @@ export function InteractiveHoverBarChart({
       primaryColor={primaryColor}
       comparisonColor={secondaryColor}
       stacked={stacked}
+      showGhostBars={showGhostBars}
+      hourlyFallback={hourlyFallback}
       formatTick={formatAxisValue}
       height={resolveHeightFromClass(heightClass, 256)}
       title={title}
+      subtitle={subtitle}
       periodLabel={periodLabel}
       unitLabel={unitLabel}
       xAxisLabel={xAxisLabel}
       yAxisLabel={yAxisLabel}
+      kpiValue={kpiValue}
+      deltaPct={deltaPct}
+      deltaLabel={deltaLabel}
+      deltaHigherIsBetter={deltaHigherIsBetter}
+      infoContent={infoContent}
+      infoLabel={infoLabel}
+      sparklineValues={sparklineValues}
+      unavailableReason={unavailableReason}
       ariaLabel={
         ariaLabel ??
         ([title, primaryLegend, periodLabel, unitLabel].filter(Boolean).join(' — ') ||
@@ -256,9 +307,9 @@ export interface ComboBarLineDatum {
 /**
  * Dual-Scale Combo Bar + Line Chart for `/erp` (`المبيعات والصافي بالجيب` / `Sales & Net in Pocket`).
  * - When `data.length === 1`: delegates to V35 `TimelineAreaChart` (hourly area when `hourlyFallback`
- *   is provided, or compact single-value glass stat — never one fat bar!).
- * - When `data.length > 1`: delegates to V35 `SalesNetComposedChart` with slate sales bars and
- *   cobalt blue operating net line.
+ *   is provided, or compact single-value stat — never one fat bar!).
+ * - When `data.length > 1`: delegates to V35 `SalesNetComposedChart` with slim ghost-backed slate
+ *   sales bars and smooth cobalt blue operating net line.
  */
 export function SalesNetComboChart({
   data,
@@ -267,11 +318,21 @@ export function SalesNetComboChart({
   netLegend,
   heightClass = 'h-60',
   title,
+  subtitle,
   periodLabel,
   unitLabel,
   xAxisLabel,
   ariaLabel,
   hourlyFallback,
+  kpiValue,
+  deltaPct,
+  deltaLabel,
+  deltaHigherIsBetter,
+  infoContent,
+  infoLabel,
+  sparklineValues,
+  unavailableReason,
+  showGhostBars,
 }: {
   data: ComboBarLineDatum[]
   isAr: boolean
@@ -284,7 +345,8 @@ export function SalesNetComboChart({
   xAxisLabel?: string
   ariaLabel?: string
   hourlyFallback?: TimelineHourlyDatum[]
-}) {
+  showGhostBars?: boolean
+} & V35ChartHeaderExtraProps) {
   const resolvedHeight = resolveHeightFromClass(heightClass, 240)
   const resolvedAriaLabel =
     ariaLabel ??
@@ -297,9 +359,25 @@ export function SalesNetComboChart({
         role="region"
         aria-label={resolvedAriaLabel}
         dir={isAr ? 'rtl' : 'ltr'}
-        className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-4 text-center text-xs font-medium text-slate-500 dark:border-sky-400/15 dark:bg-slate-900/35 dark:text-slate-300"
+        data-chart-kind="sales-net-combo"
+        data-chart-mode="empty"
+        className="space-y-3"
       >
-        {isAr ? 'لا توجد نقاط متاحة للمخطط في هذه الفترة' : 'No chart data points available for this window'}
+        <V35ChartCardHeader
+          title={title}
+          subtitle={subtitle}
+          period={periodLabel}
+          unit={unitLabel}
+          infoContent={infoContent}
+          infoLabel={infoLabel}
+          kpiValue={kpiValue}
+          deltaPct={deltaPct}
+          deltaLabel={deltaLabel}
+          deltaHigherIsBetter={deltaHigherIsBetter}
+          sparklineValues={sparklineValues}
+          isAr={isAr}
+        />
+        <UnavailableState compact isAr={isAr} reason={unavailableReason} />
       </div>
     )
   }
@@ -320,11 +398,20 @@ export function SalesNetComboChart({
         hourlySeries={hourlyFallback}
         isAr={isAr}
         title={title}
+        subtitle={subtitle}
         valueLabel={salesLegend}
         secondaryLabel={netLegend}
         periodLabel={periodLabel}
         unitLabel={unitLabel ?? (isAr ? 'د.ك' : 'KWD')}
         xAxisLabel={xAxisLabel}
+        kpiValue={kpiValue}
+        deltaPct={deltaPct}
+        deltaLabel={deltaLabel}
+        deltaHigherIsBetter={deltaHigherIsBetter}
+        infoContent={infoContent}
+        infoLabel={infoLabel}
+        sparklineValues={sparklineValues}
+        unavailableReason={unavailableReason}
         ariaLabel={resolvedAriaLabel}
         height={resolvedHeight}
       />
@@ -337,11 +424,21 @@ export function SalesNetComboChart({
       isAr={isAr}
       salesLegend={salesLegend}
       netLegend={netLegend}
+      showGhostBars={showGhostBars}
       height={resolvedHeight}
       title={title}
+      subtitle={subtitle}
       periodLabel={periodLabel}
       unitLabel={unitLabel}
       xAxisLabel={xAxisLabel}
+      kpiValue={kpiValue}
+      deltaPct={deltaPct}
+      deltaLabel={deltaLabel}
+      deltaHigherIsBetter={deltaHigherIsBetter}
+      infoContent={infoContent}
+      infoLabel={infoLabel}
+      sparklineValues={sparklineValues}
+      unavailableReason={unavailableReason}
       ariaLabel={resolvedAriaLabel}
     />
   )
@@ -362,18 +459,32 @@ export interface HorizontalRankDatum {
 }
 
 /**
- * Interactive Horizontal V35 Capsule Ranking Bars with frosted glass tooltip on hover
- * and optional click-to-filter selection.
+ * Interactive Horizontal V35 Ranking List styled with 1px hairline cards,
+ * soft rounded progress tracks, and frosted glass hover/focus tooltips.
  */
 export function InteractiveHorizontalRankList({
   items,
   isAr,
   onSelect,
+  title,
+  subtitle,
+  periodLabel,
+  unitLabel,
+  kpiValue,
+  deltaPct,
+  deltaLabel,
+  deltaHigherIsBetter,
+  infoContent,
+  infoLabel,
+  sparklineValues,
 }: {
   items: HorizontalRankDatum[]
   isAr: boolean
   onSelect?: (id: string) => void
-}) {
+  title?: ReactNode
+  periodLabel?: string
+  unitLabel?: string
+} & V35ChartHeaderExtraProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const maxVal = Math.max(
     1,
@@ -382,6 +493,20 @@ export function InteractiveHorizontalRankList({
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-2.5">
+      <V35ChartCardHeader
+        title={title}
+        subtitle={subtitle}
+        period={periodLabel}
+        unit={unitLabel}
+        infoContent={infoContent}
+        infoLabel={infoLabel}
+        kpiValue={kpiValue}
+        deltaPct={deltaPct}
+        deltaLabel={deltaLabel}
+        deltaHigherIsBetter={deltaHigherIsBetter}
+        sparklineValues={sparklineValues}
+        isAr={isAr}
+      />
       {items.map((item) => {
         const safeVal = Number.isFinite(item.value) ? Math.max(0, item.value) : 0
         const widthPct = safeVal > 0 ? Math.max(3, Math.min(100, (safeVal / maxVal) * 100)) : 0
@@ -409,12 +534,12 @@ export function InteractiveHorizontalRankList({
             onMouseLeave={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
             onFocus={() => setHoveredId(item.id)}
             onBlur={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
-            className={`relative rounded-xl p-3 transition-all duration-[180ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+            className={`relative rounded-xl border p-3 transition-colors duration-[180ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
               isInteractive ? 'cursor-pointer' : ''
             } ${
               item.active
-                ? 'bg-blue-50/85 ring-1 ring-blue-500/45 dark:bg-sky-950/40 dark:ring-sky-400/40'
-                : 'ae-bento-subcard bg-slate-50/80 hover:bg-slate-100/90 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]'
+                ? 'border-blue-500/50 bg-blue-50/80 dark:border-sky-400/45 dark:bg-sky-950/35'
+                : 'border-slate-200/85 bg-white hover:border-slate-300 hover:bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700 dark:hover:bg-slate-800/70'
             }`}
           >
             <div className="flex items-start justify-between gap-2 text-[13px]">
@@ -452,7 +577,7 @@ export function InteractiveHorizontalRankList({
                 {item.badgeText ? (
                   <span
                     dir="ltr"
-                    className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:bg-white/10 dark:text-slate-200"
+                    className="rounded-full border border-slate-200/80 bg-slate-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {item.badgeText}
                   </span>
@@ -466,7 +591,7 @@ export function InteractiveHorizontalRankList({
               </div>
             </div>
 
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200/75 dark:bg-white/[0.08]">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800/80">
               <div
                 style={{
                   width: `${widthPct}%`,
@@ -527,7 +652,7 @@ export interface DonutSummaryPill {
 }
 
 /**
- * V35 Interactive Circular Donut Ring + Pill Legend Breakdown built on `V35DonutChart`.
+ * V35 Interactive Circular Donut Ring + Hairline Legend Breakdown built on `V35DonutChart`.
  */
 export function InteractiveDonutChart({
   slices,
@@ -542,6 +667,18 @@ export function InteractiveDonutChart({
   legendColumns = 2,
   legendLayout = 'below',
   ariaLabel,
+  title,
+  subtitle,
+  periodLabel,
+  unitLabel,
+  kpiValue,
+  deltaPct,
+  deltaLabel,
+  deltaHigherIsBetter,
+  infoContent,
+  infoLabel,
+  sparklineValues,
+  unavailableReason,
 }: {
   slices: DonutSliceDatum[]
   centerValue: string
@@ -555,7 +692,10 @@ export function InteractiveDonutChart({
   legendColumns?: 1 | 2
   legendLayout?: 'below' | 'beside'
   ariaLabel?: string
-}) {
+  title?: ReactNode
+  periodLabel?: string
+  unitLabel?: string
+} & V35ChartHeaderExtraProps) {
   return (
     <V35DonutChart
       slices={slices}
@@ -570,6 +710,18 @@ export function InteractiveDonutChart({
       legendColumns={legendColumns}
       legendLayout={legendLayout}
       ariaLabel={ariaLabel}
+      title={title}
+      subtitle={subtitle}
+      periodLabel={periodLabel}
+      unitLabel={unitLabel}
+      kpiValue={kpiValue}
+      deltaPct={deltaPct}
+      deltaLabel={deltaLabel}
+      deltaHigherIsBetter={deltaHigherIsBetter}
+      infoContent={infoContent}
+      infoLabel={infoLabel}
+      sparklineValues={sparklineValues}
+      unavailableReason={unavailableReason}
     />
   )
 }

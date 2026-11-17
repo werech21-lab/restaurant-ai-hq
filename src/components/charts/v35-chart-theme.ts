@@ -2,12 +2,12 @@ import { formatInt } from '@/lib/format'
 
 /**
  * V35 Executive Chart Theme & Shared Palette (server-safe, zero `'use client'`).
- * Soft cobalt/sky blue primary paired with calm comparison slate, subtle hairline
- * horizontal grids, frosted glass tooltips, and restrained indigo/sky donut tones.
+ * Refined "Chart Library" aesthetic combining calm slate/zinc neutrals, cobalt primary
+ * (`#2563EB` light / `#3B82F6` dark), soft teal, violet, amber, sky, and comparison slate.
  */
 export const V35_CHART_COLORS = {
   primary: '#2563EB',
-  primaryDark: '#38BDF8',
+  primaryDark: '#3B82F6',
   primarySoft: '#60A5FA',
   primaryDeep: '#1D4ED8',
   comparison: '#94A3B8',
@@ -16,40 +16,69 @@ export const V35_CHART_COLORS = {
   indigo: '#818CF8',
   info: '#0EA5E9',
   emerald: '#10B981',
+  teal: '#0D9488',
+  tealSoft: '#14B8A6',
+  violet: '#7C3AED',
+  violetSoft: '#8B5CF6',
   warning: '#D97706',
+  amberSoft: '#F59E0B',
   negative: '#E11D48',
   gridStroke: '#E2E8F0',
   axisTick: '#64748B',
+  ghostBarLight: 'rgba(226, 232, 240, 0.72)',
+  ghostBarDark: 'rgba(148, 163, 184, 0.14)',
 } as const
 
 export const V35_DONUT_PALETTE = [
   '#2563EB',
-  '#38BDF8',
-  '#818CF8',
-  '#94A3B8',
+  '#0D9488',
+  '#7C3AED',
+  '#D97706',
   '#0EA5E9',
+  '#64748B',
 ] as const
 
 export const V35_CHART_PALETTE = [
   V35_CHART_COLORS.primary,
-  V35_CHART_COLORS.comparison,
+  V35_CHART_COLORS.teal,
+  V35_CHART_COLORS.violet,
+  V35_CHART_COLORS.warning,
   V35_CHART_COLORS.info,
-  V35_CHART_COLORS.indigo,
-  V35_CHART_COLORS.primaryDark,
+  V35_CHART_COLORS.comparison,
+] as const
+
+/**
+ * 5-step subtle slate -> sky -> cobalt intensity stops (0 = quietest -> 4 = peak)
+ * for `HourWeekdayHeatmap` in Light & Dark modes.
+ */
+export const V35_HEATMAP_SCALE_LIGHT = [
+  '#F1F5F9',
+  '#E0F2FE',
+  '#BAE6FD',
+  '#60A5FA',
+  '#2563EB',
+] as const
+
+export const V35_HEATMAP_SCALE_DARK = [
+  '#1E293B',
+  '#0C4A6E',
+  '#0369A1',
+  '#2563EB',
+  '#3B82F6',
 ] as const
 
 export const V35_CHART_GRID_PROPS = {
   vertical: false,
   strokeDasharray: '3 3',
   stroke: V35_CHART_COLORS.gridStroke,
-  strokeOpacity: 0.6,
-  className: 'stroke-slate-200/60 dark:stroke-slate-400/15',
+  strokeOpacity: 0.45,
+  className: 'stroke-slate-200/70 dark:stroke-slate-800/80',
 } as const
 
 export const V35_AXIS_TICK_STYLE = {
-  fontSize: 12,
-  fontWeight: 600,
-  fill: V35_CHART_COLORS.axisTick,
+  fontSize: 11.5,
+  fontWeight: 500,
+  fill: '#64748B',
 } as const
 
 /**
@@ -70,8 +99,10 @@ export const V35_TOOLTIP_TONE_CLASS: Record<ChartTooltipTone, string> = {
   blue: 'text-blue-700',
 }
 
-export const V35_CHART_PLOT_SURFACE_CLASS =
-  'ae-bento-subcard relative rounded-2xl border border-slate-200/70 bg-slate-50/70 px-2.5 py-3.5 sm:p-4 backdrop-blur-sm dark:border-sky-400/15 dark:bg-slate-900/35'
+export const V35_CHART_CARD_CLASS =
+  'rounded-2xl border border-slate-200/85 bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95'
+
+export const V35_CHART_PLOT_SURFACE_CLASS = 'relative px-1 pt-2'
 
 export function resolveV35DonutColor(index: number, explicit?: string): string {
   const trimmed = explicit?.trim()

@@ -67,7 +67,7 @@ function EmeraldPillTabs<K extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
+      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-slate-200/85 bg-slate-100/90 p-1 select-none dark:border-slate-800 dark:bg-slate-900/80"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -78,9 +78,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
               active
-                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'btn-colored bg-blue-600 font-semibold text-white shadow-sm dark:bg-sky-500 dark:text-slate-950'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
@@ -89,7 +89,7 @@ function EmeraldPillTabs<K extends string>({
               <span
                 className={`rounded-md px-1.5 py-0.5 text-xs font-extrabold tabular-nums ${
                   active
-                    ? 'bg-white/20 text-white dark:bg-[#04130D]/20 dark:text-[#04130D]'
+                    ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                     : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
                 }`}
               >
@@ -518,6 +518,34 @@ export function BeforeAfterStudio() {
   const showNoData =
     !loading && !apiError && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
   const dateRangeBadge = `${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} → ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso}`
+  const isOrdersMetric = chartMetric === 'orders'
+  const chartHeadlineKpi = isOrdersMetric
+    ? comparison.selectionA.completedOrders === null
+      ? UNAVAILABLE_DASH
+      : `${f0(comparison.selectionA.completedOrders, resolvedLocale)} ${isAr ? 'طلب' : 'orders'}`
+    : formatChartKwdTooltip(comparison.selectionA.netSalesKwd, resolvedLocale)
+  const chartHeadlineDeltaPct = isOrdersMetric
+    ? comparison.kpis.completedOrders.available === false
+      ? null
+      : comparison.kpis.completedOrders.deltaPct
+    : comparison.kpis.netSales.deltaPct
+  const chartInfoContent = (
+    <div className="space-y-1.5 text-xs text-slate-700 dark:text-slate-200">
+      <p className="font-semibold">
+        {isAr
+          ? 'مقارنة فعلية مباشرة من مكعبات أودو 17 (pos.order + pos.order.line).'
+          : 'Computed directly from Odoo 17 period cubes (pos.order + pos.order.line).'}
+      </p>
+      <p className="text-slate-600 dark:text-slate-300">
+        <span dir="ltr" className="tabular-nums">
+          {dateRangeBadge}
+        </span>
+      </p>
+      <p className="text-slate-600 dark:text-slate-300">
+        {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
+      </p>
+    </div>
+  )
 
   const renderSectionTable = (
     key: string,
@@ -534,9 +562,9 @@ export function BeforeAfterStudio() {
         <h3 className="text-[14px] font-bold text-slate-900 dark:text-white">
           {isAr ? titleAr : titleEn}
         </h3>
-        <div className="overflow-x-auto rounded-2xl bg-[#F7F7F8] p-1 dark:bg-[#09110E]">
-          <table className="w-full min-w-[760px] border-collapse rounded-xl bg-white text-[13.5px] dark:bg-[#101C17]">
-            <thead className="bg-[#F7F7F8] text-xs font-semibold text-slate-600 dark:bg-[#09110E] dark:text-slate-300">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200/85 bg-slate-50/75 p-1 dark:border-slate-800 dark:bg-slate-950/60">
+          <table className="w-full min-w-[760px] border-collapse rounded-xl bg-white text-[13.5px] dark:bg-slate-900/95">
+            <thead className="sticky top-0 z-10 border-b border-slate-200/85 bg-slate-50/95 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
               <tr>
                 <th className="px-4 py-2.5 text-start">{isAr ? 'البند' : 'Entity'}</th>
                 <th className="px-3 py-2.5 text-end">{isAr ? 'قبل (ب)' : 'Before (B)'}</th>
@@ -651,7 +679,7 @@ export function BeforeAfterStudio() {
               disabled={showNoData || loading}
               onClick={() => window.print()}
               aria-label={T('Print comparison report', 'طباعة تقرير المقارنة')}
-              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/85 bg-slate-50/90 px-3 text-[12.5px] font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800/80"
             >
               <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>{T('Print', 'طباعة')}</span>
@@ -699,7 +727,7 @@ export function BeforeAfterStudio() {
       {!loading && !apiError && !showNoData ? (
         <>
           {/* 1B. Summary Strip */}
-          <section className="rounded-2xl bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12">
+          <section className="rounded-2xl border border-slate-200/85 bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95">
             <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
@@ -807,7 +835,7 @@ export function BeforeAfterStudio() {
               return (
                 <article
                   key={kpi.id}
-                  className="ae-kpi-card rounded-2xl bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-5 dark:bg-[#101C17] dark:ring-emerald-500/10"
+                  className="ae-kpi-card rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5 dark:border-slate-800 dark:bg-slate-900/95"
                 >
                   <div className="flex items-start justify-between gap-1.5">
                     <span className="text-[12px] font-semibold text-neutral-500 sm:text-[12.5px] dark:text-slate-300">
@@ -902,7 +930,7 @@ export function BeforeAfterStudio() {
                 ? `المنحنى الزمني للمقارنة — ${dateRangeBadge}`
                 : `Before vs After Period Trend — ${dateRangeBadge}`
             }
-            className="ae-bento-card rounded-2xl bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10"
+            className="ae-bento-card rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95"
           >
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -992,6 +1020,12 @@ export function BeforeAfterStudio() {
                 dailySeries={cumulativeTimeline.dailySeries}
                 hourlySeries={cumulativeTimeline.hourlySeries}
                 isAr={isAr}
+                title={seriesLabelAfter}
+                kpiValue={chartHeadlineKpi}
+                deltaPct={chartHeadlineDeltaPct}
+                deltaLabel={seriesLabelBefore}
+                infoLabel={isAr ? 'تفاصيل ومنهجية المقارنة' : 'Comparison details & basis'}
+                infoContent={chartInfoContent}
                 valueLabel={seriesLabelAfter}
                 secondaryLabel={seriesLabelBefore}
                 yAxisLabel={
@@ -1020,6 +1054,12 @@ export function BeforeAfterStudio() {
               <ComparisonBarChart
                 data={comparisonBarData}
                 isAr={isAr}
+                title={seriesLabelAfter}
+                kpiValue={chartHeadlineKpi}
+                deltaPct={chartHeadlineDeltaPct}
+                deltaLabel={seriesLabelBefore}
+                infoLabel={isAr ? 'تفاصيل ومنهجية المقارنة' : 'Comparison details & basis'}
+                infoContent={chartInfoContent}
                 primaryLabel={seriesLabelAfter}
                 comparisonLabel={seriesLabelBefore}
                 primaryColor={V35_CHART_COLORS.primary}
@@ -1061,7 +1101,7 @@ export function BeforeAfterStudio() {
           </section>
 
           {/* 2. Dimensional Before vs. After Variance Table (7 Branches + Unattributed, 6 Brands, Channels) */}
-          <section className="ae-bento-card space-y-5 rounded-2xl bg-white px-3.5 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <section className="ae-bento-card space-y-5 rounded-2xl border border-slate-200/85 bg-white px-3.5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[18px] font-extrabold tracking-tight text-neutral-950 dark:text-white">
