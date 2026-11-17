@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it } from 'vitest'
 import { askFeryalOdooAgent, resetFeryalAuditCache } from '@/lib/feryal-odoo-agent'
-import { createDialectDataSource, DIALECT_NOW_MS } from './support/feryal-dialect-fixture'
+import { createDialectDataSource, DIALECT_NOW_MS, todayCube } from './support/feryal-dialect-fixture'
 
 interface Row {
   question: string
@@ -56,7 +56,9 @@ const ROWS: Row[] = [
   {
     question: 'كم مبيعات فرع الفحاحيل؟',
     status: 'no_odoo_data',
-    mustContain: ['pos.config'],
+    // FAS Fahaheel is school-canteen register 43; its sales are not separable from the other
+    // canteens in the live cube, so the answer is «غير متاح» naming the register — never Al-Kout.
+    mustContain: ['غير متاح', 'FAS Fahaheel', 'pos.config 43', 'مقاصف المدارس'],
     mustNotContain: ['الكوت', '11,040.0'],
   },
   {
@@ -116,5 +118,40 @@ describe('Feryal — 10 real Gulf dialect questions (table-driven)', () => {
       expect(res.verifier.valid).toBe(true)
       expect(res.reply).toContain('• المصدر: Odoo 17')
     }
+  })
+})
+
+describe('Feryal comparison reason never contradicts itself', () => {
+  beforeEach(() => resetFeryalAuditCache())
+
+  it('sales up while orders down: explains the gap by average order value, not by fewer orders', async () => {
+    const base = createDialectDataSource()
+    const dataSource = {
+      ...base,
+      fetchPeriodCube: async (from: string, to: string, ref?: number) => {
+        const cube = await base.fetchPeriodCube(from, to, ref)
+        if (cube && from === '2026-11-17' && to === '2026-11-17') {
+          // Same Odoo shape; today's completed hours carry fewer orders than yesterday's.
+          const today = todayCube()
+          today.hourlySeries = today.hourlySeries.map((h) => ({ ...h, orders: Math.floor(h.orders / 2) }))
+          return today
+        }
+        return cube
+      },
+    }
+    const res = await askFeryalOdooAgent({
+      question: 'قارن مبيعات اليوم مع امبارح',
+      userSub: 'phase5-dialect',
+      userRole: 'gm',
+      referenceNowMs: DIALECT_NOW_MS,
+      dataSource,
+      skipAuditLog: true,
+    })
+    expect(res.status, res.reply).toBe('answered')
+    expect(res.reply).toContain('بارتفاع')
+    expect(res.reply).toContain('ارتفعت المبيعات رغم تراجع الطلبات')
+    expect(res.reply).toContain('متوسط الطلب')
+    expect(res.reply).not.toMatch(/يعود الفارق[^.]*إلى تراجع الطلبات/)
+    expect(res.verifier.valid).toBe(true)
   })
 })

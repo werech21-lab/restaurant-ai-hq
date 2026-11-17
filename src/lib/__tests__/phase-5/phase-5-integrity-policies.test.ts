@@ -31,7 +31,18 @@ describe('Phase 5 · Item 1 — hourly chart integrity', () => {
     const hours = selectDisplayHours(rows)
     expect(hours).toContain(7)
     expect(hours).not.toContain(4)
-    expect(hours.indexOf(7)).toBeGreaterThan(hours.indexOf(1))
+    // Chronological: 07:00 is drawn before 09:00, never after 23:00.
+    expect(hours.indexOf(7)).toBeLessThan(hours.indexOf(9))
+    expect(hours.indexOf(7)).toBeLessThan(hours.indexOf(23))
+  })
+
+  it('a single day is ordered 00 → 23 and no 00:00–08:59 hour is ever drawn after 23:00', () => {
+    const rows = [0, 1, 2, 8, 9, 15, 23].map((hour) => ({ hour, orders: 1, netKwd: 1 }))
+    const hours = selectDisplayHours(rows)
+    expect([...hours]).toEqual([...hours].sort((a, b) => a - b))
+    const after23 = hours.slice(hours.indexOf(23) + 1)
+    expect(after23.filter((h) => h <= 8)).toEqual([])
+    expect(hours.slice(0, 4)).toEqual([0, 1, 2, 8])
   })
 
   it('reconciles hourly buckets to the selected period total to the exact fils', () => {

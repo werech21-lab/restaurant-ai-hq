@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
+import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
   ArrowUpDown,
   ArrowUpRight,
@@ -171,7 +172,12 @@ interface BranchCardRow {
 }
 
 /** ملخص الشركة — لوحة القيادة التنفيذية المربوطة مباشرةً ببيانات Odoo 17 */
-export function FullJourney360() {
+export function FullJourney360({
+  initialLiveCube = null,
+}: {
+  /** Selected-period cube (tests / SSR); otherwise fetched from /api/erp/live-comparison. */
+  initialLiveCube?: OdooPeriodCube | null
+} = {}) {
   const { isAr, T } = useLang()
   const activeLocale = isAr ? 'ar' : 'en'
   const unavailableTooltip = getUnavailableTooltip(activeLocale)
@@ -288,9 +294,45 @@ export function FullJourney360() {
     [companyId, provenanceRange.from, provenanceRange.to],
   )
 
+  // Phase 5 · Item 1: the Home hourly chart uses the SELECTED-period cube (exactly as Cores does),
+  // never the summary's month-to-date hourly series.
+  const [homeCube, setHomeCube] = useState<OdooPeriodCube | null>(initialLiveCube)
+  useEffect(() => {
+    if (!workspace.odooConnected || workspace.noData) {
+      setHomeCube(null)
+      return
+    }
+    const fromIso = periodWindow.fromIso
+    const toIso = periodWindow.toInclusiveIso
+    if (!fromIso || !toIso) return
+    let cancelled = false
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 20_000)
+    fetch(
+      `/api/erp/live-comparison?dateA=${encodeURIComponent(fromIso)}&toA=${encodeURIComponent(toIso)}&dateB=${encodeURIComponent(fromIso)}&toB=${encodeURIComponent(toIso)}`,
+      { cache: 'no-store', signal: controller.signal },
+    )
+      .then((r) => {
+        if (!r.ok) throw new Error('HTTP_ERROR')
+        return r.json()
+      })
+      .then((data) => {
+        if (!cancelled) setHomeCube(data?.cubeA ? (data.cubeA as OdooPeriodCube) : null)
+      })
+      .catch(() => {
+        if (!cancelled) setHomeCube(null)
+      })
+      .finally(() => window.clearTimeout(timeout))
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [periodWindow.fromIso, periodWindow.toInclusiveIso, workspace.odooConnected, workspace.noData])
+
   const coresSnap = useMemo(
-    () => computeCoresHubSnapshot(filters, [], liveSummary),
-    [filters, liveSummary],
+    () => computeCoresHubSnapshot(filters, [], liveSummary, homeCube),
+    [filters, liveSummary, homeCube],
   )
 
   const activeBucket = useMemo(() => {

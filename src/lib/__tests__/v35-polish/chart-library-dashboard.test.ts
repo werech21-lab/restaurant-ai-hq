@@ -25,8 +25,9 @@ import {
 import { ChartCard } from '@/components/ui/chart-card'
 import type { GlobalFilters } from '@/lib/aether/global-filter-engine'
 import { LanguageProvider } from '@/lib/i18n'
+import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { loadLiveTodaySummary } from '../support/dashboard-fixture'
+import { loadLiveTodaySummary, buildLiveTodayCube } from '../support/dashboard-fixture'
 import {
   dashboardContext,
   renderAr,
@@ -63,10 +64,14 @@ async function renderDashboard(
   locale: 'ar' | 'en',
   summary: OdooLiveSummary,
   filters: GlobalFilters,
+  initialLiveCube: OdooPeriodCube | null = null,
 ): Promise<string> {
   setDashboardContext(summary, filters)
   const { FullJourney360 } = await import('@/components/aether/FullJourney360')
-  const el = React.createElement(FullJourney360)
+  const el = React.createElement(
+    FullJourney360 as React.ComponentType<{ initialLiveCube?: OdooPeriodCube | null }>,
+    { initialLiveCube },
+  )
   return locale === 'ar' ? renderAr(el) : renderEn(el)
 }
 
@@ -439,8 +444,13 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
   afterEach(() => vi.useRealTimers())
 
   it('keeps KPI text parity (154.700 د.ك / 24), renders real KPI sparklines, renders active Channel Mix segments excluding zero channels, and renders sortable/searchable ledger table in AR & EN (brand=all)', async () => {
-    const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
-    const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
+    // Home's hourly sparkline comes from the selected-period cube (as served by
+    // /api/erp/live-comparison), never the summary's rolling-30-day hourly series.
+    const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'), buildLiveTodayCube())
+    const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'), buildLiveTodayCube())
+    const withoutCube = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
+    const noCubeSalesCard = findCardByTag(withoutCube, 'article', (h) => h.includes('data-kpi="net-sales"'))
+    expect(noCubeSalesCard!.outerHtml).not.toContain('data-sparkline="true"')
 
     // 1. Exact KPI text parity preserved + real sparklines inside Cards 1 & 2
     expect(textOfAttr(arHtml, 'data-kpi', 'net-sales')).toBe('154.700 د.ك')

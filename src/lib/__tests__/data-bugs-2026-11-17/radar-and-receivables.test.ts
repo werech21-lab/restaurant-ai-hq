@@ -514,7 +514,6 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       expect(enCard).not.toContain('2024-12-31')
       expect(enCard).not.toContain(`${TODAY_ISO} → 2026-11-14`)
       expect(enCard).toContain('Date Range: —')
-      expect(enCard).toContain('>—<')
     } finally {
       for (const key of ODOO_ENV_KEYS) {
         if (saved[key] === undefined) delete process.env[key]

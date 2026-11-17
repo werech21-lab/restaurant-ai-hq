@@ -12,19 +12,20 @@ export interface HourlyRow {
   netKwd: number
 }
 
-/** Business-day reading order: opening (09:00) through late night, then early-morning hours. */
-export const HOURLY_DISPLAY_ORDER: readonly number[] = [
-  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8,
-]
+/**
+ * Chronological order 00 → 23. A calendar day's 00:00–08:59 sales happened BEFORE its evening, so
+ * they are never drawn after 23:00.
+ */
+export const HOURLY_DISPLAY_ORDER: readonly number[] = Array.from({ length: 24 }, (_, h) => h)
 
 /** Hours always drawn (even when zero) so the core trading day keeps a stable x-axis. */
-const ALWAYS_SHOWN_HOURS = new Set([9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1])
+const ALWAYS_SHOWN_HOURS = new Set([9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23])
 
 const toFils = (kwd: number): number => (Number.isFinite(kwd) ? Math.round(kwd * 1000) : 0)
 
 /**
- * Hours to draw, in display order. Early-morning hours (02:00–08:59) appear whenever they carry
- * any orders or sales so they are never silently dropped from the total.
+ * Hours to draw, in chronological order. Early-morning hours (00:00–08:59) appear — at the start of
+ * the axis — whenever they carry any orders or sales, so they are never silently dropped.
  */
 export function selectDisplayHours(rows: readonly HourlyRow[]): number[] {
   const byHour = new Map<number, HourlyRow>()

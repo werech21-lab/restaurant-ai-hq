@@ -57,6 +57,15 @@ import {
 import type { ComparableFact } from '@/server/ai/structured-claim'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
+/** FAS Fahaheel school-canteen register, read from the pos.config registry (owner-confirmed 43). */
+const FAS_FAHAHEEL_POS_CONFIG_ID: number | null = (() => {
+  const id = 43
+  const reg = posRegistry as { schoolCanteenPosConfigIds?: number[]; registers?: Record<string, { location?: string }> }
+  return reg.schoolCanteenPosConfigIds?.includes(id) && reg.registers?.[String(id)]?.location === 'school-canteens'
+    ? id
+    : null
+})()
+
 export {
   ALL_FERYAL_BRANCHES,
   APPROVED_FERYAL_BRAND_LIST,
@@ -525,6 +534,8 @@ type NoOdooDataReasonKey =
   | 'inventory_on_hand'
   /** Phase 5 · Item 3: GL lines are not analytically split per branch in the live feed. */
   | 'gl_branch_not_partitioned'
+  /** «الفحاحيل» = school-canteen register FAS Fahaheel (pos.config 43), never Al-Kout. */
+  | 'fas_fahaheel_canteen'
   | 'generic'
 
 /**
@@ -561,6 +572,8 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ترحيل قيود اليومية المحاسبية في account.move.line وإقفال مسودات الفواتير في Odoo للفترة المطلوبة.`
     case 'inventory_on_hand':
       return 'غير متاح — رصيد المخزون الحالي (stock.quant) غير مربوط بعد بلوحة الإدارة؛ لا تُستخدم أرقام المبيعات بدلاً منه.'
+    case 'fas_fahaheel_canteen':
+      return `غير متاح — «الفحاحيل» ليس فرع مطاعم؛ يقابله في Odoo مقصف مدرسة FAS Fahaheel (pos.config ${FAS_FAHAHEEL_POS_CONFIG_ID}) ضمن مقاصف المدارس، ومبيعات هذا الصندوق غير مفصولة عن بقية المقاصف في البيانات الحالية.`
     case 'gl_branch_not_partitioned':
       return 'غير متاح — مصاريف الفرع غير مقسّمة تحليلياً حسب الفرع في قيود account.move.line الحالية؛ لا تُستخدم أرقام المبيعات بدلاً منها.'
     case 'stock_no_data':
@@ -1888,10 +1901,21 @@ async function runPosComparisonTool(params: {
       : ordersDiffInt < 0
         ? `تراجع الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`
         : `ثبات عدد الطلبات بفارق ${formatIntCount(absOrdersDiffInt)} طلبات`
+  // Phase 5 · Item 3: when sales and orders move in opposite directions (or orders are flat while
+  // sales move), the gap is NOT explained by order count — it comes from the average basket.
+  const aovA1 = ordersAInt > 0 ? round1(rawNetA / ordersAInt) : 0
+  const aovB1 = ordersBInt > 0 ? round1(rawNetB / ordersBInt) : 0
+  const salesSign = Math.sign(diff1)
+  const ordersSign = Math.sign(ordersDiffInt)
+  const directionsDisagree = salesSign !== 0 && salesSign !== ordersSign
+  toolNumbers.push(aovA1, aovB1)
+  const causeSentence = directionsDisagree
+    ? `${diff1 > 0 ? 'ارتفعت' : 'انخفضت'} المبيعات ${ordersSign === 0 ? 'مع ثبات عدد الطلبات' : ordersSign > 0 ? `رغم زيادة الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات` : `رغم تراجع الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`}، لذلك يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك إلى تغيّر متوسط الطلب من ${formatKwd1(aovB1)} د.ك في ${periodB.periodLabelAr} إلى ${formatKwd1(aovA1)} د.ك في ${periodA.periodLabelAr}.`
+    : `يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك بين الفترتين إلى ${ordersDirection} بين ${periodA.periodLabelAr} (${formatIntCount(ordersAInt)} طلبات) و${periodB.periodLabelAr} (${formatIntCount(ordersBInt)} طلبات).`
 
   const reply = [
     `• الرقم: وفق موديل pos.order في Odoo (${scopeLabelAr})${windowClause}، بلغ صافي مبيعات الفترة ${periodA.periodLabelAr} قيمة ${formatKwd1(netA1)} د.ك عبر ${formatIntCount(ordersAInt)} طلبات مقابل ${formatKwd1(netB1)} د.ك عبر ${formatIntCount(ordersBInt)} طلبات في الفترة ${periodB.periodLabelAr}، ${directionWord} قدره ${formatKwd1(absDiff1)} د.ك${pctSegment}.`,
-    `• السبب من البيانات: يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك بين الفترتين إلى ${ordersDirection} بين ${periodA.periodLabelAr} (${formatIntCount(ordersAInt)} طلبات) و${periodB.periodLabelAr} (${formatIntCount(ordersBInt)} طلبات).`,
+    `• السبب من البيانات: ${causeSentence}`,
     `• الإجراء المحدد: يراجع مدير العمليات ومديرو الفروع اليوم توزيع الورديات وتوافر الأصناف الأكثر طلباً لمحاكاة أعلى قراءة مسجلة بين الفترتين.`,
     `• الأثر المتوقع (تقدير): تقدير — استدامة مستوى الأداء الأعلى يغلق فجوة المبيعات البالغة ${formatKwd1(absDiff1)} د.ك ويرفع استقرار الإيراد اليومي.`,
   ].join('\n')
@@ -2548,6 +2572,11 @@ export async function askFeryalOdooAgent(
   const unlinkedCheck = isUnlinkedNonOdooTopic(rawQuestion)
   if (unlinkedCheck.unlinked) {
     return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic')
+  }
+
+  // 2b. «الفحاحيل» is the FAS Fahaheel school-canteen register, never Al-Kout.
+  if (FAS_FAHAHEEL_POS_CONFIG_ID !== null && /(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normalizeArabicText(rawQuestion))) {
+    return finalizeNoData('fas_fahaheel_canteen')
   }
 
   // 3. Branch Scope Check (7 approved branches + school canteens only)

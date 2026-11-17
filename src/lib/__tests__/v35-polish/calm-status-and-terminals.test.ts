@@ -2,6 +2,7 @@
  * V35 Polish — Wave 0 RED tests for calm status surfaces, progressive provenance popover,
  * neutral unattributed branch tile, and honest AdminPosTerminalMappingPanel load-error state.
  */
+import { PROFIT_AFTER_CLOSE_NOTE } from '@/lib/aether/closed-month-policy'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -161,7 +162,14 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
       (h) => h.includes('data-scope-for="gl-operating-net"') || h.includes('صافي الربح التشغيلي'),
     )
     expect(arOpCard).not.toBeNull()
-    expect(countOccurrences(arOpCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام')).toBe(1)
+    // Exactly one calm line: the GL-not-posted text, or — when the window is not inside closed GL
+    // months (this payload has no Odoo lock dates) — the withheld-profit note (Phase 5 · Item 7).
+    expect(
+      countOccurrences(arOpCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام') +
+        countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar),
+    ).toBe(1)
+    expect(arOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')
+    expect(countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar)).toBe(1)
     expect(arOpCard!.outerHtml).not.toContain('amber-')
     expect(arOpCard!.outerHtml).not.toContain('rose-')
     expect(arOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
@@ -174,7 +182,10 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
       (h) => h.includes('data-scope-for="gl-operating-net"') || h.includes('Operating Net Profit'),
     )
     expect(enOpCard).not.toBeNull()
-    expect(countOccurrences(enOpCard!.text, 'Not available yet — GL entries not posted')).toBe(1)
+    expect(
+      countOccurrences(enOpCard!.text, 'Not available yet — GL entries not posted') +
+        countOccurrences(enOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.en),
+    ).toBe(1)
     expect(enOpCard!.outerHtml).not.toContain('amber-')
     expect(enOpCard!.outerHtml).not.toContain('rose-')
     expect(enOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
