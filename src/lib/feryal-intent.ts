@@ -25,6 +25,8 @@ export type ApprovedFeryalChannelId =
   | 'takeaway-direct'
   | 'talabat-tgo'
   | 'talabat-tmp'
+  /** Talabat TGO + TMP combined (what "طلبات" means in Gulf usage). */
+  | 'talabat'
   | 'keeta'
   | 'deliveroo'
   | 'jahez'
@@ -88,7 +90,7 @@ export const APPROVED_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
     id: 'al-kout',
     nameAr: 'الكوت',
     nameEn: 'Al-Kout',
-    aliases: ['الكوت', 'كوت', 'الفحاحيل', 'al-kout', 'alkout', 'al kout', 'kout'],
+    aliases: ['الكوت', 'كوت', 'al-kout', 'alkout', 'al kout', 'kout'],
   },
   {
     id: 'ardiya',
@@ -213,6 +215,14 @@ export const APPROVED_FERYAL_CHANNEL_LIST: readonly FeryalChannelMeta[] = [
     nameAr: 'طلبات سائقي الشركة',
     nameEn: 'Talabat TMP',
     aliases: ['talabat-tmp', 'talabat tmp'],
+  },
+  {
+    // Detected by `detectTargetChannelFromQuestion` (bare "طلبات"/"talabat" with a sales word, or
+    // TGO + TMP together); no generic aliases so "الطلبات" (orders) never matches.
+    id: 'talabat',
+    nameAr: 'طلبات (TGO + TMP)',
+    nameEn: 'Talabat (TGO + TMP)',
+    aliases: [],
   },
   {
     id: 'keeta',
@@ -906,10 +916,68 @@ export function detectTargetChannelFromQuestion(question: string): {
     }
   }
 
+  // Phase 5 · Item 3: TGO + TMP together, or a bare "طلبات"/"talabat" with a sales/delivery word,
+  // mean the whole Talabat channel.
+  const hasTgo = matched.includes('talabat-tgo')
+  const hasTmp = matched.includes('talabat-tmp')
+  if (!asksByChannelBreakdown && hasTgo && hasTmp) {
+    return { channelId: 'talabat', asksByChannelBreakdown: false }
+  }
+  if (
+    !asksByChannelBreakdown &&
+    matched.length === 0 &&
+    (/(^|\s)talabat(?=\s|$)/.test(normAr) ||
+      (/(^|\s)طلبات(?=[\s؟?.,!؛:]|$)/.test(normAr) && TALABAT_CONTEXT_RE.test(normAr)))
+  ) {
+    return { channelId: 'talabat', asksByChannelBreakdown: false }
+  }
+
   if (matched.length === 1 && !asksByChannelBreakdown) {
     return { channelId: matched[0], asksByChannelBreakdown: false }
   }
   return { channelId: null, asksByChannelBreakdown }
+}
+
+const TALABAT_CONTEXT_RE =
+  /(مبيعات|مبيع|بيع|توصيل|دخل|ايراد|\bsales\b|\bdelivery\b|(^|\s)(بال|ب|في |فرع )?[^\s]*(كوت|سالميه|عارضيه|بروميناد|افنيوز|عاصمه|360))/
+
+/** Aggregator channels count payouts/batches (دفعات), never orders. */
+export const AGGREGATOR_CHANNEL_IDS: ReadonlySet<ApprovedFeryalChannelId> = new Set([
+  'talabat',
+  'talabat-tgo',
+  'talabat-tmp',
+  'keeta',
+  'deliveroo',
+  'jahez',
+  'snoonu',
+])
+
+/** Underlying cube channels for a (possibly combined) Feryal channel. */
+export function underlyingChannelIds(id: ApprovedFeryalChannelId): ApprovedFeryalChannelId[] {
+  return id === 'talabat' ? ['talabat-tgo', 'talabat-tmp'] : [id]
+}
+
+/** "Weakest / lowest / worst branch" questions headline the LOWEST restaurant branch. */
+export function isLowestBranchQuestion(question: string): boolean {
+  const normAr = normalizeArabicText(question)
+  return (
+    /(اضعف|اقل|اسوا|ادني|اخر) (فرع|الفروع)|الفرع (الاضعف|الاقل|الاسوا)|الاقل مبيعا/.test(normAr) ||
+    /\b(weakest|lowest|worst)\b/i.test(normAr)
+  )
+}
+
+const FINANCE_STEM_RE =
+  /(^|\s)(و|ف)?(ب|ل|ك)?(ال|لل)?(مصاريف|مصروف|مصروفات|صرف|صرفنا|صرفت|رواتب|راتب|عموله|عمولات|ذمم|كاش|بنك|البنك)(?=[\s؟?.,!؛:]|$)|\b(expenses?|salar(y|ies)|commissions?|payroll)\b/i
+const INVENTORY_STEM_RE =
+  /(^|\s)(و|ف)?(ب|ل|ك)?(ال|لل)?(مخزون|مخزن|جرد)(?=[\s؟?.,!؛:]|$)|\b(inventory|stock on hand|stock)\b/i
+const TOP_PRODUCT_RE =
+  /(اكثر|افضل|اعلي|احسن|اكبر) (صنف|منتج|طبق|وجبه|اكله|ايتم)|(الصنف|المنتج|الطبق|الوجبه) (الاكثر|الافضل|الاعلي)|\b(best[- ]?sellers?|top (selling )?(item|product)s?|most sold (item|product))\b/i
+
+export function isFinanceQuestion(question: string): boolean {
+  return FINANCE_STEM_RE.test(normalizeArabicText(question))
+}
+export function isInventoryOnHandQuestion(question: string): boolean {
+  return INVENTORY_STEM_RE.test(normalizeArabicText(question))
 }
 
 export function getKuwaitCalendarParts(nowMs = Date.now()): {
@@ -1290,6 +1358,8 @@ export type DetectedOdooToolKind =
   | 'purchase_orders'
   | 'stock_moves'
   | 'hr_employees'
+  /** Stock on hand (`stock.quant`) is not linked — answered as «غير متاح», never with sales. */
+  | 'inventory_on_hand'
   | 'unknown'
 
 export function detectOdooToolKind(
@@ -1328,6 +1398,16 @@ export function detectOdooToolKind(
     return 'stock_moves'
   }
 
+  // 2b. Stock on hand / inventory level — never answered from POS sales.
+  if (INVENTORY_STEM_RE.test(normAr)) {
+    return 'inventory_on_hand'
+  }
+
+  // 3a. Expense / payroll / commission / receivable / cash / bank wording — GL, never POS sales.
+  if (FINANCE_STEM_RE.test(normAr)) {
+    return 'account_move_lines'
+  }
+
   // 3. General Ledger / accounting / receivables (`account.move.line`)
   if (
     /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables\b|\bnet profit\b|\bexpenses\b)/i.test(
@@ -1344,6 +1424,7 @@ export function detectOdooToolKind(
 
   // 5. Top selling products / POS line items / item discounts (`pos.order.line`)
   const asksItemLines =
+    TOP_PRODUCT_RE.test(normAr) ||
     /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|\btop \d* ?items\b|\btop \d* ?products\b|\bdiscounts\b)/i.test(
       normAr,
     ) ||
@@ -1361,6 +1442,7 @@ export function detectOdooToolKind(
   const hasPosSalesOrBranchIntent =
     isBranchRanking ||
     targetBranchId !== null ||
+    detectTargetChannelFromQuestion(question).channelId !== null ||
     /(pos\.order|اي فرع|مين الفرع|اعلي فرع|اكثر فرع|افضل فرع|اقل فرع|اسوا فرع|الاعلي مبيعا|الاكثر مبيعا|مبيعات|المبيعات|بالمبيعات|للمبيعات|مبيعا|مبيع|باع|باعت|يبيع|بيع|البيع|ايرادات|الايرادات|ايراد|الطلبات|عدد الطلبات|متوسط السله|الفروع|الفرع|حسب الفرع|غير منسوب|مؤخرا|موخرا|اخيرا|\bsales\b|\bsold\b|\borders\b|\brevenue\b|\bbranches\b|\bbranch\b|\bwhich branch\b|\btop branch\b|\bbest branch\b|\brecently\b)/i.test(
       normAr,
     )

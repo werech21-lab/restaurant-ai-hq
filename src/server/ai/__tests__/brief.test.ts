@@ -133,7 +133,9 @@ describe('background Odoo brief', () => {
     expect(pack.facts.some((fact) => fact.metric === 'hourly_net_sales_kwd' && fact.scope === '13')).toBe(true)
     expect(pack.facts.some((fact) => fact.metric === 'hourly_net_sales_kwd' && fact.scope === '3')).toBe(false)
     expect(pack.facts.some((fact) => fact.metric === 'purchase_total_kwd' && fact.value === '6.75')).toBe(true)
-    expect(pack.facts.some((fact) => fact.metric === 'open_receivable_kwd' && fact.value === '2.5')).toBe(true)
+    // Phase 5 · Item 2: no receivable amount reaches the AI until per-customer aging is verified.
+    expect(pack.facts.some((fact) => fact.metric === 'open_receivable_kwd')).toBe(false)
+    expect(pack.sections.find((section) => section.id === 'receivables')?.noteAr).toBe('قيد المطابقة مع المحاسبة')
     expect(values).not.toContain('99')
     expect(values).not.toContain('50')
     expect(pack.sections.find((section) => section.id === 'cogs')?.status).toBe('unverified')

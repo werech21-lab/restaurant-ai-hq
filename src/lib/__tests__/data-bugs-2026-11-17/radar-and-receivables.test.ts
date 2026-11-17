@@ -408,10 +408,12 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
 
     // Phase 5 · Item 2: DeliveryRadarV5 never shows -77K (or any receivable amount) to executives until
     // per-customer due-date aging is verified; it renders the neutral status plus the open-line count.
-    // workspace.receivables.openReceivableKwd is still preserved for the finance tie-out.
+    // The workspace itself withholds the amount (no -77,462.759 reaches any component).
     const summary = buildRadarSummary()
     const ws = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, summary)
-    expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
+    expect(ws.receivables.pendingReconciliation).toBe(true)
+    expect(ws.receivables.openReceivableKwd).toBeNull()
+    expect(summary.aggregatorReceivables?.openReceivableKwd).toBe(-77462.759)
 
     const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
     const arCard =

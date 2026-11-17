@@ -70,6 +70,8 @@ describe('M6 — AR aging ages open debits by due date; credits are a separate l
     expect(legacy.hiddenReasonAr).toBeTruthy()
     const ws = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, summary)
     expect(ws.receivables.agingBuckets.some((b) => b.residualKwd < 0)).toBe(false)
-    expect(ws.receivables.openReceivableKwd).toBeCloseTo(1182.708, 3)
+    // Phase 5 · Item 2: the workspace withholds the amount until per-customer aging is verified.
+    expect(ws.receivables.pendingReconciliation).toBe(true)
+    expect(ws.receivables.openReceivableKwd).toBeNull()
   })
 })

@@ -5,7 +5,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resolveComboChartScope } from '@/lib/aether/brand-scope'
-import { buildArTieOut } from '@/lib/odoo/receivable-aging'
+import { buildArTieOut, formatArReconciliationFormula } from '@/lib/odoo/receivable-aging'
 import { computeGlobalWorkspace } from '@/lib/aether/global-filter-engine'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { buildAllocatedTodaySummary, loadLiveTodaySummary } from './support/dashboard-fixture'
@@ -130,12 +130,21 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(html).not.toContain('1,182.708')
   })
 
-  it('the reconciliation formula uses the same line-level credit figure as the card', () => {
+  it('the reconciliation formula uses the same line-level credit figure as the card (formula), and is withheld from the workspace while pending', () => {
+    const formula = formatArReconciliationFormula({
+      openReceivableKwd: 1182.708,
+      grossPositiveReceivableKwd: 3776.2,
+      creditClearingOffsetKwd: -2593.492,
+      openDebitsKwd: 3776.2,
+      unappliedCreditsKwd: -2593.492,
+    })
+    expect(formula.en).toContain('3,776.20')
+    expect(formula.en).toContain('2,593.49')
+    expect(formula.en).toContain('1,182.71')
+    expect(formula.en.toLowerCase()).toContain('unapplied')
+    // Phase 5 · Item 2: executives see the neutral status instead of the formula amounts.
     const ws = computeGlobalWorkspace(todayFilters('all'), withDueDateAging(loadLiveTodaySummary()))
-    expect(ws.receivables.reconciliationFormulaEn).toContain('3,776.20')
-    expect(ws.receivables.reconciliationFormulaEn).toContain('2,593.49')
-    expect(ws.receivables.reconciliationFormulaEn).toContain('1,182.71')
-    expect(String(ws.receivables.reconciliationFormulaEn).toLowerCase()).toContain('unapplied')
+    expect(ws.receivables.reconciliationFormulaEn).toBe('Pending Accounting Reconciliation')
   })
 
   it('legacy payload: no tie-out and no second credit figure; neutral pending status instead of amounts', async () => {
