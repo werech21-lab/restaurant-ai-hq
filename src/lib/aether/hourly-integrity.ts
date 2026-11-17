@@ -24,17 +24,22 @@ const ALWAYS_SHOWN_HOURS = new Set([9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2
 const toFils = (kwd: number): number => (Number.isFinite(kwd) ? Math.round(kwd * 1000) : 0)
 
 /**
- * Hours to draw, in chronological order. Early-morning hours (00:00–08:59) appear — at the start of
- * the axis — whenever they carry any orders or sales, so they are never silently dropped.
+ * Hours to draw, in chronological order and contiguous. 09:00–23:00 are always drawn; when any
+ * 00:00–08:59 hour carries sales, the axis starts at the first such hour and includes every hour
+ * after it (zeros drawn), so nothing is dropped and no line bridges a gap.
  */
 export function selectDisplayHours(rows: readonly HourlyRow[]): number[] {
   const byHour = new Map<number, HourlyRow>()
   for (const r of rows) byHour.set(r.hour, r)
-  return HOURLY_DISPLAY_ORDER.filter((hr) => {
-    if (ALWAYS_SHOWN_HOURS.has(hr)) return true
+  const hasData = (hr: number) => {
     const row = byHour.get(hr)
     return Boolean(row && (toFils(row.netKwd) !== 0 || (row.orders ?? 0) !== 0))
-  })
+  }
+  // Start at the first early hour (00–08) that carries data, else at 09:00; then draw EVERY hour
+  // through 23:00 (zeros included) so a line never interpolates across missing hours.
+  const firstEarly = HOURLY_DISPLAY_ORDER.find((hr) => !ALWAYS_SHOWN_HOURS.has(hr) && hasData(hr))
+  const start = firstEarly ?? Math.min(...ALWAYS_SHOWN_HOURS)
+  return HOURLY_DISPLAY_ORDER.filter((hr) => hr >= start)
 }
 
 export interface HourlyReconciliation {

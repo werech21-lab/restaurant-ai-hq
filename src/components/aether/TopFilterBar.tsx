@@ -582,8 +582,8 @@ function AccountWorkspaceMenuPanel({
 
       {/* 2. Role / Manager PIN Control (Executive PIN unlock vs Auditor Read-Only badge) */}
       {auditorMode ? (
-        <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-100/80 px-3 py-2.5 ring-1 ring-slate-400/20 dark:bg-slate-800/65 dark:ring-slate-400/20">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+        <div data-auditor-badge="drawer" className="flex items-center justify-between gap-2 rounded-2xl px-3 py-2.5 bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold">
             <Lock className="h-3.5 w-3.5 shrink-0 text-slate-600 dark:text-slate-300" />
             <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
           </div>
@@ -1436,7 +1436,7 @@ export function TopFilterBar({
             ) : null}
 
             {auditorMode ? (
-              <span className="hidden xl:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100/90 px-2.5 py-1 text-xs font-bold text-slate-800 ring-1 ring-slate-400/30 dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-400/25">
+              <span data-auditor-badge="bar" className="hidden xl:inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                 <Lock className="h-3 w-3 shrink-0 text-slate-600 dark:text-slate-300" />
                 <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
               </span>

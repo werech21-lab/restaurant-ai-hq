@@ -42,7 +42,8 @@ describe('Phase 5 · Item 1 — hourly chart integrity', () => {
     expect([...hours]).toEqual([...hours].sort((a, b) => a - b))
     const after23 = hours.slice(hours.indexOf(23) + 1)
     expect(after23.filter((h) => h <= 8)).toEqual([])
-    expect(hours.slice(0, 4)).toEqual([0, 1, 2, 8])
+    // Contiguous from the first early hour (Phase 5 follow-up): 00, 01, 02, 03 …
+    expect(hours.slice(0, 4)).toEqual([0, 1, 2, 3])
   })
 
   it('reconciles hourly buckets to the selected period total to the exact fils', () => {

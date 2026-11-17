@@ -679,8 +679,8 @@ export function CoresHubStudio({
               />
             </div>
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+            <div data-unattributed-card="true" className={KPI_CARD_CLS}>
+              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                 {isAr ? UNATTRIBUTED_BRANCH_LABEL_AR : UNATTRIBUTED_BRANCH_LABEL_EN}
               </div>
               {snapshot.sales.branchesUnavailable ? (
@@ -688,7 +688,7 @@ export function CoresHubStudio({
                   data-unavailable="true"
                   title={unavailableTip}
                   aria-label={unavailableTip}
-                  className="mt-1.5 font-mono text-2xl font-bold text-amber-800 dark:text-amber-300"
+                  className="mt-1.5 font-mono text-2xl font-bold text-slate-500 dark:text-slate-400"
                 >
                   {isAr ? 'غير متاح' : '—'}
                 </div>
@@ -696,12 +696,12 @@ export function CoresHubStudio({
                 <>
                   <div
                     dir="ltr"
-                    className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-amber-800 dark:text-amber-300"
+                    className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
                   >
                     {f3(snapshot.sales.unattributedSalesKwd, resolvedLocale)}{' '}
                     <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
                   </div>
-                  <div className="mt-1 text-xs text-amber-700/90 tabular-nums dark:text-amber-300/80">
+                  <div className="mt-1 text-xs text-slate-600 tabular-nums dark:text-slate-300">
                     {f0(snapshot.sales.unattributedOrders, resolvedLocale)}{' '}
                     {isAr
                       ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
@@ -866,7 +866,7 @@ export function CoresHubStudio({
                         key={b.id}
                         className={`flex items-center justify-between gap-2 py-2.5 text-xs ${
                           isUnattr
-                            ? 'rounded-lg bg-amber-50/70 px-2 font-semibold text-amber-900 dark:bg-amber-950/20 dark:text-amber-200'
+                            ? 'rounded-lg px-2 font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
                             : ''
                         }`}
                       >
