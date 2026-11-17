@@ -146,7 +146,7 @@ export function VentureAccountingHub({
               </span>
 
               {effectiveAuditor ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-200">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                   <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
                   {isAr ? 'وضع المراجع الخارجي — قراءة فقط' : 'External Auditor Mode — Read Only'}
                 </span>

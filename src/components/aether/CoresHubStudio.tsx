@@ -1184,7 +1184,7 @@ export function CoresHubStudio({
                         </td>
                         <td
                           dir="ltr"
-                          className="py-2.5 text-end font-mono tabular-nums text-amber-700 dark:text-amber-300"
+                          className="py-2.5 text-end font-mono tabular-nums text-slate-700 dark:text-slate-300"
                         >
                           {formatKwd(d.discountKwd, { locale: resolvedLocale })} (
                           {f1Pct(d.avgDiscountPct, resolvedLocale)})

@@ -1322,15 +1322,15 @@ export function GovernanceSlideOverDrawer({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F7F7F8] px-3.5 py-2.5 text-xs dark:bg-neutral-950">
             {isAuditor ? (
               <>
-                <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
-                  <Lock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                  <Lock className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-300" />
                   <span>
                     {isAr
                       ? 'وضع المراجع الخارجي — قراءة فقط (الاعتماد والتجميد مقفل)'
                       : 'External Reviewer — Read-Only (PIN & Mutations Disabled)'}
                   </span>
                 </div>
-                <span className="inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                <span className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-bold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                   {isAr ? 'وضع المراجع الخارجي' : 'Read-Only Session'}
                 </span>
               </>
@@ -1819,7 +1819,7 @@ export function GovernanceSlideOverDrawer({
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       {isAuditor ? (
-                        <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-3 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                        <span className="inline-flex h-8 items-center gap-1 rounded-xl px-3 text-xs font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                           <Lock className="h-3 w-3 shrink-0" />
                           <span>
                             {isAr ? 'وضع المراجع الخارجي — قراءة فقط' : 'Read-Only Session'}

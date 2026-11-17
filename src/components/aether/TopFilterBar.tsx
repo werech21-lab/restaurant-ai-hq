@@ -1571,7 +1571,7 @@ export function TopFilterBar({
                       ? 'التبديل إلى الوضع الأزرق الداكن'
                       : 'Switch to Blue Dark Mode'
                 }
-                className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/75 text-blue-700 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-blue-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-amber-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
+                className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/75 text-slate-500 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-slate-700 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
               >
                 {isDarkTheme ? (
                   <Sun className="h-4 w-4" />

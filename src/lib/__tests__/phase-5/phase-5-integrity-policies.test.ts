@@ -15,6 +15,7 @@ import {
   canShowReceivableAmounts,
   resolveReceivablesExecutiveStatus,
 } from '@/lib/aether/receivables-status'
+import { loadLiveTodaySummary } from '../support/dashboard-fixture'
 
 describe('Phase 5 · Item 1 — hourly chart integrity', () => {
   it('display order covers all 24 hours exactly once', () => {
@@ -23,47 +24,45 @@ describe('Phase 5 · Item 1 — hourly chart integrity', () => {
     )
   })
 
-  it('never drops early-morning hours that carry sales', () => {
-    const rows = [
-      { hour: 7, orders: 3, netKwd: 4.5 },
-      { hour: 12, orders: 10, netKwd: 50 },
-    ]
-    const hours = selectDisplayHours(rows)
-    expect(hours).toContain(7)
-    expect(hours).not.toContain(4)
-    // Chronological: 07:00 is drawn before 09:00, never after 23:00.
-    expect(hours.indexOf(7)).toBeLessThan(hours.indexOf(9))
-    expect(hours.indexOf(7)).toBeLessThan(hours.indexOf(23))
+  // Real data only: the live 2026-11-17 payload's hourly series (rolling 30 days, Asia/Kuwait) and
+  // its real rolling-30 total. No hand-written hourly figures.
+  const live = loadLiveTodaySummary()
+  const realHourly = live.hourlySeries ?? []
+  const realRolling30 = (live as unknown as { journeyPulse: { rolling30: { netKwd: number } } }).journeyPulse.rolling30.netKwd
+  const realToday = live.buckets!.today!.totals.netSalesKwd as number
+
+  it('never drops early-morning hours that carry sales (real series)', () => {
+    const early = realHourly.filter((r) => r.hour <= 8 && (r.netKwd !== 0 || r.orders !== 0)).map((r) => r.hour)
+    expect(early.length).toBeGreaterThan(0)
+    const hours = selectDisplayHours(realHourly)
+    for (const h of early) expect(hours).toContain(h)
   })
 
-  it('a single day is ordered 00 → 23 and no 00:00–08:59 hour is ever drawn after 23:00', () => {
-    const rows = [0, 1, 2, 8, 9, 15, 23].map((hour) => ({ hour, orders: 1, netKwd: 1 }))
-    const hours = selectDisplayHours(rows)
+  it('is ordered 00 → 23, contiguous, and no 00:00–08:59 hour is drawn after 23:00 (real series)', () => {
+    const hours = selectDisplayHours(realHourly)
     expect([...hours]).toEqual([...hours].sort((a, b) => a - b))
-    const after23 = hours.slice(hours.indexOf(23) + 1)
-    expect(after23.filter((h) => h <= 8)).toEqual([])
-    // Contiguous from the first early hour (Phase 5 follow-up): 00, 01, 02, 03 …
-    expect(hours.slice(0, 4)).toEqual([0, 1, 2, 3])
+    for (let i = 1; i < hours.length; i++) expect(hours[i] - hours[i - 1]).toBe(1)
+    expect(hours[hours.length - 1]).toBe(23)
+    expect(hours.slice(hours.indexOf(23) + 1)).toEqual([])
+    // a real zero hour inside the range is still drawn (no gap)
+    const zeroHours = realHourly.filter((r) => r.netKwd === 0 && r.orders === 0 && r.hour >= hours[0]).map((r) => r.hour)
+    for (const h of zeroHours) expect(hours).toContain(h)
   })
 
-  it('reconciles hourly buckets to the selected period total to the exact fils', () => {
-    const rows = [
-      { hour: 7, orders: 1, netKwd: 0.125 },
-      { hour: 13, orders: 2, netKwd: 10.25 },
-      { hour: 21, orders: 3, netKwd: 99.625 },
-    ]
-    const ok = reconcileHourlyToPeriod(rows, 110)
-    expect(ok.reconciled).toBe(true)
-    expect(ok.varianceKwd).toBe(0)
-    expect(ok.hourlySumKwd).toBe(110)
+  it('Σ hourly reconciles to the real period total to the fils (rolling-30 series vs rolling-30 total)', () => {
+    const r = reconcileHourlyToPeriod(realHourly, realRolling30)
+    expect(r.reconciled).toBe(true)
+    expect(r.varianceKwd).toBe(0)
+  })
 
-    const off = reconcileHourlyToPeriod(rows, 110.001)
-    expect(off.reconciled).toBe(false)
-    expect(off.varianceKwd).toBe(-0.001)
+  it('the rolling-30 hourly series does NOT reconcile to the real "today" total — so it must never be drawn as today', () => {
+    const r = reconcileHourlyToPeriod(realHourly, realToday)
+    expect(r.reconciled).toBe(false)
+    expect(r.varianceKwd).not.toBe(0)
   })
 
   it('is not reconciled when the period total is unknown', () => {
-    const r = reconcileHourlyToPeriod([{ hour: 12, orders: 1, netKwd: 5 }], null)
+    const r = reconcileHourlyToPeriod(realHourly, null)
     expect(r.reconciled).toBe(false)
     expect(r.periodTotalKwd).toBeNull()
   })

@@ -327,7 +327,7 @@ export function ExecutiveFooter({
           <span
             className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-0.5 font-semibold ${
               roleProfile.isAuditor
-                ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/50 dark:text-amber-200'
+                ? 'bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
                 : 'bg-emerald-50/80 text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/50 dark:text-emerald-200'
             }`}
           >

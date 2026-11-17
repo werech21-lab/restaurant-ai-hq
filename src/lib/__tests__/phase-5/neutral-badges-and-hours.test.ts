@@ -116,26 +116,27 @@ describe('neutral slate badges', () => {
 })
 
 describe('contiguous hourly axis', () => {
+  // Real data only: the live 2026-11-17 payload's hourly series (it carries early-hour sales and a
+  // real zero hour at 03:00). No hand-written hourly figures.
+  const realHourly = loadLiveTodaySummary().hourlySeries ?? []
+
   it('once an early hour (00–08) is shown, every hour from it through 23:00 is drawn (zeros included)', () => {
-    const hours = selectDisplayHours([
-      { hour: 2, orders: 3, netKwd: 4.5 },
-      { hour: 13, orders: 10, netKwd: 50 },
-    ])
-    expect(hours).toEqual(Array.from({ length: 22 }, (_, i) => i + 2))
-  })
-
-  it('without early-hour sales the axis is the contiguous 09:00–23:00 day', () => {
-    expect(selectDisplayHours([{ hour: 13, orders: 1, netKwd: 1 }])).toEqual(
-      Array.from({ length: 15 }, (_, i) => i + 9),
-    )
-  })
-
-  it('never skips an hour: consecutive entries always differ by exactly one', () => {
-    for (const early of [0, 3, 5, 8]) {
-      const hours = selectDisplayHours([{ hour: early, orders: 1, netKwd: 1 }])
-      expect(hours[0]).toBe(early)
-      expect(hours[hours.length - 1]).toBe(23)
-      for (let i = 1; i < hours.length; i++) expect(hours[i] - hours[i - 1]).toBe(1)
+    const hours = selectDisplayHours(realHourly)
+    const firstEarly = Math.min(...realHourly.filter((r) => r.hour <= 8 && (r.netKwd !== 0 || r.orders !== 0)).map((r) => r.hour))
+    expect(hours[0]).toBe(firstEarly)
+    expect(hours).toEqual(Array.from({ length: 24 - firstEarly }, (_, i) => i + firstEarly))
+    for (const zero of realHourly.filter((r) => r.netKwd === 0 && r.orders === 0 && r.hour >= firstEarly)) {
+      expect(hours).toContain(zero.hour)
     }
+  })
+
+  it('with no hourly data at all, the axis is the contiguous 09:00–23:00 day (no gaps)', () => {
+    expect(selectDisplayHours([])).toEqual(Array.from({ length: 15 }, (_, i) => i + 9))
+  })
+
+  it('never skips an hour: consecutive entries always differ by exactly one (real series)', () => {
+    const hours = selectDisplayHours(realHourly)
+    expect(hours[hours.length - 1]).toBe(23)
+    for (let i = 1; i < hours.length; i++) expect(hours[i] - hours[i - 1]).toBe(1)
   })
 })

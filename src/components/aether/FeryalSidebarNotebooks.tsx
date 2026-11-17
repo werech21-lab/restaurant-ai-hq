@@ -600,7 +600,7 @@ export function FeryalSidebarNotebooks({
           {/* 1-Click JSON Backup & Restore Footer (Strictly hidden for Read-Only Auditor) */}
           <div className="flex items-center justify-between gap-2 border-t border-neutral-100 pt-2.5 text-[13px] dark:border-white/[0.06]">
             {isAuditor ? (
-              <span className="min-w-0 break-words whitespace-normal font-medium text-amber-800 dark:text-amber-300">
+              <span className="min-w-0 break-words whitespace-normal font-medium text-slate-600 dark:text-slate-300">
                 {isAr
                   ? 'وضع قراءة فقط — التصدير والاستعادة مقفلان'
                   : 'Read-only reviewer lock — backup export disabled'}
