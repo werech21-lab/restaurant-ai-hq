@@ -106,7 +106,7 @@ function Workspace({
   const [ruling, setRuling] = useState('')
   const [assignee, setAssignee] = useState('')
   const [instruction, setInstruction] = useState('')
-  const [due, setDue] = useState(new Date().toISOString().slice(0, 10))
+  const [due, setDue] = useState(() => formatDate(new Date(), 'en'))
   const [report, setReport] = useState('')
   const [caseNumber, setCaseNumber] = useState('')
   const [subject, setSubject] = useState('')
@@ -117,7 +117,7 @@ function Workspace({
   const [kind, setKind] = useState('')
   const [fine, setFine] = useState('')
   const [ownerName, setOwnerName] = useState('')
-  const [deadline, setDeadline] = useState(new Date().toISOString().slice(0, 10))
+  const [deadline, setDeadline] = useState(() => formatDate(new Date(), 'en'))
   const [reloadToken, setReloadToken] = useState(0)
 
   function load() {

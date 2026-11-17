@@ -19,8 +19,8 @@ export default async function LedgerPage({ searchParams }: { searchParams: Promi
   const permissions = await readSessionPermissions()
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       <LedgerWorkspace permissions={permissions} initialEntryId={entry} initialTab={tab} />
-    </main>
+    </div>
   )
 }

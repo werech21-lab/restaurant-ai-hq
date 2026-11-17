@@ -15,11 +15,11 @@ export default async function OdooSyncPage() {
     resolveServerExecSessionRole(),
   ])
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       {sessionRole === 'admin' ? (
         <AdminPosTerminalMappingPanel role={sessionRole} />
       ) : null}
       <OdooSync permissions={granted} />
-    </main>
+    </div>
   )
 }

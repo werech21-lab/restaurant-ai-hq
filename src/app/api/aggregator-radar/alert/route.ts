@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
 
   if (body?.kind === 'talabat_area_alert') {
     const text = body.emailText || 'Talabat Go Area Blackout Alert'
-    const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${new Date().toLocaleDateString('en-GB')}`
+    const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${getKuwaitDateString()}`
     const delivery = await dispatchServerEmail({ subject, text })
 
     logger.info('talabat_area_alert_api', {

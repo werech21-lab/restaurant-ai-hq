@@ -4,6 +4,7 @@
  * when Odoo is connected.
  */
 
+import { formatDate } from '@/lib/format'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
@@ -129,7 +130,7 @@ const safeNum = (v: unknown, fb = 0): number =>
 
 function shiftIsoDate(iso: string, deltaDays: number): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-  if (!m) return new Date().toISOString().slice(0, 10)
+  if (!m) return formatDate(new Date(), 'en')
   const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
   dt.setUTCDate(dt.getUTCDate() + deltaDays)
   return dt.toISOString().slice(0, 10)
@@ -140,7 +141,7 @@ function parseValidCampaignList(raw: unknown): SocialCampaign[] {
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
   const validBranches = new Set<string>([...APPROVED_BRANCH_IDS, 'school-canteens'])
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = formatDate(new Date(), 'en')
   const out: SocialCampaign[] = []
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue

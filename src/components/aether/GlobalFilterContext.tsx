@@ -25,6 +25,7 @@ import {
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTodayIso } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
+import { UNAVAILABLE_DASH, formatInt, formatKwd, formatPct } from '@/lib/format'
 
 const STORAGE_KEY = 'aether.globalFilters.v2'
 const SILENT_POLL_INTERVAL_MS = 180_000 // 3 minutes silent live Odoo 17 polling
@@ -543,20 +544,17 @@ export function GlobalFilterProvider({
         workspace.nullableSalesKwd === null
           ? isAr
             ? 'غير متاح'
-            : '—'
-          : Math.round(workspace.nullableSalesKwd).toLocaleString('en-US')
-      const ordFmt =
-        workspace.nullableOrders === null
-          ? '—'
-          : workspace.nullableOrders.toLocaleString('en-US')
+            : UNAVAILABLE_DASH
+          : formatKwd(workspace.nullableSalesKwd, { showUnit: false })
+      const ordFmt = formatInt(workspace.nullableOrders)
 
       const netLabelAr =
         workspace.accounting.netProfitPct !== null
-          ? `${workspace.accounting.netProfitPct.toFixed(1)}%`
+          ? formatPct(workspace.accounting.netProfitPct)
           : 'غير متوفر'
       const netLabelEn =
         workspace.accounting.netProfitPct !== null
-          ? `${workspace.accounting.netProfitPct.toFixed(1)}%`
+          ? formatPct(workspace.accounting.netProfitPct)
           : 'Not available'
 
       if (isAr) {

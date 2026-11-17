@@ -438,7 +438,8 @@ export function formatQty(value: number) {
 }
 
 export function formatMonth(value: Date) {
-  return `${AR_MONTH_NAMES[value.getMonth()]} ${value.getFullYear()}`
+  const parts = extractKuwaitParts(value)
+  return `${AR_MONTH_NAMES[parts.month - 1]} ${parts.year}`
 }
 
 export function monthRange(value = new Date()) {

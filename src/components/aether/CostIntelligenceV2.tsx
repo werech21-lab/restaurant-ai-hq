@@ -14,6 +14,7 @@ import {
   formatInt,
   formatKwd,
   formatPct,
+  formatQty,
   getUnavailableTooltip,
   type FormatLocale,
 } from '@/lib/format'
@@ -157,8 +158,7 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
     purchaseSummary.totals.ordersCount === 0
 
   const unavailableTooltip = getUnavailableTooltip(fmtLocale)
-  const qtyFormatter = (n: number) =>
-    n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  const qtyFormatter = (n: number) => formatQty(n)
 
   return (
     <div className="space-y-6 min-w-0" dir={isAr ? 'rtl' : 'ltr'}>

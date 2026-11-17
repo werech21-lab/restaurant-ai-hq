@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
+import { formatKwd } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import {
   emptySmartDropzoneCounters,
@@ -175,7 +176,7 @@ export default function SmartDropzonePortal() {
   const { locale } = useI18n()
   const en = locale === 'en'
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const folderInputRef = useRef<HTMLInputElement>(null)
+
   const [rows, setRows] = useState<LedgerRow[]>([])
   const [counters, setCounters] = useState(() => emptySmartDropzoneCounters())
   const [busy, setBusy] = useState(false)
@@ -524,7 +525,7 @@ export default function SmartDropzonePortal() {
             key={card.key}
             className="rounded-2xl border border-white/10 bg-[#0f141c] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
           >
-            <p className="text-[11px] font-semibold text-mist-400">
+            <p className="text-xs font-semibold text-mist-400">
               {card.icon} {en ? card.en : card.ar}
             </p>
             <p className="mt-2 text-2xl font-black text-gold-300">{counters[card.key]}</p>
@@ -659,7 +660,7 @@ export default function SmartDropzonePortal() {
                         {row.relativePath}
                       </p>
                       {row.source === 'browser_local_reader' || row.source === 'local_direct_db' ? (
-                        <span className="mt-2 inline-flex rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold leading-snug text-emerald-200">
+                        <span className="mt-2 inline-flex rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-xs font-bold leading-snug text-emerald-200">
                           {en
                             ? '⚡ Parsed Locally in Browser (Zero-Bandwidth DB Sync)'
                             : '⚡ قراءة محلية فورية وحفظ مباشر في قاعدة البيانات'}
@@ -692,7 +693,7 @@ export default function SmartDropzonePortal() {
                       </p>
                       {row.amountKwd != null ? (
                         <p className="text-xs text-emerald-300" dir="ltr">
-                          {row.amountKwd.toFixed(3)} KWD
+                          {formatKwd(row.amountKwd, en ? 'en' : 'ar')}
                         </p>
                       ) : null}
                     </td>

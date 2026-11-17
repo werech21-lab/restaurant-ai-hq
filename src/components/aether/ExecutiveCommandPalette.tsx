@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { formatKwd } from '@/lib/format'
 import {
   ArrowLeftRight,
   BarChart3,
@@ -423,11 +424,11 @@ export function ExecutiveCommandPalette() {
         ar: b.ar,
         hintEn:
           workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
-            ? `Odoo 17 Sales: ${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KWD`
+            ? `Odoo 17 Sales: ${formatKwd(b.salesKwd, 'en')}`
             : 'Odoo 17 Branch',
         hintAr:
           workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
-            ? `مبيعات Odoo 17: ${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`
+            ? `مبيعات Odoo 17: ${formatKwd(b.salesKwd, 'ar')}`
             : 'فرع Odoo 17',
         keywords: `branch location فرع موقع ${b.en} ${b.ar}`,
         icon: <Store className="h-4 w-4" />,
@@ -450,11 +451,11 @@ export function ExecutiveCommandPalette() {
         ar: b.ar,
         hintEn:
           workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
-            ? `${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KWD sales`
+            ? `${formatKwd(b.salesKwd, 'en')} sales`
             : 'Approved Venture Foods Brand',
         hintAr:
           workspace.odooConnected && !workspace.noData && typeof b.salesKwd === 'number'
-            ? `${b.salesKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك مبيعات`
+            ? `${formatKwd(b.salesKwd, 'ar')} مبيعات`
             : 'علامة تجارية معتمدة',
         keywords: `brand علامة براند مطعم ${b.en} ${b.ar}`,
         icon: <Building2 className="h-4 w-4" />,

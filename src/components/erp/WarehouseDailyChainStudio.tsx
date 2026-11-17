@@ -51,9 +51,7 @@ const PAGE_SIZE = 12
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 
 const f1Nullable = (n: number | null | undefined) =>
-  typeof n === 'number' && Number.isFinite(n)
-    ? n.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-    : UNAVAILABLE_DASH
+  formatKwd(n, { showUnit: false, decimals: 1 })
 
 function ValueCell({
   value,

@@ -25,6 +25,7 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react'
+import { formatDate } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { publishPageOdooSync } from '@/lib/odoo-page-sync'
@@ -66,7 +67,6 @@ import {
 } from '@/lib/dual-heavy-brain'
 import {
   autoSaveChatThread,
-  FERYAL_CHATS_UPDATED_EVENT,
   getChatIndexSync,
   hydrateFeryalChatStore,
   loadChatThread,
@@ -835,7 +835,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         id: nextUiId('note'),
         title: cleanTitle,
         detail: cleanDetail,
-        createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: formatDate(new Date(), 'en'),
       }
       const next = [entry, ...userNotes].slice(0, 50)
       setUserNotes(next)

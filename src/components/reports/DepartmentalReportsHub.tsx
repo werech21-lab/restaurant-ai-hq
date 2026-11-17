@@ -20,6 +20,7 @@ import {
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
 import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
+import { UNAVAILABLE_DASH, formatInt, formatKwd, formatPct } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import {
   buildLiveEnterpriseDepartments,
@@ -365,7 +366,26 @@ export function DepartmentalReportsHub({
                         className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
                       >
                         {currentReport.columns.map((col) => {
-                          const numeric = Boolean(col.isCurrency || col.isPercent)
+                          const rawCell = row[col.key]
+                          const numeric = Boolean(col.isCurrency || col.isPercent || typeof rawCell === 'number')
+                          let renderedCell: string
+                          if (rawCell === null || rawCell === undefined) {
+                            renderedCell = UNAVAILABLE_DASH
+                          } else if (
+                            col.isCurrency &&
+                            typeof rawCell === 'string' &&
+                            /^-?\d+(?:\.\d+)?$/.test(rawCell)
+                          ) {
+                            renderedCell = formatKwd(Number(rawCell), { showUnit: false })
+                          } else if (typeof rawCell === 'number') {
+                            renderedCell = col.isCurrency
+                              ? formatKwd(rawCell, { showUnit: false })
+                              : col.isPercent
+                                ? formatPct(rawCell)
+                                : formatInt(rawCell)
+                          } else {
+                            renderedCell = String(rawCell)
+                          }
                           return (
                             <td
                               key={col.key}
@@ -374,7 +394,7 @@ export function DepartmentalReportsHub({
                                 numeric ? 'ds-num text-end' : 'text-start'
                               }`}
                             >
-                              {String(row[col.key] ?? '—')}
+                              {renderedCell}
                             </td>
                           )
                         })}

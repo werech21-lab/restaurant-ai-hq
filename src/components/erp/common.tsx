@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { formatDateTime } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
 /** Shared building blocks for the ERP screens (inventory, CRM). Not specific to any module. */
@@ -68,8 +69,5 @@ export function Modal({
 }
 
 export function dateTimeText(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return formatDateTime(iso, 'en')
 }

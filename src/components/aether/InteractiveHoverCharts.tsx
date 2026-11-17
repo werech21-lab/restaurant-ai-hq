@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useId, useRef, useState } from 'react'
-import { formatPct } from '@/lib/format'
+import { formatInt, formatPct } from '@/lib/format'
 
 /**
  * Normalizes YYYY-MM-DD ("2026-10-29") or MM-DD ("10-29", "11-01") date labels
@@ -26,7 +26,7 @@ export function formatCompactKwdTick(v: number, isAr: boolean): string {
     const k = (safe / 1000).toFixed(1)
     return isAr ? `${k} ألف` : `${k}k`
   }
-  return Math.round(safe).toLocaleString('en-US')
+  return formatInt(safe)
 }
 
 export interface TooltipLine {

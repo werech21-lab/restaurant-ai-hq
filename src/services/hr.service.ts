@@ -2,7 +2,7 @@ import { writeActivity } from "@/lib/activity";
 import { checkPermission } from "@/lib/erp-auth";
 import { cleanText } from "@/lib/documents";
 import { prisma } from "@/lib/db";
-import { round2 } from "@/lib/format";
+import { formatDate, round2 } from "@/lib/format";
 import { isModuleEnabled } from "@/lib/modules-db";
 import { runTx, txError } from "@/lib/tx";
 import { fail, ok } from "@/lib/types";
@@ -110,11 +110,11 @@ export async function recordAttendance(input: {
   const gate = await checkPermission("hr", "create");
   if (!gate.allowed || !gate.user) return fail(gate.message || "ممنوع");
   const status = ["PRESENT", "ABSENT", "LATE", "LEAVE"].includes(input.status) ? input.status : "PRESENT";
-  const now = new Date();
-  const date = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const checkIn = input.checkIn ? new Date(`${stamp}T${input.checkIn}:00`) : null;
-  const checkOut = input.checkOut ? new Date(`${stamp}T${input.checkOut}:00`) : null;
+  const stamp = formatDate(new Date(), "en");
+  const [kwYear, kwMonth, kwDay] = stamp.split("-").map(Number);
+  const date = new Date(Date.UTC(kwYear, kwMonth - 1, kwDay));
+  const checkIn = input.checkIn ? new Date(`${stamp}T${input.checkIn}:00+03:00`) : null;
+  const checkOut = input.checkOut ? new Date(`${stamp}T${input.checkOut}:00+03:00`) : null;
   let hoursWorked = 0;
   if (checkIn && checkOut && checkOut > checkIn) hoursWorked = round2((checkOut.getTime() - checkIn.getTime()) / 3600000);
   await prisma.attendance.upsert({

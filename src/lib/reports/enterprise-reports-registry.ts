@@ -12,6 +12,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { KpiProvenanceKind } from '@/components/erp/KpiProvenanceBadge'
+import { formatInt, formatKwd, formatPct } from '@/lib/format'
 
 export interface ReportColumn {
   key: string
@@ -103,10 +104,7 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
   if (v === null || v === undefined || !Number.isFinite(v)) {
     return isAr ? 'غير متوفر' : 'Unavailable'
   }
-  return `${v.toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })} ${isAr ? 'د.ك' : 'KWD'}`
+  return formatKwd(v, isAr ? 'ar' : 'en')
 }
 
 /**
@@ -259,15 +257,15 @@ export function buildLiveEnterpriseDepartments(
           {
             lineItem: isAr ? 'الإيرادات الدفترية المرحلة' : 'Posted GL Revenue',
             model: 'account.move.line',
-            amount: (acc.totalRevenueKwd ?? 0).toFixed(3),
+            amount: formatKwd(acc.totalRevenueKwd, { showUnit: false }),
             pctOfRev: '100.0%',
             status: isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'تكلفة البضاعة المباعة المرحلة (COGS)' : 'Posted GL COGS',
             model: 'account.move.line',
-            amount: (acc.cogsKwd ?? 0).toFixed(3),
-            pctOfRev: acc.cogsPct !== null ? `${acc.cogsPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.cogsKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.cogsPct),
             status: isAr ? 'مرحّل' : 'Posted',
           },
           {
@@ -276,13 +274,11 @@ export function buildLiveEnterpriseDepartments(
             amount:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
-                : (acc.deliveryCommissionsKwd ?? 0).toFixed(3),
+                : formatKwd(acc.deliveryCommissionsKwd, { showUnit: false }),
             pctOfRev:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
-                : acc.deliveryCommPct !== null
-                  ? `${acc.deliveryCommPct.toFixed(1)}%`
-                  : '—',
+                : formatPct(acc.deliveryCommPct),
             status:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
@@ -293,15 +289,15 @@ export function buildLiveEnterpriseDepartments(
           {
             lineItem: isAr ? 'المصاريف التشغيلية والإهلاك المرحلة' : 'Posted OPEX & Depreciation',
             model: 'account.move.line',
-            amount: (acc.otherOpexAndDepreciationKwd ?? 0).toFixed(3),
-            pctOfRev: acc.opexRentDeprPct !== null ? `${acc.opexRentDeprPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.otherOpexAndDepreciationKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.opexRentDeprPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'صافي النتيجة التشغيلية المرحلة' : 'Posted Operating Result',
             model: 'account.move.line',
-            amount: (acc.operatingProfitKwd ?? 0).toFixed(3),
-            pctOfRev: acc.netProfitPct !== null ? `${acc.netProfitPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.operatingProfitKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.netProfitPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
         ]
@@ -368,7 +364,7 @@ export function buildLiveEnterpriseDepartments(
                     ? isAr
                       ? 'غير متاح'
                       : '—'
-                    : totalOrders.toLocaleString('en-US'),
+                    : formatInt(totalOrders),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "COUNT(pos.order) WHERE state IN ('paid','done','invoiced')",
@@ -403,7 +399,7 @@ export function buildLiveEnterpriseDepartments(
             brand: isAr ? b.labelAr : b.labelEn,
             orders: b.ord,
             netSales: b.net.toFixed(3),
-            sharePercent: `${b.share.toFixed(1)}%`,
+            sharePercent: formatPct(b.share),
             avgOrderValue: b.aov.toFixed(3),
           })),
         },
@@ -480,7 +476,7 @@ export function buildLiveEnterpriseDepartments(
             branch: isAr ? b.labelAr : b.labelEn,
             orders: b.ord,
             netSales: b.net.toFixed(3),
-            sharePercent: `${b.share.toFixed(1)}%`,
+            sharePercent: formatPct(b.share),
             avgOrderValue: b.aov.toFixed(3),
           })),
         },
@@ -539,7 +535,7 @@ export function buildLiveEnterpriseDepartments(
             channel: isAr ? c.labelAr : c.labelEn,
             payments: c.ord,
             amountKwd: c.net.toFixed(3),
-            sharePercent: `${c.share.toFixed(1)}%`,
+            sharePercent: formatPct(c.share),
           })),
         },
       ],
