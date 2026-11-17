@@ -1,6 +1,6 @@
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { permissions } from '@/lib/auth/permissions'
-import { protectedRoute, toErrorResponse, type RouteArgs } from '@/lib/api/route'
+import { protectedRoute, type RouteArgs } from '@/lib/api/route'
 import { assignHrDocument, ingestHrFolderBatch, listEmployeeDossier, type IngestFileInput } from '@/services/hr-folder-ingestor.service'
 
 export const runtime = 'nodejs'

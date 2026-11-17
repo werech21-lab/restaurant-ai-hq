@@ -244,7 +244,6 @@ async function routeAccounting(hay: string, fileName: string, buf: Buffer | null
   if (buf && /\.(xlsx|xls|csv)$/i.test(fileName)) {
     const rows = sheetObjects(buf, fileName)
     for (const row of rows.slice(0, 200)) {
-      const desc = cell(row, ['description', 'بيان', 'narration', 'memo', 'التفاصيل']) || 'AI ingest'
       const debit = Number(cell(row, ['debit', 'مدين', 'dr']) || 0)
       const credit = Number(cell(row, ['credit', 'دائن', 'cr']) || 0)
       const accCode = cell(row, ['account', 'حساب', 'code', 'رمز']) || entityKey || ''

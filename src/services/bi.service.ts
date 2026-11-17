@@ -16,11 +16,10 @@ export async function executiveInsights(now = new Date()) {
   const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const previous = monthRange(previousDate);
   const visibleIds = await scopeWarehouseIds();
-  const [thisSales, prevSales, thisCogs, prevCogs] = await Promise.all([
+  const [thisSales, prevSales, thisCogs] = await Promise.all([
     sumVisibleSales(current.start, current.end, visibleIds),
     sumVisibleSales(previous.start, previous.end, visibleIds),
     cogsBetween(current.start, current.end, visibleIds),
-    cogsBetween(previous.start, previous.end, visibleIds),
   ]);
   const salesNow = thisSales._sum.totalAmount ?? 0;
   const salesPrev = prevSales._sum.totalAmount ?? 0;
