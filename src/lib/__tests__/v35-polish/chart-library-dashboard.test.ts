@@ -25,9 +25,8 @@ import {
 import { ChartCard } from '@/components/ui/chart-card'
 import type { GlobalFilters } from '@/lib/aether/global-filter-engine'
 import { LanguageProvider } from '@/lib/i18n'
-import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { loadLiveTodaySummary, buildLiveTodayCube } from '../support/dashboard-fixture'
+import { loadLiveTodaySummary } from '../support/dashboard-fixture'
 import {
   dashboardContext,
   renderAr,
@@ -64,14 +63,10 @@ async function renderDashboard(
   locale: 'ar' | 'en',
   summary: OdooLiveSummary,
   filters: GlobalFilters,
-  initialLiveCube: OdooPeriodCube | null = null,
 ): Promise<string> {
   setDashboardContext(summary, filters)
   const { FullJourney360 } = await import('@/components/aether/FullJourney360')
-  const el = React.createElement(
-    FullJourney360 as React.ComponentType<{ initialLiveCube?: OdooPeriodCube | null }>,
-    { initialLiveCube },
-  )
+  const el = React.createElement(FullJourney360)
   return locale === 'ar' ? renderAr(el) : renderEn(el)
 }
 
@@ -443,34 +438,34 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
   beforeEach(() => vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ['Date'] }))
   afterEach(() => vi.useRealTimers())
 
-  it('keeps KPI text parity (154.700 د.ك / 24), renders real KPI sparklines, renders active Channel Mix segments excluding zero channels, and renders sortable/searchable ledger table in AR & EN (brand=all)', async () => {
-    // Home's hourly sparkline comes from the selected-period cube (as served by
-    // /api/erp/live-comparison), never the summary's rolling-30-day hourly series.
-    const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'), buildLiveTodayCube())
-    const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'), buildLiveTodayCube())
-    const withoutCube = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
-    const noCubeSalesCard = findCardByTag(withoutCube, 'article', (h) => h.includes('data-kpi="net-sales"'))
-    expect(noCubeSalesCard!.outerHtml).not.toContain('data-sparkline="true"')
+  it('keeps KPI text parity (154.700 د.ك / 24), shows a calm "trend not available" note instead of a sparkline when the day has no real hourly data, renders active Channel Mix segments excluding zero channels, and renders sortable/searchable ledger table in AR & EN (brand=all)', async () => {
+    // The live 2026-11-17 payload has day-level totals only. Its summary `hourlySeries` is the
+    // rolling-30-day series (Σ = 130,946.856), which must never be drawn as "today". With no real
+    // selected-period hourly data, Home shows NO sparkline — a calm unavailable note instead.
+    const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
+    const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
 
-    // 1. Exact KPI text parity preserved + real sparklines inside Cards 1 & 2
+    // 1. Exact KPI text parity preserved; no sparkline, calm note in Cards 1 & 2
     expect(textOfAttr(arHtml, 'data-kpi', 'net-sales')).toBe('154.700 د.ك')
     expect(textOfAttr(arHtml, 'data-kpi', 'total-orders')).toBe('24')
     expect(textOfAttr(enHtml, 'data-kpi', 'net-sales')).toBe('154.700 KWD')
     expect(textOfAttr(enHtml, 'data-kpi', 'total-orders')).toBe('24')
 
-    const arSalesCard = findCardByTag(arHtml, 'article', (h) => h.includes('data-kpi="net-sales"'))
-    const arOrdersCard = findCardByTag(arHtml, 'article', (h) => h.includes('data-kpi="total-orders"'))
-    expect(arSalesCard).not.toBeNull()
-    expect(arOrdersCard).not.toBeNull()
-    expect(arSalesCard!.outerHtml).toContain('data-sparkline="true"')
-    expect(arOrdersCard!.outerHtml).toContain('data-sparkline="true"')
-    expect(findElementByAttr(arSalesCard!.outerHtml, 'data-sparkline', 'true')!.outerHtml).not.toContain('<circle')
-    expect(findElementByAttr(arOrdersCard!.outerHtml, 'data-sparkline', 'true')!.outerHtml).not.toContain('<circle')
-
-    const enSalesCard = findCardByTag(enHtml, 'article', (h) => h.includes('data-kpi="net-sales"'))
-    const enOrdersCard = findCardByTag(enHtml, 'article', (h) => h.includes('data-kpi="total-orders"'))
-    expect(enSalesCard!.outerHtml).toContain('data-sparkline="true"')
-    expect(enOrdersCard!.outerHtml).toContain('data-sparkline="true"')
+    for (const [html, note] of [
+      [arHtml, 'الاتجاه غير متاح — لا توجد بيانات ساعية لهذه الفترة'],
+      [enHtml, 'Trend not available — no hourly data for this period'],
+    ] as const) {
+      const salesCard = findCardByTag(html, 'article', (h) => h.includes('data-kpi="net-sales"'))
+      const ordersCard = findCardByTag(html, 'article', (h) => h.includes('data-kpi="total-orders"'))
+      expect(salesCard).not.toBeNull()
+      expect(ordersCard).not.toBeNull()
+      for (const card of [salesCard!, ordersCard!]) {
+        expect(card.outerHtml).not.toContain('data-sparkline="true"')
+        expect(card.outerHtml).toContain('data-sparkline-unavailable="true"')
+        expect(card.text).toContain(note)
+        expect(card.outerHtml).not.toMatch(/amber-|rose-/)
+      }
+    }
 
     // 2. Channel Mix StackedProgressBar: active channels rendered, zero-sales channels excluded
     const arChannelCard = findCardByTag(

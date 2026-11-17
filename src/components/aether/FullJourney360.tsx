@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import Link from 'next/link'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
+  Info,
   ArrowUpDown,
   ArrowUpRight,
   Building2,
@@ -172,6 +173,9 @@ interface BranchCardRow {
 }
 
 /** ملخص الشركة — لوحة القيادة التنفيذية المربوطة مباشرةً ببيانات Odoo 17 */
+const SPARKLINE_UNAVAILABLE_EN = 'Trend not available — no hourly data for this period'
+const SPARKLINE_UNAVAILABLE_AR = 'الاتجاه غير متاح — لا توجد بيانات ساعية لهذه الفترة'
+
 export function FullJourney360({
   initialLiveCube = null,
 }: {
@@ -808,6 +812,13 @@ export function FullJourney360({
     workspace.sectionUnavailable,
   ])
 
+  // No real hourly/daily series for the selected period → calm note instead of a sparkline.
+  const sparklineUnavailableShown =
+    workspace.odooConnected &&
+    !workspace.noData &&
+    !workspace.sectionUnavailable &&
+    workspace.nullableSalesKwd !== null
+
   const ordersSparkline = useMemo<number[]>(() => {
     if (
       !workspace.odooConnected ||
@@ -971,7 +982,7 @@ export function FullJourney360({
           )}
           onRetry={canSyncOdoo ? () => void refreshOdoo() : undefined}
           retryLabel={T('Retry', 'إعادة المحاولة')}
-          className="rounded-[24px] backdrop-blur-xl ring-1 ring-rose-400/25 shadow-[0_10px_28px_-12px_rgba(190,18,60,0.16)]"
+          className="rounded-[24px] backdrop-blur-xl ring-1 ring-slate-300/60 shadow-[0_10px_28px_-12px_rgba(15,23,42,0.12)] dark:ring-white/10"
         />
       ) : null}
 
@@ -1064,10 +1075,10 @@ export function FullJourney360({
               role="status"
               variant="subtle"
               data-admin-unmapped-banner="true"
-              className="ae-bento-card flex flex-wrap items-center justify-between gap-3 border border-amber-300/60 bg-white/80 px-4 py-3.5 text-[13px] font-semibold text-slate-800 sm:px-5 dark:border-amber-400/25 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-100"
+              className="ae-bento-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-medium text-slate-700 ring-1 ring-slate-900/[0.04] sm:px-5 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/5"
             >
               <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600/85 dark:text-amber-300/85" />
+                <Info className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
                 <span>
                   {isAr
                     ? `«${formatAdminUnmappedAlertCopy(adminUnmappedNetKwd, true)}»`
@@ -1133,6 +1144,14 @@ export function FullJourney360({
                     </span>
                     <V35Sparkline values={salesSparkline} color="#E0F2FE" width={92} height={26} />
                   </div>
+                ) : sparklineUnavailableShown ? (
+                  <div
+                    role="status"
+                    data-sparkline-unavailable="true"
+                    className="mt-2.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-sky-100/90"
+                  >
+                    {T(SPARKLINE_UNAVAILABLE_EN, SPARKLINE_UNAVAILABLE_AR)}
+                  </div>
                 ) : null}
 
                 <div className="mt-3.5 space-y-2">
@@ -1142,7 +1161,7 @@ export function FullJourney360({
                       title={isAr ? (heroDelta.titleAr ?? undefined) : (heroDelta.titleEn ?? undefined)}
                       className={`ae-hero-pill inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
                         heroDelta.tone === 'red'
-                          ? 'bg-rose-500/25 text-rose-50 ring-1 ring-rose-300/35'
+                          ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
                           : heroDelta.tone === 'neutral'
                             ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
                             : 'bg-white/15 text-white'
@@ -1285,6 +1304,14 @@ export function FullJourney360({
                     </span>
                     <V35Sparkline values={ordersSparkline} color="#2563EB" width={92} height={26} />
                   </div>
+                ) : sparklineUnavailableShown && filters.brand === 'all' ? (
+                  <div
+                    role="status"
+                    data-sparkline-unavailable="true"
+                    className="mt-2.5 rounded-xl border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400"
+                  >
+                    {T(SPARKLINE_UNAVAILABLE_EN, SPARKLINE_UNAVAILABLE_AR)}
+                  </div>
                 ) : null}
 
                 <div className="mt-3.5 space-y-1.5">
@@ -1303,7 +1330,7 @@ export function FullJourney360({
                         dir="ltr"
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
                           beforeRentRatio < 0
-                            ? 'bg-rose-50/90 text-rose-700 ring-1 ring-rose-500/20 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-rose-400/25'
+                            ? 'bg-slate-100/90 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
                             : 'bg-blue-50/90 text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25'
                         }`}
                       >
