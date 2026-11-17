@@ -353,7 +353,7 @@ function buildLiveCube(overrides: Partial<OdooPeriodCube> = {}): OdooPeriodCube 
     byBrand[brandId] = {
       netKwd: b.netKwd,
       qty: b.qty ?? 100,
-      linesCount: b.orders,
+      linesCount: b.orders ?? 0,
       orders: b.orders,
       avgDiscountPct: 2.5,
       discountKwd: Number((b.netKwd * 0.025).toFixed(3)),
@@ -367,7 +367,7 @@ function buildLiveCube(overrides: Partial<OdooPeriodCube> = {}): OdooPeriodCube 
       brandByBranch[branchId][brandId] = {
         netKwd: Number((byBrand[brandId].netKwd / 8).toFixed(3)),
         qty: Math.round(byBrand[brandId].qty / 8),
-        linesCount: Math.round(byBrand[brandId].orders / 8),
+        linesCount: Math.round((byBrand[brandId].orders ?? 0) / 8),
         avgDiscountPct: 2.5,
         discountKwd: Number((byBrand[brandId].discountKwd / 8).toFixed(3)),
       }

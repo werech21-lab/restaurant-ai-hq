@@ -893,7 +893,8 @@ function computeCubeSliceTotals(
         const bRow = cube.byBrand[bId]
         if (bRow) {
           salesKwd += bRow.netKwd
-          orders += bRow.orders
+          // TODO(reconcile-follow-up): a null brand order count is unknown, not zero; this screen still sums it as 0.
+          orders += bRow.orders ?? 0
         }
       }
     } else {

@@ -85,6 +85,13 @@ export interface OdooReceivableClearingSummary {
   sourceModel?: 'account.move.line'
   byAccount?: OdooReceivableAccountRow[]
   agingBuckets?: OdooReceivableAgingBucket[]
+  /** `open-debits-by-due-date`: buckets hold only positive open residuals aged by due date. */
+  agingBasis?: 'open-debits-by-due-date'
+  /** Σ positive open residuals (what customers and platforms owe). */
+  openDebitsKwd?: number
+  /** Σ negative open residuals: unmatched payments and clearing credits, shown as one separate line. */
+  unappliedCreditsKwd?: number
+  unappliedCreditLinesCount?: number
 }
 
 export interface OdooLedgerAccountingSummary {
@@ -164,7 +171,23 @@ export interface OdooBucketSummary {
     restaurantNetKwd: number | null
     restaurantOrders: number | null
   }
-  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }> | null
+  /**
+   * Per-brand net and real order counts. `orders: null` means no exact count exists for this window;
+   * the UI must show `—`, never an estimate.
+   */
+  byBrand?: Record<string, { netKwd: number; orders: number | null; qty?: number }> | null
+  /** `order-allocated`: brand net reconciles to order net. `product-lines`: raw line totals (see gap). */
+  brandBasis?: 'order-allocated' | 'product-lines'
+  /** Σ brand net − (order net − unbranded − excluded lines). 0 when `brandBasis` is `order-allocated`. */
+  brandBasisGapKwd?: number | null
+  /** Brand split per branch (plus `unattributed`), only when computed exactly from order lines. */
+  byBrandByLocation?: Record<string, Record<string, { netKwd: number; orders: number }>> | null
+  /** Brand split per Kuwait day, only when computed exactly from order lines. */
+  byBrandDaily?: Record<string, Record<string, { netKwd: number; orders: number }>> | null
+  /** Order net on brand-less positive lines (not attributable to any brand). */
+  unbrandedNetKwd?: number | null
+  /** Net on excluded / non-company lines inside company orders (removed from brand figures). */
+  excludedLineNetKwd?: number | null
   byLocation?: Record<
     string,
     {
@@ -828,7 +851,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     const nv = r3(Math.max(0, brandAgg.get(bid)?.rawNet ?? 0))
     byBrand[bid] = {
       netKwd: nv,
-      orders: Math.max(0, Math.round(brandAgg.get(bid)?.linesCount ?? 0)),
+      // Line counts are not order counts; no exact brand order count exists on this path.
+      orders: null,
       qty: r3(Math.max(0, brandAgg.get(bid)?.qty ?? 0)),
     }
   }

@@ -19,6 +19,8 @@ import type {
   OdooReceivableAgingBucket,
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
+import { resolveBrandHeadline } from '@/lib/aether/brand-scope'
+import { toDisplayableAging } from '@/lib/odoo/receivable-aging'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
 
@@ -176,6 +178,15 @@ export const APPROVED_BRANCH_IDS = [
   'salmiya',
   'al-kout',
   'ardiya',
+] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
+
+/**
+ * Branch cards on the Executive Dashboard: the seven restaurants plus the school canteens
+ * (pos.config 41 and 42), so the cards add up to the company total.
+ */
+export const DASHBOARD_BRANCH_CARD_IDS = [
+  ...APPROVED_BRANCH_IDS,
+  'school-canteens',
 ] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
@@ -604,6 +615,12 @@ export interface WorkspaceReceivablesMeta {
   reconciliationFormulaEn: string
   byAccount: OdooReceivableAccountRow[]
   agingBuckets: OdooReceivableAgingBucket[]
+  /** Positive open residuals (owed to us); `null` when the payload has no due-date aging. */
+  openDebitsKwd: number | null
+  /** Negative open residuals (unmatched payments, clearing credits), shown as one separate line. */
+  unappliedCreditsKwd: number | null
+  agingHiddenReasonAr: string | null
+  agingHiddenReasonEn: string | null
 }
 
 export interface FeryalSimpleNote {
@@ -645,6 +662,9 @@ export interface GlobalWorkspaceSlice {
   nullableSalesKwd: number | null
   nullableOrders: number | null
   nullableAovKwd: number | null
+  /** Basis of the brand headline: `product-lines` is not reconciled to order net (see gap). */
+  brandBasis: 'order-level' | 'order-allocated' | 'product-lines'
+  brandBasisGapKwd: number | null
   lastSyncAt: string | null
   isStale24h: boolean
   odooCompanyId: number | null
@@ -815,6 +835,10 @@ function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceiva
     reconciliationFormulaEn: 'No Odoo data for this period',
     byAccount: [],
     agingBuckets: [],
+    openDebitsKwd: null,
+    unappliedCreditsKwd: null,
+    agingHiddenReasonAr: null,
+    agingHiddenReasonEn: null,
   }
 }
 
@@ -840,6 +864,10 @@ function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceR
     reconciliationFormulaEn: '—',
     byAccount: [],
     agingBuckets: [],
+    openDebitsKwd: null,
+    unappliedCreditsKwd: null,
+    agingHiddenReasonAr: null,
+    agingHiddenReasonEn: null,
   }
 }
 
@@ -1185,6 +1213,8 @@ export function computeGlobalWorkspace(
       nullableSalesKwd: 0,
       nullableOrders: 0,
       nullableAovKwd: 0,
+      brandBasis: 'order-level',
+      brandBasisGapKwd: 0,
       lastSyncAt: liveSummary?.lastSyncAt ?? null,
       isStale24h: Boolean(liveSummary?.isStale24h),
       odooCompanyId: liveSummary?.odooCompanyId ?? null,
@@ -1326,20 +1356,16 @@ export function computeGlobalWorkspace(
   const periodGroupSales = basePeriodSales * sliceNetMult
   const periodScale = monthGroupSales > 0 ? safeDiv(periodGroupSales, monthGroupSales, 0) : 0
 
-  const sumBrandNetInBucket = activeBkt?.byBrand
-    ? APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(activeBkt.byBrand?.[b]?.netKwd), 0)
-    : 0
-  const sumBrandOrdInBucket = activeBkt?.byBrand
-    ? APPROVED_BRAND_IDS.reduce((s, b) => s + safeNum(activeBkt.byBrand?.[b]?.orders), 0)
-    : 0
-
   const computeSliceSalesAndOrders = (
     tBrand: GlobalBrand,
     tBranch: GlobalBranch,
     tChannel: GlobalChannel,
-  ): { salesKwd: number; orders: number } => {
+  ): { salesKwd: number; orders: number; ordersKnown: boolean; scopeAvailable: boolean } => {
     let rawSales = 0
     let rawOrd = 0
+    // A brand slice is only shown from exact brand data; there is no pro-rata estimate.
+    let ordersKnown = true
+    let scopeAvailable = true
 
     if (tBrand === 'all' && tBranch === 'all' && tChannel === 'all') {
       rawSales = basePeriodSales
@@ -1355,8 +1381,11 @@ export function computeGlobalWorkspace(
         }
       }
     } else if (tBrand !== 'all' && tBranch === 'all' && tChannel === 'all') {
-      rawSales = safeNum(activeBkt.byBrand?.[tBrand]?.netKwd)
-      rawOrd = safeNum(activeBkt.byBrand?.[tBrand]?.orders)
+      const headline = resolveBrandHeadline(activeBkt, tBrand)
+      rawSales = headline?.netKwd ?? 0
+      rawOrd = headline?.orders ?? 0
+      ordersKnown = headline?.orders !== null && headline !== null
+      scopeAvailable = headline !== null
     } else if (tBrand === 'all' && tBranch !== 'all' && tChannel === 'all') {
       const branchLoc = activeBkt.byLocation?.[tBranch]
       rawSales = safeNum(branchLoc?.netKwd)
@@ -1369,28 +1398,18 @@ export function computeGlobalWorkspace(
       rawSales = safeNum(locCh?.netKwd)
       rawOrd = safeNum(locCh?.orders)
     } else if (tBrand !== 'all' && tBranch !== 'all' && tChannel === 'all') {
-      const brandShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.netKwd), sumBrandNetInBucket, 0)
-      const brandOrdShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.orders), sumBrandOrdInBucket, brandShare)
-      const branchLoc = activeBkt.byLocation?.[tBranch]
-      rawSales = safeNum(branchLoc?.netKwd) * brandShare
-      rawOrd = Math.round(safeNum(branchLoc?.orders) * brandOrdShare)
-    } else if (tBrand !== 'all' && tBranch === 'all' && tChannel !== 'all') {
-      const brandShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.netKwd), sumBrandNetInBucket, 0)
-      const brandOrdShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.orders), sumBrandOrdInBucket, brandShare)
-      const chRow = activeBkt.uiChannels?.[tChannel]
-      rawSales = safeNum(chRow?.netKwd) * brandShare
-      rawOrd = Math.round(safeNum(chRow?.orders) * brandOrdShare)
-    } else if (tBrand !== 'all' && tBranch !== 'all' && tChannel !== 'all') {
-      const brandShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.netKwd), sumBrandNetInBucket, 0)
-      const brandOrdShare = safeDiv(safeNum(activeBkt.byBrand?.[tBrand]?.orders), sumBrandOrdInBucket, brandShare)
-      const locCh = activeBkt.byLocation?.[tBranch]?.uiChannels?.[tChannel]
-      rawSales = safeNum(locCh?.netKwd) * brandShare
-      rawOrd = Math.round(safeNum(locCh?.orders) * brandOrdShare)
+      const cell = activeBkt.byBrandByLocation?.[tBranch]?.[tBrand]
+      rawSales = safeNum(cell?.netKwd)
+      rawOrd = safeNum(cell?.orders)
+      scopeAvailable = Boolean(activeBkt.byBrandByLocation)
+    } else {
+      // Brand × channel has no exact Odoo split yet.
+      scopeAvailable = false
     }
 
     const finalSalesKwd = Math.max(0, Math.round(rawSales * sliceNetMult * 1000) / 1000)
     const finalOrders = finalSalesKwd > 0 ? Math.max(0, Math.round(rawOrd * sliceOrdMult)) : 0
-    return { salesKwd: finalSalesKwd, orders: finalOrders }
+    return { salesKwd: finalSalesKwd, orders: finalOrders, ordersKnown, scopeAvailable }
   }
 
   const { brand, branch, channel } = filters
@@ -1402,7 +1421,9 @@ export function computeGlobalWorkspace(
   const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand === null)
   const branchesSectionUnavailable = Boolean(activeBkt && activeBkt.byLocation === null)
   const hourlySectionUnavailable = Boolean(liveSummary.hourlySeries === null)
+  const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const sectionUnavailable = Boolean(
+    !activeSlice.scopeAvailable ||
     bucketTotalsUnavailable ||
       (channel !== 'all' && channelsSectionUnavailable) ||
       (brand !== 'all' && brandsSectionUnavailable) ||
@@ -1410,13 +1431,14 @@ export function computeGlobalWorkspace(
       (filters.kuwaitSlice === 'quiet-hours' && hourlySectionUnavailable),
   )
 
-  const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const salesKwd = activeSlice.salesKwd
   const orders = activeSlice.orders
   const aovKwd = orders > 0 ? Math.round((salesKwd / orders) * 1000) / 1000 : 0
+  const ordersUnavailable = sectionUnavailable || !activeSlice.ordersKnown
   const nullableSalesKwd = sectionUnavailable ? null : salesKwd
-  const nullableOrders = sectionUnavailable ? null : orders
-  const nullableAovKwd = sectionUnavailable ? null : aovKwd
+  const nullableOrders = ordersUnavailable ? null : orders
+  const nullableAovKwd = ordersUnavailable ? null : aovKwd
+  const brandHeadline = brand === 'all' ? null : resolveBrandHeadline(activeBkt, brand)
 
   const unattributedSalesKwd = safeNum(
     activeBkt?.unattributedSalesKwd,
@@ -1749,7 +1771,16 @@ export function computeGlobalWorkspace(
           reconciliationFormulaAr: `${safeNum(arRaw.grossPositiveReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك ذمم موجبة − ${Math.abs(safeNum(arRaw.creditClearingOffsetKwd)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك مقاصة دائنة = ${safeNum(arRaw.openReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك صافي`,
           reconciliationFormulaEn: `${safeNum(arRaw.grossPositiveReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD positive AR − ${Math.abs(safeNum(arRaw.creditClearingOffsetKwd)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD credit clearing = ${safeNum(arRaw.openReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD net`,
           byAccount: arRaw.byAccount ?? [],
-          agingBuckets: arRaw.agingBuckets ?? [],
+          ...(() => {
+            const aging = toDisplayableAging(arRaw)
+            return {
+              agingBuckets: aging.buckets,
+              openDebitsKwd: aging.openDebitsKwd,
+              unappliedCreditsKwd: aging.unappliedCreditsKwd,
+              agingHiddenReasonAr: aging.hiddenReasonAr,
+              agingHiddenReasonEn: aging.hiddenReasonEn,
+            }
+          })(),
         }
       : buildEmptyReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
 
@@ -1833,6 +1864,8 @@ export function computeGlobalWorkspace(
     nullableSalesKwd,
     nullableOrders,
     nullableAovKwd,
+    brandBasis: brandHeadline?.basis ?? 'order-level',
+    brandBasisGapKwd: brandHeadline?.basisGapKwd ?? 0,
     lastSyncAt: liveSummary.lastSyncAt ?? liveSummary.syncedAt ?? null,
     isStale24h: Boolean(liveSummary.isStale24h ?? liveSummary.isStaleOver24h),
     odooCompanyId: liveSummary.odooCompanyId ?? null,
@@ -1926,19 +1959,37 @@ export function formatSignedDelta(rawPct: number): SignedDeltaDisplay {
   }
 }
 
+/** Rounds a % change to one decimal; `null` unless both sides are positive. */
+function pctChange(current: number, prior: number): number | null {
+  if (!(current > 0) || !(prior > 0)) return null
+  const pct = ((current - prior) / prior) * 100
+  return Number.isFinite(pct) ? Math.round(pct * 10) / 10 : null
+}
+
+const DAYS_PER_WEEK = 7
+const DAYS_PER_MONTH_WINDOW = 30
+
 /**
- * Computes true like-for-like period-over-period Net Sales % delta strictly from live Odoo `dailySeries` / `journeyPulse`.
- * Returns `0` when Odoo is disconnected or when prior period live days are unavailable (zero `3.3%` static fallback).
+ * Like-for-like period-over-period Net Sales % delta from live Odoo `dailySeries` / `journeyPulse`.
+ *
+ * Returns `null` ("no comparison") whenever a real prior period is not in the payload, so the UI
+ * shows `—` instead of a fake `+0.0%`. Every input series is company-wide, so any brand, branch or
+ * channel filter also returns `null` rather than labelling a company delta as the filtered one.
+ * `today` has no same-hours prior-week data in the payload, so it returns `null` unless the
+ * caller opts in to whole-day comparison (`sameHoursLikeForLike`).
  */
 export function computePeriodOverPeriodDeltaPct(
   filters: GlobalFilters,
   _workspace: Pick<GlobalWorkspaceSlice, 'salesKwd' | 'isTodayFallback'>,
   liveSummary?: OdooLiveSummary | null,
   options?: { referenceNowMs?: number; sameHoursLikeForLike?: boolean },
-): number {
+): number | null {
   if (!liveSummary || liveSummary.connected !== true) {
-    return 0
+    return null
   }
+  const isDimensionFiltered =
+    (filters.brand ?? 'all') !== 'all' || (filters.branch ?? 'all') !== 'all' || (filters.channel ?? 'all') !== 'all'
+  if (isDimensionFiltered) return null
 
   const dailyMap = new Map<string, { day: string; orders: number; netKwd: number }>()
   for (const d of liveSummary.dailySeries ?? []) {
@@ -1954,42 +2005,33 @@ export function computePeriodOverPeriodDeltaPct(
   if (filters.period === 'month') {
     const r30 = liveSummary.journeyPulse?.rolling30
     const p30 = liveSummary.journeyPulse?.prior30
-    if (r30 && p30 && r30.netKwd > 0 && p30.netKwd > 0) {
-      const pct = ((r30.netKwd - p30.netKwd) / p30.netKwd) * 100
-      if (Number.isFinite(pct)) {
-        return Math.round(pct * 10) / 10
-      }
-    }
-    if (completedDays.length >= 60) {
-      const curr30 = completedDays.slice(-30).reduce((s, d) => s + d.netKwd, 0)
-      const prev30 = completedDays.slice(-60, -30).reduce((s, d) => s + d.netKwd, 0)
-      if (curr30 > 0 && prev30 > 0) {
-        return Math.round(((curr30 - prev30) / prev30) * 1000) / 10
-      }
-    }
-    return 0
+    const pulseDelta = r30 && p30 ? pctChange(r30.netKwd, p30.netKwd) : null
+    if (pulseDelta !== null) return pulseDelta
+    if (completedDays.length < 2 * DAYS_PER_MONTH_WINDOW) return null
+    const sum = (rows: typeof completedDays) => rows.reduce((s, d) => s + d.netKwd, 0)
+    return pctChange(
+      sum(completedDays.slice(-DAYS_PER_MONTH_WINDOW)),
+      sum(completedDays.slice(-2 * DAYS_PER_MONTH_WINDOW, -DAYS_PER_MONTH_WINDOW)),
+    )
   }
 
-  if (filters.period === 'week' && completedDays.length >= 14) {
-    const curr7 = completedDays.slice(-7).reduce((s, d) => s + d.netKwd, 0)
-    const prev7 = completedDays.slice(-14, -7).reduce((s, d) => s + d.netKwd, 0)
-    if (curr7 > 0 && prev7 > 0) {
-      return Math.round(((curr7 - prev7) / prev7) * 1000) / 10
-    }
-    return 0
+  if (filters.period === 'week') {
+    if (completedDays.length < 2 * DAYS_PER_WEEK) return null
+    const sum = (rows: typeof completedDays) => rows.reduce((s, d) => s + d.netKwd, 0)
+    return pctChange(
+      sum(completedDays.slice(-DAYS_PER_WEEK)),
+      sum(completedDays.slice(-2 * DAYS_PER_WEEK, -DAYS_PER_WEEK)),
+    )
   }
 
-  if (filters.period === 'today' && completedDays.length >= 8) {
-    const latestFullIdx = completedDays.length - 1
-    const sameWeekdayIdx = latestFullIdx - 7
-    if (latestFullIdx >= 0 && sameWeekdayIdx >= 0) {
-      const currDay = completedDays[latestFullIdx].netKwd
-      const prevSameWeekday = completedDays[sameWeekdayIdx].netKwd
-      if (currDay > 0 && prevSameWeekday > 0) {
-        return Math.round(((currDay - prevSameWeekday) / prevSameWeekday) * 1000) / 10
-      }
-    }
-    return 0
+  if (filters.period === 'today') {
+    // Comparing a partial today with a whole prior day is not like-for-like; only the explicit
+    // whole-day mode compares the latest day with the same weekday one week earlier.
+    if (!options?.sameHoursLikeForLike) return null
+    const latest = completedDays[completedDays.length - 1]
+    const sameWeekdayIso = latest ? shiftIsoDateDays(latest.day, -DAYS_PER_WEEK) : null
+    const prior = completedDays.find((d) => d.day === sameWeekdayIso)
+    return latest && prior ? pctChange(latest.netKwd, prior.netKwd) : null
   }
 
   if (filters.period === 'custom' && filters.customFrom && filters.customTo) {
@@ -2014,11 +2056,9 @@ export function computePeriodOverPeriodDeltaPct(
     if (currRows.length > 0 && currRows.length === prevRows.length) {
       const currSum = currRows.reduce((s, d) => s + d.netKwd, 0)
       const prevSum = prevRows.reduce((s, d) => s + d.netKwd, 0)
-      if (currSum > 0 && prevSum > 0) {
-        return Math.round(((currSum - prevSum) / prevSum) * 1000) / 10
-      }
+      return pctChange(currSum, prevSum)
     }
   }
 
-  return 0
+  return null
 }

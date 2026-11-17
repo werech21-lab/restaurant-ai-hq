@@ -36,15 +36,15 @@ import {
   UNATTRIBUTED_BRANCH_LABEL_AR,
   UNATTRIBUTED_BRANCH_LABEL_EN,
 } from '@/lib/aether/cores-hub-engine'
+import { SCOPE_LABELS, resolveBranchScope } from '@/lib/aether/brand-scope'
+import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
-  APPROVED_BRANCH_IDS,
-  computePeriodOverPeriodDeltaPct,
+  DASHBOARD_BRANCH_CARD_IDS,
   formatPeriodCalendarWindow,
   getBranchLabel,
 } from '@/lib/aether/global-filter-engine'
 import {
   buildWeeklyChartMeta,
-  computePeriodDelta,
   formatAdminUnmappedAlertCopy,
   formatStaticMarginPill,
 } from '@/lib/aether/period-delta'
@@ -259,12 +259,20 @@ export function FullJourney360() {
     return liveSummary.buckets?.[filters.period] ?? null
   }, [filters.period, liveSummary])
 
+  // Branch figures that match the brand filter (exact brand split, or unavailable — never all-brand).
+  const branchScope = useMemo(
+    () => resolveBranchScope(activeBucket, filters.brand, DASHBOARD_BRANCH_CARD_IDS),
+    [activeBucket, filters.brand],
+  )
+  const brandBranchScopeUnavailable = filters.brand !== 'all' && !branchScope.available
+
   // 7 Mapped Branches + Explicit 8th Row «غير منسوب لفرع»
   const branchCards = useMemo<BranchCardRow[]>(() => {
     if (
       !workspace.odooConnected ||
       workspace.noData ||
       workspace.sectionUnavailable ||
+      brandBranchScopeUnavailable ||
       coresSnap.sales.branchesUnavailable ||
       (activeBucket &&
         (activeBucket.totals.restaurantNetKwd === null ||
@@ -274,11 +282,14 @@ export function FullJourney360() {
       return []
     }
 
-    const mappedRows: BranchCardRow[] = APPROVED_BRANCH_IDS.map((branchId) => {
-      const bktLoc =
-        activeBucket?.mappedByLocation?.[branchId] ?? activeBucket?.byLocation?.[branchId]
+    const brandScopedRows = filters.brand !== 'all' && branchScope.available ? branchScope : null
+    const mappedRows: BranchCardRow[] = DASHBOARD_BRANCH_CARD_IDS.map((branchId) => {
+      const bktLoc = brandScopedRows
+        ? brandScopedRows.rows[branchId]
+        : (activeBucket?.mappedByLocation?.[branchId] ?? activeBucket?.byLocation?.[branchId])
       const corePt = coresSnap.sales.branchRanking.find((x) => x.id === branchId)
-      const useBucket = filters.brand === 'all' && filters.channel === 'all' && bktLoc !== undefined
+      const useBucket =
+        (brandScopedRows !== null || filters.brand === 'all') && filters.channel === 'all' && bktLoc !== undefined
       const rawSales = useBucket ? bktLoc?.netKwd : corePt?.salesKwd
       const rawOrders = useBucket ? bktLoc?.orders : corePt?.orders
       const salesKwd = typeof rawSales === 'number' && Number.isFinite(rawSales) ? rawSales : null
@@ -298,15 +309,17 @@ export function FullJourney360() {
       }
     }).sort((a, b) => (b.salesKwd ?? Number.NEGATIVE_INFINITY) - (a.salesKwd ?? Number.NEGATIVE_INFINITY))
 
-    const unattribSales =
-      workspace.unattributedSalesKwd === null
+    const unattribSales = brandScopedRows
+      ? brandScopedRows.unattributed.netKwd
+      : workspace.unattributedSalesKwd === null
         ? null
         : typeof workspace.unattributedSalesKwd === 'number' &&
             Number.isFinite(workspace.unattributedSalesKwd)
           ? Math.max(0, workspace.unattributedSalesKwd)
           : 0
-    const unattribOrders =
-      workspace.unattributedOrders === null
+    const unattribOrders = brandScopedRows
+      ? brandScopedRows.unattributed.orders
+      : workspace.unattributedOrders === null
         ? null
         : typeof workspace.unattributedOrders === 'number' &&
             Number.isFinite(workspace.unattributedOrders)
@@ -347,6 +360,8 @@ export function FullJourney360() {
     return withShares
   }, [
     activeBucket,
+    brandBranchScopeUnavailable,
+    branchScope,
     coresSnap.sales.branchRanking,
     coresSnap.sales.branchesUnavailable,
     filters.brand,
@@ -528,6 +543,16 @@ export function FullJourney360() {
     opexRent10,
   ])
 
+  const weekSnapForPulse = useMemo(
+    () => computeCoresHubSnapshot({ ...filters, period: 'week' }, [], liveSummary),
+    [filters, liveSummary],
+  )
+  const weeklyPulseUsesCoreTimeline =
+    coresSnap.sales.timeline.length >= 7 && /^\d{4}-\d{2}-\d{2}$/.test(coresSnap.sales.timeline[0]?.id ?? '')
+  const weeklyPulseScope = weeklyPulseUsesCoreTimeline
+    ? coresSnap.sales.timelineScope
+    : weekSnapForPulse.sales.timelineScope
+
   const weeklyPills = useMemo(() => {
     if (!workspace.odooConnected || workspace.noData) return []
     const isIsoDaily =
@@ -535,7 +560,7 @@ export function FullJourney360() {
       /^\d{4}-\d{2}-\d{2}$/.test(coresSnap.sales.timeline[0]?.id ?? '')
     const baseTimeline = isIsoDaily
       ? coresSnap.sales.timeline
-      : computeCoresHubSnapshot({ ...filters, period: 'week' }, [], liveSummary).sales.timeline
+      : weekSnapForPulse.sales.timeline
     const sevenDays = baseTimeline.slice(-7)
     const maxSales = Math.max(...sevenDays.map((d) => Math.max(0, d.salesKwd)), 1)
     let strictPeakId = sevenDays[0]?.id ?? ''
@@ -579,7 +604,7 @@ export function FullJourney360() {
         heightPct,
       }
     })
-  }, [coresSnap.sales.timeline, filters, isAr, liveSummary, workspace.noData, workspace.odooConnected])
+  }, [coresSnap.sales.timeline, isAr, weekSnapForPulse.sales.timeline, workspace.noData, workspace.odooConnected])
 
   const peakPillId = useMemo(
     () => weeklyPills.find((p) => p.isPeak)?.id ?? weeklyPills[0]?.id ?? '',
@@ -603,33 +628,26 @@ export function FullJourney360() {
     [weeklyPills, liveSummary?.connected],
   )
 
-  const heroDelta = useMemo(() => {
-    if (workspace.nullableSalesKwd === null) {
-      return { badgeLabel: '—', tone: 'neutral' as const }
-    }
-    const isUnfilteredMonth =
-      filters.period === 'month' &&
-      filters.brand === 'all' &&
-      filters.branch === 'all' &&
-      filters.channel === 'all' &&
-      filters.kuwaitSlice === 'all' &&
-      filters.lens === 'all'
-    if (isUnfilteredMonth && liveSummary?.journeyPulse === null) {
-      return { badgeLabel: '—', tone: 'neutral' as const }
-    }
-    const rolling30Net = liveSummary?.journeyPulse?.rolling30?.netKwd ?? 0
-    const prior30Net = liveSummary?.journeyPulse?.prior30?.netKwd ?? 0
-    if (isUnfilteredMonth && rolling30Net > 0 && prior30Net > 0) {
-      return computePeriodDelta(rolling30Net, prior30Net)
-    }
-    const pct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
-    return computePeriodDelta(100 + pct, 100)
-  }, [filters, liveSummary, workspace])
+  const heroDelta = useMemo(
+    () => resolveHeroDeltaBadge(filters, workspace, liveSummary),
+    [filters, liveSummary, workspace],
+  )
 
   const adminUnmappedNetKwd =
     sessionRole === 'admin' && !auditorReadOnly && workspace.odooConnected && !workspace.noData
       ? Math.max(0, liveSummary?.companyTotals?.unmappedTerminalsNetKwd ?? workspace.unattributedSalesKwd ?? 0)
       : 0
+
+  // Cards that stay company-wide say so whenever a brand is selected (no silent scope mixing).
+  const companyWideBadge =
+    filters.brand !== 'all' ? (
+      <span
+        data-scope-badge="company-wide"
+        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
+      >
+        {T(SCOPE_LABELS.companyWide.en, SCOPE_LABELS.companyWide.ar)}
+      </span>
+    ) : null
 
   const isInitialLoading = syncingOdoo && !liveSummary
   const isDisconnectedOrEmpty = !workspace.odooConnected || workspace.noData
@@ -842,6 +860,8 @@ export function FullJourney360() {
                 <div className="mt-3.5 space-y-2">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span
+                      data-delta-comparison={heroDelta.hasComparison ? 'real' : 'none'}
+                      title={isAr ? (heroDelta.titleAr ?? undefined) : (heroDelta.titleEn ?? undefined)}
                       className={`ae-hero-pill inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
                         heroDelta.tone === 'red'
                           ? 'bg-rose-500/25 text-rose-50 ring-1 ring-rose-300/35'
@@ -853,7 +873,11 @@ export function FullJourney360() {
                       <span dir="ltr" className="tabular-nums">
                         {heroDelta.badgeLabel}
                       </span>{' '}
-                      <span>{T('vs prior period', 'مقارنة بالفترة السابقة')}</span>
+                      <span>
+                        {heroDelta.hasComparison
+                          ? T('vs prior period', 'مقارنة بالفترة السابقة')
+                          : T(SCOPE_LABELS.noComparison.en, SCOPE_LABELS.noComparison.ar)}
+                      </span>
                     </span>
                     <span className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
                       {workspace.nullableAovKwd === null ? (
@@ -881,6 +905,23 @@ export function FullJourney360() {
                       )}
                     </span>
                   </div>
+                  {workspace.nullableSalesKwd !== null && workspace.brandBasis === 'product-lines' ? (
+                    <p
+                      data-brand-basis="product-lines"
+                      className="whitespace-normal text-xs font-medium tabular-nums text-amber-100"
+                    >
+                      {T(SCOPE_LABELS.productLinesBasis.en, SCOPE_LABELS.productLinesBasis.ar)}
+                      {workspace.brandBasisGapKwd !== null ? (
+                        <>
+                          {' • '}
+                          {T('gap vs order net', 'الفرق عن صافي الطلبات')}{' '}
+                          <span dir="ltr" className="tabular-nums">
+                            {fmtKwdVal(workspace.brandBasisGapKwd)}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                   {workspace.nullableSalesKwd !== null &&
                   workspace.unattributedSalesKwd > 0 &&
                   filters.brand === 'all' &&
@@ -948,7 +989,15 @@ export function FullJourney360() {
                       {UNAVAILABLE_DASH}
                     </span>
                   ) : (
-                    formatInt(workspace.nullableOrders)
+                    <span
+                      title={
+                        filters.brand !== 'all'
+                          ? T(SCOPE_LABELS.multiBrandOrders.en, SCOPE_LABELS.multiBrandOrders.ar)
+                          : undefined
+                      }
+                    >
+                      {formatInt(workspace.nullableOrders)}
+                    </span>
                   )}
                 </div>
 
@@ -996,6 +1045,7 @@ export function FullJourney360() {
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
                     {T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')}
                   </p>
+                  {companyWideBadge}
                   <Link
                     href="/erp/executive-pnl"
                     aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
@@ -1319,11 +1369,22 @@ export function FullJourney360() {
                   state="unavailable"
                   locale={activeLocale}
                   compact
-                  title={T('Branch breakdown unavailable', 'تفصيل الفروع غير متاح حالياً')}
-                  description={T(
-                    'Branch-level POS data is temporarily unavailable for this period.',
-                    'بيانات نقاط البيع حسب الفروع غير متاحة مؤقتاً لهذه الفترة.',
-                  )}
+                  title={
+                    brandBranchScopeUnavailable
+                      ? T(SCOPE_LABELS.unavailableForFilter.en, SCOPE_LABELS.unavailableForFilter.ar)
+                      : T('Branch breakdown unavailable', 'تفصيل الفروع غير متاح حالياً')
+                  }
+                  description={
+                    brandBranchScopeUnavailable
+                      ? T(
+                          'No exact split of this brand by branch is available for this period, so all-brand branch figures are not shown.',
+                          'لا يتوفر تقسيم دقيق لهذه العلامة حسب الفرع لهذه الفترة، لذلك لا تُعرض أرقام الفروع لكل العلامات.',
+                        )
+                      : T(
+                          'Branch-level POS data is temporarily unavailable for this period.',
+                          'بيانات نقاط البيع حسب الفروع غير متاحة مؤقتاً لهذه الفترة.',
+                        )
+                  }
                 />
               )}
             </section>
@@ -1337,6 +1398,14 @@ export function FullJourney360() {
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Daily POS Sales Pulse (Last 7 Days)', 'نبض مبيعات نقاط البيع اليومي (آخر 7 أيام)')}
                     </h2>
+                    {filters.brand !== 'all' && weeklyPulseScope === 'all-brands' ? (
+                      <span
+                        data-scope-badge="all-brands"
+                        className="mt-1 inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"
+                      >
+                        {T(SCOPE_LABELS.allBrands.en, SCOPE_LABELS.allBrands.ar)}
+                      </span>
+                    ) : null}
                     <p className="mt-0.5 whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                       {isAr ? weeklyChartMeta.subtitleAr : weeklyChartMeta.subtitleEn}
                     </p>
@@ -1469,6 +1538,7 @@ export function FullJourney360() {
                       <Wallet className="h-3.5 w-3.5" />
                       <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
                     </span>
+                    {companyWideBadge}
                   </div>
 
                   {maskInternalCosts ? (
@@ -1521,6 +1591,23 @@ export function FullJourney360() {
                               </div>
                             ))}
                           </div>
+                        ) : null}
+
+                        {!workspace.receivables.unavailable && workspace.receivables.unappliedCreditsKwd !== null ? (
+                          <div
+                            data-ar-unapplied-credits="true"
+                            className="mt-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-700 dark:text-slate-300"
+                          >
+                            <span>{T('Unapplied credits & clearing', 'دفعات ومقاصات غير مطابقة')}</span>
+                            <span dir="ltr" className="font-bold tabular-nums">
+                              {fmtKwdVal(workspace.receivables.unappliedCreditsKwd)}
+                            </span>
+                          </div>
+                        ) : null}
+                        {!workspace.receivables.unavailable && workspace.receivables.agingHiddenReasonAr ? (
+                          <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-amber-900 dark:text-amber-200">
+                            {isAr ? workspace.receivables.agingHiddenReasonAr : workspace.receivables.agingHiddenReasonEn}
+                          </p>
                         ) : null}
 
                         <p className="mt-2 text-xs font-medium text-slate-600 dark:text-[#8FA39B]">

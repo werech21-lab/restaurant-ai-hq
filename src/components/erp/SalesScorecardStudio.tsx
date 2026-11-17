@@ -24,7 +24,7 @@ export function SalesScorecardStudio() {
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
 
   const deltaPct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
-  const deltaBadge = formatSignedDelta(deltaPct)
+  const deltaBadge = formatSignedDelta(deltaPct ?? 0)
 
   const sortOptions = <T extends { salesKwd?: number }>(list: T[]): T[] =>
     [...list].sort((a, b) => {

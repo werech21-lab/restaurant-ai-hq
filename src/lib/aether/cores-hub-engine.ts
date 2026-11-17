@@ -7,6 +7,7 @@
  * Strictly 6 brands and 7 branches + explicit 8th row `غير منسوب لفرع`.
  */
 
+import { resolveBranchScope, resolveDailySeriesForBrand } from '@/lib/aether/brand-scope'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
@@ -199,6 +200,10 @@ export interface CoresHubSnapshot {
     channelsUnavailable: boolean
     branchesUnavailable: boolean
     brandsUnavailable: boolean
+    /** `brand`: the timeline is the selected brand; `all-brands`: company series (label it). */
+    timelineScope: 'brand' | 'all-brands'
+    /** `brand`: branch rows are the selected brand's exact split; `all-brands`: company rows. */
+    branchScope: 'brand' | 'all-brands'
     peakHourLabelAr: string
     peakHourLabelEn: string
     peakHourShortAr: string
@@ -465,6 +470,8 @@ export function computeCoresHubSnapshot(
         channelsUnavailable: false,
         branchesUnavailable: false,
         brandsUnavailable: false,
+        timelineScope: 'all-brands',
+        branchScope: 'all-brands',
         peakHourLabelAr: '—',
         peakHourLabelEn: '—',
         peakHourShortAr: '—',
@@ -532,35 +539,36 @@ export function computeCoresHubSnapshot(
     }
   }
 
-  // 1. Live daily series
-  const rawDailySeries: { day: string; orders: number; netKwd: number }[] = (() => {
+  // 1. Live daily series (brand series only when an exact one covers the window)
+  const scopedDaily: { scope: 'brand' | 'all-brands'; series: { day: string; orders: number; netKwd: number }[] } = (() => {
     if (liveCube) {
       if (filters.branch !== 'all') {
         const branchKey = filters.branch
-        return Object.entries(liveCube.dailyByBranch ?? {})
+        const series = Object.entries(liveCube.dailyByBranch ?? {})
           .map(([day, byBr]) => ({
             day,
             netKwd: byBr?.[branchKey]?.netKwd ?? 0,
             orders: byBr?.[branchKey]?.orders ?? 0,
           }))
           .sort((a, b) => a.day.localeCompare(b.day))
+        return { scope: 'all-brands', series }
       }
-      return liveCube.dailySeries ?? []
+      return { scope: 'all-brands', series: liveCube.dailySeries ?? [] }
     }
-    const baseDaily: { day: string; orders: number; netKwd: number }[] =
-      filters.branch !== 'all'
-        ? Object.entries(liveSummary?.dailyByBranch ?? {})
-            .map(([day, byBr]) => ({
-              day,
-              netKwd: byBr?.[filters.branch]?.netKwd ?? 0,
-              orders: byBr?.[filters.branch]?.orders ?? 0,
-            }))
-            .sort((a, b) => a.day.localeCompare(b.day))
-        : liveSummary?.dailySeries ?? []
-    return baseDaily.filter(
-      (d) => d.day >= canonicalPeriodWin.fromIso && d.day <= canonicalPeriodWin.toInclusiveIso,
-    )
+    const window = { fromIso: canonicalPeriodWin.fromIso, toInclusiveIso: canonicalPeriodWin.toInclusiveIso }
+    if (filters.branch === 'all') return resolveDailySeriesForBrand(liveSummary, filters.brand, window)
+    const series = Object.entries(liveSummary?.dailyByBranch ?? {})
+      .map(([day, byBr]) => ({
+        day,
+        netKwd: byBr?.[filters.branch]?.netKwd ?? 0,
+        orders: byBr?.[filters.branch]?.orders ?? 0,
+      }))
+      .sort((a, b) => a.day.localeCompare(b.day))
+      .filter((d) => d.day >= window.fromIso && d.day <= window.toInclusiveIso)
+    return { scope: 'all-brands', series }
   })()
+  const rawDailySeries = scopedDaily.series
+  const timelineScope = scopedDaily.scope
 
   const dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
   const dayNamesEn = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -726,15 +734,20 @@ export function computeCoresHubSnapshot(
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
   // 4. Branch Ranking (7 branches + explicit 8th row `غير منسوب لفرع`)
+  const branchIds: string[] =
+    filters.branch === 'all' ? [...APPROVED_BRANCH_IDS, 'school-canteens'] : [filters.branch]
+  const bucketBranchScope =
+    liveCube || !activeBucket ? null : resolveBranchScope(activeBucket, filters.brand, branchIds)
   const branchesUnavailable = Boolean(
     !liveCube &&
       activeBucket &&
-      (activeBucket.byLocation === null ||
+      (!bucketBranchScope?.available ||
+        activeBucket.byLocation === null ||
         activeBucket.mappedByLocation === null ||
         activeBucket.totals.restaurantNetKwd === null),
   )
-  const branchIds: string[] =
-    filters.branch === 'all' ? [...APPROVED_BRANCH_IDS, 'school-canteens'] : [filters.branch]
+  const branchScope: 'brand' | 'all-brands' =
+    bucketBranchScope?.available && bucketBranchScope.scope === 'brand' ? 'brand' : 'all-brands'
   const branchRowsRaw = branchesUnavailable
     ? []
     : branchIds.map((lid) => {
@@ -751,21 +764,22 @@ export function computeCoresHubSnapshot(
             liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
           return { lid, salesKwd: safeNum(lRow?.netKwd), orders: safeNum(lRow?.orders) }
         }
-        const bktLoc = activeBucket?.mappedByLocation?.[lid] ?? activeBucket?.byLocation?.[lid]
-        if (bktLoc) {
-          return { lid, salesKwd: safeNum(bktLoc.netKwd), orders: safeNum(bktLoc.orders) }
+        if (bucketBranchScope?.available) {
+          const cell = bucketBranchScope.rows[lid]
+          return { lid, salesKwd: safeNum(cell?.netKwd), orders: safeNum(cell?.orders) }
         }
         const wsOpt = ws.cascadingOptions.branches.find((x) => x.id === lid)
         return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
       })
 
+  const bucketUnattributed = bucketBranchScope?.available ? bucketBranchScope.unattributed : null
   const unattributedSalesKwd =
     branchesUnavailable || filters.branch !== 'all'
       ? 0
       : round3(
           liveCube
             ? safeNum(liveCube.unattributed?.netKwd)
-            : safeNum(ws.unattributedSalesKwd),
+            : safeNum(bucketUnattributed ? bucketUnattributed.netKwd : ws.unattributedSalesKwd),
         )
   const unattributedOrders =
     branchesUnavailable || filters.branch !== 'all'
@@ -773,7 +787,7 @@ export function computeCoresHubSnapshot(
       : Math.round(
           liveCube
             ? safeNum(liveCube.unattributed?.orders)
-            : safeNum(ws.unattributedOrders),
+            : safeNum(bucketUnattributed ? bucketUnattributed.orders : ws.unattributedOrders),
         )
 
   const branchDenomKwd =
@@ -985,6 +999,8 @@ export function computeCoresHubSnapshot(
       channelsUnavailable,
       branchesUnavailable,
       brandsUnavailable,
+      timelineScope,
+      branchScope,
       peakHourLabelAr,
       peakHourLabelEn,
       peakHourShortAr,

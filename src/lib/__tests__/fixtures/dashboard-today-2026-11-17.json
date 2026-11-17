@@ -1,0 +1,3011 @@
+{
+ "_meta": {
+  "source": "GET /api/erp/odoo-sync?period=today (read-only auditor session), synced 2026-11-17 06:00 Asia/Kuwait",
+  "trimmed": "today bucket + month totals + receivables aggregates; no account names, partners, users or secrets"
+ },
+ "summary": {
+  "source": "live",
+  "connected": true,
+  "sourceMode": "odoo17-live",
+  "noData": false,
+  "lastSyncAt": "2026-11-17T03:00:36.564Z",
+  "isStale24h": false,
+  "dateRange": {
+   "from": "2026-11-17",
+   "to": "2026-11-17"
+  },
+  "syncedAt": "2026-11-16T22:44:55.000Z",
+  "latestRecordAt": "2026-11-16T22:44:55.000Z",
+  "latestOperationalDate": "2026-11-17",
+  "bucket": "today",
+  "period": {
+   "from": "2026-11-17",
+   "to": "2026-11-17"
+  },
+  "totals": {
+   "netSalesKwd": 154.7,
+   "orders": 24,
+   "aovKwd": 6.446
+  },
+  "companyTotals": {
+   "grossPreExclusionKwd": 188.6,
+   "excludedEntitiesKwd": 33.9,
+   "excludedEntitiesOrders": 5,
+   "mappedBranchesNetKwd": 154.7,
+   "netSalesKwd": 154.7,
+   "orders": 24,
+   "unmappedTerminalsNetKwd": 0,
+   "unmappedTerminalsOrders": 0,
+   "reconciliationGapKwd": 0,
+   "reconciledExact": true
+  },
+  "unattributedSalesKwd": 0,
+  "unattributedOrders": 0,
+  "unattributedBranch": {
+   "id": "unattributed",
+   "labelAr": "غير منسوب لفرع",
+   "labelEn": "Unattributed to Branch",
+   "netSalesKwd": 0,
+   "orders": 0,
+   "sharePct": 0
+  },
+  "brands": [
+   {
+    "id": "china-garden",
+    "brand": "China Garden",
+    "netKwd": 133.55,
+    "sharePct": 86.3
+   },
+   {
+    "id": "franks",
+    "brand": "Frank's",
+    "netKwd": 23.5,
+    "sharePct": 15.2
+   },
+   {
+    "id": "noodle-bar",
+    "brand": "The Noodle Bar",
+    "netKwd": 3.25,
+    "sharePct": 2.1
+   }
+  ],
+  "branches": [
+   {
+    "id": "ardiya",
+    "name": "Ardiya",
+    "unit": "restaurant",
+    "netSalesKwd": 99.35,
+    "orders": 13,
+    "sharePct": 64.2
+   },
+   {
+    "id": "promenade",
+    "name": "Promenade Mall",
+    "unit": "restaurant",
+    "netSalesKwd": 31.55,
+    "orders": 7,
+    "sharePct": 20.4
+   },
+   {
+    "id": "salmiya",
+    "name": "Salmiya",
+    "unit": "restaurant",
+    "netSalesKwd": 18.35,
+    "orders": 3,
+    "sharePct": 11.9
+   },
+   {
+    "id": "al-kout",
+    "name": "Al-Kout Mall",
+    "unit": "restaurant",
+    "netSalesKwd": 5.45,
+    "orders": 1,
+    "sharePct": 3.5
+   },
+   {
+    "id": "avenues",
+    "name": "The Avenues",
+    "unit": "restaurant",
+    "netSalesKwd": 0,
+    "orders": 0,
+    "sharePct": 0
+   },
+   {
+    "id": "360-mall",
+    "name": "360 Mall",
+    "unit": "restaurant",
+    "netSalesKwd": 0,
+    "orders": 0,
+    "sharePct": 0
+   },
+   {
+    "id": "assima",
+    "name": "Assima Mall",
+    "unit": "restaurant",
+    "netSalesKwd": 0,
+    "orders": 0,
+    "sharePct": 0
+   }
+  ],
+  "channels": [
+   {
+    "name": "talabat-tgo",
+    "amountKwd": 62.95
+   },
+   {
+    "name": "keeta",
+    "amountKwd": 57.8
+   },
+   {
+    "name": "talabat-tmp",
+    "amountKwd": 27
+   },
+   {
+    "name": "deliveroo",
+    "amountKwd": 6.95
+   },
+   {
+    "name": "dine-in",
+    "amountKwd": 0
+   },
+   {
+    "name": "takeaway-direct",
+    "amountKwd": 0
+   },
+   {
+    "name": "jahez",
+    "amountKwd": 0
+   },
+   {
+    "name": "snoonu",
+    "amountKwd": 0
+   }
+  ],
+  "dailySeries": [
+   {
+    "day": "2026-11-17",
+    "orders": 24,
+    "netKwd": 154.7
+   }
+  ],
+  "dailyByBranch": {
+   "2026-09-14": {
+    "avenues": {
+     "netKwd": 181.699,
+     "orders": 56
+    },
+    "360-mall": {
+     "netKwd": 687.975,
+     "orders": 110
+    },
+    "assima": {
+     "netKwd": 314.9,
+     "orders": 65
+    },
+    "promenade": {
+     "netKwd": 522.887,
+     "orders": 111
+    },
+    "salmiya": {
+     "netKwd": 457.25,
+     "orders": 77
+    },
+    "al-kout": {
+     "netKwd": 282.699,
+     "orders": 63
+    },
+    "ardiya": {
+     "netKwd": 385.94,
+     "orders": 54
+    }
+   },
+   "2026-09-15": {
+    "avenues": {
+     "netKwd": 220.387,
+     "orders": 55
+    },
+    "360-mall": {
+     "netKwd": 353.176,
+     "orders": 71
+    },
+    "assima": {
+     "netKwd": 356.71,
+     "orders": 61
+    },
+    "promenade": {
+     "netKwd": 509.212,
+     "orders": 114
+    },
+    "salmiya": {
+     "netKwd": 399.6,
+     "orders": 60
+    },
+    "al-kout": {
+     "netKwd": 314.124,
+     "orders": 66
+    },
+    "ardiya": {
+     "netKwd": 344.19,
+     "orders": 56
+    }
+   },
+   "2026-09-16": {
+    "avenues": {
+     "netKwd": 120.337,
+     "orders": 37
+    },
+    "360-mall": {
+     "netKwd": 420.474,
+     "orders": 78
+    },
+    "assima": {
+     "netKwd": 282.844,
+     "orders": 60
+    },
+    "promenade": {
+     "netKwd": 600.286,
+     "orders": 119
+    },
+    "salmiya": {
+     "netKwd": 445.45,
+     "orders": 63
+    },
+    "al-kout": {
+     "netKwd": 436.91,
+     "orders": 72
+    },
+    "ardiya": {
+     "netKwd": 444.8,
+     "orders": 65
+    }
+   },
+   "2026-09-17": {
+    "avenues": {
+     "netKwd": 330.399,
+     "orders": 91
+    },
+    "360-mall": {
+     "netKwd": 686.861,
+     "orders": 130
+    },
+    "assima": {
+     "netKwd": 764.697,
+     "orders": 138
+    },
+    "promenade": {
+     "netKwd": 908.037,
+     "orders": 184
+    },
+    "salmiya": {
+     "netKwd": 524.85,
+     "orders": 72
+    },
+    "al-kout": {
+     "netKwd": 446.362,
+     "orders": 84
+    },
+    "ardiya": {
+     "netKwd": 627.1,
+     "orders": 84
+    }
+   },
+   "2026-09-18": {
+    "avenues": {
+     "netKwd": 690.549,
+     "orders": 142
+    },
+    "360-mall": {
+     "netKwd": 1309.337,
+     "orders": 206
+    },
+    "assima": {
+     "netKwd": 980.899,
+     "orders": 180
+    },
+    "promenade": {
+     "netKwd": 1106.049,
+     "orders": 207
+    },
+    "salmiya": {
+     "netKwd": 574.1,
+     "orders": 84
+    },
+    "al-kout": {
+     "netKwd": 580.237,
+     "orders": 122
+    },
+    "ardiya": {
+     "netKwd": 507.55,
+     "orders": 82
+    }
+   },
+   "2026-09-19": {
+    "avenues": {
+     "netKwd": 359.225,
+     "orders": 75
+    },
+    "360-mall": {
+     "netKwd": 909.923,
+     "orders": 147
+    },
+    "assima": {
+     "netKwd": 511.201,
+     "orders": 101
+    },
+    "promenade": {
+     "netKwd": 798.987,
+     "orders": 146
+    },
+    "salmiya": {
+     "netKwd": 678.3,
+     "orders": 85
+    },
+    "al-kout": {
+     "netKwd": 631.499,
+     "orders": 110
+    },
+    "ardiya": {
+     "netKwd": 525,
+     "orders": 80
+    }
+   },
+   "2026-09-20": {
+    "avenues": {
+     "netKwd": 161.024,
+     "orders": 40
+    },
+    "360-mall": {
+     "netKwd": 402.274,
+     "orders": 87
+    },
+    "assima": {
+     "netKwd": 265.974,
+     "orders": 63
+    },
+    "promenade": {
+     "netKwd": 498.299,
+     "orders": 91
+    },
+    "salmiya": {
+     "netKwd": 410.265,
+     "orders": 57
+    },
+    "al-kout": {
+     "netKwd": 274.837,
+     "orders": 52
+    },
+    "ardiya": {
+     "netKwd": 444.3,
+     "orders": 61
+    }
+   },
+   "2026-09-21": {
+    "avenues": {
+     "netKwd": 163.948,
+     "orders": 53
+    },
+    "360-mall": {
+     "netKwd": 571.096,
+     "orders": 96
+    },
+    "assima": {
+     "netKwd": 278.662,
+     "orders": 66
+    },
+    "promenade": {
+     "netKwd": 571.175,
+     "orders": 106
+    },
+    "salmiya": {
+     "netKwd": 467.65,
+     "orders": 63
+    },
+    "al-kout": {
+     "netKwd": 394.087,
+     "orders": 72
+    },
+    "ardiya": {
+     "netKwd": 417.65,
+     "orders": 66
+    }
+   },
+   "2026-09-22": {
+    "avenues": {
+     "netKwd": 161.7,
+     "orders": 48
+    },
+    "360-mall": {
+     "netKwd": 620.068,
+     "orders": 98
+    },
+    "assima": {
+     "netKwd": 229.362,
+     "orders": 53
+    },
+    "promenade": {
+     "netKwd": 658.515,
+     "orders": 122
+    },
+    "salmiya": {
+     "netKwd": 488.925,
+     "orders": 65
+    },
+    "al-kout": {
+     "netKwd": 244.412,
+     "orders": 48
+    },
+    "ardiya": {
+     "netKwd": 418.3,
+     "orders": 71
+    }
+   },
+   "2026-09-23": {
+    "avenues": {
+     "netKwd": 266.761,
+     "orders": 61
+    },
+    "360-mall": {
+     "netKwd": 506.042,
+     "orders": 83
+    },
+    "assima": {
+     "netKwd": 391.312,
+     "orders": 66
+    },
+    "promenade": {
+     "netKwd": 456.324,
+     "orders": 94
+    },
+    "salmiya": {
+     "netKwd": 476.72,
+     "orders": 64
+    },
+    "al-kout": {
+     "netKwd": 451.737,
+     "orders": 134
+    },
+    "ardiya": {
+     "netKwd": 425.225,
+     "orders": 66
+    }
+   },
+   "2026-09-24": {
+    "avenues": {
+     "netKwd": 520.582,
+     "orders": 127
+    },
+    "360-mall": {
+     "netKwd": 1051.363,
+     "orders": 180
+    },
+    "assima": {
+     "netKwd": 901.567,
+     "orders": 154
+    },
+    "promenade": {
+     "netKwd": 1090.693,
+     "orders": 198
+    },
+    "salmiya": {
+     "netKwd": 576,
+     "orders": 80
+    },
+    "al-kout": {
+     "netKwd": 685.199,
+     "orders": 194
+    },
+    "ardiya": {
+     "netKwd": 575.59,
+     "orders": 80
+    }
+   },
+   "2026-09-25": {
+    "avenues": {
+     "netKwd": 775.877,
+     "orders": 155
+    },
+    "360-mall": {
+     "netKwd": 1592.112,
+     "orders": 256
+    },
+    "assima": {
+     "netKwd": 1114.422,
+     "orders": 208
+    },
+    "promenade": {
+     "netKwd": 1249.405,
+     "orders": 220
+    },
+    "salmiya": {
+     "netKwd": 782.54,
+     "orders": 104
+    },
+    "al-kout": {
+     "netKwd": 798.9,
+     "orders": 162
+    },
+    "ardiya": {
+     "netKwd": 836.195,
+     "orders": 106
+    }
+   },
+   "2026-09-26": {
+    "avenues": {
+     "netKwd": 473.261,
+     "orders": 121
+    },
+    "360-mall": {
+     "netKwd": 976.886,
+     "orders": 158
+    },
+    "assima": {
+     "netKwd": 586.342,
+     "orders": 105
+    },
+    "promenade": {
+     "netKwd": 990.05,
+     "orders": 180
+    },
+    "salmiya": {
+     "netKwd": 695.38,
+     "orders": 81
+    },
+    "al-kout": {
+     "netKwd": 603.912,
+     "orders": 103
+    },
+    "ardiya": {
+     "netKwd": 685.785,
+     "orders": 97
+    }
+   },
+   "2026-09-27": {
+    "avenues": {
+     "netKwd": 201.824,
+     "orders": 57
+    },
+    "360-mall": {
+     "netKwd": 557.164,
+     "orders": 99
+    },
+    "assima": {
+     "netKwd": 269.54,
+     "orders": 65
+    },
+    "promenade": {
+     "netKwd": 505.027,
+     "orders": 94
+    },
+    "salmiya": {
+     "netKwd": 445.25,
+     "orders": 66
+    },
+    "al-kout": {
+     "netKwd": 410.787,
+     "orders": 157
+    },
+    "ardiya": {
+     "netKwd": 522.475,
+     "orders": 78
+    }
+   },
+   "2026-09-28": {
+    "avenues": {
+     "netKwd": 219.048,
+     "orders": 64
+    },
+    "360-mall": {
+     "netKwd": 456.336,
+     "orders": 97
+    },
+    "assima": {
+     "netKwd": 383.436,
+     "orders": 81
+    },
+    "promenade": {
+     "netKwd": 617.537,
+     "orders": 116
+    },
+    "salmiya": {
+     "netKwd": 409.31,
+     "orders": 63
+    },
+    "al-kout": {
+     "netKwd": 405.249,
+     "orders": 152
+    },
+    "ardiya": {
+     "netKwd": 594.61,
+     "orders": 85
+    }
+   },
+   "2026-09-29": {
+    "avenues": {
+     "netKwd": 186.998,
+     "orders": 62
+    },
+    "360-mall": {
+     "netKwd": 608.8,
+     "orders": 103
+    },
+    "assima": {
+     "netKwd": 416.697,
+     "orders": 78
+    },
+    "promenade": {
+     "netKwd": 603.706,
+     "orders": 135
+    },
+    "salmiya": {
+     "netKwd": 532.63,
+     "orders": 78
+    },
+    "al-kout": {
+     "netKwd": 366.086,
+     "orders": 173
+    },
+    "ardiya": {
+     "netKwd": 514.055,
+     "orders": 82
+    }
+   },
+   "2026-09-30": {
+    "avenues": {
+     "netKwd": 221.949,
+     "orders": 70
+    },
+    "360-mall": {
+     "netKwd": 572.024,
+     "orders": 121
+    },
+    "assima": {
+     "netKwd": 373.662,
+     "orders": 84
+    },
+    "promenade": {
+     "netKwd": 731.578,
+     "orders": 127
+    },
+    "salmiya": {
+     "netKwd": 511.345,
+     "orders": 62
+    },
+    "al-kout": {
+     "netKwd": 490.898,
+     "orders": 200
+    },
+    "ardiya": {
+     "netKwd": 665.3,
+     "orders": 94
+    }
+   },
+   "2026-10-01": {
+    "avenues": {
+     "netKwd": 352.925,
+     "orders": 92
+    },
+    "360-mall": {
+     "netKwd": 1009.41,
+     "orders": 166
+    },
+    "assima": {
+     "netKwd": 691.978,
+     "orders": 149
+    },
+    "promenade": {
+     "netKwd": 1100.332,
+     "orders": 230
+    },
+    "salmiya": {
+     "netKwd": 738.988,
+     "orders": 98
+    },
+    "al-kout": {
+     "netKwd": 624.462,
+     "orders": 215
+    },
+    "ardiya": {
+     "netKwd": 746.875,
+     "orders": 96
+    }
+   },
+   "2026-10-02": {
+    "avenues": {
+     "netKwd": 788.336,
+     "orders": 179
+    },
+    "360-mall": {
+     "netKwd": 1343.78,
+     "orders": 242
+    },
+    "assima": {
+     "netKwd": 1514.414,
+     "orders": 231
+    },
+    "promenade": {
+     "netKwd": 1255.815,
+     "orders": 185
+    },
+    "salmiya": {
+     "netKwd": 966.53,
+     "orders": 113
+    },
+    "al-kout": {
+     "netKwd": 704.012,
+     "orders": 151
+    },
+    "ardiya": {
+     "netKwd": 767.761,
+     "orders": 91
+    }
+   },
+   "2026-10-03": {
+    "avenues": {
+     "netKwd": 411.086,
+     "orders": 105
+    },
+    "360-mall": {
+     "netKwd": 856.012,
+     "orders": 153
+    },
+    "assima": {
+     "netKwd": 612.487,
+     "orders": 110
+    },
+    "promenade": {
+     "netKwd": 956.608,
+     "orders": 165
+    },
+    "salmiya": {
+     "netKwd": 800.618,
+     "orders": 98
+    },
+    "al-kout": {
+     "netKwd": 459.387,
+     "orders": 85
+    },
+    "ardiya": {
+     "netKwd": 564.825,
+     "orders": 83
+    }
+   },
+   "2026-10-04": {
+    "avenues": {
+     "netKwd": 190.683,
+     "orders": 55
+    },
+    "360-mall": {
+     "netKwd": 544.836,
+     "orders": 96
+    },
+    "assima": {
+     "netKwd": 438.275,
+     "orders": 77
+    },
+    "promenade": {
+     "netKwd": 458.213,
+     "orders": 92
+    },
+    "salmiya": {
+     "netKwd": 430.398,
+     "orders": 67
+    },
+    "al-kout": {
+     "netKwd": 402.874,
+     "orders": 166
+    },
+    "ardiya": {
+     "netKwd": 588.12,
+     "orders": 86
+    }
+   },
+   "2026-10-05": {
+    "avenues": {
+     "netKwd": 244.087,
+     "orders": 68
+    },
+    "360-mall": {
+     "netKwd": 552.525,
+     "orders": 108
+    },
+    "assima": {
+     "netKwd": 407.211,
+     "orders": 80
+    },
+    "promenade": {
+     "netKwd": 700.123,
+     "orders": 133
+    },
+    "salmiya": {
+     "netKwd": 467.863,
+     "orders": 70
+    },
+    "al-kout": {
+     "netKwd": 371.784,
+     "orders": 176
+    },
+    "ardiya": {
+     "netKwd": 535.489,
+     "orders": 88
+    }
+   },
+   "2026-10-06": {
+    "avenues": {
+     "netKwd": 188.525,
+     "orders": 57
+    },
+    "360-mall": {
+     "netKwd": 560.25,
+     "orders": 107
+    },
+    "assima": {
+     "netKwd": 330.707,
+     "orders": 76
+    },
+    "promenade": {
+     "netKwd": 575.401,
+     "orders": 116
+    },
+    "salmiya": {
+     "netKwd": 379.525,
+     "orders": 57
+    },
+    "al-kout": {
+     "netKwd": 330.644,
+     "orders": 153
+    },
+    "ardiya": {
+     "netKwd": 649.025,
+     "orders": 96
+    }
+   },
+   "2026-10-07": {
+    "avenues": {
+     "netKwd": 181.587,
+     "orders": 46
+    },
+    "360-mall": {
+     "netKwd": 496.235,
+     "orders": 84
+    },
+    "assima": {
+     "netKwd": 474.337,
+     "orders": 85
+    },
+    "promenade": {
+     "netKwd": 615.074,
+     "orders": 115
+    },
+    "salmiya": {
+     "netKwd": 425.905,
+     "orders": 58
+    },
+    "al-kout": {
+     "netKwd": 387.873,
+     "orders": 186
+    },
+    "ardiya": {
+     "netKwd": 692.37,
+     "orders": 98
+    }
+   },
+   "2026-10-08": {
+    "avenues": {
+     "netKwd": 464.679,
+     "orders": 109
+    },
+    "360-mall": {
+     "netKwd": 1150.971,
+     "orders": 189
+    },
+    "assima": {
+     "netKwd": 885.385,
+     "orders": 163
+    },
+    "promenade": {
+     "netKwd": 1003.98,
+     "orders": 198
+    },
+    "salmiya": {
+     "netKwd": 646.325,
+     "orders": 95
+    },
+    "al-kout": {
+     "netKwd": 617.998,
+     "orders": 232
+    },
+    "ardiya": {
+     "netKwd": 754.506,
+     "orders": 104
+    }
+   },
+   "2026-10-09": {
+    "avenues": {
+     "netKwd": 708.686,
+     "orders": 143
+    },
+    "360-mall": {
+     "netKwd": 1344.362,
+     "orders": 218
+    },
+    "assima": {
+     "netKwd": 1021.43,
+     "orders": 200
+    },
+    "promenade": {
+     "netKwd": 1171.74,
+     "orders": 223
+    },
+    "salmiya": {
+     "netKwd": 828.625,
+     "orders": 108
+    },
+    "al-kout": {
+     "netKwd": 797.324,
+     "orders": 136
+    },
+    "ardiya": {
+     "netKwd": 961.533,
+     "orders": 135
+    }
+   },
+   "2026-10-10": {
+    "avenues": {
+     "netKwd": 375.949,
+     "orders": 95
+    },
+    "360-mall": {
+     "netKwd": 956.024,
+     "orders": 148
+    },
+    "assima": {
+     "netKwd": 550.761,
+     "orders": 101
+    },
+    "promenade": {
+     "netKwd": 889.854,
+     "orders": 168
+    },
+    "salmiya": {
+     "netKwd": 667.589,
+     "orders": 80
+    },
+    "al-kout": {
+     "netKwd": 624.162,
+     "orders": 105
+    },
+    "ardiya": {
+     "netKwd": 797.775,
+     "orders": 126
+    }
+   },
+   "2026-10-11": {
+    "avenues": {
+     "netKwd": 195.387,
+     "orders": 53
+    },
+    "360-mall": {
+     "netKwd": 489.561,
+     "orders": 87
+    },
+    "assima": {
+     "netKwd": 306.737,
+     "orders": 57
+    },
+    "promenade": {
+     "netKwd": 614.409,
+     "orders": 120
+    },
+    "salmiya": {
+     "netKwd": 0,
+     "orders": 0
+    },
+    "al-kout": {
+     "netKwd": 338.15,
+     "orders": 173
+    },
+    "ardiya": {
+     "netKwd": 674.787,
+     "orders": 103
+    }
+   },
+   "2026-10-12": {
+    "avenues": {
+     "netKwd": 179.286,
+     "orders": 54
+    },
+    "360-mall": {
+     "netKwd": 661.942,
+     "orders": 118
+    },
+    "assima": {
+     "netKwd": 514.941,
+     "orders": 113
+    },
+    "promenade": {
+     "netKwd": 1085.133,
+     "orders": 167
+    },
+    "salmiya": {
+     "netKwd": 0,
+     "orders": 0
+    },
+    "al-kout": {
+     "netKwd": 385.587,
+     "orders": 177
+    },
+    "ardiya": {
+     "netKwd": 730.603,
+     "orders": 112
+    }
+   },
+   "2026-10-13": {
+    "avenues": {
+     "netKwd": 201.287,
+     "orders": 57
+    },
+    "360-mall": {
+     "netKwd": 651.161,
+     "orders": 127
+    },
+    "assima": {
+     "netKwd": 379.037,
+     "orders": 82
+    },
+    "promenade": {
+     "netKwd": 575.736,
+     "orders": 131
+    },
+    "salmiya": {
+     "netKwd": 311.05,
+     "orders": 51
+    },
+    "al-kout": {
+     "netKwd": 396.192,
+     "orders": 164
+    },
+    "ardiya": {
+     "netKwd": 562.907,
+     "orders": 95
+    }
+   },
+   "2026-10-14": {
+    "avenues": {
+     "netKwd": 174.661,
+     "orders": 58
+    },
+    "360-mall": {
+     "netKwd": 649.075,
+     "orders": 125
+    },
+    "assima": {
+     "netKwd": 382.287,
+     "orders": 84
+    },
+    "promenade": {
+     "netKwd": 732.839,
+     "orders": 149
+    },
+    "salmiya": {
+     "netKwd": 516.308,
+     "orders": 82
+    },
+    "al-kout": {
+     "netKwd": 474.338,
+     "orders": 198
+    },
+    "ardiya": {
+     "netKwd": 567.143,
+     "orders": 92
+    }
+   },
+   "2026-10-15": {
+    "avenues": {
+     "netKwd": 456.211,
+     "orders": 116
+    },
+    "360-mall": {
+     "netKwd": 939.852,
+     "orders": 183
+    },
+    "assima": {
+     "netKwd": 860.249,
+     "orders": 163
+    },
+    "promenade": {
+     "netKwd": 1142.347,
+     "orders": 219
+    },
+    "salmiya": {
+     "netKwd": 819.38,
+     "orders": 106
+    },
+    "al-kout": {
+     "netKwd": 673.387,
+     "orders": 238
+    },
+    "ardiya": {
+     "netKwd": 704.417,
+     "orders": 117
+    }
+   },
+   "2026-10-16": {
+    "avenues": {
+     "netKwd": 699.937,
+     "orders": 183
+    },
+    "360-mall": {
+     "netKwd": 1369.847,
+     "orders": 243
+    },
+    "assima": {
+     "netKwd": 1213.649,
+     "orders": 223
+    },
+    "promenade": {
+     "netKwd": 1219.196,
+     "orders": 219
+    },
+    "salmiya": {
+     "netKwd": 825.688,
+     "orders": 98
+    },
+    "al-kout": {
+     "netKwd": 773.324,
+     "orders": 143
+    },
+    "ardiya": {
+     "netKwd": 929.374,
+     "orders": 136
+    }
+   },
+   "2026-10-17": {
+    "avenues": {
+     "netKwd": 422.075,
+     "orders": 117
+    },
+    "360-mall": {
+     "netKwd": 985.617,
+     "orders": 174
+    },
+    "assima": {
+     "netKwd": 565.586,
+     "orders": 111
+    },
+    "promenade": {
+     "netKwd": 981.47,
+     "orders": 176
+    },
+    "salmiya": {
+     "netKwd": 604.905,
+     "orders": 85
+    },
+    "al-kout": {
+     "netKwd": 411.261,
+     "orders": 88
+    },
+    "ardiya": {
+     "netKwd": 702.663,
+     "orders": 114
+    }
+   },
+   "2026-10-18": {
+    "avenues": {
+     "netKwd": 223.489,
+     "orders": 89
+    },
+    "360-mall": {
+     "netKwd": 435.172,
+     "orders": 84
+    },
+    "assima": {
+     "netKwd": 417.961,
+     "orders": 89
+    },
+    "promenade": {
+     "netKwd": 548.275,
+     "orders": 106
+    },
+    "salmiya": {
+     "netKwd": 268.75,
+     "orders": 41
+    },
+    "al-kout": {
+     "netKwd": 399.364,
+     "orders": 200
+    },
+    "ardiya": {
+     "netKwd": 613.565,
+     "orders": 94
+    }
+   },
+   "2026-10-19": {
+    "avenues": {
+     "netKwd": 242.612,
+     "orders": 80
+    },
+    "360-mall": {
+     "netKwd": 717.902,
+     "orders": 126
+    },
+    "assima": {
+     "netKwd": 458.962,
+     "orders": 84
+    },
+    "promenade": {
+     "netKwd": 764.374,
+     "orders": 155
+    },
+    "salmiya": {
+     "netKwd": 383.47,
+     "orders": 58
+    },
+    "al-kout": {
+     "netKwd": 379.436,
+     "orders": 86
+    },
+    "ardiya": {
+     "netKwd": 619.503,
+     "orders": 99
+    }
+   },
+   "2026-10-20": {
+    "avenues": {
+     "netKwd": 206.856,
+     "orders": 86
+    },
+    "360-mall": {
+     "netKwd": 707.856,
+     "orders": 122
+    },
+    "assima": {
+     "netKwd": 466.474,
+     "orders": 87
+    },
+    "promenade": {
+     "netKwd": 664.95,
+     "orders": 131
+    },
+    "salmiya": {
+     "netKwd": 517.89,
+     "orders": 84
+    },
+    "al-kout": {
+     "netKwd": 406.442,
+     "orders": 189
+    },
+    "ardiya": {
+     "netKwd": 729.083,
+     "orders": 114
+    }
+   },
+   "2026-10-21": {
+    "avenues": {
+     "netKwd": 232.012,
+     "orders": 83
+    },
+    "360-mall": {
+     "netKwd": 587.225,
+     "orders": 108
+    },
+    "assima": {
+     "netKwd": 417.086,
+     "orders": 88
+    },
+    "promenade": {
+     "netKwd": 790.472,
+     "orders": 151
+    },
+    "salmiya": {
+     "netKwd": 468.288,
+     "orders": 69
+    },
+    "al-kout": {
+     "netKwd": 374.95,
+     "orders": 166
+    },
+    "ardiya": {
+     "netKwd": 589.862,
+     "orders": 93
+    }
+   },
+   "2026-10-22": {
+    "avenues": {
+     "netKwd": 503.411,
+     "orders": 144
+    },
+    "360-mall": {
+     "netKwd": 910.361,
+     "orders": 166
+    },
+    "assima": {
+     "netKwd": 817.787,
+     "orders": 156
+    },
+    "promenade": {
+     "netKwd": 1175.082,
+     "orders": 208
+    },
+    "salmiya": {
+     "netKwd": 707.063,
+     "orders": 104
+    },
+    "al-kout": {
+     "netKwd": 586.325,
+     "orders": 201
+    },
+    "ardiya": {
+     "netKwd": 846.113,
+     "orders": 115
+    }
+   },
+   "2026-10-23": {
+    "avenues": {
+     "netKwd": 801.011,
+     "orders": 183
+    },
+    "360-mall": {
+     "netKwd": 1479.654,
+     "orders": 249
+    },
+    "assima": {
+     "netKwd": 1077.307,
+     "orders": 169
+    },
+    "promenade": {
+     "netKwd": 1107.285,
+     "orders": 202
+    },
+    "salmiya": {
+     "netKwd": 917.391,
+     "orders": 112
+    },
+    "al-kout": {
+     "netKwd": 659.375,
+     "orders": 134
+    },
+    "ardiya": {
+     "netKwd": 833.754,
+     "orders": 127
+    }
+   },
+   "2026-10-24": {
+    "avenues": {
+     "netKwd": 411.511,
+     "orders": 119
+    },
+    "360-mall": {
+     "netKwd": 1194.085,
+     "orders": 188
+    },
+    "assima": {
+     "netKwd": 747.005,
+     "orders": 133
+    },
+    "promenade": {
+     "netKwd": 739.164,
+     "orders": 142
+    },
+    "salmiya": {
+     "netKwd": 667.106,
+     "orders": 92
+    },
+    "al-kout": {
+     "netKwd": 621.225,
+     "orders": 120
+    },
+    "ardiya": {
+     "netKwd": 635.275,
+     "orders": 109
+    }
+   },
+   "2026-10-25": {
+    "avenues": {
+     "netKwd": 261.073,
+     "orders": 90
+    },
+    "360-mall": {
+     "netKwd": 760.685,
+     "orders": 123
+    },
+    "assima": {
+     "netKwd": 389.099,
+     "orders": 68
+    },
+    "promenade": {
+     "netKwd": 604.841,
+     "orders": 126
+    },
+    "salmiya": {
+     "netKwd": 425.325,
+     "orders": 61
+    },
+    "al-kout": {
+     "netKwd": 360.437,
+     "orders": 164
+    },
+    "ardiya": {
+     "netKwd": 709.276,
+     "orders": 109
+    }
+   },
+   "2026-10-26": {
+    "avenues": {
+     "netKwd": 289.696,
+     "orders": 102
+    },
+    "360-mall": {
+     "netKwd": 693.721,
+     "orders": 131
+    },
+    "assima": {
+     "netKwd": 461.19,
+     "orders": 98
+    },
+    "promenade": {
+     "netKwd": 669.255,
+     "orders": 142
+    },
+    "salmiya": {
+     "netKwd": 551.1,
+     "orders": 79
+    },
+    "al-kout": {
+     "netKwd": 382.975,
+     "orders": 194
+    },
+    "ardiya": {
+     "netKwd": 609.37,
+     "orders": 96
+    }
+   },
+   "2026-10-27": {
+    "avenues": {
+     "netKwd": 214.098,
+     "orders": 86
+    },
+    "360-mall": {
+     "netKwd": 703.68,
+     "orders": 130
+    },
+    "assima": {
+     "netKwd": 403.048,
+     "orders": 84
+    },
+    "promenade": {
+     "netKwd": 646.306,
+     "orders": 131
+    },
+    "salmiya": {
+     "netKwd": 565.18,
+     "orders": 87
+    },
+    "al-kout": {
+     "netKwd": 434.095,
+     "orders": 170
+    },
+    "ardiya": {
+     "netKwd": 641.511,
+     "orders": 104
+    }
+   },
+   "2026-10-28": {
+    "avenues": {
+     "netKwd": 323.898,
+     "orders": 110
+    },
+    "360-mall": {
+     "netKwd": 637.662,
+     "orders": 123
+    },
+    "assima": {
+     "netKwd": 552.448,
+     "orders": 119
+    },
+    "promenade": {
+     "netKwd": 925.738,
+     "orders": 136
+    },
+    "salmiya": {
+     "netKwd": 536.133,
+     "orders": 83
+    },
+    "al-kout": {
+     "netKwd": 487.961,
+     "orders": 181
+    },
+    "ardiya": {
+     "netKwd": 669.318,
+     "orders": 116
+    }
+   },
+   "2026-10-29": {
+    "avenues": {
+     "netKwd": 439.991,
+     "orders": 135
+    },
+    "360-mall": {
+     "netKwd": 1009.932,
+     "orders": 192
+    },
+    "assima": {
+     "netKwd": 882.932,
+     "orders": 174
+    },
+    "promenade": {
+     "netKwd": 1067.469,
+     "orders": 196
+    },
+    "salmiya": {
+     "netKwd": 614.551,
+     "orders": 101
+    },
+    "al-kout": {
+     "netKwd": 720.805,
+     "orders": 238
+    },
+    "ardiya": {
+     "netKwd": 911.543,
+     "orders": 136
+    }
+   },
+   "2026-10-30": {
+    "avenues": {
+     "netKwd": 761.174,
+     "orders": 172
+    },
+    "360-mall": {
+     "netKwd": 1189.01,
+     "orders": 205
+    },
+    "assima": {
+     "netKwd": 1118.192,
+     "orders": 206
+    },
+    "promenade": {
+     "netKwd": 1012.717,
+     "orders": 188
+    },
+    "salmiya": {
+     "netKwd": 1052.015,
+     "orders": 128
+    },
+    "al-kout": {
+     "netKwd": 814.625,
+     "orders": 168
+    },
+    "ardiya": {
+     "netKwd": 929.726,
+     "orders": 133
+    }
+   },
+   "2026-10-31": {
+    "avenues": {
+     "netKwd": 425.4,
+     "orders": 122
+    },
+    "360-mall": {
+     "netKwd": 1056.603,
+     "orders": 174
+    },
+    "assima": {
+     "netKwd": 634.624,
+     "orders": 107
+    },
+    "promenade": {
+     "netKwd": 1024.043,
+     "orders": 193
+    },
+    "salmiya": {
+     "netKwd": 559.273,
+     "orders": 87
+    },
+    "al-kout": {
+     "netKwd": 471.749,
+     "orders": 94
+    },
+    "ardiya": {
+     "netKwd": 720.73,
+     "orders": 111
+    }
+   },
+   "2026-11-01": {
+    "avenues": {
+     "netKwd": 224.049,
+     "orders": 76
+    },
+    "360-mall": {
+     "netKwd": 537.411,
+     "orders": 108
+    },
+    "assima": {
+     "netKwd": 221.124,
+     "orders": 46
+    },
+    "promenade": {
+     "netKwd": 621.073,
+     "orders": 136
+    },
+    "salmiya": {
+     "netKwd": 471,
+     "orders": 74
+    },
+    "al-kout": {
+     "netKwd": 297.612,
+     "orders": 150
+    },
+    "ardiya": {
+     "netKwd": 560.85,
+     "orders": 96
+    }
+   },
+   "2026-11-02": {
+    "avenues": {
+     "netKwd": 244.849,
+     "orders": 72
+    },
+    "360-mall": {
+     "netKwd": 751.022,
+     "orders": 138
+    },
+    "assima": {
+     "netKwd": 506.986,
+     "orders": 94
+    },
+    "promenade": {
+     "netKwd": 661.544,
+     "orders": 126
+    },
+    "salmiya": {
+     "netKwd": 420.905,
+     "orders": 71
+    },
+    "al-kout": {
+     "netKwd": 360.525,
+     "orders": 194
+    },
+    "ardiya": {
+     "netKwd": 519.375,
+     "orders": 87
+    }
+   },
+   "2026-11-03": {
+    "avenues": {
+     "netKwd": 231.458,
+     "orders": 75
+    },
+    "360-mall": {
+     "netKwd": 635.376,
+     "orders": 109
+    },
+    "assima": {
+     "netKwd": 446.088,
+     "orders": 73
+    },
+    "promenade": {
+     "netKwd": 599.389,
+     "orders": 115
+    },
+    "salmiya": {
+     "netKwd": 435.445,
+     "orders": 65
+    },
+    "al-kout": {
+     "netKwd": 370.502,
+     "orders": 157
+    },
+    "ardiya": {
+     "netKwd": 646.645,
+     "orders": 104
+    }
+   },
+   "2026-11-04": {
+    "avenues": {
+     "netKwd": 224.786,
+     "orders": 76
+    },
+    "360-mall": {
+     "netKwd": 749.648,
+     "orders": 129
+    },
+    "assima": {
+     "netKwd": 355.291,
+     "orders": 64
+    },
+    "promenade": {
+     "netKwd": 740.895,
+     "orders": 138
+    },
+    "salmiya": {
+     "netKwd": 579.8,
+     "orders": 91
+    },
+    "al-kout": {
+     "netKwd": 456.674,
+     "orders": 185
+    },
+    "ardiya": {
+     "netKwd": 861.495,
+     "orders": 99
+    }
+   },
+   "2026-11-05": {
+    "avenues": {
+     "netKwd": 372.896,
+     "orders": 112
+    },
+    "360-mall": {
+     "netKwd": 863.249,
+     "orders": 175
+    },
+    "assima": {
+     "netKwd": 631.611,
+     "orders": 136
+    },
+    "promenade": {
+     "netKwd": 922.776,
+     "orders": 167
+    },
+    "salmiya": {
+     "netKwd": 532.225,
+     "orders": 89
+    },
+    "al-kout": {
+     "netKwd": 541.274,
+     "orders": 195
+    },
+    "ardiya": {
+     "netKwd": 762.55,
+     "orders": 105
+    }
+   },
+   "2026-11-06": {
+    "avenues": {
+     "netKwd": 473.549,
+     "orders": 138
+    },
+    "360-mall": {
+     "netKwd": 1203.8,
+     "orders": 234
+    },
+    "assima": {
+     "netKwd": 1065.572,
+     "orders": 188
+    },
+    "promenade": {
+     "netKwd": 1202.84,
+     "orders": 231
+    },
+    "salmiya": {
+     "netKwd": 676.095,
+     "orders": 94
+    },
+    "al-kout": {
+     "netKwd": 715.175,
+     "orders": 135
+    },
+    "ardiya": {
+     "netKwd": 695.5,
+     "orders": 99
+    }
+   },
+   "2026-11-07": {
+    "avenues": {
+     "netKwd": 422.399,
+     "orders": 103
+    },
+    "360-mall": {
+     "netKwd": 898.463,
+     "orders": 145
+    },
+    "assima": {
+     "netKwd": 612.469,
+     "orders": 105
+    },
+    "promenade": {
+     "netKwd": 940.781,
+     "orders": 149
+    },
+    "salmiya": {
+     "netKwd": 747.875,
+     "orders": 98
+    },
+    "al-kout": {
+     "netKwd": 403.799,
+     "orders": 89
+    },
+    "ardiya": {
+     "netKwd": 734.125,
+     "orders": 115
+    }
+   },
+   "2026-11-08": {
+    "avenues": {
+     "netKwd": 186.849,
+     "orders": 56
+    },
+    "360-mall": {
+     "netKwd": 467.172,
+     "orders": 88
+    },
+    "assima": {
+     "netKwd": 349.736,
+     "orders": 90
+    },
+    "promenade": {
+     "netKwd": 542.174,
+     "orders": 95
+    },
+    "salmiya": {
+     "netKwd": 559.26,
+     "orders": 83
+    },
+    "al-kout": {
+     "netKwd": 374.6,
+     "orders": 149
+    },
+    "ardiya": {
+     "netKwd": 466.97,
+     "orders": 85
+    }
+   },
+   "2026-11-09": {
+    "avenues": {
+     "netKwd": 196.062,
+     "orders": 58
+    },
+    "360-mall": {
+     "netKwd": 772.71,
+     "orders": 130
+    },
+    "assima": {
+     "netKwd": 416.335,
+     "orders": 75
+    },
+    "promenade": {
+     "netKwd": 576.081,
+     "orders": 104
+    },
+    "salmiya": {
+     "netKwd": 413.05,
+     "orders": 66
+    },
+    "al-kout": {
+     "netKwd": 400.524,
+     "orders": 201
+    },
+    "ardiya": {
+     "netKwd": 609.235,
+     "orders": 92
+    }
+   },
+   "2026-11-10": {
+    "avenues": {
+     "netKwd": 260.986,
+     "orders": 68
+    },
+    "360-mall": {
+     "netKwd": 639.456,
+     "orders": 123
+    },
+    "assima": {
+     "netKwd": 350.399,
+     "orders": 87
+    },
+    "promenade": {
+     "netKwd": 649.036,
+     "orders": 142
+    },
+    "salmiya": {
+     "netKwd": 489.425,
+     "orders": 77
+    },
+    "al-kout": {
+     "netKwd": 470.014,
+     "orders": 168
+    },
+    "ardiya": {
+     "netKwd": 517.48,
+     "orders": 85
+    }
+   },
+   "2026-11-11": {
+    "avenues": {
+     "netKwd": 222.344,
+     "orders": 74
+    },
+    "360-mall": {
+     "netKwd": 612.387,
+     "orders": 114
+    },
+    "assima": {
+     "netKwd": 373.075,
+     "orders": 77
+    },
+    "promenade": {
+     "netKwd": 783.813,
+     "orders": 164
+    },
+    "salmiya": {
+     "netKwd": 575.19,
+     "orders": 86
+    },
+    "al-kout": {
+     "netKwd": 410.35,
+     "orders": 178
+    },
+    "ardiya": {
+     "netKwd": 681.325,
+     "orders": 100
+    }
+   },
+   "2026-11-12": {
+    "avenues": {
+     "netKwd": 407.074,
+     "orders": 133
+    },
+    "360-mall": {
+     "netKwd": 1027.684,
+     "orders": 173
+    },
+    "assima": {
+     "netKwd": 694.774,
+     "orders": 132
+    },
+    "promenade": {
+     "netKwd": 873.661,
+     "orders": 193
+    },
+    "salmiya": {
+     "netKwd": 550.84,
+     "orders": 77
+    },
+    "al-kout": {
+     "netKwd": 611.725,
+     "orders": 214
+    },
+    "ardiya": {
+     "netKwd": 771.425,
+     "orders": 113
+    }
+   },
+   "2026-11-13": {
+    "avenues": {
+     "netKwd": 656.84,
+     "orders": 143
+    },
+    "360-mall": {
+     "netKwd": 930.812,
+     "orders": 171
+    },
+    "assima": {
+     "netKwd": 839.727,
+     "orders": 133
+    },
+    "promenade": {
+     "netKwd": 831.85,
+     "orders": 158
+    },
+    "salmiya": {
+     "netKwd": 843.4,
+     "orders": 98
+    },
+    "al-kout": {
+     "netKwd": 729.325,
+     "orders": 138
+    },
+    "ardiya": {
+     "netKwd": 717.3,
+     "orders": 95
+    }
+   },
+   "2026-11-14": {
+    "avenues": {
+     "netKwd": 495.512,
+     "orders": 106
+    },
+    "360-mall": {
+     "netKwd": 785.835,
+     "orders": 133
+    },
+    "assima": {
+     "netKwd": 427.862,
+     "orders": 86
+    },
+    "promenade": {
+     "netKwd": 517.911,
+     "orders": 107
+    },
+    "salmiya": {
+     "netKwd": 582.1,
+     "orders": 90
+    },
+    "al-kout": {
+     "netKwd": 549.275,
+     "orders": 106
+    },
+    "ardiya": {
+     "netKwd": 526.055,
+     "orders": 84
+    }
+   },
+   "2026-11-15": {
+    "avenues": {
+     "netKwd": 205.726,
+     "orders": 53
+    },
+    "360-mall": {
+     "netKwd": 444.762,
+     "orders": 91
+    },
+    "assima": {
+     "netKwd": 279.362,
+     "orders": 66
+    },
+    "promenade": {
+     "netKwd": 538.048,
+     "orders": 92
+    },
+    "salmiya": {
+     "netKwd": 473,
+     "orders": 78
+    },
+    "al-kout": {
+     "netKwd": 290.85,
+     "orders": 162
+    },
+    "ardiya": {
+     "netKwd": 416.4,
+     "orders": 78
+    }
+   },
+   "2026-11-16": {
+    "avenues": {
+     "netKwd": 263.544,
+     "orders": 73
+    },
+    "360-mall": {
+     "netKwd": 679.754,
+     "orders": 116
+    },
+    "assima": {
+     "netKwd": 319.83,
+     "orders": 73
+    },
+    "promenade": {
+     "netKwd": 646.342,
+     "orders": 116
+    },
+    "salmiya": {
+     "netKwd": 569.075,
+     "orders": 88
+    },
+    "al-kout": {
+     "netKwd": 360.165,
+     "orders": 181
+    },
+    "ardiya": {
+     "netKwd": 652.465,
+     "orders": 103
+    }
+   },
+   "2026-11-17": {
+    "avenues": {
+     "netKwd": 0,
+     "orders": 0
+    },
+    "360-mall": {
+     "netKwd": 0,
+     "orders": 0
+    },
+    "assima": {
+     "netKwd": 0,
+     "orders": 0
+    },
+    "promenade": {
+     "netKwd": 31.55,
+     "orders": 7
+    },
+    "salmiya": {
+     "netKwd": 18.35,
+     "orders": 3
+    },
+    "al-kout": {
+     "netKwd": 5.45,
+     "orders": 1
+    },
+    "ardiya": {
+     "netKwd": 99.35,
+     "orders": 13
+    }
+   }
+  },
+  "dailyUnattributed": {
+   "2026-09-14": {
+    "netKwd": 58.95,
+    "orders": 148
+   },
+   "2026-09-15": {
+    "netKwd": 50.2,
+    "orders": 155
+   },
+   "2026-09-16": {
+    "netKwd": 46.1,
+    "orders": 154
+   },
+   "2026-09-17": {
+    "netKwd": 32.4,
+    "orders": 113
+   },
+   "2026-09-18": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-09-19": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-09-20": {
+    "netKwd": 38.95,
+    "orders": 109
+   },
+   "2026-09-21": {
+    "netKwd": 28.7,
+    "orders": 116
+   },
+   "2026-09-22": {
+    "netKwd": 44.7,
+    "orders": 119
+   },
+   "2026-09-23": {
+    "netKwd": 45.3,
+    "orders": 122
+   },
+   "2026-09-24": {
+    "netKwd": 59,
+    "orders": 170
+   },
+   "2026-09-25": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-09-26": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-09-27": {
+    "netKwd": 61.6,
+    "orders": 162
+   },
+   "2026-09-28": {
+    "netKwd": 59.25,
+    "orders": 173
+   },
+   "2026-09-29": {
+    "netKwd": 60.15,
+    "orders": 194
+   },
+   "2026-09-30": {
+    "netKwd": 51.6,
+    "orders": 162
+   },
+   "2026-10-01": {
+    "netKwd": 20.7,
+    "orders": 70
+   },
+   "2026-10-02": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-03": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-04": {
+    "netKwd": 58.6,
+    "orders": 170
+   },
+   "2026-10-05": {
+    "netKwd": 45.45,
+    "orders": 161
+   },
+   "2026-10-06": {
+    "netKwd": 63.3,
+    "orders": 204
+   },
+   "2026-10-07": {
+    "netKwd": 63,
+    "orders": 214
+   },
+   "2026-10-08": {
+    "netKwd": 72.45,
+    "orders": 195
+   },
+   "2026-10-09": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-10": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-11": {
+    "netKwd": 79,
+    "orders": 211
+   },
+   "2026-10-12": {
+    "netKwd": 51.35,
+    "orders": 165
+   },
+   "2026-10-13": {
+    "netKwd": 59.35,
+    "orders": 160
+   },
+   "2026-10-14": {
+    "netKwd": 55.4,
+    "orders": 164
+   },
+   "2026-10-15": {
+    "netKwd": 59.8,
+    "orders": 212
+   },
+   "2026-10-16": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-17": {
+    "netKwd": 0,
+    "orders": 0
+   },
+   "2026-10-18": {
+    "netKwd": 79,
+    "orders": 243
+   },
+   "2026-10-19": {
+    "netKwd": 78.65,
+    "orders": 250
+   },
+   "2026-10-20": {
+    "netKwd": 320.75,
+    "orders": 354
+   },
+   "2026-10-21": {
+    "netKwd": 78.35,
+    "orders": 246
+   },
+   "2026-10-22": {
+    "netKwd": 78.05,
+    "orders": 302
+   },
+   "2026-10-23": {
+    "netKwd": 320.75,
+    "orders": 133
+   },
+   "2026-10-24": {
+    "netKwd": 433.9,
+    "orders": 194
+   },
+   "2026-10-25": {
+    "netKwd": 224,
+    "orders": 319
+   },
+   "2026-10-26": {
+    "netKwd": 344.6,
+    "orders": 402
+   },
+   "2026-10-27": {
+    "netKwd": 375.1,
+    "orders": 391
+   },
+   "2026-10-28": {
+    "netKwd": 557.1,
+    "orders": 418
+   },
+   "2026-10-29": {
+    "netKwd": 682,
+    "orders": 513
+   },
+   "2026-10-30": {
+    "netKwd": 614,
+    "orders": 189
+   },
+   "2026-10-31": {
+    "netKwd": 233.7,
+    "orders": 112
+   },
+   "2026-11-01": {
+    "netKwd": 95.85,
+    "orders": 272
+   },
+   "2026-11-02": {
+    "netKwd": 106.65,
+    "orders": 252
+   },
+   "2026-11-03": {
+    "netKwd": 115.1,
+    "orders": 227
+   },
+   "2026-11-04": {
+    "netKwd": 145.1,
+    "orders": 236
+   },
+   "2026-11-05": {
+    "netKwd": 365.25,
+    "orders": 299
+   },
+   "2026-11-06": {
+    "netKwd": 356.35,
+    "orders": 98
+   },
+   "2026-11-07": {
+    "netKwd": 17.7,
+    "orders": 7
+   },
+   "2026-11-08": {
+    "netKwd": 21.15,
+    "orders": 21
+   },
+   "2026-11-09": {
+    "netKwd": 42,
+    "orders": 129
+   },
+   "2026-11-10": {
+    "netKwd": 76.55,
+    "orders": 115
+   },
+   "2026-11-11": {
+    "netKwd": 103.25,
+    "orders": 125
+   },
+   "2026-11-12": {
+    "netKwd": 475.8,
+    "orders": 120
+   },
+   "2026-11-13": {
+    "netKwd": 481.45,
+    "orders": 118
+   },
+   "2026-11-14": {
+    "netKwd": 374.55,
+    "orders": 98
+   },
+   "2026-11-15": {
+    "netKwd": 20.1,
+    "orders": 35
+   },
+   "2026-11-16": {
+    "netKwd": 137.95,
+    "orders": 69
+   },
+   "2026-11-17": {
+    "netKwd": 0,
+    "orders": 0
+   }
+  },
+  "hourlySeries": [
+   {
+    "hour": 0,
+    "orders": 554,
+    "netKwd": 3129.97
+   },
+   {
+    "hour": 1,
+    "orders": 544,
+    "netKwd": 2771.109
+   },
+   {
+    "hour": 2,
+    "orders": 80,
+    "netKwd": 187.2
+   },
+   {
+    "hour": 3,
+    "orders": 0,
+    "netKwd": 0
+   },
+   {
+    "hour": 4,
+    "orders": 129,
+    "netKwd": 310.85
+   },
+   {
+    "hour": 5,
+    "orders": 39,
+    "netKwd": 81.45
+   },
+   {
+    "hour": 6,
+    "orders": 160,
+    "netKwd": 350.75
+   },
+   {
+    "hour": 7,
+    "orders": 272,
+    "netKwd": 93.676
+   },
+   {
+    "hour": 8,
+    "orders": 234,
+    "netKwd": 98.338
+   },
+   {
+    "hour": 9,
+    "orders": 1319,
+    "netKwd": 446.65
+   },
+   {
+    "hour": 10,
+    "orders": 1168,
+    "netKwd": 431.35
+   },
+   {
+    "hour": 11,
+    "orders": 1899,
+    "netKwd": 3595.949
+   },
+   {
+    "hour": 12,
+    "orders": 2321,
+    "netKwd": 6427.35
+   },
+   {
+    "hour": 13,
+    "orders": 2393,
+    "netKwd": 9664.819
+   },
+   {
+    "hour": 14,
+    "orders": 2186,
+    "netKwd": 10388.493
+   },
+   {
+    "hour": 15,
+    "orders": 2138,
+    "netKwd": 10105.964
+   },
+   {
+    "hour": 16,
+    "orders": 1828,
+    "netKwd": 8345.1
+   },
+   {
+    "hour": 17,
+    "orders": 1633,
+    "netKwd": 7911.468
+   },
+   {
+    "hour": 18,
+    "orders": 1958,
+    "netKwd": 10139.415
+   },
+   {
+    "hour": 19,
+    "orders": 2533,
+    "netKwd": 14074.569
+   },
+   {
+    "hour": 20,
+    "orders": 2616,
+    "netKwd": 15041.685
+   },
+   {
+    "hour": 21,
+    "orders": 2375,
+    "netKwd": 13265.022
+   },
+   {
+    "hour": 22,
+    "orders": 1604,
+    "netKwd": 9086.694
+   },
+   {
+    "hour": 23,
+    "orders": 838,
+    "netKwd": 4998.985
+   }
+  ],
+  "journeyPulse": {
+   "rolling30": {
+    "from": "2026-10-19",
+    "to": "2026-11-17",
+    "days": 30,
+    "netKwd": 130946.856,
+    "orders": 30821,
+    "perDayKwd": 4364.895
+   },
+   "prior30": {
+    "from": "2026-09-19",
+    "to": "2026-10-18",
+    "days": 30,
+    "netKwd": 127106.604,
+    "orders": 27691,
+    "perDayKwd": 4236.887
+   },
+   "mtd": {
+    "from": "2026-11-01",
+    "to": "2026-11-17",
+    "days": 17,
+    "netKwd": 66116.688,
+    "orders": 15063,
+    "perDayKwd": 3889.217
+   }
+  },
+  "odooCompanyId": null,
+  "buckets": {
+   "today": {
+    "key": "today",
+    "from": "2026-11-17",
+    "to": "2026-11-18",
+    "days": 1,
+    "totals": {
+     "netSalesKwd": 154.7,
+     "orders": 24,
+     "aovKwd": 6.446,
+     "restaurantNetKwd": 154.7,
+     "restaurantOrders": 24
+    },
+    "byBrand": {
+     "china-garden": {
+      "netKwd": 133.55,
+      "orders": 20,
+      "qty": 50
+     },
+     "franks": {
+      "netKwd": 23.5,
+      "orders": 4,
+      "qty": 9
+     },
+     "tahina": {
+      "netKwd": 0,
+      "orders": 0,
+      "qty": 0
+     },
+     "farm-brown": {
+      "netKwd": 0,
+      "orders": 0,
+      "qty": 0
+     },
+     "noodle-bar": {
+      "netKwd": 3.25,
+      "orders": 0,
+      "qty": 1
+     },
+     "karak-cafeteria": {
+      "netKwd": 0,
+      "orders": 0,
+      "qty": 0
+     }
+    },
+    "byLocation": {
+     "avenues": {
+      "netKwd": 0,
+      "orders": 0,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "deliveroo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "360-mall": {
+      "netKwd": 0,
+      "orders": 0,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "deliveroo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "assima": {
+      "netKwd": 0,
+      "orders": 0,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "deliveroo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "promenade": {
+      "netKwd": 31.55,
+      "orders": 7,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 18.65,
+        "orders": 3
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 9.65,
+        "orders": 3
+       },
+       "deliveroo": {
+        "netKwd": 3.25,
+        "orders": 1
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "salmiya": {
+      "netKwd": 18.35,
+      "orders": 3,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 12.9,
+        "orders": 2
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 5.45,
+        "orders": 1
+       },
+       "deliveroo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "al-kout": {
+      "netKwd": 5.45,
+      "orders": 1,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 5.45,
+        "orders": 1
+       },
+       "talabat-tmp": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "keeta": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "deliveroo": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     },
+     "ardiya": {
+      "netKwd": 99.35,
+      "orders": 13,
+      "uiChannels": {
+       "dine-in": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "takeaway-direct": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "talabat-tgo": {
+        "netKwd": 25.95,
+        "orders": 3
+       },
+       "talabat-tmp": {
+        "netKwd": 27,
+        "orders": 2
+       },
+       "keeta": {
+        "netKwd": 42.7,
+        "orders": 7
+       },
+       "deliveroo": {
+        "netKwd": 3.7,
+        "orders": 1
+       },
+       "jahez": {
+        "netKwd": 0,
+        "orders": 0
+       },
+       "snoonu": {
+        "netKwd": 0,
+        "orders": 0
+       }
+      }
+     }
+    },
+    "mappedByLocation": {
+     "avenues": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "360-mall": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "assima": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "promenade": {
+      "netKwd": 31.55,
+      "orders": 7
+     },
+     "salmiya": {
+      "netKwd": 18.35,
+      "orders": 3
+     },
+     "al-kout": {
+      "netKwd": 5.45,
+      "orders": 1
+     },
+     "ardiya": {
+      "netKwd": 99.35,
+      "orders": 13
+     }
+    },
+    "unattributedSalesKwd": 0,
+    "unattributedOrders": 0,
+    "unattributedBranch": {
+     "id": "unattributed",
+     "labelAr": "غير منسوب لفرع",
+     "labelEn": "Unattributed to Branch",
+     "netSalesKwd": 0,
+     "orders": 0,
+     "sharePct": 0
+    },
+    "unmappedSummary": {
+     "netSalesKwd": 0,
+     "orders": 0
+    },
+    "excludedSummary": {
+     "netSalesKwd": 33.9,
+     "orders": 5
+    },
+    "uiChannels": {
+     "dine-in": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "takeaway-direct": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "talabat-tgo": {
+      "netKwd": 62.95,
+      "orders": 9
+     },
+     "talabat-tmp": {
+      "netKwd": 27,
+      "orders": 2
+     },
+     "keeta": {
+      "netKwd": 57.8,
+      "orders": 11
+     },
+     "deliveroo": {
+      "netKwd": 6.95,
+      "orders": 2
+     },
+     "jahez": {
+      "netKwd": 0,
+      "orders": 0
+     },
+     "snoonu": {
+      "netKwd": 0,
+      "orders": 0
+     }
+    },
+    "accounting": {
+     "available": true,
+     "from": "2026-11-17",
+     "to": "2026-11-17",
+     "sourceModel": "account.move.line",
+     "lineCount": 1337,
+     "income": 3299.305,
+     "otherIncome": 0,
+     "totalRevenue": 3299.305,
+     "cogs": 455.109,
+     "deliveryCommissions": 0,
+     "deliveryCommissionLinesCount": 0,
+     "expense": 97.999,
+     "depreciation": 0,
+     "otherOpexAndDepreciation": 97.999,
+     "operatingProfit": 2746.197,
+     "completeAccrualPosted": false,
+     "glIncomplete": true,
+     "glWarningAr": "قيود غير مكتملة لهذه الفترة",
+     "aggregatorCommissionUnposted": true,
+     "aggregatorCommissionDisplayAr": "غير مُرحَّل بعد",
+     "unavailableReasonAr": "قيود غير مكتملة لهذه الفترة",
+     "unavailableReasonEn": "Journal entries (expenses, commissions, or depreciation) are incomplete for this period."
+    }
+   },
+   "month": {
+    "key": "month",
+    "from": "2026-10-19",
+    "to": "2026-11-18",
+    "days": 30,
+    "totals": {
+     "netSalesKwd": 130946.856,
+     "orders": 30821,
+     "aovKwd": 4.249,
+     "restaurantNetKwd": 130946.856,
+     "restaurantOrders": 30821
+    }
+   }
+  },
+  "aggregatorReceivables": {
+   "readable": true,
+   "openReceivableKwd": 1182.708,
+   "grossPositiveReceivableKwd": 3776.2,
+   "creditClearingOffsetKwd": -2593.492,
+   "openLinesCount": 66570,
+   "posClearingLinesCount": 62766,
+   "platformAndCorporateLinesCount": 3804,
+   "fromDate": "2024-12-31",
+   "toDate": "2026-11-14",
+   "latestMaturityDate": "2026-07-03",
+   "sourceModel": "account.move.line",
+   "agingBuckets": [
+    {
+     "key": "0_30",
+     "labelAr": "0–30 يوماً (تسويات جارية)",
+     "labelEn": "0–30 Days (Current Settlements)",
+     "residualKwd": -22182.457,
+     "positiveDebitKwd": 0,
+     "creditOffsetKwd": -22182.457,
+     "linesCount": 214
+    },
+    {
+     "key": "31_60",
+     "labelAr": "31–60 يوماً (قيد المطابقة)",
+     "labelEn": "31–60 Days (Pending Clearing)",
+     "residualKwd": 47244.287,
+     "positiveDebitKwd": 47278.478,
+     "creditOffsetKwd": -34.191,
+     "linesCount": 268
+    },
+    {
+     "key": "over_60",
+     "labelAr": "أكثر من 60 يوماً (تراكمي سابق)",
+     "labelEn": ">60 Days (Prior Unreconciled)",
+     "residualKwd": -23879.122,
+     "positiveDebitKwd": 1833.655,
+     "creditOffsetKwd": -25712.777,
+     "linesCount": 66088
+    }
+   ]
+  }
+ }
+}

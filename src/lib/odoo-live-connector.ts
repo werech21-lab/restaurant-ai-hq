@@ -53,6 +53,9 @@ import {
   signedKwd,
 } from '@/lib/odoo/company-pos'
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
+import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
+import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
+import { countOrdersPerBrand, fetchExactBrandAllocation, type OdooExecute } from '@/lib/odoo/brand-scope-fetch'
 import {
   buildPosOrderUtcDomain,
   buildPosPaymentUtcDomain,
@@ -326,7 +329,8 @@ export interface OdooPeriodCube {
       netKwd: number
       qty: number
       linesCount: number
-      orders: number
+      /** Real distinct orders holding the brand; `null` when the count could not be read. */
+      orders: number | null
       avgDiscountPct: number
       discountKwd: number
     }
@@ -1335,6 +1339,68 @@ async function safeSubQuery<T>(
   }
 }
 
+/** Tolerance for "brand allocation and company order net describe the same orders" (1 fils). */
+const ORDER_NET_MATCH_TOLERANCE_KWD = 0.001
+
+type BucketBrandScope = Pick<
+  OdooBucketSummary,
+  'byBrand' | 'brandBasis' | 'brandBasisGapKwd' | 'byBrandByLocation' | 'byBrandDaily' | 'unbrandedNetKwd' | 'excludedLineNetKwd'
+>
+
+/**
+ * Brand figures for one bucket. Uses the exact per-order allocation when it covers the same orders
+ * as the company total; otherwise falls back to raw product-line totals, labelled with their gap.
+ * Brand order counts come only from real counts; there is no pro-rata estimate.
+ */
+export function buildBucketBrandScope(input: {
+  companyNetKwd: number
+  brandRawWeights: ReadonlyMap<string, number>
+  brandQtyWeights: ReadonlyMap<string, number>
+  brandOrdersMap: ReadonlyMap<string, number | null> | null
+  brandAllocation: BrandAllocationResult | null
+}): BucketBrandScope {
+  const qtyOf = (bid: string) => r3(Math.max(0, input.brandQtyWeights.get(bid) ?? 0))
+  const allocation = input.brandAllocation
+  const allocationMatches =
+    allocation !== null &&
+    Math.abs(allocation.orderNetKwd - input.companyNetKwd) <= ORDER_NET_MATCH_TOLERANCE_KWD
+  if (allocation && allocationMatches) {
+    const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
+    for (const bid of ACTIVE_BRAND_IDS) {
+      const cell = allocation.byBrand[bid]
+      byBrand[bid] = { netKwd: r3(cell?.netKwd ?? 0), orders: cell?.orders ?? 0, qty: qtyOf(bid) }
+    }
+    return {
+      byBrand,
+      brandBasis: 'order-allocated',
+      brandBasisGapKwd: 0,
+      byBrandByLocation: allocation.byBrandByLocation,
+      byBrandDaily: allocation.byBrandDaily,
+      unbrandedNetKwd: r3(allocation.unbrandedNetKwd),
+      excludedLineNetKwd: r3(allocation.excludedLineNetKwd),
+    }
+  }
+  const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
+  for (const bid of ACTIVE_BRAND_IDS) {
+    const realOrders = input.brandOrdersMap?.get(bid)
+    byBrand[bid] = {
+      netKwd: r3(input.brandRawWeights.get(bid) ?? 0),
+      orders: typeof realOrders === 'number' ? Math.max(0, Math.round(realOrders)) : null,
+      qty: qtyOf(bid),
+    }
+  }
+  const brandLineTotal = ACTIVE_BRAND_IDS.reduce((s, bid) => s + byBrand[bid].netKwd, 0)
+  return {
+    byBrand,
+    brandBasis: 'product-lines',
+    brandBasisGapKwd: r3(brandLineTotal - input.companyNetKwd),
+    byBrandByLocation: null,
+    byBrandDaily: null,
+    unbrandedNetKwd: null,
+    excludedLineNetKwd: null,
+  }
+}
+
 export function buildReconciledBucket(params: {
   key: OdooPeriodBucketKey
   from: string
@@ -1349,7 +1415,10 @@ export function buildReconciledBucket(params: {
   excludedOrders?: number
   brandRawWeights: Map<string, number>
   brandQtyWeights: Map<string, number>
-  brandOrdersMap?: Map<string, number>
+  /** Real distinct order counts per brand. Missing → `orders: null` (shown as `—`), never estimated. */
+  brandOrdersMap?: ReadonlyMap<string, number | null> | null
+  /** Exact per-order brand allocation; when it reconciles to order net it replaces line totals. */
+  brandAllocation?: BrandAllocationResult | null
   locUiRawMap: Map<string, Record<string, { netKwd: number; orders: number }>>
   unmappedUiRaw?: Record<string, { netKwd: number; orders: number }>
   accounting?: OdooBucketSummary['accounting']
@@ -1373,6 +1442,7 @@ export function buildReconciledBucket(params: {
     brandRawWeights,
     brandQtyWeights,
     brandOrdersMap,
+    brandAllocation,
     locUiRawMap,
     unmappedUiRaw,
     accounting,
@@ -1406,26 +1476,13 @@ export function buildReconciledBucket(params: {
     sharePct: pct1(unattributedSalesKwd, companyNet),
   }
 
-  const byBrand: NonNullable<OdooBucketSummary['byBrand']> = {}
-  const totalBrandRawNet = ACTIVE_BRAND_IDS.reduce(
-    (acc, bid) => acc + (brandRawWeights.get(bid) ?? 0),
-    0,
-  )
-  for (const bid of ACTIVE_BRAND_IDS) {
-    const nv = r3(brandRawWeights.get(bid) ?? 0)
-    const explicitOrd = brandOrdersMap?.get(bid)
-    const bOrd =
-      explicitOrd !== undefined
-        ? Math.max(0, Math.round(explicitOrd))
-        : totalBrandRawNet > 0 && companyOrders > 0 && nv > 0
-          ? Math.round((nv / totalBrandRawNet) * companyOrders)
-          : 0
-    byBrand[bid] = {
-      netKwd: nv,
-      orders: bOrd,
-      qty: r3(Math.max(0, brandQtyWeights.get(bid) ?? 0)),
-    }
-  }
+  const brandScope = buildBucketBrandScope({
+    companyNetKwd: companyNet,
+    brandRawWeights,
+    brandQtyWeights,
+    brandOrdersMap: brandOrdersMap ?? null,
+    brandAllocation: brandAllocation ?? null,
+  })
 
   const byLocation: NonNullable<OdooBucketSummary['byLocation']> = {}
   const mappedByLocation: NonNullable<OdooBucketSummary['mappedByLocation']> = {}
@@ -1539,7 +1596,7 @@ export function buildReconciledBucket(params: {
       restaurantNetKwd: companyNet,
       restaurantOrders: companyOrders,
     },
-    byBrand: brandsUnavailable ? null : byBrand,
+    ...(brandsUnavailable ? { byBrand: null } : brandScope),
     byLocation,
     mappedByLocation,
     unattributedSalesKwd,
@@ -2306,9 +2363,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         ['account_id.account_type', '=', 'asset_receivable'],
         ['reconciled', '=', false],
       ]
-      const ar30CutIso = shiftIsoDate(todayKwIso, -30)
-      const ar60CutIso = shiftIsoDate(todayKwIso, -60)
-      const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, age0_30Rows, age31_60Rows, ageOver60Rows] = await Promise.all([
+      const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
+      const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
         executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
           'account.move.line',
           'read_group',
@@ -2345,22 +2401,20 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             ),
           [],
         ),
-        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-          'account.move.line',
-          'read_group',
-          [[...arDomain, ['date', '>=', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
-          { lazy: false },
+        Promise.all(
+          agingDomains.debitDomains.map((d) =>
+            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+              'account.move.line',
+              'read_group',
+              [d.domain, ['amount_residual:sum'], ['account_id']],
+              { lazy: false },
+            ),
+          ),
         ),
         executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
           'account.move.line',
           'read_group',
-          [[...arDomain, ['date', '>=', ar60CutIso], ['date', '<', ar30CutIso]], ['amount_residual:sum'], ['account_id']],
-          { lazy: false },
-        ),
-        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-          'account.move.line',
-          'read_group',
-          [[...arDomain, ['date', '<', ar60CutIso]], ['amount_residual:sum'], ['account_id']],
+          [agingDomains.creditDomain, ['amount_residual:sum'], ['account_id']],
           { lazy: false },
         ),
       ])
@@ -2394,43 +2448,24 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       const platformAndCorporateLinesCount = Math.max(0, totalLines - posClearingLinesCount)
       const platformNetKwd = r3(netSum - posClearingNetKwd)
 
-      const summarizeAgeRows = (
-        key: '0_30' | '31_60' | 'over_60',
-        labelAr: string,
-        labelEn: string,
-        rows: { account_id: M2O; amount_residual?: number; __count?: number }[],
-      ) => {
-        let residual = 0
-        let posDebit = 0
-        let credOff = 0
-        let lines = 0
-        for (const row of rows) {
-          const accId = m2oId(row.account_id)
-          const accName = m2oName(row.account_id) ?? ''
-          if (accId === null || isDecommissionedWarehouseRecord(accName)) continue
-          const val = Number(row.amount_residual) || 0
-          const cnt = Math.max(0, Number(row.__count) || 0)
-          residual += val
-          lines += cnt
-          if (val > 0) posDebit += val
-          else if (val < 0) credOff += val
-        }
-        return {
-          key,
-          labelAr,
-          labelEn,
-          residualKwd: r3(residual),
-          positiveDebitKwd: r3(posDebit),
-          creditOffsetKwd: r3(credOff),
-          linesCount: lines,
-        }
-      }
-
-      const computedAging = [
-        summarizeAgeRows('0_30', '0–30 يوماً (تسويات جارية)', '0–30 Days (Current Settlements)', age0_30Rows),
-        summarizeAgeRows('31_60', '31–60 يوماً (قيد المطابقة)', '31–60 Days (Pending Clearing)', age31_60Rows),
-        summarizeAgeRows('over_60', 'أكثر من 60 يوماً (تراكمي سابق)', '>60 Days (Prior Unreconciled)', ageOver60Rows),
-      ]
+      // Same account scope as the headline: decommissioned-warehouse accounts are left out.
+      const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
+        rows
+          .filter((r) => m2oId(r.account_id) !== null && !isDecommissionedWarehouseRecord(m2oName(r.account_id) ?? ''))
+          .reduce(
+            (acc, r) => ({
+              residualKwd: acc.residualKwd + (Number(r.amount_residual) || 0),
+              linesCount: acc.linesCount + Math.max(0, Number(r.__count) || 0),
+            }),
+            { residualKwd: 0, linesCount: 0 },
+          )
+      const aging = summarizeArAging({
+        debitsByBucket: Object.fromEntries(
+          agingDomains.debitDomains.map((d, i) => [d.key, groupTotal(agingDebitRows[i])]),
+        ),
+        credits: groupTotal(agingCreditRows),
+      })
+      const computedAging = aging.buckets
       const hasLiveAging = computedAging.some((b) => b.linesCount > 0)
 
       const fromDate =
@@ -2464,6 +2499,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         sourceModel: 'account.move.line',
         byAccount,
         agingBuckets: computedAging,
+        agingBasis: aging.basis,
+        openDebitsKwd: aging.openDebitsKwd,
+        unappliedCreditsKwd: aging.unappliedCreditsKwd,
+        unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
       }
     }, null, markFailure('receivables')),
     decommissionedConfigIds.size > 0
@@ -3007,10 +3046,70 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     return { netMap, qtyMap }
   }
 
+  const brandMetaFailed =
+    unavailableSectionSet.has('products') || unavailableSectionSet.has('pos.category')
   const brand30 = buildBrandMaps(productLines30Rows)
   const brandWeek = buildBrandMaps(productLinesWeekRows)
   const brandToday = buildBrandMaps(productLinesTodayRows)
   const brandYear = buildBrandMaps(productLinesYearRows)
+
+  // 6b. Exact brand scope: per-order allocation for short windows, real order counts for long ones.
+  const resolveProductBrand = (productId: number | null, productName: string): string | null => {
+    const bid = (productId !== null ? brandOfProductId.get(productId) : undefined) ?? resolveBrandHintFromText(productName)
+    return bid && (ACTIVE_BRAND_IDS as readonly string[]).includes(bid) ? bid : null
+  }
+  const brandScopeMapping = {
+    brandIds: ACTIVE_BRAND_IDS,
+    locationKeys: [...ACTIVE_BRANCH_IDS, 'unattributed'],
+    locationOfSession: (sessionId: number | null) => {
+      const cfgId = sessionId !== null ? configOfSession.get(sessionId) : undefined
+      return (cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined) ?? 'unattributed'
+    },
+    brandOfProduct: resolveProductBrand,
+    isExcludedProductName: (name: string) => isExcludedOdooEntity(name) || isNonCompanyCatalogItem(null, name),
+    kuwaitDayOf: (dateOrderUtc: string | undefined) => odooUtcToKuwaitIso(dateOrderUtc)?.kuwaitDate ?? null,
+  }
+  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[][] => [
+    ['order_id.date_order', '>=', b.fromUtc],
+    ['order_id.date_order', '<', b.toUtc],
+    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
+    ...companyLineClause,
+  ]
+  const exactBrandAllocationOf = (b: { fromUtc: string; toUtc: string }) =>
+    safeSubQuery(
+      () =>
+        fetchExactBrandAllocation(executeOdooKw as OdooExecute, {
+          orderDomain: posOrderDomainOf(b, false),
+          lineDomain: companyLineWindowDomain(b),
+          excludedCategoryIds: [...excludedPosCategoryIds],
+        }, brandScopeMapping),
+      null,
+    )
+  const productIdsByBrandOf = (rows: { product_id: M2O }[]): Map<string, number[]> => {
+    const byBrand = new Map<string, number[]>()
+    for (const r of rows) {
+      const pid = m2oId(r.product_id)
+      const pName = m2oName(r.product_id) ?? ''
+      if (pid === null || brandScopeMapping.isExcludedProductName(pName)) continue
+      const bid = resolveProductBrand(pid, pName)
+      if (bid) byBrand.set(bid, [...(byBrand.get(bid) ?? []), pid])
+    }
+    return byBrand
+  }
+  const brandOrderCountsOf = (b: { fromUtc: string; toUtc: string }, rows: { product_id: M2O }[]) =>
+    safeSubQuery<Map<string, number> | null>(
+      () => countOrdersPerBrand(executeOdooKw as OdooExecute, posOrderDomainOf(b, true), productIdsByBrandOf(rows), ACTIVE_BRAND_IDS),
+      null,
+    )
+  const [brandAllocationToday, brandAllocationWeek, brandOrders30, brandOrdersYear] = brandMetaFailed
+    ? [null, null, null, null]
+    : await Promise.all([
+        exactBrandAllocationOf(boundsToday),
+        exactBrandAllocationOf(boundsWeek),
+        brandOrderCountsOf(boundsMonth, productLines30Rows),
+        brandOrderCountsOf(boundsYear, productLinesYearRows),
+      ])
 
   const buildLocAndUnmappedUiMap = (
     payRows: { sessionId: number | null; paymentMethodName: string; netKwd: number; orders: number }[],
@@ -3097,8 +3196,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const todayInclusiveIso = shiftIsoDate(todayBucketTo, -1)
   const canonicalInclusiveIso = shiftIsoDate(canonicalBucketToExclusive, -1)
   const glAccountsFailed = unavailableSectionSet.has('gl.accounts')
-  const brandMetaFailed =
-    unavailableSectionSet.has('products') || unavailableSectionSet.has('pos.category')
   const liveTodayAccounting =
     glAccountsFailed || unavailableSectionSet.has('gl.today')
       ? null
@@ -3162,6 +3259,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: builtTodayUi.unmappedUi,
     accounting: liveTodayAccounting,
     channelsUnavailable: channelsTodayFailed,
+    brandAllocation: brandAllocationToday,
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.today'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3183,6 +3281,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: builtWeekUi.unmappedUi,
     accounting: liveWeekAccounting,
     channelsUnavailable: channelsWeekFailed,
+    brandAllocation: brandAllocationWeek,
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.week'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3204,6 +3303,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     unmappedUiRaw: unmappedUi30,
     accounting: liveMonthAccounting,
     channelsUnavailable: channelsMonthFailed,
+    brandOrdersMap: brandOrders30,
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.month'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3224,6 +3324,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveYearAccounting,
     totalsUnavailable: yearTotalsFailed,
     channelsUnavailable: channelsYearFailed,
+    brandOrdersMap: brandOrdersYear,
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.year'),
   })
 
@@ -3682,11 +3783,11 @@ export async function fetchLiveOdooCustomBucket(
 
   const brandNetW = new Map<string, number>()
   const brandQtyW = new Map<string, number>()
-  const brandOrdW = new Map<string, number>()
+  const brandOrdW = new Map<string, number | null>()
   for (const bid of ACTIVE_BRAND_IDS) {
     brandNetW.set(bid, cube.byBrand[bid]?.netKwd ?? 0)
     brandQtyW.set(bid, cube.byBrand[bid]?.qty ?? 0)
-    brandOrdW.set(bid, cube.byBrand[bid]?.orders ?? 0)
+    brandOrdW.set(bid, cube.byBrand[bid]?.orders ?? null)
   }
 
   const builtCustom = buildReconciledBucket({
@@ -4926,7 +5027,16 @@ export async function fetchLiveOdooPeriodCube(
     )
     const companyNetKwd = r3(mappedBranchesNetKwd + unattributedSalesKwd)
     const companyOrders = mappedBranchesOrders + unattributedOrders
-    const totalBrandNet = ACTIVE_BRAND_IDS.reduce((s, bid) => s + byBrand[bid].netKwd, 0)
+    const cubeProductIdsByBrand = new Map<string, number[]>()
+    for (const lRow of lineRowsAll) {
+      const pid = m2oId(lRow.product_id)
+      const bid = pid !== null ? productMetaById.get(pid)?.brandId : undefined
+      if (pid !== null && bid) cubeProductIdsByBrand.set(bid, [...(cubeProductIdsByBrand.get(bid) ?? []), pid])
+    }
+    const cubeBrandOrders = await safeSubQuery<Map<string, number> | null>(
+      () => countOrdersPerBrand(executeOdooKw as OdooExecute, cubeOrderDomain(true), cubeProductIdsByBrand, ACTIVE_BRAND_IDS),
+      null,
+    )
 
     for (const bid of ACTIVE_BRAND_IDS) {
       const b = byBrand[bid]
@@ -4937,10 +5047,7 @@ export async function fetchLiveOdooPeriodCube(
         b.linesCount > 0
           ? Math.round(((brandDiscNumerator.get(bid) ?? 0) / b.linesCount) * 100) / 100
           : 0
-      b.orders =
-        totalBrandNet > 0 && companyOrders > 0 && b.netKwd > 0
-          ? Math.round((b.netKwd / totalBrandNet) * companyOrders)
-          : 0
+      b.orders = cubeBrandOrders?.get(bid) ?? null
     }
 
     const brandByBranch: OdooPeriodCube['brandByBranch'] = {}
