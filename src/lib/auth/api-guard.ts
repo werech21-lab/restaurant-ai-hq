@@ -129,7 +129,9 @@ export const managerPinFailureLimiter = new SlidingWindowLimiter(5, FIFTEEN_MINU
 /** Max 60 AI / Vision / Voice requests per minute per authenticated executive session. */
 export const executiveAiBurstLimiter = new SlidingWindowLimiter(60, ONE_MINUTE_MS)
 
-export function extractClientIp(request?: NextRequest | Request | null): string {
+export function extractClientIp(
+  request?: { headers: { get(name: string): string | null } } | null,
+): string {
   if (!request) return 'local'
   const xff = request.headers.get('x-forwarded-for')
   if (xff) {

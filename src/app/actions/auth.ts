@@ -4,7 +4,11 @@ import bcrypt from "bcryptjs";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { loginAccountFailureLimiter, loginIpFailureLimiter } from "@/lib/auth/api-guard";
+import {
+  extractClientIp,
+  loginAccountFailureLimiter,
+  loginIpFailureLimiter,
+} from "@/lib/auth/api-guard";
 import {
   authenticateExecutiveCredentials,
   createExecSessionToken,
@@ -24,17 +28,18 @@ export async function login(
   if (!formData) return { error: "تعذر قراءة بيانات الدخول" };
 
   const hdrs = await headers();
-  const clientIp =
-    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    hdrs.get("x-real-ip")?.trim() ||
-    "local";
+  const clientIp = extractClientIp({ headers: hdrs });
   const isSecure =
     (hdrs.get("x-forwarded-proto") || "").includes("https") ||
     process.env.NODE_ENV === "production";
 
+  const rateLimited = {
+    error: "تم تجاوز الحد المسموح للمحاولات — يرجى الانتظار قليلاً ثم المحاولة مجدداً.",
+  };
+
   const ipKey = `ip:${clientIp}`;
   if (loginIpFailureLimiter.peekBlocked(ipKey).blocked) {
-    return { error: "تم تجاوز الحد المسموح للمحاولات — يرجى الانتظار قليلاً ثم المحاولة مجدداً." };
+    return rateLimited;
   }
 
   const email = String(formData.get("email") || "").trim().toLowerCase().slice(0, 160);
@@ -43,7 +48,7 @@ export async function login(
   const nextPath = sanitizeExecNextPath(rawNext, "/erp");
   const accountKey = `acct:${clientIp}:${email || "anonymous"}`;
   if (loginAccountFailureLimiter.peekBlocked(accountKey).blocked) {
-    return { error: "تم تجاوز الحد المسموح للمحاولات — يرجى الانتظار قليلاً ثم المحاولة مجدداً." };
+    return rateLimited;
   }
 
   const invalid = {

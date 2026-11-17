@@ -13,10 +13,9 @@ import {
   authenticateExecutiveCredentials,
   createExecSessionToken,
   EXEC_SESSION_COOKIE,
-  EXEC_SESSION_MAX_AGE,
+  execCookieOptions,
   resolveExecRoleProfile,
   sanitizeExecNextPath,
-  verifyExecutiveCredentials,
   type ExecRole,
 } from '@/lib/auth/exec-session'
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
@@ -33,28 +32,32 @@ function constantTimeVerifyTag(tagA: string, tagB: string): boolean {
   return timingSafeEqual(d1, d2) && tagA.length === tagB.length
 }
 
+async function parseJsonCredentials(request: Request): Promise<{
+  email: string
+  password: string
+  next: string
+}> {
+  try {
+    const body = (await request.json()) as Record<string, unknown>
+    return {
+      email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
+      password:
+        typeof body?.password === 'string'
+          ? body.password.trim().slice(0, 256)
+          : '',
+      next: typeof body?.next === 'string' ? body.next.trim().slice(0, 256) : '',
+    }
+  } catch {
+    return { email: '', password: '', next: '' }
+  }
+}
+
 async function parseLoginCredentials(request: Request): Promise<{
   email: string
   password: string
   next: string
 }> {
   const contentType = (request.headers.get('content-type') || '').toLowerCase()
-
-  if (contentType.includes('application/json')) {
-    try {
-      const body = (await request.json()) as Record<string, unknown>
-      return {
-        email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
-        password:
-          typeof body?.password === 'string'
-            ? body.password.trim().slice(0, 256)
-            : '',
-        next: typeof body?.next === 'string' ? body.next.trim().slice(0, 256) : '',
-      }
-    } catch {
-      return { email: '', password: '', next: '' }
-    }
-  }
 
   if (
     contentType.includes('multipart/form-data') ||
@@ -72,19 +75,7 @@ async function parseLoginCredentials(request: Request): Promise<{
     }
   }
 
-  try {
-    const body = (await request.json()) as Record<string, unknown>
-    return {
-      email: String(body?.email ?? '').trim().toLowerCase().slice(0, 160),
-      password:
-        typeof body?.password === 'string'
-          ? body.password.trim().slice(0, 256)
-          : '',
-      next: typeof body?.next === 'string' ? body.next.trim().slice(0, 256) : '',
-    }
-  } catch {
-    return { email: '', password: '', next: '' }
-  }
+  return parseJsonCredentials(request)
 }
 
 export async function POST(request: NextRequest) {
@@ -126,10 +117,9 @@ export async function POST(request: NextRequest) {
   let prismaUserId: string | null = null
 
   if (email && password) {
-    const isExecValid = await verifyExecutiveCredentials(email, password)
-    if (isExecValid) {
-      const matched = await authenticateExecutiveCredentials(email, password)
-      if (matched.valid && constantTimeVerifyTag(matched.email, email)) {
+    const matched = await authenticateExecutiveCredentials(email, password)
+    if (matched.valid) {
+      if (constantTimeVerifyTag(matched.email, email)) {
         authenticatedEmail = matched.email
         authenticatedRole = matched.role
       }
@@ -208,13 +198,7 @@ export async function POST(request: NextRequest) {
     },
   )
 
-  response.cookies.set(EXEC_SESSION_COOKIE, execToken, {
-    path: '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: isProduction,
-    maxAge: EXEC_SESSION_MAX_AGE,
-  })
+  response.cookies.set(EXEC_SESSION_COOKIE, execToken, execCookieOptions(isProduction))
 
   if (prismaUserId && authenticatedRole !== 'auditor') {
     try {

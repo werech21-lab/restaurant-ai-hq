@@ -3,20 +3,20 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react'
 import { VentureFoodsEmblem } from '@/app/login/login-hero'
-import { resolveLoginErrorMessage } from '@/app/login/login-error-message'
+import {
+  resolveLoginErrorMessage,
+  type LoginErrorMessage,
+  type LoginErrorPayload,
+} from '@/app/login/login-error-message'
 import { useI18n } from '@/lib/i18n'
 
 type LoginFormProps = {
   nextPath?: string
 }
 
-type LoginApiResponse = {
+type LoginApiResponse = LoginErrorPayload & {
   ok?: boolean
   redirectTo?: string
-  errorAr?: string
-  errorEn?: string
-  error?: string
-  retryAfterSeconds?: number
 }
 
 export function LoginForm({ nextPath = '' }: LoginFormProps) {
@@ -24,9 +24,7 @@ export function LoginForm({ nextPath = '' }: LoginFormProps) {
   const isAr = locale === 'ar'
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<{ ar: string; en: string } | null>(
-    null,
-  )
+  const [errorMsg, setErrorMsg] = useState<LoginErrorMessage | null>(null)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
