@@ -6,6 +6,7 @@
 import { deliverWhatsApp } from '@/services/notification.service'
 import { phoneDigits } from '@/lib/whatsapp'
 import { logger } from '@/lib/logger'
+import { maskEmailForLog, maskMobileForLog } from '@/lib/pii-mask'
 import { prisma } from '@/lib/db'
 import {
   buildOperationalForensicReport,
@@ -196,8 +197,8 @@ export async function dispatchExclusiveRadarAlert(
     logger.info('radar_alert_dispatched', {
       recipientId: recipient.id,
       kind: payload.kind,
-      mobile: digits,
-      email: recipient.email,
+      mobile: maskMobileForLog(digits),
+      email: maskEmailForLog(recipient.email),
       emailEngine: email.engine,
       emailOk: email.ok,
     })
@@ -311,8 +312,8 @@ export async function dispatchExclusiveOperationalReport(
 
     logger.info('operational_forensic_report_dispatched', {
       recipientId: recipient.id,
-      mobile: digits,
-      email: recipient.email,
+      mobile: maskMobileForLog(digits),
+      email: maskEmailForLog(recipient.email),
       critical: report.sections.critical.length,
       watch: report.sections.watch.length,
       clean: report.sections.clean.length,

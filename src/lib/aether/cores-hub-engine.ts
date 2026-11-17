@@ -7,7 +7,7 @@
  * Strictly 6 brands and 7 branches + explicit 8th row `غير منسوب لفرع`.
  */
 
-import { resolveBranchScope, resolveDailySeriesForBrand } from '@/lib/aether/brand-scope'
+import { resolveBranchScope, resolveBrandHeadline, resolveDailySeriesForBrand } from '@/lib/aether/brand-scope'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
@@ -233,7 +233,8 @@ export interface CoresHubSnapshot {
     directNetMarginPct: number
     aggregatorNetMarginPct: number
     unattributedSalesKwd: number
-    unattributedOrders: number
+    /** `null` when the brand-scoped unattributed cell has no real order count. */
+    unattributedOrders: number | null
     timeline: SalesPoint[]
     hourly: SalesPoint[]
     brandShare: SalesPoint[]
@@ -716,10 +717,13 @@ export function computeCoresHubSnapshot(
         }
         const bktBrand = activeBucket?.byBrand?.[bid]
         if (bktBrand) {
-          return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: knownCount(bktBrand.orders) }
+          // Same legacy guard as the headline: old payloads carry pro-rata brand orders (→ null).
+          const headline = resolveBrandHeadline(activeBucket, bid)
+          return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: headline?.orders ?? null }
         }
+        // No bucket: the cascading options carry sales only; the order count is unknown.
         const wsOpt = ws.cascadingOptions.brands.find((x) => x.id === bid)
-        return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+        return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: null }
       })
   const brandTotalKwd = brandRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
   const brandShare: SalesPoint[] = brandRowsRaw
@@ -769,7 +773,7 @@ export function computeCoresHubSnapshot(
           return { lid, salesKwd: safeNum(cell?.netKwd), orders: knownCount(cell?.orders) }
         }
         const wsOpt = ws.cascadingOptions.branches.find((x) => x.id === lid)
-        return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+        return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: null }
       })
 
   const bucketUnattributed = bucketBranchScope?.available ? bucketBranchScope.unattributed : null
@@ -781,14 +785,16 @@ export function computeCoresHubSnapshot(
             ? safeNum(liveCube.unattributed?.netKwd)
             : safeNum(bucketUnattributed ? bucketUnattributed.netKwd : ws.unattributedSalesKwd),
         )
-  const unattributedOrders =
+  const unattributedOrdersRaw: number | null =
     branchesUnavailable || filters.branch !== 'all'
       ? 0
-      : Math.round(
-          liveCube
-            ? safeNum(liveCube.unattributed?.orders)
-            : safeNum(bucketUnattributed ? bucketUnattributed.orders : ws.unattributedOrders),
-        )
+      : liveCube
+        ? safeNum(liveCube.unattributed?.orders)
+        : bucketUnattributed
+          ? bucketUnattributed.orders
+          : safeNum(ws.unattributedOrders)
+  // A brand-scoped unattributed cell may have no real order count; keep it unknown.
+  const unattributedOrders = unattributedOrdersRaw === null ? null : Math.round(unattributedOrdersRaw)
 
   const branchDenomKwd =
     branchRowsRaw.reduce((s, r) => s + r.salesKwd, 0) + unattributedSalesKwd
@@ -852,7 +858,7 @@ export function computeCoresHubSnapshot(
           return { cid, salesKwd: safeNum(chBkt.netKwd), orders: safeNum(chBkt.orders) }
         }
         const wsOpt = ws.cascadingOptions.channels.find((x) => x.id === cid)
-        return { cid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
+        return { cid, salesKwd: safeNum(wsOpt?.salesKwd), orders: null }
       })
   const channelDenomKwd = channelRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
   const channelRanking: SalesPoint[] = channelRowsRaw

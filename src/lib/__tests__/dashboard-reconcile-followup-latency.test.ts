@@ -18,6 +18,8 @@ import {
 import { withinBudget } from '@/lib/odoo/read-budget'
 
 const TEST_BUDGET_MS = 25
+/** A removed or broken budget must fail fast instead of waiting for the 180 s suite timeout. */
+const FAST_FAIL_MS = 2_000
 const neverResolves: OdooExecute = () => new Promise(() => {})
 
 const mapping: BrandScopeMapping = {
@@ -37,7 +39,7 @@ function routeMaxDurationMs(relativeRoute: string): number {
   return seconds * 1000
 }
 
-describe('M1 latency — bounded exact brand reads', () => {
+describe('M1 latency — bounded exact brand reads', { timeout: FAST_FAIL_MS }, () => {
   it('withinBudget returns the fallback when the task is slower than the budget', async () => {
     const started = Date.now()
     const out = await withinBudget(new Promise<string>(() => {}), TEST_BUDGET_MS, 'fallback')
@@ -94,7 +96,13 @@ describe('M1 latency — bounded exact brand reads', () => {
   })
 
   it('the brand-scope budgets stay well under the 30 s route limit', () => {
-    const limitMs = Math.min(routeMaxDurationMs('api/odoo-sync/route.ts'), routeMaxDurationMs('api/erp/live-comparison/route.ts'))
+    // The dashboard loads and polls /api/erp/odoo-sync (GlobalFilterContext); the manual refresh button
+    // calls /api/odoo-sync; the comparison screens call /api/erp/live-comparison. All three are pinned.
+    const limitMs = Math.min(
+      routeMaxDurationMs('api/erp/odoo-sync/route.ts'),
+      routeMaxDurationMs('api/odoo-sync/route.ts'),
+      routeMaxDurationMs('api/erp/live-comparison/route.ts'),
+    )
     expect(limitMs).toBe(30_000)
     // Rows run alongside the main reads; counts run after them. Together they stay under half the limit.
     expect(EXACT_BRAND_ROWS_BUDGET_MS + BRAND_ORDER_COUNTS_BUDGET_MS).toBeLessThanOrEqual(limitMs / 2)
