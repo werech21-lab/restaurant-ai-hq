@@ -1,5 +1,10 @@
 import React, { type ReactNode } from 'react'
 import {
+  V35_CHART_COLORS,
+  V35_DONUT_PALETTE,
+  V35_GLASS_TOOLTIP_CLASS,
+} from '@/components/charts/v35-chart-theme'
+import {
   formatInt,
   formatKwd,
   formatPct,
@@ -11,26 +16,20 @@ import { cx } from './cx'
 import { StateBlock, type StateBlockState } from './state-block'
 
 /**
- * Restrained luxury executive chart colors (zero rainbow, zero neon).
- * One primary emerald accent paired with calm slate/teal/amber/rose semantics.
+ * V35 Executive Chart Palette (soft cobalt/sky blue primary paired with calm comparison slate).
  */
 export const DS_CHART_COLORS = {
-  primary: '#059669',
-  primaryDark: '#10B981',
-  secondary: '#475569',
-  secondaryMuted: '#94A3B8',
-  info: '#0284C7',
-  warning: '#D97706',
-  negative: '#E11D48',
+  primary: V35_CHART_COLORS.primary,
+  primaryDark: V35_CHART_COLORS.primaryDark,
+  secondary: V35_CHART_COLORS.secondary,
+  secondaryMuted: V35_CHART_COLORS.secondaryMuted,
+  info: V35_CHART_COLORS.info,
+  indigo: V35_CHART_COLORS.indigo,
+  warning: V35_CHART_COLORS.warning,
+  negative: V35_CHART_COLORS.negative,
 } as const
 
-export const DS_CHART_PALETTE = [
-  DS_CHART_COLORS.primary,
-  DS_CHART_COLORS.secondary,
-  DS_CHART_COLORS.info,
-  DS_CHART_COLORS.warning,
-  DS_CHART_COLORS.negative,
-] as const
+export const DS_CHART_PALETTE = V35_DONUT_PALETTE
 
 /**
  * Canonical 3-decimal KWD tooltip formatter for all executive charts.
@@ -75,7 +74,7 @@ export function ChartTooltipContent({
       role="tooltip"
       dir={isAr ? 'rtl' : 'ltr'}
       className={cx(
-        'min-w-[180px] rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-lg',
+        V35_GLASS_TOOLTIP_CLASS,
         className,
       )}
     >

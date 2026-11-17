@@ -28,6 +28,7 @@ export interface V35KpiRingProps {
   valueTooltip?: string
   valueClassName?: string
   className?: string
+  children?: ReactNode
 }
 
 interface RingDimensions {
@@ -64,7 +65,7 @@ const SIZE_SPECS: Record<V35KpiRingSize, RingDimensions> = {
     svgPx: 68,
     strokeWidth: 5,
     radius: 29,
-    valueTextClass: 'text-2xl sm:text-[32px]',
+    valueTextClass: 'text-[clamp(1.25rem,1.9vw,1.9rem)] whitespace-nowrap',
     centerTextClass: 'text-xs sm:text-sm',
     gapClass: 'gap-4',
   },
@@ -227,6 +228,7 @@ export function V35KpiRing({
   valueTooltip,
   valueClassName,
   className,
+  children,
 }: V35KpiRingProps) {
   const resolvedUnavailable =
     isUnavailable ??
@@ -255,112 +257,113 @@ export function V35KpiRing({
     ringCenter !== undefined &&
     (!resolvedUnavailable || React.isValidElement(ringCenter))
 
+  const valueWrapClass = size === 'lg' ? 'whitespace-nowrap' : 'break-words'
+
   return (
-    <div className={cx('flex min-w-0 items-center', sizeSpec.gapClass, className)}>
-      <div
-        className={cx(
-          'relative inline-flex shrink-0 items-center justify-center',
-          sizeSpec.boxClass,
-        )}
-      >
-        <svg
-          viewBox={`0 0 ${sizeSpec.svgPx} ${sizeSpec.svgPx}`}
-          width={sizeSpec.svgPx}
-          height={sizeSpec.svgPx}
-          aria-hidden="true"
-          focusable="false"
-          data-ring-mode={ringVisual.mode}
-          className="h-full w-full shrink-0 overflow-visible"
+    <div
+      className={cx(
+        'flex min-w-0 items-center',
+        !resolvedUnavailable && sizeSpec.gapClass,
+        className,
+      )}
+    >
+      {!resolvedUnavailable && ringVisual.mode !== 'unavailable' ? (
+        <div
+          className={cx(
+            'relative inline-flex shrink-0 items-center justify-center',
+            sizeSpec.boxClass,
+          )}
         >
-          {ringVisual.mode === 'unavailable' ? (
-            <circle
-              cx={center}
-              cy={center}
-              r={sizeSpec.radius}
-              fill="none"
-              strokeWidth={sizeSpec.strokeWidth}
-              className={toneSpec.unavailableTrackClass}
-            />
-          ) : ringVisual.mode === 'arc' ? (
-            <>
-              <circle
-                cx={center}
-                cy={center}
-                r={Math.max(1, sizeSpec.radius - sizeSpec.strokeWidth * 0.65)}
-                className={toneSpec.softWashClass}
-              />
-              <circle
-                cx={center}
-                cy={center}
-                r={sizeSpec.radius}
-                fill="none"
-                strokeWidth={sizeSpec.strokeWidth}
-                className={toneSpec.trackClass}
-              />
-              {ringVisual.clampedPercent > 0 ? (
+          <svg
+            viewBox={`0 0 ${sizeSpec.svgPx} ${sizeSpec.svgPx}`}
+            width={sizeSpec.svgPx}
+            height={sizeSpec.svgPx}
+            aria-hidden="true"
+            focusable="false"
+            data-ring-mode={ringVisual.mode}
+            className="h-full w-full shrink-0 overflow-visible"
+          >
+            {ringVisual.mode === 'arc' ? (
+              <>
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={Math.max(1, sizeSpec.radius - sizeSpec.strokeWidth * 0.65)}
+                  className={toneSpec.softWashClass}
+                />
                 <circle
                   cx={center}
                   cy={center}
                   r={sizeSpec.radius}
                   fill="none"
                   strokeWidth={sizeSpec.strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                  strokeLinecap="round"
-                  transform={`rotate(-90 ${center} ${center})`}
-                  className={cx(
-                    toneSpec.arcClass,
-                    'transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none',
-                  )}
+                  className={toneSpec.trackClass}
                 />
-              ) : null}
-            </>
-          ) : (
-            <>
-              <circle
-                cx={center}
-                cy={center}
-                r={Math.max(1, sizeSpec.radius - sizeSpec.strokeWidth * 0.65)}
-                className={toneSpec.softWashClass}
-              />
-              <circle
-                cx={center}
-                cy={center}
-                r={sizeSpec.radius}
-                fill="none"
-                strokeWidth={sizeSpec.strokeWidth}
-                className={toneSpec.trackClass}
-              />
-              <circle
-                cx={center}
-                cy={center}
-                r={sizeSpec.radius}
-                fill="none"
-                strokeWidth={1.75}
-                className={toneSpec.orbitalHaloClass}
-              />
-            </>
-          )}
-        </svg>
-
-        {showRingCenter ? (
-          <div
-            dir="ltr"
-            aria-hidden={React.isValidElement(ringCenter) ? true : undefined}
-            className={cx(
-              'pointer-events-none absolute inset-0 flex items-center justify-center p-1.5 font-semibold',
-              sizeSpec.centerTextClass,
-              resolvedUnavailable ? toneSpec.unavailableCenterClass : toneSpec.centerClass,
-            )}
-          >
-            {React.isValidElement(ringCenter) ? (
-              ringCenter
+                {ringVisual.clampedPercent > 0 ? (
+                  <circle
+                    cx={center}
+                    cy={center}
+                    r={sizeSpec.radius}
+                    fill="none"
+                    strokeWidth={sizeSpec.strokeWidth}
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashOffset}
+                    strokeLinecap="round"
+                    transform={`rotate(-90 ${center} ${center})`}
+                    className={cx(
+                      toneSpec.arcClass,
+                      'transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none',
+                    )}
+                  />
+                ) : null}
+              </>
             ) : (
-              <span className="tabular-nums leading-none">{ringCenter}</span>
+              <>
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={Math.max(1, sizeSpec.radius - sizeSpec.strokeWidth * 0.65)}
+                  className={toneSpec.softWashClass}
+                />
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={sizeSpec.radius}
+                  fill="none"
+                  strokeWidth={sizeSpec.strokeWidth}
+                  className={toneSpec.trackClass}
+                />
+                <circle
+                  cx={center}
+                  cy={center}
+                  r={sizeSpec.radius}
+                  fill="none"
+                  strokeWidth={1.75}
+                  className={toneSpec.orbitalHaloClass}
+                />
+              </>
             )}
-          </div>
-        ) : null}
-      </div>
+          </svg>
+
+          {showRingCenter ? (
+            <div
+              dir="ltr"
+              aria-hidden={React.isValidElement(ringCenter) ? true : undefined}
+              className={cx(
+                'pointer-events-none absolute inset-0 flex items-center justify-center p-1.5 font-semibold',
+                sizeSpec.centerTextClass,
+                toneSpec.centerClass,
+              )}
+            >
+              {React.isValidElement(ringCenter) ? (
+                ringCenter
+              ) : (
+                <span className="tabular-nums leading-none">{ringCenter}</span>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="min-w-0 flex-1">
         {resolvedUnavailable ? (
@@ -371,7 +374,8 @@ export function V35KpiRing({
             title={resolvedUnavailableTooltip}
             aria-label={resolvedUnavailableTooltip}
             className={cx(
-              'inline-block max-w-full break-words font-semibold leading-tight tracking-tight tabular-nums',
+              'inline-block max-w-full font-semibold leading-tight tracking-tight tabular-nums',
+              valueWrapClass,
               sizeSpec.valueTextClass,
               toneSpec.unavailableValueClass,
               valueClassName,
@@ -385,7 +389,8 @@ export function V35KpiRing({
             data-kpi={dataKpi}
             title={valueTooltip || undefined}
             className={cx(
-              'inline-block max-w-full break-words font-semibold leading-tight tracking-tight tabular-nums',
+              'inline-block max-w-full font-semibold leading-tight tracking-tight tabular-nums',
+              valueWrapClass,
               sizeSpec.valueTextClass,
               toneSpec.valueClass,
               valueClassName,
@@ -394,6 +399,7 @@ export function V35KpiRing({
             {display}
           </span>
         )}
+        {children}
       </div>
     </div>
   )

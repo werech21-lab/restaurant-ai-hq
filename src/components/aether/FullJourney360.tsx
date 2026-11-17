@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle,
   ArrowUpRight,
   Building2,
   CalendarRange,
@@ -36,6 +35,7 @@ import {
   type ComboBarLineDatum,
   type DonutSliceDatum,
 } from '@/components/aether/InteractiveHoverCharts'
+import type { TimelineHourlyDatum } from '@/components/charts/v35-chart-kit'
 import {
   computeCoresHubSnapshot,
   UNATTRIBUTED_BRANCH_LABEL_AR,
@@ -61,7 +61,7 @@ import {
   formatStaticMarginPill,
 } from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
-import { StateBlock } from '@/components/ui'
+import { StateBlock, UnavailableState } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
   formatInt,
@@ -465,7 +465,7 @@ export function FullJourney360() {
                 {
                   label: isAr ? 'المواد والعمولات المرحّلة:' : 'Posted COGS & Commissions:',
                   value: fmtKwdVal(foodAndDelivery),
-                  tone: 'amber',
+                  tone: 'slate',
                 },
                 {
                   label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
@@ -484,7 +484,7 @@ export function FullJourney360() {
                 {
                   label: isAr ? 'حالة قيود الربح:' : 'GL Profit Status:',
                   value: glProfitStatusText,
-                  tone: 'amber',
+                  tone: 'slate',
                 },
               ],
       }
@@ -505,6 +505,22 @@ export function FullJourney360() {
     workspace.noData,
     workspace.odooConnected,
   ])
+
+  const comboHourlyFallback = useMemo<TimelineHourlyDatum[] | undefined>(() => {
+    if (flowGroup !== 'timeline' || coresSnap.sales.hourlyUnavailable || coresSnap.sales.hourly.length === 0) {
+      return undefined
+    }
+    return coresSnap.sales.hourly.map((pt) => {
+      const hrNum = Number(pt.id.replace('hr-', ''))
+      const hourLabel = isAr ? pt.labelAr : pt.labelEn
+      return {
+        hour: Number.isFinite(hrNum) ? hrNum : hourLabel,
+        label: hourLabel,
+        netKwd: Math.max(0, pt.salesKwd),
+        orders: typeof pt.orders === 'number' && Number.isFinite(pt.orders) ? pt.orders : undefined,
+      }
+    })
+  }, [coresSnap.sales.hourly, coresSnap.sales.hourlyUnavailable, flowGroup, isAr])
 
   const tenKwdDonutSlices = useMemo<DonutSliceDatum[]>(() => {
     if (!hasPostedOperatingProfit || glIncomplete || commissionUnposted) return []
@@ -750,7 +766,7 @@ export function FullJourney360() {
       <OdooPartialWarningBanner
         summary={liveSummary}
         isAr={isAr}
-        className="!rounded-[24px] !bg-amber-50/80 dark:!bg-amber-950/40 backdrop-blur-xl !border-amber-300/60 dark:!border-amber-400/25 !ring-1 !ring-slate-400/20 sm:px-5 sm:py-3.5"
+        className="!rounded-[24px] sm:px-5 sm:py-3.5"
       />
 
       {/* Initial Sync Loading Skeleton (Zero Layout Shift) */}
@@ -781,9 +797,9 @@ export function FullJourney360() {
           as="section"
           role="status"
           data-odoo-no-data="true"
-          className="ae-bento-card mx-auto my-4 p-8 sm:p-10 text-center ring-1 ring-amber-400/30 dark:ring-amber-400/25"
+          className="ae-bento-card mx-auto my-4 p-8 sm:p-10 text-center ring-1 ring-slate-300/70 dark:ring-slate-600/40"
         >
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/80 text-amber-700 ring-1 ring-amber-400/30 backdrop-blur-sm dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/25">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100/85 text-slate-700 ring-1 ring-slate-300/70 backdrop-blur-sm dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-600/40">
             <Database className="h-7 w-7" aria-hidden />
           </div>
           <h3 className="text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">
@@ -836,10 +852,10 @@ export function FullJourney360() {
               role="status"
               variant="subtle"
               data-admin-unmapped-banner="true"
-              className="ae-bento-card flex flex-wrap items-center justify-between gap-3 bg-amber-50/75 px-4 py-3.5 text-[13px] font-semibold text-amber-950 ring-1 ring-amber-400/30 sm:px-5 dark:bg-amber-950/35 dark:text-amber-100 dark:ring-amber-400/25"
+              className="ae-bento-card flex flex-wrap items-center justify-between gap-3 border border-amber-300/60 bg-white/80 px-4 py-3.5 text-[13px] font-semibold text-slate-800 sm:px-5 dark:border-amber-400/25 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-100"
             >
               <div className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600/85 dark:text-amber-300/85" />
                 <span>
                   {isAr
                     ? `«${formatAdminUnmappedAlertCopy(adminUnmappedNetKwd, true)}»`
@@ -853,7 +869,7 @@ export function FullJourney360() {
                     .getElementById('admin-pos-terminal-mapping')
                     ?.scrollIntoView({ behavior: 'smooth' })
                 }
-                className="inline-flex shrink-0 cursor-pointer items-center rounded-full bg-amber-500/15 px-3.5 py-1.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/25 transition-colors hover:bg-amber-500/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:text-amber-100"
+                className="inline-flex shrink-0 cursor-pointer items-center rounded-full bg-slate-100/90 px-3.5 py-1.5 text-xs font-semibold text-slate-800 ring-1 ring-slate-300/70 transition-colors hover:bg-slate-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-100 dark:ring-white/15 dark:hover:bg-white/[0.14]"
               >
                 {T('Map POS Terminals ↓', 'ربط أجهزة الكاشير ↓')}
               </button>
@@ -892,7 +908,7 @@ export function FullJourney360() {
                     display={fmtKwdVal(workspace.nullableSalesKwd ?? 0)}
                     unavailableTooltip={unavailableTooltip}
                     ringCenter={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
-                    valueClassName="text-xl sm:text-2xl xl:text-[28px]"
+                    valueClassName="whitespace-nowrap text-[clamp(1.25rem,1.9vw,1.9rem)]"
                   />
                 </div>
 
@@ -947,7 +963,7 @@ export function FullJourney360() {
                   {workspace.nullableSalesKwd !== null && workspace.brandBasis === 'product-lines' ? (
                     <p
                       data-brand-basis="product-lines"
-                      className="whitespace-normal text-xs font-medium tabular-nums text-amber-100"
+                      className="whitespace-normal text-xs font-medium tabular-nums text-sky-100/95"
                     >
                       {T(SCOPE_LABELS.productLinesBasis.en, SCOPE_LABELS.productLinesBasis.ar)}
                       {workspace.brandBasisGapKwd !== null ? (
@@ -965,7 +981,7 @@ export function FullJourney360() {
                   workspace.unattributedSalesKwd > 0 &&
                   filters.brand === 'all' &&
                   filters.branch === 'all' ? (
-                    <p className="whitespace-normal text-xs font-medium tabular-nums text-amber-100">
+                    <p className="whitespace-normal text-xs font-medium tabular-nums text-sky-100/95">
                       {isAr ? (
                         <>
                           منها {UNATTRIBUTED_BRANCH_LABEL_AR}:{' '}
@@ -1038,15 +1054,17 @@ export function FullJourney360() {
                 </div>
 
                 <div className="mt-3.5 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {maskInternalCosts ? (
+                  {maskInternalCosts ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         data-cost-mask="restricted-finance-gm"
                         className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
                       >
                         {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                       </span>
-                    ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null && !glIncomplete ? (
+                    </div>
+                  ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null && !glIncomplete ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         dir="ltr"
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
@@ -1057,12 +1075,8 @@ export function FullJourney360() {
                       >
                         {formatStaticMarginPill(gl.beforeRentPct)} • {fmtKwdVal(gl.beforeRentKwd)}
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50/90 px-2.5 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-400/25">
-                        {T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}
-                      </span>
-                    )}
-                  </div>
+                    </div>
+                  ) : null}
                   <KpiProvenanceBadge
                     odooModel="pos.order"
                     dateRange={provenanceRange}
@@ -1114,7 +1128,7 @@ export function FullJourney360() {
                   </>
                 ) : (
                   <>
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3">
                       <V35KpiRing
                         tone="indigo"
                         size="md"
@@ -1133,46 +1147,19 @@ export function FullJourney360() {
                         }
                         valueClassName="text-xl sm:text-2xl xl:text-[26px]"
                       />
-                      {!hasPostedOperatingProfit || glIncomplete ? (
-                        <div className="space-y-1">
-                          <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100/85 px-3 py-1.5 text-sm font-extrabold text-amber-950 ring-1 ring-amber-500/25 backdrop-blur-sm dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/25">
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span>{T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}</span>
-                          </div>
-                          {hasPostedOperatingProfit ? (
-                            <p className="text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
-                              {isAr ? (
-                                <>
-                                  الرصيد المرحّل جزئياً فقط:{' '}
-                                  <span dir="ltr" className="tabular-nums">
-                                    {fmtKwdVal(netPocketKwd)}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  Partially posted balance only:{' '}
-                                  <span dir="ltr" className="tabular-nums">
-                                    {fmtKwdVal(netPocketKwd)}
-                                  </span>
-                                </>
-                              )}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
                     </div>
 
                     <div className="mt-3.5 space-y-1.5">
-                      {glIncomplete ? (
-                        <p className="whitespace-normal text-xs font-semibold text-amber-800 dark:text-amber-300">
-                          {isAr
-                            ? gl.unavailableReasonAr && gl.unavailableReasonAr !== GL_INCOMPLETE_AR
-                              ? `${GL_INCOMPLETE_AR} — ${gl.unavailableReasonAr}`
-                              : GL_INCOMPLETE_AR
-                            : gl.unavailableReasonEn && gl.unavailableReasonEn !== GL_INCOMPLETE_EN
-                              ? `${GL_INCOMPLETE_EN} — ${gl.unavailableReasonEn}`
-                              : GL_INCOMPLETE_EN}
-                        </p>
+                      {!hasPostedOperatingProfit || glIncomplete ? (
+                        <UnavailableState
+                          isAr={isAr}
+                          compact
+                          reason={
+                            isAr
+                              ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
+                              : 'Not available yet — GL entries not posted'
+                          }
+                        />
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
                           <span dir="ltr" className="tabular-nums">
@@ -1232,19 +1219,28 @@ export function FullJourney360() {
                 ) : commissionUnposted ? (
                   <>
                     <div className="mt-3">
-                      <span
-                        data-commission-unposted="true"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100/85 px-3 py-1.5 text-base font-extrabold text-amber-950 ring-1 ring-amber-500/25 backdrop-blur-sm dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/25"
-                      >
-                        {T(UNPOSTED_COMMISSION_EN, UNPOSTED_COMMISSION_AR)}
-                      </span>
+                      <V35KpiRing
+                        tone="sky"
+                        size="md"
+                        dataKpi="aggregator-commissions"
+                        value={null}
+                        isUnavailable
+                        display={UNAVAILABLE_DASH}
+                        unavailableTooltip={unavailableTooltip}
+                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                      />
                     </div>
                     <div className="mt-3.5 space-y-1.5">
-                      <p className="whitespace-normal text-xs font-medium text-slate-600 dark:text-slate-300">
-                        {isAr
-                          ? 'لم تُرحَّل فواتير عمولات المنصات في دفتر الأستاذ العام لهذه الفترة بعد (لا تُعرض كصفر).'
-                          : 'Platform commission invoices are not posted in Odoo GL for this window yet (never shown as zero).'}
-                      </p>
+                      <UnavailableState
+                        data-commission-unposted="true"
+                        isAr={isAr}
+                        compact
+                        reason={
+                          isAr
+                            ? `غير متاح بعد — ${UNPOSTED_COMMISSION_AR}`
+                            : `Not available yet — ${UNPOSTED_COMMISSION_EN}`
+                        }
+                      />
                       <KpiProvenanceBadge
                         odooModel="account.move.line"
                         dateRange={{ from: gl.from, to: gl.to }}
@@ -1357,7 +1353,7 @@ export function FullJourney360() {
                       data-branch-card={bRow.id}
                       className={`flex flex-col justify-between rounded-[20px] p-4 ${
                         bRow.isUnattributed
-                          ? 'bg-amber-50/75 ring-1 ring-amber-400/35 dark:bg-amber-950/30 dark:ring-amber-400/25'
+                          ? 'border !border-dashed border-slate-300/90 bg-slate-50/75 dark:border-slate-700/80 dark:bg-slate-900/40'
                           : ''
                       }`}
                     >
@@ -1366,7 +1362,7 @@ export function FullJourney360() {
                           <span
                             className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
                               bRow.isUnattributed
-                                ? 'bg-amber-500/20 text-amber-800 dark:text-amber-300'
+                                ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300'
                                 : 'bg-blue-500/15 text-blue-700 dark:bg-sky-400/15 dark:text-sky-300'
                             }`}
                           >
@@ -1393,7 +1389,7 @@ export function FullJourney360() {
                           data-unavailable={bRow.sharePct === null ? 'true' : undefined}
                           className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
                             bRow.isUnattributed
-                              ? 'bg-amber-200/80 text-amber-950 ring-1 ring-amber-400/30 dark:bg-amber-900/60 dark:text-amber-200 dark:ring-amber-400/25'
+                              ? 'bg-slate-200/80 text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-600/50'
                               : 'bg-blue-100/85 text-blue-900 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25'
                           }`}
                         >
@@ -1405,7 +1401,7 @@ export function FullJourney360() {
                         {bRow.sharePct !== null && bRow.salesKwd !== null ? (
                           <V35KpiRing
                             size="sm"
-                            tone={bRow.isUnattributed ? 'warning' : 'blue'}
+                            tone={bRow.isUnattributed ? 'neutral' : 'blue'}
                             value={bRow.salesKwd}
                             display={fmtKwdVal(bRow.salesKwd)}
                             percent={bRow.sharePct}
@@ -1519,7 +1515,7 @@ export function FullJourney360() {
                       </span>
                       <span dir="ltr">{fmtKwdVal(activeWeeklyDay.salesKwd)}</span>
                       {weeklyChartMeta.bars.find((b) => b.id === activeWeeklyDay.id)?.isPartialToday ? (
-                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200">
+                        <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-700/60 dark:text-slate-200 dark:ring-slate-600/50">
                           {T('Partial', 'جزئي')}
                         </span>
                       ) : null}
@@ -1554,7 +1550,7 @@ export function FullJourney360() {
                                 {`${day.compactKwd} ${isAr ? 'د.ك' : 'KWD'}`}
                               </span>
                             ) : isPartialToday ? (
-                              <span className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-500/30 dark:bg-amber-400/15 dark:text-amber-200 dark:ring-amber-400/30">
+                              <span className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-700/60 dark:text-slate-200 dark:ring-slate-600/50">
                                 {T('Partial', 'جزئي')}
                               </span>
                             ) : (
@@ -1636,7 +1632,7 @@ export function FullJourney360() {
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Open Receivables & Ledger Status', 'الذمم المدينة المفتوحة وحالة الدفتر')}
                     </h2>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-400/30 dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/25">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-300/80 bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:border-slate-600/60 dark:bg-slate-800/70 dark:text-slate-200">
                       <Wallet className="h-3.5 w-3.5" />
                       <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
                     </span>
@@ -1654,10 +1650,10 @@ export function FullJourney360() {
                     <div className="space-y-3">
                       <Link
                         href={isErpRouteAllowedForRole(sessionRole, '/erp/receivables') ? '/erp/receivables' : '/erp/cores'}
-                        className="block rounded-[20px] bg-amber-50/70 p-4 ring-1 ring-amber-400/30 backdrop-blur-sm transition-colors hover:bg-amber-50/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-amber-950/25 dark:ring-amber-400/25 dark:hover:bg-amber-950/35"
+                        className="block rounded-[20px] border border-slate-300/80 bg-slate-50/75 p-4 backdrop-blur-sm transition-colors hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:border-slate-700/75 dark:bg-slate-900/45 dark:hover:bg-slate-800/60"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-amber-950 dark:text-amber-200">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                             {T('Unreconciled Open Receivables', 'إجمالي الذمم المدينة غير المسوّاة')}
                           </span>
                           <span
@@ -1665,7 +1661,7 @@ export function FullJourney360() {
                             title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                            className="text-lg font-extrabold tabular-nums text-amber-900 dark:text-amber-200"
+                            className="text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
                           >
                             {workspace.receivables.unavailable
                               ? UNAVAILABLE_DASH
@@ -1679,7 +1675,7 @@ export function FullJourney360() {
                             {workspace.receivables.agingBuckets.map((bkt) => (
                               <div
                                 key={bkt.key}
-                                className="rounded-xl bg-white/80 p-2.5 ring-1 ring-amber-400/25 backdrop-blur-sm dark:bg-[rgba(15,26,48,0.72)] dark:ring-amber-400/20"
+                                className="rounded-xl border border-slate-200/80 bg-white/85 p-2.5 backdrop-blur-sm dark:border-slate-700/60 dark:bg-[rgba(15,26,48,0.72)]"
                               >
                                 <span className="block font-medium text-slate-600 dark:text-slate-300">
                                   {isAr ? bkt.labelAr : bkt.labelEn}
@@ -1708,12 +1704,12 @@ export function FullJourney360() {
                               <dt>{T('Unapplied credits & clearing', 'دفعات ومقاصات غير مطابقة')}</dt>
                               <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.unappliedCreditsKwd)}</dd>
                             </div>
-                            <div className="flex items-center justify-between gap-2 border-t border-amber-500/20 pt-1">
+                            <div className="flex items-center justify-between gap-2 border-t border-slate-200/80 pt-1 dark:border-slate-700/60">
                               <dt>{T('= Open receivables', '= صافي الذمم المفتوحة')}</dt>
                               <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openReceivableKwd)}</dd>
                             </div>
                             {arTieOut.ties ? null : (
-                              <p className="text-amber-900 dark:text-amber-200">
+                              <p className="text-slate-600 dark:text-slate-300">
                                 {T('Does not tie; difference', 'لا يتطابق؛ الفرق')}{' '}
                                 <span dir="ltr" className="tabular-nums">{fmtKwdVal(arTieOut.differenceKwd)}</span>
                               </p>
@@ -1721,7 +1717,7 @@ export function FullJourney360() {
                           </dl>
                         ) : null}
                         {!workspace.receivables.unavailable && workspace.receivables.agingHiddenReasonAr ? (
-                          <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-amber-900 dark:text-amber-200">
+                          <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
                             {isAr ? workspace.receivables.agingHiddenReasonAr : workspace.receivables.agingHiddenReasonEn}
                           </p>
                         ) : null}
@@ -1805,6 +1801,7 @@ export function FullJourney360() {
                 {comboData.length > 0 ? (
                   <SalesNetComboChart
                     data={comboData}
+                    hourlyFallback={comboHourlyFallback}
                     isAr={isAr}
                     salesLegend={T('Sales (pos.order)', 'المبيعات (pos.order)')}
                     netLegend={
@@ -1889,46 +1886,15 @@ export function FullJourney360() {
                     />
                   </div>
                 ) : (
-                  <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl bg-amber-50/70 p-4 ring-1 ring-amber-400/30 backdrop-blur-sm dark:bg-amber-950/25 dark:ring-amber-400/25">
-                    <div className="space-y-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/90 px-2.5 py-1 text-xs font-extrabold text-amber-950 ring-1 ring-amber-400/30 dark:bg-amber-500/20 dark:text-amber-200 dark:ring-amber-400/25">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <span>{T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}</span>
-                      </span>
-                      <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-800 dark:text-slate-200">
-                        {isAr
-                          ? (gl.unavailableReasonAr ?? GL_INCOMPLETE_AR)
-                          : (gl.unavailableReasonEn ?? GL_INCOMPLETE_EN)}
-                      </p>
-                      <div className="grid grid-cols-1 gap-2 pt-1 text-xs sm:grid-cols-2">
-                        <div className="rounded-xl bg-white/80 p-2.5 ring-1 ring-amber-400/25 backdrop-blur-sm dark:bg-[rgba(15,26,48,0.72)] dark:ring-amber-400/20">
-                          <span className="block text-slate-600 dark:text-slate-300">
-                            {T('Posted COGS', 'تكلفة المواد المرحّلة')}
-                          </span>
-                          <span
-                            dir={gl.cogsKwd !== null ? 'ltr' : undefined}
-                            className="mt-0.5 block font-bold tabular-nums text-slate-900 dark:text-white"
-                          >
-                            {gl.cogsKwd !== null
-                              ? fmtKwdVal(gl.cogsKwd)
-                              : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}
-                          </span>
-                        </div>
-                        <div className="rounded-xl bg-white/80 p-2.5 ring-1 ring-amber-400/25 backdrop-blur-sm dark:bg-[rgba(15,26,48,0.72)] dark:ring-amber-400/20">
-                          <span className="block text-slate-600 dark:text-slate-300">
-                            {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
-                          </span>
-                          <span
-                            dir={!commissionUnposted ? 'ltr' : undefined}
-                            className="mt-0.5 block font-bold tabular-nums text-amber-900 dark:text-amber-200"
-                          >
-                            {commissionUnposted
-                              ? T(UNPOSTED_COMMISSION_EN, UNPOSTED_COMMISSION_AR)
-                              : fmtKwdVal(gl.deliveryCommissionsKwd)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex flex-1 flex-col justify-between gap-3">
+                    <UnavailableState
+                      isAr={isAr}
+                      reason={
+                        isAr
+                          ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
+                          : 'Not available yet — GL entries not posted'
+                      }
+                    />
                     <KpiProvenanceBadge
                       odooModel="account.move.line"
                       dateRange={{ from: gl.from, to: gl.to }}

@@ -59,7 +59,7 @@ export function V35GlassCard({
       data-variant={variant}
       data-hover-lift={hoverLift ? 'true' : undefined}
       className={cx(
-        'relative rounded-[24px]',
+        'relative min-w-0 rounded-[24px]',
         VARIANT_CLASSES[variant],
         hoverLift
           ? HOVER_LIFT_CLASSES[variant]

@@ -28,13 +28,12 @@ export function OdooPartialWarningBanner({
   return (
     <div
       role="alert"
+      dir={isAr ? 'rtl' : 'ltr'}
       data-odoo-partial-warning="true"
-      className={`ae-bento-card flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-amber-300/75 bg-amber-50/95 px-4 py-3 text-[13px] font-semibold text-amber-950 ring-1 ring-amber-500/20 dark:border-amber-500/35 dark:bg-amber-950/45 dark:text-amber-100 dark:ring-amber-400/20 ${className}`.trim()}
+      className={`inline-flex max-w-full items-center gap-2 rounded-2xl border border-slate-300/70 bg-white/80 px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] backdrop-blur-md ring-1 ring-amber-400/20 dark:border-slate-500/25 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-200 dark:ring-amber-400/20 ${className}`.trim()}
     >
-      <div className="flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-        <span>{text}</span>
-      </div>
+      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600/80 dark:text-amber-300/80" aria-hidden />
+      <span>{text}</span>
     </div>
   )
 }

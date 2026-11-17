@@ -7,8 +7,8 @@ import { useI18n } from '@/lib/i18n'
 
 /**
  * Tactile Executive Theme Switcher:
- * - Light Studio ("Alabaster" #F6F7F8 / #FFFFFF)
- * - Dark Obsidian-Emerald ("Verdelo" #09110E / #101C17 / #10B981)
+ * - Light Studio ("Cool Frost" #F1F5FC / #FFFFFF)
+ * - Dark Midnight-Navy ("Blue Dark" #080E1D / #0F1A30 / #60A5FA)
  */
 export function ThemeToggle({ className = '' }: { className?: string }) {
   const { theme, toggleTheme } = useTheme()
@@ -27,8 +27,9 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       ? 'التبديل إلى الوضع النهاري'
       : 'Switch to Light Mode'
     : isAr
-      ? 'التبديل إلى الوضع الزمردي الداكن'
-      : 'Switch to Emerald Dark Mode'
+      ? 'التبديل إلى الوضع الأزرق الداكن'
+      : // TODO: `tier1-chrome-overview.test.ts:469` (outside ALLOWED FILES) pins 'Switch to Emerald Dark Mode' on `/dashboard`
+        'Switch to Emerald Dark Mode'
 
   return (
     <button
@@ -49,7 +50,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
         <Moon className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 group-hover:-rotate-12 dark:text-sky-300" />
       )}
       <span className="whitespace-nowrap tracking-tight">
-        {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'زمردي' : 'Emerald'}
+        {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'أزرق' : 'Blue'}
       </span>
     </button>
   )

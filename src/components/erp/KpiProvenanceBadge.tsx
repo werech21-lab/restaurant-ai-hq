@@ -1,6 +1,8 @@
 'use client'
 
-import React, { useEffect, useId, useRef, useState } from 'react'
+import React from 'react'
+import { cx } from '@/components/ui/cx'
+import { DetailsPopover } from '@/components/ui/details-popover'
 import { formatKuwaitDateTime } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
@@ -47,7 +49,7 @@ function normalizeKind(kind: KpiMetricKindInput): {
       ar: 'فعلي',
       en: 'Actual',
       toneClass:
-        'bg-emerald-50 text-emerald-900 ring-emerald-500/25 dark:bg-emerald-950/50 dark:text-emerald-200 dark:ring-emerald-400/25',
+        'bg-emerald-50/90 text-emerald-800 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/25',
     }
   }
   if (kind === 'محسوب بمعادلة' || kind === 'formula') {
@@ -55,14 +57,14 @@ function normalizeKind(kind: KpiMetricKindInput): {
       ar: 'محسوب بمعادلة',
       en: 'Formula',
       toneClass:
-        'bg-sky-50 text-sky-900 ring-sky-500/25 dark:bg-sky-950/50 dark:text-sky-200 dark:ring-sky-400/25',
+        'bg-sky-50/90 text-sky-800 ring-sky-500/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25',
     }
   }
   return {
     ar: 'تقدير',
     en: 'Estimate',
     toneClass:
-      'bg-amber-100/90 text-amber-950 ring-amber-500/35 dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/30',
+      'bg-slate-100/90 text-slate-700 ring-slate-400/30 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/15',
   }
 }
 
@@ -119,24 +121,6 @@ export function KpiProvenanceBadge({
   className = '',
 }: KpiProvenanceBadgeProps) {
   const isAr = useSafeIsAr(explicitIsAr)
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const tooltipId = useId()
-  useEffect(() => {
-    if (!open) return
-    const onPointer = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointer)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointer)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
   const suppliedModel = (rawOdooModel || model || '').trim()
   const odooModel = suppliedModel || (isAr ? 'غير محدد' : 'unspecified')
   const kindMeta = normalizeKind(kind)
@@ -152,7 +136,7 @@ export function KpiProvenanceBadge({
   const syncInfo = formatSyncShort(lastSyncAt)
   const stale = Boolean(isStale24h || syncInfo.computedStale24h)
 
-  const fullTitle = isAr
+  const accessibleSummary = isAr
     ? [
         `النوع: ${kindMeta.ar}`,
         `موديل Odoo: ${odooModel}`,
@@ -169,80 +153,62 @@ export function KpiProvenanceBadge({
       ].join(' | ')
 
   return (
-    <div
-      ref={rootRef}
-      dir={isAr ? 'rtl' : 'ltr'}
+    <DetailsPopover
+      isAr={isAr}
+      accessibleSummary={accessibleSummary}
       data-kpi-provenance={kindMeta.ar}
       data-odoo-model={odooModel}
       data-kpi-stale={stale ? 'true' : 'false'}
       data-compact={compact ? 'true' : 'false'}
-      className={`relative mt-2 flex flex-wrap items-center gap-1.5 text-xs leading-tight tabular-nums ${className}`}
+      className={cx('mt-2 tabular-nums', className)}
     >
-      <span
-        className={`inline-flex items-center rounded-md px-1.5 py-0.5 font-extrabold ring-1 ${kindMeta.toneClass}`}
-      >
-        {isAr ? kindMeta.ar : kindMeta.en}
-      </span>
-
-      <span
-        dir="ltr"
-        className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/10"
-      >
-        {odooModel}
-      </span>
-
-      <span
-        dir="ltr"
-        className="inline-flex items-center rounded-md bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-600 ring-1 ring-slate-900/5 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10"
-      >
-        {rangeStr}
-      </span>
-
-      <span className="inline-flex items-center text-xs font-medium text-slate-600 dark:text-slate-300">
-        {isAr ? `مزامنة: ${syncInfo.labelAr}` : `Sync: ${syncInfo.labelEn}`}
-      </span>
-
-      {stale ? (
-        <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-extrabold bg-yellow-100 text-yellow-900 ring-1 ring-yellow-500/40 dark:bg-yellow-400/20 dark:text-yellow-200 dark:ring-yellow-400/40">
-          {isAr ? 'قديمة' : 'Stale'}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span
+          className={cx(
+            'inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold ring-1',
+            kindMeta.toneClass,
+          )}
+        >
+          {isAr ? kindMeta.ar : kindMeta.en}
         </span>
-      ) : null}
 
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={tooltipId}
-        aria-label={fullTitle}
-        onClick={() => setOpen((current) => !current)}
-        className="inline-flex cursor-pointer items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-900/10 transition-colors hover:bg-slate-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-white/[0.12]"
-      >
-        {isAr ? 'التفاصيل' : 'Details'}
-      </button>
+        <span
+          dir="ltr"
+          className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
+        >
+          {odooModel}
+        </span>
 
-      {open ? (
-      <div
-        id={tooltipId}
-        role="tooltip"
-        className="absolute top-full start-0 z-40 mt-1.5 w-72 max-w-[90vw] rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-700 shadow-lg dark:border-white/15 dark:bg-[#0E1713] dark:text-slate-200"
-      >
-        <div className="font-bold text-slate-900 dark:text-white">
-          {isAr ? `${kindMeta.ar} — ${odooModel}` : `${kindMeta.en} — ${odooModel}`}
+        {stale ? (
+          <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold bg-yellow-100 text-yellow-900 ring-1 ring-yellow-500/35 dark:bg-yellow-400/20 dark:text-yellow-200 dark:ring-yellow-400/35">
+            {isAr ? 'قديمة' : 'Stale'}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+        <div>
+          {isAr ? 'النطاق: ' : 'Range: '}
+          <span dir="ltr" className="font-mono font-medium tabular-nums">
+            {rangeStr}
+          </span>
         </div>
-        <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-          {isAr ? `التاريخ: ${rangeStr}` : `Range: ${rangeStr}`}
-          {' • '}
-          {isAr ? `آخر مزامنة: ${syncInfo.labelAr}` : `Last sync: ${syncInfo.labelEn}`}
+        <div>
+          {isAr ? 'آخر مزامنة: ' : 'Last sync: '}
+          <span dir="ltr" className="font-mono font-medium tabular-nums">
+            {isAr ? syncInfo.labelAr : syncInfo.labelEn}
+          </span>
           {stale ? (isAr ? ' • قديمة (>24 ساعة)' : ' • Stale (>24h)') : ''}
         </div>
-        <div
-          dir="ltr"
-          className="mt-1.5 break-words rounded-lg bg-slate-100/90 p-1.5 font-mono text-xs text-slate-800 dark:bg-white/[0.06] dark:text-emerald-200"
-        >
-          {queryOrFormula}
-        </div>
       </div>
-      ) : null}
-    </div>
+
+      <div
+        dir="ltr"
+        className="mt-2 break-words rounded-xl bg-slate-100/90 p-2 font-mono text-xs text-slate-800 dark:bg-white/[0.06] dark:text-sky-200"
+      >
+        {queryOrFormula}
+      </div>
+    </DetailsPopover>
   )
 }
 
