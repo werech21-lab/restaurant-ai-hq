@@ -4,12 +4,12 @@
  * & Middleware Whitelist Verifier (`scripts/verify-all-8-logins.mjs`)
  *
  * Verifies:
- *  1. gm@venturefoodskw.com / VF-GM#2026!Executive (Approval PIN 2026) -> /erp
- *  2. dgm@venturefoodskw.com / VF-DGM#2026!Executive (Approval PIN 2026) -> /erp
- *  3. operations@venturefoodskw.com / Ops@2026 -> /erp
- *  4. cfo@venturefoodskw.com & finance@venturefoodskw.com / Cfo@2026 -> /erp
- *  5. marketing@venturefoodskw.com & mkt@venturefoodskw.com / Mkt@2026 -> /erp/cores
- *  6. supply@venturefoodskw.com & kitchen@venturefoodskw.com / Sup@2026 -> /erp/warehouse-chain
+ *  1. gm@venturefoodskw.com / $AETHER_GM_PASSWORD (Approval PIN) -> /erp
+ *  2. dgm@venturefoodskw.com / $AETHER_DGM_PASSWORD (Approval PIN) -> /erp
+ *  3. operations@venturefoodskw.com -> /erp
+ *  4. cfo@venturefoodskw.com & finance@venturefoodskw.com -> /erp
+ *  5. marketing@venturefoodskw.com & mkt@venturefoodskw.com -> /erp/cores
+ *  6. supply@venturefoodskw.com & kitchen@venturefoodskw.com -> /erp/warehouse-chain
  *  7. abdullah@venturefoodskw.com (admin) -> /erp
  *  8. auditor@venturefoodskw.com (auditor, strictly Read-Only) -> /erp
  */
@@ -88,16 +88,21 @@ import { resolveShellRoleBadge } from './src/components/erp/shell';
 import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src/lib/governance-compliance';
 
 (async () => {
-  const pwGm = String.fromCharCode(
-    86, 70, 45, 71, 77, 35, 50, 48, 50, 54, 33, 69, 120, 101, 99, 117, 116, 105, 118, 101,
-  );
-  const pwDgm = String.fromCharCode(
-    86, 70, 45, 68, 71, 77, 35, 50, 48, 50, 54, 33, 69, 120, 101, 99, 117, 116, 105, 118, 101,
-  );
-  const pwOps = String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54);
-  const pwCfo = String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54);
-  const pwMkt = String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54);
-  const pwSup = String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54);
+  // Phase 5 · Item 10: executive passwords come only from the environment — never from source.
+  const requirePw = (name) => {
+    const v = String(process.env[name] ?? '').trim()
+    if (!v) {
+      console.error('Missing ' + name + '. Export the rotated executive passwords before running this check.')
+      process.exit(2)
+    }
+    return v
+  }
+  const pwGm = requirePw('AETHER_GM_PASSWORD')
+  const pwDgm = requirePw('AETHER_DGM_PASSWORD')
+  const pwOps = requirePw('AETHER_OPS_PASSWORD')
+  const pwCfo = requirePw('AETHER_CFO_PASSWORD')
+  const pwMkt = requirePw('AETHER_MARKETING_PASSWORD')
+  const pwSup = requirePw('AETHER_SUPPLY_PASSWORD')
 
   async function callLogin(email, password, ip, opts = {}) {
     const prevNodeEnv = process.env.NODE_ENV;
@@ -169,7 +174,7 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
     next: '/erp',
   });
 
-  // Resilience check: stale AETHER_GM_PASSWORD env var must NEVER lock out canonical VF-GM#2026!Executive
+  // Resilience check: a stale AETHER_GM_PASSWORD value must not lock out the configured GM password
   const prevGmEnv = process.env.AETHER_GM_PASSWORD;
   process.env.AETHER_GM_PASSWORD = 'StaleOldEnvPassword#1999\\r\\n';
   const gmResilientAuth = await authenticateExecutiveCredentials(DEFAULT_GM_EMAIL, pwGm);
@@ -490,27 +495,27 @@ const res = JSON.parse(raw.split('\n').pop() ?? '{}')
 
 assert(
   res.gmOk === true,
-  '1) General Manager (gm@venturefoodskw.com / VF-GM#2026!Executive + PIN 2026): Authenticates cleanly, lands on /erp, enforces exact password case, survives stale env vars & verifies PIN 2026',
+  '1) General Manager (gm@venturefoodskw.com + approval PIN): Authenticates cleanly, lands on /erp, enforces exact password case, survives stale env vars & verifies PIN 2026',
 )
 assert(
   res.dgmOk === true,
-  '2) Deputy General Manager (dgm@venturefoodskw.com / VF-DGM#2026!Executive + PIN 2026): Authenticates cleanly, lands on /erp, enforces exact password case & verifies PIN 2026',
+  '2) Deputy General Manager (dgm@venturefoodskw.com + approval PIN): Authenticates cleanly, lands on /erp, enforces exact password case & verifies PIN 2026',
 )
 assert(
   res.opsOk === true,
-  '3) Operations Manager (operations@venturefoodskw.com / Ops@2026): Authenticates cleanly, lands on /erp & passes all 13 ERP route checks',
+  '3) Operations Manager (operations@venturefoodskw.com): Authenticates cleanly, lands on /erp & passes all 13 ERP route checks',
 )
 assert(
   res.cfoOk === true,
-  '4) Finance Manager / CFO (cfo@venturefoodskw.com & finance@venturefoodskw.com / Cfo@2026): Primary + finance@ alias authenticate cleanly as cfo -> /erp',
+  '4) Finance Manager / CFO (cfo@venturefoodskw.com & finance@venturefoodskw.com): Primary + finance@ alias authenticate cleanly as cfo -> /erp',
 )
 assert(
   res.marketingOk === true,
-  '5) Marketing Lead (marketing@venturefoodskw.com & mkt@venturefoodskw.com / Mkt@2026): Primary + mkt@ alias authenticate as marketing -> /erp/cores, allow scoped marketing routes & redirect forbidden routes -> /erp/cores',
+  '5) Marketing Lead (marketing@venturefoodskw.com & mkt@venturefoodskw.com): Primary + mkt@ alias authenticate as marketing -> /erp/cores, allow scoped marketing routes & redirect forbidden routes -> /erp/cores',
 )
 assert(
   res.supplyOk === true,
-  '6) Central Kitchen & Supply Manager (supply@venturefoodskw.com & kitchen@venturefoodskw.com / Sup@2026): Primary + kitchen@ alias authenticate as supply -> /erp/warehouse-chain, allow kitchen/SLA routes & redirect forbidden routes -> /erp/warehouse-chain',
+  '6) Central Kitchen & Supply Manager (supply@venturefoodskw.com & kitchen@venturefoodskw.com): Primary + kitchen@ alias authenticate as supply -> /erp/warehouse-chain, allow kitchen/SLA routes & redirect forbidden routes -> /erp/warehouse-chain',
 )
 assert(
   res.adminAuditorOk === true,

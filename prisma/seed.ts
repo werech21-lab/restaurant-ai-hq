@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { paymentStatus, round2 } from "../src/lib/format";
 import { MODULES as MODULE_DEFS } from "../src/lib/modules";
-import { AETHER_ADMIN_PASSWORD, VF_TEAM } from "../src/lib/venture-foods-team";
+import { requireAetherAdminPassword, VF_TEAM } from "../src/lib/venture-foods-team";
 import { demoCatalogSeedAllowed } from "../src/lib/demo-catalog";
 import { clearEnterprise, seedEnterprise } from "./bootstrap";
 
@@ -62,7 +62,7 @@ async function main() {
     await tx.permission.deleteMany();
     await tx.role.deleteMany();
 
-    const aetherHash = await bcrypt.hash(AETHER_ADMIN_PASSWORD, 10);
+    const aetherHash = await bcrypt.hash(requireAetherAdminPassword(), 10);
 
     for (const member of VF_TEAM) {
       const created = await tx.role.create({

@@ -126,8 +126,17 @@ export const VF_TEAM: VfTeamMember[] = [
   },
 ]
 
-/** Official AetherBI break-glass account (same person as Ahmed / CEO). */
-export const AETHER_ADMIN_PASSWORD = 'AetherAdmin#2026!'
+/**
+ * Official AetherBI break-glass account password (same person as Ahmed / CEO).
+ * Phase 5 · Item 10: never hardcoded — read from `AETHER_ADMIN_PASSWORD` at seed time.
+ */
+export function requireAetherAdminPassword(): string {
+  const value = String(process.env.AETHER_ADMIN_PASSWORD ?? '').trim()
+  if (value.length < 12) {
+    throw new Error('AETHER_ADMIN_PASSWORD must be set (12+ characters) before seeding the admin account.')
+  }
+  return value
+}
 
 const OLD_DEMO_EMAILS = new Set([
   'accountant@erp.com',

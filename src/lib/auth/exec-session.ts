@@ -399,6 +399,11 @@ async function hmacSha256(secret: string, message: string): Promise<Uint8Array> 
  * Normalizes email with `.trim().toLowerCase()` and trims accidental leading/trailing spaces
  * on password input while strictly preserving exact password case sensitivity.
  */
+/** True when built-in default executive passwords are revoked (env-var passwords only). */
+export function isRotatedPasswordEnforcementOn(): boolean {
+  return String(process.env.AETHER_ENFORCE_ROTATED_PASSWORDS ?? '').trim().toLowerCase() === 'true'
+}
+
 export async function authenticateExecutiveCredentials(
   email: string,
   password: string,
@@ -426,6 +431,7 @@ export async function authenticateExecutiveCredentials(
     }),
   ])
 
+  const enforceRotated = isRotatedPasswordEnforcementOn()
   let matchedSpec: NamedAccountSpec | null = null
   for (let i = 0; i < specs.length; i++) {
     const base = i * 4
@@ -437,8 +443,10 @@ export async function authenticateExecutiveCredentials(
     const emailMatches =
       timingSafeEqualBytes(emailDigest, canonicalEmailDigest) ||
       timingSafeEqualBytes(emailDigest, expectedEmailDigest)
+    // Phase 5 · Item 10: once rotated passwords are in place, AETHER_ENFORCE_ROTATED_PASSWORDS=true
+    // revokes the built-in defaults so only the env-var password logs in (fail-closed if unset).
     const passMatches =
-      timingSafeEqualBytes(inputPassDigest, defaultPassDigest) ||
+      (!enforceRotated && timingSafeEqualBytes(inputPassDigest, defaultPassDigest)) ||
       (envPassDigest.length > 0 && timingSafeEqualBytes(inputPassDigest, envPassDigest))
 
     if (nonEmpty && emailMatches && passMatches && !matchedSpec) {
