@@ -213,10 +213,12 @@ function buildRadarSummary(
     hourlySeries: [],
     aggregatorReceivables: {
       readable: true,
-      openReceivableKwd: -77462.759,
+      openReceivableKwd: 7500,
       grossPositiveReceivableKwd: 10000,
-      creditClearingOffsetKwd: -87462.759,
-      openLinesCount: 412,
+      creditClearingOffsetKwd: -2500,
+      openLinesCount: 42,
+      posClearingLinesCount: 0,
+      platformAndCorporateLinesCount: 42,
       fromDate: '2025-01-15',
       toDate: '2026-11-14',
       agingBasis: 'open-debits-by-due-date',
@@ -232,8 +234,8 @@ function buildRadarSummary(
         },
       ],
       openDebitsKwd: 10000,
-      unappliedCreditsKwd: -87462.759,
-      unappliedCreditLinesCount: 370,
+      unappliedCreditsKwd: -2500,
+      unappliedCreditLinesCount: 12,
       ...receivableOverrides,
     },
   }
@@ -366,30 +368,38 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
   })
 
-  it('selectReceivablesHeadline: debits 10,000 and credits -87,462.759 -> headline 10,000, credits -87,462.759, net -77,462.759, and headline is never < 0', () => {
-    const res = selectReceivablesHeadline({
+  it('selectReceivablesHeadline: returns all nulls when negative net / POS clearing exists (Prompt A) and renders positive open debits + muted credits/net when reconciled', () => {
+    // Under Prompt A: negative net (-77,462.759) is under accounting reconciliation -> all nulls
+    const negativeNet = selectReceivablesHeadline({
       openDebitsKwd: 10000,
       unappliedCreditsKwd: -87462.759,
       openReceivableKwd: -77462.759,
       unreconciledLineCount: 412,
     })
+    expect(negativeNet).toEqual({
+      openDebitsKwd: null,
+      unappliedCreditsKwd: null,
+      netKwd: null,
+      lines: null,
+    })
+
+    // Reconciled positive AR (posClearingLinesCount === 0, openReceivableKwd >= 0): headline = openDebitsKwd >= 0
+    const res = selectReceivablesHeadline({
+      openDebitsKwd: 10000,
+      unappliedCreditsKwd: -2500,
+      openReceivableKwd: 7500,
+      posClearingLinesCount: 0,
+      grossPositiveReceivableKwd: 10000,
+      unreconciledLineCount: 42,
+    })
     expect(res).toEqual({
       openDebitsKwd: 10000,
-      unappliedCreditsKwd: -87462.759,
-      netKwd: -77462.759,
-      lines: 412,
+      unappliedCreditsKwd: -2500,
+      netKwd: 7500,
+      lines: 42,
     })
     expect(res.openDebitsKwd).not.toBeNull()
     expect(res.openDebitsKwd!).toBeGreaterThanOrEqual(0)
-
-    // Even if malformed negative openDebitsKwd is passed, headline is clamped >= 0
-    const clamped = selectReceivablesHeadline({
-      openDebitsKwd: -50,
-      unappliedCreditsKwd: -100,
-      openReceivableKwd: -150,
-      unreconciledLineCount: 3,
-    })
-    expect(clamped.openDebitsKwd).toBe(0)
 
     expect(
       resolveReceivablesDateRange(
@@ -404,26 +414,26 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       ),
     ).toEqual({ from: '2025-01-15', to: '2026-11-14' })
 
-    // DeliveryRadarV5 renders 10,000.000 as headline + muted line with credits & net, preserving workspace.receivables.openReceivableKwd
+    // DeliveryRadarV5 renders 10,000.000 as headline + muted line with credits & net on clean AR
     const summary = buildRadarSummary()
     const ws = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, summary)
-    expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
+    expect(ws.receivables.openReceivableKwd).toBe(7500)
 
     const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
     const arCard =
       htmlAr.split('مبيعات وطلبات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
     expect(arCard).toContain('10,000.000')
     expect(arCard).toContain('دفعات/مقاصة غير مطابقة:')
-    expect(arCard).toContain('-87,462.759')
+    expect(arCard).toContain('-2,500.000')
     expect(arCard).toContain('الصافي:')
-    expect(arCard).toContain('-77,462.759')
+    expect(arCard).toContain('7,500.000')
 
     const htmlEn = renderRadar('en', { period: 'today' }, summary, buildRadarTodayCube())
     const enCard =
       htmlEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
     expect(enCard).toContain('10,000.000 KWD')
-    expect(enCard).toContain('-87,462.759 KWD')
-    expect(enCard).toContain('-77,462.759 KWD')
+    expect(enCard).toContain('-2,500.000 KWD')
+    expect(enCard).toContain('7,500.000 KWD')
   })
 
   it('missing min date in odoo-live-connector returns fromDate === null (no 2024-12-31) and DeliveryRadarV5 renders window as "—"', async () => {

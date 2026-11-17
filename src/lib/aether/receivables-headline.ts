@@ -1,17 +1,29 @@
 /**
- * Pure selectors for the Open Unreconciled Receivables KPI card.
+ * Pure selectors and honesty guards for Open Unreconciled Receivables.
  *
- * Separates non-negative `openDebitsKwd` (what platforms and customers actually owe)
- * from `unappliedCreditsKwd` (<= 0 unmatched payouts & POS clearing credits) and signed
- * `netKwd` (debits + credits), while preserving `openReceivableKwd` semantics everywhere else.
+ * When POS clearing account 10552 lines are unreconciled (`posClearingLinesCount > 0`),
+ * net receivables are negative (`openReceivableKwd < 0`), or gross open debits are inflated
+ * beyond 10x positive account residuals (`openDebitsKwd > 10 * grossPositiveReceivableKwd`),
+ * the figures are NOT collectible receivables and must surface as unavailable under
+ * accounting reconciliation.
  */
 
-export interface ReceivablesHeadlineInput {
+export const RECEIVABLES_RECONCILIATION_REASON_AR =
+  'قيد المطابقة مع المحاسبة — غير متاح بعد'
+export const RECEIVABLES_RECONCILIATION_REASON_EN =
+  'Under reconciliation with accounting — not available yet'
+
+export interface ReceivablesHonestyProbe {
+  posClearingLinesCount?: number | null
+  openReceivableKwd?: number | null
+  openDebitsKwd?: number | null
+  grossPositiveReceivableKwd?: number | null
+}
+
+export interface ReceivablesHeadlineInput extends ReceivablesHonestyProbe {
   unavailable?: boolean
   readable?: boolean
-  openDebitsKwd?: number | null
   unappliedCreditsKwd?: number | null
-  openReceivableKwd?: number | null
   unreconciledLineCount?: number | null
   openLinesCount?: number | null
   lines?: number | null
@@ -31,6 +43,13 @@ export interface ReceivablesWindowSource {
   toDate?: string | null
 }
 
+const NULL_RECEIVABLES_HEADLINE: ReceivablesHeadline = {
+  openDebitsKwd: null,
+  unappliedCreditsKwd: null,
+  netKwd: null,
+  lines: null,
+}
+
 function normalizeZero(n: number): number {
   return Object.is(n, -0) ? 0 : n
 }
@@ -45,16 +64,46 @@ function cleanIsoDate(value: string | null | undefined): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+export function isReceivablesUnderReconciliation(
+  input: ReceivablesHonestyProbe | null | undefined,
+): boolean {
+  if (!input) return false
+  if (
+    typeof input.posClearingLinesCount === 'number' &&
+    Number.isFinite(input.posClearingLinesCount) &&
+    input.posClearingLinesCount > 0
+  ) {
+    return true
+  }
+  if (
+    typeof input.openReceivableKwd === 'number' &&
+    Number.isFinite(input.openReceivableKwd) &&
+    input.openReceivableKwd < 0
+  ) {
+    return true
+  }
+  if (
+    typeof input.openDebitsKwd === 'number' &&
+    Number.isFinite(input.openDebitsKwd) &&
+    typeof input.grossPositiveReceivableKwd === 'number' &&
+    Number.isFinite(input.grossPositiveReceivableKwd) &&
+    input.openDebitsKwd > 10 * Math.max(0, input.grossPositiveReceivableKwd)
+  ) {
+    return true
+  }
+  return false
+}
+
 export function selectReceivablesHeadline(
   receivables: ReceivablesHeadlineInput | null | undefined,
 ): ReceivablesHeadline {
-  if (!receivables || receivables.unavailable === true || receivables.readable === false) {
-    return {
-      openDebitsKwd: null,
-      unappliedCreditsKwd: null,
-      netKwd: null,
-      lines: null,
-    }
+  if (
+    !receivables ||
+    receivables.unavailable === true ||
+    receivables.readable === false ||
+    isReceivablesUnderReconciliation(receivables)
+  ) {
+    return { ...NULL_RECEIVABLES_HEADLINE }
   }
 
   const openDebitsKwd =
@@ -75,6 +124,10 @@ export function selectReceivablesHeadline(
       : openDebitsKwd !== null && unappliedCreditsKwd !== null
         ? round3(openDebitsKwd + unappliedCreditsKwd)
         : null
+
+  if (netKwd !== null && netKwd < 0) {
+    return { ...NULL_RECEIVABLES_HEADLINE }
+  }
 
   const rawLines =
     receivables.unreconciledLineCount ?? receivables.openLinesCount ?? receivables.lines

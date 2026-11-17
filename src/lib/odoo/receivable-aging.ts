@@ -8,6 +8,12 @@
  * `openReceivableKwd` stays debits − credits so the headline still ties back to Odoo.
  */
 
+import {
+  isReceivablesUnderReconciliation,
+  RECEIVABLES_RECONCILIATION_REASON_AR,
+  RECEIVABLES_RECONCILIATION_REASON_EN,
+} from '@/lib/aether/receivables-headline'
+
 export const AR_AGING_BUCKETS = [
   { key: '0_30', minDays: 0, maxDays: 30, labelAr: '0–30 يوماً', labelEn: '0–30 days' },
   { key: '31_60', minDays: 31, maxDays: 60, labelAr: '31–60 يوماً', labelEn: '31–60 days' },
@@ -174,7 +180,19 @@ export function toDisplayableAging(raw: {
   agingBuckets?: readonly ArAgingBucketResult[] | readonly { key: string; residualKwd: number }[]
   unappliedCreditsKwd?: number
   openDebitsKwd?: number
+  posClearingLinesCount?: number
+  openReceivableKwd?: number
+  grossPositiveReceivableKwd?: number
 } | null | undefined): DisplayableAging {
+  if (isReceivablesUnderReconciliation(raw)) {
+    return {
+      buckets: [],
+      unappliedCreditsKwd: null,
+      openDebitsKwd: null,
+      hiddenReasonAr: RECEIVABLES_RECONCILIATION_REASON_AR,
+      hiddenReasonEn: RECEIVABLES_RECONCILIATION_REASON_EN,
+    }
+  }
   if (raw?.agingBasis === 'open-debits-by-due-date' && raw.agingBuckets) {
     return {
       buckets: (raw.agingBuckets as ArAgingBucketResult[]).map((b) => ({ ...b, residualKwd: Math.max(0, b.residualKwd) })),

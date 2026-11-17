@@ -276,14 +276,21 @@ export function OdooAccountingAnalyticsHub({
         <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
             <span>{isAr ? 'صافي الذمم المدينة المفتوحة' : 'Net Open Receivables (AR)'}</span>
-            <Landmark className="h-4 w-4 text-sky-600" aria-hidden />
+            <Landmark
+              className={`h-4 w-4 ${rec.unavailable ? 'text-slate-400' : 'text-sky-600'}`}
+              aria-hidden
+            />
           </div>
           <p
             dir="ltr"
             title={rec.unavailable ? unavailableTooltip : undefined}
             aria-label={rec.unavailable ? unavailableTooltip : undefined}
             data-unavailable={rec.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+              rec.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-slate-900 dark:text-white'
+            }`}
           >
             {rec.unavailable
               ? isAr
@@ -292,19 +299,25 @@ export function OdooAccountingAnalyticsHub({
               : formatKwd(rec.openReceivableKwd, resolvedLocale)}
           </p>
           <p
-            dir="ltr"
+            dir={rec.unavailable ? undefined : 'ltr'}
             title={rec.unavailable ? unavailableTooltip : undefined}
             className="mt-1 text-xs text-slate-600 dark:text-slate-400 tabular-nums"
           >
             {rec.unavailable
               ? isAr
-                ? 'غير متاح'
-                : UNAVAILABLE_DASH
+                ? (rec.agingHiddenReasonAr ?? 'غير متاح')
+                : (rec.agingHiddenReasonEn ?? UNAVAILABLE_DASH)
               : isAr
                 ? `${formatInt(rec.unreconciledLineCount, resolvedLocale)} سطر ذمم غير مسوّى`
                 : `${formatInt(rec.unreconciledLineCount, resolvedLocale)} unreconciled AR lines`}
           </p>
-          <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
+          <p
+            className={`mt-2 rounded-lg px-2 py-1 text-xs font-semibold ring-1 ${
+              rec.unavailable
+                ? 'bg-slate-100 text-slate-600 ring-slate-900/10 dark:bg-slate-800 dark:text-slate-300 dark:ring-white/10'
+                : 'bg-amber-50 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200'
+            }`}
+          >
             {isAr
               ? 'أعمار الذمم حسب الشريك (0–30 / 31–60 / +60): غير مُتحقق'
               : 'Partner ageing (0–30 / 31–60 / 60+): unverified'}

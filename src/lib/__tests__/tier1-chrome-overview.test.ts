@@ -202,8 +202,8 @@ function buildLiveSummary(overrides: Partial<OdooLiveSummary> = {}): OdooLiveSum
       grossPositiveReceivableKwd: 1400.5,
       creditClearingOffsetKwd: 155.0,
       openLinesCount: 12,
-      posClearingLinesCount: 4,
-      platformAndCorporateLinesCount: 8,
+      posClearingLinesCount: 0,
+      platformAndCorporateLinesCount: 12,
       fromDate: '2026-10-17',
       toDate: '2026-11-15',
       agingBuckets: [

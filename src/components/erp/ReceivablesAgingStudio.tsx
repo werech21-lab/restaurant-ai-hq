@@ -21,6 +21,7 @@ export function ReceivablesAgingStudio() {
   const { workspace, liveSummary, syncingOdoo } = useGlobalFilter()
   const ar = workspace.receivables
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
+  const unavailableReason = isAr ? ar.agingHiddenReasonAr : ar.agingHiddenReasonEn
 
   const syncStamp = liveSummary?.kuwaitSyncedAt
     ? liveSummary.kuwaitSyncedAt
@@ -58,7 +59,13 @@ export function ReceivablesAgingStudio() {
       <section className="ae-bento-card ds-surface rounded-2xl bg-white p-5 shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-200">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ${
+                ar.unavailable
+                  ? 'bg-slate-100 text-slate-700 ring-slate-900/10 dark:bg-slate-800 dark:text-slate-300 dark:ring-white/10'
+                  : 'bg-amber-50 text-amber-900 ring-amber-500/25 dark:bg-amber-500/15 dark:text-amber-200'
+              }`}
+            >
               <Wallet className="h-3.5 w-3.5" aria-hidden />
               <span>
                 {T(
@@ -103,7 +110,11 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-emerald-700 dark:text-emerald-300'
+            }`}
           >
             {ar.unavailable
               ? isAr
@@ -112,7 +123,11 @@ export function ReceivablesAgingStudio() {
               : formatKwd(ar.openReceivableKwd, resolvedLocale)}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
-            {isAr ? `من ${fromFormatted} إلى ${toFormatted}` : `${fromFormatted} → ${toFormatted}`}
+            {ar.unavailable && unavailableReason
+              ? unavailableReason
+              : isAr
+                ? `من ${fromFormatted} إلى ${toFormatted}`
+                : `${fromFormatted} → ${toFormatted}`}
           </p>
         </article>
 
@@ -125,7 +140,11 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-slate-950 dark:text-white'
+            }`}
           >
             {ar.unavailable
               ? isAr
@@ -150,7 +169,11 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-amber-700 dark:text-amber-300'
+            }`}
           >
             {ar.unavailable
               ? isAr
@@ -172,7 +195,11 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-slate-950 dark:text-white'
+            }`}
           >
             {ar.unavailable
               ? isAr
@@ -193,11 +220,30 @@ export function ReceivablesAgingStudio() {
       </div>
 
       {/* Explanation of Open Lines */}
-      <section className="ae-bento-card rounded-2xl bg-amber-50/70 p-4 sm:p-5 ring-1 ring-amber-500/25 dark:bg-amber-950/25 dark:ring-amber-400/20">
+      <section
+        className={`ae-bento-card rounded-2xl p-4 sm:p-5 ring-1 ${
+          ar.unavailable
+            ? 'bg-slate-50 ring-slate-900/10 dark:bg-slate-900/60 dark:ring-white/10'
+            : 'bg-amber-50/70 ring-amber-500/25 dark:bg-amber-950/25 dark:ring-amber-400/20'
+        }`}
+      >
         <div className="flex items-start gap-3">
-          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+          <FileText
+            className={`mt-0.5 h-5 w-5 shrink-0 ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-amber-700 dark:text-amber-300'
+            }`}
+            aria-hidden
+          />
           <div className="space-y-1">
-            <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
+            <h3
+              className={`text-sm font-extrabold ${
+                ar.unavailable
+                  ? 'text-slate-800 dark:text-slate-200'
+                  : 'text-amber-950 dark:text-amber-100'
+              }`}
+            >
               {ar.unavailable
                 ? isAr
                   ? 'تفسير السطور المفتوحة في دفتر أستاذ أودو 17: غير متاح'
@@ -206,8 +252,12 @@ export function ReceivablesAgingStudio() {
                   ? `تفسير الـ ${formatInt(ar.unreconciledLineCount, resolvedLocale)} سطراً المفتوحة في دفتر أستاذ أودو 17`
                   : `Why ${formatInt(ar.unreconciledLineCount, resolvedLocale)} Open Move Lines Exist in Odoo 17`}
             </h3>
-            <p className="text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
-              {isAr ? ar.openLinesExplanationAr : ar.openLinesExplanationEn}
+            <p className="text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+              {ar.unavailable && unavailableReason
+                ? unavailableReason
+                : isAr
+                  ? ar.openLinesExplanationAr
+                  : ar.openLinesExplanationEn}
             </p>
           </div>
         </div>
@@ -216,14 +266,27 @@ export function ReceivablesAgingStudio() {
       {/* Aging Buckets (0-30, 31-60, >60 Days) */}
       <section className="ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Clock className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <Clock
+            className={`h-4 w-4 ${
+              ar.unavailable
+                ? 'text-slate-400 dark:text-slate-500'
+                : 'text-emerald-600 dark:text-emerald-400'
+            }`}
+            aria-hidden
+          />
           <h3 className="text-base font-extrabold text-slate-950 dark:text-white">
             {T(
               'Aging Buckets (0–30, 31–60, >60 Days)',
               'شرائح أعمار الذمم المدينة (0–30، 31–60، أكثر من 60 يوماً)',
             )}
           </h3>
-          <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
+          <p
+            className={`rounded-lg px-2 py-1 text-xs font-semibold ring-1 ${
+              ar.unavailable
+                ? 'bg-slate-100 text-slate-600 ring-slate-900/10 dark:bg-slate-800 dark:text-slate-300 dark:ring-white/10'
+                : 'bg-amber-50 text-amber-900 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200'
+            }`}
+          >
             {T(
               'Per-partner ageing is unverified',
               'أعمار الذمم حسب الشريك: غير مُتحقق',
@@ -231,7 +294,12 @@ export function ReceivablesAgingStudio() {
           </p>
         </div>
         {ar.unavailable ? (
-          <StateBlock state="unavailable" locale={resolvedLocale} compact />
+          <StateBlock
+            state="unavailable"
+            locale={resolvedLocale}
+            compact
+            description={unavailableReason ?? undefined}
+          />
         ) : ar.agingBuckets.length === 0 ? (
           <StateBlock
             state="empty"
@@ -294,14 +362,31 @@ export function ReceivablesAgingStudio() {
               'التوزيع التفصيلي حسب منصة التوصيل وحساب الذمم في أودو',
             )}
           </h3>
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-            <span>{isAr ? ar.reconciliationFormulaAr : ar.reconciliationFormulaEn}</span>
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-bold ${
+              ar.unavailable
+                ? 'text-slate-500 dark:text-slate-400'
+                : 'text-emerald-700 dark:text-emerald-300'
+            }`}
+          >
+            {ar.unavailable ? null : <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />}
+            <span>
+              {ar.unavailable && unavailableReason
+                ? unavailableReason
+                : isAr
+                  ? ar.reconciliationFormulaAr
+                  : ar.reconciliationFormulaEn}
+            </span>
           </span>
         </div>
 
         {ar.unavailable ? (
-          <StateBlock state="unavailable" locale={resolvedLocale} compact />
+          <StateBlock
+            state="unavailable"
+            locale={resolvedLocale}
+            compact
+            description={unavailableReason ?? undefined}
+          />
         ) : ar.byAccount.length === 0 ? (
           <StateBlock
             state="empty"

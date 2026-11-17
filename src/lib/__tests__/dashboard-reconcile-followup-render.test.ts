@@ -51,6 +51,7 @@ function withDueDateAging(summary: OdooLiveSummary): OdooLiveSummary {
   ar.openDebitsKwd = 3776.2
   ar.unappliedCreditsKwd = -2593.492
   ar.unappliedCreditLinesCount = 4
+  ar.posClearingLinesCount = 0
   return summary
 }
 
@@ -140,7 +141,9 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
   })
 
   it('legacy payload: no tie-out and no second credit figure, only the hidden-aging reason', async () => {
-    const html = await renderDashboard(loadLiveTodaySummary(), 'all')
+    const legacyCleanClearing = loadLiveTodaySummary()
+    legacyCleanClearing.aggregatorReceivables!.posClearingLinesCount = 0
+    const html = await renderDashboard(legacyCleanClearing, 'all')
     expect(html).not.toContain('data-ar-tie-out=')
     expect(html).not.toContain('data-ar-unapplied-credits=')
     expect(html).toContain('data-ar-aging-hidden="true"')

@@ -259,7 +259,11 @@ export function VentureAccountingHub({
                   title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white"
+                  className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+                    workspace.receivables.unavailable
+                      ? 'text-slate-500 dark:text-slate-400'
+                      : 'text-slate-900 dark:text-white'
+                  }`}
                 >
                   {workspace.receivables.unavailable
                     ? isAr
@@ -277,7 +281,11 @@ export function VentureAccountingHub({
                     lastSyncAt={workspace.lastSyncAt}
                     isStale24h={workspace.isStale24h}
                     kind="فعلي"
-                    queryOrFormula={workspace.receivables.reconciliationFormulaAr}
+                    queryOrFormula={
+                      isAr
+                        ? workspace.receivables.reconciliationFormulaAr
+                        : workspace.receivables.reconciliationFormulaEn
+                    }
                     isAr={isAr}
                   />
                 </div>
@@ -292,7 +300,11 @@ export function VentureAccountingHub({
                   title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400"
+                  className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+                    workspace.receivables.unavailable
+                      ? 'text-slate-500 dark:text-slate-400'
+                      : 'text-emerald-700 dark:text-emerald-400'
+                  }`}
                 >
                   {workspace.receivables.unavailable
                     ? isAr
@@ -325,7 +337,11 @@ export function VentureAccountingHub({
                   title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                   data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                  className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-sky-700 dark:text-sky-400"
+                  className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${
+                    workspace.receivables.unavailable
+                      ? 'text-slate-500 dark:text-slate-400'
+                      : 'text-sky-700 dark:text-sky-400'
+                  }`}
                 >
                   {workspace.receivables.unavailable
                     ? isAr
@@ -351,7 +367,16 @@ export function VentureAccountingHub({
             </div>
 
             {workspace.receivables.unavailable ? (
-              <StateBlock state="unavailable" locale={currentLocale} compact />
+              <StateBlock
+                state="unavailable"
+                locale={currentLocale}
+                compact
+                description={
+                  isAr
+                    ? (workspace.receivables.agingHiddenReasonAr ?? undefined)
+                    : (workspace.receivables.agingHiddenReasonEn ?? undefined)
+                }
+              />
             ) : workspace.receivables.agingBuckets.length === 0 ? (
               <StateBlock
                 state="empty"

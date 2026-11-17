@@ -20,6 +20,11 @@ import type {
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { resolveBrandHeadline } from '@/lib/aether/brand-scope'
+import {
+  isReceivablesUnderReconciliation,
+  RECEIVABLES_RECONCILIATION_REASON_AR,
+  RECEIVABLES_RECONCILIATION_REASON_EN,
+} from '@/lib/aether/receivables-headline'
 import { formatArReconciliationFormula, toDisplayableAging } from '@/lib/odoo/receivable-aging'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
@@ -1749,46 +1754,75 @@ export function computeGlobalWorkspace(
   const receivables: WorkspaceReceivablesMeta = receivablesUnavailable
     ? buildUnavailableReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
     : arRaw && arRaw.readable
-      ? {
-          unavailable: false,
-          openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
-          grossPositiveReceivableKwd:
-            Math.round(safeNum(arRaw.grossPositiveReceivableKwd) * 1000) / 1000,
-          creditClearingOffsetKwd:
-            Math.round(Math.abs(safeNum(arRaw.creditClearingOffsetKwd)) * 1000) / 1000,
-          unreconciledLineCount: safeNum(arRaw.openLinesCount),
-          posClearingLinesCount: safeNum(arRaw.posClearingLinesCount),
-          platformAndCorporateLinesCount: safeNum(arRaw.platformAndCorporateLinesCount),
-          fromDate: arRaw.fromDate ?? resolvedPeriodWindow.fromIso,
-          toDate: arRaw.toDate ?? resolvedPeriodWindow.toInclusiveIso,
-          latestMaturityDate: arRaw.latestMaturityDate ?? null,
-          maturityStatusAr: arRaw.maturityStatusAr ?? 'رصيد ذمم فعلي من أودو',
-          maturityStatusEn: arRaw.maturityStatusEn ?? 'Live Odoo receivable balance',
-          openLinesExplanationAr: arRaw.openLinesExplanationAr ?? '',
-          openLinesExplanationEn: arRaw.openLinesExplanationEn ?? '',
-          sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
-          sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
-          byAccount: arRaw.byAccount ?? [],
-          ...(() => {
-            const aging = toDisplayableAging(arRaw)
-            const formula = formatArReconciliationFormula({
-              openReceivableKwd: safeNum(arRaw.openReceivableKwd),
-              grossPositiveReceivableKwd: safeNum(arRaw.grossPositiveReceivableKwd),
-              creditClearingOffsetKwd: safeNum(arRaw.creditClearingOffsetKwd),
-              openDebitsKwd: aging.openDebitsKwd,
-              unappliedCreditsKwd: aging.unappliedCreditsKwd,
-            })
-            return {
-              agingBuckets: aging.buckets,
-              openDebitsKwd: aging.openDebitsKwd,
-              unappliedCreditsKwd: aging.unappliedCreditsKwd,
-              agingHiddenReasonAr: aging.hiddenReasonAr,
-              agingHiddenReasonEn: aging.hiddenReasonEn,
-              reconciliationFormulaAr: formula.ar,
-              reconciliationFormulaEn: formula.en,
-            }
-          })(),
-        }
+      ? isReceivablesUnderReconciliation(arRaw)
+        ? {
+            unavailable: true,
+            openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
+            grossPositiveReceivableKwd: 0,
+            creditClearingOffsetKwd: 0,
+            unreconciledLineCount: 0,
+            posClearingLinesCount: safeNum(arRaw.posClearingLinesCount),
+            platformAndCorporateLinesCount: 0,
+            fromDate: arRaw.fromDate ?? resolvedPeriodWindow.fromIso,
+            toDate: arRaw.toDate ?? resolvedPeriodWindow.toInclusiveIso,
+            latestMaturityDate: arRaw.latestMaturityDate ?? null,
+            maturityStatusAr: RECEIVABLES_RECONCILIATION_REASON_AR,
+            maturityStatusEn: RECEIVABLES_RECONCILIATION_REASON_EN,
+            openLinesExplanationAr: RECEIVABLES_RECONCILIATION_REASON_AR,
+            openLinesExplanationEn: RECEIVABLES_RECONCILIATION_REASON_EN,
+            sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
+            sourceLabelEn:
+              'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
+            reconciliationFormulaAr: RECEIVABLES_RECONCILIATION_REASON_AR,
+            reconciliationFormulaEn: RECEIVABLES_RECONCILIATION_REASON_EN,
+            byAccount: [],
+            agingBuckets: [],
+            openDebitsKwd: null,
+            unappliedCreditsKwd: null,
+            agingHiddenReasonAr: RECEIVABLES_RECONCILIATION_REASON_AR,
+            agingHiddenReasonEn: RECEIVABLES_RECONCILIATION_REASON_EN,
+          }
+        : {
+            unavailable: false,
+            openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
+            grossPositiveReceivableKwd:
+              Math.round(safeNum(arRaw.grossPositiveReceivableKwd) * 1000) / 1000,
+            creditClearingOffsetKwd:
+              Math.round(Math.abs(safeNum(arRaw.creditClearingOffsetKwd)) * 1000) / 1000,
+            unreconciledLineCount: safeNum(arRaw.openLinesCount),
+            posClearingLinesCount: safeNum(arRaw.posClearingLinesCount),
+            platformAndCorporateLinesCount: safeNum(arRaw.platformAndCorporateLinesCount),
+            fromDate: arRaw.fromDate ?? resolvedPeriodWindow.fromIso,
+            toDate: arRaw.toDate ?? resolvedPeriodWindow.toInclusiveIso,
+            latestMaturityDate: arRaw.latestMaturityDate ?? null,
+            maturityStatusAr: arRaw.maturityStatusAr ?? 'رصيد ذمم فعلي من أودو',
+            maturityStatusEn: arRaw.maturityStatusEn ?? 'Live Odoo receivable balance',
+            openLinesExplanationAr: arRaw.openLinesExplanationAr ?? '',
+            openLinesExplanationEn: arRaw.openLinesExplanationEn ?? '',
+            sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
+            sourceLabelEn:
+              'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
+            byAccount: arRaw.byAccount ?? [],
+            ...(() => {
+              const aging = toDisplayableAging(arRaw)
+              const formula = formatArReconciliationFormula({
+                openReceivableKwd: safeNum(arRaw.openReceivableKwd),
+                grossPositiveReceivableKwd: safeNum(arRaw.grossPositiveReceivableKwd),
+                creditClearingOffsetKwd: safeNum(arRaw.creditClearingOffsetKwd),
+                openDebitsKwd: aging.openDebitsKwd,
+                unappliedCreditsKwd: aging.unappliedCreditsKwd,
+              })
+              return {
+                agingBuckets: aging.buckets,
+                openDebitsKwd: aging.openDebitsKwd,
+                unappliedCreditsKwd: aging.unappliedCreditsKwd,
+                agingHiddenReasonAr: aging.hiddenReasonAr,
+                agingHiddenReasonEn: aging.hiddenReasonEn,
+                reconciliationFormulaAr: formula.ar,
+                reconciliationFormulaEn: formula.en,
+              }
+            })(),
+          }
       : buildEmptyReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
 
   const deliveryDuesKwd: number | null = receivables.unavailable
