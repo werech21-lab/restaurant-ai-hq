@@ -11,6 +11,7 @@ import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
 import { computeOdooFreshnessStatus } from '@/lib/odoo/live-sync-core'
+import { formatInt, formatKwd, getUnavailableTooltip } from '@/lib/format'
 
 export function OdooLiveStatusStrip({
   isAuditor = false,
@@ -55,8 +56,10 @@ export function OdooLiveStatusStrip({
   )
 
   const isStale = Boolean(!isConnected || !freshness || freshness.isStaleOver24h || liveSummary?.isStale24h)
-  const todayOrders = isConnected ? (liveSummary?.todayOrders ?? liveSummary?.todayOrdersCount ?? 0) : 0
-  const todaySalesKwd = isConnected ? (liveSummary?.todaySalesKwd ?? 0) : 0
+  const rawTodayOrders = isConnected ? (liveSummary?.todayOrders ?? liveSummary?.todayOrdersCount ?? null) : null
+  const rawTodaySalesKwd = isConnected ? (liveSummary?.todaySalesKwd ?? null) : null
+  const activeLocale = isAr ? 'ar' : 'en'
+  const unavailableTooltip = getUnavailableTooltip(activeLocale)
 
   const stripTone: 'connected' | 'stale' | 'disconnected' = !isConnected
     ? 'disconnected'
@@ -97,11 +100,23 @@ export function OdooLiveStatusStrip({
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
         <span className="min-w-0 whitespace-normal break-words leading-snug">{statusText}</span>
 
-        {isConnected && todayOrders > 0 ? (
-          <span className="inline-flex shrink-0 items-center rounded-lg bg-white/85 px-2.5 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-[#101C17] dark:text-emerald-200">
-            {isAr
-              ? `اليوم: ${todayOrders.toLocaleString('en-US')} طلب • ${todaySalesKwd.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} د.ك`
-              : `Today: ${todayOrders.toLocaleString('en-US')} orders • ${todaySalesKwd.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 3 })} KWD`}
+        {isConnected && typeof rawTodayOrders === 'number' && rawTodayOrders > 0 ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white/85 px-2.5 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-[#101C17] dark:text-emerald-200">
+            <span>{isAr ? 'اليوم:' : 'Today:'}</span>
+            <span dir="ltr" className="tabular-nums">
+              {isAr
+                ? `${formatInt(rawTodayOrders)} طلب`
+                : `${formatInt(rawTodayOrders)} orders`}
+            </span>
+            <span aria-hidden>•</span>
+            <span
+              dir="ltr"
+              className="tabular-nums"
+              title={rawTodaySalesKwd == null ? unavailableTooltip : undefined}
+              data-unavailable={rawTodaySalesKwd == null ? 'true' : undefined}
+            >
+              {formatKwd(rawTodaySalesKwd, { locale: activeLocale })}
+            </span>
           </span>
         ) : null}
       </div>
@@ -113,7 +128,7 @@ export function OdooLiveStatusStrip({
           disabled={syncingOdoo || syncCooldownSec > 0}
           aria-label={isAr ? 'تحديث ربط أودو الآن' : 'Sync Odoo Now'}
           title={isAr ? 'تحديث ربط أودو الآن' : 'Sync Odoo Now'}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1 text-[13px] font-bold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 disabled:opacity-60 dark:bg-[#101C17] dark:text-emerald-200"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1 text-[13px] font-bold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-60 dark:bg-[#101C17] dark:text-emerald-200"
         >
           <RefreshCw className={`h-3 w-3 shrink-0 ${syncingOdoo ? 'animate-spin' : ''}`} />
           <span>

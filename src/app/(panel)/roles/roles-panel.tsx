@@ -5,18 +5,11 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import { deleteRole, saveRole } from "@/app/actions/roles";
 import { Modal } from "@/components/modal";
+import { Alert, PageHeader, PaginationBar, btnPrimary } from "@/components/erp-ui";
+import { SectionCard } from "@/components/ui/section-card";
+import { StateBlock } from "@/components/ui/state-block";
 import { ExportCsvButton } from "@/components/ui/export-button";
-import {
-  Alert,
-  DataCard,
-  PageHeader,
-  PaginationBar,
-  btnDanger,
-  btnGhost,
-  btnPrimary,
-  fieldClass,
-  labelClass,
-} from "@/components/erp-ui";
+import { formatInt, type FormatLocale } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { pageHref } from "@/lib/pagination";
 import { MODULES } from "@/lib/modules";
@@ -29,6 +22,14 @@ export type RoleRow = {
   isAdmin: boolean;
   userCount: number;
 };
+
+const dsInputClass =
+  "ds-focus-ring w-full rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-2 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)] disabled:cursor-not-allowed disabled:opacity-60";
+const dsLabelClass = "mb-1 block text-sm font-semibold text-[var(--ds-text-secondary)]";
+const dsGhostBtnClass =
+  "ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50";
+const dsDangerBtnClass =
+  "ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--ds-negative-border)] bg-[var(--ds-negative-bg)] px-4 py-2 text-sm font-semibold text-[var(--ds-negative)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50";
 
 function Matrix({
   rows,
@@ -53,20 +54,21 @@ function Matrix({
   );
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-white/10">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-white/10 text-mist-400">
-            <th className="px-3 py-2 text-right font-semibold">{en ? "Module" : "القسم"}</th>
+    <div className="w-full overflow-x-auto rounded-xl border border-[var(--ds-border-hairline)]">
+      <table className="w-full min-w-[460px] border-collapse text-sm">
+        <thead className="border-b border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] text-xs font-bold text-[var(--ds-text-secondary)]">
+          <tr>
+            <th className="px-3.5 py-2.5 text-start">{en ? "Module" : "القسم"}</th>
             {actions.map(([, label]) => (
-              <th key={label} className="px-3 py-2 text-center font-semibold">
+              <th key={label} className="px-3 py-2.5 text-center">
                 {label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-[var(--ds-border-hairline)] text-[var(--ds-text-primary)]">
           {MODULES.map((module) => {
+            const moduleTitle = t(module.labelKey);
             const row = rows.find((item) => item.module === module.key) ?? {
               module: module.key,
               canView: false,
@@ -75,14 +77,16 @@ function Matrix({
               canDelete: false,
             };
             return (
-              <tr key={module.key} className="border-b border-white/10 last:border-0">
-                <td className="px-3 py-2 font-semibold">{t(module.labelKey)}</td>
-                {actions.map(([key]) => (
-                  <td key={key} className="px-3 py-2 text-center">
+              <tr key={module.key} className="hover:bg-[var(--ds-bg-hover)]">
+                <td className="px-3.5 py-2.5 font-semibold">{moduleTitle}</td>
+                {actions.map(([key, actionLabel]) => (
+                  <td key={key} className="px-3 py-2.5 text-center">
                     <input
                       type="checkbox"
+                      aria-label={`${moduleTitle} — ${actionLabel}`}
                       disabled={disabled}
                       checked={row[key]}
+                      className="h-4 w-4 accent-emerald-600"
                       onChange={(event) =>
                         onChange(
                           MODULES.map((item) => {
@@ -132,9 +136,11 @@ export function RolesPanel({
   const router = useRouter();
   const { locale, t } = useI18n();
   const en = locale === "en";
+  const fmtLocale: FormatLocale = en ? "en" : "ar";
   const [creating, setCreating] = useState(false);
+
   return (
-    <div>
+    <div dir={en ? "ltr" : "rtl"} className="min-w-0 space-y-5">
       <PageHeader
         title={t("nav.roles")}
         description={
@@ -146,44 +152,70 @@ export function RolesPanel({
           <div className="flex flex-wrap gap-2">
             <ExportCsvButton kind="roles" filename="roles.csv" />
             {canCreate ? (
-              <button type="button" className={btnPrimary} onClick={() => setCreating(true)}>
-                <Plus size={16} />
+              <button type="button" className={`${btnPrimary} ds-focus-ring`} onClick={() => setCreating(true)}>
+                <Plus size={16} aria-hidden />
                 {t("iam.role.new")}
               </button>
             ) : null}
           </div>
         }
       />
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <DataCard>
-          <form method="get" className="flex gap-2 border-b border-white/10 p-3">
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <SectionCard locale={fmtLocale} padded={false}>
+          <form method="get" className="flex gap-2 border-b border-[var(--ds-border-hairline)] p-3">
             <input
               name="q"
               defaultValue={q}
+              aria-label={en ? "Search roles" : "بحث عن دور"}
               placeholder={en ? "Search roles" : "بحث عن دور"}
-              className={fieldClass}
+              className={dsInputClass}
             />
-            <button className={btnPrimary}>{t("admin.searchButton")}</button>
+            <button type="submit" className={`${btnPrimary} ds-focus-ring shrink-0`}>
+              {t("admin.searchButton")}
+            </button>
           </form>
-          <div>
-            {rows.map((role) => (
-              <a
-                key={role.id}
-                href={pageHref("/roles", { q, page, role: role.id })}
-                className={`block border-b border-white/10 px-4 py-3 ${selected?.id === role.id ? "bg-[#00a99d] text-white" : "bg-ink-900/80"}`}
-              >
-                <p className="font-bold">{role.name}</p>
-                <p className={`text-xs ${selected?.id === role.id ? "text-white" : "text-mist-400"}`}>
-                  {en
-                    ? `${role.userCount} user${role.userCount === 1 ? "" : "s"}${role.isAdmin ? " • Admin" : ""}`
-                    : `${role.userCount} مستخدم ${role.isAdmin ? "• مدير" : ""}`}
-                </p>
-              </a>
-            ))}
-            {rows.length === 0 ? <p className="p-4 text-sm text-mist-400">{t("iam.role.empty")}</p> : null}
-          </div>
+
+          {rows.length === 0 ? (
+            <div className="p-4">
+              <StateBlock state="empty" compact locale={fmtLocale} title={t("iam.role.empty")} />
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--ds-border-hairline)]">
+              {rows.map((role) => {
+                const active = selected?.id === role.id;
+                const countStr = formatInt(role.userCount, fmtLocale);
+                return (
+                  <a
+                    key={role.id}
+                    href={pageHref("/roles", { q, page, role: role.id })}
+                    aria-current={active ? "page" : undefined}
+                    className={`ds-focus-ring block px-4 py-3 transition-colors ${
+                      active
+                        ? "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-[#04130D]"
+                        : "bg-[var(--ds-bg-surface)] text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
+                    }`}
+                  >
+                    <p className="font-bold">{role.name}</p>
+                    <p
+                      className={`mt-0.5 text-xs ${
+                        active ? "text-white/90 dark:text-[#04130D]/80" : "text-[var(--ds-text-muted)]"
+                      }`}
+                    >
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        {countStr}
+                      </span>{" "}
+                      {en ? (role.userCount === 1 ? "user" : "users") : "مستخدم"}
+                      {role.isAdmin ? (en ? " • Admin" : " • مدير") : ""}
+                    </p>
+                  </a>
+                );
+              })}
+            </div>
+          )}
           <PaginationBar path="/roles" params={{ q, role: selected?.id }} page={page} total={total} />
-        </DataCard>
+        </SectionCard>
+
         {selected ? (
           <RoleEditor
             key={selected.id}
@@ -193,13 +225,19 @@ export function RolesPanel({
             onDone={() => router.refresh()}
           />
         ) : (
-          <DataCard>
-            <p className="p-6 text-sm text-mist-400">
-              {en ? "Select a role to view its permission matrix." : "اختر دوراً لعرض مصفوفة الصلاحيات."}
-            </p>
-          </DataCard>
+          <SectionCard locale={fmtLocale}>
+            <StateBlock
+              state="empty"
+              locale={fmtLocale}
+              title={en ? "No role selected" : "لم يتم اختيار دور"}
+              description={
+                en ? "Select a role to view its permission matrix." : "اختر دوراً لعرض مصفوفة الصلاحيات."
+              }
+            />
+          </SectionCard>
         )}
       </div>
+
       {creating ? (
         <CreateRole
           onClose={() => setCreating(false)}
@@ -226,6 +264,7 @@ function RoleEditor({
 }) {
   const { locale, t } = useI18n();
   const en = locale === "en";
+  const fmtLocale: FormatLocale = en ? "en" : "ar";
   const savingLabel = t("trade.saving");
   const [name, setName] = useState(role.name);
   const [description, setDescription] = useState(role.description);
@@ -234,6 +273,7 @@ function RoleEditor({
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function save() {
     setPending(true);
@@ -249,35 +289,50 @@ function RoleEditor({
   }
 
   return (
-    <DataCard>
-      <div className="space-y-4 p-5">
+    <SectionCard title={role.name} subtitle={role.description || undefined} locale={fmtLocale}>
+      <div className="space-y-4">
         {error ? <Alert kind="error">{error}</Alert> : null}
         {message ? <Alert kind="ok">{message}</Alert> : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>{t("iam.role.name")}</label>
-            <input className={fieldClass} value={name} disabled={!canEdit} onChange={(event) => setName(event.target.value)} />
+            <label className={dsLabelClass}>{t("iam.role.name")}</label>
+            <input
+              className={dsInputClass}
+              value={name}
+              disabled={!canEdit}
+              onChange={(event) => setName(event.target.value)}
+            />
           </div>
           <div>
-            <label className={labelClass}>{t("iam.role.description")}</label>
+            <label className={dsLabelClass}>{t("iam.role.description")}</label>
             <input
-              className={fieldClass}
+              className={dsInputClass}
               value={description}
               disabled={!canEdit}
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--ds-text-primary)]">
           <input
             type="checkbox"
             checked={isAdmin}
             disabled={!canEdit}
+            className="h-4 w-4 accent-emerald-600"
             onChange={(event) => {
               const checked = event.target.checked;
               setIsAdmin(checked);
               if (checked) {
-                setPermissions(emptyPermissions().map((row) => ({ ...row, canView: true, canCreate: true, canEdit: true, canDelete: true })));
+                setPermissions(
+                  emptyPermissions().map((row) => ({
+                    ...row,
+                    canView: true,
+                    canCreate: true,
+                    canEdit: true,
+                    canDelete: true,
+                  })),
+                );
               }
             }}
           />
@@ -285,34 +340,62 @@ function RoleEditor({
             ? "System admin (bypasses the matrix and has all permissions)"
             : "مدير نظام (يتجاوز المصفوفة ويملك كل الصلاحيات)"}
         </label>
+
         <Matrix rows={permissions} disabled={!canEdit || isAdmin} onChange={setPermissions} />
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           {canEdit ? (
-            <button type="button" className={btnPrimary} disabled={pending} onClick={save}>
+            <button type="button" className={`${btnPrimary} ds-focus-ring`} disabled={pending} onClick={save}>
               {pending ? savingLabel : en ? "Save permissions" : "حفظ الصلاحيات"}
             </button>
           ) : null}
           {canDelete ? (
-            <button
-              type="button"
-              className={btnDanger}
-              onClick={async () => {
-                if (!confirm(en ? `Delete role ${role.name}?` : `حذف دور ${role.name}؟`)) return;
-                const result = await deleteRole(role.id);
-                if (!result.ok) setError(result.message);
-                else onDone();
-              }}
-            >
-              <Trash2 size={16} />
-              {en ? "Delete role" : "حذف الدور"}
-            </button>
+            confirmDelete ? (
+              <>
+                <button
+                  type="button"
+                  className={dsDangerBtnClass}
+                  disabled={pending}
+                  onClick={async () => {
+                    setPending(true);
+                    const result = await deleteRole(role.id);
+                    setPending(false);
+                    if (!result.ok) {
+                      setError(result.message);
+                      setConfirmDelete(false);
+                    } else {
+                      onDone();
+                    }
+                  }}
+                >
+                  <Trash2 size={16} aria-hidden />
+                  {en ? `Confirm delete ${role.name}` : `تأكيد حذف ${role.name}`}
+                </button>
+                <button
+                  type="button"
+                  className={dsGhostBtnClass}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  {t("erp.cancel")}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={dsDangerBtnClass}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={16} aria-hidden />
+                {en ? "Delete role" : "حذف الدور"}
+              </button>
+            )
           ) : null}
-          <a href="/roles" className={btnGhost}>
+          <a href="/roles" className={dsGhostBtnClass}>
             {en ? "All roles" : "كل الأدوار"}
           </a>
         </div>
       </div>
-    </DataCard>
+    </SectionCard>
   );
 }
 
@@ -332,22 +415,35 @@ function CreateRole({ onClose, onDone }: { onClose: () => void; onDone: () => vo
       <div className="space-y-3">
         {error ? <Alert kind="error">{error}</Alert> : null}
         <div>
-          <label className={labelClass}>{t("iam.role.name")}</label>
-          <input className={fieldClass} value={name} onChange={(event) => setName(event.target.value)} />
+          <label className={dsLabelClass}>{t("iam.role.name")}</label>
+          <input className={dsInputClass} value={name} onChange={(event) => setName(event.target.value)} />
         </div>
         <div>
-          <label className={labelClass}>{t("iam.role.description")}</label>
-          <input className={fieldClass} value={description} onChange={(event) => setDescription(event.target.value)} />
+          <label className={dsLabelClass}>{t("iam.role.description")}</label>
+          <input
+            className={dsInputClass}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+          />
         </div>
-        <label className="flex items-center gap-2 text-sm font-semibold">
+        <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--ds-text-primary)]">
           <input
             type="checkbox"
             checked={isAdmin}
+            className="h-4 w-4 accent-emerald-600"
             onChange={(event) => {
               const checked = event.target.checked;
               setIsAdmin(checked);
               if (checked) {
-                setPermissions(emptyPermissions().map((row) => ({ ...row, canView: true, canCreate: true, canEdit: true, canDelete: true })));
+                setPermissions(
+                  emptyPermissions().map((row) => ({
+                    ...row,
+                    canView: true,
+                    canCreate: true,
+                    canEdit: true,
+                    canDelete: true,
+                  })),
+                );
               }
             }}
           />
@@ -356,7 +452,7 @@ function CreateRole({ onClose, onDone }: { onClose: () => void; onDone: () => vo
         <Matrix rows={permissions} disabled={isAdmin} onChange={setPermissions} />
         <button
           type="button"
-          className={btnPrimary}
+          className={`${btnPrimary} ds-focus-ring`}
           disabled={pending}
           onClick={async () => {
             setPending(true);

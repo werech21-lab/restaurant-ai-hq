@@ -40,6 +40,7 @@ import {
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { routeTitle } from '@/lib/aether/route-titles'
 import {
@@ -50,10 +51,30 @@ import {
   type FilterOption,
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
+import { formatPct } from '@/lib/format'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
 export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
 export type ErpOverviewSubtab = 'summary' | 'plays'
+
+const ROUTES_WITH_OWN_PARTIAL_BANNER = new Set([
+  '/erp',
+  '/erp/cores',
+  '/erp/sales-analysis',
+  '/erp/menu-engineering',
+  '/erp/aggregator-radar',
+  '/erp/commissions',
+  '/erp/sales-scorecard',
+  '/erp/executive-pnl',
+  '/erp/receivables',
+  '/erp/brand-sales-analytics',
+  '/erp/weekday-comparison',
+  '/erp/before-after',
+  '/erp/feryal-ai',
+  '/erp/cost-intelligence',
+  '/erp/warehouse-chain',
+])
 
 const ROUTES_WITH_OWN_H1 = new Set([
   '/erp/food-safety',
@@ -62,7 +83,7 @@ const ROUTES_WITH_OWN_H1 = new Set([
   '/erp/demand-forecast',
   '/erp/market',
   '/erp/ledger',
-  '/erp/intelligence',
+  '/erp/odoo-sync',
 ])
 
 /** Routes that display the 5D POS & ledger filters (Period incl. Custom + Unified Filters Popover). */
@@ -248,7 +269,7 @@ function PeriodDropdownPopover({
                   liveSummary?.latestOperationalDate &&
                   /^\d{4}-\d{2}-\d{2}$/.test(liveSummary.latestOperationalDate)
                     ? liveSummary.latestOperationalDate
-                    : '2026-11-14'
+                    : getKuwaitTimeContext().yesterdayIso
                 return [
                   { label: '7d', from: shiftCalendarIso(anchorToIso, -6), to: anchorToIso },
                   { label: '14d', from: shiftCalendarIso(anchorToIso, -13), to: anchorToIso },
@@ -348,7 +369,7 @@ function EmeraldPillTabs<T extends string>({
             title={opt.title}
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl px-3 py-1.5 text-[12.5px] font-semibold whitespace-nowrap transition-all duration-[160ms] focus:outline-none ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl px-3 py-1.5 text-[12.5px] font-semibold whitespace-nowrap transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
               active
                 ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white'
@@ -397,7 +418,7 @@ function FilterChipGroup<T extends string>({
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`inline-flex shrink-0 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] leading-snug whitespace-nowrap sm:whitespace-normal transition-all duration-[160ms] ${
+              className={`inline-flex shrink-0 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] leading-snug whitespace-nowrap sm:whitespace-normal transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
                 active
                   ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                   : 'bg-neutral-100/90 font-medium text-slate-700 hover:bg-neutral-200/70 hover:text-slate-950 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.10]'
@@ -421,7 +442,7 @@ function FilterChipGroup<T extends string>({
                       : 'bg-white text-slate-600 dark:bg-white/10 dark:text-slate-300'
                   }`}
                 >
-                  {opt.weightedNetPct.toFixed(1)}%
+                  {formatPct(opt.weightedNetPct, { locale: isAr ? 'ar' : 'en' })}
                 </span>
               ) : active ? (
                 <Check className="h-3.5 w-3.5 shrink-0" />
@@ -620,8 +641,8 @@ function AccountWorkspaceMenuPanel({
         </div>
       ) : null}
 
-      {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) */}
-      <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
+      {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) — mobile/tablet only (desktop bar has quick toggle) */}
+      <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 lg:hidden">
         <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
           {isAr ? 'الوضع النهاري / الليلي' : 'Light / Dark Theme'}
         </span>
@@ -832,6 +853,7 @@ export function TopFilterBar({
                   : 'AA'
 
   const [sharedCopied, setSharedCopied] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const [periodDropdownOpen, setPeriodDropdownOpen] = useState(false)
   const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false)
@@ -839,6 +861,12 @@ export function TopFilterBar({
   const [signingOut, setSigningOut] = useState(false)
   const [draftFrom, setDraftFrom] = useState(filters.customFrom)
   const [draftTo, setDraftTo] = useState(filters.customTo)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const isDarkTheme = mounted ? theme === 'dark' : false
 
   const desktopBarRef = useRef<HTMLDivElement>(null)
   const mobileBarRef = useRef<HTMLDivElement>(null)
@@ -1427,7 +1455,7 @@ export function TopFilterBar({
                     }}
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
                       periodDropdownOpen || filters.period !== 'month'
                         ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
                         : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
@@ -1483,7 +1511,7 @@ export function TopFilterBar({
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={filtersPopoverOpen}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus:outline-none ${
+                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
                     filtersPopoverOpen || nonDefaultSliceCount > 0
                       ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
                       : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
@@ -1517,7 +1545,7 @@ export function TopFilterBar({
               type="button"
               onClick={toggleTheme}
               title={
-                theme === 'dark'
+                isDarkTheme
                   ? isAr
                     ? 'التبديل إلى الوضع النهاري'
                     : 'Switch to Light Mode'
@@ -1526,9 +1554,9 @@ export function TopFilterBar({
                     : 'Switch to Obsidian-Emerald Mode'
               }
               aria-label={isAr ? 'تبديل المظهر' : 'Toggle theme'}
-              className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-amber-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
+              className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#141F1B] dark:text-amber-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
             >
-              {theme === 'dark' ? (
+              {isDarkTheme ? (
                 <Sun className="h-4 w-4" />
               ) : (
                 <Moon className="h-4 w-4" />
@@ -1547,7 +1575,7 @@ export function TopFilterBar({
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
-                className={`inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start transition-all duration-[160ms] focus:outline-none ${
+                className={`inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
                     ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-100 dark:ring-emerald-400/45'
                     : auditorMode
@@ -1635,14 +1663,14 @@ export function TopFilterBar({
               role="dialog"
               aria-label={isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="absolute end-0 top-full z-50 mt-2 max-h-[82dvh] w-full max-w-[720px] space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:ring-emerald-500/20"
+              className="absolute end-0 top-full z-50 mt-2 max-h-[82dvh] w-[min(92vw,720px)] max-w-full space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:ring-emerald-500/20"
             >
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 pb-3 dark:border-white/[0.08]">
                 <div className="min-w-0">
                   <h2 className="text-[14.5px] font-bold text-slate-900 dark:text-white">
                     {isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
                   </h2>
-                  <p className="mt-0.5 text-[12px] font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                  <p className="mt-0.5 text-[12px] font-medium tabular-nums text-slate-600 dark:text-slate-300">
                     {toWesternNumerals(isAr ? workspace.subtitleAr : workspace.subtitleEn)}
                   </p>
                 </div>
@@ -1808,6 +1836,9 @@ export function TopFilterBar({
           ) : null}
         </div>
       </header>
+      {pathname.startsWith('/erp') && !ROUTES_WITH_OWN_PARTIAL_BANNER.has(pathname) ? (
+        <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+      ) : null}
     </>
   )
 }

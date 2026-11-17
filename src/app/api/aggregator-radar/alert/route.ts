@@ -1,4 +1,6 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
+import { toErrorResponse } from '@/lib/api/route'
 import { permissions } from '@/lib/auth/permissions'
 import { authenticate } from '@/lib/auth/context'
 import { dispatchExclusiveOperationalReport, listExclusiveRadarRecipients } from '@/lib/alerts'
@@ -17,6 +19,16 @@ const sentReportDates = new Set<string>()
 
 function getKuwaitDateString(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kuwait' }).format(new Date())
+}
+
+function isAuthorizedCronBearer(request: NextRequest): boolean {
+  const secret = (process.env.CRON_SECRET ?? '').trim()
+  if (!secret) return false
+  const header = request.headers.get('authorization') ?? ''
+  const expected = `Bearer ${secret}`
+  const actualDigest = createHash('sha256').update(header).digest()
+  const expectedDigest = createHash('sha256').update(expected).digest()
+  return timingSafeEqual(actualDigest, expectedDigest) && header.length === expected.length
 }
 
 /**
@@ -120,19 +132,29 @@ async function executeDailyForensicDispatch({
  * 2) When requested by web dashboard, returns SMTP public status.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  const cronHeader = request.headers.get('x-vercel-cron')
-  const isCron =
-    cronHeader === '1' ||
-    (Boolean(process.env.CRON_SECRET) && authHeader === `Bearer ${process.env.CRON_SECRET}`) ||
-    request.nextUrl.searchParams.get('cron') === 'true'
-
-  if (isCron) {
+  if (isAuthorizedCronBearer(request)) {
     return executeDailyForensicDispatch({
       isManual: false,
       triggerSource: 'VERCEL_CRON_GET',
       userId: 'vercel-cron',
     })
+  }
+
+  // Reject unauthenticated ?cron=true / x-vercel-cron attempts explicitly without falling through.
+  if (
+    request.nextUrl.searchParams.get('cron') === 'true' ||
+    request.headers.get('x-vercel-cron') !== null
+  ) {
+    return NextResponse.json(
+      { error: 'unauthorized', message: 'Valid CRON_SECRET bearer token required.' },
+      { status: 401 },
+    )
+  }
+
+  try {
+    await authenticate(request, permissions.govAggregatorRead)
+  } catch (error) {
+    return toErrorResponse(error, request)
   }
 
   const smtp = await getSmtpPublicStatus()
@@ -157,32 +179,22 @@ export async function POST(request: NextRequest) {
     body = null
   }
 
-  const authHeader = request.headers.get('authorization')
-  const cronHeader = request.headers.get('x-vercel-cron')
-  const isCron =
-    cronHeader === '1' ||
-    (Boolean(process.env.CRON_SECRET) && authHeader === `Bearer ${process.env.CRON_SECRET}`)
-
+  const isCron = isAuthorizedCronBearer(request)
   const isManual = body?.manualTrigger === true
 
-  let userId = isCron ? 'vercel-cron' : 'anonymous'
+  let userId = 'vercel-cron'
   if (!isCron) {
     try {
       const auth = await authenticate(request, permissions.govAggregatorManage)
       userId = auth.userId
     } catch (authError) {
-      if (!isManual) {
-        return NextResponse.json(
-          { error: 'unauthorized', message: 'Authentication required for automated dispatch' },
-          { status: 401 }
-        )
-      }
+      return toErrorResponse(authError, request)
     }
   }
 
   if (body?.kind === 'talabat_area_alert') {
     const text = body.emailText || 'Talabat Go Area Blackout Alert'
-    const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${new Date().toLocaleDateString('en-GB')}`
+    const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${getKuwaitDateString()}`
     const delivery = await dispatchServerEmail({ subject, text })
 
     logger.info('talabat_area_alert_api', {

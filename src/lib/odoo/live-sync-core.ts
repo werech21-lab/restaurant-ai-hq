@@ -8,6 +8,20 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
+import {
+  companyPosConfigAllowed,
+  companyPosSearchDomain,
+  isPinnedSchoolCanteenConfigId,
+  posOrderNet,
+  SCHOOL_CANTEEN_BRANCH_ID,
+} from './company-pos'
+import { isExcludedOdooEntity, isExcludedOdooRecord, isExcludedRecordId } from './excluded-entities'
+import {
+  buildPosOrderUtcDomain,
+  buildPosPaymentUtcDomain,
+  mergeSessionGroups,
+  mergeSessionPaymentGroups,
+} from './pos-order-query'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -96,6 +110,12 @@ export interface OdooLedgerAccountingSummary {
   aggregatorCommissionDisplayAr?: string
   unavailableReasonAr?: string
   unavailableReasonEn?: string
+  revenueAccounts?: {
+    code: string
+    name: string
+    accountType: 'income' | 'income_other'
+    amountKwd: number
+  }[]
 }
 
 export interface OdooUnattributedBranchRow {
@@ -107,6 +127,30 @@ export interface OdooUnattributedBranchRow {
   sharePct: number
 }
 
+export type OdooUnavailableSectionKey =
+  | 'hourly'
+  | 'channels.month'
+  | 'channels.week'
+  | 'channels.today'
+  | 'channels.year'
+  | 'year'
+  | 'journeyPulse'
+  | 'brands.month'
+  | 'brands.week'
+  | 'brands.today'
+  | 'brands.year'
+  | 'stockTransfers'
+  | 'receivables'
+  | 'excluded.month'
+  | 'gl.accounts'
+  | 'gl.today'
+  | 'gl.week'
+  | 'gl.month'
+  | 'gl.year'
+  | 'pos.category'
+  | 'sessions'
+  | 'products'
+
 export interface OdooBucketSummary {
   key: OdooPeriodBucketKey | 'custom'
   from: string
@@ -114,23 +158,30 @@ export interface OdooBucketSummary {
   days: number
   isLatestOperationalDay?: boolean
   totals: {
-    netSalesKwd: number
-    orders: number
-    aovKwd: number
-    restaurantNetKwd: number
-    restaurantOrders: number
+    netSalesKwd: number | null
+    orders: number | null
+    aovKwd: number | null
+    restaurantNetKwd: number | null
+    restaurantOrders: number | null
   }
-  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }>
-  byLocation?: Record<string, { netKwd: number; orders: number; uiChannels?: Record<string, { netKwd: number; orders: number }> }>
-  mappedByLocation?: Record<string, { netKwd: number; orders: number }>
-  unattributedSalesKwd?: number
-  unattributedOrders?: number
-  unattributedBranch?: OdooUnattributedBranchRow
-  unmappedSummary?: { netSalesKwd: number; orders: number }
+  byBrand?: Record<string, { netKwd: number; orders: number; qty?: number }> | null
+  byLocation?: Record<
+    string,
+    {
+      netKwd: number
+      orders: number
+      uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+    }
+  > | null
+  mappedByLocation?: Record<string, { netKwd: number; orders: number }> | null
+  unattributedSalesKwd?: number | null
+  unattributedOrders?: number | null
+  unattributedBranch?: OdooUnattributedBranchRow | null
+  unmappedSummary?: { netSalesKwd: number | null; orders: number | null }
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
-  uiChannels?: Record<string, { netKwd: number; orders: number }>
-  accounting?: OdooLedgerAccountingSummary
+  uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+  accounting?: OdooLedgerAccountingSummary | null
 }
 
 export interface OdooLiveSummary {
@@ -139,6 +190,10 @@ export interface OdooLiveSummary {
   connected?: boolean
   sourceMode?: 'odoo17-live' | 'cached-live' | 'disconnected' | 'verified-baseline'
   noData?: boolean
+  partial?: boolean
+  unavailableSections?: string[]
+  warningAr?: string
+  warningEn?: string
   messageAr?: string
   messageEn?: string
   lastSyncAt?: string | null
@@ -174,20 +229,20 @@ export interface OdooLiveSummary {
   period: { from: string; to: string }
   /** Strictly `null` in all browser-facing responses so `ODOO_DB` never leaves the server. */
   database: string | null
-  totals: { netSalesKwd: number; orders: number; aovKwd: number }
-  unattributedSalesKwd?: number
-  unattributedOrders?: number
-  unattributedBranch?: OdooUnattributedBranchRow
+  totals: { netSalesKwd: number | null; orders: number | null; aovKwd: number | null }
+  unattributedSalesKwd?: number | null
+  unattributedOrders?: number | null
+  unattributedBranch?: OdooUnattributedBranchRow | null
   companyTotals?: {
-    grossPreExclusionKwd?: number
-    excludedEntitiesKwd?: number
-    excludedEntitiesOrders?: number
-    mappedBranchesNetKwd?: number
-    netSalesKwd: number
-    orders: number
-    unmappedTerminalsNetKwd: number
-    unmappedTerminalsOrders: number
-    reconciliationGapKwd?: number
+    grossPreExclusionKwd?: number | null
+    excludedEntitiesKwd?: number | null
+    excludedEntitiesOrders?: number | null
+    mappedBranchesNetKwd?: number | null
+    netSalesKwd: number | null
+    orders: number | null
+    unmappedTerminalsNetKwd: number | null
+    unmappedTerminalsOrders: number | null
+    reconciliationGapKwd?: number | null
     reconciledExact?: boolean
   }
   unmappedTerminals?: {
@@ -196,9 +251,11 @@ export interface OdooLiveSummary {
     orders_count: number
     net_sales_kwd: number
   }[]
-  brands: { id: string; brand: string; netKwd: number; sharePct: number }[]
-  branches: { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
-  channels: { name: string; amountKwd: number }[]
+  brands: { id: string; brand: string; netKwd: number; sharePct: number }[] | null
+  branches:
+    | { id: string; name: string; unit: string; netSalesKwd: number; orders: number; sharePct: number }[]
+    | null
+  channels: { name: string; amountKwd: number }[] | null
   buckets?: Partial<Record<OdooPeriodBucketKey, OdooBucketSummary>>
   customBucket?: OdooBucketSummary
   /** Live Kuwait daily POS series (`YYYY-MM-DD`) overlaid on Custom Range & Comparison Engine. */
@@ -208,13 +265,16 @@ export interface OdooLiveSummary {
   /** Live Kuwait unattributed daily POS series (`day -> { netKwd, orders }`). */
   dailyUnattributed?: Record<string, { netKwd: number; orders: number }>
   /** Live Kuwait 24-hour POS distribution (`0..23`) overlaid on Hourly Comparison Curves. */
-  hourlySeries?: { hour: number; orders: number; netKwd: number }[]
+  hourlySeries?: { hour: number; orders: number; netKwd: number }[] | null
   /** Optional Ardiya Central Kitchen -> Branch transfer telemetry from `stock.picking`. */
-  stockTransfers?: OdooStockTransferSummary
+  stockTransfers?: OdooStockTransferSummary | null
   /** Optional open aggregator/receivable clearing balance from `account.move.line`. */
-  aggregatorReceivables?: OdooReceivableClearingSummary
+  aggregatorReceivables?: OdooReceivableClearingSummary | null
   /** Rolling 30-day vs prior 30-day vs month-to-date totals (whitelisted registers, Kuwait calendar days). */
-  journeyPulse?: Record<'rolling30' | 'prior30' | 'mtd', { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }>
+  journeyPulse?: Record<
+    'rolling30' | 'prior30' | 'mtd',
+    { from: string; to: string; days: number; netKwd: number; orders: number; perDayKwd: number }
+  > | null
   /** Read-permission audit of the 7 journey stages for the BI service user. */
   access?: { readable: string[]; restricted: string[] }
   /** Odoo 17 Analytic Cost-Center access & unallocated expense pulse. */
@@ -565,13 +625,21 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const restaurantLocIds = Object.entries(REG.locations).filter(([, v]) => v.unit === 'restaurant').map(([k]) => k)
+  const locationExcluded = (id: string) => {
+    const loc = REG.locations[id]
+    return isExcludedOdooEntity(id) || isExcludedOdooEntity(loc?.en) || isExcludedOdooEntity(loc?.ar) || isExcludedOdooEntity(loc?.code)
+  }
+  const restaurantLocIds = Object.entries(REG.locations)
+    .filter(([id, v]) => v.unit === 'restaurant' && !locationExcluded(id))
+    .map(([id]) => id)
   const restaurantAllowed = ALLOWED_POS_CONFIG_IDS.filter((cfgId) => {
     const loc = REG.registers[String(cfgId)]?.location
-    return Boolean(loc && REG.locations[loc]?.unit === 'restaurant')
+    return Boolean(loc && REG.locations[loc]?.unit === 'restaurant' && !locationExcluded(loc))
   })
-  const allowedSet = new Set(restaurantAllowed)
-  const configs = (await ek('pos.config', 'search_read', [[['id', 'in', restaurantAllowed], ['active', 'in', [true, false]]]], { fields: ['id', 'name'], context: { active_test: false } })) as { id: number; name: string }[]
+  const configs = ((await ek('pos.config', 'search_read', [companyPosSearchDomain(restaurantAllowed)], { fields: ['id', 'name', 'active'] })) as { id: number; name: string; active?: boolean }[])
+    .filter((config) => config.active !== false && companyPosConfigAllowed(config.id, config.name, true))
+  const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
+  const allowedSet = new Set(visibleConfigIds)
   const configNameById = new Map(configs.map((c) => [c.id, c.name]))
   const isDeliveryCfg = (cfgId: number) => {
     const loc = REG.registers[String(cfgId)]?.location
@@ -579,7 +647,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     return loc === 'ardiya' || /delivery|call\s*center/i.test(nm)
   }
 
-  const categories = (await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[]
+  const categories = ((await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[])
+    .filter((category) => !isExcludedOdooRecord({ id: category.id, name: category.name, kind: 'pos_category' }))
   const catById = new Map(categories.map((c) => [c.id, c]))
   const rootName = (catId: number | null) => {
     let c = catId ? catById.get(catId) : undefined
@@ -597,41 +666,85 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const periodFromUtc = kwDateToUtc(period.from)
   const periodToUtc = kwDateToUtc(period.to)
 
-  const orderDomain = [['date_order', '>=', periodFromUtc], ['date_order', '<', periodToUtc], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]]
-  const bySession = (await ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]
-  const byPayment = (await ek('pos.payment', 'read_group', [[['pos_order_id.date_order', '>=', periodFromUtc], ['pos_order_id.date_order', '<', periodToUtc], ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]
-  const sessionIds = [...new Set([...bySession, ...byPayment].map((g) => m2oId(g.session_id)).filter((x): x is number => x !== null))]
+  const orderDomain = buildPosOrderUtcDomain({
+    fromUtc: periodFromUtc,
+    toExclusiveUtc: periodToUtc,
+    configIds: visibleConfigIds,
+  })
+  const nonRefundOrderDomain = buildPosOrderUtcDomain({
+    fromUtc: periodFromUtc,
+    toExclusiveUtc: periodToUtc,
+    configIds: visibleConfigIds,
+    nonRefundOnly: true,
+  })
+  const paymentDomain = buildPosPaymentUtcDomain({
+    fromUtc: periodFromUtc,
+    toExclusiveUtc: periodToUtc,
+    configIds: visibleConfigIds,
+  })
+  const nonRefundPaymentDomain = buildPosPaymentUtcDomain({
+    fromUtc: periodFromUtc,
+    toExclusiveUtc: periodToUtc,
+    configIds: visibleConfigIds,
+    nonRefundOnly: true,
+  })
+  const [bySession, bySessionCount, byPayment, byPaymentCount] = await Promise.all([
+    ek('pos.order', 'read_group', [orderDomain, ['amount_total:sum', 'amount_tax:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; amount_total: number; amount_tax: number; __count: number }[]>,
+    ek('pos.order', 'read_group', [nonRefundOrderDomain, ['amount_total:sum'], ['session_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; __count?: number }[]>,
+    ek('pos.payment', 'read_group', [paymentDomain, ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; payment_method_id: M2O; amount: number; __count?: number }[]>,
+    ek('pos.payment', 'read_group', [nonRefundPaymentDomain, ['amount:sum'], ['session_id', 'payment_method_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } }) as Promise<{ session_id: M2O; payment_method_id: M2O; __count?: number }[]>,
+  ])
+  const mergedSessions = mergeSessionGroups(bySession, bySessionCount)
+  const mergedPayments = mergeSessionPaymentGroups(byPayment, byPaymentCount)
+  const sessionIds = [
+    ...new Set(
+      [...mergedSessions, ...mergedPayments]
+        .map((g) => g.sessionId)
+        .filter((x): x is number => x !== null),
+    ),
+  ]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
 
   const locAgg = new Map<string, { net: number; orders: number }>()
-  for (const g of bySession) {
-    const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
+  let schoolNet = 0
+  let schoolOrders = 0
+  for (const g of mergedSessions) {
+    const sid = g.sessionId ?? -1
+    const cfg = configOfSession.get(sid)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
+    const net = g.netKwd
+    const orders = g.orders
+    if (isPinnedSchoolCanteenConfigId(cfg)) {
+      schoolNet += net
+      schoolOrders += orders
+      continue
+    }
     const loc = REG.registers[String(cfg)]?.location
-    if (!loc || REG.locations[loc]?.unit !== 'restaurant') continue
+    if (!loc || REG.locations[loc]?.unit !== 'restaurant' || locationExcluded(loc)) continue
     const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
-    b.net += Math.max(0, (g.amount_total || 0) - (g.amount_tax || 0))
-    b.orders += Math.max(0, g.__count || 0)
+    b.net += net
+    b.orders += orders
     locAgg.set(loc, b)
   }
-  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0))
-  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0)
+  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0) + schoolNet)
+  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0) + schoolOrders
   const rawLocNet = new Map(restaurantLocIds.map((loc) => [loc, r3(locAgg.get(loc)?.net ?? 0)]))
 
   const locRawUi = new Map<string, Record<string, { netKwd: number; orders: number }>>()
   for (const loc of restaurantLocIds) {
     locRawUi.set(loc, Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])))
   }
-  for (const g of byPayment) {
-    const cfg = configOfSession.get(m2oId(g.session_id) ?? -1)
+  const schoolUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
+    UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
+  )
+  for (const g of mergedPayments) {
+    const cfg = configOfSession.get(g.sessionId ?? -1)
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
-    const loc = REG.registers[String(cfg)]?.location
-    if (!loc || !locRawUi.has(loc)) continue
-    const ch = channelOfPaymentMethod(m2oName(g.payment_method_id) ?? '')
-    const amt = Math.max(0, g.amount || 0)
-    const cnt = Math.max(0, g.__count || 0)
-    const row = locRawUi.get(loc)!
+    const payName = g.paymentMethodName
+    const ch = channelOfPaymentMethod(payName)
+    const amt = g.netKwd
+    const cnt = g.orders
     let uiKey: (typeof UI_CHANNEL_KEYS)[number] = 'dine-in'
     if (ch === 'Talabat Go') uiKey = 'talabat-tgo'
     else if (ch === 'Talabat MP') uiKey = 'talabat-tmp'
@@ -641,6 +754,14 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     else if (ch === 'Snoonu') uiKey = 'snoonu'
     else if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') uiKey = 'takeaway-direct'
     else uiKey = isDeliveryCfg(cfg) ? 'takeaway-direct' : 'dine-in'
+    if (isPinnedSchoolCanteenConfigId(cfg)) {
+      schoolUi[uiKey].netKwd += amt
+      schoolUi[uiKey].orders += cnt
+      continue
+    }
+    const loc = REG.registers[String(cfg)]?.location
+    if (!loc || !locRawUi.has(loc)) continue
+    const row = locRawUi.get(loc)!
     row[uiKey].netKwd += amt
     row[uiKey].orders += cnt
   }
@@ -669,17 +790,33 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       uiChannels: locUi,
     }
   }
+  const schoolUiRounded: Record<string, { netKwd: number; orders: number }> = {}
+  for (const ck of UI_CHANNEL_KEYS) {
+    const nv = r3(schoolUi[ck].netKwd)
+    const ov = Math.max(0, Math.round(schoolUi[ck].orders || 0))
+    schoolUiRounded[ck] = { netKwd: nv, orders: ov }
+    aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
+    aggUiChannels[ck].orders += ov
+  }
+  byLocation[SCHOOL_CANTEEN_BRANCH_ID] = {
+    netKwd: r3(schoolNet),
+    orders: schoolOrders,
+    uiChannels: schoolUiRounded,
+  }
 
-  const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', restaurantAllowed]]
+  const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', visibleConfigIds], ['product_id.pos_categ_id', '!=', 150]]
   const byProduct = (await ek('pos.order.line', 'read_group', [lineDomain, ['price_subtotal:sum', 'qty:sum'], ['product_id']], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { product_id: M2O; price_subtotal: number; qty?: number; __count?: number }[]
   const productIds = byProduct.map((g) => m2oId(g.product_id)).filter((x): x is number => x !== null)
   const products = productIds.length ? ((await ek('product.product', 'read', [productIds, ['id', 'pos_categ_id']])) as { id: number; pos_categ_id: M2O }[]) : []
   const categOf = new Map(products.map((p) => [p.id, m2oId(p.pos_categ_id)]))
   const brandAgg = new Map<string, { rawNet: number; qty: number; linesCount: number }>()
   for (const g of byProduct) {
-    const root = rootName(categOf.get(m2oId(g.product_id) ?? -1) ?? null)
+    const categId = categOf.get(m2oId(g.product_id) ?? -1) ?? null
+    if (isExcludedRecordId('pos_category', categId)) continue
+    const root = rootName(categId)
+    if (isExcludedOdooEntity(root)) continue
     const brand = root ? brandOfRoot.get(root) : undefined
-    if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id)) continue
+    if (!brand || !(ACTIVE_BRAND_IDS as readonly string[]).includes(brand.id) || isExcludedOdooEntity(brand.en) || isExcludedOdooEntity(brand.ar)) continue
     const prev = brandAgg.get(brand.id) ?? { rawNet: 0, qty: 0, linesCount: 0 }
     prev.rawNet += Math.max(0, g.price_subtotal || 0)
     prev.qty += Math.max(0, g.qty || 0)
@@ -699,9 +836,35 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   // Journey pulse (3 grouped totals) and the access audit run in parallel; neither may fail the summary.
   const windows = journeyWindows()
   const pulseOf = async (w: { from: string; to: string; days: number }) => {
-    const rows = (await ek('pos.order', 'read_group', [[['date_order', '>=', kwDateToUtc(w.from)], ['date_order', '<', kwDateToUtc(w.to)], ['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['amount_total:sum', 'amount_tax:sum'], []], { lazy: false, context: { tz: 'Asia/Kuwait' } })) as { amount_total: number; amount_tax: number; __count: number }[]
-    const net = (rows[0]?.amount_total || 0) - (rows[0]?.amount_tax || 0)
-    return { ...w, netKwd: r3(net), orders: rows[0]?.__count ?? 0, perDayKwd: r3(net / Math.max(1, w.days)) }
+    const winFromUtc = kwDateToUtc(w.from)
+    const winToUtc = kwDateToUtc(w.to)
+    const [rows, nonRefundCount] = await Promise.all([
+      ek(
+        'pos.order',
+        'read_group',
+        [
+          buildPosOrderUtcDomain({
+            fromUtc: winFromUtc,
+            toExclusiveUtc: winToUtc,
+            configIds: visibleConfigIds,
+          }),
+          ['amount_total:sum', 'amount_tax:sum'],
+          [],
+        ],
+        { lazy: false, context: { tz: 'Asia/Kuwait' } },
+      ) as Promise<{ amount_total: number; amount_tax: number; __count: number }[]>,
+      ek('pos.order', 'search_count', [
+        buildPosOrderUtcDomain({
+          fromUtc: winFromUtc,
+          toExclusiveUtc: winToUtc,
+          configIds: visibleConfigIds,
+          nonRefundOnly: true,
+        }),
+      ]) as Promise<number>,
+    ])
+    const net = posOrderNet(rows[0]?.amount_total, rows[0]?.amount_tax)
+    const orders = Math.max(0, Math.round(Number(nonRefundCount) || 0))
+    return { ...w, netKwd: r3(net), orders, perDayKwd: r3(net / Math.max(1, w.days)) }
   }
   const [pulse, audit, unalloc, latestPosOrderIso] = await Promise.all([
     Promise.all([pulseOf(windows.rolling30), pulseOf(windows.prior30), pulseOf(windows.mtd)]).then(([rolling30, prior30, mtd]) => ({ rolling30, prior30, mtd })).catch(() => undefined),
@@ -726,7 +889,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       ek(
         'pos.order',
         'search_read',
-        [[['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', restaurantAllowed]], ['date_order']],
+        [[['state', 'in', ['paid', 'done', 'invoiced']], ['session_id.config_id', 'in', visibleConfigIds]], ['date_order']],
         { order: 'date_order desc', limit: 1 },
       ) as Promise<{ id?: number; date_order?: string }[]>
     )
@@ -801,10 +964,20 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       const nv = byBrand[bid]?.netKwd ?? 0
       return { id: bid, brand: REG.brands.find((b) => b.id === bid)?.en ?? bid, netKwd: nv, sharePct: pct(nv, targetNet) }
     }).sort((a, b) => b.netKwd - a.netKwd),
-    branches: restaurantLocIds.map((lid) => {
-      const nv = rawLocNet.get(lid) ?? 0
-      return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
-    }).sort((a, b) => b.netSalesKwd - a.netSalesKwd),
+    branches: [
+      ...restaurantLocIds.map((lid) => {
+        const nv = rawLocNet.get(lid) ?? 0
+        return { id: lid, name: REG.locations[lid]?.en ?? lid, unit: 'restaurant', netSalesKwd: nv, orders: locAgg.get(lid)?.orders ?? 0, sharePct: pct(nv, targetNet) }
+      }),
+      {
+        id: SCHOOL_CANTEEN_BRANCH_ID,
+        name: 'School canteens',
+        unit: 'school-canteen',
+        netSalesKwd: r3(schoolNet),
+        orders: schoolOrders,
+        sharePct: pct(r3(schoolNet), targetNet),
+      },
+    ].sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: UI_CHANNEL_KEYS.map((ck) => ({ name: ck, amountKwd: aggUiChannels[ck].netKwd })).sort((a, b) => b.amountKwd - a.amountKwd),
     ...(liveBucket && bucket ? { buckets: { [bucket]: liveBucket } } : {}),
     ...(pulse ? { journeyPulse: pulse } : {}),

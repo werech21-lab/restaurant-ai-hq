@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { RadarButton } from "@/app/(panel)/bi-analytics/radar-button";
 import { requireUser } from "@/lib/erp-auth";
-import { DataCard, Forbidden, PageHeader, PageSkeleton, cardClass } from "@/components/erp-ui";
-import { formatMoney, formatQty } from "@/lib/format";
+import { Forbidden, PageHeader, PageSkeleton } from "@/components/erp-ui";
+import { KpiCard, SectionCard, StateBlock } from "@/components/ui";
+import { formatInt, formatKwd, formatPct, formatQty } from "@/lib/format";
+import { getLocale, tx } from "@/lib/i18n/server";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { executiveInsights } from "@/services/bi.service";
 
@@ -11,71 +13,260 @@ export const metadata = { title: "ذكاء الأعمال | AetherBI" };
 
 async function InsightsContent() {
   await connection();
-  const user = await requireUser();
-  if (!can(user, "reports", "view") && !can(user, "dashboard", "view")) return <Forbidden href={firstAllowedHref(user)} />;
-  const data = await executiveInsights();
+  const [user, locale] = await Promise.all([requireUser(), getLocale()]);
+  const resolvedLocale: "ar" | "en" = locale === "en" ? "en" : "ar";
+  const isAr = resolvedLocale !== "en";
+
+  if (!can(user, "reports", "view") && !can(user, "dashboard", "view")) {
+    return <Forbidden href={firstAllowedHref(user)} />;
+  }
+
+  let data: Awaited<ReturnType<typeof executiveInsights>> | null = null;
+  let loadFailed = false;
+  try {
+    data = await executiveInsights();
+  } catch {
+    loadFailed = true;
+  }
+
+  if (loadFailed || !data) {
+    return (
+      <div dir={isAr ? "rtl" : "ltr"} className="space-y-4">
+        <PageHeader
+          title={tx(locale, "ذكاء الأعمال والتحليلات التنبؤية", "Business Intelligence & Predictive Analytics")}
+          description={tx(
+            locale,
+            "AetherBI Insights: نمو المبيعات، هامش الأقسام، وتدفق نقدي لثلاثين يوماً.",
+            "AetherBI Insights: sales growth, category margins, and 30-day cash projection."
+          )}
+        />
+        <StateBlock
+          state="error"
+          locale={resolvedLocale}
+          title={tx(locale, "تعذّر تحميل تحليلات ذكاء الأعمال", "Unable to load BI analytics")}
+          description={tx(
+            locale,
+            "حدث خلل مؤقت أثناء استعلام البيانات. يرجى تحديث الصفحة والمحاولة مجدداً.",
+            "A temporary error occurred while loading insights. Please refresh and try again."
+          )}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div dir={isAr ? "rtl" : "ltr"} className="space-y-5 min-w-0">
       <PageHeader
-        title="ذكاء الأعمال والتحليلات التنبؤية"
-        description="AetherBI Insights: نمو المبيعات، هامش الأقسام، وتدفق نقدي لثلاثين يوماً."
+        title={tx(locale, "ذكاء الأعمال والتحليلات التنبؤية", "Business Intelligence & Predictive Analytics")}
+        description={tx(
+          locale,
+          "AetherBI Insights: نمو المبيعات، هامش الأقسام، وتدفق نقدي لثلاثين يوماً.",
+          "AetherBI Insights: sales growth, category margins, and 30-day cash projection."
+        )}
       />
-      <div className="mb-4 grid gap-4 md:grid-cols-4">
-        <section className={`${cardClass} p-4`}><p className="text-xs text-slate-500">مبيعات الشهر</p><p className="text-xl font-bold">{formatMoney(data.salesNow)}</p></section>
-        <section className={`${cardClass} p-4`}><p className="text-xs text-slate-500">نمو المبيعات</p><p className="text-xl font-bold">{data.growth}%</p></section>
-        <section className={`${cardClass} p-4`}><p className="text-xs text-slate-500">هامش الربح</p><p className="text-xl font-bold">{data.marginNow}%</p></section>
-        <section className={`${cardClass} p-4`}><p className="text-xs text-slate-500">النقد الحالي</p><p className="text-xl font-bold">{formatMoney(data.cash)}</p></section>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label={tx(locale, "مبيعات الشهر", "Monthly Sales")}
+          value={data.salesNow}
+          format="kwd"
+          locale={resolvedLocale}
+        />
+        <KpiCard
+          label={tx(locale, "نمو المبيعات", "Sales Growth")}
+          value={data.growth}
+          format="pct"
+          signed
+          locale={resolvedLocale}
+        />
+        <KpiCard
+          label={tx(locale, "هامش الربح", "Gross Margin")}
+          value={data.marginNow}
+          format="pct"
+          locale={resolvedLocale}
+        />
+        <KpiCard
+          label={tx(locale, "النقد الحالي", "Current Cash")}
+          value={data.cash}
+          format="kwd"
+          locale={resolvedLocale}
+        />
       </div>
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <DataCard>
-          <h2 className="border-b border-slate-200 px-4 py-3 font-bold">هامش الربح حسب القسم</h2>
-          <table className="w-full text-sm">
-            <tbody>
-              {data.margins.length === 0 ? <tr><td className="px-4 py-6 text-slate-500">لا توجد مبيعات هذا الشهر.</td></tr> : data.margins.map((row) => (
-                <tr key={row.name} className="border-b border-slate-200"><td className="px-4 py-2 font-semibold">{row.name}</td><td className="px-4 py-2">{formatMoney(row.sales)}</td><td className="px-4 py-2">{row.margin}%</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </DataCard>
-        <DataCard>
-          <h2 className="border-b border-slate-200 px-4 py-3 font-bold">تدفق نقدي متوقع لـ 30 يوماً</h2>
-          <p className="px-4 py-2 text-sm text-slate-600">صافي آخر 30 يوماً {formatMoney(data.net30)}. التقدير يوزّعه على أربعة أسابيع فوق الرصيد الحالي.</p>
-          <table className="w-full text-sm">
-            <tbody>
-              {data.weeks.map((week) => (
-                <tr key={week.week} className="border-b border-slate-200"><td className="px-4 py-2">الأسبوع {week.week}</td><td className="px-4 py-2 font-bold">{formatMoney(week.cash)}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </DataCard>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard
+          title={tx(locale, "هامش الربح حسب القسم", "Profit Margin by Category")}
+          locale={resolvedLocale}
+          headerDivider
+        >
+          {data.margins.length === 0 ? (
+            <StateBlock
+              state="empty"
+              locale={resolvedLocale}
+              compact
+              title={tx(locale, "لا توجد مبيعات هذا الشهر", "No sales recorded this month")}
+              description={tx(
+                locale,
+                "ستظهر هوامش الأقسام تلقائياً فور تسجيل فواتير مبيعات للفترة الحالية.",
+                "Category margins will appear once sales invoices are recorded for this month."
+              )}
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[360px] text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">
+                    <th className="px-3 py-2.5 text-start">{tx(locale, "القسم", "Category")}</th>
+                    <th className="px-3 py-2.5 text-end">{tx(locale, "المبيعات", "Sales")}</th>
+                    <th className="px-3 py-2.5 text-end">{tx(locale, "الهامش", "Margin")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/70 dark:divide-white/10">
+                  {data.margins.map((row) => (
+                    <tr key={row.name}>
+                      <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-slate-100">{row.name}</td>
+                      <td dir="ltr" className="ds-num px-3 py-2.5 text-end font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                        {formatKwd(row.sales, resolvedLocale)}
+                      </td>
+                      <td dir="ltr" className="ds-num px-3 py-2.5 text-end font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                        {formatPct(row.margin, resolvedLocale)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={tx(locale, "تدفق نقدي متوقع لـ 30 يوماً", "30-Day Cash Flow Projection")}
+          subtitle={
+            <>
+              {tx(locale, "صافي آخر 30 يوماً: ", "Last 30 days net: ")}
+              <span dir="ltr" className="ds-num font-bold tabular-nums">
+                {formatKwd(data.net30, resolvedLocale)}
+              </span>
+              {tx(
+                locale,
+                " — يوزّع التقدير على أربعة أسابيع فوق الرصيد الحالي.",
+                " — projected evenly across four weeks above current cash."
+              )}
+            </>
+          }
+          locale={resolvedLocale}
+          headerDivider
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[320px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-white/10 dark:text-slate-300">
+                  <th className="px-3 py-2.5 text-start">{tx(locale, "الأسبوع", "Week")}</th>
+                  <th className="px-3 py-2.5 text-end">{tx(locale, "الرصيد النقدي المتوقع", "Projected Cash")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200/70 dark:divide-white/10">
+                {data.weeks.map((week) => (
+                  <tr key={week.week}>
+                    <td className="px-3 py-2.5 font-medium text-slate-800 dark:text-slate-200">
+                      {tx(locale, `الأسبوع ${formatInt(week.week, resolvedLocale)}`, `Week ${formatInt(week.week, resolvedLocale)}`)}
+                    </td>
+                    <td dir="ltr" className="ds-num px-3 py-2.5 text-end font-bold tabular-nums text-slate-900 dark:text-white">
+                      {formatKwd(week.cash, resolvedLocale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
       </div>
-      <section className={`${cardClass} mb-4 p-5`}>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-bold">رادار المخاطر</h2>
-          {user.role.isAdmin || can(user, "reports", "edit") || can(user, "automations", "edit") ? <RadarButton /> : null}
+
+      <SectionCard
+        title={tx(locale, "رادار المخاطر", "Risk Radar")}
+        locale={resolvedLocale}
+        actions={
+          user.role.isAdmin || can(user, "reports", "edit") || can(user, "automations", "edit") ? (
+            <RadarButton />
+          ) : null
+        }
+        headerDivider
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="mb-2 text-sm font-bold text-slate-900 dark:text-white">
+              {tx(locale, "أصناف راكدة", "Slow-Moving Items")}
+            </h3>
+            {data.dead.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {tx(locale, "لا توجد أصناف راكدة.", "No slow-moving items.")}
+              </p>
+            ) : (
+              <ul className="space-y-1.5 text-sm text-slate-800 dark:text-slate-200">
+                {data.dead.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{item.name}</span>
+                    <span dir="ltr" className="ds-num shrink-0 font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+                      {formatQty(item.currentStock)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="mb-2 text-sm font-bold text-slate-900 dark:text-white">
+              {tx(locale, "عملاء متأخرون", "Overdue Customers")}
+            </h3>
+            {data.late.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {tx(locale, "لا توجد مديونيات متأخرة.", "No overdue receivables.")}
+              </p>
+            ) : (
+              <ul className="space-y-1.5 text-sm text-slate-800 dark:text-slate-200">
+                {data.late.map((item) => (
+                  <li key={item.name} className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{item.name}</span>
+                    <span dir="ltr" className="ds-num shrink-0 font-semibold tabular-nums text-rose-700 dark:text-rose-300">
+                      {formatKwd(item.balance, resolvedLocale)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/[0.03]">
+            <h3 className="mb-2 text-sm font-bold text-slate-900 dark:text-white">
+              {tx(locale, "قرب النفاد", "Low Stock Soon")}
+            </h3>
+            {data.soon.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {tx(locale, "لا توجد أصناف قاربت على النفاد.", "No items near stockout.")}
+              </p>
+            ) : (
+              <ul className="space-y-1.5 text-sm text-slate-800 dark:text-slate-200">
+                {data.soon.map((item) => (
+                  <li key={item.id} className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{item.name}</span>
+                    <span className="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      {item.label}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div>
-            <h3 className="mb-2 text-sm font-bold">أصناف راكدة</h3>
-            {data.dead.length === 0 ? <p className="text-sm text-slate-500">لا توجد أصناف راكدة.</p> : data.dead.map((item) => <p key={item.id} className="text-sm">{item.name} · {formatQty(item.currentStock)}</p>)}
-          </div>
-          <div>
-            <h3 className="mb-2 text-sm font-bold">عملاء متأخرون</h3>
-            {data.late.length === 0 ? <p className="text-sm text-slate-500">لا توجد مديونيات متأخرة.</p> : data.late.map((item) => <p key={item.name} className="text-sm">{item.name} · {formatMoney(item.balance)}</p>)}
-          </div>
-          <div>
-            <h3 className="mb-2 text-sm font-bold">قرب النفاد</h3>
-            {data.soon.length === 0 ? <p className="text-sm text-slate-500">لا توجد أصناف قاربت على النفاد.</p> : data.soon.map((item) => <p key={item.id} className="text-sm">{item.name} · {item.label}</p>)}
-          </div>
-        </div>
-      </section>
+      </SectionCard>
     </div>
   );
 }
 
 export default function InsightsPage() {
   return (
-    <Suspense fallback={<PageSkeleton title="ذكاء الأعمال" />}>
+    <Suspense fallback={<PageSkeleton title="Business Intelligence" />}>
       <InsightsContent />
     </Suspense>
   );

@@ -4,7 +4,7 @@ import { cleanText } from "@/lib/documents";
 import { prisma } from "@/lib/db";
 import { round2 } from "@/lib/format";
 import { runTx, txError } from "@/lib/tx";
-import { fail, ok } from "@/lib/types";
+import { fail } from "@/lib/types";
 import { postEntry, type EntryLine } from "@/services/accounting.engine";
 
 export async function chartOfAccounts() {

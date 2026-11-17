@@ -11,7 +11,7 @@ export const metadata = {
 export default async function Page() {
   await requirePageUser('/erp/delivery-control')
   return (
-    <div className="w-full">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0">
       <DeliveryControlV2 />
     </div>
   )

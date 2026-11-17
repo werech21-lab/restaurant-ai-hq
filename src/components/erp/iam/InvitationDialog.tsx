@@ -1,17 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import { Fact, Field, useRunner } from '@/components/erp/actions'
+import { useRunner } from '@/components/erp/actions'
 import { apiRequest } from '@/components/erp/api'
-import { dateTimeText } from '@/components/erp/common'
+import {
+  CatalogNote,
+  FormIssues,
+  IamFact,
+  IamField,
+  InvitationStatusBadge,
+  RequestFailure,
+  fieldIssue,
+  formatIamDateTime,
+  iamDangerBtn,
+  iamInputClass,
+  iamPrimaryBtn,
+  iamSecondaryBtn,
+  type Catalog,
+} from '@/components/erp/iam/shared'
 import { useCan } from '@/components/erp/permissions'
-import { dangerButton, inputClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Num } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { createInvitationSchema, revokeInvitationSchema } from '@/lib/iam/schemas'
 import type { Invitation, Role } from '@/lib/iam/types'
-import { CatalogNote, fieldIssue, FormIssues, InvitationStatusBadge, RequestFailure, type Catalog } from '@/components/erp/iam/shared'
 
 type Props = {
   invitation?: Invitation
@@ -31,7 +43,8 @@ const issuesFor: Record<string, MessageKey> = {
 
 /** An invitation. The token comes back only from the create call. The route does not ask for an idempotency key. */
 export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReload }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const canInvite = useCan(permissions.iamMemberInvite)
   const canReadRoles = useCan(permissions.iamRoleRead)
   const [email, setEmail] = useState('')
@@ -48,13 +61,20 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
   function create() {
     setIssues([])
     const expiresInDays = days.trim() === '' ? undefined : Number(days)
-    const parsed = createInvitationSchema.safeParse(expiresInDays === undefined ? { email, roleId } : { email, roleId, expiresInDays })
+    const parsed = createInvitationSchema.safeParse(
+      expiresInDays === undefined ? { email, roleId } : { email, roleId, expiresInDays },
+    )
     if (!parsed.success) {
-      setIssues(Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))))
+      setIssues(
+        Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))),
+      )
       return
     }
     void run(async () => {
-      const created = await apiRequest<{ data: Invitation; token: string }>('/api/v1/iam/invitations', { method: 'POST', body: parsed.data })
+      const created = await apiRequest<{ data: Invitation; token: string }>(
+        '/api/v1/iam/invitations',
+        { method: 'POST', body: parsed.data },
+      )
       setLink(`${window.location.origin}/erp/iam/accept?token=${encodeURIComponent(created.token)}`)
       setIssued({ invitation: created.data, token: created.token })
       onSaved('iam.msg.invited')
@@ -74,7 +94,10 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
       return
     }
     void run(async () => {
-      await apiRequest(`/api/v1/iam/invitations/${invitation.id}/revoke`, { method: 'POST', body: parsed.data })
+      await apiRequest(`/api/v1/iam/invitations/${invitation.id}/revoke`, {
+        method: 'POST',
+        body: parsed.data,
+      })
       onSaved('iam.msg.revoked')
       onCancel()
     })
@@ -94,20 +117,24 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
   if (issued) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-gray-300">{t('iam.inv.tokenHint')}</p>
-        <Field label={t('iam.inv.token')}>
-          <input value={issued.token} readOnly dir="ltr" spellCheck={false} className={inputClass} />
-        </Field>
-        <Field label={t('iam.inv.link')}>
-          <input value={link} readOnly dir="ltr" spellCheck={false} className={inputClass} />
-        </Field>
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#30363d] pt-4">
-          {copied === 'copied' ? <span className="text-sm text-green-300">{t('iam.inv.copied')}</span> : null}
-          {copied === 'failed' ? <span className="text-sm text-red-300">{t('iam.inv.copyFailed')}</span> : null}
-          <button type="button" onClick={() => void copyLink()} className={secondaryButton}>
+        <p className="text-sm text-[var(--ds-text-secondary)]">{t('iam.inv.tokenHint')}</p>
+        <IamField label={t('iam.inv.token')}>
+          <input value={issued.token} readOnly dir="ltr" spellCheck={false} className={iamInputClass} />
+        </IamField>
+        <IamField label={t('iam.inv.link')}>
+          <input value={link} readOnly dir="ltr" spellCheck={false} className={iamInputClass} />
+        </IamField>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
+          {copied === 'copied' ? (
+            <span className="text-sm font-medium text-[var(--ds-positive)]">{t('iam.inv.copied')}</span>
+          ) : null}
+          {copied === 'failed' ? (
+            <span className="text-sm font-medium text-[var(--ds-negative)]">{t('iam.inv.copyFailed')}</span>
+          ) : null}
+          <button type="button" onClick={() => void copyLink()} className={iamSecondaryBtn}>
             {t('iam.inv.copyLink')}
           </button>
-          <button type="button" onClick={onCancel} className={primaryButton}>
+          <button type="button" onClick={onCancel} className={iamPrimaryBtn}>
             {t('erp.close')}
           </button>
         </div>
@@ -118,42 +145,54 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
   if (invitation) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Fact label={t('iam.inv.email')}>
-            <Num>{invitation.email}</Num>
-          </Fact>
-          <Fact label={t('iam.inv.role')}>{invitation.roleName}</Fact>
-          <Fact label={t('iam.inv.status')}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <IamFact label={t('iam.inv.email')}>
+            <span dir="ltr" className="font-mono text-xs">
+              {invitation.email}
+            </span>
+          </IamFact>
+          <IamFact label={t('iam.inv.role')}>{invitation.roleName}</IamFact>
+          <IamFact label={t('iam.inv.status')}>
             <InvitationStatusBadge status={invitation.status} />
-          </Fact>
-          <Fact label={t('iam.inv.expires')}>
-            <Num>{dateTimeText(invitation.expiresAt)}</Num>
-          </Fact>
-          <Fact label={t('iam.inv.created')}>
-            <Num>{dateTimeText(invitation.createdAt)}</Num>
-          </Fact>
+          </IamFact>
+          <IamFact label={t('iam.inv.expires')}>
+            <span dir="ltr" className="ds-num tabular-nums">
+              {formatIamDateTime(invitation.expiresAt, fmtLocale)}
+            </span>
+          </IamFact>
+          <IamFact label={t('iam.inv.created')}>
+            <span dir="ltr" className="ds-num tabular-nums">
+              {formatIamDateTime(invitation.createdAt, fmtLocale)}
+            </span>
+          </IamFact>
           {invitation.acceptedAt ? (
-            <Fact label={t('iam.inv.acceptedAt')}>
-              <Num>{dateTimeText(invitation.acceptedAt)}</Num>
-            </Fact>
+            <IamFact label={t('iam.inv.acceptedAt')}>
+              <span dir="ltr" className="ds-num tabular-nums">
+                {formatIamDateTime(invitation.acceptedAt, fmtLocale)}
+              </span>
+            </IamFact>
           ) : null}
           {invitation.revokedAt ? (
-            <Fact label={t('iam.inv.revokedAt')}>
-              <Num>{dateTimeText(invitation.revokedAt)}</Num>
-            </Fact>
+            <IamFact label={t('iam.inv.revokedAt')}>
+              <span dir="ltr" className="ds-num tabular-nums">
+                {formatIamDateTime(invitation.revokedAt, fmtLocale)}
+              </span>
+            </IamFact>
           ) : null}
         </div>
-        <p className="text-xs text-gray-500">{t('iam.inv.tokenOnce')}</p>
-        {confirming ? <p className="text-sm text-gray-300">{t('iam.inv.confirmRevoke')}</p> : null}
+        <p className="text-xs text-[var(--ds-text-muted)]">{t('iam.inv.tokenOnce')}</p>
+        {confirming ? (
+          <p className="text-sm font-medium text-[var(--ds-text-primary)]">{t('iam.inv.confirmRevoke')}</p>
+        ) : null}
         <FormIssues issues={issues} />
         <RequestFailure failure={failure} onReload={onReload} />
-        <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
           {canInvite && invitation.status === 'pending' ? (
-            <button type="button" onClick={revoke} disabled={pending} className={dangerButton}>
+            <button type="button" onClick={revoke} disabled={pending} className={iamDangerBtn}>
               {pending ? t('erp.loading') : t(confirming ? 'iam.inv.revokeNow' : 'iam.inv.revoke')}
             </button>
           ) : null}
-          <button type="button" onClick={onCancel} className={secondaryButton}>
+          <button type="button" onClick={onCancel} className={iamSecondaryBtn}>
             {t('erp.close')}
           </button>
         </div>
@@ -163,13 +202,27 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
 
   return (
     <div className="space-y-4">
-      <Field label={t('iam.inv.email')}>
-        <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" maxLength={254} dir="ltr" autoComplete="email" className={inputClass} />
-      </Field>
+      <IamField label={t('iam.inv.email')}>
+        <input
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          type="email"
+          maxLength={254}
+          dir="ltr"
+          autoComplete="email"
+          className={iamInputClass}
+        />
+      </IamField>
       {showRoleList ? (
-        <Field label={t('iam.inv.role')}>
-          <select value={roleId} onChange={(event) => setRoleId(event.target.value)} className={inputClass}>
-            <option value="">{roles.phase === 'loading' ? t('erp.loading') : t('iam.pickRole')}</option>
+        <IamField label={t('iam.inv.role')}>
+          <select
+            value={roleId}
+            onChange={(event) => setRoleId(event.target.value)}
+            className={iamInputClass}
+          >
+            <option value="">
+              {roles.phase === 'loading' ? t('erp.loading') : t('iam.pickRole')}
+            </option>
             {roles.rows.map((role) => (
               <option key={role.id} value={role.id}>
                 {role.name}
@@ -177,26 +230,47 @@ export function InvitationDialog({ invitation, roles, onSaved, onCancel, onReloa
             ))}
           </select>
           <CatalogNote catalog={roles} />
-        </Field>
+        </IamField>
       ) : (
-        <Field label={t('iam.roleId')}>
-          <input value={roleId} onChange={(event) => setRoleId(event.target.value)} dir="ltr" autoComplete="off" spellCheck={false} className={inputClass} />
-          {canReadRoles ? <CatalogNote catalog={roles} /> : <span className="mt-1 block text-xs text-gray-500">{t('iam.noRoleRead')}</span>}
-        </Field>
+        <IamField label={t('iam.roleId')}>
+          <input
+            value={roleId}
+            onChange={(event) => setRoleId(event.target.value)}
+            dir="ltr"
+            autoComplete="off"
+            spellCheck={false}
+            className={iamInputClass}
+          />
+          {canReadRoles ? (
+            <CatalogNote catalog={roles} />
+          ) : (
+            <span className="mt-1 block text-xs text-[var(--ds-text-muted)]">
+              {t('iam.noRoleRead')}
+            </span>
+          )}
+        </IamField>
       )}
-      <Field label={t('iam.inv.days')}>
-        <input value={days} onChange={(event) => setDays(event.target.value)} inputMode="numeric" dir="ltr" className={inputClass} />
-        <span className="mt-1 block text-xs text-gray-500">{t('iam.inv.daysHint')}</span>
-      </Field>
+      <IamField label={t('iam.inv.days')}>
+        <input
+          value={days}
+          onChange={(event) => setDays(event.target.value)}
+          inputMode="numeric"
+          dir="ltr"
+          className={iamInputClass}
+        />
+        <span className="mt-1 block text-xs text-[var(--ds-text-muted)]">
+          {t('iam.inv.daysHint')}
+        </span>
+      </IamField>
       <FormIssues issues={issues} />
       <RequestFailure failure={failure} onReload={onReload} />
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
         {canInvite ? (
-          <button type="button" onClick={create} disabled={pending} className={primaryButton}>
+          <button type="button" onClick={create} disabled={pending} className={iamPrimaryBtn}>
             {pending ? t('erp.loading') : t('iam.inv.new')}
           </button>
         ) : null}
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={iamSecondaryBtn}>
           {t('erp.cancel')}
         </button>
       </div>

@@ -1,10 +1,10 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { requireUser } from "@/lib/erp-auth";
-import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { can, firstAllowedHref } from "@/lib/permissions";
-import { getLocale } from "@/lib/i18n/server";
 import { VentureAutomationHub } from "@/components/automation/VentureAutomationHub";
+import { Forbidden, PageSkeleton } from "@/components/erp-ui";
+import { requireUser } from "@/lib/erp-auth";
+import { getLocale } from "@/lib/i18n/server";
+import { can, firstAllowedHref } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +24,10 @@ async function AutomationsContent() {
 
 export default function AutomationsPage() {
   return (
-    <main className="w-full min-w-0" suppressHydrationWarning>
-      <Suspense fallback={<PageSkeleton title="إدارة التنبيهات والمتابعة التلقائية" />}>
+    <div className="w-full min-w-0" suppressHydrationWarning>
+      <Suspense fallback={<PageSkeleton title="Automations" />}>
         <AutomationsContent />
       </Suspense>
-    </main>
+    </div>
   );
 }

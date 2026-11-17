@@ -9,12 +9,14 @@ import { DocumentDetail } from "@/components/document-detail";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { TradePanel } from "@/components/trade-panel";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatQty } from "@/lib/format";
-import { dateFor, getLocale, moneyFor, tx } from "@/lib/i18n/server";
+import { formatDate, formatKwd, formatQty } from "@/lib/format";
+import { getLocale, tx } from "@/lib/i18n/server";
 import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
-import { getActiveScope, salesWhereForScope } from "@/lib/scope";
+import { visibleCustomerWhere, visibleInvoiceWhere, visibleProductWhere } from "@/lib/panel-visibility";
+import { scopeWarehouseIds } from "@/lib/reports";
+import { getActiveScope } from "@/lib/scope";
 import { invoiceText, payUrl, waLink } from "@/lib/whatsapp";
 import { SmartIngestLaunchButton } from "@/components/SmartIngestLaunchButton";
 import { SalesCommandCenter } from "@/components/sales/SalesCommandCenter";
@@ -26,6 +28,7 @@ const statuses = new Set(["PAID", "PARTIAL", "UNPAID"]);
 async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
   const locale = await getLocale();
+  const uiLocale = locale === "en" ? "en" : "ar";
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "sales", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -43,6 +46,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     status: string;
     createdAt: Date;
     customer: { name: string };
+    items: Array<{ totalPrice: number }>;
   }> = [];
   let parties: Array<{
     id: string;
@@ -54,9 +58,11 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
   }> = [];
 
   if (tab === "parties") {
-    const where: Prisma.CustomerWhereInput = query.q
-      ? { OR: [{ name: { contains: query.q } }, { phone: { contains: query.q } }, { email: { contains: query.q } }] }
-      : {};
+    const where: Prisma.CustomerWhereInput = visibleCustomerWhere(
+      query.q
+        ? { OR: [{ name: { contains: query.q } }, { phone: { contains: query.q } }, { email: { contains: query.q } }] }
+        : {},
+    );
     const [count, rows] = await Promise.all([
       prisma.customer.count({ where }),
       prisma.customer.findMany({ where, orderBy: { name: "asc" }, skip, take: PAGE_SIZE }),
@@ -64,18 +70,26 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
     total = count;
     parties = rows;
   } else {
-    const where: Prisma.SalesInvoiceWhereInput = {
-      ...salesWhereForScope(scope.warehouseIds),
-      ...(status ? { status } : {}),
-      ...(query.q
-        ? { OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }
-        : {}),
-    };
+    const warehouseIds = await scopeWarehouseIds(scope.warehouseIds);
+    const where: Prisma.SalesInvoiceWhereInput = visibleInvoiceWhere({
+      AND: [
+        scope.warehouseIds.length
+          ? { warehouseId: { in: warehouseIds.length ? warehouseIds : ["__none__"] } }
+          : { OR: [{ warehouseId: null }, { warehouseId: { in: warehouseIds.length ? warehouseIds : ["__none__"] } }] },
+        ...(status ? [{ status }] : []),
+        ...(query.q
+          ? [{ OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }]
+          : []),
+      ],
+    });
     const [count, rows] = await Promise.all([
       prisma.salesInvoice.count({ where }),
       prisma.salesInvoice.findMany({
         where,
-        include: { customer: { select: { name: true } } },
+        include: {
+          customer: { select: { name: true } },
+          items: { where: { product: visibleProductWhere() }, select: { totalPrice: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip,
         take: PAGE_SIZE,
@@ -86,18 +100,19 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
   }
 
   const detail = query.doc
-    ? await prisma.salesInvoice.findUnique({
-        where: { id: query.doc },
-        include: { customer: true, items: { include: { product: true } } },
+    ? await prisma.salesInvoice.findFirst({
+        where: visibleInvoiceWhere({ id: query.doc }),
+        include: { customer: true, items: { where: { product: visibleProductWhere() }, include: { product: true } } },
       })
     : null;
+  const visibleDetailTotal = detail ? detail.items.reduce((sum, item) => sum + item.totalPrice, 0) : 0;
   const pendingLink = detail
     ? await prisma.paymentLink.findFirst({
         where: { invoiceId: detail.id, status: "PENDING" },
         orderBy: { createdAt: "desc" },
       })
     : null;
-  const due = detail ? detail.totalAmount - detail.paidAmount : 0;
+  const due = detail ? Math.max(0, visibleDetailTotal - detail.paidAmount) : 0;
 
   const initialTab =
     query.doc || query.tab === "parties" || query.tab === "documents" || query.tab === "live-invoices"
@@ -106,10 +121,10 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
 
   return (
     <SalesCommandCenter
-      initialLocale={locale === "ar" ? "ar" : "en"}
+      initialLocale={uiLocale}
       initialTab={initialTab}
       liveChildren={
-        <div className="space-y-4">
+        <div dir={uiLocale === "en" ? "ltr" : "rtl"} className="space-y-4">
           <div className="mb-2">
             <SmartIngestLaunchButton module="sales_delivery" locale={locale} />
           </div>
@@ -120,17 +135,17 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
               number={detail.invoiceNumber}
               partyLabel={tx(locale, "العميل", "Customer")}
               party={detail.customer.name}
-              dateLabel={dateFor(locale, detail.createdAt)}
+              dateLabel={formatDate(detail.createdAt, { locale: uiLocale })}
               status={detail.status}
-              discountLabel={moneyFor(locale, detail.discount)}
-              totalLabel={moneyFor(locale, detail.totalAmount)}
-              paidLabel={moneyFor(locale, detail.paidAmount)}
-              dueLabel={moneyFor(locale, detail.totalAmount - detail.paidAmount)}
+              discountLabel={formatKwd(detail.discount, { locale: uiLocale })}
+              totalLabel={formatKwd(visibleDetailTotal, { locale: uiLocale })}
+              paidLabel={formatKwd(detail.paidAmount, { locale: uiLocale })}
+              dueLabel={formatKwd(Math.max(0, visibleDetailTotal - detail.paidAmount), { locale: uiLocale })}
               printHref={`/sales/${detail.id}/print`}
               extra={
-                <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-3 border-t border-[var(--ds-border-hairline)] px-5 py-4">
                   {due > 0.001 && (can(user, "payments", "create") || can(user, "sales", "create")) ? (
-                    <InvoicePayLinkButton invoiceId={detail.id} existingToken={pendingLink?.token} />
+                    <InvoicePayLinkButton invoiceId={detail.id} existingToken={pendingLink?.token} locale={uiLocale} />
                   ) : null}
                   <WhatsAppButton
                     label={tx(locale, "إرسال الفاتورة عبر واتساب", "Send invoice via WhatsApp")}
@@ -142,9 +157,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
                         lines: detail.items.map((item) => ({
                           name: item.product.name,
                           quantity: formatQty(item.quantity),
-                          total: moneyFor(locale, item.totalPrice),
+                          total: formatKwd(item.totalPrice, { locale: uiLocale }),
                         })),
-                        total: moneyFor(locale, detail.totalAmount),
+                        total: formatKwd(visibleDetailTotal, { locale: uiLocale }),
                         payUrl: pendingLink ? payUrl(pendingLink.token) : undefined,
                       }),
                     )}
@@ -156,8 +171,8 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
                 name: item.product.name,
                 code: item.product.code,
                 quantity: formatQty(item.quantity),
-                price: moneyFor(locale, item.unitPrice),
-                total: moneyFor(locale, item.totalPrice),
+                price: formatKwd(item.unitPrice, { locale: uiLocale }),
+                total: formatKwd(item.totalPrice, { locale: uiLocale }),
               }))}
             />
           ) : null}
@@ -198,9 +213,9 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
               id: row.id,
               number: row.invoiceNumber,
               party: row.customer.name,
-              dateLabel: dateFor(locale, row.createdAt),
-              totalLabel: moneyFor(locale, row.totalAmount),
-              paidLabel: moneyFor(locale, row.paidAmount),
+              dateLabel: formatDate(row.createdAt, { locale: uiLocale }),
+              totalLabel: formatKwd(row.items.reduce((sum, item) => sum + item.totalPrice, 0), { locale: uiLocale }),
+              paidLabel: formatKwd(row.paidAmount, { locale: uiLocale }),
               status: row.status,
             }))}
             parties={parties.map((row) => ({
@@ -209,7 +224,7 @@ async function SalesContent({ searchParams }: { searchParams: Promise<RawQuery> 
               phone: row.phone ?? "",
               email: row.email ?? "",
               balance: row.balance,
-              balanceLabel: moneyFor(locale, row.balance),
+              balanceLabel: formatKwd(row.balance, { locale: uiLocale }),
               customData: row.customData,
             }))}
           />

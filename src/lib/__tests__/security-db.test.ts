@@ -24,7 +24,7 @@ import { createItem, createWarehouse, recordMovement } from '@/modules/inventory
 const pg = () => getPglite()
 
 /** Tables nobody but the server may read: RLS is on and there is deliberately no policy. */
-const DENY_ALL_TABLES = ['idempotency_keys', 'tenant_sequences'] as const
+const DENY_ALL_TABLES = ['ai_daily_briefs', 'ai_runs', 'idempotency_keys', 'pos_terminal_branch_map', 'tenant_sequences', 'vf_executive_governance_sync'] as const
 /** Functions that signed-in users may execute. Everything else that is not a trigger function must be closed. */
 const CALLABLE_BY_AUTHENTICATED = ['auth_has_permission', 'auth_tenant_ids']
 
@@ -251,7 +251,7 @@ describe('row level security configuration', () => {
     }
   })
 
-  it('has a SELECT policy on every table except the two deny-all tables', async () => {
+  it('has a SELECT policy on every table except the deny-all tables', async () => {
     const withoutPolicy = await pg().query<{ name: string }>(
       `select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
        where n.nspname = 'public' and c.relkind in ('r', 'p')

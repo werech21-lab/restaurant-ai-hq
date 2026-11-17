@@ -2,6 +2,7 @@ import { writeActivity } from '@/lib/activity'
 import { checkPermission } from '@/lib/erp-auth'
 import { cleanText } from '@/lib/documents'
 import { prisma } from '@/lib/db'
+import { visibleProductWhere } from '@/lib/panel-visibility'
 import { formatQty, round3 } from '@/lib/format'
 import { isModuleEnabled } from '@/lib/modules-db'
 import { runTx, txError } from '@/lib/tx'
@@ -46,6 +47,7 @@ export async function computeRecipeIngredientCost(
 
 export async function listRecipeCosts(options?: { brandCode?: string | null; q?: string }) {
   const where: Prisma.RecipeWhereInput = {
+    menuProduct: visibleProductWhere(),
     ...(options?.brandCode ? { brandCode: options.brandCode } : {}),
     ...(options?.q
       ? {

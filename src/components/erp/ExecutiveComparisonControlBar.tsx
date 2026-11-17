@@ -16,6 +16,7 @@ import {
   Truck,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import { formatKwd, type FormatLocale } from '@/lib/format'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import {
@@ -69,6 +70,11 @@ export interface ExecutiveComparisonControlBarProps {
   syncUrlParams?: boolean
   syncGlobalScope?: boolean
   extraActions?: React.ReactNode
+  /**
+   * Gap between the sum of the rows on this page and the Odoo total.
+   * `null` while the page is still loading. Omit to derive it from the shared live summary.
+   */
+  odooGap?: { connected: boolean; gapKwd: number | null } | null
 }
 
 type OpenDropdownId = 'brand' | 'branch' | 'channel' | 'entityA' | 'entityB' | null
@@ -185,6 +191,81 @@ export function readInitialComparisonQueryFromEnv(
   }
 }
 
+function formatGapAmount(gap: number, locale: FormatLocale): string {
+  return formatKwd(Math.abs(gap), { locale, showUnit: true, decimals: 3 })
+}
+
+function gapFromLiveSummary(
+  summary: {
+    connected?: boolean
+    branches?: { netSalesKwd: number }[] | null
+    unattributedSalesKwd?: number | null
+    companyTotals?: { netSalesKwd?: number | null }
+    totals?: { netSalesKwd?: number | null }
+  } | null | undefined,
+): { connected: boolean; gapKwd: number | null } {
+  if (!summary || summary.connected !== true) return { connected: false, gapKwd: null }
+  if (summary.branches === null || summary.unattributedSalesKwd === null) {
+    return { connected: true, gapKwd: null }
+  }
+  const rowSum =
+    (summary.branches ?? []).reduce((sum, row) => sum + (Number(row.netSalesKwd) || 0), 0) +
+    (Number(summary.unattributedSalesKwd) || 0)
+  const odooTotal = summary.companyTotals?.netSalesKwd ?? summary.totals?.netSalesKwd
+  if (typeof odooTotal !== 'number' || !Number.isFinite(odooTotal)) {
+    return { connected: true, gapKwd: null }
+  }
+  return { connected: true, gapKwd: Math.round((rowSum - odooTotal) * 1000) / 1000 }
+}
+
+function OdooGapPill({
+  isAr,
+  odooGap,
+  liveSummary,
+}: {
+  isAr: boolean
+  odooGap?: { connected: boolean; gapKwd: number | null } | null
+  liveSummary: Parameters<typeof gapFromLiveSummary>[0]
+}) {
+  const resolvedLocale: FormatLocale = isAr ? 'ar' : 'en'
+  const resolved = odooGap === undefined ? gapFromLiveSummary(liveSummary) : odooGap
+  if (resolved === null) {
+    return (
+      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+        <span>{isAr ? 'جارٍ مطابقة أودو' : 'Checking the Odoo gap'}</span>
+      </div>
+    )
+  }
+  if (!resolved.connected || resolved.gapKwd === null) {
+    return (
+      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+        <span>{isAr ? 'غير متصل' : 'Disconnected'}</span>
+      </div>
+    )
+  }
+  const mismatch = resolved.gapKwd !== 0
+  return (
+    <div
+      className={`flex items-center gap-2 text-[13px] font-medium tabular-nums ${
+        mismatch ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'
+      }`}
+    >
+      <span
+        className={`h-2 w-2 rounded-full ${mismatch ? 'bg-amber-500' : 'bg-emerald-500'}`}
+        aria-hidden
+      />
+      <span>
+        {isAr ? 'متزامن مع أودو 17 • الفارق ' : 'Synced with Odoo 17 • gap '}
+        <span dir="ltr" className="tabular-nums">
+          {formatGapAmount(resolved.gapKwd, resolvedLocale)}
+        </span>
+      </span>
+    </div>
+  )
+}
+
 export function ExecutiveComparisonControlBar({
   query,
   onQueryChange,
@@ -198,6 +279,7 @@ export function ExecutiveComparisonControlBar({
   syncUrlParams = true,
   syncGlobalScope = true,
   extraActions,
+  odooGap,
 }: ExecutiveComparisonControlBarProps) {
   const { locale } = useI18n()
   const isAr = locale !== 'en'
@@ -599,9 +681,10 @@ export function ExecutiveComparisonControlBar({
 
       {query.granularity === 'single' ? (
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <Calendar className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
           <input
             type="date"
+            dir="ltr"
             aria-label={resolvedTitleA}
             value={normA.fromIso}
             onChange={(e) => {
@@ -619,6 +702,7 @@ export function ExecutiveComparisonControlBar({
             </span>
             <input
               type="date"
+              dir="ltr"
               value={normA.fromIso}
               onChange={(e) => {
                 const v = sanitizeIsoDate(e.target.value, normA.fromIso)
@@ -636,6 +720,7 @@ export function ExecutiveComparisonControlBar({
             </span>
             <input
               type="date"
+              dir="ltr"
               value={normA.toIso}
               onChange={(e) => {
                 const v = sanitizeIsoDate(e.target.value, normA.toIso)
@@ -672,9 +757,10 @@ export function ExecutiveComparisonControlBar({
 
       {query.granularity === 'single' ? (
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
+          <Calendar className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
           <input
             type="date"
+            dir="ltr"
             aria-label={resolvedTitleB}
             value={normB.fromIso}
             onChange={(e) => {
@@ -692,6 +778,7 @@ export function ExecutiveComparisonControlBar({
             </span>
             <input
               type="date"
+              dir="ltr"
               value={normB.fromIso}
               onChange={(e) => {
                 const v = sanitizeIsoDate(e.target.value, normB.fromIso)
@@ -709,6 +796,7 @@ export function ExecutiveComparisonControlBar({
             </span>
             <input
               type="date"
+              dir="ltr"
               value={normB.toIso}
               onChange={(e) => {
                 const v = sanitizeIsoDate(e.target.value, normB.toIso)
@@ -803,8 +891,9 @@ export function ExecutiveComparisonControlBar({
         <button
           type="button"
           aria-expanded={openMenu === menuId}
+          aria-haspopup="listbox"
           onClick={() => setOpenMenu((m) => (m === menuId ? null : menuId))}
-          className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-white px-3 text-[13px] font-semibold text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.08] transition-all duration-150 hover:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white dark:ring-emerald-500/20"
+          className="flex h-9 w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-white px-3 text-[13px] font-semibold text-slate-900 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.08] transition-all duration-150 hover:ring-emerald-500/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#101C17] dark:text-white dark:ring-emerald-500/20"
         >
           <span className="truncate">{currentLabel}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
@@ -982,7 +1071,7 @@ export function ExecutiveComparisonControlBar({
             <Clock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
             <span>
               {isAr
-                ? `مقارنة نفس الساعات حتى اللحظة · Comparing 00:00–${kuwaitClock.hhMm} across both windows`
+                ? `مقارنة نفس الساعات حتى اللحظة · من 00:00 إلى ${kuwaitClock.hhMm} عبر الفترتين`
                 : `Comparing 00:00–${kuwaitClock.hhMm} across both windows`}
             </span>
           </span>
@@ -1065,9 +1154,10 @@ export function ExecutiveComparisonControlBar({
               <button
                 type="button"
                 onClick={handleSwap}
-                className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[13px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
+                aria-label={isAr ? 'تبديل الجهتين أ و ب' : 'Swap entity A and entity B'}
+                className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-xl bg-emerald-50 px-3 text-[13px] font-extrabold tracking-wider text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-500/30"
               >
-                <GitCompareArrows className="h-3.5 w-3.5" />
+                <GitCompareArrows className="h-3.5 w-3.5" aria-hidden />
                 <span>{isAr ? 'مقابل' : 'VS'}</span>
               </button>
             </div>
@@ -1091,6 +1181,8 @@ export function ExecutiveComparisonControlBar({
               {query.granularity === 'single' ? (
                 <input
                   type="date"
+                  dir="ltr"
+                  aria-label={isAr ? 'تاريخ التقييم' : 'Evaluation date'}
                   value={normA.fromIso}
                   onChange={(e) => {
                     const v = sanitizeIsoDate(e.target.value, normA.fromIso)
@@ -1102,6 +1194,8 @@ export function ExecutiveComparisonControlBar({
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
+                    dir="ltr"
+                    aria-label={isAr ? 'من تاريخ' : 'From date'}
                     value={normA.fromIso}
                     onChange={(e) => {
                       const v = sanitizeIsoDate(e.target.value, normA.fromIso)
@@ -1114,6 +1208,8 @@ export function ExecutiveComparisonControlBar({
                   />
                   <input
                     type="date"
+                    dir="ltr"
+                    aria-label={isAr ? 'إلى تاريخ' : 'To date'}
                     value={normA.toIso}
                     onChange={(e) => {
                       const v = sanitizeIsoDate(e.target.value, normA.toIso)
@@ -1143,20 +1239,21 @@ export function ExecutiveComparisonControlBar({
             <button
               type="button"
               aria-expanded={openMenu === 'brand'}
+              aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'brand' ? null : 'brand'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 ${
+              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.brandIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
-              <Store className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Store className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span>{brandPillLabel}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 
             {openMenu === 'brand' && (
-              <div className="absolute start-0 top-full z-40 mt-1.5 w-68 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
+              <div className="absolute start-0 top-full z-40 mt-1.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
                   <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر مطعماً أو أكثر (6)' : 'Select 1 or more Brands (6)'}
@@ -1220,20 +1317,21 @@ export function ExecutiveComparisonControlBar({
             <button
               type="button"
               aria-expanded={openMenu === 'branch'}
+              aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'branch' ? null : 'branch'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 ${
+              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.branchIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
-              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span>{branchPillLabel}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 
             {openMenu === 'branch' && (
-              <div className="absolute start-0 top-full z-40 mt-1.5 w-72 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
+              <div className="absolute start-0 top-full z-40 mt-1.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
                   <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر فرعاً أو أكثر (7)' : 'Select 1 or more Branches (7)'}
@@ -1249,7 +1347,7 @@ export function ExecutiveComparisonControlBar({
                     {isAr ? 'تحديد الكل' : 'All 7'}
                   </button>
                 </div>
-                <div className="max-h-68 space-y-1 overflow-y-auto">
+                <div className="max-h-72 space-y-1 overflow-y-auto">
                   {GLOBAL_BRANCH_OPTIONS.filter((br) => br.id !== 'all').map((br) => {
                     const id = br.id as BranchEntityId
                     const checked = query.branchIds === 'all' || query.branchIds.includes(id)
@@ -1297,20 +1395,21 @@ export function ExecutiveComparisonControlBar({
             <button
               type="button"
               aria-expanded={openMenu === 'channel'}
+              aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'channel' ? null : 'channel'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 ${
+              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.channelIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
-              <Truck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Truck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span>{channelPillLabel}</span>
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 
             {openMenu === 'channel' && (
-              <div className="absolute start-0 top-full z-40 mt-1.5 w-68 rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
+              <div className="absolute start-0 top-full z-40 mt-1.5 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white p-2.5 shadow-xl ring-1 ring-slate-900/10 dark:bg-[#101C17] dark:ring-emerald-500/25">
                 <div className="mb-1.5 flex items-center justify-between px-2 py-1">
                   <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                     {isAr ? 'اختر قناة بيع أو أكثر (8)' : 'Select Sales Channels (8)'}
@@ -1326,7 +1425,7 @@ export function ExecutiveComparisonControlBar({
                     {isAr ? 'تحديد الكل' : 'All 8'}
                   </button>
                 </div>
-                <div className="max-h-68 space-y-1 overflow-y-auto">
+                <div className="max-h-72 space-y-1 overflow-y-auto">
                   {GLOBAL_CHANNEL_OPTIONS.filter((ch) => ch.id !== 'all').map((ch) => {
                     const id = ch.id as ChannelEntityId
                     const checked = query.channelIds === 'all' || query.channelIds.includes(id)
@@ -1360,15 +1459,8 @@ export function ExecutiveComparisonControlBar({
           </div>
         </div>
 
-        {/* Reconciliation & Ledger Integrity Pill */}
-        <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span>
-            {isAr
-              ? 'متزامن مع أودو 17 • تطابق 0.000 د.ك'
-              : 'Synced with Odoo 17 POS • 0.000 KWD Gap'}
-          </span>
-        </div>
+        {/* Reconciliation pill: sum of displayed rows versus the Odoo total */}
+        <OdooGapPill isAr={isAr} odooGap={odooGap} liveSummary={liveSummary} />
       </div>
     </section>
   )

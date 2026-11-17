@@ -8,12 +8,16 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const ROOT = process.cwd()
-const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo-live-snapshot.json'), 'utf8'))
-const registry = JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'pos-registry.json'), 'utf8'))
 const r3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000
-const pct1 = (a, b) => (b ? Math.round((a / b) * 1000) / 10 : 0)
+const pct1 = (a, b) =>
+  a === null || a === undefined || b === null || b === undefined
+    ? null
+    : b
+      ? Math.round((a / b) * 1000) / 10
+      : 0
 
 /* channel metadata — contract commission terms are configuration, not POS data */
 const CHANNEL_META = {
@@ -40,134 +44,320 @@ const BRAND_META = {
   'karak-cafeteria': { color: '#475569', cuisineEn: 'Karak tea, chapati & snacks', cuisineAr: 'كرك وشاباتي ووجبات خفيفة' },
 }
 const ACTIVE_BRAND_SET = new Set(Object.keys(BRAND_META))
-const chMeta = (name) => CHANNEL_META[name] ?? { id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), en: name, ar: name, group: 'direct', commissionPct: 0, riderCostPerOrder: 0, mode: null, color: '#64748B' }
-
-/* channels: payments (net after order-level promotions) + item sales (before promotions) */
-const itemsByChannel = {}
-for (const x of snap.brandChannel) itemsByChannel[x.channel] = (itemsByChannel[x.channel] || 0) + x.netKwd
-const channels = snap.channels.map((c) => {
-  const m = chMeta(c.name)
-  const items = r3(itemsByChannel[c.name] ?? c.amountKwd)
-  return { id: m.id, odooName: c.name, en: m.en, ar: m.ar, group: m.group, mode: m.mode, color: m.color, commissionPct: m.commissionPct, riderCostPerOrder: m.riderCostPerOrder, netKwd: c.amountKwd, itemSalesKwd: items, promoKwd: r3(Math.max(0, items - c.amountKwd)), orders: c.payments, sharePct: pct1(c.amountKwd, snap.totals.netSalesKwd) }
-})
+const chMeta = (name) =>
+  CHANNEL_META[name] ?? {
+    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    en: name,
+    ar: name,
+    group: 'direct',
+    commissionPct: 0,
+    riderCostPerOrder: 0,
+    mode: null,
+    color: '#64748B',
+  }
 const chId = (name) => chMeta(name).id
 
-/* brands (strictly the 6 active Venture Foods brands, reconciled to month bucket restaurant POS net when available) */
-const drinks = /drink|beverage|matara|hot drinks|cold drinks/i
-const catsByBrand = {}
-for (const c of snap.categories) if (ACTIVE_BRAND_SET.has(c.brand)) (catsByBrand[c.brand] ||= []).push(c)
-const prodsByBrand = {}
-for (const p of snap.products) if (ACTIVE_BRAND_SET.has(p.brand)) (prodsByBrand[p.brand] ||= []).push(p)
-const monthByBrand = snap.buckets?.month?.byBrand ?? null
-const monthTargetNet = snap.buckets?.month?.totals?.restaurantNetKwd ?? 0
-const brands = snap.brands
-  .filter((b) => ACTIVE_BRAND_SET.has(b.id))
-  .map((b) => {
-    const cats = catsByBrand[b.id] ?? []
-    const drinkNet = cats.filter((c) => drinks.test(c.name)).reduce((s, c) => s + c.netKwd, 0)
-    const top = (prodsByBrand[b.id] ?? [])[0]
-    const mb = monthByBrand?.[b.id]
-    const reconciledNet = mb ? mb.netKwd : b.netKwd
-    const reconciledOrders = mb ? mb.orders : b.orders
+export function buildOdooDataset(snap, _registry) {
+  /* channels: payments (net after order-level promotions) + item sales (before promotions) */
+  const itemsByChannel = {}
+  for (const x of snap.brandChannel ?? []) {
+    itemsByChannel[x.channel] = (itemsByChannel[x.channel] || 0) + x.netKwd
+  }
+  const channels = (snap.channels ?? []).map((c) => {
+    const m = chMeta(c.name)
+    const items = r3(itemsByChannel[c.name] ?? c.amountKwd)
+    const rawOrders = c.payments === undefined ? null : c.payments
     return {
-      id: b.id, en: b.en, ar: b.ar, posRoot: b.posRoot, ...BRAND_META[b.id],
-      active: reconciledNet > 0, netKwd: reconciledNet, itemSalesKwd: b.netKwd, orders: reconciledOrders,
-      aovKwd: reconciledOrders ? r3(reconciledNet / reconciledOrders) : 0, qty: b.qty,
-      itemsPerOrder: reconciledOrders ? Math.round((b.qty / reconciledOrders) * 100) / 100 : 0,
-      sharePct: monthTargetNet > 0 ? pct1(reconciledNet, monthTargetNet) : b.sharePct,
-      discountKwd: b.discountKwd, drinksPct: pct1(drinkNet, b.netKwd),
-      bestSeller: top ? { name: top.name.replace(/^\[[^\]]+\]\s*/, '').trim(), qty: top.qty, netKwd: top.netKwd } : null,
+      id: m.id,
+      odooName: c.name,
+      en: m.en,
+      ar: m.ar,
+      group: m.group,
+      mode: m.mode,
+      color: m.color,
+      commissionPct: m.commissionPct,
+      riderCostPerOrder: m.riderCostPerOrder,
+      netKwd: c.amountKwd === undefined ? null : c.amountKwd,
+      itemSalesKwd: items,
+      promoKwd: c.amountKwd == null ? 0 : r3(Math.max(0, items - c.amountKwd)),
+      orders: rawOrders,
+      sharePct:
+        c.amountKwd == null || snap.totals.netSalesKwd == null
+          ? null
+          : snap.totals.netSalesKwd
+            ? pct1(c.amountKwd, snap.totals.netSalesKwd)
+            : 0,
     }
   })
 
-const L = registry.locations
-const pnlOf = (id) => snap.accounting.locationPnl?.[id] ?? null
-const mapLoc = (l) => ({
-  id: l.id, en: l.en, ar: l.ar, code: l.code, unit: l.unit, netKwd: l.netKwd, orders: l.orders, aovKwd: l.aovKwd, sharePct: l.sharePct, registers: l.registers,
-  brands: l.brands.filter((b) => ACTIVE_BRAND_SET.has(b.brand)), channels: l.channels.map((c) => ({ channel: chId(c.channel), amountKwd: c.amountKwd, payments: c.payments })),
-  pnl: pnlOf(l.id),
-})
-const restaurants = snap.locations.filter((l) => l.unit === 'restaurant').map(mapLoc)
-const exhibitions = snap.locations.filter((l) => l.unit === 'exhibition').map(mapLoc)
-const canteens = []
-const exbRegisters = snap.registers.filter((r) => r.location === 'exhibitions')
+  /* brands (strictly the 6 active Venture Foods brands) */
+  const drinks = /drink|beverage|matara|hot drinks|cold drinks/i
+  const catsByBrand = {}
+  for (const c of snap.categories ?? []) {
+    if (ACTIVE_BRAND_SET.has(c.brand)) (catsByBrand[c.brand] ||= []).push(c)
+  }
+  const prodsByBrand = {}
+  for (const p of snap.products ?? []) {
+    if (ACTIVE_BRAND_SET.has(p.brand)) (prodsByBrand[p.brand] ||= []).push(p)
+  }
+  const monthByBrand = snap.buckets?.month?.byBrand ?? null
+  const monthTargetNet = snap.buckets?.month?.totals?.restaurantNetKwd ?? null
+  const brands = (snap.brands ?? [])
+    .filter((b) => ACTIVE_BRAND_SET.has(b.id))
+    .map((b) => {
+      const cats = catsByBrand[b.id] ?? []
+      const drinkNet = cats.filter((c) => drinks.test(c.name)).reduce((s, c) => s + c.netKwd, 0)
+      const top = (prodsByBrand[b.id] ?? [])[0]
+      const mb = monthByBrand?.[b.id]
+      const reconciledNet = mb ? mb.netKwd : b.netKwd
+      const reconciledOrders = mb ? mb.orders : b.orders
+      const aovKwd =
+        reconciledNet === null ||
+        reconciledNet === undefined ||
+        reconciledOrders === null ||
+        reconciledOrders === undefined
+          ? null
+          : reconciledOrders
+            ? r3(reconciledNet / reconciledOrders)
+            : 0
+      const itemsPerOrder =
+        b.qty === null ||
+        b.qty === undefined ||
+        reconciledOrders === null ||
+        reconciledOrders === undefined
+          ? null
+          : reconciledOrders
+            ? Math.round((b.qty / reconciledOrders) * 100) / 100
+            : 0
+      const sharePct =
+        reconciledNet === null || reconciledNet === undefined
+          ? null
+          : monthTargetNet !== null && monthTargetNet > 0
+            ? pct1(reconciledNet, monthTargetNet)
+            : b.sharePct === undefined
+              ? null
+              : b.sharePct
+      return {
+        id: b.id,
+        en: b.en,
+        ar: b.ar,
+        posRoot: b.posRoot,
+        ...BRAND_META[b.id],
+        active: typeof reconciledNet === 'number' && reconciledNet > 0,
+        netKwd: reconciledNet === undefined ? null : reconciledNet,
+        itemSalesKwd: b.netKwd === undefined ? null : b.netKwd,
+        orders: reconciledOrders === undefined ? null : reconciledOrders,
+        aovKwd,
+        qty: b.qty === undefined ? null : b.qty,
+        itemsPerOrder,
+        sharePct,
+        discountKwd: b.discountKwd === undefined ? null : b.discountKwd,
+        drinksPct: b.netKwd == null ? null : pct1(drinkNet, b.netKwd),
+        bestSeller: top
+          ? { name: top.name.replace(/^\[[^\]]+\]\s*/, '').trim(), qty: top.qty, netKwd: top.netKwd }
+          : null,
+      }
+    })
 
-const brandLocation = []
-for (const l of snap.locations) {
-  if (l.unit !== 'restaurant' && l.unit !== 'exhibition') continue
-  for (const b of l.brands) if (ACTIVE_BRAND_SET.has(b.brand)) brandLocation.push({ brand: b.brand, location: l.id, netKwd: b.netKwd, orders: b.orders })
+  const pnlOf = (id) => snap.accounting.locationPnl?.[id] ?? null
+  const mapLoc = (l) => ({
+    id: l.id,
+    en: l.en,
+    ar: l.ar,
+    code: l.code,
+    unit: l.unit,
+    netKwd: l.netKwd,
+    orders: l.orders === undefined ? null : l.orders,
+    aovKwd:
+      l.orders === null || l.orders === undefined
+        ? null
+        : l.aovKwd === undefined
+          ? l.orders
+            ? r3(l.netKwd / l.orders)
+            : 0
+          : l.aovKwd,
+    sharePct: l.sharePct,
+    registers: l.registers,
+    brands: (l.brands ?? [])
+      .filter((b) => ACTIVE_BRAND_SET.has(b.brand))
+      .map((b) => ({
+        brand: b.brand,
+        netKwd: b.netKwd,
+        orders: b.orders === undefined ? null : b.orders,
+      })),
+    channels: (l.channels ?? []).map((c) => ({
+      channel: chId(c.channel),
+      amountKwd: c.amountKwd,
+      payments: c.payments === undefined ? null : c.payments,
+    })),
+    pnl: pnlOf(l.id),
+  })
+  const restaurants = (snap.locations ?? []).filter((l) => l.unit === 'restaurant').map(mapLoc)
+  const exhibitions = (snap.locations ?? []).filter((l) => l.unit === 'exhibition').map(mapLoc)
+  const canteens = []
+  const exbRegisters = (snap.registers ?? []).filter((r) => r.location === 'exhibitions')
+
+  const brandLocation = []
+  for (const l of snap.locations ?? []) {
+    if (l.unit !== 'restaurant' && l.unit !== 'exhibition') continue
+    for (const b of l.brands ?? []) {
+      if (ACTIVE_BRAND_SET.has(b.brand)) {
+        brandLocation.push({
+          brand: b.brand,
+          location: l.id,
+          netKwd: b.netKwd,
+          orders: b.orders === undefined ? null : b.orders,
+        })
+      }
+    }
+  }
+  const brandChannel = (snap.brandChannel ?? [])
+    .filter((x) => ACTIVE_BRAND_SET.has(x.brand))
+    .map((x) => ({
+      brand: x.brand,
+      channel: chId(x.channel),
+      netKwd: x.netKwd,
+      orders: x.orders === undefined ? null : x.orders,
+    }))
+  const cube = (snap.cube ?? [])
+    .filter((x) => ACTIVE_BRAND_SET.has(x.brand))
+    .map((x) => ({
+      brand: x.brand,
+      location: x.location,
+      channel: chId(x.channel),
+      netKwd: x.netKwd,
+    }))
+
+  const topProducts = {}
+  for (const [b, list] of Object.entries(prodsByBrand)) {
+    topProducts[b] = list.slice(0, 15).map((p) => ({
+      name: p.name.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      code: (p.name.match(/^\[([^\]]+)\]/) || [])[1] ?? null,
+      qty: p.qty,
+      netKwd: p.netKwd,
+      avgPrice: p.qty ? r3(p.netKwd / p.qty) : 0,
+    }))
+  }
+  const categories = {}
+  for (const [b, list] of Object.entries(catsByBrand)) {
+    categories[b] = list.slice(0, 12).map((c) => ({ name: c.name, qty: c.qty, netKwd: c.netKwd }))
+  }
+  const menu = (snap.products ?? [])
+    .filter((p) => ACTIVE_BRAND_SET.has(p.brand))
+    .map((p) => ({
+      name: p.name.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      code: (p.name.match(/^\[([^\]]+)\]/) || [])[1] ?? null,
+      brand: p.brand,
+      category: p.category ?? 'Other',
+      qty: p.qty,
+      netKwd: p.netKwd,
+      priceKwd: p.qty ? r3(p.netKwd / p.qty) : 0,
+      listPriceKwd: p.listPrice ?? 0,
+      unitCostKwd: p.unitCost ?? 0,
+    }))
+
+  /* in-store tender mix (Shop Sales payment methods) */
+  const tender = { knet: 0, card: 0, cash: 0, other: 0 }
+  for (const m of snap.paymentMethods ?? []) {
+    if (m.channel !== 'Shop Sales') continue
+    const n = m.name.toLowerCase()
+    const k = /k-?net/.test(n) ? 'knet' : /credit card/.test(n) ? 'card' : /cash/.test(n) ? 'cash' : 'other'
+    tender[k] += m.amountKwd
+  }
+  const tenderTotal = Object.values(tender).reduce((s, v) => s + v, 0)
+  const shopTender = Object.fromEntries(
+    Object.entries(tender).map(([k, v]) => [k, { amountKwd: r3(v), pct: pct1(v, tenderTotal) }]),
+  )
+
+  const acc = snap.accounting
+  const w = acc.whitelisted
+  const revenue = r3(w.income + w.otherIncome)
+  const operatingProfit = r3(revenue - w.cogs - w.expense - w.depreciation)
+  const pnl = {
+    revenueKwd: revenue,
+    incomeKwd: w.income,
+    otherIncomeKwd: w.otherIncome,
+    cogsKwd: w.cogs,
+    opexKwd: w.expense,
+    depreciationKwd: w.depreciation,
+    ebitdaKwd: r3(revenue - w.cogs - w.expense),
+    operatingProfitKwd: operatingProfit,
+    marginPct: pct1(operatingProfit, revenue),
+    cogsPct: pct1(w.cogs, w.income),
+    opexPct: pct1(w.expense, w.income),
+    depreciationPct: pct1(w.depreciation, w.income),
+    postedCompany: acc.postedCompany,
+    excludedLocations: acc.excludedLocationsAnalytic,
+    incomeByJournal: acc.incomeByJournal,
+    saleOrders: acc.saleOrders,
+    sharedCosts: {
+      headOffice: pnlOf('shared:head-office'),
+      centralKitchen: pnlOf('shared:central-kitchen'),
+    },
+  }
+
+  const t = snap.totals
+  const anyRestaurantNull =
+    t.orders === null ||
+    t.netSalesKwd === null ||
+    restaurants.some((l) => l.orders === null || l.netKwd === null)
+  const restaurantNetKwd = anyRestaurantNull
+    ? null
+    : r3(restaurants.reduce((s, l) => s + l.netKwd, 0))
+  const restaurantOrders = anyRestaurantNull
+    ? null
+    : restaurants.reduce((s, l) => s + l.orders, 0)
+
+  return {
+    meta: {
+      source: snap.source,
+      database: snap.database,
+      serverVersion: snap.serverVersion,
+      syncedAt: snap.syncedAt,
+      period: snap.period,
+      allowedPosConfigIds: snap.scope.allowedPosConfigIds,
+    },
+    totals: {
+      netSalesKwd: t.netSalesKwd === undefined ? null : t.netSalesKwd,
+      orders: t.orders === undefined ? null : t.orders,
+      aovKwd:
+        t.orders === null || t.orders === undefined || t.netSalesKwd === null
+          ? null
+          : t.aovKwd === undefined
+            ? t.orders
+              ? r3(t.netSalesKwd / t.orders)
+              : 0
+            : t.aovKwd,
+      itemSalesKwd: t.brandItemsKwd,
+      promoAdjustmentsKwd: r3(-t.promoAdjustmentsKwd),
+      lineDiscountKwd: t.discountKwd,
+      discountsKwd: r3(-t.promoAdjustmentsKwd + t.discountKwd),
+      productsSold: t.productsSold ?? (snap.products ?? []).length,
+      restaurantNetKwd,
+      restaurantOrders,
+    },
+    buckets: snap.buckets ?? null,
+    pnl,
+    brands,
+    restaurants,
+    exhibitions,
+    canteens,
+    exbRegisters,
+    channels,
+    brandLocation,
+    brandChannel,
+    cube,
+    topProducts,
+    categories,
+    menu,
+    shopTender,
+    timeProfile: snap.timeProfile ?? { daily: [], hourly: [], weekHour: [] },
+  }
 }
-const brandChannel = snap.brandChannel.filter((x) => ACTIVE_BRAND_SET.has(x.brand)).map((x) => ({ brand: x.brand, channel: chId(x.channel), netKwd: x.netKwd, orders: x.orders }))
-const cube = (snap.cube ?? []).filter((x) => ACTIVE_BRAND_SET.has(x.brand)).map((x) => ({ brand: x.brand, location: x.location, channel: chId(x.channel), netKwd: x.netKwd }))
 
-const topProducts = {}
-for (const [b, list] of Object.entries(prodsByBrand)) topProducts[b] = list.slice(0, 15).map((p) => ({ name: p.name.replace(/^\[[^\]]+\]\s*/, '').trim(), code: (p.name.match(/^\[([^\]]+)\]/) || [])[1] ?? null, qty: p.qty, netKwd: p.netKwd, avgPrice: p.qty ? r3(p.netKwd / p.qty) : 0 }))
-const categories = {}
-for (const [b, list] of Object.entries(catsByBrand)) categories[b] = list.slice(0, 12).map((c) => ({ name: c.name, qty: c.qty, netKwd: c.netKwd }))
-/* full menu actually sold in the period (Odoo product.product, realised price and Odoo standard cost) */
-const menu = snap.products.filter((p) => ACTIVE_BRAND_SET.has(p.brand)).map((p) => ({
-  name: p.name.replace(/^\[[^\]]+\]\s*/, '').trim(),
-  code: (p.name.match(/^\[([^\]]+)\]/) || [])[1] ?? null,
-  brand: p.brand,
-  category: p.category ?? 'Other',
-  qty: p.qty,
-  netKwd: p.netKwd,
-  priceKwd: p.qty ? r3(p.netKwd / p.qty) : 0,
-  listPriceKwd: p.listPrice ?? 0,
-  unitCostKwd: p.unitCost ?? 0,
-}))
-
-/* in-store tender mix (Shop Sales payment methods) */
-const tender = { knet: 0, card: 0, cash: 0, other: 0 }
-for (const m of snap.paymentMethods ?? []) {
-  if (m.channel !== 'Shop Sales') continue
-  const n = m.name.toLowerCase()
-  const k = /k-?net/.test(n) ? 'knet' : /credit card/.test(n) ? 'card' : /cash/.test(n) ? 'cash' : 'other'
-  tender[k] += m.amountKwd
-}
-const tenderTotal = Object.values(tender).reduce((s, v) => s + v, 0)
-const shopTender = Object.fromEntries(Object.entries(tender).map(([k, v]) => [k, { amountKwd: r3(v), pct: pct1(v, tenderTotal) }]))
-
-const acc = snap.accounting
-const w = acc.whitelisted
-const revenue = r3(w.income + w.otherIncome)
-const operatingProfit = r3(revenue - w.cogs - w.expense - w.depreciation)
-const pnl = {
-  revenueKwd: revenue, incomeKwd: w.income, otherIncomeKwd: w.otherIncome, cogsKwd: w.cogs, opexKwd: w.expense, depreciationKwd: w.depreciation,
-  ebitdaKwd: r3(revenue - w.cogs - w.expense), operatingProfitKwd: operatingProfit,
-  marginPct: pct1(operatingProfit, revenue), cogsPct: pct1(w.cogs, w.income), opexPct: pct1(w.expense, w.income), depreciationPct: pct1(w.depreciation, w.income),
-  postedCompany: acc.postedCompany, excludedLocations: acc.excludedLocationsAnalytic,
-  incomeByJournal: acc.incomeByJournal, saleOrders: acc.saleOrders,
-  sharedCosts: { headOffice: pnlOf('shared:head-office'), centralKitchen: pnlOf('shared:central-kitchen') },
-}
-
-const t = snap.totals
-const dataset = {
-  meta: { source: snap.source, database: snap.database, serverVersion: snap.serverVersion, syncedAt: snap.syncedAt, period: snap.period, allowedPosConfigIds: snap.scope.allowedPosConfigIds },
-  totals: {
-    netSalesKwd: t.netSalesKwd, orders: t.orders, aovKwd: t.aovKwd, itemSalesKwd: t.brandItemsKwd, promoAdjustmentsKwd: r3(-t.promoAdjustmentsKwd), lineDiscountKwd: t.discountKwd,
-    discountsKwd: r3(-t.promoAdjustmentsKwd + t.discountKwd), productsSold: t.productsSold ?? snap.products.length,
-    restaurantNetKwd: r3(restaurants.reduce((s, l) => s + l.netKwd, 0)), restaurantOrders: restaurants.reduce((s, l) => s + l.orders, 0),
-  },
-  buckets: snap.buckets ?? null,
-  pnl,
-  brands,
-  restaurants,
-  exhibitions,
-  canteens,
-  exbRegisters,
-  channels,
-  brandLocation,
-  brandChannel,
-  cube,
-  topProducts,
-  categories,
-  menu,
-  shopTender,
-  timeProfile: snap.timeProfile ?? { daily: [], hourly: [], weekHour: [] },
-}
-
-const out = `/* eslint-disable */
+export function renderOdooDatasetTs(snap, registry) {
+  const dataset = buildOdooDataset(snap, registry)
+  return `/* eslint-disable */
 /**
  * GENERATED by scripts/build-odoo-dataset.mjs from src/lib/odoo-live-snapshot.json — do not edit.
  * Source: ${snap.source} · db ${snap.database} · Odoo ${snap.serverVersion} · synced ${snap.syncedAt}
@@ -179,6 +369,24 @@ export type OdooBrandId = (typeof ODOO.brands)[number]['id']
 export type OdooLocationId = (typeof ODOO.restaurants)[number]['id']
 export type OdooChannelId = (typeof ODOO.channels)[number]['id']
 `
-fs.writeFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'odoo-dataset.ts'), out)
-console.log(`✔ src/lib/odoo/odoo-dataset.ts · ${brands.length} brands · ${restaurants.length} restaurants · ${exhibitions.length} EXB · ${canteens.length} canteens · ${channels.length} channels · cube ${cube.length}`)
-console.log('P&L:', pnl)
+}
+
+const isMainModule =
+  Boolean(process.argv[1]) &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+
+if (isMainModule) {
+  const snap = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo-live-snapshot.json'), 'utf8'),
+  )
+  const registry = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'pos-registry.json'), 'utf8'),
+  )
+  const dataset = buildOdooDataset(snap, registry)
+  const out = renderOdooDatasetTs(snap, registry)
+  fs.writeFileSync(path.join(ROOT, 'src', 'lib', 'odoo', 'odoo-dataset.ts'), out)
+  console.log(
+    `✔ src/lib/odoo/odoo-dataset.ts · ${dataset.brands.length} brands · ${dataset.restaurants.length} restaurants · ${dataset.exhibitions.length} EXB · ${dataset.canteens.length} canteens · ${dataset.channels.length} channels · cube ${dataset.cube.length}`,
+  )
+  console.log('P&L:', dataset.pnl)
+}

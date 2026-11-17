@@ -2,6 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import JSZip from 'jszip'
+import { SectionCard, StateBlock } from '@/components/ui'
+import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
+import {
+  UNAVAILABLE_DASH,
+  formatDate,
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+} from '@/lib/format'
 import type { SmartIngestModule } from '@/lib/smart-ingest-modules'
 import { SMART_INGEST_META } from '@/lib/smart-ingest-modules'
 
@@ -168,10 +178,27 @@ async function collectFilesFromDroppedItems(dataTransfer: DataTransfer): Promise
   return files.length ? files : Array.from(dataTransfer.files || [])
 }
 
+function UnavailableMarker({ tooltip }: { tooltip: string }) {
+  return (
+    <span
+      dir="ltr"
+      title={tooltip}
+      aria-label={tooltip}
+      data-unavailable="true"
+      className="ds-num tabular-nums"
+      style={{ color: 'var(--ds-unavailable)' }}
+    >
+      {UNAVAILABLE_DASH}
+    </span>
+  )
+}
+
 export function SmartDepartmentFolderUpload({ module, locale }: Props) {
   const meta = SMART_INGEST_META[module]
-  const dir = locale === 'ar' ? 'rtl' : 'ltr'
-  const label = useCallback((ar: string, en: string) => (locale === 'en' ? en : ar), [locale])
+  const isAr = locale !== 'en'
+  const dir = isAr ? 'rtl' : 'ltr'
+  const label = useCallback((ar: string, en: string) => (isAr ? ar : en), [isAr])
+  const unavailableTooltip = getUnavailableTooltip(locale)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const pauseRef = useRef(false)
@@ -185,6 +212,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       folderInputRef.current.setAttribute('mozdirectory', '')
     }
   }, [])
+
   const [pending, setPending] = useState<File[]>([])
   const [ignoredCount, setIgnoredCount] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -208,7 +236,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
         try {
           expanded.push(...(await expandZip(file)))
         } catch {
-          /* ignore */
+          // Skip unreadable zip entry
         }
       } else expanded.push(file)
     }
@@ -222,8 +250,8 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
     setPending(accepted)
     setNotice(
       label(
-        `تم العثور على ${accepted.length} ملف صالح لهذا القسم (وتم تجاهل ${ignored} ملف نظام غير ذي صلة)`,
-        `Found ${accepted.length} valid files for this department (ignored ${ignored} junk/system files)`,
+        `تم العثور على ${formatInt(accepted.length, locale)} ملف صالح لهذا القسم (وتم تجاهل ${formatInt(ignored, locale)} ملف نظام غير ذي صلة)`,
+        `Found ${formatInt(accepted.length, locale)} valid files for this department (ignored ${formatInt(ignored, locale)} junk/system files)`,
       ),
     )
   }
@@ -304,17 +332,18 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       () => pauseRef.current,
     )
 
+    const matchedCount = collected.filter((r) => r.status !== 'REVIEW' && r.status !== 'SKIPPED').length
     setNotice(
       label(
-        `اكتمل التوزيع: ${collected.length} · فشل/تخطّي ${failed.length} · مطابق ${collected.filter((r) => r.status !== 'REVIEW' && r.status !== 'SKIPPED').length}`,
-        `Done: ${collected.length} · failed/skipped ${failed.length} · matched ${collected.filter((r) => r.status !== 'REVIEW' && r.status !== 'SKIPPED').length}`,
+        `اكتمل التوزيع: ${formatInt(collected.length, locale)} · فشل/تخطّي ${formatInt(failed.length, locale)} · مطابق ${formatInt(matchedCount, locale)}`,
+        `Done: ${formatInt(collected.length, locale)} · failed/skipped ${formatInt(failed.length, locale)} · matched ${formatInt(matchedCount, locale)}`,
       ),
     )
     if (failed.length) {
       setError(
         label(
-          `تم تخطي ${failed.length} ملفاً دون إيقاف الباقي.`,
-          `${failed.length} files skipped without stopping the rest.`,
+          `تم تخطي ${formatInt(failed.length, locale)} ملفاً دون إيقاف الباقي.`,
+          `${formatInt(failed.length, locale)} files skipped without stopping the rest.`,
         ),
       )
     }
@@ -329,17 +358,21 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0
 
   return (
-    <div className="space-y-6" dir={dir}>
-      <div className="overflow-hidden rounded-2xl border border-emerald-900/40 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-6 text-emerald-50 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400/90">Dark Obsidian · AI Ingest</p>
-        <h2 className="mt-2 text-xl font-bold text-white">{locale === 'en' ? meta.titleEn : meta.titleAr}</h2>
-        <p className="mt-2 max-w-3xl text-sm text-emerald-100/80">{locale === 'en' ? meta.descEn : meta.descAr}</p>
-        <p className="mt-3 rounded-xl border border-emerald-700/40 bg-black/30 px-3 py-2 text-xs text-emerald-200/90">
-          {locale === 'en' ? meta.acceptsEn : meta.acceptsAr}
+    <div className="min-w-0 space-y-6" dir={dir}>
+      <div className="ae-hero-emerald-card overflow-hidden rounded-2xl p-6 shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-widest opacity-90">
+          {label('التوزيع الذكي لملفات القسم', 'Smart Department Document Distribution')}
+        </p>
+        <h2 className="mt-2 text-xl font-bold">{isAr ? meta.titleAr : meta.titleEn}</h2>
+        <p className="mt-2 max-w-3xl text-sm opacity-90">{isAr ? meta.descAr : meta.descEn}</p>
+        <p className="ae-hero-pill mt-3 inline-block rounded-xl px-3 py-2 text-xs font-medium">
+          {isAr ? meta.acceptsAr : meta.acceptsEn}
         </p>
       </div>
 
       <div
+        role="region"
+        aria-label={label('منطقة سحب وإفلات ملفات القسم', 'Department folder dropzone')}
         onDragEnter={(e) => {
           e.preventDefault()
           setDragging(true)
@@ -352,24 +385,26 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
           const files = await collectFilesFromDroppedItems(e.dataTransfer)
           void prepareSelection(files)
         }}
-        className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
-          dragging ? 'border-emerald-400 bg-emerald-950/20' : 'border-emerald-600/50 bg-slate-950/5'
-        }`}
+        style={{
+          backgroundColor: dragging ? 'var(--ds-accent-soft)' : 'var(--ds-bg-surface)',
+          borderColor: dragging ? 'var(--ds-accent)' : 'var(--ds-border-accent)',
+        }}
+        className="rounded-2xl border-2 border-dashed p-6 text-center transition sm:p-8"
       >
-        <p className="text-lg font-bold text-white dark:text-emerald-50">
+        <p className="text-lg font-bold text-[var(--ds-text-primary)]">
           {label('اسحب وأفلت مجلد القسم أو ZIP / Excel / PDF / صور', 'Drag & drop department folder, ZIP, Excel, PDF, or images')}
         </p>
-        <p className="mt-2 text-sm text-mist-300">
+        <p className="ds-caption mt-2">
           {label(
-            'فلترة نظام تلقائية · رفع متوازٍ (3) · ملف واحد لكل طلب · safeStorageKey',
-            'Auto junk filter · parallel pool (3) · 1 file/request · safeStorageKey',
+            'فلترة نظام تلقائية · رفع متوازٍ (3) · ملف واحد لكل طلب · تخزين آمن',
+            'Auto junk filter · parallel upload (3) · 1 file/request · encrypted storage',
           )}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
+            className="ds-focus-ring btn-colored cursor-pointer rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -390,24 +425,25 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               input.click()
             }}
           >
-            {label('📁 رفع مجلد كامل', '📁 Upload Entire Folder')}
+            {label('رفع مجلد كامل', 'Upload Entire Folder')}
           </button>
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/20 disabled:opacity-60"
+            className="ds-focus-ring cursor-pointer rounded-xl border border-[var(--ds-border-accent)] bg-[var(--ds-accent-soft)] px-5 py-3 text-sm font-bold text-[var(--ds-text-primary)] hover:brightness-95 disabled:opacity-60"
             onClick={() => {
               if (!fileInputRef.current) return
               fileInputRef.current.multiple = true
               fileInputRef.current.click()
             }}
           >
-            {label('📄 اختيار ملفات متعددة', '📄 Select Multiple Files')}
+            {label('اختيار ملفات متعددة', 'Select Multiple Files')}
           </button>
         </div>
         <input
           ref={fileInputRef}
           type="file"
+          aria-label={label('اختيار ملفات القسم للرفع', 'Select department files to upload')}
           className="hidden"
           multiple
           onChange={(e) => {
@@ -419,6 +455,7 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
         <input
           ref={folderInputRef}
           type="file"
+          aria-label={label('اختيار مجلد القسم للرفع', 'Select department folder to upload')}
           className="hidden"
           multiple
           onChange={(e) => {
@@ -429,11 +466,11 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       </div>
 
       {pending.length > 0 || ignoredCount > 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
-          <p className="text-sm font-semibold text-white">
+        <div className="ds-surface rounded-2xl p-4">
+          <p className="text-sm font-semibold text-[var(--ds-text-primary)]">
             {label(
-              `تم العثور على ${pending.length} ملف صالح (وتم تجاهل ${ignoredCount} ملف نظام)`,
-              `Found ${pending.length} valid files (ignored ${ignoredCount} system files)`,
+              `تم العثور على ${formatInt(pending.length, locale)} ملف صالح (وتم تجاهل ${formatInt(ignoredCount, locale)} ملف نظام)`,
+              `Found ${formatInt(pending.length, locale)} valid files (ignored ${formatInt(ignoredCount, locale)} system files)`,
             )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -441,13 +478,17 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
               type="button"
               disabled={busy || pending.length === 0}
               onClick={() => void startDistribution()}
-              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="ds-focus-ring btn-colored cursor-pointer rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {label('بدء التوزيع الذكي الآن 🚀', 'Start smart distribution now 🚀')}
+              {label('بدء التوزيع الذكي الآن', 'Start smart distribution now')}
             </button>
             {busy ? (
-              <button type="button" onClick={togglePause} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold">
-                {paused ? label('استئناف ▶', 'Resume ▶') : label('إيقاف مؤقت ⏸', 'Pause ⏸')}
+              <button
+                type="button"
+                onClick={togglePause}
+                className="ds-focus-ring cursor-pointer rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-4 py-2.5 text-sm font-bold text-[var(--ds-text-primary)]"
+              >
+                {paused ? label('استئناف', 'Resume') : label('إيقاف مؤقت', 'Pause')}
               </button>
             ) : null}
           </div>
@@ -455,29 +496,59 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
       ) : null}
 
       {busy || progress.total > 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-semibold text-mist-100">
+        <div className="ds-surface rounded-2xl p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="font-semibold text-[var(--ds-text-primary)]">
               {label('حالة التقدم', 'Upload progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف', 'paused')}` : ''}
             </span>
-            <span dir="ltr">
-              {progress.done}/{progress.total} ({pct}%) · fail {progress.failed}
+            <span dir="ltr" className="ds-num font-semibold tabular-nums text-[var(--ds-text-secondary)]">
+              {formatInt(progress.done, locale)}/{formatInt(progress.total, locale)} ({formatPct(pct, { locale, decimals: 0 })}) · fail{' '}
+              {formatInt(progress.failed, locale)}
             </span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={label('تقدم رفع ملفات القسم', 'Department upload progress')}
+            className="h-3 overflow-hidden rounded-full bg-[var(--ds-bg-subtle)]"
+          >
             <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
         </div>
       ) : null}
 
-      {notice ? <p className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">{notice}</p> : null}
-      {error ? <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">{error}</p> : null}
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-xl border px-4 py-3 text-sm font-medium"
+          style={{
+            backgroundColor: 'var(--ds-positive-bg)',
+            borderColor: 'var(--ds-positive-border)',
+            color: 'var(--ds-positive)',
+          }}
+        >
+          {notice}
+        </p>
+      ) : null}
+      {error ? (
+        <StateBlock
+          state="error"
+          compact
+          locale={locale}
+          title={label('تنبيه أثناء المعالجة', 'Processing notice')}
+          description={error}
+        />
+      ) : null}
 
       {failedNames.length > 0 ? (
-        <details className="rounded-xl border border-white/10 bg-[#11161f] p-3 text-xs text-mist-300">
-          <summary className="cursor-pointer font-semibold">{label('قائمة المتخطاة / إعادة المحاولة', 'Skipped / retry list')}</summary>
+        <details className="ds-surface rounded-xl p-3 text-xs text-[var(--ds-text-secondary)]">
+          <summary className="ds-focus-ring cursor-pointer font-semibold text-[var(--ds-text-primary)]">
+            {label('قائمة المتخطاة / إعادة المحاولة', 'Skipped / retry list')} ({formatInt(failedNames.length, locale)})
+          </summary>
           <ul className="mt-2 max-h-40 list-disc overflow-auto ps-5" dir="ltr">
             {failedNames.map((name) => (
               <li key={name}>{name}</li>
@@ -486,71 +557,144 @@ export function SmartDepartmentFolderUpload({ module, locale }: Props) {
         </details>
       ) : null}
 
+      {rows.length === 0 && !busy && pending.length === 0 ? (
+        <StateBlock
+          state="empty"
+          compact
+          locale={locale}
+          title={label('بانتظار رفع ملفات القسم', 'Ready for department files')}
+          description={label(
+            'اسحب مجلد القسم أو اختر ملفات Excel / PDF / الصور لربطها تلقائياً.',
+            'Drop a department folder or choose Excel / PDF / image files to classify and route.',
+          )}
+        />
+      ) : null}
+
       {rows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
-          <header className="border-b border-white/10 px-4 py-3">
-            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي', 'Auto-distribution table')}</h2>
-          </header>
-          <div className="overflow-x-auto">
+        <SectionCard
+          title={label('جدول التوزيع التلقائي', 'Auto-distribution table')}
+          locale={locale}
+          padded={false}
+        >
+          <div className="w-full overflow-x-auto">
             <table className="w-full min-w-[960px] text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-mist-400">
-                  <th className="px-3 py-2 text-start">{label('الملف', 'File')}</th>
-                  <th className="px-3 py-2 text-start">{label('الربط', 'Matched entity')}</th>
-                  <th className="px-3 py-2 text-start">{label('فرع/براند', 'Branch/Brand')}</th>
-                  <th className="px-3 py-2 text-start">{label('التصنيف', 'Category')}</th>
-                  <th className="px-3 py-2 text-start">{label('التحديثات', 'Updates')}</th>
-                  <th className="px-3 py-2 text-start">{label('الحالة', 'Status')}</th>
+              <thead className="border-b border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)]">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الملف', 'File')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الربط', 'Matched entity')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('فرع / براند', 'Branch / Brand')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-end text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('المبلغ', 'Amount')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('التصنيف', 'Category')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الانتهاء', 'Expiry')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('التحديثات', 'Updates')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الحالة', 'Status')}
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-white/5">
-                    <td className="px-3 py-2">
-                      <p className="font-medium text-white">{row.fileName}</p>
-                      <p className="text-xs text-mist-400" dir="ltr">
-                        {row.relativePath}
-                      </p>
-                      {row.amountKwd != null ? (
-                        <p className="text-xs text-emerald-700" dir="ltr">
-                          {row.amountKwd.toFixed(3)} KWD
+              <tbody className="divide-y divide-[var(--ds-border-hairline)]">
+                {rows.map((row) => {
+                  const safeEntity =
+                    row.entityLabel && !isExcludedOdooEntity(row.entityLabel) ? row.entityLabel : null
+                  const safeBranch =
+                    row.branchCode && !isExcludedOdooEntity(row.branchCode) ? row.branchCode : null
+                  const safeBrand =
+                    row.brandCode && !isExcludedOdooEntity(row.brandCode) ? row.brandCode : null
+                  const formattedExpiry = row.expiryDate ? formatDate(row.expiryDate, locale) : UNAVAILABLE_DASH
+
+                  const badgeStyle =
+                    row.status === 'SKIPPED'
+                      ? {
+                          backgroundColor: 'var(--ds-warning-bg)',
+                          borderColor: 'var(--ds-warning-border)',
+                          color: 'var(--ds-warning)',
+                        }
+                      : row.status === 'REVIEW'
+                        ? {
+                            backgroundColor: 'var(--ds-unavailable-bg)',
+                            borderColor: 'var(--ds-unavailable-border)',
+                            color: 'var(--ds-unavailable)',
+                          }
+                        : {
+                            backgroundColor: 'var(--ds-positive-bg)',
+                            borderColor: 'var(--ds-positive-border)',
+                            color: 'var(--ds-positive)',
+                          }
+
+                  return (
+                    <tr key={row.id} className="hover:bg-[var(--ds-bg-hover)]">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-[var(--ds-text-primary)]">{row.fileName}</p>
+                        <p className="ds-caption" dir="ltr">
+                          {row.relativePath}
                         </p>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2">
-                      {row.entityLabel || '—'}
-                      {row.entityKey ? (
-                        <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
-                          {row.entityKey}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--ds-text-primary)]">
+                        {safeEntity || <UnavailableMarker tooltip={unavailableTooltip} />}
+                        {row.entityKey ? (
+                          <span className="ds-caption ds-num mt-0.5 block tabular-nums" dir="ltr">
+                            {row.entityKey}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--ds-text-secondary)]" dir="ltr">
+                        {[safeBranch, safeBrand].filter(Boolean).join(' · ') || (
+                          <UnavailableMarker tooltip={unavailableTooltip} />
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-end">
+                        {row.amountKwd != null && Number.isFinite(row.amountKwd) ? (
+                          <span dir="ltr" className="ds-num font-semibold tabular-nums text-[var(--ds-text-primary)]">
+                            {formatKwd(row.amountKwd, locale)}
+                          </span>
+                        ) : (
+                          <UnavailableMarker tooltip={unavailableTooltip} />
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--ds-text-primary)]">
+                        {isAr ? row.categoryLabelAr : row.categoryLabelEn}
+                      </td>
+                      <td className="px-4 py-3">
+                        {formattedExpiry === UNAVAILABLE_DASH ? (
+                          <UnavailableMarker tooltip={unavailableTooltip} />
+                        ) : (
+                          <span dir="ltr" className="ds-num tabular-nums text-[var(--ds-text-primary)]">
+                            {formattedExpiry}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--ds-text-secondary)]" dir="ltr">
+                        {row.updates.join(', ') || UNAVAILABLE_DASH}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          style={badgeStyle}
+                          className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                        >
+                          {row.status}
                         </span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-xs" dir="ltr">
-                      {[row.branchCode, row.brandCode].filter(Boolean).join(' · ') || '—'}
-                    </td>
-                    <td className="px-3 py-2">{locale === 'en' ? row.categoryLabelEn : row.categoryLabelAr}</td>
-                    <td className="px-3 py-2 text-xs text-mist-300" dir="ltr">
-                      {row.updates.join(', ') || '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          row.status === 'SKIPPED'
-                            ? 'bg-amber-100 text-amber-900'
-                            : row.status === 'REVIEW'
-                              ? 'bg-slate-100 text-mist-200'
-                              : 'bg-emerald-100 text-emerald-300'
-                        }`}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionCard>
       ) : null}
     </div>
   )

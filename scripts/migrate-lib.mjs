@@ -75,6 +75,11 @@ export const baselineSentinels = {
   '0044_optimize_odoo_indexes.sql': ['fn:erp_optimize_odoo_indexes_marker()'],
   '0045_odoo_hot_cold_indexes.sql': ['fn:erp_odoo_hot_cold_indexes_marker()'],
   '0046_notification_smtp_server_dispatch.sql': ['fn:erp_notification_smtp_dispatch_marker()'],
+  '0047_ai_runs.sql': ['public.ai_runs', 'public.ai_daily_briefs', 'fn:erp_ai_runs_marker()'],
+  '0048_deactivate_non_company_items.sql': ['fn:erp_deactivate_non_company_items_marker()'],
+  '0049_flag_unsourced_hr_expiries.sql': ['fn:erp_flag_unsourced_hr_expiries_marker()'],
+  '0050_governance_sync_rls.sql': ['public.vf_executive_governance_sync', 'fn:erp_governance_sync_rls_marker()'],
+  '0051_pos_terminal_branch_map.sql': ['public.pos_terminal_branch_map', 'fn:erp_pos_terminal_branch_map_rls_marker()'],
 }
 
 /**

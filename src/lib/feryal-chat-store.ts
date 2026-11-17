@@ -16,6 +16,7 @@ import {
   type FeryalMemoryState,
 } from '@/lib/feryal-learning-engine'
 import type { StoredAttachmentMeta, VisionComplianceTier } from '@/lib/feryal-multimodal'
+import { formatDate } from '@/lib/format'
 
 export const FERYAL_CHATS_DB_NAME = 'aether_feryal_chats_v2'
 export const FERYAL_CHATS_INDEX_KEY = 'aether_feryal_chats_index_v2'
@@ -724,8 +725,8 @@ export function filterAndGroupChats({
     return hay.includes(q)
   })
 
-  const now = new Date()
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const kwTodayIso = formatDate(new Date(), 'en')
+  const startOfToday = new Date(`${kwTodayIso}T00:00:00+03:00`).getTime()
   const startOfYesterday = startOfToday - 86_400_000
   const startOfWeek = startOfToday - 6 * 86_400_000
 

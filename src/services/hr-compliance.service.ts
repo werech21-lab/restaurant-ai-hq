@@ -9,7 +9,15 @@ export type ComplianceDocKey =
   | 'workPermitExpiry'
   | 'drivingLicenseExpiry'
 
-export type ComplianceBand = 'expired' | 'd30' | 'd60' | 'valid' | 'missing'
+export type ComplianceBand = 'expired' | 'd30' | 'd60' | 'valid' | 'missing' | 'unknown'
+
+const DOCUMENT_SOURCE: Record<ComplianceDocKey, readonly string[]> = {
+  civilIdExpiry: ['civil_id'],
+  passportExpiry: ['passport_work'],
+  healthCardExpiry: ['health_card'],
+  workPermitExpiry: ['passport_work'],
+  drivingLicenseExpiry: ['driving'],
+}
 
 export type ComplianceItem = {
   employeeId: string
@@ -33,6 +41,16 @@ const DOC_META: Record<ComplianceDocKey, { ar: string; en: string }> = {
   drivingLicenseExpiry: { ar: 'رخصة القيادة ودفتر السيارة', en: 'Driving License & Vehicle' },
 }
 
+export function readTimeCompliance(
+  expiry: Date | null | undefined,
+  hasDocument: boolean,
+  now: number,
+): { band: ComplianceBand; daysLeft: number | null; expiryDate: string | null } {
+  if (expiry && !hasDocument) return { band: 'unknown', daysLeft: null, expiryDate: null }
+  const { band, daysLeft } = bandOf(expiry, now)
+  return { band, daysLeft, expiryDate: expiry ? expiry.toISOString().slice(0, 10) : null }
+}
+
 function bandOf(expiry: Date | null | undefined, now: number): { band: ComplianceBand; daysLeft: number | null } {
   if (!expiry) return { band: 'missing', daysLeft: null }
   const daysLeft = Math.ceil((expiry.getTime() - now) / 86_400_000)
@@ -48,6 +66,11 @@ export async function buildComplianceRadar() {
     where: { status: 'ACTIVE' },
     orderBy: { name: 'asc' },
   })
+  const documents = await prisma.hrDocument.findMany({
+    where: { employeeId: { in: employees.map((employee) => employee.id) }, expiryDate: { not: null } },
+    select: { employeeId: true, category: true },
+  })
+  const sourced = new Set(documents.map((doc) => `${doc.employeeId}:${doc.category}`))
   const items: ComplianceItem[] = []
   for (const emp of employees) {
     const fields: ComplianceDocKey[] = [
@@ -59,7 +82,8 @@ export async function buildComplianceRadar() {
     ]
     for (const key of fields) {
       const expiry = emp[key]
-      const { band, daysLeft } = bandOf(expiry, now)
+      const hasDocument = DOCUMENT_SOURCE[key].some((category) => sourced.has(`${emp.id}:${category}`))
+      const reading = readTimeCompliance(expiry, hasDocument, now)
       // Drivers: always track license. Kitchen/FOH: emphasize health card. Everyone: civil + passport + work permit.
       if (key === 'drivingLicenseExpiry' && !/driv|سائق|courier|mandoob|delivery/i.test(`${emp.jobTitle} ${emp.department}`) && !expiry) {
         continue
@@ -73,9 +97,9 @@ export async function buildComplianceRadar() {
         docKey: key,
         docLabelAr: DOC_META[key].ar,
         docLabelEn: DOC_META[key].en,
-        expiryDate: expiry ? expiry.toISOString().slice(0, 10) : null,
-        daysLeft,
-        band,
+        expiryDate: reading.expiryDate,
+        daysLeft: reading.daysLeft,
+        band: reading.band,
       })
     }
   }
@@ -86,6 +110,7 @@ export async function buildComplianceRadar() {
     d60: items.filter((i) => i.band === 'd60'),
     valid: items.filter((i) => i.band === 'valid'),
     missing: items.filter((i) => i.band === 'missing'),
+    unknown: items.filter((i) => i.band === 'unknown'),
   }
 
   const amgad = VF_PEOPLE.find((p) => /Amjad Samir/i.test(p.name))
@@ -128,52 +153,63 @@ export async function buildComplianceRadar() {
       d60: groups.d60.length,
       valid: groups.valid.length,
       missing: groups.missing.length,
+      unknown: groups.unknown.length,
     },
     groups,
     renewalDispatch: { body, recipients },
   }
 }
 
-/** Seed synthetic but realistic expiry dates when missing (from hire + category heuristics). */
+type HrDocumentExpiryRow = {
+  category: string
+  expiryDate: Date | null
+  civilId?: string | null
+}
+
+/** Dates copied from hrDocument rows only. A missing document contributes no date. */
+export function expiriesFromHrDocuments(
+  docs: readonly HrDocumentExpiryRow[],
+): Partial<Record<ComplianceDocKey, Date>> {
+  const data: Partial<Record<ComplianceDocKey, Date>> = {}
+  for (const doc of docs) {
+    if (!doc.expiryDate) continue
+    if (doc.category === 'civil_id') data.civilIdExpiry = doc.expiryDate
+    if (doc.category === 'passport_work') {
+      data.passportExpiry = doc.expiryDate
+      data.workPermitExpiry = doc.expiryDate
+    }
+    if (doc.category === 'health_card') data.healthCardExpiry = doc.expiryDate
+    if (doc.category === 'driving') data.drivingLicenseExpiry = doc.expiryDate
+  }
+  return data
+}
+
+/** Copy real expiry dates from hrDocument. Does not invent a date when no document exists. */
 export async function ensureComplianceBaselines() {
   const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } })
   let updated = 0
-  const now = Date.now()
   for (const emp of employees) {
-    const data: Record<string, Date> = {}
-    const base = emp.hireDate?.getTime() || now - 365 * 86_400_000
-    if (!emp.civilIdExpiry) data.civilIdExpiry = new Date(base + (300 + (emp.code.charCodeAt(0) % 90)) * 86_400_000)
-    if (!emp.passportExpiry) data.passportExpiry = new Date(base + (600 + (emp.code.charCodeAt(emp.code.length - 1) % 200)) * 86_400_000)
-    if (!emp.healthCardExpiry) data.healthCardExpiry = new Date(base + (120 + (Number(emp.code) % 80 || 20)) * 86_400_000)
-    if (!emp.workPermitExpiry) data.workPermitExpiry = new Date(base + (280 + (Number(emp.code) % 100 || 30)) * 86_400_000)
-    if (/driv|سائق|courier|mandoob/i.test(emp.jobTitle) && !emp.drivingLicenseExpiry) {
-      data.drivingLicenseExpiry = new Date(base + (200 + (Number(emp.code) % 60 || 10)) * 86_400_000)
-    }
-    // Pull from documents if present
     const docs = await prisma.hrDocument.findMany({
       where: { employeeId: emp.id, expiryDate: { not: null } },
       select: { category: true, expiryDate: true, civilId: true },
     })
-    for (const doc of docs) {
-      if (!doc.expiryDate) continue
-      if (doc.category === 'civil_id') data.civilIdExpiry = doc.expiryDate
-      if (doc.category === 'passport_work') {
-        data.passportExpiry = doc.expiryDate
-        data.workPermitExpiry = doc.expiryDate
-      }
-      if (doc.category === 'health_card') data.healthCardExpiry = doc.expiryDate
-      if (doc.category === 'driving') data.drivingLicenseExpiry = doc.expiryDate
-    }
-    if (Object.keys(data).length) {
-      await prisma.employee.update({
-        where: { id: emp.id },
-        data: {
-          ...data,
-          civilId: emp.civilId || docs.find((d) => d.civilId)?.civilId || emp.civilId,
-        },
-      })
-      updated += 1
-    }
+    const data = expiriesFromHrDocuments(docs)
+    const civilFromDoc = docs.find((d) => d.civilId)?.civilId
+    const patch: {
+      civilIdExpiry?: Date
+      passportExpiry?: Date
+      healthCardExpiry?: Date
+      workPermitExpiry?: Date
+      drivingLicenseExpiry?: Date
+      civilId?: string
+    } = { ...data }
+    if (!emp.civilId && civilFromDoc) patch.civilId = civilFromDoc
+    if (Object.keys(patch).length === 0) continue
+    await prisma.employee.update({
+      where: { id: emp.id },
+      data: patch,
+    })
+    updated += 1
   }
   return { updated, total: employees.length }
 }

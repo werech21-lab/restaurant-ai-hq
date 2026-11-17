@@ -770,6 +770,38 @@ model KitchenTicket {
   @@index([warehouseId, status])
 }
 
+/// One provider call inside a Feryal council turn. estCostMicroUsd is an estimated provider cost in micro-USD.
+model AiRun {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  userId          String
+  questionHash    String
+  provider        String
+  modelId         String
+  latencyMs       Int
+  tokensIn        Int?
+  tokensOut       Int?
+  estCostMicroUsd Int?
+  status          String
+  errorCode       String?
+
+  @@index([createdAt])
+  @@map("ai_runs")
+}
+
+/// Stored background report. `reply` is the report JSON. The schedule is on unless AI_DAILY_BRIEF_ENABLED is 0, false, or off.
+model AiDailyBrief {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  questionHash  String
+  status        String
+  reply         String
+  agreedModels  String
+
+  @@index([createdAt])
+  @@map("ai_daily_briefs")
+}
+
 model KitchenTicketItem {
   id        String        @id @default(cuid())
   ticketId  String
@@ -781,4 +813,14 @@ model KitchenTicketItem {
   ticket    KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+}
+
+/// Admin POS terminal-to-branch overrides. Managed via migration; server/service role access only.
+model PosTerminalBranchMap {
+  terminalId Int     @id @map("terminal_id")
+  branchId   String? @map("branch_id")
+  updatedAt  String  @map("updated_at")
+  updatedBy  String? @map("updated_by")
+
+  @@map("pos_terminal_branch_map")
 }

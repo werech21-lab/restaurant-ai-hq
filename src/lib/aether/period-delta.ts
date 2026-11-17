@@ -203,28 +203,9 @@ export function formatCampaignAuditTitle(
   return cleanBrand ? `${prefix}: ${cleanTitle} (${cleanBrand})` : `${prefix}: ${cleanTitle}`
 }
 
-const EXCLUDED_ENTITY_RE = new RegExp(
-  [
-    '\\b(?:heisen',
-    'berg|hizen',
-    'berg|qur',
-    'ain|qr',
-    'n)\\b|qur',
-    'ain\\s*wh|\\u0647\\u0627\\u064a\\u0632\\u0646\\s*\\u0628\\u0631\\u064a\\u062c|\\u0647\\u0627\\u064a\\u0632\\u0646\\u0628\\u0631\\u063a|\\u0647\\u0627\\u064a\\u0632\\u0646\\u0628\\u0631\\u062c|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646',
-  ].join(''),
-  'i',
-)
+import { isExcludedOdooEntity, isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 
-/**
- * Strict entity exclusion predicate:
- * Excludes non-approved legacy brand and decommissioned warehouse locations across all APIs, dropdowns, and tables.
- */
-export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
-  if (!raw) return false
-  const text = String(raw).trim()
-  if (!text) return false
-  return EXCLUDED_ENTITY_RE.test(text)
-}
+export { isExcludedOdooEntity, isExcludedRecordId }
 
 /** Current calendar date (`YYYY-MM-DD`) in `Asia/Kuwait` (`UTC+3`). */
 export function getKuwaitTodayIso(referenceNowMs = Date.now()): string {

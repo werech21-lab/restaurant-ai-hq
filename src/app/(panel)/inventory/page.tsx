@@ -3,9 +3,9 @@ import { connection } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
-import { formatQty, movementTypeFromQuery } from "@/lib/format";
+import { formatDateTime, formatKwd, formatQty, movementTypeFromQuery, UNAVAILABLE_DASH } from "@/lib/format";
 import { movementLabel } from "@/lib/i18n/auto-translate";
-import { datetimeFor, getLocale, moneyFor } from "@/lib/i18n/server";
+import { getLocale } from "@/lib/i18n/server";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
@@ -23,6 +23,7 @@ export const metadata = {
 async function InventoryContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
   const locale = await getLocale();
+  const uiLocale = locale === "en" ? "en" : "ar";
   const query = await readQuery(searchParams);
   const user = await requireUser();
   if (!can(user, "inventory", "view")) return <Forbidden href={firstAllowedHref(user)} />;
@@ -96,7 +97,6 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
     total = Math.max(cleanRows.length, count - (rows.length - cleanRows.length));
     movements = cleanRows;
   } else {
-    // Decoupled from hidden scope filters to display all enterprise stock items reliably
     const result = await queryProducts({
       q: query.q,
       page: query.page,
@@ -130,11 +130,11 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
         sellingPrice: row.sellingPrice,
         reorderLevel: row.reorderLevel,
         low: row.currentStock <= row.reorderLevel,
-        costLabel: moneyFor(locale, row.costPrice),
-        sellLabel: moneyFor(locale, row.sellingPrice),
+        costLabel: formatKwd(row.costPrice, { locale: uiLocale }),
+        sellLabel: formatKwd(row.sellingPrice, { locale: uiLocale }),
         stockLabel: formatQty(row.currentStock),
         reorderLabel: formatQty(row.reorderLevel),
-        forecastLabel: forecasts.get(row.id) ?? "—",
+        forecastLabel: forecasts.get(row.id) ?? UNAVAILABLE_DASH,
         customData: row.customData,
       }))}
       categories={categories.map((row) => ({
@@ -145,7 +145,7 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
       }))}
       movements={movements.map((row) => ({
         id: row.id,
-        dateLabel: datetimeFor(locale, row.createdAt),
+        dateLabel: formatDateTime(row.createdAt, { locale: uiLocale }),
         productName: row.product.name,
         code: row.product.code,
         type: row.type,

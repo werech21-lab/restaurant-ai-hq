@@ -333,13 +333,20 @@ export function alertMatchesFilters(a: BiAlert, f: BiFilters) {
   return okBranch && okChannel && okBrand
 }
 
-export const fmt = (n: number, digits = 0) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+export const fmt = (n: number | null | undefined, digits = 0) =>
+  n == null || !Number.isFinite(n)
+    ? '—'
+    : n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
-export const kwd = (n: number, lang: Lang, digits = 3) =>
-  lang === 'ar' ? `${fmt(n, digits)} د.ك` : `${fmt(n, digits)} KWD`
+export const kwd = (n: number | null | undefined, lang: Lang, digits = 3) =>
+  n == null || !Number.isFinite(n)
+    ? '—'
+    : lang === 'ar'
+      ? `${fmt(n, digits)} د.ك`
+      : `${fmt(n, digits)} KWD`
 
-export const pct = (n: number, digits = 1) => `${fmt(n, digits)}%`
+export const pct = (n: number | null | undefined, digits = 1) =>
+  n == null || !Number.isFinite(n) ? '—' : `${fmt(n, digits)}%`
 
 export const T = (lang: Lang) => (en: string, ar: string) => (lang === 'ar' ? ar : en)
 

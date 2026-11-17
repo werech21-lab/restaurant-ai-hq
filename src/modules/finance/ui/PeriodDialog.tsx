@@ -5,11 +5,11 @@ import { apiRequest } from '@/components/erp/api'
 import { dangerButton, inputClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { Num } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
+import { formatKuwaitDateTime } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { closePeriodSchema, createPeriodSchema, type FiscalPeriod } from '@/modules/finance/client'
 import { FormIssues, LedgerFailure, PeriodStatusBadge } from '@/modules/finance/ui/shared'
 import { Fact, Field, todayUtc, useRunner } from '@/components/erp/actions'
-import { dateTimeText } from '@/components/erp/common'
 import { useCan } from '@/components/erp/permissions'
 
 type Props = {
@@ -30,7 +30,8 @@ function issueOf(path: ReadonlyArray<PropertyKey>): MessageKey {
  * refuses it while the period still holds a draft entry, so the screen asks for a confirmation first.
  */
 export function PeriodDialog({ period, onChanged, onClose }: Props) {
-  const { t } = useI18n()
+  const { locale, t } = useI18n()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const canManage = useCan(permissions.financePeriodManage)
   const [current, setCurrent] = useState<FiscalPeriod | null>(period ?? null)
   const [name, setName] = useState(period?.name ?? '')
@@ -89,7 +90,7 @@ export function PeriodDialog({ period, onChanged, onClose }: Props) {
           <Fact label={t('led.per.endsOn')}>
             <Num>{current.endsOn}</Num>
           </Fact>
-          {current.closedAt ? <Fact label={t('led.per.closedAt')}>{dateTimeText(current.closedAt)}</Fact> : null}
+          {current.closedAt ? <Fact label={t('led.per.closedAt')}><Num>{formatKuwaitDateTime(current.closedAt, resolvedLocale)}</Num></Fact> : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -105,7 +106,7 @@ export function PeriodDialog({ period, onChanged, onClose }: Props) {
         </div>
       )}
 
-      {current?.status === 'open' ? <p className="text-xs text-gray-500">{t('led.per.closeHint')}</p> : null}
+      {current?.status === 'open' ? <p className="text-xs text-gray-300">{t('led.per.closeHint')}</p> : null}
 
       {confirming && current ? (
         <div className="space-y-3 rounded-xl border border-[#30363d] p-4">

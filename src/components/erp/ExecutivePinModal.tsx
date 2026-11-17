@@ -159,18 +159,7 @@ export function ExecutivePinModal({
           )
         }
       } else {
-        try {
-          await fetch('/api/erp/governance', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'changePin',
-              currentPin: verifiedCurrentPin,
-              newPin: code,
-            }),
-          })
-        } catch {}
-        const res = changeManagerPin(verifiedCurrentPin, code)
+        const res = await changeManagerPin(verifiedCurrentPin, code)
         if (res.ok) {
           unlockExecutiveSession()
           setErrorMsg(null)

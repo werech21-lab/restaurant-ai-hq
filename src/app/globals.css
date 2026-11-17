@@ -27,10 +27,60 @@ html.dark {
   --gold-600: 154 116 54;
   --shadow-card: 0 0 0 1px rgba(52, 211, 153, 0.09), 0 8px 24px -8px rgba(0, 0, 0, 0.45);
   --shadow-lift: 0 0 0 1px rgba(52, 211, 153, 0.18), 0 14px 32px -10px rgba(0, 0, 0, 0.55);
+
+  /* Executive Design System Tokens — Dark (Obsidian-Ink & Deep Emerald) */
+  --ds-bg-canvas: #090E0C;
+  --ds-bg-surface: #101815;
+  --ds-bg-elevated: #141F1B;
+  --ds-bg-subtle: #111A17;
+  --ds-bg-hover: rgba(16, 185, 129, 0.06);
+  --ds-border-hairline: rgba(143, 163, 155, 0.16);
+  --ds-border-strong: rgba(143, 163, 155, 0.28);
+  --ds-border-accent: rgba(52, 211, 153, 0.28);
+  --ds-text-primary: #F8FAFC;
+  --ds-text-secondary: #CBD5E1;
+  --ds-text-muted: #8FA39B;
+  --ds-accent: #10B981;
+  --ds-accent-ink: #04130D;
+  --ds-accent-soft: rgba(16, 185, 129, 0.14);
+  --ds-positive: #34D399;
+  --ds-positive-bg: rgba(16, 185, 129, 0.13);
+  --ds-positive-border: rgba(52, 211, 153, 0.28);
+  --ds-negative: #FB7185;
+  --ds-negative-bg: rgba(244, 63, 94, 0.13);
+  --ds-negative-border: rgba(251, 113, 133, 0.28);
+  --ds-warning: #FBBF24;
+  --ds-warning-bg: rgba(245, 158, 11, 0.14);
+  --ds-warning-border: rgba(251, 191, 36, 0.30);
+  --ds-unavailable: #94A3B8;
+  --ds-unavailable-bg: rgba(148, 163, 184, 0.12);
+  --ds-unavailable-border: rgba(148, 163, 184, 0.24);
+  --ds-chart-grid: rgba(143, 163, 155, 0.12);
+  --ds-chart-axis: #94A3B8;
+  --ds-skeleton-base: rgba(143, 163, 155, 0.10);
+  --ds-skeleton-sheen: rgba(143, 163, 155, 0.20);
+  --ds-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.36), 0 8px 24px -10px rgba(0, 0, 0, 0.45);
+  --ds-shadow-elevated: 0 12px 32px -10px rgba(0, 0, 0, 0.58);
+
+  /* Shared Rhythm, Radius & Motion */
+  --ds-space-1: 0.25rem;
+  --ds-space-2: 0.5rem;
+  --ds-space-3: 0.75rem;
+  --ds-space-4: 1rem;
+  --ds-space-5: 1.25rem;
+  --ds-space-6: 1.5rem;
+  --ds-radius-sm: 0.5rem;
+  --ds-radius-md: 0.75rem;
+  --ds-radius-lg: 1rem;
+  --ds-radius-xl: 1.25rem;
+  --ds-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ds-dur-fast: 150ms;
+  --ds-dur-base: 220ms;
 }
 
 html[data-theme='light'],
-html.light-mode {
+html.light-mode,
+html.light {
   color-scheme: light;
   --ink-950: 248 250 252;
   --ink-900: 255 255 255;
@@ -47,6 +97,40 @@ html.light-mode {
   --gold-600: 161 98 7;
   --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px 0 rgba(15, 23, 42, 0.04);
   --shadow-lift: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+
+  /* Executive Design System Tokens — Light (Warm Alabaster & Pure White) */
+  --ds-bg-canvas: #F6F7F8;
+  --ds-bg-surface: #FFFFFF;
+  --ds-bg-elevated: #FFFFFF;
+  --ds-bg-subtle: #F1F4F6;
+  --ds-bg-hover: rgba(15, 23, 42, 0.035);
+  --ds-border-hairline: rgba(15, 23, 42, 0.09);
+  --ds-border-strong: rgba(15, 23, 42, 0.16);
+  --ds-border-accent: rgba(5, 150, 105, 0.26);
+  --ds-text-primary: #0F172A;
+  --ds-text-secondary: #334155;
+  --ds-text-muted: #52637A;
+  --ds-accent: #059669;
+  --ds-accent-ink: #FFFFFF;
+  --ds-accent-soft: #ECFDF5;
+  --ds-positive: #047857;
+  --ds-positive-bg: #ECFDF5;
+  --ds-positive-border: #A7F3D0;
+  --ds-negative: #BE123C;
+  --ds-negative-bg: #FFF1F2;
+  --ds-negative-border: #FECDD3;
+  --ds-warning: #B45309;
+  --ds-warning-bg: #FFFBEB;
+  --ds-warning-border: #FDE68A;
+  --ds-unavailable: #475569;
+  --ds-unavailable-bg: #F1F5F9;
+  --ds-unavailable-border: #CBD5E1;
+  --ds-chart-grid: rgba(15, 23, 42, 0.08);
+  --ds-chart-axis: #475569;
+  --ds-skeleton-base: rgba(15, 23, 42, 0.06);
+  --ds-skeleton-sheen: rgba(15, 23, 42, 0.12);
+  --ds-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px -8px rgba(15, 23, 42, 0.06);
+  --ds-shadow-elevated: 0 12px 28px -8px rgba(15, 23, 42, 0.10);
 }
 
 html,
@@ -1278,4 +1362,112 @@ html:not(.dark) .ae-pill-hatch {
     rgba(16, 185, 129, 0.04) 9px
   ) !important;
   box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.18) !important;
+}
+
+/* ==========================================================================
+   AETHERBI EXECUTIVE DESIGN SYSTEM — TYPOGRAPHY, SURFACES & MOTION
+   Private-bank board-report scale with Arabic-first legibility (>=12px min)
+   ========================================================================== */
+.ds-page-title {
+  font-size: clamp(1.375rem, 1.2rem + 0.75vw, 1.875rem);
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ds-text-primary);
+}
+
+.ds-section-title {
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ds-text-primary);
+}
+
+.ds-kpi-value {
+  font-size: clamp(1.375rem, 1.18rem + 0.65vw, 1.75rem);
+  line-height: 1.28;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--ds-text-primary);
+}
+
+.ds-label {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+}
+
+.ds-caption {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+}
+
+.ds-num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  display: inline-block;
+}
+
+.ds-surface {
+  background-color: var(--ds-bg-surface);
+  border: 1px solid var(--ds-border-hairline);
+  box-shadow: var(--ds-shadow-card);
+  color: var(--ds-text-primary);
+}
+
+.ds-surface-elevated {
+  background-color: var(--ds-bg-elevated);
+  border: 1px solid var(--ds-border-hairline);
+  box-shadow: var(--ds-shadow-elevated);
+  color: var(--ds-text-primary);
+}
+
+.ds-surface-subtle {
+  background-color: var(--ds-bg-subtle);
+  border: 1px solid var(--ds-border-hairline);
+  color: var(--ds-text-secondary);
+}
+
+.ds-motion {
+  transition-property: transform, box-shadow, background-color, border-color, opacity, color;
+  transition-duration: var(--ds-dur-fast);
+  transition-timing-function: var(--ds-ease-out);
+}
+
+.ds-focus-ring:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: 2px;
+}
+
+@keyframes ds-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ds-skeleton {
+  background-color: var(--ds-skeleton-base);
+  animation: ds-pulse 1.5s var(--ds-ease-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-motion {
+    transition-duration: 0.01ms !important;
+  }
+  .ds-skeleton {
+    animation: none !important;
+    opacity: 0.8;
+  }
 }

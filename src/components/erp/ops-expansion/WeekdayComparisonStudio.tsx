@@ -12,9 +12,21 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
+import {
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+  UNAVAILABLE_DASH,
+  type FormatLocale,
+} from '@/lib/format'
+import { publishPageOdooSync } from '@/lib/odoo-page-sync'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
+import { resolveBestBranchBadge } from '@/lib/aether/period-delta'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
+import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
   ExecutiveComparisonControlBar,
@@ -64,24 +76,17 @@ const DEFAULT_STUDIO_QUERY: ErpComparisonQuery = {
   entityB: 'franks',
 }
 
-const fmt0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-const fmtKwd = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 3,
-  })
-const fmt2 = (n: number) => (Number.isFinite(n) ? n : 0).toFixed(2)
-const fmtSignedKwd = (n: number) => {
-  const v = Number.isFinite(n) ? n : 0
-  return `${v > 0 ? '+' : ''}${fmtKwd(v)}`
-}
-const fmtSignedPct = (n: number) => {
-  const v = Number.isFinite(n) ? n : 0
-  return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`
-}
-const fmtSignedPp = (n: number) => {
-  const v = Number.isFinite(n) ? n : 0
-  return `${v > 0 ? '+' : ''}${v.toFixed(1)} pp`
+const fmt0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
+const fmtKwd = (n: number, locale: FormatLocale = 'en') =>
+  formatKwd(n, { locale, showUnit: false, decimals: 3 })
+const fmtSignedKwd = (n: number, locale: FormatLocale = 'en') =>
+  formatKwd(n, { locale, showUnit: false, decimals: 3, signed: true })
+const fmtSignedPct = (n: number, locale: FormatLocale = 'en') =>
+  formatPct(n, { locale, signed: true })
+export function fmtSignedPp(n: number | null | undefined): string {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return UNAVAILABLE_DASH
+  const normalized = Object.is(n, -0) ? 0 : n
+  return `${normalized > 0 ? '+' : ''}${normalized.toFixed(1)} pp`
 }
 
 function tierBadgeCls(tier: 'green' | 'yellow' | 'red'): string {
@@ -100,29 +105,33 @@ function tierDot(tier: 'green' | 'yellow' | 'red'): string {
   return '🔴'
 }
 
-function formatKpiPrimaryValue(kpi: ExecutiveKpiDelta): string {
-  if (kpi.unit === 'orders') return fmt0(kpi.valueA)
-  if (kpi.unit === 'pct') return `${kpi.valueA.toFixed(1)}%`
-  return kpi.id === 'averageCheck' ? fmt2(kpi.valueA) : fmtKwd(kpi.valueA)
+function formatKpiPrimaryValue(kpi: ExecutiveKpiDelta, locale: FormatLocale): string {
+  if (kpi.unit === 'orders') return fmt0(kpi.valueA, locale)
+  if (kpi.unit === 'pct') return formatPct(kpi.valueA, { locale })
+  return fmtKwd(kpi.valueA, locale)
 }
 
-function formatKpiSecondaryValue(kpi: ExecutiveKpiDelta): string {
-  if (kpi.unit === 'orders') return fmt0(kpi.valueB)
-  if (kpi.unit === 'pct') return `${kpi.valueB.toFixed(1)}%`
-  return kpi.id === 'averageCheck' ? fmt2(kpi.valueB) : fmtKwd(kpi.valueB)
+function formatKpiSecondaryValue(kpi: ExecutiveKpiDelta, locale: FormatLocale): string {
+  if (kpi.unit === 'orders') return fmt0(kpi.valueB, locale)
+  if (kpi.unit === 'pct') return formatPct(kpi.valueB, { locale })
+  return fmtKwd(kpi.valueB, locale)
 }
 
 function formatKpiDeltaBadge(kpi: ExecutiveKpiDelta): string {
   const signed = formatSignedDelta(kpi.deltaPct)
   if (kpi.unit === 'pct') {
-    return `${signed.arrow} ${fmtSignedPp(signed.pct)}`
+    return Number.isFinite(kpi.deltaPct)
+      ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
+      : UNAVAILABLE_DASH
   }
   return signed.text
 }
 
 export function WeekdayComparisonStudio() {
   const { locale } = useI18n()
-  const isAr = locale !== 'en'
+  const resolvedLocale: FormatLocale = locale !== 'en' ? 'ar' : 'en'
+  const isAr = resolvedLocale !== 'en'
+  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const kwd = isAr ? 'د.ك' : 'KWD'
   const { filters, liveSummary } = useGlobalFilter()
 
@@ -193,6 +202,8 @@ export function WeekdayComparisonStudio() {
   const [cubeA, setCubeA] = useState<OdooPeriodCube | null>(null)
   const [cubeB, setCubeB] = useState<OdooPeriodCube | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [apiError, setApiError] = useState<boolean>(false)
+  const [retryTick, setRetryTick] = useState<number>(0)
   const [apiConnected, setApiConnected] = useState<boolean>(false)
   const [apiNoData, setApiNoData] = useState<boolean>(false)
   const [apiLastSyncAt, setApiLastSyncAt] = useState<string | null>(null)
@@ -208,7 +219,9 @@ export function WeekdayComparisonStudio() {
   // Always fetch real period cubes from `/api/erp/live-comparison`
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     setLoading(true)
+    setApiError(false)
     const qs = new URLSearchParams({
       dateA: query.periodA.from,
       toA: query.periodA.to,
@@ -224,8 +237,12 @@ export function WeekdayComparisonStudio() {
       cache: 'no-store',
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
+      signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error('HTTP_ERROR')
+        return res.json()
+      })
       .then((payload) => {
         if (!active) return
         if (!payload || payload.connected === false || !payload.cubeA || !payload.cubeB) {
@@ -244,10 +261,12 @@ export function WeekdayComparisonStudio() {
         setApiLastSyncAt(payload.lastSyncAt ?? payload.cubeA.lastSyncAt ?? null)
         setApiIsStale24h(Boolean(payload.isStale24h ?? payload.cubeA.isStale24h))
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
         setApiConnected(false)
-        setApiNoData(true)
+        setApiNoData(false)
+        setApiError(true)
         setCubeA(null)
         setCubeB(null)
       })
@@ -257,6 +276,7 @@ export function WeekdayComparisonStudio() {
 
     return () => {
       active = false
+      controller.abort()
     }
   }, [
     query.periodA.from,
@@ -266,7 +286,19 @@ export function WeekdayComparisonStudio() {
     query.mode,
     query.granularity,
     query.sameHoursLikeForLike,
+    retryTick,
   ])
+
+  useEffect(() => {
+    if (loading) return undefined
+    const connected = Boolean(apiConnected && !apiNoData && apiLastSyncAt)
+    publishPageOdooSync(
+      connected
+        ? { connected: true, lastSyncAt: apiLastSyncAt, source: 'live-comparison' }
+        : { connected: false, lastSyncAt: null, source: 'live-comparison' },
+    )
+    return () => publishPageOdooSync(null)
+  }, [apiConnected, apiLastSyncAt, apiNoData, loading])
 
   const comparison = useMemo(
     () =>
@@ -373,16 +405,16 @@ export function WeekdayComparisonStudio() {
       ? [
           `📊 *تقرير المقارنة من Odoo 17 — فنتشر فودز*`,
           `النطاق: ${comparison.scopeSummaryAr}`,
-          `• الأساس (أ — ${sA.titleAr}): *${fmtKwd(sA.netSalesKwd)} د.ك* | ${fmt0(sA.completedOrders)} طلب`,
-          `• المقارنة (ب — ${sB.titleAr}): *${fmtKwd(sB.netSalesKwd)} د.ك* | ${fmt0(sB.completedOrders)} طلب`,
-          `• فرق المبيعات: *${fmtSignedKwd(comparison.kpis.netSales.deltaAbs)} د.ك (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})*`,
+          `• الأساس (أ — ${sA.titleAr}): *${fmtKwd(sA.netSalesKwd, 'ar')} د.ك* | ${fmt0(sA.completedOrders, 'ar')} طلب`,
+          `• المقارنة (ب — ${sB.titleAr}): *${fmtKwd(sB.netSalesKwd, 'ar')} د.ك* | ${fmt0(sB.completedOrders, 'ar')} طلب`,
+          `• فرق المبيعات: *${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, 'ar')} د.ك (${fmtSignedPct(comparison.kpis.netSales.deltaPct, 'ar')})*`,
         ]
       : [
           `📊 *Venture Foods Comparison (Odoo 17)*`,
           `Scope: ${comparison.scopeSummaryEn}`,
-          `• Base A (${sA.titleEn}): *${fmtKwd(sA.netSalesKwd)} KWD* | ${fmt0(sA.completedOrders)} orders`,
-          `• Compare B (${sB.titleEn}): *${fmtKwd(sB.netSalesKwd)} KWD* | ${fmt0(sB.completedOrders)} orders`,
-          `• Net Variance: *${fmtSignedKwd(comparison.kpis.netSales.deltaAbs)} KWD (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})*`,
+          `• Base A (${sA.titleEn}): *${fmtKwd(sA.netSalesKwd, 'en')} KWD* | ${fmt0(sA.completedOrders, 'en')} orders`,
+          `• Compare B (${sB.titleEn}): *${fmtKwd(sB.netSalesKwd, 'en')} KWD* | ${fmt0(sB.completedOrders, 'en')} orders`,
+          `• Net Variance: *${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, 'en')} KWD (${fmtSignedPct(comparison.kpis.netSales.deltaPct, 'en')})*`,
         ]
     try {
       await navigator.clipboard.writeText(lines.join('\n'))
@@ -409,7 +441,8 @@ export function WeekdayComparisonStudio() {
     return { w, h, ptsA, ptsB }
   }, [comparison.chartBuckets])
 
-  const showNoData = !loading && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
+  const showNoData =
+    !loading && !apiError && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
   const dateRangeBadge = `${comparison.selectionA.fromIso}..${comparison.selectionA.toIso} vs ${comparison.selectionB.fromIso}..${comparison.selectionB.toIso}`
 
   return (
@@ -430,17 +463,30 @@ export function WeekdayComparisonStudio() {
           setQuery(buildDefaultStudioQuery())
         }}
         onExportCsv={handleExportCsv}
+        odooGap={
+          loading
+            ? null
+            : {
+                connected: Boolean(
+                  apiConnected && !apiNoData && comparison.connected && !comparison.noData,
+                ),
+                gapKwd:
+                  apiConnected && !apiNoData && comparison.connected && !comparison.noData
+                    ? comparison.reconciliation.maxSalesGapKwd
+                    : null,
+              }
+        }
         extraActions={
           <button
             type="button"
             disabled={showNoData || loading}
             onClick={handleCopyReport}
-            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
           >
             {copiedReport ? (
-              <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
             ) : (
-              <Copy className="h-3.5 w-3.5 shrink-0" />
+              <Copy className="h-3.5 w-3.5 shrink-0" aria-hidden />
             )}
             <span>
               {copiedReport
@@ -455,37 +501,50 @@ export function WeekdayComparisonStudio() {
         }
       />
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:bg-[#101C17] dark:text-slate-300">
-          {isAr
-            ? 'جاري جلب مكعبات المقارنة الفعلية من Odoo 17...'
-            : 'Fetching period cubes from Odoo 17...'}
-        </div>
+        <StateBlock
+          state="loading"
+          locale={resolvedLocale}
+          skeletonRows={4}
+          title={
+            isAr
+              ? 'جاري جلب مكعبات المقارنة الفعلية من Odoo 17...'
+              : 'Fetching period cubes from Odoo 17...'
+          }
+        />
+      ) : null}
+
+      {!loading && apiError ? (
+        <StateBlock
+          state="error"
+          locale={resolvedLocale}
+          onRetry={() => setRetryTick((n) => n + 1)}
+        />
       ) : null}
 
       {showNoData ? (
-        <div className="rounded-2xl border border-amber-300/70 bg-amber-50/80 p-8 text-center dark:border-amber-500/30 dark:bg-amber-950/25">
-          <div className="text-base font-bold text-amber-950 dark:text-amber-200">
-            {isAr
-              ? 'لا توجد بيانات من Odoo لهذه الفترة'
-              : 'No data from Odoo for this period'}
-          </div>
-          <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-300/90">
-            {isAr
+        <StateBlock
+          state="empty"
+          locale={resolvedLocale}
+          title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No data from Odoo for this period'}
+          description={
+            isAr
               ? 'لم تُسجَّل حركات نقاط بيع في Odoo للتواريخ المختارة أو أن الاتصال بـ Odoo منقطع حالياً.'
-              : 'No POS records exist in Odoo for the selected dates or Odoo is currently disconnected.'}
-          </p>
-        </div>
+              : 'No POS records exist in Odoo for the selected dates or Odoo is currently disconnected.'
+          }
+        />
       ) : null}
 
-      {!loading && !showNoData ? (
+      {!loading && !apiError && !showNoData ? (
         <>
           {/* 2. Summary Callout Strip */}
           <section className="rounded-2xl bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-start gap-2.5 sm:items-center">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -500,29 +559,56 @@ export function WeekdayComparisonStudio() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 tabular-nums">
-                {comparison.insights.topGainer && comparison.insights.topGainer.deltaKwd > 0 ? (
-                  <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1.5 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
-                    <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" />
-                    <span>
-                      {isAr ? 'أكبر ارتفاع:' : 'Top Lift:'}{' '}
-                      {isAr
-                        ? comparison.insights.topGainer.nameAr
-                        : comparison.insights.topGainer.nameEn}{' '}
-                      ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd)} {kwd})
-                    </span>
-                  </div>
-                ) : null}
+                {comparison.insights.topGainer &&
+                  (() => {
+                    const topBadge = resolveBestBranchBadge(comparison.insights.topGainer.deltaKwd)
+                    if (topBadge.tone === 'emerald') {
+                      return (
+                        <div className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1.5 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
+                          <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-300" aria-hidden />
+                          <span>
+                            {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                            {isAr
+                              ? comparison.insights.topGainer.nameAr
+                              : comparison.insights.topGainer.nameEn}{' '}
+                            <span dir="ltr" className="tabular-nums">
+                              ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, resolvedLocale)} {kwd})
+                            </span>
+                          </span>
+                        </div>
+                      )
+                    }
+                    if (comparison.insights.topGainer.deltaKwd < 0) {
+                      return (
+                        <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/10 dark:text-slate-200">
+                          <TrendingDown className="h-3.5 w-3.5 shrink-0 text-slate-500 dark:text-slate-300" aria-hidden />
+                          <span>
+                            {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                            {isAr
+                              ? comparison.insights.topGainer.nameAr
+                              : comparison.insights.topGainer.nameEn}{' '}
+                            <span dir="ltr" className="tabular-nums">
+                              ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, resolvedLocale)} {kwd})
+                            </span>
+                          </span>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
 
                 {comparison.insights.biggestDecline &&
                 comparison.insights.biggestDecline.deltaKwd < 0 ? (
                   <div className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1.5 text-[12px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
-                    <TrendingDown className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-300" />
+                    <TrendingDown className="h-3.5 w-3.5 shrink-0 text-rose-600 dark:text-rose-300" aria-hidden />
                     <span>
                       {isAr ? 'أكبر تراجع:' : 'Biggest Decline:'}{' '}
                       {isAr
                         ? comparison.insights.biggestDecline.nameAr
                         : comparison.insights.biggestDecline.nameEn}{' '}
-                      ({fmtSignedKwd(comparison.insights.biggestDecline.deltaKwd)} {kwd})
+                      <span dir="ltr" className="tabular-nums">
+                        ({fmtSignedKwd(comparison.insights.biggestDecline.deltaKwd, resolvedLocale)} {kwd})
+                      </span>
                     </span>
                   </div>
                 ) : null}
@@ -552,15 +638,24 @@ export function WeekdayComparisonStudio() {
                       {isAr ? kpi.labelAr : kpi.labelEn}
                     </span>
                     {isUnavailable ? null : kpi.isFavorable ? (
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
                     ) : (
-                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
                     )}
                   </div>
 
                   {isUnavailable ? (
                     <>
-                      <div className="mt-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      <div
+                        dir="ltr"
+                        data-unavailable="true"
+                        title={unavailableTip}
+                        aria-label={unavailableTip}
+                        className="mt-2 text-xl font-semibold tabular-nums text-slate-400"
+                      >
+                        {UNAVAILABLE_DASH}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
                         {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}
                       </div>
                       <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-slate-500 dark:border-white/[0.06] dark:text-slate-400">
@@ -571,9 +666,9 @@ export function WeekdayComparisonStudio() {
                     </>
                   ) : (
                     <>
-                      <div className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                      <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
                         <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
-                          {formatKpiPrimaryValue(kpi)}
+                          {formatKpiPrimaryValue(kpi, resolvedLocale)}
                         </span>
                         {kpi.unit === 'KWD' && (
                           <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
@@ -586,13 +681,16 @@ export function WeekdayComparisonStudio() {
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                        <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                        <span
+                          dir="ltr"
+                          className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
+                        >
                           {formatKpiDeltaBadge(kpi)}
                         </span>
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        <span dir="ltr" className="text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
                           {kpi.unit === 'pct'
                             ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
-                            : `${kpi.unit === 'orders' ? fmt0(kpi.deltaAbs) : fmtSignedKwd(kpi.deltaAbs)} ${
+                            : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, resolvedLocale)} ${
                                 kpi.unit === 'KWD' ? kwd : ''
                               }`}
                         </span>
@@ -600,8 +698,8 @@ export function WeekdayComparisonStudio() {
 
                       <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
                         {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">
-                          {formatKpiSecondaryValue(kpi)}
+                        <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
+                          {formatKpiSecondaryValue(kpi, resolvedLocale)}
                           {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
                         </span>
                       </p>
@@ -621,7 +719,19 @@ export function WeekdayComparisonStudio() {
           </section>
 
           {/* 4. Hourly / Daily Comparison Chart */}
-          <section className={`${CARD_CLS} min-h-[340px] w-full`}>
+          <section
+            role="region"
+            aria-label={
+              comparison.chartKind === 'hourly-14'
+                ? isAr
+                  ? `المقارنة الساعية — ${dateRangeBadge}`
+                  : `Hourly Comparison — ${dateRangeBadge}`
+                : isAr
+                  ? `المقارنة اليومية — ${dateRangeBadge}`
+                  : `Daily Comparison — ${dateRangeBadge}`
+            }
+            className={`${CARD_CLS} min-h-[340px] w-full`}
+          >
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 sm:text-[17px] dark:text-white">
@@ -633,6 +743,16 @@ export function WeekdayComparisonStudio() {
                       ? `المقارنة اليومية للفترة: ${comparison.selectionA.shortLabelAr} مقابل ${comparison.selectionB.shortLabelAr}`
                       : `Daily Range Comparison: ${comparison.selectionA.shortLabelEn} vs ${comparison.selectionB.shortLabelEn}`}
                 </h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  {dateRangeBadge} ·{' '}
+                  {chartMetric === 'orders'
+                    ? isAr
+                      ? 'الطلبات (طلب)'
+                      : 'Orders'
+                    : isAr
+                      ? 'د.ك (KWD)'
+                      : 'KWD'}
+                </p>
               </div>
 
               <div role="tablist" className={SEGMENT_TRACK_CLS}>
@@ -649,7 +769,7 @@ export function WeekdayComparisonStudio() {
                     role="tab"
                     aria-selected={chartMetric === m.id}
                     onClick={() => setChartMetric(m.id)}
-                    className={`${SEGMENT_BTN_CLS} ${
+                    className={`${SEGMENT_BTN_CLS} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       chartMetric === m.id ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                     }`}
                   >
@@ -663,16 +783,26 @@ export function WeekdayComparisonStudio() {
               <div className="mb-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-4 text-[12.5px] font-semibold">
                   <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    {isAr
-                      ? `أ: ${comparison.selectionA.shortLabelAr} (${fmtKwd(comparison.selectionA.netSalesKwd)} ${kwd})`
-                      : `A: ${comparison.selectionA.shortLabelEn} (${fmtKwd(comparison.selectionA.netSalesKwd)} ${kwd})`}
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
+                    <span>
+                      {isAr
+                        ? `أ: ${comparison.selectionA.shortLabelAr} `
+                        : `A: ${comparison.selectionA.shortLabelEn} `}
+                      <span dir="ltr" className="tabular-nums">
+                        ({fmtKwd(comparison.selectionA.netSalesKwd, resolvedLocale)} {kwd})
+                      </span>
+                    </span>
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400 dark:bg-slate-500" />
-                    {isAr
-                      ? `ب: ${comparison.selectionB.shortLabelAr} (${fmtKwd(comparison.selectionB.netSalesKwd)} ${kwd})`
-                      : `B: ${comparison.selectionB.shortLabelEn} (${fmtKwd(comparison.selectionB.netSalesKwd)} ${kwd})`}
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400 dark:bg-slate-500" aria-hidden />
+                    <span>
+                      {isAr
+                        ? `ب: ${comparison.selectionB.shortLabelAr} `
+                        : `B: ${comparison.selectionB.shortLabelEn} `}
+                      <span dir="ltr" className="tabular-nums">
+                        ({fmtKwd(comparison.selectionB.netSalesKwd, resolvedLocale)} {kwd})
+                      </span>
+                    </span>
                   </span>
                 </div>
 
@@ -686,16 +816,34 @@ export function WeekdayComparisonStudio() {
                           {isAr ? inspectedBucket.labelAr : inspectedBucket.labelEn}
                         </span>
                         <span className="text-slate-300 dark:text-slate-600">|</span>
-                        <span>
-                          A: <strong>{isOrders ? fmt0(pair.a) : fmtKwd(pair.a)}</strong> {pair.unitLabel}
+                        <span dir="ltr">
+                          A:{' '}
+                          <strong>
+                            {isOrders ? fmt0(pair.a, resolvedLocale) : fmtKwd(pair.a, resolvedLocale)}
+                          </strong>{' '}
+                          {pair.unitLabel}
                         </span>
                         <span className="text-slate-400">vs</span>
-                        <span>
-                          B: <strong>{isOrders ? fmt0(pair.b) : fmtKwd(pair.b)}</strong> {pair.unitLabel}
+                        <span dir="ltr">
+                          B:{' '}
+                          <strong>
+                            {isOrders ? fmt0(pair.b, resolvedLocale) : fmtKwd(pair.b, resolvedLocale)}
+                          </strong>{' '}
+                          {pair.unitLabel}
                         </span>
                       </div>
                     )
                   })()}
+              </div>
+
+              <div data-chart-axis-y="true" className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {chartMetric === 'orders'
+                  ? isAr
+                    ? 'المحور الرأسي: عدد الطلبات'
+                    : 'Y-Axis: Orders'
+                  : isAr
+                    ? 'المحور الرأسي: صافي المبيعات (د.ك)'
+                    : 'Y-Axis: Net Sales (KWD)'}
               </div>
 
               {chartMetric === 'cumulative' && cumulativeSvg && (
@@ -704,7 +852,7 @@ export function WeekdayComparisonStudio() {
                     viewBox={`0 0 ${cumulativeSvg.w} ${cumulativeSvg.h}`}
                     className="h-[150px] w-full overflow-visible"
                     role="img"
-                    aria-label="Cumulative sales comparison curve"
+                    aria-label={isAr ? 'منحنى مقارنة المبيعات التراكمية' : 'Cumulative sales comparison curve'}
                   >
                     <polyline
                       fill="none"
@@ -723,7 +871,7 @@ export function WeekdayComparisonStudio() {
                 </div>
               )}
 
-              <div dir="ltr" className="overflow-x-auto pb-1">
+              <div dir="ltr" className="relative overflow-x-auto pb-1">
                 <div
                   style={{
                     gridTemplateColumns: `repeat(${Math.max(1, comparison.chartBuckets.length)}, minmax(52px, 1fr))`,
@@ -735,31 +883,45 @@ export function WeekdayComparisonStudio() {
                     const hA = Math.max(6, Math.round((Math.max(0, pair.a) / maxBucketVal) * 148))
                     const hB = Math.max(6, Math.round((Math.max(0, pair.b) / maxBucketVal) * 148))
                     const isSelected = inspectedBucket?.id === bkt.id
+                    const fmtTipA =
+                      chartMetric === 'orders'
+                        ? `${fmt0(pair.a, resolvedLocale)} ${pair.unitLabel}`
+                        : formatChartKwdTooltip(pair.a, resolvedLocale)
+                    const fmtTipB =
+                      chartMetric === 'orders'
+                        ? `${fmt0(pair.b, resolvedLocale)} ${pair.unitLabel}`
+                        : formatChartKwdTooltip(pair.b, resolvedLocale)
                     return (
                       <button
                         key={bkt.id}
                         type="button"
+                        aria-label={`${isAr ? bkt.labelAr : bkt.labelEn}: A ${fmtTipA} vs B ${fmtTipB}`}
                         onMouseEnter={() => setSelectedBucketIdx(idx)}
                         onClick={() => setSelectedBucketIdx(idx)}
-                        className={`group flex cursor-pointer flex-col items-center rounded-xl px-1.5 py-2 transition-all duration-150 ${
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setSelectedBucketIdx(null)
+                        }}
+                        className={`group flex cursor-pointer flex-col items-center rounded-xl px-1.5 py-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                           isSelected
                             ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] ring-1 ring-emerald-500/35 dark:bg-[#101C17]'
                             : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                         }`}
                       >
                         <span className="mb-1 text-xs font-semibold tracking-tight text-slate-600 tabular-nums dark:text-slate-300">
-                          {chartMetric === 'orders' ? fmt0(pair.a) : fmtKwd(pair.a)}
+                          {chartMetric === 'orders'
+                            ? fmt0(pair.a, resolvedLocale)
+                            : fmtKwd(pair.a, resolvedLocale)}
                         </span>
-                        <div className="flex h-[156px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
+                        <div className="flex h-[156px] w-full items-end justify-center gap-1 rounded-lg border-b border-dashed border-slate-300/70 bg-slate-200/45 px-1 py-1 dark:border-white/10 dark:bg-white/[0.03]">
                           <div
                             style={{ height: `${hA}px` }}
                             className="w-2.5 rounded-t-md bg-emerald-500 transition-all duration-150 sm:w-3"
-                            title={`${bkt.metaA}: ${fmtKwd(pair.a)} ${pair.unitLabel}`}
+                            title={`${bkt.metaA}: ${fmtTipA}`}
                           />
                           <div
                             style={{ height: `${hB}px` }}
                             className="w-2.5 rounded-t-md bg-slate-300 transition-all duration-150 sm:w-3 dark:bg-slate-600"
-                            title={`${bkt.metaB}: ${fmtKwd(pair.b)} ${pair.unitLabel}`}
+                            title={`${bkt.metaB}: ${fmtTipB}`}
                           />
                         </div>
                         <span className="mt-1.5 text-xs font-semibold text-slate-700 tabular-nums dark:text-slate-200">
@@ -769,6 +931,16 @@ export function WeekdayComparisonStudio() {
                     )
                   })}
                 </div>
+              </div>
+
+              <div data-chart-axis-x="true" className="mt-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {comparison.chartKind === 'hourly-14'
+                  ? isAr
+                    ? 'الساعات التشغيلية (توقيت الكويت)'
+                    : 'Operating Hours (Asia/Kuwait)'
+                  : isAr
+                    ? 'الأيام (توقيت الكويت)'
+                    : 'Days (Asia/Kuwait)'}
               </div>
             </div>
           </section>
@@ -802,7 +974,7 @@ export function WeekdayComparisonStudio() {
                     role="tab"
                     aria-selected={tableTab === tab.id}
                     onClick={() => setTableTab(tab.id)}
-                    className={`${SEGMENT_BTN_CLS} ${
+                    className={`${SEGMENT_BTN_CLS} focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                       tableTab === tab.id ? SEGMENT_BTN_ACTIVE_CLS : SEGMENT_BTN_IDLE_CLS
                     }`}
                   >
@@ -833,58 +1005,58 @@ export function WeekdayComparisonStudio() {
                       <button
                         type="button"
                         onClick={() => toggleSort('valueA')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
                       >
                         <span>
                           {isAr
                             ? `أ (${comparison.selectionA.shortLabelAr})`
                             : `A (${comparison.selectionA.shortLabelEn})`}
                         </span>
-                        <ArrowUpDown className="h-3 w-3" />
+                        <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
                     <th className="px-3 py-2.5 text-start">
                       <button
                         type="button"
                         onClick={() => toggleSort('valueB')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
                       >
                         <span>
                           {isAr
                             ? `ب (${comparison.selectionB.shortLabelAr})`
                             : `B (${comparison.selectionB.shortLabelEn})`}
                         </span>
-                        <ArrowUpDown className="h-3 w-3" />
+                        <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
                     <th className="px-3 py-2.5 text-start">
                       <button
                         type="button"
                         onClick={() => toggleSort('deltaKwd')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
                       >
                         <span>{isAr ? `الفارق (${kwd})` : `Variance (${kwd})`}</span>
-                        <ArrowUpDown className="h-3 w-3" />
+                        <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
                     <th className="px-3 py-2.5 text-start">
                       <button
                         type="button"
                         onClick={() => toggleSort('deltaPct')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
                       >
                         <span>{isAr ? 'التغير %' : 'Delta %'}</span>
-                        <ArrowUpDown className="h-3 w-3" />
+                        <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
                     <th className="px-3 py-2.5 text-start">
                       <button
                         type="button"
                         onClick={() => toggleSort('ordersA')}
-                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="inline-flex cursor-pointer items-center gap-1 hover:text-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-300"
                       >
                         <span>{isAr ? 'الطلبات (أ / ب)' : 'Orders (A / B)'}</span>
-                        <ArrowUpDown className="h-3 w-3" />
+                        <ArrowUpDown className="h-3 w-3" aria-hidden />
                       </button>
                     </th>
                     <th className="py-2.5 ps-3 text-end">
@@ -909,14 +1081,21 @@ export function WeekdayComparisonStudio() {
                           {isAr ? row.nameAr : row.nameEn}
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">
-                          {isAr ? row.subMetaAr : row.subMetaEn} • {row.shareOfTotalAPct.toFixed(1)}%
+                          {isAr ? row.subMetaAr : row.subMetaEn} •{' '}
+                          <span dir="ltr" className="tabular-nums">
+                            {formatPct(row.shareOfTotalAPct, { locale: resolvedLocale })}
+                          </span>
                         </div>
                       </td>
                       <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">
-                        {fmtKwd(row.valueA)} {kwd}
+                        <span dir="ltr" className="tabular-nums">
+                          {fmtKwd(row.valueA, resolvedLocale)} {kwd}
+                        </span>
                       </td>
                       <td className="px-3 py-3 font-medium text-slate-600 dark:text-slate-300">
-                        {fmtKwd(row.valueB)} {kwd}
+                        <span dir="ltr" className="tabular-nums">
+                          {fmtKwd(row.valueB, resolvedLocale)} {kwd}
+                        </span>
                       </td>
                       <td
                         className={`px-3 py-3 font-semibold ${
@@ -925,21 +1104,31 @@ export function WeekdayComparisonStudio() {
                             : 'text-rose-700 dark:text-rose-300'
                         }`}
                       >
-                        {fmtSignedKwd(row.deltaKwd)} {kwd}
+                        <span dir="ltr" className="tabular-nums">
+                          {fmtSignedKwd(row.deltaKwd, resolvedLocale)} {kwd}
+                        </span>
                       </td>
                       <td className="px-3 py-3">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${tierBadgeCls(row.tier)}`}
+                          dir="ltr"
+                          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px] font-semibold tabular-nums ${tierBadgeCls(row.tier)}`}
                         >
-                          {tierDot(row.tier)} {fmtSignedPct(row.deltaPct)}
+                          {tierDot(row.tier)} {fmtSignedPct(row.deltaPct, resolvedLocale)}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-slate-700 dark:text-slate-300">
-                        {fmt0(row.ordersA)}{' '}
-                        <span className="text-[13px] text-slate-400">/ {fmt0(row.ordersB)}</span>
+                        <span dir="ltr" className="tabular-nums">
+                          {fmt0(row.ordersA, resolvedLocale)}{' '}
+                          <span className="text-[13px] text-slate-400">
+                            / {fmt0(row.ordersB, resolvedLocale)}
+                          </span>
+                        </span>
                       </td>
                       <td className="py-3 ps-3 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
-                        {fmt2(row.aovA)} / {fmt2(row.aovB)} {kwd}
+                        <span dir="ltr" className="tabular-nums">
+                          {fmtKwd(row.aovA, resolvedLocale)} / {fmtKwd(row.aovB, resolvedLocale)}{' '}
+                          {kwd}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -950,10 +1139,14 @@ export function WeekdayComparisonStudio() {
                       {isAr ? 'الإجمالي الفعلي (Odoo 17)' : 'Total (Odoo 17)'}
                     </td>
                     <td className="px-3 py-3">
-                      {fmtKwd(comparison.selectionA.netSalesKwd)} {kwd}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtKwd(comparison.selectionA.netSalesKwd, resolvedLocale)} {kwd}
+                      </span>
                     </td>
                     <td className="px-3 py-3">
-                      {fmtKwd(comparison.selectionB.netSalesKwd)} {kwd}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtKwd(comparison.selectionB.netSalesKwd, resolvedLocale)} {kwd}
+                      </span>
                     </td>
                     <td
                       className={`px-3 py-3 ${
@@ -962,15 +1155,26 @@ export function WeekdayComparisonStudio() {
                           : 'text-rose-700 dark:text-rose-300'
                       }`}
                     >
-                      {fmtSignedKwd(comparison.kpis.netSales.deltaAbs)} {kwd}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtSignedKwd(comparison.kpis.netSales.deltaAbs, resolvedLocale)} {kwd}
+                      </span>
                     </td>
-                    <td className="px-3 py-3">{fmtSignedPct(comparison.kpis.netSales.deltaPct)}</td>
                     <td className="px-3 py-3">
-                      {fmt0(comparison.selectionA.completedOrders)} /{' '}
-                      {fmt0(comparison.selectionB.completedOrders)}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtSignedPct(comparison.kpis.netSales.deltaPct, resolvedLocale)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <span dir="ltr" className="tabular-nums">
+                        {fmt0(comparison.selectionA.completedOrders, resolvedLocale)} /{' '}
+                        {fmt0(comparison.selectionB.completedOrders, resolvedLocale)}
+                      </span>
                     </td>
                     <td className="py-3 ps-3 text-end font-mono text-xs">
-                      {fmt2(comparison.selectionA.aovKwd)} / {fmt2(comparison.selectionB.aovKwd)} {kwd}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtKwd(comparison.selectionA.aovKwd, resolvedLocale)} /{' '}
+                        {fmtKwd(comparison.selectionB.aovKwd, resolvedLocale)} {kwd}
+                      </span>
                     </td>
                   </tr>
                 </tfoot>

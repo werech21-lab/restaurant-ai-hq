@@ -1,14 +1,25 @@
 ﻿'use client'
 
 import { useState } from 'react'
+import { UNAVAILABLE_DASH, formatKwd, getUnavailableTooltip } from '@/lib/format'
 
-export function HrWpsToolbar({ month, year, locale }: { month: number; year: number; locale: 'ar' | 'en' }) {
+export function HrWpsToolbar({
+  month,
+  year,
+  locale,
+}: {
+  month: number
+  year: number
+  locale: 'ar' | 'en'
+}) {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const label = (ar: string, en: string) => (locale === 'en' ? en : ar)
+  const isAr = locale !== 'en'
+  const label = (ar: string, en: string) => (isAr ? ar : en)
+  const unavailableTooltip = getUnavailableTooltip(locale)
 
-  async function download() {
+  function download() {
     window.location.href = `/api/hr/wps-export?month=${month}&year=${year}&download=1`
   }
 
@@ -24,44 +35,90 @@ export function HrWpsToolbar({ month, year, locale }: { month: number; year: num
         body: JSON.stringify({ month, year, action: 'post' }),
       })
       const json = (await res.json()) as {
-        data?: { accrualEntryNumber?: string; paymentEntryNumber?: string; totalNet?: string }
-        error?: { message?: string }
+        data?: { accrualEntryNumber?: string; paymentEntryNumber?: string; totalNet?: string | number }
+        error?: { code?: string; message?: string }
       }
-      if (!res.ok) throw new Error(json.error?.message || 'post_failed')
+      if (!res.ok) {
+        if (res.status === 403) {
+          setError(label('ليست لديك صلاحية ترحيل قيود الرواتب.', 'You do not have permission to post payroll journals.'))
+        } else {
+          setError(label('تعذر ترحيل قيد الرواتب الشهري حالياً.', 'Unable to post the monthly payroll journal right now.'))
+        }
+        return
+      }
+      const rawNet = Number(json.data?.totalNet)
+      const netFormatted = Number.isFinite(rawNet) ? formatKwd(rawNet, locale) : UNAVAILABLE_DASH
+      const accrualRef = json.data?.accrualEntryNumber || UNAVAILABLE_DASH
+      const paymentRef = json.data?.paymentEntryNumber || UNAVAILABLE_DASH
       setNotice(
         label(
-          `تم الترحيل: ${json.data?.accrualEntryNumber} → ${json.data?.paymentEntryNumber} · صافي ${json.data?.totalNet} د.ك`,
-          `Posted: ${json.data?.accrualEntryNumber} → ${json.data?.paymentEntryNumber} · net ${json.data?.totalNet} KWD`,
+          `تم الترحيل: ${accrualRef} → ${paymentRef} · صافي ${netFormatted}`,
+          `Posted: ${accrualRef} → ${paymentRef} · net ${netFormatted}`,
         ),
       )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+    } catch {
+      setError(label('تعذر الاتصال بالخادم أثناء ترحيل القيد.', 'Unable to reach the server while posting the journal.'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="mb-4 space-y-2 rounded-2xl border border-white/10 bg-[#11161f] p-4">
+    <div
+      dir={isAr ? 'rtl' : 'ltr'}
+      className="ds-surface mb-4 space-y-2.5 rounded-2xl p-4"
+    >
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => void download()}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+          onClick={download}
+          className="ds-focus-ring btn-colored cursor-pointer rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700"
         >
-          {label('🏦 تصدير ملف تحويل الرواتب للبنك (NBK WPS)', '🏦 Export NBK WPS / Bank Payroll file')}
+          {label('تصدير ملف تحويل الرواتب للبنك (NBK WPS)', 'Export NBK WPS / Bank Payroll File')}
         </button>
         <button
           type="button"
           disabled={busy}
           onClick={() => void postJournal()}
-          className="rounded-xl border border-emerald-600 bg-emerald-950/20 px-4 py-2 text-sm font-bold text-emerald-300 disabled:opacity-60"
+          className="ds-focus-ring cursor-pointer rounded-xl border px-4 py-2 text-sm font-bold disabled:opacity-60"
+          style={{
+            backgroundColor: 'var(--ds-accent-soft)',
+            borderColor: 'var(--ds-border-accent)',
+            color: 'var(--ds-text-primary)',
+          }}
         >
-          {label('اعتماد وترحيل قيد الرواتب الشهري للمحاسبة', 'Approve & post monthly payroll journal')}
+          {busy
+            ? label('جارٍ الترحيل…', 'Posting…')
+            : label('اعتماد وترحيل قيد الرواتب الشهري للمحاسبة', 'Approve & Post Monthly Payroll Journal')}
         </button>
       </div>
-      {notice ? <p className="text-sm text-emerald-700">{notice}</p> : null}
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-xl border px-3 py-2 text-sm font-medium"
+          style={{
+            backgroundColor: 'var(--ds-positive-bg)',
+            borderColor: 'var(--ds-positive-border)',
+            color: 'var(--ds-positive)',
+          }}
+        >
+          {notice}
+        </p>
+      ) : null}
+      {error ? (
+        <p
+          role="alert"
+          title={unavailableTooltip}
+          className="rounded-xl border px-3 py-2 text-sm font-medium"
+          style={{
+            backgroundColor: 'var(--ds-negative-bg)',
+            borderColor: 'var(--ds-negative-border)',
+            color: 'var(--ds-negative)',
+          }}
+        >
+          {error}
+        </p>
+      ) : null}
     </div>
   )
 }

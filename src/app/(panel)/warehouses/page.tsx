@@ -4,10 +4,11 @@ import { WarehouseForms } from "@/app/(panel)/warehouses/warehouse-forms";
 import { requireUser } from "@/lib/erp-auth";
 import { DisabledModule, Forbidden, PageSkeleton, PaginationBar } from "@/components/erp-ui";
 import { prisma } from "@/lib/db";
-import { formatQty } from "@/lib/format";
-import { datetimeFor, getLocale, tx } from "@/lib/i18n/server";
+import { visibleProductWhere } from "@/lib/panel-visibility";
+import { formatDateTime, formatQty, getUnavailableTooltip, UNAVAILABLE_DASH } from "@/lib/format";
+import { getLocale, tx } from "@/lib/i18n/server";
 import { isModuleEnabled } from "@/lib/modules-db";
-import { PAGE_SIZE, pageHref, readQuery, type RawQuery } from "@/lib/pagination";
+import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref } from "@/lib/permissions";
 import { getActiveScope, warehouseWhereForScope } from "@/lib/scope";
 import { listTransfers, listWarehouses, warehouseStock } from "@/services/warehouse.service";
@@ -22,6 +23,8 @@ export const metadata = {
 async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQuery> }) {
   await connection();
   const locale = await getLocale();
+  const uiLocale = locale === "en" ? "en" : "ar";
+  const unavailableTip = getUnavailableTooltip(uiLocale);
   const user = await requireUser();
   if (!can(user, "warehouses", "view")) return <Forbidden href={firstAllowedHref(user)} />;
   if (!(await isModuleEnabled("warehouses"))) {
@@ -30,7 +33,6 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   const query = await readQuery(searchParams);
   const scope = await getActiveScope(query);
   const allRawWarehouses = await listWarehouses();
-  // Positive whitelist: only warehouses that belong to whitelisted Odoo locations are shown.
   const allWarehouses = allRawWarehouses.filter((w) => ALLOWED_WAREHOUSE_CODES.has(String(w.code ?? "").toUpperCase()));
   const scopeFilter = warehouseWhereForScope(scope);
   const warehouses = Object.keys(scopeFilter).length
@@ -49,6 +51,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
     selected ? warehouseStock(selected) : Promise.resolve([]),
     listTransfers((query.page - 1) * PAGE_SIZE, PAGE_SIZE),
     prisma.product.findMany({
+      where: visibleProductWhere(),
       orderBy: { name: "asc" },
       select: { id: true, name: true, code: true },
       take: 500,
@@ -67,9 +70,9 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
   });
 
   const legacyLiveChildren = (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
-        <h4 className="text-sm font-bold text-amber-400">
+    <div dir={uiLocale === "en" ? "ltr" : "rtl"} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--ds-border-hairline)] pb-3">
+        <h4 className="text-sm font-bold" style={{ color: "var(--ds-accent)" }}>
           {tx(locale, "إدارة مستودعات قاعدة البيانات الحية (Prisma DB)", "Prisma Database Warehouses & Stock")}
         </h4>
         <SmartIngestLaunchButton module="inventory" locale={locale} />
@@ -79,68 +82,113 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
         warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
         products={transferProducts}
       />
-      <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 text-slate-400">
-              <th className="px-4 py-3 text-right">{tx(locale, "الصنف", "Item")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "الكود", "Code")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "الكمية بالمستودع", "Quantity")}</th>
-              <th className="px-4 py-3 text-right">{tx(locale, "الرصيد الكلي", "Total")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stocks.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                  {tx(locale, "لا يوجد رصيد مسجل في هذا المستودع.", "No stock recorded in this warehouse.")}
-                </td>
-              </tr>
-            ) : (
-              stocks.map((row) => (
-                <tr key={row.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-900/40">
-                  <td className="px-4 py-3 font-semibold text-white">{row.product.name}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-400" dir="ltr">
-                    {row.product.code}
-                  </td>
-                  <td className="px-4 py-3 font-bold text-amber-300">{formatQty(row.quantity)}</td>
-                  <td className="px-4 py-3 text-slate-400">{formatQty(row.product.currentStock)}</td>
+      <div className="ds-surface overflow-hidden rounded-2xl">
+        {stocks.length === 0 ? (
+          <div
+            role="status"
+            data-state-block="empty"
+            className="px-4 py-8 text-center text-sm"
+            style={{ color: "var(--ds-text-muted)" }}
+          >
+            {tx(locale, "لا يوجد رصيد مسجل في هذا المستودع.", "No stock recorded in this warehouse.")}
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[540px] text-sm">
+              <thead className="border-b border-[var(--ds-border-hairline)]" style={{ backgroundColor: "var(--ds-bg-subtle)" }}>
+                <tr style={{ color: "var(--ds-text-secondary)" }}>
+                  <th className="px-4 py-3 text-start text-xs font-bold">{tx(locale, "الصنف", "Item")}</th>
+                  <th className="px-4 py-3 text-start text-xs font-bold">{tx(locale, "الكود", "Code")}</th>
+                  <th className="px-4 py-3 text-end text-xs font-bold">{tx(locale, "الكمية بالمستودع", "Quantity")}</th>
+                  <th className="px-4 py-3 text-end text-xs font-bold">{tx(locale, "الرصيد الكلي", "Total")}</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody className="divide-y divide-[var(--ds-border-hairline)]">
+                {stocks.map((row) => (
+                  <tr key={row.id} className="ds-motion hover:bg-[var(--ds-bg-hover)]">
+                    <td className="px-4 py-3 font-semibold" style={{ color: "var(--ds-text-primary)" }}>
+                      {row.product.name}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--ds-text-muted)" }} dir="ltr">
+                      <span className="ds-num">{row.product.code}</span>
+                    </td>
+                    <td className="px-4 py-3 text-end font-bold" style={{ color: "var(--ds-accent)" }}>
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        {formatQty(row.quantity)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-end" style={{ color: "var(--ds-text-secondary)" }}>
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        {formatQty(row.product.currentStock)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-        <div className="border-b border-slate-800 px-4 py-3 font-bold text-white text-xs">
+      <div className="ds-surface overflow-hidden rounded-2xl">
+        <div className="border-b border-[var(--ds-border-hairline)] px-4 py-3 text-xs font-bold" style={{ color: "var(--ds-text-primary)" }}>
           {tx(locale, "سجل التحويلات المنفذة بقاعدة البيانات", "Database Transfer Log")}
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-800 text-slate-400 text-xs">
-              <th className="px-4 py-2 text-right">{tx(locale, "الرقم", "Number")}</th>
-              <th className="px-4 py-2 text-right">{tx(locale, "من", "From")}</th>
-              <th className="px-4 py-2 text-right">{tx(locale, "إلى", "To")}</th>
-              <th className="px-4 py-2 text-right">{tx(locale, "الأصناف", "Items")}</th>
-              <th className="px-4 py-2 text-right">{tx(locale, "التاريخ", "Date")}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800/60 text-xs">
-            {transfers.rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-900/40">
-                <td className="px-4 py-2 font-mono text-amber-400" dir="ltr">
-                  {row.transferNumber}
-                </td>
-                <td className="px-4 py-2 text-slate-300">{row.fromWarehouse.name}</td>
-                <td className="px-4 py-2 text-slate-300">{row.toWarehouse.name}</td>
-                <td className="px-4 py-2 text-slate-400">
-                  {row.items.map((item) => `${item.product.name} (${formatQty(item.quantity)})`).join(locale === "en" ? ", " : "، ")}
-                </td>
-                <td className="px-4 py-2 text-slate-400">{datetimeFor(locale, row.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {transfers.rows.length === 0 ? (
+          <div
+            role="status"
+            data-state-block="empty"
+            className="px-4 py-8 text-center text-sm"
+            style={{ color: "var(--ds-text-muted)" }}
+          >
+            {tx(locale, "لا توجد تحويلات مخزنية مسجلة بعد.", "No stock transfers recorded yet.")}
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="border-b border-[var(--ds-border-hairline)]" style={{ backgroundColor: "var(--ds-bg-subtle)" }}>
+                <tr className="text-xs" style={{ color: "var(--ds-text-secondary)" }}>
+                  <th className="px-4 py-2.5 text-start font-bold">{tx(locale, "الرقم", "Number")}</th>
+                  <th className="px-4 py-2.5 text-start font-bold">{tx(locale, "من", "From")}</th>
+                  <th className="px-4 py-2.5 text-start font-bold">{tx(locale, "إلى", "To")}</th>
+                  <th className="px-4 py-2.5 text-start font-bold">{tx(locale, "الأصناف", "Items")}</th>
+                  <th className="px-4 py-2.5 text-start font-bold">{tx(locale, "التاريخ (الكويت)", "Date (Kuwait)")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--ds-border-hairline)] text-xs">
+                {transfers.rows.map((row) => {
+                  const dt = formatDateTime(row.createdAt, { locale: uiLocale });
+                  return (
+                    <tr key={row.id} className="ds-motion hover:bg-[var(--ds-bg-hover)]">
+                      <td className="px-4 py-2.5 font-mono font-bold" style={{ color: "var(--ds-accent)" }} dir="ltr">
+                        <span className="ds-num">{row.transferNumber}</span>
+                      </td>
+                      <td className="px-4 py-2.5" style={{ color: "var(--ds-text-primary)" }}>
+                        {row.fromWarehouse.name}
+                      </td>
+                      <td className="px-4 py-2.5" style={{ color: "var(--ds-text-primary)" }}>
+                        {row.toWarehouse.name}
+                      </td>
+                      <td className="px-4 py-2.5" style={{ color: "var(--ds-text-secondary)" }}>
+                        {row.items.map((item) => `${item.product.name} (${formatQty(item.quantity)})`).join(locale === "en" ? ", " : "، ")}
+                      </td>
+                      <td className="px-4 py-2.5" style={{ color: "var(--ds-text-muted)" }}>
+                        {dt === UNAVAILABLE_DASH ? (
+                          <span title={unavailableTip} aria-label={unavailableTip}>
+                            {UNAVAILABLE_DASH}
+                          </span>
+                        ) : (
+                          <span dir="ltr" className="ds-num tabular-nums">
+                            {dt}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         <PaginationBar path="/warehouses" params={{ q: selected }} page={query.page} total={transfers.total} />
       </div>
     </div>
@@ -148,7 +196,7 @@ async function WarehousesContent({ searchParams }: { searchParams: Promise<RawQu
 
   return (
     <VentureWarehousesHub
-      locale={locale === "en" ? "en" : "ar"}
+      locale={uiLocale}
       liveChildren={legacyLiveChildren}
     />
   );

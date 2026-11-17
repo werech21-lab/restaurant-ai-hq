@@ -3,6 +3,7 @@
 import { guardAny } from "@/lib/erp-auth";
 import { formatMoney, formatQty } from "@/lib/format";
 import { prisma } from "@/lib/db";
+import { withVisibleProducts } from "@/lib/panel-visibility";
 import type { SearchHit } from "@/lib/types";
 
 export async function searchRoles(query: string): Promise<SearchHit[]> {
@@ -26,7 +27,7 @@ export async function searchProducts(query: string): Promise<SearchHit[]> {
   if (!gate.user) return [];
   const q = query.trim();
   const rows = await prisma.product.findMany({
-    where: q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {},
+    where: withVisibleProducts(q ? { OR: [{ name: { contains: q } }, { code: { contains: q } }] } : {}),
     orderBy: { name: "asc" },
     take: 20,
     select: {

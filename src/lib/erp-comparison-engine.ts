@@ -46,6 +46,11 @@ export type BreakdownDimension = 'branch' | 'brand' | 'channel'
 
 export const UNATTRIBUTED_BRANCH_ROW_ID = 'unattributed' as const
 
+const OPERATING_BRANCH_IDS: readonly BranchEntityId[] = [
+  ...APPROVED_BRANCH_IDS,
+  'school-canteens',
+]
+
 export interface DateWindowSelection {
   from: string
   to: string
@@ -504,7 +509,7 @@ export function getCompatibleBranchesForBrands(
 ): BranchEntityId[] {
   const activeBrands: readonly BrandEntityId[] =
     brandIds === 'all' || brandIds.length === 0 ? APPROVED_BRAND_IDS : brandIds
-  return APPROVED_BRANCH_IDS.filter((br) =>
+  return OPERATING_BRANCH_IDS.filter((br) =>
     activeBrands.some((b) => isBrandBranchCompatible(b, br)),
   )
 }
@@ -529,13 +534,13 @@ function sanitizeBranchSelection(raw: 'all' | readonly BranchEntityId[]): {
   includeUnattributed: boolean
 } {
   if (raw === 'all' || raw.length === 0) {
-    return { branchIds: [...APPROVED_BRANCH_IDS], includeUnattributed: true }
+    return { branchIds: [...OPERATING_BRANCH_IDS], includeUnattributed: true }
   }
   const valid = raw.filter((id): id is BranchEntityId =>
-    (APPROVED_BRANCH_IDS as readonly string[]).includes(id),
+    (OPERATING_BRANCH_IDS as readonly string[]).includes(id),
   )
   if (valid.length === 0) {
-    return { branchIds: [...APPROVED_BRANCH_IDS], includeUnattributed: true }
+    return { branchIds: [...OPERATING_BRANCH_IDS], includeUnattributed: true }
   }
   return { branchIds: Array.from(new Set(valid)), includeUnattributed: false }
 }
@@ -811,7 +816,7 @@ function computeCubeSliceTotals(
 
   const allBrands = scope.brandIds.length === APPROVED_BRAND_IDS.length
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
   const allChannels = scope.channelIds.length === APPROVED_CHANNEL_IDS.length
   const fullScope = allBrands && allBranches && allChannels && cutoffHour24 === null
 
@@ -977,7 +982,7 @@ function buildLiveDayCell(
 ): { salesKwd: number; orders: number } {
   if (!cube || !cube.connected || !dayIso) return { salesKwd: 0, orders: 0 }
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const found = cube.dailySeries.find((d) => d.day === dayIso)
     return {
@@ -1018,7 +1023,7 @@ function buildLiveHourCell(
     return { salesKwd: 0, orders: 0 }
   }
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const row = cube.hourlySeries.find((h) => h.hour === hour24)
     return {
@@ -1152,7 +1157,8 @@ function reconcileUnattributed1dp(cube: OdooPeriodCube): number {
   if (rawUnattr <= 0) return 0
   const totalNet1 = r1(cube.totals.netSalesKwd)
   const mappedSum1 = r1(
-    APPROVED_BRANCH_IDS.reduce((acc, brId) => acc + r1(cube.byBranch[brId]?.netKwd ?? 0), 0),
+    APPROVED_BRANCH_IDS.reduce((acc, brId) => acc + r1(cube.byBranch[brId]?.netKwd ?? 0), 0) +
+      r1(cube.byBranch['school-canteens']?.netKwd ?? 0),
   )
   const residual1 = r1(Math.max(0, totalNet1 - mappedSum1))
   return Math.abs(residual1 - rawUnattr) <= 0.15 ? residual1 : r1(rawUnattr)
@@ -1168,7 +1174,7 @@ function computeBranchCell(
   const allBrands = scope.brandIds.length === APPROVED_BRAND_IDS.length
   const allChannels = scope.channelIds.length === APPROVED_CHANNEL_IDS.length
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
 
   if (cutoffHour24 !== null && allBrands && allChannels) {
     let sales = 0
@@ -1235,7 +1241,7 @@ function computeBrandCell(
 ): { salesKwd: number; rawSalesKwd: number; orders: number } {
   if (!cube || !cube.connected) return { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const bRow = cube.byBrand[brandId]
     const rawSales = bRow?.netKwd ?? 0
@@ -1268,7 +1274,7 @@ function computeChannelCell(
 ): { salesKwd: number; rawSalesKwd: number; orders: number } {
   if (!cube || !cube.connected) return { salesKwd: 0, rawSalesKwd: 0, orders: 0 }
   const allBranches =
-    scope.branchIds.length === APPROVED_BRANCH_IDS.length && scope.includeUnattributed
+    scope.branchIds.length === OPERATING_BRANCH_IDS.length && scope.includeUnattributed
   if (allBranches) {
     const chRow = cube.byChannel[channelId]
     const rawSales = chRow?.netKwd ?? 0
@@ -1314,7 +1320,7 @@ function buildBreakdownRows(
   const rowIds: string[] =
     dimension === 'branch'
       ? [
-          ...APPROVED_BRANCH_IDS,
+          ...OPERATING_BRANCH_IDS,
           ...(scopeA.includeUnattributed || scopeB.includeUnattributed
             ? [UNATTRIBUTED_BRANCH_ROW_ID]
             : []),
@@ -1644,18 +1650,18 @@ export function computeErpComparison(
     const dim: EntityComparisonDimension =
       rawQuery.entityDimension === 'branch' ? 'branch' : 'brand'
     if (dim === 'branch') {
-      const brA: BranchEntityId = (APPROVED_BRANCH_IDS as readonly string[]).includes(
+      const brA: BranchEntityId = (OPERATING_BRANCH_IDS as readonly string[]).includes(
         rawQuery.entityA ?? '',
       )
         ? (rawQuery.entityA as BranchEntityId)
-        : APPROVED_BRANCH_IDS[0]
-      const brB: BranchEntityId = (APPROVED_BRANCH_IDS as readonly string[]).includes(
+        : OPERATING_BRANCH_IDS[0]
+      const brB: BranchEntityId = (OPERATING_BRANCH_IDS as readonly string[]).includes(
         rawQuery.entityB ?? '',
       )
         ? (rawQuery.entityB as BranchEntityId)
-        : brA === APPROVED_BRANCH_IDS[1]
-          ? APPROVED_BRANCH_IDS[2]
-          : APPROVED_BRANCH_IDS[1]
+        : brA === OPERATING_BRANCH_IDS[1]
+          ? OPERATING_BRANCH_IDS[2]
+          : OPERATING_BRANCH_IDS[1]
       scopeA = { ...scopeA, branchIds: [brA], includeUnattributed: false }
       scopeB = { ...scopeB, branchIds: [brB], includeUnattributed: false }
       const arA = getBranchLabel(brA, true)

@@ -1,6 +1,13 @@
 ﻿'use client'
 
 import { useEffect, useState } from 'react'
+import { SectionCard } from '@/components/ui'
+import {
+  UNAVAILABLE_DASH,
+  formatDate,
+  formatInt,
+  getUnavailableTooltip,
+} from '@/lib/format'
 
 type Doc = {
   id: string
@@ -25,6 +32,9 @@ export function HrDigitalDossier({
 }) {
   const [docs, setDocs] = useState<Doc[]>([])
   const [phase, setPhase] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [reloadNonce, setReloadNonce] = useState(0)
+  const isAr = locale !== 'en'
+  const unavailableTooltip = getUnavailableTooltip(locale)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -43,59 +53,126 @@ export function HrDigitalDossier({
         if (!controller.signal.aborted) setPhase('error')
       })
     return () => controller.abort()
-  }, [employeeId])
+  }, [employeeId, reloadNonce])
 
-  const title =
-    locale === 'en' ? 'Digital HR Dossier' : 'الخزانة الرقمية ومستندات الموظف'
+  const title = isAr ? 'الخزانة الرقمية ومستندات الموظف' : 'Digital HR Dossier'
 
-  if (phase === 'loading') {
-    return <p className="text-sm text-mist-400">{locale === 'en' ? 'Loading dossier…' : 'جارٍ تحميل الخزانة…'}</p>
-  }
-  if (phase === 'error') {
-    return <p className="text-sm text-red-600">{locale === 'en' ? 'Could not load dossier' : 'تعذر تحميل الخزانة'}</p>
-  }
+  const cardState = phase === 'loading' ? 'loading' : phase === 'error' ? 'error' : docs.length === 0 ? 'empty' : 'ready'
 
   return (
-    <section className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
-      <header className="border-b border-white/10 px-4 py-3">
-        <h3 className="font-semibold text-white">{title}</h3>
-      </header>
-      {docs.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-mist-400">
-          {locale === 'en' ? 'No distributed documents yet.' : 'لا توجد مستندات موزّعة بعد.'}
-        </p>
-      ) : (
-        <ul className="divide-y divide-slate-100">
-          {docs.map((doc) => (
-            <li key={doc.id} className="flex flex-wrap items-start justify-between gap-2 px-4 py-3 text-sm">
-              <div>
-                <p className="font-medium text-white">{doc.fileName}</p>
-                <p className="text-xs text-mist-400">
-                  {locale === 'en' ? doc.categoryLabelEn : doc.categoryLabelAr}
-                  {doc.civilId ? ` · CID ${doc.civilId}` : ''}
+    <SectionCard
+      title={title}
+      locale={locale}
+      state={cardState}
+      stateTitle={
+        phase === 'ready' && docs.length === 0
+          ? isAr
+            ? 'لا توجد مستندات موزّعة بعد'
+            : 'No distributed documents yet'
+          : undefined
+      }
+      stateDescription={
+        phase === 'ready' && docs.length === 0
+          ? isAr
+            ? 'ارفع ملفات الموظفين من صفحة رفع المجلد الذكي لربطها هنا تلقائياً.'
+            : 'Upload employee files from Smart Folder Upload to attach them automatically.'
+          : undefined
+      }
+      onRetry={() => setReloadNonce((n) => n + 1)}
+      className="mt-4"
+    >
+      <ul className="divide-y divide-[var(--ds-border-hairline)]">
+        {docs.map((doc) => {
+          const formattedExpiry = doc.expiryDate ? formatDate(doc.expiryDate, locale) : UNAVAILABLE_DASH
+          const formattedCreated = formatDate(doc.createdAt, locale)
+          const formattedDaysLeft =
+            doc.daysLeft !== null && Number.isFinite(doc.daysLeft)
+              ? formatInt(doc.daysLeft, locale)
+              : UNAVAILABLE_DASH
+
+          return (
+            <li key={doc.id} className="flex flex-wrap items-start justify-between gap-2 py-3 text-sm">
+              <div className="min-w-0">
+                <p className="break-words font-semibold text-[var(--ds-text-primary)]">{doc.fileName}</p>
+                <p className="mt-0.5 text-xs text-[var(--ds-text-muted)]">
+                  {isAr ? doc.categoryLabelAr : doc.categoryLabelEn}
+                  {doc.civilId ? (
+                    <>
+                      {' · '}
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        CID {doc.civilId}
+                      </span>
+                    </>
+                  ) : null}
+                  {formattedCreated !== UNAVAILABLE_DASH ? (
+                    <>
+                      {' · '}
+                      <span dir="ltr" className="ds-num tabular-nums">
+                        {formattedCreated}
+                      </span>
+                    </>
+                  ) : null}
                 </p>
               </div>
-              <div className="text-xs">
+              <div className="shrink-0 text-xs">
                 {doc.expiryStatus === 'expired' ? (
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-800">
-                    {locale === 'en' ? `Expired ${doc.expiryDate}` : `منتهية ${doc.expiryDate}`}
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-semibold"
+                    style={{
+                      backgroundColor: 'var(--ds-negative-bg)',
+                      borderColor: 'var(--ds-negative-border)',
+                      color: 'var(--ds-negative)',
+                    }}
+                  >
+                    <span>{isAr ? 'منتهية' : 'Expired'}</span>
+                    <span dir="ltr" className="ds-num tabular-nums">
+                      {formattedExpiry}
+                    </span>
                   </span>
                 ) : doc.expiryStatus === 'soon' ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-900">
-                    {locale === 'en' ? `Expires in ${doc.daysLeft}d` : `تنتهي خلال ${doc.daysLeft} يوم`}
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-semibold"
+                    style={{
+                      backgroundColor: 'var(--ds-warning-bg)',
+                      borderColor: 'var(--ds-warning-border)',
+                      color: 'var(--ds-warning)',
+                    }}
+                  >
+                    <span>{isAr ? 'تنتهي خلال' : 'Expires in'}</span>
+                    <span dir="ltr" className="ds-num tabular-nums">
+                      {formattedDaysLeft}
+                      {isAr ? ' يوم' : 'd'}
+                    </span>
                   </span>
-                ) : doc.expiryDate ? (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-300" dir="ltr">
-                    {doc.expiryDate}
+                ) : formattedExpiry !== UNAVAILABLE_DASH ? (
+                  <span
+                    dir="ltr"
+                    className="ds-num inline-flex rounded-full border px-2.5 py-0.5 font-semibold tabular-nums"
+                    style={{
+                      backgroundColor: 'var(--ds-positive-bg)',
+                      borderColor: 'var(--ds-positive-border)',
+                      color: 'var(--ds-positive)',
+                    }}
+                  >
+                    {formattedExpiry}
                   </span>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span
+                    dir="ltr"
+                    title={unavailableTooltip}
+                    aria-label={unavailableTooltip}
+                    data-unavailable="true"
+                    className="ds-num tabular-nums"
+                    style={{ color: 'var(--ds-unavailable)' }}
+                  >
+                    {UNAVAILABLE_DASH}
+                  </span>
                 )}
               </div>
             </li>
-          ))}
-        </ul>
-      )}
-    </section>
+          )
+        })}
+      </ul>
+    </SectionCard>
   )
 }

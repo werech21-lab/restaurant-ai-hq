@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/erp-auth";
 import { prisma } from "@/lib/db";
+import { visibleCustomerWhere, visibleInvoiceWhere, visibleProductWhere, visibleSupplierWhere } from "@/lib/panel-visibility";
 
 function sqlValue(value: unknown) {
   if (value === null || value === undefined) return "NULL";
@@ -25,10 +26,10 @@ export async function GET() {
     return Response.json({ ok: false, message: "النسخة الاحتياطية متاحة لمدير النظام فقط" }, { status: 401 });
   }
   const [products, customers, suppliers, invoices, organizations] = await Promise.all([
-    prisma.product.findMany({ select: { code: true, name: true, currentStock: true, costPrice: true, sellingPrice: true }, take: 500 }),
-    prisma.customer.findMany({ select: { name: true, phone: true, email: true, balance: true }, take: 500 }),
-    prisma.supplier.findMany({ select: { name: true, phone: true, email: true, balance: true }, take: 500 }),
-    prisma.salesInvoice.findMany({ select: { invoiceNumber: true, totalAmount: true, paidAmount: true, status: true, createdAt: true }, take: 500 }),
+    prisma.product.findMany({ where: visibleProductWhere(), select: { code: true, name: true, currentStock: true, costPrice: true, sellingPrice: true }, take: 500 }),
+    prisma.customer.findMany({ where: visibleCustomerWhere(), select: { name: true, phone: true, email: true, balance: true }, take: 500 }),
+    prisma.supplier.findMany({ where: visibleSupplierWhere(), select: { name: true, phone: true, email: true, balance: true }, take: 500 }),
+    prisma.salesInvoice.findMany({ where: visibleInvoiceWhere(), select: { invoiceNumber: true, totalAmount: true, paidAmount: true, status: true, createdAt: true }, take: 500 }),
     prisma.organization.findMany({ select: { name: true, slug: true, plan: true, currency: true, taxRate: true, isActive: true }, take: 50 }),
   ]);
   const tables = { products, customers, suppliers, invoices, organizations };

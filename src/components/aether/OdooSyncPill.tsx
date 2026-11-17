@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
+import { formatInt, formatKwd, getUnavailableTooltip } from '@/lib/format'
 
 type SyncState = {
   status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'
@@ -13,9 +14,6 @@ type SyncState = {
 
 const LAST_SYNC_STORAGE_KEY = 'vf_last_silent_odoo_sync_ts_v11'
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000
-
-const fmt = (n: number) =>
-  n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 
 /**
  * Odoo 17 Sync Pill in the Single-Row Executive Command Bar.
@@ -117,14 +115,30 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         ? 'Odoo 17 · آخر 30 يوماً'
         : 'Odoo 17 · Last 30d'
 
+  const locale = isAr ? 'ar' : 'en'
+  const unavailableLabel = getUnavailableTooltip(locale)
+  const netSalesLabel =
+    s?.totals.netSalesKwd == null
+      ? unavailableLabel
+      : formatKwd(s.totals.netSalesKwd, { locale })
+  const ordersLabel =
+    s?.totals.orders == null
+      ? unavailableLabel
+      : isAr
+        ? `${formatInt(s.totals.orders)} طلب`
+        : `${formatInt(s.totals.orders)} orders`
+
   const title = s
     ? [
         isAr
           ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to}${mtdSuffixAr}`
           : `Last 30d: ${s.period.from} → ${s.period.to}${mtdSuffixEn}`,
         isAr
-          ? `صافي المبيعات: ${fmt(s.totals.netSalesKwd)} د.ك · ${s.totals.orders.toLocaleString('en-US')} طلب`
-          : `Net sales: ${fmt(s.totals.netSalesKwd)} KWD · ${s.totals.orders.toLocaleString('en-US')} orders`,
+          ? `صافي المبيعات: ${netSalesLabel} · ${ordersLabel}`
+          : `Net sales: ${netSalesLabel} · ${ordersLabel}`,
+        ...(s.partial
+          ? [isAr ? s.warningAr || 'بعض الأرقام غير متاحة الآن' : s.warningEn || 'Some figures are temporarily unavailable']
+          : []),
       ].join('\n')
     : isAr
       ? 'مزامنة Odoo 17 — اضغط لتحديث الأرقام الآن'
@@ -135,9 +149,10 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       type="button"
       onClick={() => void sync(false)}
       title={title}
+      aria-label={label}
       aria-live="polite"
       aria-busy={state.status === 'syncing'}
-      className="ae-top-live ms-1 hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition hover:opacity-90 sm:inline-flex"
+      className="ae-top-live ms-1 hidden shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 sm:inline-flex"
     >
       {state.status === 'syncing' ? (
         <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />

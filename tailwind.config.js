@@ -5,12 +5,34 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-cairo)', 'var(--font-poppins)', 'Cairo', 'Poppins', 'sans-serif'],
+        sans: [
+          'var(--font-ibm-plex-arabic)',
+          'var(--font-inter)',
+          'var(--font-cairo)',
+          'IBM Plex Sans Arabic',
+          'Inter',
+          'Cairo',
+          'system-ui',
+          'sans-serif',
+        ],
+        arabic: ['var(--font-ibm-plex-arabic)', 'var(--font-cairo)', 'IBM Plex Sans Arabic', 'Cairo', 'sans-serif'],
+        inter: ['var(--font-inter)', 'Inter', 'sans-serif'],
         cairo: ['var(--font-cairo)', 'Cairo', 'sans-serif'],
-        poppins: ['var(--font-poppins)', 'Poppins', 'sans-serif'],
-        mono: ['var(--font-poppins)', 'monospace'],
+        poppins: ['var(--font-inter)', 'var(--font-poppins)', 'Inter', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       },
       colors: {
+        ds: {
+          canvas: 'var(--ds-bg-canvas)',
+          surface: 'var(--ds-bg-surface)',
+          elevated: 'var(--ds-bg-elevated)',
+          subtle: 'var(--ds-bg-subtle)',
+          accent: 'var(--ds-accent)',
+          positive: 'var(--ds-positive)',
+          negative: 'var(--ds-negative)',
+          warning: 'var(--ds-warning)',
+          unavailable: 'var(--ds-unavailable)',
+        },
         diyar: {
           navyDark: '#040B1C',
           navyDeep: '#0B1D42',
@@ -46,6 +68,11 @@ module.exports = {
       boxShadow: {
         card: 'var(--shadow-card)',
         lift: 'var(--shadow-lift)',
+        'ds-card': 'var(--ds-shadow-card)',
+        'ds-elevated': 'var(--ds-shadow-elevated)',
+      },
+      transitionTimingFunction: {
+        ds: 'var(--ds-ease-out)',
       },
       gridTemplateColumns: {
         13: 'repeat(13, minmax(0, 1fr))',

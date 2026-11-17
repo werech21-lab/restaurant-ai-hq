@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
   fetchLiveOdooWarehouseChain,
@@ -77,15 +78,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    const visible = stripExcludedOdooTree(payload)
     return NextResponse.json(
       sanitizeOdooPublicPayload({
         ok: true,
         readOnly: caller.isAuditor,
         role: caller.role,
-        ...payload,
+        ...visible,
         summary: null,
         database: null,
-        warehouseChain: payload,
+        warehouseChain: visible,
       }),
       { status: 200, headers: odooSyncResponseHeaders },
     )

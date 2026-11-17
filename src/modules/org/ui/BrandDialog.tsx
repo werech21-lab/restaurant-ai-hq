@@ -1,15 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { Fact, Field, useRunner } from '@/components/erp/actions'
+import { useRunner } from '@/components/erp/actions'
 import { apiRequest } from '@/components/erp/api'
 import { useCan } from '@/components/erp/permissions'
-import { inputClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Num } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { createBrandSchema, orgStatuses, updateBrandSchema, type Brand, type OrgStatus } from '@/modules/org/client'
-import { fieldIssue, FormIssues, RequestFailure } from '@/modules/org/ui/shared'
+import {
+  createBrandSchema,
+  orgStatuses,
+  updateBrandSchema,
+  type Brand,
+  type OrgStatus,
+} from '@/modules/org/client'
+import {
+  FormIssues,
+  OrgFact,
+  OrgField,
+  RequestFailure,
+  fieldIssue,
+  orgInputClass,
+  orgPrimaryBtn,
+  orgSecondaryBtn,
+} from '@/modules/org/ui/shared'
 
 type Props = {
   brand?: Brand
@@ -41,7 +54,9 @@ export function BrandDialog({ brand, onSaved, onCancel, onReload }: Props) {
       ? updateBrandSchema.safeParse({ version: brand.version, name, status })
       : createBrandSchema.safeParse({ code, name, status })
     if (!parsed.success) {
-      setIssues(Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))))
+      setIssues(
+        Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))),
+      )
       return
     }
     void run(async () => {
@@ -58,25 +73,40 @@ export function BrandDialog({ brand, onSaved, onCancel, onReload }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {brand ? (
-          <Fact label={t('org.brand.code')}>
-            <Num className="font-semibold text-blue-300">{brand.code}</Num>
-          </Fact>
+          <OrgFact label={t('org.brand.code')}>
+            <span dir="ltr" className="font-mono font-semibold text-[var(--ds-accent)]">
+              {brand.code}
+            </span>
+          </OrgFact>
         ) : (
-          <Field label={t('org.brand.code')}>
-            <input value={code} onChange={(event) => setCode(event.target.value)} maxLength={20} dir="ltr" autoComplete="off" spellCheck={false} className={inputClass} />
-          </Field>
+          <OrgField label={t('org.brand.code')}>
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              maxLength={20}
+              dir="ltr"
+              autoComplete="off"
+              spellCheck={false}
+              className={orgInputClass}
+            />
+          </OrgField>
         )}
-        <Field label={t('org.brand.name')}>
-          <input value={name} onChange={(event) => setName(event.target.value)} maxLength={200} className={inputClass} />
-        </Field>
-        <Field label={t('org.brand.status')}>
+        <OrgField label={t('org.brand.name')}>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={200}
+            className={orgInputClass}
+          />
+        </OrgField>
+        <OrgField label={t('org.brand.status')}>
           <select
             value={status}
             onChange={(event) => {
               const value = event.target.value
               if (value === 'active' || value === 'inactive') setStatus(value)
             }}
-            className={inputClass}
+            className={orgInputClass}
           >
             {orgStatuses.map((value) => (
               <option key={value} value={value}>
@@ -84,18 +114,18 @@ export function BrandDialog({ brand, onSaved, onCancel, onReload }: Props) {
               </option>
             ))}
           </select>
-        </Field>
+        </OrgField>
       </div>
-      <p className="text-xs text-gray-500">{t('org.brand.codeHint')}</p>
+      <p className="text-xs text-[var(--ds-text-muted)]">{t('org.brand.codeHint')}</p>
       <FormIssues issues={issues} />
       <RequestFailure failure={failure} onReload={onReload} />
-      <div className="flex flex-wrap justify-end gap-2 border-t border-[#30363d] pt-4">
+      <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--ds-border-hairline)] pt-4">
         {canManage ? (
-          <button type="button" onClick={save} disabled={pending} className={primaryButton}>
+          <button type="button" onClick={save} disabled={pending} className={orgPrimaryBtn}>
             {pending ? t('erp.loading') : t('erp.save')}
           </button>
         ) : null}
-        <button type="button" onClick={onCancel} className={secondaryButton}>
+        <button type="button" onClick={onCancel} className={orgSecondaryBtn}>
           {t('erp.cancel')}
         </button>
       </div>

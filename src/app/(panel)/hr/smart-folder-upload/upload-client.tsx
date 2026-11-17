@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import JSZip from 'jszip'
+import { SectionCard, StateBlock } from '@/components/ui'
+import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
+import {
+  UNAVAILABLE_DASH,
+  formatDate,
+  formatInt,
+  formatPct,
+  getUnavailableTooltip,
+} from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
 type Emp = { id: string; name: string; code: string; department: string }
@@ -25,7 +34,6 @@ type ResultRow = {
 type Props = { employees: Emp[]; locale: 'ar' | 'en' }
 
 const CONCURRENCY = 3
-/** ~750KB binary → ~1MB base64 — safely under Vercel 4.5MB with JSON wrapper. */
 const MAX_INLINE = 750_000
 const HR_EXT = /\.(pdf|jpe?g|png|webp|xlsx?|csv|docx?|txt)$/i
 const JUNK_PATH =
@@ -43,7 +51,7 @@ function isJunk(file: File) {
   if (JUNK_NAME.test(base)) return true
   if (base.startsWith('.') || base.startsWith('~$')) return true
   if (/\.(exe|dll|msi|mp4|mov|avi|mkv|iso|dmg|sys|bin|jar|wasm)$/i.test(base)) return true
-  if (/\.zip$/i.test(base)) return false // zip handled separately then filtered
+  if (/\.zip$/i.test(base)) return false
   return !HR_EXT.test(base)
 }
 
@@ -98,7 +106,12 @@ async function expandZip(file: File): Promise<File[]> {
   return out
 }
 
-async function mapPool<T, R>(items: T[], limit: number, worker: (item: T, index: number) => Promise<R>, shouldPause: () => boolean) {
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+  shouldPause: () => boolean,
+) {
   const results: R[] = new Array(items.length)
   let next = 0
   async function run() {
@@ -159,11 +172,18 @@ async function collectFilesFromDroppedItems(dataTransfer: DataTransfer): Promise
 }
 
 export function SmartFolderUploadClient({ employees: initialEmployees, locale }: Props) {
-  const { t, dir } = useI18n()
+  const { t } = useI18n()
+  const isAr = locale !== 'en'
+  const dir = isAr ? 'rtl' : 'ltr'
+  const unavailableTooltip = getUnavailableTooltip(locale)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const pauseRef = useRef(false)
-  const [employees, setEmployees] = useState(initialEmployees)
+  const [employees, setEmployees] = useState(() =>
+    initialEmployees.filter(
+      (e) => !isExcludedOdooEntity(e.name) && !isExcludedOdooEntity(e.department),
+    ),
+  )
 
   useEffect(() => {
     if (folderInputRef.current) {
@@ -173,6 +193,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       folderInputRef.current.setAttribute('mozdirectory', '')
     }
   }, [])
+
   const [dragging, setDragging] = useState(false)
   const [pending, setPending] = useState<File[]>([])
   const [ignoredCount, setIgnoredCount] = useState(0)
@@ -187,13 +208,23 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
 
   const reviewRows = useMemo(() => rows.filter((r) => r.status === 'REVIEW'), [rows])
   const matchedRows = useMemo(() => rows.filter((r) => r.status !== 'REVIEW'), [rows])
-  const label = useCallback((ar: string, en: string) => (locale === 'en' ? en : ar), [locale])
+  const label = useCallback((ar: string, en: string) => (isAr ? ar : en), [isAr])
 
   async function refreshEmployees() {
-    const res = await fetch('/api/hr/ingest-folder', { credentials: 'same-origin' })
-    if (!res.ok) return
-    const json = (await res.json()) as { data?: { employees?: Emp[] } }
-    if (json.data?.employees) setEmployees(json.data.employees)
+    try {
+      const res = await fetch('/api/hr/ingest-folder', { credentials: 'same-origin' })
+      if (!res.ok) return
+      const json = (await res.json()) as { data?: { employees?: Emp[] } }
+      if (json.data?.employees) {
+        setEmployees(
+          json.data.employees.filter(
+            (e) => !isExcludedOdooEntity(e.name) && !isExcludedOdooEntity(e.department),
+          ),
+        )
+      }
+    } catch {
+      // Keep current employee list if refresh fails transiently
+    }
   }
 
   async function prepareSelection(fileList: File[]) {
@@ -208,7 +239,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         try {
           expanded.push(...(await expandZip(file)))
         } catch {
-          // ignore broken zip
+          // Skip invalid zip archive without breaking batch
         }
       } else {
         expanded.push(file)
@@ -224,8 +255,8 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
     setPending(accepted)
     setNotice(
       label(
-        `تم العثور على ${accepted.length} ملف موظف صالح للرفع (وتم تجاهل ${ignored} ملف نظام غير ذي صلة)`,
-        `Found ${accepted.length} valid HR files (ignored ${ignored} system/junk files)`,
+        `تم العثور على ${formatInt(accepted.length, locale)} ملف موظف صالح للرفع (وتم تجاهل ${formatInt(ignored, locale)} ملف نظام غير ذي صلة)`,
+        `Found ${formatInt(accepted.length, locale)} valid HR files (ignored ${formatInt(ignored, locale)} system/junk files)`,
       ),
     )
   }
@@ -239,7 +270,6 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       let textHint: string | undefined
       if (sizeBytes <= MAX_INLINE) {
         contentBase64 = await fileToBase64(file)
-        // Extra safety: drop if base64 would blow the soft limit
         if (contentBase64.length > 1_050_000) {
           contentBase64 = undefined
           textHint = `${relativePath} ${file.name} (metadata-only: oversized)`
@@ -268,7 +298,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
           ],
         }),
       })
-      const json = (await res.json()) as { data?: { rows?: ResultRow[] }; error?: { message?: string } }
+      const json = (await res.json()) as { data?: { rows?: ResultRow[] } }
       if (!res.ok) return { rows: [], failed: file.name }
       const out = json.data?.rows || []
       if (out.every((r) => r.status === 'SKIPPED')) return { rows: out, failed: file.name }
@@ -307,17 +337,18 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       () => pauseRef.current,
     )
 
+    const matchedCount = collected.filter((r) => r.status !== 'REVIEW').length
     setNotice(
       label(
-        `اكتمل التوزيع: ${collected.length} ملف · فشل/تخطّي ${failed.length} · مطابق ${collected.filter((r) => r.status !== 'REVIEW').length}`,
-        `Done: ${collected.length} processed · failed/skipped ${failed.length} · matched ${collected.filter((r) => r.status !== 'REVIEW').length}`,
+        `اكتمل التوزيع: ${formatInt(collected.length, locale)} ملف · فشل/تخطّي ${formatInt(failed.length, locale)} · مطابق ${formatInt(matchedCount, locale)}`,
+        `Done: ${formatInt(collected.length, locale)} processed · failed/skipped ${formatInt(failed.length, locale)} · matched ${formatInt(matchedCount, locale)}`,
       ),
     )
     if (failed.length) {
       setError(
         label(
-          `تم تخطي ${failed.length} ملفاً دون إيقاف الباقي. يمكن إعادة المحاولة لاحقاً.`,
-          `${failed.length} files skipped without stopping the rest. Retry later if needed.`,
+          `تم تخطي ${formatInt(failed.length, locale)} ملفاً دون إيقاف الباقي. يمكن إعادة المحاولة لاحقاً.`,
+          `${formatInt(failed.length, locale)} files skipped without stopping the rest. Retry later if needed.`,
         ),
       )
     }
@@ -344,25 +375,32 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
   }
 
   async function assign(documentId: string, employeeId: string) {
-    const res = await fetch('/api/hr/ingest-folder', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ documentId, employeeId }),
-    })
-    const json = (await res.json()) as { data?: ResultRow; error?: { message?: string } }
-    if (!res.ok) {
-      setError(json.error?.message || 'assign_failed')
-      return
+    setError(null)
+    try {
+      const res = await fetch('/api/hr/ingest-folder', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId, employeeId }),
+      })
+      const json = (await res.json()) as { data?: ResultRow }
+      if (!res.ok) {
+        setError(label('تعذر ربط المستند بالموظف المختار حالياً.', 'Unable to assign the document right now.'))
+        return
+      }
+      if (json.data) setRows((prev) => prev.map((row) => (row.id === documentId ? json.data! : row)))
+    } catch {
+      setError(label('تعذر الاتصال بالخادم أثناء ربط المستند.', 'Unable to reach the server while assigning document.'))
     }
-    if (json.data) setRows((prev) => prev.map((row) => (row.id === documentId ? json.data! : row)))
   }
 
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0
 
   return (
-    <div className="space-y-6" dir={dir}>
+    <div className="min-w-0 space-y-6" dir={dir}>
       <div
+        role="region"
+        aria-label={label('منطقة سحب وإفلات ملفات الموظفين', 'HR folder dropzone')}
         onDragEnter={(e) => {
           e.preventDefault()
           setDragging(true)
@@ -370,24 +408,26 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         onDragOver={(e) => e.preventDefault()}
         onDragLeave={() => setDragging(false)}
         onDrop={(e) => void onDrop(e)}
-        className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${
-          dragging ? 'border-emerald-500 bg-emerald-950/20' : 'border-emerald-300 bg-[#11161f]'
-        }`}
+        style={{
+          backgroundColor: dragging ? 'var(--ds-accent-soft)' : 'var(--ds-bg-surface)',
+          borderColor: dragging ? 'var(--ds-accent)' : 'var(--ds-border-accent)',
+        }}
+        className="rounded-2xl border-2 border-dashed p-6 text-center transition sm:p-8"
       >
-        <p className="text-lg font-bold text-emerald-300">
+        <p className="text-lg font-bold text-[var(--ds-text-primary)]">
           {label('اسحب وأفلت مجلد الموظفين أو ZIP / Excel / PDF / صور هنا', 'Drag & drop HR folder, ZIP, Excel, PDF, or images')}
         </p>
-        <p className="mt-2 text-sm text-mist-300">
+        <p className="ds-caption mt-2">
           {label(
-            'فلترة تلقائية لملفات النظام · رفع متوازٍ (3) · ملف واحد لكل طلب تحت حد Vercel',
-            'Auto junk filter · parallel pool (3) · 1 file per request under Vercel limits',
+            'فلترة تلقائية لملفات النظام · رفع متوازٍ (3) · ملف واحد لكل طلب',
+            'Auto junk filter · parallel upload (3) · single file per request',
           )}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
+            className="ds-focus-ring btn-colored cursor-pointer rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
@@ -413,7 +453,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
           <button
             type="button"
             disabled={busy}
-            className="rounded-xl border border-emerald-600 px-5 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-950/20 disabled:opacity-60"
+            className="ds-focus-ring cursor-pointer rounded-xl border border-[var(--ds-border-accent)] bg-[var(--ds-accent-soft)] px-5 py-3 text-sm font-bold text-[var(--ds-text-primary)] hover:brightness-95 disabled:opacity-60"
             onClick={() => {
               if (!fileInputRef.current) return
               fileInputRef.current.multiple = true
@@ -426,6 +466,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         <input
           ref={fileInputRef}
           type="file"
+          aria-label={label('اختيار ملفات الموظفين للرفع', 'Select HR files to upload')}
           className="hidden"
           multiple
           onChange={onInputChange}
@@ -434,6 +475,7 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         <input
           ref={folderInputRef}
           type="file"
+          aria-label={label('اختيار مجلد الموظفين للرفع', 'Select HR folder to upload')}
           className="hidden"
           multiple
           onChange={onInputChange}
@@ -441,11 +483,11 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       </div>
 
       {pending.length > 0 || ignoredCount > 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
-          <p className="text-sm font-semibold text-white">
+        <div className="ds-surface rounded-2xl p-4">
+          <p className="text-sm font-semibold text-[var(--ds-text-primary)]">
             {label(
-              `تم العثور على ${pending.length} ملف موظف صالح للرفع (وتم تجاهل ${ignoredCount} ملف نظام غير ذي صلة)`,
-              `Found ${pending.length} valid HR files (ignored ${ignoredCount} system/junk files)`,
+              `تم العثور على ${formatInt(pending.length, locale)} ملف موظف صالح للرفع (وتم تجاهل ${formatInt(ignoredCount, locale)} ملف نظام غير ذي صلة)`,
+              `Found ${formatInt(pending.length, locale)} valid HR files (ignored ${formatInt(ignoredCount, locale)} system/junk files)`,
             )}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -453,13 +495,17 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
               type="button"
               disabled={busy || pending.length === 0}
               onClick={() => void startDistribution()}
-              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="ds-focus-ring btn-colored cursor-pointer rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {label('بدء التوزيع الذكي الآن 🚀', 'Start smart distribution now 🚀')}
+              {label('بدء التوزيع الذكي الآن', 'Start smart distribution now')}
             </button>
             {busy ? (
-              <button type="button" onClick={togglePause} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-bold text-mist-100">
-                {paused ? label('استئناف ▶', 'Resume ▶') : label('إيقاف مؤقت ⏸', 'Pause ⏸')}
+              <button
+                type="button"
+                onClick={togglePause}
+                className="ds-focus-ring cursor-pointer rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-4 py-2.5 text-sm font-bold text-[var(--ds-text-primary)]"
+              >
+                {paused ? label('استئناف', 'Resume') : label('إيقاف مؤقت', 'Pause')}
               </button>
             ) : null}
           </div>
@@ -467,28 +513,60 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
       ) : null}
 
       {busy || progress.total > 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-[#11161f] p-4">
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="font-semibold text-mist-100">
+        <div className="ds-surface rounded-2xl p-4">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="font-semibold text-[var(--ds-text-primary)]">
               {label('حالة التقدم', 'Upload progress')}
               {batchId ? ` · ${batchId}` : ''}
               {paused ? ` · ${label('متوقف مؤقتاً', 'paused')}` : ''}
             </span>
-            <span dir="ltr">
-              {progress.done}/{progress.total} ({pct}%) · fail {progress.failed}
+            <span dir="ltr" className="ds-num font-semibold tabular-nums text-[var(--ds-text-secondary)]">
+              {formatInt(progress.done, locale)}/{formatInt(progress.total, locale)} ({formatPct(pct, { locale, decimals: 0 })}) · fail{' '}
+              {formatInt(progress.failed, locale)}
             </span>
           </div>
-          <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            role="progressbar"
+            aria-valuenow={pct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={label('تقدم رفع الملفات', 'Upload progress')}
+            className="h-3 overflow-hidden rounded-full bg-[var(--ds-bg-subtle)]"
+          >
             <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
         </div>
       ) : null}
 
-      {notice ? <p className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 text-sm text-emerald-300">{notice}</p> : null}
-      {error ? <p className="rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">{error}</p> : null}
+      {notice ? (
+        <p
+          role="status"
+          className="rounded-xl border px-4 py-3 text-sm font-medium"
+          style={{
+            backgroundColor: 'var(--ds-positive-bg)',
+            borderColor: 'var(--ds-positive-border)',
+            color: 'var(--ds-positive)',
+          }}
+        >
+          {notice}
+        </p>
+      ) : null}
+
+      {error ? (
+        <StateBlock
+          state="error"
+          compact
+          locale={locale}
+          title={label('تنبيه أثناء المعالجة', 'Processing notice')}
+          description={error}
+        />
+      ) : null}
+
       {failedNames.length > 0 ? (
-        <details className="rounded-xl border border-white/10 bg-[#11161f] p-3 text-xs text-mist-300">
-          <summary className="cursor-pointer font-semibold">{label('إعادة المحاولة التلقائية / المتخطاة', 'Auto-retry / skipped list')}</summary>
+        <details className="ds-surface rounded-xl p-3 text-xs text-[var(--ds-text-secondary)]">
+          <summary className="ds-focus-ring cursor-pointer font-semibold text-[var(--ds-text-primary)]">
+            {label('قائمة الملفات المتخطاة', 'Skipped file list')} ({formatInt(failedNames.length, locale)})
+          </summary>
           <ul className="mt-2 max-h-40 list-disc overflow-auto ps-5" dir="ltr">
             {failedNames.map((name) => (
               <li key={name}>{name}</li>
@@ -497,76 +575,152 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
         </details>
       ) : null}
 
+      {rows.length === 0 && !busy && pending.length === 0 ? (
+        <StateBlock
+          state="empty"
+          compact
+          locale={locale}
+          title={label('بانتظار اختيار مجلد أو ملفات الموظفين', 'Ready for HR folder or document upload')}
+          description={label(
+            'اختر مجلداً أو ملفات ZIP/Excel/PDF ليقوم النظام بمطابقة الموظفين تلقائياً.',
+            'Choose a folder or ZIP/Excel/PDF files to auto-match employees and populate dossiers.',
+          )}
+        />
+      ) : null}
+
       {matchedRows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#11161f]">
-          <header className="border-b border-white/10 px-4 py-3">
-            <h2 className="font-semibold text-white">{label('جدول التوزيع التلقائي', 'Auto-distribution table')}</h2>
-          </header>
-          <div className="overflow-x-auto">
+        <SectionCard
+          title={label('جدول التوزيع التلقائي', 'Auto-distribution table')}
+          locale={locale}
+          padded={false}
+        >
+          <div className="w-full overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-white/10 text-mist-400">
-                  <th className="px-3 py-2 text-start">{label('الملف', 'File')}</th>
-                  <th className="px-3 py-2 text-start">{label('الموظف', 'Employee')}</th>
-                  <th className="px-3 py-2 text-start">{label('القسم', 'Category')}</th>
-                  <th className="px-3 py-2 text-start">{label('التحديثات', 'Updates')}</th>
-                  <th className="px-3 py-2 text-start">{label('الحالة', 'Status')}</th>
+              <thead className="border-b border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)]">
+                <tr>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الملف', 'File')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الموظف', 'Employee')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('القسم', 'Category')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('تاريخ الانتهاء', 'Expiry')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('التحديثات', 'Updates')}
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-start text-xs font-bold text-[var(--ds-text-secondary)]">
+                    {label('الحالة', 'Status')}
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {matchedRows.map((row) => (
-                  <tr key={row.id} className="border-b border-white/5">
-                    <td className="px-3 py-2">
-                      <p className="font-medium text-white">{row.fileName}</p>
-                      <p className="text-xs text-mist-400" dir="ltr">
-                        {row.relativePath}
-                      </p>
-                    </td>
-                    <td className="px-3 py-2">
-                      {row.employeeName ? (
-                        <span>
-                          {row.employeeName}
-                          <span className="mt-0.5 block text-xs text-mist-400" dir="ltr">
-                            {row.employeeCode}
+              <tbody className="divide-y divide-[var(--ds-border-hairline)]">
+                {matchedRows.map((row) => {
+                  const formattedExpiry = row.expiryDate ? formatDate(row.expiryDate, locale) : UNAVAILABLE_DASH
+                  const badgeColors =
+                    row.status === 'SKIPPED'
+                      ? {
+                          backgroundColor: 'var(--ds-warning-bg)',
+                          borderColor: 'var(--ds-warning-border)',
+                          color: 'var(--ds-warning)',
+                        }
+                      : {
+                          backgroundColor: 'var(--ds-positive-bg)',
+                          borderColor: 'var(--ds-positive-border)',
+                          color: 'var(--ds-positive)',
+                        }
+                  return (
+                    <tr key={row.id} className="hover:bg-[var(--ds-bg-hover)]">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-[var(--ds-text-primary)]">{row.fileName}</p>
+                        <p className="ds-caption" dir="ltr">
+                          {row.relativePath}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.employeeName ? (
+                          <span>
+                            <span className="font-medium text-[var(--ds-text-primary)]">{row.employeeName}</span>
+                            <span className="ds-caption ds-num mt-0.5 block tabular-nums" dir="ltr">
+                              {row.employeeCode}
+                            </span>
                           </span>
+                        ) : (
+                          <span
+                            dir="ltr"
+                            title={unavailableTooltip}
+                            aria-label={unavailableTooltip}
+                            data-unavailable="true"
+                            className="ds-num tabular-nums"
+                            style={{ color: 'var(--ds-unavailable)' }}
+                          >
+                            {UNAVAILABLE_DASH}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-[var(--ds-text-primary)]">
+                        {isAr ? row.categoryLabelAr : row.categoryLabelEn}
+                      </td>
+                      <td className="px-4 py-3">
+                        {formattedExpiry === UNAVAILABLE_DASH ? (
+                          <span
+                            dir="ltr"
+                            title={unavailableTooltip}
+                            aria-label={unavailableTooltip}
+                            data-unavailable="true"
+                            className="ds-num tabular-nums"
+                            style={{ color: 'var(--ds-unavailable)' }}
+                          >
+                            {UNAVAILABLE_DASH}
+                          </span>
+                        ) : (
+                          <span dir="ltr" className="ds-num tabular-nums text-[var(--ds-text-primary)]">
+                            {formattedExpiry}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-[var(--ds-text-secondary)]" dir="ltr">
+                        {row.updates.join(', ') || UNAVAILABLE_DASH}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          style={badgeColors}
+                          className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                        >
+                          {row.status}
                         </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-3 py-2">{locale === 'en' ? row.categoryLabelEn : row.categoryLabelAr}</td>
-                    <td className="px-3 py-2 text-xs text-mist-300" dir="ltr">
-                      {row.updates.join(', ') || '—'}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-300">{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
-        </section>
+        </SectionCard>
       ) : null}
 
       {reviewRows.length > 0 ? (
-        <section className="overflow-hidden rounded-2xl border border-amber-500/30 bg-amber-50/40">
-          <header className="border-b border-amber-500/30 px-4 py-3">
-            <h2 className="font-semibold text-amber-300">
-              {label('ملفات تحتاج لتأكيدك السريع (Unmatched / Review Queue)', 'Files needing quick confirmation (Review Queue)')}
-            </h2>
-          </header>
-          <ul className="divide-y divide-amber-100">
+        <SectionCard
+          title={label('ملفات تحتاج لتأكيدك السريع (قائمة المراجعة)', 'Files needing quick confirmation (Review Queue)')}
+          locale={locale}
+          padded={false}
+        >
+          <ul className="divide-y divide-[var(--ds-border-hairline)]">
             {reviewRows.map((row) => (
               <li key={row.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                 <div className="min-w-[200px] flex-1">
-                  <p className="font-medium text-white">{row.fileName}</p>
-                  <p className="text-xs text-mist-400" dir="ltr">
+                  <p className="font-semibold text-[var(--ds-text-primary)]">{row.fileName}</p>
+                  <p className="ds-caption" dir="ltr">
                     {row.relativePath}
                   </p>
                 </div>
                 <select
-                  className="rounded-lg border border-white/15 bg-[#11161f] px-2 py-1.5 text-sm"
+                  aria-label={label(`اختيار الموظف للملف ${row.fileName}`, `Select employee for ${row.fileName}`)}
+                  className="ds-focus-ring rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
                   defaultValue=""
                   onChange={(e) => {
                     if (e.target.value) void assign(row.id, e.target.value)
@@ -582,11 +736,15 @@ export function SmartFolderUploadClient({ employees: initialEmployees, locale }:
               </li>
             ))}
           </ul>
-        </section>
+        </SectionCard>
       ) : null}
 
-      <p className="text-xs text-mist-400">
-        {t('nav.hr')} · {label('الخزائن الرقمية تظهر داخل بطاقة كل موظف بعد الربط', 'Digital dossiers appear on each employee card after matching')}
+      <p className="ds-caption">
+        {t('nav.hr')} ·{' '}
+        {label(
+          'الخزائن الرقمية تظهر داخل بطاقة كل موظف بعد الربط',
+          'Digital dossiers appear on each employee card after matching',
+        )}
       </p>
     </div>
   )

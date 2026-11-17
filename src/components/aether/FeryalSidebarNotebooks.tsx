@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { formatDate } from '@/lib/format'
 import {
   Check,
   Download,
@@ -145,7 +146,7 @@ export function FeryalSidebarNotebooks({
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `feryal-notebooks-backup-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = `feryal-notebooks-backup-${formatDate(new Date(), 'en')}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)

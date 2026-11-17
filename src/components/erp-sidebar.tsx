@@ -491,7 +491,7 @@ export function Sidebar({
               onClick={toggleRail}
               aria-label={toggleTitle}
               title={toggleTitle}
-              className="ae-side-toggle flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-150 active:scale-95"
+              className="ae-side-toggle flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
             >
               <CollapseIcon size={16} />
             </button>
@@ -577,7 +577,7 @@ export function Sidebar({
                         data-active={active}
                         aria-current={active ? 'page' : undefined}
                         aria-label={collapsed ? label : undefined}
-                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                           active
                             ? 'bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white shadow-sm'
                             : ''
@@ -632,7 +632,7 @@ export function Sidebar({
               <button
                 type="submit"
                 aria-label={t('nav.logout')}
-                className="ae-side-logout flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all"
+                className="ae-side-logout flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
               >
                 <LogOut size={14} />
               </button>
@@ -695,7 +695,7 @@ export function Sidebar({
             <form action={logout} className="mt-2">
               <button
                 type="submit"
-                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
+                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
               >
                 <LogOut size={13} />
                 <span>{t('nav.logout')}</span>

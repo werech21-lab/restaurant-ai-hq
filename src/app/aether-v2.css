@@ -1240,3 +1240,63 @@ html[data-theme='dark'] .ae-bottom-sheet {
 #vf-exec-pin-backdrop {
   z-index: 130 !important;
 }
+
+/* ---------- 15. Executive Design System Primitives Integration ---------- */
+#ae-root .ds-surface,
+#ae-root .ds-kpi-card,
+#ae-root .ds-section-card,
+#ae-root .ds-chart-card,
+#ae-root .ds-table-card {
+  background-color: var(--ds-bg-surface);
+  border: 1px solid var(--ds-border-hairline);
+  box-shadow: var(--ds-shadow-card);
+  color: var(--ds-text-primary);
+}
+
+#ae-root .ds-kpi-card {
+  transition:
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#ae-root .ds-kpi-card:hover {
+  border-color: var(--ds-border-accent);
+  box-shadow: var(--ds-shadow-elevated);
+}
+
+html.dark #ae-root .ds-kpi-card:hover,
+html[data-theme='dark'] #ae-root .ds-kpi-card:hover {
+  background-color: var(--ds-bg-elevated);
+}
+
+#ae-root .ds-surface-subtle {
+  background-color: var(--ds-bg-subtle);
+  border: 1px solid var(--ds-border-hairline);
+}
+
+#ae-root .ds-table-card thead th {
+  background-color: var(--ds-bg-subtle) !important;
+  color: var(--ds-text-secondary) !important;
+  border-color: var(--ds-border-hairline) !important;
+}
+
+#ae-root .ds-table-card tbody td,
+#ae-root .ds-table-card tfoot td {
+  border-color: var(--ds-border-hairline) !important;
+}
+
+#ae-root .ds-table-card tbody tr:hover {
+  background-color: var(--ds-bg-hover) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #ae-root .ds-kpi-card,
+  #ae-root .ds-motion {
+    transition: none !important;
+  }
+  #ae-root .ds-kpi-card:hover {
+    transform: none;
+  }
+}

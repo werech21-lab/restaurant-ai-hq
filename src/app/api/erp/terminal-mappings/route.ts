@@ -12,6 +12,7 @@ import {
 import {
   computeTerminalMappingLedgerSnapshot,
   normalizeTargetBranchInput,
+  hydrateAdminPosTerminalMappings,
   setAdminPosTerminalMapping,
   type ActiveVentureBranchId,
 } from '@/lib/odoo-terminal-mappings'
@@ -47,6 +48,19 @@ function enforceSameOriginIfBrowser(request: NextRequest): NextResponse | null {
 export async function GET(request: NextRequest) {
   const guard = await requireAdminOnlyApiSession(request)
   if (!guard.ok) return guard.response
+
+  try {
+    await hydrateAdminPosTerminalMappings({ required: true })
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'mapping_persist_failed',
+        message: 'Terminal mappings could not be loaded.',
+      },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
 
   // Ensure live Odoo discovery cache is warm when Odoo 17 env is configured
   await fetchLiveOdooSnapshot({ period: 'month', forceRefresh: false }).catch(() => null)
@@ -135,12 +149,23 @@ async function handleUpsertMappings(request: NextRequest) {
     parsedItems.push({ terminal_id: tid, branch_id: normalizedBranch })
   }
 
-  for (const item of parsedItems) {
-    setAdminPosTerminalMapping({
-      terminalId: item.terminal_id,
-      branchId: item.branch_id,
-      updatedBy: guard.session.sub,
-    })
+  try {
+    for (const item of parsedItems) {
+      await setAdminPosTerminalMapping({
+        terminalId: item.terminal_id,
+        branchId: item.branch_id,
+        updatedBy: guard.session.sub,
+      })
+    }
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'mapping_persist_failed',
+        message: 'The terminal mapping could not be saved.',
+      },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   // Bust Odoo live/baseline snapshot cache so `/api/erp/odoo-sync` reflects the reallocation immediately
@@ -204,11 +229,22 @@ export async function DELETE(request: NextRequest) {
     )
   }
 
-  setAdminPosTerminalMapping({
-    terminalId: tid,
-    branchId: null,
-    updatedBy: guard.session.sub,
-  })
+  try {
+    await setAdminPosTerminalMapping({
+      terminalId: tid,
+      branchId: null,
+      updatedBy: guard.session.sub,
+    })
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'mapping_persist_failed',
+        message: 'The terminal mapping could not be saved.',
+      },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
   bustOdooLiveCache({ clearLastKnownGood: true })
   const freshLive = await fetchLiveOdooSnapshot({
     period: 'month',

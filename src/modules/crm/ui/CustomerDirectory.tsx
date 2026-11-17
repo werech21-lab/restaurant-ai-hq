@@ -2,11 +2,19 @@
 
 import { useMemo, useState } from 'react'
 import { useDebounced } from '@/components/erp/common'
-import { errorClass, inputClass, panelClass, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { Num, StateBlock } from '@/components/ui'
+import { UNAVAILABLE_DASH, getUnavailableTooltip } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import { customerStatuses, type Customer, type CustomerStatus } from '@/modules/crm/client'
-import { CustomerStatusBadge, customerStatusLabels, minorText } from '@/modules/crm/ui/shared'
+import {
+  CrmMoney,
+  CustomerStatusBadge,
+  crmErrorClass,
+  crmInputClass,
+  crmPanelClass,
+  crmSecondaryBtn,
+  customerStatusLabels,
+} from '@/modules/crm/ui/shared'
 import { usePagedList } from '@/modules/crm/ui/usePagedList'
 
 type SortKey = 'name' | 'createdAt'
@@ -18,7 +26,9 @@ type Props = {
 
 /** Customer directory with live server-side search, a status filter, sorting and cursor paging. */
 export function CustomerDirectory({ reloadToken, onOpen }: Props) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale = locale === 'en' ? 'en' : 'ar'
+  const unavailableTip = getUnavailableTooltip(fmtLocale)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<CustomerStatus | ''>('')
   const [sort, setSort] = useState<SortKey>('name')
@@ -35,7 +45,7 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
   const list = usePagedList<Customer>(path, reloadToken)
 
   return (
-    <div className={panelClass}>
+    <div className={crmPanelClass}>
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
         <input
           type="search"
@@ -43,13 +53,13 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
           onChange={(event) => setSearch(event.target.value)}
           placeholder={t('crm.dir.search')}
           aria-label={t('crm.dir.search')}
-          className={`${inputClass} mt-0 lg:col-span-6`}
+          className={`${crmInputClass} mt-0 lg:col-span-6`}
         />
         <select
           value={status}
           onChange={(event) => setStatus(event.target.value as CustomerStatus | '')}
           aria-label={t('crm.col.status')}
-          className={`${inputClass} mt-0 lg:col-span-2`}
+          className={`${crmInputClass} mt-0 lg:col-span-2`}
         >
           <option value="">{t('crm.dir.allStatuses')}</option>
           {customerStatuses.map((value) => (
@@ -59,7 +69,12 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
           ))}
         </select>
         <div className="flex gap-2 lg:col-span-4">
-          <select value={sort} onChange={(event) => setSort(event.target.value as SortKey)} aria-label={t('erp.sortBy')} className={`${inputClass} mt-0`}>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as SortKey)}
+            aria-label={t('erp.sortBy')}
+            className={`${crmInputClass} mt-0`}
+          >
             <option value="name">{t('crm.sort.name')}</option>
             <option value="createdAt">{t('crm.sort.createdAt')}</option>
           </select>
@@ -67,7 +82,7 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
             value={direction}
             onChange={(event) => setDirection(event.target.value as 'asc' | 'desc')}
             aria-label={t('erp.sortBy')}
-            className={`${inputClass} mt-0`}
+            className={`${crmInputClass} mt-0`}
           >
             <option value="asc">{t('erp.sort.asc')}</option>
             <option value="desc">{t('erp.sort.desc')}</option>
@@ -75,38 +90,39 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
         </div>
       </div>
 
-      {list.phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p> : null}
+      {list.phase === 'loading' ? (
+        <StateBlock state="loading" locale={fmtLocale} title={t('erp.loading')} />
+      ) : null}
 
       {list.phase === 'error' ? (
-        <div className="space-y-3 py-6 text-center">
-          <p role="alert" className={`${errorClass} inline-block`}>
-            {t(list.error)}
-          </p>
-          <div>
-            <button type="button" onClick={list.reload} className={secondaryButton}>
-              {t('erp.retry')}
-            </button>
-          </div>
-        </div>
+        <StateBlock
+          state="error"
+          locale={fmtLocale}
+          title={t(list.error)}
+          onRetry={list.reload}
+          retryLabel={t('erp.retry')}
+        />
       ) : null}
 
       {list.phase === 'ready' && list.rows.length === 0 ? (
-        <div className="py-10 text-center">
-          <p className="text-gray-200">{t('crm.dir.empty')}</p>
-          <p className="mt-1 text-sm text-gray-400">{t('crm.dir.emptyHint')}</p>
-        </div>
+        <StateBlock
+          state="empty"
+          locale={fmtLocale}
+          title={t('crm.dir.empty')}
+          description={t('crm.dir.emptyHint')}
+        />
       ) : null}
 
       {list.phase === 'ready' && list.rows.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[44rem] text-sm">
-            <thead className="text-gray-400">
-              <tr className="border-b border-[#30363d]">
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.name')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.type')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.contact')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.credit')}</th>
-                <th className="px-3 py-2 text-start font-medium">{t('crm.col.status')}</th>
+            <thead className="text-slate-600 dark:text-slate-300">
+              <tr className="border-b border-slate-200 dark:border-emerald-500/15">
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.name')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.type')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.contact')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.credit')}</th>
+                <th className="px-3 py-2.5 text-start font-semibold">{t('crm.col.status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -116,23 +132,32 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
                   tabIndex={0}
                   onClick={() => onOpen(customer)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') onOpen(customer)
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onOpen(customer)
+                    }
                   }}
-                  className="cursor-pointer border-b border-[#30363d]/60 text-gray-200 hover:bg-white/[0.04] focus:bg-white/[0.04] focus:outline-none"
+                  className="cursor-pointer border-b border-slate-100 text-slate-800 hover:bg-emerald-50/50 focus-visible:bg-emerald-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.04] dark:focus-visible:bg-white/[0.04]"
                 >
-                  <td className="px-3 py-2.5 font-semibold text-blue-300">{customer.name}</td>
-                  <td className="px-3 py-2.5">{t(customer.customerType === 'company' ? 'crm.ctype.company' : 'crm.ctype.individual')}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-300">
+                  <td className="px-3 py-2.5 font-semibold text-emerald-700 dark:text-emerald-300">
+                    {customer.name}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {t(customer.customerType === 'company' ? 'crm.ctype.company' : 'crm.ctype.individual')}
+                  </td>
+                  <td className="px-3 py-2.5 text-xs text-slate-600 dark:text-slate-300">
                     {customer.phone ? <Num>{customer.phone}</Num> : null}
                     {customer.phone && customer.email ? <br /> : null}
                     {customer.email ? <Num>{customer.email}</Num> : null}
-                    {!customer.phone && !customer.email ? '—' : null}
+                    {!customer.phone && !customer.email ? (
+                      <span title={unavailableTip}>{UNAVAILABLE_DASH}</span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2.5">
                     {customer.creditLimitMinor === null ? (
-                      <span className="text-gray-400">{t('crm.dir.noLimit')}</span>
+                      <span className="text-slate-600 dark:text-slate-300">{t('crm.dir.noLimit')}</span>
                     ) : (
-                      <Money value={minorText(customer.creditLimitMinor)} />
+                      <CrmMoney minor={customer.creditLimitMinor} className="font-semibold" />
                     )}
                   </td>
                   <td className="px-3 py-2.5">
@@ -146,13 +171,13 @@ export function CustomerDirectory({ reloadToken, onOpen }: Props) {
       ) : null}
 
       {list.moreError ? (
-        <p role="alert" className={`${errorClass} mt-3`}>
+        <p role="alert" className={`${crmErrorClass} mt-3`}>
           {t(list.moreError)}
         </p>
       ) : null}
       {list.hasMore && list.phase === 'ready' ? (
         <div className="mt-4 text-center">
-          <button type="button" onClick={list.loadMore} disabled={list.loadingMore} className={secondaryButton}>
+          <button type="button" onClick={list.loadMore} disabled={list.loadingMore} className={crmSecondaryBtn}>
             {list.loadingMore ? t('erp.loading') : t('erp.loadMore')}
           </button>
         </div>

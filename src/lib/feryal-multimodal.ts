@@ -13,8 +13,6 @@
  *       visual inspection while strictly respecting Vercel body size limits.
  */
 
-import { AI_KEY_STORAGE_KEYS } from '@/lib/ai-keys'
-
 export type VisionComplianceTier = 'green' | 'yellow' | 'red'
 
 export interface FeryalExtractedFrame {
@@ -543,62 +541,8 @@ export async function callFeryalVisionInspector(params: {
   workspaceContext: string
   attachments: readonly FeryalMediaAttachment[]
 }): Promise<FeryalVisionAuditResponse | null> {
-  const { mediaParts, claudeImages } = buildCompactVisionTransportPayload(params.attachments)
-  if (mediaParts.length === 0 && claudeImages.length === 0) return null
-
-  let customGeminiKey = ''
-  let customAnthropicKey = ''
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      customGeminiKey = window.localStorage.getItem(AI_KEY_STORAGE_KEYS.gemini) ?? ''
-      customAnthropicKey = window.localStorage.getItem(AI_KEY_STORAGE_KEYS.anthropic) ?? ''
-    }
-  } catch {}
-
-  const attachmentSummary = params.attachments
-    .map((a) =>
-      a.kind === 'video'
-        ? `${a.name} (video ${a.durationSec ?? 0}s, ${a.extractedFrames?.length ?? 0} frames)`
-        : `${a.name} (image ${a.width}x${a.height})`,
-    )
-    .join(', ')
-
-  const res = await fetch('/api/erp/feryal/vision', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      prompt: params.prompt,
-      lang: params.lang,
-      workspaceContext: params.workspaceContext,
-      attachmentSummary,
-      mediaParts,
-      claudeImages,
-      ...(customGeminiKey.trim() ? { customGeminiKey: customGeminiKey.trim() } : {}),
-      ...(customAnthropicKey.trim() ? { customAnthropicKey: customAnthropicKey.trim() } : {}),
-    }),
-  })
-
-  if (!res.ok) return null
-  const data = (await res.json()) as Partial<FeryalVisionAuditResponse>
-  if (!data.ok || !data.reply) return null
-
-  const tier: VisionComplianceTier =
-    data.complianceTier === 'green' || data.complianceTier === 'yellow' || data.complianceTier === 'red'
-      ? data.complianceTier
-      : inferVisionComplianceFromText(data.reply)
-  const badge = getComplianceBadgeMeta(tier)
-
-  return {
-    ok: true,
-    reply: data.reply,
-    complianceTier: tier,
-    complianceBadgeAr: data.complianceBadgeAr || badge.ar,
-    complianceBadgeEn: data.complianceBadgeEn || badge.en,
-    provider: data.provider || 'gemini',
-    model: params.lang === 'ar' ? 'فحص الصور والفيديو' : 'Vision & Video Inspector',
-    engineLabelAr: 'فحص الصور والفيديو',
-    engineLabelEn: 'Vision & Video Inspector',
-  }
+  void params
+  return null
 }
 
 export function buildDefaultMediaPrompt(

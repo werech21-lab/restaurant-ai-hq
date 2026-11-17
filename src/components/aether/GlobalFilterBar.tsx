@@ -2,7 +2,8 @@
 
 import { usePathname } from 'next/navigation'
 import { Filter, RotateCcw, X } from 'lucide-react'
-import { BRANDS, BRANCHES, CHANNELS, LEDGER, PERIODS, kwd, fmt, type BranchId, type BrandId, type ChannelId } from '@/lib/aether/ledger'
+import { BRANDS, BRANCHES, CHANNELS, LEDGER, PERIODS, type BranchId, type BrandId, type ChannelId } from '@/lib/aether/ledger'
+import { formatKwd, formatPct, getUnavailableTooltip } from '@/lib/format'
 import { useBiFilters } from '@/components/aether/BiFilterContext'
 import { Num, useLang } from '@/components/aether/ui'
 
@@ -17,7 +18,9 @@ export function isBiRoute(pathname: string | null) {
 export function GlobalFilterBar() {
   const pathname = usePathname()
   const { filters, view, setBrand, setBranch, setChannel, setPeriod, reset } = useBiFilters()
-  const { lang, isAr, T } = useLang()
+  const { isAr, T } = useLang()
+  const locale = isAr ? 'ar' : 'en'
+  const unavailableLabel = getUnavailableTooltip(locale)
 
   if (!isBiRoute(pathname)) return null
 
@@ -82,8 +85,17 @@ export function GlobalFilterBar() {
         </div>
 
         <div className="ms-auto flex items-center gap-2 text-xs">
-          <span className="hidden text-slate-500 dark:text-slate-400 sm:inline">{T('Slice net sales', 'مبيعات الشريحة')}</span>
-          <Num className="text-sm text-slate-900 dark:text-slate-50">{kwd(view.netSales, lang, view.period === 'daily' ? 3 : 0)}</Num>
+          <span className="hidden text-slate-600 dark:text-slate-300 sm:inline">{T('Slice net sales', 'مبيعات الشريحة')}</span>
+          <Num
+            className="text-sm text-slate-900 dark:text-slate-50"
+          >
+            <span
+              title={view.netSales == null ? unavailableLabel : undefined}
+              data-unavailable={view.netSales == null ? 'true' : undefined}
+            >
+              {formatKwd(view.netSales, { locale })}
+            </span>
+          </Num>
         </div>
       </div>
 
@@ -92,21 +104,22 @@ export function GlobalFilterBar() {
           {chips.map((c) => (
             <span key={c.key} className="ae-chip">
               {c.label}
-              <button type="button" onClick={c.clear} aria-label={T('Remove filter', 'إزالة الفلتر')} className="rounded-full p-0.5 hover:bg-white/60">
+              <button type="button" onClick={c.clear} aria-label={T('Remove filter', 'إزالة الفلتر')} className="rounded-full p-0.5 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50">
                 <X className="h-3 w-3" />
               </button>
             </span>
           ))}
-          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 dark:bg-emerald-500 dark:text-[#04130D]">
+          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-emerald-500 dark:text-[#04130D]">
             <RotateCcw className="h-3 w-3" />
             {T('Reset to Full Group Ledger', 'العودة إلى دفتر المجموعة الكامل')}
           </button>
           {view.filtered ? (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              {T(
-                `Proportional allocation of the Odoo group ledger · ${fmt(view.salesShare * 100, 2)}% of group sales`,
-                `توزيع نسبي من دفتر أودو للمجموعة · ${fmt(view.salesShare * 100, 2)}% من مبيعات المجموعة`,
-              )}
+            <span className="text-xs text-slate-600 dark:text-slate-300">
+              {T('Proportional allocation of the Odoo group ledger · ', 'توزيع نسبي من دفتر أودو للمجموعة · ')}
+              <span dir="ltr" className="tabular-nums">
+                {formatPct(view.salesShare * 100, { locale, decimals: 2 })}
+              </span>
+              {T(' of group sales', ' من مبيعات المجموعة')}
             </span>
           ) : null}
         </div>

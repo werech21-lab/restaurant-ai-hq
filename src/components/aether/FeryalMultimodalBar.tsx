@@ -56,6 +56,7 @@ export function FeryalMediaPickerButton({
         type="file"
         accept="image/jpeg,image/png,image/webp,image/*,video/mp4,video/webm,video/quicktime,video/*"
         multiple
+        aria-label={isAr ? 'اختيار ملفات صور أو فيديو' : 'Choose photo or video files'}
         className="hidden"
         onChange={(e) => {
           const raw = Array.from(e.target.files ?? []).filter(isSupportedMediaFile)
@@ -70,6 +71,7 @@ export function FeryalMediaPickerButton({
         type="file"
         accept="image/*,video/*"
         capture="environment"
+        aria-label={isAr ? 'التقاط صورة أو فيديو بالكاميرا' : 'Capture photo or video with camera'}
         className="hidden"
         onChange={(e) => {
           const raw = Array.from(e.target.files ?? []).filter(isSupportedMediaFile)
@@ -90,7 +92,7 @@ export function FeryalMediaPickerButton({
             : 'Attach photo (JPG/PNG/WEBP) or video (MP4/WEBM/MOV) for Feryal Vision'
         }
         aria-label={isAr ? 'إرفاق صورة أو فيديو' : 'Attach photo or video'}
-        className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-[#F6F7F8] px-3 sm:px-3.5 text-xs font-semibold text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
+        className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-[#F6F7F8] px-3 sm:px-3.5 text-xs font-semibold text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
       >
         {processing ? (
           <Loader2 className="h-4 w-4 animate-spin text-emerald-600 dark:text-emerald-400" />
@@ -119,7 +121,7 @@ export function FeryalMediaPickerButton({
         onClick={() => cameraRef.current?.click()}
         title={isAr ? 'التقاط بالكاميرا (طبق / مطبخ / فاتورة)' : 'Camera Capture'}
         aria-label={isAr ? 'التقاط بالكاميرا' : 'Capture with camera'}
-        className={`inline-flex ${hCls} w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[#F6F7F8] text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
+        className={`inline-flex ${hCls} w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl bg-[#F6F7F8] text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
       >
         <Camera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
       </button>
@@ -145,7 +147,7 @@ export function FeryalVisionQuickBar({
           type="button"
           disabled={disabled}
           onClick={onOpenPicker}
-          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
+          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-emerald-800 shadow-sm ring-1 ring-emerald-500/20 transition-all duration-150 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-500/30"
         >
           <Camera className="h-3.5 w-3.5" />
           <span>{isAr ? 'إرفاق صورة / فيديو 👁️' : 'Upload Photo / Video 👁️'}</span>
@@ -158,7 +160,7 @@ export function FeryalVisionQuickBar({
           type="button"
           disabled={disabled}
           onClick={() => onSelectVisionPrompt(isAr ? preset.promptAr : preset.promptEn)}
-          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-xl px-3.5 py-2 text-[13px] font-medium text-neutral-600 transition-all duration-150 hover:bg-white/75 hover:text-neutral-900 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
+          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-xl px-3.5 py-2 text-[13px] font-medium text-neutral-600 transition-all duration-150 hover:bg-white/75 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
         >
           <span>{isAr ? preset.badgeAr : preset.badgeEn}</span>
         </button>
@@ -224,7 +226,7 @@ export function FeryalPendingAttachmentsTray({
           <button
             type="button"
             onClick={onClearAll}
-            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-2.5 py-1 text-[13px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 dark:bg-[#101C17] dark:text-slate-300"
+            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-2.5 py-1 text-[13px] font-semibold text-neutral-600 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#101C17] dark:text-slate-300"
           >
             {isAr ? 'مسح المرفقات' : 'Clear all'}
           </button>
@@ -315,7 +317,7 @@ export function FeryalPendingAttachmentsTray({
                 type="button"
                 onClick={() => onRemove(att.id)}
                 aria-label={isAr ? 'إزالة المرفق' : 'Remove attachment'}
-                className="absolute end-1.5 top-1.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 transition-colors hover:bg-rose-100 hover:text-rose-700 dark:bg-emerald-950/60 dark:text-slate-300"
+                className="absolute end-1.5 top-1.5 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 transition-colors hover:bg-rose-100 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-emerald-950/60 dark:text-slate-300"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -334,7 +336,7 @@ export function FeryalPendingAttachmentsTray({
               key={preset.id}
               type="button"
               onClick={() => onApplyPresetPrompt(isAr ? preset.promptAr : preset.promptEn)}
-              className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-3.5 py-2 text-[13px] font-medium text-neutral-700 shadow-sm ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-emerald-950/60"
+              className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-3.5 py-2 text-[13px] font-medium text-neutral-700 shadow-sm ring-1 ring-slate-900/[0.05] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/20 dark:hover:bg-emerald-950/60"
             >
               {isAr ? preset.badgeAr : preset.badgeEn}
             </button>

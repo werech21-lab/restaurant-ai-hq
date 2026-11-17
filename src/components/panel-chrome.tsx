@@ -9,7 +9,7 @@ import { openCommandPalette } from '@/components/aether/BiFilterContext'
 import { BRAIN_BAR_ROUTES } from '@/components/aether/TopBrainSwitcher'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { ROOT_TITLE, routeTitle } from '@/lib/aether/route-titles'
-import { useI18n } from '@/lib/i18n'
+import { LanguageSwitch, useI18n } from '@/lib/i18n'
 
 /** Keeps the browser tab <title> strictly in the active language and never allows legacy fallback titles. */
 function useDocumentTitle(pathname: string, isAr: boolean) {
@@ -62,14 +62,17 @@ export function PanelHeaderBar({
         <button
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
-          className="ae-capsule hidden h-8 w-8 cursor-pointer items-center justify-center md:inline-flex"
+          className="ae-capsule hidden h-8 w-8 cursor-pointer items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 lg:inline-flex"
           title={isAr ? 'طي أو توسيع القائمة الجانبية (Ctrl+B)' : 'Toggle sidebar rail (Ctrl+B)'}
           aria-label={isAr ? 'طي أو توسيع القائمة الجانبية' : 'Toggle sidebar rail'}
         >
           <PanelLeft className="h-3.5 w-3.5 opacity-75" />
         </button>
 
-        <Link href="/erp" className="ae-top-link shrink-0 px-2.5 py-1 text-[13px] font-semibold">
+        <Link
+          href="/erp"
+          className="ae-top-link shrink-0 px-2.5 py-1 text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+        >
           {isAr ? ROOT_TITLE.ar : ROOT_TITLE.en}
         </Link>
         {page ? (
@@ -82,13 +85,14 @@ export function PanelHeaderBar({
         ) : null}
       </nav>
 
-      {/* Fast ⌘K Quick Palette, Notifications, and fallback Theme on non-ERP routes */}
+      {/* Fast ⌘K Quick Palette, Notifications, Language & Theme on non-ERP routes */}
       <div className="relative z-[60] flex shrink-0 items-center gap-2 overflow-visible">
         <button
           type="button"
           onClick={openCommandPalette}
-          className="ae-capsule hidden cursor-pointer items-center gap-2 px-3.5 py-1.5 text-xs font-semibold sm:inline-flex"
+          className="ae-capsule hidden cursor-pointer items-center gap-2 px-3.5 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 sm:inline-flex"
           title={isAr ? 'بحث سريع في الفروع والمطاعم والصفحات (⌘K)' : 'Quick search branches, brands & pages (⌘K)'}
+          aria-label={isAr ? 'بحث سريع في الفروع والمطاعم والصفحات' : 'Quick search branches, brands and pages'}
         >
           <Search className="h-3.5 w-3.5 opacity-70" />
           <span className="hidden md:inline">{isAr ? 'بحث سريع' : 'Quick Search'}</span>
@@ -97,7 +101,12 @@ export function PanelHeaderBar({
           </kbd>
         </button>
         {notifications}
-        {!hasUnifiedControlBar ? <ThemeToggle /> : null}
+        {!hasUnifiedControlBar ? (
+          <>
+            <LanguageSwitch />
+            <ThemeToggle />
+          </>
+        ) : null}
       </div>
     </div>
   )

@@ -20,8 +20,8 @@ export function GrowthPlaybookV5({
       <UnlinkedSourceNotice
         isAr={isAr}
         compact={embedded}
-        titleAr="غير مربوط بمصدر — خطط النمو التقديرية"
-        titleEn="غير مربوط بمصدر — Growth Playbook Estimates"
+        titleAr="خطط النمو التقديرية"
+        titleEn="Growth Playbook Estimates"
         reasonAr="تم حذف كافة تقديرات العائد الثابتة وتوصيات التوفير غير المربوطة بقيود فعلية من Odoo 17."
         reasonEn="All static ROI estimates and unlinked savings playbooks have been removed."
         requiredSourceAr="تفعيل نموذج الميزانيات التقديرية وتكاليف الوصفات (mrp.bom) في Odoo 17."

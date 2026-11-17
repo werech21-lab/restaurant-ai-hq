@@ -5,12 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Check, ClipboardCopy, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import {
-  AI_KEY_STORAGE_KEYS,
-  hasAnthropicBrowserOverride,
-  hasGeminiBrowserOverride,
-  isValidGeminiApiKey,
-} from '@/lib/ai-keys-client'
+import { AI_KEY_STORAGE_KEYS, isValidGeminiApiKey } from '@/lib/ai-keys-client'
 import {
   BRAIN_HEALTH_EVENT,
   BRAIN_MODE_EVENT,
@@ -65,10 +60,8 @@ export function BrainControlsInline() {
   const [gearOpen, setGearOpen] = useState(false)
 
   const [customAnthropic, setCustomAnthropic] = useState('')
-  const [customXai, setCustomXai] = useState('')
   const [customGemini, setCustomGemini] = useState('')
   const [customOpenAi, setCustomOpenAi] = useState('')
-  const [deepActive, setDeepActive] = useState(true)
   const [economyMode, setEconomyMode] = useState(false)
   const [savedNotice, setSavedNotice] = useState(false)
   const [probing, setProbing] = useState(false)
@@ -76,13 +69,11 @@ export function BrainControlsInline() {
   const gearWrapRef = useRef<HTMLDivElement>(null)
 
   const refreshHealth = useCallback(async (forceRefresh = false) => {
-    setDeepActive((prev) => prev || hasAnthropicBrowserOverride())
     setEconomyMode(getClaudeSonnetOnly())
     if (forceRefresh) setProbing(true)
     try {
       const h = await probeDualBrainHealth(forceRefresh)
       setHealth(h)
-      setDeepActive(h.claudeReady)
       if (typeof h.sonnetOnly === 'boolean') setEconomyMode(h.sonnetOnly)
     } catch {
       // Keep UI responsive offline
@@ -95,8 +86,8 @@ export function BrainControlsInline() {
     setMode(normalizeBrainMode(getActiveBrainMode()))
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('aetherbi_xai_api_key')
         setCustomAnthropic(window.localStorage.getItem(AI_KEY_STORAGE_KEYS.anthropic) ?? '')
-        setCustomXai(window.localStorage.getItem(AI_KEY_STORAGE_KEYS.xai) ?? '')
         setCustomGemini(window.localStorage.getItem(AI_KEY_STORAGE_KEYS.gemini) ?? '')
         setCustomOpenAi(window.localStorage.getItem(AI_KEY_STORAGE_KEYS.openai) ?? '')
       }
@@ -107,13 +98,13 @@ export function BrainControlsInline() {
       const detail = (e as CustomEvent<BrainMode>).detail
       setMode(normalizeBrainMode(detail ?? getActiveBrainMode()))
     }
-    const onHealthUpdate = () => {
-      void refreshHealth(false)
+    const onHealthUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<BrainLiveHealth>).detail
+      if (detail) setHealth(detail)
     }
     const onStorage = () => {
       setMode(normalizeBrainMode(getActiveBrainMode()))
-      setDeepActive((prev) => prev || hasAnthropicBrowserOverride())
-      void refreshHealth(false)
+      window.localStorage.removeItem('aetherbi_xai_api_key')
     }
 
     window.addEventListener(BRAIN_MODE_EVENT, onBrainMode)
@@ -169,8 +160,7 @@ export function BrainControlsInline() {
           window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.anthropic)
         }
 
-        if (customXai.trim()) window.localStorage.setItem(AI_KEY_STORAGE_KEYS.xai, customXai.trim())
-        else window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.xai)
+        window.localStorage.removeItem('aetherbi_xai_api_key')
 
         if (customGemini.trim() && isValidGeminiApiKey(customGemini.trim())) {
           window.localStorage.setItem(AI_KEY_STORAGE_KEYS.gemini, customGemini.trim())
@@ -195,13 +185,12 @@ export function BrainControlsInline() {
 
   const handleClearOverrides = () => {
     setCustomAnthropic('')
-    setCustomXai('')
     setCustomGemini('')
     setCustomOpenAi('')
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.anthropic)
-        window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.xai)
+        window.localStorage.removeItem('aetherbi_xai_api_key')
         window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.gemini)
         window.localStorage.removeItem(AI_KEY_STORAGE_KEYS.openai)
       }
@@ -216,8 +205,10 @@ export function BrainControlsInline() {
     void refreshHealth(false)
   }
 
-  const fastReady = health ? health.geminiReady : true || hasGeminiBrowserOverride()
-  const visionReady = deepActive || fastReady
+  const claudeReady = health?.claudeReady === true
+  const geminiReady = health?.geminiReady === true
+  const grokReady = health?.grokOk === true
+  const allReady = claudeReady && geminiReady && grokReady
   const activeModeId: 'triple' | 'gemini' = mode === 'gemini' ? 'gemini' : 'triple'
   const activeModeLabel = getPrimaryModeBadge(activeModeId, isAr)
   void FERYAL_EXECUTIVE_MODES
@@ -308,7 +299,7 @@ export function BrainControlsInline() {
           }`}
         >
           <span aria-hidden>🔑⚙️</span>
-          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${allReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
         </button>
 
         {gearOpen ? (
@@ -340,41 +331,32 @@ export function BrainControlsInline() {
 
             <div className="rounded-2xl bg-[#F4F6F9] p-3 ring-1 ring-slate-950/[0.05] dark:bg-white/[0.05] dark:ring-white/[0.08]">
               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-slate-500 dark:text-slate-400">
-                <span>{isAr ? 'الأنماط التنفيذية المعتمدة' : 'Active Executive Modes'}</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  {isAr ? 'جاهز' : 'Active'}
+                <span>{isAr ? 'فحص المزودين' : 'Provider probe'}</span>
+                <span className={allReady ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-300'}>
+                  {allReady ? (isAr ? 'جاهز' : 'Ready') : isAr ? 'غير جاهز' : 'Not ready'}
                 </span>
               </div>
               <div className="space-y-1.5 text-[12px]">
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
-                  <span className="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
-                    <span className={`h-2 w-2 rounded-full ${deepActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    {isAr ? 'تحليل استراتيجي معمّق' : 'Deep Strategic'}
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    {isAr ? 'نشط' : 'Active'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
-                  <span className="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
-                    <span className={`h-2 w-2 rounded-full ${fastReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    {isAr ? 'إجابة تنفيذية سريعة' : 'Fast Executive'}
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    {isAr ? 'نشط' : 'Active'}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
-                  <span className="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
-                    <span className={`h-2 w-2 rounded-full ${visionReady ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    {isAr ? 'فحص الصور والفيديو' : 'Vision & Video Inspector'}
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    {isAr ? 'نشط' : 'Active'}
-                  </span>
-                </div>
+                {(
+                  [
+                    { provider: 'anthropic', ready: claudeReady, model: health?.claudeModel ?? '' },
+                    { provider: 'google', ready: geminiReady, model: health?.geminiModel ?? '' },
+                    { provider: 'xai', ready: grokReady, model: health?.grokModel ?? '' },
+                  ] as const
+                ).map((row) => (
+                  <div key={row.provider} className="flex items-center justify-between gap-2 rounded-lg bg-white px-2.5 py-1.5 dark:bg-[#0D151C]">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${row.ready ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      <span className="truncate font-mono">
+                        {row.provider}
+                        {row.ready && row.model ? `/${row.model}` : ''}
+                      </span>
+                    </span>
+                    <span className={`text-xs font-semibold ${row.ready ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-300'}`}>
+                      {row.ready ? (isAr ? 'جاهز' : 'Ready') : isAr ? 'غير جاهز' : 'Not ready'}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -428,8 +410,8 @@ export function BrainControlsInline() {
                   onChange={(e) => setCustomAnthropic(e.target.value)}
                   placeholder={
                     isAr
-                      ? 'متصل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
-                      : 'Connected via server proxy (leave blank for default)'
+                      ? 'اختياري في هذا المتصفح. المجلس يقرأ متغير البيئة على الخادم'
+                      : 'Optional in this browser. The council reads the server environment'
                   }
                   className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
@@ -446,26 +428,8 @@ export function BrainControlsInline() {
                   onChange={(e) => setCustomGemini(e.target.value)}
                   placeholder={
                     isAr
-                      ? 'متصل تلقائياً عبر الخادم (اتركه فارغاً للافتراضي)'
-                      : 'Connected via server proxy (leave blank for default)'
-                  }
-                  className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
-                />
-              </label>
-
-              <label className="block space-y-1">
-                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
-                  {isAr ? 'مفتاح المحرك المساند متعدد الزوايا (اختياري)' : 'Auxiliary Multi-Angle Key (Optional)'}
-                </span>
-                <input
-                  type="password"
-                  dir="ltr"
-                  value={customXai}
-                  onChange={(e) => setCustomXai(e.target.value)}
-                  placeholder={
-                    isAr
-                      ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)'
-                      : 'Built-in active (leave blank for default)'
+                      ? 'اختياري في هذا المتصفح. المجلس يقرأ متغير البيئة على الخادم'
+                      : 'Optional in this browser. The council reads the server environment'
                   }
                   className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />
@@ -482,8 +446,8 @@ export function BrainControlsInline() {
                   onChange={(e) => setCustomOpenAi(e.target.value)}
                   placeholder={
                     isAr
-                      ? 'مفعّل تلقائياً (اتركه فارغاً للافتراضي)'
-                      : 'Built-in active (leave blank for default)'
+                      ? 'اختياري في هذا المتصفح. الخادم يقرأ متغير البيئة'
+                      : 'Optional in this browser. The server reads the environment variable'
                   }
                   className="h-9 w-full rounded-xl bg-[#F4F6F9] px-3 font-mono text-[12px] text-slate-900 ring-1 ring-slate-950/[0.05] focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:bg-white/[0.06] dark:text-white"
                 />

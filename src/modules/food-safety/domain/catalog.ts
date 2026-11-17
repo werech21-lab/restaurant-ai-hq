@@ -3,6 +3,7 @@ import {
   SHELF_LIFE_MATRIX,
   type StorageMode,
 } from '@/lib/food-safety/shelf-life-matrix'
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { VENTURE_BRANCHES, VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 
 export const SCRAP_ACCOUNT_CODE = '420001'
@@ -230,7 +231,18 @@ export function listFoodSafetySites(): SiteRef[] {
       nameAr: s.nameAr,
     }
   })
-  return [...fromBranches, ...extras]
+  const combined = [...fromBranches, ...extras]
+  const seenIds = new Set<string>()
+  const uniqueClean: SiteRef[] = []
+  for (const site of combined) {
+    if (seenIds.has(site.id)) continue
+    if (isExcludedOdooEntity(`${site.id} ${site.nameEn} ${site.nameAr} ${site.areaEn} ${site.areaAr}`)) {
+      continue
+    }
+    seenIds.add(site.id)
+    uniqueClean.push(site)
+  }
+  return uniqueClean
 }
 
 export type PrepCatalogItem = {

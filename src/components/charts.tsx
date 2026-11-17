@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { UNAVAILABLE_DASH, formatInt, formatKwd } from '@/lib/format'
 import type { Theme } from '@/lib/theme'
 
 export const chartSeries = {
@@ -51,11 +52,16 @@ export function ChartFrame({ children, className = 'h-72' }: { children: ReactNo
 }
 
 export function formatTick(value: number) {
-  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+  if (!Number.isFinite(value)) return UNAVAILABLE_DASH
+  if (Math.abs(value) >= 1000) {
+    return `${formatKwd(value / 1000, { showUnit: false, decimals: 1 })}k`
+  }
+  return formatInt(value)
 }
 
 export function formatAmount(value: number | string | ReadonlyArray<number | string> | undefined) {
   const raw = Array.isArray(value) ? value[0] : value
+  if (raw === undefined || raw === null || raw === '') return UNAVAILABLE_DASH
   const amount = Number(raw)
-  return Number.isFinite(amount) ? amount.toLocaleString('en-US') : '—'
+  return formatKwd(amount, { showUnit: false })
 }

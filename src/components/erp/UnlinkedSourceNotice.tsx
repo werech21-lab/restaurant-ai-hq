@@ -4,15 +4,6 @@ import React from 'react'
 import { Link2Off } from 'lucide-react'
 import { useI18n } from '@/lib/i18n'
 
-function useSafeIsAr(explicitIsAr?: boolean): boolean {
-  try {
-    const i18n = useI18n()
-    return explicitIsAr ?? i18n.locale === 'ar'
-  } catch {
-    return explicitIsAr ?? true
-  }
-}
-
 export interface UnlinkedSourceNoticeProps {
   titleAr?: string
   titleEn?: string
@@ -25,26 +16,32 @@ export interface UnlinkedSourceNoticeProps {
   className?: string
 }
 
-/**
- * Clean honest notice rendered whenever an ERP module, tab, or widget has no
- * connected live Odoo 17 / external telemetry source. Strictly zero invented numbers.
- */
-export function UnlinkedSourceNotice({
+const ARABIC_UNLINKED_PREFIX_RE = /^غير مربوط بمصدر\s*[—–-]\s*/
+
+function normalizeEnglishTitle(rawTitleEn?: string): string {
+  if (!rawTitleEn) return 'Not Linked to a Data Source'
+  if (ARABIC_UNLINKED_PREFIX_RE.test(rawTitleEn)) {
+    return rawTitleEn.replace(ARABIC_UNLINKED_PREFIX_RE, 'Unlinked from Source — ')
+  }
+  return rawTitleEn
+}
+
+function UnlinkedSourceNoticeBody({
   titleAr,
   titleEn,
   reasonAr,
   reasonEn,
   requiredSourceAr,
   requiredSourceEn,
-  isAr: explicitIsAr,
+  isAr,
   compact = false,
   className = '',
-}: UnlinkedSourceNoticeProps) {
-  const isAr = useSafeIsAr(explicitIsAr)
+}: Omit<UnlinkedSourceNoticeProps, 'isAr'> & { isAr: boolean }) {
+  const pillLabel = isAr ? 'غير مربوط بمصدر' : 'Unlinked from Source'
 
   const heading = isAr
     ? (titleAr ?? 'غير مربوط بمصدر')
-    : (titleEn ?? 'غير مربوط بمصدر — Not Linked to a Data Source')
+    : normalizeEnglishTitle(titleEn)
 
   const detail = isAr
     ? (reasonAr ??
@@ -60,13 +57,13 @@ export function UnlinkedSourceNotice({
         role="status"
         dir={isAr ? 'rtl' : 'ltr'}
         data-unlinked-source="true"
-        className={`flex items-center gap-3 rounded-2xl border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-100 ${className}`}
+        className={`flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300/75 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/30 dark:bg-amber-950/35 dark:text-amber-100 ${className}`.trim()}
       >
-        <Link2Off className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <span className="font-bold">غير مربوط بمصدر</span>
+        <Link2Off className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden />
+        <div className="min-w-0 flex-1 break-words">
+          <span className="font-bold">{pillLabel}</span>
           {reasonAr || reasonEn ? (
-            <span className="ms-2 text-xs text-amber-900/85 dark:text-amber-200/85">
+            <span className="ms-2 text-xs text-amber-900/90 dark:text-amber-200/90">
               — {detail}
             </span>
           ) : null}
@@ -80,34 +77,55 @@ export function UnlinkedSourceNotice({
       role="status"
       dir={isAr ? 'rtl' : 'ltr'}
       data-unlinked-source="true"
-      className={`mx-auto my-6 max-w-3xl rounded-3xl border border-slate-200/90 bg-white p-8 text-center shadow-xs dark:border-white/10 dark:bg-[#101915] ${className}`}
+      className={`ds-surface mx-auto my-4 w-full max-w-3xl rounded-3xl p-5 text-center sm:my-6 sm:p-8 ${className}`.trim()}
     >
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/90 text-amber-700 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-400/25">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100/90 text-amber-800 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-400/25">
         <Link2Off className="h-7 w-7" aria-hidden />
       </div>
 
-      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3.5 py-1 text-xs font-extrabold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/70 dark:text-amber-200">
-        <span>غير مربوط بمصدر</span>
+      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3.5 py-1 text-xs font-extrabold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/75 dark:text-amber-200">
+        <span>{pillLabel}</span>
       </div>
 
-      <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+      <h2 className="mt-2 break-words text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl dark:text-slate-50">
         {heading}
       </h2>
 
-      <p className="mx-auto mt-2.5 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+      <p className="mx-auto mt-2.5 max-w-xl break-words text-sm leading-relaxed text-slate-600 dark:text-slate-300">
         {detail}
       </p>
 
       {sourceHint ? (
-        <div className="mx-auto mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3.5 py-2 text-xs font-medium text-slate-700 dark:bg-white/[0.05] dark:text-slate-300">
+        <div className="mx-auto mt-4 inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-xl border border-slate-200/80 bg-slate-100 px-3.5 py-2 text-xs font-medium text-slate-800 dark:border-white/10 dark:bg-white/[0.05] dark:text-slate-200">
           <span className="font-bold">
             {isAr ? 'المصدر المطلوب للربط المستقبلي:' : 'Required Source for Future Integration:'}
           </span>
-          <span className="font-mono">{sourceHint}</span>
+          <span dir="ltr" className="break-all font-mono">
+            {sourceHint}
+          </span>
         </div>
       ) : null}
     </section>
   )
+}
+
+function UnlinkedSourceNoticeI18n(props: Omit<UnlinkedSourceNoticeProps, 'isAr'>) {
+  const { locale } = useI18n()
+  return <UnlinkedSourceNoticeBody {...props} isAr={locale !== 'en'} />
+}
+
+/**
+ * Clean honest notice rendered whenever an ERP module, tab, or widget has no
+ * connected external telemetry or Odoo source. Strictly zero invented numbers.
+ */
+export function UnlinkedSourceNotice({
+  isAr: explicitIsAr,
+  ...rest
+}: UnlinkedSourceNoticeProps) {
+  if (explicitIsAr !== undefined) {
+    return <UnlinkedSourceNoticeBody {...rest} isAr={explicitIsAr} />
+  }
+  return <UnlinkedSourceNoticeI18n {...rest} />
 }
 
 export default UnlinkedSourceNotice

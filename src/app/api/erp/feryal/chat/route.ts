@@ -7,13 +7,15 @@ import {
 } from '@/lib/auth/api-guard'
 import {
   APPROVED_FERYAL_BRANCHES,
-  askFeryalOdooAgent,
   FERYAL_NO_ODOO_DATA_REPLY,
   listFeryalAuditEntries,
   UNATTRIBUTED_BRANCH_LABEL_AR,
 } from '@/lib/feryal-odoo-agent'
+import { logger, errorFields } from '@/lib/logger'
+import { runFeryalCouncil } from '@/server/ai/council'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 interface FeryalChatPostBody {
   prompt?: string
@@ -99,30 +101,45 @@ export async function POST(req: NextRequest) {
 
   const safeQuestion = rawQuestion.slice(0, 2000)
 
-  const result = await askFeryalOdooAgent({
-    question: safeQuestion,
-    userSub: authGuard.session.sub,
-    userRole: authGuard.session.role,
-    userNameAr: authGuard.session.nameAr,
-  })
-
-  const primaryModel = result.executedQueries[0]?.model ?? 'odoo-live'
-
-  return NextResponse.json(
-    {
-      ok: true,
-      reply: result.reply,
-      status: result.status,
-      provider: 'odoo-live',
-      model: primaryModel,
-      executedQueries: result.executedQueries,
-      verifier: result.verifier,
-      period: result.period,
-      auditEntry: result.auditEntry,
-      timestamp: result.auditEntry.timestampIso,
-    },
-    { headers: ENTERPRISE_API_SECURITY_HEADERS },
-  )
+  try {
+    const result = await runFeryalCouncil({
+      question: safeQuestion,
+      userId: authGuard.session.sub,
+      userRole: authGuard.session.role,
+      userNameAr: authGuard.session.nameAr,
+    })
+    const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
+    return NextResponse.json(
+      {
+        ok: true,
+        reply: result.reply,
+        status: result.status,
+        provider: 'odoo-council',
+        model: agreedLabel,
+        participants: result.participants,
+        agreed: result.agreed,
+        executedQueries: result.executedQueries,
+        verifier: result.verifier,
+        period: result.period,
+        auditEntry: result.auditEntry,
+        timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),
+      },
+      { headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  } catch (error) {
+    logger.error('feryal council failed', errorFields(error))
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'COUNCIL_FAILED',
+        reply: 'تعذّر التحليل. لم تكتمل قراءة Odoo أو اتصال النماذج.',
+        status: 'council_failed',
+        participants: [],
+        agreed: [],
+      },
+      { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
 }
 
 async function disallowMutation(req: NextRequest) {

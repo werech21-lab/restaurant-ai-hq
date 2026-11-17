@@ -65,6 +65,9 @@ export async function saveUser(input: UserInput): Promise<ActionResult> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("البريد الإلكتروني غير صالح");
   if (!input.roleId) return fail("اختر دوراً للمستخدم");
   if (!input.id && password.length < 6) return fail("كلمة المرور 6 أحرف على الأقل");
+  if (!input.id && password.trim() === "123456") {
+    return fail("لا يُسمح بكلمة المرور الافتراضية 123456 — أدخل كلمة مرور صريحة للحساب");
+  }
   if (input.id && password && password.length < 6) return fail("كلمة المرور 6 أحرف على الأقل");
 
   const role = await prisma.role.findUnique({ where: { id: input.roleId } });
@@ -94,7 +97,6 @@ export async function saveUser(input: UserInput): Promise<ActionResult> {
             email,
             roleId: role.id,
             isActive: input.isActive,
-            ...(password ? { passwordHash: await bcrypt.hash(password, 10) } : {}),
           },
         });
       }
@@ -225,25 +227,17 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   const currentPassword = String(formData.get("currentPassword") || "");
   const newPassword = String(formData.get("newPassword") || "");
   const confirmPassword = String(formData.get("confirmPassword") || "");
-  const data: { name: string; passwordHash?: string } = { name };
-
   if (currentPassword || newPassword || confirmPassword) {
-    if (newPassword.length < 6) return fail("كلمة المرور الجديدة 6 أحرف على الأقل");
-    if (newPassword !== confirmPassword) return fail("تأكيد كلمة المرور غير مطابق");
-    const row = await prisma.user.findUnique({ where: { id: user.id } });
-    if (!row) return fail("المستخدم غير موجود");
-    const matches = await bcrypt.compare(currentPassword, row.passwordHash);
-    if (!matches) return fail("كلمة المرور الحالية غير صحيحة");
-    data.passwordHash = await bcrypt.hash(newPassword, 10);
+    return fail("لا يمكن تغيير كلمة مرور حساب موجود.");
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: user.id }, data });
+    await tx.user.update({ where: { id: user.id }, data: { name } });
     await writeActivity(tx, {
       userId: user.id,
       action: "EDIT",
       module: "users",
-      details: data.passwordHash ? `تحديث الملف الشخصي وكلمة المرور لـ ${name}` : `تحديث الاسم إلى ${name}`,
+      details: `تحديث الاسم إلى ${name}`,
     });
   });
   return ok("تم حفظ بيانات الملف الشخصي");

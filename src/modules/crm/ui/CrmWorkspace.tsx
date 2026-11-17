@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { Modal } from '@/components/erp/common'
-import { errorClass, noticeClass, primaryButton, secondaryButton } from '@/components/erp/styles'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import type { Customer, CustomerRef, Lead, Quotation, TeamMember } from '@/modules/crm/client'
 import { CustomerDirectory } from '@/modules/crm/ui/CustomerDirectory'
@@ -14,6 +12,13 @@ import { LeadForm } from '@/modules/crm/ui/LeadForm'
 import { PipelineBoard } from '@/modules/crm/ui/PipelineBoard'
 import { QuotationBuilder } from '@/modules/crm/ui/QuotationBuilder'
 import { QuotationList } from '@/modules/crm/ui/QuotationList'
+import {
+  CrmModal,
+  crmErrorClass,
+  crmNoticeClass,
+  crmPrimaryBtn,
+  crmSecondaryBtn,
+} from '@/modules/crm/ui/shared'
 
 const tabs = ['pipeline', 'customers', 'quotations'] as const
 type Tab = (typeof tabs)[number]
@@ -85,40 +90,47 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
             : ''
 
   return (
-    <div>
-      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
+    <div dir={t('erp.back').includes('←') || t('crm.title').match(/[\u0600-\u06ff]/) ? 'rtl' : 'ltr'} className="w-full min-w-0">
+      <Link
+        href="/erp"
+        className="mb-5 inline-flex items-center gap-1 rounded-lg text-sm font-semibold text-emerald-700 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-400 dark:hover:text-emerald-300"
+      >
         {t('erp.back')}
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-mist-100">{t('crm.title')}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-400">{t('crm.subtitle')}</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('crm.title')}</h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{t('crm.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setDialog({ kind: 'customer' })} className={secondaryButton}>
+          <button type="button" onClick={() => setDialog({ kind: 'customer' })} className={crmSecondaryBtn}>
             {t('crm.newCustomer')}
           </button>
-          <button type="button" onClick={() => setDialog({ kind: 'lead' })} className={secondaryButton}>
+          <button type="button" onClick={() => setDialog({ kind: 'lead' })} className={crmSecondaryBtn}>
             {t('crm.newLead')}
           </button>
-          <button type="button" onClick={() => setDialog({ kind: 'quotation' })} className={primaryButton}>
+          <button type="button" onClick={() => setDialog({ kind: 'quotation' })} className={crmPrimaryBtn}>
             {t('crm.newQuotation')}
           </button>
         </div>
       </div>
 
       {notice ? (
-        <p role="status" className={`${noticeClass} mb-4`}>
+        <p role="status" className={`${crmNoticeClass} mb-4`}>
           {t(notice)}
         </p>
       ) : null}
       {alert ? (
-        <p role="alert" className={`${errorClass} mb-4`}>
+        <p role="alert" className={`${crmErrorClass} mb-4`}>
           {t(alert)}
         </p>
       ) : null}
 
-      <div role="tablist" aria-label={t('crm.title')} className="mb-4 flex flex-wrap gap-1 border-b border-[#30363d]">
+      <div
+        role="tablist"
+        aria-label={t('crm.title')}
+        className="mb-4 flex max-w-full flex-wrap gap-1 overflow-x-auto border-b border-slate-200 dark:border-emerald-500/15"
+      >
         {tabs.map((value) => (
           <button
             key={value}
@@ -128,8 +140,10 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
             aria-selected={tab === value}
             aria-controls={`crm-panel-${value}`}
             onClick={() => setTab(value)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm transition ${
-              tab === value ? 'border-blue-500 font-semibold text-blue-300' : 'border-transparent text-gray-400 hover:text-gray-200'
+            className={`-mb-px cursor-pointer whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              tab === value
+                ? 'border-emerald-600 font-semibold text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
+                : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
             {t(`crm.tab.${value}`)}
@@ -156,7 +170,7 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
       </div>
 
       {dialog ? (
-        <Modal title={dialogTitle} onClose={closeDialog} size={dialog.kind === 'quotation' || dialog.kind === 'profile' ? 'xl' : 'md'}>
+        <CrmModal title={dialogTitle} onClose={closeDialog} size={dialog.kind === 'quotation' || dialog.kind === 'profile' ? 'xl' : 'md'}>
           {dialog.kind === 'lead' ? (
             <LeadForm
               lead={dialog.lead}
@@ -200,7 +214,7 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
               onClose={closeDialog}
             />
           ) : null}
-        </Modal>
+        </CrmModal>
       ) : null}
     </div>
   )

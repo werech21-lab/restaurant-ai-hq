@@ -211,7 +211,8 @@ function isAuthorizedCronRequest(request: NextRequest, pathname: string): boolea
   if (
     pathname !== '/api/erp/odoo-sync' &&
     pathname !== '/api/odoo-sync' &&
-    pathname !== '/api/aggregator-radar/alert'
+    pathname !== '/api/aggregator-radar/alert' &&
+    pathname !== '/api/cron/ai-daily-brief'
   ) {
     return false
   }

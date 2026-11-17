@@ -4,151 +4,277 @@ import React from 'react'
 import Link from 'next/link'
 import { Award, ArrowUpRight, BarChart3, Store, Tag, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import { computePeriodOverPeriodDeltaPct, formatSignedDelta } from '@/lib/aether/global-filter-engine'
+import {
+  UNAVAILABLE_DASH,
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+} from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
 export function SalesScorecardStudio() {
   const { locale } = useI18n()
-  const isAr = locale !== 'en'
-  const { filters, workspace, liveSummary, setBrand, setBranch, setChannel } = useGlobalFilter()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
+  const isAr = resolvedLocale !== 'en'
+  const { filters, workspace, liveSummary, syncingOdoo, setBrand, setBranch, setChannel } =
+    useGlobalFilter()
+  const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
 
   const deltaPct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
   const deltaBadge = formatSignedDelta(deltaPct)
 
-  const brands = [...workspace.cascadingOptions.brands.filter((b) => b.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
-  const branches = [...workspace.cascadingOptions.branches.filter((b) => b.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
-  const channels = [...workspace.cascadingOptions.channels.filter((c) => c.id !== 'all')].sort(
-    (a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0),
-  )
+  const sortOptions = <T extends { salesKwd?: number }>(list: T[]): T[] =>
+    [...list].sort((a, b) => {
+      const aOk = typeof a.salesKwd === 'number'
+      const bOk = typeof b.salesKwd === 'number'
+      if (aOk && bOk) return (b.salesKwd as number) - (a.salesKwd as number)
+      if (aOk) return -1
+      if (bOk) return 1
+      return 0
+    })
+
+  const brands = sortOptions(workspace.cascadingOptions.brands.filter((b) => b.id !== 'all'))
+  const branches = sortOptions(workspace.cascadingOptions.branches.filter((b) => b.id !== 'all'))
+  const channels = sortOptions(workspace.cascadingOptions.channels.filter((c) => c.id !== 'all'))
+  const hasBrandSales =
+    workspace.nullableSalesKwd !== null && brands.some((b) => typeof b.salesKwd === 'number')
+
+  if (syncingOdoo && !liveSummary) {
+    return (
+      <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6">
+        <StateBlock
+          state="loading"
+          locale={resolvedLocale}
+          skeletonRows={5}
+          title={isAr ? 'جارٍ تحميل بطاقة أداء المبيعات…' : 'Loading sales scorecard…'}
+        />
+      </div>
+    )
+  }
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6">
-      <div className="rounded-2xl border border-emerald-500/25 bg-[#0b1320] p-5 shadow-lg">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6 min-w-0">
+      <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-emerald-500/25 dark:bg-[#0b1320]">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300">
-              <Award size={14} />
+          <div className="space-y-1 min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+              <Award size={14} aria-hidden />
               <span>
                 {isAr
                   ? 'بطاقة الأداء القياسية للمبيعات · 6 علامات تجارية × 7 فروع × 8 قنوات'
                   : 'Enterprise Sales Scorecard · 6 Brands × 7 Branches × 8 Channels'}
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white break-words">
               {isAr
                 ? 'سجل وترتيب أداء المبيعات الفعلي حسب العلامة التجارية والفرع والقناة'
                 : 'Odoo 17 Sales Ranking & Scorecard by Brand, Branch & Channel'}
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-600 dark:text-slate-300">
               {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             </p>
           </div>
           <Link
             href="/erp/sales-analysis"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition"
+            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 transition dark:text-emerald-300"
           >
-            <BarChart3 size={14} />
+            <BarChart3 size={14} aria-hidden />
             <span>{isAr ? 'فتح التحليل التفصيلي للمبيعات' : 'Detailed Sales Analysis'}</span>
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={13} aria-hidden />
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4">
-          <span className="text-xs font-bold text-slate-400">
+      <PartialWarningBanner summary={liveSummary} isAr={isAr} />
+
+      {!workspace.odooConnected || workspace.noData ? (
+        <StateBlock
+          state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+          locale={resolvedLocale}
+          title={
+            !workspace.odooConnected
+              ? isAr
+                ? 'الاتصال المباشر مع Odoo غير متاح حالياً'
+                : 'Odoo live connection is unavailable'
+              : isAr
+                ? 'لا توجد بيانات مبيعات لهذه الفترة'
+                : 'No sales data for this period'
+          }
+        />
+      ) : null}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'صافي المبيعات الإجمالي' : 'Total Net Sales'}
           </span>
-          <div className="mt-1 text-2xl font-black font-mono text-white">
-            {Math.round(workspace.salesKwd).toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+          <div
+            dir="ltr"
+            title={workspace.nullableSalesKwd === null ? unavailableTooltip : undefined}
+            aria-label={workspace.nullableSalesKwd === null ? unavailableTooltip : undefined}
+            data-unavailable={workspace.nullableSalesKwd === null ? 'true' : undefined}
+            className="ds-num mt-1 text-2xl font-black font-mono tabular-nums text-slate-950 dark:text-white"
+          >
+            {workspace.nullableSalesKwd === null
+              ? isAr
+                ? 'غير متاح'
+                : UNAVAILABLE_DASH
+              : formatKwd(workspace.nullableSalesKwd, resolvedLocale)}
           </div>
           <span
-            className={`mt-1 inline-block text-xs font-bold ${
+            className={`mt-1 inline-block text-xs font-bold tabular-nums ${
               deltaBadge.tone === 'emerald'
-                ? 'text-emerald-400'
+                ? 'text-emerald-700 dark:text-emerald-400'
                 : deltaBadge.tone === 'rose'
-                  ? 'text-rose-400'
-                  : 'text-slate-400'
+                  ? 'text-rose-700 dark:text-rose-400'
+                  : 'text-slate-600 dark:text-slate-400'
             }`}
             dir="ltr"
           >
-            {deltaBadge.text}
+            {workspace.nullableSalesKwd === null
+              ? UNAVAILABLE_DASH
+              : deltaPct === null
+                ? UNAVAILABLE_DASH
+                : formatPct(deltaPct, { locale: resolvedLocale, signed: true })}
           </span>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4">
-          <span className="text-xs font-bold text-slate-400">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'عدد الطلبات المقبوضة' : 'Settled Orders'}
           </span>
-          <div className="mt-1 text-2xl font-black font-mono text-emerald-400">
-            {workspace.orders.toLocaleString('en-US')}
+          <div
+            dir="ltr"
+            title={workspace.nullableOrders === null ? unavailableTooltip : undefined}
+            aria-label={workspace.nullableOrders === null ? unavailableTooltip : undefined}
+            data-unavailable={workspace.nullableOrders === null ? 'true' : undefined}
+            className="ds-num mt-1 text-2xl font-black font-mono tabular-nums text-emerald-700 dark:text-emerald-400"
+          >
+            {workspace.nullableOrders === null
+              ? isAr
+                ? 'غير متاح'
+                : UNAVAILABLE_DASH
+              : formatInt(workspace.nullableOrders, resolvedLocale)}
           </div>
-          <span className="mt-1 block text-xs text-slate-400">
-            {isAr ? `خلال ${workspace.periodDays} يوم` : `Across ${workspace.periodDays} days`}
+          <span className="mt-1 block text-xs text-slate-600 dark:text-slate-400">
+            {isAr
+              ? `خلال ${formatInt(workspace.periodDays, resolvedLocale)} يوم`
+              : `Across ${formatInt(workspace.periodDays, resolvedLocale)} days`}
           </span>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4">
-          <span className="text-xs font-bold text-slate-400">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'متوسط قيمة الفاتورة (AOV)' : 'Average Order Value (AOV)'}
           </span>
-          <div className="mt-1 text-2xl font-black font-mono text-amber-300">
-            {workspace.aovKwd.toFixed(3)} {isAr ? 'د.ك' : 'KWD'}
+          <div
+            dir="ltr"
+            title={workspace.nullableAovKwd === null ? unavailableTooltip : undefined}
+            aria-label={workspace.nullableAovKwd === null ? unavailableTooltip : undefined}
+            data-unavailable={workspace.nullableAovKwd === null ? 'true' : undefined}
+            className="ds-num mt-1 text-2xl font-black font-mono tabular-nums text-amber-700 dark:text-amber-300"
+          >
+            {workspace.nullableAovKwd === null
+              ? isAr
+                ? 'غير متاح'
+                : UNAVAILABLE_DASH
+              : formatKwd(workspace.nullableAovKwd, resolvedLocale)}
           </div>
-          <span className="mt-1 block text-xs text-slate-400">
+          <span className="mt-1 block text-xs text-slate-600 dark:text-slate-400">
             {isAr ? 'متوسط السلة الفعلي في أودو' : 'Actual Odoo POS basket'}
           </span>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-[#0d1524] p-4">
-          <span className="text-xs font-bold text-slate-400">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'العلامة المتصدرة' : 'Top Performing Brand'}
           </span>
-          <div className="mt-1 text-xl font-black text-white truncate">
-            {brands[0] ? (isAr ? brands[0].ar : brands[0].en) : '—'}
+          <div
+            title={!hasBrandSales ? unavailableTooltip : undefined}
+            data-unavailable={!hasBrandSales ? 'true' : undefined}
+            className="mt-1 text-xl font-black text-slate-950 dark:text-white break-words"
+          >
+            {hasBrandSales && brands[0]
+              ? isAr
+                ? brands[0].ar
+                : brands[0].en
+              : isAr
+                ? 'غير متاح'
+                : UNAVAILABLE_DASH}
           </div>
-          <span className="mt-1 block text-xs text-emerald-400 font-mono font-bold">
-            {brands[0]?.salesKwd
-              ? `${brands[0].salesKwd.toLocaleString('en-US')} ${isAr ? 'د.ك' : 'KWD'}`
-              : '—'}
+          <span
+            dir="ltr"
+            title={!hasBrandSales ? unavailableTooltip : undefined}
+            className="ds-num mt-1 block text-xs text-emerald-700 dark:text-emerald-400 font-mono font-bold tabular-nums"
+          >
+            {hasBrandSales && typeof brands[0]?.salesKwd === 'number'
+              ? formatKwd(brands[0].salesKwd, resolvedLocale)
+              : isAr
+                ? 'غير متاح'
+                : UNAVAILABLE_DASH}
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-slate-800 bg-[#0b1320] p-5 space-y-3">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Tag size={16} className="text-emerald-400" />
-            <h3 className="text-sm font-black text-white">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
+            <Tag size={16} className="text-emerald-600 dark:text-emerald-400" aria-hidden />
+            <h3 className="text-sm font-black text-slate-950 dark:text-white">
               {isAr ? 'ترتيب الـ 6 علامات تجارية' : '6 Brands Scorecard'}
             </h3>
           </div>
-          <div className="divide-y divide-slate-800/70">
+          <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {brands.map((b, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof b.salesKwd !== 'number' || totalNet === null
               const sales = b.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
+              const selected = filters.brand === b.id
               return (
                 <button
                   key={b.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => setBrand(b.id)}
-                  className="w-full py-2.5 flex items-center justify-between text-xs hover:bg-slate-900/60 rounded-lg px-2 transition"
+                  className={`ds-focus-ring w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 transition ${
+                    selected
+                      ? 'bg-emerald-500/10 ring-1 ring-emerald-500/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-emerald-500/15 text-emerald-300 font-mono font-bold flex items-center justify-center">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      dir="ltr"
+                      className="h-5 w-5 shrink-0 rounded-full bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-mono font-bold tabular-nums flex items-center justify-center"
+                    >
                       {idx + 1}
                     </span>
-                    <span className="font-bold text-white">{isAr ? b.ar : b.en}</span>
-                  </div>
-                  <div className="text-end font-mono">
-                    <span className="font-bold text-emerald-400 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                    <span className="font-bold text-slate-900 dark:text-white break-words text-start">
+                      {isAr ? b.ar : b.en}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                  </div>
+                  <div
+                    dir="ltr"
+                    title={unavailable ? unavailableTooltip : undefined}
+                    className="ds-num text-end font-mono tabular-nums shrink-0"
+                  >
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400 block">
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : UNAVAILABLE_DASH
+                        : formatKwd(sales, resolvedLocale)}
+                    </span>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {unavailable ? UNAVAILABLE_DASH : formatPct(share, resolvedLocale)}
+                    </span>
                   </div>
                 </button>
               )
@@ -156,35 +282,61 @@ export function SalesScorecardStudio() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-[#0b1320] p-5 space-y-3">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Store size={16} className="text-cyan-400" />
-            <h3 className="text-sm font-black text-white">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
+            <Store size={16} className="text-cyan-600 dark:text-cyan-400" aria-hidden />
+            <h3 className="text-sm font-black text-slate-950 dark:text-white">
               {isAr ? 'ترتيب الـ 7 فروع الفعلية' : '7 Active Branches Scorecard'}
             </h3>
           </div>
-          <div className="divide-y divide-slate-800/70">
+          <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {branches.map((br, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof br.salesKwd !== 'number' || totalNet === null
               const sales = br.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
+              const selected = filters.branch === br.id
               return (
                 <button
                   key={br.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => setBranch(br.id)}
-                  className="w-full py-2.5 flex items-center justify-between text-xs hover:bg-slate-900/60 rounded-lg px-2 transition"
+                  className={`ds-focus-ring w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 transition ${
+                    selected
+                      ? 'bg-cyan-500/10 ring-1 ring-cyan-500/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-cyan-500/15 text-cyan-300 font-mono font-bold flex items-center justify-center">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      dir="ltr"
+                      className="h-5 w-5 shrink-0 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 font-mono font-bold tabular-nums flex items-center justify-center"
+                    >
                       {idx + 1}
                     </span>
-                    <span className="font-bold text-white">{isAr ? br.ar : br.en}</span>
-                  </div>
-                  <div className="text-end font-mono">
-                    <span className="font-bold text-cyan-300 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                    <span className="font-bold text-slate-900 dark:text-white break-words text-start">
+                      {isAr ? br.ar : br.en}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                  </div>
+                  <div
+                    dir="ltr"
+                    title={unavailable ? unavailableTooltip : undefined}
+                    className="ds-num text-end font-mono tabular-nums shrink-0"
+                  >
+                    <span className="font-bold text-cyan-700 dark:text-cyan-300 block">
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : UNAVAILABLE_DASH
+                        : formatKwd(sales, resolvedLocale)}
+                    </span>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {unavailable ? UNAVAILABLE_DASH : formatPct(share, resolvedLocale)}
+                    </span>
                   </div>
                 </button>
               )
@@ -192,35 +344,61 @@ export function SalesScorecardStudio() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-[#0b1320] p-5 space-y-3">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <TrendingUp size={16} className="text-amber-400" />
-            <h3 className="text-sm font-black text-white">
+        <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
+            <TrendingUp size={16} className="text-amber-600 dark:text-amber-400" aria-hidden />
+            <h3 className="text-sm font-black text-slate-950 dark:text-white">
               {isAr ? 'ترتيب قنوات البيع الـ 8' : '8 Sales Channels Scorecard'}
             </h3>
           </div>
-          <div className="divide-y divide-slate-800/70">
+          <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {channels.map((ch, idx) => {
+              const totalNet = workspace.nullableSalesKwd
+              const unavailable = typeof ch.salesKwd !== 'number' || totalNet === null
               const sales = ch.salesKwd ?? 0
-              const share = workspace.salesKwd > 0 ? (sales / workspace.salesKwd) * 100 : 0
+              const share =
+                !unavailable && totalNet !== null && totalNet > 0
+                  ? (sales / totalNet) * 100
+                  : 0
+              const selected = filters.channel === ch.id
               return (
                 <button
                   key={ch.id}
                   type="button"
+                  aria-pressed={selected}
                   onClick={() => setChannel(ch.id)}
-                  className="w-full py-2.5 flex items-center justify-between text-xs hover:bg-slate-900/60 rounded-lg px-2 transition"
+                  className={`ds-focus-ring w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 transition ${
+                    selected
+                      ? 'bg-amber-500/10 ring-1 ring-amber-500/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 rounded-full bg-amber-500/15 text-amber-300 font-mono font-bold flex items-center justify-center">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      dir="ltr"
+                      className="h-5 w-5 shrink-0 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono font-bold tabular-nums flex items-center justify-center"
+                    >
                       {idx + 1}
                     </span>
-                    <span className="font-bold text-white">{isAr ? ch.ar : ch.en}</span>
-                  </div>
-                  <div className="text-end font-mono">
-                    <span className="font-bold text-amber-300 block">
-                      {sales.toLocaleString('en-US')} {isAr ? 'د.ك' : 'KWD'}
+                    <span className="font-bold text-slate-900 dark:text-white break-words text-start">
+                      {isAr ? ch.ar : ch.en}
                     </span>
-                    <span className="text-slate-400">{share.toFixed(1)}%</span>
+                  </div>
+                  <div
+                    dir="ltr"
+                    title={unavailable ? unavailableTooltip : undefined}
+                    className="ds-num text-end font-mono tabular-nums shrink-0"
+                  >
+                    <span className="font-bold text-amber-700 dark:text-amber-300 block">
+                      {unavailable
+                        ? isAr
+                          ? 'غير متاح'
+                          : UNAVAILABLE_DASH
+                        : formatKwd(sales, resolvedLocale)}
+                    </span>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {unavailable ? UNAVAILABLE_DASH : formatPct(share, resolvedLocale)}
+                    </span>
                   </div>
                 </button>
               )

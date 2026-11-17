@@ -53,15 +53,15 @@ export interface OdooBrandRecord {
   cuisineEn: string
   cuisineAr: string
   active: boolean
-  netKwd: number
-  itemSalesKwd: number
-  orders: number
-  aovKwd: number
-  qty: number
-  itemsPerOrder: number
-  sharePct: number
-  discountKwd: number
-  drinksPct: number
+  netKwd: number | null
+  itemSalesKwd: number | null
+  orders: number | null
+  aovKwd: number | null
+  qty: number | null
+  itemsPerOrder: number | null
+  sharePct: number | null
+  discountKwd: number | null
+  drinksPct: number | null
   bestSeller: { name: string; qty: number; netKwd: number } | null
 }
 
@@ -71,13 +71,13 @@ export interface OdooLocationRecord {
   ar: string
   code: string
   unit: 'restaurant' | 'exhibition' | 'canteen'
-  netKwd: number
-  orders: number
-  aovKwd: number
+  netKwd: number | null
+  orders: number | null
+  aovKwd: number | null
   sharePct: number
   registers: readonly number[]
-  brands: readonly { brand: OdooBrandId; netKwd: number; orders: number }[]
-  channels: readonly { channel: OdooChannelId; amountKwd: number; payments: number }[]
+  brands: readonly { brand: OdooBrandId; netKwd: number; orders: number | null }[]
+  channels: readonly { channel: OdooChannelId; amountKwd: number; payments: number | null }[]
   pnl: OdooLocationPnl | null
 }
 
@@ -91,11 +91,11 @@ export interface OdooChannelRecord {
   color: string
   commissionPct: number
   riderCostPerOrder: number
-  netKwd: number
+  netKwd: number | null
   itemSalesKwd: number
   promoKwd: number
-  orders: number
-  sharePct: number
+  orders: number | null
+  sharePct: number | null
 }
 
 export interface OdooMenuRecord {
@@ -120,16 +120,16 @@ export interface OdooDatasetShape {
     allowedPosConfigIds: readonly number[]
   }
   totals: {
-    netSalesKwd: number
-    orders: number
-    aovKwd: number
+    netSalesKwd: number | null
+    orders: number | null
+    aovKwd: number | null
     itemSalesKwd: number
     promoAdjustmentsKwd: number
     lineDiscountKwd: number
     discountsKwd: number
     productsSold: number
-    restaurantNetKwd: number
-    restaurantOrders: number
+    restaurantNetKwd: number | null
+    restaurantOrders: number | null
   }
   buckets: null
   pnl: {
@@ -160,8 +160,8 @@ export interface OdooDatasetShape {
   canteens: readonly OdooLocationRecord[]
   exbRegisters: readonly { id: number; name: string; location: string; netKwd: number; orders: number }[]
   channels: readonly OdooChannelRecord[]
-  brandLocation: readonly { brand: OdooBrandId; location: string; netKwd: number; orders: number }[]
-  brandChannel: readonly { brand: OdooBrandId; channel: OdooChannelId; netKwd: number; orders: number }[]
+  brandLocation: readonly { brand: OdooBrandId; location: string; netKwd: number; orders: number | null }[]
+  brandChannel: readonly { brand: OdooBrandId; channel: OdooChannelId; netKwd: number; orders: number | null }[]
   cube: readonly { brand: OdooBrandId; location: string; channel: OdooChannelId; netKwd: number }[]
   topProducts: Record<string, readonly { name: string; code: string | null; qty: number; netKwd: number; avgPrice: number }[]>
   categories: Record<string, readonly { name: string; qty: number; netKwd: number }[]>

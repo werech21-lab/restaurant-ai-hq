@@ -51,6 +51,7 @@ export type GlobalBranch =
   | 'salmiya'
   | 'al-kout'
   | 'ardiya'
+  | 'school-canteens'
 
 export type GlobalChannel =
   | 'all'
@@ -164,9 +165,10 @@ export const GLOBAL_BRANCH_OPTIONS: readonly FilterOption<GlobalBranch>[] = [
   { id: 'salmiya', ar: 'السالمية', en: 'Salmiya' },
   { id: 'al-kout', ar: 'الكوت', en: 'Al-Kout' },
   { id: 'ardiya', ar: 'مطبخ العارضية', en: 'Ardiya' },
+  { id: 'school-canteens', ar: 'مقاصف المدارس', en: 'School canteens' },
 ] as const
 
-export const APPROVED_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all'>[] = [
+export const APPROVED_BRANCH_IDS = [
   'avenues',
   '360-mall',
   'assima',
@@ -174,7 +176,7 @@ export const APPROVED_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all'>[] = [
   'salmiya',
   'al-kout',
   'ardiya',
-] as const
+] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
   { id: 'all', ar: 'كل القنوات', en: 'All Channels' },
@@ -485,7 +487,7 @@ export function isBrandBranchCompatible(brand: GlobalBrand, branch: GlobalBranch
   if (brand === 'all' || branch === 'all') return true
   return (
     (APPROVED_BRAND_IDS as readonly string[]).includes(brand) &&
-    (APPROVED_BRANCH_IDS as readonly string[]).includes(branch)
+    ((APPROVED_BRANCH_IDS as readonly string[]).includes(branch) || branch === 'school-canteens')
   )
 }
 
@@ -573,9 +575,16 @@ export interface WorkspaceLedgerAccounting {
   netProfitPct: number | null
   unavailableReasonAr: string | null
   unavailableReasonEn: string | null
+  revenueAccounts?: {
+    code: string
+    name: string
+    accountType: 'income' | 'income_other'
+    amountKwd: number
+  }[]
 }
 
 export interface WorkspaceReceivablesMeta {
+  unavailable?: boolean
   openReceivableKwd: number
   grossPositiveReceivableKwd: number
   creditClearingOffsetKwd: number
@@ -628,6 +637,14 @@ export interface GlobalWorkspaceSlice {
   odooConnected: boolean
   noData: boolean
   noDataMessageAr: string | null
+  partial: boolean
+  unavailableSections: string[]
+  warningAr: string | null
+  warningEn: string | null
+  sectionUnavailable: boolean
+  nullableSalesKwd: number | null
+  nullableOrders: number | null
+  nullableAovKwd: number | null
   lastSyncAt: string | null
   isStale24h: boolean
   odooCompanyId: number | null
@@ -778,6 +795,7 @@ function computeLiveKuwaitSliceMultipliers(
 
 function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceivablesMeta {
   return {
+    unavailable: false,
     openReceivableKwd: 0,
     grossPositiveReceivableKwd: 0,
     creditClearingOffsetKwd: 0,
@@ -800,14 +818,39 @@ function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceiva
   }
 }
 
+function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceReceivablesMeta {
+  return {
+    unavailable: true,
+    openReceivableKwd: 0,
+    grossPositiveReceivableKwd: 0,
+    creditClearingOffsetKwd: 0,
+    unreconciledLineCount: 0,
+    posClearingLinesCount: 0,
+    platformAndCorporateLinesCount: 0,
+    fromDate: fromIso,
+    toDate: toIso,
+    latestMaturityDate: null,
+    maturityStatusAr: 'غير متاح',
+    maturityStatusEn: '—',
+    openLinesExplanationAr: 'غير متاح',
+    openLinesExplanationEn: '—',
+    sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
+    sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line)',
+    reconciliationFormulaAr: 'غير متاح',
+    reconciliationFormulaEn: '—',
+    byAccount: [],
+    agingBuckets: [],
+  }
+}
+
 function buildSummaryCards(params: {
   odooConnected: boolean
   activeIsoWindowAr: string
   activeIsoWindowEn: string
   receivables: WorkspaceReceivablesMeta
-  deliveryDuesKwd: number
+  deliveryDuesKwd: number | null
   opexActualKwd: number | null
-  quietHoursActualKwd: number
+  quietHoursActualKwd: number | null
   glWarningAr: string | null
 }): SummaryCardData[] {
   const {
@@ -900,22 +943,42 @@ function buildSummaryCards(params: {
       num: 3,
       titleAr: 'ذمم منصات التوصيل المتراكمة',
       titleEn: 'Cumulative Aggregator Receivables',
-      valueAr: odooConnected ? fKwd(deliveryDuesKwd, true) : disconnectedLabelAr,
-      valueEn: odooConnected ? fKwd(deliveryDuesKwd, false) : disconnectedLabelEn,
-      descAr: odooConnected
-        ? `الفترة: من ${receivables.fromDate} إلى ${receivables.toDate} • ${receivables.reconciliationFormulaAr}.`
-        : disconnectedLabelAr,
-      descEn: odooConnected
-        ? `Period: ${receivables.fromDate} to ${receivables.toDate} • ${receivables.reconciliationFormulaEn}.`
-        : disconnectedLabelEn,
+      valueAr: !odooConnected
+        ? disconnectedLabelAr
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'غير متاح'
+          : fKwd(deliveryDuesKwd, true),
+      valueEn: !odooConnected
+        ? disconnectedLabelEn
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? '—'
+          : fKwd(deliveryDuesKwd, false),
+      descAr: !odooConnected
+        ? disconnectedLabelAr
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'بعض الأرقام غير متاحة الآن — تعذّر جلب أرصدة الذمم المدينة مؤقتاً.'
+          : `الفترة: من ${receivables.fromDate} إلى ${receivables.toDate} • ${receivables.reconciliationFormulaAr}.`,
+      descEn: !odooConnected
+        ? disconnectedLabelEn
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'Some figures are temporarily unavailable — could not retrieve open receivables.'
+          : `Period: ${receivables.fromDate} to ${receivables.toDate} • ${receivables.reconciliationFormulaEn}.`,
       periodLabelAr: `من ${receivables.fromDate} إلى ${receivables.toDate}`,
       periodLabelEn: `${receivables.fromDate} to ${receivables.toDate}`,
       sourceLabelAr: receivables.sourceLabelAr,
       sourceLabelEn: receivables.sourceLabelEn,
       accent: 'amber',
       statusDot: '🟠',
-      statusLabelAr: odooConnected ? 'رصيد فعلي من أودو' : 'غير متصل',
-      statusLabelEn: odooConnected ? 'Odoo 17 AR' : 'Disconnected',
+      statusLabelAr: !odooConnected
+        ? 'غير متصل'
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'غير متاح'
+          : 'رصيد فعلي من أودو',
+      statusLabelEn: !odooConnected
+        ? 'Disconnected'
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'Unavailable'
+          : 'Odoo 17 AR',
       badgeAr: 'رصيد تراكمي',
       badgeEn: 'Cumulative Balance',
       ctaAr: 'تفاصيل الذمم والمطابقة ↗',
@@ -973,18 +1036,34 @@ function buildSummaryCards(params: {
       num: 6,
       titleAr: 'مبيعات الساعات الهادئة (3–6 م)',
       titleEn: 'Quiet Hours Sales (3–6 PM)',
-      valueAr: odooConnected ? fKwd(quietHoursActualKwd, true) : disconnectedLabelAr,
-      valueEn: odooConnected ? fKwd(quietHoursActualKwd, false) : disconnectedLabelEn,
+      valueAr: !odooConnected
+        ? disconnectedLabelAr
+        : quietHoursActualKwd === null
+          ? 'غير متاح'
+          : fKwd(quietHoursActualKwd, true),
+      valueEn: !odooConnected
+        ? disconnectedLabelEn
+        : quietHoursActualKwd === null
+          ? '—'
+          : fKwd(quietHoursActualKwd, false),
       descAr: 'صافي المبيعات الفعلية المسجلة بين 3:00 و6:00 مساءً في نقاط البيع بدون تقديرات افتراضية.',
       descEn: 'Actual POS net sales recorded between 3:00 PM and 6:00 PM with zero synthetic estimates.',
       periodLabelAr: activeIsoWindowAr,
       periodLabelEn: activeIsoWindowEn,
       sourceLabelAr: 'أودو 17 — إيصالات نقاط البيع (pos.order)',
       sourceLabelEn: 'Odoo 17 (pos.order · 15:00–17:59)',
-      accent: 'sky',
-      statusDot: odooConnected ? '🟢' : '🟠',
-      statusLabelAr: odooConnected ? 'قراءة فعلية' : 'غير متصل',
-      statusLabelEn: odooConnected ? 'Actual Telemetry' : 'Disconnected',
+      accent: odooConnected && quietHoursActualKwd !== null ? 'sky' : 'amber',
+      statusDot: odooConnected && quietHoursActualKwd !== null ? '🟢' : '🟠',
+      statusLabelAr: !odooConnected
+        ? 'غير متصل'
+        : quietHoursActualKwd === null
+          ? 'غير متاح'
+          : 'قراءة فعلية',
+      statusLabelEn: !odooConnected
+        ? 'Disconnected'
+        : quietHoursActualKwd === null
+          ? 'Unavailable'
+          : 'Actual Telemetry',
       ctaAr: 'مقارنة الساعات ↗',
       ctaEn: 'Hourly Comparison ↗',
       action: 'lens-quiet',
@@ -1098,6 +1177,14 @@ export function computeGlobalWorkspace(
       odooConnected: false,
       noData: true,
       noDataMessageAr,
+      partial: false,
+      unavailableSections: [],
+      warningAr: null,
+      warningEn: null,
+      sectionUnavailable: false,
+      nullableSalesKwd: 0,
+      nullableOrders: 0,
+      nullableAovKwd: 0,
       lastSyncAt: liveSummary?.lastSyncAt ?? null,
       isStale24h: Boolean(liveSummary?.isStale24h),
       odooCompanyId: liveSummary?.odooCompanyId ?? null,
@@ -1307,10 +1394,29 @@ export function computeGlobalWorkspace(
   }
 
   const { brand, branch, channel } = filters
+  const bucketTotalsUnavailable = Boolean(
+    activeBkt &&
+      (activeBkt.totals.restaurantNetKwd === null || activeBkt.totals.restaurantOrders === null),
+  )
+  const channelsSectionUnavailable = Boolean(activeBkt && activeBkt.uiChannels === null)
+  const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand === null)
+  const branchesSectionUnavailable = Boolean(activeBkt && activeBkt.byLocation === null)
+  const hourlySectionUnavailable = Boolean(liveSummary.hourlySeries === null)
+  const sectionUnavailable = Boolean(
+    bucketTotalsUnavailable ||
+      (channel !== 'all' && channelsSectionUnavailable) ||
+      (brand !== 'all' && brandsSectionUnavailable) ||
+      (branch !== 'all' && branchesSectionUnavailable) ||
+      (filters.kuwaitSlice === 'quiet-hours' && hourlySectionUnavailable),
+  )
+
   const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const salesKwd = activeSlice.salesKwd
   const orders = activeSlice.orders
   const aovKwd = orders > 0 ? Math.round((salesKwd / orders) * 1000) / 1000 : 0
+  const nullableSalesKwd = sectionUnavailable ? null : salesKwd
+  const nullableOrders = sectionUnavailable ? null : orders
+  const nullableAovKwd = sectionUnavailable ? null : aovKwd
 
   const unattributedSalesKwd = safeNum(
     activeBkt?.unattributedSalesKwd,
@@ -1422,6 +1528,7 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
+      revenueAccounts: rawGl?.revenueAccounts ?? [],
     }
   } else {
     const cogsVal = Math.max(0, safeNum(rawGl.cogs))
@@ -1459,6 +1566,7 @@ export function computeGlobalWorkspace(
       netProfitPct: Math.round((opProfitVal / rawGlRev) * 1000) / 10,
       unavailableReasonAr: null,
       unavailableReasonEn: null,
+      revenueAccounts: rawGl.revenueAccounts ?? [],
     }
   }
 
@@ -1496,34 +1604,61 @@ export function computeGlobalWorkspace(
 
   // Cascading Filter Options strictly from live Odoo POS
   const cascadingBrands: FilterOption<GlobalBrand>[] = GLOBAL_BRAND_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && (brandsSectionUnavailable || bucketTotalsUnavailable)) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(opt.id, branch, channel)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === brand,
     }
   })
 
   const cascadingBranches: FilterOption<GlobalBranch>[] = GLOBAL_BRANCH_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && (bucketTotalsUnavailable || branchesSectionUnavailable)) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(brand, opt.id, channel)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === branch,
     }
   })
 
   const cascadingChannels: FilterOption<GlobalChannel>[] = GLOBAL_CHANNEL_OPTIONS.map((opt) => {
+    if (opt.id !== 'all' && channelsSectionUnavailable) {
+      return {
+        ...opt,
+        healthDot: '🟠' as const,
+        weightedNetPct: undefined,
+        salesKwd: undefined,
+        available: true,
+      }
+    }
     const m = computeSliceSalesAndOrders(brand, branch, opt.id)
     return {
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === channel,
     }
   })
@@ -1584,9 +1719,16 @@ export function computeGlobalWorkspace(
 
   // Live Receivables strictly from Odoo 17 (zero static 1,183.208 fallback!)
   const arRaw = liveSummary.aggregatorReceivables
-  const receivables: WorkspaceReceivablesMeta =
-    arRaw && arRaw.readable
+  const receivablesUnavailable = Boolean(
+    arRaw === null ||
+      (arRaw !== undefined && arRaw.readable === false) ||
+      (liveSummary.unavailableSections ?? []).includes('receivables'),
+  )
+  const receivables: WorkspaceReceivablesMeta = receivablesUnavailable
+    ? buildUnavailableReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
+    : arRaw && arRaw.readable
       ? {
+          unavailable: false,
           openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
           grossPositiveReceivableKwd:
             Math.round(safeNum(arRaw.grossPositiveReceivableKwd) * 1000) / 1000,
@@ -1611,8 +1753,11 @@ export function computeGlobalWorkspace(
         }
       : buildEmptyReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
 
-  const deliveryDuesKwd =
-    channel === 'dine-in' ? 0 : Math.max(0, Math.round(receivables.openReceivableKwd))
+  const deliveryDuesKwd: number | null = receivables.unavailable
+    ? null
+    : channel === 'dine-in'
+      ? 0
+      : Math.max(0, Math.round(receivables.openReceivableKwd))
 
   const quietHoursShare = computeLiveKuwaitSliceMultipliers(
     'quiet-hours',
@@ -1620,7 +1765,10 @@ export function computeGlobalWorkspace(
     rawPeriodDays,
     liveSummary,
   ).netMult
-  const quietHoursActualKwd = Math.round(salesKwd * quietHoursShare * 1000) / 1000
+  const quietHoursActualKwd: number | null =
+    hourlySectionUnavailable || sectionUnavailable
+      ? null
+      : Math.round(salesKwd * quietHoursShare * 1000) / 1000
 
   const summaryCards = buildSummaryCards({
     odooConnected: true,
@@ -1657,10 +1805,19 @@ export function computeGlobalWorkspace(
       : (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
   const glMarginLabelEn =
     accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'Incomplete GL entries'
-  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${fKwd(salesKwd, true)} | غير منسوب لفرع: ${fKwd(unattributedSalesKwd, true)} | الطلبات: ${orders.toLocaleString('en-US')} | متوسط الفاتورة: ${aovKwd.toFixed(2)} د.ك | صافي الربح المحاسبي: ${glMarginLabelAr} | عمولات المنصات: ${aggregatorCommissionDisplayAr ?? 'مرحّلة'}]`
-  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${fKwd(salesKwd, false)} | Unattributed: ${fKwd(unattributedSalesKwd, false)} | Orders: ${orders.toLocaleString('en-US')} | AOV: ${aovKwd.toFixed(2)} KWD | GL Margin: ${glMarginLabelEn}]`
+  const feryalSalesAr = nullableSalesKwd === null ? 'غير متاح' : fKwd(nullableSalesKwd, true)
+  const feryalSalesEn = nullableSalesKwd === null ? '—' : fKwd(nullableSalesKwd, false)
+  const feryalOrdersStr = nullableOrders === null ? '—' : nullableOrders.toLocaleString('en-US')
+  const feryalAovAr = nullableAovKwd === null ? 'غير متاح' : `${nullableAovKwd.toFixed(2)} د.ك`
+  const feryalAovEn = nullableAovKwd === null ? '—' : `${nullableAovKwd.toFixed(2)} KWD`
+  const feryalContextAr = `[الفلتر النشط: ${subtitleAr} | المبيعات الصافية: ${feryalSalesAr} | غير منسوب لفرع: ${fKwd(unattributedSalesKwd, true)} | الطلبات: ${feryalOrdersStr} | متوسط الفاتورة: ${feryalAovAr} | صافي الربح المحاسبي: ${glMarginLabelAr} | عمولات المنصات: ${aggregatorCommissionDisplayAr ?? 'مرحّلة'}]`
+  const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${feryalSalesEn} | Unattributed: ${fKwd(unattributedSalesKwd, false)} | Orders: ${feryalOrdersStr} | AOV: ${feryalAovEn} | GL Margin: ${glMarginLabelEn}]`
 
-  const noData = Boolean(liveSummary.noData || (salesKwd <= 0 && orders <= 0))
+  const noData = Boolean(
+    !sectionUnavailable && (liveSummary.noData || (salesKwd <= 0 && orders <= 0)),
+  )
+  const partial = Boolean(liveSummary.partial)
+  const unavailableSections = liveSummary.unavailableSections ?? []
 
   return {
     filters,
@@ -1668,6 +1825,14 @@ export function computeGlobalWorkspace(
     odooConnected: true,
     noData,
     noDataMessageAr: noData ? (liveSummary.messageAr ?? 'لا توجد بيانات من Odoo لهذه الفترة') : null,
+    partial,
+    unavailableSections,
+    warningAr: partial ? (liveSummary.warningAr ?? 'بعض الأرقام غير متاحة الآن') : null,
+    warningEn: partial ? (liveSummary.warningEn ?? 'Some figures are temporarily unavailable') : null,
+    sectionUnavailable,
+    nullableSalesKwd,
+    nullableOrders,
+    nullableAovKwd,
     lastSyncAt: liveSummary.lastSyncAt ?? liveSummary.syncedAt ?? null,
     isStale24h: Boolean(liveSummary.isStale24h ?? liveSummary.isStaleOver24h),
     odooCompanyId: liveSummary.odooCompanyId ?? null,

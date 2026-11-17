@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
-import { errorClass, panelClass, secondaryButton } from '@/components/erp/styles'
-import { Badge, Money } from '@/components/ui'
+import { Badge, Num } from '@/components/ui'
+import { SectionCard } from '@/components/ui/section-card'
+import { StateBlock } from '@/components/ui/state-block'
+import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import type { ReconciliationCheck, ReconciliationReport } from '@/modules/procurement/client'
-import { minorText, type Phase } from '@/modules/procurement/ui/shared'
+import type {
+  ReconciliationCheck,
+  ReconciliationReport,
+} from '@/modules/procurement/client'
+import { formatMinorKwd, type Phase } from '@/modules/procurement/ui/shared'
 
 const checkLabels: Record<ReconciliationCheck['key'], MessageKey> = {
   inventory: 'pro.rec.inventory',
@@ -14,12 +19,10 @@ const checkLabels: Record<ReconciliationCheck['key'], MessageKey> = {
   payable: 'pro.rec.payable',
 }
 
-/**
- * Compares what the ledger holds on the inventory, GRNI and payables accounts with what the documents say it must be. A
- * difference means a ledger entry and a document disagree, which is a finding for the accountant, never something to patch.
- */
+/** Compares ledger balances with procurement document totals. */
 export function ReconciliationPanel({ reloadToken }: { reloadToken: number }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const [report, setReport] = useState<ReconciliationReport | null>(null)
   const [phase, setPhase] = useState<Phase>('loading')
   const [loadError, setLoadError] = useState<MessageKey>('erp.err.generic')
@@ -28,7 +31,9 @@ export function ReconciliationPanel({ reloadToken }: { reloadToken: number }) {
   useEffect(() => {
     const controller = new AbortController()
     setPhase('loading')
-    apiRequest<{ data: ReconciliationReport }>('/api/v1/procurement/reconciliation', { signal: controller.signal })
+    apiRequest<{ data: ReconciliationReport }>('/api/v1/procurement/reconciliation', {
+      signal: controller.signal,
+    })
       .then((payload) => {
         setReport(payload.data)
         setPhase('ready')
@@ -41,67 +46,87 @@ export function ReconciliationPanel({ reloadToken }: { reloadToken: number }) {
     return () => controller.abort()
   }, [reloadToken, retry])
 
-  if (phase === 'loading') return <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p>
+  if (phase === 'loading') {
+    return (
+      <StateBlock
+        state="loading"
+        locale={fmtLocale}
+        skeletonRows={4}
+        title={t('erp.loading')}
+      />
+    )
+  }
   if (phase === 'error' || !report) {
     return (
-      <div className="space-y-3 py-6 text-center">
-        <p role="alert" className={`${errorClass} inline-block`}>
-          {t(loadError)}
-        </p>
-        <div>
-          <button type="button" onClick={() => setRetry((value) => value + 1)} className={secondaryButton}>
-            {t('erp.retry')}
-          </button>
-        </div>
-      </div>
+      <StateBlock
+        state={loadError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+        locale={fmtLocale}
+        title={t(loadError)}
+        onRetry={
+          loadError === 'erp.err.forbidden'
+            ? undefined
+            : () => setRetry((value) => value + 1)
+        }
+      />
     )
   }
 
   return (
-    <section className={panelClass} aria-label={t('pro.rec.title')}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-base font-semibold text-gray-100">{t('pro.rec.title')}</h3>
-          <p className="mt-1 text-sm text-gray-400">{t('pro.rec.hint')}</p>
-        </div>
+    <SectionCard
+      locale={fmtLocale}
+      ariaLabel={t('pro.rec.title')}
+      title={t('pro.rec.title')}
+      subtitle={t('pro.rec.hint')}
+      actions={
         <div className="flex items-center gap-2">
-          <Badge tone="info">{t(report.basis === 'receipt_basis' ? 'pro.acct.basis.receipt' : 'pro.acct.basis.invoice')}</Badge>
-          <Badge tone={report.ok ? 'good' : 'bad'}>{t(report.ok ? 'pro.rec.ok' : 'pro.rec.mismatch')}</Badge>
+          <Badge tone="info">
+            {t(
+              report.basis === 'receipt_basis'
+                ? 'pro.acct.basis.receipt'
+                : 'pro.acct.basis.invoice',
+            )}
+          </Badge>
+          <Badge tone={report.ok ? 'good' : 'bad'}>
+            {t(report.ok ? 'pro.rec.ok' : 'pro.rec.mismatch')}
+          </Badge>
         </div>
-      </div>
-      <div className="mt-4 overflow-x-auto">
+      }
+      footer={t('pro.rec.note')}
+    >
+      <div className="w-full overflow-x-auto">
         <table className="w-full min-w-[32rem] text-sm">
-          <thead className="text-gray-400">
-            <tr className="border-b border-[#30363d]">
-              <th className="px-3 py-2 text-start font-medium">{t('pro.rec.account')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.rec.ledger')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.rec.documents')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.rec.difference')}</th>
-              <th className="px-3 py-2 text-start font-medium">{t('pro.col.status')}</th>
+          <thead className="border-b border-[var(--ds-border-hairline)] text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <tr>
+              <th className="px-3 py-2 text-start">{t('pro.rec.account')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.rec.ledger')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.rec.documents')}</th>
+              <th className="px-3 py-2 text-end">{t('pro.rec.difference')}</th>
+              <th className="px-3 py-2 text-start">{t('pro.col.status')}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--ds-border-hairline)] text-slate-800 dark:text-slate-100">
             {report.checks.map((check) => (
-              <tr key={check.key} className="border-b border-[#30363d]/60 text-gray-200">
+              <tr key={check.key}>
                 <td className="px-3 py-2">{t(checkLabels[check.key])}</td>
-                <td className="px-3 py-2">
-                  <Money value={minorText(check.actualMinor)} />
+                <td className="px-3 py-2 text-end">
+                  <Num>{formatMinorKwd(check.actualMinor, fmtLocale)}</Num>
+                </td>
+                <td className="px-3 py-2 text-end">
+                  <Num>{formatMinorKwd(check.expectedMinor, fmtLocale)}</Num>
+                </td>
+                <td className="px-3 py-2 text-end font-semibold">
+                  <Num>{formatMinorKwd(check.differenceMinor, fmtLocale)}</Num>
                 </td>
                 <td className="px-3 py-2">
-                  <Money value={minorText(check.expectedMinor)} />
-                </td>
-                <td className="px-3 py-2">
-                  <Money value={minorText(check.differenceMinor)} />
-                </td>
-                <td className="px-3 py-2">
-                  <Badge tone={check.ok ? 'good' : 'bad'}>{t(check.ok ? 'pro.rec.ok' : 'pro.rec.mismatch')}</Badge>
+                  <Badge tone={check.ok ? 'good' : 'bad'}>
+                    {t(check.ok ? 'pro.rec.ok' : 'pro.rec.mismatch')}
+                  </Badge>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-gray-500">{t('pro.rec.note')}</p>
-    </section>
+    </SectionCard>
   )
 }

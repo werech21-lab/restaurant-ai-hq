@@ -1,14 +1,21 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { requireUser } from "@/lib/erp-auth";
 import { Forbidden, PageSkeleton } from "@/components/erp-ui";
+import { getLocale, tx } from "@/lib/i18n/server";
 import { MODULES } from "@/lib/modules";
 import { PAGE_SIZE, readQuery, type RawQuery } from "@/lib/pagination";
 import { can, firstAllowedHref, type PermissionSnapshot } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { RolesPanel } from "@/app/(panel)/roles/roles-panel";
 
-export const metadata = { title: "Roles | AetherBI" };
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return {
+    title: tx(locale, "إدارة الأدوار والصلاحيات | AetherBI", "Roles & Permissions | AetherBI"),
+  };
+}
 
 function matrix(rows: Array<{ module: string; canView: boolean; canCreate: boolean; canEdit: boolean; canDelete: boolean }>) {
   const byModule = new Map(rows.map((row) => [row.module, row]));

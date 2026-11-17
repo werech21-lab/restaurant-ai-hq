@@ -9,8 +9,8 @@ export const metadata = {
 
 export default function EventsProjectsPage() {
   return (
-    <main className="w-full max-w-none px-2 py-4 sm:px-4 sm:py-6 lg:px-6">
+    <div className="w-full max-w-none min-w-0 px-3 py-4 sm:px-4 sm:py-6 lg:px-6">
       <VentureEventsHub />
-    </main>
+    </div>
   )
 }

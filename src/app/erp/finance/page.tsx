@@ -25,9 +25,9 @@ export default async function FinancePage() {
     <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 space-y-5 min-w-0">
       <div
         dir={isAr ? 'rtl' : 'ltr'}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-[#0b1320] px-4 py-3"
+        className="ds-surface flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs dark:border-emerald-500/20 dark:bg-[#0b1320]"
       >
-        <span className="text-xs font-bold text-slate-300">
+        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
           {isAr
             ? 'الوصول السريع لوحدات الإدارة المالية المتخصصة داخل منظومة إيثر:'
             : 'Quick access to specialized Financial Modules inside Aether ERP:'}
@@ -35,27 +35,27 @@ export default async function FinancePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/erp/executive-pnl"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition"
+            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 transition dark:text-emerald-300"
           >
-            <FileSpreadsheet size={14} />
+            <FileSpreadsheet size={14} aria-hidden />
             <span>{isAr ? 'قائمة الدخل التنفيذية (P&L)' : 'Executive P&L'}</span>
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={13} aria-hidden />
           </Link>
           <Link
             href="/erp/receivables"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition"
+            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-800 hover:bg-cyan-500/20 transition dark:text-cyan-300"
           >
-            <Receipt size={14} />
+            <Receipt size={14} aria-hidden />
             <span>{isAr ? 'أعمار الذمم المدينة (AR)' : 'Receivables Aging'}</span>
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={13} aria-hidden />
           </Link>
           <Link
             href="/erp/cost-intelligence"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition"
+            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-500/20 transition dark:text-amber-300"
           >
-            <Gauge size={14} />
+            <Gauge size={14} aria-hidden />
             <span>{isAr ? 'ذكاء التكلفة وأسعار الموردين' : 'Cost & Supplier Intelligence'}</span>
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={13} aria-hidden />
           </Link>
         </div>
       </div>

@@ -13,7 +13,8 @@ export default async function DemandForecastPage() {
   await requirePageUser('/erp/demand-forecast')
   const { yesterdayIso } = getKuwaitTimeContext()
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto px-3 py-5 sm:px-6 min-w-0">
+      <h1 className="sr-only">توقع الطلب وتحضير المطبخ المركزي | Demand &amp; Prep Forecaster</h1>
       <DemandForecastV2 anchor={yesterdayIso} />
     </div>
   )

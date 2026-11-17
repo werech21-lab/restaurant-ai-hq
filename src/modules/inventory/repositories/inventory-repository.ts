@@ -1,6 +1,7 @@
 import type { Page } from '@/lib/api/cursor'
 import { keysetClauses, toPage, type SortColumn } from '@/lib/api/keyset'
 import { appendScopeFilter, resolveScopeBounds } from '@/lib/data-scope'
+import { nonCompanyItemSql } from '@/lib/odoo/non-company-products'
 import type { Queryable } from '@/lib/pg'
 import type { Currency } from '@/lib/money'
 import type { LedgerRow } from '@/modules/inventory/domain/stock'
@@ -133,7 +134,7 @@ export async function updateItem(tx: Queryable, tenantId: string, id: string, in
 
 export async function listItems(tx: Queryable, tenantId: string, query: ListItemsQuery): Promise<Page<Item>> {
   const params: unknown[] = [tenantId]
-  let filters = ''
+  let filters = nonCompanyItemSql('sku', 'name', params)
   if (query.status === 'active') filters += ' and is_active'
   if (query.status === 'inactive') filters += ' and not is_active'
   if (query.lowStock) filters += ' and is_active and current_stock <= reorder_level'

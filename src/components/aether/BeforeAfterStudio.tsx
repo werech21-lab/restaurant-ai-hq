@@ -12,6 +12,16 @@ import {
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
+import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
+import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
+import {
+  formatInt,
+  formatKwd,
+  formatPct,
+  getUnavailableTooltip,
+  UNAVAILABLE_DASH,
+  type FormatLocale,
+} from '@/lib/format'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import {
   ExecutiveComparisonControlBar,
@@ -59,7 +69,7 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               active
                 ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
@@ -102,46 +112,35 @@ const DEFAULT_BEFORE_AFTER_QUERY: ErpComparisonQuery = {
   entityB: 'franks',
 }
 
-const f0 = (n: number) => Math.round(Number.isFinite(n) ? n : 0).toLocaleString('en-US')
-const f1 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  })
-const f2 = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-const fKwdNum = (n: number) =>
-  (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 3,
-  })
-
+const f0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
+const fKwdNum = (n: number, locale: FormatLocale = 'en') =>
+  formatKwd(n, { locale, showUnit: false, decimals: 3 })
 const fmtKwd = (n: number, isAr: boolean) =>
-  isAr ? `${fKwdNum(n)} د.ك` : `${fKwdNum(n)} KWD`
-
-const fmtSignedKwd = (n: number, isAr: boolean) => {
-  const sign = n > 0 ? '+' : n < 0 ? '-' : ''
-  return `${sign}${fmtKwd(Math.abs(n), isAr)}`
+  formatKwd(n, { locale: isAr ? 'ar' : 'en', showUnit: true, decimals: 3 })
+const fmtSignedKwd = (n: number, isAr: boolean) =>
+  formatKwd(n, { locale: isAr ? 'ar' : 'en', showUnit: true, decimals: 3, signed: true })
+const fmtSignedPct = (pct: number, locale: FormatLocale = 'en') =>
+  formatPct(pct, { locale, signed: true })
+export function fmtSignedPp(pp: number | null | undefined): string {
+  if (typeof pp !== 'number' || !Number.isFinite(pp)) return UNAVAILABLE_DASH
+  const normalized = Object.is(pp, -0) ? 0 : pp
+  return `${normalized > 0 ? '+' : ''}${normalized.toFixed(1)} pp`
 }
-
-const fmtSignedPct = (pct: number) => `${pct > 0 ? '+' : ''}${f1(pct)}%`
-const fmtSignedPp = (pp: number) => `${pp > 0 ? '+' : ''}${f1(pp)} pp`
 
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
 type ChartMetricKey = 'sales' | 'orders' | 'cumulative'
 
-function formatKpiVal(kpi: ExecutiveKpiDelta, slot: 'after' | 'before'): string {
+function formatKpiVal(kpi: ExecutiveKpiDelta, slot: 'after' | 'before', locale: FormatLocale): string {
   const v = slot === 'after' ? kpi.valueA : kpi.valueB
-  if (kpi.unit === 'orders') return f0(v)
-  if (kpi.unit === 'pct') return `${f1(v)}%`
-  return kpi.id === 'averageCheck' ? f2(v) : fKwdNum(v)
+  if (kpi.unit === 'orders') return f0(v, locale)
+  if (kpi.unit === 'pct') return formatPct(v, { locale })
+  return fKwdNum(v, locale)
 }
 
 export function BeforeAfterStudio() {
   const { isAr, T } = useLang()
+  const resolvedLocale: FormatLocale = isAr ? 'ar' : 'en'
+  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const kwd = isAr ? 'د.ك' : 'KWD'
   const { filters, liveSummary } = useGlobalFilter()
 
@@ -212,6 +211,8 @@ export function BeforeAfterStudio() {
   const [cubeA, setCubeA] = useState<OdooPeriodCube | null>(null)
   const [cubeB, setCubeB] = useState<OdooPeriodCube | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [apiError, setApiError] = useState<boolean>(false)
+  const [retryTick, setRetryTick] = useState<number>(0)
   const [apiConnected, setApiConnected] = useState<boolean>(false)
   const [apiNoData, setApiNoData] = useState<boolean>(false)
   const [apiLastSyncAt, setApiLastSyncAt] = useState<string | null>(null)
@@ -224,7 +225,9 @@ export function BeforeAfterStudio() {
   // Fetch directly from `/api/erp/live-comparison` (`cubeA`, `cubeB`)
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     setLoading(true)
+    setApiError(false)
     const qs = new URLSearchParams({
       dateA: query.periodA.from,
       toA: query.periodA.to,
@@ -240,8 +243,12 @@ export function BeforeAfterStudio() {
       cache: 'no-store',
       credentials: 'same-origin',
       headers: { accept: 'application/json' },
+      signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error('HTTP_ERROR')
+        return res.json()
+      })
       .then((payload) => {
         if (!active) return
         if (!payload || payload.connected === false || !payload.cubeA || !payload.cubeB) {
@@ -260,10 +267,12 @@ export function BeforeAfterStudio() {
         setApiLastSyncAt(payload.lastSyncAt ?? payload.cubeA.lastSyncAt ?? null)
         setApiIsStale24h(Boolean(payload.isStale24h ?? payload.cubeA.isStale24h))
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
         setApiConnected(false)
-        setApiNoData(true)
+        setApiNoData(false)
+        setApiError(true)
         setCubeA(null)
         setCubeB(null)
       })
@@ -273,6 +282,7 @@ export function BeforeAfterStudio() {
 
     return () => {
       active = false
+      controller.abort()
     }
   }, [
     query.periodA.from,
@@ -282,6 +292,7 @@ export function BeforeAfterStudio() {
     query.mode,
     query.granularity,
     query.sameHoursLikeForLike,
+    retryTick,
   ])
 
   const comparison = useMemo(
@@ -349,7 +360,8 @@ export function BeforeAfterStudio() {
     URL.revokeObjectURL(url)
   }, [comparison, isAr])
 
-  const showNoData = !loading && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
+  const showNoData =
+    !loading && !apiError && (!apiConnected || apiNoData || !comparison.connected || comparison.noData)
   const dateRangeBadge = `${comparison.selectionB.fromIso}..${comparison.selectionB.toIso} → ${comparison.selectionA.fromIso}..${comparison.selectionA.toIso}`
 
   const renderSectionTable = (
@@ -402,10 +414,14 @@ export function BeforeAfterStudio() {
                     </div>
                   </td>
                   <td className="px-3 py-3 text-end font-mono text-slate-600 dark:text-slate-300">
-                    {fmtKwd(r.valueB, isAr)}
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtKwd(r.valueB, isAr)}
+                    </span>
                   </td>
                   <td className="px-3 py-3 text-end font-mono font-semibold text-slate-900 dark:text-white">
-                    {fmtKwd(r.valueA, isAr)}
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtKwd(r.valueA, isAr)}
+                    </span>
                   </td>
                   <td
                     className={`px-3 py-3 text-end font-mono font-semibold ${
@@ -414,11 +430,19 @@ export function BeforeAfterStudio() {
                         : 'text-rose-700 dark:text-rose-300'
                     }`}
                   >
-                    {fmtSignedKwd(r.deltaKwd, isAr)}
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtSignedKwd(r.deltaKwd, isAr)}
+                    </span>
                   </td>
-                  <td className="px-3 py-3 text-end font-mono">{fmtSignedPct(r.deltaPct)}</td>
+                  <td className="px-3 py-3 text-end font-mono">
+                    <span dir="ltr" className="tabular-nums">
+                      {fmtSignedPct(r.deltaPct, resolvedLocale)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-end font-mono text-slate-700 dark:text-slate-300">
-                    {f0(r.ordersB)} → {f0(r.ordersA)}
+                    <span dir="ltr" className="tabular-nums">
+                      {f0(r.ordersB, resolvedLocale)} → {f0(r.ordersA, resolvedLocale)}
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -438,6 +462,19 @@ export function BeforeAfterStudio() {
       <div className="print:hidden">
         <ExecutiveComparisonControlBar
           query={query}
+          odooGap={
+            loading
+              ? null
+              : {
+                  connected: Boolean(
+                    apiConnected && !apiNoData && comparison.connected && !comparison.noData,
+                  ),
+                  gapKwd:
+                    apiConnected && !apiNoData && comparison.connected && !comparison.noData
+                      ? comparison.reconciliation.maxSalesGapKwd
+                      : null,
+                }
+          }
           order="b-first"
           labelBEn="Before (Baseline)"
           labelBAr="قبل (الأساس)"
@@ -458,53 +495,71 @@ export function BeforeAfterStudio() {
               type="button"
               disabled={showNoData || loading}
               onClick={() => window.print()}
-              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+              aria-label={T('Print comparison report', 'طباعة تقرير المقارنة')}
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
             >
-              <Printer className="h-3.5 w-3.5 shrink-0" />
+              <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>{T('Print', 'طباعة')}</span>
             </button>
           }
         />
       </div>
 
+      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
+
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-white/10 dark:bg-[#101C17] dark:text-slate-300">
-          {isAr
-            ? 'جاري جلب مكعبات المقارنة الفعلية من Odoo 17...'
-            : 'Fetching period cubes from Odoo 17...'}
-        </div>
+        <StateBlock
+          state="loading"
+          locale={resolvedLocale}
+          skeletonRows={4}
+          title={
+            isAr
+              ? 'جاري جلب مكعبات المقارنة الفعلية من Odoo 17...'
+              : 'Fetching period cubes from Odoo 17...'
+          }
+        />
+      ) : null}
+
+      {!loading && apiError ? (
+        <StateBlock
+          state="error"
+          locale={resolvedLocale}
+          onRetry={() => setRetryTick((n) => n + 1)}
+        />
       ) : null}
 
       {showNoData ? (
-        <div className="rounded-2xl border border-amber-300/70 bg-amber-50/80 p-8 text-center dark:border-amber-500/30 dark:bg-amber-950/25">
-          <div className="text-base font-bold text-amber-950 dark:text-amber-200">
-            {isAr
-              ? 'لا توجد بيانات من Odoo لهذه الفترة'
-              : 'No data from Odoo for this period'}
-          </div>
-          <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-300/90">
-            {isAr
+        <StateBlock
+          state="empty"
+          locale={resolvedLocale}
+          title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No data from Odoo for this period'}
+          description={
+            isAr
               ? 'لم تُسجَّل حركات نقاط بيع في Odoo للتواريخ المختارة أو أن الاتصال بـ Odoo منقطع حالياً.'
-              : 'No POS records exist in Odoo for the selected dates or Odoo is currently disconnected.'}
-          </p>
-        </div>
+              : 'No POS records exist in Odoo for the selected dates or Odoo is currently disconnected.'
+          }
+        />
       ) : null}
 
-      {!loading && !showNoData ? (
+      {!loading && !apiError && !showNoData ? (
         <>
           {/* 1B. Summary Strip */}
           <section className="rounded-2xl bg-white px-4 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12">
             <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  <Sparkles className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[13.5px] font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white">
                       {isAr
-                        ? `قبل (${comparison.selectionB.shortLabelAr}) ← بعد (${comparison.selectionA.shortLabelAr}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, true)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`
-                        : `Before (${comparison.selectionB.shortLabelEn}) → After (${comparison.selectionA.shortLabelEn}): ${fmtSignedKwd(comparison.kpis.netSales.deltaAbs, false)} (${fmtSignedPct(comparison.kpis.netSales.deltaPct)})`}
+                        ? `قبل (${comparison.selectionB.shortLabelAr}) ← بعد (${comparison.selectionA.shortLabelAr}): `
+                        : `Before (${comparison.selectionB.shortLabelEn}) → After (${comparison.selectionA.shortLabelEn}): `}
+                      <span dir="ltr" className="tabular-nums">
+                        {fmtSignedKwd(comparison.kpis.netSales.deltaAbs, isAr)} (
+                        {fmtSignedPct(comparison.kpis.netSales.deltaPct, resolvedLocale)})
+                      </span>
                     </span>
                     <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/[0.07] dark:text-slate-300">
                       {isAr ? comparison.scopeSummaryAr : comparison.scopeSummaryEn}
@@ -520,12 +575,32 @@ export function BeforeAfterStudio() {
                     if (topBadge.tone === 'emerald') {
                       return (
                         <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50/90 px-3 py-1 text-[12px] font-semibold text-emerald-900 ring-1 ring-emerald-600/15 dark:bg-emerald-500/15 dark:text-emerald-200">
-                          <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                          {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
-                          {isAr
-                            ? comparison.insights.topGainer.nameAr
-                            : comparison.insights.topGainer.nameEn}{' '}
-                          ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                          <TrendingUp className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+                          <span>
+                            {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                            {isAr
+                              ? comparison.insights.topGainer.nameAr
+                              : comparison.insights.topGainer.nameEn}{' '}
+                            <span dir="ltr" className="tabular-nums">
+                              ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                            </span>
+                          </span>
+                        </span>
+                      )
+                    }
+                    if (comparison.insights.topGainer.deltaKwd < 0) {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/10 dark:text-slate-200">
+                          <TrendingDown className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                          <span>
+                            {isAr ? `${topBadge.labelAr}:` : `${topBadge.labelEn}:`}{' '}
+                            {isAr
+                              ? comparison.insights.topGainer.nameAr
+                              : comparison.insights.topGainer.nameEn}{' '}
+                            <span dir="ltr" className="tabular-nums">
+                              ({fmtSignedKwd(comparison.insights.topGainer.deltaKwd, isAr)})
+                            </span>
+                          </span>
                         </span>
                       )
                     }
@@ -534,12 +609,16 @@ export function BeforeAfterStudio() {
                 {comparison.insights.biggestDecline &&
                   comparison.insights.biggestDecline.deltaKwd < 0 && (
                     <span className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50/90 px-3 py-1 text-[12px] font-semibold text-rose-900 ring-1 ring-rose-600/15 dark:bg-rose-500/15 dark:text-rose-200">
-                      <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
-                      {isAr ? 'أكبر تراجع:' : 'Biggest Drop:'}{' '}
-                      {isAr
-                        ? comparison.insights.biggestDecline.nameAr
-                        : comparison.insights.biggestDecline.nameEn}{' '}
-                      ({fmtSignedKwd(comparison.insights.biggestDecline.deltaKwd, isAr)})
+                      <TrendingDown className="h-3.5 w-3.5 text-rose-600" aria-hidden />
+                      <span>
+                        {isAr ? 'أكبر تراجع:' : 'Biggest Drop:'}{' '}
+                        {isAr
+                          ? comparison.insights.biggestDecline.nameAr
+                          : comparison.insights.biggestDecline.nameEn}{' '}
+                        <span dir="ltr" className="tabular-nums">
+                          ({fmtSignedKwd(comparison.insights.biggestDecline.deltaKwd, isAr)})
+                        </span>
+                      </span>
                     </span>
                   )}
               </div>
@@ -573,15 +652,24 @@ export function BeforeAfterStudio() {
                       {isAr ? kpi.labelAr : kpi.labelEn}
                     </span>
                     {isUnavailable ? null : kpi.isFavorable ? (
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
                     ) : (
-                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
                     )}
                   </div>
 
                   {isUnavailable ? (
                     <>
-                      <div className="mt-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
+                      <div
+                        dir="ltr"
+                        data-unavailable="true"
+                        title={unavailableTip}
+                        aria-label={unavailableTip}
+                        className="mt-2 text-xl font-semibold tabular-nums text-slate-400"
+                      >
+                        {UNAVAILABLE_DASH}
+                      </div>
+                      <div className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
                         {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries'}
                       </div>
                       <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
@@ -603,14 +691,19 @@ export function BeforeAfterStudio() {
                         {kpi.unit === 'pct'
                           ? fmtSignedPp(kpi.deltaPct)
                           : kpi.unit === 'orders'
-                            ? `${kpi.deltaAbs > 0 ? '+' : ''}${f0(kpi.deltaAbs)}`
+                            ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true })
                             : fmtSignedKwd(kpi.deltaAbs, isAr)}
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                        <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${badgeTone}`}>
+                        <span
+                          dir="ltr"
+                          className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
+                        >
                           {kpi.unit === 'pct'
-                            ? `${signed.arrow} ${fmtSignedPp(signed.pct)}`
+                            ? Number.isFinite(kpi.deltaPct)
+                              ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
+                              : UNAVAILABLE_DASH
                             : signed.text}
                         </span>
                       </div>
@@ -619,9 +712,9 @@ export function BeforeAfterStudio() {
                         dir="ltr"
                         className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
                       >
-                        {formatKpiVal(kpi, 'before')} →{' '}
+                        {formatKpiVal(kpi, 'before', resolvedLocale)} →{' '}
                         <strong className="text-slate-800 dark:text-slate-100">
-                          {formatKpiVal(kpi, 'after')}
+                          {formatKpiVal(kpi, 'after', resolvedLocale)}
                         </strong>{' '}
                         {kpi.unit === 'KWD' ? kwd : ''}
                       </p>
@@ -641,7 +734,15 @@ export function BeforeAfterStudio() {
           </section>
 
           {/* 1D. Visual Before-vs-After Trend Chart */}
-          <section className="ae-bento-card rounded-2xl bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10">
+          <section
+            role="region"
+            aria-label={
+              isAr
+                ? `المنحنى الزمني للمقارنة — ${dateRangeBadge}`
+                : `Before vs After Period Trend — ${dateRangeBadge}`
+            }
+            className="ae-bento-card rounded-2xl bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] sm:p-6 dark:bg-[#101C17] dark:ring-emerald-500/10"
+          >
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[16px] font-extrabold tracking-tight text-neutral-950 sm:text-[17px] dark:text-white">
@@ -652,8 +753,8 @@ export function BeforeAfterStudio() {
                 </h2>
                 <p className="text-[13px] text-neutral-500 dark:text-slate-400">
                   {isAr
-                    ? `مقارنة ${comparison.selectionB.titleAr} مقابل ${comparison.selectionA.titleAr}`
-                    : `Comparing ${comparison.selectionB.titleEn} vs ${comparison.selectionA.titleEn}`}
+                    ? `مقارنة ${comparison.selectionB.titleAr} مقابل ${comparison.selectionA.titleAr} · ${chartMetric === 'orders' ? 'الطلبات (طلب)' : 'د.ك (KWD)'}`
+                    : `Comparing ${comparison.selectionB.titleEn} vs ${comparison.selectionA.titleEn} · ${chartMetric === 'orders' ? 'Orders' : 'KWD'}`}
                 </p>
               </div>
 
@@ -673,13 +774,13 @@ export function BeforeAfterStudio() {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-semibold">
                 <div className="flex flex-wrap items-center gap-4">
                   <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-slate-400 dark:bg-slate-500" aria-hidden />
                     {isAr
                       ? `قبل: ${comparison.selectionB.shortLabelAr}`
                       : `Before: ${comparison.selectionB.shortLabelEn}`}
                   </span>
                   <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" aria-hidden />
                     {isAr
                       ? `بعد: ${comparison.selectionA.shortLabelAr}`
                       : `After: ${comparison.selectionA.shortLabelEn}`}
@@ -699,12 +800,30 @@ export function BeforeAfterStudio() {
                           {isAr ? inspectedBucket.labelAr : inspectedBucket.labelEn}
                         </span>
                         <span>
-                          {isOrders ? f0(p.before) : fKwdNum(p.before)} →{' '}
-                          <strong>{isOrders ? f0(p.after) : fKwdNum(p.after)}</strong> {p.unit}
+                          {isOrders
+                            ? f0(p.before, resolvedLocale)
+                            : fKwdNum(p.before, resolvedLocale)}{' '}
+                          →{' '}
+                          <strong>
+                            {isOrders
+                              ? f0(p.after, resolvedLocale)
+                              : fKwdNum(p.after, resolvedLocale)}
+                          </strong>{' '}
+                          {p.unit}
                         </span>
                       </div>
                     )
                   })()}
+              </div>
+
+              <div data-chart-axis-y="true" className="mb-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {chartMetric === 'orders'
+                  ? isAr
+                    ? 'المحور الرأسي: عدد الطلبات'
+                    : 'Y-Axis: Orders'
+                  : isAr
+                    ? 'المحور الرأسي: صافي المبيعات (د.ك)'
+                    : 'Y-Axis: Net Sales (KWD)'}
               </div>
 
               <div dir="ltr" className="overflow-x-auto pb-1">
@@ -725,31 +844,45 @@ export function BeforeAfterStudio() {
                       Math.round((Math.max(0, p.after) / maxBucketVal) * 132),
                     )
                     const active = inspectedBucket?.id === bkt.id
+                    const fmtTipBefore =
+                      chartMetric === 'orders'
+                        ? `${f0(p.before, resolvedLocale)} ${p.unit}`
+                        : formatChartKwdTooltip(p.before, resolvedLocale)
+                    const fmtTipAfter =
+                      chartMetric === 'orders'
+                        ? `${f0(p.after, resolvedLocale)} ${p.unit}`
+                        : formatChartKwdTooltip(p.after, resolvedLocale)
                     return (
                       <button
                         key={bkt.id}
                         type="button"
+                        aria-label={`${isAr ? bkt.labelAr : bkt.labelEn}: ${fmtTipBefore} → ${fmtTipAfter}`}
                         onMouseEnter={() => setSelectedBucketIdx(idx)}
                         onClick={() => setSelectedBucketIdx(idx)}
-                        className={`flex cursor-pointer flex-col items-center rounded-xl px-1 py-2 transition-all duration-150 ${
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setSelectedBucketIdx(null)
+                        }}
+                        className={`flex cursor-pointer flex-col items-center rounded-xl px-1 py-2 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                           active
                             ? 'bg-white shadow-sm ring-1 ring-emerald-500/35 dark:bg-[#101C17]'
                             : 'hover:bg-white/60 dark:hover:bg-white/[0.04]'
                         }`}
                       >
                         <span className="mb-1 text-xs font-semibold text-slate-600 tabular-nums dark:text-slate-300">
-                          {chartMetric === 'orders' ? f0(p.after) : fKwdNum(p.after)}
+                          {chartMetric === 'orders'
+                            ? f0(p.after, resolvedLocale)
+                            : fKwdNum(p.after, resolvedLocale)}
                         </span>
-                        <div className="flex h-[140px] w-full items-end justify-center gap-1 rounded-lg bg-slate-200/45 px-1 py-1 dark:bg-white/[0.03]">
+                        <div className="flex h-[140px] w-full items-end justify-center gap-1 rounded-lg border-b border-dashed border-slate-300/70 bg-slate-200/45 px-1 py-1 dark:border-white/10 dark:bg-white/[0.03]">
                           <div
                             style={{ height: `${hBefore}px` }}
                             className="w-2.5 rounded-t-md bg-slate-300 sm:w-3 dark:bg-slate-600"
-                            title={`Before (${bkt.metaB}): ${fKwdNum(p.before)} ${p.unit}`}
+                            title={`Before (${bkt.metaB}): ${fmtTipBefore}`}
                           />
                           <div
                             style={{ height: `${hAfter}px` }}
                             className="w-2.5 rounded-t-md bg-emerald-500 sm:w-3"
-                            title={`After (${bkt.metaA}): ${fKwdNum(p.after)} ${p.unit}`}
+                            title={`After (${bkt.metaA}): ${fmtTipAfter}`}
                           />
                         </div>
                         <span className="mt-1.5 text-xs font-semibold text-slate-700 tabular-nums dark:text-slate-200">
@@ -759,6 +892,16 @@ export function BeforeAfterStudio() {
                     )
                   })}
                 </div>
+              </div>
+
+              <div data-chart-axis-x="true" className="mt-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {comparison.chartKind === 'hourly-14'
+                  ? isAr
+                    ? 'الساعات التشغيلية (توقيت الكويت)'
+                    : 'Operating Hours (Asia/Kuwait)'
+                  : isAr
+                    ? 'الأيام (توقيت الكويت)'
+                    : 'Days (Asia/Kuwait)'}
               </div>
             </div>
           </section>

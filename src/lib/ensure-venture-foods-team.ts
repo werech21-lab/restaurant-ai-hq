@@ -1,12 +1,21 @@
+import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import { MODULES } from '@/lib/modules'
-import {
-  AETHER_ADMIN_PASSWORD,
-  VF_TEAM,
-  isLegacyDemoEmail,
-  type VfTeamMember,
-} from '@/lib/venture-foods-team'
+import { VF_TEAM, type VfTeamMember } from '@/lib/venture-foods-team'
+
+const FORBIDDEN_DEFAULT_PASSWORDS = new Set([
+  ['123', '456'].join(''),
+  'password',
+  ['1234', '5678'].join(''),
+])
+
+export function isAllowedExplicitLeadershipPassword(raw: string | undefined): raw is string {
+  if (typeof raw !== 'string') return false
+  const trimmed = raw.trim()
+  if (trimmed.length < 8) return false
+  return !FORBIDDEN_DEFAULT_PASSWORDS.has(trimmed.toLowerCase())
+}
 
 function permissionsFor(member: VfTeamMember) {
   return MODULES.map((module) => {
@@ -57,78 +66,107 @@ async function ensureRole(member: VfTeamMember) {
   return created.id
 }
 
-async function upsertUser(email: string, name: string, roleId: string, password: string) {
-  const passwordHash = await bcrypt.hash(password, 10)
-  const existing = await prisma.user.findUnique({ where: { email } })
+export interface ProvisionLeadershipAccountInput {
+  email: string
+  name: string
+  roleId: string
+  password?: string
+  invite?: boolean
+}
+
+export type ProvisionLeadershipAccountResult =
+  | { status: 'existing'; userId: string }
+  | { status: 'created'; userId: string }
+  | { status: 'invited'; userId: string; inviteToken: string }
+
+/**
+ * Provisions a missing leadership account ONLY when given an explicit non-default password
+ * or `invite: true`. Existing user rows are NEVER touched (no password, role, or status change).
+ */
+export async function provisionLeadershipAccount(
+  input: ProvisionLeadershipAccountInput,
+): Promise<ProvisionLeadershipAccountResult> {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } })
   if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { name, roleId, isActive: true, passwordHash },
-    })
-    return existing.id
+    return { status: 'existing', userId: existing.id }
   }
-  const created = await prisma.user.create({
-    data: { name, email, roleId, isActive: true, passwordHash },
-  })
-  return created.id
+
+  if (input.password !== undefined && input.password.trim() !== '') {
+    if (!isAllowedExplicitLeadershipPassword(input.password)) {
+      throw new Error(
+        'New leadership accounts require an explicit password (never a default password) or an invite.',
+      )
+    }
+    const passwordHash = await bcrypt.hash(input.password.trim(), 10)
+    const created = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        roleId: input.roleId,
+        isActive: true,
+        passwordHash,
+      },
+    })
+    return { status: 'created', userId: created.id }
+  }
+
+  if (input.invite === true) {
+    const inviteToken = randomBytes(24).toString('hex')
+    const lockedInviteMarker = `!INVITE_PENDING:${inviteToken}`
+    const created = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        roleId: input.roleId,
+        isActive: true,
+        passwordHash: lockedInviteMarker,
+      },
+    })
+    return { status: 'invited', userId: created.id, inviteToken }
+  }
+
+  throw new Error('Explicit password or invite is required to create a new leadership account.')
+}
+
+export interface EnsureVentureFoodsTeamOptions {
+  passwordsByEmail?: Record<string, string>
+  inviteMissing?: boolean
 }
 
 /**
- * Idempotent: replaces legacy Arabic demo accounts with the real Venture Foods leadership team.
- * Safe to call on /login and /users — never wipes unrelated custom users.
+ * Provisions leadership roles and only creates missing leadership accounts when an explicit
+ * password or `inviteMissing: true` is supplied. Existing accounts are left completely untouched.
  */
-export async function ensureVentureFoodsTeam() {
+export async function ensureVentureFoodsTeam(options?: EnsureVentureFoodsTeamOptions) {
   const roleIds = new Map<string, string>()
   for (const member of VF_TEAM) {
     roleIds.set(member.key, await ensureRole(member))
   }
 
+  const skippedMissingCredential: string[] = []
   for (const member of VF_TEAM) {
     const roleId = roleIds.get(member.key)!
     for (const email of member.emails) {
-      const password =
-        email.toLowerCase() === 'admin@aetherbi.com'
-          ? AETHER_ADMIN_PASSWORD
-          : member.password || '123456'
+      const existing = await prisma.user.findUnique({ where: { email } })
+      if (existing) continue
+      const explicitPassword = options?.passwordsByEmail?.[email.toLowerCase()] ?? member.password
       const name =
         email.toLowerCase() === 'admin@aetherbi.com' ? 'Ahmed Al-Ebrahim (CEO)' : member.nameEn
-      await upsertUser(email, name, roleId, password)
+      if (isAllowedExplicitLeadershipPassword(explicitPassword)) {
+        await provisionLeadershipAccount({ email, name, roleId, password: explicitPassword })
+      } else if (options?.inviteMissing === true) {
+        await provisionLeadershipAccount({ email, name, roleId, invite: true })
+      } else {
+        skippedMissingCredential.push(email)
+      }
     }
   }
 
-  // Retire classic Arabic demo emails if they still linger.
-  const legacy = await prisma.user.findMany({
-    where: { email: { in: ['accountant@erp.com', 'store@erp.com', 'sales@erp.com'] } },
-  })
-  for (const user of legacy) {
-    if (!isLegacyDemoEmail(user.email)) continue
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { isActive: false, name: `[retired] ${user.name}` },
-    })
+  return {
+    ok: true as const,
+    users: VF_TEAM.length,
+    skippedMissingCredential,
   }
-
-  // Rename any leftover Arabic placeholder names still pointing at active users.
-  const arabicPlaceholders = ['أحمد المدير', 'سارة المحاسبة', 'خالد أمين المخزن', 'ليلى المبيعات']
-  const leftovers = await prisma.user.findMany({
-    where: { name: { in: arabicPlaceholders }, isActive: true },
-  })
-  for (const user of leftovers) {
-    // Prefer mapping by known legacy emails; otherwise deactivate.
-    if (user.email.toLowerCase() === 'admin@erp.com') {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { name: 'Ahmed Al-Ebrahim (CEO)' },
-      })
-    } else {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { isActive: false, name: `[retired] ${user.name}` },
-      })
-    }
-  }
-
-  return { ok: true as const, users: VF_TEAM.length }
 }
 
 /** @deprecated Prefer ensureVentureFoodsTeam — kept for login page compatibility. */

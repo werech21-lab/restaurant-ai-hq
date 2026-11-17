@@ -165,40 +165,61 @@ export function setClaudeSonnetOnly(enabled: boolean): void {
   }
 }
 
-export async function probeDualBrainHealth(_forceRefresh = false): Promise<BrainLiveHealth> {
-  const start = Date.now()
-  let odooOk = false
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/erp/feryal/chat?limit=1', {
-        method: 'GET',
-        cache: 'no-store',
-      })
-      odooOk = res.ok
-    } catch {
-      odooOk = false
-    }
-  }
-  const latency = Date.now() - start
-  const health: BrainLiveHealth = {
-    geminiOk: odooOk,
-    geminiReady: odooOk,
-    geminiModel: 'odoo-live',
-    geminiLatencyMs: latency,
-    claudeOk: odooOk,
-    claudeReady: odooOk,
-    claudeModel: 'odoo-live',
-    claudeLatencyMs: latency,
-    grokOk: odooOk,
-    grokModel: 'odoo-live',
-    grokLatencyMs: latency,
+export async function probeDualBrainHealth(forceRefresh = false): Promise<BrainLiveHealth> {
+  const unavailable = (checkedAt: string): BrainLiveHealth => ({
+    geminiOk: false,
+    geminiReady: false,
+    geminiModel: '',
+    claudeOk: false,
+    claudeReady: false,
+    claudeModel: '',
+    grokOk: false,
+    grokModel: '',
     sonnetOnly: getClaudeSonnetOnly(),
-    checkedAt: new Date().toISOString(),
-  }
-  if (typeof window !== 'undefined') {
+    checkedAt,
+  })
+
+  if (typeof window === 'undefined') return unavailable(new Date().toISOString())
+
+  try {
+    const res = await fetch(`/api/ai/council/health${forceRefresh ? '?refresh=1' : ''}`, {
+      method: 'GET',
+      cache: 'no-store',
+    })
+    if (!res.ok) return unavailable(new Date().toISOString())
+    const data = (await res.json()) as {
+      checkedAt?: string
+      providers?: Array<{
+        provider?: string
+        ready?: boolean
+        modelId?: string
+        latencyMs?: number
+      }>
+    }
+    const find = (provider: string) => data.providers?.find((item) => item.provider === provider)
+    const claude = find('anthropic')
+    const gemini = find('google')
+    const grok = find('xai')
+    const health: BrainLiveHealth = {
+      geminiOk: gemini?.ready === true,
+      geminiReady: gemini?.ready === true,
+      geminiModel: gemini?.ready === true ? gemini.modelId || '' : '',
+      geminiLatencyMs: gemini?.latencyMs,
+      claudeOk: claude?.ready === true,
+      claudeReady: claude?.ready === true,
+      claudeModel: claude?.ready === true ? claude.modelId || '' : '',
+      claudeLatencyMs: claude?.latencyMs,
+      grokOk: grok?.ready === true,
+      grokModel: grok?.ready === true ? grok.modelId || '' : '',
+      grokLatencyMs: grok?.latencyMs,
+      sonnetOnly: getClaudeSonnetOnly(),
+      checkedAt: data.checkedAt || new Date().toISOString(),
+    }
     window.dispatchEvent(new CustomEvent(BRAIN_HEALTH_EVENT, { detail: health }))
+    return health
+  } catch {
+    return unavailable(new Date().toISOString())
   }
-  return health
 }
 
 export function buildGrokUltraClipboardBrief(
@@ -291,14 +312,26 @@ export async function askDualHeavyBrain(params: {
           verifier?: { valid?: boolean }
         }
         if (data.ok && typeof data.reply === 'string') {
-          const modelLabel = data.model || 'odoo-live'
+          const participants = (
+            data as {
+              participants?: Array<{ provider?: string; modelId?: string; status?: string }>
+            }
+          ).participants
+          const agreedModel = (provider: string) =>
+            participants?.find((item) => item.provider === provider && item.status === 'ok')?.modelId
+          const modelLabel =
+            (typeof data.model === 'string' && data.model.trim()) ||
+            (data as { status?: string }).status ||
+            ''
           return {
             reply: data.reply,
             provider: 'odoo-live',
             modeUsed,
-            engineBadgeAr: `Odoo 17 (${modelLabel})`,
-            engineBadgeEn: `Odoo 17 (${modelLabel})`,
-            geminiModel: modelLabel,
+            engineBadgeAr: modelLabel,
+            engineBadgeEn: modelLabel,
+            claudeModel: agreedModel('anthropic'),
+            geminiModel: agreedModel('google'),
+            grokModel: agreedModel('xai'),
             executedQueries: data.executedQueries ?? [],
             verifierValid: data.verifier?.valid ?? true,
           }

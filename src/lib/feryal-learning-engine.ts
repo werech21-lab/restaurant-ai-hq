@@ -7,6 +7,8 @@
  * - Never injects unverified numbers into Odoo data answers.
  */
 
+import { formatDate } from '@/lib/format'
+
 export const FERYAL_LEARNING_DB_NAME = 'aether_feryal_learning_clean_v3'
 export const FERYAL_LEARNING_STORE = 'memory_state'
 export const FERYAL_LEARNING_MIRROR_KEY = 'aether_feryal_learning_clean_v3'
@@ -280,7 +282,7 @@ export async function teachPermanentFact(params: {
     category: params.category || inferRuleCategory(clean),
     textAr: clean,
     textEn: clean,
-    createdAt: new Date().toISOString().slice(0, 10),
+    createdAt: formatDate(new Date(), 'en'),
     source: params.source === 'approved' ? 'approved' : 'user',
   }
 
@@ -330,7 +332,7 @@ export async function recordDecisionOutcome(params: {
       (params.status === 'approved'
         ? `Recorded executive approval: ${params.titleEn || params.titleAr}`
         : `Recorded executive rejection: ${params.titleEn || params.titleAr}`),
-    recordedAt: new Date().toISOString().slice(0, 10),
+    recordedAt: formatDate(new Date(), 'en'),
   }
 
   return saveFeryalMemory({
@@ -384,7 +386,7 @@ export async function autoLearnFromConversationTurn(
         category: inferRuleCategory(factCandidate),
         textAr: factCandidate,
         textEn: factCandidate,
-        createdAt: new Date().toISOString().slice(0, 10),
+        createdAt: formatDate(new Date(), 'en'),
         source: 'user',
       }
       nextState = {

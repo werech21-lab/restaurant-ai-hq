@@ -24,7 +24,6 @@ import {
   resolveExecRoleProfile,
   type ExecRole,
   type ExecRoleProfile,
-  type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
 import {
   EXEC_SESSION_COOKIE,

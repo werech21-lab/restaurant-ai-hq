@@ -11,7 +11,8 @@ export const metadata = {
 export default async function MarketIntelligencePage() {
   await requirePageUser('/erp/market')
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto px-3 py-5 sm:px-6 min-w-0">
+      <h1 className="sr-only">ذكاء السوق والمنافسين | Market &amp; Competitors Intelligence</h1>
       <CompetitorsIntelligenceStudio />
     </div>
   )

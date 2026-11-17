@@ -12,6 +12,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { KpiProvenanceKind } from '@/components/erp/KpiProvenanceBadge'
+import { formatInt, formatKwd, formatPct } from '@/lib/format'
 
 export interface ReportColumn {
   key: string
@@ -103,10 +104,7 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
   if (v === null || v === undefined || !Number.isFinite(v)) {
     return isAr ? 'غير متوفر' : 'Unavailable'
   }
-  return `${v.toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })} ${isAr ? 'د.ك' : 'KWD'}`
+  return formatKwd(v, isAr ? 'ar' : 'en')
 }
 
 /**
@@ -122,87 +120,133 @@ export function buildLiveEnterpriseDepartments(
   const connected = Boolean(workspace.odooConnected && !workspace.noData)
   const rangeStr = `${workspace.dateRange.from} → ${workspace.dateRange.to}`
 
-  const totalSales = connected ? (bucket?.totals.netSalesKwd ?? workspace.salesKwd) : 0
-  const totalOrders = connected ? (bucket?.totals.orders ?? workspace.orders) : 0
-  const aov = totalOrders > 0 ? totalSales / totalOrders : 0
+  const isSubScoped =
+    workspace.filters.brand !== 'all' ||
+    workspace.filters.branch !== 'all' ||
+    workspace.filters.channel !== 'all' ||
+    workspace.filters.kuwaitSlice !== 'all'
+
+  const rawTotalSales = connected
+    ? isSubScoped
+      ? workspace.nullableSalesKwd
+      : bucket
+        ? bucket.totals.netSalesKwd
+        : workspace.nullableSalesKwd
+    : 0
+  const rawTotalOrders = connected
+    ? isSubScoped
+      ? workspace.nullableOrders
+      : bucket
+        ? bucket.totals.orders
+        : workspace.nullableOrders
+    : 0
+  const totalsUnavailable = connected && (rawTotalSales === null || rawTotalOrders === null)
+  const totalSales = rawTotalSales ?? 0
+  const totalOrders = rawTotalOrders ?? 0
+  const aov =
+    !totalsUnavailable && totalOrders > 0
+      ? Math.round((totalSales / totalOrders) * 1000) / 1000
+      : 0
 
   // 1. Brand Sales Report (6 approved brands)
-  const brandRows = connected
-    ? APPROVED_BRAND_IDS.map((brandId) => {
-        const bktHit = bucket?.byBrand?.[brandId]
-        const summaryHit = liveSummary?.brands.find((b) => b.id === brandId)
-        const net = bktHit?.netKwd ?? summaryHit?.netKwd ?? 0
-        const ord = bktHit?.orders ?? 0
-        const share = totalSales > 0 ? (net / totalSales) * 100 : 0
-        return {
-          id: brandId,
-          labelAr: getBrandLabel(brandId as GlobalBrand, true),
-          labelEn: getBrandLabel(brandId as GlobalBrand, false),
-          net,
-          ord,
-          share,
-          aov: ord > 0 ? net / ord : 0,
-        }
-      }).sort((a, b) => b.net - a.net)
-    : []
-
-  // 2. Branch Sales Report (7 approved branches + explicit 8th «غير منسوب لفرع»)
-  const branchRows = connected
-    ? [
-        ...APPROVED_BRANCH_IDS.map((branchId) => {
-          const loc = bucket?.mappedByLocation?.[branchId] ?? bucket?.byLocation?.[branchId]
-          const summaryHit = liveSummary?.branches.find((b) => b.id === branchId)
-          const net = loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0
-          const ord = loc?.orders ?? summaryHit?.orders ?? 0
+  const brandRows =
+    connected && !totalsUnavailable && bucket?.byBrand !== null
+      ? APPROVED_BRAND_IDS.map((brandId) => {
+          const bktHit = bucket?.byBrand?.[brandId]
+          const summaryHit = (liveSummary?.brands ?? []).find((b) => b.id === brandId)
+          const net = bktHit?.netKwd ?? summaryHit?.netKwd ?? 0
+          const ord = bktHit?.orders ?? 0
           const share = totalSales > 0 ? (net / totalSales) * 100 : 0
           return {
-            id: branchId,
-            labelAr: getBranchLabel(branchId as GlobalBranch, true),
-            labelEn: getBranchLabel(branchId as GlobalBranch, false),
+            id: brandId,
+            labelAr: getBrandLabel(brandId as GlobalBrand, true),
+            labelEn: getBrandLabel(brandId as GlobalBrand, false),
             net,
             ord,
             share,
-            aov: ord > 0 ? net / ord : 0,
+            aov: ord > 0 ? Math.round((net / ord) * 1000) / 1000 : 0,
           }
-        }),
-        {
-          id: 'unattributed',
-          labelAr: 'غير منسوب لفرع',
-          labelEn: 'Unattributed to Branch',
-          net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
-          ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
-          share:
-            totalSales > 0
-              ? ((bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                  totalSales) *
-                100
-              : 0,
-          aov:
-            (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
-              ? (bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd) /
-                (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)
-              : 0,
-        },
-      ]
-    : []
+        }).sort((a, b) => b.net - a.net)
+      : []
+
+  // 2. Branch Sales Report (7 approved branches + school-canteens + explicit «غير منسوب لفرع»)
+  const targetBranchIds: readonly Exclude<GlobalBranch, 'all'>[] =
+    workspace.filters.branch === 'all'
+      ? [...APPROVED_BRANCH_IDS, 'school-canteens']
+      : [workspace.filters.branch]
+  const branchRows =
+    connected && !totalsUnavailable && bucket?.byLocation !== null
+      ? [
+          ...targetBranchIds.map((branchId) => {
+            const loc = bucket?.mappedByLocation?.[branchId] ?? bucket?.byLocation?.[branchId]
+            const summaryHit = (liveSummary?.branches ?? []).find((b) => b.id === branchId)
+            const net =
+              workspace.filters.branch !== 'all' && isSubScoped
+                ? totalSales
+                : (loc?.netKwd ?? summaryHit?.netSalesKwd ?? 0)
+            const ord =
+              workspace.filters.branch !== 'all' && isSubScoped
+                ? totalOrders
+                : (loc?.orders ?? summaryHit?.orders ?? 0)
+            const share = totalSales > 0 ? (net / totalSales) * 100 : 0
+            return {
+              id: branchId,
+              labelAr: getBranchLabel(branchId as GlobalBranch, true),
+              labelEn: getBranchLabel(branchId as GlobalBranch, false),
+              net,
+              ord,
+              share,
+              aov: ord > 0 ? Math.round((net / ord) * 1000) / 1000 : 0,
+            }
+          }),
+          ...(workspace.filters.branch === 'all'
+            ? [
+                {
+                  id: 'unattributed',
+                  labelAr: 'غير منسوب لفرع',
+                  labelEn: 'Unattributed to Branch',
+                  net: bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
+                  ord: bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders,
+                  share:
+                    totalSales > 0
+                      ? ((bucket?.unattributedBranch?.netSalesKwd ??
+                          workspace.unattributedSalesKwd) /
+                          totalSales) *
+                        100
+                      : 0,
+                  aov:
+                    (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders) > 0
+                      ? Math.round(
+                          ((bucket?.unattributedBranch?.netSalesKwd ??
+                            workspace.unattributedSalesKwd) /
+                            (bucket?.unattributedBranch?.orders ?? workspace.unattributedOrders)) *
+                            1000,
+                        ) / 1000
+                      : 0,
+                },
+              ]
+            : []),
+        ]
+      : []
 
   // 3. Channel Sales Report (8 approved channels)
-  const channelRows = connected
-    ? APPROVED_CHANNEL_IDS.map((channelId) => {
-        const hit = bucket?.uiChannels?.[channelId]
-        const net = hit?.netKwd ?? 0
-        const ord = hit?.orders ?? 0
-        const share = totalSales > 0 ? (net / totalSales) * 100 : 0
-        return {
-          id: channelId,
-          labelAr: getChannelLabel(channelId as GlobalChannel, true),
-          labelEn: getChannelLabel(channelId as GlobalChannel, false),
-          net,
-          ord,
-          share,
-        }
-      }).sort((a, b) => b.net - a.net)
-    : []
+  const channelRows =
+    connected && bucket?.uiChannels !== null
+      ? APPROVED_CHANNEL_IDS.map((channelId) => {
+          const hit = bucket?.uiChannels?.[channelId]
+          const net = hit?.netKwd ?? 0
+          const ord = hit?.orders ?? 0
+          const share = totalSales > 0 ? (net / totalSales) * 100 : 0
+          return {
+            id: channelId,
+            labelAr: getChannelLabel(channelId as GlobalChannel, true),
+            labelEn: getChannelLabel(channelId as GlobalChannel, false),
+            net,
+            ord,
+            share,
+          }
+        }).sort((a, b) => b.net - a.net)
+      : []
 
   const acc = workspace.accounting
   const rec = workspace.receivables
@@ -213,15 +257,15 @@ export function buildLiveEnterpriseDepartments(
           {
             lineItem: isAr ? 'الإيرادات الدفترية المرحلة' : 'Posted GL Revenue',
             model: 'account.move.line',
-            amount: (acc.totalRevenueKwd ?? 0).toFixed(3),
+            amount: formatKwd(acc.totalRevenueKwd, { showUnit: false }),
             pctOfRev: '100.0%',
             status: isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'تكلفة البضاعة المباعة المرحلة (COGS)' : 'Posted GL COGS',
             model: 'account.move.line',
-            amount: (acc.cogsKwd ?? 0).toFixed(3),
-            pctOfRev: acc.cogsPct !== null ? `${acc.cogsPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.cogsKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.cogsPct),
             status: isAr ? 'مرحّل' : 'Posted',
           },
           {
@@ -230,13 +274,11 @@ export function buildLiveEnterpriseDepartments(
             amount:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
-                : (acc.deliveryCommissionsKwd ?? 0).toFixed(3),
+                : formatKwd(acc.deliveryCommissionsKwd, { showUnit: false }),
             pctOfRev:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
-                : acc.deliveryCommPct !== null
-                  ? `${acc.deliveryCommPct.toFixed(1)}%`
-                  : '—',
+                : formatPct(acc.deliveryCommPct),
             status:
               workspace.aggregatorCommissionUnposted || acc.aggregatorCommissionUnposted
                 ? 'غير مُرحَّل بعد'
@@ -247,28 +289,31 @@ export function buildLiveEnterpriseDepartments(
           {
             lineItem: isAr ? 'المصاريف التشغيلية والإهلاك المرحلة' : 'Posted OPEX & Depreciation',
             model: 'account.move.line',
-            amount: (acc.otherOpexAndDepreciationKwd ?? 0).toFixed(3),
-            pctOfRev: acc.opexRentDeprPct !== null ? `${acc.opexRentDeprPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.otherOpexAndDepreciationKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.opexRentDeprPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'صافي النتيجة التشغيلية المرحلة' : 'Posted Operating Result',
             model: 'account.move.line',
-            amount: (acc.operatingProfitKwd ?? 0).toFixed(3),
-            pctOfRev: acc.netProfitPct !== null ? `${acc.netProfitPct.toFixed(1)}%` : '—',
+            amount: formatKwd(acc.operatingProfitKwd, { showUnit: false }),
+            pctOfRev: formatPct(acc.netProfitPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
         ]
       : []
 
-  const arRows: Record<string, string | number>[] = connected
-    ? rec.byAccount.map((r) => ({
-        code: r.accountCode,
-        accountName: isAr ? r.labelAr || r.accountName : r.labelEn || r.accountName,
-        lineCount: r.linesCount,
-        netResidualKwd: r.residualKwd.toFixed(3),
-      }))
-    : []
+  const arRows: Record<string, string | number>[] =
+    connected && !rec.unavailable
+      ? rec.byAccount.map((r) => ({
+          code: r.accountCode,
+          accountName: isAr ? r.labelAr || r.accountName : r.labelEn || r.accountName,
+          lineCount: r.linesCount,
+          netResidualKwd: r.residualKwd.toFixed(3),
+        }))
+      : []
+  const brandsReportUnavailable = connected && (totalsUnavailable || bucket?.byBrand === null)
+  const branchesReportUnavailable = connected && (totalsUnavailable || bucket?.byLocation === null)
 
   return [
     {
@@ -290,8 +335,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.order',
           summaryAr: 'صافي المبيعات وعدد الطلبات ومتوسط التذكرة لكل علامة تجارية من أوامر نقاط البيع في Odoo.',
           summaryEn: 'Net sales, order counts, and average ticket per brand from Odoo POS orders.',
-          headlineMetricAr: connected ? fmtKwd(totalSales, true) : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected ? fmtKwd(totalSales, false) : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : brandsReportUnavailable
+              ? 'غير متاح'
+              : fmtKwd(totalSales, true),
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : brandsReportUnavailable
+              ? '—'
+              : fmtKwd(totalSales, false),
           recordCount: brandRows.length,
           auditedDate: rangeStr,
           kpis: connected
@@ -299,7 +352,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'صافي المبيعات',
                   labelEn: 'Net POS Sales',
-                  value: fmtKwd(totalSales, isAr),
+                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(totalSales, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "SUM(pos.order.amount_total - amount_tax) WHERE state IN ('paid','done','invoiced')",
@@ -307,7 +360,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'إجمالي الطلبات',
                   labelEn: 'Total Orders',
-                  value: totalOrders.toLocaleString('en-US'),
+                  value: totalsUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : formatInt(totalOrders),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "COUNT(pos.order) WHERE state IN ('paid','done','invoiced')",
@@ -315,7 +372,7 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'متوسط الفاتورة',
                   labelEn: 'Average Ticket',
-                  value: fmtKwd(aov, isAr),
+                  value: totalsUnavailable ? (isAr ? 'غير متاح' : '—') : fmtKwd(aov, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'محسوب بمعادلة',
                   queryOrFormula: 'صافي المبيعات ÷ إجمالي الطلبات',
@@ -342,7 +399,7 @@ export function buildLiveEnterpriseDepartments(
             brand: isAr ? b.labelAr : b.labelEn,
             orders: b.ord,
             netSales: b.net.toFixed(3),
-            sharePercent: `${b.share.toFixed(1)}%`,
+            sharePercent: formatPct(b.share),
             avgOrderValue: b.aov.toFixed(3),
           })),
         },
@@ -356,12 +413,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.order',
           summaryAr: 'توزيع المبيعات على الفروع السبعة المعتمدة بالإضافة إلى سطر مستقل للمبيعات غير المربوطة بفرع تشغيلي.',
           summaryEn: 'Sales across the 7 approved branches plus a standalone row for POS configs not mapped to a physical branch.',
-          headlineMetricAr: connected
-            ? `${fmtKwd(workspace.unattributedSalesKwd, true)} غير منسوب`
-            : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected
-            ? `${fmtKwd(workspace.unattributedSalesKwd, false)} unattributed`
-            : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : branchesReportUnavailable
+              ? 'غير متاح'
+              : `${fmtKwd(workspace.unattributedSalesKwd, true)} غير منسوب`,
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : branchesReportUnavailable
+              ? '—'
+              : `${fmtKwd(workspace.unattributedSalesKwd, false)} unattributed`,
           recordCount: branchRows.length,
           auditedDate: rangeStr,
           kpis: connected
@@ -369,7 +430,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'إجمالي مبيعات الفترة',
                   labelEn: 'Total Period Sales',
-                  value: fmtKwd(totalSales, isAr),
+                  value: branchesReportUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(totalSales, isAr),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: 'SUM(pos.order net sales)',
@@ -377,10 +442,14 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'غير منسوب لفرع',
                   labelEn: 'Unattributed to Branch',
-                  value: fmtKwd(
-                    bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
-                    isAr,
-                  ),
+                  value: branchesReportUnavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(
+                        bucket?.unattributedBranch?.netSalesKwd ?? workspace.unattributedSalesKwd,
+                        isAr,
+                      ),
                   odooModel: 'pos.order',
                   provenanceKind: 'فعلي',
                   queryOrFormula: 'SUM(pos.order) WHERE config_id NOT IN 7 physical branch mappings',
@@ -407,7 +476,7 @@ export function buildLiveEnterpriseDepartments(
             branch: isAr ? b.labelAr : b.labelEn,
             orders: b.ord,
             netSales: b.net.toFixed(3),
-            sharePercent: `${b.share.toFixed(1)}%`,
+            sharePercent: formatPct(b.share),
             avgOrderValue: b.aov.toFixed(3),
           })),
         },
@@ -421,8 +490,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'pos.payment',
           summaryAr: 'المبالغ الفعلية المحصلة عبر طرق الدفع ومنصات التوصيل المسجلة في Odoo POS.',
           summaryEn: 'Actual tender amounts collected per POS payment method in Odoo.',
-          headlineMetricAr: connected ? `${channelRows.length} قنوات` : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected ? `${channelRows.length} channels` : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : bucket?.uiChannels === null
+              ? 'غير متاح'
+              : `${channelRows.length} قنوات`,
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : bucket?.uiChannels === null
+              ? '—'
+              : `${channelRows.length} channels`,
           recordCount: channelRows.length,
           auditedDate: rangeStr,
           kpis: connected
@@ -458,7 +535,7 @@ export function buildLiveEnterpriseDepartments(
             channel: isAr ? c.labelAr : c.labelEn,
             payments: c.ord,
             amountKwd: c.net.toFixed(3),
-            sharePercent: `${c.share.toFixed(1)}%`,
+            sharePercent: formatPct(c.share),
           })),
         },
       ],
@@ -583,12 +660,16 @@ export function buildLiveEnterpriseDepartments(
           odooModel: 'account.move.line',
           summaryAr: 'أرصدة حسابات الذمم المدينة غير المسواة من Odoo شاملة الذمم الموجبة ومقاصة التسويات الدائنة.',
           summaryEn: 'Unreconciled receivable account balances from Odoo including gross positive AR and credit clearing offsets.',
-          headlineMetricAr: connected
-            ? fmtKwd(rec.openReceivableKwd, true)
-            : 'لا توجد بيانات من Odoo لهذه الفترة',
-          headlineMetricEn: connected
-            ? fmtKwd(rec.openReceivableKwd, false)
-            : 'No data from Odoo for this period',
+          headlineMetricAr: !connected
+            ? 'لا توجد بيانات من Odoo لهذه الفترة'
+            : rec.unavailable
+              ? 'غير متاح'
+              : fmtKwd(rec.openReceivableKwd, true),
+          headlineMetricEn: !connected
+            ? 'No data from Odoo for this period'
+            : rec.unavailable
+              ? '—'
+              : fmtKwd(rec.openReceivableKwd, false),
           recordCount: arRows.length,
           auditedDate: `${rec.fromDate} → ${rec.toDate}`,
           kpis: connected
@@ -596,7 +677,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'صافي الذمم المفتوحة',
                   labelEn: 'Net Open AR',
-                  value: fmtKwd(rec.openReceivableKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.openReceivableKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: rec.reconciliationFormulaAr,
@@ -604,7 +689,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'الذمم المدينة الموجبة',
                   labelEn: 'Gross Positive AR',
-                  value: fmtKwd(rec.grossPositiveReceivableKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.grossPositiveReceivableKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "SUM(amount_residual > 0) WHERE account_type='asset_receivable' AND reconciled=false",
@@ -612,7 +701,11 @@ export function buildLiveEnterpriseDepartments(
                 {
                   labelAr: 'مقاصة التسويات الدائنة',
                   labelEn: 'Credit Clearing Offset',
-                  value: fmtKwd(rec.creditClearingOffsetKwd, isAr),
+                  value: rec.unavailable
+                    ? isAr
+                      ? 'غير متاح'
+                      : '—'
+                    : fmtKwd(rec.creditClearingOffsetKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: "ABS(SUM(amount_residual < 0)) WHERE account_type='asset_receivable' AND reconciled=false",

@@ -16,7 +16,9 @@ import {
   type GlobalFilters,
   type GlobalWorkspaceSlice,
 } from '@/lib/aether/global-filter-engine'
+import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 
 export type ForecastHorizonId = '30d' | '90d' | '6m' | '12m' | 'custom'
 export type ScenarioTierId = 'conservative' | 'realistic' | 'ambitious'
@@ -219,6 +221,23 @@ export function sanitizeStrategicPhases(raw: unknown): StrategicRoadmapPhase[] {
     if (!item || typeof item !== 'object') continue
     const r = item as Partial<StrategicRoadmapPhase>
     if (!r.id || !r.titleAr) continue
+    const textFields = [
+      r.titleAr,
+      r.titleEn,
+      r.ownerAr,
+      r.ownerEn,
+      r.targetKpiAr,
+      r.targetKpiEn,
+      r.odooWatchMetricAr,
+      r.odooWatchMetricEn,
+    ].filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+    if (
+      textFields.some(
+        (txt) => isExcludedOdooEntity(txt) || isNonCompanyCatalogItem(null, txt),
+      )
+    ) {
+      continue
+    }
     out.push({
       id: String(r.id),
       phaseCode: typeof r.phaseCode === 'string' && r.phaseCode ? r.phaseCode : `P${out.length + 1}`,

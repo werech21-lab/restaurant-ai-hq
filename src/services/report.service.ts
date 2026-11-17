@@ -14,7 +14,8 @@ import {
 } from "@/lib/format";
 import { MODULES } from "@/lib/modules";
 import { likeContains } from "@/lib/pagination";
-import { costOfGoods, inventoryValuation, purchaseSummary, salesSummary } from "@/lib/reports";
+import { HIDDEN_PANEL_PRODUCT_CODES, visibleInvoiceWhere, visibleProductWhere, visiblePurchaseWhere, withVisibleProducts } from "@/lib/panel-visibility";
+import { costOfGoods, inventoryValuation, purchaseSummary, salesSummary, scopeWarehouseIds } from "@/lib/reports";
 import { countLowStock, listLowStock } from "@/lib/stock";
 import { forecastLabels } from "@/services/forecast.service";
 import { customerStatement, supplierStatement } from "@/services/ledger.service";
@@ -198,7 +199,7 @@ export async function exportCsv(kind: string, search: string) {
           }
         : {};
       const rows = await prisma.stockMovement.findMany({
-        where,
+        where: { AND: [where, { product: withVisibleProducts() }] },
         include: { product: true, createdBy: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
       });
@@ -223,15 +224,16 @@ export async function exportCsv(kind: string, search: string) {
         ? await prisma.$queryRaw<Array<{ id: string }>>`
             SELECT id FROM Product
             WHERE currentStock <= reorderLevel
+              AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})
               AND (name LIKE ${like} ESCAPE '\\' OR code LIKE ${like} ESCAPE '\\')
             ORDER BY name ASC
           `
         : await prisma.$queryRaw<Array<{ id: string }>>`
-            SELECT id FROM Product WHERE currentStock <= reorderLevel ORDER BY name ASC
+            SELECT id FROM Product WHERE currentStock <= reorderLevel AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])}) ORDER BY name ASC
           `;
       const rows = ids.length
         ? await prisma.product.findMany({
-            where: { id: { in: ids.map((row) => row.id) } },
+            where: withVisibleProducts({ id: { in: ids.map((row) => row.id) } }),
             include: { category: true },
           })
         : [];
@@ -240,7 +242,7 @@ export async function exportCsv(kind: string, search: string) {
       return await productCsv(rows);
     }
     const rows = await prisma.product.findMany({
-      where: query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {},
+      where: withVisibleProducts(query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {}),
       include: { category: true },
       orderBy: { createdAt: "desc" },
     });
@@ -276,14 +278,19 @@ export async function exportCsv(kind: string, search: string) {
     }
     const status = ["PAID", "PARTIAL", "UNPAID"].includes(query.status) ? query.status : "";
     if (kind === "sales") {
+      const visibleIds = await scopeWarehouseIds();
       const rows = await prisma.salesInvoice.findMany({
-        where: {
+        where: visibleInvoiceWhere({
+          OR: [{ warehouseId: null }, { warehouseId: { in: visibleIds.length ? visibleIds : ["__none__"] } }],
           ...(status ? { status } : {}),
           ...(query.q
-            ? { OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }
+            ? { AND: [{ OR: [{ invoiceNumber: { contains: query.q } }, { customer: { name: { contains: query.q } } }] }] }
             : {}),
+        }),
+        include: {
+          customer: true,
+          items: { where: { product: visibleProductWhere() }, select: { totalPrice: true } },
         },
-        include: { customer: true },
         orderBy: { createdAt: "desc" },
       });
       return toCsv(
@@ -292,22 +299,25 @@ export async function exportCsv(kind: string, search: string) {
           row.invoiceNumber,
           row.customer.name,
           formatDate(row.createdAt),
-          formatMoney(row.subtotal),
+          formatMoney(row.items.reduce((sum, item) => sum + item.totalPrice, 0)),
           formatMoney(row.discount),
-          formatMoney(row.totalAmount),
+          formatMoney(row.items.reduce((sum, item) => sum + item.totalPrice, 0)),
           formatMoney(row.paidAmount),
           STATUS_LABEL[row.status] ?? row.status,
         ]),
       );
     }
     const rows = await prisma.purchaseOrder.findMany({
-      where: {
+      where: visiblePurchaseWhere({
         ...(status ? { status } : {}),
         ...(query.q
           ? { OR: [{ orderNumber: { contains: query.q } }, { supplier: { name: { contains: query.q } } }] }
           : {}),
+      }),
+      include: {
+        supplier: true,
+        items: { where: { product: visibleProductWhere() }, select: { totalCost: true } },
       },
-      include: { supplier: true },
       orderBy: { createdAt: "desc" },
     });
     return toCsv(
@@ -316,7 +326,7 @@ export async function exportCsv(kind: string, search: string) {
         row.orderNumber,
         row.supplier.name,
         formatDate(row.createdAt),
-        formatMoney(row.totalAmount),
+        formatMoney(row.items.reduce((sum, item) => sum + item.totalCost, 0)),
         formatMoney(row.paidAmount),
         STATUS_LABEL[row.status] ?? row.status,
       ]),
@@ -383,7 +393,7 @@ export async function exportCsv(kind: string, search: string) {
       );
     }
     const rows = await prisma.product.findMany({
-      where: query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {},
+      where: withVisibleProducts(query.q ? { OR: [{ name: { contains: query.q } }, { code: { contains: query.q } }] } : {}),
       orderBy: { name: "asc" },
     });
     const labels = await forecastLabels(

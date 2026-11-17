@@ -1,4 +1,4 @@
-import SmartDropzonePortal from '@/modules/smart-dropzone/ui/SmartDropzonePortal'
+import SmartDropzonePortal from '@/components/SmartDropzonePortal'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,8 +9,8 @@ export const metadata = {
 
 export default function SmartDropzonePage() {
   return (
-    <main className="w-full max-w-none px-4 py-6 md:px-6 bg-slate-50 dark:bg-[#0a0d12] text-slate-900 dark:text-slate-100 min-h-screen" suppressHydrationWarning>
+    <div className="w-full max-w-none min-w-0 px-4 py-6 md:px-6 text-slate-900 dark:text-slate-100">
       <SmartDropzonePortal />
-    </main>
+    </div>
   )
 }

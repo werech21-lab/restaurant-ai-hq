@@ -2,14 +2,24 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { Fact, Field, useRunner } from '@/components/erp/actions'
+import { useRunner } from '@/components/erp/actions'
 import { apiRequest } from '@/components/erp/api'
-import { inputClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Num } from '@/components/ui'
+import {
+  FormIssues,
+  IamFact,
+  IamField,
+  RequestFailure,
+  fieldIssue,
+  iamInputClass,
+  iamNoticeClass,
+  iamPrimaryBtn,
+  iamSecondaryBtn,
+} from '@/components/erp/iam/shared'
+import { SectionCard } from '@/components/ui/section-card'
+import { UNAVAILABLE_DASH, type FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
 import { acceptInvitationSchema } from '@/lib/iam/schemas'
 import type { AcceptedInvitation } from '@/lib/iam/types'
-import { fieldIssue, FormIssues, RequestFailure } from '@/components/erp/iam/shared'
 
 const issuesFor: Record<string, MessageKey> = { token: 'iam.err.form.token' }
 
@@ -17,7 +27,9 @@ const issuesFor: Record<string, MessageKey> = { token: 'iam.err.form.token' }
  * Accepts an invitation with the token alone. The signed-in session is enough: this call does not use a company permission.
  */
 export default function AcceptInvitation({ initialToken }: { initialToken: string }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const isAr = locale !== 'en'
+  const fmtLocale: FormatLocale = isAr ? 'ar' : 'en'
   const [token, setToken] = useState(initialToken)
   const [accepted, setAccepted] = useState<AcceptedInvitation | null>(null)
   const [issues, setIssues] = useState<MessageKey[]>([])
@@ -27,37 +39,54 @@ export default function AcceptInvitation({ initialToken }: { initialToken: strin
     setIssues([])
     const parsed = acceptInvitationSchema.safeParse({ token: token.trim() })
     if (!parsed.success) {
-      setIssues(Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))))
+      setIssues(
+        Array.from(new Set(parsed.error.issues.map((issue) => fieldIssue(issue.path, issuesFor)))),
+      )
       return
     }
     void run(async () => {
-      const result = await apiRequest<{ data: AcceptedInvitation }>('/api/v1/iam/invitations/accept', { method: 'POST', body: parsed.data })
+      const result = await apiRequest<{ data: AcceptedInvitation }>(
+        '/api/v1/iam/invitations/accept',
+        { method: 'POST', body: parsed.data },
+      )
       setAccepted(result.data)
     })
   }
 
   return (
-    <div>
-      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
-        {t('erp.back')}
-      </Link>
-      <h1 className="text-2xl font-bold text-mist-100">{t('iam.accept.title')}</h1>
-      <p className="mt-1 max-w-2xl text-sm text-gray-400">{t('iam.accept.subtitle')}</p>
+    <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-0 space-y-5">
+      <div>
+        <Link
+          href="/erp"
+          className="ds-focus-ring inline-flex items-center text-sm font-semibold text-[var(--ds-accent)] hover:underline"
+        >
+          {t('erp.back')}
+        </Link>
+      </div>
 
-      <div className={`${panelClass} mt-6 max-w-xl`}>
+      <SectionCard
+        title={t('iam.accept.title')}
+        subtitle={t('iam.accept.subtitle')}
+        locale={fmtLocale}
+        className="max-w-xl"
+      >
         {accepted ? (
           <div className="space-y-4">
-            <p role="status" className={noticeClass}>
+            <p role="status" className={iamNoticeClass}>
               {t('iam.accept.done')}
             </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Fact label={t('iam.accept.role')}>{accepted.roleName}</Fact>
-              <Fact label={t('iam.accept.companyId')}>
-                <Num>{accepted.tenantId}</Num>
-              </Fact>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <IamFact label={t('iam.accept.role')}>
+                {accepted.roleName || UNAVAILABLE_DASH}
+              </IamFact>
+              <IamFact label={t('iam.accept.companyId')}>
+                <span dir="ltr" className="ds-num break-all font-mono text-xs tabular-nums">
+                  {accepted.tenantId || UNAVAILABLE_DASH}
+                </span>
+              </IamFact>
             </div>
             <div className="flex justify-end">
-              <Link href="/erp" className={`${primaryButton} inline-block`}>
+              <Link href="/erp" className={iamPrimaryBtn}>
                 {t('erp.back')}
               </Link>
             </div>
@@ -70,23 +99,33 @@ export default function AcceptInvitation({ initialToken }: { initialToken: strin
             }}
             className="space-y-4"
           >
-            <Field label={t('iam.accept.token')}>
-              <input value={token} onChange={(event) => setToken(event.target.value)} maxLength={80} dir="ltr" autoComplete="off" spellCheck={false} className={inputClass} />
-              <span className="mt-1 block text-xs text-gray-500">{t('iam.accept.tokenHint')}</span>
-            </Field>
+            <IamField label={t('iam.accept.token')}>
+              <input
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+                maxLength={80}
+                dir="ltr"
+                autoComplete="off"
+                spellCheck={false}
+                className={iamInputClass}
+              />
+              <span className="mt-1 block text-xs text-[var(--ds-text-muted)]">
+                {t('iam.accept.tokenHint')}
+              </span>
+            </IamField>
             <FormIssues issues={issues} />
             <RequestFailure failure={failure} />
             <div className="flex flex-wrap justify-end gap-2">
-              <Link href="/erp/iam" className={`${secondaryButton} inline-block`}>
+              <Link href="/erp/iam" className={iamSecondaryBtn}>
                 {t('erp.cancel')}
               </Link>
-              <button type="submit" disabled={pending} className={primaryButton}>
+              <button type="submit" disabled={pending} className={iamPrimaryBtn}>
                 {pending ? t('erp.loading') : t('iam.accept.submit')}
               </button>
             </div>
           </form>
         )}
-      </div>
+      </SectionCard>
     </div>
   )
 }

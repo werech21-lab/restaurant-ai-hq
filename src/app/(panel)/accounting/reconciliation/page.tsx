@@ -13,6 +13,7 @@ export const metadata = { title: 'Smart Bank & Delivery Reconciliation | AetherB
 async function Content() {
   await connection()
   const locale = await getLocale()
+  const uiLocale = locale === 'en' ? 'en' : 'ar'
   const user = await requireUser()
   if (!can(user, 'accounting', 'view') && !can(user, 'sales', 'view') && !user.role.isAdmin) {
     return <Forbidden href={firstAllowedHref(user)} />
@@ -20,7 +21,7 @@ async function Content() {
   const data = await runSmartReconciliation(user.id)
 
   return (
-    <div className="space-y-4">
+    <div dir={uiLocale === 'en' ? 'ltr' : 'rtl'} className="space-y-4">
       <PageHeader
         title={tx(locale, 'مركز المطابقة الذكية · NBK + منصات التوصيل', 'Smart Reconciliation · NBK + Delivery')}
         description={tx(
@@ -29,14 +30,17 @@ async function Content() {
           'Match NBK deposits (10143/10212) with Talabat/Deliveroo/Jahez settlements — flag shortfalls and TGO 17% vs MP 10%.',
         )}
       />
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <SmartIngestLaunchButton module="accounting" locale={locale} />
         <SmartIngestLaunchButton module="sales_delivery" locale={locale} />
-        <a href="/accounting" className="rounded-xl border border-white/10 bg-[#11161f] px-4 py-2.5 text-sm font-semibold text-white">
+        <a
+          href="/accounting"
+          className="ds-surface ds-motion ds-focus-ring inline-flex min-h-10 items-center rounded-xl px-4 py-2 text-sm font-semibold hover:bg-[var(--ds-bg-hover)]"
+        >
           {tx(locale, 'المحاسبة', 'Accounting')}
         </a>
       </div>
-      <ReconciliationClient initial={data} locale={locale} />
+      <ReconciliationClient initial={data} locale={uiLocale} />
     </div>
   )
 }

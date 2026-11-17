@@ -1,30 +1,36 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { PAGE_SIZE, likeContains } from '@/lib/pagination'
+import { HIDDEN_PANEL_PRODUCT_CODES, isHiddenPanelProduct, withVisibleProducts } from '@/lib/panel-visibility'
+import { scopeWarehouseIds } from '@/lib/reports'
+
+const hiddenProductSql = Prisma.sql`AND code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})`
 
 export async function countLowStock(warehouseIds: string[] = []) {
-  if (warehouseIds.length) {
+  const visibleIds = await scopeWarehouseIds(warehouseIds)
+  if (!visibleIds.length) return 0
+  {
     const stocks = await prisma.warehouseStock.findMany({
-      where: { warehouseId: { in: warehouseIds } },
-      include: { product: { select: { reorderLevel: true } } },
+      where: { warehouseId: { in: visibleIds }, product: { code: { notIn: [...HIDDEN_PANEL_PRODUCT_CODES] } } },
+      include: { product: { select: { code: true, name: true, reorderLevel: true } } },
     })
-    const byProduct = new Map<string, { qty: number; reorder: number }>()
+    const byProduct = new Map<string, { qty: number; reorder: number; hidden: boolean }>()
     for (const row of stocks) {
+      if (isHiddenPanelProduct(row.product.code, row.product.name)) continue
       const prev = byProduct.get(row.productId)
       if (prev) prev.qty += row.quantity
-      else byProduct.set(row.productId, { qty: row.quantity, reorder: row.product.reorderLevel })
+      else byProduct.set(row.productId, { qty: row.quantity, reorder: row.product.reorderLevel, hidden: false })
     }
     return Array.from(byProduct.values()).filter((row) => row.qty <= row.reorder).length
   }
-  const rows = await prisma.$queryRaw<Array<{ count: number | bigint | null }>>`
-    SELECT COUNT(*) as count FROM Product WHERE currentStock <= reorderLevel
-  `
-  return Number(rows[0]?.count ?? 0)
 }
 
 export async function listLowStock(limit: number, warehouseIds: string[] = []) {
-  if (warehouseIds.length) {
+  const visibleIds = await scopeWarehouseIds(warehouseIds)
+  if (!visibleIds.length) return []
+  {
     const stocks = await prisma.warehouseStock.findMany({
-      where: { warehouseId: { in: warehouseIds } },
+      where: { warehouseId: { in: visibleIds }, product: { code: { notIn: [...HIDDEN_PANEL_PRODUCT_CODES] } } },
       include: {
         product: {
           include: { category: { select: { id: true, name: true } } },
@@ -36,6 +42,7 @@ export async function listLowStock(limit: number, warehouseIds: string[] = []) {
       (typeof stocks)[number]['product'] & { currentStock: number }
     >()
     for (const row of stocks) {
+      if (isHiddenPanelProduct(row.product.code, row.product.name)) continue
       const prev = merged.get(row.productId)
       if (prev) prev.currentStock += row.quantity
       else merged.set(row.productId, { ...row.product, currentStock: row.quantity })
@@ -45,13 +52,6 @@ export async function listLowStock(limit: number, warehouseIds: string[] = []) {
       .sort((a, b) => b.reorderLevel - b.currentStock - (a.reorderLevel - a.currentStock))
       .slice(0, limit)
   }
-  const ids = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT id FROM Product
-    WHERE currentStock <= reorderLevel
-    ORDER BY (reorderLevel - currentStock) DESC, name ASC
-    LIMIT ${limit}
-  `
-  return hydrateProducts(ids.map((row) => row.id))
 }
 
 export async function queryProducts(options: {
@@ -60,8 +60,10 @@ export async function queryProducts(options: {
   lowStock: boolean
   warehouseIds?: string[]
 }) {
-  const warehouseIds = options.warehouseIds ?? []
+  const requested = options.warehouseIds ?? []
+  const warehouseIds = requested.length ? await scopeWarehouseIds(requested) : []
   const skip = (options.page - 1) * PAGE_SIZE
+  if (requested.length && !warehouseIds.length) return { total: 0, rows: [] }
 
   if (warehouseIds.length) {
     const stocks = await prisma.warehouseStock.findMany({
@@ -78,7 +80,7 @@ export async function queryProducts(options: {
       if (prev) prev.currentStock += row.quantity
       else merged.set(row.productId, { ...row.product, currentStock: row.quantity })
     }
-    let rows = Array.from(merged.values())
+    let rows = Array.from(merged.values()).filter((product) => !isHiddenPanelProduct(product.code, product.name))
     if (options.q) {
       const q = options.q.toLowerCase()
       rows = rows.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q))
@@ -89,11 +91,13 @@ export async function queryProducts(options: {
   }
 
   if (!options.lowStock) {
-    const where = options.q
-      ? {
-          OR: [{ name: { contains: options.q } }, { code: { contains: options.q } }],
-        }
-      : {}
+    const where = withVisibleProducts(
+      options.q
+        ? {
+            OR: [{ name: { contains: options.q } }, { code: { contains: options.q } }],
+          }
+        : {},
+    )
     const [total, rows] = await Promise.all([
       prisma.product.count({ where }),
       prisma.product.findMany({
@@ -113,12 +117,14 @@ export async function queryProducts(options: {
         SELECT id FROM Product
         WHERE currentStock <= reorderLevel
           AND (name LIKE ${like} ESCAPE '\\' OR code LIKE ${like} ESCAPE '\\')
+          ${hiddenProductSql}
         ORDER BY name ASC
         LIMIT ${PAGE_SIZE} OFFSET ${skip}
       `
     : prisma.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM Product
         WHERE currentStock <= reorderLevel
+        ${hiddenProductSql}
         ORDER BY name ASC
         LIMIT ${PAGE_SIZE} OFFSET ${skip}
       `
@@ -127,9 +133,11 @@ export async function queryProducts(options: {
         SELECT COUNT(*) as count FROM Product
         WHERE currentStock <= reorderLevel
           AND (name LIKE ${like} ESCAPE '\\' OR code LIKE ${like} ESCAPE '\\')
+          ${hiddenProductSql}
       `
     : prisma.$queryRaw<Array<{ count: number | bigint | null }>>`
         SELECT COUNT(*) as count FROM Product WHERE currentStock <= reorderLevel
+        ${hiddenProductSql}
       `
   const [idRows, countRows] = await Promise.all([idQuery, countQuery])
   const rows = await hydrateProducts(idRows.map((row) => row.id))
@@ -139,7 +147,7 @@ export async function queryProducts(options: {
 async function hydrateProducts(ids: string[]) {
   if (ids.length === 0) return []
   const rows = await prisma.product.findMany({
-    where: { id: { in: ids } },
+    where: withVisibleProducts({ id: { in: ids } }),
     include: { category: { select: { id: true, name: true } } },
   })
   const order = new Map(ids.map((id, index) => [id, index]))

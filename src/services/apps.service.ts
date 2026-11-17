@@ -1,4 +1,3 @@
-import { writeActivity } from "@/lib/activity";
 import { checkPermission } from "@/lib/erp-auth";
 import { cleanText } from "@/lib/documents";
 import { prisma } from "@/lib/db";

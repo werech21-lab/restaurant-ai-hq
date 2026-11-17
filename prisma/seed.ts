@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { paymentStatus, round2 } from "../src/lib/format";
 import { MODULES as MODULE_DEFS } from "../src/lib/modules";
 import { AETHER_ADMIN_PASSWORD, VF_TEAM } from "../src/lib/venture-foods-team";
+import { demoCatalogSeedAllowed } from "../src/lib/demo-catalog";
 import { clearEnterprise, seedEnterprise } from "./bootstrap";
 
 const prisma = new PrismaClient();
@@ -26,10 +27,10 @@ function permissionsFor(full: boolean, write: string[], viewOnly: string[] = [])
 }
 
 async function main() {
-  const passwordHash = await bcrypt.hash("123456", 10);
-
     await prisma.$transaction(async (tx) => {
     await clearEnterprise(tx);
+    const seedDemoCatalog = demoCatalogSeedAllowed();
+    if (seedDemoCatalog) {
     await tx.paymentTransaction.deleteMany();
     await tx.activityLog.deleteMany();
     await tx.salesInvoiceItem.deleteMany();
@@ -42,15 +43,26 @@ async function main() {
     await tx.category.deleteMany();
     await tx.customer.deleteMany();
     await tx.supplier.deleteMany();
-    await tx.user.deleteMany();
-    await tx.permission.deleteMany();
-    await tx.role.deleteMany();
+    }
 
-    // Venture Foods leadership team (canonical English names; AR labels via i18n display helpers).
-    const aetherHash = await bcrypt.hash(AETHER_ADMIN_PASSWORD, 10);
+    // Existing accounts stay as they are. A password hash is written only when the user table is empty.
+    const keptUsers = await tx.user.findMany({ select: { id: true, email: true, roleId: true } });
     let adminId = "";
     let adminRoleId = "";
     const roleIdByKey = new Map<string, string>();
+
+    if (keptUsers.length > 0) {
+      const preferred =
+        keptUsers.find((user) => user.email.toLowerCase() === "admin@aetherbi.com") ??
+        keptUsers.find((user) => user.email.toLowerCase() === "admin@erp.com") ??
+        keptUsers[0];
+      adminId = preferred.id;
+      adminRoleId = preferred.roleId;
+    } else {
+    await tx.permission.deleteMany();
+    await tx.role.deleteMany();
+
+    const aetherHash = await bcrypt.hash(AETHER_ADMIN_PASSWORD, 10);
 
     for (const member of VF_TEAM) {
       const created = await tx.role.create({
@@ -72,7 +84,9 @@ async function main() {
 
       for (const email of member.emails) {
         const hash =
-          email.toLowerCase() === "admin@aetherbi.com" ? aetherHash : passwordHash;
+          email.toLowerCase() === "admin@aetherbi.com"
+            ? aetherHash
+            : `!INVITE_PENDING:${member.key}:${Date.now()}`;
         const user = await tx.user.create({
           data: {
             name: member.nameEn,
@@ -85,7 +99,9 @@ async function main() {
         if (member.isAdmin && !adminId) adminId = user.id;
       }
     }
+    }
 
+    if (seedDemoCatalog) {
     const categoryInput = [
       { key: "elec", name: "معدات مطابخ", description: "أجهزة تحضير وطهي لفروع المطاعم" },
       { key: "office", name: "تغليف وتقديم", description: "عبوات، أكواب، ومستلزمات الخدمة" },
@@ -401,6 +417,7 @@ async function main() {
         { code: "FD-3003", quantity: 5, unitPrice: 13 },
       ],
     });
+    }
     await seedEnterprise(tx, adminId);
   }, { timeout: 60000 });
 

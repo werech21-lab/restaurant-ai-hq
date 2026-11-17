@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { PageSkeleton } from '@/components/erp-ui'
+import { StateBlock } from '@/components/ui'
 import { AetherBiExecutiveDashboard } from '@/components/dashboard/AetherBiExecutiveDashboard'
 
 export const metadata = {
@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic'
 export default function DashboardPage() {
   return (
     <div className="w-full max-w-none">
-      <Suspense fallback={<PageSkeleton title="الملخص المالي والتشغيلي" />}>
-        <AetherBiExecutiveDashboard locale="ar" />
+      <Suspense fallback={<StateBlock state="loading" minHeightClass="min-h-[260px]" />}>
+        <AetherBiExecutiveDashboard />
       </Suspense>
     </div>
   )

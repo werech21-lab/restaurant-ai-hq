@@ -1,1 +1,1 @@
-export { default } from '@/modules/smart-dropzone/ui/SmartDropzonePortal'
+﻿export { default } from '@/modules/smart-dropzone/ui/SmartDropzonePortal'

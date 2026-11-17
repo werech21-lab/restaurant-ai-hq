@@ -1,6 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { writeActivity } from "@/lib/activity";
 import { checkPermission } from "@/lib/erp-auth";
 import { prisma } from "@/lib/db";
+import { HIDDEN_PANEL_PRODUCT_CODES, visibleInvoiceWhere, withVisibleProducts } from "@/lib/panel-visibility";
+import { scopeWarehouseIds } from "@/lib/reports";
 import { monthRange, round2 } from "@/lib/format";
 import { fail, type ActionResult } from "@/lib/types";
 import { runLowStockRules } from "@/services/automation.engine";
@@ -12,11 +15,11 @@ export async function executiveInsights(now = new Date()) {
   const current = monthRange(now);
   const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const previous = monthRange(previousDate);
-  const [thisSales, prevSales, thisCogs, prevCogs] = await Promise.all([
-    prisma.salesInvoice.aggregate({ where: { createdAt: { gte: current.start, lt: current.end } }, _sum: { totalAmount: true } }),
-    prisma.salesInvoice.aggregate({ where: { createdAt: { gte: previous.start, lt: previous.end } }, _sum: { totalAmount: true } }),
-    cogsBetween(current.start, current.end),
-    cogsBetween(previous.start, previous.end),
+  const visibleIds = await scopeWarehouseIds();
+  const [thisSales, prevSales, thisCogs] = await Promise.all([
+    sumVisibleSales(current.start, current.end, visibleIds),
+    sumVisibleSales(previous.start, previous.end, visibleIds),
+    cogsBetween(current.start, current.end, visibleIds),
   ]);
   const salesNow = thisSales._sum.totalAmount ?? 0;
   const salesPrev = prevSales._sum.totalAmount ?? 0;
@@ -32,6 +35,8 @@ export async function executiveInsights(now = new Date()) {
     JOIN Category c ON c.id = p.categoryId
     JOIN SalesInvoice s ON s.id = i.salesInvoiceId
     WHERE s.createdAt >= ${current.start} AND s.createdAt < ${current.end}
+      AND p.code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})
+      AND (s.warehouseId IS NULL OR s.warehouseId IN (${Prisma.join(visibleIds.length ? visibleIds : ["__none__"])}))
     GROUP BY c.name
     ORDER BY sales DESC
   `;
@@ -58,7 +63,7 @@ export async function executiveInsights(now = new Date()) {
       distinct: ["productId"],
     }),
     prisma.product.findMany({
-      where: { currentStock: { gt: 0 } },
+      where: withVisibleProducts({ currentStock: { gt: 0 } }),
       select: { id: true, name: true, code: true, currentStock: true, reorderLevel: true },
       take: 200,
     }),
@@ -69,7 +74,7 @@ export async function executiveInsights(now = new Date()) {
       take: 20,
     }),
     prisma.product.findMany({
-      where: { currentStock: { gt: 0 } },
+      where: withVisibleProducts({ currentStock: { gt: 0 } }),
       select: { id: true, name: true, code: true, currentStock: true },
       take: 80,
     }),
@@ -117,13 +122,34 @@ export async function executiveInsights(now = new Date()) {
   };
 }
 
-async function cogsBetween(start: Date, end: Date) {
+async function sumVisibleSales(start: Date, end: Date, warehouseIds: string[]) {
+  const invoices = await prisma.salesInvoice.findMany({
+    where: visibleInvoiceWhere({
+      createdAt: { gte: start, lt: end },
+      OR: [{ warehouseId: null }, { warehouseId: { in: warehouseIds.length ? warehouseIds : ["__none__"] } }],
+    }),
+    select: { id: true },
+  });
+  if (!invoices.length) return { _sum: { totalAmount: 0 } };
+  const items = await prisma.salesInvoiceItem.findMany({
+    where: {
+      salesInvoiceId: { in: invoices.map((row) => row.id) },
+      product: { code: { notIn: [...HIDDEN_PANEL_PRODUCT_CODES] } },
+    },
+    select: { quantity: true, unitPrice: true },
+  });
+  return { _sum: { totalAmount: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0) } };
+}
+
+async function cogsBetween(start: Date, end: Date, warehouseIds: string[]) {
   const rows = await prisma.$queryRaw<Array<{ cogs: number | bigint | null }>>`
     SELECT SUM(i.quantity * p.costPrice) as cogs
     FROM SalesInvoiceItem i
     JOIN Product p ON p.id = i.productId
     JOIN SalesInvoice s ON s.id = i.salesInvoiceId
     WHERE s.createdAt >= ${start} AND s.createdAt < ${end}
+      AND p.code NOT IN (${Prisma.join([...HIDDEN_PANEL_PRODUCT_CODES])})
+      AND (s.warehouseId IS NULL OR s.warehouseId IN (${Prisma.join(warehouseIds.length ? warehouseIds : ["__none__"])}))
   `;
   return Number(rows[0]?.cogs ?? 0);
 }

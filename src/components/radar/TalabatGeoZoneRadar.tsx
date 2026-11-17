@@ -18,12 +18,16 @@ export default function TalabatGeoZoneRadar({ locale: propLocale }: TalabatGeoZo
   const isAr = (propLocale ?? ctxLocale) !== 'en'
 
   return (
-    <UnlinkedSourceNotice
-      isAr={isAr}
-      titleAr="رادار المناطق الجغرافية لمنصات التوصيل"
-      titleEn="Aggregator Geo-Zone Coverage Radar"
-      reasonAr="حالة فتح وإغلاق المناطق السكنية على طلبات وديليفرو وكيتا وجاهز غير مربوطة بواجهة برمجية رسمية من المنصات أو Odoo."
-      reasonEn="Residential delivery polygon statuses across Talabat, Deliveroo, Keeta, and Jahez are not connected to an official platform API or Odoo."
-    />
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full min-w-0">
+      <UnlinkedSourceNotice
+        isAr={isAr}
+        titleAr="رادار المناطق الجغرافية لمنصات التوصيل"
+        titleEn="Aggregator Geo-Zone Coverage Radar"
+        reasonAr="حالة فتح وإغلاق المناطق السكنية على طلبات وديليفرو وكيتا وجاهز غير مربوطة بواجهة برمجية رسمية من المنصات أو Odoo."
+        reasonEn="Residential delivery polygon statuses across Talabat, Deliveroo, Keeta, and Jahez are not connected to an official platform API or Odoo."
+        requiredSourceAr="واجهة برمجية رسمية من منصات التوصيل لتغطية المناطق السكنية"
+        requiredSourceEn="Official Aggregator Geo-Polygon & Availability API"
+      />
+    </div>
   )
 }

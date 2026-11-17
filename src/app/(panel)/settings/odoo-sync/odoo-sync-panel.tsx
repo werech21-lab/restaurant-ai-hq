@@ -1,8 +1,11 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ApiError, apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
-import { Alert, btnGhost, btnPrimary, cardClass, fieldClass, labelClass } from '@/components/erp-ui'
+import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
+import { Alert, btnGhost, btnPrimary } from '@/components/erp-ui'
+import { SectionCard } from '@/components/ui'
+import { formatInt, formatKuwaitDateTime } from '@/lib/format'
+import { useI18n } from '@/lib/i18n'
 import { ODOO_ORIGIN, odooConsoleExtractor } from '@/modules/odoo/client'
 
 type DumpSummary = {
@@ -25,10 +28,13 @@ type LiveReport = {
 }
 
 export function OdooSyncPanel({ initialDump }: { initialDump: DumpSummary }) {
+  const { locale, t } = useI18n()
+  const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
+  const isAr = resolvedLocale !== 'en'
   const snippet = odooConsoleExtractor()
   const snippetRef = useRef<HTMLTextAreaElement>(null)
   const [mode, setMode] = useState<'password' | 'session'>('password')
-  const [database, setDatabase] = useState('venturefoods')
+  const [database, setDatabase] = useState('')
   const [login, setLogin] = useState('')
   const [secret, setSecret] = useState('')
   const [sessionId, setSessionId] = useState('')
@@ -65,12 +71,16 @@ export function OdooSyncPanel({ initialDump }: { initialDump: DumpSummary }) {
         idempotencyKey: newIdempotencyKey(),
       })
       setReport(page.data)
-      setOk(`تم السحب والحفظ — ${page.data.pulled} سجل · النسخة: ${page.data.backupPath}`)
+      setOk(
+        isAr
+          ? `تم السحب والحفظ بنجاح — ${formatInt(page.data.pulled, resolvedLocale)} سجل`
+          : `Live extraction & snapshot saved — ${formatInt(page.data.pulled, resolvedLocale)} records`,
+      )
       setSecret('')
       setSessionId('')
       await refreshDump()
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : errorKey(caught))
+      setError(t(errorKey(caught)))
     } finally {
       setBusy(false)
     }
@@ -90,18 +100,18 @@ export function OdooSyncPanel({ initialDump }: { initialDump: DumpSummary }) {
         body,
       })
       if (!response.ok) {
-        const payload: unknown = await response.json().catch(() => null)
-        const message =
-          typeof payload === 'object' && payload !== null && 'error' in payload
-            ? String((payload as { error: { message?: unknown } }).error.message ?? '')
-            : 'فشل الرفع'
-        throw new ApiError(response.status, 'validation_failed', message)
+        setError(t('erp.err.validation_failed'))
+        return
       }
       setFile(null)
-      setOk('تم استيراد الملف وترحيله إلى التخزين المؤقت / الوحدات')
+      setOk(
+        isAr
+          ? 'تم استيراد الملف وترحيله إلى التخزين المؤقت / الوحدات'
+          : 'File imported and staged into ERP modules',
+      )
       await refreshDump()
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : errorKey(caught))
+      setError(t(errorKey(caught)))
     } finally {
       setBusy(false)
     }
@@ -110,95 +120,211 @@ export function OdooSyncPanel({ initialDump }: { initialDump: DumpSummary }) {
   async function copySnippet() {
     try {
       await navigator.clipboard.writeText(snippet)
+      setCopied(true)
     } catch {
-      snippetRef.current?.select()
-      document.execCommand('copy')
+      try {
+        snippetRef.current?.select()
+        document.execCommand('copy')
+        setCopied(true)
+      } catch {
+        setError(isAr ? 'تعذّر النسخ التلقائي — انسخ النص يدوياً.' : 'Automatic copy failed — copy the snippet manually.')
+      }
     }
-    setCopied(true)
   }
 
+  const inputCls =
+    'ds-focus-ring w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-white/10 dark:bg-ink-950 dark:text-mist-100'
+  const labelCls = 'mb-1 block text-xs font-semibold text-slate-700 dark:text-mist-300'
+
   return (
-    <div className="space-y-4">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-4">
       {error ? <Alert kind="error">{error}</Alert> : null}
       {ok ? <Alert kind="ok">{ok}</Alert> : null}
 
-      <section className={`${cardClass} p-4`}>
-        <h2 className="text-lg font-bold text-mist-100">النسخة المحلية الأبدية</h2>
-        <p className="mt-1 text-sm text-mist-400" dir="ltr">
-          {dump.path} · {dump.exists ? `${(dump.bytes / 1024).toFixed(0)} KB` : 'غير موجودة'}
-        </p>
-        {dump.exportedAt ? <p className="mt-1 text-xs text-mist-500">exportedAt: {dump.exportedAt}</p> : null}
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <SectionCard
+        title={isAr ? 'النسخة المحلية المحفوظة' : 'Stored Local Snapshot'}
+        subtitle={
+          dump.exists
+            ? isAr
+              ? `الحجم: ${formatInt(Math.round(dump.bytes / 1024), resolvedLocale)} KB`
+              : `Size: ${formatInt(Math.round(dump.bytes / 1024), resolvedLocale)} KB`
+            : isAr
+              ? 'لا توجد نسخة محلية محفوظة بعد'
+              : 'No local snapshot saved yet'
+        }
+        locale={resolvedLocale}
+        headerDivider
+      >
+        {dump.exportedAt ? (
+          <p className="mb-3 text-xs text-slate-600 dark:text-slate-300">
+            {isAr ? 'آخر تصدير (توقيت الكويت): ' : 'Last export (Kuwait): '}
+            <span dir="ltr" className="ds-num font-semibold tabular-nums">
+              {formatKuwaitDateTime(dump.exportedAt, resolvedLocale)}
+            </span>
+          </p>
+        ) : null}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {Object.entries(dump.counts).map(([model, count]) => (
-            <div key={model} className="rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2">
-              <p className="text-[11px] text-mist-500" dir="ltr">
+            <div
+              key={model}
+              className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 dark:border-white/10 dark:bg-ink-950/60"
+            >
+              <p className="text-xs font-mono text-slate-600 dark:text-slate-300" dir="ltr">
                 {model}
               </p>
-              <p className="text-lg font-black text-[#8cc63f]">{count}</p>
+              <p dir="ltr" className="ds-num text-lg font-black tabular-nums text-emerald-700 dark:text-[#8cc63f]">
+                {formatInt(count, resolvedLocale)}
+              </p>
             </div>
           ))}
         </div>
-      </section>
+      </SectionCard>
 
-      <section className={`${cardClass} space-y-3 p-4`}>
-        <h2 className="text-lg font-bold">سحب وحفظ كامل من {ODOO_ORIGIN.replace('https://', '')}</h2>
-        <div className="flex gap-2">
-          <button type="button" className={mode === 'password' ? btnPrimary : btnGhost} onClick={() => setMode('password')}>
-            إيميل / كلمة مرور
+      <SectionCard
+        title={isAr ? 'سحب وحفظ كامل من Odoo 17' : 'Full Live Pull from Odoo 17'}
+        locale={resolvedLocale}
+        headerDivider
+      >
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={mode === 'password'}
+              className={`${mode === 'password' ? btnPrimary : btnGhost} ds-focus-ring`}
+              onClick={() => setMode('password')}
+            >
+              {isAr ? 'إيميل / كلمة مرور' : 'Email / Password'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'session'}
+              className={`${mode === 'session' ? btnPrimary : btnGhost} ds-focus-ring`}
+              onClick={() => setMode('session')}
+            >
+              {isAr ? 'معرّف الجلسة (session_id)' : 'Session ID'}
+            </button>
+          </div>
+          {mode === 'password' ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <label className={labelCls}>{isAr ? 'قاعدة البيانات' : 'Database'}</label>
+                <input
+                  className={inputCls}
+                  value={database}
+                  onChange={(e) => setDatabase(e.target.value)}
+                  autoComplete="off"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>{isAr ? 'البريد / المستخدم' : 'Email / Username'}</label>
+                <input
+                  className={inputCls}
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
+                  autoComplete="username"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>{isAr ? 'كلمة المرور / API Key' : 'Password / API Key'}</label>
+                <input
+                  className={inputCls}
+                  type="password"
+                  value={secret}
+                  onChange={(e) => setSecret(e.target.value)}
+                  autoComplete="current-password"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className={labelCls}>{isAr ? 'معرّف جلسة أودو (session_id)' : 'Odoo session_id'}</label>
+              <input
+                className={inputCls}
+                type="password"
+                value={sessionId}
+                onChange={(e) => setSessionId(e.target.value)}
+                autoComplete="off"
+                dir="ltr"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            className={`${btnPrimary} ds-focus-ring`}
+            disabled={busy}
+            onClick={() => void fullPull()}
+          >
+            {busy
+              ? isAr
+                ? 'جارٍ السحب…'
+                : 'Pulling…'
+              : isAr
+                ? 'سحب وحفظ كامل بيانات أودو الآن'
+                : 'Pull & Back Up Full Odoo Data'}
           </button>
-          <button type="button" className={mode === 'session' ? btnPrimary : btnGhost} onClick={() => setMode('session')}>
-            session_id
+          {report ? (
+            <p className="text-sm text-slate-700 dark:text-mist-300 tabular-nums">
+              {isAr
+                ? `المسحوب ${formatInt(report.pulled, resolvedLocale)} · المُطبّق ${formatInt(report.applied, resolvedLocale)} · الموقوف ${formatInt(report.staged, resolvedLocale)} · المتخطّى ${formatInt(report.skipped, resolvedLocale)}`
+                : `Pulled ${formatInt(report.pulled, resolvedLocale)} · Applied ${formatInt(report.applied, resolvedLocale)} · Staged ${formatInt(report.staged, resolvedLocale)} · Skipped ${formatInt(report.skipped, resolvedLocale)}`}
+            </p>
+          ) : null}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={isAr ? 'رفع ملف Excel / CSV / JSON من أودو' : 'Upload Excel / CSV / JSON Export'}
+        locale={resolvedLocale}
+        headerDivider
+      >
+        <div className="space-y-3">
+          <input
+            type="file"
+            aria-label={isAr ? 'اختر ملف تصدير Odoo' : 'Choose Odoo export file'}
+            accept=".json,.csv,.xlsx,.xls"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-slate-700 dark:text-slate-200"
+          />
+          <div>
+            <button
+              type="button"
+              className={`${btnGhost} ds-focus-ring`}
+              disabled={busy || !file}
+              onClick={() => void uploadFile()}
+            >
+              {isAr ? 'استيراد الملف' : 'Import File'}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title={isAr ? 'مقتطف المتصفح (أقصى تغطية 1000/موديل)' : 'Browser Extractor Snippet (1,000/model)'}
+        subtitle={
+          isAr
+            ? `افتح جلسة مسجّلة على ${ODOO_ORIGIN}، الصق المقتطف في Console، ثم ارفع الملف الناتج هنا.`
+            : `Open an authenticated session at ${ODOO_ORIGIN}, paste this snippet in Console, and upload the downloaded file here.`
+        }
+        locale={resolvedLocale}
+        headerDivider
+      >
+        <div className="space-y-3">
+          <textarea
+            ref={snippetRef}
+            aria-label={isAr ? 'مقتطف استخراج بيانات Odoo' : 'Odoo browser extractor snippet'}
+            readOnly
+            value={snippet}
+            className={`${inputCls} min-h-40 font-mono text-xs`}
+            dir="ltr"
+          />
+          <button type="button" className={`${btnGhost} ds-focus-ring`} onClick={() => void copySnippet()}>
+            {copied ? (isAr ? 'تم النسخ' : 'Copied') : isAr ? 'نسخ المقتطف' : 'Copy Snippet'}
           </button>
         </div>
-        {mode === 'password' ? (
-          <div className="grid gap-2 md:grid-cols-3">
-            <div>
-              <label className={labelClass}>قاعدة البيانات</label>
-              <input className={fieldClass} value={database} onChange={(e) => setDatabase(e.target.value)} dir="ltr" />
-            </div>
-            <div>
-              <label className={labelClass}>البريد / المستخدم</label>
-              <input className={fieldClass} value={login} onChange={(e) => setLogin(e.target.value)} dir="ltr" />
-            </div>
-            <div>
-              <label className={labelClass}>كلمة المرور / API Key</label>
-              <input className={fieldClass} type="password" value={secret} onChange={(e) => setSecret(e.target.value)} dir="ltr" />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <label className={labelClass}>Odoo session_id</label>
-            <input className={fieldClass} value={sessionId} onChange={(e) => setSessionId(e.target.value)} dir="ltr" />
-          </div>
-        )}
-        <button type="button" className={btnPrimary} disabled={busy} onClick={() => void fullPull()}>
-          {busy ? 'جارٍ السحب…' : 'سحب وحفظ كامل بيانات أودو الآن (Full Odoo Backup & Import)'}
-        </button>
-        {report ? (
-          <p className="text-sm text-mist-300">
-            pulled {report.pulled} · applied {report.applied} · staged {report.staged} · skipped {report.skipped}
-          </p>
-        ) : null}
-      </section>
-
-      <section className={`${cardClass} space-y-3 p-4`}>
-        <h2 className="text-lg font-bold">رفع ملف Excel / CSV / JSON من أودو</h2>
-        <input type="file" accept=".json,.csv,.xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        <button type="button" className={btnGhost} disabled={busy || !file} onClick={() => void uploadFile()}>
-          استيراد الملف
-        </button>
-      </section>
-
-      <section className={`${cardClass} space-y-3 p-4`}>
-        <h2 className="text-lg font-bold">مقتطف المتصفح (أقصى تغطية 1000/موديل)</h2>
-        <p className="text-sm text-mist-400">
-          افتح جلسة مسجّلة على {ODOO_ORIGIN}، الصق المقتطف في Console، ثم ارفع الملف الناتج هنا.
-        </p>
-        <textarea ref={snippetRef} readOnly value={snippet} className={`${fieldClass} min-h-40 font-mono text-[11px]`} dir="ltr" />
-        <button type="button" className={btnGhost} onClick={() => void copySnippet()}>
-          {copied ? 'تم النسخ' : 'نسخ المقتطف'}
-        </button>
-      </section>
+      </SectionCard>
     </div>
   )
 }

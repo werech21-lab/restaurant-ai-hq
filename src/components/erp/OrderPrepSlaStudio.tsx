@@ -39,14 +39,15 @@ export function OrderPrepSlaStudio() {
   const isAr = locale !== 'en'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto py-4">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto p-3.5 sm:p-5 min-w-0">
       <UnlinkedSourceNotice
         isAr={isAr}
         titleAr="غير مربوط بمصدر — التزام تحضير المطبخ (KDS)"
-        titleEn="غير مربوط بمصدر — Kitchen Order Prep SLA (KDS)"
+        titleEn="Not Linked to a Data Source — Kitchen Order Prep SLA (KDS)"
         reasonAr="شاشات تحضير المطبخ (KDS) غير مربوطة بمصدر توقيت فعلي في أودو 17 حالياً، لذا تم إخفاء جميع المؤشرات والتذاكر لمنع عرض أي أرقام غير حقيقية."
         reasonEn="Kitchen Display System (KDS) preparation timestamps are not linked to an active Odoo 17 data source. All metrics and ticket tables are hidden."
         requiredSourceAr="Odoo 17 POS Preparation Display / KDS Timestamps"
+        requiredSourceEn="Odoo 17 POS Preparation Display / KDS Timestamps"
       />
     </div>
   )
