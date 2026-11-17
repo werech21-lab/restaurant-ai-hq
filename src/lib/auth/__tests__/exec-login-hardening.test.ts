@@ -15,8 +15,8 @@ import {
 } from '@/lib/auth/api-guard'
 import { EXEC_SESSION_COOKIE, verifyExecSessionToken } from '@/lib/auth/exec-session'
 
-// Owner decision 2026-11-17: temporary shared password for every named account.
-const TEMP_PASSWORD = ['123', '456'].join('')
+// Test-only password injected through the AETHER_*_PASSWORD env override.
+const TEMP_PASSWORD = 'test-exec-login-pass'
 
 const NAMED = [
   'abdullah@venturefoodskw.com',
@@ -62,7 +62,7 @@ describe('login rate-limit and DB-path hardening', () => {
   })
 
   beforeEach(() => {
-    for (const key of ENV_KEYS) vi.stubEnv(key, '')
+    for (const key of ENV_KEYS) vi.stubEnv(key, key.endsWith('_PASSWORD') ? TEMP_PASSWORD : '')
     loginIpFailureLimiter.clearAll()
     loginIpAttemptLimiter.clearAll()
     loginAccountFailureLimiter.clearAll()

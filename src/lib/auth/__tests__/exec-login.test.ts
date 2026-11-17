@@ -16,13 +16,13 @@ import {
 } from '@/lib/auth/api-guard'
 import {
   EXEC_SESSION_COOKIE,
-  TEMP_SHARED_PASSWORD_SHA256,
+  DEFAULT_MARKETING_PASSWORD_SHA256,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
 import { isErpRouteAllowedForRole, resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 
-// Owner decision 2026-11-17: temporary shared password for every named account and alias.
-const TEMP_PASSWORD = ['123', '456'].join('')
+// Test-only password injected through the AETHER_*_PASSWORD env override (real defaults are hashed in exec-session).
+const TEMP_PASSWORD = 'test-exec-login-pass'
 
 const ACCOUNTS: ReadonlyArray<{ email: string; role: string }> = [
   { email: 'abdullah@venturefoodskw.com', role: 'admin' },
@@ -80,9 +80,10 @@ function sessionCookie(res: Response): string | null {
   return match ? match[1] : null
 }
 
-describe('named executive login with the temporary shared password', () => {
+describe('named executive login', () => {
   beforeEach(() => {
-    for (const key of [...ENV_PASSWORD_KEYS, ...ENV_EMAIL_KEYS]) vi.stubEnv(key, '')
+    for (const key of ENV_EMAIL_KEYS) vi.stubEnv(key, '')
+    for (const key of ENV_PASSWORD_KEYS) vi.stubEnv(key, TEMP_PASSWORD)
     loginIpFailureLimiter.clearAll()
     loginIpAttemptLimiter.clearAll()
     loginAccountFailureLimiter.clearAll()
@@ -93,9 +94,9 @@ describe('named executive login with the temporary shared password', () => {
     vi.unstubAllEnvs()
   })
 
-  it('stores the temporary password with the unchanged salted SHA-256 algorithm', () => {
-    const expected = createHash('sha256').update(`vf-aether-exec-2026-v1:${TEMP_PASSWORD}`).digest('hex')
-    expect(TEMP_SHARED_PASSWORD_SHA256).toBe(expected)
+  it('no longer uses the temporary shared 6-digit password as a default', () => {
+    const tempHash = createHash('sha256').update(`vf-aether-exec-2026-v1:${['123', '456'].join('')}`).digest('hex')
+    expect(DEFAULT_MARKETING_PASSWORD_SHA256).not.toBe(tempHash)
   })
 
   for (const account of ACCOUNTS) {
