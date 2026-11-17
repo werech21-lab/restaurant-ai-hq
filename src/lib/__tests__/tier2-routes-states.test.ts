@@ -952,18 +952,20 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
   describe('3. School Canteens 41 (NPIS Hawally) & 42 (FAIPS Ahmadi) Preserved Where Branch Lists Are Derived', () => {
     it('preserves pos.config 41 (NPIS Hawally) & 42 (FAIPS Ahmadi) while rejecting closed Hawally restaurant and vetoed exclusions', () => {
-      expect(posRegistry.schoolCanteenPosConfigIds).toEqual([41, 42])
-      expect(schoolCanteenRegisterIds()).toEqual([41, 42])
+      expect(posRegistry.schoolCanteenPosConfigIds).toEqual([41, 42, 43])
+      expect(schoolCanteenRegisterIds()).toEqual([41, 42, 43])
       expect(isPinnedSchoolCanteenConfigId(41)).toBe(true)
       expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
-      expect(isPinnedSchoolCanteenConfigId(43)).toBe(false)
+      expect(isPinnedSchoolCanteenConfigId(43)).toBe(true)
 
-      // Full company register list = restaurant registers + [41, 42]
+      // Full company register list = restaurant registers + [41, 42, 43]
       const fullCompanyIds = companyPosRegisterIds()
       expect(fullCompanyIds).toContain(41)
       expect(fullCompanyIds).toContain(42)
+      expect(fullCompanyIds).toContain(43)
       expect(restaurantRegisterIds()).not.toContain(41)
       expect(restaurantRegisterIds()).not.toContain(42)
+      expect(restaurantRegisterIds()).not.toContain(43)
 
       // Pinned canteens 41 & 42 allowed even when #41 contains closed-branch district name "Hawally"
       expect(companyPosConfigAllowed(41, 'NPIS Hawally School Canteen', true)).toBe(true)

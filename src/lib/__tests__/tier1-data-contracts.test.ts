@@ -866,15 +866,15 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
   })
 
   describe('4. Open TODO(Abdullah) Governance Tracker Contracts (Preserved Without Guessing)', () => {
-    it('tracks POS device 43 "FAS Fahaheel", pinned IDs 41/42, GL #2839, archived #16/#35, exec compare-only digests, and batch sync TODOs', async () => {
-      // 1. Pinned canteens 41 & 42 vs unconfirmed POS device 43 "FAS Fahaheel"
-      expect(schoolCanteenRegisterIds()).toEqual([41, 42])
+    it('tracks POS device 43 "FAS Fahaheel" (confirmed canteen), pinned IDs 41/42/43, GL #2839, archived #16/#35, exec compare-only digests, and batch sync TODOs', async () => {
+      // 1. Pinned canteens 41, 42 & 43 ("FAS Fahaheel", confirmed by the owner 2026-11-17)
+      expect(schoolCanteenRegisterIds()).toEqual([41, 42, 43])
       expect(isPinnedSchoolCanteenConfigId(41)).toBe(true)
       expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
-      expect(isPinnedSchoolCanteenConfigId(43)).toBe(false)
-      expect(companyPosConfigAllowed(43, 'FAS Fahaheel', true)).toBe(false)
+      expect(isPinnedSchoolCanteenConfigId(43)).toBe(true)
+      expect(companyPosConfigAllowed(43, 'FAS Fahaheel', true)).toBe(true)
       expect(posRegistry._canteenTodo).toContain('TODO(Abdullah)')
-      expect(posRegistry._canteenTodo).toContain('43 FAS Fahaheel')
+      expect(posRegistry._canteenTodo).toContain('43 FAS Fahaheel confirmed as a school canteen')
 
       // 2. GL #2839 "Cash On Hand/ NPIS Hawally Branch Cashier - فرع حولي - NPIS" kept under canteen exemption pending Abdullah confirmation
       const gl2839Name =
