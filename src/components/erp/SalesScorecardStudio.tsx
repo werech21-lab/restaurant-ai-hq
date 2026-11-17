@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_SHARE_BASIS, normalizeSharesTo100, sumShares } from '@/lib/aether/share-normalization'
 import React from 'react'
 import Link from 'next/link'
 import { Award, ArrowUpRight, BarChart3, Store, Tag, TrendingUp } from 'lucide-react'
@@ -39,6 +40,14 @@ export function SalesScorecardStudio() {
   const brands = sortOptions(workspace.cascadingOptions.brands.filter((b) => b.id !== 'all'))
   const branches = sortOptions(workspace.cascadingOptions.branches.filter((b) => b.id !== 'all'))
   const channels = sortOptions(workspace.cascadingOptions.channels.filter((c) => c.id !== 'all'))
+  // Phase 5 · Item 4: each list's shares are over that list's own sum, normalised to 100.0%.
+  const sharesFor = (rows: { salesKwd?: number | null }[]): number[] | null =>
+    rows.every((r) => typeof r.salesKwd === 'number')
+      ? normalizeSharesTo100(rows.map((r) => r.salesKwd as number))
+      : null
+  const brandShares = sharesFor(brands)
+  const branchShares = sharesFor(branches)
+  const channelShares = sharesFor(channels)
   const hasBrandSales =
     workspace.nullableSalesKwd !== null && brands.some((b) => typeof b.salesKwd === 'number')
 
@@ -229,13 +238,9 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {brands.map((b, idx) => {
-              const totalNet = workspace.nullableSalesKwd
-              const unavailable = typeof b.salesKwd !== 'number' || totalNet === null
+              const unavailable = typeof b.salesKwd !== 'number' || brandShares === null
               const sales = b.salesKwd ?? 0
-              const share =
-                !unavailable && totalNet !== null && totalNet > 0
-                  ? (sales / totalNet) * 100
-                  : 0
+              const share = brandShares?.[idx] ?? 0
               const selected = filters.brand === b.id
               return (
                 <button
@@ -280,6 +285,15 @@ export function SalesScorecardStudio() {
               )
             })}
           </div>
+          {brandShares && brands.length > 1 ? (
+            <p data-brand-share-basis="true" className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+              <span dir="ltr" className="font-semibold tabular-nums">
+                Σ {formatPct(sumShares(brandShares), resolvedLocale)}
+              </span>
+              {' · '}
+              {isAr ? BRAND_SHARE_BASIS.ar : BRAND_SHARE_BASIS.en}
+            </p>
+          ) : null}
         </div>
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
@@ -291,13 +305,9 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {branches.map((br, idx) => {
-              const totalNet = workspace.nullableSalesKwd
-              const unavailable = typeof br.salesKwd !== 'number' || totalNet === null
+              const unavailable = typeof br.salesKwd !== 'number' || branchShares === null
               const sales = br.salesKwd ?? 0
-              const share =
-                !unavailable && totalNet !== null && totalNet > 0
-                  ? (sales / totalNet) * 100
-                  : 0
+              const share = branchShares?.[idx] ?? 0
               const selected = filters.branch === br.id
               return (
                 <button
@@ -353,13 +363,9 @@ export function SalesScorecardStudio() {
           </div>
           <div className="divide-y divide-slate-200/70 dark:divide-slate-800/70">
             {channels.map((ch, idx) => {
-              const totalNet = workspace.nullableSalesKwd
-              const unavailable = typeof ch.salesKwd !== 'number' || totalNet === null
+              const unavailable = typeof ch.salesKwd !== 'number' || channelShares === null
               const sales = ch.salesKwd ?? 0
-              const share =
-                !unavailable && totalNet !== null && totalNet > 0
-                  ? (sales / totalNet) * 100
-                  : 0
+              const share = channelShares?.[idx] ?? 0
               const selected = filters.channel === ch.id
               return (
                 <button

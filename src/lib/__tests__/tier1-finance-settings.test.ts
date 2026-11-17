@@ -273,8 +273,8 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     expect(liveEn).toContain('data-odoo-partial-warning="true"')
     expect(liveEn).toContain('Some channel figures are temporarily unavailable')
     expect(liveEn).toContain('12,500.500 KWD')
-    expect(liveEn).toContain('6,000.000 KWD') // brand contribution formatted to 3 decimals!
-    expect(liveEn).toContain('7,000.000 KWD') // branch contribution formatted to 3 decimals!
+    expect(liveEn).toContain('6,000.250 KWD') // brand contribution at fils precision (6000.25)
+    expect(liveEn).toContain('7,000.250 KWD') // branch contribution at fils precision (7000.25)
 
     // Null / unavailable state
     mockGlobalFilterState.current = buildContext(
@@ -310,6 +310,29 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     expect(nullAr).not.toContain('width:2%')
   })
 
+  it('Phase 5 · Item 4: SalesScorecardStudio brand shares are over the brand sum and total exactly 100.0%', () => {
+    const summary = buildLiveSummary()
+    mockGlobalFilterState.current = buildContext(summary)
+    const html = renderToStaticMarkup(
+      React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(SalesScorecardStudio)),
+    )
+    const brandCard = html.split('6 Brands Scorecard')[1]?.split('7 Active Branches Scorecard')[0] ?? ''
+    const text = brandCard.replace(/<[^>]+>/g, ' ')
+    const rowText = text.split('Σ')[0]
+    const rowShares = [...rowText.matchAll(/(\d+(?:\.\d)?)%/g)].map((m) => Math.round(Number(m[1]) * 10))
+    expect(rowShares.length).toBe(6)
+    expect(rowShares.reduce((a, b) => a + b, 0)).toBe(1000)
+    expect(text).toContain('6,500.250 KWD')
+    expect(brandCard).toContain('data-brand-share-basis="true"')
+    expect(text).toMatch(/Σ 100(\.0)?%/)
+    // Amounts are the engine's fils-precision values, not whole-KWD rounding.
+    const ctx = mockGlobalFilterState.current as { workspace: { cascadingOptions: { brands: { id: string; salesKwd?: number }[] } } }
+    for (const b of ctx.workspace.cascadingOptions.brands.filter((x) => x.id !== 'all')) {
+      expect(typeof b.salesKwd).toBe('number')
+      expect(Math.round((b.salesKwd as number) * 1000) / 1000).toBe(b.salesKwd)
+    }
+  })
+
   it('formats SalesScorecardStudio KWD to 3 decimals (no integer rounding) and shows loading/null states honestly', () => {
     const summary = buildLiveSummary({
       partial: true,
@@ -323,7 +346,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     )
     expect(liveEn).toContain('data-odoo-partial-warning="true"')
     expect(liveEn).toContain('12,500.500 KWD')
-    expect(liveEn).toContain('6,500.000 KWD')
+    expect(liveEn).toContain('6,500.250 KWD')
     expect(liveEn).toContain('6 Brands Scorecard')
     expect(liveEn).toContain('7 Active Branches Scorecard')
     expect(liveEn).toContain('8 Sales Channels Scorecard')

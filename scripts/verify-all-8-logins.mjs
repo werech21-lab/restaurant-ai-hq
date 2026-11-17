@@ -545,18 +545,21 @@ const PROTECTED_HASHES = new Set([
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba',
 ])
 
+// Phase 5 · Item 10: the leak scan checks source for the CURRENT executive passwords, read from the
+// environment — the passwords themselves are never stored in this script.
 const plainCandidates = [
-  String.fromCharCode(
-    86, 70, 45, 71, 77, 35, 50, 48, 50, 54, 33, 69, 120, 101, 99, 117, 116, 105, 118, 101,
-  ),
-  String.fromCharCode(
-    86, 70, 45, 68, 71, 77, 35, 50, 48, 50, 54, 33, 69, 120, 101, 99, 117, 116, 105, 118, 101,
-  ),
-  String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54),
-  String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54),
-  String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54),
-  String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54),
+  'AETHER_ABDULLAH_PASSWORD',
+  'AETHER_ADMIN_PASSWORD',
+  'AETHER_GM_PASSWORD',
+  'AETHER_DGM_PASSWORD',
+  'AETHER_OPS_PASSWORD',
+  'AETHER_CFO_PASSWORD',
+  'AETHER_MARKETING_PASSWORD',
+  'AETHER_SUPPLY_PASSWORD',
+  'AETHER_AUDITOR_PASSWORD',
 ]
+  .map((name) => String(process.env[name] ?? '').trim())
+  .filter((v) => v.length >= 4)
 
 const srcFiles = walkFiles(path.join(ROOT, 'src')).filter((f) =>
   /\.(ts|tsx|js|jsx|mjs|json)$/.test(f),

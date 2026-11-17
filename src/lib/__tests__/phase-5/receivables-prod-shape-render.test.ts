@@ -103,5 +103,8 @@ describe('production-shape receivables never render an amount', () => {
     expect(recv).toContain('data-receivables-pending="true"')
     const gl = renderAr(React.createElement(VentureAccountingHub, { initialTab: 'glSummary' }))
     for (const v of PROD_VALUES) expect(gl).not.toContain(v)
+    const { OdooAccountingAnalyticsHub } = await import('@/components/accounting/OdooAccountingAnalyticsHub')
+    const hub = renderAr(React.createElement(OdooAccountingAnalyticsHub, { isAr: true, locale: 'ar' }))
+    for (const v of PROD_VALUES) expect(hub).not.toContain(v)
   })
 })

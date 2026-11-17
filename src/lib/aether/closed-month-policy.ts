@@ -66,18 +66,21 @@ export function lastClosedMonthLabel(
   return locale === 'ar' ? `${MONTHS_AR[m - 1]} ${y}` : `${MONTHS_EN[m - 1]} ${y}`
 }
 
+/** Single calm note used when Odoo has no lock dates at all (nothing is closed yet). */
+export const PROFIT_AFTER_CLOSE_NOTE = {
+  en: 'Profit appears after the month is closed in accounting',
+  ar: 'يظهر الربح بعد إقفال الشهر في المحاسبة',
+} as const
+
 export function closedMonthWithheldReason(closedThroughIso: string | null | undefined): {
   ar: string
   en: string
 } {
   const ar = lastClosedMonthLabel(closedThroughIso, 'ar')
   const en = lastClosedMonthLabel(closedThroughIso, 'en')
+  if (!ar || !en) return { ...PROFIT_AFTER_CLOSE_NOTE }
   return {
-    ar: ar
-      ? `صافي الربح يُعرض للأشهر المُقفلة محاسبياً فقط — آخر شهر مُقفل: ${ar}`
-      : 'صافي الربح يُعرض بعد الإقفال المحاسبي للشهر في أودو',
-    en: en
-      ? `Net Profit is shown for closed GL months only — last closed month: ${en}`
-      : 'Net Profit is shown once the month is closed in the Odoo General Ledger',
+    ar: `صافي الربح يُعرض للأشهر المُقفلة محاسبياً فقط — آخر شهر مُقفل: ${ar}`,
+    en: `Net Profit is shown for closed GL months only — last closed month: ${en}`,
   }
 }

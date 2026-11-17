@@ -109,10 +109,19 @@ import { computeBeforeAfterSnapshot } from './src/lib/aether/before-after-engine
 import { computeErpComparison } from './src/lib/erp-comparison-engine';
 
 (async () => {
-  const pwOps = String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54);
-  const pwCfo = String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54);
-  const pwMkt = String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54);
-  const pwSup = String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54);
+  // Phase 5 · Item 10: executive passwords come only from the environment — never from source.
+  const requirePw = (name) => {
+    const v = String(process.env[name] ?? '').trim();
+    if (!v) {
+      console.error('Missing ' + name + '. Export the rotated executive passwords before running this check.');
+      process.exit(2);
+    }
+    return v;
+  };
+  const pwOps = requirePw('AETHER_OPS_PASSWORD');
+  const pwCfo = requirePw('AETHER_CFO_PASSWORD');
+  const pwMkt = requirePw('AETHER_MARKETING_PASSWORD');
+  const pwSup = requirePw('AETHER_SUPPLY_PASSWORD');
 
   const opsCred = await authenticateExecutiveCredentials(DEFAULT_OPS_EMAIL, pwOps);
   const cfoCred = await authenticateExecutiveCredentials(DEFAULT_CFO_EMAIL, pwCfo);
@@ -708,12 +717,10 @@ const PROTECTED_HASHES = new Set([
   '93126eacc43acc1b7030b2c2960d5f9aeadcb2a14d3258a6126f119bde3a4dba',
 ])
 
-const runtimePlainTokens = [
-  String.fromCharCode(79, 112, 115, 64, 50, 48, 50, 54),
-  String.fromCharCode(67, 102, 111, 64, 50, 48, 50, 54),
-  String.fromCharCode(77, 107, 116, 64, 50, 48, 50, 54),
-  String.fromCharCode(83, 117, 112, 64, 50, 48, 50, 54),
-]
+// Leak scan uses the current passwords from the environment; none are stored in this script.
+const runtimePlainTokens = ['AETHER_OPS_PASSWORD', 'AETHER_CFO_PASSWORD', 'AETHER_MARKETING_PASSWORD', 'AETHER_SUPPLY_PASSWORD']
+  .map((name) => String(process.env[name] ?? '').trim())
+  .filter((v) => v.length >= 4)
 
 const srcFiles = walkFiles(path.join(ROOT, 'src')).filter((f) => /\.(ts|tsx|js|jsx|mjs|json)$/.test(f))
 const quotedRe = /['"`]([^'"`\r\n]{4,128})['"`]/g

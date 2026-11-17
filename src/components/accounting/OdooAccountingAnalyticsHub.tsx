@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { AlertTriangle, BookOpen, Landmark, Receipt, Scale, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
@@ -255,6 +256,11 @@ export function OdooAccountingAnalyticsHub({
           <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
             <GlKwdValue value={acc.operatingProfitKwd} locale={resolvedLocale} />
           </p>
+          {acc.netProfitWithheld ? (
+            <p data-net-profit-withheld="true" className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? acc.netProfitWithheldReasonAr : acc.netProfitWithheldReasonEn}
+            </p>
+          ) : null}
           {(workspace.glIncomplete || acc.glIncomplete) && (
             <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
               {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}
@@ -278,19 +284,25 @@ export function OdooAccountingAnalyticsHub({
             <span>{isAr ? 'صافي الذمم المدينة المفتوحة' : 'Net Open Receivables (AR)'}</span>
             <Landmark className="h-4 w-4 text-sky-600" aria-hidden />
           </div>
-          <p
+          <div
             dir="ltr"
             title={rec.unavailable ? unavailableTooltip : undefined}
             aria-label={rec.unavailable ? unavailableTooltip : undefined}
             data-unavailable={rec.unavailable ? 'true' : undefined}
             className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white"
           >
-            {rec.unavailable
-              ? isAr
-                ? 'غير متاح'
-                : UNAVAILABLE_DASH
-              : formatKwd(rec.openReceivableKwd, resolvedLocale)}
-          </p>
+            {rec.unavailable ? (
+              isAr ? (
+                'غير متاح'
+              ) : (
+                UNAVAILABLE_DASH
+              )
+            ) : rec.pendingReconciliation ? (
+              <ReceivablesPendingStatus isAr={isAr} size="sm" />
+            ) : (
+              formatKwd(rec.openReceivableKwd, resolvedLocale)
+            )}
+          </div>
           <p
             dir="ltr"
             title={rec.unavailable ? unavailableTooltip : undefined}

@@ -1614,6 +1614,18 @@ export function computeGlobalWorkspace(
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
       revenueAccounts: rawGl?.revenueAccounts ?? [],
+      glClosedThroughDate: rawGl?.glClosedThroughDate ?? null,
+    }
+    // Phase 5 · Item 7: profit is hidden here too; when the window is not inside closed GL months
+    // (including when Odoo has no lock dates at all) say so with the one calm note.
+    if (rawGl && !isWindowWithinClosedMonths(accounting.to, rawGl.glClosedThroughDate)) {
+      const reason = closedMonthWithheldReason(rawGl.glClosedThroughDate)
+      accounting = {
+        ...accounting,
+        netProfitWithheld: true,
+        netProfitWithheldReasonAr: reason.ar,
+        netProfitWithheldReasonEn: reason.en,
+      }
     }
   } else {
     const cogsVal = Math.max(0, safeNum(rawGl.cogs))
@@ -1718,7 +1730,7 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === brand,
     }
   })
@@ -1738,7 +1750,7 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === branch,
     }
   })
@@ -1758,7 +1770,7 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd),
+      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
       available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === channel,
     }
   })
