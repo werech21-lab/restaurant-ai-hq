@@ -110,6 +110,8 @@ export interface OdooLedgerAccountingSummary {
   depreciation: number
   otherOpexAndDepreciation?: number
   operatingProfit: number
+  /** GL closed-through date from `res.company` lock dates (Phase 5 · Item 7); `null` = none closed / unreadable. */
+  glClosedThroughDate?: string | null
   completeAccrualPosted?: boolean
   glIncomplete?: boolean
   glWarningAr?: string

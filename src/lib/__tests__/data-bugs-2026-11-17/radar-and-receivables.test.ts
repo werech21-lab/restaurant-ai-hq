@@ -404,7 +404,9 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       ),
     ).toEqual({ from: '2025-01-15', to: '2026-11-14' })
 
-    // DeliveryRadarV5 renders 10,000.000 as headline + muted line with credits & net, preserving workspace.receivables.openReceivableKwd
+    // Phase 5 · Item 2: DeliveryRadarV5 never shows -77K (or any receivable amount) to executives until
+    // per-customer due-date aging is verified; it renders the neutral status plus the open-line count.
+    // workspace.receivables.openReceivableKwd is still preserved for the finance tie-out.
     const summary = buildRadarSummary()
     const ws = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, summary)
     expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
@@ -412,18 +414,21 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
     const arCard =
       htmlAr.split('مبيعات وطلبات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
-    expect(arCard).toContain('10,000.000')
-    expect(arCard).toContain('دفعات/مقاصة غير مطابقة:')
-    expect(arCard).toContain('-87,462.759')
-    expect(arCard).toContain('الصافي:')
-    expect(arCard).toContain('-77,462.759')
+    expect(arCard).toContain('قيد المطابقة مع المحاسبة')
+    expect(arCard).toContain('data-receivables-status="pending-reconciliation"')
+    expect(arCard).toContain('412 قيد غير مسوّى في دفتر الذمم')
+    expect(arCard).not.toContain('-77,462.759')
+    expect(arCard).not.toContain('-87,462.759')
+    expect(arCard).not.toContain('10,000.000')
+    expect(arCard).not.toMatch(/overdue|متأخر/i)
 
     const htmlEn = renderRadar('en', { period: 'today' }, summary, buildRadarTodayCube())
     const enCard =
       htmlEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
-    expect(enCard).toContain('10,000.000 KWD')
-    expect(enCard).toContain('-87,462.759 KWD')
-    expect(enCard).toContain('-77,462.759 KWD')
+    expect(enCard).toContain('Pending Accounting Reconciliation')
+    expect(enCard).not.toContain('-77,462.759')
+    expect(enCard).not.toContain('10,000.000 KWD')
+    expect(enCard).not.toMatch(/overdue/i)
   })
 
   it('missing min date in odoo-live-connector returns fromDate === null (no 2024-12-31) and DeliveryRadarV5 renders window as "—"', async () => {

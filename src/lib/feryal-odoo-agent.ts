@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { formatKuwaitDateTime } from '@/lib/format'
 import os from 'node:os'
 import path from 'node:path'
 import { Pool } from 'pg'
@@ -12,6 +13,12 @@ import type {
   OdooPeriodCubeProductRow,
 } from '@/lib/odoo-live-connector'
 import type { OdooReceivableClearingSummary } from '@/lib/odoo/live-sync-core'
+import {
+  PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
+  RECEIVABLES_PENDING_DETAIL,
+  RECEIVABLES_PENDING_STATUS,
+} from '@/lib/aether/receivables-status'
+import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
 import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
 import {
@@ -161,6 +168,8 @@ export interface FeryalOdooDataSource {
     referenceNowMs?: number,
   ) => Promise<OdooLiveWarehouseChainPayload | null>
   fetchReceivablesSummary: () => Promise<OdooReceivableClearingSummary | null>
+  /** Last successful Odoo sync (ISO). Optional so fixtures without it still work. */
+  getLastSyncAt?: () => Promise<string | null>
   fetchBranchTopProducts: (
     fromIso: string,
     toIso: string,
@@ -204,7 +213,23 @@ export interface AskFeryalOdooAgentResult {
   period: { from: string; to: string } | null
   /** Numeric Odoo facts from structuredFacts. Comparisons cite these ids. */
   facts: ComparableFact[]
+  /** Phase 5 · Item 3: exact data source & last sync attached to every answered reply. */
+  source: FeryalAnswerSource | null
   auditEntry: FeryalAuditLogEntry
+}
+
+export interface FeryalAnswerSource {
+  system: 'Odoo 17'
+  model: FeryalOdooModelName | string
+  period: { from: string; to: string } | null
+  lastSyncAt: string | null
+}
+
+/** Footer appended after numeric verification (dates/times are provenance, not claims). */
+export function formatFeryalSourceFooter(src: FeryalAnswerSource): string {
+  const window = src.period ? `${src.period.from} → ${src.period.to}` : 'غير متاح'
+  const sync = src.lastSyncAt ? formatKuwaitDateTime(src.lastSyncAt, 'ar') : 'غير متاح'
+  return `• المصدر: ${src.system} · ${src.model} · الفترة ${window} · آخر مزامنة: ${sync}`
 }
 
 const BRANCH_META_BY_ID = new Map<ApprovedFeryalBranchId, FeryalBranchMeta>(
@@ -634,6 +659,17 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const snap = await mod.fetchLiveOdooSnapshot({ period: 'month' })
       if (!snap.connected || snap.source === 'disconnected') return null
       return snap.aggregatorReceivables ?? null
+    } catch {
+      return null
+    }
+  },
+  getLastSyncAt: async () => {
+    try {
+      const mod = await loadOdooConnector()
+      if (!mod) return null
+      const snap = await mod.fetchLiveOdooSnapshot({ period: 'month' })
+      if (!snap.connected || snap.source === 'disconnected') return null
+      return snap.lastSyncAt ?? snap.syncedAt ?? null
     } catch {
       return null
     }
@@ -1216,6 +1252,33 @@ async function runAccountMoveLinesTool(params: {
   const toolNumbers: number[] = []
   const allowedEntityNames: string[] = []
 
+  if (asksReceivables && receivables && receivables.readable && !PER_CUSTOMER_DUE_DATE_AGING_VERIFIED) {
+    // Phase 5 · Item 2: never quote a signed net / ledger balance as overdue until per-customer
+    // due-date aging is verified. Report the neutral status plus the factual open-line count only.
+    const openLines = Math.round(receivables.openLinesCount)
+    toolNumbers.push(openLines)
+    const reply = [
+      `• الرقم: الذمم المدينة — ${RECEIVABLES_PENDING_STATUS.ar}؛ يوجد ${formatIntCount(openLines)} قيد ذمم غير مسوّى في account.move.line.`,
+      `• السبب من البيانات: ${RECEIVABLES_PENDING_DETAIL.ar}`,
+      `• الإجراء المحدد: يستكمل قسم المحاسبة مطابقة تحصيلات المنصات والعملاء مع القيود المفتوحة وبناء أعمار الذمم لكل عميل.`,
+      `• الأثر المتوقع (تقدير): لا يوجد تقدير — لا تُعرض مبالغ متأخرة قبل اكتمال المطابقة.`,
+    ].join('\n')
+    return {
+      hasData: true,
+      primaryModel: 'account.move.line',
+      executedQueries,
+      toolNumbers,
+      allowedEntityNames,
+      deterministicReply: reply,
+      structuredFacts: {
+        model: 'account.move.line',
+        period: { from: period.from, to: period.to },
+        receivablesStatus: 'pending-reconciliation',
+        openLinesCount: openLines,
+      },
+    }
+  }
+
   if (asksReceivables && receivables && receivables.readable) {
     const openRec1 = round1(receivables.openReceivableKwd)
     const openLines = Math.round(receivables.openLinesCount)
@@ -1269,6 +1332,39 @@ async function runAccountMoveLinesTool(params: {
   const netProfit1 = round1(acc.operatingProfit)
   const netProfitAbs1 = round1(Math.abs(acc.operatingProfit))
   const incompleteFlag = Boolean(acc.glIncomplete || acc.completeAccrualPosted === false)
+
+  // Phase 5 · Item 7: Net Profit only for closed GL months. Open-month windows report posted
+  // revenue/expenses to date and state that Net Profit is unavailable until month close.
+  if (!isWindowWithinClosedMonths(acc.to ?? period.to, acc.glClosedThroughDate)) {
+    const withheld = closedMonthWithheldReason(acc.glClosedThroughDate)
+    toolNumbers.push(rawRevenue, revenue1, rawTotalExpenses, expenses1)
+    const warningClause = incompleteFlag ? ` (تحذير: ${FERYAL_INCOMPLETE_GL_WARNING})` : ''
+    const reply = [
+      `• الرقم: وفق موديل account.move.line في Odoo للفترة ${period.periodLabelAr}، بلغت الإيرادات المرحلة حتى الآن ${formatKwd1(revenue1)} د.ك وإجمالي المصروفات والتكاليف المرحلة ${formatKwd1(expenses1)} د.ك${warningClause}. صافي الربح: غير متاح.`,
+      `• السبب من البيانات: ${withheld.ar}؛ الفترة المطلوبة تشمل شهراً لم يُقفل بعد في دفتر الأستاذ العام.`,
+      `• الإجراء المحدد: يُقفل قسم المحاسبة الشهر في Odoo (تاريخ قفل الفترة) ثم يُعرض صافي الربح والهامش تلقائياً.`,
+      `• الأثر المتوقع (تقدير): لا يوجد تقدير — لا يُحتسب صافي ربح لشهر مفتوح.`,
+    ].join('\n')
+    return {
+      hasData: true,
+      primaryModel: 'account.move.line',
+      executedQueries,
+      toolNumbers,
+      allowedEntityNames,
+      deterministicReply: reply,
+      structuredFacts: {
+        model: 'account.move.line',
+        period: { from: period.from, to: period.to },
+        revenueKwd: revenue1,
+        expensesKwd: expenses1,
+        operatingProfitKwd: null,
+        netProfitWithheld: true,
+        glClosedThroughDate: acc.glClosedThroughDate ?? null,
+        glIncomplete: incompleteFlag,
+      },
+      requireGlIncompleteWarning: incompleteFlag,
+    }
+  }
 
   toolNumbers.push(
     rawRevenue,
@@ -2302,7 +2398,22 @@ export async function askFeryalOdooAgent(
     period: { from: string; to: string } | null
     structuredFacts?: Record<string, unknown>
     llmCandidateRejected?: boolean
+    sourceModel?: string
   }): Promise<AskFeryalOdooAgentResult> => {
+    let source: FeryalAnswerSource | null = null
+    if (params.status === 'answered' && params.sourceModel) {
+      let lastSyncAt: string | null = null
+      try {
+        const getLastSyncAt = input.dataSource
+          ? input.dataSource.getLastSyncAt
+          : DEFAULT_ODOO_DATA_SOURCE.getLastSyncAt
+        lastSyncAt = (await getLastSyncAt?.()) ?? null
+      } catch {
+        lastSyncAt = null
+      }
+      source = { system: 'Odoo 17', model: params.sourceModel, period: params.period, lastSyncAt }
+      params = { ...params, reply: `${params.reply}\n${formatFeryalSourceFooter(source)}` }
+    }
     const auditEntry: FeryalAuditLogEntry = {
       id: nextAuditEntryId(),
       timestampIso,
@@ -2327,6 +2438,7 @@ export async function askFeryalOdooAgent(
       toolNumbers: params.toolNumbers,
       period: params.period,
       facts: numericFactsFromStructured(params.structuredFacts ?? null, params.period),
+      source,
       auditEntry,
     }
   }
@@ -2548,6 +2660,7 @@ export async function askFeryalOdooAgent(
             toolNumbers: toolOutput.toolNumbers,
             period: activePeriod,
             structuredFacts: toolOutput.structuredFacts,
+            sourceModel: toolOutput.primaryModel,
           })
         }
         llmCandidateRejected = true
@@ -2587,5 +2700,6 @@ export async function askFeryalOdooAgent(
     period: activePeriod,
     structuredFacts: toolOutput.structuredFacts,
     llmCandidateRejected,
+    sourceModel: toolOutput.primaryModel,
   })
 }

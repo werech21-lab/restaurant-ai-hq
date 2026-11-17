@@ -9,6 +9,7 @@
  *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'قيود غير مكتملة لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
  */
 
+import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import type {
@@ -584,6 +585,12 @@ export interface WorkspaceLedgerAccounting {
   opexRentDeprPct: number | null
   beforeRentPct: number | null
   netProfitPct: number | null
+  /** GL closed-through date (Odoo `res.company` lock dates). */
+  glClosedThroughDate?: string | null
+  /** True when Net Profit / Net Margin are hidden because the window includes an open GL month. */
+  netProfitWithheld?: boolean
+  netProfitWithheldReasonAr?: string
+  netProfitWithheldReasonEn?: string
   unavailableReasonAr: string | null
   unavailableReasonEn: string | null
   revenueAccounts?: {
@@ -1589,6 +1596,20 @@ export function computeGlobalWorkspace(
       unavailableReasonAr: null,
       unavailableReasonEn: null,
       revenueAccounts: rawGl.revenueAccounts ?? [],
+      glClosedThroughDate: rawGl.glClosedThroughDate ?? null,
+      netProfitWithheld: false,
+    }
+    // Phase 5 · Item 7: Net Profit / Net Margin only for windows inside closed GL months.
+    if (!isWindowWithinClosedMonths(accounting.to, rawGl.glClosedThroughDate)) {
+      const reason = closedMonthWithheldReason(rawGl.glClosedThroughDate)
+      accounting = {
+        ...accounting,
+        operatingProfitKwd: null,
+        netProfitPct: null,
+        netProfitWithheld: true,
+        netProfitWithheldReasonAr: reason.ar,
+        netProfitWithheldReasonEn: reason.en,
+      }
     }
   }
 
@@ -1608,6 +1629,7 @@ export function computeGlobalWorkspace(
     : 0
   const groupWeightedNetPct =
     groupGlMonth &&
+    isWindowWithinClosedMonths(groupGlMonth.to, groupGlMonth.glClosedThroughDate) &&
     groupGlMonth.available !== false &&
     groupGlMonth.glIncomplete !== true &&
     groupGlMonth.completeAccrualPosted === true &&

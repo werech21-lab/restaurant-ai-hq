@@ -306,6 +306,14 @@ export function ExecutivePnlStudio() {
             {isAr ? 'هامش التشغيل: ' : 'Operating Margin: '}
             <NullablePctCell value={gl.netProfitPct} locale={resolvedLocale} />
           </span>
+          {gl.netProfitWithheld ? (
+            <span
+              data-net-profit-withheld="true"
+              className="mt-1 block text-xs font-medium text-slate-500 dark:text-slate-400"
+            >
+              {isAr ? gl.netProfitWithheldReasonAr : gl.netProfitWithheldReasonEn}
+            </span>
+          ) : null}
         </div>
       </div>
 

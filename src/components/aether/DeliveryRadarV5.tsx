@@ -27,6 +27,8 @@ import {
   resolveReceivablesDateRange,
   selectReceivablesHeadline,
 } from '@/lib/aether/receivables-headline'
+import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
+import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
@@ -763,7 +765,7 @@ export function DeliveryRadarV5({
                 <p className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                   {T('Open Unreconciled Receivables', 'الذمم المدينة المفتوحة للمنصات والمقاصة')}
                 </p>
-                <Wallet className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                <Wallet className="h-4 w-4 text-slate-500 dark:text-slate-400" aria-hidden />
               </div>
 
               {maskInternalCosts ? (
@@ -777,7 +779,7 @@ export function DeliveryRadarV5({
                     data-unavailable="true"
                     title={unavailableTip}
                     aria-label={unavailableTip}
-                    className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
+                    className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-slate-500 dark:text-slate-400"
                   >
                     {isAr ? 'غير متاح' : '—'}
                   </div>
@@ -786,6 +788,17 @@ export function DeliveryRadarV5({
                       {isAr ? 'غير متاح' : '—'}
                     </span>
                   </p>
+                </>
+              ) : !canShowReceivableAmounts(workspace.receivables) ? (
+                <>
+                  <ReceivablesPendingStatus isAr={isAr} className="mt-2.5" />
+                  {receivablesHeadline.lines !== null ? (
+                    <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                      {isAr
+                        ? `${f0(receivablesHeadline.lines, 'ar')} قيد غير مسوّى في دفتر الذمم`
+                        : `${f0(receivablesHeadline.lines, 'en')} unreconciled receivable lines`}
+                    </p>
+                  ) : null}
                 </>
               ) : (
                 <>

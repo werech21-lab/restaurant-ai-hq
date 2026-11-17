@@ -454,14 +454,16 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       question: 'كم صافي الربح والإيرادات والمصروفات في دفتر الأستاذ هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'account.move.line',
-      mustContain: ['61,840.0 د.ك', '48,000.5 د.ك', '13,839.5 د.ك'],
+      // Phase 5 · Item 7: November is an open GL month, so Net Profit is withheld (never estimated).
+      mustContain: ['61,840.0 د.ك', '48,000.5 د.ك', 'صافي الربح: غير متاح'],
     },
     {
       num: 16,
       question: 'كم رصيد الذمم المدينة المفتوحة هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'account.move.line',
-      mustContain: ['12,450.8 د.ك', '19 قيد'],
+      // Phase 5 · Item 2: no receivable amount until per-customer due-date aging is verified.
+      mustContain: ['قيد المطابقة مع المحاسبة', '19 قيد'],
     },
     {
       num: 17,

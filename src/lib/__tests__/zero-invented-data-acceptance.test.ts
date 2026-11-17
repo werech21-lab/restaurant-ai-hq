@@ -751,9 +751,14 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
           expect(ws.aggregatorCommissionUnposted).toBe(false)
           expect(ws.accounting.available).toBe(true)
           expect(ws.accounting.deliveryCommissionsKwd).toBeGreaterThan(0)
-          expect(ws.accounting.operatingProfitKwd).toBeGreaterThan(0)
-          expect(planning.accountingAvailable).toBe(true)
-          expect(planning.monthlyBaselineNetKwd).toBeGreaterThan(0)
+          // Phase 5 · Item 7: MTD / YTD windows include the open November GL month and the fixture
+          // carries no Odoo lock date, so Net Profit / Net Margin are withheld (never estimated).
+          expect(ws.accounting.operatingProfitKwd).toBeNull()
+          expect(ws.accounting.netProfitPct).toBeNull()
+          expect(ws.accounting.netProfitWithheld).toBe(true)
+          // Planning derives its net baseline from Net Margin, so it is withheld as well.
+          expect(planning.accountingAvailable).toBe(false)
+          expect(planning.monthlyBaselineNetKwd).toBe(0)
         }
       }
 

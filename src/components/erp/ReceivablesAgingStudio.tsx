@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
+import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileText, Wallet } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
@@ -21,6 +23,7 @@ export function ReceivablesAgingStudio() {
   const { workspace, liveSummary, syncingOdoo } = useGlobalFilter()
   const ar = workspace.receivables
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
+  const amountsVisible = canShowReceivableAmounts(ar)
 
   const syncStamp = liveSummary?.kuwaitSyncedAt
     ? liveSummary.kuwaitSyncedAt
@@ -103,13 +106,19 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300"
+            className={`ds-num mt-2 text-2xl font-extrabold tabular-nums ${ar.unavailable ? 'text-slate-500 dark:text-slate-400' : 'text-slate-950 dark:text-white'}`}
           >
-            {ar.unavailable
-              ? isAr
-                ? 'غير متاح'
-                : UNAVAILABLE_DASH
-              : formatKwd(ar.openReceivableKwd, resolvedLocale)}
+            {ar.unavailable ? (
+              isAr ? (
+                'غير متاح'
+              ) : (
+                UNAVAILABLE_DASH
+              )
+            ) : amountsVisible ? (
+              formatKwd(ar.openReceivableKwd, resolvedLocale)
+            ) : (
+              <ReceivablesPendingStatus isAr={isAr} showDetail />
+            )}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
             {isAr ? `من ${fromFormatted} إلى ${toFormatted}` : `${fromFormatted} → ${toFormatted}`}
@@ -150,7 +159,7 @@ export function ReceivablesAgingStudio() {
             title={ar.unavailable ? unavailableTooltip : undefined}
             aria-label={ar.unavailable ? unavailableTooltip : undefined}
             data-unavailable={ar.unavailable ? 'true' : undefined}
-            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
+            className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-950 dark:text-white"
           >
             {ar.unavailable
               ? isAr
@@ -193,11 +202,11 @@ export function ReceivablesAgingStudio() {
       </div>
 
       {/* Explanation of Open Lines */}
-      <section className="ae-bento-card rounded-2xl bg-amber-50/70 p-4 sm:p-5 ring-1 ring-amber-500/25 dark:bg-amber-950/25 dark:ring-amber-400/20">
+      <section className="ae-bento-card rounded-2xl bg-slate-50 p-4 sm:p-5 ring-1 ring-slate-300/60 dark:bg-white/[0.04] dark:ring-white/10">
         <div className="flex items-start gap-3">
-          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
           <div className="space-y-1">
-            <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
               {ar.unavailable
                 ? isAr
                   ? 'تفسير السطور المفتوحة في دفتر أستاذ أودو 17: غير متاح'
@@ -223,15 +232,11 @@ export function ReceivablesAgingStudio() {
               'شرائح أعمار الذمم المدينة (0–30، 31–60، أكثر من 60 يوماً)',
             )}
           </h3>
-          <p className="rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
-            {T(
-              'Per-partner ageing is unverified',
-              'أعمار الذمم حسب الشريك: غير مُتحقق',
-            )}
-          </p>
         </div>
         {ar.unavailable ? (
           <StateBlock state="unavailable" locale={resolvedLocale} compact />
+        ) : !amountsVisible ? (
+          <ReceivablesPendingStatus isAr={isAr} showDetail />
         ) : ar.agingBuckets.length === 0 ? (
           <StateBlock
             state="empty"

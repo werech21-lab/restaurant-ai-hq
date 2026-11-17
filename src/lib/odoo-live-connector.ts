@@ -16,6 +16,7 @@ import 'server-only'
  *   company totals so zero fils are ever lost.
  * - Stale-While-Revalidate cache (`TTL: 60s`) + `lastKnownGoodSnapshot` circuit breaker + `30s` manual sync cooldown.
  */
+import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   channelOfPaymentMethod,
@@ -1062,6 +1063,42 @@ function isRentPayrollOrDeprGlAccount(code: string, name: string, accountType: s
   const c = (code || '').trim()
   if (/^(403|40478|40493|4055|4076)/.test(c)) return true
   return /rental|ايجار|إيجار|salar|رواتب|اجور|أجور|depreciation|اهلاك|إهلاك/i.test(name || '')
+}
+
+const GL_LOCK_CACHE_TTL_MS = 15 * 60 * 1000
+const glLockCache = new Map<string, { at: number; value: string | null }>()
+
+/**
+ * Phase 5 · Item 7: reads Odoo 17 `res.company` lock dates and returns the GL closed-through date.
+ * Fail-closed: a read error yields `null` so no month is treated as closed.
+ */
+async function fetchGlClosedThroughDate(companyId: number | null): Promise<string | null> {
+  const key = String(companyId ?? 'default')
+  const cached = glLockCache.get(key)
+  if (cached && Date.now() - cached.at < GL_LOCK_CACHE_TTL_MS) return cached.value
+  let value: string | null = null
+  try {
+    const rows = await executeOdooKw<{ period_lock_date?: string | false; fiscalyear_lock_date?: string | false }[]>(
+      'res.company',
+      'search_read',
+      [companyId ? [['id', '=', companyId]] : []],
+      { fields: ['period_lock_date', 'fiscalyear_lock_date'], limit: 1 },
+      { timeoutMs: 8000 },
+    )
+    const row = rows?.[0]
+    value = row ? resolveGlClosedThroughDate(row.period_lock_date, row.fiscalyear_lock_date) : null
+  } catch {
+    value = null
+  }
+  glLockCache.set(key, { at: Date.now(), value })
+  return value
+}
+
+function withGlClosedThrough<T extends OdooLedgerAccountingSummary | null | undefined>(
+  acc: T,
+  closedThrough: string | null,
+): T {
+  return acc ? ({ ...acc, glClosedThroughDate: closedThrough } as T) : acc
 }
 
 export function buildLedgerAccountingFromGroups(params: {
@@ -3208,7 +3245,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const todayInclusiveIso = shiftIsoDate(todayBucketTo, -1)
   const canonicalInclusiveIso = shiftIsoDate(canonicalBucketToExclusive, -1)
   const glAccountsFailed = unavailableSectionSet.has('gl.accounts')
-  const liveTodayAccounting =
+  const liveTodayAccountingRaw =
     glAccountsFailed || unavailableSectionSet.has('gl.today')
       ? null
       : activeGlAccountIds.length > 0
@@ -3219,7 +3256,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             rows: glTodayRows,
           })
         : undefined
-  const liveWeekAccounting =
+  const liveWeekAccountingRaw =
     glAccountsFailed || unavailableSectionSet.has('gl.week')
       ? null
       : activeGlAccountIds.length > 0
@@ -3230,7 +3267,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             rows: glWeekRows,
           })
         : undefined
-  const liveMonthAccounting =
+  const liveMonthAccountingRaw =
     glAccountsFailed || unavailableSectionSet.has('gl.month')
       ? null
       : activeGlAccountIds.length > 0
@@ -3241,7 +3278,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             rows: glMonthRows,
           })
         : undefined
-  const liveYearAccounting =
+  const liveYearAccountingRaw =
     glAccountsFailed || unavailableSectionSet.has('gl.year')
       ? null
       : activeGlAccountIds.length > 0
@@ -3252,6 +3289,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             rows: glYearRows,
           })
         : undefined
+  const glClosedThroughDate = glAccountsFailed ? null : await fetchGlClosedThroughDate(resolvedCompanyId)
+  const liveTodayAccounting = withGlClosedThrough(liveTodayAccountingRaw, glClosedThroughDate)
+  const liveWeekAccounting = withGlClosedThrough(liveWeekAccountingRaw, glClosedThroughDate)
+  const liveMonthAccounting = withGlClosedThrough(liveMonthAccountingRaw, glClosedThroughDate)
+  const liveYearAccounting = withGlClosedThrough(liveYearAccountingRaw, glClosedThroughDate)
 
   const todayBucket = buildReconciledBucket({
     key: 'today',
@@ -5151,7 +5193,7 @@ export async function fetchLiveOdooPeriodCube(
     )
     const excludedEntitiesOrders = Math.max(0, Math.round(Number(decommOrderRows?.[0]?.__count) || 0))
 
-    const accounting =
+    const accounting = withGlClosedThrough(
       activeAccIds.length > 0
         ? buildLedgerAccountingFromGroups({
             fromIso: dateRange.from,
@@ -5159,7 +5201,9 @@ export async function fetchLiveOdooPeriodCube(
             accountById: activeAccMap,
             rows: glRows,
           })
-        : undefined
+        : undefined,
+      activeAccIds.length > 0 ? await fetchGlClosedThroughDate(resolvedCompanyId) : null,
+    )
 
     const newestConv = odooUtcToKuwaitIso(latestOrderRows?.[0]?.date_order)
     const freshness = newestConv

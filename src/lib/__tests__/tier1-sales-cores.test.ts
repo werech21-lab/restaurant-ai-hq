@@ -541,9 +541,11 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
 
     // 3. Connected live snapshot in Sales tab (strict 3-decimal KWD, AR + EN)
     setMockFilterContext({ liveSummary, liveCube })
+    // Phase 5 · Item 1: hourly buckets come only from the selected-period cube (never the summary's
+    // month-to-date hourly series), so the cube is handed to the studio explicitly.
     const salesAr = renderWithLang(
       'ar',
-      React.createElement(CoresHubStudioComponent, { initialTab: 'sales' }),
+      React.createElement(CoresHubStudioComponent, { initialTab: 'sales', initialLiveCube: liveCube }),
     )
     expect(salesAr).toContain('23,568.500')
     expect(salesAr).toContain('2,145.625')
@@ -661,7 +663,9 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
     setMockFilterContext({ liveSummary: buildLiveSummary(), liveCube: buildLiveCube() })
     const connectedEn = renderWithLang('en', React.createElement(DeliveryRadarV5))
     expect(connectedEn).toContain('KWD')
-    expect(connectedEn).toContain('6,420.375')
+    // Phase 5 · Item 2: open receivables render as a neutral status, never as an amount.
+    expect(connectedEn).toContain('Pending Accounting Reconciliation')
+    expect(connectedEn).not.toContain('6,420.375')
   })
 
   it('/erp/weekday-comparison, /erp/before-after & control bar render honest states, AR/EN copy, 3-decimal KWD & Least Decline badge', () => {

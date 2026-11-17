@@ -122,13 +122,12 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(buildArTieOut({ openDebitsKwd: null, unappliedCreditsKwd: null, openReceivableKwd: 1182.708 })).toBeNull()
   })
 
-  it('due-date basis: the card shows the aging total and the unapplied credits that add up to open AR', async () => {
+  it('due-date basis: until per-customer aging is verified (Phase 5 · Item 2) the card shows the neutral status, not the tie-out amounts', async () => {
     const html = await renderDashboard(withDueDateAging(loadLiveTodaySummary()), 'all')
-    const tie = textOfAttr(html, 'data-ar-tie-out', 'ties')
-    expect(tie).toContain('3,776.200')
-    expect(tie).toContain('2,593.492')
-    expect(tie).toContain('1,182.708')
-    expect(html).not.toContain('data-ar-tie-out="mismatch"')
+    expect(html).toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).toContain('قيد المطابقة مع المحاسبة')
+    expect(html).not.toContain('data-ar-tie-out=')
+    expect(html).not.toContain('1,182.708')
   })
 
   it('the reconciliation formula uses the same line-level credit figure as the card', () => {
@@ -139,11 +138,11 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(String(ws.receivables.reconciliationFormulaEn).toLowerCase()).toContain('unapplied')
   })
 
-  it('legacy payload: no tie-out and no second credit figure, only the hidden-aging reason', async () => {
+  it('legacy payload: no tie-out and no second credit figure; neutral pending status instead of amounts', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), 'all')
     expect(html).not.toContain('data-ar-tie-out=')
     expect(html).not.toContain('data-ar-unapplied-credits=')
-    expect(html).toContain('data-ar-aging-hidden="true"')
+    expect(html).toContain('data-receivables-status="pending-reconciliation"')
   })
 })
 

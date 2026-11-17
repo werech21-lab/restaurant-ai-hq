@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import {
+  Clock,
   AlertTriangle,
   ArrowUpRight,
   Building2,
@@ -49,6 +50,8 @@ import {
 } from '@/lib/aether/brand-scope'
 import { ScopeBadge } from '@/components/aether/ScopeBadge'
 import { buildArTieOut } from '@/lib/odoo/receivable-aging'
+import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
+import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
@@ -678,6 +681,7 @@ export function FullJourney360() {
         openReceivableKwd: workspace.receivables.openReceivableKwd,
       })
 
+  const receivablesAmountsVisible = canShowReceivableAmounts(workspace.receivables)
   const isInitialLoading = syncingOdoo && !liveSummary
   const isDisconnectedOrEmpty = !workspace.odooConnected || workspace.noData
 
@@ -1135,9 +1139,18 @@ export function FullJourney360() {
                       />
                       {!hasPostedOperatingProfit || glIncomplete ? (
                         <div className="space-y-1">
-                          <div className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100/85 px-3 py-1.5 text-sm font-extrabold text-amber-950 ring-1 ring-amber-500/25 backdrop-blur-sm dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/25">
-                            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span>{T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}</span>
+                          <div
+                            data-net-profit-withheld={gl.netProfitWithheld ? 'true' : undefined}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100/90 px-3 py-1.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-300/60 backdrop-blur-sm dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
+                          >
+                            <Clock className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+                            <span>
+                              {gl.netProfitWithheld
+                                ? isAr
+                                  ? gl.netProfitWithheldReasonAr
+                                  : gl.netProfitWithheldReasonEn
+                                : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}
+                            </span>
                           </div>
                           {hasPostedOperatingProfit ? (
                             <p className="text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
@@ -1636,7 +1649,7 @@ export function FullJourney360() {
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Open Receivables & Ledger Status', 'الذمم المدينة المفتوحة وحالة الدفتر')}
                     </h2>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-400/30 dark:bg-amber-950/60 dark:text-amber-200 dark:ring-amber-400/25">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                       <Wallet className="h-3.5 w-3.5" />
                       <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
                     </span>
@@ -1654,10 +1667,10 @@ export function FullJourney360() {
                     <div className="space-y-3">
                       <Link
                         href={isErpRouteAllowedForRole(sessionRole, '/erp/receivables') ? '/erp/receivables' : '/erp/cores'}
-                        className="block rounded-[20px] bg-amber-50/70 p-4 ring-1 ring-amber-400/30 backdrop-blur-sm transition-colors hover:bg-amber-50/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-amber-950/25 dark:ring-amber-400/25 dark:hover:bg-amber-950/35"
+                        className="block rounded-[20px] bg-slate-50/80 p-4 ring-1 ring-slate-300/60 backdrop-blur-sm transition-colors hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.04] dark:ring-white/10 dark:hover:bg-white/[0.07]"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-amber-950 dark:text-amber-200">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                             {T('Unreconciled Open Receivables', 'إجمالي الذمم المدينة غير المسوّاة')}
                           </span>
                           <span
@@ -1665,15 +1678,19 @@ export function FullJourney360() {
                             title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                            className="text-lg font-extrabold tabular-nums text-amber-900 dark:text-amber-200"
+                            className="text-lg font-extrabold tabular-nums text-slate-900 dark:text-slate-100"
                           >
-                            {workspace.receivables.unavailable
-                              ? UNAVAILABLE_DASH
-                              : fmtKwdVal(workspace.receivables.openReceivableKwd)}
+                            {workspace.receivables.unavailable ? (
+                              UNAVAILABLE_DASH
+                            ) : receivablesAmountsVisible ? (
+                              fmtKwdVal(workspace.receivables.openReceivableKwd)
+                            ) : (
+                              <ReceivablesPendingStatus isAr={isAr} size="sm" />
+                            )}
                           </span>
                         </div>
 
-                        {!workspace.receivables.unavailable &&
+                        {receivablesAmountsVisible &&
                         workspace.receivables.agingBuckets.length > 0 ? (
                           <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
                             {workspace.receivables.agingBuckets.map((bkt) => (
@@ -1695,7 +1712,7 @@ export function FullJourney360() {
                           </div>
                         ) : null}
 
-                        {arTieOut ? (
+                        {receivablesAmountsVisible && arTieOut ? (
                           <dl
                             data-ar-tie-out={arTieOut.ties ? 'ties' : 'mismatch'}
                             className="mt-2.5 space-y-1 text-xs font-medium text-slate-700 dark:text-slate-300"
@@ -1720,7 +1737,7 @@ export function FullJourney360() {
                             )}
                           </dl>
                         ) : null}
-                        {!workspace.receivables.unavailable && workspace.receivables.agingHiddenReasonAr ? (
+                        {receivablesAmountsVisible && workspace.receivables.agingHiddenReasonAr ? (
                           <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-amber-900 dark:text-amber-200">
                             {isAr ? workspace.receivables.agingHiddenReasonAr : workspace.receivables.agingHiddenReasonEn}
                           </p>

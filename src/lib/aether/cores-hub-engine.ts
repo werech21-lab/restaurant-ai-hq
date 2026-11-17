@@ -33,6 +33,11 @@ import {
   type CampaignHaloEvaluation,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
+import {
+  reconcileHourlyToPeriod,
+  selectDisplayHours,
+  type HourlyReconciliation,
+} from '@/lib/aether/hourly-integrity'
 
 export type DishSimpleTag = 'golden' | 'reprice' | 'box-gem' | 'slow'
 
@@ -201,6 +206,8 @@ export interface CoresHubSnapshot {
   sales: {
     headline: PeriodCubeHeadline
     hourlyUnavailable: boolean
+    /** `sum(hourly) === selected period total` check (fils-exact); `null` until the period cube loads. */
+    hourlyReconciliation: HourlyReconciliation | null
     channelsUnavailable: boolean
     branchesUnavailable: boolean
     brandsUnavailable: boolean
@@ -511,6 +518,7 @@ export function computeCoresHubSnapshot(
       sales: {
         headline: { netSalesKwd: null, orders: null, aovKwd: null },
         hourlyUnavailable: false,
+        hourlyReconciliation: null,
         channelsUnavailable: false,
         branchesUnavailable: false,
         brandsUnavailable: false,
@@ -648,14 +656,22 @@ export function computeCoresHubSnapshot(
   const strongestDayLabelEn = bestDow >= 0 ? dayNamesEn[bestDow] : '—'
 
   // 2. Live hourly series (from liveCube when loaded, or liveSummary.hourlySeries)
+  // Phase 5 · Item 1: hourly buckets come ONLY from the selected-period cube. The summary's
+  // hourly series covers month-to-date, so it is never substituted for another period.
   const hourlyUnavailable = Boolean(!liveCube && liveSummary?.hourlySeries === null)
-  const orderedHours = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1]
   const rawHourly =
     liveCube
       ? filters.branch !== 'all'
         ? liveCube.hourlyByBranch?.[filters.branch] ?? []
         : liveCube.hourlySeries ?? []
-      : liveSummary?.hourlySeries ?? []
+      : []
+  const orderedHours = selectDisplayHours(rawHourly)
+  const hourlyPeriodTotalKwd: number | null = liveCube
+    ? filters.branch === 'all'
+      ? safeNum(liveCube.totals?.netSalesKwd)
+      : (liveCube.byBranch as Record<string, { netKwd: number } | undefined>)?.[filters.branch]?.netKwd ?? null
+    : null
+  const hourlyReconciliation = reconcileHourlyToPeriod(rawHourly, hourlyPeriodTotalKwd)
 
   const hourlyDenom = rawHourly.reduce((s, r) => s + safeNum(r.netKwd), 0)
   const hourlyPrelim: SalesPoint[] =
@@ -1043,6 +1059,7 @@ export function computeCoresHubSnapshot(
     sales: {
       headline,
       hourlyUnavailable,
+      hourlyReconciliation: liveCube ? hourlyReconciliation : null,
       channelsUnavailable,
       branchesUnavailable,
       brandsUnavailable,

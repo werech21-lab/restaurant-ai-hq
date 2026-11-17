@@ -285,15 +285,46 @@ export function normalizeDigits(text: string): string {
   return out
 }
 
+const AR_WORD_END = '(?=[\\s؟?.,!؛:()«»"\'-]|$)'
+const AR_WORD_START = '(^|[\\s(«"\'-])'
+
+/**
+ * Phase 5 · Item 3 — Gulf / Kuwaiti dialect canonicalisation, applied after base normalisation so
+ * every downstream matcher (periods, channels, intents) understands colloquial phrasing.
+ */
+const GULF_DIALECT_RULES: readonly [RegExp, string][] = [
+  // yesterday: امبارح / إمبارح / البارح / بارح → امس
+  [new RegExp(`${AR_WORD_START}(امبارح|امبارحه|البارح|بارح)${AR_WORD_END}`, 'g'), '$1امس'],
+  // "this <period>": هالشهر / هالاسبوع / هالسنه / هاليوم
+  [new RegExp(`${AR_WORD_START}هالشهر${AR_WORD_END}`, 'g'), '$1هذا الشهر'],
+  [new RegExp(`${AR_WORD_START}هالاسبوع${AR_WORD_END}`, 'g'), '$1هذا الاسبوع'],
+  [new RegExp(`${AR_WORD_START}(هالسنه|هالعام)${AR_WORD_END}`, 'g'), '$1هذه السنه'],
+  [new RegExp(`${AR_WORD_START}هاليوم${AR_WORD_END}`, 'g'), '$1اليوم'],
+  // Talabat fleet codes typed bare (TGO / TMP) or as "طلبات TGO"
+  [/(^|[^a-z-])(?:طلبات\s+)?tgo\b/g, '$1talabat tgo'],
+  [/(^|[^a-z-])(?:طلبات\s+)?tmp\b/g, '$1talabat tmp'],
+  [/talabat talabat/g, 'talabat'],
+  // Keeta spelling variants
+  [new RegExp(`${AR_WORD_START}(كييتا|كيته)${AR_WORD_END}`, 'g'), '$1كيتا'],
+]
+
+export function normalizeGulfDialect(normalized: string): string {
+  let out = normalized
+  for (const [re, rep] of GULF_DIALECT_RULES) out = out.replace(re, rep)
+  return out.replace(/\s+/g, ' ').trim()
+}
+
 export function normalizeArabicText(text: string): string {
-  return normalizeDigits(text)
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return normalizeGulfDialect(
+    normalizeDigits(text)
+      .toLowerCase()
+      .replace(/[أإآ]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  )
 }
 
 export function validateFeryalContextDefaults(

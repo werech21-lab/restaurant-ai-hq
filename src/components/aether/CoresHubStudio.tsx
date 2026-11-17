@@ -817,6 +817,20 @@ export function CoresHubStudio({
                 title={isAr ? 'لا توجد بيانات ساعية لهذه الفترة' : 'No hourly data for this period'}
               />
             )}
+            {snapshot.sales.hourlyReconciliation && hourlyBars.length > 0 ? (
+              <p
+                data-hourly-reconciled={snapshot.sales.hourlyReconciliation.reconciled ? 'true' : 'false'}
+                className="mt-2 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400"
+              >
+                {snapshot.sales.hourlyReconciliation.reconciled
+                  ? isAr
+                    ? `مجموع الساعات = إجمالي الفترة (${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })}) · الفرق 0.000 د.ك`
+                    : `Σ hourly = period total (${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })}) · variance 0.000 KWD`
+                  : isAr
+                    ? `مجموع الساعات ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} مقابل إجمالي الفترة ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })} — قيد المطابقة`
+                    : `Σ hourly ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} vs period total ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })} — pending reconciliation`}
+              </p>
+            ) : null}
           </div>
 
           {/* 3-Column Breakdown: 7 Branches + Unattributed | 6 Brands | Channels */}
