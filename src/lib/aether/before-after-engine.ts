@@ -490,13 +490,15 @@ export function computeBeforeAfterSnapshot(
     1,
     true,
   )
+  // Unknown order counts (null) mark the pair unavailable instead of comparing zeros.
+  const ordersKnown = comp.selectionA.completedOrders !== null && comp.selectionB.completedOrders !== null
   const ordersPair = pair(
-    comp.selectionB.completedOrders,
-    comp.selectionA.completedOrders,
+    comp.selectionB.completedOrders ?? 0,
+    comp.selectionA.completedOrders ?? 0,
     0,
-    true,
+    ordersKnown,
   )
-  const aovPair = pair(comp.selectionB.aovKwd, comp.selectionA.aovKwd, 2, true)
+  const aovPair = pair(comp.selectionB.aovKwd ?? 0, comp.selectionA.aovKwd ?? 0, 2, ordersKnown)
 
   const bothGlPosted = comp.accountingAvailable
   const pocketPair = bothGlPosted

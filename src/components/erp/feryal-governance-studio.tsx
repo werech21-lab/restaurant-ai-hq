@@ -242,6 +242,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const isAr = fmtLocale === 'ar'
   const isAuditor = sessionRole === 'auditor'
   const { workspace, liveSummary } = useGlobalFilter()
+  // A brand order count Odoo could not supply is unknown (—), never 0.
+  const ordersUnknown = !workspace.odooConnected || workspace.nullableOrders === null
   const [chatSyncAt, setChatSyncAt] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1685,14 +1687,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
                 <div
                   dir="ltr"
-                  data-unavailable={!workspace.odooConnected ? 'true' : undefined}
-                  title={!workspace.odooConnected ? unavailableTooltip : undefined}
-                  aria-label={!workspace.odooConnected ? unavailableTooltip : undefined}
+                  data-feryal-orders="value"
+                  data-unavailable={ordersUnknown ? 'true' : undefined}
+                  title={ordersUnknown ? unavailableTooltip : undefined}
+                  aria-label={ordersUnknown ? unavailableTooltip : undefined}
                   className="mt-1.5 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
                 >
-                  {workspace.odooConnected
-                    ? formatInt(workspace.orders, { locale: fmtLocale })
-                    : UNAVAILABLE_DASH}
+                  {ordersUnknown ? UNAVAILABLE_DASH : formatInt(workspace.nullableOrders, { locale: fmtLocale })}
                 </div>
               </article>
 

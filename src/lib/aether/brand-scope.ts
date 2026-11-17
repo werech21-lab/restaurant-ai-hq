@@ -12,6 +12,8 @@ export const SCOPE_LABELS = {
   unavailableForFilter: { ar: 'غير متاح لهذا الفلتر', en: 'Not available for this filter' },
   noComparison: { ar: 'لا توجد مقارنة', en: 'No comparison' },
   productLinesBasis: { ar: 'الأساس: سطور المنتجات', en: 'Basis: product lines' },
+  /** The gap is Σ all brands' product lines − order net; it is not the selected brand's own gap. */
+  allBrandsBasisGap: { ar: 'الفرق بين مجموع كل العلامات وصافي الطلبات', en: 'Σ all brands vs order net' },
   multiBrandOrders: {
     ar: 'الطلب الذي يحتوي على أكثر من علامة يُحسب مرة لكل علامة',
     en: 'An order with items from several brands counts once for each brand',
@@ -34,6 +36,10 @@ export type BranchScope =
 function finiteOrZero(v: unknown): number {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
+}
+
+function countOrNull(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : null
 }
 
 function unavailable(): BranchScope {
@@ -71,7 +77,7 @@ export function resolveBranchScope(
   if (!byLoc) return unavailable()
   const cellOf = (key: string): ScopedCell => ({
     netKwd: finiteOrZero(byLoc[key]?.[brand]?.netKwd),
-    orders: Math.round(finiteOrZero(byLoc[key]?.[brand]?.orders)),
+    orders: countOrNull(byLoc[key]?.[brand]?.orders),
   })
   return {
     available: true,
@@ -164,4 +170,35 @@ export function resolveDailySeriesForBrand(
     weekBucket.to > window.toInclusiveIso
   if (brandSeries && coversWindow) return { scope: 'brand', series: brandSeries.filter(inWindow) }
   return { scope: 'all-brands', series: company }
+}
+
+export type ScopeBadgeKind = 'company-wide' | 'all-brands'
+
+export interface ComboChartScope {
+  /** Label shown on the chart; `null` when the series already matches the filter. */
+  badge: ScopeBadgeKind | null
+  /** The posted GL margin is company-wide; it is only drawn over a company (all-brand) series. */
+  plotCompanyMargin: boolean
+}
+
+/**
+ * Scope of the "POS sales & posted operating net" chart. Under a brand filter the timeline may
+ * still be the company series (no brand days for that window): it is then labelled "all brands".
+ * A brand-scoped series never gets the company GL margin drawn over it.
+ */
+export function resolveComboChartScope(input: {
+  brand: string
+  group: 'timeline' | 'branches'
+  timelineScope: 'brand' | 'all-brands'
+}): ComboChartScope {
+  const companySeries = input.group === 'timeline' && (input.brand === ALL || input.timelineScope === 'all-brands')
+  return {
+    badge: input.brand !== ALL && companySeries ? 'all-brands' : null,
+    plotCompanyMargin: companySeries,
+  }
+}
+
+/** Company-wide cards (GL, commissions, AR) carry a badge whenever a brand is selected. */
+export function companyWideBadgeFor(brand: string): ScopeBadgeKind | null {
+  return brand === ALL ? null : 'company-wide'
 }

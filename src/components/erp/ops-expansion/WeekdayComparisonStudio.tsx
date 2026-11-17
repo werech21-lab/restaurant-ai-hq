@@ -76,8 +76,9 @@ const DEFAULT_STUDIO_QUERY: ErpComparisonQuery = {
   entityB: 'franks',
 }
 
-const fmt0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
-const fmtKwd = (n: number, locale: FormatLocale = 'en') =>
+/** `null` (unknown, e.g. brand orders Odoo could not count) renders as —. */
+const fmt0 = (n: number | null, locale: FormatLocale = 'en') => formatInt(n, locale)
+const fmtKwd = (n: number | null, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3 })
 const fmtSignedKwd = (n: number, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3, signed: true })

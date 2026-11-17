@@ -55,7 +55,13 @@ import {
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
 import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
-import { countOrdersPerBrand, fetchExactBrandAllocation, type OdooExecute } from '@/lib/odoo/brand-scope-fetch'
+import {
+  allocateExactBrandRows,
+  countOrdersPerBrandWithin,
+  startExactBrandRowsRead,
+  type ExactBrandRows,
+  type OdooExecute,
+} from '@/lib/odoo/brand-scope-fetch'
 import {
   buildPosOrderUtcDomain,
   buildPosPaymentUtcDomain,
@@ -1897,6 +1903,25 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         })
       : [['id', '=', 0]]
 
+  // 3a. Exact brand scope rows (today + last 7 days) start now, alongside the main reads, under a
+  // fixed time budget. A slow or failed read resolves `null` and the bucket keeps the labelled
+  // product-line basis (see `startExactBrandRowsRead`).
+  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[][] => [
+    ['order_id.date_order', '>=', b.fromUtc],
+    ['order_id.date_order', '<', b.toUtc],
+    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
+    ...companyLineClause,
+  ]
+  const exactBrandRowsOf = (b: { fromUtc: string; toUtc: string }) =>
+    startExactBrandRowsRead(executeOdooKw as OdooExecute, {
+      orderDomain: posOrderDomainOf(b, false),
+      lineDomain: companyLineWindowDomain(b),
+      excludedCategoryIds: [...excludedPosCategoryIds],
+    })
+  const exactBrandRowsToday = exactBrandRowsOf(boundsToday)
+  const exactBrandRowsWeek = exactBrandRowsOf(boundsWeek)
+
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
   // leaves real KWD paired with 0 orders or a distorted average ticket.
@@ -3069,23 +3094,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     isExcludedProductName: (name: string) => isExcludedOdooEntity(name) || isNonCompanyCatalogItem(null, name),
     kuwaitDayOf: (dateOrderUtc: string | undefined) => odooUtcToKuwaitIso(dateOrderUtc)?.kuwaitDate ?? null,
   }
-  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[][] => [
-    ['order_id.date_order', '>=', b.fromUtc],
-    ['order_id.date_order', '<', b.toUtc],
-    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...companyLineClause,
-  ]
-  const exactBrandAllocationOf = (b: { fromUtc: string; toUtc: string }) =>
-    safeSubQuery(
-      () =>
-        fetchExactBrandAllocation(executeOdooKw as OdooExecute, {
-          orderDomain: posOrderDomainOf(b, false),
-          lineDomain: companyLineWindowDomain(b),
-          excludedCategoryIds: [...excludedPosCategoryIds],
-        }, brandScopeMapping),
-      null,
-    )
+  const exactBrandAllocationOf = async (rowsRead: Promise<ExactBrandRows | null>) => {
+    const rows = await rowsRead
+    return rows ? allocateExactBrandRows(rows, brandScopeMapping) : null
+  }
   const productIdsByBrandOf = (rows: { product_id: M2O }[]): Map<string, number[]> => {
     const byBrand = new Map<string, number[]>()
     for (const r of rows) {
@@ -3098,15 +3110,13 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     return byBrand
   }
   const brandOrderCountsOf = (b: { fromUtc: string; toUtc: string }, rows: { product_id: M2O }[]) =>
-    safeSubQuery<Map<string, number> | null>(
-      () => countOrdersPerBrand(executeOdooKw as OdooExecute, posOrderDomainOf(b, true), productIdsByBrandOf(rows), ACTIVE_BRAND_IDS),
-      null,
-    )
+    countOrdersPerBrandWithin(executeOdooKw as OdooExecute, posOrderDomainOf(b, true), productIdsByBrandOf(rows), ACTIVE_BRAND_IDS)
+  // The per-order rows were started with the main reads (step 3); only the counts start here.
   const [brandAllocationToday, brandAllocationWeek, brandOrders30, brandOrdersYear] = brandMetaFailed
     ? [null, null, null, null]
     : await Promise.all([
-        exactBrandAllocationOf(boundsToday),
-        exactBrandAllocationOf(boundsWeek),
+        exactBrandAllocationOf(exactBrandRowsToday),
+        exactBrandAllocationOf(exactBrandRowsWeek),
         brandOrderCountsOf(boundsMonth, productLines30Rows),
         brandOrderCountsOf(boundsYear, productLinesYearRows),
       ])
@@ -5033,9 +5043,12 @@ export async function fetchLiveOdooPeriodCube(
       const bid = pid !== null ? productMetaById.get(pid)?.brandId : undefined
       if (pid !== null && bid) cubeProductIdsByBrand.set(bid, [...(cubeProductIdsByBrand.get(bid) ?? []), pid])
     }
-    const cubeBrandOrders = await safeSubQuery<Map<string, number> | null>(
-      () => countOrdersPerBrand(executeOdooKw as OdooExecute, cubeOrderDomain(true), cubeProductIdsByBrand, ACTIVE_BRAND_IDS),
-      null,
+    // Bounded: a slow count leaves brand orders unknown (—) instead of holding the route.
+    const cubeBrandOrders = await countOrdersPerBrandWithin(
+      executeOdooKw as OdooExecute,
+      cubeOrderDomain(true),
+      cubeProductIdsByBrand,
+      ACTIVE_BRAND_IDS,
     )
 
     for (const bid of ACTIVE_BRAND_IDS) {

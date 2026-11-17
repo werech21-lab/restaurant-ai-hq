@@ -632,8 +632,13 @@ export function BeforeAfterStudio() {
                 kpi.id === 'foodAndAggregatorCost' ||
                 kpi.id === 'netPocketCash' ||
                 kpi.id === 'netPocketMargin'
+              // GL KPIs follow the accounting state; order KPIs are unavailable when counts are unknown.
               const isUnavailable =
-                isGlKpi && (!comparison.accountingAvailable || kpi.available === false)
+                kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
+              const unavailableNoteAr = isGlKpi
+                ? 'قيود غير مكتملة لهذه الفترة'
+                : kpi.unavailableReasonAr ?? 'غير متاح'
+              const unavailableNoteEn = isGlKpi ? 'Incomplete GL entries' : kpi.unavailableReasonEn ?? 'Unavailable'
               const signed = formatSignedDelta(kpi.deltaPct)
               const badgeTone =
                 kpi.trend === 'flat' || signed.sign === 'flat'
@@ -670,13 +675,15 @@ export function BeforeAfterStudio() {
                         {UNAVAILABLE_DASH}
                       </div>
                       <div className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                        {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries'}
+                        {isAr ? unavailableNoteAr : unavailableNoteEn}
                       </div>
-                      <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
-                        {isAr
-                          ? comparison.accountingUnavailableReasonAr ?? 'قيود غير مكتملة لهذه الفترة'
-                          : comparison.accountingUnavailableReasonEn ?? 'Incomplete GL entries'}
-                      </p>
+                      {isGlKpi ? (
+                        <p className="mt-2 border-t border-slate-100 pt-1.5 text-xs leading-snug text-neutral-500 dark:border-white/[0.06] dark:text-slate-400">
+                          {isAr
+                            ? comparison.accountingUnavailableReasonAr ?? 'قيود غير مكتملة لهذه الفترة'
+                            : comparison.accountingUnavailableReasonEn ?? 'Incomplete GL entries'}
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <>

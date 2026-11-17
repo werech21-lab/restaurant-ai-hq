@@ -193,3 +193,70 @@ export function toDisplayableAging(raw: {
     hiddenReasonEn: hasLegacy ? LEGACY_AGING_HIDDEN.en : null,
   }
 }
+
+/** Open debits and unapplied credits are rounded separately; one fils of drift still ties. */
+const AR_TIE_TOLERANCE_FILS = 1
+const FILS_PER_KWD = 1000
+
+export interface ArTieOut {
+  openDebitsKwd: number
+  unappliedCreditsKwd: number
+  openReceivableKwd: number
+  ties: boolean
+  /** Open AR − (open debits + unapplied credits); 0 when it ties. */
+  differenceKwd: number
+}
+
+/**
+ * The AR card's one credit decomposition: aging total (open debits) + unapplied credits = open AR.
+ * `null` when the payload has no due-date aging (legacy payloads), so nothing half-ties on screen.
+ */
+export function buildArTieOut(input: {
+  openDebitsKwd: number | null
+  unappliedCreditsKwd: number | null
+  openReceivableKwd: number
+}): ArTieOut | null {
+  if (input.openDebitsKwd === null || input.unappliedCreditsKwd === null) return null
+  const toFils = (kwd: number) => Math.round(kwd * FILS_PER_KWD)
+  const diffFils = toFils(input.openReceivableKwd) - toFils(input.openDebitsKwd) - toFils(input.unappliedCreditsKwd)
+  const ties = Math.abs(diffFils) <= AR_TIE_TOLERANCE_FILS
+  return {
+    openDebitsKwd: input.openDebitsKwd,
+    unappliedCreditsKwd: input.unappliedCreditsKwd,
+    openReceivableKwd: input.openReceivableKwd,
+    ties,
+    differenceKwd: ties ? 0 : diffFils / FILS_PER_KWD,
+  }
+}
+
+function fmt2(kwd: number): string {
+  return kwd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/**
+ * The receivables formula line. With due-date aging it uses the same line-level split as the AR
+ * card (open debits − unapplied credits); older payloads keep the account-level split they carry.
+ */
+export function formatArReconciliationFormula(input: {
+  openReceivableKwd: number
+  grossPositiveReceivableKwd: number
+  creditClearingOffsetKwd: number
+  openDebitsKwd: number | null
+  unappliedCreditsKwd: number | null
+}): { ar: string; en: string } {
+  const net = fmt2(input.openReceivableKwd)
+  if (input.openDebitsKwd !== null && input.unappliedCreditsKwd !== null) {
+    const debits = fmt2(input.openDebitsKwd)
+    const credits = fmt2(Math.abs(input.unappliedCreditsKwd))
+    return {
+      ar: `${debits} د.ك مدين مفتوح (أعمار الذمم) − ${credits} د.ك دفعات ومقاصات غير مطابقة = ${net} د.ك صافي`,
+      en: `${debits} KWD open debits (aging) − ${credits} KWD unapplied credits = ${net} KWD net`,
+    }
+  }
+  const gross = fmt2(input.grossPositiveReceivableKwd)
+  const offset = fmt2(Math.abs(input.creditClearingOffsetKwd))
+  return {
+    ar: `${gross} د.ك ذمم موجبة − ${offset} د.ك مقاصة دائنة = ${net} د.ك صافي`,
+    en: `${gross} KWD positive AR − ${offset} KWD credit clearing = ${net} KWD net`,
+  }
+}

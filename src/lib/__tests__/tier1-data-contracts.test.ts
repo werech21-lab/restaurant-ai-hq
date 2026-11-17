@@ -509,7 +509,7 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
       }
     })
 
-    it('Bug C1 & C2: computeCoresHubSnapshot reads brandByBranch.netKwd/.linesCount (never 0 from safeNum(object)) and preserves 3-decimal AOV', async () => {
+    it('Bug C1 & C2: computeCoresHubSnapshot reads brandByBranch.netKwd (never 0 from safeNum(object)), keeps line counts out of orders and preserves 3-decimal AOV', async () => {
       installParityOdooRpcMock()
       const env = await fetchLiveOdooSnapshot({
         period: 'month',
@@ -531,7 +531,11 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
         3,
       )
       expect(cgInPromenade?.salesKwd).toBeGreaterThan(100)
-      expect(cgInPromenade?.orders).toBe(cube.brandByBranch.promenade['china-garden'].linesCount)
+      // Reconcile follow-up (M2): the cube only has product-line counts per brand × branch, which are
+      // not orders. The order count is unknown (null → —), never the line count.
+      expect(cube.brandByBranch.promenade['china-garden'].linesCount).toBeGreaterThan(0)
+      expect(cgInPromenade?.orders).toBeNull()
+      expect(cgInPromenade?.aovKwd).toBeNull()
 
       // Brand-scoped with liveCube loaded: branchRanking must reflect brandByBranch[branch]['china-garden'].netKwd (> 0)
       const coresBrandScoped = computeCoresHubSnapshot(
@@ -772,7 +776,7 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
         const coresBranchSum = r3(
           cores.sales.branchRanking.reduce((s, pt) => s + pt.salesKwd, 0),
         )
-        const coresBranchOrders = cores.sales.branchRanking.reduce((s, pt) => s + pt.orders, 0)
+        const coresBranchOrders = cores.sales.branchRanking.reduce((s, pt) => s + (pt.orders ?? 0), 0)
         expect(coresBranchSum).toBe(expectedNet)
         expect(coresBranchOrders).toBe(expectedOrders)
 

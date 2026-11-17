@@ -109,8 +109,9 @@ export interface ComparisonSliceTotals {
   toIso: string
   dayCount: number
   netSalesKwd: number
-  completedOrders: number
-  aovKwd: number
+  /** `null` when a real order count is unknown for the slice (brand orders not readable, brand × branch). */
+  completedOrders: number | null
+  aovKwd: number | null
   foodCostKwd: number
   aggregatorFeeKwd: number
   foodAndAggregatorCostKwd: number
@@ -299,6 +300,8 @@ const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 const NO_DATA_EN = 'No data from Odoo for this period'
 const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
 const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
+const ORDERS_UNKNOWN_AR = 'عدد الطلبات غير متاح لهذا الاختيار'
+const ORDERS_UNKNOWN_EN = 'Order count not available for this selection'
 
 const EN_WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 const EN_WEEKDAYS_FULL = [
@@ -827,6 +830,8 @@ function computeCubeSliceTotals(
 
   let salesKwd = 0
   let orders = 0
+  // Brand slices only know orders when every brand row carries a real count.
+  let ordersKnown = true
 
   if (cutoffHour24 !== null && allBrands && allChannels) {
     if (allBranches) {
@@ -893,8 +898,8 @@ function computeCubeSliceTotals(
         const bRow = cube.byBrand[bId]
         if (bRow) {
           salesKwd += bRow.netKwd
-          // TODO(reconcile-follow-up): a null brand order count is unknown, not zero; this screen still sums it as 0.
-          orders += bRow.orders ?? 0
+          if (bRow.orders === null) ordersKnown = false
+          else orders += bRow.orders
         }
       }
     } else {
@@ -905,7 +910,8 @@ function computeCubeSliceTotals(
           const bRow = bMap[bId]
           if (bRow) {
             salesKwd += bRow.netKwd
-            orders += bRow.linesCount
+            // The cube holds product-line counts per brand × branch, not order counts.
+            ordersKnown = false
           }
         }
       }
@@ -913,8 +919,8 @@ function computeCubeSliceTotals(
   }
 
   const netSalesKwd = r1(salesKwd)
-  const completedOrders = Math.round(orders)
-  const aovKwd = completedOrders > 0 ? r2(netSalesKwd / completedOrders) : 0
+  const completedOrders = ordersKnown ? Math.round(orders) : null
+  const aovKwd = completedOrders === null ? null : completedOrders > 0 ? r2(netSalesKwd / completedOrders) : 0
   const unattributedSalesKwd = scope.includeUnattributed
     ? reconcileUnattributed1dp(cube)
     : 0
@@ -1758,15 +1764,19 @@ export function computeErpComparison(
     valueB: selectionB.netSalesKwd,
     available: connected,
   })
+  const ordersKnownBoth = selectionA.completedOrders !== null && selectionB.completedOrders !== null
+  const ordersUnknownReason = connected && !ordersKnownBoth ? { ar: ORDERS_UNKNOWN_AR, en: ORDERS_UNKNOWN_EN } : null
   const completedOrdersKpi = makeKpiDelta({
     id: 'completedOrders',
     labelAr: 'الطلبات المكتملة',
     labelEn: 'Completed Orders',
     unit: 'orders',
     polarity: 'higher-is-better',
-    valueA: selectionA.completedOrders,
-    valueB: selectionB.completedOrders,
-    available: connected,
+    valueA: selectionA.completedOrders ?? 0,
+    valueB: selectionB.completedOrders ?? 0,
+    available: connected && ordersKnownBoth,
+    unavailableReasonAr: ordersUnknownReason?.ar,
+    unavailableReasonEn: ordersUnknownReason?.en,
   })
   const averageCheckKpi = makeKpiDelta({
     id: 'averageCheck',
@@ -1774,9 +1784,11 @@ export function computeErpComparison(
     labelEn: 'Average Check (AOV)',
     unit: 'KWD',
     polarity: 'higher-is-better',
-    valueA: selectionA.aovKwd,
-    valueB: selectionB.aovKwd,
-    available: connected,
+    valueA: selectionA.aovKwd ?? 0,
+    valueB: selectionB.aovKwd ?? 0,
+    available: connected && ordersKnownBoth,
+    unavailableReasonAr: ordersUnknownReason?.ar,
+    unavailableReasonEn: ordersUnknownReason?.en,
   })
   const foodAndAggregatorCostKpi = makeKpiDelta({
     id: 'foodAndAggregatorCost',

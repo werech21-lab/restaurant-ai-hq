@@ -20,7 +20,7 @@ import type {
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { resolveBrandHeadline } from '@/lib/aether/brand-scope'
-import { toDisplayableAging } from '@/lib/odoo/receivable-aging'
+import { formatArReconciliationFormula, toDisplayableAging } from '@/lib/odoo/receivable-aging'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
 
@@ -1768,17 +1768,24 @@ export function computeGlobalWorkspace(
           openLinesExplanationEn: arRaw.openLinesExplanationEn ?? '',
           sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
           sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
-          reconciliationFormulaAr: `${safeNum(arRaw.grossPositiveReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك ذمم موجبة − ${Math.abs(safeNum(arRaw.creditClearingOffsetKwd)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك مقاصة دائنة = ${safeNum(arRaw.openReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ك صافي`,
-          reconciliationFormulaEn: `${safeNum(arRaw.grossPositiveReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD positive AR − ${Math.abs(safeNum(arRaw.creditClearingOffsetKwd)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD credit clearing = ${safeNum(arRaw.openReceivableKwd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} KWD net`,
           byAccount: arRaw.byAccount ?? [],
           ...(() => {
             const aging = toDisplayableAging(arRaw)
+            const formula = formatArReconciliationFormula({
+              openReceivableKwd: safeNum(arRaw.openReceivableKwd),
+              grossPositiveReceivableKwd: safeNum(arRaw.grossPositiveReceivableKwd),
+              creditClearingOffsetKwd: safeNum(arRaw.creditClearingOffsetKwd),
+              openDebitsKwd: aging.openDebitsKwd,
+              unappliedCreditsKwd: aging.unappliedCreditsKwd,
+            })
             return {
               agingBuckets: aging.buckets,
               openDebitsKwd: aging.openDebitsKwd,
               unappliedCreditsKwd: aging.unappliedCreditsKwd,
               agingHiddenReasonAr: aging.hiddenReasonAr,
               agingHiddenReasonEn: aging.hiddenReasonEn,
+              reconciliationFormulaAr: formula.ar,
+              reconciliationFormulaEn: formula.en,
             }
           })(),
         }

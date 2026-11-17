@@ -53,13 +53,30 @@ zero-invented-data suites pass.
 | AR aging | −22,182.5 / 47,244.3 / −23,879.1 | hidden with reason (old payload); new server sends due-date aging + unapplied credits |
 | Open AR | 1,182.708 | 1,182.708 (unchanged, debits − credits) |
 
-Synthetic order-allocated fixture: CG 128.383 / 20, Frank's 23.067 / 4, Noodle Bar 3.25 / 1;
-Σ = 154.70; every brand's cards add up to its headline.
+**SYNTHETIC test fixture only — not real China Garden figures.** The order-allocated fixture
+(invented orders whose branch totals match the live payload) gives CG 128.383 / 20, Frank's
+23.067 / 4, Noodle Bar 3.25 / 1; Σ = 154.70; every brand's cards add up to its headline. Never
+quote these numbers as China Garden's sales or orders.
 
 ## Still `—` or unverified
 - Real China Garden order-level net, orders and branch split for 17 Nov need the new server code
   against live Odoo (or one admin read: `pos.order.line` grouped by product/order + `search_count`).
 - `today` delta stays `—` until the payload carries same-hours prior-week data.
 - Brand × channel stays unavailable (no exact split).
-- Cube (custom period) brand × branch still reports `linesCount` as orders on the Cores Hub; other
-  screens (CoresHubStudio, BrandSalesAnalytics, comparison engine) render a `null` brand order count as 0.
+- ~~Cube brand × branch `linesCount` shown as orders; `null` brand orders rendered as 0~~ — fixed in
+  the review follow-up below.
+
+## Review follow-up (independent review of `da810af`, NOT READY → fixes)
+
+| Finding | Fix | Where |
+|---|---|---|
+| H1 — company-wide/all-brand content unlabelled under a brand filter | One `ScopeBadge` component (`data-scope-badge` + `data-scope-for`). «على مستوى الشركة» on Operating Net (GL), Aggregator Commissions, Ledger AR and the "How every 10 KWD" donut; «كل العلامات» on the POS Sales & Posted Operating Net chart when its timeline is the company series, and on the 7-day pulse. A brand-scoped series no longer gets the company GL margin drawn over it (`resolveComboChartScope`). M7 tests now render `FullJourney360` instead of grepping the source. | `ScopeBadge.tsx`; `brand-scope.ts` `resolveComboChartScope`, `companyWideBadgeFor`; `FullJourney360.tsx` |
+| M2 — unknown brand orders shown as 0 | Feryal "Orders" uses `nullableOrders` (— when unknown). Cores Hub `SalesPoint.orders/aovKwd` are `number \| null`; cube brand × branch rows no longer report `linesCount` as orders (null). Comparison `completedOrders/aovKwd` are `number \| null`; KPIs marked unavailable with a reason; before/after pair unavailable; studios render —. | `feryal-governance-studio.tsx`; `cores-hub-engine.ts`; `erp-comparison-engine.ts`; `before-after-engine.ts`; `BeforeAfterStudio.tsx`; `WeekdayComparisonStudio.tsx` |
+| M4 — gap label read as the brand's own gap | Label is now «الفرق بين مجموع كل العلامات وصافي الطلبات» / "Σ all brands vs order net". | `brand-scope.ts` `SCOPE_LABELS.allBrandsBasisGap`; `FullJourney360.tsx` |
+| M3 — two credit decompositions on the AR card | With due-date aging the card shows one tie-out: aging total (open debits) + unapplied credits = open AR (flags a mismatch > 1 fils). The reconciliation formula uses the same line-level split; legacy payloads keep the account-level formula and show no tie-out. | `receivable-aging.ts` `buildArTieOut`, `formatArReconciliationFormula`; `global-filter-engine.ts`; `FullJourney360.tsx` |
+| M1 — latency vs 30 s | Per-order rows for today and week start together with the main period reads (step 3a) under a 9 s budget; brand order counts (30 d, year, cube) run under a 5 s budget. On timeout or failure: product-line basis with its gap label, and unknown counts (—). The brand reads add at most 9 s on top of the main reads (rows overlap them; counts ≤ 5 s after them), and both budgets together stay under half the 30 s `maxDuration`. Abandoned RPCs are not cancelled; they end on their own 8 s RPC timeout. | `read-budget.ts` `withinBudget`; `brand-scope-fetch.ts` `startExactBrandRowsRead`, `countOrdersPerBrandWithin`; `odoo-live-connector.ts` |
+
+Still open: one read-only staging/preview run against live Odoo to confirm `brandBasis =
+'order-allocated'` for today/week and to time the new reads (H2). Low-severity notes not changed:
+orders forced to 0 when a slice's net ≤ 0 (`global-filter-engine.ts`), the unused
+`sameHoursLikeForLike` today branch, and an order whose brand lines net to 0 losing its brand order.

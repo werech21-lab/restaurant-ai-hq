@@ -1,14 +1,31 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+/** M7 — company-wide cards say so when a brand is selected. Assertions render the real component. */
+import React from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SCOPE_LABELS } from '@/lib/aether/brand-scope'
+import { buildAllocatedTodaySummary, loadLiveTodaySummary } from './support/dashboard-fixture'
+import { dashboardContext, renderAr, scopeBadgesOf, setDashboardContext, todayFilters } from './support/render-dashboard'
 
-const SOURCE = fs.readFileSync(
-  path.resolve(import.meta.dirname, '../../components/aether/FullJourney360.tsx'),
-  'utf8',
-)
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, back() {}, forward() {}, prefetch() {} }),
+  usePathname: () => '/erp',
+  useSearchParams: () => new URLSearchParams(),
+}))
+vi.mock('@/components/aether/GlobalFilterContext', () => ({
+  useGlobalFilter: () => dashboardContext.value,
+}))
+
+const FIXTURE_NOW = new Date('2026-11-17T03:05:00Z')
+
+async function render(summary = loadLiveTodaySummary(), brand = 'china-garden'): Promise<string> {
+  setDashboardContext(summary, todayFilters(brand))
+  const { FullJourney360 } = await import('@/components/aether/FullJourney360')
+  return renderAr(React.createElement(FullJourney360))
+}
 
 describe('M7 — company-wide cards say so when a brand is selected', () => {
+  beforeEach(() => vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ['Date'] }))
+  afterEach(() => vi.useRealTimers())
+
   it('labels match the agreed wording', () => {
     expect(SCOPE_LABELS.companyWide.ar).toBe('على مستوى الشركة')
     expect(SCOPE_LABELS.allBrands.ar).toBe('كل العلامات')
@@ -16,21 +33,26 @@ describe('M7 — company-wide cards say so when a brand is selected', () => {
     expect(SCOPE_LABELS.noComparison.ar).toBe('لا توجد مقارنة')
   })
 
-  it('M7 RED→GREEN: the AR and GL cards render the company-wide badge only when brand ≠ all', () => {
-    expect(SOURCE).toMatch(/const companyWideBadge =\s*filters\.brand !== 'all' \?/)
-    expect(SOURCE.match(/\{companyWideBadge\}/g)?.length ?? 0).toBe(2)
-    const glTitle = SOURCE.indexOf("T('Operating Net Profit (GL)'")
-    const arTitle = SOURCE.indexOf("T('Ledger AR'")
-    expect(SOURCE.indexOf('{companyWideBadge}', glTitle) - glTitle).toBeLessThan(300)
-    expect(SOURCE.indexOf('{companyWideBadge}', arTitle) - arTitle).toBeLessThan(300)
+  it('M7: the GL and AR cards render the company-wide badge only when brand ≠ all', async () => {
+    const brandHtml = await render()
+    expect(scopeBadgesOf(brandHtml)['gl-operating-net']).toBe('company-wide')
+    expect(scopeBadgesOf(brandHtml)['ledger-ar']).toBe('company-wide')
+    const allHtml = await render(loadLiveTodaySummary(), 'all')
+    expect(scopeBadgesOf(allHtml)['gl-operating-net']).toBeUndefined()
+    expect(scopeBadgesOf(allHtml)['ledger-ar']).toBeUndefined()
   })
 
-  it('the pulse, delta badge, branch cards and brand basis carry their scope labels', () => {
-    expect(SOURCE).toContain("data-scope-badge=\"all-brands\"")
-    expect(SOURCE).toContain('SCOPE_LABELS.noComparison')
-    expect(SOURCE).toContain('SCOPE_LABELS.unavailableForFilter')
-    expect(SOURCE).toContain('data-brand-basis="product-lines"')
-    expect(SOURCE).toContain('SCOPE_LABELS.multiBrandOrders')
-    expect(SOURCE).toContain('data-ar-unapplied-credits="true"')
+  it('the pulse, delta badge, branch cards and brand basis carry their scope labels (live payload)', async () => {
+    const html = await render()
+    expect(scopeBadgesOf(html)['weekly-pulse']).toBe('all-brands')
+    expect(html).toContain('data-delta-comparison="none"')
+    expect(html).toContain(SCOPE_LABELS.unavailableForFilter.ar)
+    expect(html).toContain('data-brand-basis="product-lines"')
+  })
+
+  it('order-allocated payload: the multi-brand orders note is shown and the basis line is not', async () => {
+    const html = await render(buildAllocatedTodaySummary())
+    expect(html).toContain(SCOPE_LABELS.multiBrandOrders.ar)
+    expect(html).not.toContain('data-brand-basis="product-lines"')
   })
 })

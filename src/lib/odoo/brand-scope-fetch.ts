@@ -13,8 +13,19 @@ import {
   type PosOrderLineInput,
 } from '@/lib/odoo/brand-order-allocation'
 
+import { withinBudget } from '@/lib/odoo/read-budget'
+
 /** Upper bound on order or line rows read for one window (a busy week stays well below it). */
 export const MAX_EXACT_BRAND_ROWS = 25_000
+
+/**
+ * Time budgets against the routes' 30 s `maxDuration`. The per-order rows start together with the
+ * main period reads, so their budget overlaps them; the brand order counts need the main reads'
+ * product ids and run afterwards, adding at most their own budget. On timeout the dashboard keeps
+ * the labelled product-line basis and unknown counts show as —.
+ */
+export const EXACT_BRAND_ROWS_BUDGET_MS = 9_000
+export const BRAND_ORDER_COUNTS_BUDGET_MS = 5_000
 
 export type OdooExecute = <T>(
   model: string,
@@ -25,7 +36,7 @@ export type OdooExecute = <T>(
 
 type M2O = [number, string] | false | null | undefined
 
-interface OrderRow {
+export interface OrderRow {
   id: number
   session_id?: M2O
   amount_total?: number
@@ -33,7 +44,7 @@ interface OrderRow {
   date_order?: string
 }
 
-interface LineRow {
+export interface LineRow {
   id: number
   order_id?: M2O
   product_id?: M2O
@@ -99,13 +110,19 @@ function toOrderHeader(row: OrderRow, mapping: BrandScopeMapping): PosOrderHeade
   }
 }
 
-/** Exact per-order brand allocation for one window, or `null` when it cannot be computed in full. */
-export async function fetchExactBrandAllocation(
+/** Raw Odoo rows behind one window's exact brand view. */
+export interface ExactBrandRows {
+  orderRows: OrderRow[]
+  lineRows: LineRow[]
+  excludedLineIds: number[]
+}
+
+/** Reads the window's orders, lines and excluded-category line ids; `null` when any read is truncated. */
+export async function readExactBrandRows(
   execute: OdooExecute,
   window: BrandScopeWindow,
-  mapping: BrandScopeMapping,
   maxRows: number = MAX_EXACT_BRAND_ROWS,
-): Promise<BrandAllocationResult | null> {
+): Promise<ExactBrandRows | null> {
   const excludedLineDomain =
     window.excludedCategoryIds.length > 0
       ? [...window.lineDomain, ['product_id.pos_categ_id', 'in', [...window.excludedCategoryIds]]]
@@ -118,11 +135,30 @@ export async function fetchExactBrandAllocation(
       : Promise.resolve([] as { id: number }[]),
   ])
   if ([orderRows, lineRows, excludedRows].some((rows) => rows.length > maxRows)) return null
+  return { orderRows, lineRows, excludedLineIds: excludedRows.map((r) => r.id) }
+}
 
+/**
+ * Starts the window's row reads now and bounds them by `budgetMs`. Resolves `null` on timeout,
+ * failure or truncation, so callers fall back to the labelled product-line basis.
+ */
+export async function startExactBrandRowsRead(
+  execute: OdooExecute,
+  window: BrandScopeWindow,
+  options: { budgetMs?: number; maxRows?: number } = {},
+): Promise<ExactBrandRows | null> {
+  const read = readExactBrandRows(execute, window, options.maxRows ?? MAX_EXACT_BRAND_ROWS)
+  const { value } = await withinBudget(read, options.budgetMs ?? EXACT_BRAND_ROWS_BUDGET_MS, null)
+  return value
+}
+
+/** Pure step: maps the rows to brands and branches and allocates each order (`null` if a date is unreadable). */
+export function allocateExactBrandRows(rows: ExactBrandRows, mapping: BrandScopeMapping): BrandAllocationResult | null {
+  const { orderRows, lineRows } = rows
   const orders = orderRows.map((r) => toOrderHeader(r, mapping))
   if (orders.some((o) => o === null)) return null
   const orderIds = new Set(orderRows.map((r) => r.id))
-  const excludedLineIds = new Set(excludedRows.map((r) => r.id))
+  const excludedLineIds = new Set(rows.excludedLineIds)
   const lines: PosOrderLineInput[] = []
   for (const row of lineRows) {
     const orderId = m2oId(row.order_id)
@@ -135,6 +171,17 @@ export async function fetchExactBrandAllocation(
     brandIds: mapping.brandIds,
     locationKeys: mapping.locationKeys,
   })
+}
+
+/** Exact per-order brand allocation for one window, or `null` when it cannot be computed in full. */
+export async function fetchExactBrandAllocation(
+  execute: OdooExecute,
+  window: BrandScopeWindow,
+  mapping: BrandScopeMapping,
+  maxRows: number = MAX_EXACT_BRAND_ROWS,
+): Promise<BrandAllocationResult | null> {
+  const rows = await readExactBrandRows(execute, window, maxRows)
+  return rows ? allocateExactBrandRows(rows, mapping) : null
 }
 
 /**
@@ -158,4 +205,21 @@ export async function countOrdersPerBrand(
     }),
   )
   return new Map(counts)
+}
+
+/** `countOrdersPerBrand` bounded by `budgetMs`; `null` (unknown, shown as —) on timeout or failure. */
+export async function countOrdersPerBrandWithin(
+  execute: OdooExecute,
+  nonRefundOrderDomain: unknown[][],
+  productIdsByBrand: ReadonlyMap<string, readonly number[]>,
+  brandIds: readonly string[],
+  options: { budgetMs?: number } = {},
+): Promise<Map<string, number> | null> {
+  const counts = countOrdersPerBrand(execute, nonRefundOrderDomain, productIdsByBrand, brandIds)
+  const { value } = await withinBudget<Map<string, number> | null>(
+    counts,
+    options.budgetMs ?? BRAND_ORDER_COUNTS_BUDGET_MS,
+    null,
+  )
+  return value
 }

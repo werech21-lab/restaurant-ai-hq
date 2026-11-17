@@ -119,8 +119,9 @@ export interface SalesPoint {
   tooltipTitleEn: string
   salesKwd: number
   displaySalesKwd: number
-  orders: number
-  aovKwd: number
+  /** `null` when Odoo could not supply a real order count for this row (shown as —). */
+  orders: number | null
+  aovKwd: number | null
   sharePct: number
   color?: string
 }
@@ -369,6 +370,11 @@ export function simulateDishPriceAndCost(params: {
   }
 }
 
+/** A real order count, or `null` when the source did not supply one. */
+function knownCount(v: number | null | undefined): number | null {
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
 function toSalesPoint(params: {
   id: string
   labelAr: string
@@ -376,12 +382,12 @@ function toSalesPoint(params: {
   tooltipTitleAr?: string
   tooltipTitleEn?: string
   salesKwd: number
-  orders: number
+  orders: number | null
   denominatorKwd: number
   color?: string
 }): SalesPoint {
   const salesKwd = round3(Math.max(0, safeNum(params.salesKwd)))
-  const orders = Math.max(0, Math.round(safeNum(params.orders)))
+  const orders = params.orders === null ? null : Math.max(0, Math.round(safeNum(params.orders)))
   const denom = safeNum(params.denominatorKwd)
   return {
     id: params.id,
@@ -392,7 +398,7 @@ function toSalesPoint(params: {
     salesKwd,
     displaySalesKwd: Math.round(salesKwd),
     orders,
-    aovKwd: orders > 0 ? round3(salesKwd / orders) : 0,
+    aovKwd: orders === null ? null : orders > 0 ? round3(salesKwd / orders) : 0,
     sharePct: denom > 0 ? round1((salesKwd / denom) * 100) : 0,
     color: params.color,
   }
@@ -676,7 +682,7 @@ export function computeCoresHubSnapshot(
   )
   const quietWindowSalesKwd = round3(quietHourRows.reduce((s, r) => s + r.salesKwd, 0))
   const quietWindowDisplayKwd = quietHourRows.reduce((s, r) => s + r.displaySalesKwd, 0)
-  const quietWindowOrders = quietHourRows.reduce((s, r) => s + r.orders, 0)
+  const quietWindowOrders = quietHourRows.reduce((s, r) => s + (r.orders ?? 0), 0)
   const quietWindowSharePct =
     hourlyDenom > 0 ? round1((quietWindowSalesKwd / hourlyDenom) * 100) : 0
 
@@ -701,19 +707,16 @@ export function computeCoresHubSnapshot(
     : brandIds.map((bid) => {
         if (liveCube) {
           if (filters.branch !== 'all') {
+            // The cube has product-line counts per brand × branch, not order counts.
             const cell = liveCube.brandByBranch?.[filters.branch]?.[bid]
-            return {
-              bid,
-              salesKwd: safeNum(cell?.netKwd),
-              orders: safeNum(cell?.linesCount),
-            }
+            return { bid, salesKwd: safeNum(cell?.netKwd), orders: null }
           }
           const bRow = liveCube.byBrand?.[bid]
-          return { bid, salesKwd: safeNum(bRow?.netKwd), orders: safeNum(bRow?.orders) }
+          return { bid, salesKwd: safeNum(bRow?.netKwd), orders: knownCount(bRow?.orders) }
         }
         const bktBrand = activeBucket?.byBrand?.[bid]
         if (bktBrand) {
-          return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: safeNum(bktBrand.orders) }
+          return { bid, salesKwd: safeNum(bktBrand.netKwd), orders: knownCount(bktBrand.orders) }
         }
         const wsOpt = ws.cascadingOptions.brands.find((x) => x.id === bid)
         return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
@@ -753,12 +756,9 @@ export function computeCoresHubSnapshot(
     : branchIds.map((lid) => {
         if (liveCube) {
           if (filters.brand !== 'all') {
+            // Product-line counts are not orders; brand × branch orders are unknown on the cube.
             const cell = liveCube.brandByBranch?.[lid]?.[filters.brand]
-            return {
-              lid,
-              salesKwd: safeNum(cell?.netKwd),
-              orders: safeNum(cell?.linesCount),
-            }
+            return { lid, salesKwd: safeNum(cell?.netKwd), orders: null }
           }
           const lRow =
             liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
@@ -766,7 +766,7 @@ export function computeCoresHubSnapshot(
         }
         if (bucketBranchScope?.available) {
           const cell = bucketBranchScope.rows[lid]
-          return { lid, salesKwd: safeNum(cell?.netKwd), orders: safeNum(cell?.orders) }
+          return { lid, salesKwd: safeNum(cell?.netKwd), orders: knownCount(cell?.orders) }
         }
         const wsOpt = ws.cascadingOptions.branches.find((x) => x.id === lid)
         return { lid, salesKwd: safeNum(wsOpt?.salesKwd), orders: 0 }
@@ -877,10 +877,10 @@ export function computeCoresHubSnapshot(
   )
   const zeroCommSalesKwd = round3(zeroCommRows.reduce((s, r) => s + r.salesKwd, 0))
   const zeroCommDisplayKwd = Math.round(zeroCommSalesKwd)
-  const zeroCommOrders = zeroCommRows.reduce((s, r) => s + r.orders, 0)
+  const zeroCommOrders = zeroCommRows.reduce((s, r) => s + (r.orders ?? 0), 0)
   const aggregatorSalesKwd = round3(aggregatorRows.reduce((s, r) => s + r.salesKwd, 0))
   const aggregatorDisplayKwd = Math.round(aggregatorSalesKwd)
-  const aggregatorOrders = aggregatorRows.reduce((s, r) => s + r.orders, 0)
+  const aggregatorOrders = aggregatorRows.reduce((s, r) => s + (r.orders ?? 0), 0)
   const zeroCommSharePct =
     channelDenomKwd > 0 ? round1((zeroCommSalesKwd / channelDenomKwd) * 100) : 0
   const aggregatorSharePct =

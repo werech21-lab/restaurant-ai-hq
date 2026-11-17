@@ -36,7 +36,14 @@ import {
   UNATTRIBUTED_BRANCH_LABEL_AR,
   UNATTRIBUTED_BRANCH_LABEL_EN,
 } from '@/lib/aether/cores-hub-engine'
-import { SCOPE_LABELS, resolveBranchScope } from '@/lib/aether/brand-scope'
+import {
+  SCOPE_LABELS,
+  companyWideBadgeFor,
+  resolveBranchScope,
+  resolveComboChartScope,
+} from '@/lib/aether/brand-scope'
+import { ScopeBadge } from '@/components/aether/ScopeBadge'
+import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
@@ -133,6 +140,8 @@ const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
 const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
 const UNPOSTED_COMMISSION_EN = 'Not posted yet'
+const COMPANY_MARGIN_NOT_APPLIED_AR = 'هامش الشركة لا يُطبَّق على هذه السلسلة'
+const COMPANY_MARGIN_NOT_APPLIED_EN = 'Company GL margin is not applied to this series'
 
 interface BranchCardRow {
   id: string
@@ -379,6 +388,13 @@ export function FullJourney360() {
   const netPocketKwd = gl.operatingProfitKwd ?? 0
   const netPocketPct = gl.netProfitPct ?? 0
 
+  const comboScope = resolveComboChartScope({
+    brand: filters.brand,
+    group: flowGroup,
+    timelineScope: coresSnap.sales.timelineScope,
+  })
+  const comboPlotsCompanyMargin = comboScope.plotCompanyMargin
+
   const comboData = useMemo<ComboBarLineDatum[]>(() => {
     if (
       !workspace.odooConnected ||
@@ -388,8 +404,16 @@ export function FullJourney360() {
       return []
     }
     const src = flowGroup === 'branches' ? coresSnap.sales.branchRanking : coresSnap.sales.timeline
-    const canPlotPointMargin =
-      hasPostedOperatingProfit && !glIncomplete && flowGroup === 'timeline'
+    const glReady = hasPostedOperatingProfit && !glIncomplete
+    const canPlotPointMargin = glReady && comboPlotsCompanyMargin
+    const glProfitStatusText =
+      glReady && !comboPlotsCompanyMargin
+        ? isAr
+          ? COMPANY_MARGIN_NOT_APPLIED_AR
+          : COMPANY_MARGIN_NOT_APPLIED_EN
+        : isAr
+          ? GL_INCOMPLETE_AR
+          : GL_INCOMPLETE_EN
     return src.map((pt) => {
       const sales = Math.max(0, pt.salesKwd)
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
@@ -454,7 +478,7 @@ export function FullJourney360() {
                 { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
                 {
                   label: isAr ? 'حالة قيود الربح:' : 'GL Profit Status:',
-                  value: isAr ? GL_INCOMPLETE_AR : GL_INCOMPLETE_EN,
+                  value: glProfitStatusText,
                   tone: 'amber',
                 },
               ],
@@ -465,6 +489,7 @@ export function FullJourney360() {
     coresSnap.sales.branchRanking,
     coresSnap.sales.branchesUnavailable,
     coresSnap.sales.timeline,
+    comboPlotsCompanyMargin,
     flowGroup,
     fmtKwdVal,
     glIncomplete,
@@ -639,15 +664,14 @@ export function FullJourney360() {
       : 0
 
   // Cards that stay company-wide say so whenever a brand is selected (no silent scope mixing).
-  const companyWideBadge =
-    filters.brand !== 'all' ? (
-      <span
-        data-scope-badge="company-wide"
-        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
-      >
-        {T(SCOPE_LABELS.companyWide.en, SCOPE_LABELS.companyWide.ar)}
-      </span>
-    ) : null
+  const companyWideScope = companyWideBadgeFor(filters.brand)
+  const arTieOut = workspace.receivables.unavailable
+    ? null
+    : buildArTieOut({
+        openDebitsKwd: workspace.receivables.openDebitsKwd,
+        unappliedCreditsKwd: workspace.receivables.unappliedCreditsKwd,
+        openReceivableKwd: workspace.receivables.openReceivableKwd,
+      })
 
   const isInitialLoading = syncingOdoo && !liveSummary
   const isDisconnectedOrEmpty = !workspace.odooConnected || workspace.noData
@@ -914,7 +938,7 @@ export function FullJourney360() {
                       {workspace.brandBasisGapKwd !== null ? (
                         <>
                           {' • '}
-                          {T('gap vs order net', 'الفرق عن صافي الطلبات')}{' '}
+                          {T(SCOPE_LABELS.allBrandsBasisGap.en, SCOPE_LABELS.allBrandsBasisGap.ar)}{' '}
                           <span dir="ltr" className="tabular-nums">
                             {fmtKwdVal(workspace.brandBasisGapKwd)}
                           </span>
@@ -1045,7 +1069,7 @@ export function FullJourney360() {
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
                     {T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')}
                   </p>
-                  {companyWideBadge}
+                  <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
                   <Link
                     href="/erp/executive-pnl"
                     aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
@@ -1145,6 +1169,7 @@ export function FullJourney360() {
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
                     {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
                   </p>
+                  <ScopeBadge kind={companyWideScope} target="aggregator-commissions" isAr={isAr} />
                   <Link
                     href={isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar') ? '/erp/aggregator-radar' : '/erp/cores'}
                     aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
@@ -1398,14 +1423,12 @@ export function FullJourney360() {
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Daily POS Sales Pulse (Last 7 Days)', 'نبض مبيعات نقاط البيع اليومي (آخر 7 أيام)')}
                     </h2>
-                    {filters.brand !== 'all' && weeklyPulseScope === 'all-brands' ? (
-                      <span
-                        data-scope-badge="all-brands"
-                        className="mt-1 inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"
-                      >
-                        {T(SCOPE_LABELS.allBrands.en, SCOPE_LABELS.allBrands.ar)}
-                      </span>
-                    ) : null}
+                    <ScopeBadge
+                      kind={filters.brand !== 'all' && weeklyPulseScope === 'all-brands' ? 'all-brands' : null}
+                      target="weekly-pulse"
+                      isAr={isAr}
+                      className="mt-1"
+                    />
                     <p className="mt-0.5 whitespace-normal text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
                       {isAr ? weeklyChartMeta.subtitleAr : weeklyChartMeta.subtitleEn}
                     </p>
@@ -1538,7 +1561,7 @@ export function FullJourney360() {
                       <Wallet className="h-3.5 w-3.5" />
                       <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
                     </span>
-                    {companyWideBadge}
+                    <ScopeBadge kind={companyWideScope} target="ledger-ar" isAr={isAr} />
                   </div>
 
                   {maskInternalCosts ? (
@@ -1593,16 +1616,30 @@ export function FullJourney360() {
                           </div>
                         ) : null}
 
-                        {!workspace.receivables.unavailable && workspace.receivables.unappliedCreditsKwd !== null ? (
-                          <div
-                            data-ar-unapplied-credits="true"
-                            className="mt-2 flex items-center justify-between gap-2 text-xs font-medium text-slate-700 dark:text-slate-300"
+                        {arTieOut ? (
+                          <dl
+                            data-ar-tie-out={arTieOut.ties ? 'ties' : 'mismatch'}
+                            className="mt-2 space-y-1 text-xs font-medium text-slate-700 dark:text-slate-300"
                           >
-                            <span>{T('Unapplied credits & clearing', 'دفعات ومقاصات غير مطابقة')}</span>
-                            <span dir="ltr" className="font-bold tabular-nums">
-                              {fmtKwdVal(workspace.receivables.unappliedCreditsKwd)}
-                            </span>
-                          </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <dt>{T('Aging total (open debits)', 'إجمالي أعمار الذمم (مدين مفتوح)')}</dt>
+                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openDebitsKwd)}</dd>
+                            </div>
+                            <div data-ar-unapplied-credits="true" className="flex items-center justify-between gap-2">
+                              <dt>{T('Unapplied credits & clearing', 'دفعات ومقاصات غير مطابقة')}</dt>
+                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.unappliedCreditsKwd)}</dd>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 border-t border-amber-500/20 pt-1">
+                              <dt>{T('= Open receivables', '= صافي الذمم المفتوحة')}</dt>
+                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openReceivableKwd)}</dd>
+                            </div>
+                            {arTieOut.ties ? null : (
+                              <p className="text-amber-900 dark:text-amber-200">
+                                {T('Does not tie; difference', 'لا يتطابق؛ الفرق')}{' '}
+                                <span dir="ltr" className="tabular-nums">{fmtKwdVal(arTieOut.differenceKwd)}</span>
+                              </p>
+                            )}
+                          </dl>
                         ) : null}
                         {!workspace.receivables.unavailable && workspace.receivables.agingHiddenReasonAr ? (
                           <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-amber-900 dark:text-amber-200">
@@ -1663,6 +1700,7 @@ export function FullJourney360() {
                     <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('POS Sales & Posted Operating Net', 'مبيعات نقاط البيع وصافي التشغيل المرحّل')}
                     </h2>
+                    <ScopeBadge kind={comboScope.badge} target="sales-net-combo" isAr={isAr} className="mt-1" />
                     <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-[#8FA39B]">
                       {glIncomplete
                         ? T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
@@ -1692,7 +1730,9 @@ export function FullJourney360() {
                     salesLegend={T('Sales (pos.order)', 'المبيعات (pos.order)')}
                     netLegend={
                       hasPostedOperatingProfit && !glIncomplete
-                        ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
+                        ? comboPlotsCompanyMargin
+                          ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
+                          : T(COMPANY_MARGIN_NOT_APPLIED_EN, COMPANY_MARGIN_NOT_APPLIED_AR)
                         : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
                     }
                     heightClass="h-60 sm:h-64"
@@ -1728,6 +1768,7 @@ export function FullJourney360() {
                       'كيف تتوزع كل 10 دنانير من المبيعات؟',
                     )}
                   </h2>
+                  <ScopeBadge kind={companyWideScope} target="gl-distribution" isAr={isAr} className="mt-1" />
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-[#8FA39B]">
                     {T(
                       'Computed strictly from Odoo 17 General Ledger (account.move.line)',

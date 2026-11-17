@@ -1023,14 +1023,14 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         const timelineSumNet = r3(
           coresScoped.sales.timeline.reduce((s, p) => s + p.salesKwd, 0),
         )
-        const timelineSumOrd = coresScoped.sales.timeline.reduce((s, p) => s + p.orders, 0)
+        const timelineSumOrd = coresScoped.sales.timeline.reduce((s, p) => s + (p.orders ?? 0), 0)
         expect(timelineSumNet).toBe(expected.netKwd)
         expect(timelineSumOrd).toBe(expected.orders)
 
         const hourlySumNet = r3(
           coresScoped.sales.hourly.reduce((s, p) => s + p.salesKwd, 0),
         )
-        const hourlySumOrd = coresScoped.sales.hourly.reduce((s, p) => s + p.orders, 0)
+        const hourlySumOrd = coresScoped.sales.hourly.reduce((s, p) => s + (p.orders ?? 0), 0)
         expect(hourlySumNet).toBe(expected.netKwd)
         expect(hourlySumOrd).toBe(expected.orders)
 
