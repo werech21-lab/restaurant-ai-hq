@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "safe-push": "node scripts/parallel-sync-push.mjs",
     "ingest:direct": "tsx scripts/direct-db-ingest.ts",
-    "ingest:desktop": "tsx scripts/direct-db-ingest.ts --scan-desktop-docs"
+    "ingest:desktop": "tsx scripts/direct-db-ingest.ts --scan-desktop-docs",
+    "audit:pos-variance": "node scripts/audit-pos-variance.mjs --from 2026-11-01 --to 2026-11-17 --target 1723"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
