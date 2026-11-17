@@ -95,6 +95,22 @@ export function ReceivablesAgingStudio() {
 
       <PartialWarningBanner summary={liveSummary} isAr={isAr} />
 
+      {ar.pendingReconciliation ? (
+        // Phase 5 · Item 2: no amounts, per-account rows, aging or explanation text until
+        // per-customer due-date aging is verified — status and line counts only.
+        <section
+          data-receivables-pending="true"
+          className="ae-bento-card space-y-3 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-white/10"
+        >
+          <ReceivablesPendingStatus isAr={isAr} showDetail />
+          <p className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
+            {isAr
+              ? `${formatInt(ar.unreconciledLineCount, resolvedLocale)} قيد غير مسوّى (${formatInt(ar.posClearingLinesCount, resolvedLocale)} مقاصة كاشير 10552 + ${formatInt(ar.platformAndCorporateLinesCount, resolvedLocale)} ذمم منصات وشركات)`
+              : `${formatInt(ar.unreconciledLineCount, resolvedLocale)} unreconciled lines (${formatInt(ar.posClearingLinesCount, resolvedLocale)} POS clearing 10552 + ${formatInt(ar.platformAndCorporateLinesCount, resolvedLocale)} platform/trade)`}
+          </p>
+        </section>
+      ) : (
+      <>
       {/* 4 Top Summary KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="ae-kpi-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
@@ -165,7 +181,7 @@ export function ReceivablesAgingStudio() {
               ? isAr
                 ? 'غير متاح'
                 : UNAVAILABLE_DASH
-              : formatKwd(-Math.abs(ar.creditClearingOffsetKwd), resolvedLocale)}
+              : formatKwd(ar.creditClearingOffsetKwd === null ? null : -Math.abs(ar.creditClearingOffsetKwd), resolvedLocale)}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
             {T('Deliveroo, POS Clearing (10552) & Snoonu', 'ديليفرو، مقاصة نقاط البيع 10552 وسنونو')}
@@ -365,6 +381,8 @@ export function ReceivablesAgingStudio() {
           </div>
         )}
       </section>
+      </>
+      )}
     </div>
   )
 }

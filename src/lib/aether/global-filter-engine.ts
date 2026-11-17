@@ -9,6 +9,12 @@
  *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'قيود غير مكتملة لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
  */
 
+import {
+  PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
+  RECEIVABLES_PENDING_DETAIL,
+  RECEIVABLES_PENDING_STATUS,
+  canShowReceivableAmounts,
+} from '@/lib/aether/receivables-status'
 import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
@@ -603,9 +609,14 @@ export interface WorkspaceLedgerAccounting {
 
 export interface WorkspaceReceivablesMeta {
   unavailable?: boolean
-  openReceivableKwd: number
-  grossPositiveReceivableKwd: number
-  creditClearingOffsetKwd: number
+  /**
+   * Phase 5 · Item 2: true until per-customer due-date aging is verified. While pending, every
+   * amount below is `null` and account/aging lists are empty — only line counts remain.
+   */
+  pendingReconciliation: boolean
+  openReceivableKwd: number | null
+  grossPositiveReceivableKwd: number | null
+  creditClearingOffsetKwd: number | null
   unreconciledLineCount: number
   posClearingLinesCount: number
   platformAndCorporateLinesCount: number
@@ -823,6 +834,7 @@ function computeLiveKuwaitSliceMultipliers(
 function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceivablesMeta {
   return {
     unavailable: false,
+    pendingReconciliation: false,
     openReceivableKwd: 0,
     grossPositiveReceivableKwd: 0,
     creditClearingOffsetKwd: 0,
@@ -852,6 +864,7 @@ function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceiva
 function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceReceivablesMeta {
   return {
     unavailable: true,
+    pendingReconciliation: false,
     openReceivableKwd: 0,
     grossPositiveReceivableKwd: 0,
     creditClearingOffsetKwd: 0,
@@ -875,6 +888,37 @@ function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceR
     unappliedCreditsKwd: null,
     agingHiddenReasonAr: null,
     agingHiddenReasonEn: null,
+  }
+}
+
+/**
+ * Phase 5 · Item 2: until per-customer due-date aging is verified, strip every receivable amount
+ * (net, gross, credits, per-account rows, aging buckets, amount-bearing explanation/formula text).
+ * Unreconciled line counts, dates and source labels are kept.
+ */
+export function applyReceivablesExecutivePolicy(
+  r: WorkspaceReceivablesMeta,
+  verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
+): WorkspaceReceivablesMeta {
+  if (r.unavailable || canShowReceivableAmounts(r, verified)) return r
+  return {
+    ...r,
+    pendingReconciliation: true,
+    openReceivableKwd: null,
+    grossPositiveReceivableKwd: null,
+    creditClearingOffsetKwd: null,
+    byAccount: [],
+    agingBuckets: [],
+    openDebitsKwd: null,
+    unappliedCreditsKwd: null,
+    agingHiddenReasonAr: null,
+    agingHiddenReasonEn: null,
+    maturityStatusAr: RECEIVABLES_PENDING_STATUS.ar,
+    maturityStatusEn: RECEIVABLES_PENDING_STATUS.en,
+    openLinesExplanationAr: RECEIVABLES_PENDING_DETAIL.ar,
+    openLinesExplanationEn: RECEIVABLES_PENDING_DETAIL.en,
+    reconciliationFormulaAr: RECEIVABLES_PENDING_STATUS.ar,
+    reconciliationFormulaEn: RECEIVABLES_PENDING_STATUS.en,
   }
 }
 
@@ -980,22 +1024,30 @@ function buildSummaryCards(params: {
       titleEn: 'Cumulative Aggregator Receivables',
       valueAr: !odooConnected
         ? disconnectedLabelAr
-        : receivables.unavailable || deliveryDuesKwd === null
-          ? 'غير متاح'
-          : fKwd(deliveryDuesKwd, true),
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_STATUS.ar
+          : receivables.unavailable || deliveryDuesKwd === null
+            ? 'غير متاح'
+            : fKwd(deliveryDuesKwd, true),
       valueEn: !odooConnected
         ? disconnectedLabelEn
-        : receivables.unavailable || deliveryDuesKwd === null
-          ? '—'
-          : fKwd(deliveryDuesKwd, false),
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_STATUS.en
+          : receivables.unavailable || deliveryDuesKwd === null
+            ? '—'
+            : fKwd(deliveryDuesKwd, false),
       descAr: !odooConnected
         ? disconnectedLabelAr
-        : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_DETAIL.ar
+          : receivables.unavailable || deliveryDuesKwd === null
           ? 'بعض الأرقام غير متاحة الآن — تعذّر جلب أرصدة الذمم المدينة مؤقتاً.'
           : `الفترة: من ${receivables.fromDate} إلى ${receivables.toDate} • ${receivables.reconciliationFormulaAr}.`,
       descEn: !odooConnected
         ? disconnectedLabelEn
-        : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_DETAIL.en
+          : receivables.unavailable || deliveryDuesKwd === null
           ? 'Some figures are temporarily unavailable — could not retrieve open receivables.'
           : `Period: ${receivables.fromDate} to ${receivables.toDate} • ${receivables.reconciliationFormulaEn}.`,
       periodLabelAr: `من ${receivables.fromDate} إلى ${receivables.toDate}`,
@@ -1006,12 +1058,16 @@ function buildSummaryCards(params: {
       statusDot: '🟠',
       statusLabelAr: !odooConnected
         ? 'غير متصل'
-        : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_STATUS.ar
+          : receivables.unavailable || deliveryDuesKwd === null
           ? 'غير متاح'
           : 'رصيد فعلي من أودو',
       statusLabelEn: !odooConnected
         ? 'Disconnected'
-        : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.pendingReconciliation
+          ? RECEIVABLES_PENDING_STATUS.en
+          : receivables.unavailable || deliveryDuesKwd === null
           ? 'Unavailable'
           : 'Odoo 17 AR',
       badgeAr: 'رصيد تراكمي',
@@ -1768,11 +1824,12 @@ export function computeGlobalWorkspace(
       (arRaw !== undefined && arRaw.readable === false) ||
       (liveSummary.unavailableSections ?? []).includes('receivables'),
   )
-  const receivables: WorkspaceReceivablesMeta = receivablesUnavailable
+  const rawReceivablesMeta: WorkspaceReceivablesMeta = receivablesUnavailable
     ? buildUnavailableReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
     : arRaw && arRaw.readable
       ? {
           unavailable: false,
+          pendingReconciliation: false,
           openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
           grossPositiveReceivableKwd:
             Math.round(safeNum(arRaw.grossPositiveReceivableKwd) * 1000) / 1000,
@@ -1812,12 +1869,14 @@ export function computeGlobalWorkspace(
           })(),
         }
       : buildEmptyReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
+  const receivables = applyReceivablesExecutivePolicy(rawReceivablesMeta)
 
-  const deliveryDuesKwd: number | null = receivables.unavailable
-    ? null
-    : channel === 'dine-in'
-      ? 0
-      : Math.max(0, Math.round(receivables.openReceivableKwd))
+  const deliveryDuesKwd: number | null =
+    receivables.unavailable || receivables.pendingReconciliation || receivables.openReceivableKwd === null
+      ? null
+      : channel === 'dine-in'
+        ? 0
+        : Math.max(0, Math.round(receivables.openReceivableKwd))
 
   const quietHoursShare = computeLiveKuwaitSliceMultipliers(
     'quiet-hours',

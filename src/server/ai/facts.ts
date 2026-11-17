@@ -1,4 +1,5 @@
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED, RECEIVABLES_PENDING_STATUS } from '@/lib/aether/receivables-status'
 import type { BriefFact, BriefSection } from './brief-types'
 import { decimalFromNumber } from './number-guard'
 import { factForGuard, sanitizePeriodOdooIds, sourceForMetric, type PeriodOdooIds } from './source-links'
@@ -268,7 +269,10 @@ export function buildBriefFactPack(input: {
     sections.push({ id: 'purchases', status: 'not_linked', noteAr: 'لا توجد أوامر شراء مرتبطة لهذه الفترة.' })
   }
 
-  if (input.receivables?.readable && typeof input.receivables.openReceivableKwd === 'number') {
+  if (input.receivables?.readable && !PER_CUSTOMER_DUE_DATE_AGING_VERIFIED) {
+    // Phase 5 · Item 2: no receivable amount reaches the AI until per-customer aging is verified.
+    sections.push({ id: 'receivables', status: 'linked', noteAr: RECEIVABLES_PENDING_STATUS.ar })
+  } else if (input.receivables?.readable && typeof input.receivables.openReceivableKwd === 'number') {
     pushAmount(facts, 'open_receivable_kwd', input.yesterday, 'company', input.receivables.openReceivableKwd, 'KWD', null)
     sections.push({ id: 'receivables', status: 'linked', noteAr: 'الرصيد المفتوح من Odoo.' })
   } else {

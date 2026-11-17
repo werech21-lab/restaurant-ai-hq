@@ -684,7 +684,7 @@ export function FullJourney360() {
     : buildArTieOut({
         openDebitsKwd: workspace.receivables.openDebitsKwd,
         unappliedCreditsKwd: workspace.receivables.unappliedCreditsKwd,
-        openReceivableKwd: workspace.receivables.openReceivableKwd,
+        openReceivableKwd: workspace.receivables.openReceivableKwd ?? 0,
       })
 
   const receivablesAmountsVisible = canShowReceivableAmounts(workspace.receivables)
