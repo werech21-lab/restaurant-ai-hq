@@ -24,18 +24,24 @@ import {
   detectTargetBranchFromQuestion,
   detectTargetBrandFromQuestion,
   detectTargetChannelFromQuestion,
+  FERYAL_RECEIVABLES_RECONCILIATION_REASON_AR,
+  getKuwaitClockParts,
   isBranchRankingQuestion,
+  isUnreconciledReceivablesSummary,
   KUWAIT_OFFSET_MS,
   normalizeArabicText,
   normalizeDigits,
   resolveFeryalComparisonPeriods,
   resolveFeryalQuestionPeriod,
+  resolvePartialTodayCutoff,
   SCHOOL_CANTEEN_FERYAL_BRANCH,
   validateFeryalContextDefaults,
+  YESTERDAY_AR_WORDS_PATTERN,
   type ApprovedFeryalBranchId,
   type ApprovedFeryalBrandId,
   type ApprovedFeryalChannelId,
   type ApprovedFeryalPeriodId,
+  type BranchRankingDirection,
   type FeryalBrandMeta,
   type FeryalBranchMeta,
   type FeryalChannelMeta,
@@ -56,15 +62,20 @@ export {
   detectTargetBranchFromQuestion,
   detectTargetBrandFromQuestion,
   detectTargetChannelFromQuestion,
+  FERYAL_RECEIVABLES_RECONCILIATION_REASON_AR,
   isBranchRankingQuestion,
+  isUnreconciledReceivablesSummary,
   resolveFeryalComparisonPeriods,
   resolveFeryalQuestionPeriod,
+  resolvePartialTodayCutoff,
   SCHOOL_CANTEEN_FERYAL_BRANCH,
   validateFeryalContextDefaults,
+  YESTERDAY_AR_WORDS_PATTERN,
   type ApprovedFeryalBranchId,
   type ApprovedFeryalBrandId,
   type ApprovedFeryalChannelId,
   type ApprovedFeryalPeriodId,
+  type BranchRankingDirection,
   type FeryalBrandMeta,
   type FeryalBranchMeta,
   type FeryalChannelMeta,
@@ -465,11 +476,12 @@ function isUnlinkedNonOdooTopic(question: string): {
     return { unlinked: true, reasonKey: 'recipes_bom' }
   }
 
-  // Unlinked HR sub-modules (payslips, biometric attendance, residency renewals)
+  // Unlinked HR sub-modules (payslips, salaries, biometric attendance, residency renewals)
   if (
-    /(مسيرات الرواتب|مسير الرواتب|قسائم الرواتب|بصمه الحضور|تاخير البصمه|انتهاء الاقامات|نهايه الخدمه|\bpayslips?\b|\bbiometric\b)/i.test(
+    /(مسيرات الرواتب|مسير الرواتب|قسائم الرواتب|بصمه الحضور|تاخير البصمه|انتهاء الاقامات|نهايه الخدمه|\bpayslips?\b|\bsalary\b|\bsalaries\b|\bbiometric\b)/i.test(
       normAr,
-    )
+    ) ||
+    /(?:^|\s|[وفبلك])(?:ال)?(?:رواتب|راتب|معاشات)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
   ) {
     return { unlinked: true, reasonKey: 'hr_unlinked' }
   }
@@ -491,6 +503,8 @@ type NoOdooDataReasonKey =
   | 'unknown_branch'
   | 'pos_no_data'
   | 'gl_no_data'
+  | 'branch_gl_unavailable'
+  | 'receivables_under_reconciliation'
   | 'stock_no_data'
   | 'generic'
 
@@ -526,6 +540,10 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم التحقق من اتصال Odoo وترحيل جلسات وطلبات نقاط البيع في pos.order وpos.order.line للفترة المطلوبة.`
     case 'gl_no_data':
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ترحيل قيود اليومية المحاسبية في account.move.line وإقفال مسودات الفواتير في Odoo للفترة المطلوبة.`
+    case 'branch_gl_unavailable':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط الحسابات التحليلية للمصروفات حسب الفرع في account.move.line داخل Odoo لقراءة مصاريف كل فرع بشكل مستقل.`
+    case 'receivables_under_reconciliation':
+      return `${FERYAL_NO_ODOO_DATA_REPLY} — ${FERYAL_RECEIVABLES_RECONCILIATION_REASON_AR} (يلزم مطابقة حساب مقاصة نقاط البيع وتحصيلات المنصات في Odoo).`
     case 'stock_no_data':
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم اعتماد حركات المخزن وأوامر الإتلاف في stock.move وstock.scrap داخل Odoo للفترة المطلوبة.`
     case 'generic':
@@ -543,6 +561,11 @@ function extractRequestedTopLimit(question: string): number {
   }
   return 5
 }
+
+const VENDOR_TRAILING_DATE_STRIP_RE = new RegExp(
+  `(اليوم|هاليوم|بالامس|${YESTERDAY_AR_WORDS_PATTERN}|هذا الشهر|هالشهر|الشهر الحالي|للشهر الحالي|للشهر|الشهر الماضي|هذا الاسبوع|هالاسبوع|الاسبوع الماضي|اخر 30 يوم|اخر 30 يوما|هذه السنه|هالسنه|خلال.*|في الفتره.*|(?:في|لشهر|شهر)\\s+(?:يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر)(?:\\s+20\\d{2})?|يوم\\s+\\d{1,2}\\/\\d{1,2}(?:\\/\\d{4})?|\\b20\\d{2}-\\d{2}-\\d{2}\\b|[«»"'()\\[\\]؟?.,!])`,
+  'g',
+)
 
 function extractVendorQueryTarget(question: string): {
   mode: 'all_vendors' | 'specific_vendor' | 'placeholder_vendor'
@@ -563,12 +586,7 @@ function extractVendorQueryTarget(question: string): {
   // Singular vendor extraction after "مورد" or "المورد" or "supplier" or "vendor"
   const arMatch = norm.match(/(?:تكلفه|مشتريات|اوامر شراء|حساب|فاتوره)?\s*(?:المورد|مورد)\s+(.+)$/)
   if (arMatch) {
-    const cleaned = arMatch[1]
-      .replace(
-        /(اليوم|امس|الامس|هذا الشهر|الشهر الحالي|للشهر الحالي|للشهر|الشهر الماضي|هذا الاسبوع|الاسبوع الماضي|اخر 30 يوم|اخر 30 يوما|هذه السنه|خلال.*|في الفتره.*|(?:في|لشهر|شهر)\s+(?:يناير|فبراير|مارس|ابريل|مايو|يونيو|يوليو|اغسطس|سبتمبر|اكتوبر|نوفمبر|ديسمبر)(?:\s+20\d{2})?|يوم\s+\d{1,2}\/\d{1,2}(?:\/\d{4})?|\b20\d{2}-\d{2}-\d{2}\b|[«»"'()\[\]؟?.,!])/g,
-        '',
-      )
-      .trim()
+    const cleaned = arMatch[1].replace(VENDOR_TRAILING_DATE_STRIP_RE, '').trim()
     if (!cleaned || cleaned === 'معين' || cleaned === 'محدد') {
       return { mode: 'placeholder_vendor', vendorQuery: cleaned || 'معين' }
     }
@@ -736,12 +754,32 @@ interface ToolExecutionOutput {
   requireGlIncompleteWarning?: boolean
 }
 
+function readChannelCell(
+  channels:
+    | Partial<
+        Record<
+          Exclude<ApprovedFeryalChannelId, 'talabat'>,
+          { netKwd: number; orders: number }
+        >
+      >
+    | undefined,
+  channelId: ApprovedFeryalChannelId,
+): { netKwd: number; orders: number } {
+  if (channelId === 'talabat') {
+    const tgo = channels?.['talabat-tgo'] ?? { netKwd: 0, orders: 0 }
+    const tmp = channels?.['talabat-tmp'] ?? { netKwd: 0, orders: 0 }
+    return { netKwd: tgo.netKwd + tmp.netKwd, orders: tgo.orders + tmp.orders }
+  }
+  return channels?.[channelId] ?? { netKwd: 0, orders: 0 }
+}
+
 async function runPosOrdersTool(params: {
   dataSource: FeryalOdooDataSource
   period: { from: string; to: string; periodLabelAr: string }
   targetBranchId: ApprovedFeryalBranchId | null
   targetChannelId?: ApprovedFeryalChannelId | null
   isBranchRanking?: boolean
+  rankingDirection?: BranchRankingDirection | null
   referenceNowMs?: number
 }): Promise<ToolExecutionOutput> {
   const {
@@ -750,6 +788,7 @@ async function runPosOrdersTool(params: {
     targetBranchId,
     targetChannelId = null,
     isBranchRanking = false,
+    rankingDirection = null,
     referenceNowMs,
   } = params
   const cube = await dataSource.fetchPeriodCube(period.from, period.to, referenceNowMs)
@@ -791,10 +830,13 @@ async function runPosOrdersTool(params: {
     ? APPROVED_FERYAL_CHANNEL_LIST.find((c) => c.id === targetChannelId) ?? null
     : null
   const channelClause = channelMeta ? ` (قناة ${channelMeta.nameAr})` : ''
+  // Channel cells come from `pos.payment` lines, so counts must be labeled `دفعات` (never `طلبات`).
+  const countUnitAr = targetChannelId ? 'دفعات' : 'طلبات'
+  const avgUnitAr = targetChannelId ? 'دفعة' : 'سلة'
 
   const canteenBranchRaw = cube.byBranch['school-canteens']
   const canteenRaw = targetChannelId
-    ? canteenBranchRaw?.channels?.[targetChannelId]
+    ? readChannelCell(canteenBranchRaw?.channels, targetChannelId)
     : canteenBranchRaw
   const includeCanteenInRows =
     targetBranchId === 'school-canteens' ||
@@ -807,7 +849,7 @@ async function runPosOrdersTool(params: {
   const branchRows = activeBranchMetas.map((meta) => {
     const branchEntry = cube.byBranch[meta.id]
     const raw = targetChannelId
-      ? branchEntry?.channels?.[targetChannelId] ?? { netKwd: 0, orders: 0 }
+      ? readChannelCell(branchEntry?.channels, targetChannelId)
       : branchEntry ?? { netKwd: 0, orders: 0, aovKwd: 0 }
     const net1 = round1(raw.netKwd)
     const ordersInt = Math.round(raw.orders)
@@ -822,14 +864,13 @@ async function runPosOrdersTool(params: {
     }
   }).sort((a, b) => b.netKwd - a.netKwd || b.rawNetKwd - a.rawNetKwd)
 
-  const rawCompanyNet = targetChannelId
-    ? cube.byChannel?.[targetChannelId]?.netKwd ?? 0
-    : cube.totals.netSalesKwd
-  const rawCompanyOrders = targetChannelId
-    ? cube.byChannel?.[targetChannelId]?.orders ?? 0
-    : cube.totals.orders
+  const companyChannelCell = targetChannelId
+    ? readChannelCell(cube.byChannel, targetChannelId)
+    : null
+  const rawCompanyNet = companyChannelCell ? companyChannelCell.netKwd : cube.totals.netSalesKwd
+  const rawCompanyOrders = companyChannelCell ? companyChannelCell.orders : cube.totals.orders
   const rawUnattrEntry = targetChannelId
-    ? cube.unattributed.channels?.[targetChannelId] ?? { netKwd: 0, orders: 0 }
+    ? readChannelCell(cube.unattributed.channels, targetChannelId)
     : cube.unattributed
 
   const totalNet1 = round1(rawCompanyNet)
@@ -880,14 +921,14 @@ async function runPosOrdersTool(params: {
 
     const causeComparison =
       topBranch.id === targetRow.id
-        ? `تصدر فرع ${targetRow.nameAr} جميع الفروع بصافي ${formatKwd1(targetRow.netKwd)} د.ك من ${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك.`
-        : `حقق فرع ${targetRow.nameAr} صافي ${formatKwd1(targetRow.netKwd)} د.ك من ${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك مقارنة بأعلى فرع للفترة وهو ${topBranch.nameAr} بقيمة ${formatKwd1(topBranch.netKwd)} د.ك.`
+        ? `تصدر فرع ${targetRow.nameAr} جميع الفروع بصافي ${formatKwd1(targetRow.netKwd)} د.ك من ${formatIntCount(targetRow.orders)} ${countUnitAr} بمتوسط ${avgUnitAr} ${formatKwd1(targetRow.aovKwd)} د.ك.`
+        : `حقق فرع ${targetRow.nameAr} صافي ${formatKwd1(targetRow.netKwd)} د.ك من ${formatIntCount(targetRow.orders)} ${countUnitAr} بمتوسط ${avgUnitAr} ${formatKwd1(targetRow.aovKwd)} د.ك مقارنة بأعلى فرع للفترة وهو ${topBranch.nameAr} بقيمة ${formatKwd1(topBranch.netKwd)} د.ك.`
 
     const reply = [
-      `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، سجل فرع ${targetRow.nameAr} صافي مبيعات ${formatKwd1(targetRow.netKwd)} د.ك و${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك من إجمالي الشركة البالغ ${formatKwd1(totalNet1)} د.ك.`,
+      `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، سجل فرع ${targetRow.nameAr} صافي مبيعات ${formatKwd1(targetRow.netKwd)} د.ك و${formatIntCount(targetRow.orders)} ${countUnitAr} بمتوسط ${avgUnitAr} ${formatKwd1(targetRow.aovKwd)} د.ك من إجمالي الشركة البالغ ${formatKwd1(totalNet1)} د.ك.`,
       `• السبب من البيانات: ${causeComparison}`,
       `• الإجراء المحدد: يراجع مدير فرع ${targetRow.nameAr} ومشرف العمليات اليوم أداء فترات الذروة واقتراحات الإضافات في نقاط البيع خلال الوردية القادمة.`,
-      `• الأثر المتوقع (تقدير): تقدير — تحسن متوسط السلة فوق مستوى ${formatKwd1(targetRow.aovKwd)} د.ك الحالي ورفع مساهمة فرع ${targetRow.nameAr} ضمن مبيعات الشركة.`,
+      `• الأثر المتوقع (تقدير): تقدير — تحسن متوسط ال${avgUnitAr} فوق مستوى ${formatKwd1(targetRow.aovKwd)} د.ك الحالي ورفع مساهمة فرع ${targetRow.nameAr} ضمن مبيعات الشركة.`,
     ].join('\n')
 
     return {
@@ -900,7 +941,7 @@ async function runPosOrdersTool(params: {
       structuredFacts: {
         model: 'pos.order',
         period: { from: period.from, to: period.to },
-        ...(targetChannelId ? { channelId: targetChannelId } : {}),
+        ...(targetChannelId ? { channelId: targetChannelId, countUnitAr } : {}),
         branch: targetRow,
         branches: branchRows,
         companyTotalNetKwd: totalNet1,
@@ -947,6 +988,80 @@ async function runPosOrdersTool(params: {
     allowedEntityNames.push(r.nameAr)
   }
 
+  const unattributedSegment =
+    unattributedNet1 > 0
+      ? `، منها ${formatKwd1(unattributedNet1)} د.ك غير منسوبة (${UNATTRIBUTED_BRANCH_LABEL_AR})`
+      : `، وبند ${UNATTRIBUTED_BRANCH_LABEL_AR} بقيمة ${formatKwd1(unattributedNet1)} د.ك`
+
+  if (isBranchRanking && rankingDirection === 'lowest') {
+    const restaurantRows = branchRows.filter((r) => r.id !== 'school-canteens')
+    const canteenRow = branchRows.find((r) => r.id === 'school-canteens') ?? null
+    const lowestRestaurant =
+      restaurantRows[restaurantRows.length - 1] ?? branchRows[branchRows.length - 1]
+    const secondLowestRestaurant =
+      restaurantRows.length >= 2 ? restaurantRows[restaurantRows.length - 2] : null
+    const topRestaurant = restaurantRows[0] ?? branchRows[0]
+    const restaurantAscText = [...restaurantRows]
+      .reverse()
+      .map((r) => `${r.nameAr} ${formatKwd1(r.netKwd)} د.ك`)
+      .join('، ')
+    const canteenClause = canteenRow
+      ? `، ومبيعات ${canteenRow.nameAr} بشكل مستقل ${formatKwd1(canteenRow.netKwd)} د.ك (${formatIntCount(canteenRow.orders)} ${countUnitAr})`
+      : ''
+
+    const lowestReply = [
+      `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، سجل فرع ${lowestRestaurant.nameAr} أقل مبيعات بين فروع المطاعم بصافي ${formatKwd1(lowestRestaurant.netKwd)} د.ك و${formatIntCount(lowestRestaurant.orders)} ${countUnitAr}، وجاء ترتيب فروع المطاعم من الأقل إلى الأعلى كالتالي: ${restaurantAscText}${canteenClause}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} ${countUnitAr}${unattributedSegment}.`,
+      `• السبب من البيانات: جاء فرع ${lowestRestaurant.nameAr} في المرتبة الأقل بين فروع المطاعم بقيمة ${formatKwd1(lowestRestaurant.netKwd)} د.ك (${formatIntCount(lowestRestaurant.orders)} ${countUnitAr} بمتوسط ${avgUnitAr} ${formatKwd1(lowestRestaurant.aovKwd)} د.ك)${secondLowestRestaurant ? ` يليه صعوداً ${secondLowestRestaurant.nameAr} بقيمة ${formatKwd1(secondLowestRestaurant.netKwd)} د.ك` : ''} مقابل ${formatKwd1(topRestaurant.netKwd)} د.ك في فرع ${topRestaurant.nameAr}${canteenRow ? `، مع إدراج ${canteenRow.nameAr} (${formatKwd1(canteenRow.netKwd)} د.ك) كبند مقاصف مستقل عن فروع المطاعم` : ''}.`,
+      `• الإجراء المحدد: يراجع مدير العمليات ومدير فرع ${lowestRestaurant.nameAr} اليوم توافر الأصناف وتغطية منصات التوصيل وساعات الذروة لمعالجة فجوة المبيعات في الفرع.`,
+      `• الأثر المتوقع (تقدير): تقدير — رفع أداء فرع ${lowestRestaurant.nameAr} فوق مستوى ${formatKwd1(lowestRestaurant.netKwd)} د.ك الحالي يعزز مساهمته ضمن إجمالي مبيعات فروع المطاعم.`,
+    ].join('\n')
+
+    return {
+      hasData: true,
+      primaryModel: 'pos.order',
+      executedQueries,
+      toolNumbers,
+      allowedEntityNames,
+      deterministicReply: lowestReply,
+      structuredFacts: {
+        model: 'pos.order',
+        period: { from: period.from, to: period.to },
+        ...(targetChannelId ? { channelId: targetChannelId, countUnitAr } : {}),
+        rankingDirection: 'lowest',
+        totalNetKwd: totalNet1,
+        totalOrders: totalOrdersInt,
+        lowestBranch: {
+          id: lowestRestaurant.id,
+          nameAr: lowestRestaurant.nameAr,
+          netKwd: lowestRestaurant.netKwd,
+          orders: lowestRestaurant.orders,
+        },
+        topBranch: {
+          id: topRestaurant.id,
+          nameAr: topRestaurant.nameAr,
+          netKwd: topRestaurant.netKwd,
+          orders: topRestaurant.orders,
+        },
+        ...(canteenRow
+          ? {
+              schoolCanteens: {
+                id: canteenRow.id,
+                nameAr: canteenRow.nameAr,
+                netKwd: canteenRow.netKwd,
+                orders: canteenRow.orders,
+              },
+            }
+          : {}),
+        unattributed: {
+          labelAr: UNATTRIBUTED_BRANCH_LABEL_AR,
+          netKwd: unattributedNet1,
+          orders: unattributedOrdersInt,
+        },
+        branches: branchRows,
+      },
+    }
+  }
+
   const branchListText = branchRows
     .map((r) => `${r.nameAr} ${formatKwd1(r.netKwd)} د.ك`)
     .join('، ')
@@ -955,14 +1070,9 @@ async function runPosOrdersTool(params: {
   const secondBranch = branchRows[1]
   const lowestBranch = branchRows[branchRows.length - 1]
 
-  const unattributedSegment =
-    unattributedNet1 > 0
-      ? `، منها ${formatKwd1(unattributedNet1)} د.ك غير منسوبة (${UNATTRIBUTED_BRANCH_LABEL_AR})`
-      : `، وبند ${UNATTRIBUTED_BRANCH_LABEL_AR} بقيمة ${formatKwd1(unattributedNet1)} د.ك`
-
   const firstBullet = isBranchRanking
-    ? `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، تصدر فرع ${topBranch.nameAr} المبيعات بصافي ${formatKwd1(topBranch.netKwd)} د.ك و${formatIntCount(topBranch.orders)} طلبات، وتوزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} طلبات${unattributedSegment}.`
-    : `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، توزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} طلبات${unattributedSegment}.`
+    ? `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، تصدر فرع ${topBranch.nameAr} المبيعات بصافي ${formatKwd1(topBranch.netKwd)} د.ك و${formatIntCount(topBranch.orders)} ${countUnitAr}، وتوزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} ${countUnitAr}${unattributedSegment}.`
+    : `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، توزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} ${countUnitAr}${unattributedSegment}.`
 
   const reply = [
     firstBullet,
@@ -981,7 +1091,7 @@ async function runPosOrdersTool(params: {
     structuredFacts: {
       model: 'pos.order',
       period: { from: period.from, to: period.to },
-      ...(targetChannelId ? { channelId: targetChannelId } : {}),
+      ...(targetChannelId ? { channelId: targetChannelId, countUnitAr } : {}),
       totalNetKwd: totalNet1,
       totalOrders: totalOrdersInt,
       topBranch: { id: topBranch.id, nameAr: topBranch.nameAr, netKwd: topBranch.netKwd, orders: topBranch.orders },
@@ -1148,13 +1258,15 @@ async function runAccountMoveLinesTool(params: {
   dataSource: FeryalOdooDataSource
   period: { from: string; to: string; periodLabelAr: string }
   question: string
+  explicitBranchId?: ApprovedFeryalBranchId | null
   referenceNowMs?: number
 }): Promise<ToolExecutionOutput> {
-  const { dataSource, period, question, referenceNowMs } = params
+  const { dataSource, period, question, explicitBranchId = null, referenceNowMs } = params
   const normAr = normalizeArabicText(question)
-  const asksReceivables = /(الذمم المدينه|ذمم المنصات|مستحقات المنصات|ذمم|\breceivables?\b)/i.test(
-    normAr,
-  )
+  const asksReceivables =
+    /(الذمم المدينه|ذمم المنصات|مستحقات المنصات|اعمار الديون|تقادم الذمم|\breceivables?\b)/i.test(
+      normAr,
+    ) || /(?:^|\s|[وفبلك])(?:ال)?ذمم(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
 
   const [cube, receivables] = await Promise.all([
     dataSource.fetchPeriodCube(period.from, period.to, referenceNowMs),
@@ -1180,6 +1292,49 @@ async function runAccountMoveLinesTool(params: {
       period: { from: period.from, to: period.to },
     },
   ]
+
+  if (asksReceivables) {
+    if (!receivables || !receivables.readable) {
+      return {
+        hasData: false,
+        noDataReasonKey: 'gl_no_data',
+        primaryModel: 'account.move.line',
+        executedQueries,
+        toolNumbers: [],
+        allowedEntityNames: [],
+        deterministicReply: buildFeryalNoOdooDataSuggestion('gl_no_data'),
+        structuredFacts: {},
+      }
+    }
+
+    if (isUnreconciledReceivablesSummary(receivables)) {
+      return {
+        hasData: false,
+        noDataReasonKey: 'receivables_under_reconciliation',
+        primaryModel: 'account.move.line',
+        executedQueries,
+        toolNumbers: [],
+        allowedEntityNames: [],
+        deterministicReply: buildFeryalNoOdooDataSuggestion('receivables_under_reconciliation'),
+        structuredFacts: {},
+      }
+    }
+  }
+
+  // `cube.accounting` is company-wide GL; refuse branch-specific expense queries rather than
+  // misattributing company-wide GL expenses (or POS sales) to a single branch.
+  if (!asksReceivables && explicitBranchId !== null) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'branch_gl_unavailable',
+      primaryModel: 'account.move.line',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('branch_gl_unavailable'),
+      structuredFacts: {},
+    }
+  }
 
   const acc = cube?.accounting
   const hasAccData = Boolean(
@@ -1595,16 +1750,18 @@ async function runStockMovesAndScrapTool(params: {
 
 async function runPosComparisonTool(params: {
   dataSource: FeryalOdooDataSource
-  comparison: {
-    periodA: { from: string; to: string; periodLabelAr: string }
-    periodB: { from: string; to: string; periodLabelAr: string }
-    allowedDateStrings: string[]
-  }
+  comparison: ResolvedFeryalComparisonPeriods
   targetBranchId: ApprovedFeryalBranchId | null
+  targetChannelId?: ApprovedFeryalChannelId | null
   referenceNowMs?: number
 }): Promise<ToolExecutionOutput> {
-  const { dataSource, comparison, targetBranchId, referenceNowMs } = params
+  const { dataSource, comparison, targetBranchId, targetChannelId = null, referenceNowMs } = params
   const { periodA, periodB } = comparison
+
+  const kwClock = getKuwaitClockParts(referenceNowMs ?? Date.now())
+  const cutoff =
+    comparison.partialTodayCutoff ??
+    resolvePartialTodayCutoff(periodA.from, periodA.to, periodB.from, periodB.to, kwClock)
 
   const [cubeA, cubeB] = await Promise.all([
     dataSource.fetchPeriodCube(periodA.from, periodA.to, referenceNowMs),
@@ -1652,6 +1809,10 @@ async function runPosComparisonTool(params: {
     }
   }
 
+  const channelMeta = targetChannelId
+    ? APPROVED_FERYAL_CHANNEL_LIST.find((c) => c.id === targetChannelId) ?? null
+    : null
+  const countUnitAr = targetChannelId ? 'دفعات' : 'طلبات'
   let rawNetA = 0
   let rawOrdersA = 0
   let rawNetB = 0
@@ -1665,15 +1826,82 @@ async function runPosComparisonTool(params: {
     if (branchMeta) allowedEntityNames.push(branchMeta.nameAr)
     const bA = cubeA?.byBranch?.[targetBranchId]
     const bB = cubeB?.byBranch?.[targetBranchId]
-    rawNetA = bA?.netKwd ?? 0
-    rawOrdersA = bA?.orders ?? 0
-    rawNetB = bB?.netKwd ?? 0
-    rawOrdersB = bB?.orders ?? 0
+    if (targetChannelId) {
+      const chA = readChannelCell(bA?.channels, targetChannelId)
+      const chB = readChannelCell(bB?.channels, targetChannelId)
+      rawNetA = chA.netKwd
+      rawOrdersA = chA.orders
+      rawNetB = chB.netKwd
+      rawOrdersB = chB.orders
+    } else {
+      rawNetA = bA?.netKwd ?? 0
+      rawOrdersA = bA?.orders ?? 0
+      rawNetB = bB?.netKwd ?? 0
+      rawOrdersB = bB?.orders ?? 0
+    }
+  } else if (targetChannelId) {
+    const chA = readChannelCell(cubeA?.byChannel, targetChannelId)
+    const chB = readChannelCell(cubeB?.byChannel, targetChannelId)
+    rawNetA = chA.netKwd
+    rawOrdersA = chA.orders
+    rawNetB = chB.netKwd
+    rawOrdersB = chB.orders
   } else {
     rawNetA = cubeA?.totals.netSalesKwd ?? 0
     rawOrdersA = cubeA?.totals.orders ?? 0
     rawNetB = cubeB?.totals.netSalesKwd ?? 0
     rawOrdersB = cubeB?.totals.orders ?? 0
+  }
+
+  if (channelMeta) {
+    scopeLabelAr = `${scopeLabelAr} — قناة ${channelMeta.nameAr}`
+    allowedEntityNames.push(channelMeta.nameAr)
+  }
+
+  // Prompt B.7: When one side is Kuwait today (partial), compare the SAME hours up to current
+  // Kuwait hour if hourly series exist on both cubes, and ALWAYS state «حتى الساعة HH:MM» explicitly.
+  let labelAAr = periodA.periodLabelAr
+  let labelBAr = periodB.periodLabelAr
+  let sameHoursApplied = false
+
+  if (cutoff) {
+    const aIsSingleDay = periodA.from === periodA.to
+    const bIsSingleDay = periodB.from === periodB.to
+    const aTouchesToday = periodA.from <= cutoff.iso && periodA.to >= cutoff.iso
+    const bTouchesToday = periodB.from <= cutoff.iso && periodB.to >= cutoff.iso
+
+    const hoursA = targetBranchId ? cubeA?.hourlyByBranch?.[targetBranchId] : cubeA?.hourlySeries
+    const hoursB = targetBranchId ? cubeB?.hourlyByBranch?.[targetBranchId] : cubeB?.hourlySeries
+    const canCompareSameHours =
+      targetChannelId === null &&
+      aIsSingleDay &&
+      bIsSingleDay &&
+      (aTouchesToday || bTouchesToday) &&
+      Array.isArray(hoursA) &&
+      hoursA.length > 0 &&
+      Array.isArray(hoursB) &&
+      hoursB.length > 0
+
+    if (canCompareSameHours && hoursA && hoursB) {
+      const includeHour = (h: number): boolean =>
+        cutoff.minute === 0 && cutoff.hour > 0 ? h < cutoff.hour : h <= cutoff.hour
+      const filteredA = hoursA.filter((row) => includeHour(row.hour))
+      const filteredB = hoursB.filter((row) => includeHour(row.hour))
+      rawNetA = filteredA.reduce((acc, row) => acc + row.netKwd, 0)
+      rawOrdersA = filteredA.reduce((acc, row) => acc + row.orders, 0)
+      rawNetB = filteredB.reduce((acc, row) => acc + row.netKwd, 0)
+      rawOrdersB = filteredB.reduce((acc, row) => acc + row.orders, 0)
+      sameHoursApplied = true
+      labelAAr = `${periodA.periodLabelAr} (حتى الساعة ${cutoff.hhMm})`
+      labelBAr = `${periodB.periodLabelAr} (بنفس الساعات حتى الساعة ${cutoff.hhMm})`
+    } else {
+      if (aTouchesToday) {
+        labelAAr = `${periodA.periodLabelAr} (حتى الساعة ${cutoff.hhMm})`
+      }
+      if (bTouchesToday) {
+        labelBAr = `${periodB.periodLabelAr} (حتى الساعة ${cutoff.hhMm})`
+      }
+    }
   }
 
   if (rawNetA <= 0 && rawOrdersA <= 0 && rawNetB <= 0 && rawOrdersB <= 0) {
@@ -1721,14 +1949,14 @@ async function runPosComparisonTool(params: {
   const pctSegment = netB1 > 0 ? ` (${formatKwd1(absPct1)}%)` : ''
   const ordersDirection =
     ordersDiffInt > 0
-      ? `زيادة الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`
+      ? `زيادة العدد بواقع ${formatIntCount(absOrdersDiffInt)} ${countUnitAr}`
       : ordersDiffInt < 0
-        ? `تراجع الطلبات بعدد ${formatIntCount(absOrdersDiffInt)} طلبات`
-        : `ثبات عدد الطلبات بفارق ${formatIntCount(absOrdersDiffInt)} طلبات`
+        ? `تراجع العدد بواقع ${formatIntCount(absOrdersDiffInt)} ${countUnitAr}`
+        : `ثبات العدد بفارق ${formatIntCount(absOrdersDiffInt)} ${countUnitAr}`
 
   const reply = [
-    `• الرقم: وفق موديل pos.order في Odoo (${scopeLabelAr})، بلغ صافي مبيعات الفترة ${periodA.periodLabelAr} قيمة ${formatKwd1(netA1)} د.ك عبر ${formatIntCount(ordersAInt)} طلبات مقابل ${formatKwd1(netB1)} د.ك عبر ${formatIntCount(ordersBInt)} طلبات في الفترة ${periodB.periodLabelAr}، ${directionWord} قدره ${formatKwd1(absDiff1)} د.ك${pctSegment}.`,
-    `• السبب من البيانات: يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك بين الفترتين إلى ${ordersDirection} بين ${periodA.periodLabelAr} (${formatIntCount(ordersAInt)} طلبات) و${periodB.periodLabelAr} (${formatIntCount(ordersBInt)} طلبات).`,
+    `• الرقم: وفق موديل pos.order في Odoo (${scopeLabelAr})، بلغ صافي مبيعات الفترة ${labelAAr} قيمة ${formatKwd1(netA1)} د.ك عبر ${formatIntCount(ordersAInt)} ${countUnitAr} مقابل ${formatKwd1(netB1)} د.ك عبر ${formatIntCount(ordersBInt)} ${countUnitAr} في الفترة ${labelBAr}، ${directionWord} قدره ${formatKwd1(absDiff1)} د.ك${pctSegment}.`,
+    `• السبب من البيانات: يعود الفارق البالغ ${formatKwd1(absDiff1)} د.ك بين الفترتين إلى ${ordersDirection} بين ${labelAAr} (${formatIntCount(ordersAInt)} ${countUnitAr}) و${labelBAr} (${formatIntCount(ordersBInt)} ${countUnitAr}).`,
     `• الإجراء المحدد: يراجع مدير العمليات ومديرو الفروع اليوم توزيع الورديات وتوافر الأصناف الأكثر طلباً لمحاكاة أعلى قراءة مسجلة بين الفترتين.`,
     `• الأثر المتوقع (تقدير): تقدير — استدامة مستوى الأداء الأعلى يغلق فجوة المبيعات البالغة ${formatKwd1(absDiff1)} د.ك ويرفع استقرار الإيراد اليومي.`,
   ].join('\n')
@@ -1743,8 +1971,10 @@ async function runPosComparisonTool(params: {
     structuredFacts: {
       model: 'pos.order',
       scope: scopeLabelAr,
-      periodA: { ...periodA, netKwd: netA1, orders: ordersAInt },
-      periodB: { ...periodB, netKwd: netB1, orders: ordersBInt },
+      ...(targetChannelId ? { channelId: targetChannelId, countUnitAr } : {}),
+      periodA: { ...periodA, periodLabelAr: labelAAr, netKwd: netA1, orders: ordersAInt },
+      periodB: { ...periodB, periodLabelAr: labelBAr, netKwd: netB1, orders: ordersBInt },
+      ...(cutoff ? { cutoffTimeAr: cutoff.hhMm, sameHoursApplied } : {}),
       deltaNetKwd: diff1,
       deltaOrders: ordersDiffInt,
       deltaPct: pct1,
@@ -2443,6 +2673,7 @@ export async function askFeryalOdooAgent(
         dataSource,
         comparison: comp,
         targetBranchId: effectiveBranchId,
+        targetChannelId: effectiveChannelId,
         referenceNowMs: nowMs,
       })
       break
@@ -2463,6 +2694,7 @@ export async function askFeryalOdooAgent(
         targetBranchId: effectiveBranchId,
         targetChannelId: effectiveChannelId,
         isBranchRanking: branchDetection.isBranchRanking,
+        rankingDirection: branchDetection.rankingDirection,
         referenceNowMs: nowMs,
       })
       break
@@ -2480,6 +2712,7 @@ export async function askFeryalOdooAgent(
         dataSource,
         period: resolvedPeriod,
         question: rawQuestion,
+        explicitBranchId: branchDetection.branchId,
         referenceNowMs: nowMs,
       })
       break

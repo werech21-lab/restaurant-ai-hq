@@ -1,3 +1,8 @@
+import {
+  isReceivablesUnderReconciliation,
+  RECEIVABLES_RECONCILIATION_REASON_AR,
+  type ReceivablesHonestyProbe,
+} from '@/lib/aether/receivables-headline'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 
 export const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
@@ -23,12 +28,28 @@ export type ApprovedFeryalBrandId =
 export type ApprovedFeryalChannelId =
   | 'dine-in'
   | 'takeaway-direct'
+  | 'talabat'
   | 'talabat-tgo'
   | 'talabat-tmp'
   | 'keeta'
   | 'deliveroo'
   | 'jahez'
   | 'snoonu'
+
+export type BranchRankingDirection = 'highest' | 'lowest'
+
+export const FERYAL_RECEIVABLES_RECONCILIATION_REASON_AR = RECEIVABLES_RECONCILIATION_REASON_AR
+
+export type ReceivableReconciliationCheckInput = ReceivablesHonestyProbe
+
+/**
+ * Shared receivables honesty guard (Prompt A.4 — delegates to `isReceivablesUnderReconciliation`).
+ */
+export function isUnreconciledReceivablesSummary(
+  rec: ReceivableReconciliationCheckInput | null | undefined,
+): boolean {
+  return isReceivablesUnderReconciliation(rec)
+}
 
 export type ApprovedFeryalPeriodId = 'today' | 'week' | 'month' | 'year' | 'custom'
 
@@ -88,7 +109,7 @@ export const APPROVED_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
     id: 'al-kout',
     nameAr: 'الكوت',
     nameEn: 'Al-Kout',
-    aliases: ['الكوت', 'كوت', 'الفحاحيل', 'al-kout', 'alkout', 'al kout', 'kout'],
+    aliases: ['الكوت', 'مجمع الكوت', 'كوت', 'al-kout', 'alkout', 'al kout', 'kout'],
   },
   {
     id: 'ardiya',
@@ -124,6 +145,8 @@ export const SCHOOL_CANTEEN_FERYAL_BRANCH: FeryalBranchMeta = {
     'مقاصف المدارس',
     'المقاصف المدرسية',
     'مقصف المدارس',
+    'مقصف الفحاحيل',
+    'fas fahaheel',
     'school-canteens',
     'school canteens',
   ],
@@ -201,6 +224,12 @@ export const APPROVED_FERYAL_CHANNEL_LIST: readonly FeryalChannelMeta[] = [
     nameAr: 'سفري ومباشر',
     nameEn: 'Takeaway/Direct',
     aliases: ['سفري ومباشر', 'سفري', 'takeaway-direct', 'takeaway'],
+  },
+  {
+    id: 'talabat',
+    nameAr: 'طلبات (TGO + TMP)',
+    nameEn: 'Talabat (TGO + TMP)',
+    aliases: [],
   },
   {
     id: 'talabat-tgo',
@@ -355,29 +384,53 @@ export function validateFeryalContextDefaults(
   return { period, customFrom, customTo, branchId, brandId, channelId }
 }
 
+export const YESTERDAY_AR_WORDS_PATTERN = 'امبارح|مبارح|البارح|البارحه|امس|الامس'
+const YESTERDAY_TOKEN_AR_RE = new RegExp(
+  `(?:^|\\s|[وب])(${YESTERDAY_AR_WORDS_PATTERN})(?=[\\s؟?.,!؛:()«»"']|$)`,
+)
+const DAY_BEFORE_YESTERDAY_AR_RE = new RegExp(
+  `(?:اول|قبل) (?:${YESTERDAY_AR_WORDS_PATTERN})`,
+)
+const TODAY_TOKEN_AR_RE = /(?:^|\s|[وب])(اليوم|هاليوم|نهار اليوم)(?=[\s؟?.,!؛:()«»"']|$)/
+
 /**
  * Detects whether the question is asking to rank or identify the top/lowest branch
- * (e.g. "أي فرع", "مين الفرع", "شو أعلى فرع", "أعلى فرع", "أكثر فرع", "which branch",
- * "top branch", "best branch").
+ * (e.g. "أي فرع", "مين الفرع", "شو أعلى فرع", "أعلى فرع", "أكثر فرع", "شو أضعف فرع",
+ * "which branch", "top branch", "best branch", "lowest branch", "worst branch").
  */
 export function isBranchRankingQuestion(question: string): boolean {
   const normAr = normalizeArabicText(question)
   if (!normAr) return false
 
   const arRankingRe =
-    /(?:^|\s)(?:اي فرع|مين الفرع|من الفرع|منو الفرع|شنو الفرع|شو الفرع|ايش الفرع|وش الفرع|شو اعلي فرع|شنو اعلي فرع|ما اعلي فرع|ما هو اعلي فرع|اعلي فرع|اكثر فرع|افضل فرع|احسن فرع|اقل فرع|اضعف فرع|اسوا فرع|الفرع الاعلي|الفرع الاكثر|الفرع الافضل|الفرع الاقل|الفرع الاسوا|ترتيب الفروع|تصنيف الفروع)(?=[\s؟?.,!؛:()«»"']|$)/i
+    /(?:^|\s)(?:اي فرع|مين الفرع|من الفرع|منو الفرع|شنو الفرع|شو الفرع|ايش الفرع|وش الفرع|شو اعلي فرع|شنو اعلي فرع|ما اعلي فرع|ما هو اعلي فرع|اعلي فرع|اكثر فرع|افضل فرع|احسن فرع|اقل فرع|اضعف فرع|اسوا فرع|الفرع الاعلي|الفرع الاكثر|الفرع الافضل|الفرع الاقل|الفرع الاضعف|الفرع الاسوا|اعلي الفروع|افضل الفروع|اقل الفروع|اضعف الفروع|اسوا الفروع|ترتيب الفروع|تصنيف الفروع)(?=[\s؟?.,!؛:()«»"']|$)/i
   if (arRankingRe.test(normAr)) return true
 
   if (
-    /(?:الاعلي مبيعا|الاكثر مبيعا|الافضل مبيعا|الاقل مبيعا)/.test(normAr) &&
+    /(?:الاعلي مبيعا|الاكثر مبيعا|الافضل مبيعا|الاقل مبيعا|الاضعف مبيعا|الاسوا مبيعا)/.test(
+      normAr,
+    ) &&
     /(?:فرع|الفرع|الفروع)/.test(normAr)
   ) {
     return true
   }
 
   const enRankingRe =
-    /\b(?:which branch|what branch|top branch|best branch|highest branch|lowest branch|worst branch|top[- ]selling branch|best[- ]selling branch|branch ranking|rank branches)\b/i
+    /\b(?:which branch|what branch|top branch|best branch|highest branch|lowest branch|worst branch|weakest branch|top[- ]selling branch|best[- ]selling branch|branch ranking|rank branches)\b/i
   return enRankingRe.test(normAr)
+}
+
+export function detectBranchRankingDirection(question: string): BranchRankingDirection | null {
+  if (!isBranchRankingQuestion(question)) return null
+  const normAr = normalizeArabicText(question)
+  if (
+    /(?:^|\s|[وفبلك])(?:اضعف|الاضعف|اقل|الاقل|اسوا|الاسوا|ادني|الادني)(?=[\s؟?.,!؛:()«»"']|$)|\b(?:lowest|worst|weakest|bottom)\b/i.test(
+      normAr,
+    )
+  ) {
+    return 'lowest'
+  }
+  return 'highest'
 }
 
 /**
@@ -483,6 +536,19 @@ const NON_PROPER_BRANCH_STEMS = new Set<string>([
   'موظف',
   'موظفين',
   'مخزن',
+  'مخزون',
+  'مصاريف',
+  'مصروفات',
+  'مصروف',
+  'صرفنا',
+  'صرف',
+  'رواتب',
+  'راتب',
+  'عموله',
+  'عمولات',
+  'ذمم',
+  'كاش',
+  'بنك',
   'مشتريات',
   'هدر',
   'تالف',
@@ -504,14 +570,23 @@ const NON_PROPER_BRANCH_STEMS = new Set<string>([
   'موخر',
   'اخيرا',
   'اليوم',
+  'هاليوم',
   'امس',
+  'الامس',
+  'امبارح',
+  'مبارح',
+  'البارح',
+  'البارحه',
   'بارحه',
   'غدا',
   'الان',
   'حاليا',
   'اسبوع',
+  'هالاسبوع',
   'شهر',
+  'هالشهر',
   'سنه',
+  'هالسنه',
   'عام',
   'فتره',
   'يوم',
@@ -701,6 +776,7 @@ export interface BranchDetectionResult {
   branchId: ApprovedFeryalBranchId | null
   unknownBranchRequested: boolean
   isBranchRanking: boolean
+  rankingDirection: BranchRankingDirection | null
   asksByBranchBreakdown: boolean
 }
 
@@ -710,7 +786,8 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
     /(حسب الفرع|حسب الفروع|لكل فرع|جميع الفروع|كل الفروع|مقارنه الفروع|توزيع الفروع|\bby branch\b|\ball branches\b)/i.test(
       normAr,
     )
-  const isBranchRanking = isBranchRankingQuestion(question)
+  const rankingDirection = detectBranchRankingDirection(question)
+  const isBranchRanking = rankingDirection !== null
 
   const matchedIds: ApprovedFeryalBranchId[] = []
   for (const branch of ALL_FERYAL_BRANCHES) {
@@ -719,6 +796,11 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       if (!aliasNorm) continue
       if (aliasNorm === '360') {
         if (/(^|[^\d])360([^\d]|$)/.test(normAr)) {
+          matchedIds.push(branch.id)
+          break
+        }
+      } else if (aliasNorm === 'كوت') {
+        if (/(?:^|\s|[وفبلك])كوت(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)) {
           matchedIds.push(branch.id)
           break
         }
@@ -734,6 +816,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       branchId: matchedIds[0],
       unknownBranchRequested: false,
       isBranchRanking,
+      rankingDirection,
       asksByBranchBreakdown,
     }
   }
@@ -742,6 +825,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       branchId: null,
       unknownBranchRequested: false,
       isBranchRanking,
+      rankingDirection,
       asksByBranchBreakdown,
     }
   }
@@ -752,6 +836,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
         branchId: null,
         unknownBranchRequested: true,
         isBranchRanking: false,
+        rankingDirection: null,
         asksByBranchBreakdown: false,
       }
     }
@@ -784,6 +869,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
           branchId: null,
           unknownBranchRequested: true,
           isBranchRanking: false,
+          rankingDirection: null,
           asksByBranchBreakdown: false,
         }
       }
@@ -798,6 +884,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       'highest',
       'lowest',
       'worst',
+      'weakest',
       'every',
       'each',
       'any',
@@ -813,6 +900,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
           branchId: null,
           unknownBranchRequested: true,
           isBranchRanking: false,
+          rankingDirection: null,
           asksByBranchBreakdown: false,
         }
       }
@@ -823,6 +911,7 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
     branchId: null,
     unknownBranchRequested: false,
     isBranchRanking,
+    rankingDirection,
     asksByBranchBreakdown,
   }
 }
@@ -854,6 +943,33 @@ export function detectTargetBrandFromQuestion(question: string): {
   return { brandId: null, asksByBrandBreakdown }
 }
 
+function detectTalabatChannelFromNormalized(normAr: string): ApprovedFeryalChannelId | null {
+  const hasBareArTalabat =
+    /(?:^|\s)(?:[بفل])?طلبات(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr) &&
+    !/(?:عدد|اجمالي|متوسط)\s+طلبات/.test(normAr) &&
+    !/طلبات\s+(?:الشراء|التوريد|نقاط البيع)/.test(normAr)
+
+  const hasTgo = /(\btgo\b|\btalabat[- ]tgo\b|تي جي او|اسطول المنصه)/i.test(normAr)
+  const hasTmp =
+    /(\btmp\b|\btalabat[- ]tmp\b|تي ام بي|طلبات ماركت|سائقي الشركه)/i.test(normAr) ||
+    (hasBareArTalabat && /(?:^|\s|[وفبلك])ماركت(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr))
+
+  if (hasTgo && hasTmp) return 'talabat'
+  if (hasTgo) return 'talabat-tgo'
+  if (hasTmp) return 'talabat-tmp'
+
+  if (/\btalabat\b/i.test(normAr)) return 'talabat'
+
+  const hasTalabatContextCue =
+    /(مبيعات|المبيعات|بالمبيعات|مبيعا|بعنا|باع|باعت|منصه|المنصه|تطبيق|التطبيق|توصيل|التوصيل|دينار|دنانير|د\.ك|\bkwd\b|\btgo\b|\btmp\b|تي جي او|تي ام بي|ماركت)/i.test(
+      normAr,
+    )
+  if (hasBareArTalabat && hasTalabatContextCue) {
+    return 'talabat'
+  }
+  return null
+}
+
 export function detectTargetChannelFromQuestion(question: string): {
   channelId: ApprovedFeryalChannelId | null
   asksByChannelBreakdown: boolean
@@ -864,21 +980,49 @@ export function detectTargetChannelFromQuestion(question: string): {
       normAr,
     )
 
-  const matched: ApprovedFeryalChannelId[] = []
+  const matched = new Set<ApprovedFeryalChannelId>()
+  const talabatMatch = detectTalabatChannelFromNormalized(normAr)
+  if (talabatMatch) {
+    matched.add(talabatMatch)
+  }
+
   for (const ch of APPROVED_FERYAL_CHANNEL_LIST) {
+    if (ch.id === 'talabat' || ch.id === 'talabat-tgo' || ch.id === 'talabat-tmp') continue
     for (const alias of ch.aliases) {
       const aNorm = normalizeArabicText(alias)
       if (aNorm && normAr.includes(aNorm)) {
-        matched.push(ch.id)
+        matched.add(ch.id)
         break
       }
     }
   }
 
-  if (matched.length === 1 && !asksByChannelBreakdown) {
-    return { channelId: matched[0], asksByChannelBreakdown: false }
+  if (matched.size === 1 && !asksByChannelBreakdown) {
+    return { channelId: [...matched][0], asksByChannelBreakdown: false }
   }
   return { channelId: null, asksByChannelBreakdown }
+}
+
+export interface KuwaitClockParts {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  iso: string
+  hhMm: string
+}
+
+export function getKuwaitClockParts(nowMs = Date.now()): KuwaitClockParts {
+  const kwDate = new Date(nowMs + KUWAIT_OFFSET_MS)
+  const year = kwDate.getUTCFullYear()
+  const month = kwDate.getUTCMonth() + 1
+  const day = kwDate.getUTCDate()
+  const hour = kwDate.getUTCHours()
+  const minute = kwDate.getUTCMinutes()
+  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const hhMm = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  return { year, month, day, hour, minute, iso, hhMm }
 }
 
 export function getKuwaitCalendarParts(nowMs = Date.now()): {
@@ -887,11 +1031,7 @@ export function getKuwaitCalendarParts(nowMs = Date.now()): {
   day: number
   iso: string
 } {
-  const kwDate = new Date(nowMs + KUWAIT_OFFSET_MS)
-  const year = kwDate.getUTCFullYear()
-  const month = kwDate.getUTCMonth() + 1
-  const day = kwDate.getUTCDate()
-  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const { year, month, day, iso } = getKuwaitClockParts(nowMs)
   return { year, month, day, iso }
 }
 
@@ -943,6 +1083,12 @@ export interface ResolvedFeryalComparisonPeriods {
   periodA: { from: string; to: string; periodLabelAr: string }
   periodB: { from: string; to: string; periodLabelAr: string }
   allowedDateStrings: string[]
+  partialTodayCutoff?: {
+    iso: string
+    hour: number
+    minute: number
+    hhMm: string
+  }
 }
 
 function formatIsoYmd(year: number, month: number, day: number): string {
@@ -969,12 +1115,37 @@ function makeResolvedPeriod(
   }
 }
 
+export function resolvePartialTodayCutoff(
+  aFrom: string,
+  aTo: string,
+  bFrom: string,
+  bTo: string,
+  kwClock?: KuwaitClockParts,
+): ResolvedFeryalComparisonPeriods['partialTodayCutoff'] {
+  if (!kwClock || (kwClock.hour === 23 && kwClock.minute === 59)) {
+    return undefined
+  }
+  const touchesToday =
+    (aFrom <= kwClock.iso && aTo >= kwClock.iso) ||
+    (bFrom <= kwClock.iso && bTo >= kwClock.iso)
+  if (!touchesToday) return undefined
+  return {
+    iso: kwClock.iso,
+    hour: kwClock.hour,
+    minute: kwClock.minute,
+    hhMm: kwClock.hhMm,
+  }
+}
+
 function makeComparisonPeriods(
   aFrom: string,
   aTo: string,
   bFrom: string,
   bTo: string,
+  kwClock?: KuwaitClockParts,
 ): ResolvedFeryalComparisonPeriods {
+  const partialTodayCutoff = resolvePartialTodayCutoff(aFrom, aTo, bFrom, bTo, kwClock)
+
   return {
     periodA: { from: aFrom, to: aTo, periodLabelAr: formatRangeLabelAr(aFrom, aTo) },
     periodB: { from: bFrom, to: bTo, periodLabelAr: formatRangeLabelAr(bFrom, bTo) },
@@ -982,8 +1153,10 @@ function makeComparisonPeriods(
       ...new Set([
         ...buildAllowedDateStrings(aFrom, aTo),
         ...buildAllowedDateStrings(bFrom, bTo),
+        ...(partialTodayCutoff ? [partialTodayCutoff.hhMm, '00:00'] : []),
       ]),
     ],
+    ...(partialTodayCutoff ? { partialTodayCutoff } : {}),
   }
 }
 
@@ -1062,65 +1235,77 @@ export function resolveFeryalComparisonPeriods(
 ): ResolvedFeryalComparisonPeriods | null {
   const normDigits = normalizeDigits(question)
   const normAr = normalizeArabicText(question)
-  const hasComparisonCue =
+  const hasStrongComparisonCue =
     /(قارن|مقارنه|بالمقارنه|مقابل|ضد|الفرق بين|\bvs\.?\b|\bversus\b|\bcompare\b)/i.test(normAr)
-  if (!hasComparisonCue) return null
+  const hasRelativeConnectorCue = /(?:^|\s)(?:مع|عن|\bwith\b)(?=\s|$)/i.test(normAr)
+  if (!hasStrongComparisonCue && !hasRelativeConnectorCue) return null
 
-  const kwToday = getKuwaitCalendarParts(referenceNowMs)
+  const kwClock = getKuwaitClockParts(referenceNowMs)
 
-  // 1. Two distinct explicit ISO dates
-  const distinctIsos = [...new Set(parseExplicitIsoDates(normDigits))]
-  if (distinctIsos.length >= 2) {
-    return makeComparisonPeriods(distinctIsos[0], distinctIsos[0], distinctIsos[1], distinctIsos[1])
-  }
+  if (hasStrongComparisonCue) {
+    // 1. Two distinct explicit ISO dates
+    const distinctIsos = [...new Set(parseExplicitIsoDates(normDigits))]
+    if (distinctIsos.length >= 2) {
+      return makeComparisonPeriods(
+        distinctIsos[0],
+        distinctIsos[0],
+        distinctIsos[1],
+        distinctIsos[1],
+        kwClock,
+      )
+    }
 
-  // 2. Two distinct explicit DD/MM or DD/MM/YYYY dates
-  const distinctSlashIsos = [...new Set(parseExplicitSlashDates(normDigits, kwToday))]
-  if (distinctSlashIsos.length >= 2) {
-    return makeComparisonPeriods(
-      distinctSlashIsos[0],
-      distinctSlashIsos[0],
-      distinctSlashIsos[1],
-      distinctSlashIsos[1],
-    )
+    // 2. Two distinct explicit DD/MM or DD/MM/YYYY dates
+    const distinctSlashIsos = [...new Set(parseExplicitSlashDates(normDigits, kwClock))]
+    if (distinctSlashIsos.length >= 2) {
+      return makeComparisonPeriods(
+        distinctSlashIsos[0],
+        distinctSlashIsos[0],
+        distinctSlashIsos[1],
+        distinctSlashIsos[1],
+        kwClock,
+      )
+    }
   }
 
   // 3. Relative day/period pairs
-  if (
-    /(اول امس|قبل امس|\bday before yesterday\b)/i.test(normAr) &&
-    /(امس|الامس|\byesterday\b)/i.test(normAr)
-  ) {
-    const a = shiftIsoDateDays(kwToday.iso, -1)
-    const b = shiftIsoDateDays(kwToday.iso, -2)
-    return makeComparisonPeriods(a, a, b, b)
+  const hasDayBeforeYesterday =
+    DAY_BEFORE_YESTERDAY_AR_RE.test(normAr) || /\bday before yesterday\b/i.test(normDigits)
+  const withoutDayBefore = normAr.replace(DAY_BEFORE_YESTERDAY_AR_RE, ' ')
+  const hasYesterday =
+    YESTERDAY_TOKEN_AR_RE.test(withoutDayBefore) ||
+    /\byesterday\b/i.test(normDigits.replace(/\bday before yesterday\b/gi, ' '))
+  const hasToday = TODAY_TOKEN_AR_RE.test(normAr) || /\btoday\b/i.test(normDigits)
+
+  if (hasDayBeforeYesterday && hasYesterday) {
+    const a = shiftIsoDateDays(kwClock.iso, -1)
+    const b = shiftIsoDateDays(kwClock.iso, -2)
+    return makeComparisonPeriods(a, a, b, b, kwClock)
+  }
+
+  if (hasToday && hasYesterday) {
+    const a = kwClock.iso
+    const b = shiftIsoDateDays(kwClock.iso, -1)
+    return makeComparisonPeriods(a, a, b, b, kwClock)
   }
 
   if (
-    /(^|\s)(اليوم|\btoday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr) &&
-    /(^|\s)(امس|الامس|\byesterday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr)
-  ) {
-    const a = kwToday.iso
-    const b = shiftIsoDateDays(kwToday.iso, -1)
-    return makeComparisonPeriods(a, a, b, b)
-  }
-
-  if (
-    /(هذا الاسبوع|الاسبوع الحالي|\bthis week\b)/i.test(normAr) &&
+    /(هذا الاسبوع|هالاسبوع|الاسبوع الحالي|\bthis week\b)/i.test(normAr) &&
     /(الاسبوع الماضي|الاسبوع السابق|\blast week\b)/i.test(normAr)
   ) {
-    const weekA = computeStandardPeriodWindow('week', kwToday)
-    const bFrom = shiftIsoDateDays(kwToday.iso, -13)
-    const bTo = shiftIsoDateDays(kwToday.iso, -7)
-    return makeComparisonPeriods(weekA.from, weekA.to, bFrom, bTo)
+    const weekA = computeStandardPeriodWindow('week', kwClock)
+    const bFrom = shiftIsoDateDays(kwClock.iso, -13)
+    const bTo = shiftIsoDateDays(kwClock.iso, -7)
+    return makeComparisonPeriods(weekA.from, weekA.to, bFrom, bTo, kwClock)
   }
 
   if (
-    /(هذا الشهر|الشهر الحالي|\bthis month\b)/i.test(normAr) &&
+    /(هذا الشهر|هالشهر|الشهر الحالي|\bthis month\b)/i.test(normAr) &&
     /(الشهر الماضي|الشهر السابق|\blast month\b)/i.test(normAr)
   ) {
-    const monthA = computeStandardPeriodWindow('month', kwToday)
-    const monthB = computePreviousMonthWindow(kwToday)
-    return makeComparisonPeriods(monthA.from, monthA.to, monthB.from, monthB.to)
+    const monthA = computeStandardPeriodWindow('month', kwClock)
+    const monthB = computePreviousMonthWindow(kwClock)
+    return makeComparisonPeriods(monthA.from, monthA.to, monthB.from, monthB.to, kwClock)
   }
 
   return null
@@ -1156,23 +1341,17 @@ export function resolveFeryalQuestionPeriod(
   }
 
   // 3. Relative day / range keywords in Kuwait timezone
-  if (/\b(day before yesterday)\b/i.test(normDigits) || /(اول امس|قبل امس)/.test(normAr)) {
+  if (/\b(day before yesterday)\b/i.test(normDigits) || DAY_BEFORE_YESTERDAY_AR_RE.test(normAr)) {
     const d = shiftIsoDateDays(kwToday.iso, -2)
     return makeResolvedPeriod(d, d, true)
   }
 
-  if (
-    /\b(yesterday)\b/i.test(normDigits) ||
-    /(^|\s)(امس|الامس|البارحه)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
-  ) {
+  if (/\b(yesterday)\b/i.test(normDigits) || YESTERDAY_TOKEN_AR_RE.test(normAr)) {
     const d = shiftIsoDateDays(kwToday.iso, -1)
     return makeResolvedPeriod(d, d, true)
   }
 
-  if (
-    /\b(today)\b/i.test(normDigits) ||
-    /(^|\s)(اليوم|نهار اليوم)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
-  ) {
+  if (/\b(today)\b/i.test(normDigits) || TODAY_TOKEN_AR_RE.test(normAr)) {
     const win = computeStandardPeriodWindow('today', kwToday)
     return makeResolvedPeriod(win.from, win.to, true)
   }
@@ -1198,7 +1377,7 @@ export function resolveFeryalQuestionPeriod(
 
   if (
     /\b(this week|week)\b/i.test(normDigits) ||
-    /(هذا الاسبوع|الاسبوع الحالي|اخر اسبوع|الاسبوع)/.test(normAr)
+    /(هذا الاسبوع|هالاسبوع|الاسبوع الحالي|اخر اسبوع|الاسبوع)/.test(normAr)
   ) {
     const win = computeStandardPeriodWindow('week', kwToday)
     return makeResolvedPeriod(win.from, win.to, true)
@@ -1211,7 +1390,7 @@ export function resolveFeryalQuestionPeriod(
 
   if (
     /\b(this year|year)\b/i.test(normDigits) ||
-    /(هذه السنه|هذا العام|السنه الحاليه|من بدايه السنه|العام)/.test(normAr)
+    /(هذه السنه|هالسنه|هذا العام|السنه الحاليه|من بدايه السنه|العام)/.test(normAr)
   ) {
     const win = computeStandardPeriodWindow('year', kwToday)
     return makeResolvedPeriod(win.from, win.to, true)
@@ -1226,7 +1405,7 @@ export function resolveFeryalQuestionPeriod(
 
   if (
     /\b(this month|month)\b/i.test(normDigits) ||
-    /(هذا الشهر|الشهر الحالي|من بدايه الشهر|الشهر)/.test(normAr)
+    /(هذا الشهر|هالشهر|الشهر الحالي|من بدايه الشهر|الشهر)/.test(normAr)
   ) {
     const win = computeStandardPeriodWindow('month', kwToday)
     return makeResolvedPeriod(win.from, win.to, true)
@@ -1261,6 +1440,16 @@ export type DetectedOdooToolKind =
   | 'hr_employees'
   | 'unknown'
 
+/**
+ * Guard against routing non-sales accounting/inventory/HR/treasury questions to `pos_orders`
+ * merely because the question mentions a branch or generic verb stem (Prompt B.2).
+ */
+export function hasNonSalesMetricCue(normAr: string): boolean {
+  return /(?:^|\s|[وفبلك])(?:ال)?(?:مصاريف|مصروفات|مصروف|صرفنا|صرف|مخزون|رواتب|راتب|عموله|عمولات|ذمم|كاش|بنك)(?=[\s؟?.,!؛:()«»"']|$)|\b(?:expenses?|inventory|stock|salary|salaries|commissions?|receivables?|cash|bank)\b/i.test(
+    normAr,
+  )
+}
+
 export function detectOdooToolKind(
   question: string,
   targetBranchId: ApprovedFeryalBranchId | null,
@@ -1288,49 +1477,59 @@ export function detectOdooToolKind(
     return 'purchase_orders'
   }
 
-  // 2. Warehouse transfers / stock moves / scrap (`stock.move` / `stock.scrap`)
+  // 2. Warehouse transfers / stock moves / inventory / scrap (`stock.move` / `stock.scrap`)
   if (
-    /(stock\.move|stock\.scrap|التحويل المخزني|التحويلات المخزنيه|تحويل مخزني|تحويلات المخزن|حركات المخزن|حركه المخزون|سلسله المخزن|الهدر|تالف|التالف|اتلاف|\bwarehouse transfer\b|\bstock move\b|\bscrap\b|\bwaste\b)/i.test(
+    /(stock\.move|stock\.scrap|التحويل المخزني|التحويلات المخزنيه|تحويل مخزني|تحويلات المخزن|حركات المخزن|حركه المخزون|سلسله المخزن|الهدر|تالف|التالف|اتلاف|\bwarehouse transfer\b|\bstock move\b|\binventory\b|\bstock\b|\bscrap\b|\bwaste\b)/i.test(
       normAr,
-    )
+    ) ||
+    /(?:^|\s|[وفبلك])(?:ال)?مخزون(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
   ) {
     return 'stock_moves'
   }
 
-  // 3. General Ledger / accounting / receivables (`account.move.line`)
+  // 3. General Ledger / accounting / expenses / receivables (`account.move.line`)
   if (
-    /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables\b|\bnet profit\b|\bexpenses\b)/i.test(
+    /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|اعمار الديون|تقادم الذمم|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables?\b|\bnet profit\b|\bexpenses?\b)/i.test(
       normAr,
-    )
+    ) ||
+    /(?:^|\s|[وفبلك])(?:ال)?(?:مصاريف|مصروفات|مصروف|ذمم)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)
   ) {
     return 'account_move_lines'
   }
 
   // 4. Two-period POS comparison (`pos.order`)
-  if (hasComparisonPeriods) {
+  if (hasComparisonPeriods && !hasNonSalesMetricCue(normAr)) {
     return 'pos_comparison'
   }
 
   // 5. Top selling products / POS line items / item discounts (`pos.order.line`)
   const asksItemLines =
-    /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|\btop \d* ?items\b|\btop \d* ?products\b|\bdiscounts\b)/i.test(
+    /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|اكثر صنف|اكثر منتج|اكثر طبق|اعلي صنف|اعلي منتج|اعلي طبق|افضل صنف|افضل منتج|افضل طبق|اقل صنف|اضعف صنف|اي صنف|شو الصنف|مين الصنف|صنف انباع|منتج انباع|طبق انباع|صنف مبيعا|منتج مبيعا|\btop \d* ?items?\b|\btop \d* ?products?\b|\bbest[- ]?sellers?\b|\bdiscounts\b)/i.test(
       normAr,
     ) ||
-    (!isBranchRanking && /\bbest selling\b/i.test(normAr) && !/\bbranch(?:es)?\b/i.test(normAr))
-  if (asksItemLines) {
+    (!isBranchRanking && /\bbest[- ]?selling\b/i.test(normAr) && !/\bbranch(?:es)?\b/i.test(normAr))
+  if (asksItemLines && !hasNonSalesMetricCue(normAr)) {
     return 'pos_order_lines'
   }
 
   // 6. Brand sales breakdown or single brand (`pos.order.line` + `pos.order`)
-  if (!isBranchRanking && (brandDetection.asksByBrandBreakdown || brandDetection.brandId !== null)) {
+  if (
+    !isBranchRanking &&
+    !hasNonSalesMetricCue(normAr) &&
+    (brandDetection.asksByBrandBreakdown || brandDetection.brandId !== null)
+  ) {
     return 'pos_brands'
   }
 
   // 7. POS sales / orders / branch ranking / dialect sales & recent intents (`pos.order`)
+  if (hasNonSalesMetricCue(normAr)) {
+    return 'unknown'
+  }
+
   const hasPosSalesOrBranchIntent =
     isBranchRanking ||
     targetBranchId !== null ||
-    /(pos\.order|اي فرع|مين الفرع|اعلي فرع|اكثر فرع|افضل فرع|اقل فرع|اسوا فرع|الاعلي مبيعا|الاكثر مبيعا|مبيعات|المبيعات|بالمبيعات|للمبيعات|مبيعا|مبيع|باع|باعت|يبيع|بيع|البيع|ايرادات|الايرادات|ايراد|الطلبات|عدد الطلبات|متوسط السله|الفروع|الفرع|حسب الفرع|غير منسوب|مؤخرا|موخرا|اخيرا|\bsales\b|\bsold\b|\borders\b|\brevenue\b|\bbranches\b|\bbranch\b|\bwhich branch\b|\btop branch\b|\bbest branch\b|\brecently\b)/i.test(
+    /(pos\.order|اي فرع|مين الفرع|اعلي فرع|اكثر فرع|افضل فرع|اقل فرع|اضعف فرع|اسوا فرع|الاعلي مبيعا|الاكثر مبيعا|مبيعات|المبيعات|بالمبيعات|للمبيعات|مبيعا|مبيع|باع|باعت|يبيع|بيع|البيع|ايرادات|الايرادات|ايراد|الطلبات|عدد الطلبات|متوسط السله|الفروع|الفرع|حسب الفرع|غير منسوب|مؤخرا|موخرا|اخيرا|\bsales\b|\bsold\b|\borders\b|\brevenue\b|\bbranches\b|\bbranch\b|\bwhich branch\b|\btop branch\b|\bbest branch\b|\blowest branch\b|\bworst branch\b|\bweakest branch\b|\brecently\b)/i.test(
       normAr,
     )
 
