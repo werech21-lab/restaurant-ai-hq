@@ -972,7 +972,7 @@ export function resolveRestaurantBranchForConfig(
   if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
   if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
   if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
-  if (/\bkot\b|\bkout\b|كوت|الكوت|fahaheel|الفحيحيل/.test(lower)) return 'al-kout'
+  if (/\bkot\b|\bkout\b|كوت|الكوت/.test(lower)) return 'al-kout'
   if (/\bard\b|\bck\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
   return null
 }
@@ -5258,7 +5258,7 @@ function resolveStockLocationRole(
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
   if (usage === 'internal') {
-    if (/\b(?:npis|faips|canteen|canteens)\b|مقصف/i.test(lower)) {
+    if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف/i.test(lower)) {
       return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
     }
     if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
