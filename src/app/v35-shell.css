@@ -1,0 +1,1096 @@
+/* ==========================================================================
+   AETHER BI V35 — ARCHITECTURAL FROSTED GLASS SHELL & FLOATING RAIL LAYER
+   --------------------------------------------------------------------------
+   Layered AFTER `globals.css` and `aether-v2.css`.
+   - Light (Primary): Pale cool blue-white canvas, soft radial blue ambient
+     blobs, translucent frosted white glass cards (`24px`), frosted pill topbar,
+     and a dark navy floating rounded sidebar rail (`28px` radius, 14px inset).
+   - Dark: Deep midnight-navy glass canvas (`#080E1D` / `#0F1A30`) with
+     sky-blue accents (`#60A5FA`) and AA foreground contrast.
+   - Full RTL (`[dir='rtl']`) & reduced-motion support.
+   ========================================================================== */
+
+/* ---------- 1. Outer Studio Canvas & Ambient Radial Blobs ---------- */
+html[data-theme='light'] body,
+html.light-mode body,
+html.light body,
+html:not(.dark) body,
+html[data-theme='light'] #ae-root,
+html.light-mode #ae-root,
+html.light #ae-root,
+html:not(.dark) #ae-root {
+  background-color: var(--v35-bg-canvas) !important;
+  color: var(--v35-text-primary) !important;
+}
+
+html.dark body,
+html[data-theme='dark'] body,
+html.dark #ae-root,
+html[data-theme='dark'] #ae-root {
+  background-color: var(--v35-bg-canvas) !important;
+  color: var(--v35-text-primary) !important;
+}
+
+/* Keep inner canvas/main transparent so #ae-root .ae-ambient blobs show cleanly */
+html[data-theme='light'] #ae-root .app-content,
+html.light-mode #ae-root .app-content,
+html.light #ae-root .app-content,
+html:not(.dark) #ae-root .app-content,
+html[data-theme='light'] #ae-root #ae-canvas,
+html.light-mode #ae-root #ae-canvas,
+html.light #ae-root #ae-canvas,
+html:not(.dark) #ae-root #ae-canvas,
+html[data-theme='light'] #ae-root main,
+html.light-mode #ae-root main,
+html.light #ae-root main,
+html:not(.dark) #ae-root main,
+html.dark #ae-root .app-content,
+html[data-theme='dark'] #ae-root .app-content,
+html.dark #ae-root #ae-canvas,
+html[data-theme='dark'] #ae-root #ae-canvas,
+html.dark #ae-root main,
+html[data-theme='dark'] #ae-root main,
+#ae-root #ae-canvas,
+#ae-root main,
+#ae-canvas div.min-h-screen {
+  background-color: transparent !important;
+}
+
+#ae-root .ae-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+#ae-root .ae-ambient span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(88px);
+  opacity: 0.72;
+}
+
+#ae-root .ae-ambient span:nth-child(1),
+html[data-theme='light'] #ae-root .ae-ambient span:nth-child(1),
+html.light-mode #ae-root .ae-ambient span:nth-child(1),
+html.light #ae-root .ae-ambient span:nth-child(1),
+html:not(.dark) #ae-root .ae-ambient span:nth-child(1),
+html.dark #ae-root .ae-ambient span:nth-child(1),
+html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(1) {
+  width: 44rem;
+  height: 44rem;
+  inset-inline-start: -10rem;
+  top: -15rem;
+  background: radial-gradient(circle, var(--v35-ambient-1), transparent 68%);
+}
+
+#ae-root .ae-ambient span:nth-child(2),
+html[data-theme='light'] #ae-root .ae-ambient span:nth-child(2),
+html.light-mode #ae-root .ae-ambient span:nth-child(2),
+html.light #ae-root .ae-ambient span:nth-child(2),
+html:not(.dark) #ae-root .ae-ambient span:nth-child(2),
+html.dark #ae-root .ae-ambient span:nth-child(2),
+html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(2) {
+  width: 38rem;
+  height: 38rem;
+  inset-inline-end: -8rem;
+  top: 18%;
+  background: radial-gradient(circle, var(--v35-ambient-2), transparent 68%);
+}
+
+#ae-root .ae-ambient span:nth-child(3),
+html[data-theme='light'] #ae-root .ae-ambient span:nth-child(3),
+html.light-mode #ae-root .ae-ambient span:nth-child(3),
+html.light #ae-root .ae-ambient span:nth-child(3),
+html:not(.dark) #ae-root .ae-ambient span:nth-child(3),
+html.dark #ae-root .ae-ambient span:nth-child(3),
+html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(3) {
+  width: 34rem;
+  height: 34rem;
+  inset-inline-start: 30%;
+  bottom: -14rem;
+  background: radial-gradient(circle, var(--v35-ambient-3), transparent 68%);
+}
+
+html.dark #ae-root .ae-ambient span,
+html[data-theme='dark'] #ae-root .ae-ambient span {
+  opacity: 0.56;
+}
+
+/* ---------- 2. Dark Navy Floating Rounded Sidebar Rail (lg >= 1024px) ---------- */
+@media (min-width: 1024px) {
+  #ae-root {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  #ae-root #ae-sidebar {
+    position: sticky;
+    top: var(--v35-rail-inset);
+    height: calc(100dvh - (var(--v35-rail-inset) * 2));
+    margin-block: var(--v35-rail-inset);
+    margin-inline-start: var(--v35-rail-inset);
+    width: var(--ae-rail-w) !important;
+    border-radius: var(--v35-radius-rail) !important;
+    clip-path: none !important;
+    transition:
+      width 520ms var(--v35-ease-out),
+      box-shadow var(--v35-dur-base) var(--v35-ease-out);
+  }
+
+  #ae-root #ae-sidebar:not([data-collapsed='true']) {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+  }
+
+  /* Keep collapsed flyout tooltips completely unclipped in LTR & RTL */
+  #ae-root #ae-sidebar[data-collapsed='true'],
+  #ae-root #ae-sidebar[data-collapsed='true'] nav {
+    overflow: visible !important;
+    clip-path: none !important;
+  }
+
+  #ae-root .ae-content-col {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  #ae-root .ae-page {
+    padding-top: var(--v35-rail-inset);
+  }
+}
+
+#ae-sidebar,
+html[data-theme='light'] #ae-sidebar,
+html.light-mode #ae-sidebar,
+html.light #ae-sidebar,
+html:not(.dark) #ae-sidebar,
+html.dark #ae-sidebar,
+html[data-theme='dark'] #ae-sidebar {
+  background-color: var(--v35-rail-bg-start) !important;
+  background-image: linear-gradient(175deg, var(--v35-rail-bg-start) 0%, var(--v35-rail-bg-end) 100%) !important;
+  border: none !important;
+  box-shadow: var(--v35-rail-shadow) !important;
+  color: var(--v35-rail-text) !important;
+}
+
+[dir='rtl'] #ae-sidebar,
+#ae-sidebar[dir='rtl'],
+html.dark [dir='rtl'] #ae-sidebar,
+html.dark #ae-sidebar[dir='rtl'],
+html[data-theme='dark'] #ae-sidebar[dir='rtl'] {
+  box-shadow: var(--v35-rail-shadow) !important;
+}
+
+#ae-sidebar .ae-side-strong,
+html[data-theme='light'] #ae-sidebar .ae-side-strong,
+html.light-mode #ae-sidebar .ae-side-strong,
+html:not(.dark) #ae-sidebar .ae-side-strong {
+  color: var(--v35-rail-text-strong) !important;
+}
+
+#ae-sidebar .ae-side-muted,
+html[data-theme='light'] #ae-sidebar .ae-side-muted,
+html.light-mode #ae-sidebar .ae-side-muted,
+html:not(.dark) #ae-sidebar .ae-side-muted {
+  color: var(--v35-rail-text-muted) !important;
+}
+
+#ae-sidebar .ae-side-card,
+html[data-theme='light'] #ae-sidebar .ae-side-card,
+html.light-mode #ae-sidebar .ae-side-card,
+html:not(.dark) #ae-sidebar .ae-side-card {
+  background: var(--v35-rail-surface) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.14) !important;
+  border-radius: 1.125rem;
+}
+
+#ae-sidebar .ae-side-chip,
+html[data-theme='light'] #ae-sidebar .ae-side-chip,
+html.light-mode #ae-sidebar .ae-side-chip,
+html:not(.dark) #ae-sidebar .ae-side-chip {
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18) !important;
+  color: var(--v35-rail-text-strong) !important;
+}
+
+#ae-sidebar .ae-side-logo,
+html[data-theme='light'] #ae-sidebar .ae-side-logo,
+html.light-mode #ae-sidebar .ae-side-logo,
+html:not(.dark) #ae-sidebar .ae-side-logo,
+html.dark #ae-sidebar .ae-side-logo,
+html[data-theme='dark'] #ae-sidebar .ae-side-logo {
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 6px 18px -4px rgba(59, 130, 246, 0.55) !important;
+}
+
+#ae-sidebar .ae-side-toggle,
+html[data-theme='light'] #ae-sidebar .ae-side-toggle,
+html.light-mode #ae-sidebar .ae-side-toggle,
+html:not(.dark) #ae-sidebar .ae-side-toggle {
+  background: var(--v35-rail-surface) !important;
+  color: var(--v35-rail-text) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.14) !important;
+}
+
+#ae-sidebar .ae-side-toggle:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-toggle:hover,
+html:not(.dark) #ae-sidebar .ae-side-toggle:hover {
+  background: var(--v35-rail-surface-hover) !important;
+  color: #FFFFFF !important;
+}
+
+#ae-sidebar .ae-side-link,
+html[data-theme='light'] #ae-sidebar .ae-side-link,
+html.light-mode #ae-sidebar .ae-side-link,
+html:not(.dark) #ae-sidebar .ae-side-link {
+  color: var(--v35-rail-text-muted) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition:
+    color var(--v35-dur-fast) var(--v35-ease-out),
+    background-color var(--v35-dur-fast) var(--v35-ease-out),
+    transform var(--v35-dur-fast) var(--v35-ease-out);
+}
+
+#ae-sidebar .ae-side-link:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-link:hover,
+html:not(.dark) #ae-sidebar .ae-side-link:hover {
+  background: var(--v35-rail-surface-hover) !important;
+  color: var(--v35-rail-text-strong) !important;
+}
+
+#ae-sidebar .ae-side-link[data-active='true'],
+html[data-theme='light'] #ae-sidebar .ae-side-link[data-active='true'],
+html.light-mode #ae-sidebar .ae-side-link[data-active='true'],
+html:not(.dark) #ae-sidebar .ae-side-link[data-active='true'],
+html.dark #ae-sidebar .ae-side-link[data-active='true'],
+html[data-theme='dark'] #ae-sidebar .ae-side-link[data-active='true'] {
+  background-image: linear-gradient(90deg, rgba(37, 99, 235, 0.92) 0%, rgba(59, 130, 246, 0.82) 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 6px 18px -6px rgba(37, 99, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  font-weight: 600;
+}
+
+#ae-sidebar .ae-side-pill-indicator,
+html[data-theme='light'] #ae-sidebar .ae-side-pill-indicator,
+html.light-mode #ae-sidebar .ae-side-pill-indicator,
+html:not(.dark) #ae-sidebar .ae-side-pill-indicator,
+html.dark #ae-sidebar .ae-side-pill-indicator,
+html[data-theme='dark'] #ae-sidebar .ae-side-pill-indicator {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.94) 0%, rgba(59, 130, 246, 0.84) 100%) !important;
+  box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+#ae-sidebar .ae-side-logout,
+html[data-theme='light'] #ae-sidebar .ae-side-logout,
+html.light-mode #ae-sidebar .ae-side-logout,
+html:not(.dark) #ae-sidebar .ae-side-logout {
+  background: var(--v35-rail-surface) !important;
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.16) !important;
+  color: var(--v35-rail-text) !important;
+}
+
+#ae-sidebar .ae-side-logout:hover,
+html[data-theme='light'] #ae-sidebar .ae-side-logout:hover,
+html:not(.dark) #ae-sidebar .ae-side-logout:hover {
+  background: var(--v35-rail-surface-hover) !important;
+  color: #FFFFFF !important;
+}
+
+#ae-sidebar :is(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--v35-accent-soft);
+  outline-offset: 2px;
+}
+
+/* ---------- 3. Translucent Frosted Pill Header Bar (`#ae-topbar`) ---------- */
+#ae-topbar,
+html[data-theme='light'] #ae-topbar,
+html.light-mode #ae-topbar,
+html.light #ae-topbar,
+html:not(.dark) #ae-topbar,
+html.dark #ae-topbar,
+html[data-theme='dark'] #ae-topbar {
+  background: var(--v35-glass-topbar) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-topbar)) saturate(170%);
+  backdrop-filter: blur(var(--v35-blur-topbar)) saturate(170%);
+  border: 1px solid var(--v35-border-hairline) !important;
+  border-radius: 1.75rem !important;
+  box-shadow: var(--v35-shadow-glass) !important;
+  color: var(--v35-text-primary) !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+@media (min-width: 1024px) {
+  #ae-topbar {
+    top: var(--v35-rail-inset);
+  }
+}
+
+/* Prevent double-wrapped card ring inside desktop TopFilterBar */
+#ae-topbar > div[class*='rounded-2xl'],
+html[data-theme='light'] #ae-topbar > div[class*='rounded-2xl'],
+html.light-mode #ae-topbar > div[class*='rounded-2xl'],
+html:not(.dark) #ae-topbar > div[class*='rounded-2xl'],
+html.dark #ae-topbar > div[class*='rounded-2xl'],
+html[data-theme='dark'] #ae-topbar > div[class*='rounded-2xl'] {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  border-radius: inherit;
+}
+
+#ae-topbar .ae-top-title,
+html[data-theme='light'] #ae-topbar .ae-top-title,
+html:not(.dark) #ae-topbar .ae-top-title,
+html.dark #ae-topbar .ae-top-title,
+html[data-theme='dark'] #ae-topbar .ae-top-title {
+  color: var(--v35-text-primary) !important;
+}
+
+#ae-topbar .ae-top-link {
+  color: var(--v35-text-muted) !important;
+  border-radius: var(--v35-radius-pill);
+  transition: background-color var(--v35-dur-fast) var(--v35-ease-out), color var(--v35-dur-fast) var(--v35-ease-out);
+}
+
+#ae-topbar .ae-top-link:hover {
+  color: var(--v35-text-primary) !important;
+  background: var(--v35-accent-tint) !important;
+}
+
+#ae-topbar .ae-capsule,
+html[data-theme='light'] #ae-topbar .ae-capsule,
+html.light-mode #ae-topbar .ae-capsule,
+html:not(.dark) #ae-topbar .ae-capsule,
+html.dark #ae-topbar .ae-capsule,
+html[data-theme='dark'] #ae-topbar .ae-capsule {
+  background: var(--v35-glass-bg-subtle) !important;
+  box-shadow: 0 0 0 1px var(--v35-border-hairline) !important;
+  color: var(--v35-text-secondary) !important;
+  border-radius: var(--v35-radius-pill) !important;
+  transition:
+    background-color var(--v35-dur-fast) var(--v35-ease-out),
+    color var(--v35-dur-fast) var(--v35-ease-out),
+    box-shadow var(--v35-dur-fast) var(--v35-ease-out);
+}
+
+#ae-topbar .ae-capsule:hover,
+html.dark #ae-topbar .ae-capsule:hover,
+html[data-theme='dark'] #ae-topbar .ae-capsule:hover {
+  background: var(--v35-glass-bg-hover) !important;
+  color: var(--v35-text-primary) !important;
+  box-shadow: 0 0 0 1px var(--v35-accent-ring) !important;
+}
+
+#ae-topbar .bg-\[\#F6F7F8\],
+html[data-theme='light'] #ae-topbar .bg-\[\#F6F7F8\],
+html.light-mode #ae-topbar .bg-\[\#F6F7F8\],
+html:not(.dark) #ae-topbar .bg-\[\#F6F7F8\],
+html.dark #ae-topbar .bg-\[\#F6F7F8\],
+html[data-theme='dark'] #ae-topbar .bg-\[\#F6F7F8\] {
+  background-color: var(--v35-glass-bg-subtle) !important;
+  color: var(--v35-text-secondary) !important;
+  box-shadow: 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+#ae-topbar .ae-capsule kbd,
+#ae-topbar kbd {
+  background: var(--v35-glass-bg-strong) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px var(--v35-border-hairline) !important;
+  color: var(--v35-text-primary) !important;
+}
+
+#ae-topbar .ae-top-live {
+  background: var(--v35-positive-bg) !important;
+  box-shadow: 0 0 0 1px var(--v35-positive-border) !important;
+  color: var(--v35-positive) !important;
+}
+
+/* ---------- 4. Frosted Glass Cards, Bento Surfaces & V35 Glass Primitives ---------- */
+#ae-root .ae-bento-card,
+#ae-root .ae-studio-card,
+#ae-root .ae-tile,
+#ae-root .ds-surface,
+#ae-root .ds-section-card,
+#ae-root .ds-chart-card,
+#ae-root .ds-table-card,
+html[data-theme='light'] #ae-root .ae-bento-card,
+html.light-mode #ae-root .ae-bento-card,
+html.light #ae-root .ae-bento-card,
+html:not(.dark) #ae-root .ae-bento-card,
+html.dark #ae-root .ae-bento-card,
+html[data-theme='dark'] #ae-root .ae-bento-card,
+html.dark #ae-root .ae-studio-card,
+html[data-theme='dark'] #ae-root .ae-studio-card,
+html.dark #ae-root .ae-tile,
+html[data-theme='dark'] #ae-root .ae-tile,
+html.dark #ae-root .app-content .bg-white:not([role='tooltip']):not(.ae-hero-circle-btn),
+html[data-theme='dark'] #ae-root .app-content .bg-white:not([role='tooltip']):not(.ae-hero-circle-btn) {
+  background-color: var(--v35-glass-bg) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  border-radius: var(--v35-radius-card);
+  border: 1px solid var(--v35-border-hairline) !important;
+  box-shadow: var(--v35-shadow-glass) !important;
+  color: var(--v35-text-primary);
+  transition:
+    transform var(--v35-dur-base) var(--v35-ease-out),
+    box-shadow var(--v35-dur-base) var(--v35-ease-out),
+    border-color var(--v35-dur-base) var(--v35-ease-out),
+    background-color var(--v35-dur-base) var(--v35-ease-out);
+}
+
+#ae-root .ae-kpi-card,
+#ae-root .ds-kpi-card,
+html[data-theme='light'] #ae-root .ae-kpi-card,
+html.light-mode #ae-root .ae-kpi-card,
+html.light #ae-root .ae-kpi-card,
+html:not(.dark) #ae-root .ae-kpi-card,
+html.dark #ae-root .ae-kpi-card,
+html[data-theme='dark'] #ae-root .ae-kpi-card {
+  position: relative;
+  background-color: var(--v35-glass-bg) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  border-radius: var(--v35-radius-card);
+  border: 1px solid var(--v35-border-hairline) !important;
+  box-shadow: var(--v35-shadow-glass) !important;
+  color: var(--v35-text-primary);
+  transition:
+    transform var(--v35-dur-base) var(--v35-ease-out),
+    box-shadow var(--v35-dur-base) var(--v35-ease-out),
+    border-color var(--v35-dur-base) var(--v35-ease-out),
+    background-color var(--v35-dur-base) var(--v35-ease-out);
+}
+
+#ae-root .ae-kpi-card:hover,
+#ae-root .ds-kpi-card:hover,
+html[data-theme='light'] #ae-root .ae-kpi-card:hover,
+html.light-mode #ae-root .ae-kpi-card:hover,
+html:not(.dark) #ae-root .ae-kpi-card:hover,
+html.dark #ae-root .ae-kpi-card:hover,
+html[data-theme='dark'] #ae-root .ae-kpi-card:hover {
+  transform: translateY(-2px);
+  background-color: var(--v35-glass-bg-strong) !important;
+  border-color: var(--v35-border-accent) !important;
+  box-shadow: var(--v35-shadow-glass-hover) !important;
+}
+
+#ae-root .ae-studio-subcard,
+#ae-root .ae-bento-subcard,
+#ae-root .ae-tile-soft,
+#ae-root .ds-surface-subtle,
+html.dark #ae-root .ae-studio-subcard,
+html[data-theme='dark'] #ae-root .ae-studio-subcard,
+html.dark #ae-root .ae-bento-subcard,
+html[data-theme='dark'] #ae-root .ae-bento-subcard,
+html.dark #ae-root .ae-tile-soft,
+html[data-theme='dark'] #ae-root .ae-tile-soft,
+html[data-theme='light'] #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip']):not([role='tooltip'] *),
+html.light-mode #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip']):not([role='tooltip'] *),
+html.light #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip']):not([role='tooltip'] *),
+html:not(.dark) #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip']):not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F6F7F8\]:not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F7F7F8\]:not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F4F6F9\]:not([role='tooltip'] *),
+html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
+  background-color: var(--v35-glass-bg-nested) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  backdrop-filter: blur(12px) saturate(150%);
+  border-radius: var(--v35-radius-nested);
+  border: 1px solid var(--v35-border-hairline) !important;
+  box-shadow: none !important;
+}
+
+/* Explicit .v35-glass-card primitive classes (glass / hero / subtle / nested) */
+.v35-glass-card,
+.v35-glass-card[data-variant='glass'] {
+  position: relative;
+  border-radius: var(--v35-radius-card);
+  background-color: var(--v35-glass-bg);
+  -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
+  border: 1px solid var(--v35-border-hairline);
+  box-shadow: var(--v35-shadow-glass);
+  color: var(--v35-text-primary);
+  transition:
+    transform var(--v35-dur-base) var(--v35-ease-out),
+    box-shadow var(--v35-dur-base) var(--v35-ease-out),
+    border-color var(--v35-dur-base) var(--v35-ease-out),
+    background-color var(--v35-dur-base) var(--v35-ease-out);
+}
+
+.v35-glass-card.v35-glass-lift:hover,
+.v35-glass-card[data-hover-lift='true']:hover {
+  transform: translateY(-2px);
+  background-color: var(--v35-glass-bg-strong);
+  border-color: var(--v35-border-accent);
+  box-shadow: var(--v35-shadow-glass-hover);
+}
+
+.v35-glass-hero,
+.v35-glass-card[data-variant='hero'] {
+  position: relative;
+  border-radius: var(--v35-radius-card);
+  background-color: var(--v35-hero-bg);
+  background-image: var(--v35-hero-gradient);
+  border: 1px solid rgba(147, 197, 253, 0.34);
+  box-shadow: var(--v35-hero-shadow);
+  color: #FFFFFF;
+}
+
+.v35-glass-hero.v35-glass-lift:hover,
+.v35-glass-card[data-variant='hero'][data-hover-lift='true']:hover {
+  transform: translateY(-2px);
+  background-color: var(--v35-hero-bg);
+  border-color: rgba(191, 219, 254, 0.52);
+  box-shadow: var(--v35-hero-shadow-hover);
+}
+
+.v35-glass-subtle,
+.v35-glass-card[data-variant='subtle'] {
+  position: relative;
+  border-radius: var(--v35-radius-card);
+  background-color: var(--v35-glass-bg-subtle);
+  -webkit-backdrop-filter: blur(14px) saturate(155%);
+  backdrop-filter: blur(14px) saturate(155%);
+  border: 1px solid var(--v35-border-hairline);
+  box-shadow: 0 2px 10px -4px rgba(15, 23, 42, 0.06), var(--v35-inner-highlight);
+  color: var(--v35-text-primary);
+}
+
+.v35-glass-nested,
+.v35-glass-card[data-variant='nested'] {
+  position: relative;
+  border-radius: var(--v35-radius-nested);
+  background-color: var(--v35-glass-bg-nested);
+  -webkit-backdrop-filter: blur(10px) saturate(145%);
+  backdrop-filter: blur(10px) saturate(145%);
+  border: 1px solid var(--v35-border-hairline);
+  box-shadow: none;
+  color: var(--v35-text-primary);
+}
+
+/* ---------- 5. V35 Hero Sapphire Card & Peak/Hatch Weekly Pills ---------- */
+#ae-root .ae-hero-emerald-card,
+.ae-hero-emerald-card,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card,
+html.light-mode #ae-root .ae-hero-emerald-card,
+html.light #ae-root .ae-hero-emerald-card,
+html:not(.dark) #ae-root .ae-hero-emerald-card,
+html[data-theme='light'] .ae-hero-emerald-card,
+html.light-mode .ae-hero-emerald-card,
+html.light .ae-hero-emerald-card,
+html:not(.dark) .ae-hero-emerald-card,
+html.dark #ae-root .ae-hero-emerald-card,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card {
+  background-color: var(--v35-hero-bg) !important;
+  background-image: var(--v35-hero-gradient) !important;
+  border-radius: var(--v35-radius-card);
+  border: none !important;
+  box-shadow: var(--v35-hero-shadow) !important;
+  color: #FFFFFF !important;
+  transition:
+    transform var(--v35-dur-base) var(--v35-ease-out),
+    box-shadow var(--v35-dur-base) var(--v35-ease-out);
+}
+
+#ae-root .ae-hero-emerald-card:hover,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card:hover,
+html.light-mode #ae-root .ae-hero-emerald-card:hover,
+html:not(.dark) #ae-root .ae-hero-emerald-card:hover,
+html.dark #ae-root .ae-hero-emerald-card:hover,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--v35-hero-shadow-hover) !important;
+}
+
+#ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *),
+html[data-theme='light'] #ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *),
+html.light-mode #ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *),
+html:not(.dark) #ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *),
+html.dark #ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *),
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card :not(.ae-hero-circle-btn):not(.ae-hero-circle-btn *):not([role='tooltip']):not([role='tooltip'] *):not([data-kpi-provenance] .bg-white:not(button)):not([data-kpi-provenance] .bg-white:not(button) *) {
+  color: #FFFFFF !important;
+}
+
+#ae-root .ae-hero-emerald-card .ae-hero-pill,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card .ae-hero-pill,
+html.light-mode #ae-root .ae-hero-emerald-card .ae-hero-pill,
+html:not(.dark) #ae-root .ae-hero-emerald-card .ae-hero-pill,
+html.dark #ae-root .ae-hero-emerald-card .ae-hero-pill,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card .ae-hero-pill {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24) !important;
+}
+
+/* Keep provenance bar & pills inside hero card frosted navy/white glass in Light & Dark */
+#ae-root .ae-hero-emerald-card .bg-black\/20,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card .bg-black\/20,
+html.light-mode #ae-root .ae-hero-emerald-card .bg-black\/20,
+html.light #ae-root .ae-hero-emerald-card .bg-black\/20,
+html:not(.dark) #ae-root .ae-hero-emerald-card .bg-black\/20,
+html.dark #ae-root .ae-hero-emerald-card .bg-black\/20,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card .bg-black\/20 {
+  background-color: rgba(13, 22, 42, 0.28) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+}
+
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html.light #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html.light #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
+.v35-glass-hero [data-kpi-provenance] > span.rounded-md,
+.v35-glass-hero [data-kpi-provenance] > button {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+}
+
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
+.v35-glass-hero [data-kpi-provenance] > button:hover {
+  background: rgba(255, 255, 255, 0.26) !important;
+}
+
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button),
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button),
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button),
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button),
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button),
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) {
+  background: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #0F172A !important;
+}
+
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) *,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) *,
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+html.light-mode #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) *,
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) *,
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) *,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] *,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] .bg-white:not(button) * {
+  color: #0F172A !important;
+}
+
+#ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] div[dir='ltr'],
+html[data-theme='light'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] div[dir='ltr'],
+html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] div[dir='ltr'],
+html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] div[dir='ltr'],
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'] div[dir='ltr'] {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+#ae-root .ae-hero-emerald-card .ae-hero-circle-btn,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card .ae-hero-circle-btn,
+html.light-mode #ae-root .ae-hero-emerald-card .ae-hero-circle-btn,
+html:not(.dark) #ae-root .ae-hero-emerald-card .ae-hero-circle-btn,
+html.dark #ae-root .ae-hero-emerald-card .ae-hero-circle-btn,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card .ae-hero-circle-btn {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.20) !important;
+}
+
+#ae-root .ae-hero-emerald-card .ae-hero-circle-btn *,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card .ae-hero-circle-btn *,
+html.light-mode #ae-root .ae-hero-emerald-card .ae-hero-circle-btn *,
+html:not(.dark) #ae-root .ae-hero-emerald-card .ae-hero-circle-btn * {
+  color: #0F172A !important;
+}
+
+/* Weekly Pulse Peak Pill & Diagonal-Hatched Track Pills (V35 Blue/Sky) */
+.ae-emerald-peak-pill,
+#ae-root .ae-emerald-peak-pill,
+html[data-theme='light'] .ae-emerald-peak-pill,
+html.light-mode .ae-emerald-peak-pill,
+html.light .ae-emerald-peak-pill,
+html:not(.dark) .ae-emerald-peak-pill,
+html.dark .ae-emerald-peak-pill,
+html[data-theme='dark'] .ae-emerald-peak-pill {
+  background-color: var(--v35-accent-mid) !important;
+  background-image: linear-gradient(180deg, #60A5FA 0%, #3B82F6 46%, #2563EB 100%) !important;
+  box-shadow: 0 10px 24px -4px rgba(37, 99, 235, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+  border: none !important;
+}
+
+.ae-pill-hatch,
+#ae-root .ae-pill-hatch,
+html[data-theme='light'] .ae-pill-hatch,
+html.light-mode .ae-pill-hatch,
+html.light .ae-pill-hatch,
+html:not(.dark) .ae-pill-hatch {
+  background-color: rgba(59, 130, 246, 0.06) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.18) 0px,
+    rgba(59, 130, 246, 0.18) 4px,
+    rgba(96, 165, 250, 0.05) 4px,
+    rgba(96, 165, 250, 0.05) 9px
+  ) !important;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22) !important;
+}
+
+html.dark .ae-pill-hatch,
+html[data-theme='dark'] .ae-pill-hatch,
+html.dark #ae-root .ae-pill-hatch,
+html[data-theme='dark'] #ae-root .ae-pill-hatch {
+  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(96, 165, 250, 0.24) 0px,
+    rgba(96, 165, 250, 0.24) 4px,
+    rgba(96, 165, 250, 0.05) 4px,
+    rgba(96, 165, 250, 0.05) 9px
+  ) !important;
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.26) !important;
+}
+
+.ae-emerald-cta-pill,
+html[data-theme='light'] .ae-emerald-cta-pill,
+html.light-mode .ae-emerald-cta-pill,
+html:not(.dark) .ae-emerald-cta-pill,
+html.dark .ae-emerald-cta-pill,
+html[data-theme='dark'] .ae-emerald-cta-pill {
+  background-color: var(--v35-accent) !important;
+  background-image: linear-gradient(135deg, #1E40AF 0%, #2563EB 55%, #3B82F6 100%) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(147, 197, 253, 0.30) !important;
+}
+
+.ae-emerald-cta-pill *,
+html[data-theme='light'] .ae-emerald-cta-pill *,
+html.light-mode .ae-emerald-cta-pill *,
+html:not(.dark) .ae-emerald-cta-pill * {
+  color: #FFFFFF !important;
+}
+
+/* ---------- 6. Supporting Shell Controls, Tabs, Pills, Tables & Hover Lift ---------- */
+#ae-root .ae-sliding-tabs,
+html[data-theme='light'] #ae-root .ae-sliding-tabs,
+html:not(.dark) #ae-root .ae-sliding-tabs {
+  background-color: rgba(226, 235, 250, 0.78) !important;
+  box-shadow: inset 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+html.dark #ae-root .ae-sliding-tabs,
+html[data-theme='dark'] #ae-root .ae-sliding-tabs {
+  background-color: rgba(12, 21, 40, 0.85) !important;
+  box-shadow: inset 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+#ae-root .ae-sliding-tabs[data-surface='white'],
+html.dark #ae-root .ae-sliding-tabs[data-surface='white'],
+html[data-theme='dark'] #ae-root .ae-sliding-tabs[data-surface='white'] {
+  background-color: var(--v35-glass-bg) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-pill)) saturate(160%);
+  backdrop-filter: blur(var(--v35-blur-pill)) saturate(160%);
+  box-shadow: var(--v35-shadow-glass) !important;
+}
+
+#ae-root [data-sliding-pill-indicator='true'],
+html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'],
+html.dark #ae-root [data-sliding-pill-indicator='true'],
+html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
+  background-color: var(--v35-accent) !important;
+  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.34) !important;
+}
+
+#ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+#ae-root button[data-sliding-pill-btn='true'][data-active='true'] *,
+html[data-theme='light'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html[data-theme='light'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'] *,
+html.dark #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html.dark #ae-root button[data-sliding-pill-btn='true'][data-active='true'] *,
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
+html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-active='true'] * {
+  color: #FFFFFF !important;
+}
+
+#ae-root button.ae-btn-primary,
+html[data-theme='light'] #ae-root button.ae-btn-primary,
+#ae-root .ae-pill-dark,
+#ae-root .ae-seg > button[data-active='true'],
+html.dark #ae-root button.ae-btn-primary,
+html[data-theme='dark'] #ae-root button.ae-btn-primary,
+html.dark #ae-root .ae-pill-dark,
+html[data-theme='dark'] #ae-root .ae-pill-dark,
+html.dark #ae-root .ae-seg > button[data-active='true'],
+html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
+  background-color: var(--v35-accent) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.36) !important;
+}
+
+#ae-root button.ae-btn-primary *,
+html[data-theme='light'] #ae-root button.ae-btn-primary *,
+html.dark #ae-root button.ae-btn-primary *,
+html[data-theme='dark'] #ae-root button.ae-btn-primary * {
+  color: #FFFFFF !important;
+}
+
+#ae-root .ae-pill-light,
+html.dark #ae-root .ae-pill-light,
+html[data-theme='dark'] #ae-root .ae-pill-light {
+  background-color: var(--v35-glass-bg-strong) !important;
+  color: var(--v35-text-secondary) !important;
+  box-shadow: 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+#ae-root .ae-icon-badge,
+html.dark #ae-root .ae-icon-badge,
+html[data-theme='dark'] #ae-root .ae-icon-badge {
+  background-color: var(--v35-accent-tint) !important;
+  color: var(--v35-accent) !important;
+}
+
+#ae-root .ae-chip {
+  background-color: rgba(219, 234, 254, 0.78) !important;
+  color: #1E40AF !important;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.24) !important;
+}
+
+html.dark #ae-root .ae-chip,
+html[data-theme='dark'] #ae-root .ae-chip {
+  background-color: rgba(96, 165, 250, 0.16) !important;
+  color: #BFDBFE !important;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28) !important;
+}
+
+#ae-root .ae-select,
+#ae-root .ae-input,
+html.dark #ae-root .ae-select,
+html[data-theme='dark'] #ae-root .ae-select,
+html.dark #ae-root .ae-input,
+html[data-theme='dark'] #ae-root .ae-input {
+  background-color: var(--v35-glass-bg-strong) !important;
+  color: var(--v35-text-primary) !important;
+  box-shadow: 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+#ae-root .ae-lift {
+  transition:
+    transform var(--v35-dur-base) var(--v35-ease-out),
+    box-shadow var(--v35-dur-base) var(--v35-ease-out);
+}
+
+#ae-root .ae-lift:hover,
+html.dark #ae-root .ae-lift:hover,
+html[data-theme='dark'] #ae-root .ae-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--v35-shadow-glass-hover) !important;
+}
+
+#ae-root .ae-palette,
+html.dark #ae-root .ae-palette,
+html[data-theme='dark'] #ae-root .ae-palette {
+  background: var(--v35-glass-bg-strong) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  color: var(--v35-text-primary) !important;
+  box-shadow: var(--v35-shadow-elevated), 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+#ae-root .ae-palette-item[data-active='true'] {
+  background-color: rgba(219, 234, 254, 0.72) !important;
+}
+
+html.dark #ae-root .ae-palette-item[data-active='true'],
+html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
+  background-color: rgba(96, 165, 250, 0.18) !important;
+}
+
+/* Dark mode tables match Midnight-Navy glass instead of Obsidian-Emerald */
+html.dark #ae-root .app-content thead th,
+html[data-theme='dark'] #ae-root .app-content thead th {
+  background-color: rgba(12, 21, 40, 0.90) !important;
+  color: #CBD5E1 !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+html.dark #ae-root .app-content tbody td,
+html[data-theme='dark'] #ae-root .app-content tbody td,
+html.dark #ae-root .app-content tfoot td,
+html[data-theme='dark'] #ae-root .app-content tfoot td {
+  border-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+html.dark #ae-root .app-content tbody tr:hover,
+html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
+  background-color: rgba(96, 165, 250, 0.08) !important;
+}
+
+/* ---------- 7. Native-Grade Frosted Mobile Chrome (`< 1024px`) ---------- */
+.ae-mobile-appbar,
+html[data-theme='light'] .ae-mobile-appbar,
+html.light-mode .ae-mobile-appbar,
+html.light .ae-mobile-appbar,
+html:not(.dark) .ae-mobile-appbar {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+  border: none !important;
+  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
+  backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
+}
+
+html.dark .ae-mobile-appbar,
+html[data-theme='dark'] .ae-mobile-appbar {
+  background-color: rgba(13, 22, 42, 0.86) !important;
+  border: none !important;
+  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 8px 24px -12px rgba(2, 6, 23, 0.65) !important;
+  -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
+  backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
+}
+
+.ae-mobile-dock,
+html[data-theme='light'] .ae-mobile-dock,
+html.light-mode .ae-mobile-dock,
+html.light .ae-mobile-dock,
+html:not(.dark) .ae-mobile-dock {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  border: none !important;
+  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -10px 28px -12px rgba(15, 23, 42, 0.08) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+}
+
+html.dark .ae-mobile-dock,
+html[data-theme='dark'] .ae-mobile-dock {
+  background-color: rgba(13, 22, 42, 0.90) !important;
+  border: none !important;
+  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -10px 28px -12px rgba(2, 6, 23, 0.70) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+}
+
+.ae-bottom-sheet,
+html[data-theme='light'] .ae-bottom-sheet,
+html.light-mode .ae-bottom-sheet,
+html.light .ae-bottom-sheet,
+html:not(.dark) .ae-bottom-sheet {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  border: none !important;
+  border-top-left-radius: var(--v35-radius-rail);
+  border-top-right-radius: var(--v35-radius-rail);
+  box-shadow: 0 -14px 44px -10px rgba(15, 23, 42, 0.16), 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+html.dark .ae-bottom-sheet,
+html[data-theme='dark'] .ae-bottom-sheet {
+  background-color: rgba(15, 26, 48, 0.94) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  border: none !important;
+  border-top-left-radius: var(--v35-radius-rail);
+  border-top-right-radius: var(--v35-radius-rail);
+  box-shadow: 0 -14px 44px -10px rgba(2, 6, 23, 0.72), 0 0 0 1px var(--v35-border-hairline) !important;
+}
+
+/* ---------- 8. Focus-Visible Ring & RTL Polish ---------- */
+#ae-root :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible,
+.v35-focus-ring:focus-visible {
+  outline: 2px solid var(--v35-accent);
+  outline-offset: 2px;
+}
+
+#ae-root .ae-glow-sky {
+  background-image: radial-gradient(240px circle at 100% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
+}
+
+[dir='rtl'] #ae-root .ae-glow-emerald,
+[dir='rtl'] #ae-root .ae-glow-sky,
+[dir='rtl'] #ae-root .ae-glow-amber,
+[dir='rtl'] #ae-root .ae-glow-rose {
+  background-position: 0% 0%;
+}
+
+[dir='rtl'] #ae-root .ae-glow-sky {
+  background-image: radial-gradient(240px circle at 0% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
+}
+
+[dir='rtl'] #ae-root .ae-select,
+#ae-root [dir='rtl'] .ae-select {
+  padding: 0.45rem 0.9rem 0.45rem 2rem !important;
+  background-position: left 0.75rem center !important;
+}
+
+/* ---------- 9. Reduced Motion & Print Safety ---------- */
+@media (prefers-reduced-motion: reduce) {
+  #ae-sidebar,
+  #ae-root .ae-content-col,
+  #ae-root .ae-bento-card,
+  #ae-root .ae-kpi-card,
+  #ae-root .ae-hero-emerald-card,
+  #ae-root .ae-lift,
+  .v35-glass-card,
+  .v35-glass-hero,
+  .v35-glass-subtle,
+  .v35-glass-nested {
+    transition: none !important;
+  }
+
+  #ae-root .ae-kpi-card:hover,
+  #ae-root .ae-hero-emerald-card:hover,
+  #ae-root .ae-lift:hover,
+  .v35-glass-card.v35-glass-lift:hover,
+  .v35-glass-card[data-hover-lift='true']:hover,
+  .v35-glass-hero.v35-glass-lift:hover {
+    transform: none !important;
+  }
+}
+
+@media print {
+  #ae-root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  #ae-sidebar,
+  #ae-topbar,
+  .ae-mobile-appbar,
+  .ae-mobile-dock,
+  #ae-root .ae-ambient {
+    display: none !important;
+  }
+}

@@ -453,24 +453,25 @@ export function Sidebar({
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      style={{
-        clipPath: 'inset(0px 0px 0px 0px round 0px)',
-      }}
-      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col transition-[width,clip-path] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
+      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col rounded-[28px] bg-[#0D162A] transition-[width,box-shadow] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
         collapsed ? 'w-[76px] overflow-visible' : 'w-[272px] overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Brand Header + Tactile Collapse/Expand Trigger */}
-      <div className={`shrink-0 pt-5 pb-3 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${collapsed ? 'px-2.5' : 'px-4'}`}>
+      <div
+        className={`shrink-0 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          collapsed ? 'px-2.5 pt-4 pb-2' : 'px-4 pt-5 pb-3'
+        }`}
+      >
         <div className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}>
           <Link
             href={resolveRoleDefaultHome(roleProfile.role)}
-            className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+            className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
             aria-label={isAr ? 'العودة إلى ملخص الشركة' : 'Back to Company Summary'}
           >
             <div
-              className="ae-side-logo flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-sm font-black tracking-wide"
+              className="ae-side-logo flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 text-sm font-black tracking-wide text-white shadow-md shadow-blue-500/30 ring-1 ring-sky-300/25"
               aria-hidden
             >
               VF
@@ -491,14 +492,14 @@ export function Sidebar({
               onClick={toggleRail}
               aria-label={toggleTitle}
               title={toggleTitle}
-              className="ae-side-toggle flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+              className="ae-side-toggle flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/[0.06] transition-all duration-150 hover:bg-white/[0.12] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
             >
               <CollapseIcon size={16} />
             </button>
             {collapsed ? (
               <span
                 role="tooltip"
-                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-slate-950 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
+                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
               >
                 {isAr ? 'توسيع القائمة (Ctrl+B)' : 'Expand Rail (Ctrl+B)'}
               </span>
@@ -509,7 +510,7 @@ export function Sidebar({
         {/* Company badge card — smoothly fades in 76px icon rail mode */}
         <div
           aria-hidden={collapsed}
-          className={`ae-side-card overflow-hidden text-center leading-relaxed transition-[max-height,opacity,margin,padding] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          className={`ae-side-card overflow-hidden rounded-[18px] bg-white/[0.055] text-center leading-relaxed ring-1 ring-slate-400/15 transition-[max-height,opacity,margin,padding] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
             collapsed
               ? 'pointer-events-none mt-0 max-h-0 px-3 py-0 opacity-0'
               : 'mt-3.5 max-h-24 space-y-1 px-3 py-2 opacity-100'
@@ -519,18 +520,22 @@ export function Sidebar({
             {isAr ? 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م' : 'Venture Foods Restaurants Co. W.L.L.'}
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-xs font-semibold">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.65)]" />
             {isAr ? '6 علامات تجارية · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
           </p>
         </div>
       </div>
 
-      {/* 4 Categorized Executive Navigation Sections with Smooth Sliding Emerald Active Pill */}
+      {/* Categorized Executive Navigation Sections with Smooth Sliding Cobalt/Sky Active Pill */}
       <nav
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-        className={`flex-1 pt-1.5 pb-5 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${collapsed ? 'overflow-visible px-2.5' : 'px-3'}`}
+        className={`flex-1 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          collapsed
+            ? 'overflow-visible px-2.5 pt-1 pb-2.5'
+            : 'no-scrollbar min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-1.5 pb-5'
+        }`}
       >
-        <div ref={navListRef} className="relative space-y-3.5">
+        <div ref={navListRef} className={`relative ${collapsed ? 'space-y-1.5' : 'space-y-3.5'}`}>
           {indicator ? (
             <div
               aria-hidden
@@ -542,9 +547,9 @@ export function Sidebar({
                   ? 'transform 460ms cubic-bezier(0.16, 1, 0.3, 1), height 280ms cubic-bezier(0.16, 1, 0.3, 1)'
                   : 'none',
               }}
-              className="ae-side-pill-indicator pointer-events-none absolute inset-x-0 z-0 rounded-2xl bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white shadow-sm"
+              className="ae-side-pill-indicator pointer-events-none absolute inset-x-0 z-0 rounded-2xl bg-gradient-to-r rtl:bg-gradient-to-l from-blue-600/90 via-blue-500/85 to-sky-500/80 text-white shadow-[0_6px_18px_-4px_rgba(37,99,235,0.5)] ring-1 ring-sky-200/25"
             >
-              <span className="absolute inset-y-2 start-1 w-1 rounded-full bg-white/80" />
+              <span className="absolute inset-y-2 start-1 w-1 rounded-full bg-white/85" />
             </div>
           ) : null}
 
@@ -553,7 +558,7 @@ export function Sidebar({
             return (
               <div key={section.id} className="space-y-0.5">
                 {collapsed && sectionIndex > 0 ? (
-                  <div aria-hidden className="mx-2 my-1.5 h-px bg-white/[0.08]" />
+                  <div aria-hidden className="mx-2 my-1 h-px bg-white/[0.09]" />
                 ) : null}
                 <div className="ae-rail-section-hdr px-3 pb-1 pt-0.5" aria-hidden={collapsed}>
                   <span className="ae-side-muted whitespace-nowrap text-xs font-bold uppercase tracking-wider">
@@ -577,22 +582,25 @@ export function Sidebar({
                         data-active={active}
                         aria-current={active ? 'page' : undefined}
                         aria-label={collapsed ? label : undefined}
-                        className={`ae-side-link relative z-10 flex items-center rounded-2xl py-2 text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
+                        className={`ae-side-link relative z-10 flex items-center rounded-2xl text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75 ${
                           active
-                            ? 'bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white shadow-sm'
+                            ? 'bg-gradient-to-r rtl:bg-gradient-to-l from-blue-600/90 via-blue-500/85 to-sky-500/80 text-white shadow-sm ring-1 ring-sky-200/20'
                             : ''
                         } ${
-                          collapsed ? 'justify-center gap-0 px-0' : 'gap-2.5 px-3'
+                          collapsed ? 'justify-center gap-0 px-0 py-1.5' : 'gap-2.5 px-3 py-2'
                         }`}
                       >
-                        <Icon size={17} className="ae-side-icon shrink-0" />
+                        <Icon
+                          size={18}
+                          className="ae-side-icon shrink-0 transition-transform duration-150 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                        />
                         <span className="ae-rail-clip-label text-[13px] leading-snug whitespace-normal">{label}</span>
                       </Link>
 
                       {collapsed ? (
                         <span
                           role="tooltip"
-                          className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-slate-950 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
+                          className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
                         >
                           {label}
                         </span>
@@ -607,11 +615,11 @@ export function Sidebar({
       </nav>
 
       {/* User Footer */}
-      <div className={`ae-side-divider shrink-0 py-3 ${collapsed ? 'px-2.5' : 'px-4'}`}>
+      <div className={`ae-side-divider shrink-0 ${collapsed ? 'px-2.5 py-2.5' : 'px-4 py-3'}`}>
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div
-              className="ae-side-chip flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold"
+              className="ae-side-chip flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.09] text-xs font-bold ring-1 ring-sky-200/20"
               title={
                 auditorMode
                   ? isAr
@@ -632,13 +640,13 @@ export function Sidebar({
               <button
                 type="submit"
                 aria-label={t('nav.logout')}
-                className="ae-side-logout flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                className="ae-side-logout flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/[0.06] transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
               >
                 <LogOut size={14} />
               </button>
               <span
                 role="tooltip"
-                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3 py-1.5 text-xs font-extrabold text-slate-950 opacity-0 transition-all duration-150 group-hover:visible group-hover:opacity-100"
+                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
               >
                 {t('nav.logout')}
               </span>
@@ -647,9 +655,9 @@ export function Sidebar({
         ) : (
           <>
             {auditorMode ? (
-              <div className="ae-side-card space-y-1 px-3 py-2 text-start">
+              <div className="ae-side-card space-y-1 rounded-[18px] bg-white/[0.055] px-3 py-2 text-start ring-1 ring-slate-400/15">
                 <div className="inline-flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                   <span className="ae-side-strong text-[13px] font-bold leading-snug">
                     {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </span>
@@ -667,17 +675,20 @@ export function Sidebar({
                 ) : null}
               </div>
             ) : (
-              <div className="ae-side-card space-y-1.5 px-3 py-2.5 text-start" data-sidebar-role={roleProfile.role}>
+              <div
+                className="ae-side-card space-y-1.5 rounded-[18px] bg-white/[0.055] px-3 py-2.5 text-start ring-1 ring-slate-400/15"
+                data-sidebar-role={roleProfile.role}
+              >
                 <div className="flex items-center gap-2.5">
-                  <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
+                  <div className="ae-side-chip flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.09] text-xs font-bold ring-1 ring-sky-200/20">
                     {(isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
                       {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                     </p>
-                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200 ring-1 ring-emerald-400/25">
-                      <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-300/25">
+                      <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                       <span>{isAr ? roleProfile.titleAr : roleProfile.titleEn}</span>
                     </span>
                   </div>
@@ -695,7 +706,7 @@ export function Sidebar({
             <form action={logout} className="mt-2">
               <button
                 type="submit"
-                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 text-xs font-semibold transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
               >
                 <LogOut size={13} />
                 <span>{t('nav.logout')}</span>
