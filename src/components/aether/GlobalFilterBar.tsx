@@ -38,8 +38,8 @@ export function GlobalFilterBar() {
 
   return (
     <div className="ae-filterbar no-print space-y-3" dir={isAr ? 'rtl' : 'ltr'}>
-      <div className="ae-tile flex flex-wrap items-center gap-2.5 px-4 py-3">
-        <span className="ae-icon-badge h-8 w-8">
+      <div className="ae-tile flex flex-wrap items-center gap-2.5 rounded-[24px] bg-white/80 px-4 py-3 backdrop-blur-xl ring-1 ring-slate-400/25 dark:bg-[#0F1A30]/80 dark:ring-sky-400/20">
+        <span className="ae-icon-badge h-8 w-8 rounded-full bg-blue-500/10 text-blue-600 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25">
           <Filter className="h-3.5 w-3.5" />
         </span>
         <div className="me-1 hidden min-w-0 flex-col leading-tight lg:flex">
@@ -49,7 +49,7 @@ export function GlobalFilterBar() {
           </span>
         </div>
 
-        <select aria-label={T('Brand', 'العلامة التجارية')} className="ae-select" value={filters.brand} onChange={(e) => setBrand(e.target.value as BrandId | 'all')}>
+        <select aria-label={T('Brand', 'العلامة التجارية')} className="ae-select v35-focus-ring rounded-full bg-white/85 backdrop-blur-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30]/85 dark:focus-visible:ring-sky-400/60" value={filters.brand} onChange={(e) => setBrand(e.target.value as BrandId | 'all')}>
           <option value="all">{T('All 6 brands', 'كل العلامات التجارية الـ 6')}</option>
           {BRANDS.map((b) => (
             <option key={b.id} value={b.id}>
@@ -58,7 +58,7 @@ export function GlobalFilterBar() {
           ))}
         </select>
 
-        <select aria-label={T('Branch', 'الفرع')} className="ae-select" value={filters.branch} onChange={(e) => setBranch(e.target.value as BranchId | 'all')}>
+        <select aria-label={T('Branch', 'الفرع')} className="ae-select v35-focus-ring rounded-full bg-white/85 backdrop-blur-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30]/85 dark:focus-visible:ring-sky-400/60" value={filters.branch} onChange={(e) => setBranch(e.target.value as BranchId | 'all')}>
           <option value="all">{T(`All ${LEDGER.branches} restaurant locations`, `كل مواقع المطاعم الـ ${LEDGER.branches}`)}</option>
           {BRANCHES.map((b) => (
             <option key={b.id} value={b.id}>
@@ -67,7 +67,7 @@ export function GlobalFilterBar() {
           ))}
         </select>
 
-        <select aria-label={T('Sales channel', 'قناة البيع')} className="ae-select" value={filters.channel} onChange={(e) => setChannel(e.target.value as ChannelId | 'all')}>
+        <select aria-label={T('Sales channel', 'قناة البيع')} className="ae-select v35-focus-ring rounded-full bg-white/85 backdrop-blur-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30]/85 dark:focus-visible:ring-sky-400/60" value={filters.channel} onChange={(e) => setChannel(e.target.value as ChannelId | 'all')}>
           <option value="all">{T(`All ${LEDGER.channels} channels`, `كل القنوات الـ ${LEDGER.channels}`)}</option>
           {CHANNELS.map((c) => (
             <option key={c.id} value={c.id}>
@@ -76,9 +76,9 @@ export function GlobalFilterBar() {
           ))}
         </select>
 
-        <div className="ae-seg" role="tablist" aria-label={T('Period', 'الفترة')}>
+        <div className="ae-seg rounded-full bg-blue-50/80 p-1 ring-1 ring-slate-400/20 dark:bg-[#0C1528]/85 dark:ring-sky-400/15" role="tablist" aria-label={T('Period', 'الفترة')}>
           {PERIODS.map((p) => (
-            <button key={p.id} type="button" role="tab" aria-selected={filters.period === p.id} data-active={filters.period === p.id} onClick={() => setPeriod(p.id)}>
+            <button key={p.id} type="button" role="tab" aria-selected={filters.period === p.id} data-active={filters.period === p.id} className="v35-focus-ring cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60" onClick={() => setPeriod(p.id)}>
               {isAr ? p.ar : p.en}
             </button>
           ))}
@@ -100,16 +100,16 @@ export function GlobalFilterBar() {
       </div>
 
       {chips.length > 0 ? (
-        <div className="ae-pop flex flex-wrap items-center gap-2">
+        <div className="ae-pop flex flex-wrap items-center gap-2 rounded-full bg-white/75 px-3.5 py-2 backdrop-blur-md ring-1 ring-slate-400/20 dark:bg-[#0F1A30]/75 dark:ring-sky-400/20">
           {chips.map((c) => (
-            <span key={c.key} className="ae-chip">
+            <span key={c.key} className="ae-chip inline-flex items-center gap-1.5 rounded-full bg-blue-100/80 px-3 py-1 text-xs font-semibold text-blue-900 backdrop-blur-sm ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
               {c.label}
-              <button type="button" onClick={c.clear} aria-label={T('Remove filter', 'إزالة الفلتر')} className="rounded-full p-0.5 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50">
+              <button type="button" onClick={c.clear} aria-label={T('Remove filter', 'إزالة الفلتر')} className="v35-focus-ring cursor-pointer rounded-full p-0.5 transition-colors hover:bg-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:bg-white/15 dark:focus-visible:ring-sky-400/60">
                 <X className="h-3 w-3" />
               </button>
             </span>
           ))}
-          <button type="button" onClick={reset} className="btn-colored inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-emerald-500 dark:text-[#04130D]">
+          <button type="button" onClick={reset} className="btn-colored v35-focus-ring inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-[0_4px_14px_-4px_rgba(37,99,235,0.42)] transition-all hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60">
             <RotateCcw className="h-3 w-3" />
             {T('Reset to Full Group Ledger', 'العودة إلى دفتر المجموعة الكامل')}
           </button>

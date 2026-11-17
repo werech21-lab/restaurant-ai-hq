@@ -10,6 +10,8 @@ import { LanguageProvider, type Locale } from '@/lib/i18n'
 import { ThemeProvider, type Theme } from '@/lib/theme'
 import './globals.css'
 import './aether-v2.css'
+import './v35-tokens.css'
+import './v35-shell.css'
 
 const ibmPlexArabic = IBM_Plex_Sans_Arabic({
   subsets: ['arabic', 'latin'],
@@ -37,8 +39,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#F6F7F8' },
-    { media: '(prefers-color-scheme: dark)', color: '#09110E' },
+    { media: '(prefers-color-scheme: light)', color: '#F1F5FC' },
+    { media: '(prefers-color-scheme: dark)', color: '#080E1D' },
   ],
 }
 

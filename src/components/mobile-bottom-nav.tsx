@@ -241,16 +241,16 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <div
             aria-hidden
             onClick={() => setSheetOpen(false)}
-            className="ae-sheet-backdrop no-print fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs lg:hidden"
+            className="ae-sheet-backdrop no-print fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs lg:hidden"
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={isAr ? 'جميع أقسام النظام التنفيذي (13 شاشة)' : 'All 13 Executive ERP Modules'}
             dir={isAr ? 'rtl' : 'ltr'}
-            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-slate-900/5 sm:p-5 sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:hidden dark:bg-[#101C17] dark:ring-emerald-500/15"
+            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-white/95 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] backdrop-blur-xl shadow-[0_-14px_44px_-10px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 sm:p-5 sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:hidden dark:bg-[#0F1A30]/95 dark:shadow-[0_-14px_44px_-10px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
           >
-            <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-200 dark:bg-white/15" />
+            <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-300/80 dark:bg-sky-300/20" />
 
             {/* Sheet Header + ThemeToggle + AR/EN */}
             <div className="flex items-center justify-between gap-1.5 pb-3">
@@ -264,13 +264,13 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <ThemeToggle className="h-8 !gap-1 !px-2 text-xs" />
+                <ThemeToggle className="h-8 !gap-1 !px-2.5 text-xs" />
 
                 <button
                   type="button"
                   onClick={() => setSheetOpen(false)}
                   aria-label={isAr ? 'إغلاق القائمة' : 'Close menu'}
-                  className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-white/[0.08] dark:text-slate-300"
+                  className="v35-focus-ring inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-blue-50/80 text-slate-600 ring-1 ring-slate-400/20 transition-colors hover:bg-blue-100/80 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-sky-400/15 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -278,26 +278,26 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </div>
 
             {/* Manager PIN Session / Auditor Read-Only Status & Bell Bar */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-[#F6F7F8] px-3.5 py-2.5 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-blue-50/75 px-3.5 py-2.5 backdrop-blur-sm ring-1 ring-slate-400/20 dark:bg-[#13203B]/80 dark:ring-sky-400/20">
               {isAuditor ? (
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
                   <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
                 </div>
               ) : activeSession.active ? (
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 dark:text-sky-300">
                   <Unlock className="h-3.5 w-3.5 shrink-0" />
                   <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
                   <span
                     dir="ltr"
-                    className="rounded-lg bg-emerald-100/80 px-1.5 py-0.5 font-mono text-xs tabular-nums text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+                    className="rounded-full bg-blue-100/90 px-2 py-0.5 font-mono text-xs tabular-nums text-blue-900 dark:bg-sky-400/20 dark:text-sky-100"
                   >
                     {formatSessionTimer(activeSession.remainingSeconds)}
                   </span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
-                  <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                   <span>{isAr ? 'صلاحية اعتماد المدير' : 'Manager PIN Session'}</span>
                 </div>
               )}
@@ -308,9 +308,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                     type="button"
                     onClick={handleOpenGovBell}
                     aria-label={isAr ? 'الإشعارات والاعتمادات' : 'Notifications and approvals'}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#101C17] dark:text-slate-200 dark:ring-emerald-500/15"
+                    className="v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-white/85 px-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 transition-colors hover:bg-blue-50 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30]/90 dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-sky-400/15 dark:focus-visible:ring-sky-400/60"
                   >
-                    <Bell className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Bell className="h-3.5 w-3.5 text-blue-600 dark:text-sky-400" />
                     <span dir="ltr" className="font-bold tabular-nums">
                       {badgeCount}
                     </span>
@@ -318,7 +318,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                 ) : null}
 
                 {isAuditor ? (
-                  <span className="inline-flex h-8 items-center gap-1 rounded-xl bg-amber-50 px-2.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/20 dark:bg-amber-950/60 dark:text-amber-200">
+                  <span className="inline-flex h-9 items-center gap-1 rounded-full bg-amber-50/90 px-3 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
                     <Lock className="h-3 w-3 shrink-0" />
                     <span>{isAr ? 'وضع المراجعة — قراءة فقط' : 'Read-Only'}</span>
                   </span>
@@ -326,7 +326,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <button
                     type="button"
                     onClick={handleLockPin}
-                    className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-white px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#101C17] dark:text-rose-300"
+                    className="v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-white/85 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/25 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30]/90 dark:text-rose-300 dark:ring-rose-400/25 dark:focus-visible:ring-sky-400/60"
                   >
                     <span>{isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}</span>
                   </button>
@@ -334,7 +334,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   <button
                     type="button"
                     onClick={handleUnlockPin}
-                    className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-emerald-500 dark:text-[#04130D]"
+                    className="btn-colored v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-full bg-blue-600 px-3.5 text-xs font-semibold text-white shadow-[0_4px_14px_-4px_rgba(37,99,235,0.42)] transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60"
                   >
                     <span>{isAr ? 'فتح الصلاحية 🔓' : 'Unlock PIN 🔓'}</span>
                   </button>
@@ -359,18 +359,18 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                           href={item.href}
                           onClick={() => setSheetOpen(false)}
                           aria-current={active ? 'page' : undefined}
-                          className={`flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-[13px] transition-all duration-[160ms] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+                          className={`v35-focus-ring flex items-center justify-between gap-2.5 rounded-2xl px-3.5 py-2.5 text-[13px] transition-all duration-[160ms] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                             active
-                              ? 'bg-emerald-50 font-bold text-emerald-950 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                              : 'bg-[#F6F7F8] font-medium text-slate-700 hover:bg-neutral-200/60 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-white/[0.08]'
+                              ? 'bg-blue-50/95 font-bold text-blue-950 ring-1 ring-blue-500/35 shadow-[0_4px_14px_-6px_rgba(37,99,235,0.22)] dark:bg-sky-400/15 dark:text-sky-100 dark:ring-sky-400/35'
+                              : 'bg-blue-50/45 font-medium text-slate-700 ring-1 ring-slate-400/15 hover:bg-blue-50/85 hover:text-slate-950 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/[0.08] dark:hover:bg-sky-400/10'
                           }`}
                         >
                           <span className="flex min-w-0 items-center gap-2.5">
                             <span
                               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
                                 active
-                                  ? 'btn-colored bg-emerald-600 text-white dark:bg-emerald-500 dark:text-[#04130D]'
-                                  : 'bg-white text-emerald-600 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:text-emerald-400 dark:ring-emerald-500/15'
+                                  ? 'btn-colored bg-blue-600 text-white shadow-[0_4px_10px_-3px_rgba(37,99,235,0.45)] dark:bg-sky-400 dark:text-[#081226]'
+                                  : 'bg-white/90 text-blue-600 ring-1 ring-slate-400/20 dark:bg-[#0F1A30] dark:text-sky-300 dark:ring-sky-400/20'
                               }`}
                             >
                               <Icon size={16} />
@@ -378,7 +378,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                             <span className="truncate">{isAr ? item.labelAr : item.labelEn}</span>
                           </span>
                           {active ? (
-                            <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <Check className="h-4 w-4 shrink-0 text-blue-600 dark:text-sky-300" />
                           ) : null}
                         </Link>
                       )
@@ -406,17 +406,17 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
       <nav
         aria-label={isAr ? 'التنقل السفلي السريع' : 'Mobile Primary Navigation'}
         dir={isAr ? 'rtl' : 'ltr'}
-        className="ae-mobile-dock no-print fixed inset-x-0 bottom-0 z-40 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(0,0,0,0.06)] backdrop-blur-lg lg:hidden dark:bg-[#0B1512]/95 dark:shadow-[0_-1px_0_rgba(16,185,129,0.12)]"
+        className="ae-mobile-dock no-print fixed inset-x-2 bottom-2 z-40 rounded-[26px] bg-white/85 pb-[env(safe-area-inset-bottom)] shadow-[0_12px_32px_-8px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 backdrop-blur-xl lg:hidden dark:bg-[#0D162A]/90 dark:shadow-[0_12px_34px_-8px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
       >
-        <div className="grid h-16 grid-cols-5 items-center px-1">
+        <div className="grid h-16 grid-cols-5 items-center gap-0.5 px-1.5">
           {/* 1) Home -> role default home */}
           <Link
             href={dockHomeHref}
             aria-current={homeActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+            className={`v35-focus-ring flex flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-xs transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               homeActive
-                ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                ? 'bg-blue-50/90 font-bold text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
+                : 'font-medium text-slate-600 hover:bg-blue-50/50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <LayoutDashboard className="h-5 w-5" />
@@ -435,10 +435,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href={dockTab2Href}
             aria-current={salesActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+            className={`v35-focus-ring flex flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-xs transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               salesActive
-                ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                ? 'bg-blue-50/90 font-bold text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
+                : 'font-medium text-slate-600 hover:bg-blue-50/50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <TrendingUp className="h-5 w-5" />
@@ -453,25 +453,25 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </span>
           </Link>
 
-          {/* 3) Feryal (Elevated Center Emerald Pill Accent) -> /erp/feryal-ai */}
+          {/* 3) Feryal (Elevated Center Cobalt/Sky Pill Accent) -> /erp/feryal-ai */}
           <Link
             href="/erp/feryal-ai"
             aria-current={feryalActive ? 'page' : undefined}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+            className="v35-focus-ring flex flex-col items-center justify-center gap-0.5 rounded-2xl py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60"
           >
             <span
-              className={`btn-colored flex h-9 w-12 items-center justify-center rounded-2xl transition-all duration-[160ms] active:scale-95 ${
+              className={`btn-colored flex h-9 w-12 items-center justify-center rounded-full bg-gradient-to-br transition-all duration-[160ms] active:scale-95 ${
                 feryalActive
-                  ? 'bg-emerald-600 text-white shadow-[0_4px_14px_rgba(16,185,129,0.42)] ring-2 ring-emerald-500/30 dark:bg-emerald-500 dark:text-[#04130D]'
-                  : 'bg-emerald-600 text-white shadow-[0_3px_10px_rgba(16,185,129,0.28)] dark:bg-emerald-500 dark:text-[#04130D]'
+                  ? 'from-blue-700 via-blue-600 to-sky-500 text-white shadow-[0_6px_16px_rgba(37,99,235,0.45)] ring-2 ring-blue-400/40 dark:from-sky-400 dark:via-sky-400 dark:to-blue-400 dark:text-[#081226] dark:ring-sky-300/45'
+                  : 'from-blue-700 via-blue-600 to-blue-500 text-white shadow-[0_4px_12px_rgba(37,99,235,0.32)] dark:from-sky-500 dark:to-blue-600 dark:text-white'
               }`}
             >
-              <Sparkles className="h-4.5 w-4.5" />
+              <Sparkles className="h-5 w-5" />
             </span>
             <span
               className={`truncate ${
                 feryalActive
-                  ? 'font-bold text-emerald-600 dark:text-emerald-400'
+                  ? 'font-bold text-blue-700 dark:text-sky-300'
                   : 'font-semibold text-slate-600 dark:text-slate-300'
               }`}
             >
@@ -483,10 +483,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <Link
             href={dockTab4Href}
             aria-current={opsActive ? 'page' : undefined}
-            className={`flex flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+            className={`v35-focus-ring flex flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-xs transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               opsActive
-                ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                ? 'bg-blue-50/90 font-bold text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
+                : 'font-medium text-slate-600 hover:bg-blue-50/50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <Activity className="h-5 w-5" />
@@ -507,10 +507,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             onClick={() => setSheetOpen((v) => !v)}
             aria-expanded={sheetOpen}
             aria-label={isAr ? 'فتح جميع الأقسام (13 شاشة)' : 'Open All 13 Modules'}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-xs transition-colors duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+            className={`v35-focus-ring flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-xs transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               menuActive
-                ? 'font-bold text-emerald-600 dark:text-emerald-400'
-                : 'font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                ? 'bg-blue-50/90 font-bold text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
+                : 'font-medium text-slate-600 hover:bg-blue-50/50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <Grid2x2 className="h-5 w-5" />

@@ -90,7 +90,8 @@ async function resolveActiveSessionRole(user: {
 
 /**
  * First-Class Fluid ERP Studio Shell (`src/components/erp/shell.tsx`)
- * Full-width fluid viewport (`w-full max-w-[1920px] mx-auto px-5 sm:px-7 xl:px-10`),
+ * V35 atmospheric glass canvas with full-width fluid viewport
+ * (`w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-7 xl:px-10`),
  * single sleek global header bar, 4-section executive sidebar, and crisp 14px–15px base typography.
  */
 export async function ErpShell({ children }: { children: React.ReactNode }) {
@@ -129,7 +130,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
           <GovernanceProvider isAuditor={isAuditor} sessionRole={sessionRole}>
             <div
               id="ae-root"
-              className="relative z-0 bg-[#F6F7F8] text-[14.5px] leading-relaxed dark:bg-[#090E0C]"
+              className="relative z-0 min-h-dvh bg-[var(--v35-bg-canvas)] text-[14.5px] leading-relaxed text-[var(--v35-text-primary)]"
               data-erp-shell="persistent"
               data-rail-choreography="252px-76px-clip-flip"
               data-auditor={isAuditor ? 'true' : 'false'}
@@ -137,10 +138,28 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
               data-role-title-ar={roleBadge.titleAr}
               data-role-title-en={roleBadge.titleEn}
             >
-              <div className="ae-ambient" aria-hidden>
-                <span />
-                <span />
-                <span />
+              <div
+                className="ae-ambient pointer-events-none fixed inset-0 -z-10 overflow-hidden"
+                aria-hidden
+              >
+                <span
+                  style={{
+                    background:
+                      'radial-gradient(circle, var(--v35-ambient-1), transparent 68%)',
+                  }}
+                />
+                <span
+                  style={{
+                    background:
+                      'radial-gradient(circle, var(--v35-ambient-2), transparent 68%)',
+                  }}
+                />
+                <span
+                  style={{
+                    background:
+                      'radial-gradient(circle, var(--v35-ambient-3), transparent 68%)',
+                  }}
+                />
               </div>
               <Sidebar
                 user={user}
@@ -149,15 +168,18 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                 sessionRole={sessionRole}
               />
               <div className="ae-content-col w-full flex-1 min-w-0 transition-[max-width,transform] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none">
-                <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 xl:px-10 pt-0 lg:pt-2 pb-28 sm:pb-12 lg:pb-8 min-w-0 space-y-3 text-[14.5px] leading-relaxed">
+                <div className="ae-page w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-7 xl:px-10 pt-0 lg:pt-[var(--v35-rail-inset)] pb-28 sm:pb-12 lg:pb-10 min-w-0 space-y-3 lg:space-y-4 text-[14.5px] leading-relaxed">
                   <TopFilterBar
                     companyNameAr={company.name}
                     isAuditor={isAuditor}
                     sessionRole={sessionRole}
                     userEmail={user.email}
                   />
-                  <main className="w-full max-w-none min-w-0">
-                    <div id="ae-canvas" className="app-content w-full min-w-0 space-y-3 text-[14.5px]">
+                  <main className="w-full max-w-none min-w-0 bg-transparent">
+                    <div
+                      id="ae-canvas"
+                      className="app-content w-full min-w-0 space-y-3 lg:space-y-4 bg-transparent text-[14.5px] text-[var(--v35-text-primary)]"
+                    >
                       <GlobalFilterBar />
                       {children}
                     </div>

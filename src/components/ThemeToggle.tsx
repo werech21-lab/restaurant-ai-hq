@@ -37,16 +37,16 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       aria-label={ariaLabel}
       title={ariaLabel}
       data-no-translate=""
-      className={`group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-xl px-3 text-[12px] font-semibold transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+      className={`v35-focus-ring group relative inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-xs font-semibold backdrop-blur-md transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
         isDark
-          ? 'bg-[#101C17] text-emerald-300 ring-1 ring-emerald-500/25 hover:ring-emerald-400/50'
-          : 'bg-white text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.06] hover:bg-slate-50 hover:ring-slate-900/15'
+          ? 'bg-[#0F1A30]/90 text-sky-200 shadow-[0_2px_10px_rgba(2,6,23,0.45),inset_0_1px_0_rgba(191,219,254,0.12)] ring-1 ring-sky-400/25 hover:bg-[#14223E] hover:text-white hover:ring-sky-400/50'
+          : 'bg-white/80 text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_6px_16px_-6px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.86)] ring-1 ring-slate-400/25 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/35 dark:bg-[#0F1A30]/90 dark:text-sky-200 dark:ring-sky-400/25'
       } ${className}`}
     >
       {isDark ? (
-        <Sun className="h-3.5 w-3.5 shrink-0 text-amber-400 transition-transform duration-200 group-hover:rotate-12" />
+        <Sun className="h-3.5 w-3.5 shrink-0 text-amber-300 transition-transform duration-200 group-hover:rotate-12" />
       ) : (
-        <Moon className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition-transform duration-200 group-hover:-rotate-12" />
+        <Moon className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 group-hover:-rotate-12 dark:text-sky-300" />
       )}
       <span className="whitespace-nowrap tracking-tight">
         {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'زمردي' : 'Emerald'}

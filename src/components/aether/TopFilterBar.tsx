@@ -205,9 +205,9 @@ function PeriodDropdownPopover({
       role="listbox"
       aria-label={isAr ? 'الفترة الزمنية' : 'Time Period'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-[min(92vw,336px)] space-y-2 rounded-2xl bg-white p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+      className="w-[min(92vw,336px)] space-y-2 rounded-3xl bg-white/90 p-3.5 text-slate-800 backdrop-blur-xl shadow-[0_20px_50px_-12px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-400/25 dark:bg-[#0F1A30]/95 dark:text-slate-100 dark:shadow-[0_20px_50px_-12px_rgba(2,6,23,0.75)] dark:ring-sky-400/25"
     >
-      <div className="px-1 text-xs font-bold text-slate-600 dark:text-slate-300">
+      <div className="px-1 text-xs font-bold tracking-tight text-slate-600 dark:text-slate-300">
         {isAr ? 'اختر الفترة الزمنية ونطاق التاريخ' : 'Select Time Period & Date Window'}
       </div>
 
@@ -233,10 +233,10 @@ function PeriodDropdownPopover({
                   onClose()
                 }
               }}
-              className={`flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] font-semibold transition-all duration-150 ${
+              className={`v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-2xl px-3 py-2 text-start text-[12.5px] font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                 active
-                  ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
-                  : 'text-slate-700 hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                  ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_8px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                  : 'text-slate-700 hover:bg-blue-50/60 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.07] dark:hover:text-white'
               }`}
             >
               <span className="min-w-0 flex-1">
@@ -244,23 +244,23 @@ function PeriodDropdownPopover({
                 <span
                   className={`ms-1.5 text-xs font-medium tabular-nums ${
                     active
-                      ? 'text-white/90 dark:text-[#04130D]/80'
-                      : 'text-slate-600 dark:text-slate-300'
+                      ? 'text-blue-700 dark:text-sky-200'
+                      : 'text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   ({rangeText})
                 </span>
               </span>
-              {active ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+              {active ? <Check className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-300" /> : null}
             </button>
           )
         })}
       </div>
 
       {activePeriod === 'custom' ? (
-        <div className="space-y-2 border-t border-slate-200/70 pt-2.5 dark:border-white/[0.08]">
+        <div className="space-y-2 border-t border-slate-300/40 pt-2.5 dark:border-sky-300/15">
           <div className="flex items-center justify-between gap-1.5">
-            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+            <span className="rounded-full bg-blue-50/90 px-2.5 py-0.5 text-xs font-bold text-blue-800 ring-1 ring-blue-400/25 tabular-nums dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
               {isAr ? `${spanDays} يوم` : `${spanDays} Days`}
             </span>
             <div className="flex items-center gap-1">
@@ -283,7 +283,7 @@ function PeriodDropdownPopover({
                     onChangeFrom(q.from)
                     onChangeTo(q.to)
                   }}
-                  className="cursor-pointer rounded-md bg-[#F6F7F8] px-1.5 py-0.5 text-xs font-semibold text-slate-600 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#09110E] dark:text-slate-300"
+                  className="v35-focus-ring cursor-pointer rounded-full bg-blue-50/75 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/20 transition-colors hover:bg-blue-100/80 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-sky-400/20 dark:hover:text-sky-100 dark:focus-visible:ring-sky-400/60"
                 >
                   {q.label}
                 </button>
@@ -299,7 +299,7 @@ function PeriodDropdownPopover({
                 dir="ltr"
                 value={draftFrom}
                 onChange={(e) => onChangeFrom(e.target.value)}
-                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+                className="v35-focus-ring h-9 w-full rounded-xl bg-blue-50/55 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427]/90 dark:text-white dark:ring-sky-400/20 dark:focus-visible:ring-sky-400/60"
               />
             </label>
             <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -309,7 +309,7 @@ function PeriodDropdownPopover({
                 dir="ltr"
                 value={draftTo}
                 onChange={(e) => onChangeTo(e.target.value)}
-                className="h-8 w-full rounded-xl bg-[#F6F7F8] px-2 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#09110E] dark:text-white"
+                className="v35-focus-ring h-9 w-full rounded-xl bg-blue-50/55 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427]/90 dark:text-white dark:ring-sky-400/20 dark:focus-visible:ring-sky-400/60"
               />
             </label>
           </div>
@@ -319,7 +319,7 @@ function PeriodDropdownPopover({
               onApplyCustomRange()
               onClose()
             }}
-            className="btn-colored inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+            className="btn-colored v35-focus-ring inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-full bg-blue-600 px-4 text-xs font-bold text-white shadow-[0_6px_16px_-4px_rgba(37,99,235,0.42)] transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60"
           >
             {isAr ? 'تطبيق الفترة المخصصة' : 'Apply Custom Range'}
           </button>
@@ -331,7 +331,7 @@ function PeriodDropdownPopover({
                 onClose()
                 onOpenScopeFilters()
               }}
-              className="inline-flex h-8 w-full cursor-pointer items-center justify-center rounded-xl bg-[#F6F7F8] px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#09110E] dark:text-slate-200"
+              className="v35-focus-ring inline-flex h-9 w-full cursor-pointer items-center justify-center rounded-full bg-blue-50/75 px-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/20 transition-colors hover:bg-blue-100/80 hover:text-blue-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-sky-400/15 dark:hover:text-sky-100 dark:focus-visible:ring-sky-400/60"
             >
               {isAr ? 'تحديد المطاعم والفروع مع الفترة ▸' : 'Pair with Brand & Branch Filters ▸'}
             </button>
@@ -357,7 +357,7 @@ function EmeraldPillTabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
+      className="flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-full bg-blue-50/75 p-1 ring-1 ring-slate-400/20 select-none dark:bg-[#0B1427]/85 dark:ring-sky-400/15"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -369,10 +369,10 @@ function EmeraldPillTabs<T extends string>({
             title={opt.title}
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl px-3 py-1.5 text-[12.5px] font-semibold whitespace-nowrap transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+            className={`v35-focus-ring inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold whitespace-nowrap transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               active
-                ? 'btn-colored bg-emerald-600 text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
-                : 'text-slate-600 hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white'
+                ? 'bg-white text-blue-800 shadow-[0_2px_8px_-2px_rgba(37,99,235,0.20)] ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                : 'text-slate-600 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white'
             }`}
           >
             <span>{opt.label}</span>
@@ -402,7 +402,7 @@ function FilterChipGroup<T extends string>({
 }) {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-bold text-slate-600 dark:text-slate-300">{label}</div>
+      <div className="text-xs font-bold tracking-tight text-slate-600 dark:text-slate-300">{label}</div>
       <div
         className={
           twoColGrid
@@ -418,10 +418,12 @@ function FilterChipGroup<T extends string>({
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`inline-flex shrink-0 cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[12.5px] leading-snug whitespace-nowrap sm:whitespace-normal transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+              className={`v35-focus-ring inline-flex shrink-0 cursor-pointer items-center justify-between gap-2 px-3.5 py-2 text-start text-[12.5px] leading-snug whitespace-nowrap sm:whitespace-normal transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
+                twoColGrid ? 'rounded-2xl' : 'rounded-full'
+              } ${
                 active
-                  ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
-                  : 'bg-neutral-100/90 font-medium text-slate-700 hover:bg-neutral-200/70 hover:text-slate-950 dark:bg-white/[0.05] dark:text-slate-200 dark:hover:bg-white/[0.10]'
+                  ? 'bg-blue-50/95 font-semibold text-blue-950 shadow-[0_2px_8px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                  : 'bg-blue-50/45 font-medium text-slate-700 ring-1 ring-slate-400/20 hover:bg-blue-50/85 hover:text-slate-950 dark:bg-white/[0.05] dark:text-slate-200 dark:ring-white/[0.08] dark:hover:bg-sky-400/10'
               }`}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -436,16 +438,16 @@ function FilterChipGroup<T extends string>({
               {showHealthMeta && typeof opt.weightedNetPct === 'number' ? (
                 <span
                   dir="ltr"
-                  className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
                     active
-                      ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-[#04130D]'
-                      : 'bg-white text-slate-600 dark:bg-white/10 dark:text-slate-300'
+                      ? 'bg-blue-100/90 text-blue-900 dark:bg-sky-300/20 dark:text-sky-100'
+                      : 'bg-white/90 text-slate-600 ring-1 ring-slate-400/15 dark:bg-white/10 dark:text-slate-300'
                   }`}
                 >
                   {formatPct(opt.weightedNetPct, { locale: isAr ? 'ar' : 'en' })}
                 </span>
               ) : active ? (
-                <Check className="h-3.5 w-3.5 shrink-0" />
+                <Check className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-300" />
               ) : null}
             </button>
           )
@@ -504,13 +506,13 @@ function AccountWorkspaceMenuPanel({
       role="menu"
       aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-[min(92vw,330px)] space-y-2 rounded-2xl bg-white p-3.5 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:text-slate-100 dark:ring-emerald-500/20"
+      className="w-[min(92vw,330px)] space-y-2.5 rounded-3xl bg-white/90 p-3.5 text-slate-800 backdrop-blur-xl shadow-[0_20px_50px_-12px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-400/25 dark:bg-[#0F1A30]/95 dark:text-slate-100 dark:shadow-[0_20px_50px_-12px_rgba(2,6,23,0.75)] dark:ring-sky-400/25"
     >
       {/* Account Identity Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/[0.08]">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-300/40 pb-2.5 dark:border-sky-300/15">
         <div className="min-w-0">
           {auditorMode ? (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50/90 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
               <span>{isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}</span>
             </span>
@@ -519,7 +521,7 @@ function AccountWorkspaceMenuPanel({
               <div className="text-[13px] font-bold text-slate-900 dark:text-white">
                 {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
               </div>
-              <div className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <div className="text-xs font-medium text-blue-700 dark:text-sky-300">
                 {isAr ? roleProfile.titleAr : roleProfile.titleEn}
               </div>
             </div>
@@ -534,10 +536,10 @@ function AccountWorkspaceMenuPanel({
           ) : null}
         </div>
         <span
-          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
             auditorMode
-              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+              ? 'bg-amber-50/90 text-amber-700 ring-1 ring-amber-400/25 dark:bg-amber-950/60 dark:text-amber-300'
+              : 'bg-blue-50/90 text-blue-700 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
           }`}
         >
           <ShieldCheck className="h-4 w-4" />
@@ -548,14 +550,14 @@ function AccountWorkspaceMenuPanel({
       <button
         type="button"
         onClick={handleOpenNotifications}
-        className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2.5 text-start text-[12.5px] font-semibold text-slate-800 transition-colors hover:bg-emerald-50/70 dark:bg-[#09110E] dark:text-slate-100 dark:hover:bg-emerald-950/40"
+        className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-2xl bg-blue-50/65 px-3 py-2.5 text-start text-[12.5px] font-semibold text-slate-800 ring-1 ring-slate-400/15 transition-colors hover:bg-blue-100/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#13203B]/80 dark:text-slate-100 dark:ring-sky-400/15 dark:hover:bg-sky-400/15 dark:focus-visible:ring-sky-400/60"
       >
         <span className="inline-flex items-center gap-2">
           <Bell
             className={`h-4 w-4 shrink-0 ${
               hasBreaches
                 ? 'text-rose-600 dark:text-rose-400'
-                : 'text-emerald-600 dark:text-emerald-400'
+                : 'text-blue-600 dark:text-sky-400'
             }`}
           />
           <span>
@@ -565,12 +567,12 @@ function AccountWorkspaceMenuPanel({
         <span
           dir="ltr"
           style={badgeCount > 0 ? { color: '#FFFFFF' } : undefined}
-          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-lg px-1.5 text-xs font-bold tabular-nums ${
+          className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums ${
             badgeCount > 0
               ? hasBreaches
                 ? 'btn-colored bg-rose-600 text-white'
-                : 'btn-colored bg-emerald-600 text-white'
-              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                : 'btn-colored bg-blue-600 text-white dark:bg-blue-500'
+              : 'bg-blue-100/80 text-blue-800 dark:bg-sky-400/15 dark:text-sky-200'
           }`}
         >
           {badgeCount}
@@ -579,21 +581,21 @@ function AccountWorkspaceMenuPanel({
 
       {/* 2. Role / Manager PIN Control (Executive PIN unlock vs Auditor Read-Only badge) */}
       {auditorMode ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50/75 px-3 py-2.5 ring-1 ring-amber-500/20 dark:bg-amber-950/35 dark:ring-amber-400/20">
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50/75 px-3 py-2.5 ring-1 ring-amber-500/20 dark:bg-amber-950/35 dark:ring-amber-400/20">
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
             <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
           </div>
-          <span className="rounded-lg bg-white/80 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
+          <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
             {isAr ? 'مقفل' : 'Disabled'}
           </span>
         </div>
       ) : gov ? (
-        <div className="flex items-center justify-between gap-2 rounded-xl bg-[#F6F7F8] px-3 py-2.5 dark:bg-[#09110E]">
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-blue-50/65 px-3 py-2.5 ring-1 ring-slate-400/15 dark:bg-[#13203B]/80 dark:ring-sky-400/15">
           {gov.session.active ? (
             <>
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-sky-300">
                   <Unlock className="h-3.5 w-3.5 shrink-0" />
                   <span>{isAr ? 'صلاحية المدير نشطة' : 'Manager Session Active'}</span>
                 </div>
@@ -610,7 +612,7 @@ function AccountWorkspaceMenuPanel({
                   gov.lockSession()
                   onCloseMenu()
                 }}
-                className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-white px-2.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-50 dark:bg-[#101C17] dark:text-rose-300"
+                className="v35-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white/90 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/25 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30] dark:text-rose-300 dark:focus-visible:ring-sky-400/60"
               >
                 <Lock className="h-3 w-3" />
                 <span>{isAr ? 'قفل' : 'Lock'}</span>
@@ -619,7 +621,7 @@ function AccountWorkspaceMenuPanel({
           ) : (
             <>
               <div className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-700 dark:text-slate-200">
-                <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <Lock className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                 <span>{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
               </div>
               <button
@@ -631,7 +633,7 @@ function AccountWorkspaceMenuPanel({
                     titleEn: 'Unlock 15-Minute Manager Session',
                   })
                 }}
-                className="btn-colored inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                className="btn-colored v35-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-blue-600 px-3.5 text-xs font-bold text-white shadow-[0_4px_12px_-3px_rgba(37,99,235,0.4)] transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60"
               >
                 <Unlock className="h-3 w-3" />
                 <span>{isAr ? 'تفعيل' : 'Unlock'}</span>
@@ -642,7 +644,7 @@ function AccountWorkspaceMenuPanel({
       ) : null}
 
       {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) — mobile/tablet only (desktop bar has quick toggle) */}
-      <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5 lg:hidden">
+      <div className="flex items-center justify-between gap-2 rounded-2xl px-2.5 py-1.5 lg:hidden">
         <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
           {isAr ? 'الوضع النهاري / الليلي' : 'Light / Dark Theme'}
         </span>
@@ -650,22 +652,22 @@ function AccountWorkspaceMenuPanel({
       </div>
 
       {/* 4. Single Language Toggle (`Language: العربية | English`) */}
-      <div className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-1.5">
+      <div className="flex items-center justify-between gap-2 rounded-2xl px-2.5 py-1.5">
         <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200">
-          <Globe className="h-3.5 w-3.5 text-slate-400" />
+          <Globe className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           <span>{isAr ? 'اللغة:' : 'Language:'}</span>
         </span>
         <div
           dir="ltr"
           data-no-translate=""
-          className="inline-flex items-center gap-1 rounded-xl bg-neutral-100/90 p-1 dark:bg-white/[0.06]"
+          className="inline-flex items-center gap-1 rounded-full bg-blue-50/80 p-1 ring-1 ring-slate-400/20 dark:bg-[#0B1427]/85 dark:ring-sky-400/15"
         >
           <button
             type="button"
             onClick={() => onSetLocale('ar')}
-            className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`v35-focus-ring cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               locale === 'ar'
-                ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'bg-white text-blue-800 shadow-xs ring-1 ring-blue-500/30 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                 : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
@@ -674,9 +676,9 @@ function AccountWorkspaceMenuPanel({
           <button
             type="button"
             onClick={() => onSetLocale('en')}
-            className={`cursor-pointer rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+            className={`v35-focus-ring cursor-pointer rounded-full px-3 py-1 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               locale === 'en'
-                ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+                ? 'bg-white text-blue-800 shadow-xs ring-1 ring-blue-500/30 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                 : 'text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white'
             }`}
           >
@@ -685,19 +687,19 @@ function AccountWorkspaceMenuPanel({
         </div>
       </div>
 
-      <div className="border-t border-slate-200/70 pt-1.5 dark:border-white/[0.08]">
+      <div className="border-t border-slate-300/40 pt-1.5 dark:border-sky-300/15">
         {/* 5. WhatsApp Executive Summary Share (`مشاركة التقرير عبر واتساب`) */}
         <button
           type="button"
           onClick={onShareWhatsApp}
           title={isAr ? 'مشاركة التقرير عبر واتساب' : 'Share Report via WhatsApp'}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+          className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-blue-50/75 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:text-slate-200 dark:hover:bg-sky-400/10 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
         >
           <span className="inline-flex items-center gap-2">
             {sharedCopied ? (
-              <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Check className="h-4 w-4 shrink-0 text-blue-600 dark:text-sky-400" />
             ) : (
-              <Share2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <Share2 className="h-4 w-4 shrink-0 text-blue-600 dark:text-sky-400" />
             )}
             <span>
               {sharedCopied
@@ -715,7 +717,7 @@ function AccountWorkspaceMenuPanel({
         <button
           type="button"
           onClick={onOpenCommandSearch}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-[#F6F7F8] hover:text-slate-950 dark:text-slate-200 dark:hover:bg-white/[0.06]"
+          className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-blue-50/75 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:text-slate-200 dark:hover:bg-sky-400/10 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
         >
           <span className="inline-flex items-center gap-2">
             <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
@@ -723,7 +725,7 @@ function AccountWorkspaceMenuPanel({
           </span>
           <kbd
             dir="ltr"
-            className="rounded-md bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-600 dark:bg-white/[0.08] dark:text-slate-300"
+            className="rounded-full bg-blue-50/90 px-2 py-0.5 font-mono text-xs font-bold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.08] dark:text-sky-200 dark:ring-sky-400/20"
           >
             ⌘K
           </kbd>
@@ -732,18 +734,18 @@ function AccountWorkspaceMenuPanel({
 
       {/* Admin-Only 8-Role Executive Access Directory inside Account Drawer */}
       {activeRole === 'admin' && !auditorMode ? (
-        <div className="border-t border-slate-200/70 pt-2 dark:border-white/[0.08]">
+        <div className="border-t border-slate-300/40 pt-2 dark:border-sky-300/15">
           <AdminExecutiveDirectoryCard role={activeRole} compact />
         </div>
       ) : null}
 
       {/* 7. Real Sign Out (`تسجيل الخروج` / `Sign Out`) */}
-      <div className="border-t border-slate-200/70 pt-1.5 dark:border-white/[0.08]">
+      <div className="border-t border-slate-300/40 pt-1.5 dark:border-sky-300/15">
         <button
           type="button"
           disabled={signingOut}
           onClick={onSignOut}
-          className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+          className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/40"
         >
           <span className="inline-flex items-center gap-2">
             <LogOut className="h-4 w-4 shrink-0" />
@@ -1024,7 +1026,7 @@ export function TopFilterBar({
       <header
         aria-label={isAr ? 'الشريط العلوي للجوال' : 'Mobile Executive App Bar'}
         dir={isAr ? 'rtl' : 'ltr'}
-        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/90 px-3.5 shadow-[0_1px_0_rgba(15,23,42,0.06)] backdrop-blur-md sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0B1512]/90 dark:shadow-[0_1px_0_rgba(16,185,129,0.12)]"
+        className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/85 px-3.5 shadow-[0_1px_0_rgba(148,163,184,0.2)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0D162A]/90 dark:shadow-[0_1px_0_rgba(96,165,250,0.16)]"
       >
         <div ref={mobileBarRef} className="relative flex h-14 items-center justify-between gap-2">
           {/* Start: VF Brand Badge + Single Concise Active Page Title */}
@@ -1032,7 +1034,7 @@ export function TopFilterBar({
             <Link
               href={resolveRoleDefaultHome(topRoleProfile.role)}
               aria-label={isAr ? 'ملخص الشركة' : 'Overview'}
-              className="btn-colored flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-xs font-black text-white shadow-xs transition-transform duration-150 active:scale-95"
+              className="btn-colored v35-focus-ring flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-700 via-blue-600 to-blue-500 text-xs font-black text-white shadow-[0_4px_12px_-3px_rgba(37,99,235,0.45)] transition-transform duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:from-sky-400 dark:to-blue-500 dark:text-[#081226] dark:focus-visible:ring-sky-400/60"
             >
               VF
             </Link>
@@ -1060,13 +1062,13 @@ export function TopFilterBar({
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
                     aria-label={periodDropdownLabel}
-                    className={`inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                    className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 sm:px-3 dark:focus-visible:ring-sky-400/60 ${
                       periodDropdownOpen || filters.period !== 'month'
-                        ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                        : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                        ? 'bg-blue-50/95 text-blue-950 ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                        : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20'
                     }`}
                   >
-                    <Calendar className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                     <span className="whitespace-nowrap sm:hidden">{activePeriodShortLabel}</span>
                     <span className="hidden whitespace-nowrap sm:inline">{periodDropdownLabel}</span>
                     <ChevronDown
@@ -1105,13 +1107,13 @@ export function TopFilterBar({
                   }}
                   aria-expanded={mobileSheetOpen}
                   aria-label={isAr ? 'فتح فلاتر التحليل' : 'Open Filters'}
-                  className={`inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                  className={`v35-focus-ring inline-flex h-9 shrink-0 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 sm:px-3 dark:focus-visible:ring-sky-400/60 ${
                     mobileActiveFilterCount > 0
-                      ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
-                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                      ? 'bg-blue-50/95 text-blue-950 ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                      : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20'
                   }`}
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                   <span className="hidden whitespace-nowrap sm:inline">
                     {isAr ? 'فلاتر' : 'Filters'}
                   </span>
@@ -1119,7 +1121,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-md bg-emerald-600 px-1 text-xs font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-bold tabular-nums text-white dark:bg-blue-500"
                     >
                       {mobileActiveFilterCount}
                     </span>
@@ -1145,19 +1147,19 @@ export function TopFilterBar({
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
-                className={`relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-all duration-[160ms] active:scale-95 sm:px-2.5 ${
+                className={`v35-focus-ring relative inline-flex h-9 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 sm:px-3 dark:focus-visible:ring-sky-400/60 ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
-                    ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/35'
+                    ? 'bg-blue-50/95 text-blue-950 ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                     : auditorMode
                       ? 'bg-amber-50/90 text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-400/25'
-                      : 'bg-neutral-100/90 text-slate-700 ring-1 ring-slate-900/[0.05] dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-500/15'
+                      : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20'
                 }`}
               >
                 <ShieldCheck
                   className={`h-3.5 w-3.5 shrink-0 ${
                     auditorMode
                       ? 'text-amber-600 dark:text-amber-400'
-                      : 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-blue-600 dark:text-sky-400'
                   }`}
                 />
                 <span className="hidden whitespace-nowrap sm:inline">
@@ -1167,7 +1169,7 @@ export function TopFilterBar({
                   <span
                     aria-hidden
                     className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                      hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-500'
+                      hasActiveBreaches ? 'bg-rose-500' : 'bg-blue-500 dark:bg-sky-400'
                     }`}
                   />
                 ) : null}
@@ -1219,7 +1221,7 @@ export function TopFilterBar({
           <div
             aria-hidden
             onClick={() => setMobileSheetOpen(false)}
-            className="ae-sheet-backdrop no-print fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs lg:hidden"
+            className="ae-sheet-backdrop no-print fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-xs lg:hidden"
           />
           <div
             role="dialog"
@@ -1228,13 +1230,13 @@ export function TopFilterBar({
               isAr ? 'فلاتر الفترة والفروع والقنوات' : 'Period, Brand, Branch & Channel Filters'
             }
             dir={isAr ? 'rtl' : 'ltr'}
-            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl ring-1 ring-slate-900/5 lg:hidden dark:bg-[#101C17] dark:ring-emerald-500/15"
+            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-white/95 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] backdrop-blur-xl shadow-[0_-14px_44px_-10px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 lg:hidden dark:bg-[#0F1A30]/95 dark:shadow-[0_-14px_44px_-10px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
           >
-            <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-200 dark:bg-white/15" />
+            <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-300/80 dark:bg-sky-300/20" />
 
             <div className="flex items-start justify-between gap-2 pb-3">
               <div className="min-w-0">
-                <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+                <h2 className="text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
                   {isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
                 </h2>
                 <p className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -1245,7 +1247,7 @@ export function TopFilterBar({
                 type="button"
                 onClick={() => setMobileSheetOpen(false)}
                 aria-label={isAr ? 'إغلاق' : 'Close'}
-                className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-slate-600 transition-colors hover:text-slate-950 dark:bg-white/[0.08] dark:text-slate-300"
+                className="v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-blue-50/80 text-slate-600 ring-1 ring-slate-400/20 transition-colors hover:bg-blue-100/80 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-sky-400/15 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1255,10 +1257,10 @@ export function TopFilterBar({
               {/* Period + Custom Dates */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <div className="text-xs font-bold tracking-tight text-slate-600 dark:text-slate-300">
                     {isAr ? 'الفترة الزمنية' : 'Time Period'}
                   </div>
-                  <span className="rounded-lg bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <span className="rounded-full bg-blue-50/90 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-blue-800 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
                     {periodDropdownLabel}
                   </span>
                 </div>
@@ -1270,7 +1272,7 @@ export function TopFilterBar({
                 />
 
                 {filters.period === 'custom' ? (
-                  <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] dark:bg-[#09110E] dark:ring-emerald-500/15">
+                  <div className="grid grid-cols-2 gap-2.5 rounded-2xl bg-blue-50/65 p-3 ring-1 ring-slate-400/20 dark:bg-[#13203B]/80 dark:ring-sky-400/20">
                     <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
                       <input
@@ -1278,7 +1280,7 @@ export function TopFilterBar({
                         dir="ltr"
                         value={draftFrom}
                         onChange={(e) => setDraftFrom(e.target.value)}
-                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                        className="v35-focus-ring h-10 w-full rounded-xl bg-white/95 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427] dark:text-white dark:ring-sky-400/25 dark:focus-visible:ring-sky-400/60"
                       />
                     </label>
                     <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -1288,7 +1290,7 @@ export function TopFilterBar({
                         dir="ltr"
                         value={draftTo}
                         onChange={(e) => setDraftTo(e.target.value)}
-                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                        className="v35-focus-ring h-10 w-full rounded-xl bg-white/95 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427] dark:text-white dark:ring-sky-400/25 dark:focus-visible:ring-sky-400/60"
                       />
                     </label>
                   </div>
@@ -1348,7 +1350,7 @@ export function TopFilterBar({
                   type="button"
                   onClick={resetFilters}
                   disabled={!hasAnyActiveFilter}
-                  className="inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-2xl bg-neutral-100 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-neutral-200/80 disabled:opacity-45 dark:bg-white/[0.07] dark:text-slate-200"
+                  className="v35-focus-ring inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-slate-100/85 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-400/20 transition-colors hover:bg-slate-200/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:opacity-45 dark:bg-white/[0.08] dark:text-slate-200 dark:focus-visible:ring-sky-400/60"
                 >
                   <RotateCcw className="h-4 w-4" />
                   <span>{isAr ? 'إعادة ضبط الفلاتر' : 'Reset Filters'}</span>
@@ -1356,7 +1358,7 @@ export function TopFilterBar({
                 <button
                   type="button"
                   onClick={handleApplyMobileSheet}
-                  className="btn-colored inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                  className="btn-colored v35-focus-ring inline-flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-blue-600 text-[13px] font-bold text-white shadow-[0_6px_18px_-4px_rgba(37,99,235,0.45)] transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60"
                 >
                   <Check className="h-4 w-4" />
                   <span>{isAr ? 'تطبيق وإغلاق' : 'Apply'}</span>
@@ -1368,7 +1370,7 @@ export function TopFilterBar({
       ) : null}
 
       {/* =====================================================================
-          3. DESKTOP OBSIDIAN-EMERALD UTILITY & EXECUTIVE CONTROL BAR (`hidden lg:block`)
+          3. DESKTOP V35 FROSTED PILL UTILITY & EXECUTIVE CONTROL BAR (`hidden lg:block`)
              [Rail + Pill Search ⌘K] ... [Period • Filters] • [Bell • Theme] • [Executive Profile Pill (houses single Language toggle)]
          ===================================================================== */}
       <header
@@ -1379,14 +1381,14 @@ export function TopFilterBar({
       >
         <div
           ref={desktopBarRef}
-          className="relative flex flex-wrap items-center justify-between gap-2.5 rounded-2xl bg-white/95 px-3.5 py-2.5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.05] backdrop-blur-md dark:bg-[#101815]/95 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] dark:ring-emerald-400/[0.09]"
+          className="relative flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-4 py-2.5"
         >
           {/* Start Side: Sidebar Rail Toggle + Compact Pill Search Input (`⌘K`) + Optional Auditor Pill */}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
-              className="ae-capsule inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full"
+              className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60"
               title={
                 isAr ? 'طي أو توسيع القائمة الجانبية (Ctrl+B)' : 'Toggle sidebar rail (Ctrl+B)'
               }
@@ -1404,10 +1406,10 @@ export function TopFilterBar({
                   ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال (Ctrl+K)'
                   : 'Search metrics, branches, or ask Feryal (Ctrl+K)'
               }
-              className="group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-[#F6F7F8] px-3.5 text-[13px] text-slate-600 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-900 hover:ring-emerald-500/35 dark:bg-[#141F1B] dark:text-[#8FA39B] dark:ring-emerald-400/[0.09] dark:hover:text-white dark:hover:ring-emerald-400/30"
+              className="ae-capsule v35-focus-ring group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-white/70 px-3.5 text-[13px] text-slate-600 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
-                <Search className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition-transform duration-150 group-hover:scale-105 dark:text-emerald-400" />
+                <Search className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-150 group-hover:scale-105 dark:text-sky-400" />
                 <span className="truncate font-medium">
                   {isAr
                     ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال...'
@@ -1416,7 +1418,7 @@ export function TopFilterBar({
               </span>
               <kbd
                 dir="ltr"
-                className="shrink-0 rounded-full bg-white px-2 py-0.5 font-mono text-xs font-semibold text-slate-600 ring-1 ring-slate-900/[0.06] dark:bg-white/[0.07] dark:text-emerald-200 dark:ring-white/10"
+                className="shrink-0 rounded-full bg-white/90 px-2 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.08] dark:text-sky-200 dark:ring-sky-400/20"
               >
                 ⌘K
               </kbd>
@@ -1424,7 +1426,7 @@ export function TopFilterBar({
 
             {page ? (
               <span
-                className="ae-top-title hidden 2xl:inline truncate px-1 text-[13.5px] font-semibold tracking-tight text-slate-700 dark:text-[#8FA39B]"
+                className="ae-top-title hidden 2xl:inline truncate px-1 text-[13.5px] font-semibold tracking-tight text-slate-700 dark:text-slate-200"
                 aria-current="page"
               >
                 {isAr ? page.ar : page.en}
@@ -1432,7 +1434,7 @@ export function TopFilterBar({
             ) : null}
 
             {auditorMode ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50/90 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
                 <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
                 <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
               </span>
@@ -1455,13 +1457,13 @@ export function TopFilterBar({
                     }}
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
-                    className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+                    className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                       periodDropdownOpen || filters.period !== 'month'
-                        ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
-                        : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
+                        ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                        : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white'
                     }`}
                   >
-                    <Calendar className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <Calendar className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                     <span className="whitespace-nowrap">{periodDropdownLabel}</span>
                     {filters.period === 'today' && workspace.isTodayFallback ? (
                       <span
@@ -1470,7 +1472,7 @@ export function TopFilterBar({
                             ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
                             : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
                         }
-                        className="rounded-md bg-amber-100/80 px-1.5 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
+                        className="rounded-full bg-amber-100/80 px-2 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
                       >
                         {isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}
                       </span>
@@ -1511,19 +1513,19 @@ export function TopFilterBar({
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={filtersPopoverOpen}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+                  className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                     filtersPopoverOpen || nonDefaultSliceCount > 0
-                      ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-200 dark:ring-emerald-400/45'
-                      : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-white hover:text-slate-950 dark:bg-[#141F1B] dark:text-slate-200 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
+                      ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
+                      : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white'
                   }`}
                 >
-                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
                   <span className="whitespace-nowrap">{isAr ? 'فلاتر' : 'Filters'}</span>
                   {nonDefaultSliceCount > 0 ? (
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-bold tabular-nums text-white"
+                      className="btn-colored inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold tabular-nums text-white dark:bg-blue-500"
                     >
                       {nonDefaultSliceCount}
                     </span>
@@ -1540,7 +1542,7 @@ export function TopFilterBar({
             {/* Quick Action Circle (1): Notifications & Governance Bell */}
             <GovernanceBellTrigger />
 
-            {/* Quick Action Circle (2): Light / Obsidian-Emerald Theme Toggle */}
+            {/* Quick Action Circle (2): Light / Midnight-Navy V35 Theme Toggle */}
             <button
               type="button"
               onClick={toggleTheme}
@@ -1554,7 +1556,7 @@ export function TopFilterBar({
                     : 'Switch to Obsidian-Emerald Mode'
               }
               aria-label={isAr ? 'تبديل المظهر' : 'Toggle theme'}
-              className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-white hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:bg-[#141F1B] dark:text-amber-300 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]"
+              className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/75 text-blue-700 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-blue-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-amber-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
             >
               {isDarkTheme ? (
                 <Sun className="h-4 w-4" />
@@ -1575,24 +1577,24 @@ export function TopFilterBar({
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
-                className={`inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${
+                className={`v35-focus-ring inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
-                    ? 'bg-emerald-50/90 text-emerald-950 ring-1 ring-emerald-500/45 dark:bg-emerald-950/55 dark:text-emerald-100 dark:ring-emerald-400/45'
+                    ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                     : auditorMode
                       ? 'bg-amber-50/85 text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-400/30'
-                      : 'bg-[#F6F7F8] text-slate-800 ring-1 ring-slate-900/[0.06] hover:bg-white dark:bg-[#141F1B] dark:text-slate-100 dark:ring-emerald-400/[0.09] dark:hover:bg-white/[0.08]'
+                      : 'bg-white/75 text-slate-800 ring-1 ring-slate-400/25 hover:bg-white/95 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-100 dark:ring-sky-400/20 dark:hover:bg-white/[0.11]'
                 }`}
               >
                 <span
                   style={{ color: '#FFFFFF' }}
-                  className="btn-colored relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0F764A] via-[#10935B] to-[#064E3B] text-xs font-bold tracking-tight text-white shadow-sm"
+                  className="btn-colored relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-800 via-blue-600 to-sky-500 text-xs font-bold tracking-tight text-white shadow-sm"
                 >
                   {execAvatarInitials}
                   {hasUnreadNotifications ? (
                     <span
                       aria-hidden
-                      className={`absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#141F1B] ${
-                        hasActiveBreaches ? 'bg-rose-500' : 'bg-emerald-400'
+                      className={`absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#0D162A] ${
+                        hasActiveBreaches ? 'bg-rose-500' : 'bg-sky-400'
                       }`}
                     />
                   ) : null}
@@ -1606,7 +1608,7 @@ export function TopFilterBar({
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                         auditorMode
                           ? 'bg-amber-100/90 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200'
-                          : 'bg-emerald-100/90 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200'
+                          : 'bg-sky-100/90 text-blue-900 dark:bg-sky-400/20 dark:text-sky-200'
                       }`}
                     >
                       {isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn}
@@ -1614,7 +1616,7 @@ export function TopFilterBar({
                   </span>
                   <span
                     dir={userEmail ? 'ltr' : undefined}
-                    className="block whitespace-nowrap text-xs font-medium text-slate-600 dark:text-[#8FA39B]"
+                    className="block whitespace-nowrap text-xs font-medium text-slate-600 dark:text-slate-300"
                   >
                     {userEmail || (isAr ? topRoleProfile.titleAr : topRoleProfile.titleEn)}
                   </span>
@@ -1663,14 +1665,14 @@ export function TopFilterBar({
               role="dialog"
               aria-label={isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
               dir={isAr ? 'rtl' : 'ltr'}
-              className="absolute end-0 top-full z-50 mt-2 max-h-[82dvh] w-[min(92vw,720px)] max-w-full space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] ring-1 ring-slate-900/[0.07] dark:bg-[#101C17] dark:ring-emerald-500/20"
+              className="absolute end-0 top-full z-50 mt-2 max-h-[82dvh] w-[min(92vw,720px)] max-w-full space-y-4 overflow-y-auto rounded-3xl bg-white/90 p-5 backdrop-blur-xl shadow-[0_24px_60px_-12px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-400/25 dark:bg-[#0F1A30]/95 dark:shadow-[0_24px_60px_-12px_rgba(2,6,23,0.75)] dark:ring-sky-400/25"
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200/70 pb-3 dark:border-white/[0.08]">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-300/40 pb-3 dark:border-sky-300/15">
                 <div className="min-w-0">
-                  <h2 className="text-[14.5px] font-bold text-slate-900 dark:text-white">
+                  <h2 className="text-[14.5px] font-bold tracking-tight text-slate-900 dark:text-white">
                     {isAr ? 'فلاتر التحليل الموحدة' : 'Unified Executive Filters'}
                   </h2>
-                  <p className="mt-0.5 text-[12px] font-medium tabular-nums text-slate-600 dark:text-slate-300">
+                  <p className="mt-0.5 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
                     {toWesternNumerals(isAr ? workspace.subtitleAr : workspace.subtitleEn)}
                   </p>
                 </div>
@@ -1680,7 +1682,7 @@ export function TopFilterBar({
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-xl bg-rose-50 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-200 dark:ring-rose-400/25"
+                      className="v35-focus-ring inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-50 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 dark:bg-rose-950/50 dark:text-rose-200 dark:ring-rose-400/25"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       <span>{isAr ? 'إعادة ضبط الفلاتر' : 'Reset All Filters'}</span>
@@ -1691,7 +1693,7 @@ export function TopFilterBar({
                     type="button"
                     onClick={() => setFiltersPopoverOpen(false)}
                     aria-label={isAr ? 'إغلاق' : 'Close'}
-                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl bg-neutral-100 text-slate-600 transition-colors hover:text-slate-950 dark:bg-white/[0.08] dark:text-slate-300"
+                    className="v35-focus-ring inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-50/80 text-slate-600 ring-1 ring-slate-400/20 transition-colors hover:bg-blue-100/80 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/10 dark:hover:bg-sky-400/15 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1701,10 +1703,10 @@ export function TopFilterBar({
               {/* 0. Time Period + Custom From/To Range right inside Desktop Unified Filters */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-1.5">
-                  <div className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                  <div className="text-xs font-bold tracking-tight text-slate-600 dark:text-slate-300">
                     {isAr ? 'الفترة الزمنية والتقويم المخصص' : 'Time Period & Custom Date Range'}
                   </div>
-                  <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200">
+                  <span className="rounded-full bg-blue-50/90 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-blue-800 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
                     {periodDropdownLabel}
                   </span>
                 </div>
@@ -1715,7 +1717,7 @@ export function TopFilterBar({
                   options={periodPillOptions}
                 />
                 {filters.period === 'custom' ? (
-                  <div className="grid grid-cols-1 gap-2 rounded-2xl bg-[#F6F7F8] p-3 ring-1 ring-slate-900/[0.04] sm:grid-cols-3 dark:bg-[#09110E] dark:ring-emerald-500/15">
+                  <div className="grid grid-cols-1 gap-2.5 rounded-2xl bg-blue-50/65 p-3 ring-1 ring-slate-400/20 sm:grid-cols-3 dark:bg-[#13203B]/80 dark:ring-sky-400/20">
                     <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                       <span>{isAr ? 'من تاريخ' : 'From Date'}</span>
                       <input
@@ -1726,7 +1728,7 @@ export function TopFilterBar({
                           setDraftFrom(e.target.value)
                           setCustomRange(e.target.value, draftTo)
                         }}
-                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                        className="v35-focus-ring h-9 w-full rounded-xl bg-white/95 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427] dark:text-white dark:ring-sky-400/25 dark:focus-visible:ring-sky-400/60"
                       />
                     </label>
                     <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -1739,11 +1741,11 @@ export function TopFilterBar({
                           setDraftTo(e.target.value)
                           setCustomRange(draftFrom, e.target.value)
                         }}
-                        className="h-9 w-full rounded-xl bg-white px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-900/[0.06] outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-[#101C17] dark:text-white"
+                        className="v35-focus-ring h-9 w-full rounded-xl bg-white/95 px-2.5 text-xs font-bold tabular-nums text-slate-900 ring-1 ring-slate-400/25 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0B1427] dark:text-white dark:ring-sky-400/25 dark:focus-visible:ring-sky-400/60"
                       />
                     </label>
                     <div className="flex flex-col justify-end">
-                      <span className="inline-flex h-9 items-center justify-center rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+                      <span className="inline-flex h-9 items-center justify-center rounded-xl bg-blue-100/85 px-3 text-xs font-bold text-blue-900 ring-1 ring-blue-400/25 tabular-nums dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/30">
                         {isAr
                           ? `نطاق نشط: ${computeCustomSpanDays(draftFrom, draftTo)} يوم`
                           : `Active Span: ${computeCustomSpanDays(draftFrom, draftTo)} Days`}
@@ -1805,7 +1807,7 @@ export function TopFilterBar({
                 </>
               ) : null}
 
-              <div className="flex items-center justify-between gap-2 border-t border-slate-200/70 pt-3 dark:border-white/[0.08]">
+              <div className="flex items-center justify-between gap-2 border-t border-slate-300/40 pt-3 dark:border-sky-300/15">
                 <span className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
                   {toWesternNumerals(
                     isAr ? workspace.periodRangeLabelAr : workspace.periodRangeLabelEn,
@@ -1816,7 +1818,7 @@ export function TopFilterBar({
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-neutral-100 px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-neutral-200/80 dark:bg-white/[0.08] dark:text-slate-200"
+                      className="v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-slate-100/85 px-3.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/20 transition-colors hover:bg-slate-200/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-200 dark:focus-visible:ring-sky-400/60"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       <span>{isAr ? 'إعادة ضبط الفلاتر' : 'Reset All'}</span>
@@ -1825,7 +1827,7 @@ export function TopFilterBar({
                   <button
                     type="button"
                     onClick={() => setFiltersPopoverOpen(false)}
-                    className="btn-colored inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl bg-emerald-600 px-4 text-xs font-bold text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
+                    className="btn-colored v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-blue-600 px-5 text-xs font-bold text-white shadow-[0_6px_16px_-4px_rgba(37,99,235,0.42)] transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-sky-400 dark:text-[#081226] dark:hover:bg-sky-300 dark:focus-visible:ring-sky-400/60"
                   >
                     <Check className="h-3.5 w-3.5" />
                     <span>{isAr ? 'تم' : 'Done'}</span>
