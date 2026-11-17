@@ -8,6 +8,7 @@
  */
 
 import { resolveBranchScope, resolveBrandHeadline, resolveDailySeriesForBrand } from '@/lib/aether/brand-scope'
+import { selectCubeHeadline, type PeriodCubeHeadline } from '@/lib/aether/period-cube-headline'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
@@ -162,6 +163,7 @@ export interface CoresHubSnapshot {
   lastSyncAt: string | null
   isStale24h: boolean
   dateRangeLabel: string
+  isSingleDayWindow: boolean
   marketing: {
     evaluations: CampaignHaloEvaluation[]
     posDiscountsKwd: number
@@ -197,6 +199,7 @@ export interface CoresHubSnapshot {
     } | null
   }
   sales: {
+    headline: PeriodCubeHeadline
     hourlyUnavailable: boolean
     channelsUnavailable: boolean
     branchesUnavailable: boolean
@@ -376,6 +379,33 @@ function knownCount(v: number | null | undefined): number | null {
   return typeof v === 'number' && Number.isFinite(v) ? v : null
 }
 
+function extractBranchDailySeries(
+  dailyByBranch:
+    | Record<
+        string,
+        Record<string, { netKwd?: number | null; orders?: number | null } | undefined> | undefined
+      >
+    | null
+    | undefined,
+  branchKey: string,
+  window?: { fromIso: string; toInclusiveIso: string },
+): { day: string; orders: number; netKwd: number }[] {
+  const out: { day: string; orders: number; netKwd: number }[] = []
+  for (const [day, byBr] of Object.entries(dailyByBranch ?? {})) {
+    if (window && (day < window.fromIso || day > window.toInclusiveIso)) continue
+    const cell = byBr?.[branchKey]
+    if (!cell || typeof cell.netKwd !== 'number' || !Number.isFinite(cell.netKwd)) {
+      continue
+    }
+    out.push({
+      day,
+      netKwd: cell.netKwd,
+      orders: typeof cell.orders === 'number' && Number.isFinite(cell.orders) ? cell.orders : 0,
+    })
+  }
+  return out.sort((a, b) => a.day.localeCompare(b.day))
+}
+
 function toSalesPoint(params: {
   id: string
   labelAr: string
@@ -429,6 +459,11 @@ export function computeCoresHubSnapshot(
   const dateRangeLabel = liveCube?.dateRange
     ? `${liveCube.dateRange.from} → ${liveCube.dateRange.to}`
     : `${canonicalPeriodWin.fromIso} → ${canonicalPeriodWin.toInclusiveIso}`
+  const effectiveFromIso = liveCube?.dateRange?.from ?? canonicalPeriodWin.fromIso
+  const effectiveToIso = liveCube?.dateRange?.to ?? canonicalPeriodWin.toInclusiveIso
+  const isSingleDayWindow = Boolean(
+    effectiveFromIso && effectiveToIso && effectiveFromIso === effectiveToIso,
+  )
 
   const visibleCampaigns =
     filters.brand === 'all' ? campaigns : campaigns.filter((c) => c.brand === filters.brand)
@@ -446,6 +481,7 @@ export function computeCoresHubSnapshot(
       lastSyncAt,
       isStale24h,
       dateRangeLabel,
+      isSingleDayWindow,
       marketing: {
         evaluations,
         posDiscountsKwd: 0,
@@ -473,6 +509,7 @@ export function computeCoresHubSnapshot(
         dishOfTheWeek: null,
       },
       sales: {
+        headline: { netSalesKwd: null, orders: null, aovKwd: null },
         hourlyUnavailable: false,
         channelsUnavailable: false,
         branchesUnavailable: false,
@@ -550,29 +587,19 @@ export function computeCoresHubSnapshot(
   const scopedDaily: { scope: 'brand' | 'all-brands'; series: { day: string; orders: number; netKwd: number }[] } = (() => {
     if (liveCube) {
       if (filters.branch !== 'all') {
-        const branchKey = filters.branch
-        const series = Object.entries(liveCube.dailyByBranch ?? {})
-          .map(([day, byBr]) => ({
-            day,
-            netKwd: byBr?.[branchKey]?.netKwd ?? 0,
-            orders: byBr?.[branchKey]?.orders ?? 0,
-          }))
-          .sort((a, b) => a.day.localeCompare(b.day))
-        return { scope: 'all-brands', series }
+        return {
+          scope: 'all-brands',
+          series: extractBranchDailySeries(liveCube.dailyByBranch, filters.branch),
+        }
       }
       return { scope: 'all-brands', series: liveCube.dailySeries ?? [] }
     }
     const window = { fromIso: canonicalPeriodWin.fromIso, toInclusiveIso: canonicalPeriodWin.toInclusiveIso }
     if (filters.branch === 'all') return resolveDailySeriesForBrand(liveSummary, filters.brand, window)
-    const series = Object.entries(liveSummary?.dailyByBranch ?? {})
-      .map(([day, byBr]) => ({
-        day,
-        netKwd: byBr?.[filters.branch]?.netKwd ?? 0,
-        orders: byBr?.[filters.branch]?.orders ?? 0,
-      }))
-      .sort((a, b) => a.day.localeCompare(b.day))
-      .filter((d) => d.day >= window.fromIso && d.day <= window.toInclusiveIso)
-    return { scope: 'all-brands', series }
+    return {
+      scope: 'all-brands',
+      series: extractBranchDailySeries(liveSummary?.dailyByBranch, filters.branch, window),
+    }
   })()
   const rawDailySeries = scopedDaily.series
   const timelineScope = scopedDaily.scope
@@ -766,7 +793,7 @@ export function computeCoresHubSnapshot(
           }
           const lRow =
             liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
-          return { lid, salesKwd: safeNum(lRow?.netKwd), orders: safeNum(lRow?.orders) }
+          return { lid, salesKwd: safeNum(lRow?.netKwd), orders: knownCount(lRow?.orders) }
         }
         if (bucketBranchScope?.available) {
           const cell = bucketBranchScope.rows[lid]
@@ -842,10 +869,10 @@ export function computeCoresHubSnapshot(
         if (liveCube && filters.brand === 'all') {
           if (filters.branch !== 'all') {
             const ch = liveCube.byBranch?.[filters.branch]?.channels?.[cid]
-            return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
+            return { cid, salesKwd: safeNum(ch?.netKwd), orders: knownCount(ch?.orders) }
           }
           const ch = liveCube.byChannel?.[cid]
-          return { cid, salesKwd: safeNum(ch?.netKwd), orders: safeNum(ch?.orders) }
+          return { cid, salesKwd: safeNum(ch?.netKwd), orders: knownCount(ch?.orders) }
         }
         if (filters.branch !== 'all') {
           const chLoc = activeBucket?.byLocation?.[filters.branch]?.uiChannels?.[cid]
@@ -967,12 +994,25 @@ export function computeCoresHubSnapshot(
         unavailableSet.has('pos.category')),
   )
 
+  const headline: PeriodCubeHeadline = liveCube
+    ? selectCubeHeadline(liveCube, {
+        branch: filters.branch,
+        brand: filters.brand,
+        channel: filters.channel,
+      })
+    : {
+        netSalesKwd: ws.nullableSalesKwd,
+        orders: ws.nullableOrders,
+        aovKwd: ws.nullableAovKwd,
+      }
+
   return {
     connected: true,
     noData: false,
     lastSyncAt,
     isStale24h,
     dateRangeLabel,
+    isSingleDayWindow,
     marketing: {
       evaluations,
       posDiscountsKwd,
@@ -1001,6 +1041,7 @@ export function computeCoresHubSnapshot(
       dishOfTheWeek: null,
     },
     sales: {
+      headline,
       hourlyUnavailable,
       channelsUnavailable,
       branchesUnavailable,

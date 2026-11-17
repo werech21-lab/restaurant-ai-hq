@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import {
   askFeryalOdooAgent,
   type AskFeryalOdooAgentResult,
+  type FeryalContextDefaults,
   type FeryalExecutedOdooQuery,
   type FeryalNumericVerificationResult,
   type FeryalReplyStatus,
@@ -10,7 +11,7 @@ import {
 import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
-import { readCouncilKeys, type CouncilKeys } from './env'
+import { missingCouncilKeyNames, readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
 import { extractCanonicalDecimals } from './number-guard'
 import {
@@ -35,6 +36,9 @@ export const DAILY_BRIEF_QUESTION =
   'لخّص حقائق مبيعات أمس من Odoo حسب الفرع والعلامة، واذكر فقط ما هو مكتوب في الحقائق.'
 
 export const COUNCIL_ANALYSIS_TIMEOUT_MS = 20_000
+
+export const COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE =
+  'ملاحظة: الشرح التحليلي الإضافي من النماذج غير متاح حالياً — الأرقام أعلاه موثّقة مباشرة من Odoo. | Note: AI analytical explanation is currently unavailable — the figures above are verified directly from Odoo.' as const
 
 const SYSTEM_PROMPT = [
   'You receive Odoo facts as JSON. Return one JSON object and no other text.',
@@ -78,6 +82,13 @@ export interface RunCouncilInput {
   userRole?: string
   userNameAr?: string
   referenceNowMs?: number
+  context?: FeryalContextDefaults
+  period?: string
+  customFrom?: string
+  customTo?: string
+  branch?: string
+  brand?: string
+  channel?: string
 }
 
 export interface RunCouncilOptions {
@@ -239,6 +250,13 @@ export async function runFeryalCouncil(
       userRole: input.userRole,
       userNameAr: input.userNameAr,
       referenceNowMs: input.referenceNowMs,
+      context: input.context,
+      period: input.period,
+      customFrom: input.customFrom,
+      customTo: input.customTo,
+      branch: input.branch,
+      brand: input.brand,
+      channel: input.channel,
     })
   } catch (error) {
     logger.error('feryal odoo read failed', errorFields(error))
@@ -272,6 +290,8 @@ export async function runFeryalCouncil(
   const facts = factsForModel(odoo)
   const factsJson = JSON.stringify(facts)
   const keys = options.keys ?? readCouncilKeys()
+  const missingKeyNames = missingCouncilKeyNames(keys)
+  const configuredProviderCount = COUNCIL_PROVIDERS.length - missingKeyNames.length
   const models = options.models ?? resolveCouncilModels()
   const userMessage = `Question:\n${question}\n\nOdoo facts JSON:\n${factsJson}`
   const calls = await Promise.all(
@@ -325,9 +345,42 @@ export async function runFeryalCouncil(
     logger.error('ai run persist failed', errorFields(error))
   }
 
+  if (composed.agreed.length >= 2) {
+    return {
+      reply: composed.reply,
+      status: 'answered',
+      participants,
+      agreed: composed.agreed,
+      executedQueries: odoo.executedQueries,
+      verifier: odoo.verifier,
+      period: odoo.period,
+      questionHash,
+      auditEntry: odoo.auditEntry,
+    }
+  }
+
+  const allConfiguredGuardRejected =
+    configuredProviderCount >= 2 &&
+    participants.length > 0 &&
+    participants.every((item) => item.status === 'guard_rejected')
+
+  if (odoo.verifier.valid && !allConfiguredGuardRejected) {
+    return {
+      reply: [odoo.reply, COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE].join('\n\n'),
+      status: 'answered',
+      participants,
+      agreed: [],
+      executedQueries: odoo.executedQueries,
+      verifier: odoo.verifier,
+      period: odoo.period,
+      questionHash,
+      auditEntry: odoo.auditEntry,
+    }
+  }
+
   return {
     reply: composed.reply,
-    status: composed.agreed.length >= 2 ? 'answered' : 'council_failed',
+    status: 'council_failed',
     participants,
     agreed: composed.agreed,
     executedQueries: odoo.executedQueries,

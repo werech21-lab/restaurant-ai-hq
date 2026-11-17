@@ -87,6 +87,11 @@ import {
   type QuickAuditChipId,
 } from '@/lib/feryal-governance-bridge'
 import {
+  buildFeryalChatRequestPayload,
+  buildFeryalConnectionErrorOutcome,
+  parseFeryalChatHttpResponse,
+} from '@/lib/feryal-intent'
+import {
   isVerifiedOdooGovernanceBreach,
   type ComplianceBreachItem,
 } from '@/lib/governance-compliance'
@@ -225,6 +230,7 @@ export interface FeryalGovernanceStudioProps {
   initialAuditLogs?: ServerAuditLogRow[]
   initialBreachesError?: boolean
   initialAuditError?: boolean
+  initialSending?: boolean
 }
 
 export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
@@ -236,6 +242,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialAuditLogs,
     initialBreachesError = false,
     initialAuditError = false,
+    initialSending = false,
   } = props ?? {}
   const { locale } = useI18n()
   const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
@@ -273,7 +280,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
   const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages ?? [])
   const [inputText, setInputText] = useState('')
-  const [sending, setSending] = useState(false)
+  const [sending, setSending] = useState(initialSending)
+  const [activeQuickChipId, setActiveQuickChipId] = useState<QuickAuditChipId | null>(null)
   const [activeMode, setActiveMode] = useState<BrainMode>('triple')
 
   // Live Governance Alerts strictly from `/api/erp/governance` (ZERO static alerts)
@@ -586,68 +594,42 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           return
         }
 
-        // 2. Exclusive Odoo 17 Live Tool-Calling Engine (`POST /api/erp/feryal/chat`)
+        // 2. Exclusive Odoo 17 Tool-Calling Engine (`POST /api/erp/feryal/chat`)
+        const urlSearch = typeof window !== 'undefined' ? window.location.search : undefined
+        const chatRequestBody = buildFeryalChatRequestPayload(
+          effectivePrompt,
+          workspace.filters,
+          urlSearch,
+        )
         const res = await fetch('/api/erp/feryal/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: effectivePrompt }),
+          body: JSON.stringify(chatRequestBody),
         })
 
-        let replyText = 'لا أملك بيانات من Odoo عن هذا'
-        let modelBadge = 'Odoo'
-        let executedQueries: ExecutedOdooQueryBadge[] = []
-        let verifier: VerifierBadgeState | undefined
-        let replyStatus = 'no_odoo_data'
-
-        let council: CouncilChip[] | undefined
-        let agreedList: CouncilAgreementChip[] | undefined
-        if (!res.ok) {
-          try {
-            const payload = (await res.json()) as { reply?: string; status?: string }
-            if (typeof payload.reply === 'string' && payload.reply.trim()) replyText = payload.reply
-            replyStatus = payload.status || 'council_failed'
-            modelBadge = isAr ? 'تعذّر التحليل' : 'Analysis failed'
-          } catch {
-            replyStatus = 'council_failed'
-            modelBadge = isAr ? 'تعذّر التحليل' : 'Analysis failed'
-          }
-        } else {
-          const payload = (await res.json()) as {
-            ok?: boolean
-            reply?: string
-            status?: string
-            model?: string
-            executedQueries?: ExecutedOdooQueryBadge[]
-            verifier?: VerifierBadgeState
-            participants?: CouncilChip[]
-            agreed?: CouncilAgreementChip[]
-          }
-          if (payload.ok && typeof payload.reply === 'string') {
-            replyText = payload.reply
-            replyStatus = payload.status || 'answered'
-            if (replyStatus !== 'no_odoo_data') {
-              setChatSyncAt(new Date().toISOString())
-            }
-            council = Array.isArray(payload.participants) ? payload.participants : undefined
-            agreedList = Array.isArray(payload.agreed)
-              ? payload.agreed
-              : (council ?? [])
-                  .filter((item) => item.status === 'ok' && item.modelId)
-                  .map((item) => ({ provider: item.provider, modelId: item.modelId }))
-            modelBadge =
-              agreedList.length > 0
-                ? agreedList.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
-                : payload.status === 'council_failed'
-                  ? isAr
-                    ? 'تعذّر التحليل'
-                    : 'Analysis failed'
-                  : payload.model || 'Odoo'
-            executedQueries = Array.isArray(payload.executedQueries) ? payload.executedQueries : []
-            verifier = payload.verifier
-          }
+        const parsedOutcome = await parseFeryalChatHttpResponse<
+          ExecutedOdooQueryBadge,
+          VerifierBadgeState,
+          CouncilChip,
+          CouncilAgreementChip
+        >(res, isAr)
+        const {
+          replyText,
+          modelBadge,
+          replyStatus,
+          executedQueries,
+          verifier,
+          council,
+          agreedList,
+        } = parsedOutcome
+        if (replyStatus !== 'no_odoo_data' && replyStatus !== 'connection_error') {
+          setChatSyncAt(new Date().toISOString())
         }
 
-        const learnRes = await autoLearnFromConversationTurn(effectivePrompt, replyText)
+        const learnRes =
+          replyStatus !== 'connection_error'
+            ? await autoLearnFromConversationTurn(effectivePrompt, replyText)
+            : { learnedFact: undefined }
 
         const feryalMsg: ChatUiMessage = {
           id: nextUiId('f'),
@@ -667,22 +649,26 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         const updated = [...optimisticList, feryalMsg]
         setMessages(updated)
         await persistMessages(activeChatId, updated)
-        void fetchServerAuditLogs()
+        if (replyStatus !== 'connection_error') {
+          void fetchServerAuditLogs()
+        }
       } catch {
+        const connectionError = buildFeryalConnectionErrorOutcome(isAr)
         const fallbackMsg: ChatUiMessage = {
           id: nextUiId('f'),
           sender: 'feryal',
-          text: 'لا أملك بيانات من Odoo عن هذا',
+          text: connectionError.replyText,
           time: formatClockNow(),
           userPrompt: effectivePrompt,
-          providerBadge: 'Odoo',
-          replyStatus: 'no_odoo_data',
+          providerBadge: connectionError.modelBadge,
+          replyStatus: connectionError.replyStatus,
         }
         const updated = [...optimisticList, fallbackMsg]
         setMessages(updated)
         await persistMessages(activeChatId, updated)
       } finally {
         setSending(false)
+        setActiveQuickChipId(null)
       }
     },
     [
@@ -696,6 +682,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       pendingAttachments,
       persistMessages,
       sending,
+      workspace.filters,
       workspace.subtitleAr,
       workspace.subtitleEn,
     ],
@@ -703,7 +690,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
 
   const handleQuickAuditChip = useCallback(
     (chipId: QuickAuditChipId) => {
-      if (isAuditor) return
+      if (isAuditor || sending) return
       const snap = readLiveGovernanceSnapshot(workspace)
       const promptMap: Record<QuickAuditChipId, string> = {
         'open-violations': 'مبيعات أمس حسب الفرع',
@@ -713,9 +700,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       }
       const q = promptMap[chipId]
       void snap
+      setActiveQuickChipId(chipId)
       void sendQuestion(q)
     },
-    [isAuditor, sendQuestion, workspace],
+    [isAuditor, sendQuestion, sending, workspace],
   )
 
   const handleCopyReply = useCallback(
@@ -1253,23 +1241,40 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         {/* Tab 1: Live Odoo Chat */}
         {mainTab === 'chat' && (
           <div className="flex min-h-0 flex-1 flex-col">
-            {/* Quick Live Odoo Query Chips */}
+            {/* Quick Odoo Query Chips */}
             {!isAuditor && (
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-100 px-4 py-2.5 dark:border-white/[0.05]">
-                {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => (
-                  <button
-                    key={chip.id}
-                    type="button"
-                    disabled={sending}
-                    onClick={() => handleQuickAuditChip(chip.id)}
-                    className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
+                  const isActiveChip = sending && activeQuickChipId === chip.id
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      disabled={sending}
+                      onClick={() => handleQuickAuditChip(chip.id)}
+                      className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                    >
+                      {isActiveChip ? (
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" aria-hidden />
+                      ) : null}
+                      <span>{isAr ? chip.labelAr : chip.labelEn}</span>
+                      <span dir="ltr" className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                        {isAr ? chip.badgeAr : chip.badgeEn}
+                      </span>
+                    </button>
+                  )
+                })}
+                {sending ? (
+                  <span
+                    data-feryal-inflight-spinner="true"
+                    role="status"
+                    aria-live="polite"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
                   >
-                    <span>{isAr ? chip.labelAr : chip.labelEn}</span>
-                    <span dir="ltr" className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
-                      {isAr ? chip.badgeAr : chip.badgeEn}
-                    </span>
-                  </button>
-                ))}
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                    <span>{isAr ? 'جارٍ الاستعلام...' : 'Querying...'}</span>
+                  </span>
+                ) : null}
               </div>
             )}
 
@@ -1326,10 +1331,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   const councilTotal = Math.max(councilParticipants.length, agreedCount, 3)
                   const hasConsensus =
                     agreedCount >= 2 && msg.replyStatus !== 'council_failed' && !msg.contradictoryActions
+                  const nonMissingCouncil = councilParticipants.filter(
+                    (item) => item.errorCode !== 'MISSING_API_KEY',
+                  )
                   const hasContradictionOrDispute =
                     Boolean(msg.contradictoryActions) ||
                     msg.replyStatus === 'council_failed' ||
-                    (councilParticipants.length >= 2 && agreedCount < 2) ||
+                    (msg.replyStatus !== 'answered' && nonMissingCouncil.length >= 2 && agreedCount < 2) ||
                     /لا اتفاق|متنازع|disputed/i.test(msg.text)
 
                   return (

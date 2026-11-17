@@ -10,6 +10,7 @@ import {
   FERYAL_NO_ODOO_DATA_REPLY,
   listFeryalAuditEntries,
   UNATTRIBUTED_BRANCH_LABEL_AR,
+  validateFeryalContextDefaults,
 } from '@/lib/feryal-odoo-agent'
 import { logger, errorFields } from '@/lib/logger'
 import { runFeryalCouncil } from '@/server/ai/council'
@@ -21,6 +22,12 @@ interface FeryalChatPostBody {
   prompt?: string
   question?: string
   message?: string
+  period?: string
+  customFrom?: string
+  customTo?: string
+  branch?: string
+  brand?: string
+  channel?: string
 }
 
 export async function GET(req: NextRequest) {
@@ -100,6 +107,14 @@ export async function POST(req: NextRequest) {
   }
 
   const safeQuestion = rawQuestion.slice(0, 2000)
+  const validatedDefaults = validateFeryalContextDefaults({
+    period: typeof body.period === 'string' ? body.period : null,
+    customFrom: typeof body.customFrom === 'string' ? body.customFrom : null,
+    customTo: typeof body.customTo === 'string' ? body.customTo : null,
+    branch: typeof body.branch === 'string' ? body.branch : null,
+    brand: typeof body.brand === 'string' ? body.brand : null,
+    channel: typeof body.channel === 'string' ? body.channel : null,
+  })
 
   try {
     const result = await runFeryalCouncil({
@@ -107,6 +122,14 @@ export async function POST(req: NextRequest) {
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
+      context: {
+        period: validatedDefaults.period,
+        customFrom: validatedDefaults.customFrom,
+        customTo: validatedDefaults.customTo,
+        branch: validatedDefaults.branchId,
+        brand: validatedDefaults.brandId,
+        channel: validatedDefaults.channelId,
+      },
     })
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
     return NextResponse.json(

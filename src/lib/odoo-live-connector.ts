@@ -2494,7 +2494,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       const hasLiveAging = computedAging.some((b) => b.linesCount > 0)
 
       const fromDate =
-        typeof minDateRows?.[0]?.date === 'string' ? minDateRows[0].date : '2024-12-31'
+        typeof minDateRows?.[0]?.date === 'string' && minDateRows[0].date.trim()
+          ? minDateRows[0].date.trim()
+          : null
       const toDate =
         typeof maxDateRows?.[0]?.date === 'string' ? maxDateRows[0].date : todayKwIso
       const latestMaturityDate =
@@ -4849,6 +4851,9 @@ export async function fetchLiveOdooPeriodCube(
       dailyTotalsMap.set(dayIso, dPrev)
     }
 
+    // Note: `pos.payment` `read_group` `__count` counts payment lines rather than distinct
+    // `pos.order` records, so split-tender orders (multiple tenders on one receipt) increment
+    // each tender method's payment count. UI columns label this count as Payments accordingly.
     const hasPayments = mergedPaymentRows.some((p) => p.netKwd !== 0 || p.orders > 0)
     if (hasPayments) {
       for (const p of mergedPaymentRows) {

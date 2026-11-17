@@ -660,12 +660,19 @@ export function normalizeComparisonQueryWindows(rawQuery: ErpComparisonQuery): {
   let sameHoursApplied = false
   let cutoffHour24: number | null = null
 
+  // Single-window read: when callers pass periodA === periodB in date-vs-date mode
+  // (e.g. CoresHubStudio, DeliveryRadarV5, BrandSalesAnalytics), do not exclude or shift today.
+  const isSingleWindowRead =
+    mode === 'date-vs-date' &&
+    normA.fromIso === normB.fromIso &&
+    normA.toIso === normB.toIso
+
   const aTouchesToday =
     normA.fromIso <= operationalTodayIso && normA.toIso >= operationalTodayIso
   const bTouchesToday =
     normB.fromIso <= operationalTodayIso && normB.toIso >= operationalTodayIso
 
-  if (aTouchesToday || bTouchesToday) {
+  if (!isSingleWindowRead && (aTouchesToday || bTouchesToday)) {
     if (
       rawQuery.sameHoursLikeForLike === true &&
       granularity === 'single' &&

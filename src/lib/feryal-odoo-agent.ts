@@ -14,10 +14,64 @@ import type {
 import type { OdooReceivableClearingSummary } from '@/lib/odoo/live-sync-core'
 import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
 import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
+import {
+  ALL_FERYAL_BRANCHES,
+  APPROVED_FERYAL_BRAND_LIST,
+  APPROVED_FERYAL_BRANDS,
+  APPROVED_FERYAL_BRANCHES,
+  APPROVED_FERYAL_CHANNEL_LIST,
+  detectOdooToolKind,
+  detectTargetBranchFromQuestion,
+  detectTargetBrandFromQuestion,
+  detectTargetChannelFromQuestion,
+  isBranchRankingQuestion,
+  KUWAIT_OFFSET_MS,
+  normalizeArabicText,
+  normalizeDigits,
+  resolveFeryalComparisonPeriods,
+  resolveFeryalQuestionPeriod,
+  SCHOOL_CANTEEN_FERYAL_BRANCH,
+  validateFeryalContextDefaults,
+  type ApprovedFeryalBranchId,
+  type ApprovedFeryalBrandId,
+  type ApprovedFeryalChannelId,
+  type ApprovedFeryalPeriodId,
+  type FeryalBrandMeta,
+  type FeryalBranchMeta,
+  type FeryalChannelMeta,
+  type FeryalContextDefaults,
+  type ResolvedFeryalComparisonPeriods,
+  type ValidatedFeryalContextDefaults,
+} from '@/lib/feryal-intent'
 import type { ComparableFact } from '@/server/ai/structured-claim'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
-const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
+export {
+  ALL_FERYAL_BRANCHES,
+  APPROVED_FERYAL_BRAND_LIST,
+  APPROVED_FERYAL_BRANDS,
+  APPROVED_FERYAL_BRANCHES,
+  APPROVED_FERYAL_CHANNEL_LIST,
+  detectOdooToolKind,
+  detectTargetBranchFromQuestion,
+  detectTargetBrandFromQuestion,
+  detectTargetChannelFromQuestion,
+  isBranchRankingQuestion,
+  resolveFeryalComparisonPeriods,
+  resolveFeryalQuestionPeriod,
+  SCHOOL_CANTEEN_FERYAL_BRANCH,
+  validateFeryalContextDefaults,
+  type ApprovedFeryalBranchId,
+  type ApprovedFeryalBrandId,
+  type ApprovedFeryalChannelId,
+  type ApprovedFeryalPeriodId,
+  type FeryalBrandMeta,
+  type FeryalBranchMeta,
+  type FeryalChannelMeta,
+  type FeryalContextDefaults,
+  type ResolvedFeryalComparisonPeriods,
+  type ValidatedFeryalContextDefaults,
+}
 
 /**
  * Data-Only Feryal Odoo 17 Server Engine (`src/lib/feryal-odoo-agent.ts`)
@@ -37,149 +91,6 @@ export const FERYAL_COMPETITOR_REFUSAL = 'لا أعرف' as const
 export const FERYAL_NO_ODOO_DATA_REPLY = 'لا أملك بيانات من Odoo عن هذا' as const
 export const FERYAL_INCOMPLETE_GL_WARNING = 'قيود غير مكتملة لهذه الفترة' as const
 export const UNATTRIBUTED_BRANCH_LABEL_AR = 'غير منسوب لفرع' as const
-
-export type ApprovedFeryalBranchId =
-  | '360-mall'
-  | 'salmiya'
-  | 'al-kout'
-  | 'ardiya'
-  | 'promenade'
-  | 'avenues'
-  | 'assima'
-  | 'school-canteens'
-
-export type ApprovedFeryalBrandId =
-  | 'china-garden'
-  | 'franks'
-  | 'tahina'
-  | 'farm-brown'
-  | 'noodle-bar'
-  | 'karak-cafeteria'
-
-export interface FeryalBranchMeta {
-  id: ApprovedFeryalBranchId
-  nameAr: string
-  nameEn: string
-  aliases: readonly string[]
-}
-
-export const APPROVED_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
-  {
-    id: '360-mall',
-    nameAr: 'مول 360',
-    nameEn: '360 Mall',
-    aliases: ['مول 360', '360 مول', '360 mall', '360-mall', 'فرع 360', 'مجمع 360', '360'],
-  },
-  {
-    id: 'salmiya',
-    nameAr: 'السالمية',
-    nameEn: 'Salmiya',
-    aliases: ['السالمية', 'سالمية', 'السالميه', 'سالميه', 'salmiya'],
-  },
-  {
-    id: 'al-kout',
-    nameAr: 'الكوت',
-    nameEn: 'Al-Kout',
-    aliases: ['الكوت', 'كوت', 'الفحاحيل', 'al-kout', 'alkout', 'al kout', 'kout'],
-  },
-  {
-    id: 'ardiya',
-    nameAr: 'العارضية',
-    nameEn: 'Ardiya',
-    aliases: ['العارضية', 'عارضية', 'العارضيه', 'عارضيه', 'ardiya', 'ardhiya'],
-  },
-  {
-    id: 'promenade',
-    nameAr: 'بروميناد',
-    nameEn: 'Promenade',
-    aliases: ['بروميناد', 'البروميناد', 'promenade'],
-  },
-  {
-    id: 'avenues',
-    nameAr: 'الأفنيوز',
-    nameEn: 'Avenues',
-    aliases: ['الأفنيوز', 'الافنيوز', 'أفنيوز', 'افنيوز', 'avenues', 'the avenues'],
-  },
-  {
-    id: 'assima',
-    nameAr: 'العاصمة',
-    nameEn: 'Assima',
-    aliases: ['العاصمة', 'العاصمه', 'عاصمة مول', 'assima', 'al-assima'],
-  },
-] as const
-
-export const SCHOOL_CANTEEN_FERYAL_BRANCH: FeryalBranchMeta = {
-  id: 'school-canteens',
-  nameAr: 'مقاصف المدارس',
-  nameEn: 'School canteens',
-  aliases: [
-    'مقاصف المدارس',
-    'المقاصف المدرسية',
-    'مقصف المدارس',
-    'school-canteens',
-    'school canteens',
-  ],
-}
-
-const ALL_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
-  ...APPROVED_FERYAL_BRANCHES,
-  SCHOOL_CANTEEN_FERYAL_BRANCH,
-]
-
-export const APPROVED_FERYAL_BRANDS: Readonly<Record<ApprovedFeryalBrandId, string>> = {
-  'china-garden': 'تشاينا جاردن',
-  franks: 'فرانكس',
-  tahina: 'طحينة',
-  'farm-brown': 'فارم براون',
-  'noodle-bar': 'ذا نودل بار',
-  'karak-cafeteria': 'كافيتيريا كرك',
-}
-
-export interface FeryalBrandMeta {
-  id: ApprovedFeryalBrandId
-  nameAr: string
-  nameEn: string
-  aliases: readonly string[]
-}
-
-export const APPROVED_FERYAL_BRAND_LIST: readonly FeryalBrandMeta[] = [
-  {
-    id: 'china-garden',
-    nameAr: 'تشاينا جاردن',
-    nameEn: 'China Garden',
-    aliases: ['تشاينا جاردن', 'تشاينا غاردن', 'شينا جاردن', 'china garden', 'china-garden'],
-  },
-  {
-    id: 'franks',
-    nameAr: 'فرانكس',
-    nameEn: "Frank's",
-    aliases: ['فرانكس', "frank's", 'franks'],
-  },
-  {
-    id: 'tahina',
-    nameAr: 'طحينة',
-    nameEn: 'Tahina',
-    aliases: ['طحينة', 'طحينه', 'شاورما طحينة', 'شاورما طحينه', 'tahina'],
-  },
-  {
-    id: 'farm-brown',
-    nameAr: 'فارم براون',
-    nameEn: 'Farm Brown',
-    aliases: ['فارم براون', 'farm brown', 'farm-brown'],
-  },
-  {
-    id: 'noodle-bar',
-    nameAr: 'ذا نودل بار',
-    nameEn: 'The Noodle Bar',
-    aliases: ['ذا نودل بار', 'نودل بار', 'the noodle bar', 'noodle bar', 'noodle-bar'],
-  },
-  {
-    id: 'karak-cafeteria',
-    nameAr: 'كافيتيريا كرك',
-    nameEn: 'Karak Cafeteria',
-    aliases: ['كافيتيريا كرك', 'كرك كافيتيريا', 'كرك كافتيريا', 'شاي كرك', 'karak cafeteria', 'karak-cafeteria'],
-  },
-] as const
 
 export type FeryalOdooModelName =
   | 'pos.order'
@@ -265,6 +176,13 @@ export interface AskFeryalOdooAgentInput {
   userRole?: string
   userNameAr?: string
   referenceNowMs?: number
+  context?: FeryalContextDefaults
+  period?: string
+  customFrom?: string
+  customTo?: string
+  branch?: string
+  brand?: string
+  channel?: string
   dataSource?: Partial<FeryalOdooDataSource>
   /** Optional candidate LLM phrasing function; output is strictly checked by `verifyFeryalReplyNumbers`. */
   candidatePhraser?: (context: {
@@ -308,45 +226,6 @@ function withCentralExclusion(domain: unknown[], nameField: string, branchId?: s
     if (ids.length > 0) domain.push([lineModel ? 'order_id.config_id' : 'config_id', 'in', ids])
   }
   return domain
-}
-
-function normalizeDigits(text: string): string {
-  const arabicIndic = '٠١٢٣٤٥٦٧٨٩'
-  const extendedArabic = '۰۱۲۳۴۵۶۷۸۹'
-  let out = ''
-  for (const ch of text) {
-    const idx1 = arabicIndic.indexOf(ch)
-    if (idx1 >= 0) {
-      out += String(idx1)
-      continue
-    }
-    const idx2 = extendedArabic.indexOf(ch)
-    if (idx2 >= 0) {
-      out += String(idx2)
-      continue
-    }
-    if (ch === '٫') {
-      out += '.'
-      continue
-    }
-    if (ch === '٬') {
-      out += ','
-      continue
-    }
-    out += ch
-  }
-  return out
-}
-
-function normalizeArabicText(text: string): string {
-  return normalizeDigits(text)
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/[\u064B-\u065F\u0670]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
 }
 
 export function round1(val: number): number {
@@ -514,336 +393,6 @@ export function enforceVerifiedFeryalReply(
   return { accepted: true, reply: trimmed, verifier }
 }
 
-function getKuwaitCalendarParts(nowMs = Date.now()): {
-  year: number
-  month: number
-  day: number
-  iso: string
-} {
-  const kwDate = new Date(nowMs + KUWAIT_OFFSET_MS)
-  const year = kwDate.getUTCFullYear()
-  const month = kwDate.getUTCMonth() + 1
-  const day = kwDate.getUTCDate()
-  const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return { year, month, day, iso }
-}
-
-function shiftIsoDateDays(isoDate: string, deltaDays: number): string {
-  const [y, m, d] = isoDate.split('-').map((x) => Number(x))
-  const utcMs = Date.UTC(y, m - 1, d) + deltaDays * 86_400_000
-  const dt = new Date(utcMs)
-  return `${String(dt.getUTCFullYear()).padStart(4, '0')}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
-}
-
-function isValidCalendarDate(year: number, month: number, day: number): boolean {
-  if (year < 2000 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
-    return false
-  }
-  const dt = new Date(Date.UTC(year, month - 1, day))
-  return (
-    dt.getUTCFullYear() === year &&
-    dt.getUTCMonth() + 1 === month &&
-    dt.getUTCDate() === day
-  )
-}
-
-function buildAllowedDateStrings(fromIso: string, toIso: string): string[] {
-  const out = new Set<string>()
-  for (const iso of [fromIso, toIso]) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) continue
-    out.add(iso)
-    const [yyyy, mm, dd] = iso.split('-')
-    const dNum = Number(dd)
-    const mNum = Number(mm)
-    out.add(`${dd}/${mm}/${yyyy}`)
-    out.add(`${dNum}/${mNum}/${yyyy}`)
-    out.add(`${dd}/${mm}`)
-    out.add(`${dNum}/${mNum}`)
-  }
-  return [...out]
-}
-
-export function resolveFeryalQuestionPeriod(
-  question: string,
-  referenceNowMs = Date.now(),
-): {
-  from: string
-  to: string
-  periodLabelAr: string
-  allowedDateStrings: string[]
-  hasExplicitPeriod: boolean
-} {
-  const normDigits = normalizeDigits(question)
-  const normAr = normalizeArabicText(question)
-  const kwToday = getKuwaitCalendarParts(referenceNowMs)
-
-  // 1. Explicit ISO YYYY-MM-DD dates
-  const isoMatches = [...normDigits.matchAll(/\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/g)]
-  if (isoMatches.length > 0) {
-    const parsedIsos: string[] = []
-    for (const m of isoMatches) {
-      const y = Number(m[1])
-      const mo = Number(m[2])
-      const d = Number(m[3])
-      if (isValidCalendarDate(y, mo, d)) {
-        parsedIsos.push(
-          `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-        )
-      }
-    }
-    if (parsedIsos.length >= 2) {
-      const sorted = [...parsedIsos].sort()
-      const from = sorted[0]
-      const to = sorted[sorted.length - 1]
-      return {
-        from,
-        to,
-        periodLabelAr: from === to ? from : `${from} إلى ${to}`,
-        allowedDateStrings: buildAllowedDateStrings(from, to),
-        hasExplicitPeriod: true,
-      }
-    }
-    if (parsedIsos.length === 1) {
-      const d = parsedIsos[0]
-      return {
-        from: d,
-        to: d,
-        periodLabelAr: d,
-        allowedDateStrings: buildAllowedDateStrings(d, d),
-        hasExplicitPeriod: true,
-      }
-    }
-  }
-
-  // 2. Explicit DD/MM/YYYY or DD/MM dates (e.g. `14/11/2026` or `14/11`)
-  const slashMatches = [
-    ...normDigits.matchAll(/(?:^|[^\d])(0?[1-9]|[12]\d|3[01])\/(0?[1-9]|1[0-2])(?:\/(20\d{2}))?(?=[^\d]|$)/g),
-  ]
-  if (slashMatches.length > 0) {
-    const parsedSlashIsos: string[] = []
-    for (const m of slashMatches) {
-      const day = Number(m[1])
-      const month = Number(m[2])
-      let year = m[3] ? Number(m[3]) : kwToday.year
-      if (!m[3]) {
-        const candidateIso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        if (candidateIso > kwToday.iso) {
-          year -= 1
-        }
-      }
-      if (isValidCalendarDate(year, month, day)) {
-        parsedSlashIsos.push(
-          `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-        )
-      }
-    }
-    if (parsedSlashIsos.length >= 2) {
-      const sorted = [...parsedSlashIsos].sort()
-      const from = sorted[0]
-      const to = sorted[sorted.length - 1]
-      return {
-        from,
-        to,
-        periodLabelAr: from === to ? from : `${from} إلى ${to}`,
-        allowedDateStrings: buildAllowedDateStrings(from, to),
-        hasExplicitPeriod: true,
-      }
-    }
-    if (parsedSlashIsos.length === 1) {
-      const d = parsedSlashIsos[0]
-      return {
-        from: d,
-        to: d,
-        periodLabelAr: d,
-        allowedDateStrings: buildAllowedDateStrings(d, d),
-        hasExplicitPeriod: true,
-      }
-    }
-  }
-
-  // 3. Relative day / range keywords in Kuwait timezone
-  if (/\b(day before yesterday)\b/i.test(normDigits) || /(اول امس|قبل امس)/.test(normAr)) {
-    const d = shiftIsoDateDays(kwToday.iso, -2)
-    return {
-      from: d,
-      to: d,
-      periodLabelAr: d,
-      allowedDateStrings: buildAllowedDateStrings(d, d),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(yesterday)\b/i.test(normDigits) || /(^|\s)(امس|الامس|البارحه)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)) {
-    const d = shiftIsoDateDays(kwToday.iso, -1)
-    return {
-      from: d,
-      to: d,
-      periodLabelAr: d,
-      allowedDateStrings: buildAllowedDateStrings(d, d),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(today)\b/i.test(normDigits) || /(^|\s)(اليوم|نهار اليوم)(?=[\s؟?.,!؛:()«»"']|$)/.test(normAr)) {
-    return {
-      from: kwToday.iso,
-      to: kwToday.iso,
-      periodLabelAr: kwToday.iso,
-      allowedDateStrings: buildAllowedDateStrings(kwToday.iso, kwToday.iso),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(last week)\b/i.test(normDigits) || /(الاسبوع الماضي|الاسبوع السابق)/.test(normAr)) {
-    const from = shiftIsoDateDays(kwToday.iso, -7)
-    const to = shiftIsoDateDays(kwToday.iso, -1)
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(this week|week)\b/i.test(normDigits) || /(هذا الاسبوع|الاسبوع الحالي|اخر اسبوع|الاسبوع)/.test(normAr)) {
-    const from = shiftIsoDateDays(kwToday.iso, -6)
-    const to = kwToday.iso
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(last month)\b/i.test(normDigits) || /(الشهر الماضي|الشهر السابق)/.test(normAr)) {
-    const prevMonthYear = kwToday.month === 1 ? kwToday.year - 1 : kwToday.year
-    const prevMonth = kwToday.month === 1 ? 12 : kwToday.month - 1
-    const lastDay = new Date(Date.UTC(prevMonthYear, prevMonth, 0)).getUTCDate()
-    const from = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-01`
-    const to = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(this year|year)\b/i.test(normDigits) || /(هذه السنه|هذا العام|السنه الحاليه|من بدايه السنه|العام)/.test(normAr)) {
-    const from = `${String(kwToday.year).padStart(4, '0')}-01-01`
-    const to = kwToday.iso
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(last 30 days|30 days)\b/i.test(normDigits) || /(اخر 30 يوم|اخر 30 يوما|خلال 30 يوم|ثلاثين يوم)/.test(normAr)) {
-    const from = shiftIsoDateDays(kwToday.iso, -29)
-    const to = kwToday.iso
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  if (/\b(this month|month)\b/i.test(normDigits) || /(هذا الشهر|الشهر الحالي|من بدايه الشهر|الشهر)/.test(normAr)) {
-    const from = `${String(kwToday.year).padStart(4, '0')}-${String(kwToday.month).padStart(2, '0')}-01`
-    const to = kwToday.iso
-    return {
-      from,
-      to,
-      periodLabelAr: `${from} إلى ${to}`,
-      allowedDateStrings: buildAllowedDateStrings(from, to),
-      hasExplicitPeriod: true,
-    }
-  }
-
-  // Default active 30-day window up to Kuwait today
-  const defaultFrom = shiftIsoDateDays(kwToday.iso, -29)
-  return {
-    from: defaultFrom,
-    to: kwToday.iso,
-    periodLabelAr: `${defaultFrom} إلى ${kwToday.iso}`,
-    allowedDateStrings: buildAllowedDateStrings(defaultFrom, kwToday.iso),
-    hasExplicitPeriod: false,
-  }
-}
-
-export function detectTargetBranchFromQuestion(question: string): {
-  branchId: ApprovedFeryalBranchId | null
-  unknownBranchRequested: boolean
-} {
-  const normAr = normalizeArabicText(question)
-
-  // If explicitly asking for breakdown across branches ("حسب الفرع" / "لكل فرع" / "جميع الفروع"), keep all branches
-  const asksByBranchBreakdown =
-    /(حسب الفرع|حسب الفروع|لكل فرع|جميع الفروع|كل الفروع|مقارنه الفروع|توزيع الفروع|\bby branch\b|\ball branches\b)/i.test(
-      normAr,
-    )
-
-  const matchedIds: ApprovedFeryalBranchId[] = []
-  for (const branch of ALL_FERYAL_BRANCHES) {
-    for (const rawAlias of branch.aliases) {
-      const aliasNorm = normalizeArabicText(rawAlias)
-      if (!aliasNorm) continue
-      if (aliasNorm === '360') {
-        if (/(^|[^\d])360([^\d]|$)/.test(normAr)) {
-          matchedIds.push(branch.id)
-          break
-        }
-      } else if (normAr.includes(aliasNorm)) {
-        matchedIds.push(branch.id)
-        break
-      }
-    }
-  }
-
-  if (matchedIds.length === 1 && !asksByBranchBreakdown) {
-    return { branchId: matchedIds[0], unknownBranchRequested: false }
-  }
-  if (matchedIds.length > 1) {
-    return { branchId: null, unknownBranchRequested: false }
-  }
-
-  // Check if user asked for "فرع <name>" where <name> is NOT one of our 7 approved branches
-  if (!asksByBranchBreakdown) {
-    const branchWordMatch = normAr.match(/(?:^|\s)فرع\s+([^\s،؟?.,]+)/)
-    if (branchWordMatch) {
-      const candidateToken = branchWordMatch[1]
-      const genericWords = new Set([
-        'معين',
-        'محدد',
-        'واحد',
-        'الشركه',
-        'المطعم',
-        'نقاط',
-        'البيع',
-        'الاعلي',
-        'الاقل',
-        'افضل',
-        'اسوا',
-        'اي',
-      ])
-      if (!genericWords.has(candidateToken)) {
-        return { branchId: null, unknownBranchRequested: true }
-      }
-    }
-  }
-
-  return { branchId: null, unknownBranchRequested: false }
-}
-
 function isCompetitorQuestion(question: string): boolean {
   const normAr = normalizeArabicText(question)
   if (
@@ -983,268 +532,6 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
     default:
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط المصدر التشغيلي المختص بموديولات Odoo المعتمدة وتحديد المؤشر أو الفترة المطلوبة.`
   }
-}
-
-export function detectTargetBrandFromQuestion(question: string): {
-  brandId: ApprovedFeryalBrandId | null
-  asksByBrandBreakdown: boolean
-} {
-  const normAr = normalizeArabicText(question)
-  const asksByBrandBreakdown =
-    /(حسب العلامه|حسب العلامات|لكل علامه|العلامات التجاريه|العلامات الست|العلامات السته|جميع العلامات|كل العلامات|حسب البراند|البراندات|لكل براند|مبيعات العلامات|\bby brand\b|\ball brands\b|\bbrands\b)/i.test(
-      normAr,
-    )
-
-  const matched: ApprovedFeryalBrandId[] = []
-  for (const b of APPROVED_FERYAL_BRAND_LIST) {
-    for (const alias of b.aliases) {
-      const aNorm = normalizeArabicText(alias)
-      if (aNorm && normAr.includes(aNorm)) {
-        matched.push(b.id)
-        break
-      }
-    }
-  }
-
-  if (matched.length === 1 && !asksByBrandBreakdown) {
-    return { brandId: matched[0], asksByBrandBreakdown: false }
-  }
-  return { brandId: null, asksByBrandBreakdown }
-}
-
-export function resolveFeryalComparisonPeriods(
-  question: string,
-  referenceNowMs = Date.now(),
-): {
-  periodA: { from: string; to: string; periodLabelAr: string }
-  periodB: { from: string; to: string; periodLabelAr: string }
-  allowedDateStrings: string[]
-} | null {
-  const normDigits = normalizeDigits(question)
-  const normAr = normalizeArabicText(question)
-  const hasComparisonCue =
-    /(قارن|مقارنه|بالمقارنه|مقابل|ضد|الفرق بين|\bvs\.?\b|\bversus\b|\bcompare\b)/i.test(normAr)
-  if (!hasComparisonCue) return null
-
-  const kwToday = getKuwaitCalendarParts(referenceNowMs)
-
-  // 1. Two explicit ISO dates
-  const isoMatches = [
-    ...normDigits.matchAll(/\b(20\d{2})-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\d|3[01])\b/g),
-  ]
-  if (isoMatches.length >= 2) {
-    const isos: string[] = []
-    for (const m of isoMatches) {
-      const y = Number(m[1])
-      const mo = Number(m[2])
-      const d = Number(m[3])
-      if (isValidCalendarDate(y, mo, d)) {
-        const iso = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-        if (!isos.includes(iso)) isos.push(iso)
-      }
-    }
-    if (isos.length >= 2) {
-      const a = isos[0]
-      const b = isos[1]
-      return {
-        periodA: { from: a, to: a, periodLabelAr: a },
-        periodB: { from: b, to: b, periodLabelAr: b },
-        allowedDateStrings: [
-          ...new Set([
-            ...buildAllowedDateStrings(a, a),
-            ...buildAllowedDateStrings(b, b),
-          ]),
-        ],
-      }
-    }
-  }
-
-  // 2. Two explicit DD/MM or DD/MM/YYYY dates
-  const slashMatches = [
-    ...normDigits.matchAll(
-      /(?:^|[^\d])(0?[1-9]|[12]\d|3[01])\/(0?[1-9]|1[0-2])(?:\/(20\d{2}))?(?=[^\d]|$)/g,
-    ),
-  ]
-  if (slashMatches.length >= 2) {
-    const isos: string[] = []
-    for (const m of slashMatches) {
-      const day = Number(m[1])
-      const month = Number(m[2])
-      let year = m[3] ? Number(m[3]) : kwToday.year
-      if (!m[3]) {
-        const cand = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        if (cand > kwToday.iso) year -= 1
-      }
-      if (isValidCalendarDate(year, month, day)) {
-        const iso = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-        if (!isos.includes(iso)) isos.push(iso)
-      }
-    }
-    if (isos.length >= 2) {
-      const a = isos[0]
-      const b = isos[1]
-      return {
-        periodA: { from: a, to: a, periodLabelAr: a },
-        periodB: { from: b, to: b, periodLabelAr: b },
-        allowedDateStrings: [
-          ...new Set([
-            ...buildAllowedDateStrings(a, a),
-            ...buildAllowedDateStrings(b, b),
-          ]),
-        ],
-      }
-    }
-  }
-
-  // 3. Relative day/period pairs
-  if (/(اول امس|قبل امس|\bday before yesterday\b)/i.test(normAr) && /(امس|الامس|\byesterday\b)/i.test(normAr)) {
-    const a = shiftIsoDateDays(kwToday.iso, -1)
-    const b = shiftIsoDateDays(kwToday.iso, -2)
-    return {
-      periodA: { from: a, to: a, periodLabelAr: a },
-      periodB: { from: b, to: b, periodLabelAr: b },
-      allowedDateStrings: [...new Set([...buildAllowedDateStrings(a, a), ...buildAllowedDateStrings(b, b)])],
-    }
-  }
-
-  if (
-    /(^|\s)(اليوم|\btoday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr) &&
-    /(^|\s)(امس|الامس|\byesterday\b)(?=[\s؟?.,!؛:()«»"']|$)/i.test(normAr)
-  ) {
-    const a = kwToday.iso
-    const b = shiftIsoDateDays(kwToday.iso, -1)
-    return {
-      periodA: { from: a, to: a, periodLabelAr: a },
-      periodB: { from: b, to: b, periodLabelAr: b },
-      allowedDateStrings: [...new Set([...buildAllowedDateStrings(a, a), ...buildAllowedDateStrings(b, b)])],
-    }
-  }
-
-  if (/(هذا الاسبوع|الاسبوع الحالي|\bthis week\b)/i.test(normAr) && /(الاسبوع الماضي|الاسبوع السابق|\blast week\b)/i.test(normAr)) {
-    const aFrom = shiftIsoDateDays(kwToday.iso, -6)
-    const aTo = kwToday.iso
-    const bFrom = shiftIsoDateDays(kwToday.iso, -13)
-    const bTo = shiftIsoDateDays(kwToday.iso, -7)
-    return {
-      periodA: { from: aFrom, to: aTo, periodLabelAr: `${aFrom} إلى ${aTo}` },
-      periodB: { from: bFrom, to: bTo, periodLabelAr: `${bFrom} إلى ${bTo}` },
-      allowedDateStrings: [
-        ...new Set([
-          ...buildAllowedDateStrings(aFrom, aTo),
-          ...buildAllowedDateStrings(bFrom, bTo),
-        ]),
-      ],
-    }
-  }
-
-  if (/(هذا الشهر|الشهر الحالي|\bthis month\b)/i.test(normAr) && /(الشهر الماضي|الشهر السابق|\blast month\b)/i.test(normAr)) {
-    const aFrom = `${String(kwToday.year).padStart(4, '0')}-${String(kwToday.month).padStart(2, '0')}-01`
-    const aTo = kwToday.iso
-    const prevMonthYear = kwToday.month === 1 ? kwToday.year - 1 : kwToday.year
-    const prevMonth = kwToday.month === 1 ? 12 : kwToday.month - 1
-    const lastDay = new Date(Date.UTC(prevMonthYear, prevMonth, 0)).getUTCDate()
-    const bFrom = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-01`
-    const bTo = `${String(prevMonthYear).padStart(4, '0')}-${String(prevMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    return {
-      periodA: { from: aFrom, to: aTo, periodLabelAr: `${aFrom} إلى ${aTo}` },
-      periodB: { from: bFrom, to: bTo, periodLabelAr: `${bFrom} إلى ${bTo}` },
-      allowedDateStrings: [
-        ...new Set([
-          ...buildAllowedDateStrings(aFrom, aTo),
-          ...buildAllowedDateStrings(bFrom, bTo),
-        ]),
-      ],
-    }
-  }
-
-  return null
-}
-
-type DetectedToolKind =
-  | 'pos_comparison'
-  | 'pos_brands'
-  | 'pos_orders'
-  | 'pos_order_lines'
-  | 'account_move_lines'
-  | 'purchase_orders'
-  | 'stock_moves'
-  | 'hr_employees'
-  | 'unknown'
-
-function detectOdooToolKind(
-  question: string,
-  targetBranchId: ApprovedFeryalBranchId | null,
-  brandDetection: { brandId: ApprovedFeryalBrandId | null; asksByBrandBreakdown: boolean },
-  hasComparisonPeriods: boolean,
-): DetectedToolKind {
-  const normAr = normalizeArabicText(question)
-
-  // 0. HR Employees (`hr.employee`)
-  if (
-    /(hr\.employee|عدد الموظفين|اجمالي الموظفين|كم موظف|الموظفين|موظفي|الموظفون|الكادر الوظيفي|القوي العامله|الموارد البشريه|\bemployees?\b|\bheadcount\b|\bworkforce\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'hr_employees'
-  }
-
-  // 1. Purchase orders / supplier costs (`purchase.order` / `purchase.order.line`)
-  if (
-    /(purchase\.order|امر شراء|اوامر الشراء|اوامر شراء|مشتريات|تكلفه مورد|تكلفه المورد|تكاليف الموردين|مورد|المورد|موردين|الموردين|فاتوره مورد|\bsupplier\b|\bsuppliers\b|\bvendor\b|\bvendors\b|\bprocurement\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'purchase_orders'
-  }
-
-  // 2. Warehouse transfers / stock moves / scrap (`stock.move` / `stock.scrap`)
-  if (
-    /(stock\.move|stock\.scrap|التحويل المخزني|التحويلات المخزنيه|تحويل مخزني|تحويلات المخزن|حركات المخزن|حركه المخزون|سلسله المخزن|الهدر|تالف|التالف|اتلاف|\bwarehouse transfer\b|\bstock move\b|\bscrap\b|\bwaste\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'stock_moves'
-  }
-
-  // 3. General Ledger / accounting / receivables (`account.move.line`)
-  if (
-    /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables\b|\bnet profit\b|\bexpenses\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'account_move_lines'
-  }
-
-  // 4. Two-period POS comparison (`pos.order`)
-  if (hasComparisonPeriods) {
-    return 'pos_comparison'
-  }
-
-  // 5. Top selling products / POS line items / item discounts (`pos.order.line`)
-  if (
-    /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|\btop \d* ?items\b|\btop \d* ?products\b|\bbest selling\b|\bdiscounts\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'pos_order_lines'
-  }
-
-  // 6. Brand sales breakdown or single brand (`pos.order.line` + `pos.order`)
-  if (brandDetection.asksByBrandBreakdown || brandDetection.brandId !== null) {
-    return 'pos_brands'
-  }
-
-  // 7. POS sales / orders / branches (`pos.order`)
-  if (
-    targetBranchId !== null ||
-    /(pos\.order|مبيعات|المبيعات|ايرادات|الطلبات|عدد الطلبات|متوسط السله|الفروع|حسب الفرع|غير منسوب|\bsales\b|\borders\b|\brevenue\b|\bbranches\b)/i.test(
-      normAr,
-    )
-  ) {
-    return 'pos_orders'
-  }
-
-  return 'unknown'
 }
 
 function extractRequestedTopLimit(question: string): number {
@@ -1453,9 +740,18 @@ async function runPosOrdersTool(params: {
   dataSource: FeryalOdooDataSource
   period: { from: string; to: string; periodLabelAr: string }
   targetBranchId: ApprovedFeryalBranchId | null
+  targetChannelId?: ApprovedFeryalChannelId | null
+  isBranchRanking?: boolean
   referenceNowMs?: number
 }): Promise<ToolExecutionOutput> {
-  const { dataSource, period, targetBranchId, referenceNowMs } = params
+  const {
+    dataSource,
+    period,
+    targetBranchId,
+    targetChannelId = null,
+    isBranchRanking = false,
+    referenceNowMs,
+  } = params
   const cube = await dataSource.fetchPeriodCube(period.from, period.to, referenceNowMs)
 
   const domain: unknown[] = [
@@ -1491,7 +787,15 @@ async function runPosOrdersTool(params: {
     }
   }
 
-  const canteenRaw = cube.byBranch['school-canteens']
+  const channelMeta = targetChannelId
+    ? APPROVED_FERYAL_CHANNEL_LIST.find((c) => c.id === targetChannelId) ?? null
+    : null
+  const channelClause = channelMeta ? ` (قناة ${channelMeta.nameAr})` : ''
+
+  const canteenBranchRaw = cube.byBranch['school-canteens']
+  const canteenRaw = targetChannelId
+    ? canteenBranchRaw?.channels?.[targetChannelId]
+    : canteenBranchRaw
   const includeCanteenInRows =
     targetBranchId === 'school-canteens' ||
     (canteenRaw?.netKwd ?? 0) !== 0 ||
@@ -1501,7 +805,10 @@ async function runPosOrdersTool(params: {
     : APPROVED_FERYAL_BRANCHES
 
   const branchRows = activeBranchMetas.map((meta) => {
-    const raw = cube.byBranch[meta.id] ?? { netKwd: 0, orders: 0, aovKwd: 0 }
+    const branchEntry = cube.byBranch[meta.id]
+    const raw = targetChannelId
+      ? branchEntry?.channels?.[targetChannelId] ?? { netKwd: 0, orders: 0 }
+      : branchEntry ?? { netKwd: 0, orders: 0, aovKwd: 0 }
     const net1 = round1(raw.netKwd)
     const ordersInt = Math.round(raw.orders)
     const aov1 = ordersInt > 0 ? round1(raw.netKwd / ordersInt) : 0
@@ -1515,17 +822,27 @@ async function runPosOrdersTool(params: {
     }
   }).sort((a, b) => b.netKwd - a.netKwd || b.rawNetKwd - a.rawNetKwd)
 
-  const totalNet1 = round1(cube.totals.netSalesKwd)
-  const totalOrdersInt = Math.round(cube.totals.orders)
-  const totalAov1 = totalOrdersInt > 0 ? round1(cube.totals.netSalesKwd / totalOrdersInt) : 0
+  const rawCompanyNet = targetChannelId
+    ? cube.byChannel?.[targetChannelId]?.netKwd ?? 0
+    : cube.totals.netSalesKwd
+  const rawCompanyOrders = targetChannelId
+    ? cube.byChannel?.[targetChannelId]?.orders ?? 0
+    : cube.totals.orders
+  const rawUnattrEntry = targetChannelId
+    ? cube.unattributed.channels?.[targetChannelId] ?? { netKwd: 0, orders: 0 }
+    : cube.unattributed
+
+  const totalNet1 = round1(rawCompanyNet)
+  const totalOrdersInt = Math.round(rawCompanyOrders)
+  const totalAov1 = totalOrdersInt > 0 ? round1(rawCompanyNet / totalOrdersInt) : 0
   const mappedRoundedSum1 = round1(branchRows.reduce((acc, r) => acc + r.netKwd, 0))
-  const rawUnattributed1 = round1(cube.unattributed.netKwd)
+  const rawUnattributed1 = round1(rawUnattrEntry.netKwd)
   const residualUnattributed1 = round1(Math.max(0, totalNet1 - mappedRoundedSum1))
   const unattributedNet1 =
-    cube.unattributed.netKwd > 0 && Math.abs(residualUnattributed1 - cube.unattributed.netKwd) <= 0.15
+    rawUnattrEntry.netKwd > 0 && Math.abs(residualUnattributed1 - rawUnattrEntry.netKwd) <= 0.15
       ? residualUnattributed1
       : rawUnattributed1
-  const unattributedOrdersInt = Math.round(cube.unattributed.orders)
+  const unattributedOrdersInt = Math.round(rawUnattrEntry.orders)
 
   if (targetBranchId) {
     const targetRow = branchRows.find((r) => r.id === targetBranchId)
@@ -1548,14 +865,18 @@ async function runPosOrdersTool(params: {
       targetRow.netKwd,
       targetRow.orders,
       targetRow.aovKwd,
-      cube.totals.netSalesKwd,
+      rawCompanyNet,
       totalNet1,
       totalOrdersInt,
       topBranch.rawNetKwd,
       topBranch.netKwd,
       topBranch.orders,
     ]
-    const allowedEntityNames: string[] = [targetRow.nameAr, topBranch.nameAr]
+    const allowedEntityNames: string[] = [
+      targetRow.nameAr,
+      topBranch.nameAr,
+      ...(channelMeta ? [channelMeta.nameAr] : []),
+    ]
 
     const causeComparison =
       topBranch.id === targetRow.id
@@ -1563,7 +884,7 @@ async function runPosOrdersTool(params: {
         : `حقق فرع ${targetRow.nameAr} صافي ${formatKwd1(targetRow.netKwd)} د.ك من ${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك مقارنة بأعلى فرع للفترة وهو ${topBranch.nameAr} بقيمة ${formatKwd1(topBranch.netKwd)} د.ك.`
 
     const reply = [
-      `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}، سجل فرع ${targetRow.nameAr} صافي مبيعات ${formatKwd1(targetRow.netKwd)} د.ك و${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك من إجمالي الشركة البالغ ${formatKwd1(totalNet1)} د.ك.`,
+      `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، سجل فرع ${targetRow.nameAr} صافي مبيعات ${formatKwd1(targetRow.netKwd)} د.ك و${formatIntCount(targetRow.orders)} طلبات بمتوسط سلة ${formatKwd1(targetRow.aovKwd)} د.ك من إجمالي الشركة البالغ ${formatKwd1(totalNet1)} د.ك.`,
       `• السبب من البيانات: ${causeComparison}`,
       `• الإجراء المحدد: يراجع مدير فرع ${targetRow.nameAr} ومشرف العمليات اليوم أداء فترات الذروة واقتراحات الإضافات في نقاط البيع خلال الوردية القادمة.`,
       `• الأثر المتوقع (تقدير): تقدير — تحسن متوسط السلة فوق مستوى ${formatKwd1(targetRow.aovKwd)} د.ك الحالي ورفع مساهمة فرع ${targetRow.nameAr} ضمن مبيعات الشركة.`,
@@ -1579,6 +900,7 @@ async function runPosOrdersTool(params: {
       structuredFacts: {
         model: 'pos.order',
         period: { from: period.from, to: period.to },
+        ...(targetChannelId ? { channelId: targetChannelId } : {}),
         branch: targetRow,
         branches: branchRows,
         companyTotalNetKwd: totalNet1,
@@ -1588,17 +910,37 @@ async function runPosOrdersTool(params: {
     }
   }
 
-  // All 7 branches + غير منسوب لفرع breakdown
+  if (
+    totalNet1 <= 0 &&
+    totalOrdersInt <= 0 &&
+    branchRows.every((r) => r.netKwd <= 0 && r.orders <= 0)
+  ) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+
+  // All 7 branches + غير منسوب لفرع breakdown / ranking
   const toolNumbers: number[] = [
-    cube.totals.netSalesKwd,
+    rawCompanyNet,
     totalNet1,
     totalOrdersInt,
     totalAov1,
-    cube.unattributed.netKwd,
+    rawUnattrEntry.netKwd,
     unattributedNet1,
     unattributedOrdersInt,
   ]
-  const allowedEntityNames: string[] = [UNATTRIBUTED_BRANCH_LABEL_AR]
+  const allowedEntityNames: string[] = [
+    UNATTRIBUTED_BRANCH_LABEL_AR,
+    ...(channelMeta ? [channelMeta.nameAr] : []),
+  ]
 
   for (const r of branchRows) {
     toolNumbers.push(r.rawNetKwd, r.netKwd, r.orders, r.aovKwd)
@@ -1618,8 +960,12 @@ async function runPosOrdersTool(params: {
       ? `، منها ${formatKwd1(unattributedNet1)} د.ك غير منسوبة (${UNATTRIBUTED_BRANCH_LABEL_AR})`
       : `، وبند ${UNATTRIBUTED_BRANCH_LABEL_AR} بقيمة ${formatKwd1(unattributedNet1)} د.ك`
 
+  const firstBullet = isBranchRanking
+    ? `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، تصدر فرع ${topBranch.nameAr} المبيعات بصافي ${formatKwd1(topBranch.netKwd)} د.ك و${formatIntCount(topBranch.orders)} طلبات، وتوزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} طلبات${unattributedSegment}.`
+    : `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}${channelClause}، توزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} طلبات${unattributedSegment}.`
+
   const reply = [
-    `• الرقم: وفق موديل pos.order في Odoo للفترة ${period.periodLabelAr}، توزعت المبيعات حسب الفرع كالتالي: ${branchListText}، والإجمالي ${formatKwd1(totalNet1)} د.ك عبر ${formatIntCount(totalOrdersInt)} طلبات${unattributedSegment}.`,
+    firstBullet,
     `• السبب من البيانات: تصدر فرع ${topBranch.nameAr} بقيمة ${formatKwd1(topBranch.netKwd)} د.ك تلاه ${secondBranch.nameAr} بقيمة ${formatKwd1(secondBranch.netKwd)} د.ك بينما سجل فرع ${lowestBranch.nameAr} ${formatKwd1(lowestBranch.netKwd)} د.ك، مع تسجيل ${formatKwd1(unattributedNet1)} د.ك ضمن بند ${UNATTRIBUTED_BRANCH_LABEL_AR} نتيجة صناديق بيع غير مربوطة بفرع محدد.`,
     `• الإجراء المحدد: يربط مسؤول النظام اليوم صناديق البيع المفتوحة ضمن ${UNATTRIBUTED_BRANCH_LABEL_AR} بالفروع الفعلية، ويراجع مدير العمليات أداء فرع ${lowestBranch.nameAr} خلال الوردية القادمة.`,
     `• الأثر المتوقع (تقدير): تقدير — نسب مبلغ ${formatKwd1(unattributedNet1)} د.ك من بند ${UNATTRIBUTED_BRANCH_LABEL_AR} إلى الفروع الفعلية يرفع دقة تقارير الربحية ويدعم تحسين مبيعات الفروع الأقل أداءً.`,
@@ -1635,8 +981,10 @@ async function runPosOrdersTool(params: {
     structuredFacts: {
       model: 'pos.order',
       period: { from: period.from, to: period.to },
+      ...(targetChannelId ? { channelId: targetChannelId } : {}),
       totalNetKwd: totalNet1,
       totalOrders: totalOrdersInt,
+      topBranch: { id: topBranch.id, nameAr: topBranch.nameAr, netKwd: topBranch.netKwd, orders: topBranch.orders },
       unattributed: { labelAr: UNATTRIBUTED_BRANCH_LABEL_AR, netKwd: unattributedNet1, orders: unattributedOrdersInt },
       branches: branchRows,
     },
@@ -3022,21 +2370,53 @@ export async function askFeryalOdooAgent(
     return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic')
   }
 
-  // 3. Branch Scope Check (7 approved branches only)
+  // 3. Branch Scope Check (7 approved branches + school canteens only)
   const branchDetection = detectTargetBranchFromQuestion(rawQuestion)
   if (branchDetection.unknownBranchRequested) {
     return finalizeNoData('unknown_branch')
   }
 
-  // 4. Period, Brand, Comparison & Tool Resolution
-  const brandDetection = detectTargetBrandFromQuestion(rawQuestion)
+  // 4. Context Defaults + Explicit Question Entity Resolution (explicit question entities win)
+  const validatedDefaults = validateFeryalContextDefaults({
+    period: input.context?.period ?? input.period,
+    customFrom: input.context?.customFrom ?? input.customFrom,
+    customTo: input.context?.customTo ?? input.customTo,
+    branch: input.context?.branch ?? input.branch,
+    brand: input.context?.brand ?? input.brand,
+    channel: input.context?.channel ?? input.channel,
+  })
+
+  const effectiveBranchId: ApprovedFeryalBranchId | null =
+    branchDetection.branchId !== null
+      ? branchDetection.branchId
+      : branchDetection.isBranchRanking || branchDetection.asksByBranchBreakdown
+        ? null
+        : validatedDefaults.branchId
+
+  const rawBrandDetection = detectTargetBrandFromQuestion(rawQuestion)
+  const effectiveBrandDetection =
+    rawBrandDetection.asksByBrandBreakdown || rawBrandDetection.brandId !== null
+      ? rawBrandDetection
+      : !branchDetection.isBranchRanking &&
+          !branchDetection.asksByBranchBreakdown &&
+          branchDetection.branchId === null &&
+          validatedDefaults.brandId !== null
+        ? { brandId: validatedDefaults.brandId, asksByBrandBreakdown: false }
+        : rawBrandDetection
+
+  const channelDetection = detectTargetChannelFromQuestion(rawQuestion)
+  const effectiveChannelId: ApprovedFeryalChannelId | null = channelDetection.asksByChannelBreakdown
+    ? null
+    : channelDetection.channelId ?? validatedDefaults.channelId
+
   const comparisonPeriods = resolveFeryalComparisonPeriods(rawQuestion, nowMs)
-  const resolvedPeriod = resolveFeryalQuestionPeriod(rawQuestion, nowMs)
+  const resolvedPeriod = resolveFeryalQuestionPeriod(rawQuestion, nowMs, validatedDefaults)
   const toolKind = detectOdooToolKind(
     rawQuestion,
-    branchDetection.branchId,
-    brandDetection,
+    effectiveBranchId,
+    effectiveBrandDetection,
     comparisonPeriods !== null,
+    branchDetection.isBranchRanking,
   )
 
   if (toolKind === 'unknown') {
@@ -3062,7 +2442,7 @@ export async function askFeryalOdooAgent(
       toolOutput = await runPosComparisonTool({
         dataSource,
         comparison: comp,
-        targetBranchId: branchDetection.branchId,
+        targetBranchId: effectiveBranchId,
         referenceNowMs: nowMs,
       })
       break
@@ -3071,8 +2451,8 @@ export async function askFeryalOdooAgent(
       toolOutput = await runPosBrandsTool({
         dataSource,
         period: resolvedPeriod,
-        targetBrandId: brandDetection.brandId,
-        targetBranchId: branchDetection.branchId,
+        targetBrandId: effectiveBrandDetection.brandId,
+        targetBranchId: effectiveBranchId,
         referenceNowMs: nowMs,
       })
       break
@@ -3080,7 +2460,9 @@ export async function askFeryalOdooAgent(
       toolOutput = await runPosOrdersTool({
         dataSource,
         period: resolvedPeriod,
-        targetBranchId: branchDetection.branchId,
+        targetBranchId: effectiveBranchId,
+        targetChannelId: effectiveChannelId,
+        isBranchRanking: branchDetection.isBranchRanking,
         referenceNowMs: nowMs,
       })
       break
@@ -3088,7 +2470,7 @@ export async function askFeryalOdooAgent(
       toolOutput = await runPosOrderLinesTool({
         dataSource,
         period: resolvedPeriod,
-        targetBranchId: branchDetection.branchId,
+        targetBranchId: effectiveBranchId,
         question: rawQuestion,
         referenceNowMs: nowMs,
       })

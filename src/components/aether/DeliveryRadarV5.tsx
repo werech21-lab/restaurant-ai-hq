@@ -23,6 +23,10 @@ import {
   UNATTRIBUTED_BRANCH_LABEL_AR,
   UNATTRIBUTED_BRANCH_LABEL_EN,
 } from '@/lib/aether/cores-hub-engine'
+import {
+  resolveReceivablesDateRange,
+  selectReceivablesHeadline,
+} from '@/lib/aether/receivables-headline'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
@@ -119,7 +123,11 @@ interface BranchChannelMatrixRow {
  * - يحذف تماماً أي تقسيم ثابت للعلامات من `ODOO.cube` وأي إيصالات ثابتة من `delivery-receipts-proof.json`.
  * - يعرض «غير مُرحَّل بعد» (لا صفراً!) على عمولات التطبيقات متى كانت غير مرحّلة في `account.move.line`.
  */
-export function DeliveryRadarV5() {
+export function DeliveryRadarV5({
+  initialLiveCube = null,
+}: {
+  initialLiveCube?: OdooPeriodCube | null
+} = {}) {
   const { isAr, T } = useLang()
   const resolvedLocale: FormatLocale = isAr ? 'ar' : 'en'
   const unavailableTip = getUnavailableTooltip(resolvedLocale)
@@ -128,7 +136,7 @@ export function DeliveryRadarV5() {
 
   const [channelFilter, setChannelFilter] = useState<'all' | AggregatorChannelKey>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(null)
+  const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(initialLiveCube)
   const [loadingCube, setLoadingCube] = useState(false)
   const [cubeError, setCubeError] = useState(false)
   const [retryTick, setRetryTick] = useState(0)
@@ -149,6 +157,18 @@ export function DeliveryRadarV5() {
       to: periodWindow.toInclusiveIso,
     }),
     [periodWindow.fromIso, periodWindow.toInclusiveIso],
+  )
+
+  const matrixRange = liveCube?.dateRange ?? provenanceRange
+
+  const receivablesHeadline = useMemo(
+    () => selectReceivablesHeadline(workspace.receivables),
+    [workspace.receivables],
+  )
+
+  const receivablesDateRange = useMemo(
+    () => resolveReceivablesDateRange(workspace.receivables, liveSummary?.aggregatorReceivables),
+    [liveSummary?.aggregatorReceivables, workspace.receivables],
   )
 
   useEffect(() => {
@@ -750,41 +770,80 @@ export function DeliveryRadarV5() {
                 <div className="mt-2.5 text-base font-bold text-slate-700 dark:text-slate-200">
                   {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                 </div>
+              ) : workspace.receivables.unavailable ? (
+                <>
+                  <div
+                    dir="ltr"
+                    data-unavailable="true"
+                    title={unavailableTip}
+                    aria-label={unavailableTip}
+                    className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
+                  >
+                    {isAr ? 'غير متاح' : '—'}
+                  </div>
+                  <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                      {isAr ? 'غير متاح' : '—'}
+                    </span>
+                  </p>
+                </>
               ) : (
                 <>
                   <div
                     dir="ltr"
-                    data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                    title={workspace.receivables.unavailable ? unavailableTip : undefined}
-                    aria-label={workspace.receivables.unavailable ? unavailableTip : undefined}
+                    data-unavailable={receivablesHeadline.openDebitsKwd === null ? 'true' : undefined}
+                    title={receivablesHeadline.openDebitsKwd === null ? unavailableTip : undefined}
+                    aria-label={receivablesHeadline.openDebitsKwd === null ? unavailableTip : undefined}
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-700 dark:text-amber-300"
                   >
-                    {workspace.receivables.unavailable
-                      ? isAr
-                        ? 'غير متاح'
-                        : '—'
-                      : fmtKwd(workspace.receivables.openReceivableKwd, isAr)}
+                    {fmtKwd(receivablesHeadline.openDebitsKwd, isAr)}
                   </div>
-                  <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {workspace.receivables.unavailable ? (
-                      <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                        {isAr ? 'غير متاح' : '—'}
-                      </span>
-                    ) : isAr ? (
-                      `${f0(workspace.receivables.unreconciledLineCount, 'ar')} قيد غير مسوّى في دفتر الذمم`
+                  <p className="mt-1.5 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                    {isAr ? (
+                      <>
+                        دفعات/مقاصة غير مطابقة:{' '}
+                        <span dir="ltr">
+                          {receivablesHeadline.unappliedCreditsKwd === null
+                            ? '—'
+                            : fmtKwd(receivablesHeadline.unappliedCreditsKwd, true)}
+                        </span>
+                        {' · '}الصافي:{' '}
+                        <span dir="ltr">
+                          {receivablesHeadline.netKwd === null
+                            ? '—'
+                            : fmtKwd(receivablesHeadline.netKwd, true)}
+                        </span>
+                      </>
                     ) : (
-                      `${f0(workspace.receivables.unreconciledLineCount, 'en')} unreconciled receivable lines`
+                      <>
+                        Unapplied payments/clearing:{' '}
+                        <span dir="ltr">
+                          {receivablesHeadline.unappliedCreditsKwd === null
+                            ? '—'
+                            : fmtKwd(receivablesHeadline.unappliedCreditsKwd, false)}
+                        </span>
+                        {' · '}Net:{' '}
+                        <span dir="ltr">
+                          {receivablesHeadline.netKwd === null
+                            ? '—'
+                            : fmtKwd(receivablesHeadline.netKwd, false)}
+                        </span>
+                      </>
                     )}
                   </p>
+                  {receivablesHeadline.lines !== null ? (
+                    <p className="mt-0.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                      {isAr
+                        ? `${f0(receivablesHeadline.lines, 'ar')} قيد غير مسوّى في دفتر الذمم`
+                        : `${f0(receivablesHeadline.lines, 'en')} unreconciled receivable lines`}
+                    </p>
+                  ) : null}
                 </>
               )}
 
               <KpiProvenanceBadge
                 odooModel="account.move.line"
-                dateRange={{
-                  from: workspace.receivables.fromDate,
-                  to: workspace.receivables.toDate,
-                }}
+                dateRange={receivablesDateRange}
                 lastSyncAt={lastSyncIso}
                 isStale24h={isStale24h}
                 kind="فعلي"
@@ -931,12 +990,21 @@ export function DeliveryRadarV5() {
           <section className="ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-emerald-400/[0.09]">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
-                  {T(
-                    'Branch × Platform Actual POS Matrix (7 Branches + Unattributed)',
-                    'مصفوفة الفروع × منصات التوصيل الفعلية (7 فروع + غير منسوب لفرع)',
-                  )}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
+                    {T(
+                      'Branch × Platform Actual POS Matrix (7 Branches + Unattributed)',
+                      'مصفوفة الفروع × منصات التوصيل الفعلية (7 فروع + غير منسوب لفرع)',
+                    )}
+                  </h2>
+                  <span
+                    dir="ltr"
+                    data-matrix-date-range="true"
+                    className="rounded-lg bg-slate-100 px-2.5 py-0.5 font-mono text-xs font-semibold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200"
+                  >
+                    {`${matrixRange.from} → ${matrixRange.to}`}
+                  </span>
+                </div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {isAr
                     ? 'قراءات pos.payment الفعلية لكل فرع وقناة بدون تقسيم ODOO.cube أو إيصالات ثابتة.'
@@ -996,7 +1064,7 @@ export function DeliveryRadarV5() {
                       <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
                       <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                      <th className="py-2.5 text-end">{T('Orders', 'الطلبات')}</th>
+                      <th className="py-2.5 text-end">{T('Payments', 'عدد الدفعات')}</th>
                       <th className="py-2.5 text-end">{T('Avg Basket', 'متوسط الطلب')}</th>
                       <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>

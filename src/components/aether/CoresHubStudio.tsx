@@ -122,8 +122,10 @@ function EmeraldPillTabs<K extends string>({
 
 export function CoresHubStudio({
   initialTab = 'sales',
+  initialLiveCube = null,
 }: {
   initialTab?: CoreTabId
+  initialLiveCube?: OdooPeriodCube | null
 } = {}) {
   const { locale } = useI18n()
   const resolvedLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
@@ -134,7 +136,7 @@ export function CoresHubStudio({
   const [activeTab, setActiveTab] = useState<CoreTabId>(initialTab)
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>([])
   const [isAdFormOpen, setIsAdFormOpen] = useState(false)
-  const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(null)
+  const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(initialLiveCube)
   const [cubeLoading, setCubeLoading] = useState(false)
   const [cubeTimedOut, setCubeTimedOut] = useState(false)
   const [cubeError, setCubeError] = useState(false)
@@ -575,20 +577,13 @@ export function CoresHubStudio({
                 dir="ltr"
                 className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
               >
-                {liveCube ? (
-                  <>
-                    {f3(liveCube.totals.netSalesKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal text-slate-500">
-                      {isAr ? 'د.ك' : 'KWD'}
-                    </span>
-                  </>
-                ) : workspace.nullableSalesKwd === null ? (
+                {snapshot.sales.headline.netSalesKwd === null ? (
                   <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
                     {isAr ? 'غير متاح' : '—'}
                   </span>
                 ) : (
                   <>
-                    {f3(workspace.nullableSalesKwd, resolvedLocale)}{' '}
+                    {f3(snapshot.sales.headline.netSalesKwd, resolvedLocale)}{' '}
                     <span className="text-xs font-normal text-slate-500">
                       {isAr ? 'د.ك' : 'KWD'}
                     </span>
@@ -596,15 +591,13 @@ export function CoresHubStudio({
                 )}
               </div>
               <div className="mt-1 text-xs text-slate-500 tabular-nums">
-                {liveCube
-                  ? `${f0(liveCube.totals.orders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
-                  : workspace.nullableOrders === null
-                    ? (
-                        <span data-unavailable="true" title={unavailableTip}>
-                          {isAr ? 'غير متاح' : '—'}
-                        </span>
-                      )
-                    : `${f0(workspace.nullableOrders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`}
+                {snapshot.sales.headline.orders === null ? (
+                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                    {isAr ? 'غير متاح' : '—'}
+                  </span>
+                ) : (
+                  `${f0(snapshot.sales.headline.orders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
+                )}
               </div>
               <KpiProvenanceBadge
                 odooModel="pos.order.line"
@@ -624,20 +617,13 @@ export function CoresHubStudio({
                 dir="ltr"
                 className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
               >
-                {liveCube ? (
-                  <>
-                    {f3(liveCube.totals.aovKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal text-slate-500">
-                      {isAr ? 'د.ك' : 'KWD'}
-                    </span>
-                  </>
-                ) : workspace.nullableAovKwd === null ? (
+                {snapshot.sales.headline.aovKwd === null ? (
                   <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
                     {isAr ? 'غير متاح' : '—'}
                   </span>
                 ) : (
                   <>
-                    {f3(workspace.nullableAovKwd, resolvedLocale)}{' '}
+                    {f3(snapshot.sales.headline.aovKwd, resolvedLocale)}{' '}
                     <span className="text-xs font-normal text-slate-500">
                       {isAr ? 'د.ك' : 'KWD'}
                     </span>
@@ -733,45 +719,47 @@ export function CoresHubStudio({
             </div>
           </div>
 
-          {/* Daily Sales Timeline */}
-          <div className={CARD_CLS}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-                  {isAr ? 'المسار اليومي لصافي المبيعات' : 'Daily Net Sales Timeline'}
-                </h2>
-                <p className="text-xs text-slate-500">
-                  {isAr
-                    ? `أقوى يوم في الفترة: ${snapshot.sales.strongestDayLabelAr} · ${dateRangeLabel} · د.ك`
-                    : `Strongest day in window: ${snapshot.sales.strongestDayLabelEn} · ${dateRangeLabel} · KWD`}
-                </p>
+          {/* Daily Sales Timeline (hidden on 1-day windows so Hourly Profile takes its slot) */}
+          {!snapshot.isSingleDayWindow ? (
+            <div className={CARD_CLS}>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'المسار اليومي لصافي المبيعات' : 'Daily Net Sales Timeline'}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {isAr
+                      ? `أقوى يوم في الفترة: ${snapshot.sales.strongestDayLabelAr} · ${dateRangeLabel} · د.ك`
+                      : `Strongest day in window: ${snapshot.sales.strongestDayLabelEn} · ${dateRangeLabel} · KWD`}
+                  </p>
+                </div>
+                <KpiProvenanceBadge
+                  odooModel="pos.order.line"
+                  dateRange={dateRangeLabel}
+                  lastSyncAt={lastSyncAt}
+                  isStale24h={isStale24h}
+                  kind="فعلي"
+                />
               </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-              />
+              {timelineBars.length > 0 ? (
+                <InteractiveHoverBarChart
+                  data={timelineBars}
+                  isAr={isAr}
+                  primaryLegend={isAr ? 'صافي مبيعات POS' : 'POS Net Sales'}
+                  yAxisLabel={isAr ? 'صافي المبيعات (د.ك)' : 'Net Sales (KWD)'}
+                  xAxisLabel={isAr ? 'الأيام (توقيت الكويت)' : 'Days (Asia/Kuwait)'}
+                  heightClass="h-56"
+                />
+              ) : (
+                <StateBlock
+                  state="empty"
+                  compact
+                  locale={resolvedLocale}
+                  title={isAr ? 'لا توجد نقاط يومية لهذه الفترة' : 'No daily points in this window'}
+                />
+              )}
             </div>
-            {timelineBars.length > 0 ? (
-              <InteractiveHoverBarChart
-                data={timelineBars}
-                isAr={isAr}
-                primaryLegend={isAr ? 'صافي مبيعات POS' : 'POS Net Sales'}
-                yAxisLabel={isAr ? 'صافي المبيعات (د.ك)' : 'Net Sales (KWD)'}
-                xAxisLabel={isAr ? 'الأيام (توقيت الكويت)' : 'Days (Asia/Kuwait)'}
-                heightClass="h-56"
-              />
-            ) : (
-              <StateBlock
-                state="empty"
-                compact
-                locale={resolvedLocale}
-                title={isAr ? 'لا توجد نقاط يومية لهذه الفترة' : 'No daily points in this window'}
-              />
-            )}
-          </div>
+          ) : null}
 
           {/* Hourly Profile (No 876 KWD quiet window upside) */}
           <div className={CARD_CLS}>
