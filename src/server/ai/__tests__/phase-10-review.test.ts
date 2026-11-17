@@ -354,7 +354,7 @@ function runCouncil(
       keys: {
         anthropic: 'test-anthropic-council-key',
         google: 'test-google-council-key',
-        xai: 'test-xai-council-key',
+        xai: 'test-grok-council-key',
       },
       models: { anthropic: 'claude-test', google: 'gemini-test', xai: 'grok-test' },
     },

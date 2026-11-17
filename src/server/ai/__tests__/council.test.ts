@@ -13,7 +13,7 @@ import type { CouncilModels } from '@/server/ai/models'
 const KEYS: CouncilKeys = {
   anthropic: 'test-anthropic-key-0001',
   google: 'test-google-key-00000001',
-  xai: 'test-xai-key-0000000001',
+  xai: 'test-grok-key-0000000001',
 }
 
 const MODELS: CouncilModels = {
@@ -391,11 +391,11 @@ describe('ai key vault', () => {
     try {
       process.env.ANTHROPIC_API_KEY = 'env-only-anthropic-test'
       process.env.GEMINI_API_KEY = 'env-only-gemini-test'
-      process.env.XAI_API_KEY = 'env-only-xai-test'
+      process.env.XAI_API_KEY = 'env-only-grok-test'
       process.env.OPENAI_API_KEY = 'env-only-openai-test'
       expect(getAnthropicApiKey()).toBe('env-only-anthropic-test')
       expect(getGeminiApiKey()).toBe('env-only-gemini-test')
-      expect(getXaiApiKey()).toBe('env-only-xai-test')
+      expect(getXaiApiKey()).toBe('env-only-grok-test')
       expect(getOpenAIApiKey()).toBe('env-only-openai-test')
       delete process.env.ANTHROPIC_API_KEY
       delete process.env.GEMINI_API_KEY
