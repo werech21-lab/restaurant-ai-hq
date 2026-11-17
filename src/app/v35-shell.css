@@ -68,7 +68,7 @@ html[data-theme='dark'] #ae-root main,
   position: absolute;
   border-radius: 9999px;
   filter: blur(88px);
-  opacity: 0.72;
+  opacity: 0.42;
 }
 
 #ae-root .ae-ambient span:nth-child(1),
@@ -115,11 +115,46 @@ html[data-theme='dark'] #ae-root .ae-ambient span:nth-child(3) {
 
 html.dark #ae-root .ae-ambient span,
 html[data-theme='dark'] #ae-root .ae-ambient span {
-  opacity: 0.56;
+  opacity: 0.18;
 }
 
 /* ---------- 2. Dark Navy Floating Rounded Sidebar Rail (lg >= 1024px) ---------- */
 @media (min-width: 1024px) {
+  /* Default collapsed 76px rail on first paint before React hydration (zero 272px flash / CLS) */
+  html:not([data-rail-collapsed='false']) {
+    --ae-rail-w: 76px;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-root #ae-sidebar,
+  html:not([data-rail-collapsed='false']) #ae-sidebar {
+    width: 76px !important;
+    overflow: visible !important;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] [data-rail-expanded-only] {
+    display: none !important;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] [data-rail-header] {
+    padding: 1rem 0.625rem 0.5rem !important;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] [data-rail-header-row] {
+    flex-direction: column !important;
+    gap: 0.625rem !important;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] nav {
+    overflow: visible !important;
+    padding: 0.25rem 0.625rem 0.625rem !important;
+  }
+
+  html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] .ae-side-link {
+    justify-content: center !important;
+    gap: 0 !important;
+    padding: 0.375rem 0 !important;
+  }
+
   #ae-root {
     display: flex;
     align-items: flex-start;
@@ -225,7 +260,7 @@ html.dark #ae-sidebar .ae-side-logo,
 html[data-theme='dark'] #ae-sidebar .ae-side-logo {
   background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 6px 18px -4px rgba(59, 130, 246, 0.55) !important;
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.32) !important;
 }
 
 #ae-sidebar .ae-side-toggle,
@@ -272,7 +307,7 @@ html.dark #ae-sidebar .ae-side-link[data-active='true'],
 html[data-theme='dark'] #ae-sidebar .ae-side-link[data-active='true'] {
   background-image: linear-gradient(90deg, rgba(37, 99, 235, 0.92) 0%, rgba(59, 130, 246, 0.82) 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 6px 18px -6px rgba(37, 99, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
   font-weight: 600;
 }
 
@@ -283,7 +318,7 @@ html:not(.dark) #ae-sidebar .ae-side-pill-indicator,
 html.dark #ae-sidebar .ae-side-pill-indicator,
 html[data-theme='dark'] #ae-sidebar .ae-side-pill-indicator {
   background: linear-gradient(90deg, rgba(37, 99, 235, 0.94) 0%, rgba(59, 130, 246, 0.84) 100%) !important;
-  box-shadow: 0 6px 18px -4px rgba(37, 99, 235, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
 #ae-sidebar .ae-side-logout,
@@ -410,6 +445,23 @@ html[data-theme='dark'] #ae-topbar .bg-\[\#F6F7F8\] {
   background: var(--v35-positive-bg) !important;
   box-shadow: 0 0 0 1px var(--v35-positive-border) !important;
   color: var(--v35-positive) !important;
+}
+
+/* Calm frosted warning surface without loud yellow/amber border clutter */
+#ae-root [data-odoo-partial-warning='true'],
+html[data-theme='light'] #ae-root [data-odoo-partial-warning='true'],
+html.light-mode #ae-root [data-odoo-partial-warning='true'],
+html:not(.dark) #ae-root [data-odoo-partial-warning='true'],
+html.dark #ae-root [data-odoo-partial-warning='true'],
+html[data-theme='dark'] #ae-root [data-odoo-partial-warning='true'] {
+  background-color: var(--v35-glass-bg) !important;
+  border-color: var(--v35-warning-border) !important;
+  box-shadow: var(--v35-shadow-glass) !important;
+  color: var(--v35-text-primary) !important;
+}
+
+#ae-root [data-odoo-partial-warning='true'] svg {
+  color: var(--v35-warning) !important;
 }
 
 /* ---------- 4. Frosted Glass Cards, Bento Surfaces & V35 Glass Primitives ---------- */
@@ -540,7 +592,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
   border-radius: var(--v35-radius-card);
   background-color: var(--v35-hero-bg);
   background-image: var(--v35-hero-gradient);
-  border: 1px solid rgba(147, 197, 253, 0.34);
+  border: 1px solid rgba(59, 130, 246, 0.32);
   box-shadow: var(--v35-hero-shadow);
   color: #FFFFFF;
 }
@@ -549,7 +601,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
 .v35-glass-card[data-variant='hero'][data-hover-lift='true']:hover {
   transform: translateY(-2px);
   background-color: var(--v35-hero-bg);
-  border-color: rgba(191, 219, 254, 0.52);
+  border-color: rgba(59, 130, 246, 0.48);
   box-shadow: var(--v35-hero-shadow-hover);
 }
 
@@ -561,7 +613,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
   -webkit-backdrop-filter: blur(14px) saturate(155%);
   backdrop-filter: blur(14px) saturate(155%);
   border: 1px solid var(--v35-border-hairline);
-  box-shadow: 0 2px 10px -4px rgba(15, 23, 42, 0.06), var(--v35-inner-highlight);
+  box-shadow: var(--v35-shadow-glass);
   color: var(--v35-text-primary);
 }
 
@@ -747,8 +799,8 @@ html:not(.dark) .ae-emerald-peak-pill,
 html.dark .ae-emerald-peak-pill,
 html[data-theme='dark'] .ae-emerald-peak-pill {
   background-color: var(--v35-accent-mid) !important;
-  background-image: linear-gradient(180deg, #60A5FA 0%, #3B82F6 46%, #2563EB 100%) !important;
-  box-shadow: 0 10px 24px -4px rgba(37, 99, 235, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+  background-image: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   border: none !important;
 }
 
@@ -790,11 +842,11 @@ html.light-mode .ae-emerald-cta-pill,
 html:not(.dark) .ae-emerald-cta-pill,
 html.dark .ae-emerald-cta-pill,
 html[data-theme='dark'] .ae-emerald-cta-pill {
-  background-color: var(--v35-accent) !important;
+  background-color: #2563EB !important;
   background-image: linear-gradient(135deg, #1E40AF 0%, #2563EB 55%, #3B82F6 100%) !important;
   color: #FFFFFF !important;
   border: none !important;
-  box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(147, 197, 253, 0.30) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(59, 130, 246, 0.30) !important;
 }
 
 .ae-emerald-cta-pill *,
@@ -808,13 +860,13 @@ html:not(.dark) .ae-emerald-cta-pill * {
 #ae-root .ae-sliding-tabs,
 html[data-theme='light'] #ae-root .ae-sliding-tabs,
 html:not(.dark) #ae-root .ae-sliding-tabs {
-  background-color: rgba(226, 235, 250, 0.78) !important;
+  background-color: rgba(241, 245, 249, 0.90) !important;
   box-shadow: inset 0 0 0 1px var(--v35-border-hairline) !important;
 }
 
 html.dark #ae-root .ae-sliding-tabs,
 html[data-theme='dark'] #ae-root .ae-sliding-tabs {
-  background-color: rgba(12, 21, 40, 0.85) !important;
+  background-color: var(--v35-glass-bg-subtle) !important;
   box-shadow: inset 0 0 0 1px var(--v35-border-hairline) !important;
 }
 
@@ -828,11 +880,15 @@ html[data-theme='dark'] #ae-root .ae-sliding-tabs[data-surface='white'] {
 }
 
 #ae-root [data-sliding-pill-indicator='true'],
-html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'],
+html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'] {
+  background-color: var(--v35-accent) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14) !important;
+}
+
 html.dark #ae-root [data-sliding-pill-indicator='true'],
 html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
-  background-color: var(--v35-accent) !important;
-  box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.34) !important;
+  background-color: #2563EB !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30) !important;
 }
 
 #ae-root button[data-sliding-pill-btn='true'][data-active='true'],
@@ -849,16 +905,21 @@ html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-activ
 #ae-root button.ae-btn-primary,
 html[data-theme='light'] #ae-root button.ae-btn-primary,
 #ae-root .ae-pill-dark,
-#ae-root .ae-seg > button[data-active='true'],
+#ae-root .ae-seg > button[data-active='true'] {
+  background-color: var(--v35-accent) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16) !important;
+}
+
 html.dark #ae-root button.ae-btn-primary,
 html[data-theme='dark'] #ae-root button.ae-btn-primary,
 html.dark #ae-root .ae-pill-dark,
 html[data-theme='dark'] #ae-root .ae-pill-dark,
 html.dark #ae-root .ae-seg > button[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
-  background-color: var(--v35-accent) !important;
+  background-color: #2563EB !important;
   color: #FFFFFF !important;
-  box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.36) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30) !important;
 }
 
 #ae-root button.ae-btn-primary *,
@@ -891,9 +952,9 @@ html[data-theme='dark'] #ae-root .ae-icon-badge {
 
 html.dark #ae-root .ae-chip,
 html[data-theme='dark'] #ae-root .ae-chip {
-  background-color: rgba(96, 165, 250, 0.16) !important;
+  background-color: rgba(59, 130, 246, 0.14) !important;
   color: #BFDBFE !important;
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28) !important;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28) !important;
 }
 
 #ae-root .ae-select,
@@ -936,15 +997,15 @@ html[data-theme='dark'] #ae-root .ae-palette {
 
 html.dark #ae-root .ae-palette-item[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
-  background-color: rgba(96, 165, 250, 0.18) !important;
+  background-color: rgba(59, 130, 246, 0.16) !important;
 }
 
-/* Dark mode tables match Midnight-Navy glass instead of Obsidian-Emerald */
+/* Dark mode tables match Executive Slate/Cobalt instead of Obsidian-Emerald */
 html.dark #ae-root .app-content thead th,
 html[data-theme='dark'] #ae-root .app-content thead th {
-  background-color: rgba(12, 21, 40, 0.90) !important;
-  color: #CBD5E1 !important;
-  border-color: rgba(148, 163, 184, 0.16) !important;
+  background-color: var(--v35-glass-bg-subtle) !important;
+  color: var(--v35-text-secondary) !important;
+  border-color: var(--v35-border-hairline) !important;
 }
 
 html.dark #ae-root .app-content tbody td,
@@ -956,7 +1017,7 @@ html[data-theme='dark'] #ae-root .app-content tfoot td {
 
 html.dark #ae-root .app-content tbody tr:hover,
 html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
-  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-color: rgba(59, 130, 246, 0.08) !important;
 }
 
 /* ---------- 7. Native-Grade Frosted Mobile Chrome (`< 1024px`) ---------- */
@@ -965,18 +1026,18 @@ html[data-theme='light'] .ae-mobile-appbar,
 html.light-mode .ae-mobile-appbar,
 html.light .ae-mobile-appbar,
 html:not(.dark) .ae-mobile-appbar {
-  background-color: rgba(255, 255, 255, 0.82) !important;
+  background-color: rgba(255, 255, 255, 0.94) !important;
   border: none !important;
-  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 8px 24px -12px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
   -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
   backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
 }
 
 html.dark .ae-mobile-appbar,
 html[data-theme='dark'] .ae-mobile-appbar {
-  background-color: rgba(13, 22, 42, 0.86) !important;
+  background-color: var(--v35-glass-topbar) !important;
   border: none !important;
-  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 8px 24px -12px rgba(2, 6, 23, 0.65) !important;
+  box-shadow: 0 1px 0 var(--v35-border-hairline), 0 1px 3px rgba(0, 0, 0, 0.35) !important;
   -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
   backdrop-filter: blur(var(--v35-blur-glass)) saturate(170%);
 }
@@ -986,18 +1047,18 @@ html[data-theme='light'] .ae-mobile-dock,
 html.light-mode .ae-mobile-dock,
 html.light .ae-mobile-dock,
 html:not(.dark) .ae-mobile-dock {
-  background-color: rgba(255, 255, 255, 0.88) !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
   border: none !important;
-  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -10px 28px -12px rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -2px 8px rgba(15, 23, 42, 0.04) !important;
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   backdrop-filter: blur(20px) saturate(170%);
 }
 
 html.dark .ae-mobile-dock,
 html[data-theme='dark'] .ae-mobile-dock {
-  background-color: rgba(13, 22, 42, 0.90) !important;
+  background-color: var(--v35-glass-topbar) !important;
   border: none !important;
-  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -10px 28px -12px rgba(2, 6, 23, 0.70) !important;
+  box-shadow: 0 -1px 0 var(--v35-border-hairline), 0 -2px 8px rgba(0, 0, 0, 0.38) !important;
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   backdrop-filter: blur(20px) saturate(170%);
 }
@@ -1007,24 +1068,24 @@ html[data-theme='light'] .ae-bottom-sheet,
 html.light-mode .ae-bottom-sheet,
 html.light .ae-bottom-sheet,
 html:not(.dark) .ae-bottom-sheet {
-  background-color: rgba(255, 255, 255, 0.94) !important;
+  background-color: #FFFFFF !important;
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
   border: none !important;
   border-top-left-radius: var(--v35-radius-rail);
   border-top-right-radius: var(--v35-radius-rail);
-  box-shadow: 0 -14px 44px -10px rgba(15, 23, 42, 0.16), 0 0 0 1px var(--v35-border-hairline) !important;
+  box-shadow: 0 -8px 24px -4px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--v35-border-hairline) !important;
 }
 
 html.dark .ae-bottom-sheet,
 html[data-theme='dark'] .ae-bottom-sheet {
-  background-color: rgba(15, 26, 48, 0.94) !important;
+  background-color: var(--v35-glass-bg) !important;
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
   border: none !important;
   border-top-left-radius: var(--v35-radius-rail);
   border-top-right-radius: var(--v35-radius-rail);
-  box-shadow: 0 -14px 44px -10px rgba(2, 6, 23, 0.72), 0 0 0 1px var(--v35-border-hairline) !important;
+  box-shadow: 0 -8px 24px -4px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--v35-border-hairline) !important;
 }
 
 /* ---------- 8. Focus-Visible Ring & RTL Polish ---------- */
@@ -1038,6 +1099,14 @@ html[data-theme='dark'] .ae-bottom-sheet {
   background-image: radial-gradient(240px circle at 100% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
 }
 
+#ae-root .ae-glow-amber {
+  background-image: radial-gradient(240px circle at 100% 0%, rgba(148, 163, 184, 0.08), transparent 70%) !important;
+}
+
+#ae-root .ae-glow-rose {
+  background-image: radial-gradient(240px circle at 100% 0%, rgba(190, 18, 60, 0.05), transparent 70%) !important;
+}
+
 [dir='rtl'] #ae-root .ae-glow-emerald,
 [dir='rtl'] #ae-root .ae-glow-sky,
 [dir='rtl'] #ae-root .ae-glow-amber,
@@ -1047,6 +1116,14 @@ html[data-theme='dark'] .ae-bottom-sheet {
 
 [dir='rtl'] #ae-root .ae-glow-sky {
   background-image: radial-gradient(240px circle at 0% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
+}
+
+[dir='rtl'] #ae-root .ae-glow-amber {
+  background-image: radial-gradient(240px circle at 0% 0%, rgba(148, 163, 184, 0.08), transparent 70%) !important;
+}
+
+[dir='rtl'] #ae-root .ae-glow-rose {
+  background-image: radial-gradient(240px circle at 0% 0%, rgba(190, 18, 60, 0.05), transparent 70%) !important;
 }
 
 [dir='rtl'] #ae-root .ae-select,

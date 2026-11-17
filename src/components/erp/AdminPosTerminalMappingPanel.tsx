@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, Link2, RefreshCw, RotateCcw, ShieldCheck, Terminal } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { StateBlock } from '@/components/ui/state-block'
 import { formatAdminUnmappedAlertCopy } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
 import { formatInt, formatKwd } from '@/lib/format'
@@ -118,7 +119,13 @@ const fmtKwd = (n: number | null | undefined, locale: 'ar' | 'en') =>
  * immediately reallocating sales out of `غير مصنّف — أجهزة غير مربوطة` into the chosen branch
  * while keeping `sum(branches) + unmapped === companyTotals.netSalesKwd`.
  */
-export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole }) {
+export function AdminPosTerminalMappingPanel({
+  role,
+  initialLoadError = null,
+}: {
+  role?: ExecSessionRole
+  initialLoadError?: string | null
+}) {
   const { locale } = useI18n()
   const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const isAr = resolvedLocale === 'ar'
@@ -130,13 +137,19 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
   const [savingTerminalId, setSavingTerminalId] = useState<number | null>(null)
   const [selectedBranches, setSelectedBranches] = useState<Record<number, string>>({})
   const [savedNoticeId, setSavedNoticeId] = useState<number | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [hasLoadError, setHasLoadError] = useState<boolean>(Boolean(initialLoadError))
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [showReconciliationTable, setShowReconciliationTable] = useState(false)
+
+  useEffect(() => {
+    setHasLoadError(Boolean(initialLoadError))
+  }, [initialLoadError])
 
   const loadMappings = useCallback(async () => {
     if (effectiveRole !== 'admin') return
     setLoading(true)
-    setErrorMsg(null)
+    setHasLoadError(false)
+    setSaveError(null)
     try {
       const res = await fetch('/api/erp/terminal-mappings', {
         method: 'GET',
@@ -145,11 +158,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         headers: { accept: 'application/json' },
       })
       if (!res.ok) {
-        setErrorMsg(
-          isAr
-            ? 'تعذّر تحميل بيانات أجهزة نقاط البيع غير المربوطة حالياً.'
-            : 'Unable to load POS terminal mappings right now.',
-        )
+        setHasLoadError(true)
         return
       }
       const payload = (await res.json()) as TerminalMappingsApiResponse
@@ -164,27 +173,25 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
           }
           return next
         })
+      } else {
+        setHasLoadError(true)
       }
     } catch {
-      setErrorMsg(
-        isAr
-          ? 'تعذّر الاتصال بالخادم لتحميل أجهزة الكاشير.'
-          : 'Network error while loading POS terminal mappings.',
-      )
+      setHasLoadError(true)
     } finally {
       setLoading(false)
     }
-  }, [effectiveRole, isAr])
+  }, [effectiveRole])
 
   useEffect(() => {
-    if (effectiveRole !== 'admin') return
+    if (effectiveRole !== 'admin' || initialLoadError) return
     void loadMappings()
-  }, [effectiveRole, loadMappings])
+  }, [effectiveRole, initialLoadError, loadMappings])
 
   const handleSaveTerminal = async (terminalId: number, branchId: string | null) => {
     if (effectiveRole !== 'admin') return
     setSavingTerminalId(terminalId)
-    setErrorMsg(null)
+    setSaveError(null)
     try {
       const res = await fetch('/api/erp/terminal-mappings', {
         method: 'POST',
@@ -200,7 +207,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         }),
       })
       if (!res.ok) {
-        setErrorMsg(
+        setSaveError(
           isAr
             ? 'تعذّر حفظ ربط جهاز الكاشير. يرجى المحاولة مرة أخرى.'
             : 'Unable to save POS terminal mapping. Please try again.',
@@ -219,9 +226,15 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
             new CustomEvent('aether:odoo-sync', { detail: updated.liveSummary }),
           )
         }
+      } else {
+        setSaveError(
+          isAr
+            ? 'تعذّر حفظ ربط جهاز الكاشير. يرجى المحاولة مرة أخرى.'
+            : 'Unable to save POS terminal mapping. Please try again.',
+        )
       }
     } catch {
-      setErrorMsg(
+      setSaveError(
         isAr
           ? 'تعذّر الاتصال بالخادم لحفظ الربط.'
           : 'Network error while saving terminal mapping.',
@@ -235,10 +248,17 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
     return null
   }
 
+  const effectiveError = hasLoadError
+    ? isAr
+      ? 'تعذّر تحميل ربط الأجهزة — أعد المحاولة'
+      : 'Failed to load terminal mappings — Retry'
+    : saveError
   const branchOptions = data?.branchOptions ?? DEFAULT_BRANCH_OPTIONS
   const unmappedTerminals = data?.unmappedTerminals ?? []
   const mappedTerminals = data?.mappedTerminals ?? []
   const totals = data?.companyTotals
+  const showLoadedBody = Boolean(data) && !hasLoadError
+  const showAllMappedBanner = Boolean(data) && !effectiveError && unmappedTerminals.length === 0
 
   return (
     <section
@@ -286,29 +306,52 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         </button>
       </div>
 
-      {/* Admin-Only Unmapped Sales Alert Banner */}
-      {totals && totals.unmappedTerminalsNetKwd > 0 ? (
+      {effectiveError ? (
+        <div
+          role="alert"
+          data-admin-pos-error="true"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-300/60 bg-rose-50/75 px-4 py-3 text-[13px] font-semibold text-rose-800 dark:border-rose-500/25 dark:bg-rose-950/35 dark:text-rose-200"
+        >
+          <span>{effectiveError}</span>
+          <button
+            type="button"
+            onClick={() => void loadMappings()}
+            disabled={loading}
+            className="ds-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border border-rose-300/70 bg-white/90 px-3 text-xs font-semibold text-rose-800 transition-colors hover:bg-rose-100/70 disabled:opacity-60 dark:border-rose-400/30 dark:bg-white/10 dark:text-rose-100 dark:hover:bg-white/15"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
+            <span>{isAr ? 'أعد المحاولة' : 'Retry'}</span>
+          </button>
+        </div>
+      ) : null}
+
+      {!showLoadedBody && !effectiveError ? (
+        <StateBlock state="loading" locale={resolvedLocale} compact skeletonRows={2} />
+      ) : null}
+
+      {/* Admin-Only Unmapped Sales Alert Banner (amber ONLY when unmapped terminals need Admin assignment) */}
+      {showLoadedBody && totals && totals.unmappedTerminalsNetKwd > 0 ? (
         <div
           role="status"
           data-admin-unmapped-alert="true"
-          className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50/90 px-4 py-3 text-[13px] font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/35 dark:text-amber-200 dark:ring-amber-400/25"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-[13px] font-semibold text-slate-800 dark:border-amber-400/25 dark:bg-amber-950/25 dark:text-amber-100"
         >
           <div className="flex items-center gap-2.5">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600/85 dark:text-amber-300/85" />
             <span>
               {isAr
                 ? `«${formatAdminUnmappedAlertCopy(totals.unmappedTerminalsNetKwd, true)}»`
                 : formatAdminUnmappedAlertCopy(totals.unmappedTerminalsNetKwd, false)}
             </span>
           </div>
-          <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+          <span className="shrink-0 rounded-full border border-amber-400/35 bg-amber-100/70 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:border-amber-400/25 dark:bg-amber-500/15 dark:text-amber-200">
             {isAr ? 'تنبيه مسؤول النظام' : 'Admin Alert'}
           </span>
         </div>
       ) : null}
 
       {/* Live Ledger Reconciliation Strip: sum(branches) + unmapped === companyTotals.netSalesKwd */}
-      {totals ? (
+      {showLoadedBody && totals ? (
         <div className="grid grid-cols-1 gap-3 rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-slate-900/[0.04] sm:grid-cols-3 dark:bg-[#141F1B] dark:ring-emerald-400/[0.09]">
           <div className="space-y-0.5">
             <span className="block text-xs font-semibold text-slate-600 dark:text-[#8FA39B]">
@@ -324,14 +367,24 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
           </div>
 
           <div className="space-y-0.5">
-            <span className="block text-xs font-semibold text-amber-800 dark:text-amber-300">
+            <span
+              className={`block text-xs font-semibold ${
+                totals.unmappedTerminalsNetKwd > 0
+                  ? 'text-amber-800 dark:text-amber-300'
+                  : 'text-slate-600 dark:text-slate-300'
+              }`}
+            >
               {isAr
                 ? 'غير مصنّف — أجهزة غير مربوطة'
                 : 'Unclassified — Unmapped POS Terminals'}
             </span>
             <span
               dir="ltr"
-              className="block text-[15px] font-semibold tabular-nums text-amber-700 dark:text-amber-300"
+              className={`block text-[15px] font-semibold tabular-nums ${
+                totals.unmappedTerminalsNetKwd > 0
+                  ? 'text-amber-700 dark:text-amber-300'
+                  : 'text-slate-800 dark:text-slate-100'
+              }`}
             >
               {fmtKwd(totals.unmappedTerminalsNetKwd, resolvedLocale)} KWD ({fmtInt(totals.unmappedTerminalsOrders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
@@ -353,17 +406,8 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
         </div>
       ) : null}
 
-      {errorMsg ? (
-        <div
-          role="alert"
-          className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 dark:bg-rose-950/40 dark:text-rose-200"
-        >
-          {errorMsg}
-        </div>
-      ) : null}
-
       {/* Unmapped Terminals Table */}
-      {unmappedTerminals.length > 0 ? (
+      {showLoadedBody && unmappedTerminals.length > 0 ? (
         <div className="overflow-x-auto rounded-2xl ring-1 ring-slate-900/[0.06] dark:ring-emerald-400/[0.12]">
           <table className="w-full min-w-[640px] border-collapse text-start text-[13px]">
             <thead>
@@ -479,7 +523,9 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
             </tbody>
           </table>
         </div>
-      ) : (
+      ) : null}
+
+      {showAllMappedBanner ? (
         <div className="flex items-center justify-between gap-3 rounded-2xl bg-emerald-50/75 px-4 py-3 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:text-emerald-200 dark:ring-emerald-400/20">
           <div className="inline-flex items-center gap-2">
             <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -490,10 +536,10 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
             </span>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Admin-Assigned Overrides List (1-Click Unlink if Admin wishes to reassign) */}
-      {mappedTerminals.length > 0 ? (
+      {showLoadedBody && mappedTerminals.length > 0 ? (
         <div className="space-y-2 pt-1">
           <div className="text-xs font-semibold text-slate-600 dark:text-[#8FA39B]">
             {isAr
@@ -524,7 +570,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                   disabled={savingTerminalId === item.terminal_id}
                   onClick={() => void handleSaveTerminal(item.terminal_id, null)}
                   title={isAr ? 'إلغاء الربط' : 'Unlink terminal'}
-                  className="ds-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:text-rose-600 dark:bg-white/10 dark:text-slate-200 dark:hover:text-rose-300"
+                  className="ds-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-lg bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:text-slate-950 dark:bg-white/10 dark:text-slate-200 dark:hover:text-white"
                 >
                   <RotateCcw className="h-3 w-3" aria-hidden />
                   <span>{isAr ? 'فك' : 'Unlink'}</span>
@@ -536,7 +582,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
       ) : null}
 
       {/* Admin-Only Collapsible Reconciliation Bridge & Complete terminal_id -> branch_id Audit Table */}
-      {data?.reconciliationReport ? (
+      {showLoadedBody && data?.reconciliationReport ? (
         <div className="border-t border-slate-200/80 pt-3 dark:border-emerald-500/15">
           <button
             type="button"
@@ -614,7 +660,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
               {/* Excluded Entities Breakdown */}
               <div className="overflow-x-auto rounded-xl ring-1 ring-slate-900/[0.06] dark:ring-emerald-400/15">
                 <table className="min-w-full divide-y divide-slate-200/80 text-start text-xs dark:divide-white/10">
-                  <thead className="bg-rose-50/70 font-semibold text-rose-900 dark:bg-rose-950/30 dark:text-rose-200">
+                  <thead className="bg-slate-100/85 font-semibold text-slate-700 dark:bg-white/[0.06] dark:text-slate-200">
                     <tr>
                       <th className="px-3 py-2 text-start">
                         {isAr ? 'الكيانات المستبعدة خارج التشغيل' : 'Excluded Entities'}
@@ -642,7 +688,7 @@ export function AdminPosTerminalMappingPanel({ role }: { role?: ExecSessionRole 
                         </td>
                         <td
                           dir="ltr"
-                          className="px-3 py-2 text-end font-mono font-bold tabular-nums text-rose-700 dark:text-rose-300"
+                          className="px-3 py-2 text-end font-mono font-bold tabular-nums text-slate-700 dark:text-slate-200"
                         >
                           -{fmtKwd(ex.net_sales_kwd, resolvedLocale)} KWD
                         </td>

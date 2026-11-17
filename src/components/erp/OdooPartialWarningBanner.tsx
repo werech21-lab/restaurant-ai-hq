@@ -28,6 +28,7 @@ export function OdooPartialWarningBanner({
   return (
     <div
       role="alert"
+      dir={isAr ? 'rtl' : 'ltr'}
       data-odoo-partial-warning="true"
       className={`ae-bento-card flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-medium text-slate-700 ring-1 ring-slate-900/[0.04] dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/5 ${className}`.trim()}
     >

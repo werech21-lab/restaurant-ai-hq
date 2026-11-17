@@ -340,11 +340,15 @@ export function Sidebar({
   }, [syncDomCollapsed])
 
   useEffect(() => {
+    let saved = true
     try {
-      const saved = window.localStorage.getItem(RAIL_STORAGE_KEY) === 'true'
-      setCollapsed(saved)
-      document.documentElement.dataset.railCollapsed = saved ? 'true' : 'false'
+      const rawSaved = window.localStorage.getItem(RAIL_STORAGE_KEY)
+      saved = rawSaved === null ? true : rawSaved === 'true'
     } catch {}
+    setCollapsed(saved)
+    if (typeof document !== 'undefined') {
+      document.documentElement.dataset.railCollapsed = saved ? 'true' : 'false'
+    }
 
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
@@ -453,18 +457,22 @@ export function Sidebar({
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      className={`no-print sticky top-0 z-30 hidden h-screen shrink-0 flex-col rounded-[28px] bg-[#0D162A] transition-[width,box-shadow] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
+      className={`no-print sticky top-0 z-[41] hidden h-screen shrink-0 flex-col rounded-[28px] bg-[#0D162A] transition-[width,box-shadow] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
         collapsed ? 'w-[76px] overflow-visible' : 'w-[272px] overflow-y-auto'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
       {/* Brand Header + Tactile Collapse/Expand Trigger */}
       <div
+        data-rail-header=""
         className={`shrink-0 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
           collapsed ? 'px-2.5 pt-4 pb-2' : 'px-4 pt-5 pb-3'
         }`}
       >
-        <div className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}>
+        <div
+          data-rail-header-row=""
+          className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}
+        >
           <Link
             href={resolveRoleDefaultHome(roleProfile.role)}
             className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
@@ -476,7 +484,7 @@ export function Sidebar({
             >
               VF
             </div>
-            <div className="ae-rail-clip-label min-w-0">
+            <div data-rail-expanded-only="true" className="ae-rail-clip-label min-w-0">
               <p className="ae-side-strong truncate text-sm font-semibold leading-tight tracking-tight">
                 {isAr ? 'فنتشر فودز' : 'Venture Foods'}
               </p>
@@ -509,6 +517,7 @@ export function Sidebar({
 
         {/* Company badge card — smoothly fades in 76px icon rail mode */}
         <div
+          data-rail-expanded-only="true"
           aria-hidden={collapsed}
           className={`ae-side-card overflow-hidden rounded-[18px] bg-white/[0.055] text-center leading-relaxed ring-1 ring-slate-400/15 transition-[max-height,opacity,margin,padding] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
             collapsed
@@ -535,7 +544,7 @@ export function Sidebar({
             : 'no-scrollbar min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-1.5 pb-5'
         }`}
       >
-        <div ref={navListRef} className={`relative ${collapsed ? 'space-y-1.5' : 'space-y-3.5'}`}>
+        <div ref={navListRef} className={`relative ${collapsed ? 'space-y-1' : 'space-y-3.5'}`}>
           {indicator ? (
             <div
               aria-hidden
@@ -558,9 +567,13 @@ export function Sidebar({
             return (
               <div key={section.id} className="space-y-0.5">
                 {collapsed && sectionIndex > 0 ? (
-                  <div aria-hidden className="mx-2 my-1 h-px bg-white/[0.09]" />
+                  <div aria-hidden className="mx-2 my-0.5 h-px bg-white/[0.09]" />
                 ) : null}
-                <div className="ae-rail-section-hdr px-3 pb-1 pt-0.5" aria-hidden={collapsed}>
+                <div
+                  data-rail-expanded-only="true"
+                  className="ae-rail-section-hdr px-3 pb-1 pt-0.5"
+                  aria-hidden={collapsed}
+                >
                   <span className="ae-side-muted whitespace-nowrap text-xs font-bold uppercase tracking-wider">
                     {sectionLabel}
                   </span>
@@ -594,7 +607,12 @@ export function Sidebar({
                           size={18}
                           className="ae-side-icon shrink-0 transition-transform duration-150 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                         />
-                        <span className="ae-rail-clip-label text-[13px] leading-snug whitespace-normal">{label}</span>
+                        <span
+                          data-rail-expanded-only="true"
+                          className="ae-rail-clip-label text-[13px] leading-snug whitespace-normal"
+                        >
+                          {label}
+                        </span>
                       </Link>
 
                       {collapsed ? (
@@ -653,11 +671,11 @@ export function Sidebar({
             </form>
           </div>
         ) : (
-          <>
+          <div data-rail-expanded-only="true">
             {auditorMode ? (
               <div className="ae-side-card space-y-1 rounded-[18px] bg-white/[0.055] px-3 py-2 text-start ring-1 ring-slate-400/15">
                 <div className="inline-flex items-center gap-1.5">
-                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
+                  <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" />
                   <span className="ae-side-strong text-[13px] font-bold leading-snug">
                     {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                   </span>
@@ -712,7 +730,7 @@ export function Sidebar({
                 <span>{t('nav.logout')}</span>
               </button>
             </form>
-          </>
+          </div>
         )}
       </div>
     </aside>

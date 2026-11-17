@@ -13,6 +13,7 @@ import {
   LogOut,
   Moon,
   PanelLeft,
+  PanelRight,
   RotateCcw,
   Search,
   Share2,
@@ -245,7 +246,7 @@ function PeriodDropdownPopover({
                   className={`ms-1.5 text-xs font-medium tabular-nums ${
                     active
                       ? 'text-blue-700 dark:text-sky-200'
-                      : 'text-slate-500 dark:text-slate-400'
+                      : 'text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   ({rangeText})
@@ -512,8 +513,8 @@ function AccountWorkspaceMenuPanel({
       <div className="flex items-center justify-between gap-2 border-b border-slate-300/40 pb-2.5 dark:border-sky-300/15">
         <div className="min-w-0">
           {auditorMode ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50/90 px-2.5 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-bold text-slate-800 ring-1 ring-slate-400/30 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-400/25">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-500 dark:bg-slate-400" />
               <span>{isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}</span>
             </span>
           ) : (
@@ -538,7 +539,7 @@ function AccountWorkspaceMenuPanel({
         <span
           className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
             auditorMode
-              ? 'bg-amber-50/90 text-amber-700 ring-1 ring-amber-400/25 dark:bg-amber-950/60 dark:text-amber-300'
+              ? 'bg-slate-100/90 text-slate-700 ring-1 ring-slate-400/25 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-400/25'
               : 'bg-blue-50/90 text-blue-700 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
           }`}
         >
@@ -556,7 +557,7 @@ function AccountWorkspaceMenuPanel({
           <Bell
             className={`h-4 w-4 shrink-0 ${
               hasBreaches
-                ? 'text-rose-600 dark:text-rose-400'
+                ? 'text-rose-700 dark:text-rose-300'
                 : 'text-blue-600 dark:text-sky-400'
             }`}
           />
@@ -570,7 +571,7 @@ function AccountWorkspaceMenuPanel({
           className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums ${
             badgeCount > 0
               ? hasBreaches
-                ? 'btn-colored bg-rose-600 text-white'
+                ? 'btn-colored bg-rose-700 text-white'
                 : 'btn-colored bg-blue-600 text-white dark:bg-blue-500'
               : 'bg-blue-100/80 text-blue-800 dark:bg-sky-400/15 dark:text-sky-200'
           }`}
@@ -581,12 +582,12 @@ function AccountWorkspaceMenuPanel({
 
       {/* 2. Role / Manager PIN Control (Executive PIN unlock vs Auditor Read-Only badge) */}
       {auditorMode ? (
-        <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50/75 px-3 py-2.5 ring-1 ring-amber-500/20 dark:bg-amber-950/35 dark:ring-amber-400/20">
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
-            <Lock className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-center justify-between gap-2 rounded-2xl bg-slate-100/80 px-3 py-2.5 ring-1 ring-slate-400/20 dark:bg-slate-800/65 dark:ring-slate-400/20">
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-slate-600 dark:text-slate-300" />
             <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
           </div>
-          <span className="rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-semibold text-amber-800 dark:bg-white/10 dark:text-amber-200">
+          <span className="rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/20 dark:bg-white/10 dark:text-slate-200">
             {isAr ? 'مقفل' : 'Disabled'}
           </span>
         </div>
@@ -612,7 +613,7 @@ function AccountWorkspaceMenuPanel({
                   gov.lockSession()
                   onCloseMenu()
                 }}
-                className="v35-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white/90 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/25 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30] dark:text-rose-300 dark:focus-visible:ring-sky-400/60"
+                className="v35-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-full bg-white/90 px-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-[#0F1A30] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.08] dark:focus-visible:ring-sky-400/60"
               >
                 <Lock className="h-3 w-3" />
                 <span>{isAr ? 'قفل' : 'Lock'}</span>
@@ -643,8 +644,8 @@ function AccountWorkspaceMenuPanel({
         </div>
       ) : null}
 
-      {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) — mobile/tablet only (desktop bar has quick toggle) */}
-      <div className="flex items-center justify-between gap-2 rounded-2xl px-2.5 py-1.5 lg:hidden">
+      {/* 3. Theme Switcher (`الوضع النهاري / الليلي`) — mobile/tablet & `< 1280px` desktop menu */}
+      <div className="flex items-center justify-between gap-2 rounded-2xl px-2.5 py-1.5 xl:hidden">
         <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
           {isAr ? 'الوضع النهاري / الليلي' : 'Light / Dark Theme'}
         </span>
@@ -654,7 +655,7 @@ function AccountWorkspaceMenuPanel({
       {/* 4. Single Language Toggle (`Language: العربية | English`) */}
       <div className="flex items-center justify-between gap-2 rounded-2xl px-2.5 py-1.5">
         <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200">
-          <Globe className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+          <Globe className="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
           <span>{isAr ? 'اللغة:' : 'Language:'}</span>
         </span>
         <div
@@ -713,15 +714,15 @@ function AccountWorkspaceMenuPanel({
           </span>
         </button>
 
-      {/* 6. Quick Command Search (`البحث السريع ⌘K`) */}
+      {/* 6. Quick Command Search (`ابحث… ⌘K`) */}
         <button
           type="button"
           onClick={onOpenCommandSearch}
           className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[13px] font-medium text-slate-700 transition-colors hover:bg-blue-50/75 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:text-slate-200 dark:hover:bg-sky-400/10 dark:hover:text-white dark:focus-visible:ring-sky-400/60"
         >
           <span className="inline-flex items-center gap-2">
-            <Search className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" />
-            <span>{isAr ? 'البحث السريع' : 'Quick Search'}</span>
+            <Search className="h-4 w-4 shrink-0 text-slate-600 dark:text-slate-300" />
+            <span>{isAr ? 'ابحث…' : 'Search…'}</span>
           </span>
           <kbd
             dir="ltr"
@@ -745,7 +746,7 @@ function AccountWorkspaceMenuPanel({
           type="button"
           disabled={signingOut}
           onClick={onSignOut}
-          className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-semibold text-rose-600 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 disabled:opacity-60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+          className="v35-focus-ring flex w-full cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-start text-[12.5px] font-semibold text-rose-700 transition-colors hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 disabled:opacity-60 dark:text-rose-300 dark:hover:bg-rose-950/40"
         >
           <span className="inline-flex items-center gap-2">
             <LogOut className="h-4 w-4 shrink-0" />
@@ -980,6 +981,9 @@ export function TopFilterBar({
   const activePeriodRangeText = isAr
     ? workspace.periodCalendarWindowAr
     : workspace.periodCalendarWindowEn
+  const periodCompactLabel = isAr
+    ? `الفترة: ${activePeriodShortLabel}`
+    : `Period: ${activePeriodShortLabel}`
   const periodDropdownLabel = isAr
     ? `الفترة: ${activePeriodShortLabel} (${activePeriodRangeText})`
     : `Period: ${activePeriodShortLabel} (${activePeriodRangeText})`
@@ -1151,14 +1155,14 @@ export function TopFilterBar({
                   accountMenuOpen || (!auditorMode && gov?.session.active)
                     ? 'bg-blue-50/95 text-blue-950 ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                     : auditorMode
-                      ? 'bg-amber-50/90 text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-400/25'
+                      ? 'bg-slate-100/90 text-slate-800 ring-1 ring-slate-400/30 dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-400/25'
                       : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20'
                 }`}
               >
                 <ShieldCheck
                   className={`h-3.5 w-3.5 shrink-0 ${
                     auditorMode
-                      ? 'text-amber-600 dark:text-amber-400'
+                      ? 'text-slate-600 dark:text-slate-300'
                       : 'text-blue-600 dark:text-sky-400'
                   }`}
                 />
@@ -1169,7 +1173,7 @@ export function TopFilterBar({
                   <span
                     aria-hidden
                     className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                      hasActiveBreaches ? 'bg-rose-500' : 'bg-blue-500 dark:bg-sky-400'
+                      hasActiveBreaches ? 'bg-rose-600' : 'bg-blue-500 dark:bg-sky-400'
                     }`}
                   />
                 ) : null}
@@ -1381,10 +1385,10 @@ export function TopFilterBar({
       >
         <div
           ref={desktopBarRef}
-          className="relative flex flex-wrap items-center justify-between gap-2.5 rounded-2xl px-4 py-2.5"
+          className="relative flex items-center justify-between gap-2 xl:gap-2.5 rounded-2xl px-3.5 xl:px-4 py-2.5"
         >
           {/* Start Side: Sidebar Rail Toggle + Compact Pill Search Input (`⌘K`) + Optional Auditor Pill */}
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <div className="flex min-w-0 flex-1 items-center gap-2 xl:gap-2.5">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
@@ -1394,26 +1398,24 @@ export function TopFilterBar({
               }
               aria-label={isAr ? 'طي أو توسيع القائمة الجانبية' : 'Toggle sidebar rail'}
             >
-              <PanelLeft className="h-4 w-4 opacity-80" />
+              {isAr ? (
+                <PanelRight className="h-4 w-4 opacity-80" />
+              ) : (
+                <PanelLeft className="h-4 w-4 opacity-80" />
+              )}
             </button>
 
-            {/* Compact Pill Search Input (`Search metrics, branches, or ask Feryal...` + `⌘K`) */}
+            {/* Compact Pill Search Input (`Search…` / `ابحث…` + `⌘K`) */}
             <button
               type="button"
               onClick={openCommandPalette}
-              aria-label={
-                isAr
-                  ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال (Ctrl+K)'
-                  : 'Search metrics, branches, or ask Feryal (Ctrl+K)'
-              }
-              className="ae-capsule v35-focus-ring group inline-flex h-9 min-w-[210px] max-w-[350px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-white/70 px-3.5 text-[13px] text-slate-600 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
+              aria-label={isAr ? 'ابحث… (Ctrl+K)' : 'Search… (Ctrl+K)'}
+              className="ae-capsule v35-focus-ring group inline-flex h-9 min-w-[128px] max-w-[220px] xl:min-w-[172px] xl:max-w-[280px] flex-1 cursor-pointer items-center justify-between gap-2.5 rounded-full bg-white/70 px-3.5 text-[13px] text-slate-600 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <Search className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-150 group-hover:scale-105 dark:text-sky-400" />
                 <span className="truncate font-medium">
-                  {isAr
-                    ? 'ابحث في المؤشرات أو الفروع أو اسأل فريال...'
-                    : 'Search metrics, branches, or ask Feryal...'}
+                  {isAr ? 'ابحث…' : 'Search…'}
                 </span>
               </span>
               <kbd
@@ -1434,16 +1436,16 @@ export function TopFilterBar({
             ) : null}
 
             {auditorMode ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50/90 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
-                <Lock className="h-3 w-3 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span className="hidden xl:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-100/90 px-2.5 py-1 text-xs font-bold text-slate-800 ring-1 ring-slate-400/30 dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-400/25">
+                <Lock className="h-3 w-3 shrink-0 text-slate-600 dark:text-slate-300" />
                 <span>{isAr ? 'حساب مراجعة — قراءة فقط' : 'Read-Only Auditor'}</span>
               </span>
             ) : null}
           </div>
 
           {/* End Utility & Filter Cluster:
-              [Period • Filters] + [Bell Circle • Theme Circle] + [Executive Profile Pill -> single Language row] */}
-          <div className="relative z-[60] flex flex-wrap items-center justify-end gap-1.5 xl:gap-2 overflow-visible">
+              [Period • Filters] + [xl+: Bell Circle • Theme Circle] + [Executive Profile Pill -> houses workspace actions & single Language row] */}
+          <div className="relative z-[60] flex shrink-0 items-center justify-end gap-1.5 xl:gap-2 overflow-visible">
             {showPosFilters ? (
               <>
                 {/* Control (1): Sleek Pill Period Dropdown (`الفترة: الشهر ▾` / `Period: Month ▾`) */}
@@ -1457,14 +1459,17 @@ export function TopFilterBar({
                     }}
                     aria-haspopup="listbox"
                     aria-expanded={periodDropdownOpen}
-                    className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
+                    aria-label={periodDropdownLabel}
+                    title={periodDropdownLabel}
+                    className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 xl:px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                       periodDropdownOpen || filters.period !== 'month'
                         ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                         : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white'
                     }`}
                   >
                     <Calendar className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
-                    <span className="whitespace-nowrap">{periodDropdownLabel}</span>
+                    <span className="whitespace-nowrap xl:hidden">{periodCompactLabel}</span>
+                    <span className="hidden whitespace-nowrap xl:inline">{periodDropdownLabel}</span>
                     {filters.period === 'today' && workspace.isTodayFallback ? (
                       <span
                         title={
@@ -1472,7 +1477,7 @@ export function TopFilterBar({
                             ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
                             : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
                         }
-                        className="rounded-full bg-amber-100/80 px-2 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200"
+                        className="hidden xl:inline-flex rounded-full bg-slate-100/90 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25"
                       >
                         {isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}
                       </span>
@@ -1513,7 +1518,7 @@ export function TopFilterBar({
                   }}
                   aria-haspopup="dialog"
                   aria-expanded={filtersPopoverOpen}
-                  className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
+                  className={`v35-focus-ring inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 xl:px-3.5 text-[13px] font-semibold backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                     filtersPopoverOpen || nonDefaultSliceCount > 0
                       ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                       : 'bg-white/75 text-slate-700 ring-1 ring-slate-400/25 hover:bg-white/95 hover:text-slate-950 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white'
@@ -1539,33 +1544,44 @@ export function TopFilterBar({
               </>
             ) : null}
 
-            {/* Quick Action Circle (1): Notifications & Governance Bell */}
-            <GovernanceBellTrigger />
+            {/* Secondary Quick Action Pills (Notifications Bell & Theme Circle) — collapsed into AccountWorkspaceMenuPanel on `< 1280px` */}
+            <div className="hidden xl:flex items-center gap-1.5">
+              {/* Quick Action Circle (1): Notifications & Governance Bell */}
+              <GovernanceBellTrigger />
 
-            {/* Quick Action Circle (2): Light / Midnight-Navy V35 Theme Toggle */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              title={
-                isDarkTheme
-                  ? isAr
-                    ? 'التبديل إلى الوضع النهاري'
-                    : 'Switch to Light Mode'
-                  : isAr
-                    ? 'التبديل إلى وضع الزمرد الداكن'
-                    : 'Switch to Obsidian-Emerald Mode'
-              }
-              aria-label={isAr ? 'تبديل المظهر' : 'Toggle theme'}
-              className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/75 text-blue-700 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-blue-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-amber-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
-            >
-              {isDarkTheme ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </button>
+              {/* Quick Action Circle (2): Light / Midnight-Navy Blue Dark Mode Toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={
+                  isDarkTheme
+                    ? isAr
+                      ? 'التبديل إلى الوضع النهاري'
+                      : 'Switch to Light Mode'
+                    : isAr
+                      ? 'التبديل إلى الوضع الأزرق الداكن'
+                      : 'Switch to Blue Dark Mode'
+                }
+                aria-label={
+                  isDarkTheme
+                    ? isAr
+                      ? 'التبديل إلى الوضع النهاري'
+                      : 'Switch to Light Mode'
+                    : isAr
+                      ? 'التبديل إلى الوضع الأزرق الداكن'
+                      : 'Switch to Blue Dark Mode'
+                }
+                className="ae-capsule v35-focus-ring inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white/75 text-blue-700 backdrop-blur-md ring-1 ring-slate-400/25 transition-all duration-150 hover:bg-white/95 hover:text-blue-950 hover:ring-blue-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-amber-300 dark:ring-sky-400/20 dark:hover:bg-white/[0.11] dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
+              >
+                {isDarkTheme ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </button>
+            </div>
 
-            {/* Sleek Executive Profile Pill (`Avatar + Name + Corporate Email` -> opens Account & Menu with single Language toggle) */}
+            {/* Sleek Executive Profile Pill (`Avatar + Name + Corporate Email` -> opens Account & Menu with Notifications, Theme & single Language row) */}
             <div className="relative shrink-0">
               <button
                 type="button"
@@ -1577,11 +1593,11 @@ export function TopFilterBar({
                 aria-haspopup="menu"
                 aria-expanded={accountMenuOpen}
                 aria-label={isAr ? 'القائمة والحساب' : 'Account & Menu'}
-                className={`v35-focus-ring inline-flex h-10 cursor-pointer items-center gap-2.5 rounded-full py-1 ps-1.5 pe-3 text-start backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
+                className={`v35-focus-ring inline-flex h-10 cursor-pointer items-center gap-2 xl:gap-2.5 rounded-full py-1 ps-1.5 pe-2.5 xl:pe-3 text-start backdrop-blur-md transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
                   accountMenuOpen || (!auditorMode && gov?.session.active)
                     ? 'bg-blue-50/95 text-blue-950 shadow-[0_2px_10px_-3px_rgba(37,99,235,0.22)] ring-1 ring-blue-500/40 dark:bg-sky-400/20 dark:text-sky-100 dark:ring-sky-400/40'
                     : auditorMode
-                      ? 'bg-amber-50/85 text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-200 dark:ring-amber-400/30'
+                      ? 'bg-slate-100/90 text-slate-800 ring-1 ring-slate-400/30 dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-400/25'
                       : 'bg-white/75 text-slate-800 ring-1 ring-slate-400/25 hover:bg-white/95 hover:ring-blue-500/30 dark:bg-white/[0.06] dark:text-slate-100 dark:ring-sky-400/20 dark:hover:bg-white/[0.11]'
                 }`}
               >
@@ -1594,7 +1610,7 @@ export function TopFilterBar({
                     <span
                       aria-hidden
                       className={`absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-[#0D162A] ${
-                        hasActiveBreaches ? 'bg-rose-500' : 'bg-sky-400'
+                        hasActiveBreaches ? 'bg-rose-600' : 'bg-sky-400'
                       }`}
                     />
                   ) : null}
@@ -1607,7 +1623,7 @@ export function TopFilterBar({
                       data-role-badge={topRoleProfile.role}
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                         auditorMode
-                          ? 'bg-amber-100/90 text-amber-900 dark:bg-amber-500/20 dark:text-amber-200'
+                          ? 'bg-slate-100/90 text-slate-800 ring-1 ring-slate-400/25 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-400/25'
                           : 'bg-sky-100/90 text-blue-900 dark:bg-sky-400/20 dark:text-sky-200'
                       }`}
                     >
@@ -1682,7 +1698,7 @@ export function TopFilterBar({
                     <button
                       type="button"
                       onClick={resetFilters}
-                      className="v35-focus-ring inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-50 px-3 text-xs font-semibold text-rose-700 ring-1 ring-rose-500/20 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 dark:bg-rose-950/50 dark:text-rose-200 dark:ring-rose-400/25"
+                      className="v35-focus-ring inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-slate-100/85 px-3 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 transition-colors hover:bg-slate-200/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/15 dark:hover:bg-white/[0.14] dark:focus-visible:ring-sky-400/60"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       <span>{isAr ? 'إعادة ضبط الفلاتر' : 'Reset All Filters'}</span>

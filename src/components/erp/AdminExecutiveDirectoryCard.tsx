@@ -48,9 +48,9 @@ function resolveTierPillStyle(tier: DirectoryRoleRow['accessTier']): string {
     case 'scoped_marketing':
       return 'bg-sky-50 text-sky-900 ring-sky-500/25 dark:bg-sky-950/55 dark:text-sky-200'
     case 'scoped_supply':
-      return 'bg-purple-50 text-purple-900 ring-purple-500/25 dark:bg-purple-950/55 dark:text-purple-200'
+      return 'bg-indigo-50 text-indigo-800 ring-indigo-500/20 dark:bg-indigo-950/55 dark:text-indigo-200'
     case 'readonly_audit':
-      return 'bg-amber-50 text-amber-900 ring-amber-500/25 dark:bg-amber-950/55 dark:text-amber-200'
+      return 'bg-slate-100 text-slate-700 ring-slate-300/80 dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-600/60'
   }
 }
 
@@ -338,7 +338,7 @@ export function AdminExecutiveDirectoryCard({
 
                   <td className="px-3.5 py-3 align-top">
                     {row.readOnly ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-300/80 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15">
                         <Lock className="h-3 w-3 shrink-0" aria-hidden />
                         <span>{isAr ? 'قراءة فقط (403)' : 'Read-Only (403)'}</span>
                       </span>

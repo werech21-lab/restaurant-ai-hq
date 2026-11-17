@@ -161,7 +161,7 @@ export function StateBlock({
         data-odoo-partial-warning="true"
         dir={dir}
         className={cx(
-          'flex flex-col justify-center gap-2 rounded-2xl border px-4 py-3.5 text-[13px]',
+          'flex flex-col justify-center gap-2 rounded-2xl border border-slate-300/70 bg-white/80 px-4 py-3 text-[13px] text-slate-700 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] backdrop-blur-md ring-1 ring-slate-900/[0.04] dark:border-slate-500/25 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-200 dark:ring-white/5',
           className,
         )}
         style={{
@@ -177,8 +177,7 @@ export function StateBlock({
             {unavailableSections && unavailableSections.length > 0 ? (
               <span
                 dir="ltr"
-                className="ds-num rounded-md px-1.5 py-0.5 text-xs font-bold"
-                style={{ backgroundColor: 'var(--ds-bg-surface)' }}
+                className="ds-num rounded-md bg-slate-100/90 px-1.5 py-0.5 text-xs font-bold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200"
               >
                 {unavailableSections.length}
               </span>
@@ -187,56 +186,50 @@ export function StateBlock({
           {action ? <div className="flex items-center gap-2">{action}</div> : null}
         </div>
         {resolvedDescription ? (
-          <p className="text-xs leading-relaxed opacity-90">{resolvedDescription}</p>
+          <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+            {resolvedDescription}
+          </p>
         ) : null}
       </div>
     )
   }
 
-  const toneStyle: React.CSSProperties =
-    state === 'error'
-      ? {
-          backgroundColor: 'var(--ds-negative-bg)',
-          borderColor: 'var(--ds-negative-border)',
-        }
-      : {
-          backgroundColor: 'var(--ds-bg-subtle)',
-          borderColor: 'var(--ds-border-hairline)',
-        }
-
-  const icon =
-    state === 'error' ? (
-      <AlertCircle className="h-5 w-5" style={{ color: 'var(--ds-negative)' }} aria-hidden />
-    ) : state === 'unavailable' ? (
-      <Slash className="h-5 w-5" style={{ color: 'var(--ds-unavailable)' }} aria-hidden />
-    ) : state === 'unlinked' ? (
-      <Link2Off className="h-5 w-5" style={{ color: 'var(--ds-text-muted)' }} aria-hidden />
-    ) : state === 'forbidden' ? (
-      <Lock className="h-5 w-5" style={{ color: 'var(--ds-warning)' }} aria-hidden />
-    ) : (
-      <Inbox className="h-5 w-5" style={{ color: 'var(--ds-text-muted)' }} aria-hidden />
-    )
+  const isError = state === 'error'
+  const icon = isError ? (
+    <AlertCircle className="h-5 w-5 text-rose-600 dark:text-rose-400" aria-hidden />
+  ) : state === 'unavailable' ? (
+    <Slash className="h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden />
+  ) : state === 'unlinked' ? (
+    <Link2Off className="h-5 w-5 text-blue-600/80 dark:text-sky-400/80" aria-hidden />
+  ) : state === 'forbidden' ? (
+    <Lock className="h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden />
+  ) : (
+    <Inbox className="h-5 w-5 text-slate-500 dark:text-slate-400" aria-hidden />
+  )
 
   return (
     <div
-      role={state === 'error' ? 'alert' : 'status'}
+      role={isError ? 'alert' : 'status'}
       data-state-block={state}
       data-unavailable={state === 'unavailable' ? 'true' : undefined}
       dir={dir}
-      style={toneStyle}
       className={cx(
-        'flex flex-col items-center justify-center rounded-2xl border text-center',
+        'flex flex-col items-center justify-center rounded-2xl border text-center backdrop-blur-md',
+        isError
+          ? 'border-rose-300/55 bg-white/85 dark:border-rose-400/25 dark:bg-[rgba(15,26,48,0.82)]'
+          : 'border-slate-300/65 bg-slate-50/80 dark:border-slate-500/25 dark:bg-[rgba(12,21,40,0.72)]',
         padClass,
         minHeightClass,
         className,
       )}
     >
       <div
-        className="mb-2.5 inline-flex h-10 w-10 items-center justify-center rounded-xl border"
-        style={{
-          backgroundColor: 'var(--ds-bg-surface)',
-          borderColor: 'var(--ds-border-hairline)',
-        }}
+        className={cx(
+          'mb-2.5 inline-flex h-10 w-10 items-center justify-center rounded-xl border',
+          isError
+            ? 'border-rose-200/80 bg-rose-50/85 dark:border-rose-400/25 dark:bg-rose-500/15'
+            : 'border-slate-200/85 bg-white/90 dark:border-white/10 dark:bg-white/[0.06]',
+        )}
       >
         {icon}
       </div>
@@ -247,27 +240,23 @@ export function StateBlock({
           title={unavailableTooltip}
           aria-label={unavailableTooltip}
           data-unavailable="true"
-          className="ds-kpi-value ds-num mb-1 tabular-nums"
-          style={{ color: 'var(--ds-unavailable)' }}
+          className="ds-kpi-value ds-num mb-1 tabular-nums text-slate-500 dark:text-slate-400"
         >
           {UNAVAILABLE_DASH}
         </span>
       ) : null}
 
       <p
-        className="text-sm font-semibold"
-        style={{
-          color: state === 'error' ? 'var(--ds-negative)' : 'var(--ds-text-primary)',
-        }}
+        className={cx(
+          'text-sm font-semibold',
+          isError ? 'text-rose-700 dark:text-rose-300' : 'text-slate-900 dark:text-slate-100',
+        )}
       >
         {resolvedTitle}
       </p>
 
       {resolvedDescription ? (
-        <p
-          className="mt-1 max-w-md text-xs leading-relaxed"
-          style={{ color: 'var(--ds-text-muted)' }}
-        >
+        <p className="mt-1 max-w-md text-xs leading-relaxed text-slate-600 dark:text-slate-300">
           {resolvedDescription}
         </p>
       ) : null}
@@ -278,12 +267,7 @@ export function StateBlock({
             <button
               type="button"
               onClick={onRetry}
-              className="ds-motion ds-focus-ring cursor-pointer rounded-xl border px-3.5 py-1.5 text-xs font-semibold"
-              style={{
-                backgroundColor: 'var(--ds-bg-surface)',
-                borderColor: 'var(--ds-border-strong)',
-                color: 'var(--ds-text-primary)',
-              }}
+              className="ds-motion ds-focus-ring cursor-pointer rounded-xl border border-slate-300/80 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-50 dark:border-white/15 dark:bg-white/[0.06] dark:text-slate-100 dark:hover:bg-white/[0.12]"
             >
               {retryLabel ?? (isAr ? 'إعادة المحاولة' : 'Retry')}
             </button>

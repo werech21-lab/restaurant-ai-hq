@@ -39,7 +39,17 @@ export {
   PartialWarningBanner,
   type PartialWarningBannerProps,
 } from './partial-warning-banner'
-export { StatCard } from './stat-card'
+export { StatCard, type StatCardProps } from './stat-card'
+export {
+  DEFAULT_UNAVAILABLE_REASON_AR,
+  DEFAULT_UNAVAILABLE_REASON_EN,
+  UnavailableState,
+  type UnavailableStateProps,
+} from './unavailable-state'
+export {
+  DetailsPopover,
+  type DetailsPopoverProps,
+} from './details-popover'
 export {
   SlidingPillTabs,
   type SlidingPillOption,

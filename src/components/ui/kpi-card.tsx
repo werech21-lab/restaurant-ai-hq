@@ -13,6 +13,7 @@ import {
   type FormatLocale,
 } from '@/lib/format'
 import { cx } from './cx'
+import { UnavailableState } from './unavailable-state'
 
 export type KpiValueFormat = 'kwd' | 'int' | 'pct' | 'raw'
 export type KpiDeltaTone = 'positive' | 'negative' | 'neutral' | 'warning'
@@ -39,6 +40,8 @@ export interface KpiCardProps {
   /** Accepts either structured `KpiProvenanceBadge` props or a custom badge node. */
   provenance?: KpiProvenanceConfig | ReactNode
   subtitle?: ReactNode
+  /** Optional calm reason line displayed via `UnavailableState` when the metric is unavailable. */
+  unavailableReason?: string
   icon?: ReactNode
   loading?: boolean
   locale?: FormatLocale
@@ -129,9 +132,9 @@ const DELTA_TONE_STYLE: Record<KpiDeltaTone, React.CSSProperties> = {
     borderColor: 'var(--ds-negative-border)',
   },
   warning: {
-    color: 'var(--ds-warning)',
-    backgroundColor: 'var(--ds-warning-bg)',
-    borderColor: 'var(--ds-warning-border)',
+    color: 'var(--ds-text-secondary)',
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderColor: 'rgba(217, 119, 6, 0.22)',
   },
   neutral: {
     color: 'var(--ds-text-muted)',
@@ -159,6 +162,7 @@ export function KpiCard({
   higherIsBetter = true,
   provenance,
   subtitle,
+  unavailableReason,
   icon,
   loading = false,
   locale = 'ar',
@@ -284,6 +288,12 @@ export function KpiCard({
         ) : null}
       </div>
 
+      {unavailable && unavailableReason ? (
+        <div className="mt-2">
+          <UnavailableState compact isAr={isAr} reason={unavailableReason} />
+        </div>
+      ) : null}
+
       {subtitle || deltaLabel ? (
         <div className="ds-caption mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
           {subtitle ? <span>{subtitle}</span> : null}
@@ -298,6 +308,7 @@ export function KpiCard({
               compact
               isAr={provenance.isAr ?? isAr}
               {...provenance}
+              className={cx('!mt-0', provenance.className)}
             />
           ) : (
             provenance
