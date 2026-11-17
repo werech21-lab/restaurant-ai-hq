@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react'
 import { VentureFoodsEmblem } from '@/app/login/login-hero'
+import { resolveLoginErrorMessage } from '@/app/login/login-error-message'
 import { useI18n } from '@/lib/i18n'
 
 type LoginFormProps = {
@@ -14,6 +15,8 @@ type LoginApiResponse = {
   redirectTo?: string
   errorAr?: string
   errorEn?: string
+  error?: string
+  retryAfterSeconds?: number
 }
 
 export function LoginForm({ nextPath = '' }: LoginFormProps) {
@@ -54,14 +57,7 @@ export function LoginForm({ nextPath = '' }: LoginFormProps) {
       const data = (await res.json().catch(() => ({}))) as LoginApiResponse
 
       if (!res.ok || !data.ok) {
-        setErrorMsg({
-          ar:
-            data.errorAr ||
-            'بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة المرور.',
-          en:
-            data.errorEn ||
-            'Invalid credentials. Please check your email and password.',
-        })
+        setErrorMsg(resolveLoginErrorMessage(res.status, data))
         setSubmitting(false)
         return
       }

@@ -7,7 +7,7 @@ import {
   ENTERPRISE_API_SECURITY_HEADERS,
   extractClientIp,
   loginAccountFailureLimiter,
-  loginIpAttemptLimiter,
+  loginIpFailureLimiter,
 } from '@/lib/auth/api-guard'
 import {
   authenticateExecutiveCredentials,
@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
   }
 
   const clientIp = extractClientIp(request)
-  const ipDecision = loginIpAttemptLimiter.check(`ip:${clientIp}`)
-  if (!ipDecision.allowed) {
-    return buildRateLimitedJsonResponse(ipDecision.retryAfterSeconds)
+  const ipKey = `ip:${clientIp}`
+  const ipBlocked = loginIpFailureLimiter.peekBlocked(ipKey)
+  if (ipBlocked.blocked) {
+    return buildRateLimitedJsonResponse(ipBlocked.retryAfterSeconds)
   }
 
   const { email, password, next } = await parseLoginCredentials(request)
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!authenticatedEmail) {
+    loginIpFailureLimiter.check(ipKey)
     const failDecision = loginAccountFailureLimiter.check(accountKey)
     if (!failDecision.allowed) {
       return buildRateLimitedJsonResponse(failDecision.retryAfterSeconds)

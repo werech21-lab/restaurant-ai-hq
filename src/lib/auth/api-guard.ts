@@ -117,6 +117,11 @@ const ONE_MINUTE_MS = 60 * 1000
 /** Max 8 failed login attempts per (IP + email) within 15 minutes, and 20 total attempts per IP within 15 minutes. */
 export const loginAccountFailureLimiter = new SlidingWindowLimiter(8, FIFTEEN_MINUTES_MS)
 export const loginIpAttemptLimiter = new SlidingWindowLimiter(20, FIFTEEN_MINUTES_MS)
+/**
+ * Max 60 FAILED login attempts per IP within 15 minutes. Successful logins never consume this budget:
+ * a whole office shares one public IP (NAT), so counting successes locked every account out after 20 logins.
+ */
+export const loginIpFailureLimiter = new SlidingWindowLimiter(60, FIFTEEN_MINUTES_MS)
 
 /** Max 5 failed Manager PIN attempts per (IP + session sub) within 15 minutes. */
 export const managerPinFailureLimiter = new SlidingWindowLimiter(5, FIFTEEN_MINUTES_MS)

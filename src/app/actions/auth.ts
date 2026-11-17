@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { loginAccountFailureLimiter, loginIpAttemptLimiter } from "@/lib/auth/api-guard";
+import { loginAccountFailureLimiter, loginIpFailureLimiter } from "@/lib/auth/api-guard";
 import {
   authenticateExecutiveCredentials,
   createExecSessionToken,
@@ -32,8 +32,8 @@ export async function login(
     (hdrs.get("x-forwarded-proto") || "").includes("https") ||
     process.env.NODE_ENV === "production";
 
-  const ipDecision = loginIpAttemptLimiter.check(`ip:${clientIp}`);
-  if (!ipDecision.allowed) {
+  const ipKey = `ip:${clientIp}`;
+  if (loginIpFailureLimiter.peekBlocked(ipKey).blocked) {
     return { error: "تم تجاوز الحد المسموح للمحاولات — يرجى الانتظار قليلاً ثم المحاولة مجدداً." };
   }
 
@@ -66,6 +66,7 @@ export async function login(
   }
 
   if (password.length < 8 || email === "admin@aetherbi.com") {
+    loginIpFailureLimiter.check(ipKey);
     loginAccountFailureLimiter.check(accountKey);
     return invalid;
   }
@@ -77,11 +78,13 @@ export async function login(
       include: { role: { include: { permissions: true } } },
     });
     if (!user || !user.isActive) {
+      loginIpFailureLimiter.check(ipKey);
       loginAccountFailureLimiter.check(accountKey);
       return invalid;
     }
     const matches = await bcrypt.compare(password, user.passwordHash);
     if (!matches) {
+      loginIpFailureLimiter.check(ipKey);
       loginAccountFailureLimiter.check(accountKey);
       return invalid;
     }
@@ -117,6 +120,7 @@ export async function login(
     };
     destination = firstAllowedHref(access) || "/erp";
   } catch {
+    loginIpFailureLimiter.check(ipKey);
     loginAccountFailureLimiter.check(accountKey);
     return invalid;
   }
