@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { BRAND_SHARE_BASIS, sumShares } from '@/lib/aether/share-normalization'
 import {
   Edit3,
   Megaphone,
@@ -941,6 +942,15 @@ export function CoresHubStudio({
                       </span>
                     </div>
                   ))}
+                  {snapshot.sales.brandShare.length > 1 ? (
+                    <p data-brand-share-basis="true" className="pt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      <span dir="ltr" className="font-semibold tabular-nums">
+                        Σ {f1Pct(sumShares(snapshot.sales.brandShare.map((b) => b.sharePct)), resolvedLocale)}
+                      </span>
+                      {' · '}
+                      {isAr ? BRAND_SHARE_BASIS.ar : BRAND_SHARE_BASIS.en}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               <KpiProvenanceBadge

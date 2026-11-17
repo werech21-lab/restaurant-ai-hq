@@ -73,6 +73,11 @@ const LanguageProviderComponent = LanguageProvider as React.ComponentType<{
 
 const CoresHubStudioComponent = CoresHubStudio as React.ComponentType<{
   initialTab?: 'marketing' | 'sales' | 'menu'
+  initialLiveCube?: Parameters<typeof CoresHubStudio>[0] extends infer P
+    ? P extends { initialLiveCube?: infer C }
+      ? C
+      : never
+    : never
 }>
 
 const TEST_PERIOD = { from: '2026-11-01', to: '2026-11-15' }

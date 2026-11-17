@@ -51,6 +51,7 @@ import {
 import { ScopeBadge } from '@/components/aether/ScopeBadge'
 import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
+import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
 import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
@@ -374,6 +375,11 @@ export function FullJourney360() {
           : null,
     })
 
+    // Phase 5 · Item 4: one-decimal shares that total exactly 100.0% (largest remainder).
+    if (denom !== null && denom > 0 && withShares.every((r) => r.salesKwd !== null)) {
+      const normalized = normalizeSharesTo100(withShares.map((r) => r.salesKwd as number))
+      return withShares.map((r, i) => ({ ...r, sharePct: normalized[i] }))
+    }
     return withShares
   }, [
     activeBucket,

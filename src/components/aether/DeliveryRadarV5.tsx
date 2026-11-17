@@ -518,8 +518,8 @@ export function DeliveryRadarV5({
         id: p.key,
         label: isAr ? p.labelAr : p.labelEn,
         subLabel: isAr
-          ? `${f0(p.orders, resolvedLocale)} طلب`
-          : `${f0(p.orders, resolvedLocale)} orders`,
+          ? `${f0(p.orders, resolvedLocale)} دفعة`
+          : `${f0(p.orders, resolvedLocale)} payouts / batches`,
         value: p.salesKwd,
         valueFormatted: fmtKwd(p.salesKwd, isAr),
         pctFormatted: f1Pct(p.sharePct, resolvedLocale),
@@ -547,8 +547,8 @@ export function DeliveryRadarV5({
           </div>
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
-              ? `مبيعات وطلبات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
-              : `Actual aggregator sales & orders from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
+              ? `مبيعات ودفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
+              : `Actual aggregator sales & payouts / batches from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
           </p>
         </div>
 
@@ -632,7 +632,7 @@ export function DeliveryRadarV5({
                   </span>
                 ) : isAr ? (
                   <>
-                    {f0(totalAggregatorOrders, 'ar')} طلب • متوسط{' '}
+                    {f0(totalAggregatorOrders, 'ar')} دفعة • متوسط الدفعة{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -644,7 +644,7 @@ export function DeliveryRadarV5({
                   </>
                 ) : (
                   <>
-                    {f0(totalAggregatorOrders, 'en')} orders • AOV{' '}
+                    {f0(totalAggregatorOrders, 'en')} payouts / batches • Avg per payout{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -940,9 +940,9 @@ export function DeliveryRadarV5({
                             {isAr ? 'غير متاح' : '—'}
                           </span>
                         ) : isAr ? (
-                          `${f0(p.orders, 'ar')} طلب`
+                          `${f0(p.orders, 'ar')} دفعة`
                         ) : (
-                          `${f0(p.orders, 'en')} orders`
+                          `${f0(p.orders, 'en')} payouts / batches`
                         )}
                       </span>
                       <span dir="ltr" className="tabular-nums">
@@ -988,8 +988,8 @@ export function DeliveryRadarV5({
                     totalAggregatorOrders === null
                       ? undefined
                       : isAr
-                        ? `${f0(totalAggregatorOrders, 'ar')} طلب`
-                        : `${f0(totalAggregatorOrders, 'en')} orders`
+                        ? `${f0(totalAggregatorOrders, 'ar')} دفعة`
+                        : `${f0(totalAggregatorOrders, 'en')} payouts / batches`
                   }
                   centerLabel={T('Aggregators', 'منصات التوصيل')}
                   isAr={isAr}
@@ -1077,8 +1077,8 @@ export function DeliveryRadarV5({
                       <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
                       <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                      <th className="py-2.5 text-end">{T('Payments', 'عدد الدفعات')}</th>
-                      <th className="py-2.5 text-end">{T('Avg Basket', 'متوسط الطلب')}</th>
+                      <th className="py-2.5 text-end">{T('Payouts / Batches', 'دفعات')}</th>
+                      <th className="py-2.5 text-end">{T('Avg per Payout', 'متوسط الدفعة')}</th>
                       <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>
                     </tr>

@@ -92,3 +92,29 @@ describe('Phase 5 · Item 2 — receivables executive status', () => {
     expect(RECEIVABLES_PENDING_STATUS.ar).toBe('قيد المطابقة مع المحاسبة')
   })
 })
+
+describe('Phase 5 · Item 4 — shares always total 100.0%', () => {
+  it('fixes the classic 33.3 + 33.3 + 33.3 = 99.9 case', async () => {
+    const { normalizeSharesTo100, sumShares } = await import('@/lib/aether/share-normalization')
+    const s = normalizeSharesTo100([1, 1, 1])
+    expect(sumShares(s)).toBe(100)
+    expect(s.filter((x) => x === 33.4)).toHaveLength(1)
+  })
+
+  it('sums to exactly 100.0 for realistic six-brand splits and keeps zero brands at 0', async () => {
+    const { normalizeSharesTo100, sumShares } = await import('@/lib/aether/share-normalization')
+    const samples = [
+      [4820.125, 3311.5, 2210.875, 1990.004, 845.333, 0],
+      [0.001, 0.001, 99999.998, 12.5, 7.25, 3.125],
+      [1234.567, 2345.678, 3456.789, 4567.891, 5678.912, 6789.123],
+    ]
+    for (const v of samples) {
+      const s = normalizeSharesTo100(v)
+      expect(sumShares(s)).toBe(100)
+      v.forEach((x, i) => {
+        if (x === 0) expect(s[i]).toBe(0)
+      })
+    }
+    expect(normalizeSharesTo100([0, 0])).toEqual([0, 0])
+  })
+})

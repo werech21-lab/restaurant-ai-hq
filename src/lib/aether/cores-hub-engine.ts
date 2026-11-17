@@ -38,6 +38,7 @@ import {
   selectDisplayHours,
   type HourlyReconciliation,
 } from '@/lib/aether/hourly-integrity'
+import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
 
 export type DishSimpleTag = 'golden' | 'reprice' | 'box-gem' | 'slow'
 
@@ -769,9 +770,11 @@ export function computeCoresHubSnapshot(
         return { bid, salesKwd: safeNum(wsOpt?.salesKwd), orders: null }
       })
   const brandTotalKwd = brandRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
+  // Phase 5 · Item 4: one-decimal shares normalised (largest remainder) so they total 100.0%.
+  const normalizedBrandShares = normalizeSharesTo100(brandRowsRaw.map((r) => r.salesKwd))
   const brandShare: SalesPoint[] = brandRowsRaw
-    .map((r) =>
-      toSalesPoint({
+    .map((r, idx) => ({
+      ...toSalesPoint({
         id: r.bid,
         labelAr: getBrandLabel(r.bid, true),
         labelEn: getBrandLabel(r.bid, false),
@@ -780,7 +783,8 @@ export function computeCoresHubSnapshot(
         denominatorKwd: brandTotalKwd,
         color: BRAND_COLORS[r.bid],
       }),
-    )
+      sharePct: normalizedBrandShares[idx],
+    }))
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
   // 4. Branch Ranking (7 branches + explicit 8th row `غير منسوب لفرع`)
