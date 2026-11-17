@@ -206,6 +206,7 @@ const BRANCH_SCHEDULES: Readonly<Record<Exclude<GlobalBranch, 'all'>, BranchSche
     registers: [
       { configId: 41, sessionId: 841, name: 'NPIS Hawally School Canteen', day1Net: 92.125, day1Ord: 21, day2Net: 92.25, day2Ord: 21, kwHour: 11 },
       { configId: 42, sessionId: 842, name: 'FAIPS Ahmadi', day1Net: 68.125, day1Ord: 16, day2Net: 68.125, day2Ord: 17, kwHour: 10 },
+      { configId: 43, sessionId: 843, name: 'FAS Fahaheel', day1Net: 30.125, day1Ord: 8, day2Net: 28.375, day2Ord: 7, kwHour: 9 },
     ],
   },
 }
@@ -301,14 +302,13 @@ function installMatrixOdooRpcMock(options?: {
     { id: 16, name: 'E-Mall (Promenade)', active: false, sessionId: 916, poisonNet: 880.0, poisonOrd: 70 },
     { id: 35, name: 'Delivery (Ardiya Temp)', active: false, sessionId: 935, poisonNet: 640.0, poisonOrd: 55 },
     { id: 26, name: 'Exhibition Booth 1', active: true, sessionId: 926, poisonNet: 1500.0, poisonOrd: 120 },
-    { id: 43, name: 'FAS Fahaheel', active: true, sessionId: 943, poisonNet: 520.0, poisonOrd: 45 },
   ]
 
   const allOperatingRegs = DYNAMIC_OPERATING_BRANCH_IDS.flatMap((b) =>
     BRANCH_SCHEDULES[b].registers.map((r) => ({
       ...r,
       name: r.configId === 41 && options?.vetoCanteen41Label ? options.vetoCanteen41Label : r.name,
-      active: r.configId === 41 || r.configId === 42 ? canteenActive : true,
+      active: b === SCHOOL_CANTEEN_BRANCH_ID ? canteenActive : true,
     })),
   )
 
@@ -628,15 +628,15 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
   })
 
   describe('0. Dynamic POS Registry Topology Integrity (src/lib/odoo/pos-registry.json)', () => {
-    it('derives the exact 7 active restaurant branches + school-canteens (41 & 42) dynamically from pos-registry.json', () => {
+    it('derives the exact 7 active restaurant branches + school-canteens (41, 42 & 43) dynamically from pos-registry.json', () => {
       expect([...DYNAMIC_RESTAURANT_BRANCH_IDS].sort()).toEqual(
         ['promenade', '360-mall', 'ardiya', 'assima', 'salmiya', 'al-kout', 'avenues'].sort(),
       )
       expect(DYNAMIC_CANTEEN_BRANCH_IDS).toEqual(['school-canteens'])
       expect(SCHOOL_CANTEEN_BRANCH_ID).toBe('school-canteens')
-      expect(posRegistry.schoolCanteenPosConfigIds).toEqual([41, 42])
-      expect(schoolCanteenRegisterIds()).toEqual([41, 42])
-      expect(activeRegistersForLocation('school-canteens')).toEqual([41, 42])
+      expect(posRegistry.schoolCanteenPosConfigIds).toEqual([41, 42, 43])
+      expect(schoolCanteenRegisterIds()).toEqual([41, 42, 43])
+      expect(activeRegistersForLocation('school-canteens')).toEqual([41, 42, 43])
 
       // Exhibitions are strictly excluded from both restaurantRegisterIds and schoolCanteenRegisterIds
       const exhibitionIds = activeRegistersForLocation('exhibitions')
@@ -714,8 +714,8 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       },
     )
 
-    it('includes 41 & 42 in live company totals when active, drops them to 0 when inactive, and drops #41 when veto-mislabelled', async () => {
-      // 1) Active 41 (184.375 KWD, 42 ord) + Active 42 (136.250 KWD, 33 ord) = 320.625 KWD, 75 orders
+    it('includes 41, 42 & 43 in live company totals when active, drops them to 0 when inactive, and drops #41 when veto-mislabelled', async () => {
+      // 1) Active 41 (184.375 KWD, 42 ord) + 42 (136.250 KWD, 33 ord) + 43 (58.500 KWD, 15 ord) = 379.125 KWD, 90 orders
       installMatrixOdooRpcMock({ canteenActive: true })
       const activeEnv = await fetchLiveOdooSnapshot({
         period: 'month',
@@ -723,8 +723,8 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         referenceNowMs: TEST_REF_NOW_MS,
       })
       const activeCanteenBranch = activeEnv.branches?.find((b) => b.id === 'school-canteens')
-      expect(activeCanteenBranch?.netSalesKwd).toBe(320.625)
-      expect(activeCanteenBranch?.orders).toBe(75)
+      expect(activeCanteenBranch?.netSalesKwd).toBe(379.125)
+      expect(activeCanteenBranch?.orders).toBe(90)
 
       const restaurantOnlySum = r3(
         DYNAMIC_RESTAURANT_BRANCH_IDS.reduce(
@@ -732,9 +732,9 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
           0,
         ),
       )
-      expect(activeEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 320.625))
+      expect(activeEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 379.125))
 
-      // 2) Inactive 41 & 42 -> 0.000 KWD in school-canteens and company totals equal restaurantOnlySum
+      // 2) Inactive 41, 42 & 43 -> 0.000 KWD in school-canteens and company totals equal restaurantOnlySum
       vi.restoreAllMocks()
       bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
       installMatrixOdooRpcMock({ canteenActive: false })
@@ -748,7 +748,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       expect(inactiveCanteenBranch?.orders).toBe(0)
       expect(inactiveEnv.totals.netSalesKwd).toBe(restaurantOnlySum)
 
-      // 3) Mislabelled #41 ("Heisenberg School Canteen") -> #41 vetoed, only #42 (136.250 KWD, 33 ord) counted!
+      // 3) Mislabelled #41 ("Heisenberg School Canteen") -> #41 vetoed, only #42 + #43 (194.750 KWD, 48 ord) counted!
       vi.restoreAllMocks()
       bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
       installMatrixOdooRpcMock({ canteenActive: true, vetoCanteen41Label: 'Heisenberg School Canteen' })
@@ -758,9 +758,9 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         referenceNowMs: TEST_REF_NOW_MS,
       })
       const vetoCanteenBranch = vetoEnv.branches?.find((b) => b.id === 'school-canteens')
-      expect(vetoCanteenBranch?.netSalesKwd).toBe(136.25)
-      expect(vetoCanteenBranch?.orders).toBe(33)
-      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 136.25))
+      expect(vetoCanteenBranch?.netSalesKwd).toBe(194.75)
+      expect(vetoCanteenBranch?.orders).toBe(48)
+      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 194.75))
     })
   })
 

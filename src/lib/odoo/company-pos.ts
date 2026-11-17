@@ -18,7 +18,7 @@ const registers = registry.registers as Record<string, { location?: string }>
 const locations = registry.locations as Record<string, Place>
 
 // TODO(Abdullah): supply the verified real Odoo pos.config IDs for the NPIS and FAIPS school canteens.
-// TODO(Abdullah): confirm whether pos.config 43 FAS Fahaheel is a school canteen.
+// pos.config 43 FAS Fahaheel: school canteen, confirmed by the owner on 2026-11-17.
 const PINNED_SCHOOL_CANTEEN_CONFIG_IDS: readonly number[] = Array.isArray(
   (registry as { schoolCanteenPosConfigIds?: unknown }).schoolCanteenPosConfigIds,
 )

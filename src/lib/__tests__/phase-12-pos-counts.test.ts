@@ -643,19 +643,37 @@ describe('phase 12 should-fix 3 (option b): archived pinned register #16 policy 
   })
 })
 
-describe('phase 12 should-fix 6: pos.config 43 FAS Fahaheel stays unpinned with TODO(Abdullah)', () => {
-  it('keeps config 43 unpinned and records TODO(Abdullah) in both pos-registry.json and company-pos.ts', () => {
-    expect(companyPos.isPinnedSchoolCanteenConfigId(43)).toBe(false)
-    expect(companyPos.companyPosConfigAllowed(43, 'FAS Fahaheel')).toBe(false)
+describe('pos.config 43 FAS Fahaheel is a pinned school canteen (owner decision 2026-11-17)', () => {
+  it('pins config 43 as a school canteen in pos-registry.json and allows it', () => {
+    expect(posRegistry.schoolCanteenPosConfigIds).toContain(43)
+    expect(posRegistry.allowedPosConfigIds).toContain(43)
+    expect(posRegistry.registers['43' as keyof typeof posRegistry.registers]).toEqual({
+      location: 'school-canteens',
+    })
+    expect(companyPos.isPinnedSchoolCanteenConfigId(43)).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(43, 'FAS Fahaheel')).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(43, 'FAS Fahaheel', false)).toBe(false)
+    expect(companyPos.schoolCanteenRegisterIds()).toContain(43)
+    expect(companyPos.restaurantRegisterIds()).not.toContain(43)
+  })
 
-    const expectedTodo =
-      'TODO(Abdullah): confirm whether pos.config 43 FAS Fahaheel is a school canteen'
-    expect((posRegistry as { _canteenTodo?: string })._canteenTodo).toContain(expectedTodo)
+  it('maps config 43 to school-canteens and never to al-kout', () => {
+    for (const ignoreAdminOverride of [true, false]) {
+      expect(
+        resolveRestaurantBranchForConfig(43, 'FAS Fahaheel', '', { ignoreAdminOverride }),
+      ).toBe('school-canteens')
+    }
+    expect(resolveRestaurantBranchForConfig(43, 'FAS Fahaheel', 'Venture Foods')).not.toBe('al-kout')
+  })
 
-    const companyPosSrc = readFileSync(
-      path.join(process.cwd(), 'src', 'lib', 'odoo', 'company-pos.ts'),
-      'utf8',
+  it('does not map an unknown Fahaheel-named register to al-kout', () => {
+    for (const name of ['Fahaheel Kiosk', 'FAS Fahaheel', 'مقصف الفحيحيل', 'Delivery (Fahaheel)']) {
+      expect(resolveRestaurantBranchForConfig(9043, name, '', { ignoreAdminOverride: true })).not.toBe(
+        'al-kout',
+      )
+    }
+    expect(resolveRestaurantBranchForConfig(9043, 'China Garden (KOUT)', '', { ignoreAdminOverride: true })).toBe(
+      'al-kout',
     )
-    expect(companyPosSrc).toContain(expectedTodo)
   })
 })
