@@ -1471,3 +1471,9 @@ html:not(.dark) .ae-pill-hatch {
     opacity: 0.8;
   }
 }
+
+/* Phase 5 · Item 8 — every "Unavailable / غير متاح" value renders in calm neutral gray,
+   overriding any local amber / red / emerald text utility on the same element. */
+[data-unavailable='true'] {
+  color: var(--ds-unavailable) !important;
+}

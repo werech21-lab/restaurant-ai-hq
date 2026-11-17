@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react'
-import { AlertCircle, AlertTriangle, Inbox, Link2Off, Lock, Slash } from 'lucide-react'
+import { AlertCircle, Inbox, Info, Link2Off, Lock, Slash } from 'lucide-react'
 import { UNAVAILABLE_DASH, getUnavailableTooltip, type FormatLocale } from '@/lib/format'
 import { cx } from './cx'
 
@@ -165,14 +165,14 @@ export function StateBlock({
           className,
         )}
         style={{
-          backgroundColor: 'var(--ds-warning-bg)',
-          borderColor: 'var(--ds-warning-border)',
-          color: 'var(--ds-warning)',
+          backgroundColor: 'var(--ds-unavailable-bg)',
+          borderColor: 'var(--ds-unavailable-border)',
+          color: 'var(--ds-unavailable)',
         }}
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-semibold">
-            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+            <Info className="h-4 w-4 shrink-0" aria-hidden />
             <span>{resolvedTitle}</span>
             {unavailableSections && unavailableSections.length > 0 ? (
               <span

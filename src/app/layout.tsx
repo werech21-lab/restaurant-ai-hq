@@ -71,7 +71,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let locale: Locale = 'ar'
-  let theme: Theme = 'dark'
+  // Phase 5 · Item 8: Light is the default; a saved user choice (cookie/localStorage) still wins.
+  let theme: Theme = 'light'
   let nonce: string | undefined
   try {
     const headerStore = await headers()
@@ -89,7 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const themeCookie =
       cookieStore.get('aetherbi_theme_mode')?.value ||
       cookieStore.get('ai-hq-theme')?.value
-    theme = themeCookie === 'light' ? 'light' : 'dark'
+    theme = themeCookie === 'dark' ? 'dark' : 'light'
   } catch {
     // Keep safe defaults when cookie/header store is unavailable during cold start.
   }
@@ -106,7 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{localStorage.removeItem('aetherbi_scope_brand');localStorage.removeItem('aetherbi_scope_branch');localStorage.removeItem('aetherbi_scope_brand_id');localStorage.removeItem('aetherbi_scope_branch_id');localStorage.removeItem('vf_brand_id');localStorage.removeItem('vf_branch_id');if(document.cookie.indexOf('vf_brand_id')!==-1){document.cookie='vf_brand_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';document.cookie='vf_branch_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';}var qp='';try{qp=(new URLSearchParams(window.location.search).get('lang')||'').toLowerCase();}catch(_){}var ck=(document.cookie.match(/(?:^|;\\s*)(?:NEXT_LOCALE|ai-hq-locale|vf_lang)=(ar|en)(?:;|$)/)||[])[1]||'';var sl=localStorage.getItem('ai-hq-locale')||localStorage.getItem('NEXT_LOCALE')||localStorage.getItem('aetherbi_locale')||ck||'';var ssrLang=document.documentElement.lang==='en'?'en':'ar';var l=(qp==='ar'||qp==='en')?qp:(sl==='en'?'en':(sl==='ar'?'ar':ssrLang));document.documentElement.lang=l;document.documentElement.dir=l==='ar'?'rtl':'ltr';var t=localStorage.getItem('aetherbi_theme_mode')||localStorage.getItem('ai-hq-theme')||(document.cookie.match(/(?:^|;\\s*)(?:aetherbi_theme_mode|ai-hq-theme)=([^;]+)/)||[])[1]||'dark';document.documentElement.dataset.theme=t;if(t==='light'){document.documentElement.classList.add('light','light-mode');document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light','light-mode');}if(localStorage.getItem('aetherbi_rail_collapsed_v1')==='true'){document.documentElement.dataset.railCollapsed='true';}}catch(e){}})();`,
+            __html: `(function(){try{localStorage.removeItem('aetherbi_scope_brand');localStorage.removeItem('aetherbi_scope_branch');localStorage.removeItem('aetherbi_scope_brand_id');localStorage.removeItem('aetherbi_scope_branch_id');localStorage.removeItem('vf_brand_id');localStorage.removeItem('vf_branch_id');if(document.cookie.indexOf('vf_brand_id')!==-1){document.cookie='vf_brand_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';document.cookie='vf_branch_id=;path=/;max-age=0;expires=Thu, 01 Jan 1970 00:00:00 GMT';}var qp='';try{qp=(new URLSearchParams(window.location.search).get('lang')||'').toLowerCase();}catch(_){}var ck=(document.cookie.match(/(?:^|;\\s*)(?:NEXT_LOCALE|ai-hq-locale|vf_lang)=(ar|en)(?:;|$)/)||[])[1]||'';var sl=localStorage.getItem('ai-hq-locale')||localStorage.getItem('NEXT_LOCALE')||localStorage.getItem('aetherbi_locale')||ck||'';var ssrLang=document.documentElement.lang==='en'?'en':'ar';var l=(qp==='ar'||qp==='en')?qp:(sl==='en'?'en':(sl==='ar'?'ar':ssrLang));document.documentElement.lang=l;document.documentElement.dir=l==='ar'?'rtl':'ltr';var t=localStorage.getItem('aetherbi_theme_mode')||localStorage.getItem('ai-hq-theme')||(document.cookie.match(/(?:^|;\\s*)(?:aetherbi_theme_mode|ai-hq-theme)=([^;]+)/)||[])[1]||'light';if(t!=='dark'){t='light';}document.documentElement.dataset.theme=t;if(t==='light'){document.documentElement.classList.add('light','light-mode');document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');document.documentElement.classList.remove('light','light-mode');}if(localStorage.getItem('aetherbi_rail_collapsed_v1')==='true'){document.documentElement.dataset.railCollapsed='true';}}catch(e){}})();`,
           }}
         />
       </head>
