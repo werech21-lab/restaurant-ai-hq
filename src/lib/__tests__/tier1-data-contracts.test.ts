@@ -489,7 +489,7 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
       expect(sqlClause).toContain('i.sku <> all($2::text[])')
       expect(sqlClause).toContain('i.name not ilike $3')
       expect(sqlClause).toContain('i.name not ilike $4')
-      expect(sqlParams).toHaveLength(4)
+      expect(sqlParams).toHaveLength(9)
 
       // Production hides local seed catalog codes (EL-1001..PT-4003)
       expect(DEMO_PRODUCT_CODES.length).toBeGreaterThan(0)

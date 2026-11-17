@@ -60,7 +60,13 @@ export const POST = protectedRoute(permissions.govAggregatorManage, async ({ req
       },
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save SMTP credentials'
-    return NextResponse.json({ error: { code: 'smtp_save_failed', message } }, { status: 400 })
+    logger.error('aggregator_radar_smtp_save_failed', {
+      userId: auth.userId,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    })
+    return NextResponse.json(
+      { error: { code: 'smtp_save_failed', message: 'Failed to save SMTP credentials' } },
+      { status: 400 },
+    )
   }
 })

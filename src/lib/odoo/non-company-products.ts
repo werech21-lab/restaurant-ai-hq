@@ -19,28 +19,36 @@ const LATIN_PRODUCE = ['avo', 'cado'].join('')
 const ARABIC_PRODUCE = ['أفو', 'كادو'].join('')
 const ARABIC_PRODUCE_ALT = ['افو', 'كادو'].join('')
 
+export const NON_COMPANY_NAME_TERMS = [
+  LATIN_BAKERY,
+  ARABIC_BAKERY,
+  ARABIC_BAKERY_ALT,
+  LATIN_PRODUCE,
+  ARABIC_PRODUCE,
+  ARABIC_PRODUCE_ALT,
+] as const
+
 export function isNonCompanyCatalogItem(sku: string | null | undefined, name: string | null | undefined): boolean {
   const cleanSku = (sku ?? '').trim()
   if (cleanSku && (NON_COMPANY_ITEM_SKUS as readonly string[]).includes(cleanSku)) return true
   const bracketed = /^\s*\[([^\]]+)\]/.exec(name ?? '')?.[1]?.trim()
   if (bracketed && (NON_COMPANY_ITEM_SKUS as readonly string[]).includes(bracketed)) return true
   const folded = (name ?? '').toLowerCase()
-  return (
-    folded.includes(LATIN_BAKERY) ||
-    folded.includes(ARABIC_BAKERY) ||
-    folded.includes(ARABIC_BAKERY_ALT) ||
-    folded.includes(LATIN_PRODUCE) ||
-    folded.includes(ARABIC_PRODUCE) ||
-    folded.includes(ARABIC_PRODUCE_ALT)
-  )
+  return NON_COMPANY_NAME_TERMS.some((term) => folded.includes(term))
 }
 
 export function nonCompanyItemSql(skuColumn: string, nameColumn: string, params: unknown[]): string {
   params.push([...NON_COMPANY_ITEM_SKUS])
   const skuIndex = params.length
-  params.push(`%${LATIN_BAKERY}%`)
-  const latinIndex = params.length
-  params.push(`%${ARABIC_BAKERY}%`)
-  const arabicIndex = params.length
-  return ` and ${skuColumn} <> all($${skuIndex}::text[]) and ${nameColumn} not ilike $${latinIndex} and ${nameColumn} not ilike $${arabicIndex}`
+
+  const termClauses: string[] = []
+  for (const term of NON_COMPANY_NAME_TERMS) {
+    params.push(`%${term}%`)
+    termClauses.push(`and ${nameColumn} not ilike $${params.length}`)
+  }
+
+  params.push(NON_COMPANY_ITEM_SKUS.map((sku) => `%[${sku}]%`))
+  const bracketIndex = params.length
+
+  return ` and ${skuColumn} <> all($${skuIndex}::text[]) ${termClauses.join(' ')} and ${nameColumn} not ilike all($${bracketIndex}::text[])`
 }

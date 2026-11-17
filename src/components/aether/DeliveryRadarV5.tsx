@@ -72,6 +72,21 @@ const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 const safeNum = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : 0
 
+function readChannelCell(
+  cell: { netKwd?: number | null; orders?: number | null } | null | undefined,
+): { salesKwd: number | null; orders: number | null } {
+  if (cell === null) {
+    return { salesKwd: null, orders: null }
+  }
+  if (cell === undefined) {
+    return { salesKwd: 0, orders: 0 }
+  }
+  return {
+    salesKwd: cell.netKwd === null ? null : safeNum(cell.netKwd),
+    orders: cell.orders === null ? null : Math.round(safeNum(cell.orders)),
+  }
+}
+
 const f0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
 const f1Pct = (n: number, locale: FormatLocale = 'en') =>
   formatPct(n, { locale, decimals: 1 })
@@ -245,29 +260,25 @@ export function DeliveryRadarV5() {
         }
       }
 
-      let salesKwd = 0
-      let orders = 0
+      let salesKwd: number | null = 0
+      let orders: number | null = 0
 
       if (liveCube) {
-        if (filters.branch !== 'all') {
-          const cell = liveCube.byBranch?.[filters.branch]?.channels?.[key]
-          salesKwd = safeNum(cell?.netKwd)
-          orders = Math.round(safeNum(cell?.orders))
-        } else {
-          const ch = liveCube.byChannel?.[key]
-          salesKwd = safeNum(ch?.netKwd)
-          orders = Math.round(safeNum(ch?.orders))
-        }
+        const cell =
+          filters.branch !== 'all'
+            ? liveCube.byBranch?.[filters.branch]?.channels?.[key]
+            : liveCube.byChannel?.[key]
+        const parsed = readChannelCell(cell)
+        salesKwd = parsed.salesKwd
+        orders = parsed.orders
       } else if (activeBucket) {
-        if (filters.branch !== 'all') {
-          const cell = activeBucket.byLocation?.[filters.branch]?.uiChannels?.[key]
-          salesKwd = safeNum(cell?.netKwd)
-          orders = Math.round(safeNum(cell?.orders))
-        } else {
-          const ch = activeBucket.uiChannels?.[key]
-          salesKwd = safeNum(ch?.netKwd)
-          orders = Math.round(safeNum(ch?.orders))
-        }
+        const cell =
+          filters.branch !== 'all'
+            ? activeBucket.byLocation?.[filters.branch]?.uiChannels?.[key]
+            : activeBucket.uiChannels?.[key]
+        const parsed = readChannelCell(cell)
+        salesKwd = parsed.salesKwd
+        orders = parsed.orders
       }
 
       return {
@@ -275,61 +286,76 @@ export function DeliveryRadarV5() {
         color,
         labelAr: getChannelLabel(key, true),
         labelEn: getChannelLabel(key, false),
-        salesKwd: salesKwd as number | null,
-        orders: orders as number | null,
-        aovKwd: (orders > 0 ? salesKwd / orders : 0) as number | null,
+        salesKwd,
+        orders,
+        aovKwd:
+          salesKwd === null || orders === null
+            ? null
+            : orders > 0
+              ? salesKwd / orders
+              : 0,
         sharePct: 0 as number | null,
       }
     })
 
     if (channelsUnavailable) return rows
 
-    const totalAgg = rows.reduce((s, r) => s + (r.salesKwd ?? 0), 0)
+    const hasNullSales = rows.some((r) => r.salesKwd === null)
+    const totalAgg = hasNullSales
+      ? null
+      : rows.reduce((s, r) => s + (r.salesKwd as number), 0)
     return rows
       .map((r) => ({
         ...r,
-        sharePct: totalAgg > 0 && r.salesKwd !== null ? (r.salesKwd / totalAgg) * 100 : 0,
+        sharePct:
+          totalAgg === null || r.salesKwd === null
+            ? null
+            : totalAgg > 0
+              ? (r.salesKwd / totalAgg) * 100
+              : 0,
       }))
-      .sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
+      .sort((a, b) => (b.salesKwd ?? Number.NEGATIVE_INFINITY) - (a.salesKwd ?? Number.NEGATIVE_INFINITY))
   }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
 
   const directSalesSummary = useMemo((): { salesKwd: number | null; orders: number | null } => {
-    if (!workspace.odooConnected || workspace.noData) {
-      return { salesKwd: 0, orders: 0 }
-    }
-    if (channelsUnavailable) {
+    if (!workspace.odooConnected || workspace.noData || channelsUnavailable) {
       return { salesKwd: null, orders: null }
     }
     let salesKwd = 0
     let orders = 0
     for (const dKey of DIRECT_CHANNELS) {
-      if (liveCube) {
-        const cell =
-          filters.branch !== 'all'
-            ? liveCube.byBranch?.[filters.branch]?.channels?.[dKey]
-            : liveCube.byChannel?.[dKey]
-        salesKwd += safeNum(cell?.netKwd)
-        orders += Math.round(safeNum(cell?.orders))
-      } else if (activeBucket) {
-        const cell =
-          filters.branch !== 'all'
+      const cell = liveCube
+        ? filters.branch !== 'all'
+          ? liveCube.byBranch?.[filters.branch]?.channels?.[dKey]
+          : liveCube.byChannel?.[dKey]
+        : activeBucket
+          ? filters.branch !== 'all'
             ? activeBucket.byLocation?.[filters.branch]?.uiChannels?.[dKey]
             : activeBucket.uiChannels?.[dKey]
-        salesKwd += safeNum(cell?.netKwd)
-        orders += Math.round(safeNum(cell?.orders))
+          : undefined
+      const parsed = readChannelCell(cell)
+      if (parsed.salesKwd === null || parsed.orders === null) {
+        return {
+          salesKwd: parsed.salesKwd === null ? null : salesKwd,
+          orders: parsed.orders === null ? null : orders,
+        }
       }
+      salesKwd += parsed.salesKwd
+      orders += parsed.orders
     }
     return { salesKwd, orders }
   }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
 
   const totalAggregatorSalesKwd = useMemo<number | null>(() => {
-    if (channelsUnavailable) return null
-    return platformSummaries.reduce((s, r) => s + (r.salesKwd ?? 0), 0)
+    if (channelsUnavailable || platformSummaries.length === 0) return null
+    if (platformSummaries.some((r) => r.salesKwd === null)) return null
+    return platformSummaries.reduce((s, r) => s + (r.salesKwd as number), 0)
   }, [channelsUnavailable, platformSummaries])
 
   const totalAggregatorOrders = useMemo<number | null>(() => {
-    if (channelsUnavailable) return null
-    return platformSummaries.reduce((s, r) => s + (r.orders ?? 0), 0)
+    if (channelsUnavailable || platformSummaries.length === 0) return null
+    if (platformSummaries.some((r) => r.orders === null)) return null
+    return platformSummaries.reduce((s, r) => s + (r.orders as number), 0)
   }, [channelsUnavailable, platformSummaries])
 
   // Branch × Channel Matrix (7 Mapped Branches + Explicit 8th «غير منسوب لفرع»)
@@ -389,14 +415,16 @@ export function DeliveryRadarV5() {
             salesKwd = null
             orders = null
           } else {
-            const uCell = liveCube.unattributed?.channels?.[ch.key]
-            salesKwd = safeNum(uCell?.netKwd)
-            orders = Math.round(safeNum(uCell?.orders))
+            const parsed = readChannelCell(liveCube.unattributed?.channels?.[ch.key])
+            salesKwd = parsed.salesKwd
+            orders = parsed.orders
           }
         } else if (liveCube) {
-          const bCell = liveCube.byBranch?.[br.id as Exclude<GlobalBranch, 'all'>]?.channels?.[ch.key]
-          salesKwd = safeNum(bCell?.netKwd)
-          orders = Math.round(safeNum(bCell?.orders))
+          const parsed = readChannelCell(
+            liveCube.byBranch?.[br.id as Exclude<GlobalBranch, 'all'>]?.channels?.[ch.key],
+          )
+          salesKwd = parsed.salesKwd
+          orders = parsed.orders
         } else if (activeBucket) {
           const locUiChannels =
             activeBucket.byLocation?.[br.id as Exclude<GlobalBranch, 'all'>]?.uiChannels
@@ -404,9 +432,9 @@ export function DeliveryRadarV5() {
             salesKwd = null
             orders = null
           } else {
-            const bCell = locUiChannels?.[ch.key]
-            salesKwd = safeNum(bCell?.netKwd)
-            orders = Math.round(safeNum(bCell?.orders))
+            const parsed = readChannelCell(locUiChannels?.[ch.key])
+            salesKwd = parsed.salesKwd
+            orders = parsed.orders
           }
         }
 

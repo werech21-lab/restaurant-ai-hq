@@ -278,7 +278,7 @@ export function FullJourney360() {
       const bktLoc =
         activeBucket?.mappedByLocation?.[branchId] ?? activeBucket?.byLocation?.[branchId]
       const corePt = coresSnap.sales.branchRanking.find((x) => x.id === branchId)
-      const useBucket = filters.brand === 'all' && filters.channel === 'all' && Boolean(bktLoc)
+      const useBucket = filters.brand === 'all' && filters.channel === 'all' && bktLoc !== undefined
       const rawSales = useBucket ? bktLoc?.netKwd : corePt?.salesKwd
       const rawOrders = useBucket ? bktLoc?.orders : corePt?.orders
       const salesKwd = typeof rawSales === 'number' && Number.isFinite(rawSales) ? rawSales : null
@@ -298,16 +298,33 @@ export function FullJourney360() {
       }
     }).sort((a, b) => (b.salesKwd ?? Number.NEGATIVE_INFINITY) - (a.salesKwd ?? Number.NEGATIVE_INFINITY))
 
-    const unattribSales = Math.max(0, Number(workspace.unattributedSalesKwd ?? 0))
-    const unattribOrders = Math.max(0, Math.round(Number(workspace.unattributedOrders ?? 0)))
+    const unattribSales =
+      workspace.unattributedSalesKwd === null
+        ? null
+        : typeof workspace.unattributedSalesKwd === 'number' &&
+            Number.isFinite(workspace.unattributedSalesKwd)
+          ? Math.max(0, workspace.unattributedSalesKwd)
+          : 0
+    const unattribOrders =
+      workspace.unattributedOrders === null
+        ? null
+        : typeof workspace.unattributedOrders === 'number' &&
+            Number.isFinite(workspace.unattributedOrders)
+          ? Math.max(0, Math.round(workspace.unattributedOrders))
+          : 0
 
-    const denom =
-      mappedRows.reduce((s, r) => s + (r.salesKwd ?? 0), 0) + unattribSales
+    const hasNullBranchSales =
+      mappedRows.some((r) => r.salesKwd === null) || unattribSales === null
+    const denom = hasNullBranchSales
+      ? null
+      : mappedRows.reduce((s, r) => s + (r.salesKwd as number), 0) + (unattribSales as number)
 
     const withShares = mappedRows.map((row) => ({
       ...row,
       sharePct:
-        row.salesKwd !== null && denom > 0 ? (row.salesKwd / denom) * 100 : null,
+        row.salesKwd !== null && denom !== null && denom > 0
+          ? (row.salesKwd / denom) * 100
+          : null,
     }))
 
     withShares.push({
@@ -317,8 +334,14 @@ export function FullJourney360() {
       isUnattributed: true,
       salesKwd: unattribSales,
       orders: unattribOrders,
-      aovKwd: unattribOrders > 0 ? unattribSales / unattribOrders : null,
-      sharePct: denom > 0 ? (unattribSales / denom) * 100 : null,
+      aovKwd:
+        unattribSales !== null && unattribOrders !== null && unattribOrders > 0
+          ? unattribSales / unattribOrders
+          : null,
+      sharePct:
+        unattribSales !== null && denom !== null && denom > 0
+          ? (unattribSales / denom) * 100
+          : null,
     })
 
     return withShares

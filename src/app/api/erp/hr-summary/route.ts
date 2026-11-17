@@ -41,6 +41,17 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  if (caller.isAuditor || caller.role === 'auditor') {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Read-only auditor session',
+        errorAr: 'حساب مراجعة للقراءة فقط — هذا المسار محظور على المراجع.',
+      },
+      { status: 403, headers: odooSyncResponseHeaders },
+    )
+  }
+
   try {
     const summary = await fetchLiveOdooHrSummary()
     return NextResponse.json(

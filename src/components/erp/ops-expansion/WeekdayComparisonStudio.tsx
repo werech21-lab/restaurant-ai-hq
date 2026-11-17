@@ -83,9 +83,10 @@ const fmtSignedKwd = (n: number, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3, signed: true })
 const fmtSignedPct = (n: number, locale: FormatLocale = 'en') =>
   formatPct(n, { locale, signed: true })
-const fmtSignedPp = (n: number) => {
-  const v = Number.isFinite(n) ? n : 0
-  return `${v > 0 ? '+' : ''}${v.toFixed(1)} pp`
+export function fmtSignedPp(n: number | null | undefined): string {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return UNAVAILABLE_DASH
+  const normalized = Object.is(n, -0) ? 0 : n
+  return `${normalized > 0 ? '+' : ''}${normalized.toFixed(1)} pp`
 }
 
 function tierBadgeCls(tier: 'green' | 'yellow' | 'red'): string {
@@ -119,7 +120,9 @@ function formatKpiSecondaryValue(kpi: ExecutiveKpiDelta, locale: FormatLocale): 
 function formatKpiDeltaBadge(kpi: ExecutiveKpiDelta): string {
   const signed = formatSignedDelta(kpi.deltaPct)
   if (kpi.unit === 'pct') {
-    return `${signed.arrow} ${fmtSignedPp(signed.pct)}`
+    return Number.isFinite(kpi.deltaPct)
+      ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
+      : UNAVAILABLE_DASH
   }
   return signed.text
 }

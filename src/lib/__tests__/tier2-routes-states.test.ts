@@ -505,11 +505,11 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         expect(isHiddenPanelProduct(sku, name)).toBe(false)
       }
 
-      // SQL helper preserves exact parameter shape
+      // SQL helper preserves exact parameter shape (1 tenant + 1 SKU array + 6 name terms + 1 bracketed SKU array)
       const params: unknown[] = ['tenant-001']
       const clause = nonCompanyItemSql('i.sku', 'i.name', params)
       expect(clause).toContain('i.sku <> all($2::text[])')
-      expect(params).toHaveLength(4)
+      expect(params).toHaveLength(9)
 
       // Demo catalog hidden in production
       expect(DEMO_PRODUCT_CODES.length).toBeGreaterThanOrEqual(15)

@@ -133,36 +133,92 @@ export function BrandSalesAnalyticsDashboard({ locale: explicitLocale }: Props =
     [filters, liveSummary, liveCube],
   )
 
+  const activeBucket = useMemo(() => {
+    if (!liveSummary || liveSummary.connected !== true) return null
+    if (filters.period === 'custom') return liveSummary.customBucket ?? null
+    return liveSummary.buckets?.[filters.period ?? 'month'] ?? null
+  }, [filters.period, liveSummary])
+
   const isInitialLoading = liveSummary === null
   const noOdooData =
     liveSummary !== null && (!workspace.odooConnected || workspace.noData || snapshot.noData)
   const brandsUnavailable = snapshot.sales.brandsUnavailable
 
-  const brandRows: BrandAnalyticsRow[] = useMemo(() => {
+  const rawBrandRows = useMemo(() => {
     if (brandsUnavailable || noOdooData) return []
-    return snapshot.sales.brandShare.map((b) => ({
-      id: b.id,
-      nameAr: b.labelAr,
-      nameEn: b.labelEn,
-      color: b.color ?? '#10B981',
-      salesKwd: Number.isFinite(b.salesKwd) ? b.salesKwd : null,
-      orders: Number.isFinite(b.orders) ? b.orders : null,
-      aovKwd:
-        Number.isFinite(b.salesKwd) && Number.isFinite(b.orders) && b.orders > 0
-          ? b.salesKwd / b.orders
-          : null,
-      sharePct: Number.isFinite(b.sharePct) ? b.sharePct : null,
-    }))
-  }, [brandsUnavailable, noOdooData, snapshot.sales.brandShare])
+    return snapshot.sales.brandShare.map((b) => {
+      let salesExplicitNull = false
+      let ordersExplicitNull = false
+
+      if (liveCube) {
+        if (filters.branch !== 'all') {
+          const cell = (
+            liveCube.brandByBranch?.[filters.branch] as
+              | Record<string, { netKwd?: number | null; linesCount?: number | null } | null>
+              | undefined
+          )?.[b.id]
+          salesExplicitNull = cell === null || (cell !== undefined && cell.netKwd === null)
+          ordersExplicitNull = cell === null || (cell !== undefined && cell.linesCount === null)
+        } else {
+          const cell = (
+            liveCube.byBrand as
+              | Record<string, { netKwd?: number | null; orders?: number | null } | null>
+              | undefined
+          )?.[b.id]
+          salesExplicitNull = cell === null || (cell !== undefined && cell.netKwd === null)
+          ordersExplicitNull = cell === null || (cell !== undefined && cell.orders === null)
+        }
+      } else if (activeBucket?.byBrand) {
+        const cell = (
+          activeBucket.byBrand as Record<
+            string,
+            { netKwd?: number | null; orders?: number | null } | null | undefined
+          >
+        )[b.id]
+        salesExplicitNull = cell === null || (cell !== undefined && cell.netKwd === null)
+        ordersExplicitNull = cell === null || (cell !== undefined && cell.orders === null)
+      }
+
+      const salesKwd = !salesExplicitNull && Number.isFinite(b.salesKwd) ? b.salesKwd : null
+      const orders = !ordersExplicitNull && Number.isFinite(b.orders) ? b.orders : null
+
+      return {
+        id: b.id,
+        nameAr: b.labelAr,
+        nameEn: b.labelEn,
+        color: b.color ?? '#10B981',
+        salesKwd,
+        orders,
+        aovKwd:
+          salesKwd !== null && orders !== null && orders > 0 ? salesKwd / orders : null,
+      }
+    })
+  }, [activeBucket, brandsUnavailable, filters.branch, liveCube, noOdooData, snapshot.sales.brandShare])
 
   const totalBrandSalesKwd = useMemo<number | null>(() => {
-    if (brandsUnavailable || noOdooData || brandRows.length === 0) return null
-    return brandRows.reduce((acc, r) => acc + (r.salesKwd ?? 0), 0)
-  }, [brandRows, brandsUnavailable, noOdooData])
+    if (brandsUnavailable || noOdooData || rawBrandRows.length === 0) return null
+    if (rawBrandRows.some((r) => r.salesKwd === null)) return null
+    return rawBrandRows.reduce((acc, r) => acc + (r.salesKwd as number), 0)
+  }, [brandsUnavailable, noOdooData, rawBrandRows])
+
+  const brandRows: BrandAnalyticsRow[] = useMemo(
+    () =>
+      rawBrandRows.map((r) => ({
+        ...r,
+        sharePct:
+          totalBrandSalesKwd === null || r.salesKwd === null
+            ? null
+            : totalBrandSalesKwd > 0
+              ? (r.salesKwd / totalBrandSalesKwd) * 100
+              : 0,
+      })),
+    [rawBrandRows, totalBrandSalesKwd],
+  )
 
   const topBrand = useMemo(() => {
     if (brandsUnavailable || noOdooData || brandRows.length === 0) return null
-    return [...brandRows].sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))[0] ?? null
+    if (brandRows.some((r) => r.salesKwd === null)) return null
+    return [...brandRows].sort((a, b) => (b.salesKwd as number) - (a.salesKwd as number))[0] ?? null
   }, [brandRows, brandsUnavailable, noOdooData])
 
   const donutSlices: DonutSliceDatum[] = useMemo(() => {

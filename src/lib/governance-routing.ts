@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { parseBody } from '@/lib/api/parse'
 import type { RouteArgs } from '@/lib/api/route'
 import { DomainError } from '@/lib/domain-error'
+import { formatKuwaitDate } from '@/lib/format'
 import { requireIdempotencyKey } from '@/lib/idempotency'
 import { createOrder, listPartners } from '@/modules/delivery'
 import { archiveSchema, markArchive, stageArchive } from '@/modules/governance'
@@ -16,8 +17,12 @@ function plusDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+export function kuwaitTodayIso(now: Date = new Date()): string {
+  return formatKuwaitDate(now)
+}
+
 async function dispatch(auth: RouteArgs['auth'], key: string, document: ArchiveDocument): Promise<{ status: ArchiveDocument['status']; recordId: string | null }> {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = kuwaitTodayIso()
   if (document.routedToModule === '/erp/hr') {
     if (document.amountMinor < 1) return { status: 'held', recordId: null }
     const employees = await listEmployees(auth)

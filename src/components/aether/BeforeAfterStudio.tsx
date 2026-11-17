@@ -121,7 +121,11 @@ const fmtSignedKwd = (n: number, isAr: boolean) =>
   formatKwd(n, { locale: isAr ? 'ar' : 'en', showUnit: true, decimals: 3, signed: true })
 const fmtSignedPct = (pct: number, locale: FormatLocale = 'en') =>
   formatPct(pct, { locale, signed: true })
-const fmtSignedPp = (pp: number) => `${pp > 0 ? '+' : ''}${(Number.isFinite(pp) ? pp : 0).toFixed(1)} pp`
+export function fmtSignedPp(pp: number | null | undefined): string {
+  if (typeof pp !== 'number' || !Number.isFinite(pp)) return UNAVAILABLE_DASH
+  const normalized = Object.is(pp, -0) ? 0 : pp
+  return `${normalized > 0 ? '+' : ''}${normalized.toFixed(1)} pp`
+}
 
 type TableScopeTab = 'all' | 'brands' | 'branches' | 'channels'
 type ChartMetricKey = 'sales' | 'orders' | 'cumulative'
@@ -697,7 +701,9 @@ export function BeforeAfterStudio() {
                           className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
                         >
                           {kpi.unit === 'pct'
-                            ? `${signed.arrow} ${fmtSignedPp(signed.pct)}`
+                            ? Number.isFinite(kpi.deltaPct)
+                              ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
+                              : UNAVAILABLE_DASH
                             : signed.text}
                         </span>
                       </div>
