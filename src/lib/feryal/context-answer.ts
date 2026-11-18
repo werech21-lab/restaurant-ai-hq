@@ -3,6 +3,7 @@
  * Every number in the reply is copied from the cube. Advisor text is context, not a number source.
  */
 
+import { calendarDaysInIsoMonth } from '@/lib/aether/global-filter-engine'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 
 export interface FeryalAdvisorSnippet {
@@ -11,14 +12,27 @@ export interface FeryalAdvisorSnippet {
 
 const SMALL_TALK =
   /^(?:مرحباً?|هلا|شلونك|السلام(?: عليكم)?|فهمتي(?: شو)?|محادثات قديمة)$/i
-const PREP = /تحضير|prep|زمن التجهيز|كيتشن/i
+const PREP = /تحضير|prep|زمن التجهيز|كيتشن|kds/i
 const FORECAST = /توقع|forecast|الشهر الجاي|الشهر القادم|المستهدف/i
 const TALABAT = /طلبات|talabat/i
 const BOOTH = /بوث|معارض/i
 const DRIVERS = /سائق|drivers/i
+const REVIEWS = /تقييم|مراجعات|سوشيال|ratings|reviews/i
+const BUDGET = /موازنة|ميزانية|budget|crossovered/i
+const FLEET = /أسطول|اسطول|fleet/i
+
+const MISSING_PREP = 'زمن التحضير غير متاح في Odoo'
+const MISSING_DRIVERS = 'بيانات السائقين غير متاحة في Odoo'
+const MISSING_REVIEWS = 'تقييمات السوشيال غير متاحة في Odoo'
+const MISSING_BUDGET = 'الموازنة غير متاحة في Odoo (crossovered.budget)'
+const MISSING_FLEET = 'أسطول التوصيل غير متاح في Odoo'
 
 function fmt(n: number): string {
   return n.toFixed(3)
+}
+
+export function isFeryalForecastQuestion(question: string): boolean {
+  return FORECAST.test(question)
 }
 
 export function isFeryalSmallTalk(question: string): boolean {
@@ -53,8 +67,11 @@ export function answerFromFeryalContext(
 
   const cited: number[] = []
   const missing: string[] = []
-  if (PREP.test(question)) missing.push('زمن التحضير غير متاح في Odoo')
-  if (DRIVERS.test(question)) missing.push('بيانات السائقين غير متاحة في Odoo')
+  if (PREP.test(question)) missing.push(MISSING_PREP)
+  if (DRIVERS.test(question)) missing.push(MISSING_DRIVERS)
+  if (REVIEWS.test(question)) missing.push(MISSING_REVIEWS)
+  if (BUDGET.test(question)) missing.push(MISSING_BUDGET)
+  if (FLEET.test(question)) missing.push(MISSING_FLEET)
 
   const hourly = cube.hourlySeries ?? []
   const peak = hourly.reduce<{ hour: number; netKwd: number } | null>((best, row) => {
@@ -75,9 +92,14 @@ export function answerFromFeryalContext(
   }
 
   if (FORECAST.test(question) && cube.days > 0 && typeof cube.totals?.netSalesKwd === 'number') {
-    const runRate = (cube.totals.netSalesKwd / cube.days) * cube.days
-    cited.push(runRate, cube.totals.netSalesKwd, cube.days)
-    lines.push(`تقدير — ليس رقماً من Odoo: وتيرة الفترة ${fmt(runRate)} د.ك (صافي الفترة ${fmt(cube.totals.netSalesKwd)} على ${cube.days} يوم).`)
+    const net = cube.totals.netSalesKwd
+    const elapsed = cube.days
+    const monthLength = calendarDaysInIsoMonth(cube.dateRange?.to) ?? elapsed
+    const projection = Math.round((net / elapsed) * monthLength * 1000) / 1000
+    cited.push(net, elapsed, monthLength, projection)
+    lines.push(
+      `تقدير — ليس رقماً من Odoo: ${fmt(net)} ÷ ${elapsed} × ${monthLength} = ${fmt(projection)} د.ك.`,
+    )
   }
 
   if (peak && (PREP.test(question) || /ساعة|hour/i.test(question) || lines.length === 0)) {
@@ -100,13 +122,17 @@ export function answerFromFeryalContext(
     }
   }
 
-  if (lines.length === 0 && typeof cube.totals?.netSalesKwd === 'number') {
+  if (
+    typeof cube.totals?.netSalesKwd === 'number' &&
+    (lines.length === 0 || (missing.length > 0 && !cited.includes(cube.totals.netSalesKwd)))
+  ) {
     cited.push(cube.totals.netSalesKwd)
     lines.push(`صافي مبيعات الفترة ${fmt(cube.totals.netSalesKwd)} د.ك.`)
   }
 
-  if (advisors[0]?.domainAr) {
-    lines.push(`تقرير المستشار: ${advisors[0].domainAr}`)
+  const advisor = advisors.find((row) => row.domainAr.trim().length > 0 && !/\d/.test(row.domainAr))
+  if (advisor) {
+    lines.push(`تقرير المستشار: ${advisor.domainAr.trim()}`)
   }
 
   return { status: 'answered', missingMetrics: missing, citedNumbers: cited, reply: lines.join('\n') }

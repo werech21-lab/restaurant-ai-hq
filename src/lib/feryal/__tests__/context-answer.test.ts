@@ -68,11 +68,23 @@ describe('Feryal answers from the period cube', () => {
     expect(result.reply).toContain(':00')
   })
 
-  it('labels a forecast with the recomputed run-rate', () => {
-    const result = answerFromFeryalContext('شو توقع الشهر الجاي؟', cube)
-    const runRate = (cube.totals.netSalesKwd / cube.days) * cube.days
-    expect(result.reply).toContain('تقدير')
-    expect(result.reply).toContain(runRate.toFixed(3))
+  it('labels a forecast with the month projection from the fixture', () => {
+    const result = answerFromFeryalContext('شو توقع مبيعات الشهر؟', cube)
+    const net = cube.totals.netSalesKwd
+    const elapsed = cube.days
+    const monthLength = new Date(Date.UTC(2026, 11, 0)).getUTCDate()
+    const projection = Math.round((net / elapsed) * monthLength * 1000) / 1000
+    expect(result.reply.startsWith('تقدير — ليس رقماً من Odoo')).toBe(true)
+    expect(result.reply).toContain(`${net.toFixed(3)} ÷ ${elapsed} × ${monthLength} = ${projection.toFixed(3)}`)
+    expect(result.citedNumbers).toEqual([net, elapsed, monthLength, projection])
+  })
+
+  it('names reviews and budget before the cube figures', () => {
+    const reviews = answerFromFeryalContext('ما تقييمات السوشيال للعملاء؟', cube)
+    expect(reviews.reply.startsWith('تقييمات السوشيال غير متاحة في Odoo')).toBe(true)
+    expect(reviews.reply).toContain(cube.totals.netSalesKwd.toFixed(3))
+    const budget = answerFromFeryalContext('ما الموازنة التقديرية؟', cube)
+    expect(budget.reply.startsWith('الموازنة غير متاحة في Odoo (crossovered.budget)')).toBe(true)
   })
 
   it('drops only the claim whose number is not in the pack', () => {

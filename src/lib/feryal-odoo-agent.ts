@@ -1,6 +1,11 @@
 import type { CouncilSnapshot } from '@/lib/council/types'
 import { buildAdvisoryBlock } from '@/lib/feryal/advisor-synthesis'
-import { answerFromFeryalContext, isFeryalSmallTalk } from '@/lib/feryal/context-answer'
+import {
+  answerFromFeryalContext,
+  isFeryalForecastQuestion,
+  isFeryalSmallTalk,
+  type FeryalAdvisorSnippet,
+} from '@/lib/feryal/context-answer'
 import { logger } from '@/lib/logger'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { formatKuwaitDateTime } from '@/lib/format'
@@ -441,6 +446,36 @@ export function enforceVerifiedFeryalReply(
   }
 
   return { accepted: true, reply: trimmed, verifier }
+}
+
+function groundContextReply(
+  reply: string,
+  citedNumbers: readonly number[],
+): { reply: string; verifier: FeryalNumericVerificationResult } {
+  const checked = enforceVerifiedFeryalReply(reply, citedNumbers)
+  if (checked.accepted) return { reply: checked.reply, verifier: checked.verifier }
+  const kept = reply
+    .split('\n')
+    .filter((line) => verifyFeryalReplyNumbers(line, citedNumbers).valid)
+    .join('\n')
+    .trim()
+  return enforceVerifiedFeryalReply(kept, citedNumbers)
+}
+
+async function storedAdvisorSnippets(): Promise<FeryalAdvisorSnippet[]> {
+  try {
+    const { latestCouncilSnapshot } = await import('@/server/council/service')
+    const snapshot = await latestCouncilSnapshot()
+    return (snapshot?.reports ?? [])
+      .filter((report) => report.domainAr.trim().length > 0)
+      .map((report) => ({ domainAr: report.domainAr }))
+  } catch (error) {
+    logger.warn('feryal.context', {
+      section: 'advisors',
+      code: error instanceof Error ? error.name : 'read_failed',
+    })
+    return []
+  }
 }
 
 function isCompetitorQuestion(question: string): boolean {
@@ -2701,7 +2736,7 @@ export async function askFeryalOdooAgent(
     ...input.dataSource,
   }
 
-  if (toolKind === 'unknown' || unlinkedCheck.unlinked) {
+  if (toolKind === 'unknown' || unlinkedCheck.unlinked || isFeryalForecastQuestion(rawQuestion)) {
     let cube: Awaited<ReturnType<FeryalOdooDataSource['fetchPeriodCube']>> = null
     try {
       cube = await dataSource.fetchPeriodCube(resolvedPeriod.from, resolvedPeriod.to, nowMs)
@@ -2711,15 +2746,23 @@ export async function askFeryalOdooAgent(
         code: error instanceof Error ? error.name : 'read_failed',
       })
     }
-    const answered = answerFromFeryalContext(rawQuestion, cube)
+    const advisors = await storedAdvisorSnippets()
+    const answered = answerFromFeryalContext(rawQuestion, cube, advisors)
     if (answered.status === 'no_odoo_data') {
       return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
         from: resolvedPeriod.from,
         to: resolvedPeriod.to,
       })
     }
+    const grounded = groundContextReply(answered.reply, answered.citedNumbers)
+    if (!grounded.verifier.valid) {
+      return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
+        from: resolvedPeriod.from,
+        to: resolvedPeriod.to,
+      })
+    }
     return finalize({
-      reply: answered.reply,
+      reply: grounded.reply,
       status: 'answered',
       executedQueries: [
         {
@@ -2730,7 +2773,7 @@ export async function askFeryalOdooAgent(
           period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
         },
       ],
-      verifier: verifyFeryalReplyNumbers(answered.reply, answered.citedNumbers),
+      verifier: grounded.verifier,
       toolNumbers: answered.citedNumbers,
       period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
     })
