@@ -162,12 +162,12 @@ const fmtOne = (n: number) =>
 export function localizeArabicPlanningCopy(input: string): string {
   if (!input) return ''
   return input
-    .replace(/بوثات المطبخ المركزي المتنقلة/g, 'بوثات مطبخ العارضية المركزي المتنقلة')
+    .replace(/بوثات المطبخ المركزي المتنقلة/g, 'بوثات المعارض')
     .replace(
       /(و)?(?:بوثات|معارض|المعارض)\s*EXB(?:\s*المتنقلة)?/gi,
-      (_match, prefix: string | undefined) => `${prefix ?? ''}بوثات مطبخ العارضية المركزي المتنقلة`,
+      (_match, prefix: string | undefined) => `${prefix ?? ''}بوثات المعارض`,
     )
-    .replace(/\bEXB\b/gi, 'بوثات مطبخ العارضية المركزي المتنقلة')
+    .replace(/\bEXB\b/gi, 'بوثات المعارض')
     .replace(
       /(و)?(?:منصة\s+توصيل\s+طلبات|أسطولنا|أسطول|سائقينا)\s*TMP/gi,
       (_match, prefix: string | undefined) => `${prefix ?? ''}أسطول التوصيل الداخلي المباشر`,

@@ -75,6 +75,7 @@ import {
   mergeSessionPaymentGroups,
   type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
+import { normalizeEntityLabel } from '@/lib/odoo/excluded-entities'
 import {
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
@@ -912,23 +913,56 @@ function kuwaitRangeToOdooUtcStrings(fromKuwaitIso: string, toExclusiveKuwaitIso
   return { fromUtc: bounds.fromUtc, toUtc: bounds.toExclusiveUtc }
 }
 
+export const QURAIN_CENTRAL_KITCHEN_LABEL_AR = 'القرين (المطبخ المركزي)'
+export const QURAIN_CENTRAL_KITCHEN_LABEL_EN = 'Qurain (Central Kitchen)'
+
+const QURAIN_CK_LOCATION_RE =
+  /(?:^|[^a-z])(?:al-?)?(?:qurain|qurein|kurain|gurain|qrn\d*)(?![a-z])|(?:^|[^\u0600-\u06ff])(?:بال|لل|ال|ب|و|ل)?قرين(?=$|[^\u0600-\u06ff])/i
+
+export function isQurainCentralKitchenLocation(rawLabel?: string | null): boolean {
+  if (!rawLabel) return false
+  return QURAIN_CK_LOCATION_RE.test(String(rawLabel))
+}
+
+export function formatStockTransferEndpoint(
+  rawLabel: string | null | undefined,
+  endpoint: 'origin' | 'destination',
+): string {
+  const trimmed = (rawLabel ?? '').trim()
+  if (!trimmed) {
+    return endpoint === 'origin' ? QURAIN_CENTRAL_KITCHEN_LABEL_EN : 'Branch Kitchen'
+  }
+  if (isQurainCentralKitchenLocation(trimmed)) {
+    return /[\u0600-\u06ff]/.test(trimmed)
+      ? QURAIN_CENTRAL_KITCHEN_LABEL_AR
+      : QURAIN_CENTRAL_KITCHEN_LABEL_EN
+  }
+  return trimmed
+}
+
 /**
- * Strictly identifies decommissioned warehouse/branch records so ONLY Ardiya Central Kitchen (`EXB` / `CK`)
- * and the 7 active Venture Foods branches ever appear in inventory, transfers, or POS aggregations.
+ * Identifies genuinely decommissioned warehouse/site records (Jahra and Heisenberg ONLY).
+ * Qurain (`QRN` / «القرين») is Venture Foods' active Central Kitchen, EXB is Exhibition Booths
+ * (never a kitchen), and Hawally holds active Promenade (#8–#11) + NPIS canteen (#41).
  */
-const DECOMMISSIONED_SITE_RE = new RegExp(
-  ['qur', 'ain|\\bqr', 'n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646'].join(''),
-  'i',
-)
+const DECOMMISSIONED_SITE_RE =
+  /(?:^|[^a-z])(?:al-?)?(?:jahra|jahara|jhr\d*|heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)(?![a-z])|(?:^|[^\u0600-\u06ff])(?:بال|لل|ال|ب|و|ل)?(?:جهراء|جهرا|جهره|هايزن[\u0600-\u06ff]*)(?=$|[^\u0600-\u06ff])/i
+const DECOMMISSIONED_COLLAPSED_BRAND_RE =
+  /heisenberg|heizenberg|hizenberg|heisenburg|haisenberg/
 
 export function isDecommissionedWarehouseRecord(rawText?: string | null): boolean {
   if (!rawText) return false
-  return DECOMMISSIONED_SITE_RE.test(rawText) || isExcludedOdooEntity(rawText)
+  const raw = String(rawText)
+  if (DECOMMISSIONED_SITE_RE.test(raw)) return true
+  const normalized = normalizeEntityLabel(raw)
+  if (!normalized) return false
+  if (DECOMMISSIONED_SITE_RE.test(normalized)) return true
+  return DECOMMISSIONED_COLLAPSED_BRAND_RE.test(normalized.replace(/\s+/g, ''))
 }
 
 /**
  * Multi-layer fuzzy dictionary mapper for POS terminals (`pos.config`):
- * 1) Decommissioned site exclusion guard
+ * 1) Decommissioned / excluded POS site guard
  * 2) Exact `pos-registry.json` terminal ID lookup
  * 3) Expanded bilingual Arabic/English + branch-code (`AVN`, `360`, `ASM`, `PRM`, `SLM`, `KOT`/`KOUT`, `ARD`/`CK`)
  *    matching across terminal name, company name, and picking-type warehouse label.
@@ -957,7 +991,7 @@ export function resolveRestaurantBranchForConfig(
     return null
   }
   const combined = `${ownName} ${extraContext || ''}`.trim()
-  if (isDecommissionedWarehouseRecord(combined)) {
+  if (isDecommissionedWarehouseRecord(combined) || isExcludedOdooEntity(combined)) {
     return null
   }
   const lower = combined.toLowerCase()
@@ -1780,7 +1814,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const activeGlAccountById = new Map<number, OdooGlAccountMeta>()
   for (const acc of glAccountsRaw) {
     const label = `${acc.code ?? ''} ${acc.name ?? ''}`.trim()
-    if (isDecommissionedWarehouseRecord(label)) continue
+    if (isDecommissionedWarehouseRecord(label) || isExcludedOdooEntity(label)) continue
     activeGlAccountById.set(acc.id, acc)
   }
   const activeGlAccountIds = [...activeGlAccountById.keys()]
@@ -1801,7 +1835,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         isExcludedRecordId('pos_config', c.id) ||
         (isPinnedSchoolCanteenConfigId(c.id)
           ? !companyPosConfigAllowed(c.id, c.name, true)
-          : isDecommissionedWarehouseRecord(c.name))
+          : isDecommissionedWarehouseRecord(c.name) || isExcludedOdooEntity(c.name))
       if (isGenuinelyDecommissioned) {
         decommissionedConfigIds.add(c.id)
       }
@@ -1813,7 +1847,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         continue
       }
     } else {
-      if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
+      if (
+        isExcludedRecordId('pos_config', c.id) ||
+        isDecommissionedWarehouseRecord(combined) ||
+        isExcludedOdooEntity(combined)
+      ) {
         decommissionedConfigIds.add(c.id)
         continue
       }
@@ -2407,7 +2445,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           [[['state', 'in', ['assigned', 'waiting', 'confirmed']]]],
         ),
       ])
-      // Strictly strip any decommissioned warehouse/branch records so ONLY Ardiya Central Kitchen & 7 active branches appear
+      // Strip decommissioned warehouse/site records (Jahra, Heisenberg); Qurain Central Kitchen (QRN) & active branches remain visible.
       const activePickings = pickings.filter(
         (p) =>
           !isDecommissionedWarehouseRecord(m2oName(p.location_id)) &&
@@ -2426,8 +2464,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         pendingCount,
         latestTransferAt,
         routes: activePickings.slice(0, 8).map((p) => ({
-          origin: m2oName(p.location_id) ?? 'Ardiya Central Kitchen (EXB)',
-          destination: m2oName(p.location_dest_id) ?? 'Branch Kitchen',
+          origin: formatStockTransferEndpoint(m2oName(p.location_id), 'origin'),
+          destination: formatStockTransferEndpoint(m2oName(p.location_dest_id), 'destination'),
           state: p.state,
           scheduledDate:
             typeof p.scheduled_date === 'string'
@@ -2509,7 +2547,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       for (const r of byAccRows) {
         const accId = m2oId(r.account_id)
         const accName = m2oName(r.account_id) ?? ''
-        if (accId === null || isDecommissionedWarehouseRecord(accName)) continue
+        if (accId === null || isDecommissionedWarehouseRecord(accName) || isExcludedOdooEntity(accName)) continue
         const resVal = Number(r.amount_residual) || 0
         const cnt = Math.max(0, Number(r.__count) || 0)
         netSum += resVal
@@ -2527,10 +2565,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       const platformAndCorporateLinesCount = Math.max(0, totalLines - posClearingLinesCount)
       const platformNetKwd = r3(netSum - posClearingNetKwd)
 
-      // Same account scope as the headline: decommissioned-warehouse accounts are left out.
+      // Same account scope as the headline: decommissioned & excluded branch accounts are left out.
       const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
         rows
-          .filter((r) => m2oId(r.account_id) !== null && !isDecommissionedWarehouseRecord(m2oName(r.account_id) ?? ''))
+          .filter(
+            (r) =>
+              m2oId(r.account_id) !== null &&
+              !isDecommissionedWarehouseRecord(m2oName(r.account_id) ?? '') &&
+              !isExcludedOdooEntity(m2oName(r.account_id) ?? ''),
+          )
           .reduce(
             (acc, r) => ({
               residualKwd: acc.residualKwd + (Number(r.amount_residual) || 0),
@@ -4441,7 +4484,7 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
         isExcludedRecordId('pos_config', c.id) ||
         (isPinnedSchoolCanteenConfigId(c.id)
           ? !companyPosConfigAllowed(c.id, c.name, true)
-          : isDecommissionedWarehouseRecord(c.name))
+          : isDecommissionedWarehouseRecord(c.name) || isExcludedOdooEntity(c.name))
       if (isGenuinelyDecommissioned) {
         decommCfgIds.add(c.id)
       }
@@ -4453,7 +4496,11 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
         continue
       }
     } else {
-      if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
+      if (
+        isExcludedRecordId('pos_config', c.id) ||
+        isDecommissionedWarehouseRecord(combined) ||
+        isExcludedOdooEntity(combined)
+      ) {
         decommCfgIds.add(c.id)
         continue
       }
@@ -4643,7 +4690,8 @@ export async function fetchLiveOdooPeriodCube(
 
     const activeAccMap = new Map<number, OdooGlAccountMeta>()
     for (const a of glAccountsRaw) {
-      if (!isDecommissionedWarehouseRecord(`${a.code ?? ''} ${a.name ?? ''}`)) {
+      const accLabel = `${a.code ?? ''} ${a.name ?? ''}`
+      if (!isDecommissionedWarehouseRecord(accLabel) && !isExcludedOdooEntity(accLabel)) {
         activeAccMap.set(a.id, a)
       }
     }
@@ -5440,7 +5488,13 @@ export function resolveStockLocationRole(
     if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف|مقاصف/i.test(lower)) {
       return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
     }
-    if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
+    if (/\b(?:exhibition|exebition|exb|bazaar|booth|booths)\b|معرض|المعارض|بوث|بوثات/i.test(lower)) {
+      return { excluded: false, usage, role: 'branch', branchId: EXHIBITION_BRANCH_ID }
+    }
+    if (
+      isQurainCentralKitchenLocation(text) ||
+      /central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)
+    ) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
     const matchedBranch = resolveRestaurantBranchForConfig(-1, text)
@@ -6361,6 +6415,7 @@ export async function fetchLiveOdooPurchaseOrders(
       if (
         isDecommissionedWarehouseRecord(`${pName} ${vName}`) ||
         isExcludedOdooEntity(pName) ||
+        isExcludedOdooEntity(vName) ||
         isNonCompanyCatalogItem(null, pName)
       ) {
         continue

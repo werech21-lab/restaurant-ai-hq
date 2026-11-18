@@ -873,8 +873,8 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 25, valueKwd: 46.25 })
       // NPIS Hawally (#41 -> 12 qty / 22.2 KWD) + FAIPS Ahmadi (#42 -> 8 qty / 14.8 KWD) preserved under school-canteens!
       expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 20, valueKwd: 37 })
-      // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500)
+      // Qurain Warehouse/Stock (999, active Central Kitchen per C5) and Hawally Restaurant/Stock (500, per C4) remain visible in warehouse stock.
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 999 + 500)
       expect(JSON.stringify(wh)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {

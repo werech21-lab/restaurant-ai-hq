@@ -103,7 +103,7 @@ export function isAuditorForbiddenPath(pathname: string): boolean {
  *   `/erp/booth` (`/erp/booth-feasibility`), and `/erp/feryal-ai` (`/erp/feryal`).
  *   Explicitly blocks `/erp/commissions` (`/erp/aggregator-radar`), `/erp/planning`,
  *   `/erp/regulations`, `/erp/warehouse-chain`, `/erp/prep-sla`, `/erp/delivery-sla`, etc.
- * - `supply`: `/erp/warehouse-chain` (Ardiya Central Kitchen EXB -> 7 active branches),
+ * - `supply`: `/erp/warehouse-chain` (Central Kitchen -> active branches; EXB = Exhibition Booths),
  *   `/erp/prep-sla`, `/erp/delivery-sla`, and `/erp/feryal-ai` (`/erp/feryal`).
  *   Explicitly blocks sensitive P&L (`/erp`, `/erp/cores`, `/erp/weekday-comparison`, `/erp/before-after`),
  *   commissions, planning, reviews, booth, and regulatory routes.

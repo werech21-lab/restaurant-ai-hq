@@ -90,9 +90,9 @@ function buildRoleDirectoryEntries(): ExecutiveDirectoryRoleEntry[] {
       email: getExpectedOpsEmail(),
       aliasEmail: null,
       scopeEn:
-        'All 13 operational, SLA, Ardiya Central Kitchen (EXB) & branch performance modules + live Odoo sync',
+        'All 13 operational, SLA, Central Kitchen, Exhibition Booths (EXB) & branch performance modules + live Odoo sync',
       scopeAr:
-        'جميع محاور التشغيل والالتزام الزمني والمطبخ المركزي بالعارضية (EXB) والفروع الـ 7 والمزامنة المباشرة',
+        'جميع محاور التشغيل والالتزام الزمني والمطبخ المركزي وبوثات المعارض والفروع الـ 7 والمزامنة المباشرة',
       defaultHome: '/erp',
       accessTier: 'full_exec',
     },
@@ -123,9 +123,9 @@ function buildRoleDirectoryEntries(): ExecutiveDirectoryRoleEntry[] {
       email: getExpectedSupplyEmail(),
       aliasEmail: getExpectedSupplyAliasEmail(),
       scopeEn:
-        'Scoped: /erp/warehouse-chain (Ardiya Central Kitchen EXB -> 7 active branches), /erp/prep-sla, /erp/delivery-sla & /erp/feryal-ai',
+        'Scoped: /erp/warehouse-chain (Central Kitchen -> active branches & Exhibition Booths EXB), /erp/prep-sla, /erp/delivery-sla & /erp/feryal-ai',
       scopeAr:
-        'نطاق مخصّص: سلسلة المطبخ المركزي بالعارضية (EXB) للفروع الـ 7 النشطة، زمن التحضير، زمن التوصيل والمستشارة فريال',
+        'نطاق مخصّص: سلسلة المطبخ المركزي للفروع النشطة وبوثات المعارض، زمن التحضير، زمن التوصيل والمستشارة فريال',
       defaultHome: '/erp/warehouse-chain',
       accessTier: 'scoped_supply',
     },
