@@ -1,0 +1,2786 @@
+{
+  "verifiedAt": "2026-11-18T07:55:30.578Z",
+  "count": 48,
+  "captures": [
+    {
+      "file": "erp-home__month__ar-1440.png",
+      "route": "erp-home",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2966,
+      "bytes": 593840,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__today__ar-1440.png",
+      "route": "erp-home",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2726,
+      "bytes": 550772,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__yesterday__ar-1440.png",
+      "route": "erp-home",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2772,
+      "bytes": 549556,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__custom-2026-11-01-2026-11-17__ar-1440.png",
+      "route": "erp-home",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2966,
+      "bytes": 606386,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__month__ar-1440.png",
+      "route": "erp-cores",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2024,
+      "bytes": 309717,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__today__ar-1440.png",
+      "route": "erp-cores",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1720,
+      "bytes": 346723,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__yesterday__ar-1440.png",
+      "route": "erp-cores",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1473,
+      "bytes": 257327,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__custom-2026-11-01-2026-11-17__ar-1440.png",
+      "route": "erp-cores",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1883,
+      "bytes": 291911,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__month__ar-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1110,
+      "bytes": 270587,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__today__ar-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1110,
+      "bytes": 279294,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 7,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__yesterday__ar-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1110,
+      "bytes": 264070,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__custom-2026-11-01-2026-11-17__ar-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1110,
+      "bytes": 270207,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-home__month__en-1440.png",
+      "route": "erp-home",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 3012,
+      "bytes": 564455,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__today__en-1440.png",
+      "route": "erp-home",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2772,
+      "bytes": 584352,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__yesterday__en-1440.png",
+      "route": "erp-home",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2834,
+      "bytes": 611472,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__custom-2026-11-01-2026-11-17__en-1440.png",
+      "route": "erp-home",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 3012,
+      "bytes": 635634,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__month__en-1440.png",
+      "route": "erp-cores",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 2040,
+      "bytes": 328251,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__today__en-1440.png",
+      "route": "erp-cores",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1720,
+      "bytes": 370890,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__yesterday__en-1440.png",
+      "route": "erp-cores",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1489,
+      "bytes": 269937,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__custom-2026-11-01-2026-11-17__en-1440.png",
+      "route": "erp-cores",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1899,
+      "bytes": 304854,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__month__en-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1109,
+      "bytes": 261249,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__today__en-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1109,
+      "bytes": 287194,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 7,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__yesterday__en-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1109,
+      "bytes": 254691,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__custom-2026-11-01-2026-11-17__en-1440.png",
+      "route": "erp-sales-scorecard",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1109,
+      "bytes": 261395,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-home__month__ar-390.png",
+      "route": "erp-home",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5852,
+      "bytes": 515425,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__today__ar-390.png",
+      "route": "erp-home",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5839,
+      "bytes": 482380,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__yesterday__ar-390.png",
+      "route": "erp-home",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5580,
+      "bytes": 488665,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__custom-2026-11-01-2026-11-17__ar-390.png",
+      "route": "erp-home",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5852,
+      "bytes": 513318,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__month__ar-390.png",
+      "route": "erp-cores",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3182,
+      "bytes": 240706,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__today__ar-390.png",
+      "route": "erp-cores",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3851,
+      "bytes": 278487,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__yesterday__ar-390.png",
+      "route": "erp-cores",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2524,
+      "bytes": 193891,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__custom-2026-11-01-2026-11-17__ar-390.png",
+      "route": "erp-cores",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2960,
+      "bytes": 223131,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__month__ar-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "month",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2717,
+      "bytes": 223633,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__today__ar-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "today",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2738,
+      "bytes": 230250,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 7,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__yesterday__ar-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "yesterday",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2701,
+      "bytes": 216712,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__custom-2026-11-01-2026-11-17__ar-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2717,
+      "bytes": 222642,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-home__month__en-390.png",
+      "route": "erp-home",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5963,
+      "bytes": 545594,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__today__en-390.png",
+      "route": "erp-home",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5984,
+      "bytes": 528586,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__yesterday__en-390.png",
+      "route": "erp-home",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5725,
+      "bytes": 535905,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-home__custom-2026-11-01-2026-11-17__en-390.png",
+      "route": "erp-home",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 5963,
+      "bytes": 539910,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__month__en-390.png",
+      "route": "erp-cores",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3248,
+      "bytes": 253130,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__today__en-390.png",
+      "route": "erp-cores",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3939,
+      "bytes": 302481,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__yesterday__en-390.png",
+      "route": "erp-cores",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2593,
+      "bytes": 203871,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-cores__custom-2026-11-01-2026-11-17__en-390.png",
+      "route": "erp-cores",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3045,
+      "bytes": 234336,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 9,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "school-canteens",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__month__en-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "month",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2738,
+      "bytes": 220021,
+      "headlineFils": 130946856,
+      "sumRowFils": 130946856,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 23647917,
+          "orders": 4214
+        },
+        {
+          "id": "promenade",
+          "salesFils": 22871460,
+          "orders": 4341
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 19683609,
+          "orders": 3015
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 16901820,
+          "orders": 2473
+        },
+        {
+          "id": "assima",
+          "salesFils": 16316395,
+          "orders": 3098
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 14048239,
+          "orders": 4708
+        },
+        {
+          "id": "avenues",
+          "salesFils": 10201666,
+          "orders": 2928
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 7275750,
+          "orders": 6044
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__today__en-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "today",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2759,
+      "bytes": 240028,
+      "headlineFils": 154700,
+      "sumRowFils": 154700,
+      "rowCount": 7,
+      "rows": [
+        {
+          "id": "ardiya",
+          "salesFils": 99350,
+          "orders": 13
+        },
+        {
+          "id": "promenade",
+          "salesFils": 31550,
+          "orders": 7
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 18350,
+          "orders": 3
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 5450,
+          "orders": 1
+        },
+        {
+          "id": "avenues",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "360-mall",
+          "salesFils": 0,
+          "orders": 0
+        },
+        {
+          "id": "assima",
+          "salesFils": 0,
+          "orders": 0
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__yesterday__en-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "yesterday",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2738,
+      "bytes": 213592,
+      "headlineFils": 3629125,
+      "sumRowFils": 3629125,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 679754,
+          "orders": 116
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 652465,
+          "orders": 103
+        },
+        {
+          "id": "promenade",
+          "salesFils": 646342,
+          "orders": 116
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 569075,
+          "orders": 88
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 360165,
+          "orders": 181
+        },
+        {
+          "id": "assima",
+          "salesFils": 319830,
+          "orders": 73
+        },
+        {
+          "id": "avenues",
+          "salesFils": 263544,
+          "orders": 73
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 137950,
+          "orders": 69
+        }
+      ]
+    },
+    {
+      "file": "erp-sales-scorecard__custom-2026-11-01-2026-11-17__en-390.png",
+      "route": "erp-sales-scorecard",
+      "period": "custom-2026-11-01-2026-11-17",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2738,
+      "bytes": 219376,
+      "headlineFils": 66116688,
+      "sumRowFils": 66116688,
+      "rowCount": 8,
+      "rows": [
+        {
+          "id": "360-mall",
+          "salesFils": 11999541,
+          "orders": 2177
+        },
+        {
+          "id": "promenade",
+          "salesFils": 11679764,
+          "orders": 2240
+        },
+        {
+          "id": "ardiya",
+          "salesFils": 10238545,
+          "orders": 1553
+        },
+        {
+          "id": "salmiya",
+          "salesFils": 8937035,
+          "orders": 1328
+        },
+        {
+          "id": "assima",
+          "salesFils": 7890241,
+          "orders": 1525
+        },
+        {
+          "id": "al-kout",
+          "salesFils": 7347839,
+          "orders": 2603
+        },
+        {
+          "id": "avenues",
+          "salesFils": 5088923,
+          "orders": 1416
+        },
+        {
+          "id": "unattributed",
+          "salesFils": 2934800,
+          "orders": 2221
+        }
+      ]
+    }
+  ]
+}
