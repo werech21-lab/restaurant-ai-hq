@@ -4,10 +4,11 @@ import { FERYAL_NO_ODOO_DATA_REPLY } from '@/lib/feryal-odoo-agent'
 import {
   answerFromFeryalContext,
   dropUnverifiedClaims,
-  forecastElapsedDays,
+  forecastCompleteWindow,
   isFeryalSmallTalk,
 } from '@/lib/feryal/context-answer'
-import { DIALECT_NOW_MS, monthCube } from '@/lib/__tests__/phase-5/support/feryal-dialect-fixture'
+import { calendarDaysInIsoMonth } from '@/lib/aether/global-filter-engine'
+import { DIALECT_NOW_MS, monthCube, todayCube } from '@/lib/__tests__/phase-5/support/feryal-dialect-fixture'
 
 describe('Feryal answers from the period cube', () => {
   const cube = monthCube()
@@ -90,12 +91,27 @@ describe('Feryal answers from the period cube', () => {
   })
 
   it('labels a next-month forecast as this month and says next month is not in Odoo', () => {
-    const result = answerFromFeryalContext('شو توقع مبيعات الشهر الجاي؟', cube, [], { nowMs: DIALECT_NOW_MS })
+    const todayNet = todayCube().totals.netSalesKwd
+    const result = answerFromFeryalContext('شو توقع مبيعات الشهر الجاي؟', cube, [], {
+      nowMs: DIALECT_NOW_MS,
+      todayNetKwd: todayNet,
+    })
     expect(result.reply).toContain('الشهر القادم غير موجود في Odoo')
     expect(result.reply).toContain('هذا الشهر')
-    const elapsed = forecastElapsedDays(cube, DIALECT_NOW_MS)
-    expect(elapsed).toBe(cube.days - 1)
-    expect(result.reply).toContain(`÷ ${elapsed} ×`)
+    const window = forecastCompleteWindow(cube, DIALECT_NOW_MS, todayNet)
+    const monthLength = calendarDaysInIsoMonth(cube.dateRange.to) ?? window.elapsed
+    const projection = Math.round((window.net / window.elapsed) * monthLength * 1000) / 1000
+    expect(window.net).toBe(Math.round((cube.totals.netSalesKwd - todayNet) * 1000) / 1000)
+    expect(window.elapsed).toBe(cube.days - 1)
+    expect(result.reply).toContain(
+      `${window.net.toFixed(3)} ÷ ${window.elapsed} × ${monthLength} = ${projection.toFixed(3)}`,
+    )
+  })
+
+  it('keeps the cube day count when today sales are unavailable', () => {
+    const window = forecastCompleteWindow(cube, DIALECT_NOW_MS, null)
+    expect(window.elapsed).toBe(cube.days)
+    expect(window.net).toBe(cube.totals.netSalesKwd)
   })
 
   it('does not name crossovered.budget as unavailable when the probe can read it', () => {

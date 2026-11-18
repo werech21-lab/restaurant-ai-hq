@@ -40,28 +40,14 @@ export async function resolveGlCompanyId(): Promise<number | null> {
   return null
 }
 
-/** Active chart accounts, excluding the connector's decommissioned-warehouse names. */
-export async function activeGlAccountIds(): Promise<number[]> {
-  const rows = await executeOdooKw<{ id: number; code?: string; name?: string }[]>(
-    'account.account',
-    'search_read',
-    [[]],
-    { fields: ['id', 'code', 'name'] },
-  )
-  return (rows ?? [])
-    .filter((row) => !isDecommissionedWarehouseRecord(`${row.code ?? ''} ${row.name ?? ''}`))
-    .map((row) => row.id)
-}
-
+/** Company-scoped posted lines. Excluded sales-scope accounts stay in the read. */
 export function glReadDomains(
   companyId: number,
-  activeAccountIds: readonly number[],
   fromIso: string,
   toIso: string,
 ): { trialBalance: unknown[][]; balanceSheet: unknown[][] } {
   const scope: unknown[][] = [
     ['company_id', '=', companyId],
-    ['account_id', 'in', [...activeAccountIds]],
     ['parent_state', '=', 'posted'],
   ]
   return {
@@ -100,6 +86,7 @@ function lineFromGroup(row: GroupRow, meta: Map<number, AccountMeta>): GlAccount
     credit: Number(row.credit) || 0,
     balance: Number(row.balance) || 0,
     lineCount: Math.max(0, Number(row.__count) || 0),
+    salesScopeExcluded: isDecommissionedWarehouseRecord(`${account.code} ${account.name}`),
   }
 }
 
@@ -148,9 +135,8 @@ async function scopedDomain(
   toIso: string,
 ): Promise<unknown[][] | null> {
   const companyId = await resolveGlCompanyId()
-  const accountIds = await activeGlAccountIds()
-  if (companyId === null || accountIds.length === 0) return null
-  return glReadDomains(companyId, accountIds, fromIso, toIso)[kind]
+  if (companyId === null) return null
+  return glReadDomains(companyId, fromIso, toIso)[kind]
 }
 
 export async function fetchGlTrialBalance(fromIso: string, toIso: string): Promise<TrialBalance> {

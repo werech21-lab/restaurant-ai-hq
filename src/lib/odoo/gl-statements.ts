@@ -11,6 +11,8 @@ export interface GlAccountLine {
   credit: number
   balance: number
   lineCount: number
+  /** True when the account is outside the sales scope. It stays on the full ledger. */
+  salesScopeExcluded?: boolean
 }
 
 const PNL_TYPES = new Set([
@@ -60,10 +62,11 @@ export function trialBalanceTotals(lines: readonly GlAccountLine[]): {
 }
 
 export interface BalanceSheetGroup {
-  key: 'asset' | 'liability' | 'equity'
+  key: 'asset' | 'liability' | 'equity' | 'excluded'
   labelAr: string
   labelEn: string
   lines: (GlAccountLine & { presented: number })[]
+  total: number
 }
 
 /** Liabilities and equity are shown sign-flipped. Current earnings is −Σ P&L balances. */
@@ -76,15 +79,36 @@ export function balanceSheetView(lines: readonly GlAccountLine[]): {
 } {
   const totals = balanceSheetTotals(lines)
   const gap = Math.abs(totals.assets - (totals.liabilities + totals.equity))
-  const present = (match: (type: string) => boolean, sign: number) =>
-    lines
+  const inScope = lines.filter((line) => !line.salesScopeExcluded)
+  const present = (source: readonly GlAccountLine[], match: (type: string) => boolean, sign: number) => {
+    const grouped = source
       .filter((line) => match(line.accountType))
       .map((line) => ({ ...line, presented: sign * line.balance }))
+    const total = grouped.reduce((sum, line) => sum + line.presented, 0)
+    return { lines: grouped, total }
+  }
+  const asset = present(inScope, isAsset, 1)
+  const liability = present(inScope, isLiability, -1)
+  const equity = present(inScope, isEquity, -1)
+  const excludedLines = lines
+    .filter((line) => line.salesScopeExcluded)
+    .map((line) => ({
+      ...line,
+      presented: isAsset(line.accountType) ? line.balance : -line.balance,
+    }))
+  const excludedTotal = excludedLines.reduce((sum, line) => sum + line.presented, 0)
   return {
     groups: [
-      { key: 'asset', labelAr: 'الأصول', labelEn: 'Assets', lines: present(isAsset, 1) },
-      { key: 'liability', labelAr: 'الالتزامات', labelEn: 'Liabilities', lines: present(isLiability, -1) },
-      { key: 'equity', labelAr: 'حقوق الملكية', labelEn: 'Equity', lines: present(isEquity, -1) },
+      { key: 'asset', labelAr: 'الأصول', labelEn: 'Assets', ...asset },
+      { key: 'liability', labelAr: 'الالتزامات', labelEn: 'Liabilities', ...liability },
+      { key: 'equity', labelAr: 'حقوق الملكية', labelEn: 'Equity', ...equity },
+      {
+        key: 'excluded',
+        labelAr: 'حسابات مستبعدة من نطاق المبيعات',
+        labelEn: 'Accounts excluded from the sales scope',
+        lines: excludedLines,
+        total: excludedTotal,
+      },
     ],
     totals,
     balanced: gap <= 0.001,

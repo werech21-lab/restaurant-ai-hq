@@ -179,7 +179,7 @@ function BalanceSheetTable({
     <div className="overflow-x-auto" data-balance-sheet="true">
       <h3 className="mb-1 text-sm font-semibold">{isAr ? 'الميزانية العمومية' : 'Balance sheet'}</h3>
       <p className="mb-1 text-xs text-slate-500">{isAr ? `عرض ${accountCount} من ${accountCount}` : `showing ${accountCount} of ${accountCount}`}</p>
-      {view.groups.map((group) => (
+      {view.groups.filter((group) => group.key !== 'excluded' || group.lines.length > 0).map((group) => (
         <div key={group.key} className="mb-2">
           <p className="text-xs font-semibold">{isAr ? group.labelAr : group.labelEn}</p>
           {group.lines.map((line) => (
@@ -188,6 +188,10 @@ function BalanceSheetTable({
               <span dir="ltr" className="tabular-nums">{money(line.presented, isAr)}</span>
             </p>
           ))}
+          <p className="flex justify-between gap-2 text-xs font-semibold">
+            <span>{isAr ? 'المجموع' : 'Total'}</span>
+            <span dir="ltr" className="tabular-nums">{money(group.total, isAr)}</span>
+          </p>
         </div>
       ))}
       <p className="flex justify-between gap-2 text-xs">

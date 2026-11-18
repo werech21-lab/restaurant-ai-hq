@@ -7,6 +7,7 @@ import {
   isFeryalSmallTalk,
   type FeryalAdvisorSnippet,
 } from '@/lib/feryal/context-answer'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { probeCrossoveredBudgetReadable } from '@/lib/odoo/gl-statements-live'
 import { logger } from '@/lib/logger'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -2784,7 +2785,33 @@ export async function askFeryalOdooAgent(
         })
       }
     }
-    const answered = answerFromFeryalContext(rawQuestion, cube, advisors, { nowMs, budgetReadable })
+    let todayNetKwd: number | null = null
+    if (cube && isFeryalForecastQuestion(rawQuestion)) {
+      const today = getKuwaitTimeContext(nowMs).todayIso
+      if (cube.dateRange?.to === today) {
+        const seriesToday = cube.dailySeries?.find((row) => row.day === today)?.netKwd
+        if (typeof seriesToday === 'number') {
+          todayNetKwd = seriesToday
+        } else {
+          try {
+            const todayCube = await dataSource.fetchPeriodCube(today, today, nowMs)
+            if (todayCube && typeof todayCube.totals?.netSalesKwd === 'number') {
+              todayNetKwd = todayCube.totals.netSalesKwd
+            }
+          } catch (error) {
+            logger.warn('feryal.context', {
+              section: 'today_bucket',
+              code: error instanceof Error ? error.name : 'read_failed',
+            })
+          }
+        }
+      }
+    }
+    const answered = answerFromFeryalContext(rawQuestion, cube, advisors, {
+      nowMs,
+      budgetReadable,
+      todayNetKwd,
+    })
     if (answered.status === 'no_odoo_data') {
       return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
         from: resolvedPeriod.from,

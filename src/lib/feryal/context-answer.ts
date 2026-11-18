@@ -41,14 +41,32 @@ export function isFeryalBudgetQuestion(question: string): boolean {
   return BUDGET.test(question)
 }
 
-/** Complete days: when the cube ends today, stop at yesterday. */
-export function forecastElapsedDays(
-  cube: { days: number; dateRange?: { to?: string } },
+/**
+ * Complete days only. When the cube ends today and today's net is known, both
+ * the numerator and the day count stop at yesterday. If today's figure is
+ * missing, the window stays the cube's own days and net.
+ */
+export function forecastCompleteWindow(
+  cube: {
+    days: number
+    dateRange?: { to?: string }
+    totals?: { netSalesKwd?: number }
+    dailySeries?: readonly { day: string; netKwd: number }[]
+  },
   nowMs: number,
-): number {
+  todayNetKwd?: number | null,
+): { net: number; elapsed: number } {
+  const net = cube.totals?.netSalesKwd ?? 0
+  const elapsed = Math.max(1, cube.days)
   const today = getKuwaitTimeContext(nowMs).todayIso
-  if (cube.dateRange?.to === today && cube.days > 1) return cube.days - 1
-  return Math.max(1, cube.days)
+  if (cube.dateRange?.to !== today || cube.days <= 1) return { net, elapsed }
+  const fromSeries = cube.dailySeries?.find((row) => row.day === today)?.netKwd
+  const todayNet = typeof todayNetKwd === 'number' ? todayNetKwd : fromSeries
+  if (typeof todayNet !== 'number') return { net, elapsed: cube.days }
+  return {
+    net: Math.round((net - todayNet) * 1000) / 1000,
+    elapsed: cube.days - 1,
+  }
 }
 
 export function isFeryalSmallTalk(question: string): boolean {
@@ -66,7 +84,7 @@ export function answerFromFeryalContext(
   question: string,
   cube: OdooPeriodCube | null | undefined,
   advisors: readonly FeryalAdvisorSnippet[] = [],
-  options?: { nowMs?: number; budgetReadable?: boolean },
+  options?: { nowMs?: number; budgetReadable?: boolean; todayNetKwd?: number | null },
 ): { reply: string; status: 'answered' | 'no_odoo_data'; missingMetrics: string[]; citedNumbers: number[] } {
   if (isFeryalSmallTalk(question)) {
     return {
@@ -119,8 +137,9 @@ export function answerFromFeryalContext(
   }
 
   if (FORECAST.test(question) && cube.days > 0 && typeof cube.totals?.netSalesKwd === 'number') {
-    const net = cube.totals.netSalesKwd
-    const elapsed = forecastElapsedDays(cube, options?.nowMs ?? Date.now())
+    const window = forecastCompleteWindow(cube, options?.nowMs ?? Date.now(), options?.todayNetKwd)
+    const net = window.net
+    const elapsed = window.elapsed
     const monthLength = calendarDaysInIsoMonth(cube.dateRange?.to) ?? elapsed
     const projection = Math.round((net / elapsed) * monthLength * 1000) / 1000
     cited.push(net, elapsed, monthLength, projection)
