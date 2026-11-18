@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { detectOdooToolKind } from '@/lib/feryal-intent'
 import { FERYAL_NO_ODOO_DATA_REPLY } from '@/lib/feryal-odoo-agent'
 import {
   answerFromFeryalContext,
@@ -20,11 +21,22 @@ describe('Feryal answers from the period cube', () => {
   const cube = withBooths()
 
   it('does not use the no-data refusal for small talk', () => {
-    for (const question of ['فهمتي شو؟', 'مرحبا', 'في محادثات قديمة معك وبينا']) {
+    for (const question of ['فهمتي شو؟', 'مرحبا', 'محادثات قديمة', 'السلام عليكم']) {
       expect(isFeryalSmallTalk(question)).toBe(true)
       const result = answerFromFeryalContext(question, cube)
       expect(result.status).toBe('answered')
       expect(result.reply).not.toContain(FERYAL_NO_ODOO_DATA_REPLY)
+    }
+  })
+
+  it('sends a greeting that also asks about sales to the sales tool', () => {
+    for (const question of ['مرحبا، كم مبيعات أمس؟', 'السلام عليكم شو وضع المبيعات هالشهر؟']) {
+      expect(isFeryalSmallTalk(question)).toBe(false)
+      expect(detectOdooToolKind(question, null, { brandId: null, asksByBrandBreakdown: false }, false)).toBe(
+        'pos_orders',
+      )
+      const result = answerFromFeryalContext(question, cube)
+      expect(result.reply).not.toContain('وش تبي نشوف الحين')
     }
   })
 

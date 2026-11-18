@@ -10,7 +10,7 @@ export interface FeryalAdvisorSnippet {
 }
 
 const SMALL_TALK =
-  /مرحبا|مرحباً|فهمتي|محادثات قديمة|شلونك|هلا|السلام/i
+  /^(?:مرحباً?|هلا|شلونك|السلام(?: عليكم)?|فهمتي(?: شو)?|محادثات قديمة)$/i
 const PREP = /تحضير|prep|زمن التجهيز|كيتشن/i
 const FORECAST = /توقع|forecast|الشهر الجاي|الشهر القادم|المستهدف/i
 const TALABAT = /طلبات|talabat/i
@@ -22,7 +22,14 @@ function fmt(n: number): string {
 }
 
 export function isFeryalSmallTalk(question: string): boolean {
-  return SMALL_TALK.test(question)
+  const cleaned = question
+    .trim()
+    .replace(/^[؟?!.،,؛:]+|[؟?!.،,؛:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const words = cleaned.split(' ').filter(Boolean)
+  if (words.length === 0 || words.length > 4) return false
+  return SMALL_TALK.test(cleaned)
 }
 
 export function answerFromFeryalContext(
