@@ -14,12 +14,8 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/council?scope=hourly",
-      "schedule": "7 * * * *"
-    },
-    {
       "path": "/api/cron/council?scope=nightly",
-      "schedule": "41 21 * * *"
+      "schedule": "7 1 * * *"
     }
   ],
   "redirects": [

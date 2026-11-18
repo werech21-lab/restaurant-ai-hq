@@ -25,11 +25,10 @@ describe("Today's Discoveries", () => {
     expect(html).not.toMatch(/(?:^|[^\d.,])0\.000(?!\d)/)
   })
 
-  it('without a stored council run: unavailable state, no figures', () => {
+  it('without a stored council run (or with no discoveries): nothing is rendered — no empty card, no figures', () => {
     for (const locale of ['ar', 'en'] as const) {
-      const html = renderToStaticMarkup(createElement(TodaysDiscoveriesView, { locale, discoveries: null }))
-      expect(html).toContain('data-unavailable="true"')
-      expect(html).not.toMatch(/\d+\.\d{3}/)
+      expect(renderToStaticMarkup(createElement(TodaysDiscoveriesView, { locale, discoveries: null }))).toBe('')
+      expect(renderToStaticMarkup(createElement(TodaysDiscoveriesView, { locale, discoveries: [] }))).toBe('')
     }
   })
 })

@@ -14,7 +14,6 @@ import Link from 'next/link'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { ADVISOR_LABEL, estimateValue, evidenceValue, syncLabel } from '@/components/aether/TodaysDiscoveries'
 import { useLang } from '@/components/aether/ui'
-import { UnavailableState } from '@/components/ui'
 import { branchKpis, weekdayMatrix } from '@/lib/council/advisors/benchmark'
 import { contributions, driverWindows } from '@/lib/council/advisors/drivers'
 import { detectAnomalies, forecastNext7, marketWideDays } from '@/lib/council/advisors/forecast'
@@ -137,7 +136,7 @@ function DriversView({ summary, locale }: { summary: OdooLiveSummary | null; loc
   const isAr = locale === 'ar'
   const t = (en: string, ar: string) => (isAr ? ar : en)
   const w = useMemo(() => driverWindows({ summary }), [summary])
-  if (!w) return <UnavailableState locale={locale} reason={t('Two equal completed weeks of per-branch sales are not in the current payload.', 'لا توجد فترتان مكتملتان متساويتان من مبيعات الفروع في البيانات الحالية.')} />
+  if (!w) return null
   const rows = contributions(w, 'branch')
   const split = splitOrdersAov(w.total.a, w.total.b)
   const total = w.total.a.netFils - w.total.b.netFils
@@ -181,7 +180,7 @@ function BenchmarkView({ summary, locale }: { summary: OdooLiveSummary | null; l
   const d = useMemo(() => completedDailyByBranch(summary), [summary])
   const k = useMemo(() => (d ? branchKpis(d) : null), [d])
   const m = useMemo(() => (d ? weekdayMatrix(d) : null), [d])
-  if (!d || !k) return <UnavailableState locale={locale} reason={t('28 completed days of per-branch sales are needed.', 'يلزم 28 يوماً مكتملاً من مبيعات الفروع.')} />
+  if (!d || !k) return null
   const order = [0, 1, 2, 3, 4, 5, 6]
   return (
     <section data-room-view="benchmark" className={`${CARD} space-y-4`}>
@@ -258,7 +257,7 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
   const fc = useMemo(() => (d ? forecastNext7(d, null) : null), [d])
   const anomalies = useMemo(() => (d ? detectAnomalies(d) : []), [d])
   const market = useMemo(() => marketWideDays(anomalies), [anomalies])
-  if (!d) return <UnavailableState locale={locale} reason={t('Per-branch daily sales are not in the current payload.', 'المبيعات اليومية لكل فرع غير موجودة في البيانات الحالية.')} />
+  if (!d || (!fc && anomalies.length === 0)) return null
   const max = fc ? Math.max(...fc.next7.map((p) => p.highKwd), 1) : 1
   return (
     <section data-room-view="forecast" className={`${CARD} space-y-4`}>
@@ -288,9 +287,8 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
           </ol>
           <p className="text-xs text-slate-500 dark:text-slate-400">{t('Thousands of KWD. Dark bar: forecast. Light band: upper end of the range (± the backtest error). The model does not know upcoming offers or events.', 'بآلاف الدنانير. العمود الداكن: التوقع. الشريط الفاتح: الحد الأعلى للمدى (± خطأ الاختبار الرجعي). النموذج لا يعرف العروض أو المناسبات القادمة.')}</p>
         </div>
-      ) : (
-        <UnavailableState locale={locale} reason={t('No forecast is published: the backtest error is above 35% or history is too short.', 'لا يُنشر توقع: خطأ الاختبار الرجعي أعلى من 35% أو التاريخ قصير.')} />
-      )}
+      ) : null}
+      {anomalies.length > 0 ? (
       <div className="space-y-1.5">
         <h4 className="text-[13px] font-bold text-slate-900 dark:text-white">{t('Unusual days (last 7 completed days)', 'أيام غير معتادة (آخر 7 أيام مكتملة)')}</h4>
         {market.length > 0 ? (
@@ -298,9 +296,6 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
             {market.map((mw) => `${mw.day}: ${mw.anomalies.length} ${t('branches moved together — a market-wide cause', 'فروع تحركت معاً — سبب عام')}`).join(' · ')}
           </p>
         ) : null}
-        {anomalies.length === 0 ? (
-          <p className="text-[13px] text-slate-600 dark:text-slate-400">{t('No unusual day: every branch stayed within its normal weekday range.', 'لا أيام غير معتادة: كل الفروع ضمن نطاقها المعتاد.')}</p>
-        ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] text-[13px]">
               <thead>
@@ -325,18 +320,27 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
               </tbody>
             </table>
           </div>
-        )}
       </div>
+      ) : null}
     </section>
   )
+}
+
+/** Which analysis views have data in this payload (a view without data is not offered at all). */
+export function analysisAvailability(summary: OdooLiveSummary | null): { drivers: boolean; benchmark: boolean; forecast: boolean } {
+  const d = completedDailyByBranch(summary)
+  return {
+    drivers: driverWindows({ summary }) !== null,
+    benchmark: Boolean(d && branchKpis(d)),
+    forecast: Boolean(d && (forecastNext7(d, null) || detectAnomalies(d).length > 0)),
+  }
 }
 
 function DecisionLog({ decisions, locale }: { decisions: DecisionRecord[]; locale: 'ar' | 'en' }) {
   const isAr = locale === 'ar'
   const t = (en: string, ar: string) => (isAr ? ar : en)
-  if (decisions.length === 0) {
-    return <p data-decision-log-empty="true" className={`${CARD} text-[13px] text-slate-600 dark:text-slate-400`}>{t('No decision recorded yet. Accept, test or reject a proposal and its outcome will be measured here from Odoo.', 'لا توجد قرارات بعد. اعتمد مقترحاً أو اختبره أو ارفضه، وستُقاس نتيجته هنا من Odoo.')}</p>
-  }
+  if (decisions.length === 0) return null
+
   return (
     <section data-decision-log="true" className={`${CARD} overflow-x-auto`}>
       <table className="w-full min-w-[720px] text-[13px]">
@@ -385,7 +389,13 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
   const { locale, loading = false, generatedAt, reports, summary, decisions, canDecide, liveSummary, onDecide, busyFingerprint = null } = props
   const isAr = locale === 'ar'
   const t = (en: string, ar: string) => (isAr ? ar : en)
-  const [tab, setTab] = useState<DecisionRoomTab>(props.initialTab ?? 'all')
+  const avail = useMemo(() => analysisAvailability(liveSummary), [liveSummary])
+  const hasMenu = reports.some((r) => r.advisorId === 'menu' && r.findings.length > 0)
+  const tabHasContent = (id: DecisionRoomTab): boolean =>
+    id === 'all' ? true : id === 'log' ? decisions.length > 0 : id === 'menu' ? hasMenu : avail[id]
+  const [chosenTab, setTab] = useState<DecisionRoomTab>(props.initialTab ?? 'all')
+  // A tab with nothing to show falls back to "all" (an empty section is never rendered).
+  const tab: DecisionRoomTab = tabHasContent(chosenTab) ? chosenTab : 'all'
   const decisionBy = useMemo(() => new Map(decisions.map((d) => [d.fingerprint, d])), [decisions])
   const findings = useMemo(() => {
     const all = reports.flatMap((r) => r.findings).filter((f) => f.proposals.length > 0 || f.kind === 'company-split' || f.kind === 'forecast-next7')
@@ -399,7 +409,7 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
   const sized = findings.filter((f) => f.weeklyImpact?.unit === 'KWD')
   const sizedCount = sized.length
   const totalWeekly = sized.reduce((s, f) => s + (f.weeklyImpact?.value ?? 0), 0)
-  const tabs: { id: DecisionRoomTab; ar: string; en: string }[] = [
+  const allTabs: { id: DecisionRoomTab; ar: string; en: string }[] = [
     { id: 'all', ar: 'كل المقترحات', en: 'All proposals' },
     { id: 'drivers', ar: 'محرّكات المبيعات', en: 'Sales drivers' },
     { id: 'menu', ar: 'المنيو والخصومات', en: 'Menu & discounts' },
@@ -407,6 +417,9 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
     { id: 'forecast', ar: 'التوقع والأيام غير المعتادة', en: 'Forecast & unusual days' },
     { id: 'log', ar: `سجل القرارات (${decisions.length})`, en: `Decision log (${decisions.length})` },
   ]
+  const tabs = allTabs.filter((x) => tabHasContent(x.id))
+  const openCount = reports.flatMap((r) => r.findings).filter((f) => f.proposals.length > 0 && !decisionBy.has(f.fingerprint)).length
+  const measuringCount = decisions.filter((d) => d.status !== 'rejected').length
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} data-decision-room="true" className="space-y-5 p-3 sm:p-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -416,14 +429,12 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
             {t('What changed, why, what to do and what it is worth — from Odoo data analysed by nine advisors. Decide here; the outcome is measured from Odoo afterwards.', 'ما الذي تغيّر، ولماذا، وماذا نفعل، وكم يساوي — من بيانات Odoo بتحليل تسعة مستشارين. قرّر هنا، وتُقاس النتيجة من Odoo بعدها.')}
           </p>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`${t('Council run', 'تشغيل المجلس')}: ${syncLabel(generatedAt, locale)}`}</p>
+        {generatedAt ? <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`${t('Council run', 'تشغيل المجلس')}: ${syncLabel(generatedAt, locale)}`}</p> : null}
       </header>
 
       {loading ? (
         <div className={`${CARD} text-[13px] text-slate-500`} aria-busy="true">{t('Loading the advisor reports…', 'جاري تحميل تقارير المستشارين…')}</div>
-      ) : reports.length === 0 ? (
-        <UnavailableState locale={locale} reason={t('No advisor run is stored yet — the council runs from Odoo hourly and nightly.', 'لا يوجد تشغيل محفوظ للمستشارين بعد — يعمل المجلس من Odoo كل ساعة وكل ليلة.')} />
-      ) : (
+      ) : reports.length === 0 ? null : (
         <>
           {summary && summary.ar.length > 0 ? (
             <section data-executive-summary={summary.source} className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm sm:p-5 dark:border-sky-400/20 dark:bg-sky-400/[0.07]">
@@ -440,15 +451,15 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
             </section>
           ) : null}
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Open proposals', 'المقترحات المفتوحة')}</span><b className="text-xl tabular-nums" dir="ltr">{reports.flatMap((r) => r.findings).filter((f) => f.proposals.length > 0 && !decisionBy.has(f.fingerprint)).length}</b></p>
-            <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Sized opportunity in this view', 'الفرصة المقدّرة في هذا العرض')}</span>{sizedCount > 0 ? (
-                <><b className="text-xl tabular-nums" dir="ltr">{`${fmt(totalWeekly)} ${t('KWD / week', 'د.ك / أسبوع')}`}</b><span className="block text-xs text-slate-500">{t(`Sum of ${sizedCount} Estimates — not a certain figure`, `مجموع ${sizedCount} تقديرات — ليس رقماً مؤكداً`)}</span></>
-              ) : (
-                <><b className="text-xl" data-unavailable="true">—</b><span className="block text-xs text-slate-500">{t('No sized proposal in this section', 'لا يوجد مقترح مقدّر بالدينار في هذا القسم')}</span></>
-              )}</p>
-            <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Decisions being measured', 'قرارات قيد القياس')}</span><b className="text-xl tabular-nums" dir="ltr">{decisions.filter((d) => d.status !== 'rejected').length}</b></p>
-          </div>
+          {openCount > 0 || sizedCount > 0 || measuringCount > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-room-tiles="true">
+              {openCount > 0 ? <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Open proposals', 'المقترحات المفتوحة')}</span><b className="text-xl tabular-nums" dir="ltr">{openCount}</b></p> : null}
+              {sizedCount > 0 ? (
+                <p className={CARD} data-room-sized="true"><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Sized opportunity in this view', 'الفرصة المقدّرة في هذا العرض')}</span><b className="text-xl tabular-nums" dir="ltr">{`${fmt(totalWeekly)} ${t('KWD / week', 'د.ك / أسبوع')}`}</b><span className="block text-xs text-slate-500">{t(`Sum of ${sizedCount} Estimates — not a certain figure`, `مجموع ${sizedCount} تقديرات — ليس رقماً مؤكداً`)}</span></p>
+              ) : null}
+              {measuringCount > 0 ? <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Decisions being measured', 'قرارات قيد القياس')}</span><b className="text-xl tabular-nums" dir="ltr">{measuringCount}</b></p> : null}
+            </div>
+          ) : null}
 
           <nav role="tablist" aria-label={t('Decision Room sections', 'أقسام غرفة القرار')} className="flex gap-1.5 overflow-x-auto rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.05]">
             {tabs.map((x) => (
@@ -465,9 +476,7 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
 
           {tab === 'log' ? (
             <DecisionLog decisions={decisions} locale={locale} />
-          ) : findings.length === 0 ? (
-            <p className={`${CARD} text-[13px] text-slate-600 dark:text-slate-400`}>{t('No proposal in this section for the latest run.', 'لا توجد مقترحات في هذا القسم في آخر تشغيل.')}</p>
-          ) : (
+          ) : findings.length === 0 ? null : (
             <ol className="grid grid-cols-1 gap-3 xl:grid-cols-2">
               {findings.map((f) => (
                 <FindingCard key={f.fingerprint} f={f} locale={locale} decision={decisionBy.get(f.fingerprint) ?? null} canDecide={canDecide} onDecide={onDecide} busy={busyFingerprint === f.fingerprint} />
@@ -503,6 +512,8 @@ export function DemandForecastPanel() {
   const { isAr } = useLang()
   const { liveSummary } = useGlobalFilter()
   const locale = isAr ? 'ar' : 'en'
+  const available = useMemo(() => analysisAvailability(liveSummary).forecast, [liveSummary])
+  if (!available) return null
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} data-demand-forecast-panel="true" className="space-y-3">
       <ForecastView summary={liveSummary} locale={locale} />

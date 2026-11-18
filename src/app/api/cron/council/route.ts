@@ -13,7 +13,7 @@ function cronAuthorized(request: NextRequest): boolean {
   return constantTimeHexEqual(request.headers.get('authorization') ?? '', `Bearer ${secret}`)
 }
 
-/** Vercel cron: `?scope=hourly` every hour, `?scope=nightly` once a night (Kuwait). Read-only on Odoo. */
+/** Vercel cron (vercel.json): `?scope=nightly` once a night (Kuwait); `?scope=hourly` only when called by hand. Read-only on Odoo. */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401, headers: ENTERPRISE_API_SECURITY_HEADERS })

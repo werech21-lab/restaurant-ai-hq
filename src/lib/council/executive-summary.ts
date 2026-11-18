@@ -38,16 +38,8 @@ export function templateSummary(snapshot: CouncilSnapshot): ExecutiveSummary {
   return { source: 'template', ar, en, basis: picks.map((f) => f.fingerprint) }
 }
 
-/** Every number the summary may contain: evidence, Estimates (values and inputs), thresholds, dates. */
+/** Every council number (evidence, Estimate values and inputs, thresholds, hours) — never date parts. */
 export function summaryFactNumbers(snapshot: CouncilSnapshot): number[] {
   const nums = councilNumbers(snapshot.reports)
-  for (const f of snapshot.reports.flatMap((r) => r.findings)) {
-    for (const e of f.evidence) {
-      for (const iso of [e.period.from, e.period.to]) {
-        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
-        if (m) nums.push(Number(m[1]), Number(m[2]), Number(m[3]))
-      }
-    }
-  }
   return [...new Set([...nums, ...nums.map((n) => Math.abs(n))])]
 }

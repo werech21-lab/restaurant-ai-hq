@@ -7,11 +7,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DecisionRoomView, type DecisionRoomTab } from '@/components/aether/DecisionRoomStudio'
 import { decisionFromFinding, measureDecisionOutcome } from '@/lib/council/decisions'
-import { summaryFactNumbers, templateSummary } from '@/lib/council/executive-summary'
+import { summaryFindings, templateSummary } from '@/lib/council/executive-summary'
 import { runCouncil } from '@/lib/council/runner'
 import { completedDailyByBranch } from '@/lib/council/series'
-import { guardAnswerNumbers } from '@/server/ai/number-guard'
-import { executiveSummaryFor, summaryAllowedTokens } from '@/server/council/executive-summary'
+import { checkSummaryLines, executiveSummaryFor } from '@/server/council/executive-summary'
 import { loadLiveTodaySummary } from '../support/dashboard-fixture'
 
 const summary = loadLiveTodaySummary()
@@ -55,12 +54,25 @@ describe('Decision Room', () => {
     expect(f).toContain('data-anomaly="promenade:2026-11-14"')
   })
 
-  it('without the payload the analysis views say what is missing — never 0.000', () => {
+  it('without the payload the analysis views and their tabs are not rendered at all — no empty card', () => {
     for (const tab of ['drivers', 'benchmark', 'forecast'] as const) {
       const html = render('ar', tab, { liveSummary: null })
-      expect(html).toContain('data-unavailable="true"')
       expect(html).not.toMatch(/data-room-view=/)
+      expect(html).not.toContain(`data-room-tab="${tab}"`)
+      expect(html).not.toContain('data-unavailable="true"')
+      // Falls back to "all": the proposals are still there.
+      expect(html).toContain('data-room-tab="all"')
+      expect(html).toContain('data-room-finding=')
     }
+  })
+
+  it('menu and log tabs are only offered when they have content; no empty-section cards', () => {
+    const html = render('en', 'log')
+    expect(html).not.toContain('data-room-tab="menu"')
+    expect(html).not.toContain('data-room-tab="log"')
+    expect(html).not.toContain('data-decision-log')
+    expect(html).not.toContain('No proposal in this section')
+    expect(render('en', 'log', { decisions: [decided] })).toContain('data-room-tab="log"')
   })
 
   it('a decided proposal shows its status; the log shows the measured lift against the peers', () => {
@@ -73,22 +85,48 @@ describe('Decision Room', () => {
     expect(log).toContain(`${decided.outcome.peersChangePct! > 0 ? '+' : ''}${decided.outcome.peersChangePct!.toFixed(1)}%`)
   })
 
-  it('no stored council run → unavailable state with no figures', () => {
+  it('no stored council run → only the page header: no unavailable card, no tiles, no tabs, no figures', () => {
     const html = render('ar', 'all', { reports: [], summary: null, generatedAt: null })
-    expect(html).toContain('data-unavailable="true"')
+    expect(html).toContain('غرفة القرار')
+    expect(html).not.toContain('data-unavailable="true"')
+    expect(html).not.toContain('data-room-tiles')
+    expect(html).not.toContain('data-room-tab=')
     expect(html).not.toMatch(/\d+\.\d{3}/)
   })
 })
 
 describe('executive summary guard', () => {
   afterEach(() => vi.unstubAllEnvs())
-  it('an invented number fails the guard; the council figures pass', () => {
-    const allowed = summaryAllowedTokens(snap)
-    expect(summaryFactNumbers(snap).length).toBeGreaterThan(0)
-    expect(guardAnswerNumbers([...templateSummary(snap).ar, ...templateSummary(snap).en].join('\n'), allowed)).toEqual({ ok: true, offending: [] })
-    expect(guardAnswerNumbers('ارتفعت المبيعات 12.345 د.ك', allowed)).toEqual({ ok: false, offending: ['12.345'] })
-    expect(guardAnswerNumbers('النمو 7.7%', allowed).ok).toBe(false)
+  const picks = summaryFindings(snap, 5)
+  const tmpl = templateSummary(snap)
+  const tagged = tmpl.ar.map((line, i) => `[F${i + 1}] ${line}`)
+  const marketIdx = picks.findIndex((f) => f.kind === 'market-wide-drop')
+
+  it('the template lines, tagged with their own finding, pass; tags are stripped for display', () => {
+    expect(tmpl.basis).toEqual(picks.slice(0, tmpl.ar.length).map((f) => f.fingerprint))
+    const r = checkSummaryLines(tagged, picks)
+    expect(r.failures).toEqual([])
+    expect(r.ok).toBe(true)
+    expect(r.lines).toEqual(tmpl.ar)
   })
+
+  it("a line quoting another finding's numbers fails", () => {
+    const other = (marketIdx + 1) % tmpl.ar.length
+    const r = checkSummaryLines([`[F${other + 1}] ${tmpl.ar[marketIdx]}`], picks)
+    expect(r.ok).toBe(false)
+    expect(r.failures.some((f) => f.reason === 'number' || f.reason === 'date')).toBe(true)
+  })
+
+  it('an invented number, a bare day / month integer, a wrong date, or a missing / unknown tag fails', () => {
+    const tag = `[F${marketIdx + 1}]`
+    expect(checkSummaryLines([`${tag} ارتفعت المبيعات 12.345 د.ك`], picks).failures).toEqual([{ line: 0, reason: 'number', token: '12.345' }])
+    expect(checkSummaryLines([`${tag} يوم 13 من شهر 11`], picks).failures.map((f) => f.token)).toEqual(['13', '11'])
+    expect(checkSummaryLines([`${tag} 2026-11-13 تراجع عام`], picks).ok).toBe(true)
+    expect(checkSummaryLines([`${tag} 2026-11-12 تراجع عام`], picks).failures).toEqual([{ line: 0, reason: 'date', token: '2026-11-12' }])
+    expect(checkSummaryLines([tmpl.ar[0]], picks).failures).toEqual([{ line: 0, reason: 'no-finding-tag' }])
+    expect(checkSummaryLines([`[F9] ${tmpl.ar[0]}`], picks).failures[0].reason).toBe('unknown-finding')
+  })
+
   it('without a provider key the template is served (no provider call)', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', '')
     const fetchSpy = vi.spyOn(globalThis, 'fetch')

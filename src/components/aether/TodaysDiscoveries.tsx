@@ -7,7 +7,6 @@
  */
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { UnavailableState } from '@/components/ui'
 import type { AdvisorId, CouncilDiscovery, CouncilEstimate, CouncilEvidence } from '@/lib/council/types'
 
 export const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
@@ -51,6 +50,8 @@ export function syncLabel(iso: string | null, locale: 'ar' | 'en'): string {
 export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: { locale: 'ar' | 'en'; discoveries: CouncilDiscovery[] | null; loading?: boolean }) {
   const isAr = locale === 'ar'
   const t = (en: string, ar: string) => (isAr ? ar : en)
+  // No stored council run (or nothing to show): the section is not rendered at all — no empty card.
+  if (!loading && (!discoveries || discoveries.length === 0)) return null
   return (
     <section data-todays-discoveries="true" dir={isAr ? 'rtl' : 'ltr'} className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -64,9 +65,7 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-[13px] text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400" aria-busy="true">
           {t('Loading the advisor reports…', 'جاري تحميل تقارير المستشارين…')}
         </div>
-      ) : !discoveries || discoveries.length === 0 ? (
-        <UnavailableState locale={locale} reason={t('No advisor run is stored yet — the council runs hourly from Odoo.', 'لا يوجد تشغيل محفوظ للمستشارين بعد — يعمل المجلس كل ساعة من Odoo.')} />
-      ) : (
+      ) : !discoveries ? null : (
         <ol className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {discoveries.map((d, i) => {
             const f = d.finding
@@ -137,5 +136,7 @@ export function TodaysDiscoveries({ locale }: { locale: 'ar' | 'en' }) {
       cancelled = true
     }
   }, [])
-  return <TodaysDiscoveriesView locale={locale} discoveries={state.discoveries} loading={state.loading} />
+  // Nothing while loading or when no snapshot is stored: the Home shows the section only with content.
+  if (state.loading) return null
+  return <TodaysDiscoveriesView locale={locale} discoveries={state.discoveries} />
 }

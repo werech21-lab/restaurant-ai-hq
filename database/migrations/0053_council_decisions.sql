@@ -30,6 +30,8 @@ ALTER TABLE public.council_decisions FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.council_decisions FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION erp_council_decisions_marker() RETURNS void
-LANGUAGE sql AS $$ SELECT NULL $$;
+LANGUAGE sql
+SET search_path = public
+AS $$ SELECT NULL $$;
 
 REVOKE ALL ON FUNCTION erp_council_decisions_marker() FROM PUBLIC, anon, authenticated;
