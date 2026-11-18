@@ -580,6 +580,7 @@ export function CoresHubStudio({
               </div>
               <div
                 dir="ltr"
+                data-kpi="net-sales"
                 className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
               >
                 {snapshot.sales.headline.netSalesKwd === null ? (
@@ -872,6 +873,7 @@ export function CoresHubStudio({
                     return (
                       <div
                         key={b.id}
+                        data-cores-branch-row={b.id}
                         className={`flex items-center justify-between gap-2 py-2.5 text-xs ${
                           isUnattr
                             ? 'rounded-lg px-2 font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
@@ -883,11 +885,16 @@ export function CoresHubStudio({
                             {isAr ? b.labelAr : b.labelEn}
                           </div>
                           <div className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                            {f0(b.orders, resolvedLocale)} {isAr ? 'طلب' : 'orders'} ·{' '}
+                            <span data-cores-branch-orders={b.id}>{f0(b.orders, resolvedLocale)}</span>{' '}
+                            {isAr ? 'طلب' : 'orders'} ·{' '}
                             {f1Pct(b.sharePct, resolvedLocale)}
                           </div>
                         </div>
-                        <div dir="ltr" className="shrink-0 font-mono font-bold tabular-nums">
+                        <div
+                          dir="ltr"
+                          data-cores-branch-sales={b.id}
+                          className="shrink-0 font-mono font-bold tabular-nums"
+                        >
                           {formatKwd(b.salesKwd, { locale: resolvedLocale })}
                         </div>
                       </div>

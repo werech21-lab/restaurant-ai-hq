@@ -675,10 +675,7 @@ export function computeCoresHubSnapshot(
   // A series is used only when Σ(hours) equals that period's net total to the fils; otherwise the
   // hourly section is unavailable (no points, no peak) — never an empty chart with a 0.000 peak.
   const monthBucketTotalKwd = liveSummary?.buckets?.month?.totals?.netSalesKwd
-  const selectedBucket =
-    filters.period === 'custom'
-      ? liveSummary?.customBucket ?? null
-      : liveSummary?.buckets?.[filters.period] ?? null
+  const selectedBucket = resolveSummaryBucket(filters, liveSummary) ?? null
   let hourlyCandidate: { hour: number; orders: number; netKwd: number }[] = []
   let hourlyPeriodTotalKwd: number | null = null
   let hourlySourced = false
@@ -781,15 +778,16 @@ export function computeCoresHubSnapshot(
     hourlyDenom > 0 ? round1((quietWindowSalesKwd / hourlyDenom) * 100) : 0
 
   const activeBucket =
-    filters.period === 'custom'
-      ? resolveSummaryBucket(filters, liveSummary)
-      : liveSummary?.buckets?.[filters.period] ?? liveSummary?.buckets?.month
+    resolveSummaryBucket(filters, liveSummary) ??
+    (filters.period !== 'custom' ? liveSummary?.buckets?.month : undefined)
+  const customBucketUnavailable = Boolean(liveSummary && filters.period === 'custom' && !activeBucket)
 
   // 3. Brand Share (6 brands strictly)
   const unavailableSet = new Set(liveSummary?.unavailableSections ?? [])
   const brandsUnavailable = Boolean(
     !liveCube &&
-      (unavailableSet.has('products') ||
+      (customBucketUnavailable ||
+        unavailableSet.has('products') ||
         unavailableSet.has('pos.category') ||
         (activeBucket &&
           (activeBucket.byBrand === null || activeBucket.totals.restaurantNetKwd === null))),
@@ -846,11 +844,12 @@ export function computeCoresHubSnapshot(
     liveCube || !activeBucket ? null : resolveBranchScope(activeBucket, filters.brand, branchIds)
   const branchesUnavailable = Boolean(
     !liveCube &&
-      activeBucket &&
-      (!bucketBranchScope?.available ||
-        activeBucket.byLocation === null ||
-        activeBucket.mappedByLocation === null ||
-        activeBucket.totals.restaurantNetKwd === null),
+      (customBucketUnavailable ||
+        (activeBucket &&
+          (!bucketBranchScope?.available ||
+            activeBucket.byLocation === null ||
+            activeBucket.mappedByLocation === null ||
+            activeBucket.totals.restaurantNetKwd === null))),
   )
   const branchScope: 'brand' | 'all-brands' =
     bucketBranchScope?.available && bucketBranchScope.scope === 'brand' ? 'brand' : 'all-brands'
@@ -932,7 +931,9 @@ export function computeCoresHubSnapshot(
       : mappedBranchPoints
 
   // 5. Channel Ranking (from live POS channel classification)
-  const channelsUnavailable = Boolean(!liveCube && activeBucket && activeBucket.uiChannels === null)
+  const channelsUnavailable = Boolean(
+    !liveCube && (customBucketUnavailable || (activeBucket && activeBucket.uiChannels === null)),
+  )
   const channelIds =
     filters.channel === 'all' ? [...APPROVED_CHANNEL_IDS] : [filters.channel]
   const channelRowsRaw = channelsUnavailable

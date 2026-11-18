@@ -3,12 +3,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
-  APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
   APPROVED_CHANNEL_IDS,
   APPROVED_KUWAIT_SLICES,
   APPROVED_PROFIT_LENSES,
   computeGlobalWorkspace,
+  DASHBOARD_BRANCH_CARD_IDS,
   DEFAULT_CUSTOM_FROM,
   DEFAULT_CUSTOM_TO,
   DEFAULT_GLOBAL_FILTERS,
@@ -77,7 +77,7 @@ interface GlobalFilterContextValue {
 
 const GlobalFilterContext = createContext<GlobalFilterContextValue | null>(null)
 
-function sanitizeFilters(
+export function sanitizeFilters(
   raw: Partial<GlobalFilters> | null | undefined,
   pathname?: string | null,
 ): Required<GlobalFilters> {
@@ -112,7 +112,7 @@ function sanitizeFilters(
       ? (raw.brand as GlobalBrand)
       : 'all'
   let branch: GlobalBranch =
-    raw.branch && (APPROVED_BRANCH_IDS as readonly string[]).includes(raw.branch)
+    raw.branch && (DASHBOARD_BRANCH_CARD_IDS as readonly string[]).includes(raw.branch)
       ? (raw.branch as GlobalBranch)
       : 'all'
   if (!isBrandBranchCompatible(brand, branch)) {

@@ -11,6 +11,7 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
   formatPeriodCalendarWindow,
   getPeriodLabel,
+  resolveSummaryBucket,
 } from '@/lib/aether/global-filter-engine'
 import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
 import {
@@ -135,9 +136,8 @@ export function BrandSalesAnalyticsDashboard({ locale: explicitLocale }: Props =
 
   const activeBucket = useMemo(() => {
     if (!liveSummary || liveSummary.connected !== true) return null
-    if (filters.period === 'custom') return liveSummary.customBucket ?? null
-    return liveSummary.buckets?.[filters.period ?? 'month'] ?? null
-  }, [filters.period, liveSummary])
+    return resolveSummaryBucket(filters, liveSummary) ?? null
+  }, [filters, liveSummary])
 
   const isInitialLoading = liveSummary === null
   const noOdooData =

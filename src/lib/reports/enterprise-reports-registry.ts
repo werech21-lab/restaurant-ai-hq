@@ -6,6 +6,7 @@ import {
   getBranchLabel,
   getBrandLabel,
   getChannelLabel,
+  resolveSummaryBucket,
   type GlobalBranch,
   type GlobalBrand,
   type GlobalChannel,
@@ -96,9 +97,7 @@ function resolveActiveBucket(
   liveSummary: OdooLiveSummary | null,
 ): OdooBucketSummary | null {
   if (!liveSummary || !liveSummary.connected) return null
-  const p = workspace.filters.period
-  if (p === 'custom') return liveSummary.customBucket ?? liveSummary.buckets?.month ?? null
-  return liveSummary.buckets?.[p] ?? null
+  return resolveSummaryBucket(workspace.filters, liveSummary) ?? null
 }
 
 function fmtKwd(v: number | null | undefined, isAr: boolean): string {

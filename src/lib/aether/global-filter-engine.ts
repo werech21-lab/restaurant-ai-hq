@@ -199,25 +199,98 @@ export const DASHBOARD_BRANCH_CARD_IDS = [
   'exhibitions',
 ] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
+export type CustomBucketDailySource = Pick<
+  OdooLiveSummary,
+  'dailyByBranch' | 'dailyUnattributed'
+> &
+  Partial<
+    Pick<
+      OdooLiveSummary,
+      | 'dateRange'
+      | 'latestOperationalDate'
+      | 'latestRecordAt'
+      | 'lastSyncAt'
+      | 'syncedAt'
+      | 'buckets'
+    >
+  >
+
+function toKuwaitDayIso(utcIso?: string | null): string | null {
+  if (!utcIso || typeof utcIso !== 'string') return null
+  const ms = Date.parse(utcIso)
+  if (!Number.isFinite(ms)) return null
+  return new Date(ms + 3 * 3_600_000).toISOString().slice(0, 10)
+}
+
+function resolveSummaryLatestCoveredDay(
+  liveSummary: CustomBucketDailySource,
+  latestBranchDayIso: string,
+): string {
+  const isoRe = /^\d{4}-\d{2}-\d{2}$/
+  const candidates: (string | null | undefined)[] = [
+    latestBranchDayIso,
+    liveSummary.dateRange?.to,
+    liveSummary.latestOperationalDate,
+    liveSummary.buckets?.today?.from,
+    liveSummary.buckets?.today?.to ? shiftIsoDateDays(liveSummary.buckets.today.to, -1) : null,
+    liveSummary.buckets?.month?.to ? shiftIsoDateDays(liveSummary.buckets.month.to, -1) : null,
+    toKuwaitDayIso(liveSummary.lastSyncAt),
+    toKuwaitDayIso(liveSummary.latestRecordAt),
+    toKuwaitDayIso(liveSummary.syncedAt),
+  ]
+  let latest = latestBranchDayIso
+  for (const c of candidates) {
+    if (c && isoRe.test(c) && c > latest) {
+      latest = c
+    }
+  }
+  return latest
+}
+
 /**
  * Custom range without a matching `customBucket` in the payload (e.g. the previous period's payload
  * is still on screen while the custom fetch is pending or failed): derive the bucket from the SAME
  * payload's per-day, per-branch rows so the headline and the branch rows come from identical data.
- * Only when the whole range lies inside the payload's daily coverage; otherwise `undefined`.
+ * Sums all days in `[fromIso, toInclusiveIso]` whenever the range falls within `[days[0], latestCoveredDay]`,
+ * even when the start or end day had 0 POS orders (absent key in sparse `dailyByBranch`).
  * Brands / channels are not in the daily rows, so they stay `null` (shown as unavailable).
  */
 export function deriveCustomBucketFromDaily(
-  liveSummary: Pick<OdooLiveSummary, 'dailyByBranch' | 'dailyUnattributed'> | null | undefined,
+  liveSummary: CustomBucketDailySource | null | undefined,
   fromIso: string,
   toInclusiveIso: string,
 ): OdooBucketSummary | undefined {
   const byDay = liveSummary?.dailyByBranch
   if (!byDay) return undefined
-  const days = Object.keys(byDay).sort()
-  if (days.length === 0 || fromIso < days[0] || toInclusiveIso > days[days.length - 1]) return undefined
+  const isoDayRe = /^\d{4}-\d{2}-\d{2}$/
+  const days = [
+    ...new Set([
+      ...Object.keys(byDay),
+      ...Object.keys(liveSummary?.dailyUnattributed ?? {}),
+    ]),
+  ]
+    .filter((d) => isoDayRe.test(d))
+    .sort()
+  if (
+    days.length === 0 ||
+    !isoDayRe.test(fromIso) ||
+    !isoDayRe.test(toInclusiveIso) ||
+    fromIso > toInclusiveIso
+  ) {
+    return undefined
+  }
+  const earliestCoveredIso = days[0]
+  const latestCoveredIso = resolveSummaryLatestCoveredDay(liveSummary, days[days.length - 1])
+  if (fromIso < earliestCoveredIso || toInclusiveIso > latestCoveredIso) return undefined
+
   const inRange = days.filter((d) => d >= fromIso && d <= toInclusiveIso)
   const fils = (n: unknown) => Math.round((Number(n) || 0) * 1000)
   const loc = new Map<string, { netFils: number; orders: number }>()
+  for (const dayRow of Object.values(byDay)) {
+    for (const branchId of Object.keys(dayRow ?? {})) {
+      if (!loc.has(branchId)) loc.set(branchId, { netFils: 0, orders: 0 })
+    }
+  }
   let unFils = 0
   let unOrders = 0
   for (const d of inRange) {
@@ -1563,8 +1636,10 @@ export function computeGlobalWorkspace(
       scopeAvailable = false
     }
 
-    const finalSalesKwd = Math.max(0, Math.round(rawSales * sliceNetMult * 1000) / 1000)
-    const finalOrders = finalSalesKwd > 0 ? Math.max(0, Math.round(rawOrd * sliceOrdMult)) : 0
+    const roundedSalesKwd = Math.round(rawSales * sliceNetMult * 1000) / 1000
+    const finalSalesKwd = Object.is(roundedSalesKwd, -0) ? 0 : roundedSalesKwd
+    const finalOrders =
+      rawOrd > 0 && sliceOrdMult > 0 ? Math.max(0, Math.round(rawOrd * sliceOrdMult)) : 0
     return { salesKwd: finalSalesKwd, orders: finalOrders, ordersKnown, scopeAvailable }
   }
 
@@ -1593,7 +1668,7 @@ export function computeGlobalWorkspace(
   const ordersUnavailable = sectionUnavailable || !activeSlice.ordersKnown
   const nullableSalesKwd = sectionUnavailable ? null : salesKwd
   const nullableOrders = ordersUnavailable ? null : orders
-  const nullableAovKwd = ordersUnavailable ? null : aovKwd
+  const nullableAovKwd = ordersUnavailable || (orders === 0 && salesKwd !== 0) ? null : aovKwd
   const brandHeadline = brand === 'all' ? null : resolveBrandHeadline(activeBkt, brand)
 
   const unattributedSalesKwd = safeNum(
@@ -2041,7 +2116,7 @@ export function computeGlobalWorkspace(
   const feryalContextEn = `[Active Filter: ${subtitleEn} | Net Sales: ${feryalSalesEn} | Unattributed: ${fKwd(unattributedSalesKwd, false)} | Orders: ${feryalOrdersStr} | AOV: ${feryalAovEn} | GL Margin: ${glMarginLabelEn}]`
 
   const noData = Boolean(
-    !sectionUnavailable && (liveSummary.noData || (salesKwd <= 0 && orders <= 0)),
+    !sectionUnavailable && (liveSummary.noData || (salesKwd === 0 && orders <= 0)),
   )
   const partial = Boolean(liveSummary.partial)
   const unavailableSections = liveSummary.unavailableSections ?? []

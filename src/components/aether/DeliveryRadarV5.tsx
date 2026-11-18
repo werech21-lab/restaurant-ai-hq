@@ -16,6 +16,7 @@ import {
   formatPeriodCalendarWindow,
   getBranchLabel,
   getChannelLabel,
+  resolveSummaryBucket,
   type GlobalBranch,
   type GlobalChannel,
 } from '@/lib/aether/global-filter-engine'
@@ -232,9 +233,8 @@ export function DeliveryRadarV5({
 
   const activeBucket = useMemo(() => {
     if (!liveSummary || liveSummary.connected !== true) return null
-    if (filters.period === 'custom') return liveSummary.customBucket ?? null
-    return liveSummary.buckets?.[filters.period] ?? null
-  }, [filters.period, liveSummary])
+    return resolveSummaryBucket(filters, liveSummary) ?? null
+  }, [filters, liveSummary])
 
   const gl = workspace.accounting
   const commissionUnposted = Boolean(

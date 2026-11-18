@@ -28,6 +28,7 @@ import {
 import { formatDate } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { resolveSummaryBucket } from '@/lib/aether/global-filter-engine'
 import { publishPageOdooSync } from '@/lib/odoo-page-sync'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
 import { FeryalMemoryDrawer } from '@/components/aether/FeryalMemoryDrawer'
@@ -870,12 +871,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       workspace.filters.channel === 'all' &&
       workspace.filters.kuwaitSlice === 'all'
     if (canUseRawBucket) {
-      const periodKey = workspace.filters.period
-      const bucketLoc =
-        periodKey === 'custom'
-          ? liveSummary?.customBucket?.mappedByLocation ?? liveSummary?.customBucket?.byLocation
-          : liveSummary?.buckets?.[periodKey]?.mappedByLocation ??
-            liveSummary?.buckets?.[periodKey]?.byLocation
+      const resolvedBucket = resolveSummaryBucket(workspace.filters, liveSummary)
+      const bucketLoc = resolvedBucket?.mappedByLocation ?? resolvedBucket?.byLocation
       if (bucketLoc) {
         const liveRows = Object.entries(bucketLoc)
           .filter(([id, row]) => {
@@ -942,10 +939,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   }, [
     liveSummary,
     workspace.cascadingOptions.branches,
-    workspace.filters.brand,
-    workspace.filters.channel,
-    workspace.filters.kuwaitSlice,
-    workspace.filters.period,
+    workspace.filters,
     workspace.odooConnected,
   ])
 
