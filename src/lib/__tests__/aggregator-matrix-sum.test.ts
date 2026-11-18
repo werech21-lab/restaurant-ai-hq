@@ -12,17 +12,23 @@ describe('aggregator matrix rows sum to the platform totals', () => {
       branchIds: DASHBOARD_BRANCH_CARD_IDS,
       channelKeys: CHANNELS,
       cell: (branchId, channelKey) =>
-        cube.byBranch[branchId as keyof typeof cube.byBranch]?.channels?.[channelKey],
-      unattributed: (channelKey) => cube.unattributed.channels[channelKey],
+        cube.byBranch[branchId as keyof typeof cube.byBranch]?.channels?.[
+          channelKey as keyof (typeof cube.unattributed)['channels']
+        ],
+      unattributed: (channelKey) =>
+        cube.unattributed.channels[channelKey as keyof typeof cube.unattributed.channels],
     })
 
     for (const channel of CHANNELS) {
       let expected = 0
       for (const branchId of DASHBOARD_BRANCH_CARD_IDS) {
         expected +=
-          cube.byBranch[branchId as keyof typeof cube.byBranch]?.channels?.[channel]?.netKwd ?? 0
+          cube.byBranch[branchId as keyof typeof cube.byBranch]?.channels?.[
+            channel as keyof (typeof cube.unattributed)['channels']
+          ]?.netKwd ?? 0
       }
-      expected += cube.unattributed.channels[channel]?.netKwd ?? 0
+      expected +=
+        cube.unattributed.channels[channel as keyof typeof cube.unattributed.channels]?.netKwd ?? 0
       expected = Math.round(expected * 1000) / 1000
       const rowSum = result.rows
         .filter((row) => row.channelKey === channel)
