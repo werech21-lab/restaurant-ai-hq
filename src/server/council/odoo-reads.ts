@@ -1,12 +1,11 @@
 import 'server-only'
 import { executeOdooKw, isOdooLiveEnvConfigured } from '@/lib/odoo-live-connector'
-import { channelOfPaymentMethod } from '@/lib/odoo/live-sync-core'
 import { buildPosPaymentUtcDomain, kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
 import type { AggregatorHourlyMatrix } from '@/lib/council/advisors/delivery'
 import type { HrInput } from '@/lib/council/advisors/hr'
 import type { InventoryInput } from '@/lib/council/advisors/inventory'
-import { r1 } from '@/lib/council/helpers'
-import { attendanceInputFrom, quantInputFrom, type OdooAttendanceRecord, type OdooEmployeeRecord, type OdooQuantRecord } from '@/lib/council/sources'
+import { fromFils, r1, toFils } from '@/lib/council/helpers'
+import { attendanceInputFrom, classifyMatrixPaymentChannel, quantInputFrom, type OdooAttendanceRecord, type OdooEmployeeRecord, type OdooQuantRecord } from '@/lib/council/sources'
 import type { CouncilModelProbeRow, CouncilModelProbeSummary } from '@/lib/council/types'
 
 export const PROBED_MODELS = [
@@ -323,11 +322,10 @@ export async function probeOdooModels(nowMs = Date.now()): Promise<OdooModelProb
   }
 }
 
-const PLATFORM_OF: Record<string, string> = { 'Talabat Go': 'talabat-tgo', 'Talabat MP': 'talabat-tmp', Keeta: 'keeta' }
-
 /**
- * Branch × Kuwait hour × channel matrix from pos.payment, grouped by session, payment method and
- * payment hour. `branchOfConfig` is the company register → branch map (from the period cube).
+ * 5-week branch × Kuwait hour × channel matrix from `pos.payment`, grouped by session, payment
+ * method, and payment hour (`config × hour × method`). Direct in-branch payment methods (`dine-in`
+ * / `takeaway-direct`) are mapped distinctly from aggregators (`talabat-tgo`, `talabat-tmp`, `keeta`).
  */
 export async function fetchAggregatorHourlyMatrix(
   fromIso: string,
@@ -338,34 +336,66 @@ export async function fetchAggregatorHourlyMatrix(
   if (!isOdooLiveEnvConfigured() || branchOfConfig.size === 0) return null
   try {
     const bounds = kuwaitDateBoundsToOdooUtc(fromIso, toIso)
-    const domain = buildPosPaymentUtcDomain({ fromUtc: bounds.fromUtc, toExclusiveUtc: bounds.toExclusiveUtc, configIds: [...branchOfConfig.keys()], nonRefundOnly: true })
-    const groups = await executeOdooKw<{ session_id: [number, string] | false; payment_method_id: [number, string] | false; amount?: number; __count?: number; __range?: Record<string, { from: string }> }[]>(
-      'pos.payment',
-      'read_group',
-      [domain, ['amount:sum'], ['session_id', 'payment_method_id', 'payment_date:hour']],
-      { lazy: false, context: { tz: 'Asia/Kuwait' } },
+    const domain = buildPosPaymentUtcDomain({
+      fromUtc: bounds.fromUtc,
+      toExclusiveUtc: bounds.toExclusiveUtc,
+      configIds: [...branchOfConfig.keys()],
+      nonRefundOnly: true,
+    })
+    const groups = await executeOdooKw<
+      {
+        session_id: [number, string] | false
+        payment_method_id: [number, string] | false
+        amount?: number
+        __count?: number
+        __range?: Record<string, { from: string }>
+      }[]
+    >('pos.payment', 'read_group', [domain, ['amount:sum'], ['session_id', 'payment_method_id', 'payment_date:hour']], {
+      lazy: false,
+      context: { tz: 'Asia/Kuwait' },
+    })
+    const sessionIds = [
+      ...new Set(groups.map((g) => (Array.isArray(g.session_id) ? g.session_id[0] : null)).filter((x): x is number => x !== null)),
+    ]
+    const sessions = sessionIds.length
+      ? await executeOdooKw<{ id: number; config_id: [number, string] | false }[]>('pos.session', 'read', [sessionIds, ['config_id']])
+      : []
+    const cfgOf = new Map<number, { id: number | null; name: string }>(
+      sessions.map((s) => [s.id, { id: Array.isArray(s.config_id) ? s.config_id[0] : null, name: Array.isArray(s.config_id) ? s.config_id[1] : '' }]),
     )
-    const sessionIds = [...new Set(groups.map((g) => (Array.isArray(g.session_id) ? g.session_id[0] : null)).filter((x): x is number => x !== null))]
-    const sessions = sessionIds.length ? await executeOdooKw<{ id: number; config_id: [number, string] | false }[]>('pos.session', 'read', [sessionIds, ['config_id']]) : []
-    const cfgOf = new Map(sessions.map((s) => [s.id, Array.isArray(s.config_id) ? s.config_id[0] : null]))
-    const cells = new Map<string, { day: string; hour: number; branchId: string; channel: string; orders: number; netKwd: number }>()
+    const cells = new Map<string, { day: string; hour: number; branchId: string; channel: string; orders: number; netFils: number }>()
     for (const g of groups) {
       const sid = Array.isArray(g.session_id) ? g.session_id[0] : null
-      const cfg = sid ? cfgOf.get(sid) : null
+      const cfgInfo = sid ? cfgOf.get(sid) : undefined
+      const cfg = cfgInfo?.id ?? null
       const branchId = cfg ? branchOfConfig.get(cfg) : undefined
       const fromUtc = g.__range?.['payment_date:hour']?.from
       if (!branchId || !fromUtc) continue
       const kuwait = new Date(Date.parse(`${fromUtc.replace(' ', 'T')}Z`) + 3 * 3_600_000)
       const day = kuwait.toISOString().slice(0, 10)
       const hour = kuwait.getUTCHours()
-      const channel = PLATFORM_OF[channelOfPaymentMethod(Array.isArray(g.payment_method_id) ? g.payment_method_id[1] : '')] ?? 'other'
+      const isDeliveryRegister = branchId === 'ardiya' || /delivery|call\s*center/i.test(cfgInfo?.name ?? '')
+      const pmName = Array.isArray(g.payment_method_id) ? g.payment_method_id[1] : ''
+      const channel = classifyMatrixPaymentChannel(pmName, isDeliveryRegister)
+      if (channel === 'staff') continue
       const k = `${day}|${hour}|${branchId}|${channel}`
-      const c = cells.get(k) ?? { day, hour, branchId, channel, orders: 0, netKwd: 0 }
+      const c = cells.get(k) ?? { day, hour, branchId, channel, orders: 0, netFils: 0 }
       c.orders += Number(g.__count) || 0
-      c.netKwd += Number(g.amount) || 0
+      c.netFils += toFils(Number(g.amount) || 0)
       cells.set(k, c)
     }
-    return { rows: [...cells.values()], period: { from: fromIso, to: toIso }, syncAt }
+    return {
+      rows: [...cells.values()].map((c) => ({
+        day: c.day,
+        hour: c.hour,
+        branchId: c.branchId,
+        channel: c.channel,
+        orders: c.orders,
+        netKwd: fromFils(c.netFils),
+      })),
+      period: { from: fromIso, to: toIso },
+      syncAt,
+    }
   } catch {
     return null
   }

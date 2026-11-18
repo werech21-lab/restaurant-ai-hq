@@ -1,7 +1,4 @@
-/**
- * Adapters from Odoo record shapes (search_read rows, as exported or read live) to advisor inputs.
- * Employee names are dropped here and never reach an advisor.
- */
+import { channelOfPaymentMethod } from '@/lib/odoo/live-sync-core'
 import type { AttendanceRow, HrInput } from './advisors/hr'
 import type { InventoryInput, QuantRow } from './advisors/inventory'
 import { kuwaitDayOf } from './helpers'
@@ -56,4 +53,22 @@ export function quantInputFrom(
     .filter((q) => Array.isArray(q.location_id))
     .map((q) => ({ locationName: String((q.location_id as [number, string])[1]), quantity: Number(q.quantity) || 0 }))
   return { rows, asOf: meta.asOf, syncAt: meta.syncAt, capped: meta.rowLimit !== null && quants.length >= meta.rowLimit, rowLimit: meta.rowLimit }
+}
+
+/**
+ * Classifies an Odoo `pos.payment` method into a distinct channel for the 5-week hourly matrix:
+ * direct in-branch sales (`dine-in` / `takeaway-direct`) are kept strictly distinct from
+ * aggregators (`talabat-tgo`, `talabat-tmp`, `keeta`, `deliveroo`, `jahez`, `snoonu`) and `staff`.
+ */
+export function classifyMatrixPaymentChannel(paymentMethodName: string, isDeliveryRegister = false): string {
+  const ch = channelOfPaymentMethod(paymentMethodName)
+  if (ch === 'Talabat Go') return 'talabat-tgo'
+  if (ch === 'Talabat MP') return 'talabat-tmp'
+  if (ch === 'Keeta') return 'keeta'
+  if (ch === 'Deliveroo Go' || ch === 'Deliveroo MP') return 'deliveroo'
+  if (ch === 'Jahez' || ch === 'Cari') return 'jahez'
+  if (ch === 'Snoonu') return 'snoonu'
+  if (ch === 'Staff & complimentary') return 'staff'
+  if (ch === 'Online payment link' || ch === 'Cash on delivery' || ch === 'Bilbayt') return 'takeaway-direct'
+  return isDeliveryRegister ? 'takeaway-direct' : 'dine-in'
 }

@@ -11,7 +11,7 @@ import { fetchLiveOdooPeriodCube, fetchLiveOdooSnapshot, fetchLiveOdooWarehouseC
 import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
 import { kuwaitDayOf, shiftIso } from '@/lib/council/helpers'
 import { rankDiscoveries, runCouncil } from '@/lib/council/runner'
-import type { CouncilSnapshot } from '@/lib/council/types'
+import type { AdvisorReport, CouncilDiscovery, CouncilSnapshot } from '@/lib/council/types'
 import { fetchAggregatorHourlyMatrix, fetchAttendanceInput, fetchQuantInput, probeOdooModels, type OdooModelProbe } from './odoo-reads'
 import { listSeasonEvents, loadLatestCouncilSnapshot, loadShownFingerprints, saveCouncilSnapshot } from './store'
 
@@ -29,6 +29,52 @@ export function resolveHasBomsFromProbe(probe: OdooModelProbe | null | undefined
   if (!bom.installed) return false
   if (!bom.readable && bom.totalCount === null && bom.recentCount === null) return null
   return (bom.totalCount ?? bom.recentCount ?? 0) > 0
+}
+
+/**
+ * Merges an hourly council run with carried-forward nightly reports (`hr`, `inventory`, and
+ * nightly `delivery` `platform-pause` findings computed from the 5-week `pos.payment` matrix).
+ */
+export function mergeHourlyCarryForwardReports(
+  freshReports: readonly AdvisorReport[],
+  priorSnapshot: CouncilSnapshot | null | undefined,
+  seen: ReadonlySet<string>,
+): { reports: AdvisorReport[]; discoveries: CouncilDiscovery[] } {
+  if (!priorSnapshot) {
+    const reports = [...freshReports]
+    return { reports, discoveries: rankDiscoveries(reports, seen) }
+  }
+
+  const priorByAdvisor = new Map(priorSnapshot.reports.map((r) => [r.advisorId, r]))
+  const reports: AdvisorReport[] = freshReports.map((r) => {
+    if (r.advisorId === 'hr' || r.advisorId === 'inventory') {
+      const prior = priorByAdvisor.get(r.advisorId)
+      return prior && prior.status !== 'unavailable' ? prior : r
+    }
+    if (r.advisorId === 'delivery') {
+      const prior = priorByAdvisor.get('delivery')
+      if (!prior) return r
+      const priorPauses = prior.findings.filter((f) => f.kind === 'platform-pause')
+      const priorHadMatrix =
+        priorPauses.length > 0 ||
+        (prior.status !== 'unavailable' && !prior.dataGaps.some((g) => /matrix|مصفوفة/i.test(`${g.missingEn} ${g.missingAr}`)))
+      if (!priorHadMatrix) return r
+
+      const mergedFindings = [...priorPauses, ...r.findings.filter((f) => f.kind !== 'platform-pause')]
+      const mergedGaps = r.dataGaps.filter((g) => !/matrix|مصفوفة/i.test(`${g.missingEn} ${g.missingAr}`))
+      return {
+        ...r,
+        period: r.period ?? prior.period,
+        generatedAt: r.generatedAt ?? prior.generatedAt,
+        status: mergedFindings.length === 0 && mergedGaps.length >= 2 ? 'unavailable' : mergedGaps.length > 0 ? 'partial' : 'ready',
+        findings: mergedFindings,
+        dataGaps: mergedGaps,
+      }
+    }
+    return r
+  })
+
+  return { reports, discoveries: rankDiscoveries(reports, seen) }
 }
 
 export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.now()): Promise<{ snapshot: CouncilSnapshot; kuwaitDay: string }> {
@@ -76,12 +122,10 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
     seen,
   )
   if (scope === 'hourly') {
-    // Carry the nightly HR and inventory reports forward instead of re-reading them every hour.
     const last = await loadLatestCouncilSnapshot()
-    const carried = last?.snapshot.reports.filter((r) => r.advisorId === 'hr' || r.advisorId === 'inventory') ?? []
-    if (carried.length > 0) {
-      const reports = fresh.reports.map((r) => carried.find((c) => c.advisorId === r.advisorId && c.status !== 'unavailable') ?? r)
-      return { snapshot: { ...fresh, reports, discoveries: rankDiscoveries(reports, seen) }, kuwaitDay: today }
+    if (last?.snapshot) {
+      const merged = mergeHourlyCarryForwardReports(fresh.reports, last.snapshot, seen)
+      return { snapshot: { ...fresh, reports: merged.reports, discoveries: merged.discoveries }, kuwaitDay: today }
     }
   }
   return { snapshot: fresh, kuwaitDay: today }
