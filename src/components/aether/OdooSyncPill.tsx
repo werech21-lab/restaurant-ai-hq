@@ -3,7 +3,11 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
+import {
+  formatArDays,
+  formatPeriodCalendarWindow,
+  inclusiveIsoDayCount,
+} from '@/lib/aether/global-filter-engine'
 import { formatInt, formatKwd, getUnavailableTooltip } from '@/lib/format'
 
 type SyncState = {
@@ -17,7 +21,7 @@ const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
 /**
  * Odoo 17 Sync Pill in the Single-Row Executive Command Bar.
- * Shows the synced 30-day calendar window, runs a silent 6-hour background refresh check,
+ * Shows the synced calendar-month window with its real day count, runs a silent 6-hour background refresh check,
  * and allows 1-click manual pull from /api/erp/odoo-sync.
  */
 export function OdooSyncPill({ isAr }: { isAr: boolean }) {
@@ -85,9 +89,9 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const canonicalMonthWin = formatPeriodCalendarWindow('month', { liveSummary: s ?? null })
   const r30From = canonicalMonthWin.fromIso
   const r30To = canonicalMonthWin.toInclusiveIso
-  const mtdDays = s?.journeyPulse?.mtd?.days ?? 0
-  const mtdSuffixAr = mtdDays > 0 ? ` + الشهر الجاري (${mtdDays} يوماً)` : ''
-  const mtdSuffixEn = mtdDays > 0 ? ` + MTD (${mtdDays}d)` : ''
+  const windowDays = inclusiveIsoDayCount(r30From, r30To)
+  const windowLabelAr = formatArDays(windowDays)
+  const windowLabelEn = `${windowDays}d`
 
   const label =
     state.status === 'syncing'
@@ -103,8 +107,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
             ? 'تعذر الاتصال بأودو · إعادة المحاولة'
             : 'Odoo Unreachable · Retry'
           : isAr
-            ? `Odoo 17 · آخر 30 يوماً (${r30From} ← ${r30To})${mtdSuffixAr}`
-            : `Odoo 17 · Last 30d (${r30From} → ${r30To})${mtdSuffixEn}`
+            ? `Odoo 17 · ${windowLabelAr} (${r30From} ← ${r30To})`
+            : `Odoo 17 · ${windowLabelEn} (${r30From} → ${r30To})`
 
   const shortLabel =
     state.status === 'syncing'
@@ -112,8 +116,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         ? 'جارٍ التحديث…'
         : 'Updating…'
       : isAr
-        ? 'Odoo 17 · آخر 30 يوماً'
-        : 'Odoo 17 · Last 30d'
+        ? `Odoo 17 · ${windowLabelAr}`
+        : `Odoo 17 · ${windowLabelEn}`
 
   const locale = isAr ? 'ar' : 'en'
   const unavailableLabel = getUnavailableTooltip(locale)
@@ -131,8 +135,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const title = s
     ? [
         isAr
-          ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to}${mtdSuffixAr}`
-          : `Last 30d: ${s.period.from} → ${s.period.to}${mtdSuffixEn}`,
+          ? `${windowLabelAr}: ${r30From} ← ${r30To}`
+          : `${windowLabelEn}: ${r30From} → ${r30To}`,
         isAr
           ? `صافي المبيعات: ${netSalesLabel} · ${ordersLabel}`
           : `Net sales: ${netSalesLabel} · ${ordersLabel}`,

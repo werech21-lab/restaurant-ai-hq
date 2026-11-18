@@ -17,6 +17,7 @@ import {
   APPROVED_BRAND_IDS,
   APPROVED_CHANNEL_IDS,
   computeGlobalWorkspace,
+  calendarDaysInIsoMonth,
   formatPeriodCalendarWindow,
   getBranchLabel,
   getBrandLabel,
@@ -1016,10 +1017,11 @@ export function computeCoresHubSnapshot(
   })
 
   const periodDaysSafe = Math.max(1, ws.periodDays)
+  const monthLength = calendarDaysInIsoMonth(effectiveToIso) ?? periodDaysSafe
   const dishes: MenuDishRow[] = rawProducts.map((p, idx) => {
     const brandId = p.brandId as Exclude<GlobalBrand, 'all'>
     const unitsSold = Math.max(1, Math.round(p.qty))
-    const monthlyUnitsSold = Math.max(1, Math.round((unitsSold / periodDaysSafe) * 30))
+    const monthlyUnitsSold = Math.max(1, Math.round((unitsSold / periodDaysSafe) * monthLength))
     const salesKwd = round3(p.netKwd)
     const unitPriceKwd = unitsSold > 0 ? round3(salesKwd / unitsSold) : 0
     const tag: DishSimpleTag =

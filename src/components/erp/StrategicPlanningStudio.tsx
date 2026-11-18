@@ -456,7 +456,7 @@ export function StrategicPlanningStudio() {
           <div>
             <div className="flex items-start justify-between gap-2">
               <span className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                {isAr ? 'خط الأساس التقديري المعياري — 30 يوم' : 'Normalized 30d Baseline Estimate'}
+                {isAr ? 'خط الأساس التقديري — طول الشهر التقويمي' : 'Calendar-month baseline estimate'}
               </span>
             </div>
             <div

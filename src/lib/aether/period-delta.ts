@@ -327,11 +327,13 @@ export function resolveEqualPeriodSalesDelta(
 
   const rolling30Net = Number(journeyPulse?.rolling30?.netKwd ?? 0)
   const prior30Net = Number(journeyPulse?.prior30?.netKwd ?? 0)
+  const rollingDays = Number(journeyPulse?.rolling30?.days ?? 0)
+  const priorDays = Number(journeyPulse?.prior30?.days ?? 0)
   const validRolling30 =
-    (journeyPulse?.rolling30?.days ?? 30) >= 28 &&
-    (journeyPulse?.prior30?.days ?? 30) >= 28 &&
-    rolling30Net > 50_000 &&
-    prior30Net > 50_000
+    rollingDays > 0 &&
+    rollingDays === priorDays &&
+    rolling30Net > 0 &&
+    prior30Net > 0
   const rollingRatio = validRolling30 ? prior30Net / rolling30Net : null
 
   const sortedDays = Array.isArray(fullDailySeries)

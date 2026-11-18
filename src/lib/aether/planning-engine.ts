@@ -12,6 +12,7 @@
 
 import {
   DEFAULT_GLOBAL_FILTERS,
+  calendarDaysInIsoMonth,
   computeGlobalWorkspace,
   type GlobalFilters,
   type GlobalWorkspaceSlice,
@@ -458,8 +459,10 @@ export function computePlanningHubSnapshot(
     }
   }
 
-  const sourcePeriodDays = Math.max(1, baseWorkspace.periodDays || 30)
-  const monthlyScale = 30 / sourcePeriodDays
+  const sourcePeriodDays = Math.max(1, baseWorkspace.periodDays || 1)
+  const monthLength =
+    calendarDaysInIsoMonth(baseWorkspace.dateRange?.to) ?? sourcePeriodDays
+  const monthlyScale = monthLength / sourcePeriodDays
   const monthlyBaselineSalesRaw = Math.max(0, baseWorkspace.salesKwd * monthlyScale)
   const monthlyBaselineSalesKwd = Math.round(monthlyBaselineSalesRaw)
   const monthlyBaselineOrders = Math.max(1, Math.round(baseWorkspace.orders * monthlyScale))
@@ -487,8 +490,10 @@ export function computePlanningHubSnapshot(
       ? (monthlyBaselineNetKwd / monthlyBaselineSalesKwd) * 100
       : 0
 
-  const dailyAverageSalesKwd = Math.round(monthlyBaselineSalesRaw / 30)
-  const dailyAverageNetKwd = accountingAvailable ? Math.round(monthlyBaselineNetRaw / 30) : 0
+  const dailyAverageSalesKwd = Math.round(Math.max(0, baseWorkspace.salesKwd) / sourcePeriodDays)
+  const dailyAverageNetKwd = accountingAvailable
+    ? Math.round(Math.max(0, baseWorkspace.salesKwd) * (resolvedNetProfitPct / 100) / sourcePeriodDays)
+    : 0
   const activePeriodSalesKwd = Math.round(Math.max(0, workspace.salesKwd))
   const isTodayPeriodActive = workspace.filters.period === 'today'
 
@@ -530,8 +535,8 @@ export function computePlanningHubSnapshot(
   const periodFromIso = baseWorkspace.dateRange?.from || workspace.dateRange?.from || ''
   const periodToIso = baseWorkspace.dateRange?.to || workspace.dateRange?.to || ''
 
-  const baselineFormulaAr = `خط الأساس التقديري (30 يوم) = مبيعات الفترة (${fmtInt(baseWorkspace.salesKwd)} د.ك ÷ ${sourcePeriodDays} يوم) × 30 = ${fmtInt(monthlyBaselineSalesKwd)} د.ك`
-  const baselineFormulaEn = `30d Baseline Estimate = (${fmtInt(baseWorkspace.salesKwd)} KWD ÷ ${sourcePeriodDays}d) × 30 = ${fmtInt(monthlyBaselineSalesKwd)} KWD`
+  const baselineFormulaAr = `خط الأساس التقديري (${monthLength} يوم) = مبيعات الفترة (${fmtInt(baseWorkspace.salesKwd)} د.ك ÷ ${sourcePeriodDays} يوم) × ${monthLength} = ${fmtInt(monthlyBaselineSalesKwd)} د.ك`
+  const baselineFormulaEn = `${monthLength}d Baseline Estimate = (${fmtInt(baseWorkspace.salesKwd)} KWD ÷ ${sourcePeriodDays}d) × ${monthLength} = ${fmtInt(monthlyBaselineSalesKwd)} KWD`
 
   const costShareFormulaAr = accountingAvailable
     ? `نسبة تكلفة المواد (${fmtOne(ardiyaFoodPct)}%) = تكلفة البضاعة ÷ الإيراد | نسبة العمولات (${baseWorkspace.aggregatorCommissionUnposted ? 'غير مُرحَّل بعد' : `${fmtOne(deliveryFeePct)}%`}) | حصة المباشر (${fmtOne(directChannelSharePct)}%) = مبيعات الصالة والسفري ÷ إجمالي القنوات`
@@ -851,16 +856,16 @@ export function buildDeterministicStrategicBriefingSections(
       index: 1,
       titleAr: '1. خط الأساس التقديري (تقدير مبني على pos.order)',
       titleEn: '1. Normalized Baseline Estimate (pos.order)',
-      metricBadgeAr: `تقدير: ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك / 30 يوم`,
-      metricBadgeEn: `Est: ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / 30d`,
+      metricBadgeAr: `تقدير: ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك / شهر تقويمي`,
+      metricBadgeEn: `Est: ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / calendar month`,
       bodyAr: localizeArabicPlanningCopy(
         hasGl
-          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري معياري لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف مقدّرة ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك وصافي تقديري ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%).${snap.glIncomplete ? ' تنبيه: قيود غير مكتملة لهذه الفترة في دفتر الأستاذ.' : ''}`
-          : `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري معياري لـ 30 يوماً بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما تقدير التكاليف وصافي التدفق غير متوفر لحين اكتمال قيود دفتر الأستاذ المرحّلة.`,
+          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري لطول الشهر التقويمي بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف مقدّرة ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك وصافي تقديري ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%).${snap.glIncomplete ? ' تنبيه: قيود غير مكتملة لهذه الفترة في دفتر الأستاذ.' : ''}`
+          : `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري لطول الشهر التقويمي بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما تقدير التكاليف وصافي التدفق غير متوفر لحين اكتمال قيود دفتر الأستاذ المرحّلة.`,
       ),
       bodyEn: hasGl
-        ? `Active scope (${scopeLabelEn}) uses a normalized 30-day baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (est. daily avg: ${fmtInt(snap.dailyAverageSalesKwd)} KWD), ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD costs, and ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net cash (${fmtOne(snap.monthlyBaselineMarginPct)}%).`
-        : `Active scope (${scopeLabelEn}) uses a normalized 30-day POS baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales; cost and profit estimates await complete Odoo GL postings.`,
+        ? `Active scope (${scopeLabelEn}) uses a calendar-month baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales (est. daily avg: ${fmtInt(snap.dailyAverageSalesKwd)} KWD), ${fmtInt(snap.monthlyBaselineCostsKwd)} KWD costs, and ${fmtInt(snap.monthlyBaselineNetKwd)} KWD net cash (${fmtOne(snap.monthlyBaselineMarginPct)}%).`
+        : `Active scope (${scopeLabelEn}) uses a calendar-month POS baseline estimate of ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD sales; cost and profit estimates await complete Odoo GL postings.`,
     },
     {
       id: 'seasonality',

@@ -356,6 +356,23 @@ export function isNonDefaultFilter(f: GlobalFilters): boolean {
   )
 }
 
+export function inclusiveIsoDayCount(fromIso: string, toInclusiveIso: string): number {
+  const start = Date.parse(`${fromIso}T00:00:00Z`)
+  const end = Date.parse(`${toInclusiveIso}T00:00:00Z`)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return 1
+  return Math.round((end - start) / 86_400_000) + 1
+}
+
+/** Calendar length of the month containing an ISO date (28–31). */
+export function calendarDaysInIsoMonth(iso: string | undefined): number | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const year = Number(iso.slice(0, 4))
+  const month = Number(iso.slice(5, 7))
+  if (!Number.isInteger(year) || month < 1 || month > 12) return null
+  const length = new Date(Date.UTC(year, month, 0)).getUTCDate()
+  return length >= 28 && length <= 31 ? length : null
+}
+
 export function formatArDays(n: number): string {
   const count = Math.max(0, Math.round(Number.isFinite(n) ? n : 0))
   if (count === 0) return '0 يوم'
@@ -1268,10 +1285,15 @@ export function computeGlobalWorkspace(
   const activeIsoWindowAr = `من ${resolvedPeriodWindow.fromIso} إلى ${resolvedPeriodWindow.toInclusiveIso}`
   const activeIsoWindowEn = `${resolvedPeriodWindow.fromIso} to ${resolvedPeriodWindow.toInclusiveIso}`
 
+  const monthWindow = formatPeriodCalendarWindow('month', { liveSummary })
+  const liveMonthDays = liveSummary?.buckets?.month?.days
   const defaultDays: Record<GlobalPeriod, number> = {
     today: 1,
     week: 7,
-    month: 30,
+    month:
+      typeof liveMonthDays === 'number' && liveMonthDays > 0
+        ? liveMonthDays
+        : inclusiveIsoDayCount(monthWindow.fromIso, monthWindow.toInclusiveIso),
     year: 315,
     custom: customNorm.days,
   }
@@ -1995,11 +2017,11 @@ export function computeGlobalWorkspace(
   const feryalNotes: FeryalSimpleNote[] = []
 
   const periodRangeLabelAr =
-    filters.period === 'custom'
+    filters.period === 'custom' || filters.period === 'month'
       ? `${periodCalendarWindowAr} (${formatArDays(periodDays)})`
       : `${periodCalendarWindowAr}${isTodayFallback ? ' (آخر يوم عمل مكتمل)' : ''}`
   const periodRangeLabelEn =
-    filters.period === 'custom'
+    filters.period === 'custom' || filters.period === 'month'
       ? `${periodCalendarWindowEn} (${periodDays}d)`
       : `${periodCalendarWindowEn}${isTodayFallback ? ' (last full POS day)' : ''}`
 
@@ -2182,13 +2204,23 @@ export function computePeriodOverPeriodDeltaPct(
   if (filters.period === 'month') {
     const r30 = liveSummary.journeyPulse?.rolling30
     const p30 = liveSummary.journeyPulse?.prior30
-    const pulseDelta = r30 && p30 ? pctChange(r30.netKwd, p30.netKwd) : null
-    if (pulseDelta !== null) return pulseDelta
-    if (completedDays.length < 2 * DAYS_PER_MONTH_WINDOW) return null
+    const equalPulse =
+      r30 !== undefined &&
+      p30 !== undefined &&
+      r30.days > 0 &&
+      r30.days === p30.days
+    if (equalPulse) {
+      const pulseDelta = pctChange(r30.netKwd, p30.netKwd)
+      if (pulseDelta !== null) return pulseDelta
+    }
+    const monthDays = liveSummary.buckets?.month?.days
+    const windowDays =
+      typeof monthDays === 'number' && monthDays > 0 ? monthDays : DAYS_PER_MONTH_WINDOW
+    if (completedDays.length < 2 * windowDays) return null
     const sum = (rows: typeof completedDays) => rows.reduce((s, d) => s + d.netKwd, 0)
     return pctChange(
-      sum(completedDays.slice(-DAYS_PER_MONTH_WINDOW)),
-      sum(completedDays.slice(-2 * DAYS_PER_MONTH_WINDOW, -DAYS_PER_MONTH_WINDOW)),
+      sum(completedDays.slice(-windowDays)),
+      sum(completedDays.slice(-2 * windowDays, -windowDays)),
     )
   }
 

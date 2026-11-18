@@ -1904,9 +1904,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   const weekFromKwIso = shiftIsoDate(anchorDayKwIso, -6)
   const monthFromKwIso = `${anchorDayKwIso.slice(0, 7)}-01`
+  // Rolling comparison stays a true 30-day window. The month bucket itself is calendar MTD.
+  const rolling30FromKwIso = shiftIsoDate(anchorDayKwIso, -29)
+  const prior30FromKwIso = shiftIsoDate(rolling30FromKwIso, -30)
   // Pre-index 65 days of daily history back from anchorDayKwIso up through tomorrowKwIso
   const series65FromKwIso = shiftIsoDate(anchorDayKwIso, -64)
-  const prior30FromKwIso = shiftIsoDate(monthFromKwIso, -30)
   const mtdFromKwIso = monthFromKwIso
   const yearFromKwIso = `${anchorDayKwIso.slice(0, 4)}-01-01`
 
@@ -3346,11 +3348,19 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     excludedUnavailable: excludedMonthFailed,
   })
 
+  const mtdDays = Math.max(
+    1,
+    Math.round(
+      (Date.parse(`${anchorTomorrowKwIso}T00:00:00Z`) - Date.parse(`${mtdFromKwIso}T00:00:00Z`)) /
+        86_400_000,
+    ),
+  )
+
   const monthBucket = buildReconciledBucket({
     key: 'month',
     from: monthFromKwIso,
     to: canonicalBucketToExclusive,
-    days: 30,
+    days: mtdDays,
     locNetMap: locMonthNet,
     locOrdersMap: locMonthOrd,
     unmappedNetKwd: unmappedMonthNet,
@@ -3388,42 +3398,40 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.year'),
   })
 
-  const mtdDays = Math.max(
-    1,
-    Math.round(
-      (Date.parse(`${anchorTomorrowKwIso}T00:00:00Z`) - Date.parse(`${mtdFromKwIso}T00:00:00Z`)) /
-        86_400_000,
-    ),
-  )
-
-  const monthRestaurantNet = monthBucket.totals.restaurantNetKwd ?? 0
-  const monthRestaurantOrders = monthBucket.totals.restaurantOrders ?? 0
+  const sumDailyWindow = (fromIso: string, toIso: string) => {
+    let net = 0
+    let orders = 0
+    for (const [day, value] of dailyMap) {
+      if (day < fromIso || day > toIso) continue
+      net += value.netKwd
+      orders += value.orders
+    }
+    return { net: r3(net), orders }
+  }
+  const rolling30Totals = sumDailyWindow(rolling30FromKwIso, anchorDayKwIso)
+  const prior30ToKwIso = shiftIsoDate(rolling30FromKwIso, -1)
+  const prior30Totals = sumDailyWindow(prior30FromKwIso, prior30ToKwIso)
 
   const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = journeyPulseFailed
     ? null
     : prior30Pair
       ? (() => {
-          const [prior30AggRows, prior30NonRefundCount] = prior30Pair
-          const prior30Net = r3(
-            posOrderNet(prior30AggRows?.[0]?.amount_total, prior30AggRows?.[0]?.amount_tax),
-          )
-          const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
           return {
             rolling30: {
-              from: monthFromKwIso,
-              to: todayBucketFrom,
+              from: rolling30FromKwIso,
+              to: anchorDayKwIso,
               days: 30,
-              netKwd: monthRestaurantNet,
-              orders: monthRestaurantOrders,
-              perDayKwd: r3(monthRestaurantNet / 30),
+              netKwd: rolling30Totals.net,
+              orders: rolling30Totals.orders,
+              perDayKwd: r3(rolling30Totals.net / 30),
             },
             prior30: {
               from: prior30FromKwIso,
-              to: shiftIsoDate(monthFromKwIso, -1),
+              to: prior30ToKwIso,
               days: 30,
-              netKwd: prior30Net,
-              orders: prior30Orders,
-              perDayKwd: r3(prior30Net / 30),
+              netKwd: prior30Totals.net,
+              orders: prior30Totals.orders,
+              perDayKwd: r3(prior30Totals.net / 30),
             },
             mtd: {
               from: mtdFromKwIso,
