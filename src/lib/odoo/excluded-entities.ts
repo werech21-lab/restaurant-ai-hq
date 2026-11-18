@@ -345,47 +345,11 @@ function pushNegatedToken(domain: unknown[], nameField: string, fragment: string
   pushNegatedPatterns(domain, nameField, tokenLikePatterns(fragment))
 }
 
-function pushClosedBranchCanteenExemption(domain: unknown[], nameField: string): void {
-  const fasPatterns = wordBoundaryLikePatterns('fas')
-  // Clauses: NPIS, FAIPS, canteen, مقصف, each FAS token pattern, and (مدرسة|مدرسه) & !شارع & !street
-  const clauseCount = 4 + fasPatterns.length + 1
-  for (let i = 0; i < clauseCount - 1; i += 1) domain.push('|')
-  domain.push([nameField, 'ilike', 'NPIS'])
-  domain.push([nameField, 'ilike', 'FAIPS'])
-  domain.push([nameField, 'ilike', 'canteen'])
-  domain.push([nameField, 'ilike', '\u0645\u0642\u0635\u0641'])
-  for (const pattern of fasPatterns) {
-    domain.push([nameField, '=ilike', pattern])
-  }
-  domain.push('&')
-  domain.push('|')
-  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0629'])
-  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0647'])
-  domain.push('&')
-  domain.push('!')
-  domain.push([nameField, 'ilike', '\u0634\u0627\u0631\u0639'])
-  domain.push('!')
-  domain.push([nameField, 'ilike', 'street'])
-}
-
 export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
-  const closedWordPatterns = new Set<string>()
-  const closedDigitPatterns = new Set<string>()
   for (const fragment of exclusionDomainFragments()) {
     if (!isClosedBranchFamilyFragment(fragment)) {
       pushNegatedToken(domain, nameField, fragment)
-      continue
     }
-    for (const p of wordAndAffixLikePatterns(fragment)) closedWordPatterns.add(p)
-    for (const p of digitJoinedLikePatterns(fragment)) closedDigitPatterns.add(p)
-  }
-  if (closedDigitPatterns.size > 0) {
-    pushNegatedPatterns(domain, nameField, [...closedDigitPatterns])
-  }
-  if (closedWordPatterns.size > 0) {
-    domain.push('|')
-    pushClosedBranchCanteenExemption(domain, nameField)
-    pushNegatedPatterns(domain, nameField, [...closedWordPatterns])
   }
 }
 

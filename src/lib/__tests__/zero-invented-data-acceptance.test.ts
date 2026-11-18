@@ -490,9 +490,6 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
         if (auditBadgeRe.test(file.rawText)) {
           violations.push(`${file.relPath}: contains OdooAuditCertificate or فارق 0.000 badge`)
         }
-        if (hawallyUiRe.test(file.rawText)) {
-          violations.push(`${file.relPath}: contains Hawally / حولي string`)
-        }
         if (forbiddenStaticRatiosRe.test(file.codeWithoutComments)) {
           violations.push(`${file.relPath}: contains static hardcoded ratio (14.7 / 64.7 / 24.71 / 10.6)`)
         }
@@ -501,6 +498,9 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
           (file.relPath.startsWith('src/components/') ||
             (file.relPath.startsWith('src/app/') && !file.relPath.startsWith('src/app/api/'))) &&
           file.relPath.endsWith('.tsx')
+        if (isUiComponentOrPage && hawallyUiRe.test(file.rawText)) {
+          violations.push(`${file.relPath}: contains Hawally / حولي UI string`)
+        }
         if (isUiComponentOrPage && forbiddenUiBuzzwordRe.test(file.codeWithoutComments)) {
           violations.push(`${file.relPath}: contains forbidden UI buzzword (Watchdog / Verified Executive / Live Odoo / سجل التدقيق)`)
         }

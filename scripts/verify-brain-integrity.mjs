@@ -124,7 +124,6 @@ for (const rel of activeRuntimeFiles) {
 console.log('\n3) Production Static Scan (src/app, src/components, src/lib, src/modules, src/services):')
 const prodRoots = ['src/app', 'src/components', 'src/lib', 'src/modules', 'src/services']
 const prodFiles = prodRoots.flatMap((r) => walkProductionTsFiles(path.join(ROOT, r)))
-const hawallyRe = /\u062d\u0648\u0644\u064a|hawally|hawalli/i
 const fakeBadgeRe = /OdooAuditCertificate|\u0641\u0627\u0631\u0642\s*0\.000/
 const mathRandomRe = /\bMath\.random\s*\(/
 const fakerRe = /\bfaker\b|@faker-js/i
@@ -137,11 +136,10 @@ for (const fp of prodFiles) {
   if (mathRandomRe.test(noComments)) badFiles.push(`${rel}: Math.random`)
   if (fakerRe.test(noComments)) badFiles.push(`${rel}: faker`)
   if (fakeBadgeRe.test(raw)) badFiles.push(`${rel}: OdooAuditCertificate/0.000`)
-  if (hawallyRe.test(raw)) badFiles.push(`${rel}: Hawally/حولي`)
 }
 assert(
   badFiles.length === 0,
-  `Zero Math.random, faker, OdooAuditCertificate, فارق 0.000, or Hawally across ${prodFiles.length} production files`,
+  `Zero Math.random, faker, OdooAuditCertificate, or فارق 0.000 across ${prodFiles.length} production files`,
   badFiles.slice(0, 5).join('; '),
 )
 
@@ -154,7 +152,8 @@ import {
   computeGlobalWorkspace,
   DEFAULT_GLOBAL_FILTERS,
 } from './src/lib/aether/global-filter-engine';
-import { isExcludedOdooEntity, UNMAPPED_TERMINALS_LABEL_AR } from './src/lib/aether/period-delta';
+import { isExcludedOdooEntity, isExcludedRecordId, UNMAPPED_TERMINALS_LABEL_AR } from './src/lib/aether/period-delta';
+import { companyPosConfigAllowed } from './src/lib/odoo/company-pos';
 import { computeStrategicPlanning } from './src/lib/aether/planning-engine';
 import { computeErpComparison } from './src/lib/erp-comparison-engine';
 import { computeBeforeAfterSnapshot } from './src/lib/aether/before-after-engine';
@@ -194,6 +193,15 @@ import { askFeryalOdooAgent, FERYAL_COMPETITOR_REFUSAL, FERYAL_NO_ODOO_DATA_REPL
     branchesOk: JSON.stringify([...APPROVED_BRANCH_IDS].sort()) === JSON.stringify(['360-mall','al-kout','ardiya','assima','avenues','promenade','salmiya']),
     unmappedLabelOk: UNMAPPED_TERMINALS_LABEL_AR === 'غير منسوب لفرع',
     exclusionsOk: isExcludedOdooEntity('القرين') && isExcludedOdooEntity('هايزن بريج') && !isExcludedOdooEntity('Promenade'),
+    hawallyAndPosIdExclusionsOk:
+      [24, 25, 39, 40].every((id) => isExcludedRecordId('pos_config', id) && !companyPosConfigAllowed(id, 'Promenade Hawally')) &&
+      isExcludedOdooEntity('الجهراء') &&
+      isExcludedOdooEntity('Jahra') &&
+      !isExcludedOdooEntity('Hawally') &&
+      !isExcludedOdooEntity('حولي') &&
+      [8, 9, 10, 11].every((id) => companyPosConfigAllowed(id, 'E-Mall Promenade Hawally') && companyPosConfigAllowed(id, 'بروميناد حولي')) &&
+      companyPosConfigAllowed(41, 'NPIS Hawally') &&
+      companyPosConfigAllowed(41, 'مقصف حولي NPIS'),
     disconnectOk:
       discEnv.connected === false &&
       discEnv.noData === true &&
@@ -234,6 +242,10 @@ assert(probe.brandsOk === true, 'Strictly ONLY the 6 approved Venture Foods bran
 assert(probe.branchesOk === true, 'Strictly ONLY the 7 approved Venture Foods operating branches')
 assert(probe.unmappedLabelOk === true, '8th unattributed bucket labeled «غير منسوب لفرع»')
 assert(probe.exclusionsOk === true, 'Server-side Odoo exclusions active for «القرين» & «هايزن بريج»')
+assert(
+  probe.hawallyAndPosIdExclusionsOk === true,
+  'pos.config [24, 25, 39, 40] & Jahra excluded while configs 8–11 (Promenade) & 41 (NPIS Hawally / حولي) are allowed',
+)
 assert(
   probe.disconnectOk === true,
   'Zero-fallback disconnect truth across Snapshot, Workspace, Comparison, Before/After, Warehouse & Planning',

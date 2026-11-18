@@ -5413,7 +5413,7 @@ export async function fetchLiveOdooPeriodCube(
   }
 }
 
-function resolveStockLocationRole(
+export function resolveStockLocationRole(
   rawLabel: string,
   usage: string,
 ): {
@@ -5437,7 +5437,7 @@ function resolveStockLocationRole(
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
   if (usage === 'internal') {
-    if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف/i.test(lower)) {
+    if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف|مقاصف/i.test(lower)) {
       return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
     }
     if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
@@ -5449,6 +5449,9 @@ function resolveStockLocationRole(
         return { excluded: false, usage, role: 'ck', branchId: null }
       }
       return { excluded: false, usage, role: 'branch', branchId: matchedBranch }
+    }
+    if (/\bhawall?[yi]\b|\bhwl\b|حولي/i.test(lower)) {
+      return { excluded: false, usage, role: 'branch', branchId: 'promenade' }
     }
     return { excluded: false, usage, role: 'ck', branchId: null }
   }
