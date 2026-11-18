@@ -1140,6 +1140,9 @@ html.light-mode ::-webkit-scrollbar-thumb {
    logical start/end follow the page direction, not the cell's own LTR direction. */
 html[dir="rtl"] td[dir="ltr"]:not(.text-center):not(.text-end):not(.text-left):not(.text-right) { text-align: right; }
 html[dir="rtl"] td[dir="ltr"].text-end { text-align: left; }
+/* Same for numeric cells: `unicode-bidi: plaintext` below makes their start/end follow the digits (LTR). */
+html[dir="rtl"] :is(td, th).tabular-nums:not(.text-center):not(.text-end):not(.text-left):not(.text-right) { text-align: right; }
+html[dir="rtl"] :is(td, th).tabular-nums.text-end { text-align: left; }
 
 /* ==========================================================================
    Aggregator radar: light theme scope (data and logic untouched).

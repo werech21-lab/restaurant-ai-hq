@@ -6,10 +6,11 @@
  * Estimate with its formula; with no stored council run the card shows the unavailable state.
  */
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { UnavailableState } from '@/components/ui'
 import type { AdvisorId, CouncilDiscovery, CouncilEstimate, CouncilEvidence } from '@/lib/council/types'
 
-const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
+export const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
   cfo: { ar: 'المالية', en: 'Finance' },
   delivery: { ar: 'منصات التوصيل', en: 'Delivery platforms' },
   hr: { ar: 'الموارد البشرية', en: 'HR' },
@@ -25,7 +26,7 @@ function fmt(n: number, locale: 'ar' | 'en', digits: number): string {
   return n.toLocaleString(locale === 'ar' ? 'en-US' : 'en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
-function evidenceValue(e: CouncilEvidence, locale: 'ar' | 'en'): string {
+export function evidenceValue(e: CouncilEvidence, locale: 'ar' | 'en'): string {
   const kwd = locale === 'ar' ? 'د.ك' : 'KWD'
   if (e.unit === 'KWD') return `${fmt(e.value, locale, 3)} ${kwd}`
   if (e.unit === 'KWD/order') return `${fmt(e.value, locale, 3)} ${kwd}`
@@ -35,13 +36,13 @@ function evidenceValue(e: CouncilEvidence, locale: 'ar' | 'en'): string {
   return fmt(e.value, locale, 0)
 }
 
-function estimateValue(est: CouncilEstimate, locale: 'ar' | 'en'): string {
+export function estimateValue(est: CouncilEstimate, locale: 'ar' | 'en'): string {
   if (est.unit === 'KWD') return `${fmt(est.value, locale, 3)} ${locale === 'ar' ? 'د.ك / أسبوع' : 'KWD / week'}`
   if (est.unit === 'hours') return `${fmt(est.value, locale, 1)} ${locale === 'ar' ? 'ساعة / أسبوع' : 'h / week'}`
   return fmt(est.value, locale, 1)
 }
 
-function syncLabel(iso: string | null, locale: 'ar' | 'en'): string {
+export function syncLabel(iso: string | null, locale: 'ar' | 'en'): string {
   if (!iso) return locale === 'ar' ? 'غير متاح' : 'Unavailable'
   const d = new Date(Date.parse(iso) + 3 * 3_600_000)
   return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)}`
@@ -54,7 +55,10 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
     <section data-todays-discoveries="true" dir={isAr ? 'rtl' : 'ltr'} className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[15px] font-bold text-slate-900 sm:text-base dark:text-white">{t("Today's Discoveries", 'اكتشافات اليوم')}</h2>
-        <p className="text-[12px] text-slate-500 dark:text-slate-400">{t('Advisor council · ranked by impact × novelty · no repeats from the last 7 days', 'مجلس المستشارين · مرتبة حسب الأثر × الجِدّة · بلا تكرار من آخر 7 أيام')}</p>
+        <p className="text-[12px] text-slate-500 dark:text-slate-400">
+          {t('Advisor council · ranked by impact × novelty · no repeats from the last 7 days · ', 'مجلس المستشارين · مرتبة حسب الأثر × الجِدّة · بلا تكرار من آخر 7 أيام · ')}
+          <Link href="/erp/decisions" data-decision-room-link="true" className="font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300">{t('All proposals in the Decision Room', 'كل المقترحات في غرفة القرار')}</Link>
+        </p>
       </div>
       {loading ? (
         <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-[13px] text-slate-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-400" aria-busy="true">

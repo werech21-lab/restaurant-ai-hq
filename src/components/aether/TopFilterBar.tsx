@@ -82,6 +82,7 @@ const ROUTES_WITH_OWN_H1 = new Set([
   '/erp/alerts',
   '/erp/cost-intelligence',
   '/erp/demand-forecast',
+  '/erp/decisions',
   '/erp/market',
   '/erp/ledger',
   '/erp/odoo-sync',

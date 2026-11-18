@@ -243,6 +243,15 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
     labelEn: 'Governance & Strategy',
     items: [
       {
+        key: 'decisions',
+        sectionId: 'governance-strategy',
+        href: '/erp/decisions',
+        labelAr: 'غرفة القرار',
+        labelEn: 'Decision Room',
+        icon: Target,
+        alwaysVisible: true,
+      },
+      {
         key: 'planning',
         sectionId: 'governance-strategy',
         href: '/erp/planning',

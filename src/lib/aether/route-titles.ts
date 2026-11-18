@@ -151,6 +151,15 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
     },
   },
   {
+    match: '/erp/decisions',
+    title: {
+      en: 'Decision Room',
+      ar: 'غرفة القرار',
+      mobileEn: 'Decisions',
+      mobileAr: 'القرار',
+    },
+  },
+  {
     match: '/erp/seasons',
     title: {
       en: 'Seasons & Occasions',

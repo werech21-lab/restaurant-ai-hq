@@ -84,6 +84,7 @@ describe('Warehouse table cells', () => {
   it('global CSS aligns any dir="ltr" table cell with its column in Arabic pages', () => {
     const css = fs.readFileSync(path.join(process.cwd(), 'src/app/globals.css'), 'utf8')
     expect(css).toContain('html[dir="rtl"] td[dir="ltr"].text-end { text-align: left; }')
+    expect(css).toContain('html[dir="rtl"] :is(td, th).tabular-nums.text-end { text-align: left; }')
   })
 })
 
