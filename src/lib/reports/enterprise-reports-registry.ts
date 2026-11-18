@@ -13,6 +13,7 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { KpiProvenanceKind } from '@/components/erp/KpiProvenanceBadge'
+import { PROFIT_AFTER_CLOSE_NOTE } from '@/lib/aether/closed-month-policy'
 import { formatInt, formatKwd, formatPct } from '@/lib/format'
 
 export interface ReportColumn {
@@ -106,6 +107,11 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
     return isAr ? 'غير متوفر' : 'Unavailable'
   }
   return formatKwd(v, isAr ? 'ar' : 'en')
+}
+
+function withheldProfitLabel(isAr: boolean, incomplete: boolean, withheld: boolean): string {
+  if (!incomplete && withheld) return isAr ? PROFIT_AFTER_CLOSE_NOTE.ar : PROFIT_AFTER_CLOSE_NOTE.en
+  return isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'
 }
 
 /**
@@ -313,9 +319,7 @@ export function buildLiveEnterpriseDepartments(
             model: 'account.move.line',
             amount:
               acc.operatingProfitKwd === null || workspace.glIncomplete || acc.netProfitWithheld
-                ? isAr
-                  ? 'قيود غير مكتملة لهذه الفترة'
-                  : 'Incomplete GL entries for this period'
+                ? withheldProfitLabel(isAr, workspace.glIncomplete, Boolean(acc.netProfitWithheld))
                 : formatKwd(acc.operatingProfitKwd, { showUnit: false }),
             pctOfRev:
               acc.netProfitPct === null || workspace.glIncomplete || acc.netProfitWithheld
@@ -589,13 +593,13 @@ export function buildLiveEnterpriseDepartments(
             connected && typeof acc.operatingProfitKwd === 'number' && !workspace.glIncomplete && !acc.netProfitWithheld
               ? fmtKwd(acc.operatingProfitKwd, true)
               : connected
-                ? 'قيود غير مكتملة لهذه الفترة'
+                ? withheldProfitLabel(true, workspace.glIncomplete, Boolean(acc.netProfitWithheld))
                 : 'لا توجد بيانات من Odoo لهذه الفترة',
           headlineMetricEn:
             connected && typeof acc.operatingProfitKwd === 'number' && !workspace.glIncomplete && !acc.netProfitWithheld
               ? fmtKwd(acc.operatingProfitKwd, false)
               : connected
-                ? 'Incomplete GL entries for this period'
+                ? withheldProfitLabel(false, workspace.glIncomplete, Boolean(acc.netProfitWithheld))
                 : 'No data from Odoo for this period',
           recordCount: glRows.length,
           auditedDate: rangeStr,
@@ -634,9 +638,7 @@ export function buildLiveEnterpriseDepartments(
                     labelEn: 'Posted Operating Result',
                     value:
                       acc.operatingProfitKwd === null || workspace.glIncomplete || acc.netProfitWithheld
-                        ? isAr
-                          ? 'قيود غير مكتملة لهذه الفترة'
-                          : 'Incomplete GL entries for this period'
+                        ? withheldProfitLabel(isAr, workspace.glIncomplete, Boolean(acc.netProfitWithheld))
                         : fmtKwd(acc.operatingProfitKwd, isAr),
                     subtextAr: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : undefined,
                     odooModel: 'account.move.line',

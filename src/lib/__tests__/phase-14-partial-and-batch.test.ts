@@ -327,7 +327,6 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
       'channels.today',
       'channels.year',
       'year',
-      'journeyPulse',
     ]
     const MODES: readonly FailureMode[] = ['count', 'net', 'both']
 
@@ -471,12 +470,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
             expect(bMap.year.totals).toEqual(nMap.year.totals)
           }
 
-          if (section === 'journeyPulse') {
-            expect(envelope.summary?.journeyPulse).toBeNull()
-            expect(envelope.journeyPulse).toBeNull()
-          } else {
-            expect(envelope.summary?.journeyPulse).toEqual(normalEnvelope.summary?.journeyPulse)
-          }
+          expect(envelope.summary?.journeyPulse).toEqual(normalEnvelope.summary?.journeyPulse)
 
           // Non-failed month/week/today totals always equal normal run
           expect(bMap.month.totals).toEqual(nMap.month.totals)

@@ -358,7 +358,6 @@ describe('phase 13 blocker N1: non-refund order counts never silently fall back 
         'channels.today',
         'channels.year',
         'year',
-        'journeyPulse',
       ]),
     )
 
@@ -378,8 +377,7 @@ describe('phase 13 blocker N1: non-refund order counts never silently fall back 
       restaurantOrders: null,
     })
 
-    // journeyPulse is null because prior30 search_count failed
-    expect(envelope.summary?.journeyPulse).toBeNull()
+    expect(envelope.summary?.journeyPulse?.rolling30?.days).toBe(30)
   })
 
   it.each(['daily', 'hourly', 'payment'] as const)(

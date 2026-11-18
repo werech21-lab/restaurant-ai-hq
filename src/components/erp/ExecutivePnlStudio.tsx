@@ -400,7 +400,17 @@ export function ExecutivePnlStudio() {
                     <td className="py-1.5 px-4 font-mono text-slate-500" dir="ltr">{account.code}</td>
                     <td className="py-1.5 px-4 text-slate-600 dark:text-slate-300">{account.name}</td>
                     <td className="py-1.5 px-4 text-end" dir="ltr">
-                      <NullableKwdCell value={account.balance} locale={resolvedLocale} />
+                      <NullableKwdCell
+                        value={
+                          item.code === 'income' ||
+                          item.code === 'expense_direct_cost' ||
+                          item.code === 'platform_commission' ||
+                          item.code === 'expense'
+                            ? -account.balance
+                            : account.balance
+                        }
+                        locale={resolvedLocale}
+                      />
                     </td>
                     <td />
                   </tr>

@@ -1299,7 +1299,9 @@ export function FullJourney360({
                         {heroDelta.hasComparison
                           ? todaySameHours
                             ? T(`vs yesterday by ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`, `مقارنة بأمس حتى ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`)
-                            : T('vs prior period', 'مقارنة بالفترة السابقة')
+                            : filters.period === 'month'
+                              ? T('last 30 days vs previous 30', 'آخر 30 يوماً مقابل 30 السابقة')
+                              : T('vs prior period', 'مقارنة بالفترة السابقة')
                           : T(SCOPE_LABELS.noComparison.en, SCOPE_LABELS.noComparison.ar)}
                       </span>
                     </span>

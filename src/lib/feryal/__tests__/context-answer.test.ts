@@ -4,9 +4,10 @@ import { FERYAL_NO_ODOO_DATA_REPLY } from '@/lib/feryal-odoo-agent'
 import {
   answerFromFeryalContext,
   dropUnverifiedClaims,
+  forecastElapsedDays,
   isFeryalSmallTalk,
 } from '@/lib/feryal/context-answer'
-import { monthCube } from '@/lib/__tests__/phase-5/support/feryal-dialect-fixture'
+import { DIALECT_NOW_MS, monthCube } from '@/lib/__tests__/phase-5/support/feryal-dialect-fixture'
 
 describe('Feryal answers from the period cube', () => {
   const cube = monthCube()
@@ -74,8 +75,33 @@ describe('Feryal answers from the period cube', () => {
     const reviews = answerFromFeryalContext('ما تقييمات السوشيال للعملاء؟', cube)
     expect(reviews.reply.startsWith('تقييمات السوشيال غير متاحة في Odoo')).toBe(true)
     expect(reviews.reply).toContain(cube.totals.netSalesKwd.toFixed(3))
+    expect(reviews.reply).not.toContain('انظر المبيعات الساعية أدناه')
     const budget = answerFromFeryalContext('ما الموازنة التقديرية؟', cube)
     expect(budget.reply.startsWith('الموازنة غير متاحة في Odoo (crossovered.budget)')).toBe(true)
+  })
+
+  it('treats a greeting plus the name فريال as small talk', () => {
+    for (const question of ['مرحبا فريال', 'هلا فريال', 'السلام عليكم فريال']) {
+      expect(isFeryalSmallTalk(question)).toBe(true)
+      const result = answerFromFeryalContext(question, cube)
+      expect(result.reply).toContain('وش تبي نشوف الحين')
+      expect(result.reply).not.toContain('الساعة')
+    }
+  })
+
+  it('labels a next-month forecast as this month and says next month is not in Odoo', () => {
+    const result = answerFromFeryalContext('شو توقع مبيعات الشهر الجاي؟', cube, [], { nowMs: DIALECT_NOW_MS })
+    expect(result.reply).toContain('الشهر القادم غير موجود في Odoo')
+    expect(result.reply).toContain('هذا الشهر')
+    const elapsed = forecastElapsedDays(cube, DIALECT_NOW_MS)
+    expect(elapsed).toBe(cube.days - 1)
+    expect(result.reply).toContain(`÷ ${elapsed} ×`)
+  })
+
+  it('does not name crossovered.budget as unavailable when the probe can read it', () => {
+    const result = answerFromFeryalContext('ما الموازنة التقديرية؟', cube, [], { budgetReadable: true })
+    expect(result.reply).not.toContain('crossovered.budget')
+    expect(result.reply).not.toContain('غير متاحة في Odoo')
   })
 
   it('drops only the claim whose number is not in the pack', () => {

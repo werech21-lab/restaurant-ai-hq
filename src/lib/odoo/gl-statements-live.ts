@@ -4,8 +4,71 @@
  */
 
 import { logger } from '@/lib/logger'
-import { executeOdooKw } from '@/lib/odoo-live-connector'
+import {
+  authenticateOdoo,
+  executeOdooKw,
+  isDecommissionedWarehouseRecord,
+} from '@/lib/odoo-live-connector'
 import type { GlAccountLine } from '@/lib/odoo/gl-statements'
+
+type M2O = [number, string] | false | null | undefined
+
+function m2oId(value: M2O): number | null {
+  return Array.isArray(value) && typeof value[0] === 'number' ? value[0] : null
+}
+
+/** Same company resolution as the live connector: the user's company, else an active POS company. */
+export async function resolveGlCompanyId(): Promise<number | null> {
+  const uid = await authenticateOdoo()
+  const users = await executeOdooKw<{ company_id?: M2O }[]>(
+    'res.users',
+    'read',
+    [[uid], ['id', 'company_id']],
+  )
+  const fromUser = m2oId(users?.[0]?.company_id)
+  if (fromUser !== null) return fromUser
+  const configs = await executeOdooKw<{ company_id?: M2O }[]>(
+    'pos.config',
+    'search_read',
+    [[['active', '=', true]]],
+    { fields: ['company_id'], limit: 50 },
+  )
+  for (const row of configs ?? []) {
+    const id = m2oId(row.company_id)
+    if (id !== null) return id
+  }
+  return null
+}
+
+/** Active chart accounts, excluding the connector's decommissioned-warehouse names. */
+export async function activeGlAccountIds(): Promise<number[]> {
+  const rows = await executeOdooKw<{ id: number; code?: string; name?: string }[]>(
+    'account.account',
+    'search_read',
+    [[]],
+    { fields: ['id', 'code', 'name'] },
+  )
+  return (rows ?? [])
+    .filter((row) => !isDecommissionedWarehouseRecord(`${row.code ?? ''} ${row.name ?? ''}`))
+    .map((row) => row.id)
+}
+
+export function glReadDomains(
+  companyId: number,
+  activeAccountIds: readonly number[],
+  fromIso: string,
+  toIso: string,
+): { trialBalance: unknown[][]; balanceSheet: unknown[][] } {
+  const scope: unknown[][] = [
+    ['company_id', '=', companyId],
+    ['account_id', 'in', [...activeAccountIds]],
+    ['parent_state', '=', 'posted'],
+  ]
+  return {
+    trialBalance: [...scope, ['date', '>=', fromIso], ['date', '<=', toIso]],
+    balanceSheet: [...scope, ['date', '<=', toIso]],
+  }
+}
 
 export interface TrialBalance {
   fromIso: string
@@ -79,29 +142,31 @@ async function readGrouped(
   }
 }
 
-export function fetchGlTrialBalance(fromIso: string, toIso: string): Promise<TrialBalance> {
-  return readGrouped(
-    [
-      ['parent_state', '=', 'posted'],
-      ['date', '>=', fromIso],
-      ['date', '<=', toIso],
-    ],
-    'gl.trial_balance',
-    fromIso,
-    toIso,
-  )
+async function scopedDomain(
+  kind: 'trialBalance' | 'balanceSheet',
+  fromIso: string,
+  toIso: string,
+): Promise<unknown[][] | null> {
+  const companyId = await resolveGlCompanyId()
+  const accountIds = await activeGlAccountIds()
+  if (companyId === null || accountIds.length === 0) return null
+  return glReadDomains(companyId, accountIds, fromIso, toIso)[kind]
 }
 
-export function fetchGlBalanceSheet(asOfIso: string): Promise<TrialBalance> {
-  return readGrouped(
-    [
-      ['parent_state', '=', 'posted'],
-      ['date', '<=', asOfIso],
-    ],
-    'gl.balance_sheet',
-    asOfIso,
-    asOfIso,
-  )
+export async function fetchGlTrialBalance(fromIso: string, toIso: string): Promise<TrialBalance> {
+  const domain = await scopedDomain('trialBalance', fromIso, toIso)
+  if (!domain) {
+    return { fromIso, toIso, lines: [], unavailableSections: ['gl.trial_balance'] }
+  }
+  return readGrouped(domain, 'gl.trial_balance', fromIso, toIso)
+}
+
+export async function fetchGlBalanceSheet(asOfIso: string): Promise<TrialBalance> {
+  const domain = await scopedDomain('balanceSheet', asOfIso, asOfIso)
+  if (!domain) {
+    return { fromIso: asOfIso, toIso: asOfIso, lines: [], unavailableSections: ['gl.balance_sheet'] }
+  }
+  return readGrouped(domain, 'gl.balance_sheet', asOfIso, asOfIso)
 }
 
 /** Read-only. False when `crossovered.budget` is missing or not readable. */

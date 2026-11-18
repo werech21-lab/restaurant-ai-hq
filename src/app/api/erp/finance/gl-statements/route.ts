@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 import { odooSyncResponseHeaders, resolveVerifiedSyncCaller } from '@/app/api/odoo-sync/route'
+import { isErpRouteAllowedForRole } from '@/lib/auth/role-access-policy'
 import { logger } from '@/lib/logger'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
@@ -32,6 +33,12 @@ export async function GET(request: NextRequest) {
   const caller = await resolveVerifiedSyncCaller(request)
   if (!caller) {
     return error(401, 'unauthorized', 'Sign in to read the general ledger.')
+  }
+  if (caller.isCron || caller.role === 'cron') {
+    return error(403, 'forbidden', 'Cron callers cannot read the general ledger.')
+  }
+  if (!isErpRouteAllowedForRole(caller.role, '/erp/finance')) {
+    return error(403, 'forbidden', 'This role cannot read the general ledger.')
   }
 
   const parsed = querySchema.safeParse({

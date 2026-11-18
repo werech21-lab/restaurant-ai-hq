@@ -4,6 +4,7 @@
  */
 
 import { calendarDaysInIsoMonth } from '@/lib/aether/global-filter-engine'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 
 export interface FeryalAdvisorSnippet {
@@ -11,9 +12,10 @@ export interface FeryalAdvisorSnippet {
 }
 
 const SMALL_TALK =
-  /^(?:مرحباً?|هلا|شلونك|السلام(?: عليكم)?|فهمتي(?: شو)?|محادثات قديمة)$/i
+  /^(?:مرحباً?|هلا|شلونك|السلام(?: عليكم)?|فهمتي(?: شو)?|محادثات قديمة)(?: فريال)?$/i
 const PREP = /تحضير|prep|زمن التجهيز|كيتشن|kds/i
 const FORECAST = /توقع|forecast|الشهر الجاي|الشهر القادم|المستهدف/i
+const NEXT_MONTH = /الشهر الجاي|الشهر القادم/i
 const TALABAT = /طلبات|talabat/i
 const BOOTH = /بوث|معارض/i
 const DRIVERS = /سائق|drivers/i
@@ -35,6 +37,20 @@ export function isFeryalForecastQuestion(question: string): boolean {
   return FORECAST.test(question)
 }
 
+export function isFeryalBudgetQuestion(question: string): boolean {
+  return BUDGET.test(question)
+}
+
+/** Complete days: when the cube ends today, stop at yesterday. */
+export function forecastElapsedDays(
+  cube: { days: number; dateRange?: { to?: string } },
+  nowMs: number,
+): number {
+  const today = getKuwaitTimeContext(nowMs).todayIso
+  if (cube.dateRange?.to === today && cube.days > 1) return cube.days - 1
+  return Math.max(1, cube.days)
+}
+
 export function isFeryalSmallTalk(question: string): boolean {
   const cleaned = question
     .trim()
@@ -50,6 +66,7 @@ export function answerFromFeryalContext(
   question: string,
   cube: OdooPeriodCube | null | undefined,
   advisors: readonly FeryalAdvisorSnippet[] = [],
+  options?: { nowMs?: number; budgetReadable?: boolean },
 ): { reply: string; status: 'answered' | 'no_odoo_data'; missingMetrics: string[]; citedNumbers: number[] } {
   if (isFeryalSmallTalk(question)) {
     return {
@@ -70,8 +87,9 @@ export function answerFromFeryalContext(
   if (PREP.test(question)) missing.push(MISSING_PREP)
   if (DRIVERS.test(question)) missing.push(MISSING_DRIVERS)
   if (REVIEWS.test(question)) missing.push(MISSING_REVIEWS)
-  if (BUDGET.test(question)) missing.push(MISSING_BUDGET)
+  if (BUDGET.test(question) && options?.budgetReadable !== true) missing.push(MISSING_BUDGET)
   if (FLEET.test(question)) missing.push(MISSING_FLEET)
+  if (NEXT_MONTH.test(question)) missing.push('الشهر القادم غير موجود في Odoo')
 
   const hourly = cube.hourlySeries ?? []
   const peak = hourly.reduce<{ hour: number; netKwd: number } | null>((best, row) => {
@@ -83,9 +101,18 @@ export function answerFromFeryalContext(
   const exhibitions = cube.byBranch?.exhibitions
   const lines: string[] = []
 
+  const asksHour = /ساعة|hour/i.test(question)
+  const showPeak = Boolean(peak && (PREP.test(question) || asksHour))
+
   if (missing.length) {
     lines.push(missing[0])
-    lines.push('• الرقم: انظر المبيعات الساعية أدناه')
+    if (showPeak && peak) {
+      cited.push(peak.hour, peak.netKwd)
+      lines.push(`• الرقم: أعلى ساعة في الفترة هي الساعة ${peak.hour} بمبيعات ${fmt(peak.netKwd)} د.ك من pos.order.`)
+    } else if (typeof cube.totals?.netSalesKwd === 'number') {
+      cited.push(cube.totals.netSalesKwd)
+      lines.push(`• الرقم: صافي مبيعات الفترة ${fmt(cube.totals.netSalesKwd)} د.ك.`)
+    }
     lines.push('• السبب من البيانات: المؤشر نفسه غير موجود في أودو، والتحليل من المكعب المتاح.')
     lines.push('• الإجراء المحدد: راجع ساعة الذروة قبل أي قرار تشغيل.')
     lines.push('تقدير: ليس رقماً مغلقاً.')
@@ -93,16 +120,17 @@ export function answerFromFeryalContext(
 
   if (FORECAST.test(question) && cube.days > 0 && typeof cube.totals?.netSalesKwd === 'number') {
     const net = cube.totals.netSalesKwd
-    const elapsed = cube.days
+    const elapsed = forecastElapsedDays(cube, options?.nowMs ?? Date.now())
     const monthLength = calendarDaysInIsoMonth(cube.dateRange?.to) ?? elapsed
     const projection = Math.round((net / elapsed) * monthLength * 1000) / 1000
     cited.push(net, elapsed, monthLength, projection)
+    const scope = NEXT_MONTH.test(question) ? 'هذا الشهر' : 'الفترة'
     lines.push(
-      `تقدير — ليس رقماً من Odoo: ${fmt(net)} ÷ ${elapsed} × ${monthLength} = ${fmt(projection)} د.ك.`,
+      `تقدير — ليس رقماً من Odoo (${scope}): ${fmt(net)} ÷ ${elapsed} × ${monthLength} = ${fmt(projection)} د.ك.`,
     )
   }
 
-  if (peak && (PREP.test(question) || /ساعة|hour/i.test(question) || lines.length === 0)) {
+  if (showPeak && peak && !cited.includes(peak.hour)) {
     cited.push(peak.hour, peak.netKwd)
     lines.push(`أعلى ساعة في الفترة هي الساعة ${peak.hour} بمبيعات ${fmt(peak.netKwd)} د.ك من pos.order.`)
   }

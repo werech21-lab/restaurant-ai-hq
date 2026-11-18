@@ -2,10 +2,12 @@ import type { CouncilSnapshot } from '@/lib/council/types'
 import { buildAdvisoryBlock } from '@/lib/feryal/advisor-synthesis'
 import {
   answerFromFeryalContext,
+  isFeryalBudgetQuestion,
   isFeryalForecastQuestion,
   isFeryalSmallTalk,
   type FeryalAdvisorSnippet,
 } from '@/lib/feryal/context-answer'
+import { probeCrossoveredBudgetReadable } from '@/lib/odoo/gl-statements-live'
 import { logger } from '@/lib/logger'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { formatKuwaitDateTime } from '@/lib/format'
@@ -2736,6 +2738,30 @@ export async function askFeryalOdooAgent(
     ...input.dataSource,
   }
 
+  if (effectiveBranchId === 'exhibitions') {
+    let boothCube: Awaited<ReturnType<FeryalOdooDataSource['fetchPeriodCube']>> = null
+    try {
+      boothCube = await dataSource.fetchPeriodCube(resolvedPeriod.from, resolvedPeriod.to, nowMs)
+    } catch (error) {
+      logger.warn('feryal.context', {
+        section: 'exhibitions',
+        code: error instanceof Error ? error.name : 'read_failed',
+      })
+    }
+    const exhibitions = boothCube?.byBranch?.exhibitions
+    if (!exhibitions || typeof exhibitions.netKwd !== 'number') {
+      const reply = 'بوثات المعارض غير ظاهرة في مكعب هذه الفترة.'
+      return finalize({
+        reply,
+        status: 'answered',
+        executedQueries: [],
+        verifier: verifyFeryalReplyNumbers(reply, []),
+        toolNumbers: [],
+        period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+      })
+    }
+  }
+
   if (toolKind === 'unknown' || unlinkedCheck.unlinked || isFeryalForecastQuestion(rawQuestion)) {
     let cube: Awaited<ReturnType<FeryalOdooDataSource['fetchPeriodCube']>> = null
     try {
@@ -2747,7 +2773,18 @@ export async function askFeryalOdooAgent(
       })
     }
     const advisors = await storedAdvisorSnippets()
-    const answered = answerFromFeryalContext(rawQuestion, cube, advisors)
+    let budgetReadable = false
+    if (isFeryalBudgetQuestion(rawQuestion)) {
+      try {
+        budgetReadable = await probeCrossoveredBudgetReadable()
+      } catch (error) {
+        logger.warn('feryal.context', {
+          section: 'budget',
+          code: error instanceof Error ? error.name : 'probe_failed',
+        })
+      }
+    }
+    const answered = answerFromFeryalContext(rawQuestion, cube, advisors, { nowMs, budgetReadable })
     if (answered.status === 'no_odoo_data') {
       return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
         from: resolvedPeriod.from,

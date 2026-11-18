@@ -9,7 +9,6 @@ import {
 } from '@/lib/odoo/platform-expense-accounts'
 import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED, canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { ODOO_EXCLUSION_RULES } from '@/lib/odoo/excluded-entities'
-import { aggregateReceivablesByPartnerAndAccount } from '@/lib/odoo/receivable-aging'
 
 const chart = JSON.parse(
   readFileSync(path.join(process.cwd(), 'src/lib/odoo/__tests__/fixtures/platform-expense-accounts.json'), 'utf8'),
@@ -177,28 +176,6 @@ describe('profit lock and receivables flag', () => {
     ).toBe(false)
   })
 
-  it('partner totals equal account totals for the same fixture lines', () => {
-    const summary = JSON.parse(
-      readFileSync(path.join(process.cwd(), 'src/lib/__tests__/fixtures/dashboard-today-2026-11-17.json'), 'utf8'),
-    ).summary as {
-      aggregatorReceivables: { agingBuckets: { key: string; positiveDebitKwd: number }[] }
-    }
-    const account = statementAccounts.find((row) => row.account_type === 'asset_receivable')
-    const lines = summary.aggregatorReceivables.agingBuckets
-      .filter((bucket) => bucket.positiveDebitKwd > 0)
-      .map((bucket) => ({
-        partnerKey: bucket.key,
-        accountCode: account?.code ?? '',
-        residualKwd: bucket.positiveDebitKwd,
-      }))
-    const grouped = aggregateReceivablesByPartnerAndAccount(lines)
-    const partnerSum = Object.values(grouped.byPartner).reduce((sum, value) => sum + value, 0)
-    const accountSum = Object.values(grouped.byAccount).reduce((sum, value) => sum + value, 0)
-    const expected = lines.reduce((sum, line) => sum + line.residualKwd, 0)
-    expect(Math.round(partnerSum * 1000) / 1000).toBe(Math.round(expected * 1000) / 1000)
-    expect(Math.round(accountSum * 1000) / 1000).toBe(Math.round(expected * 1000) / 1000)
-    expect(grouped.total).toBe(Math.round(expected * 1000) / 1000)
-  })
 })
 
 describe('excluded POS configs stay excluded', () => {

@@ -1,7 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { GlAccountLine } from '@/lib/odoo/gl-statements'
+import {
+  balanceSheetView,
+  trialBalanceTotals,
+  type GlAccountLine,
+} from '@/lib/odoo/gl-statements'
 import { formatKwd } from '@/lib/format'
 
 interface StatementPayload {
@@ -90,29 +94,21 @@ export function GlStatementsPanel({
             ? 'crossovered.budget غير قابل للقراءة'
             : 'crossovered.budget is not readable'}
       </p>
-      <StatementTable
-        title={isAr ? 'ميزان المراجعة' : 'Trial balance'}
-        lines={payload.trialBalance.lines}
-        empty={note}
-        isAr={isAr}
-      />
-      <StatementTable
-        title={isAr ? 'الميزانية العمومية' : 'Balance sheet'}
-        lines={payload.balanceSheet.lines}
-        empty={payload.balanceSheet.unavailableSections.length > 0 ? note : note}
-        isAr={isAr}
-      />
+      <TrialBalanceTable lines={payload.trialBalance.lines} empty={note} isAr={isAr} />
+      <BalanceSheetTable lines={payload.balanceSheet.lines} empty={note} isAr={isAr} />
     </section>
   )
 }
 
-function StatementTable({
-  title,
+function money(value: number, isAr: boolean): string {
+  return formatKwd(value, isAr ? 'ar' : 'en')
+}
+
+function TrialBalanceTable({
   lines,
   empty,
   isAr,
 }: {
-  title: string
   lines: GlAccountLine[]
   empty: string
   isAr: boolean
@@ -120,28 +116,91 @@ function StatementTable({
   if (lines.length === 0) {
     return (
       <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-sm font-semibold">{isAr ? 'ميزان المراجعة' : 'Trial balance'}</h3>
         <p className="text-xs text-slate-600 dark:text-slate-300">{empty}</p>
       </div>
     )
   }
-  const shown = lines.slice(0, 200)
+  const totals = trialBalanceTotals(lines)
   return (
     <div className="overflow-x-auto">
-      <h3 className="mb-1 text-sm font-semibold">{title}</h3>
+      <h3 className="mb-1 text-sm font-semibold">{isAr ? 'ميزان المراجعة' : 'Trial balance'}</h3>
+      <p className="mb-1 text-xs text-slate-500">{isAr ? `عرض ${lines.length} من ${lines.length}` : `showing ${lines.length} of ${lines.length}`}</p>
       <table className="w-full text-xs">
+        <thead>
+          <tr>
+            <th className="py-1 text-start">{isAr ? 'الحساب' : 'Account'}</th>
+            <th className="py-1 text-end">{isAr ? 'مدين' : 'Debit'}</th>
+            <th className="py-1 text-end">{isAr ? 'دائن' : 'Credit'}</th>
+            <th className="py-1 text-end">{isAr ? 'الرصيد' : 'Balance'}</th>
+          </tr>
+        </thead>
         <tbody>
-          {shown.map((line) => (
-            <tr key={`${title}-${line.code}`}>
-              <td className="py-1 pe-2 font-mono" dir="ltr">{line.code}</td>
-              <td className="py-1 pe-2">{line.name}</td>
-              <td className="py-1 text-end tabular-nums" dir="ltr">
-                {formatKwd(line.balance, isAr ? 'ar' : 'en')}
-              </td>
+          {lines.map((line) => (
+            <tr key={line.code}>
+              <td className="py-1 pe-2"><span className="font-mono" dir="ltr">{line.code}</span> {line.name}</td>
+              <td className="py-1 text-end tabular-nums" dir="ltr">{money(line.debit, isAr)}</td>
+              <td className="py-1 text-end tabular-nums" dir="ltr">{money(line.credit, isAr)}</td>
+              <td className="py-1 text-end tabular-nums" dir="ltr">{money(line.balance, isAr)}</td>
             </tr>
           ))}
+          <tr>
+            <td className="py-1 font-semibold">{isAr ? 'المجموع' : 'Total'}</td>
+            <td className="py-1 text-end font-semibold tabular-nums" dir="ltr">{money(totals.debit, isAr)}</td>
+            <td className="py-1 text-end font-semibold tabular-nums" dir="ltr">{money(totals.credit, isAr)}</td>
+            <td className="py-1 text-end font-semibold tabular-nums" dir="ltr">{money(totals.balance, isAr)}</td>
+          </tr>
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function BalanceSheetTable({
+  lines,
+  empty,
+  isAr,
+}: {
+  lines: GlAccountLine[]
+  empty: string
+  isAr: boolean
+}) {
+  const view = balanceSheetView(lines)
+  const accountCount = view.groups.reduce((sum, group) => sum + group.lines.length, 0)
+  if (accountCount === 0) {
+    return (
+      <div>
+        <h3 className="text-sm font-semibold">{isAr ? 'الميزانية العمومية' : 'Balance sheet'}</h3>
+        <p className="text-xs text-slate-600 dark:text-slate-300">{empty}</p>
+      </div>
+    )
+  }
+  return (
+    <div className="overflow-x-auto" data-balance-sheet="true">
+      <h3 className="mb-1 text-sm font-semibold">{isAr ? 'الميزانية العمومية' : 'Balance sheet'}</h3>
+      <p className="mb-1 text-xs text-slate-500">{isAr ? `عرض ${accountCount} من ${accountCount}` : `showing ${accountCount} of ${accountCount}`}</p>
+      {view.groups.map((group) => (
+        <div key={group.key} className="mb-2">
+          <p className="text-xs font-semibold">{isAr ? group.labelAr : group.labelEn}</p>
+          {group.lines.map((line) => (
+            <p key={line.code} className="flex justify-between gap-2 text-xs">
+              <span><span className="font-mono" dir="ltr">{line.code}</span> {line.name}</span>
+              <span dir="ltr" className="tabular-nums">{money(line.presented, isAr)}</span>
+            </p>
+          ))}
+        </div>
+      ))}
+      <p className="flex justify-between gap-2 text-xs">
+        <span>{isAr ? view.currentEarningsLabelAr : view.currentEarningsLabelEn}</span>
+        <span dir="ltr" className="tabular-nums">{money(view.totals.currentYearEarnings, isAr)}</span>
+      </p>
+      {view.balanced ? (
+        <p className="mt-1 text-xs font-semibold tabular-nums" dir="ltr" data-balance-check="ok">
+          {`A ${money(view.totals.assets, isAr)} = L ${money(view.totals.liabilities, isAr)} + E ${money(view.totals.equity, isAr)}`}
+        </p>
+      ) : (
+        <p className="mt-1 text-xs font-semibold" data-balance-check="off">{empty}</p>
+      )}
     </div>
   )
 }

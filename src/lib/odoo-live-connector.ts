@@ -1931,7 +1931,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const boundsWeek = kuwaitRangeToOdooUtcStrings(weekFromKwIso, anchorTomorrowKwIso)
   const boundsToday = kuwaitRangeToOdooUtcStrings(anchorDayKwIso, anchorTomorrowKwIso)
   const boundsYear = kuwaitRangeToOdooUtcStrings(yearFromKwIso, anchorTomorrowKwIso)
-  const boundsPrior30 = kuwaitRangeToOdooUtcStrings(prior30FromKwIso, monthFromKwIso)
 
   const companyConfigList = [...companyConfigIds]
   const posOrderDomainOf = (
@@ -1996,7 +1995,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     productLinesTodayRows,
     productLinesYearRows,
     [ytdAggRows, ytdAggCountRows],
-    prior30Pair,
     stockTransfers,
     aggregatorReceivables,
     decommissionedOrders30Rows,
@@ -2354,30 +2352,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           ]),
         [[], []],
         markFailure('year'),
-      ),
-      safeSubQuery<
-        [{ amount_total?: number; amount_tax?: number; __count?: number }[], number] | null
-      >(
-        () =>
-          Promise.all([
-            executeOdooKw<{ amount_total?: number; amount_tax?: number; __count?: number }[]>(
-              'pos.order',
-              'read_group',
-              [
-                posOrderDomainOf(boundsPrior30, false),
-                ['amount_total:sum', 'amount_tax:sum'],
-                [],
-              ],
-              { lazy: false },
-            ),
-            executeOdooKw<number>(
-              'pos.order',
-              'search_count',
-              [posOrderDomainOf(boundsPrior30, true)],
-            ),
-          ]),
-        null,
-        markFailure('journeyPulse'),
       ),
     safeSubQuery<OdooStockTransferSummary | null | undefined>(async () => {
       const [pickings, doneCount30, pendingCountTotal] = await Promise.all([
@@ -3222,7 +3196,6 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const channelsTodayFailed = unavailableSectionSet.has('channels.today')
   const channelsYearFailed = unavailableSectionSet.has('channels.year')
   const yearTotalsFailed = unavailableSectionSet.has('year')
-  const journeyPulseFailed = unavailableSectionSet.has('journeyPulse')
 
   const has30Payments =
     !channelsMonthFailed && mergedPayments30Rows.some((p) => p.netKwd !== 0 || p.orders > 0)
@@ -3426,11 +3399,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const prior30ToKwIso = shiftIsoDate(rolling30FromKwIso, -1)
   const prior30Totals = sumDailyWindow(prior30FromKwIso, prior30ToKwIso)
 
-  const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = journeyPulseFailed
-    ? null
-    : prior30Pair
-      ? (() => {
-          return {
+  const journeyPulse: OdooLiveSummary['journeyPulse'] = {
             rolling30: {
               from: rolling30FromKwIso,
               to: anchorDayKwIso,
@@ -3455,9 +3424,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               orders: mtdOrders,
               perDayKwd: r3(mtdNet / mtdDays),
             },
-          }
-        })()
-      : undefined
+  }
 
   const fetchedAtMs = Date.now()
   const resolvedLatestRecordAt =
