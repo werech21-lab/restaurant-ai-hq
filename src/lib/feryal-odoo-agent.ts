@@ -2755,7 +2755,7 @@ export async function askFeryalOdooAgent(
       })
     }
     const grounded = groundContextReply(answered.reply, answered.citedNumbers)
-    if (!grounded.verifier.valid) {
+    if (!grounded.verifier.valid || grounded.reply.trim().length === 0) {
       return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
         from: resolvedPeriod.from,
         to: resolvedPeriod.to,

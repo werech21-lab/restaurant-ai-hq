@@ -104,7 +104,7 @@ export function answerFromFeryalContext(
 
   if (peak && (PREP.test(question) || /ساعة|hour/i.test(question) || lines.length === 0)) {
     cited.push(peak.hour, peak.netKwd)
-    lines.push(`أعلى ساعة في الفترة هي ${peak.hour}:00 بمبيعات ${fmt(peak.netKwd)} د.ك من pos.order.`)
+    lines.push(`أعلى ساعة في الفترة هي الساعة ${peak.hour} بمبيعات ${fmt(peak.netKwd)} د.ك من pos.order.`)
   }
 
   if (TALABAT.test(question)) {

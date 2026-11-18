@@ -34,7 +34,7 @@ describe('Feryal answers from the period cube', () => {
   it('names the peak hour from hourlySeries', () => {
     const result = answerFromFeryalContext('شو أفضل ساعة عندنا؟', cube)
     const peak = cube.hourlySeries.reduce((best, row) => (row.netKwd > best.netKwd ? row : best))
-    expect(result.reply).toContain(`${peak.hour}:00`)
+    expect(result.reply).toContain(`الساعة ${peak.hour}`)
     expect(result.reply).toContain(peak.netKwd.toFixed(3))
   })
 
@@ -56,7 +56,7 @@ describe('Feryal answers from the period cube', () => {
     const result = answerFromFeryalContext('شو اقتراحك لزمن التحضير؟', cube)
     expect(result.missingMetrics).toEqual(['زمن التحضير غير متاح في Odoo'])
     expect(result.reply.match(/زمن التحضير غير متاح في Odoo/g)?.length).toBe(1)
-    expect(result.reply).toContain(':00')
+    expect(result.reply).toContain('الساعة')
   })
 
   it('labels a forecast with the month projection from the fixture', () => {
