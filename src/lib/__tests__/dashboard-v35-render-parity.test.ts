@@ -122,7 +122,13 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     const cards = parseBranchCards(html)
     // This payload predates booth counting (no byLocation.exhibitions), so no booth card is shown —
     // a group the data doesn't report is never rendered as 0.000.
-    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length)
+    // Branches with a recorded zero (0 KWD, 0 orders — not open yet at 06:00) are named on one quiet line
+    // instead of 0.000 cards: rendered cards + named idle branches cover every card id.
+    expect(cards.every((c) => c.salesKwd > 0 || c.orders > 0)).toBe(true)
+    const idleLine = /data-idle-booths="true"[^>]*>([\s\S]*?)<\/p>/.exec(html)
+    expect(idleLine).not.toBeNull()
+    const idleCount = idleLine![1].replace(/<[^>]+>/g, '').split(':').slice(1).join(':').split('،').filter((n) => n.trim()).length
+    expect(cards.length + idleCount).toBe(DASHBOARD_BRANCH_CARD_IDS.length)
     expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)
@@ -219,7 +225,13 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     const cards = parseBranchCards(html)
     // This payload predates booth counting (no byLocation.exhibitions), so no booth card is shown —
     // a group the data doesn't report is never rendered as 0.000.
-    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length)
+    // Branches with a recorded zero (0 KWD, 0 orders — not open yet at 06:00) are named on one quiet line
+    // instead of 0.000 cards: rendered cards + named idle branches cover every card id.
+    expect(cards.every((c) => c.salesKwd > 0 || c.orders > 0)).toBe(true)
+    const idleLine = /data-idle-booths="true"[^>]*>([\s\S]*?)<\/p>/.exec(html)
+    expect(idleLine).not.toBeNull()
+    const idleCount = idleLine![1].replace(/<[^>]+>/g, '').split(':').slice(1).join(':').split('،').filter((n) => n.trim()).length
+    expect(cards.length + idleCount).toBe(DASHBOARD_BRANCH_CARD_IDS.length)
     expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)

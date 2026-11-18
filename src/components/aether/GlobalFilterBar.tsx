@@ -23,6 +23,9 @@ export function GlobalFilterBar() {
   const unavailableLabel = getUnavailableTooltip(locale)
 
   if (!isBiRoute(pathname)) return null
+  // The static BI ledger is unlinked (no brands / branches / channels): a bar of «All 0 …» selectors and a
+  // 0.000 slice would contradict the page. Nothing to filter → no bar.
+  if (BRANDS.length === 0 && BRANCHES.length === 0 && CHANNELS.length === 0) return null
 
   const brand = BRANDS.find((b) => b.id === filters.brand)
   const branch = BRANCHES.find((b) => b.id === filters.branch)

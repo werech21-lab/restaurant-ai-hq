@@ -26,7 +26,7 @@ import type {
   OdooReceivableAgingBucket,
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
-import { resolveBrandHeadline } from '@/lib/aether/brand-scope'
+import { companyDailySeries, resolveBrandHeadline } from '@/lib/aether/brand-scope'
 import { formatArReconciliationFormula, toDisplayableAging } from '@/lib/odoo/receivable-aging'
 
 export type GlobalPeriod = 'today' | 'week' | 'month' | 'year' | 'custom'
@@ -2190,7 +2190,8 @@ export function computePeriodOverPeriodDeltaPct(
   if (isDimensionFiltered) return null
 
   const dailyMap = new Map<string, { day: string; orders: number; netKwd: number }>()
-  for (const d of liveSummary.dailySeries ?? []) {
+  // Same company series as the timeline: dailySeries filled from the per-branch daily rows.
+  for (const d of companyDailySeries(liveSummary)) {
     if (d.orders > 0 && d.netKwd > 0) dailyMap.set(d.day, d)
   }
   const orderedDays = [...dailyMap.values()].sort((a, b) => a.day.localeCompare(b.day))

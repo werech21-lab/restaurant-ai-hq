@@ -553,7 +553,8 @@ export function BeforeAfterStudio() {
     titleEn: string,
     rows: EntityVarianceRow[],
   ) => {
-    const mapped = rows.filter((r) => !r.isUnattributed)
+    // Largest movers first (by absolute change); the unattributed reconciliation row stays last.
+    const mapped = rows.filter((r) => !r.isUnattributed).sort((a, b) => Math.abs(b.deltaKwd) - Math.abs(a.deltaKwd))
     const unattr = rows.filter((r) => r.isUnattributed)
     const orderedRows = [...mapped, ...unattr]
 
@@ -585,7 +586,7 @@ export function BeforeAfterStudio() {
                       ? 'bg-slate-50/85 dark:bg-slate-800/35'
                       : !r.isCompatible
                         ? 'opacity-45'
-                        : ''
+                        : 'even:bg-slate-50/60 hover:bg-blue-50/40 dark:even:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                   }
                 >
                   <td className="px-4 py-3">
@@ -869,43 +870,37 @@ export function BeforeAfterStudio() {
                     </>
                   ) : (
                     <>
-                      <div
-                        dir="ltr"
-                        className={`mt-2 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl ${
-                          kpi.isFavorable
-                            ? 'text-emerald-700 dark:text-emerald-300'
-                            : 'text-rose-700 dark:text-rose-300'
-                        }`}
-                      >
-                        {kpi.unit === 'pct'
-                          ? fmtSignedPp(kpi.deltaPct)
-                          : kpi.unit === 'orders'
-                            ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true })
-                            : fmtSignedKwd(kpi.deltaAbs, isAr)}
+                      {/* The value AFTER is the headline; the change is a labelled badge — a signed
+                          change is never shown as if it were the sales figure itself. */}
+                      <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                        <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
+                          {formatKpiVal(kpi, 'after', resolvedLocale)}
+                        </span>
+                        {kpi.unit === 'KWD' ? <span className="text-[13px] font-semibold text-slate-500">{kwd}</span> : null}
+                        {kpi.unit === 'orders' ? <span className="text-[13px] font-semibold text-slate-500">{isAr ? 'طلب' : 'ord'}</span> : null}
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 tabular-nums">
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{isAr ? 'التغيّر' : 'Change'}</span>
                         <span
                           dir="ltr"
+                          data-kpi-change="true"
                           className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
                         >
                           {kpi.unit === 'pct'
                             ? Number.isFinite(kpi.deltaPct)
                               ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
                               : UNAVAILABLE_DASH
-                            : signed.text}
+                            : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, isAr)} · ${signed.text}`}
                         </span>
                       </div>
 
-                      <p
-                        dir="ltr"
-                        className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400"
-                      >
-                        {formatKpiVal(kpi, 'before', resolvedLocale)} →{' '}
-                        <strong className="text-slate-800 dark:text-slate-100">
-                          {formatKpiVal(kpi, 'after', resolvedLocale)}
-                        </strong>{' '}
-                        {kpi.unit === 'KWD' ? kwd : ''}
+                      <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
+                        {isAr ? 'قبل:' : 'Before:'}{' '}
+                        <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
+                          {formatKpiVal(kpi, 'before', resolvedLocale)}
+                          {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
+                        </span>
                       </p>
                     </>
                   )}

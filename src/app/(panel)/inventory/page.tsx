@@ -130,7 +130,8 @@ async function InventoryContent({ searchParams }: { searchParams: Promise<RawQue
         sellingPrice: row.sellingPrice,
         reorderLevel: row.reorderLevel,
         low: row.currentStock <= row.reorderLevel,
-        costLabel: formatKwd(row.costPrice, { locale: uiLocale }),
+        // A cost of 0 means none recorded → «—», not 0.000 KWD.
+        costLabel: formatKwd(row.costPrice > 0 ? row.costPrice : null, { locale: uiLocale }),
         sellLabel: formatKwd(row.sellingPrice, { locale: uiLocale }),
         stockLabel: formatQty(row.currentStock),
         reorderLabel: formatQty(row.reorderLevel),

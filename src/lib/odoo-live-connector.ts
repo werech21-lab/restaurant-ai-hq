@@ -1,4 +1,5 @@
 import 'server-only'
+import { CoverageCounter, resolveProductCosts, type CostSource, type WarehouseValuationSummary } from '@/lib/odoo/warehouse-valuation'
 
 /**
  * Production Odoo 17 Live JSON-RPC Engine (`src/lib/odoo-live-connector.ts`)
@@ -410,6 +411,9 @@ export interface OdooLiveWarehouseProductRow {
   categoryName: string
   uomName: string
   unitCostKwd: number
+  /** False when Odoo holds no cost for the product (standard price, valuation layer or purchase). */
+  costKnown?: boolean
+  costSource?: CostSource | null
   onHandQty: number
   onHandValueKwd: number
   inboundQty: number
@@ -446,6 +450,8 @@ export interface OdooLiveWarehouseChainPayload {
   isStale24h: boolean
   dateRange: { from: string; to: string }
   quantHasValueField: boolean
+  /** Cost coverage of the KWD figures (absent on payloads cached before valuation coverage). */
+  valuation?: WarehouseValuationSummary
   totals: {
     currentOnHandQty: number
     currentOnHandValueKwd: number
@@ -5797,10 +5803,61 @@ export async function fetchLiveOdooWarehouseChain(
                     'uom_id',
                   ],
                 ],
+                // standard_price is company-dependent: read it in the company's context.
+                resolvedCompanyId !== null
+                  ? { context: { allowed_company_ids: [resolvedCompanyId], company_id: resolvedCompanyId } }
+                  : {},
               ),
             [],
           )
         : []
+
+    // Cost fallbacks for products without a standard price (read-only).
+    const standardPriceById = new Map(prodRecords.map((p) => [p.id, Number(p.standard_price) || 0]))
+    const uncostedIds = allProdIds.filter((pid) => !((standardPriceById.get(pid) ?? 0) > 0))
+    const [layerGroups, purchaseGroups] = await Promise.all([
+      uncostedIds.length > 0
+        ? safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; value?: number; quantity?: number }[]>(
+                'stock.valuation.layer',
+                'read_group',
+                [[...companyDomain, ['product_id', 'in', uncostedIds]], ['value:sum', 'quantity:sum'], ['product_id']],
+                { lazy: false },
+              ),
+            [],
+          )
+        : Promise.resolve([] as { product_id: M2O; value?: number; quantity?: number }[]),
+      uncostedIds.length > 0
+        ? safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal?: number; product_uom_qty?: number }[]>(
+                'purchase.order.line',
+                'read_group',
+                [
+                  [...companyDomain, ['product_id', 'in', uncostedIds], ['state', 'in', ['purchase', 'done']]],
+                  ['price_subtotal:sum', 'product_uom_qty:sum'],
+                  ['product_id'],
+                ],
+                { lazy: false },
+              ),
+            [],
+          )
+        : Promise.resolve([] as { product_id: M2O; price_subtotal?: number; product_uom_qty?: number }[]),
+    ])
+    const productCosts = resolveProductCosts(allProdIds, {
+      standardPrice: standardPriceById,
+      valuationLayer: new Map(
+        layerGroups
+          .map((g) => [m2oId(g.product_id), { value: Number(g.value) || 0, quantity: Number(g.quantity) || 0 }] as const)
+          .filter((e): e is [number, { value: number; quantity: number }] => e[0] !== null),
+      ),
+      purchase: new Map(
+        purchaseGroups
+          .map((g) => [m2oId(g.product_id), { subtotal: Number(g.price_subtotal) || 0, quantity: Number(g.product_uom_qty) || 0 }] as const)
+          .filter((e): e is [number, { subtotal: number; quantity: number }] => e[0] !== null),
+      ),
+    })
 
     const prodInfoById = new Map<
       number,
@@ -5808,6 +5865,8 @@ export async function fetchLiveOdooWarehouseChain(
         name: string
         skuCode: string
         unitCostKwd: number
+        costKnown: boolean
+        costSource: CostSource | null
         categoryName: string
         uomName: string
         excluded: boolean
@@ -5829,7 +5888,9 @@ export async function fetchLiveOdooWarehouseChain(
       prodInfoById.set(p.id, {
         name: nm,
         skuCode,
-        unitCostKwd: Math.max(0, Number(p.standard_price) || 0),
+        unitCostKwd: productCosts.get(p.id)?.unitCostKwd ?? 0,
+        costKnown: productCosts.has(p.id),
+        costSource: productCosts.get(p.id)?.source ?? null,
         categoryName: catNm,
         uomName: m2oName(p.uom_id) ?? 'Unit',
         excluded,
@@ -5855,6 +5916,8 @@ export async function fetchLiveOdooWarehouseChain(
           categoryName: meta?.categoryName ?? 'General',
           uomName: meta?.uomName ?? 'Unit',
           unitCostKwd: r3(meta?.unitCostKwd ?? 0),
+          costKnown: meta?.costKnown ?? false,
+          costSource: meta?.costSource ?? null,
           onHandQty: 0,
           onHandValueKwd: 0,
           inboundQty: 0,
@@ -5871,6 +5934,9 @@ export async function fetchLiveOdooWarehouseChain(
       return row
     }
 
+    const onHandCoverage = new CoverageCounter()
+    const movesCoverage = new CoverageCounter()
+    const scrapCoverage = new CoverageCounter()
     let currentOnHandQty = 0
     let currentOnHandValueKwd = 0
     let ckOnHandValueKwd = 0
@@ -5891,10 +5957,9 @@ export async function fetchLiveOdooWarehouseChain(
       if (!pRow) continue
 
       const qty = Number(q.quantity) || 0
-      const val =
-        quantHasValueField && typeof (q as { value?: number }).value === 'number'
-          ? Number((q as { value?: number }).value) || 0
-          : qty * pRow.unitCostKwd
+      const quantValue = quantHasValueField && typeof (q as { value?: number }).value === 'number'
+      onHandCoverage.add(qty, quantValue || pRow.costKnown === true)
+      const val = quantValue ? Number((q as { value?: number }).value) || 0 : qty * pRow.unitCostKwd
       quantsCount += Math.max(0, Number(q.__count) || 0)
       currentOnHandQty += qty
       currentOnHandValueKwd += val
@@ -5948,6 +6013,9 @@ export async function fetchLiveOdooWarehouseChain(
       const qty = Math.max(0, rawQty)
       const valKwd = qty * pRow.unitCostKwd
       doneMovesCount += Math.max(0, Number(m.__count) || 0)
+      if (flow.kind === 'inbound' || flow.kind === 'transfer' || flow.kind === 'consumption') {
+        movesCoverage.add(qty, pRow.costKnown === true)
+      }
 
       if (flow.kind === 'inbound') {
         inboundSupplierKwd += valKwd
@@ -6053,6 +6121,7 @@ export async function fetchLiveOdooWarehouseChain(
       const dateIso = conv?.kuwaitDate ?? dateRange.to
       const sQty = Math.max(0, Number(sr.scrap_qty) || 0)
       const sVal = r3(sQty * pRow.unitCostKwd)
+      scrapCoverage.add(sQty, pRow.costKnown === true)
 
       scrapKwd += sVal
       pRow.scrapQty += sQty
@@ -6143,6 +6212,21 @@ export async function fetchLiveOdooWarehouseChain(
       isStale24h: false,
       dateRange,
       quantHasValueField,
+      valuation: {
+        costedProducts: products.filter((p) => p.costKnown).length,
+        uncostedProducts: products.filter((p) => !p.costKnown).length,
+        sources: {
+          standard_price: products.filter((p) => p.costSource === 'standard_price').length,
+          valuation_layer: products.filter((p) => p.costSource === 'valuation_layer').length,
+          purchase_price: products.filter((p) => p.costSource === 'purchase_price').length,
+        },
+        onHandCoveragePct: onHandCoverage.pct(),
+        movesCoveragePct: movesCoverage.pct(),
+        scrapCoveragePct: scrapCoverage.pct(),
+        onHandValued: onHandCoverage.valued(),
+        movesValued: movesCoverage.valued(),
+        scrapValued: scrapCoverage.valued(),
+      },
       totals: {
         currentOnHandQty: r3(currentOnHandQty),
         currentOnHandValueKwd: r3(currentOnHandValueKwd),

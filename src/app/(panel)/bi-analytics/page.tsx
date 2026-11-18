@@ -157,6 +157,19 @@ async function InsightsContent() {
           locale={resolvedLocale}
           headerDivider
         >
+          {data.weeks.length === 0 ? (
+            <StateBlock
+              state="unavailable"
+              locale={resolvedLocale}
+              compact
+              title={tx(locale, "لا يمكن إسقاط التدفق النقدي", "Cash projection unavailable")}
+              description={tx(
+                locale,
+                "يتطلب رصيد حسابات النقد والبنك وحركات القبض والصرف لآخر 30 يوماً.",
+                "Needs the cash / bank account balances and the last 30 days of receipts and payments."
+              )}
+            />
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[320px] text-sm">
               <thead>
@@ -179,6 +192,7 @@ async function InsightsContent() {
               </tbody>
             </table>
           </div>
+          )}
         </SectionCard>
       </div>
 

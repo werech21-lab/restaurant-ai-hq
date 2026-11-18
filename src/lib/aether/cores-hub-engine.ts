@@ -252,6 +252,12 @@ export interface CoresHubSnapshot {
     timeline: SalesPoint[]
     hourly: SalesPoint[]
     brandShare: SalesPoint[]
+    /**
+     * Brand basis (product lines by POS category) vs POS net for the same scope. `null` when either
+     * side is unknown or a single brand is selected. The gap is order-level discounts, delivery
+     * fees and items outside the six brands — shown, never silently absorbed.
+     */
+    brandReconciliation: { brandTotalKwd: number; posNetKwd: number; gapKwd: number } | null
     branchRanking: SalesPoint[]
     channelRanking: SalesPoint[]
   }
@@ -567,6 +573,7 @@ export function computeCoresHubSnapshot(
         timeline: [],
         hourly: [],
         brandShare: [],
+        brandReconciliation: null,
         branchRanking: [],
         channelRanking: [],
       },
@@ -1162,6 +1169,14 @@ export function computeCoresHubSnapshot(
       timeline,
       hourly,
       brandShare,
+      brandReconciliation:
+        !brandsUnavailable && filters.brand === 'all' && brandRowsRaw.length > 0 && ws.nullableSalesKwd !== null
+          ? {
+              brandTotalKwd: Math.round(brandTotalKwd * 1000) / 1000,
+              posNetKwd: Math.round(ws.nullableSalesKwd * 1000) / 1000,
+              gapKwd: Math.round((ws.nullableSalesKwd - brandTotalKwd) * 1000) / 1000,
+            }
+          : null,
       branchRanking,
       channelRanking,
     },

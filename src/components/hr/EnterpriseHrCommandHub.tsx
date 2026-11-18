@@ -223,6 +223,8 @@ export function EnterpriseHrCommandHub({
       align: 'numeric',
       format: 'kwd',
       accessor: (emp) => {
+        // No salary on file (basic 0, e.g. owners / outside partners) → «—», not a 0.000 KWD contract.
+        if (!(emp.basicSalary > 0)) return null
         const net = emp.basicSalary + emp.allowances - emp.deductions
         return Number.isFinite(net) ? net : null
       },

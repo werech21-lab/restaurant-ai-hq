@@ -1136,6 +1136,11 @@ html.light-mode ::-webkit-scrollbar-thumb {
   display: inline-block;
 }
 
+/* A table cell marked dir="ltr" (numbers, codes) keeps its column's alignment in an Arabic table:
+   logical start/end follow the page direction, not the cell's own LTR direction. */
+html[dir="rtl"] td[dir="ltr"]:not(.text-center):not(.text-end):not(.text-left):not(.text-right) { text-align: right; }
+html[dir="rtl"] td[dir="ltr"].text-end { text-align: left; }
+
 /* ==========================================================================
    Aggregator radar: light theme scope (data and logic untouched).
    The radar was written for a dark shell; on the white shell its light-grey

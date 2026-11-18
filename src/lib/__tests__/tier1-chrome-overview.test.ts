@@ -475,7 +475,11 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
 
       stubNav.pathname = '/erp/delivery-control'
       const deliveryBarHtml = renderWithProviders('en', el(GlobalFilterBar))
-      expect(deliveryBarHtml).toMatch(/\.\d{3} KWD/)
+      // The static BI ledger is unlinked (0 brands / branches / channels): no «All 0 …» selectors and no
+      // 0.000 slice next to the live header — the bar is not rendered at all.
+      expect(deliveryBarHtml).not.toContain('All 0')
+      expect(deliveryBarHtml).not.toContain('0.000 KWD')
+      expect(deliveryBarHtml).toBe('')
 
       stubNav.pathname = '/erp/delivery-sla'
       setFilterContext(

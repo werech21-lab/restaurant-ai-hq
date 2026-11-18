@@ -44,3 +44,30 @@ export function resolveHeroDeltaBadge(
   const delta = computePeriodDelta(PERCENT_BASE + pct, PERCENT_BASE)
   return { hasComparison: true, badgeLabel: delta.badgeLabel, tone: delta.tone, titleAr: null, titleEn: null }
 }
+
+export interface TodaySameHoursComparison {
+  /** Completed hours compared: [00:00, cutoffHour:00). */
+  cutoffHour: number
+  todayKwd: number
+  yesterdayKwd: number
+  pct: number
+}
+
+/**
+ * Today so far vs yesterday over the same completed hours (Kuwait). Only the hours both days have
+ * fully completed are compared, so a partial today is never set against a whole day. `null` when an
+ * hourly series is unavailable, no hour is complete yet, or yesterday had no sales in that window.
+ */
+export function resolveTodaySameHoursComparison(
+  todayHourly: readonly { hour: number; netKwd: number }[] | null | undefined,
+  yesterdayHourly: readonly { hour: number; netKwd: number }[] | null | undefined,
+  cutoffHour: number,
+): TodaySameHoursComparison | null {
+  if (!todayHourly?.length || !yesterdayHourly?.length || cutoffHour <= 0) return null
+  const sum = (rows: readonly { hour: number; netKwd: number }[]) =>
+    Math.round(rows.filter((r) => r.hour < cutoffHour).reduce((s, r) => s + (Number(r.netKwd) || 0), 0) * 1000) / 1000
+  const todayKwd = sum(todayHourly)
+  const yesterdayKwd = sum(yesterdayHourly)
+  if (!(yesterdayKwd > 0)) return null
+  return { cutoffHour, todayKwd, yesterdayKwd, pct: Math.round(((todayKwd - yesterdayKwd) / yesterdayKwd) * 1000) / 10 }
+}

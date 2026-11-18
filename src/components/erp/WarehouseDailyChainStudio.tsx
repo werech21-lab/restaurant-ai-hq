@@ -50,6 +50,10 @@ const SEGMENT_BTN_IDLE_CLS =
 const PAGE_SIZE = 12
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 
+/** Scrap is red only when a real, non-zero value is known. */
+const scrapTone = (v: number | null) =>
+  v !== null && v > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-700 dark:text-slate-200'
+
 const f1Nullable = (n: number | null | undefined) =>
   formatKwd(n, { showUnit: false, decimals: 1 })
 
@@ -80,6 +84,13 @@ function ValueCell({
 }
 
 function HealthBadge({ status, isAr }: { status: ChainHealthStatus; isAr: boolean }) {
+  if (status === 'no-movement') {
+    return (
+      <span data-health="no-movement" className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+        {isAr ? 'لا حركة مسجلة' : 'No recorded movement'}
+      </span>
+    )
+  }
   if (status === 'critical') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-200">
@@ -257,6 +268,16 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
     warehouseChain?.isStale24h || liveSummary?.isStale24h || workspace.isStale24h,
   )
 
+  // A KWD figure is shown only when Odoo holds the cost behind it; otherwise «غير متاح» (never 0.000).
+  const val = snap.valuation
+  const kv = (n: number, ok: boolean): number | null => (ok ? n : null)
+  /** A branch with no recorded movement shows a quiet «—» (none), not a row of 0.000 values. */
+  const noneCell = (
+    <span data-no-movement="true" className="text-slate-400 dark:text-slate-500" title={isAr ? 'لا حركة مسجلة' : 'No recorded movement'}>
+      —
+    </span>
+  )
+
   const fmtKwd = useCallback(
     (v: number | null | undefined) => formatKwd(v, { locale: fmtLocale }),
     [fmtLocale],
@@ -280,6 +301,17 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto min-w-0 space-y-5 pb-16">
       <PartialWarningBanner summary={liveSummary} isAr={isAr} />
+      {snap.connected && !snap.noData && !(val.onHandValued && val.movesValued && val.scrapValued) ? (
+        <p
+          role="note"
+          data-valuation-note="true"
+          className="rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-slate-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200"
+        >
+          {isAr
+            ? `القيم بالدينار غير متاحة حيث لا توجد تكلفة مسجلة في Odoo للأصناف${val.uncostedProducts ? ` (${val.uncostedProducts} صنف بلا تكلفة)` : ''}. الكميات والحركات معروضة كما هي. لتفعيل القيم: سجّل تكلفة الصنف (Cost) في Odoo أو اعتمد تقييم المخزون.`
+            : `KWD values are unavailable where Odoo holds no cost for the items${val.uncostedProducts ? ` (${val.uncostedProducts} items without a cost)` : ''}. Quantities and moves are shown as recorded. To enable values, record each item's Cost in Odoo or turn on inventory valuation.`}
+        </p>
+      ) : null}
 
       {/* Header */}
       <div className={`${CARD_CLS} flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
@@ -401,9 +433,9 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               </div>
               <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
                 <ValueCell
-                  value={snap.periodTotals.closingWarehouseKwd}
+                  value={kv(snap.periodTotals.closingWarehouseKwd, val.onHandValued)}
                   locale={fmtLocale}
-                  text={fmtKwd(snap.periodTotals.closingWarehouseKwd)}
+                  text={fmtKwd(kv(snap.periodTotals.closingWarehouseKwd, val.onHandValued))}
                 />
               </div>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -437,9 +469,9 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               </div>
               <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
                 <ValueCell
-                  value={snap.periodTotals.totalSupplierInboundKwd}
+                  value={kv(snap.periodTotals.totalSupplierInboundKwd, val.movesValued)}
                   locale={fmtLocale}
-                  text={fmtKwd(snap.periodTotals.totalSupplierInboundKwd)}
+                  text={fmtKwd(kv(snap.periodTotals.totalSupplierInboundKwd, val.movesValued))}
                 />
               </div>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -469,9 +501,9 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               </div>
               <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
                 <ValueCell
-                  value={snap.periodTotals.totalDispatchedKwd}
+                  value={kv(snap.periodTotals.totalDispatchedKwd, val.movesValued)}
                   locale={fmtLocale}
-                  text={fmtKwd(snap.periodTotals.totalDispatchedKwd)}
+                  text={fmtKwd(kv(snap.periodTotals.totalDispatchedKwd, val.movesValued))}
                 />
               </div>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -501,9 +533,9 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               </div>
               <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-slate-950 dark:text-white">
                 <ValueCell
-                  value={snap.periodTotals.totalBomTheoreticalKwd}
+                  value={kv(snap.periodTotals.totalBomTheoreticalKwd, val.movesValued)}
                   locale={fmtLocale}
-                  text={fmtKwd(snap.periodTotals.totalBomTheoreticalKwd)}
+                  text={fmtKwd(kv(snap.periodTotals.totalBomTheoreticalKwd, val.movesValued))}
                 />
               </div>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -531,11 +563,11 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                 </p>
                 <Trash2 className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
               </div>
-              <div className="mt-2.5 text-xl sm:text-2xl font-extrabold text-rose-700 dark:text-rose-300">
+              <div className={`mt-2.5 text-xl sm:text-2xl font-extrabold ${scrapTone(kv(snap.periodTotals.totalAbnormalShrinkageKwd, val.scrapValued))}`}>
                 <ValueCell
-                  value={snap.periodTotals.totalAbnormalShrinkageKwd}
+                  value={kv(snap.periodTotals.totalAbnormalShrinkageKwd, val.scrapValued)}
                   locale={fmtLocale}
-                  text={fmtKwd(snap.periodTotals.totalAbnormalShrinkageKwd)}
+                  text={fmtKwd(kv(snap.periodTotals.totalAbnormalShrinkageKwd, val.scrapValued))}
                 />
               </div>
               <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -592,65 +624,71 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
-                    <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
-                    <th className="py-2.5 text-end">{T('Transfers In (KWD)', 'التحويلات المستلمة')}</th>
-                    <th className="py-2.5 text-end">{T('Moves Count', 'عدد الحركات')}</th>
-                    <th className="py-2.5 text-end">{T('Consumption (KWD)', 'المنصرف المسجّل')}</th>
-                    <th className="py-2.5 text-end">{T('Scrap (KWD)', 'التالف المسجّل')}</th>
-                    <th className="py-2.5 text-end">{T('Current On-Hand', 'الرصيد الحالي')}</th>
-                    <th className="py-2.5 text-end">{T('POS Sales', 'مبيعات الفرع')}</th>
-                    <th className="py-2.5 text-end">{T('Status', 'الحالة')}</th>
+                    <th className="px-2 py-2.5 text-start">{T('Branch', 'الفرع')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Transfers In (KWD)', 'التحويلات المستلمة')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Moves Count', 'عدد الحركات')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Consumption (KWD)', 'المنصرف المسجّل')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Scrap (KWD)', 'التالف المسجّل')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Current On-Hand', 'الرصيد الحالي')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('POS Sales', 'مبيعات الفرع')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Status', 'الحالة')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
                   {snap.branchPeriodSummary.map((b) => (
                     <tr key={b.branchId} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
-                      <td className="py-2.5 font-bold text-slate-900 dark:text-white">
+                      <td className="px-2 py-2.5 font-bold text-slate-900 dark:text-white">
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
-                      <td className="py-2.5 text-end font-semibold">
-                        <ValueCell
-                          value={b.dispatchedFromWarehouseKwd}
-                          locale={fmtLocale}
-                          text={fmtKwd(b.dispatchedFromWarehouseKwd)}
-                        />
+                      <td className="px-2 py-2.5 text-end font-semibold">
+                        {b.health === 'no-movement' && b.dispatchedFromWarehouseKwd === 0 ? noneCell : (
+                          <ValueCell
+                            value={kv(b.dispatchedFromWarehouseKwd, val.movesValued)}
+                            locale={fmtLocale}
+                            text={fmtKwd(kv(b.dispatchedFromWarehouseKwd, val.movesValued))}
+                          />
+                        )}
                       </td>
-                      <td className="py-2.5 text-end text-slate-600 dark:text-slate-300">
+                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300">
                         <ValueCell
                           value={b.transferMoves}
                           locale={fmtLocale}
                           text={fmtInt(b.transferMoves)}
                         />
                       </td>
-                      <td className="py-2.5 text-end font-semibold">
+                      <td className="px-2 py-2.5 text-end font-semibold">
+                        {b.health === 'no-movement' && b.bomTheoreticalCostKwd === 0 ? noneCell : (
+                          <ValueCell
+                            value={kv(b.bomTheoreticalCostKwd, val.movesValued)}
+                            locale={fmtLocale}
+                            text={fmtKwd(kv(b.bomTheoreticalCostKwd, val.movesValued))}
+                          />
+                        )}
+                      </td>
+                      <td className={`px-2 py-2.5 text-end font-semibold ${scrapTone(kv(b.abnormalShrinkageKwd, val.scrapValued))}`}>
+                        {b.health === 'no-movement' && b.abnormalShrinkageKwd === 0 ? noneCell : (
+                          <ValueCell
+                            value={kv(b.abnormalShrinkageKwd, val.scrapValued)}
+                            locale={fmtLocale}
+                            text={fmtKwd(kv(b.abnormalShrinkageKwd, val.scrapValued))}
+                          />
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
                         <ValueCell
-                          value={b.bomTheoreticalCostKwd}
+                          value={kv(b.closingStockKwd, val.onHandValued)}
                           locale={fmtLocale}
-                          text={fmtKwd(b.bomTheoreticalCostKwd)}
+                          text={fmtKwd(kv(b.closingStockKwd, val.onHandValued))}
                         />
                       </td>
-                      <td className="py-2.5 text-end font-semibold text-rose-700 dark:text-rose-300">
-                        <ValueCell
-                          value={b.abnormalShrinkageKwd}
-                          locale={fmtLocale}
-                          text={fmtKwd(b.abnormalShrinkageKwd)}
-                        />
-                      </td>
-                      <td className="py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
-                        <ValueCell
-                          value={b.closingStockKwd}
-                          locale={fmtLocale}
-                          text={fmtKwd(b.closingStockKwd)}
-                        />
-                      </td>
-                      <td className="py-2.5 text-end font-semibold">
+                      <td className="px-2 py-2.5 text-end font-semibold">
                         <ValueCell
                           value={b.posSalesKwd}
                           locale={fmtLocale}
                           text={fmtKwd(b.posSalesKwd)}
                         />
                       </td>
-                      <td className="py-2.5 text-end">
+                      <td className="px-2 py-2.5 text-end">
                         <HealthBadge status={b.health} isAr={isAr} />
                       </td>
                     </tr>
@@ -705,57 +743,57 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
               <table className="w-full min-w-[720px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
-                    <th className="py-2.5 text-start">{T('Date', 'التاريخ')}</th>
-                    <th className="py-2.5 text-end">{T('Supplier Inbound', 'وارد الموردين')}</th>
-                    <th className="py-2.5 text-end">{T('Branch Transfers', 'تحويلات الفروع')}</th>
-                    <th className="py-2.5 text-end">{T('Moves', 'الحركات')}</th>
-                    <th className="py-2.5 text-end">{T('Consumption', 'المنصرف')}</th>
-                    <th className="py-2.5 text-end">{T('Scrap', 'التالف')}</th>
-                    <th className="py-2.5 text-end">{T('POS Sales', 'مبيعات الفروع')}</th>
+                    <th className="px-2 py-2.5 text-start">{T('Date', 'التاريخ')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Supplier Inbound', 'وارد الموردين')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Branch Transfers', 'تحويلات الفروع')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Moves', 'الحركات')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Consumption', 'المنصرف')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Scrap', 'التالف')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('POS Sales', 'مبيعات الفروع')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
                   {pagedDays.map((d) => (
                     <tr key={d.dateIso} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
-                      <td className="py-2.5 font-semibold text-slate-900 dark:text-white">
+                      <td className="px-2 py-2.5 font-semibold text-slate-900 dark:text-white">
                         {isAr ? `${d.weekdayAr} • ${d.dayLabelAr}` : `${d.weekdayEn} • ${d.dayLabelEn}`}
                       </td>
-                      <td className="py-2.5 text-end">
+                      <td className="px-2 py-2.5 text-end">
                         <ValueCell
-                          value={d.supplierInboundKwd}
+                          value={kv(d.supplierInboundKwd, val.movesValued)}
                           locale={fmtLocale}
-                          text={fmtKwd(d.supplierInboundKwd)}
+                          text={fmtKwd(kv(d.supplierInboundKwd, val.movesValued))}
                         />
                       </td>
-                      <td className="py-2.5 text-end">
+                      <td className="px-2 py-2.5 text-end">
                         <ValueCell
-                          value={d.warehouseDispatchedKwd}
+                          value={kv(d.warehouseDispatchedKwd, val.movesValued)}
                           locale={fmtLocale}
-                          text={fmtKwd(d.warehouseDispatchedKwd)}
+                          text={fmtKwd(kv(d.warehouseDispatchedKwd, val.movesValued))}
                         />
                       </td>
-                      <td className="py-2.5 text-end text-slate-600 dark:text-slate-300">
+                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300">
                         <ValueCell
                           value={d.dispatchMoves}
                           locale={fmtLocale}
                           text={fmtInt(d.dispatchMoves)}
                         />
                       </td>
-                      <td className="py-2.5 text-end">
+                      <td className="px-2 py-2.5 text-end">
                         <ValueCell
-                          value={d.bomTheoreticalCostKwd}
+                          value={kv(d.bomTheoreticalCostKwd, val.movesValued)}
                           locale={fmtLocale}
-                          text={fmtKwd(d.bomTheoreticalCostKwd)}
+                          text={fmtKwd(kv(d.bomTheoreticalCostKwd, val.movesValued))}
                         />
                       </td>
-                      <td className="py-2.5 text-end text-rose-700 dark:text-rose-300">
+                      <td className={`px-2 py-2.5 text-end ${scrapTone(kv(d.abnormalShrinkageKwd, val.scrapValued))}`}>
                         <ValueCell
-                          value={d.abnormalShrinkageKwd}
+                          value={kv(d.abnormalShrinkageKwd, val.scrapValued)}
                           locale={fmtLocale}
-                          text={fmtKwd(d.abnormalShrinkageKwd)}
+                          text={fmtKwd(kv(d.abnormalShrinkageKwd, val.scrapValued))}
                         />
                       </td>
-                      <td className="py-2.5 text-end font-semibold">
+                      <td className="px-2 py-2.5 text-end font-semibold">
                         <ValueCell
                           value={d.branchesPosSalesKwd}
                           locale={fmtLocale}
@@ -781,49 +819,49 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                 <table className="w-full min-w-[720px] border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
-                      <th className="py-2 text-start">{T('Code', 'الكود')}</th>
-                      <th className="py-2 text-start">{T('Product', 'الصنف')}</th>
-                      <th className="py-2 text-start">{T('Category', 'الفئة')}</th>
-                      <th className="py-2 text-end">{T('Unit Cost', 'تكلفة الوحدة')}</th>
-                      <th className="py-2 text-end">{T('On-Hand Qty', 'الرصيد الكمي')}</th>
-                      <th className="py-2 text-end">{T('On-Hand Value', 'قيمة الرصيد')}</th>
-                      <th className="py-2 text-end">{T('Scrap Value', 'قيمة التالف')}</th>
+                      <th className="px-2 py-2 text-start">{T('Code', 'الكود')}</th>
+                      <th className="px-2 py-2 text-start">{T('Product', 'الصنف')}</th>
+                      <th className="px-2 py-2 text-start">{T('Category', 'الفئة')}</th>
+                      <th className="px-2 py-2 text-end">{T('Unit Cost', 'تكلفة الوحدة')}</th>
+                      <th className="px-2 py-2 text-end">{T('On-Hand Qty', 'الرصيد الكمي')}</th>
+                      <th className="px-2 py-2 text-end">{T('On-Hand Value', 'قيمة الرصيد')}</th>
+                      <th className="px-2 py-2 text-end">{T('Scrap Value', 'قيمة التالف')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
                     {snap.skuFlows.slice(0, 25).map((sku) => (
                       <tr key={`${sku.code}-${sku.nameEn}`} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
-                        <td dir="ltr" className="py-2 font-mono text-xs text-slate-600 dark:text-slate-400">
-                          {sku.code}
+                        <td className="px-2 py-2 pe-3 font-mono text-xs text-slate-600 dark:text-slate-400">
+                          <bdi dir="ltr">{sku.code}</bdi>
                         </td>
-                        <td className="py-2 font-semibold text-slate-900 dark:text-white">
+                        <td className="px-2 py-2 font-semibold text-slate-900 dark:text-white">
                           {isAr ? sku.nameAr : sku.nameEn}
                         </td>
-                        <td className="py-2 text-xs text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-2 text-xs text-slate-600 dark:text-slate-300">
                           {isAr ? sku.categoryLabelAr : sku.categoryLabelEn}
                         </td>
-                        <td className="py-2 text-end">
+                        <td className="px-2 py-2 text-end">
                           <ValueCell
-                            value={sku.unitCostKwd}
+                            value={kv(sku.unitCostKwd, sku.costKnown)}
                             locale={fmtLocale}
-                            text={fmtKwd(sku.unitCostKwd)}
+                            text={fmtKwd(kv(sku.unitCostKwd, sku.costKnown))}
                           />
                         </td>
-                        <td dir="ltr" className="py-2 text-end tabular-nums">
-                          {f1Nullable(sku.warehouseOnHandQty)} {sku.uom}
+                        <td className="px-2 py-2 text-end tabular-nums">
+                          <bdi dir="ltr" className="whitespace-nowrap">{f1Nullable(sku.warehouseOnHandQty)} {sku.uom}</bdi>
                         </td>
-                        <td className="py-2 text-end font-bold text-emerald-700 dark:text-emerald-300">
+                        <td className="px-2 py-2 text-end font-bold text-emerald-700 dark:text-emerald-300">
                           <ValueCell
-                            value={sku.warehouseOnHandKwd}
+                            value={kv(sku.warehouseOnHandKwd, sku.costKnown)}
                             locale={fmtLocale}
-                            text={fmtKwd(sku.warehouseOnHandKwd)}
+                            text={fmtKwd(kv(sku.warehouseOnHandKwd, sku.costKnown))}
                           />
                         </td>
-                        <td className="py-2 text-end text-rose-700 dark:text-rose-300">
+                        <td className={`px-2 py-2 text-end ${scrapTone(kv(sku.scrapValueKwd, sku.costKnown))}`}>
                           <ValueCell
-                            value={sku.scrapValueKwd}
+                            value={kv(sku.scrapValueKwd, sku.costKnown)}
                             locale={fmtLocale}
-                            text={fmtKwd(sku.scrapValueKwd)}
+                            text={fmtKwd(kv(sku.scrapValueKwd, sku.costKnown))}
                           />
                         </td>
                       </tr>

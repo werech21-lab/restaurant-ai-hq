@@ -153,13 +153,39 @@ function brandDailyFrom(bucket: OdooBucketSummary | null | undefined, brand: str
  * Daily pulse for the brand filter. Brand days exist only for the short windows read per order
  * (today, last 7 days). Anything else falls back to the company series, labelled "all brands".
  */
+/**
+ * Company daily series: the payload's `dailySeries`, with any day it lacks filled from the same
+ * payload's per-branch daily rows (+ unattributed). A trimmed `dailySeries` (one day) must never
+ * draw a month as a single bar while the per-branch rows hold every day.
+ */
+export function companyDailySeries(liveSummary: OdooLiveSummary | null | undefined): ScopedDailyPoint[] {
+  const byDay = new Map<string, ScopedDailyPoint>()
+  for (const d of liveSummary?.dailySeries ?? []) byDay.set(d.day, { day: d.day, orders: d.orders, netKwd: d.netKwd })
+  const branches = liveSummary?.dailyByBranch ?? {}
+  const unattributed = liveSummary?.dailyUnattributed ?? {}
+  for (const [day, cells] of Object.entries(branches)) {
+    if (byDay.has(day) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue
+    let fils = 0
+    let orders = 0
+    for (const c of Object.values(cells ?? {})) {
+      fils += Math.round((Number(c?.netKwd) || 0) * 1000)
+      orders += Number(c?.orders) || 0
+    }
+    const u = (unattributed as Record<string, { netKwd?: number; orders?: number }>)[day]
+    fils += Math.round((Number(u?.netKwd) || 0) * 1000)
+    orders += Number(u?.orders) || 0
+    byDay.set(day, { day, orders, netKwd: fils / 1000 })
+  }
+  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day))
+}
+
 export function resolveDailySeriesForBrand(
   liveSummary: OdooLiveSummary | null | undefined,
   brand: string,
   window: { fromIso: string; toInclusiveIso: string },
 ): ScopedDailySeries {
   const inWindow = (d: ScopedDailyPoint) => d.day >= window.fromIso && d.day <= window.toInclusiveIso
-  const company = (liveSummary?.dailySeries ?? []).filter(inWindow)
+  const company = companyDailySeries(liveSummary).filter(inWindow)
   if (brand === ALL) return { scope: 'all-brands', series: company }
   const weekBucket = liveSummary?.buckets?.week
   const brandSeries = brandDailyFrom(weekBucket, brand)

@@ -23,8 +23,9 @@ export async function executiveInsights(now = new Date()) {
   ]);
   const salesNow = thisSales._sum.totalAmount ?? 0;
   const salesPrev = prevSales._sum.totalAmount ?? 0;
-  const growth = salesPrev <= 0.001 ? (salesNow > 0 ? 100 : 0) : round2(((salesNow - salesPrev) / salesPrev) * 100);
-  const marginNow = salesNow <= 0.001 ? 0 : round2(((salesNow - thisCogs) / salesNow) * 100);
+  // No invoices → no growth / margin to report («غير متاح»), never an invented 0% or +100%.
+  const growth: number | null = salesPrev <= 0.001 ? null : round2(((salesNow - salesPrev) / salesPrev) * 100);
+  const marginNow: number | null = salesNow <= 0.001 ? null : round2(((salesNow - thisCogs) / salesNow) * 100);
 
   const margins = await prisma.$queryRaw<Array<{ name: string; sales: number | bigint | null; cogs: number | bigint | null }>>`
     SELECT c.name as name,
@@ -47,12 +48,14 @@ export async function executiveInsights(now = new Date()) {
     prisma.paymentTransaction.aggregate({ where: { type: "RECEIPT", createdAt: { gte: since } }, _sum: { amount: true } }),
     prisma.paymentTransaction.aggregate({ where: { type: "PAYMENT", createdAt: { gte: since } }, _sum: { amount: true } }),
   ]);
-  const cash = round2(cashAccounts.reduce((sum, account) => sum + account.balance, 0));
+  // Cash comes from the cash / bank accounts; without them there is no balance to project from.
+  const cash: number | null = cashAccounts.length > 0 ? round2(cashAccounts.reduce((sum, account) => sum + account.balance, 0)) : null;
+  const hasFlows = receipts._sum.amount != null || payments._sum.amount != null;
   const inflow = receipts._sum.amount ?? 0;
   const outflow = payments._sum.amount ?? 0;
-  const net30 = round2(inflow - outflow);
-  const weekly = round2(net30 / 4);
-  const weeks = [1, 2, 3, 4].map((week) => ({ week, cash: round2(cash + weekly * week) }));
+  const net30: number | null = hasFlows ? round2(inflow - outflow) : null;
+  const weekly = net30 === null ? null : round2(net30 / 4);
+  const weeks = cash === null || weekly === null ? [] : [1, 2, 3, 4].map((week) => ({ week, cash: round2(cash + weekly * week) }));
 
   const cutoff = new Date(now.getTime() - 90 * DAY);
   const lateCutoff = new Date(now.getTime() - 30 * DAY);
@@ -104,14 +107,15 @@ export async function executiveInsights(now = new Date()) {
     .slice(0, 8);
 
   return {
-    salesNow: round2(salesNow),
+    // Sales come from this panel's own invoices; none this month → «غير متاح», not 0.000.
+    salesNow: salesNow <= 0.001 && salesPrev <= 0.001 ? null : round2(salesNow),
     salesPrev: round2(salesPrev),
     growth,
     marginNow,
     margins: margins.map((row) => {
       const sales = Number(row.sales ?? 0);
       const cogs = Number(row.cogs ?? 0);
-      return { name: row.name, sales: round2(sales), margin: sales <= 0.001 ? 0 : round2(((sales - cogs) / sales) * 100) };
+      return { name: row.name, sales: round2(sales), margin: sales <= 0.001 ? null : round2(((sales - cogs) / sales) * 100) };
     }),
     cash,
     net30,

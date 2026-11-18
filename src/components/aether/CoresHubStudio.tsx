@@ -473,9 +473,12 @@ export function CoresHubStudio({
     [snapshot.sales.brandShare, isAr, resolvedLocale],
   )
 
+  // Zero-sale channels / brands are listed by name in one line, not as rows of 0.000.
+  const idleChannels = snapshot.sales.channelRanking.filter((c) => !(c.salesKwd > 0))
+  const idleBrands = snapshot.sales.brandShare.filter((b) => !(b.salesKwd > 0))
   const channelRanks: HorizontalRankDatum[] = useMemo(
     () =>
-      snapshot.sales.channelRanking.map((c) => ({
+      snapshot.sales.channelRanking.filter((c) => c.salesKwd > 0).map((c) => ({
         id: c.id,
         label: isAr ? c.labelAr : c.labelEn,
         value: c.salesKwd,
@@ -930,14 +933,35 @@ export function CoresHubStudio({
                       { locale: resolvedLocale, showUnit: false },
                     )}
                     centerSubValue={isAr ? 'د.ك' : 'KWD'}
-                    centerLabel={isAr ? 'العلامات' : 'Brands'}
+                    centerLabel={isAr ? 'مبيعات الأصناف' : 'Item sales'}
                     isAr={isAr}
                   />
+                ) : null}
+                {snapshot.sales.brandReconciliation ? (
+                  <p data-brand-reconciliation="true" className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600 dark:bg-white/[0.04] dark:text-slate-300">
+                    {Math.abs(snapshot.sales.brandReconciliation.gapKwd) < 0.0005 ? (
+                      <>✓ {isAr ? 'مطابق لصافي نقاط البيع' : 'Matches POS net sales'}</>
+                    ) : (
+                      <>
+                        {isAr ? 'مبيعات الأصناف حسب العلامة' : 'Item sales by brand'}{' '}
+                        <span dir="ltr" className="font-semibold tabular-nums">{formatKwd(snapshot.sales.brandReconciliation.brandTotalKwd, { locale: resolvedLocale })}</span>
+                        {' · '}
+                        {isAr ? 'صافي نقاط البيع' : 'POS net'}{' '}
+                        <span dir="ltr" className="font-semibold tabular-nums">{formatKwd(snapshot.sales.brandReconciliation.posNetKwd, { locale: resolvedLocale })}</span>
+                        {' · '}
+                        {isAr ? 'الفرق' : 'gap'}{' '}
+                        <span dir="ltr" className="font-semibold tabular-nums">{formatKwd(snapshot.sales.brandReconciliation.gapKwd, { locale: resolvedLocale })}</span>
+                        {isAr
+                          ? ' — خصومات على مستوى الطلب ورسوم التوصيل وأصناف خارج العلامات الست.'
+                          : ' — order-level discounts, delivery fees and items outside the six brands.'}
+                      </>
+                    )}
+                  </p>
                 ) : null}
               </div>
               {!snapshot.sales.brandsUnavailable ? (
                 <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
-                  {snapshot.sales.brandShare.map((b) => (
+                  {snapshot.sales.brandShare.filter((b) => b.salesKwd > 0).map((b) => (
                     <div key={b.id} className="flex items-center justify-between gap-2 py-2 text-xs">
                       <span className="font-medium text-slate-800 dark:text-slate-200">
                         {isAr ? b.labelAr : b.labelEn}
@@ -950,6 +974,12 @@ export function CoresHubStudio({
                       </span>
                     </div>
                   ))}
+                  {idleBrands.length > 0 ? (
+                    <p data-idle-brands="true" className="py-2 text-xs text-slate-500 dark:text-slate-400">
+                      {isAr ? 'بلا مبيعات في هذه الفترة: ' : 'No sales in this period: '}
+                      {idleBrands.map((b) => (isAr ? b.labelAr : b.labelEn)).join(isAr ? '، ' : ', ')}
+                    </p>
+                  ) : null}
                   {snapshot.sales.brandShare.length > 1 ? (
                     <p data-brand-share-basis="true" className="pt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                       <span dir="ltr" className="font-semibold tabular-nums">
@@ -989,7 +1019,15 @@ export function CoresHubStudio({
                     {isAr ? 'غير متاح' : '—'}
                   </div>
                 ) : (
-                  <InteractiveHorizontalRankList items={channelRanks} isAr={isAr} />
+                  <>
+                    <InteractiveHorizontalRankList items={channelRanks} isAr={isAr} />
+                    {idleChannels.length > 0 ? (
+                      <p data-idle-channels="true" className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        {isAr ? 'بلا مبيعات في هذه الفترة: ' : 'No sales in this period: '}
+                        {idleChannels.map((c) => (isAr ? c.labelAr : c.labelEn)).join(isAr ? '، ' : ', ')}
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
               <KpiProvenanceBadge

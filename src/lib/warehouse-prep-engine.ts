@@ -37,7 +37,8 @@ import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 export type ActiveBranchId = Exclude<GlobalBranch, 'all'>
 export type ActiveBrandId = Exclude<GlobalBrand, 'all'>
 export type ActiveChannelId = Exclude<GlobalChannel, 'all'>
-export type ChainHealthStatus = 'healthy' | 'watch' | 'critical'
+/** `no-movement`: no consumption and no scrap in the period — there is nothing to judge (never "Normal"). */
+export type ChainHealthStatus = 'healthy' | 'watch' | 'critical' | 'no-movement'
 
 export type RawMaterialCategory =
   | 'all'
@@ -197,6 +198,8 @@ export interface WarehouseSkuFlowRow {
   dailyBranchConsumedQty: number
   scrapQty: number
   scrapValueKwd: number
+  /** False when Odoo holds no cost for the item: its KWD cells show «غير متاح», never 0.000. */
+  costKnown: boolean
   daysOfCover: number
   status: ChainHealthStatus
 }
@@ -206,6 +209,8 @@ export interface WarehouseChainSnapshot {
   noData: boolean
   messageAr: string | null
   quantHasValueField: boolean
+  /** Which KWD sections are backed by real costs (coverage ≥ 95% of the quantity behind them). */
+  valuation: WarehouseValuationFlags
   filters: GlobalFilters
   materialCategory: RawMaterialCategory
   categoryMeta: RawMaterialCategoryOption
@@ -247,6 +252,49 @@ export interface WarehouseChainSnapshot {
 }
 
 const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
+
+export interface WarehouseValuationFlags {
+  onHandValued: boolean
+  movesValued: boolean
+  scrapValued: boolean
+  onHandCoveragePct: number | null
+  movesCoveragePct: number | null
+  uncostedProducts: number | null
+}
+
+/**
+ * Valuation flags from the payload; for payloads cached before coverage was reported, infer them:
+ * quantities with an all-zero KWD total mean no cost was read — not a value of 0.000.
+ */
+export function resolveWarehouseValuation(chain: OdooLiveWarehouseChainPayload): WarehouseValuationFlags {
+  if (chain.valuation) {
+    return {
+      onHandValued: chain.valuation.onHandValued,
+      movesValued: chain.valuation.movesValued,
+      scrapValued: chain.valuation.scrapValued,
+      onHandCoveragePct: chain.valuation.onHandCoveragePct,
+      movesCoveragePct: chain.valuation.movesCoveragePct,
+      uncostedProducts: chain.valuation.uncostedProducts,
+    }
+  }
+  const moveQty = chain.dailyMoves.reduce((s, d) => s + d.inboundSupplierQty + d.ckToBranchTransferQty + d.posConsumptionQty, 0)
+  const moveKwd = chain.totals.inboundSupplierKwd + chain.totals.ckToBranchTransferKwd + chain.totals.posConsumptionKwd
+  const scrapQty = chain.scraps.reduce((s, x) => s + x.scrapQty, 0)
+  return {
+    onHandValued: !(chain.totals.currentOnHandQty > 0 && chain.totals.currentOnHandValueKwd === 0),
+    movesValued: !(moveQty > 0 && moveKwd === 0),
+    scrapValued: !(scrapQty > 0 && chain.totals.scrapKwd === 0),
+    onHandCoveragePct: null,
+    movesCoveragePct: null,
+    uncostedProducts: null,
+  }
+}
+
+/** Waste share: by value when both sides are valued, else by quantity (never 0/0 shown as 0%). */
+function wasteShare(scrapKwd: number, consumedKwd: number, scrapQty: number, consumedQty: number, valued: boolean): number {
+  if (valued && consumedKwd + scrapKwd > 0) return r1((scrapKwd / (consumedKwd + scrapKwd)) * 100)
+  return consumedQty + scrapQty > 0 ? r1((scrapQty / (consumedQty + scrapQty)) * 100) : 0
+}
 
 const WEEKDAYS_AR = [
   'الأحد',
@@ -330,7 +378,8 @@ function formatDayBadge(iso: string): {
   }
 }
 
-function classifyHealth(wastePct: number): ChainHealthStatus {
+function classifyHealth(wastePct: number, basisQty: number = 1): ChainHealthStatus {
+  if (!(basisQty > 0)) return 'no-movement'
   if (wastePct > 5) return 'critical'
   if (wastePct > 2) return 'watch'
   return 'healthy'
@@ -480,6 +529,7 @@ export function computeWarehouseDailyChain(
       noData: true,
       messageAr: NO_DATA_AR,
       quantHasValueField: false,
+      valuation: { onHandValued: false, movesValued: false, scrapValued: false, onHandCoveragePct: null, movesCoveragePct: null, uncostedProducts: null },
       filters,
       materialCategory,
       categoryMeta,
@@ -520,6 +570,9 @@ export function computeWarehouseDailyChain(
       scraps: [],
     }
   }
+
+  const valuation = resolveWarehouseValuation(chain)
+  const wasteValued = valuation.movesValued && valuation.scrapValued
 
   const branchFilter = filters.branch ?? 'all'
   const activeBranches: ActiveBranchId[] =
@@ -562,8 +615,7 @@ export function computeWarehouseDailyChain(
       const posSalesKwd = r2(posCell?.netKwd ?? 0)
       const posOrders = Math.round(posCell?.orders ?? 0)
       const aovKwd = posOrders > 0 ? r2(posSalesKwd / posOrders) : 0
-      const wastePct =
-        actualConsumedKwd > 0 ? r1((scrapKwd / actualConsumedKwd) * 100) : 0
+      const wastePct = wasteShare(scrapKwd, consumedKwd, scrapKg, consumedKg, wasteValued)
       const closingStockKwd = r2(onHandCell?.valueKwd ?? 0)
 
       return {
@@ -591,7 +643,7 @@ export function computeWarehouseDailyChain(
         requiresInvestigation: wastePct > 2,
         branchNetStockDeltaKwd: r2(receivedKwd - actualConsumedKwd),
         closingStockKwd,
-        health: classifyHealth(wastePct),
+        health: classifyHealth(wastePct, consumedKg + scrapKg),
       }
     })
 
@@ -614,8 +666,7 @@ export function computeWarehouseDailyChain(
     const abnormalShrinkageKg = r1(moveRow?.scrapQty ?? 0)
     const actualConsumedKwd = r2(bomTheoreticalCostKwd + abnormalShrinkageKwd)
     const actualConsumedKg = r1(bomTheoreticalKg + abnormalShrinkageKg)
-    const wastePct =
-      actualConsumedKwd > 0 ? r1((abnormalShrinkageKwd / actualConsumedKwd) * 100) : 0
+    const wastePct = wasteShare(abnormalShrinkageKwd, bomTheoreticalCostKwd, abnormalShrinkageKg, bomTheoreticalKg, wasteValued)
     const ckClosingKwd = r2(chain.totals.ckOnHandValueKwd)
     const ckClosingKg = r1(chain.totals.currentOnHandQty)
 
@@ -651,7 +702,7 @@ export function computeWarehouseDailyChain(
       abnormalShrinkageKg,
       wastePct,
       requiresInvestigation: wastePct > 2,
-      health: classifyHealth(wastePct),
+      health: classifyHealth(wastePct, bomTheoreticalKg + abnormalShrinkageKg),
       branches: branchNodes,
     }
   })
@@ -681,7 +732,7 @@ export function computeWarehouseDailyChain(
     }
     const actualKwd = r2(theoKwd + scrapKwd)
     const actualKg = r1(theoKg + scrapKg)
-    const wastePct = actualKwd > 0 ? r1((scrapKwd / actualKwd) * 100) : 0
+    const wastePct = wasteShare(scrapKwd, theoKwd, scrapKg, theoKg, wasteValued)
     const closingStockKwd = r2(chain.byBranchOnHand?.[brId]?.valueKwd ?? 0)
     return {
       branchId: brId,
@@ -708,7 +759,7 @@ export function computeWarehouseDailyChain(
       requiresInvestigation: wastePct > 2,
       branchNetStockDeltaKwd: r2(dispatchedKwd - actualKwd),
       closingStockKwd,
-      health: classifyHealth(wastePct),
+      health: classifyHealth(wastePct, theoKg + scrapKg),
     }
   })
 
@@ -742,8 +793,9 @@ export function computeWarehouseDailyChain(
       dailyBranchConsumedQty: dailyConsumedQty,
       scrapQty: r1(p.scrapQty),
       scrapValueKwd: r2(p.scrapValueKwd),
+      costKnown: p.costKnown ?? p.unitCostKwd > 0,
       daysOfCover: dailyConsumedQty > 0 ? r1(p.onHandQty / dailyConsumedQty) : 0,
-      status: classifyHealth(shrinkPct),
+      status: classifyHealth(shrinkPct, denom),
     }
   })
 
@@ -783,10 +835,7 @@ export function computeWarehouseDailyChain(
   const totalActualConsumedKg = r1(
     totalBomTheoreticalKg + totalAbnormalShrinkageKg,
   )
-  const periodWastePct =
-    totalActualConsumedKwd > 0
-      ? r1((totalAbnormalShrinkageKwd / totalActualConsumedKwd) * 100)
-      : 0
+  const periodWastePct = wasteShare(totalAbnormalShrinkageKwd, totalBomTheoreticalKwd, totalAbnormalShrinkageKg, totalBomTheoreticalKg, wasteValued)
 
   const hasData =
     !chain.noData &&
@@ -799,6 +848,7 @@ export function computeWarehouseDailyChain(
     noData: !hasData,
     messageAr: hasData ? null : NO_DATA_AR,
     quantHasValueField: chain.quantHasValueField,
+    valuation,
     filters,
     materialCategory,
     categoryMeta,

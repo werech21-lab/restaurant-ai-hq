@@ -62,7 +62,7 @@ import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
 import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
-import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
+import { resolveHeroDeltaBadge, resolveTodaySameHoursComparison } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
   isExhibitionGroupReported,
@@ -72,8 +72,10 @@ import {
 } from '@/lib/aether/global-filter-engine'
 import {
   buildWeeklyChartMeta,
+  computePeriodDelta,
   formatAdminUnmappedAlertCopy,
   formatStaticMarginPill,
+  getKuwaitTimeContext,
 } from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
 import { ChartCard, StateBlock, UnavailableState } from '@/components/ui'
@@ -173,6 +175,19 @@ interface BranchCardRow {
   orders: number | null
   aovKwd: number | null
   sharePct: number | null
+}
+
+/**
+ * A branch, the booth group or the unattributed line with a recorded zero (0 KWD, 0 orders) — e.g.
+ * branches not open yet early on «Today». Listed by name on one quiet line instead of full 0.000 cards.
+ * Unknown values (null) are not zero and keep their card («غير متاح»).
+ */
+const isIdleBoothCard = (row: BranchCardRow): boolean => row.salesKwd === 0 && row.orders === 0
+
+const shiftIsoDay = (iso: string, days: number): string => {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
 }
 
 /** ملخص الشركة — لوحة القيادة التنفيذية المربوطة مباشرةً ببيانات Odoo 17 */
@@ -305,6 +320,8 @@ export function FullJourney360({
   // never the summary's month-to-date hourly series.
   const [homeCube, setHomeCube] = useState<OdooPeriodCube | null>(initialLiveCube)
   const [homeHourly, setHomeHourly] = useState<OdooPeriodHourly | null>(null)
+  // Today: yesterday's cube (B) for a same-hours comparison — today so far vs yesterday until now.
+  const [homeCubeYesterday, setHomeCubeYesterday] = useState<OdooPeriodCube | null>(null)
   useEffect(() => {
     if (!workspace.odooConnected || workspace.noData) {
       setHomeCube(null)
@@ -316,8 +333,11 @@ export function FullJourney360({
     let cancelled = false
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 20_000)
+    const isToday = filters.period === 'today'
+    const bFrom = isToday ? shiftIsoDay(fromIso, -1) : fromIso
+    const bTo = isToday ? shiftIsoDay(toIso, -1) : toIso
     fetch(
-      `/api/erp/live-comparison?dateA=${encodeURIComponent(fromIso)}&toA=${encodeURIComponent(toIso)}&dateB=${encodeURIComponent(fromIso)}&toB=${encodeURIComponent(toIso)}`,
+      `/api/erp/live-comparison?dateA=${encodeURIComponent(fromIso)}&toA=${encodeURIComponent(toIso)}&dateB=${encodeURIComponent(bFrom)}&toB=${encodeURIComponent(bTo)}`,
       { cache: 'no-store', signal: controller.signal },
     )
       .then((r) => {
@@ -328,11 +348,13 @@ export function FullJourney360({
         if (cancelled) return
         setHomeCube(data?.cubeA ? (data.cubeA as OdooPeriodCube) : null)
         setHomeHourly(data?.hourlyA ? (data.hourlyA as OdooPeriodHourly) : null)
+        setHomeCubeYesterday(isToday && data?.cubeB ? (data.cubeB as OdooPeriodCube) : null)
       })
       .catch(() => {
         if (cancelled) return
         setHomeCube(null)
         setHomeHourly(null)
+        setHomeCubeYesterday(null)
       })
       .finally(() => window.clearTimeout(timeout))
     return () => {
@@ -340,7 +362,7 @@ export function FullJourney360({
       window.clearTimeout(timeout)
       controller.abort()
     }
-  }, [periodWindow.fromIso, periodWindow.toInclusiveIso, workspace.odooConnected, workspace.noData])
+  }, [filters.period, periodWindow.fromIso, periodWindow.toInclusiveIso, workspace.odooConnected, workspace.noData])
 
   const coresSnap = useMemo(
     () => computeCoresHubSnapshot(filters, [], liveSummary, homeCube, homeHourly),
@@ -678,10 +700,15 @@ export function FullJourney360({
     opexRent10,
   ])
 
-  const weekSnapForPulse = useMemo(
-    () => computeCoresHubSnapshot({ ...filters, period: 'week' }, [], liveSummary),
-    [filters, liveSummary],
-  )
+  // Last 7 days come from the week bucket, or — when the payload carries no week bucket — from the
+  // month bucket's real daily rows (the last 7 of them). Same Odoo source either way.
+  const weekSnapForPulse = useMemo(() => {
+    const isIsoDaily = (tl: { id: string }[]) => tl.length >= 7 && /^\d{4}-\d{2}-\d{2}$/.test(tl[0]?.id ?? '')
+    const week = computeCoresHubSnapshot({ ...filters, period: 'week' }, [], liveSummary)
+    if (isIsoDaily(week.sales.timeline)) return week
+    const month = computeCoresHubSnapshot({ ...filters, period: 'month' }, [], liveSummary)
+    return isIsoDaily(month.sales.timeline) ? month : week
+  }, [filters, liveSummary])
   const weeklyPulseUsesCoreTimeline =
     coresSnap.sales.timeline.length >= 7 && /^\d{4}-\d{2}-\d{2}$/.test(coresSnap.sales.timeline[0]?.id ?? '')
   const weeklyPulseScope = weeklyPulseUsesCoreTimeline
@@ -763,10 +790,26 @@ export function FullJourney360({
     [weeklyPills, liveSummary?.connected],
   )
 
-  const heroDelta = useMemo(
-    () => resolveHeroDeltaBadge(filters, workspace, liveSummary),
-    [filters, liveSummary, workspace],
-  )
+  // Today is partial: label it "so far · until hh:mm" and compare it with yesterday over the same
+  // completed hours (never with a whole day).
+  const todaySoFarLabel = useMemo(() => {
+    if (filters.period !== 'today' || !lastSyncIso) return null
+    const t = Date.parse(lastSyncIso)
+    if (!Number.isFinite(t)) return null
+    return getKuwaitTimeContext(t).hhMm
+  }, [filters.period, lastSyncIso])
+  const todaySameHours = useMemo(() => {
+    if (filters.period !== 'today' || !homeCube || !homeCubeYesterday) return null
+    if (homeCube.hourlyAvailable === false || homeCubeYesterday.hourlyAvailable === false) return null
+    return resolveTodaySameHoursComparison(homeCube.hourlySeries, homeCubeYesterday.hourlySeries, getKuwaitTimeContext().hour24)
+  }, [filters.period, homeCube, homeCubeYesterday])
+  const heroDelta = useMemo(() => {
+    if (todaySameHours) {
+      const d = computePeriodDelta(todaySameHours.todayKwd, todaySameHours.yesterdayKwd)
+      return { hasComparison: true, badgeLabel: d.badgeLabel, tone: d.tone, titleAr: null, titleEn: null }
+    }
+    return resolveHeroDeltaBadge(filters, workspace, liveSummary)
+  }, [filters, liveSummary, todaySameHours, workspace])
 
   const adminUnmappedNetKwd =
     sessionRole === 'admin' && !auditorReadOnly && workspace.odooConnected && !workspace.noData
@@ -947,6 +990,12 @@ export function FullJourney360({
           </div>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
+            {todaySoFarLabel ? (
+              <span data-today-so-far="true" className="ms-1.5 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-blue-900 ring-1 ring-blue-200 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20">
+                {T('So far today · until ', 'حتى الآن · حتى ')}
+                <span dir="ltr" className="ms-1 tabular-nums">{todaySoFarLabel}</span>
+              </span>
+            ) : null}
           </p>
         </div>
 
@@ -1187,7 +1236,9 @@ export function FullJourney360({
                       </span>{' '}
                       <span>
                         {heroDelta.hasComparison
-                          ? T('vs prior period', 'مقارنة بالفترة السابقة')
+                          ? todaySameHours
+                            ? T(`vs yesterday by ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`, `مقارنة بأمس حتى ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`)
+                            : T('vs prior period', 'مقارنة بالفترة السابقة')
                           : T(SCOPE_LABELS.noComparison.en, SCOPE_LABELS.noComparison.ar)}
                       </span>
                     </span>
@@ -1627,7 +1678,7 @@ export function FullJourney360({
 
               {branchCards.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {branchCards.map((bRow) => (
+                  {branchCards.filter((bRow) => !isIdleBoothCard(bRow)).map((bRow) => (
                     <V35GlassCard
                       key={bRow.id}
                       variant="nested"
@@ -1743,7 +1794,18 @@ export function FullJourney360({
                     </V35GlassCard>
                   ))}
                 </div>
-              ) : (
+              ) : null}
+              {branchCards.some(isIdleBoothCard) ? (
+                <p data-idle-booths="true" className="mt-2.5 text-xs text-slate-500 dark:text-slate-400">
+                  {filters.period === 'today'
+                    ? T('No sales so far today: ', 'بلا مبيعات حتى الآن اليوم: ')
+                    : T('No sales in this period: ', 'بلا مبيعات في هذه الفترة: ')}
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">
+                    {branchCards.filter(isIdleBoothCard).map((r) => (isAr ? r.labelAr : r.labelEn)).join(isAr ? '، ' : ', ')}
+                  </span>
+                </p>
+              ) : null}
+              {branchCards.length > 0 ? null : (
                 <StateBlock
                   state="unavailable"
                   locale={activeLocale}

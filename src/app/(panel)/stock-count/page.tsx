@@ -58,7 +58,8 @@ async function StockCountContent() {
           code: item.code,
           currentStock: item.currentStock,
           reorderLevel: item.reorderLevel,
-          estCostKwd: item.currentStock * item.costPrice,
+          // No recorded cost (0) → «—», never a 0.000 estimate next to a real quantity.
+          estCostKwd: item.costPrice > 0 ? item.currentStock * item.costPrice : null,
         }))}
       />
     </div>

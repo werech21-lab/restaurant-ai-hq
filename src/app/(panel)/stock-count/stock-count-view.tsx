@@ -12,7 +12,7 @@ export interface LowStockItemRow {
   code: string
   currentStock: number
   reorderLevel: number
-  estCostKwd: number
+  estCostKwd: number | null
 }
 
 export function StockCountView({
