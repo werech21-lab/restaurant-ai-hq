@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { aggregateAggregatorMatrix } from '@/lib/aether/aggregator-matrix'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
   formatPeriodCalendarWindow,
@@ -287,13 +288,25 @@ export function DeliveryRadarV5({
       let orders: number | null = 0
 
       if (liveCube) {
-        const cell =
-          filters.branch !== 'all'
-            ? liveCube.byBranch?.[filters.branch]?.channels?.[key]
-            : liveCube.byChannel?.[key]
-        const parsed = readChannelCell(cell)
-        salesKwd = parsed.salesKwd
-        orders = parsed.orders
+        if (filters.branch === 'all') {
+          const summed = aggregateAggregatorMatrix({
+            branchIds: DASHBOARD_BRANCH_CARD_IDS,
+            channelKeys: [key],
+            cell: (branchId, channelKey) =>
+              liveCube.byBranch?.[branchId as Exclude<GlobalBranch, 'all'>]?.channels?.[
+                channelKey as AggregatorChannelKey
+              ],
+            unattributed: (channelKey) =>
+              liveCube.unattributed?.channels?.[channelKey as AggregatorChannelKey],
+          })
+          salesKwd = summed.byPlatform[key]?.netKwd ?? 0
+          orders = summed.byPlatform[key]?.orders ?? 0
+        } else {
+          const cell = liveCube.byBranch?.[filters.branch]?.channels?.[key]
+          const parsed = readChannelCell(cell)
+          salesKwd = parsed.salesKwd
+          orders = parsed.orders
+        }
       } else if (activeBucket) {
         const cell =
           filters.branch !== 'all'
@@ -519,8 +532,8 @@ export function DeliveryRadarV5({
         id: p.key,
         label: isAr ? p.labelAr : p.labelEn,
         subLabel: isAr
-          ? `${f0(p.orders, resolvedLocale)} دفعة`
-          : `${f0(p.orders, resolvedLocale)} payouts / batches`,
+          ? `${f0(p.orders, resolvedLocale)} عدد الدفعات`
+          : `${f0(p.orders, resolvedLocale)} Payments`,
         value: p.salesKwd,
         valueFormatted: fmtKwd(p.salesKwd, isAr),
         pctFormatted: f1Pct(p.sharePct, resolvedLocale),
@@ -549,7 +562,7 @@ export function DeliveryRadarV5({
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
               ? `مبيعات ودفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
-              : `Actual aggregator sales & payouts / batches from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
+              : `Actual aggregator sales and payments from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
           </p>
         </div>
 
@@ -633,7 +646,7 @@ export function DeliveryRadarV5({
                   </span>
                 ) : isAr ? (
                   <>
-                    {f0(totalAggregatorOrders, 'ar')} دفعة • متوسط الدفعة{' '}
+                    {f0(totalAggregatorOrders, 'ar')} عدد الدفعات • متوسط الدفعة{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -645,7 +658,7 @@ export function DeliveryRadarV5({
                   </>
                 ) : (
                   <>
-                    {f0(totalAggregatorOrders, 'en')} payouts / batches • Avg per payout{' '}
+                    {f0(totalAggregatorOrders, 'en')} Payments • Avg per payment{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -738,14 +751,46 @@ export function DeliveryRadarV5({
                     {fmtKwd(gl.deliveryCommissionsKwd, isAr)}
                   </div>
                   <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                    {typeof gl.deliveryCommissionsKwd === 'number' &&
+                    totalAggregatorSalesKwd !== null &&
+                    totalAggregatorSalesKwd > 0
+                      ? isAr
+                        ? `${f1Pct((gl.deliveryCommissionsKwd / totalAggregatorSalesKwd) * 100, 'ar')} من مبيعات تطبيقات التوصيل`
+                        : `${f1Pct((gl.deliveryCommissionsKwd / totalAggregatorSalesKwd) * 100, 'en')} of aggregator POS sales`
+                      : null}
                     {gl.deliveryCommPct !== null
                       ? isAr
-                        ? `${f1Pct(gl.deliveryCommPct, 'ar')} من إجمالي إيراد الدفتر المرحّل`
-                        : `${f1Pct(gl.deliveryCommPct, 'en')} of posted GL revenue`
+                        ? ` · ${f1Pct(gl.deliveryCommPct, 'ar')} من إيراد دفتر الأستاذ`
+                        : ` · ${f1Pct(gl.deliveryCommPct, 'en')} of posted GL revenue`
                       : isAr
                         ? GL_INCOMPLETE_AR
                         : GL_INCOMPLETE_EN}
                   </p>
+                  {typeof gl.platformSubscriptionKwd === 'number' ? (
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                      {isAr ? 'اشتراك المنصات' : 'Platform subscription'}: {fmtKwd(gl.platformSubscriptionKwd, isAr)}
+                    </p>
+                  ) : null}
+                  {typeof gl.thirdPartyDeliveryKwd === 'number' ? (
+                    <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                      {isAr ? 'توصيل طرف ثالث' : 'Third-party delivery'}: {fmtKwd(gl.thirdPartyDeliveryKwd, isAr)}
+                    </p>
+                  ) : null}
+                  {gl.commissionAccounts.length > 0 ? (
+                    <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer font-semibold text-slate-600 dark:text-slate-300">
+                        {isAr ? 'حسابات العمولة' : 'Commission accounts'}
+                      </summary>
+                      <ul className="mt-1 space-y-0.5">
+                        {gl.commissionAccounts.map((account) => (
+                          <li key={account.code} className="flex justify-between gap-2 tabular-nums">
+                            <span>{account.code} {account.name}</span>
+                            <span dir="ltr">{fmtKwd(account.amountKwd, isAr)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
                 </>
               )}
 
@@ -941,9 +986,9 @@ export function DeliveryRadarV5({
                             {isAr ? 'غير متاح' : '—'}
                           </span>
                         ) : isAr ? (
-                          `${f0(p.orders, 'ar')} دفعة`
+                          `${f0(p.orders, 'ar')} عدد الدفعات`
                         ) : (
-                          `${f0(p.orders, 'en')} payouts / batches`
+                          `${f0(p.orders, 'en')} Payments`
                         )}
                       </span>
                       <span dir="ltr" className="tabular-nums">
@@ -989,8 +1034,8 @@ export function DeliveryRadarV5({
                     totalAggregatorOrders === null
                       ? undefined
                       : isAr
-                        ? `${f0(totalAggregatorOrders, 'ar')} دفعة`
-                        : `${f0(totalAggregatorOrders, 'en')} payouts / batches`
+                        ? `${f0(totalAggregatorOrders, 'ar')} عدد الدفعات`
+                        : `${f0(totalAggregatorOrders, 'en')} Payments`
                   }
                   centerLabel={T('Aggregators', 'منصات التوصيل')}
                   isAr={isAr}
@@ -1078,7 +1123,7 @@ export function DeliveryRadarV5({
                       <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
                       <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                      <th className="py-2.5 text-end">{T('Payouts / Batches', 'دفعات')}</th>
+                      <th className="py-2.5 text-end">{T('Payments', 'عدد الدفعات')}</th>
                       <th className="py-2.5 text-end">{T('Avg per Payout', 'متوسط الدفعة')}</th>
                       <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>

@@ -307,6 +307,29 @@ export function FullJourney360({
       ? 'غير مُرحَّل بعد — العمولات والاستهلاك تُرحَّل نهاية الشهر'
       : 'Not posted yet — commissions and depreciation post at month end'
 
+  const aggregatorPosSalesKwd = useMemo(() => {
+    const period = filters.period === 'custom' ? null : filters.period
+    const channels = period ? liveSummary?.buckets?.[period]?.uiChannels : undefined
+    if (!channels) return null
+    const keys = ['talabat-tgo', 'talabat-tmp', 'keeta', 'deliveroo', 'jahez', 'snoonu'] as const
+    let sum = 0
+    let seen = false
+    for (const key of keys) {
+      const net = channels[key]?.netKwd
+      if (typeof net === 'number') {
+        sum += net
+        seen = true
+      }
+    }
+    return seen ? Math.round(sum * 1000) / 1000 : null
+  }, [filters.period, liveSummary])
+  const commissionOfAggregatorPct =
+    typeof gl.deliveryCommissionsKwd === 'number' &&
+    aggregatorPosSalesKwd !== null &&
+    aggregatorPosSalesKwd > 0
+      ? (gl.deliveryCommissionsKwd / aggregatorPosSalesKwd) * 100
+      : null
+
   const periodWindow = useMemo(
     () =>
       formatPeriodCalendarWindow(filters.period, {
@@ -1683,6 +1706,24 @@ export function FullJourney360({
                       />
                     </div>
                     <div className="mt-3.5 space-y-1.5">
+                      {typeof gl.platformSubscriptionKwd === 'number' ? (
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                          {T('Platform subscription', 'اشتراك المنصات')}: {fmtKwdVal(gl.platformSubscriptionKwd)}
+                        </p>
+                      ) : null}
+                      {typeof gl.thirdPartyDeliveryKwd === 'number' ? (
+                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                          {T('Third-party delivery', 'توصيل طرف ثالث')}: {fmtKwdVal(gl.thirdPartyDeliveryKwd)}
+                        </p>
+                      ) : null}
+                      {commissionOfAggregatorPct !== null ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+                          <span dir="ltr" className="tabular-nums">
+                            {formatPct(commissionOfAggregatorPct, activeLocale)}
+                          </span>{' '}
+                          <span>{T('of aggregator POS sales', 'من مبيعات تطبيقات التوصيل')}</span>
+                        </span>
+                      ) : null}
                       {gl.deliveryCommPct !== null ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
                           <span dir="ltr" className="tabular-nums">
@@ -1690,6 +1731,20 @@ export function FullJourney360({
                           </span>{' '}
                           <span>{T('of GL revenue', 'من إيراد دفتر الأستاذ')}</span>
                         </span>
+                      ) : null}
+                      {gl.commissionAccounts.length > 0 ? (
+                        <details className="text-xs">
+                          <summary className="cursor-pointer font-semibold">
+                            {T('Commission accounts', 'حسابات العمولة')}
+                          </summary>
+                          <ul className="mt-1 space-y-0.5">
+                            {gl.commissionAccounts.map((account) => (
+                              <li key={account.code}>
+                                {account.code} {account.name} {fmtKwdVal(account.amountKwd)}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       ) : null}
                       <KpiProvenanceBadge
                         odooModel="account.move.line"

@@ -699,6 +699,9 @@ export interface WorkspaceLedgerAccounting {
   totalRevenueKwd: number | null
   cogsKwd: number | null
   deliveryCommissionsKwd: number | null
+  platformSubscriptionKwd: number | null
+  thirdPartyDeliveryKwd: number | null
+  commissionAccounts: { code: string; name: string; amountKwd: number }[]
   otherOpexAndDepreciationKwd: number | null
   beforeRentKwd: number | null
   operatingProfitKwd: number | null
@@ -1328,6 +1331,9 @@ export function computeGlobalWorkspace(
       totalRevenueKwd: null,
       cogsKwd: null,
       deliveryCommissionsKwd: null,
+      platformSubscriptionKwd: null,
+      thirdPartyDeliveryKwd: null,
+      commissionAccounts: [],
       otherOpexAndDepreciationKwd: null,
       beforeRentKwd: null,
       operatingProfitKwd: null,
@@ -1666,6 +1672,9 @@ export function computeGlobalWorkspace(
       totalRevenueKwd: null,
       cogsKwd: null,
       deliveryCommissionsKwd: null,
+      platformSubscriptionKwd: null,
+      thirdPartyDeliveryKwd: null,
+      commissionAccounts: [],
       otherOpexAndDepreciationKwd: null,
       beforeRentKwd: null,
       operatingProfitKwd: null,
@@ -1700,6 +1709,15 @@ export function computeGlobalWorkspace(
       deliveryCommissionsKwd: aggregatorCommissionUnposted
         ? null
         : Math.round(postedDelivCommVal * 1000) / 1000,
+      platformSubscriptionKwd:
+        rawGl && (rawGl.platformSubscriptionKwd ?? 0) > 0
+          ? Math.round((rawGl.platformSubscriptionKwd ?? 0) * 1000) / 1000
+          : null,
+      thirdPartyDeliveryKwd:
+        rawGl && (rawGl.thirdPartyDeliveryKwd ?? 0) > 0
+          ? Math.round((rawGl.thirdPartyDeliveryKwd ?? 0) * 1000) / 1000
+          : null,
+      commissionAccounts: rawGl?.commissionAccounts ?? [],
       otherOpexAndDepreciationKwd:
         postedOpexVal > 0 ? Math.round(postedOpexVal * 1000) / 1000 : null,
       beforeRentKwd: null,
@@ -1755,6 +1773,15 @@ export function computeGlobalWorkspace(
       totalRevenueKwd: Math.round(rawGlRev * 1000) / 1000,
       cogsKwd: Math.round(cogsVal * 1000) / 1000,
       deliveryCommissionsKwd: Math.round(postedDelivCommVal * 1000) / 1000,
+      platformSubscriptionKwd:
+        rawGl.platformSubscriptionKwd && rawGl.platformSubscriptionKwd > 0
+          ? Math.round(rawGl.platformSubscriptionKwd * 1000) / 1000
+          : null,
+      thirdPartyDeliveryKwd:
+        rawGl.thirdPartyDeliveryKwd && rawGl.thirdPartyDeliveryKwd > 0
+          ? Math.round(rawGl.thirdPartyDeliveryKwd * 1000) / 1000
+          : null,
+      commissionAccounts: rawGl.commissionAccounts ?? [],
       otherOpexAndDepreciationKwd: Math.round(otherOpexVal * 1000) / 1000,
       beforeRentKwd: Math.round(glBeforeRentKwd * 1000) / 1000,
       operatingProfitKwd: Math.round(opProfitVal * 1000) / 1000,

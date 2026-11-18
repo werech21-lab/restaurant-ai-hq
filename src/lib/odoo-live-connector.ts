@@ -1118,6 +1118,9 @@ export function buildLedgerAccountingFromGroups(params: {
   let cogs = 0
   let deliveryCommissions = 0
   let deliveryCommissionLinesCount = 0
+  let platformSubscription = 0
+  let thirdPartyDelivery = 0
+  const commissionAccounts: NonNullable<OdooLedgerAccountingSummary['commissionAccounts']> = []
   let expense = 0
   let depreciation = 0
   let accrualSignalTotal = 0
@@ -1148,9 +1151,17 @@ export function buildLedgerAccountingFromGroups(params: {
       cogs += bal
     } else if (acc.account_type === 'expense') {
       expense += bal
-      if (isDeliveryCommissionGlAccount(acc.code, acc.name, acc.account_type)) {
+      const expenseClass = classifyPlatformExpenseAccount(acc.code, acc.name, acc.account_type)
+      if (expenseClass === 'platform_commission') {
         deliveryCommissions += bal
         deliveryCommissionLinesCount += cnt
+        if (bal !== 0) {
+          commissionAccounts.push({ code: acc.code, name: acc.name, amountKwd: r3(bal) })
+        }
+      } else if (expenseClass === 'platform_subscription') {
+        platformSubscription += bal
+      } else if (expenseClass === 'third_party_delivery') {
+        thirdPartyDelivery += bal
       }
       if (isRentPayrollOrDeprGlAccount(acc.code, acc.name, acc.account_type)) {
         accrualSignalTotal += Math.abs(bal)
@@ -1194,6 +1205,9 @@ export function buildLedgerAccountingFromGroups(params: {
     cogs: cleanCogs,
     deliveryCommissions: cleanDeliveryComm,
     deliveryCommissionLinesCount,
+    platformSubscriptionKwd: r3(platformSubscription),
+    thirdPartyDeliveryKwd: r3(thirdPartyDelivery),
+    commissionAccounts: commissionAccounts.sort((a, b) => a.code.localeCompare(b.code)),
     expense: cleanExpense,
     depreciation: cleanDepreciation,
     otherOpexAndDepreciation,

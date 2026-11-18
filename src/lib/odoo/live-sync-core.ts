@@ -108,6 +108,9 @@ export interface OdooLedgerAccountingSummary {
   cogs: number
   deliveryCommissions?: number
   deliveryCommissionLinesCount?: number
+  platformSubscriptionKwd?: number
+  thirdPartyDeliveryKwd?: number
+  commissionAccounts?: { code: string; name: string; amountKwd: number }[]
   expense: number
   depreciation: number
   otherOpexAndDepreciation?: number
