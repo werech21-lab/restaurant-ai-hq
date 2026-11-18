@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { requirePageUser } from '@/lib/auth/context'
 import { getLocale } from '@/lib/i18n/server'
 import { VentureKdsHub } from '@/components/kds/VentureKdsHub'
 import { StateBlock } from '@/components/ui/state-block'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const metadata = {
   title: 'شاشة تحضير المطبخ الذكية ومراقبة زمن التجهيز | فنتشر فودز · AetherBI',
@@ -14,6 +17,7 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ErpKdsPage() {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   await requirePageUser('/erp/kds')
   const rawLocale = await getLocale().catch(() => 'ar')
   const locale = rawLocale === 'en' ? 'en' : 'ar'

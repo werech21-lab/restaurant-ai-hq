@@ -1,8 +1,11 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import { requirePageUser } from '@/lib/auth/context'
 import { getLocale } from '@/lib/i18n/server'
 import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
 import { StateBlock } from '@/components/ui/state-block'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const metadata = {
   title: 'الوصفات وهندسة تكلفة الغذاء المعيارية | فنتشر فودز · AetherBI',
@@ -12,6 +15,7 @@ export const metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ErpRecipesPage() {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   await requirePageUser('/erp/recipes')
   const rawLocale = await getLocale().catch(() => 'ar')
   const locale = rawLocale === 'en' ? 'en' : 'ar'

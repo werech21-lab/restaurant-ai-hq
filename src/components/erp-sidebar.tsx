@@ -37,6 +37,7 @@ import {
   resolveRoleDefaultHome,
 } from '@/lib/auth/role-access-policy'
 import { useI18n } from '@/lib/i18n'
+import { formatScopeStripAr, formatScopeStripEn, getRegistryScopeCounts } from '@/lib/odoo/scope-counts'
 import type { AccessUser } from '@/lib/permissions'
 import { can } from '@/lib/permissions'
 
@@ -60,6 +61,7 @@ export interface NavItem {
   labelEn: string
   icon: React.ComponentType<{ size?: number; className?: string }>
   alwaysVisible?: boolean
+  enabled?: boolean
 }
 
 export interface SidebarSection {
@@ -128,6 +130,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         icon: PackageCheck,
         alwaysVisible: true,
       },
+      // Unlinked: requires Odoo 17 POS Preparation Display / KDS station timestamps (pos_preparation_display).
       {
         key: 'prep-sla',
         sectionId: 'operations-sla',
@@ -136,7 +139,9 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelEn: 'Kitchen Prep SLA',
         icon: Timer,
         alwaysVisible: true,
+        enabled: false,
       },
+      // Unlinked: requires Fleet Dispatch GPS / Aggregator Rider Telemetry API (pickup/handoff/dropoff timestamps).
       {
         key: 'delivery-sla',
         sectionId: 'operations-sla',
@@ -145,6 +150,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelEn: 'Rider Delivery SLA',
         icon: Truck,
         alwaysVisible: true,
+        enabled: false,
       },
       {
         key: 'aggregator-radar',
@@ -198,6 +204,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
     labelAr: 'المنافسون والسوق',
     labelEn: 'Competitors & Market',
     items: [
+      // Unlinked: requires verified Kuwait competitor menu pricing, aggregator rank/ETA & ratings feed.
       {
         key: 'competitors',
         sectionId: 'competitors-market',
@@ -207,6 +214,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelEn: 'Competitors & Market Radar',
         icon: Target,
         alwaysVisible: true,
+        enabled: false,
       },
     ],
   },
@@ -215,6 +223,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
     labelAr: 'السمعة والذكاء المرئي',
     labelEn: 'Reputation & Vision AI',
     items: [
+      // Unlinked: requires Google Business Profile API + Talabat/Jahez/Deliveroo Customer Reviews API.
       {
         key: 'social-reviews',
         sectionId: 'reputation-vision',
@@ -224,6 +233,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelEn: 'Social & Aggregator Reviews',
         icon: MessageSquareHeart,
         alwaysVisible: true,
+        enabled: false,
       },
       {
         key: 'feryal-ai',
@@ -260,6 +270,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         icon: Calendar,
         alwaysVisible: true,
       },
+      // Unlinked: requires Odoo 17 Documents / Municipal, PAFN, PAM & Kuwait Fire Force License Registry.
       {
         key: 'regulations',
         sectionId: 'governance-strategy',
@@ -268,6 +279,7 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelEn: 'Regulations & Licensing',
         icon: Scale,
         alwaysVisible: true,
+        enabled: false,
       },
       {
         key: 'booth-feasibility',
@@ -384,6 +396,7 @@ export function Sidebar({
       SIDEBAR_SECTIONS.map((section) => ({
         ...section,
         items: section.items.filter((item) => {
+          if (item.enabled === false) return false
           if (!isErpRouteAllowedForRole(roleProfile.role, item.href)) return false
           if (user.role.isAdmin) return true
           if (item.alwaysVisible) return true
@@ -539,7 +552,9 @@ export function Sidebar({
           </p>
           <p className="ae-side-muted inline-flex items-center justify-center gap-1.5 text-xs font-semibold">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.65)]" />
-            {isAr ? '6 علامات تجارية · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+            {isAr
+              ? formatScopeStripAr(getRegistryScopeCounts(), '·')
+              : formatScopeStripEn(getRegistryScopeCounts(), '·')}
           </p>
         </div>
       </div>

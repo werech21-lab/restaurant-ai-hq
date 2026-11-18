@@ -11,7 +11,8 @@ import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
 import { suitePrimaryBtn, suiteSecondaryBtn } from '@/modules/suite/ui/shared'
 
 type Tab = 'website' | 'ecommerce' | 'email' | 'automation' | 'radar'
-const tabs: readonly Tab[] = ['website', 'ecommerce', 'email', 'automation', 'radar']
+// 'radar' tab is unlinked (AggregatorRadar renders UnlinkedSourceNotice); hidden until Tgo/TMP settlement feed is wired.
+const tabs: readonly Tab[] = ['website', 'ecommerce', 'email', 'automation']
 
 function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)

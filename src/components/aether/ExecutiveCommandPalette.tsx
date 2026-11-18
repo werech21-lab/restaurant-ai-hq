@@ -80,9 +80,9 @@ function resolvePlayCanonicalDestination(stage: string): {
       }
     case 'operations':
       return {
-        href: '/erp/prep-sla',
-        domainEn: 'Kitchen Prep SLA',
-        domainAr: 'زمن تجهيز المطبخ',
+        href: '/erp/warehouse-chain',
+        domainEn: 'Warehouse-to-Branch Chain',
+        domainAr: 'سلسلة المخزن والفروع',
       }
     case 'opex':
     default:
@@ -163,7 +163,7 @@ export function ExecutiveCommandPalette() {
   )
 
   const commands = useMemo<Command[]>(() => {
-    const allPageSpecs: Array<{ href: string; cmd: Command }> = [
+    const allPageSpecs: Array<{ href: string; enabled?: boolean; cmd: Command }> = [
       // 1) القيادة والمبيعات (Executive & Sales)
       {
         href: '/erp',
@@ -241,8 +241,10 @@ export function ExecutiveCommandPalette() {
           run: () => go('/erp/warehouse-chain'),
         },
       },
+      // Unlinked: requires Odoo 17 POS Preparation Display / KDS station timestamps (pos_preparation_display).
       {
         href: '/erp/prep-sla',
+        enabled: false,
         cmd: {
           id: 'p-prep-sla',
           group: 'pages',
@@ -255,8 +257,10 @@ export function ExecutiveCommandPalette() {
           run: () => go('/erp/prep-sla'),
         },
       },
+      // Unlinked: requires Fleet Dispatch GPS / Aggregator Rider Telemetry API.
       {
         href: '/erp/delivery-sla',
+        enabled: false,
         cmd: {
           id: 'p-delivery-sla',
           group: 'pages',
@@ -285,8 +289,10 @@ export function ExecutiveCommandPalette() {
       },
 
       // 3) السمعة والذكاء المرئي (Reputation & Vision AI)
+      // Unlinked: requires Google Business Profile API + Talabat/Jahez/Deliveroo Customer Reviews API.
       {
         href: '/erp/social-reviews',
+        enabled: false,
         cmd: {
           id: 'p-social-reviews',
           group: 'pages',
@@ -343,8 +349,10 @@ export function ExecutiveCommandPalette() {
           run: () => go('/erp/planning'),
         },
       },
+      // Unlinked: requires Odoo 17 Documents / Municipal, PAFN, PAM & Kuwait Fire Force License Registry.
       {
         href: '/erp/regulations',
+        enabled: false,
         cmd: {
           id: 'p-regulations',
           group: 'pages',
@@ -373,7 +381,7 @@ export function ExecutiveCommandPalette() {
       },
     ]
     const pages: Command[] = allPageSpecs
-      .filter((entry) => isErpRouteAllowedForRole(activeRole, entry.href))
+      .filter((entry) => entry.enabled !== false && isErpRouteAllowedForRole(activeRole, entry.href))
       .map((entry) => entry.cmd)
 
     const seenTitleAr = new Set<string>()

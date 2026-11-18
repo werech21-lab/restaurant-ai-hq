@@ -1,6 +1,9 @@
+import { redirect } from 'next/navigation'
 import { requirePageUser } from '@/lib/auth/context'
 import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { DemandForecastV2 } from '@/components/aether/DemandForecastV2'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +13,7 @@ export const metadata = {
 }
 
 export default async function DemandForecastPage() {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   await requirePageUser('/erp/demand-forecast')
   const { yesterdayIso } = getKuwaitTimeContext()
   return (

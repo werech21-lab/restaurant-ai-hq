@@ -78,11 +78,12 @@ export function VentureAccountingHub({
     liveSummary,
   })
 
-  const tabs: Array<{
+  const allTabs: Array<{
     id: typeof activeTab
     labelAr: string
     labelEn: string
     icon: React.ReactNode
+    enabled?: boolean
   }> = [
     {
       id: 'glSummary',
@@ -96,29 +97,37 @@ export function VentureAccountingHub({
       labelEn: 'Receivables & Aging',
       icon: <Landmark className="h-4 w-4" aria-hidden />,
     },
+    // Unlinked: requires Odoo 17 hr.expense & hr.expense.sheet models.
     {
       id: 'pettyCash',
       labelAr: 'العهد النثرية',
       labelEn: 'Petty Cash',
       icon: <Wallet className="h-4 w-4" aria-hidden />,
+      enabled: false,
     },
+    // Unlinked: requires live bank statement / cheque clearing feed.
     {
       id: 'cheques',
       labelAr: 'الشيكات والتسويات البنكية',
       labelEn: 'Cheques & Bank Recon',
       icon: <CreditCard className="h-4 w-4" aria-hidden />,
+      enabled: false,
     },
+    // Unlinked: requires IFRS 16 lease schedule / Odoo asset lease records.
     {
       id: 'leases',
       labelAr: 'عقود الإيجارات',
       labelEn: 'Branch Leases',
       icon: <Building2 className="h-4 w-4" aria-hidden />,
+      enabled: false,
     },
+    // Unlinked: requires fleet fuel & maintenance expense tracking.
     {
       id: 'fleet',
       labelAr: 'مصروفات الأسطول',
       labelEn: 'Fleet Expenses',
       icon: <Truck className="h-4 w-4" aria-hidden />,
+      enabled: false,
     },
     ...(liveChildren && !embeddedInErp
       ? [
@@ -131,6 +140,7 @@ export function VentureAccountingHub({
         ]
       : []),
   ]
+  const tabs = allTabs.filter((t) => t.enabled !== false)
 
   const HeadingTag = embeddedInErp ? 'h2' : 'h1'
 

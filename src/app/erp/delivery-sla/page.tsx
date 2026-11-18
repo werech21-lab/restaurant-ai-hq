@@ -1,5 +1,8 @@
+import { redirect } from 'next/navigation'
 import { requirePageUser } from '@/lib/auth/context'
 import { DeliverySlaStudio } from '@/components/erp/ops-expansion/DeliverySlaStudio'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +13,7 @@ export const metadata = {
 }
 
 export default async function DeliverySlaPage() {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   await requirePageUser('/erp/delivery-sla')
   return (
     <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-x-hidden">

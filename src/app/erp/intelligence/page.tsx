@@ -1,6 +1,9 @@
+import { redirect } from 'next/navigation'
 import { readSessionPermissions } from '@/lib/auth/context'
 import { getCurrentSessionRole } from '@/lib/erp-auth'
 import IntelligenceWorkspace from '@/modules/governance/ui/IntelligenceWorkspace'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +13,7 @@ export const metadata = {
 }
 
 export default async function IntelligencePage({ searchParams }: { searchParams: Promise<{ tab?: string | string[] }> }) {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   const [permissions, sessionRole] = await Promise.all([
     readSessionPermissions(),
     getCurrentSessionRole(),

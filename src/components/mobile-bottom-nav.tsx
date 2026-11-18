@@ -25,6 +25,7 @@ import {
   resolveRoleDefaultHome,
 } from '@/lib/auth/role-access-policy'
 import { useI18n } from '@/lib/i18n'
+import { formatScopeStripAr, formatScopeStripEn, getRegistryScopeCounts } from '@/lib/odoo/scope-counts'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { isNavItemActive, SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
 import { ExecutivePinModal } from '@/components/erp/ExecutivePinModal'
@@ -49,7 +50,7 @@ const PRIMARY_DOCK_ROUTES = new Set([
   '/erp/cores',
   '/erp/feryal-ai',
   '/erp/feryal',
-  '/erp/prep-sla',
+  '/erp/warehouse-chain',
 ])
 
 function formatSessionTimer(sec: number): string {
@@ -127,15 +128,17 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
     : (gov?.sessionRole ?? domRole ?? 'admin')
   const visibleMobileSections = SIDEBAR_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) =>
-      isErpRouteAllowedForRole(activeRole, item.href),
+    items: section.items.filter(
+      (item) =>
+        item.enabled !== false &&
+        isErpRouteAllowedForRole(activeRole, item.href),
     ),
   })).filter((section) => section.items.length > 0)
   const dockHomeHref = resolveRoleDefaultHome(activeRole)
   const dockTab2Href =
-    activeRole === 'supply' ? '/erp/delivery-sla' : '/erp/cores'
+    activeRole === 'supply' ? '/erp/warehouse-chain' : '/erp/cores'
   const dockTab4Href =
-    activeRole === 'marketing' ? '/erp/social-reviews' : '/erp/prep-sla'
+    activeRole === 'marketing' ? '/erp/weekday-comparison' : '/erp/warehouse-chain'
 
   // Keep standalone Manager PIN session & badge count synced even when mounted in RootLayout outside GovernanceProvider
   const syncFallbackGovernance = useCallback(() => {
@@ -259,7 +262,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   {isAr ? 'فنتشر فودز' : 'Venture Foods'}
                 </h2>
                 <p className="whitespace-nowrap text-[13px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? '6 علامات تجارية · 7 فروع · 8 قنوات' : '6 Brands · 7 Branches · 8 Channels'}
+                  {isAr
+                    ? formatScopeStripAr(getRegistryScopeCounts(), '·')
+                    : formatScopeStripEn(getRegistryScopeCounts(), '·')}
                 </p>
               </div>
 

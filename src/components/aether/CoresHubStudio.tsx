@@ -33,9 +33,17 @@ import {
   getBrandLabel,
   getBranchLabel,
   getPeriodLabel,
+  resolveSummaryBucket,
   type GlobalBranch,
   type GlobalBrand,
 } from '@/lib/aether/global-filter-engine'
+import {
+  deriveScopeCounts,
+  formatArBrandsNoun,
+  formatCoresBranchesCardTitle,
+  formatCoresBrandsCardTitle,
+  formatEnBrandsNoun,
+} from '@/lib/odoo/scope-counts'
 import { isBrokenOrEmptyCampaignName } from '@/lib/aether/period-delta'
 import { shiftIsoDate } from '@/lib/erp-comparison-engine'
 import {
@@ -144,7 +152,7 @@ export function CoresHubStudio({
   const [cubeError, setCubeError] = useState(false)
   const [cubeRetryTick, setCubeRetryTick] = useState(0)
 
-  // Manual campaign form state (strictly 6 approved brands)
+  // Manual campaign form state (approved registry brands)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formBrand, setFormBrand] = useState<Exclude<GlobalBrand, 'all'>>('china-garden')
   const [formBranch, setFormBranch] = useState<GlobalBranch>('all')
@@ -843,14 +851,25 @@ export function CoresHubStudio({
             ) : null}
           </div>
 
-          {/* 3-Column Breakdown: 7 Branches + Unattributed | 6 Brands | Channels */}
+          {/* 3-Column Breakdown: Operational Locations + Unattributed | Brands | Channels */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Branches (7 + 8th Unattributed row) */}
+            {/* Operational Locations + Unattributed row */}
             <div className={CARD_CLS}>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {isAr
-                  ? 'الفروع السبعة + غير منسوب لفرع'
-                  : '7 Branches + Unattributed Row'}
+                {(() => {
+                  const activeBucket = resolveSummaryBucket(filters, liveSummary)
+                  const sc = deriveScopeCounts({
+                    payload: liveCube ?? activeBucket,
+                    summary: liveSummary,
+                  })
+                  const mappedRows = snapshot.sales.branchRanking.filter(
+                    (b) => b.id !== 'unattributed',
+                  ).length
+                  return formatCoresBranchesCardTitle(
+                    mappedRows > 0 ? mappedRows : sc.operationalUnitsCount,
+                    resolvedLocale,
+                  )
+                })()}
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {isAr
@@ -911,10 +930,13 @@ export function CoresHubStudio({
               />
             </div>
 
-            {/* 6 Brands */}
+            {/* Approved Brands */}
             <div className={CARD_CLS}>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {isAr ? 'العلامات التجارية الست' : '6 Restaurant Brands'}
+                {formatCoresBrandsCardTitle(
+                  deriveScopeCounts({ summary: liveSummary }).brandsCount,
+                  resolvedLocale,
+                )}
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {isAr ? 'توزيع المبيعات حسب العلامة التجارية في Odoo' : 'Sales split by brand in Odoo'}
@@ -1016,12 +1038,14 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'menu' ? (
         <div className="space-y-6">
-          <UnlinkedSourceNotice
-            titleAr="تكلفة الوصفات المعيارية (BOM) غير مربوطة بمصدر"
-            titleEn="Standard Recipe BOM Costing — Not Linked to a Source"
-            reasonAr="نعرض أدناه مبيعات وكميات وخصومات الأصناف الفعلية من سطور نقاط البيع (pos.order.line) فقط، دون أي تقدير لتكلفة المكونات أو هوامش ربح مخترعة."
-            reasonEn="Showing actual POS item sales, quantities, and discounts from pos.order.line only, without any estimated food cost or invented margins."
-          />
+          {false && (
+            <UnlinkedSourceNotice
+              titleAr="تكلفة الوصفات المعيارية (BOM) غير مربوطة بمصدر"
+              titleEn="Standard Recipe BOM Costing — Not Linked to a Source"
+              reasonAr="نعرض أدناه مبيعات وكميات وخصومات الأصناف الفعلية من سطور نقاط البيع (pos.order.line) فقط، دون أي تقدير لتكلفة المكونات أو هوامش ربح مخترعة."
+              reasonEn="Showing actual POS item sales, quantities, and discounts from pos.order.line only, without any estimated food cost or invented margins."
+            />
+          )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className={KPI_CARD_CLS}>
@@ -1253,12 +1277,14 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'marketing' ? (
         <div className="space-y-6">
-          <UnlinkedSourceNotice
-            titleAr="منصات الإعلانات الخارجية وعائد المشاهير — غير مربوط بمصدر"
-            titleEn="External Ad Platforms & Influencer Attribution — Not Linked to a Source"
-            reasonAr="لا يوجد ربط برمجي مع منصات الإعلانات (Snap / TikTok / Meta) أو أكواد المشاهير في Odoo، لذلك أُزيلت مؤشرات العائد الثابتة وسلة العروض وخطط النمو الافتراضية. نعرض فقط خصومات الكاشير الفعلية المسجّلة في Odoo ومقارنة التواريخ اليدوية إن أدخلها المستخدم."
-            reasonEn="External ad platforms and promo attribution are not connected to Odoo; static ROI, promo basket, and seeded campaigns were removed. Only actual Odoo POS discounts and user-entered date comparisons are shown."
-          />
+          {false && (
+            <UnlinkedSourceNotice
+              titleAr="منصات الإعلانات الخارجية وعائد المشاهير — غير مربوط بمصدر"
+              titleEn="External Ad Platforms & Influencer Attribution — Not Linked to a Source"
+              reasonAr="لا يوجد ربط برمجي مع منصات الإعلانات (Snap / TikTok / Meta) أو أكواد المشاهير في Odoo، لذلك أُزيلت مؤشرات العائد الثابتة وسلة العروض وخطط النمو الافتراضية. نعرض فقط خصومات الكاشير الفعلية المسجّلة في Odoo ومقارنة التواريخ اليدوية إن أدخلها المستخدم."
+              reasonEn="External ad platforms and promo attribution are not connected to Odoo; static ROI, promo basket, and seeded campaigns were removed. Only actual Odoo POS discounts and user-entered date comparisons are shown."
+            />
+          )}
 
           {/* Actual Odoo POS Discounts Card */}
           {cubeLoading && !liveCube ? (
@@ -1388,7 +1414,12 @@ export function CoresHubStudio({
               >
                 <div>
                   <label htmlFor="camp-brand" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    {isAr ? 'العلامة التجارية (6 علامات)' : 'Brand (6 brands)'}
+                    {(() => {
+                      const bc = deriveScopeCounts({ summary: liveSummary }).brandsCount
+                      return isAr
+                        ? `العلامة التجارية (${formatArBrandsNoun(bc)})`
+                        : `Brand (${formatEnBrandsNoun(bc, 'lower')})`
+                    })()}
                   </label>
                   <select
                     id="camp-brand"

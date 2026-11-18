@@ -1,6 +1,9 @@
+import { redirect } from 'next/navigation'
 import { requirePageUser } from '@/lib/auth/context'
 import { getLocale } from '@/lib/i18n/server'
 import FoodSafetyHub from '@/modules/food-safety/ui/FoodSafetyHub'
+
+const IS_DATA_SOURCE_CONNECTED = false
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +14,7 @@ export const metadata = {
 }
 
 export default async function FoodSafetyPage() {
+  if (!IS_DATA_SOURCE_CONNECTED) redirect('/erp')
   await requirePageUser('/erp/food-safety')
   const rawLocale = await getLocale().catch(() => 'ar')
   const locale = rawLocale === 'en' ? 'en' : 'ar'
