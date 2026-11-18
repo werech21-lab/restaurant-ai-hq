@@ -144,10 +144,13 @@ export function formatCompactAxisLabel(raw: string): string {
  * rendering `7.3 ألف` / `5.4 ألف` / `1.1 ألف` in Arabic and `7.3k` / `5.4k` in English.
  */
 export function formatCompactKwdTick(v: number, isAr: boolean): string {
-  const safe = Number.isFinite(v) ? Math.max(0, v) : 0
-  if (safe >= 1000) {
-    const k = (safe / 1000).toFixed(1)
-    return isAr ? `${k} ألف` : `${k}k`
-  }
-  return formatInt(safe)
+  if (!Number.isFinite(v)) return '0'
+  const abs = Math.abs(v)
+  const formatted =
+    abs >= 1000
+      ? isAr
+        ? `${(abs / 1000).toFixed(1)} ألف`
+        : `${(abs / 1000).toFixed(1)}k`
+      : formatInt(abs)
+  return v < 0 && /[1-9\u0661-\u0669]/.test(formatted) ? `-${formatted}` : formatted
 }

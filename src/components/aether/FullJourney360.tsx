@@ -413,7 +413,7 @@ export function FullJourney360({
         ? null
         : typeof workspace.unattributedSalesKwd === 'number' &&
             Number.isFinite(workspace.unattributedSalesKwd)
-          ? Math.max(0, workspace.unattributedSalesKwd)
+          ? workspace.unattributedSalesKwd
           : 0
     const unattribOrders = brandScopedRows
       ? brandScopedRows.unattributed.orders
@@ -421,7 +421,7 @@ export function FullJourney360({
         ? null
         : typeof workspace.unattributedOrders === 'number' &&
             Number.isFinite(workspace.unattributedOrders)
-          ? Math.max(0, Math.round(workspace.unattributedOrders))
+          ? Math.round(workspace.unattributedOrders)
           : 0
 
     const hasNullBranchSales =
@@ -509,12 +509,12 @@ export function FullJourney360({
           ? GL_INCOMPLETE_AR
           : GL_INCOMPLETE_EN
     return src.map((pt) => {
-      const sales = Math.max(0, pt.salesKwd)
+      const sales = pt.salesKwd
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
       const pointMarginRatio = canPlotPointMargin ? pointMarginPct / 100 : 0
-      const pocket = canPlotPointMargin ? Math.max(0, sales * pointMarginRatio) : 0
-      const beforeRent = canPlotPointMargin ? Math.max(0, sales * beforeRentRatio) : 0
-      const foodAndDelivery = canPlotPointMargin ? Math.max(0, sales - beforeRent) : 0
+      const pocket = canPlotPointMargin ? sales * pointMarginRatio : 0
+      const beforeRent = canPlotPointMargin ? sales * beforeRentRatio : 0
+      const foodAndDelivery = canPlotPointMargin ? sales - beforeRent : 0
       const rawLabel = isAr ? pt.labelAr : pt.labelEn
       const axisLabel =
         flowGroup === 'branches'
@@ -605,7 +605,7 @@ export function FullJourney360({
       return {
         hour: Number.isFinite(hrNum) ? hrNum : hourLabel,
         label: hourLabel,
-        netKwd: Math.max(0, pt.salesKwd),
+        netKwd: pt.salesKwd,
         orders: typeof pt.orders === 'number' && Number.isFinite(pt.orders) ? pt.orders : undefined,
       }
     })
@@ -697,13 +697,12 @@ export function FullJourney360({
       ? coresSnap.sales.timeline
       : weekSnapForPulse.sales.timeline
     const sevenDays = baseTimeline.slice(-7)
-    const maxSales = Math.max(...sevenDays.map((d) => Math.max(0, d.salesKwd)), 1)
+    const maxSales = Math.max(...sevenDays.map((d) => d.salesKwd), 1)
     let strictPeakId = sevenDays[0]?.id ?? ''
-    let strictPeakVal = -1
+    let strictPeakVal = Number.NEGATIVE_INFINITY
     for (const d of sevenDays) {
-      const s = Math.max(0, d.salesKwd)
-      if (s > strictPeakVal) {
-        strictPeakVal = s
+      if (d.salesKwd > strictPeakVal) {
+        strictPeakVal = d.salesKwd
         strictPeakId = d.id
       }
     }
@@ -713,7 +712,7 @@ export function FullJourney360({
     const arShort = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
 
     return sevenDays.map((pt, idx) => {
-      const salesKwd = Math.max(0, pt.salesKwd)
+      const salesKwd = pt.salesKwd
       const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pt.id)
       const dow = isoMatch
         ? new Date(
@@ -724,7 +723,7 @@ export function FullJourney360({
       const isPeak = pt.id === strictPeakId
       const heightPct = isPeak
         ? 100
-        : Math.max(24, Math.min(96, Math.round((salesKwd / maxSales) * 100)))
+        : Math.max(24, Math.min(96, Math.round((Math.max(0, salesKwd) / maxSales) * 100)))
       const compactKwd = formatCompactKwdTick(salesKwd, isAr)
       return {
         id: pt.id,

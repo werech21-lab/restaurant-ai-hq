@@ -308,9 +308,10 @@ const shiftIsoDay = (iso: string, delta: number): string => {
 const safeNum = (v: unknown, fb = 0): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fb
 
-const round1 = (n: number) => Math.round(safeNum(n) * 10) / 10
-const round2 = (n: number) => Math.round(safeNum(n) * 100) / 100
-const round3 = (n: number) => Math.round(safeNum(n) * 1000) / 1000
+const normalizeZero = (n: number): number => (n === 0 ? 0 : n)
+const round1 = (n: number) => normalizeZero(Math.round(safeNum(n) * 10) / 10)
+const round2 = (n: number) => normalizeZero(Math.round(safeNum(n) * 100) / 100)
+const round3 = (n: number) => normalizeZero(Math.round(safeNum(n) * 1000) / 1000)
 
 const BRAND_COLORS: Record<Exclude<GlobalBrand, 'all'>, string> = {
   'china-garden': '#10B981',
@@ -433,7 +434,7 @@ function toSalesPoint(params: {
   denominatorKwd: number
   color?: string
 }): SalesPoint {
-  const salesKwd = round3(Math.max(0, safeNum(params.salesKwd)))
+  const salesKwd = round3(safeNum(params.salesKwd))
   const orders = params.orders === null ? null : Math.max(0, Math.round(safeNum(params.orders)))
   const denom = safeNum(params.denominatorKwd)
   return {
@@ -443,7 +444,7 @@ function toSalesPoint(params: {
     tooltipTitleAr: params.tooltipTitleAr ?? params.labelAr,
     tooltipTitleEn: params.tooltipTitleEn ?? params.labelEn,
     salesKwd,
-    displaySalesKwd: Math.round(salesKwd),
+    displaySalesKwd: normalizeZero(Math.round(salesKwd)),
     orders,
     aovKwd: orders === null ? null : orders > 0 ? round3(salesKwd / orders) : 0,
     sharePct: denom > 0 ? round1((salesKwd / denom) * 100) : 0,
