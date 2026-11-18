@@ -112,9 +112,9 @@ function buildRoleDirectoryEntries(): ExecutiveDirectoryRoleEntry[] {
       email: getExpectedMarketingEmail(),
       aliasEmail: getExpectedMarketingAliasEmail(),
       scopeEn:
-        'Scoped: /erp (Sales, Orders & Quiet Hours — Rent/Payroll/Supplier costs masked), /erp/cores, /erp/weekday-comparison, /erp/before-after, /erp/reviews, /erp/booth & /erp/feryal-ai',
+        'Scoped: /erp (Sales, Orders & Quiet Hours — Rent/Payroll/Supplier costs masked), /erp/cores, /erp/weekday-comparison, /erp/before-after, /erp/booth & /erp/feryal-ai',
       scopeAr:
-        'نطاق مخصّص: المبيعات والطلبات والساعات الهادئة (مع حجب الإيجارات والرواتب وتكاليف الموردين)، المحاور، المقارنة، قبل وبعد، التقييمات، المعارض وفريال',
+        'نطاق مخصّص: المبيعات والطلبات والساعات الهادئة (مع حجب الإيجارات والرواتب وتكاليف الموردين)، المحاور، المقارنة، قبل وبعد، المعارض وفريال',
       defaultHome: '/erp',
       accessTier: 'scoped_marketing',
     },
@@ -123,9 +123,9 @@ function buildRoleDirectoryEntries(): ExecutiveDirectoryRoleEntry[] {
       email: getExpectedSupplyEmail(),
       aliasEmail: getExpectedSupplyAliasEmail(),
       scopeEn:
-        'Scoped: /erp/warehouse-chain (Ardiya Central Kitchen EXB -> 7 active branches), /erp/prep-sla, /erp/delivery-sla & /erp/feryal-ai',
+        'Scoped: /erp/warehouse-chain (Ardiya Central Kitchen EXB -> 7 active branches) & /erp/feryal-ai',
       scopeAr:
-        'نطاق مخصّص: سلسلة المطبخ المركزي بالعارضية (EXB) للفروع الـ 7 النشطة، زمن التحضير، زمن التوصيل والمستشارة فريال',
+        'نطاق مخصّص: سلسلة المطبخ المركزي بالعارضية (EXB) للفروع الـ 7 النشطة والمستشارة فريال',
       defaultHome: '/erp/warehouse-chain',
       accessTier: 'scoped_supply',
     },

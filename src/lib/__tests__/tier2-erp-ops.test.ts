@@ -53,9 +53,7 @@ import type { ComplianceBreachItem } from '@/lib/governance-compliance'
 import { LanguageProvider, type MessageKey } from '@/lib/i18n'
 import { AlertsCenterV2 } from '@/components/aether/AlertsCenterV2'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
-import { RegulationsComplianceStudio } from '@/components/erp/RegulationsComplianceStudio'
 import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
-import FoodSafetyHub from '@/modules/food-safety/ui/FoodSafetyHub'
 import GovernanceDesk from '@/modules/governance/ui/GovernanceDesk'
 import HrWorkspace from '@/modules/hr/ui/HrWorkspace'
 import { InventoryOverview } from '@/modules/inventory/ui/InventoryOverview'
@@ -69,22 +67,16 @@ const REPO_ROOT = path.resolve(__dirname, '../../..')
 const OWNED_ROUTE_PAGES = [
   'src/app/erp/compliance/page.tsx',
   'src/app/erp/contracts/page.tsx',
-  'src/app/erp/food-safety/page.tsx',
   'src/app/erp/hr/page.tsx',
   'src/app/erp/inventory/page.tsx',
-  'src/app/erp/kds/page.tsx',
   'src/app/erp/kitchen/page.tsx',
   'src/app/erp/operations/page.tsx',
   'src/app/erp/procurement/page.tsx',
-  'src/app/erp/recipes/page.tsx',
-  'src/app/erp/regulations/page.tsx',
 ] as const
 
 const OWNED_UI_FILES = [
   'src/components/erp/UnlinkedSourceNotice.tsx',
   'src/components/aether/AlertsCenterV2.tsx',
-  'src/components/erp/RegulationsComplianceStudio.tsx',
-  'src/modules/food-safety/ui/FoodSafetyHub.tsx',
   'src/modules/governance/ui/GovernanceDesk.tsx',
   'src/modules/hr/ui/HrWorkspace.tsx',
   'src/modules/inventory/ui/InventoryOverview.tsx',
@@ -117,8 +109,6 @@ const OWNED_UI_FILES = [
 const OWNED_ALL_SOURCE_FILES = [...OWNED_ROUTE_PAGES, ...OWNED_UI_FILES] as const
 
 const CHILD_STUDIO_FILES = [
-  'src/components/erp/RegulationsComplianceStudio.tsx',
-  'src/modules/food-safety/ui/FoodSafetyHub.tsx',
   'src/modules/governance/ui/GovernanceDesk.tsx',
   'src/modules/hr/ui/HrWorkspace.tsx',
   'src/modules/inventory/ui/InventoryWorkspace.tsx',
@@ -179,7 +169,7 @@ const SAMPLE_BREACH: ComplianceBreachItem = {
 }
 
 describe('Tier 2 ERP Operations — Static & Layout Guardrails', () => {
-  it('enforces requirePageUser and avoids nested <main> across all 11 owned /erp/* page.tsx files', () => {
+  it('enforces requirePageUser and avoids nested <main> across owned /erp/* page.tsx files', () => {
     for (const relPath of OWNED_ROUTE_PAGES) {
       const src = readRepoFile(relPath)
       expect(src, `${relPath} missing requirePageUser`).toContain('requirePageUser(')
@@ -206,20 +196,14 @@ describe('Tier 2 ERP Operations — Static & Layout Guardrails', () => {
     }
   })
 
-  it('keeps zero <h1> tags inside child ERP studios/workspaces and preserves RegulationsComplianceStudio layout grid/padding', () => {
+  it('keeps zero <h1> tags inside child ERP studios/workspaces', () => {
     for (const relPath of CHILD_STUDIO_FILES) {
       const src = readRepoFile(relPath)
       expect(src, `${relPath} must not render <h1> inside TopFilterBar shell`).not.toMatch(/<h1[\s>]/)
     }
-
-    const regSrc = readRepoFile('src/components/erp/RegulationsComplianceStudio.tsx')
-    expect(regSrc).toContain('grid-cols-2')
-    expect(regSrc).toContain('lg:grid-cols-4')
-    expect(regSrc).toContain('p-3.5 sm:p-5')
   })
 
-  it('enforces large touch targets (min-h-11) on /erp/kds and KitchenWorkspace', () => {
-    expect(readRepoFile('src/app/erp/kds/page.tsx')).toContain('min-h-11')
+  it('enforces large touch targets (min-h-11) on KitchenWorkspace', () => {
     expect(readRepoFile('src/modules/kitchen/ui/KitchenWorkspace.tsx')).toContain('min-h-11')
   })
 })
@@ -279,8 +263,9 @@ describe('Tier 2 Shared Flagged Components — AR/EN Parity, Null Honesty & Stat
         initialHasThresholds: false,
       }),
     )
-    expect(unlinkedEnHtml).toContain('data-unlinked-source="true"')
-    expect(unlinkedEnHtml).toContain('Unlinked from Source')
+    expect(unlinkedEnHtml).toContain('data-state-block="empty"')
+    expect(unlinkedEnHtml).toContain('No admin thresholds or breaches are saved')
+    expect(unlinkedEnHtml).not.toContain('data-unlinked-source="true"')
     expect(unlinkedEnHtml).not.toContain('غير مربوط بمصدر')
 
     const emptyHtml = renderWithHosts(
@@ -418,31 +403,6 @@ describe('Tier 2 Shared Flagged Components — AR/EN Parity, Null Honesty & Stat
 })
 
 describe('Tier 2 ERP Studios & Workspaces — SSR & Null-Honest Formatting', () => {
-  it('renders RegulationsComplianceStudio and FoodSafetyHub in AR and EN with unlinked notice and "—" null KPIs', () => {
-    const regEn = renderWithHosts(
-      'en',
-      React.createElement(RegulationsComplianceStudio, { locale: 'en' }),
-    )
-    expect(regEn).toContain('data-unlinked-source="true"')
-    expect(regEn).toContain('Unlinked from Source')
-    expect(regEn).toContain('—')
-    expect(regEn).toContain('Unavailable')
-    expect(regEn).not.toContain('غير مربوط بمصدر')
-    expect(regEn).not.toContain('<h1')
-
-    const regAr = renderWithHosts(
-      'ar',
-      React.createElement(RegulationsComplianceStudio, { locale: 'ar' }),
-    )
-    expect(regAr).toContain('غير مربوط بمصدر')
-    expect(regAr).toContain('غير متاح')
-
-    const fsEn = renderWithHosts('en', React.createElement(FoodSafetyHub, { locale: 'en' }))
-    expect(fsEn).toContain('data-unlinked-source="true"')
-    expect(fsEn).toContain('Unlinked from Source')
-    expect(fsEn).not.toContain('غير مربوط بمصدر')
-  })
-
   it('renders InventoryOverview loading, forbidden error, and 3-decimal KWD summary', () => {
     const onStockEntry = (_item: Item) => undefined
     const loadingHtml = renderWithHosts(

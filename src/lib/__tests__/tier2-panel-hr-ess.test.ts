@@ -26,7 +26,7 @@ import { SmartDepartmentFolderUpload } from '@/components/SmartDepartmentFolderU
 import { HrDigitalDossier } from '@/components/hr-digital-dossier'
 import { HrWpsToolbar } from '@/components/hr-wps-toolbar'
 import { EnterpriseHrCommandHub, type HrAttendanceRow, type HrPayrollRow } from '@/components/hr/EnterpriseHrCommandHub'
-import { HrExecutiveReportsHub, type HrEmployeeSummary } from '@/components/hr/HrExecutiveReportsHub'
+import type { HrEmployeeSummary } from '@/components/hr/hr-employee-summary'
 import { NewEmployeeWizardModal } from '@/components/hr/NewEmployeeWizardModal'
 import { calculateKuwaitEosb } from '@/components/hr/hr-enterprise-data'
 import { LanguageProvider } from '@/lib/i18n'
@@ -120,7 +120,7 @@ const SAMPLE_ATTENDANCE: HrAttendanceRow[] = [
 
 describe('Wave 3B Tier 2 — (panel) HR, Compliance Radar, Smart Folder Upload, Smart Ingest, Audit & /ess', () => {
   describe('1. /hr — EnterpriseHrCommandHub, Wizard, Dossier, WPS & Forms', () => {
-    it('renders honest unlinked states and unavailable KPI dashes in both AR (rtl) and EN (ltr)', () => {
+    it('renders calm empty states and unavailable KPI dashes in both AR (rtl) and EN (ltr)', () => {
       const arHtml = renderWithLocale(
         'ar',
         el(EnterpriseHrCommandHub, {
@@ -135,7 +135,9 @@ describe('Wave 3B Tier 2 — (panel) HR, Compliance Radar, Smart Folder Upload, 
         }),
       )
       expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('غير مربوط بمصدر')
+      expect(arHtml).toContain('لا يوجد موظفون في هذه القائمة')
+      expect(arHtml).toContain('data-state-block="empty"')
+      expect(arHtml).not.toContain('غير مربوط بمصدر')
       expect(arHtml).toContain('title="غير متاح"')
       expect(arHtml).toContain('data-unavailable="true"')
       expect(arHtml).toContain('role="tablist"')
@@ -154,7 +156,9 @@ describe('Wave 3B Tier 2 — (panel) HR, Compliance Radar, Smart Folder Upload, 
         }),
       )
       expect(enHtml).toContain('dir="ltr"')
-      expect(enHtml).toContain('Not Linked to a Source — Detailed Employee Directory')
+      expect(enHtml).toContain('No employees in this directory')
+      expect(enHtml).toContain('data-state-block="empty"')
+      expect(enHtml).not.toContain('Not Linked to a Source')
       expect(enHtml).toContain('title="Unavailable"')
       expect(enHtml).not.toContain('موظف جديد')
     })
@@ -276,12 +280,6 @@ describe('Wave 3B Tier 2 — (panel) HR, Compliance Radar, Smart Folder Upload, 
       const wpsAr = renderWithLocale('ar', el(HrWpsToolbar, { month: 11, year: 2026, locale: 'ar' }))
       expect(wpsAr).toContain('dir="rtl"')
       expect(wpsAr).toContain('NBK WPS')
-
-      const reportsEn = renderWithLocale(
-        'en',
-        el(HrExecutiveReportsHub, { en: true, employees: [] }),
-      )
-      expect(reportsEn).toContain('data-unlinked-source="true"')
 
       const formsHtml = renderWithLocale(
         'en',
@@ -576,7 +574,7 @@ describe('Wave 3B Tier 2 — (panel) HR, Compliance Radar, Smart Folder Upload, 
         'src/app/ess/page.tsx',
         'src/app/ess/ess-client.tsx',
         'src/components/hr/EnterpriseHrCommandHub.tsx',
-        'src/components/hr/HrExecutiveReportsHub.tsx',
+        'src/components/hr/hr-employee-summary.ts',
         'src/components/hr/NewEmployeeWizardModal.tsx',
         'src/components/hr/hr-avatar-utils.ts',
         'src/components/hr/hr-enterprise-data.ts',

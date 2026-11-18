@@ -49,7 +49,8 @@ const PRIMARY_DOCK_ROUTES = new Set([
   '/erp/cores',
   '/erp/feryal-ai',
   '/erp/feryal',
-  '/erp/prep-sla',
+  '/erp/warehouse-chain',
+  '/erp/aggregator-radar',
 ])
 
 function formatSessionTimer(sec: number): string {
@@ -133,9 +134,13 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
   })).filter((section) => section.items.length > 0)
   const dockHomeHref = resolveRoleDefaultHome(activeRole)
   const dockTab2Href =
-    activeRole === 'supply' ? '/erp/delivery-sla' : '/erp/cores'
+    activeRole === 'supply' ? '/erp/warehouse-chain' : '/erp/cores'
   const dockTab4Href =
-    activeRole === 'marketing' ? '/erp/social-reviews' : '/erp/prep-sla'
+    activeRole === 'marketing'
+      ? '/erp/cores'
+      : activeRole === 'supply'
+        ? '/erp/warehouse-chain'
+        : '/erp/aggregator-radar'
 
   // Keep standalone Manager PIN session & badge count synced even when mounted in RootLayout outside GovernanceProvider
   const syncFallbackGovernance = useCallback(() => {
@@ -222,15 +227,14 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
       pathname.startsWith('/erp/feryal'))
   const opsActive =
     !sheetOpen &&
-    (pathname === dockTab4Href ||
-      pathname.startsWith(`${dockTab4Href}/`) ||
-      (activeRole === 'marketing' && pathname === '/erp/reviews'))
+    (pathname === dockTab4Href || pathname.startsWith(`${dockTab4Href}/`))
   const isSecondaryErpModule =
     pathname.startsWith('/erp/') &&
     !PRIMARY_DOCK_ROUTES.has(pathname) &&
     !pathname.startsWith('/erp/cores/') &&
     !pathname.startsWith('/erp/feryal') &&
-    !pathname.startsWith('/erp/prep-sla/')
+    !pathname.startsWith('/erp/warehouse-chain') &&
+    !pathname.startsWith('/erp/aggregator-radar')
   const menuActive = sheetOpen || isSecondaryErpModule
 
   return (
@@ -445,8 +449,8 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <span className="truncate">
               {activeRole === 'supply'
                 ? isAr
-                  ? 'التوصيل'
-                  : 'Delivery'
+                  ? 'المخزن'
+                  : 'Warehouse'
                 : isAr
                   ? 'المبيعات'
                   : 'Sales'}
@@ -493,11 +497,15 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <span className="truncate">
               {activeRole === 'marketing'
                 ? isAr
-                  ? 'التقييمات'
-                  : 'Reviews'
-                : isAr
-                  ? 'التشغيل'
-                  : 'Ops'}
+                  ? 'المبيعات'
+                  : 'Sales'
+                : activeRole === 'supply'
+                  ? isAr
+                    ? 'المخزن'
+                    : 'Warehouse'
+                  : isAr
+                    ? 'العمولات'
+                    : 'Fees'}
             </span>
           </Link>
 

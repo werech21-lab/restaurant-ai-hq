@@ -18,7 +18,6 @@ vi.mock('next/navigation', () => ({
 }))
 
 import { AppBuilderPanel } from '@/app/(panel)/app-builder/app-builder-panel'
-import { AutomationsPanel } from '@/app/(panel)/automations/automations-panel'
 import { DeployView } from '@/app/(panel)/deploy/deploy-view'
 import { DirectoryView } from '@/app/(panel)/directory/directory-view'
 import { ProfileForm } from '@/app/(panel)/profile/profile-form'
@@ -29,7 +28,6 @@ import { AppsView } from '@/app/(panel)/settings/apps/apps-view'
 import { NotificationWizard } from '@/app/(panel)/settings/notifications/notification-wizard'
 import { GatewayForm } from '@/app/(panel)/settings/payments/gateway-form'
 import Settings from '@/components/Settings'
-import { VentureAutomationHub } from '@/components/automation/VentureAutomationHub'
 import { formatDate, formatDateTime, formatInt, formatKwd, formatPct } from '@/lib/format'
 import { LanguageProvider } from '@/lib/i18n'
 import { MODULES } from '@/lib/modules'
@@ -133,74 +131,6 @@ describe('Wave 3C Tier 3 — 11 Panel Settings, App Builder, Automation, Deploy,
       )
       expect(errorHtml).toContain('data-state-block="error"')
       expect(errorHtml).toContain('role="alert"')
-    })
-  })
-
-  describe('2 & 3. /automation & /automations — VentureAutomationHub & AutomationsPanel', () => {
-    it('renders VentureAutomationHub cleanly in AR/EN without leaked Arabic titleEn and keeps /automation re-export intact', async () => {
-      const arHtml = renderWithProviders('ar', el(VentureAutomationHub, { locale: 'ar' }))
-      expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('data-unlinked-source="true"')
-      expect(arHtml).toContain('/erp/governance')
-
-      const enHtml = renderWithProviders('en', el(VentureAutomationHub, { locale: 'en' }))
-      expect(enHtml).toContain('dir="ltr"')
-      expect(enHtml).toContain('Unlinked from Source — Legacy Automation Rules')
-      expect(enHtml).not.toContain('غير مربوط بمصدر')
-
-      const automationPageSrc = await readFile(
-        path.join(process.cwd(), 'src/app/(panel)/automation/page.tsx'),
-        'utf8',
-      )
-      expect(automationPageSrc).toContain('from "../automations/page"')
-    })
-
-    it('renders AutomationsPanel bilingually across ready, empty, loading, and error states', () => {
-      const arHtml = renderWithProviders(
-        'ar',
-        el(AutomationsPanel, {
-          locale: 'ar',
-          canCreate: true,
-          suppliers: [{ id: 'sup-1', name: 'Al-Kout Trading' }],
-          rules: [
-            {
-              id: 'r-1',
-              name: 'تنبيه مخزون الدجاج',
-              trigger: 'STOCK_BELOW_REORDER',
-              action: 'DRAFT_PURCHASE',
-              supplierName: '',
-              isActive: true,
-            },
-          ],
-        }),
-      )
-      expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('تنبيه مخزون الدجاج')
-      expect(arHtml).toContain('title="غير متاح"')
-
-      const enEmpty = renderWithProviders(
-        'en',
-        el(AutomationsPanel, {
-          locale: 'en',
-          canCreate: false,
-          suppliers: [],
-          rules: [],
-        }),
-      )
-      expect(enEmpty).toContain('dir="ltr"')
-      expect(enEmpty).toContain('data-state-block="empty"')
-
-      const errHtml = renderWithProviders(
-        'en',
-        el(AutomationsPanel, {
-          locale: 'en',
-          canCreate: false,
-          suppliers: [],
-          rules: [],
-          hasError: true,
-        }),
-      )
-      expect(errHtml).toContain('data-state-block="error"')
     })
   })
 
@@ -580,10 +510,6 @@ describe('Wave 3C Tier 3 — 11 Panel Settings, App Builder, Automation, Deploy,
       const ownedFiles = [
         'src/app/(panel)/app-builder/page.tsx',
         'src/app/(panel)/app-builder/app-builder-panel.tsx',
-        'src/app/(panel)/automation/page.tsx',
-        'src/components/automation/VentureAutomationHub.tsx',
-        'src/app/(panel)/automations/page.tsx',
-        'src/app/(panel)/automations/automations-panel.tsx',
         'src/app/(panel)/deploy/page.tsx',
         'src/app/(panel)/deploy/deploy-view.tsx',
         'src/app/(panel)/deploy/install-button.tsx',

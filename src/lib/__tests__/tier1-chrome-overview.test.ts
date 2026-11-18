@@ -43,7 +43,6 @@ import { FullJourney360 } from '@/components/aether/FullJourney360'
 import { GlobalFilterBar } from '@/components/aether/GlobalFilterBar'
 import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { TopFilterBar } from '@/components/aether/TopFilterBar'
-import { AetherBiExecutiveDashboard } from '@/components/dashboard/AetherBiExecutiveDashboard'
 import { Sidebar as ErpSidebar } from '@/components/erp-sidebar'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
@@ -425,27 +424,6 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
     })
   })
 
-  describe('/dashboard AetherBiExecutiveDashboard', () => {
-    it('supports both AR RTL and EN LTR dynamically via LanguageProvider with clean English titleEn', async () => {
-      const arHtml = renderWithProviders('ar', el(AetherBiExecutiveDashboard))
-      expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('التقرير المالي والتشغيلي')
-      expect(arHtml).toContain('href="/erp"')
-
-      const enHtml = renderWithProviders('en', el(AetherBiExecutiveDashboard))
-      expect(enHtml).toContain('dir="ltr"')
-      expect(enHtml).toContain('Financial &amp; Operational Summary')
-      expect(enHtml).toContain('Unlinked from Source — Legacy Static Dashboard')
-      expect(enHtml).not.toContain('غير مربوط بمصدر — Legacy Static Dashboard')
-
-      const dashboardPageSrc = await readFile(
-        path.join(process.cwd(), 'src/app/(panel)/dashboard/page.tsx'),
-        'utf8',
-      )
-      expect(dashboardPageSrc).not.toContain('locale="ar"')
-    })
-  })
-
   describe('Shared Chrome, Filters & Provenance Controls', () => {
     it('renders a single filter control set on /erp without duplicate GlobalFilterBar or duplicate partial banner', () => {
       stubNav.pathname = '/erp'
@@ -603,8 +581,6 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
         'src/app/erp/layout.tsx',
         'src/app/erp/page.tsx',
         'src/components/aether/FullJourney360.tsx',
-        'src/app/(panel)/dashboard/page.tsx',
-        'src/components/dashboard/AetherBiExecutiveDashboard.tsx',
       ]
 
       const sub12Re = /text-\[(?:10|10\.5|11|11\.5)px\]/

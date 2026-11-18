@@ -14,7 +14,7 @@ const GARBLE = /(^|\s)(ml|litre|g)(\s|[.,:)]|$)|^\s*[|·—]|\s[|·]\s*$|\(\s*\)
 describe('AR→EN map quality (strings that the UI really renders)', () => {
   const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { encoding: 'utf8' })
     .split('\n')
-    .filter((f) => f && !f.includes('__tests__') && !f.includes('/i18n/'))
+    .filter((f) => f && fs.existsSync(f) && !f.includes('__tests__') && !f.includes('/i18n/'))
   const corpus = files.map((f) => fs.readFileSync(f, 'utf8')).join('\n')
   const used = Object.entries(COMPREHENSIVE_AR_EN).filter(([ar]) => corpus.includes(ar) && !/test\(|=>|\)\s*return|\.push\(|\?\.\[|\[$|\S\|\S|\|$/.test(ar))
 

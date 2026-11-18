@@ -1088,18 +1088,19 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
   describe('4. Auth & RBAC Sanity Across All 111 Routes + Auditor Read-Only Enforcement on /api/erp/*', () => {
     it('discovers all 111 page.tsx routes (incl. /erp/seasons, /erp/decisions) and enforces unauthenticated /login redirect on every non-login route', async () => {
       const pageFiles = await collectAllPageFiles()
-      expect(pageFiles).toHaveLength(111)
+      expect(pageFiles).toHaveLength(88)
 
       const routeUrls = pageFiles.map(pageFileToRouteUrl)
       expect(routeUrls).toContain('/')
       expect(routeUrls).toContain('/login')
       expect(routeUrls).toContain('/erp')
       expect(routeUrls).toContain('/erp/decisions')
-      expect(routeUrls).toContain('/dashboard')
+      expect(routeUrls).toContain('/erp/demand-forecast')
+      expect(routeUrls).not.toContain('/dashboard')
+      expect(routeUrls).not.toContain('/pos')
+      expect(routeUrls).not.toContain('/kds')
       expect(routeUrls).toContain('/admin')
       expect(routeUrls).toContain('/admin/ai-runs')
-      expect(routeUrls).toContain('/pos')
-      expect(routeUrls).toContain('/kds')
       expect(routeUrls).toContain('/ess')
 
       const unguardedInternalRoutes: string[] = []
@@ -1119,22 +1120,22 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
     it('verifies layout & server-component auth guards alongside role-scoped RBAC matrix across all 8 roles', async () => {
       // Verify server-side layout/page auth guard presence in source
-      const [panelShell, erpShell, posPage, adminPage, adminAiRunsPage] = await Promise.all([
+      const [panelShell, erpShell, financePage, adminPage, adminAiRunsPage] = await Promise.all([
         readFile(path.join(ROOT_DIR, 'src/components/shell.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/components/erp/shell.tsx'), 'utf8'),
-        readFile(path.join(ROOT_DIR, 'src/app/(pos)/pos/page.tsx'), 'utf8'),
+        readFile(path.join(ROOT_DIR, 'src/app/erp/finance/page.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/app/admin/page.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/app/admin/ai-runs/page.tsx'), 'utf8'),
       ])
       expect(panelShell).toContain('await requireUser()')
       expect(erpShell).toContain('await requireUser()')
-      expect(posPage).toContain('await requireUser()')
+      expect(financePage).toContain('requirePageUser(')
       expect(adminPage).toContain('authenticateUser(')
       expect(adminAiRunsPage).toContain('verifyExecSessionToken(')
 
       // Canonical short ERP aliases
       expect(resolveCanonicalErpAlias('/erp/booth')).toBe('/erp/booth-feasibility')
-      expect(resolveCanonicalErpAlias('/erp/reviews')).toBe('/erp/social-reviews')
+      expect(resolveCanonicalErpAlias('/erp/reviews')).toBeNull()
       expect(resolveCanonicalErpAlias('/erp/commissions')).toBe('/erp/aggregator-radar')
 
       const tokens: Record<ExecSessionRole, string> = {
@@ -1162,11 +1163,13 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
       // Marketing & Supply scope isolation
       expect(isErpRouteAllowedForRole('marketing', '/erp/booth-feasibility')).toBe(true)
-      expect(isErpRouteAllowedForRole('marketing', '/erp/social-reviews')).toBe(true)
+      expect(isErpRouteAllowedForRole('marketing', '/erp/social-reviews')).toBe(false)
+      expect(isErpRouteAllowedForRole('marketing', '/erp/cores')).toBe(true)
       expect(isErpRouteAllowedForRole('marketing', '/erp/planning')).toBe(false)
       expect(isErpRouteAllowedForRole('marketing', '/pos')).toBe(false)
       expect(isErpRouteAllowedForRole('supply', '/erp/warehouse-chain')).toBe(true)
-      expect(isErpRouteAllowedForRole('supply', '/erp/food-safety')).toBe(true)
+      expect(isErpRouteAllowedForRole('supply', '/erp/food-safety')).toBe(false)
+      expect(isErpRouteAllowedForRole('supply', '/erp/prep-sla')).toBe(false)
       expect(isErpRouteAllowedForRole('supply', '/erp/executive-pnl')).toBe(false)
       expect(isErpRouteAllowedForRole('supply', '/kds')).toBe(false)
 

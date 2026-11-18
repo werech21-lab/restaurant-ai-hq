@@ -13,10 +13,8 @@ const VALUE_ORIGINAL = 'data-original-ar-value'
 
 /** Pages that already localize via React locale state — never mutate their DOM. */
 const REACT_I18N_PATHS = [
-  '/dashboard',
   '/reports',
   '/erp/aggregator-radar',
-  '/erp/food-safety',
   '/erp/sales-scorecard',
   '/erp/menu-engineering',
   '/erp/feryal-ai',
@@ -24,16 +22,11 @@ const REACT_I18N_PATHS = [
   '/erp/before-after',
   '/erp/cores',
   '/erp/planning',
-  '/erp/regulations',
   '/erp/warehouse-chain',
-  '/erp/prep-sla',
-  '/erp/delivery-sla',
-  '/erp/social-reviews',
   '/erp/weekday-comparison',
   '/erp/booth-feasibility',
   '/erp/events-intelligence',
   '/erp/sales-analysis',
-  '/erp/delivery-control',
   '/erp/alerts',
   '/erp/demand-forecast',
   '/erp/cost-intelligence',

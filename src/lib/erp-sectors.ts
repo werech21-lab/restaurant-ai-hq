@@ -73,7 +73,6 @@ export const erpSectors: readonly ErpSector[] = [
     id: 'projects',
     title: 'sector.projects',
     links: [
-      { href: '/erp/events-projects', title: 'spec.eventsProjects' },
       { href: '/erp/projects?tab=project', title: 'spec.project' },
       { href: '/erp/projects?tab=timesheets', title: 'spec.timesheets' },
       { href: '/erp/projects?tab=helpdesk', title: 'spec.helpdesk' },
@@ -94,7 +93,6 @@ export const erpSectors: readonly ErpSector[] = [
     id: 'executive',
     title: 'sector.executive',
     links: [
-      { href: '/erp/intelligence?tab=radar', title: 'spec.hq' },
       { href: '/erp/ai?tab=decisions', title: 'spec.ai' },
       { href: '/erp/governance?tab=tasks', title: 'spec.tasks' },
       { href: '/erp/governance', title: 'spec.advisor' },
@@ -119,7 +117,6 @@ const defaultTab: Record<string, string> = {
   '/erp/marketing': 'website',
   '/erp/operations': 'contracts',
   '/erp/governance': 'violations',
-  '/erp/intelligence': 'radar',
   '/erp/ai': 'decisions',
   '/erp/compliance': 'laws',
   '/erp/admin': 'accounts',
@@ -151,7 +148,6 @@ export function activeSectorId(path: string, tab: string | null): SectorId {
     path.startsWith('/erp/admin') ||
     path.startsWith('/erp/iam') ||
     path.startsWith('/erp/ai') ||
-    path.startsWith('/erp/intelligence') ||
     path.startsWith('/erp/contracts') ||
     path.startsWith('/erp/compliance') ||
     path.startsWith('/erp/archive') ||

@@ -78,13 +78,13 @@ const DEPT_META: Record<
   purchases: {
     ar: 'المشتريات والموردين',
     en: 'Purchases & Vendors',
-    href: '/purchases',
+    href: '/erp/warehouse-chain',
     module: 'purchases',
   },
   inventory_recipes: {
     ar: 'الوصفات والمخزون والمنيو',
     en: 'Recipes & Inventory',
-    href: '/recipes',
+    href: '/erp/cores',
     module: 'inventory',
   },
   sales_aggregators: {

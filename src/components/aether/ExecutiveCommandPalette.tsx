@@ -20,17 +20,13 @@ import {
   Compass,
   CornerDownLeft,
   LayoutDashboard,
-  MessageSquareHeart,
   PackageCheck,
   Printer,
   Radar,
-  Scale,
   Search,
   Sparkles,
   Store,
   Target,
-  Timer,
-  Truck,
 } from 'lucide-react'
 import { feryalHref } from '@/lib/aether/ledger'
 import { APPROVED_BRANCH_IDS, APPROVED_BRAND_IDS } from '@/lib/aether/global-filter-engine'
@@ -80,9 +76,9 @@ function resolvePlayCanonicalDestination(stage: string): {
       }
     case 'operations':
       return {
-        href: '/erp/prep-sla',
-        domainEn: 'Kitchen Prep SLA',
-        domainAr: 'زمن تجهيز المطبخ',
+        href: '/erp/warehouse-chain',
+        domainEn: 'Warehouse-to-Branch Chain',
+        domainAr: 'سلسلة المخزن والفروع',
       }
     case 'opex':
     default:
@@ -242,34 +238,6 @@ export function ExecutiveCommandPalette() {
         },
       },
       {
-        href: '/erp/prep-sla',
-        cmd: {
-          id: 'p-prep-sla',
-          group: 'pages',
-          en: 'Kitchen Prep SLA',
-          ar: 'زمن تجهيز المطبخ',
-          hintEn: 'Operations & SLA · Order Arrival to Kitchen Ready Speed',
-          hintAr: 'التشغيل وسلسلة الإمداد · سرعة تحضير المطبخ حسب المطعم والفرع',
-          keywords: 'prep sla kitchen ready kds زمن تجهيز المطبخ مدة تجهيز الطلبات تحضير اخضر اصفر احمر',
-          icon: <Timer className="h-4 w-4" />,
-          run: () => go('/erp/prep-sla'),
-        },
-      },
-      {
-        href: '/erp/delivery-sla',
-        cmd: {
-          id: 'p-delivery-sla',
-          group: 'pages',
-          en: 'Rider Delivery SLA',
-          ar: 'زمن توصيل السائق',
-          hintEn: 'Operations & SLA · Dispatch to Customer Handoff Speed',
-          hintAr: 'التشغيل وسلسلة الإمداد · سرعة توصيل السائقين والمنصات',
-          keywords: 'delivery sla rider driver speed زمن توصيل السائق مدة توصيل الطلبات سائق',
-          icon: <Truck className="h-4 w-4" />,
-          run: () => go('/erp/delivery-sla'),
-        },
-      },
-      {
         href: '/erp/aggregator-radar',
         cmd: {
           id: 'p-radar',
@@ -285,20 +253,6 @@ export function ExecutiveCommandPalette() {
       },
 
       // 3) السمعة والذكاء المرئي (Reputation & Vision AI)
-      {
-        href: '/erp/social-reviews',
-        cmd: {
-          id: 'p-social-reviews',
-          group: 'pages',
-          en: 'Social & Aggregator Reviews',
-          ar: 'التقييمات ومنصات التواصل',
-          hintEn: 'Reputation & Vision AI · Customer Ratings & Social Sentiment',
-          hintAr: 'السمعة والذكاء المرئي · تقييمات المنصات والتفاعل الاجتماعي',
-          keywords: 'social reviews ratings talabat google instagram السمعة والذكاء المرئي التقييمات ومنصات التواصل تعليقات تقييم',
-          icon: <MessageSquareHeart className="h-4 w-4" />,
-          run: () => go('/erp/social-reviews'),
-        },
-      },
       {
         href: '/erp/feryal-ai',
         cmd: {
@@ -341,20 +295,6 @@ export function ExecutiveCommandPalette() {
           keywords: 'planning forecast scenarios roadmap strategy الحوكمة والتخطيط التخطيط والتوقعات خطة مراحل ميزانية',
           icon: <Compass className="h-4 w-4" />,
           run: () => go('/erp/planning'),
-        },
-      },
-      {
-        href: '/erp/regulations',
-        cmd: {
-          id: 'p-regulations',
-          group: 'pages',
-          en: 'Regulations & Licensing',
-          ar: 'التشريعات والتراخيص',
-          hintEn: 'Governance & Strategy · Municipality, PAFN, Manpower & MOCI',
-          hintAr: 'الحوكمة والتخطيط · البلدية، الغذاء، القوى العاملة، والتجارة',
-          keywords: 'regulations licensing compliance municipality pafn manpower moci الحوكمة والتخطيط التشريعات والتراخيص بلدية تراخيص',
-          icon: <Scale className="h-4 w-4" />,
-          run: () => go('/erp/regulations'),
         },
       },
       {

@@ -7,7 +7,6 @@ import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
  */
 
 const SHORT_ERP_ROUTE_ALIASES: Record<string, string> = {
-  '/erp/reviews': '/erp/social-reviews',
   '/erp/booth': '/erp/booth-feasibility',
   '/erp/commissions': '/erp/aggregator-radar',
 }
@@ -21,7 +20,7 @@ function stripTrailingSlash(pathname: string): string {
 }
 
 /**
- * Resolves friendly short `/erp/*` route slugs (`/erp/reviews`, `/erp/booth`, `/erp/commissions`)
+ * Resolves friendly short `/erp/*` route slugs (`/erp/booth`, `/erp/commissions`)
  * to their canonical Next.js App Router directory paths when matched.
  */
 export function resolveCanonicalErpAlias(pathname: string): string | null {
@@ -39,22 +38,15 @@ const MARKETING_ALLOWED_PREFIXES = [
   '/erp/cores',
   '/erp/weekday-comparison',
   '/erp/before-after',
-  '/erp/social-reviews',
-  '/erp/reviews',
   '/erp/booth-feasibility',
   '/erp/booth',
   '/erp/events-intelligence',
-  '/erp/competitors',
-  '/erp/market',
   '/erp/feryal-ai',
   '/erp/feryal',
 ] as const
 
 const SUPPLY_ALLOWED_PREFIXES = [
   '/erp/warehouse-chain',
-  '/erp/prep-sla',
-  '/erp/delivery-sla',
-  '/erp/food-safety',
   '/erp/feryal-ai',
   '/erp/feryal',
 ] as const
@@ -99,14 +91,14 @@ export function isAuditorForbiddenPath(pathname: string): boolean {
 /**
  * Evaluates whether `role` is authorized to view a given `/erp` or `/erp/*` route.
  * - `marketing`: `/erp` (sales/orders/quiet hours with rent/payroll/supplier costs masked),
- *   `/erp/cores`, `/erp/weekday-comparison`, `/erp/before-after`, `/erp/reviews` (`/erp/social-reviews`),
+ *   `/erp/cores`, `/erp/weekday-comparison`, `/erp/before-after`,
  *   `/erp/booth` (`/erp/booth-feasibility`), and `/erp/feryal-ai` (`/erp/feryal`).
  *   Explicitly blocks `/erp/commissions` (`/erp/aggregator-radar`), `/erp/planning`,
- *   `/erp/regulations`, `/erp/warehouse-chain`, `/erp/prep-sla`, `/erp/delivery-sla`, etc.
- * - `supply`: `/erp/warehouse-chain` (Ardiya Central Kitchen EXB -> 7 active branches),
- *   `/erp/prep-sla`, `/erp/delivery-sla`, and `/erp/feryal-ai` (`/erp/feryal`).
+ *   and `/erp/warehouse-chain`.
+ * - `supply`: `/erp/warehouse-chain` (Ardiya Central Kitchen EXB -> 7 active branches)
+ *   and `/erp/feryal-ai` (`/erp/feryal`).
  *   Explicitly blocks sensitive P&L (`/erp`, `/erp/cores`, `/erp/weekday-comparison`, `/erp/before-after`),
- *   commissions, planning, reviews, booth, and regulatory routes.
+ *   commissions, planning, and booth routes.
  * - `admin` | `gm` | `dgm` | `ops` | `cfo` | `auditor`: full 13-module visibility
  *   (`auditor` remains strictly Read-Only on all mutation endpoints; `/erp/admin` & terminal mappings remain `admin`-only).
  */

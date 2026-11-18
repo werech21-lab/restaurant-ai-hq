@@ -100,8 +100,7 @@ describe('Before/After KPI cards', () => {
 
 describe('panel pages: no recorded value → «—», never 0.000 (full-site audit)', () => {
   const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8')
-  it('inventory and stock count: a product cost of 0 is "not recorded", not a 0.000 cost / estimate', () => {
-    expect(read('src/app/(panel)/inventory/page.tsx')).toContain('formatKwd(row.costPrice > 0 ? row.costPrice : null')
+  it('stock count: a product cost of 0 is "not recorded", not a 0.000 estimate', () => {
     expect(read('src/app/(panel)/stock-count/page.tsx')).toContain('estCostKwd: item.costPrice > 0 ? item.currentStock * item.costPrice : null')
   })
   it('HR directory: no salary on file shows «—», not a 0.000 KWD contract', () => {

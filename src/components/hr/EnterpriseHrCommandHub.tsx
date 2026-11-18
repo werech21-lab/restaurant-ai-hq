@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { FileText, Plus, Search, ShieldCheck, Upload, Users, Wallet, Clock, Calculator } from 'lucide-react'
-import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import { HrDigitalDossier } from '@/components/hr-digital-dossier'
 import { HrWpsToolbar } from '@/components/hr-wps-toolbar'
 import {
@@ -23,7 +22,7 @@ import {
   getUnavailableTooltip,
 } from '@/lib/format'
 import { calculateKuwaitEosb, type HrCommandTabKey } from './hr-enterprise-data'
-import type { HrEmployeeSummary } from './HrExecutiveReportsHub'
+import type { HrEmployeeSummary } from './hr-employee-summary'
 import { NewEmployeeWizardModal } from './NewEmployeeWizardModal'
 
 export type HrPayrollRow = {
@@ -509,7 +508,7 @@ export function EnterpriseHrCommandHub({
           subtitle={
             safeAttendanceRows.length > 0
               ? label('سجلات البصمة المعتمدة', 'Synced biometric entries')
-              : label('أجهزة البصمة غير مربوطة', 'Biometric feed unlinked')
+              : label('لا توجد سجلات بصمة لهذه الفترة', 'No biometric entries for this period')
           }
         />
         <KpiCard
@@ -532,14 +531,14 @@ export function EnterpriseHrCommandHub({
 
       {activeTab === 'employees' ? (
         safeEmployees.length === 0 ? (
-          <UnlinkedSourceNotice
-            isAr={isAr}
-            titleAr="غير مربوط بمصدر — دليل الموظفين التفصيلي"
-            titleEn="Not Linked to a Source — Detailed Employee Directory"
-            reasonAr="لا توجد سجلات موظفين مخزنة محلياً في هذه الوحدة، وتم حذف جميع قوائم الموظفين والرواتب ونسب الإجازات الثابتة غير الموثقة."
-            reasonEn="No local employee records are stored in this panel, and all static placeholder directories have been removed."
-            requiredSourceAr="ربط نموذج hr.employee وعقود hr.contract من Odoo 17 بصلاحية قراءة معتمدة."
-            requiredSourceEn="Link Odoo 17 hr.employee and hr.contract models with read access."
+          <StateBlock
+            state="empty"
+            locale={locale}
+            title={label('لا يوجد موظفون في هذه القائمة', 'No employees in this directory')}
+            description={label(
+              'لم تُسجَّل صفوف موظفين في هذه الوحدة بعد.',
+              'No employee rows are stored in this panel yet.',
+            )}
           />
         ) : (
           <div className="space-y-4">
@@ -657,14 +656,14 @@ export function EnterpriseHrCommandHub({
             <HrWpsToolbar month={month} year={year} locale={locale} />
           ) : null}
           {safePayrollRows.length === 0 ? (
-            <UnlinkedSourceNotice
-              isAr={isAr}
-              titleAr="غير مربوط بمصدر — مسير الرواتب"
-              titleEn="Not Linked to a Source — Payroll Ledger"
-              reasonAr="لا توجد مسيرات رواتب مسجلة لهذه الفترة، ولا يتم عرض أي سلم رواتب افتراضي."
-              reasonEn="No payroll runs are recorded for this period."
-              requiredSourceAr="ربط مسيرات hr.payslip أو قيود الرواتب الفعلية في Odoo 17."
-              requiredSourceEn="Link Odoo 17 hr.payslip or posted payroll journal entries."
+            <StateBlock
+              state="empty"
+              locale={locale}
+              title={label('لا توجد مسيرات رواتب لهذه الفترة', 'No payroll runs for this period')}
+              description={label(
+                'لا توجد صفوف رواتب مسجّلة لهذه الفترة.',
+                'No payroll rows are recorded for this period.',
+              )}
             />
           ) : (
             <DataTable
@@ -680,14 +679,14 @@ export function EnterpriseHrCommandHub({
 
       {activeTab === 'attendance' ? (
         safeAttendanceRows.length === 0 ? (
-          <UnlinkedSourceNotice
-            isAr={isAr}
-            titleAr="غير مربوط بمصدر — الحضور والبصمة"
-            titleEn="Not Linked to a Source — Biometric Attendance"
-            reasonAr="أجهزة البصمة وسجلات الشفتات غير مربوطة بمصدر بيانات فعلي حالياً."
-            reasonEn="Biometric terminals and shift logs are not currently linked to an active source."
-            requiredSourceAr="ربط نموذج hr.attendance في Odoo 17 أو واجهة جهاز البصمة."
-            requiredSourceEn="Link Odoo 17 hr.attendance or biometric terminal API."
+          <StateBlock
+            state="empty"
+            locale={locale}
+            title={label('لا توجد سجلات حضور لهذه الفترة', 'No attendance rows for this period')}
+            description={label(
+              'لا توجد صفوف حضور مسجّلة لهذه الفترة.',
+              'No attendance rows are recorded for this period.',
+            )}
           />
         ) : (
           <DataTable
