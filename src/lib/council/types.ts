@@ -103,3 +103,23 @@ export interface CouncilSnapshot {
   reports: AdvisorReport[]
   discoveries: CouncilDiscovery[]
 }
+
+export interface CouncilModelProbeRow {
+  model: string
+  installed: boolean
+  readable: boolean
+  totalCount: number | null
+  recentCount: number | null
+  presentFields: string[]
+  missingFields: string[]
+  dateSpan: { field: string; min: string | null; max: string | null } | null
+  branchCoveragePct: number | null
+  branchField?: string | null
+  departmentCoveragePct?: number | null
+  supportsConfigHourMethodGroup?: boolean
+}
+
+export interface CouncilModelProbeSummary {
+  probedAt: string
+  rows: CouncilModelProbeRow[]
+}

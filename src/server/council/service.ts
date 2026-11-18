@@ -12,7 +12,7 @@ import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
 import { kuwaitDayOf, shiftIso } from '@/lib/council/helpers'
 import { rankDiscoveries, runCouncil } from '@/lib/council/runner'
 import type { CouncilSnapshot } from '@/lib/council/types'
-import { fetchAggregatorHourlyMatrix, fetchAttendanceInput, fetchQuantInput, probeOdooModels } from './odoo-reads'
+import { fetchAggregatorHourlyMatrix, fetchAttendanceInput, fetchQuantInput, probeOdooModels, type OdooModelProbe } from './odoo-reads'
 import { listSeasonEvents, loadLatestCouncilSnapshot, loadShownFingerprints, saveCouncilSnapshot } from './store'
 
 export type CouncilScope = 'hourly' | 'nightly'
@@ -21,6 +21,14 @@ function branchOfConfig(cube: OdooPeriodCube | null): Map<number, string> {
   const out = new Map<number, string>()
   for (const [branch, ids] of Object.entries(cube?.posConfigIds?.configIdsByBranch ?? {})) for (const id of ids) out.set(id, branch)
   return out
+}
+
+export function resolveHasBomsFromProbe(probe: OdooModelProbe | null | undefined): boolean | null {
+  const bom = probe?.rows.find((r) => r.model === 'mrp.bom')
+  if (!bom) return null
+  if (!bom.installed) return false
+  if (!bom.readable && bom.totalCount === null && bom.recentCount === null) return null
+  return (bom.totalCount ?? bom.recentCount ?? 0) > 0
 }
 
 export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.now()): Promise<{ snapshot: CouncilSnapshot; kuwaitDay: string }> {
@@ -53,8 +61,7 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
     ])
     matrix = m
     hr = { attendance: att }
-    const bom = probe?.rows.find((r) => r.model === 'mrp.bom')
-    inventory = { quants, warehouse, hasBoms: bom ? bom.installed && (bom.recentCount ?? 0) > 0 : null }
+    inventory = { quants, warehouse, hasBoms: resolveHasBomsFromProbe(probe) }
   }
 
   const seen = await loadShownFingerprints(today)
