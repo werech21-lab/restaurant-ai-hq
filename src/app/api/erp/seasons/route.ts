@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ENTERPRISE_API_SECURITY_HEADERS, requireAdminOnlyApiSession, requireExecApiSession } from '@/lib/auth/api-guard'
-import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
+import { mergeSeasonEvents } from '@/lib/council/advisors/seasons'
 import { errorFields, logger } from '@/lib/logger'
 import { latestCouncilSnapshot } from '@/server/council/service'
 import { deleteSeasonEvent, listSeasonEvents, upsertSeasonEvent, validateSeasonEvent } from '@/server/council/store'
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(
     {
       ok: true,
-      events: stored && stored.length > 0 ? stored : SUGGESTED_SEASON_EVENTS,
+      events: mergeSeasonEvents(stored),
       suggested: !stored || stored.length === 0,
       report: snapshot?.reports.find((r) => r.advisorId === 'seasons') ?? null,
     },

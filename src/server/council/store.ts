@@ -11,8 +11,9 @@ import { Pool } from 'pg'
 import { prisma } from '@/lib/db'
 import { sslOptions } from '@/lib/db-ssl'
 import { errorFields, logger } from '@/lib/logger'
-import { SEASON_KINDS, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
+import { mergeSeasonEvents, SEASON_KINDS, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
 import type { CouncilSnapshot } from '@/lib/council/types'
+
 
 const SQLITE_DDL = [
   `CREATE TABLE IF NOT EXISTS council_reports (
@@ -143,6 +144,7 @@ export function validateSeasonEvent(raw: unknown): SeasonEvent | null {
     endsOn: str('endsOn', 10),
     recurrence: recurrence === 'monthly' || recurrence === 'none' ? recurrence : 'yearly',
     approximate: r.approximate !== false,
+    needsOwnerConfirmation: false,
     previousStartsOn: ISO.test(str('previousStartsOn', 10)) ? str('previousStartsOn', 10) : null,
     previousEndsOn: ISO.test(str('previousEndsOn', 10)) ? str('previousEndsOn', 10) : null,
     notes: str('notes', 500) || null,
@@ -155,7 +157,8 @@ export function validateSeasonEvent(raw: unknown): SeasonEvent | null {
 export async function listSeasonEvents(): Promise<SeasonEvent[] | null> {
   try {
     const rows = await query<SeasonRow>(`SELECT id, kind, name_ar, name_en, starts_on, ends_on, recurrence, approximate, previous_starts_on, previous_ends_on, notes FROM season_events ORDER BY starts_on`, [])
-    return rows.map((r) => ({
+    if (rows.length === 0) return []
+    const stored: SeasonEvent[] = rows.map((r) => ({
       id: r.id,
       kind: r.kind as SeasonKind,
       nameAr: r.name_ar,
@@ -164,10 +167,12 @@ export async function listSeasonEvents(): Promise<SeasonEvent[] | null> {
       endsOn: r.ends_on,
       recurrence: (r.recurrence as SeasonEvent['recurrence']) ?? 'yearly',
       approximate: Boolean(r.approximate),
+      needsOwnerConfirmation: false,
       previousStartsOn: r.previous_starts_on,
       previousEndsOn: r.previous_ends_on,
       notes: r.notes,
     }))
+    return mergeSeasonEvents(stored)
   } catch (error) {
     logger.error('season events read failed', errorFields(error))
     return null

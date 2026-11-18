@@ -37,24 +37,51 @@ export interface SeasonEvent {
   recurrence: 'yearly' | 'monthly' | 'none'
   /** Dates are approximate (Hijri / ministry announcement pending) — the owner should confirm. */
   approximate: boolean
+  /** Assumed default window (e.g. monthly salary days 25th → 1st) awaiting explicit owner confirmation. */
+  needsOwnerConfirmation?: boolean
   /** Actual dates of the previous occurrence when they differ from "one year earlier" (Hijri events). */
   previousStartsOn?: string | null
   previousEndsOn?: string | null
   notes?: string | null
 }
 
-/** Suggested calendar shown until the owner saves their own. Hijri dates are approximate. */
+/**
+ * Suggested calendar shown until the owner saves their own.
+ * Hijri and school dates are marked approximate; salary days require owner confirmation; no other assumptions.
+ */
 export const SUGGESTED_SEASON_EVENTS: readonly SeasonEvent[] = [
-  { id: 'salary-days', kind: 'salary-days', nameAr: 'أيام الرواتب', nameEn: 'Salary days', startsOn: '2026-11-25', endsOn: '2026-12-01', recurrence: 'monthly', approximate: true },
-  { id: 'winter-2026', kind: 'winter', nameAr: 'موسم الشتاء', nameEn: 'Winter season', startsOn: '2026-12-01', endsOn: '2027-02-28', recurrence: 'yearly', approximate: true },
+  { id: 'salary-days', kind: 'salary-days', nameAr: 'أيام الرواتب', nameEn: 'Salary days', startsOn: '2026-11-25', endsOn: '2026-12-01', recurrence: 'monthly', approximate: false, needsOwnerConfirmation: true },
   { id: 'school-holiday-mid', kind: 'school-holiday', nameAr: 'عطلة منتصف العام الدراسي', nameEn: 'Mid-year school holiday', startsOn: '2027-01-21', endsOn: '2027-02-06', recurrence: 'yearly', approximate: true },
   { id: 'ramadan-2027', kind: 'ramadan', nameAr: 'رمضان', nameEn: 'Ramadan', startsOn: '2027-02-08', endsOn: '2027-03-09', recurrence: 'yearly', approximate: true, previousStartsOn: '2026-02-18', previousEndsOn: '2026-03-19' },
   { id: 'national-day-2027', kind: 'national-day', nameAr: 'العيد الوطني وعيد التحرير', nameEn: 'National & Liberation Day', startsOn: '2027-02-25', endsOn: '2027-02-26', recurrence: 'yearly', approximate: false },
   { id: 'eid-al-fitr-2027', kind: 'eid-al-fitr', nameAr: 'عيد الفطر', nameEn: 'Eid al-Fitr', startsOn: '2027-03-10', endsOn: '2027-03-12', recurrence: 'yearly', approximate: true, previousStartsOn: '2026-03-20', previousEndsOn: '2026-03-22' },
   { id: 'eid-al-adha-2027', kind: 'eid-al-adha', nameAr: 'عيد الأضحى', nameEn: 'Eid al-Adha', startsOn: '2027-05-16', endsOn: '2027-05-19', recurrence: 'yearly', approximate: true, previousStartsOn: '2026-05-26', previousEndsOn: '2026-05-29' },
-  { id: 'summer-2027', kind: 'summer', nameAr: 'الصيف', nameEn: 'Summer', startsOn: '2027-06-15', endsOn: '2027-09-10', recurrence: 'yearly', approximate: true },
   { id: 'school-start-2027', kind: 'school-start', nameAr: 'بداية الدراسة', nameEn: 'School start', startsOn: '2027-09-14', endsOn: '2027-09-15', recurrence: 'yearly', approximate: true, previousStartsOn: '2026-09-14', previousEndsOn: '2026-09-15' },
 ]
+
+/**
+ * Merges owner-saved season rows by `id` over `SUGGESTED_SEASON_EVENTS` (plus any custom IDs),
+ * clearing `needsOwnerConfirmation` on saved rows without wiping unedited suggested occasions.
+ */
+export function mergeSeasonEvents(
+  stored: readonly SeasonEvent[] | null | undefined,
+  defaults: readonly SeasonEvent[] = SUGGESTED_SEASON_EVENTS,
+): SeasonEvent[] {
+  if (!stored || stored.length === 0) return defaults.map((ev) => ({ ...ev }))
+  const storedById = new Map(stored.map((ev) => [ev.id, ev]))
+  const defaultIds = new Set(defaults.map((ev) => ev.id))
+  const merged: SeasonEvent[] = defaults.map((def) => {
+    const saved = storedById.get(def.id)
+    if (!saved) return { ...def }
+    return { ...saved, needsOwnerConfirmation: saved.needsOwnerConfirmation ?? false }
+  })
+  for (const ev of stored) {
+    if (!defaultIds.has(ev.id)) {
+      merged.push({ ...ev, needsOwnerConfirmation: ev.needsOwnerConfirmation ?? false })
+    }
+  }
+  return merged.sort((a, b) => a.startsOn.localeCompare(b.startsOn) || a.id.localeCompare(b.id))
+}
 
 export interface SeasonsInput {
   summary: OdooLiveSummary | null
@@ -193,10 +220,15 @@ export const seasonsAdvisor: Advisor<SeasonsInput> = {
           ...(x.topBranch ? [evidence({ odooModel: 'pos.order', domain: `branch=${x.topBranch.id}, window vs normal days`, period: x.window, value: x.topBranch.upliftPct, unit: 'pct' as const, syncAt: d.syncAt, labelAr: `الفرق في ${branchLabel(x.topBranch.id).ar}`, labelEn: `Difference at ${branchLabel(x.topBranch.id).en}` })] : []),
         ]),
         thresholds: { weeksAhead, baselineWeeks: 4, occurrences: stats.length, averageUpliftPct: uplift },
-        rootCause: {
-          ar: ev.approximate ? `نمط موسمي متكرر؛ التواريخ تقريبية ويؤكدها المالك في صفحة المواسم.` : 'نمط موسمي متكرر.',
-          en: ev.approximate ? 'A recurring seasonal pattern; the dates are approximate and confirmed by the owner on the seasons page.' : 'A recurring seasonal pattern.',
-        },
+        rootCause: ev.needsOwnerConfirmation
+          ? {
+              ar: 'نمط موسمي متكرر على نافذة الرواتب المفترضة — يحتاج تأكيد المالك في صفحة المواسم.',
+              en: 'A recurring seasonal pattern on the assumed salary window — needs owner confirmation on the seasons page.',
+            }
+          : {
+              ar: ev.approximate ? 'نمط موسمي متكرر؛ التواريخ تقريبية ويؤكدها المالك في صفحة المواسم.' : 'نمط موسمي متكرر.',
+              en: ev.approximate ? 'A recurring seasonal pattern; the dates are approximate and confirmed by the owner on the seasons page.' : 'A recurring seasonal pattern.',
+            },
         severity: Math.abs(uplift) >= 15 ? 'high' : Math.abs(uplift) >= 5 ? 'medium' : 'low',
         novelty: clamp01(Math.abs(uplift) / 30),
         weeklyImpact: estimate((Math.abs(s.windowPerDayFils - s.baselinePerDayFils) / 1000) * Math.min(7, Math.round((Date.parse(`${ev.endsOn}T00:00:00Z`) - Date.parse(`${ev.startsOn}T00:00:00Z`)) / 86_400_000) + 1), 'KWD', '|window per-day − baseline per-day| × event days (max 7)', { windowPerDayKwd: fromFils(Math.round(s.windowPerDayFils)), baselinePerDayKwd: fromFils(Math.round(s.baselinePerDayFils)) }),

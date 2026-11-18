@@ -52,7 +52,7 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
           {t('Owner-editable calendar. For each upcoming season the Seasons advisor compares the previous occurrence in Odoo with normal days and proposes a prep plan.', 'تقويم يعدّله المالك. لكل موسم قادم يقارن مستشار المواسم المرة السابقة في Odoo بالأيام العادية ويقترح خطة تحضير.')}
         </p>
         {suggested ? (
-          <p className="text-[12px] font-medium text-amber-800 dark:text-amber-200">{t('Suggested calendar — Hijri dates are approximate; save your own dates to replace it.', 'تقويم مقترح — التواريخ الهجرية تقريبية؛ احفظ تواريخك لتحل محله.')}</p>
+          <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{t('Suggested calendar — Hijri & school dates are approximate, and salary days await owner confirmation.', 'تقويم مقترح — التواريخ الهجرية والمدرسية تقريبية، وأيام الرواتب بانتظار تأكيد المالك.')}</p>
         ) : null}
       </header>
 
@@ -66,8 +66,18 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
             return (
               <li key={ev.id} data-season={ev.id} className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.04]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
+                  <div className="space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
+                      {ev.needsOwnerConfirmation ? (
+                        <span
+                          data-needs-owner-confirmation="true"
+                          className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-300 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/15"
+                        >
+                          {t('Needs owner confirmation', 'يحتاج تأكيد المالك')}
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="text-[12px] text-slate-500 dark:text-slate-400" dir="ltr">
                       {`${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
                     </p>
@@ -83,13 +93,18 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
                   <div className="space-y-1.5 text-[12.5px] text-slate-700 dark:text-slate-300">
                     <p className="font-semibold text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</p>
                     <p className="text-[11.5px] text-slate-500" dir="ltr">{f.evidence.filter((e) => e.unit === 'KWD').map((e) => `${isAr ? e.labelAr : e.labelEn}: ${e.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD', 'د.ك')} (${e.period.from} → ${e.period.to})`).join(' · ')}</p>
+                    {ev.needsOwnerConfirmation ? (
+                      <p className="text-[11.5px] text-slate-600 dark:text-slate-400">
+                        {t('Assumed window (25th → 1st) — click Edit and Save to confirm your exact salary dates.', 'نافذة مفترضة (25 ← 1) — اضغط «تعديل» ثم «حفظ» لتأكيد تواريخ الرواتب المعتمدة.')}
+                      </p>
+                    ) : null}
                     <p className="font-semibold">{t('Prep plan', 'خطة التحضير')}</p>
                     <ul className="list-disc space-y-1 ps-5">
                       {f.proposals.map((p, i) => (
                         <li key={i}>
                           {isAr ? `${p.who.ar}: ${p.what.ar} — ${p.when.ar}` : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
                           {p.expectedImpact ? (
-                            <span className="block text-[11.5px] text-amber-800 dark:text-amber-200">{`${t('Estimate', 'تقدير')}: ${p.expectedImpact.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${p.expectedImpact.formula}`}</span>
+                            <span className="block text-[11.5px] text-slate-600 dark:text-slate-400">{`${t('Estimate', 'تقدير')}: ${p.expectedImpact.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${p.expectedImpact.formula}`}</span>
                           ) : null}
                         </li>
                       ))}
@@ -114,7 +129,7 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
           className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-3 dark:border-white/10 dark:bg-white/[0.03]"
           onSubmit={(e) => {
             e.preventDefault()
-            onSave?.({ ...draft, id: draft.id || `${draft.kind}-${draft.startsOn}` })
+            onSave?.({ ...draft, id: draft.id || `${draft.kind}-${draft.startsOn}`, needsOwnerConfirmation: false })
             setDraft(EMPTY)
           }}
         >
@@ -161,8 +176,26 @@ export function SeasonsStudio() {
       .catch(() => setState({ events: null, suggested: false, report: null }))
   }, [])
   useEffect(() => load(), [load])
-  const send = (method: 'POST' | 'DELETE', body?: SeasonEvent, id?: string) =>
-    fetch(`/api/erp/seasons${id ? `?id=${encodeURIComponent(id)}` : ''}`, { method, credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }).then(load)
+  const send = (method: 'POST' | 'DELETE', body?: SeasonEvent, id?: string) => {
+    const payload = body ? { ...body, needsOwnerConfirmation: false } : undefined
+    if (method === 'POST' && payload) {
+      setState((prev) => ({
+        ...prev,
+        suggested: false,
+        events: prev.events
+          ? prev.events.some((ev) => ev.id === payload.id)
+            ? prev.events.map((ev) => (ev.id === payload.id ? payload : ev))
+            : [...prev.events, payload].sort((a, b) => a.startsOn.localeCompare(b.startsOn))
+          : [payload],
+      }))
+    }
+    return fetch(`/api/erp/seasons${id ? `?id=${encodeURIComponent(id)}` : ''}`, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: payload ? JSON.stringify(payload) : undefined,
+    }).then(load)
+  }
   return (
     <SeasonsStudioView
       locale={isAr ? 'ar' : 'en'}
