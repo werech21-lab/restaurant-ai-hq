@@ -81,8 +81,8 @@ export const LEDGER = {
   branches: 0,
   channels: 0,
   licence: '2021/22838',
-  periodLabelEn: 'Unlinked',
-  periodLabelAr: 'غير مربوط بمصدر',
+  periodLabelEn: '—',
+  periodLabelAr: '—',
   daysInPeriod: 1,
   syncedAt: '',
 } as const

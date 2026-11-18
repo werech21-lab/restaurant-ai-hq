@@ -12,6 +12,7 @@ describe('ERP catalog', () => {
     expect(erpCatalog.find((item) => item.id === 'delivery')).toMatchObject({ href: '/erp/delivery', status: 'ready' })
     expect(erpCatalog.find((item) => item.id === 'ai')).toMatchObject({ href: '/erp/ai', status: 'ready' })
     expect(erpCatalog.find((item) => item.id === 'aggregator')?.branches).toHaveLength(4)
+    expect(erpCatalog.some((item) => item.id === 'food-safety' || item.id === 'intelligence')).toBe(false)
   })
 
   it('filters by the visible title and description', () => {

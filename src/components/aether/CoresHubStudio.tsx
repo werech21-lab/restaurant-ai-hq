@@ -23,7 +23,6 @@ import {
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
-import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import type { OdooPeriodCube, OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
@@ -1009,13 +1008,6 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'menu' ? (
         <div className="space-y-6">
-          <UnlinkedSourceNotice
-            titleAr="تكلفة الوصفات المعيارية (BOM) غير مربوطة بمصدر"
-            titleEn="Standard Recipe BOM Costing — Not Linked to a Source"
-            reasonAr="نعرض أدناه مبيعات وكميات وخصومات الأصناف الفعلية من سطور نقاط البيع (pos.order.line) فقط، دون أي تقدير لتكلفة المكونات أو هوامش ربح مخترعة."
-            reasonEn="Showing actual POS item sales, quantities, and discounts from pos.order.line only, without any estimated food cost or invented margins."
-          />
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className={KPI_CARD_CLS}>
               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
@@ -1246,13 +1238,6 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'marketing' ? (
         <div className="space-y-6">
-          <UnlinkedSourceNotice
-            titleAr="منصات الإعلانات الخارجية وعائد المشاهير — غير مربوط بمصدر"
-            titleEn="External Ad Platforms & Influencer Attribution — Not Linked to a Source"
-            reasonAr="لا يوجد ربط برمجي مع منصات الإعلانات (Snap / TikTok / Meta) أو أكواد المشاهير في Odoo، لذلك أُزيلت مؤشرات العائد الثابتة وسلة العروض وخطط النمو الافتراضية. نعرض فقط خصومات الكاشير الفعلية المسجّلة في Odoo ومقارنة التواريخ اليدوية إن أدخلها المستخدم."
-            reasonEn="External ad platforms and promo attribution are not connected to Odoo; static ROI, promo basket, and seeded campaigns were removed. Only actual Odoo POS discounts and user-entered date comparisons are shown."
-          />
-
           {/* Actual Odoo POS Discounts Card */}
           {cubeLoading && !liveCube ? (
             <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={2} />

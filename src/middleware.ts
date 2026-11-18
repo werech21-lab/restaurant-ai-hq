@@ -143,20 +143,11 @@ const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
 const PROTECTED_PAGE_PREFIXES = [
   '/erp',
-  '/dashboard',
   '/reports',
   '/accounting',
   '/hr',
-  '/sales',
-  '/purchases',
-  '/warehouses',
-  '/crm',
-  '/inventory',
   '/bi-analytics',
   '/admin',
-  '/kds',
-  '/pos',
-  '/recipes',
 ]
 
 function withSecurityHeaders(response: NextResponse, cspValue?: string): NextResponse {

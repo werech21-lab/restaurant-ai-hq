@@ -39,11 +39,11 @@ async function StockCountContent() {
         actions={
           <div className="flex flex-wrap gap-2">
             <SmartIngestLaunchButton module="inventory" locale={locale} />
-            <Link href="/inventory?tab=movements" className={`${btnPrimary} ds-focus-ring min-h-10`}>
+            <Link href="/erp/warehouse-chain" className={`${btnPrimary} ds-focus-ring min-h-10`}>
               {tx(locale, 'حركات المخزون', 'Stock movements')}
             </Link>
-            <Link href="/inventory?tab=products&filter=low_stock" className={`${btnGhost} ds-focus-ring min-h-10`}>
-              {tx(locale, 'تحت حد الطلب', 'Below reorder')}
+            <Link href="/erp/inventory" className={`${btnGhost} ds-focus-ring min-h-10`}>
+              {tx(locale, 'أرصدة المخزون', 'Inventory balances')}
             </Link>
           </div>
         }

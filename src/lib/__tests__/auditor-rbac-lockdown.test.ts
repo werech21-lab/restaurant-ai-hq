@@ -48,7 +48,6 @@ describe('Auditor Server-Enforced RBAC Lockdown (Item 10)', () => {
       '/erp/admin',
       '/admin',
       '/settings',
-      '/pos',
       '/api/v1/iam/members',
       '/api/v1/iam/roles',
       '/api/v1/admin/accounts',
@@ -98,7 +97,8 @@ describe('Auditor Server-Enforced RBAC Lockdown (Item 10)', () => {
   it('allows auditor read access to executive /erp routes, /accounting, and /reports while denying /users in policy', () => {
     expect(isErpRouteAllowedForRole('auditor', '/erp')).toBe(true)
     expect(isErpRouteAllowedForRole('auditor', '/erp/finance')).toBe(true)
-    expect(isErpRouteAllowedForRole('auditor', '/erp/competitors')).toBe(true)
+    expect(isErpRouteAllowedForRole('auditor', '/erp/aggregator-radar')).toBe(true)
+    expect(isErpRouteAllowedForRole('auditor', '/erp/planning')).toBe(true)
     expect(isErpRouteAllowedForRole('auditor', '/accounting')).toBe(true)
     expect(isErpRouteAllowedForRole('auditor', '/reports')).toBe(true)
 
@@ -106,7 +106,7 @@ describe('Auditor Server-Enforced RBAC Lockdown (Item 10)', () => {
     expect(isErpRouteAllowedForRole('auditor', '/directory')).toBe(false)
     expect(isErpRouteAllowedForRole('auditor', '/roles')).toBe(false)
     expect(isErpRouteAllowedForRole('auditor', '/hr')).toBe(false)
-    expect(isErpRouteAllowedForRole('auditor', '/pos')).toBe(false)
+    expect(isErpRouteAllowedForRole('auditor', '/settings')).toBe(false)
   })
 
   it('redacts personal custodian names, risk classifications, and New Journal Entry button in SSR HTML for auditor', () => {

@@ -81,8 +81,6 @@ import { RunBriefButton } from '@/app/erp/ai-brief/run-button'
 import { CopyIssueDraft } from '@/app/erp/ai-brief/copy-draft'
 import { CostIntelligenceV2 } from '@/components/aether/CostIntelligenceV2'
 import { WarehouseDailyChainStudio } from '@/components/erp/WarehouseDailyChainStudio'
-import { OrderPrepSlaStudio } from '@/components/erp/OrderPrepSlaStudio'
-import { DeliverySlaStudio } from '@/components/erp/ops-expansion/DeliverySlaStudio'
 
 const REPO_ROOT = path.resolve(__dirname, '../../..')
 
@@ -102,18 +100,12 @@ const OWNED_FILES = [
   'src/components/aether/CostIntelligenceV2.tsx',
   'src/app/erp/warehouse-chain/page.tsx',
   'src/components/erp/WarehouseDailyChainStudio.tsx',
-  'src/app/erp/prep-sla/page.tsx',
-  'src/components/erp/OrderPrepSlaStudio.tsx',
-  'src/app/erp/delivery-sla/page.tsx',
-  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
 ] as const
 
 const CHILD_STUDIO_FILES = [
   'src/components/erp/feryal-governance-studio.tsx',
   'src/components/aether/CostIntelligenceV2.tsx',
   'src/components/erp/WarehouseDailyChainStudio.tsx',
-  'src/components/erp/OrderPrepSlaStudio.tsx',
-  'src/components/erp/ops-expansion/DeliverySlaStudio.tsx',
   'src/app/erp/ai-brief/report-body.tsx',
 ] as const
 
@@ -302,18 +294,6 @@ describe('Tier 1 Feryal & Ops — Static Guardrails & Zero Forbidden Tokens', ()
     expect(whSrc).toContain('grid-cols-2')
     expect(whSrc).toContain('lg:grid-cols-4')
     expect(whSrc).toContain('p-3.5 sm:p-5')
-
-    const prepSrc = readFileSync(
-      path.join(REPO_ROOT, 'src/components/erp/OrderPrepSlaStudio.tsx'),
-      'utf8',
-    )
-    expect(prepSrc).toContain('p-3.5 sm:p-5')
-
-    const delSrc = readFileSync(
-      path.join(REPO_ROOT, 'src/components/erp/ops-expansion/DeliverySlaStudio.tsx'),
-      'utf8',
-    )
-    expect(delSrc).toContain('p-3.5 sm:p-5')
   })
 })
 
@@ -980,24 +960,5 @@ describe('WarehouseDailyChainStudio — 3-Decimal KWD, Exclusion Filter & States
         }),
       ),
     ).toContain('data-state-block="unlinked"')
-  })
-})
-
-describe('OrderPrepSlaStudio & DeliverySlaStudio — Honest Unlinked State in AR & EN', () => {
-  it('renders honest data-unlinked-source="true" without Arabic leaks in EN or fabricated SLA metrics', () => {
-    const prepAr = renderWithLocale('ar', React.createElement(OrderPrepSlaStudio))
-    const prepEn = renderWithLocale('en', React.createElement(OrderPrepSlaStudio))
-    expect(prepAr).toContain('data-unlinked-source="true"')
-    expect(prepEn).toContain('data-unlinked-source="true"')
-    expect(prepEn).toContain('Not Linked to a Data Source')
-    expect(prepEn).not.toContain('غير مربوط بمصدر —')
-    expect(prepEn).not.toContain('94.2')
-
-    const delAr = renderWithLocale('ar', React.createElement(DeliverySlaStudio))
-    const delEn = renderWithLocale('en', React.createElement(DeliverySlaStudio))
-    expect(delAr).toContain('data-unlinked-source="true"')
-    expect(delEn).toContain('data-unlinked-source="true"')
-    expect(delEn).toContain('Not Linked to a Data Source')
-    expect(delEn).not.toContain('غير مربوط بمصدر —')
   })
 })

@@ -45,23 +45,12 @@ describe('phase 6 exclusions', () => {
 })
 
 describe('phase 6 invented data', () => {
-  it('removes the catering totals from the CRM hub', () => {
-    const hub = source('src/components/crm/VentureCrmHub.tsx')
-    expect(hub).not.toContain('38,900')
-    expect(hub).not.toContain('96.8')
-    expect(hub).not.toContain('كيبكو')
-    expect(hub).toContain('لا توجد عقود كاترينج مرتبطة')
-    expect(hub).toContain('liveChildren')
-  })
-
   it('gates the seed catalog and hides it on production reads', () => {
     expect(source('prisma/seed.ts')).toContain('demoCatalogSeedAllowed')
     expect(demoCatalogSeedAllowed({ NODE_ENV: 'development' })).toBe(true)
     expect(demoCatalogSeedAllowed({ NODE_ENV: 'production' })).toBe(false)
     expect(demoCatalogReadsHidden({ NODE_ENV: 'test', VERCEL_ENV: 'production' })).toBe(true)
-    expect(source('src/app/(panel)/sales/page.tsx')).toContain('visibleInvoiceWhere')
     expect(source('src/app/(panel)/reports/page.tsx')).toContain('visibleProductWhere')
-    expect(source('src/app/(panel)/warehouses/page.tsx')).toContain('visibleProductWhere')
   })
 
   it('hides the non-company bakery skus and drops the unused screens', () => {

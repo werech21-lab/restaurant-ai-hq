@@ -56,7 +56,7 @@ export const SMART_INGEST_META: Record<SmartIngestModule, SmartIngestModuleMeta>
     descEn: 'Branch counts, RW/PI/PP items, BOM recipes, menu photos — match SKUs and warehouses.',
     acceptsAr: 'جرد Excel/CSV · أكواد RW*/PI*/PP* · وصفات · صور أصناف المنيو · رموز PRM/360/ASM/KOUT/SLM/EXB',
     acceptsEn: 'Count sheets · RW*/PI*/PP* · recipes · menu images · PRM/360/ASM/KOUT/SLM/EXB codes',
-    launchHrefs: ['/inventory', '/warehouses', '/recipes', '/stock-count', '/central-kitchen'],
+    launchHrefs: ['/erp/warehouse-chain', '/erp/inventory', '/stock-count', '/central-kitchen'],
     pagePath: '/smart-ingest/inventory',
   },
   purchases: {
@@ -70,7 +70,7 @@ export const SMART_INGEST_META: Record<SmartIngestModule, SmartIngestModuleMeta>
     descEn: 'Supplier invoices, quotes, contracts, GRNs — bind to supplier ledger and POs.',
     acceptsAr: 'فواتير موردين · عروض أسعار · عقود · GRN · Top Pack / الساير / تغليف وغذاء',
     acceptsEn: 'Supplier invoices · quotes · contracts · GRN · packaging & food vendors',
-    launchHrefs: ['/purchases'],
+    launchHrefs: ['/erp/warehouse-chain', '/erp/procurement'],
     pagePath: '/smart-ingest/purchases',
   },
   sales_delivery: {
@@ -85,7 +85,7 @@ export const SMART_INGEST_META: Record<SmartIngestModule, SmartIngestModuleMeta>
     descEn: 'Talabat / Deliveroo / Jahez / / Keeta / Snoonu + POS — split MP 10% vs TGO 17% and net payout.',
     acceptsAr: 'تسويات المنصات · تقارير مبيعات فروع · Offline · عمولات · Excel/CSV/PDF',
     acceptsEn: 'Platform settlements · branch sales · Offline periods · commissions · Excel/CSV/PDF',
-    launchHrefs: ['/sales', '/delivery-hub', '/erp/aggregator-radar'],
+    launchHrefs: ['/erp/cores', '/delivery-hub', '/erp/aggregator-radar'],
     pagePath: '/smart-ingest/sales_delivery',
   },
   governance: {
@@ -113,7 +113,7 @@ export const SMART_INGEST_META: Record<SmartIngestModule, SmartIngestModuleMeta>
     descEn: 'Catering, school canteens, expo/camp contracts, customer lists — bind to client/project.',
     acceptsAr: 'عقود · قوائم عملاء Excel/CSV · PDF · صور',
     acceptsEn: 'Contracts · customer Excel/CSV · PDF · images',
-    launchHrefs: ['/crm', '/erp/sales-crm', '/erp/projects'],
+    launchHrefs: ['/erp/crm', '/erp/sales-crm', '/erp/projects'],
     pagePath: '/smart-ingest/crm_projects',
   },
 }

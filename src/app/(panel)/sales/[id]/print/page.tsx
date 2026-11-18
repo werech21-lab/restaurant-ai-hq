@@ -64,10 +64,10 @@ async function PrintContent({
           )}
           action={
             <a
-              href="/sales"
+              href="/erp/cores"
               className="ds-motion ds-focus-ring inline-flex min-h-10 items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
             >
-              {tx(locale, 'العودة للمبيعات', 'Back to sales')}
+              {tx(locale, 'العودة للمبيعات والمنيو', 'Back to sales & menu')}
             </a>
           }
         />
@@ -120,7 +120,7 @@ async function PrintContent({
         paidLabel: formatKwd(invoice.paidAmount, locale),
         dueLabel: formatKwd(invoice.totalAmount - invoice.paidAmount, locale),
         qrDataUrl: qr,
-        backHref: '/sales',
+        backHref: '/erp/cores',
         companyName: company.name,
         companyMeta:
           [

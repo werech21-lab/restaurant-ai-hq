@@ -54,10 +54,10 @@ async function PrintContent({ params }: { params: Promise<{ id: string }> }) {
           )}
           action={
             <a
-              href="/purchases"
+              href="/erp/warehouse-chain"
               className="ds-motion ds-focus-ring inline-flex min-h-10 items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
             >
-              {tx(locale, 'العودة للمشتريات', 'Back to purchases')}
+              {tx(locale, 'العودة لسلسلة المخازن', 'Back to warehouse chain')}
             </a>
           }
         />
@@ -105,7 +105,7 @@ async function PrintContent({ params }: { params: Promise<{ id: string }> }) {
         paidLabel: formatKwd(order.paidAmount, locale),
         dueLabel: formatKwd(order.totalAmount - order.paidAmount, locale),
         qrDataUrl: qr,
-        backHref: '/purchases',
+        backHref: '/erp/warehouse-chain',
         companyName: company.name,
         companyMeta:
           [

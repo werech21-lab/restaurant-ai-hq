@@ -36,10 +36,10 @@ async function StatementContent({ params }: { params: Promise<{ id: string }> })
           )}
         </p>
         <a
-          href="/sales?tab=parties"
+          href="/erp/cores"
           className="ds-focus-ring mt-4 inline-flex min-h-10 items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500"
         >
-          {tx(locale, "العودة للعملاء", "Back to customers")}
+          {tx(locale, "العودة للمبيعات والمنيو", "Back to sales & menu")}
         </a>
       </div>
     );
@@ -49,7 +49,7 @@ async function StatementContent({ params }: { params: Promise<{ id: string }> })
       <StatementView
         statement={statement}
         kind="customer"
-        backHref="/sales?tab=parties"
+        backHref="/erp/cores"
         balanceLabel={tx(locale, "الرصيد التراكمي", "Running balance")}
         hint={tx(
           locale,

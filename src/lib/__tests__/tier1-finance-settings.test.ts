@@ -505,8 +505,10 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
       ),
     )
     expect(hubEn).toContain('data-odoo-partial-warning="true"')
-    expect(hubEn).toContain('Not linked')
+    expect(hubEn).toContain('VF-POS-01')
+    expect(hubEn).not.toContain('Not linked')
     expect(hubEn).not.toContain('غير مربوط بمصدر')
+    expect(hubEn).not.toContain('data-unlinked-source="true"')
     expect(hubEn).not.toContain('text-[11px]')
 
     // Disconnected English state must not leak Arabic heading

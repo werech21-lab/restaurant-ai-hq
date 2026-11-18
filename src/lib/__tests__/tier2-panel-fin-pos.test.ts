@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/sales',
+  usePathname: () => '/accounting',
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -34,29 +34,9 @@ vi.mock('next/link', () => ({
     ),
 }))
 
-vi.mock('@/app/actions/kds', () => ({
-  startPrepAction: vi.fn(),
-  toggleItemDoneAction: vi.fn(),
-  markReadyAction: vi.fn(),
-  bumpTicketAction: vi.fn(),
-}))
-
 vi.mock('@/app/actions/delivery', () => ({
   updatePlatformAction: vi.fn(),
   settlePlatformAction: vi.fn(),
-}))
-
-vi.mock('@/app/actions/recipes', () => ({
-  saveRecipeAction: vi.fn(),
-  deleteRecipeAction: vi.fn(),
-}))
-
-vi.mock('@/app/actions/crm', () => ({
-  moveLeadAction: vi.fn(),
-  saveLeadAction: vi.fn(),
-  saveQuotationAction: vi.fn(),
-  sendQuotationAction: vi.fn(),
-  convertQuotationAction: vi.fn(),
 }))
 
 vi.mock('@/app/actions/payments', () => ({
@@ -65,35 +45,14 @@ vi.mock('@/app/actions/payments', () => ({
   createSubscriptionPayLinkAction: vi.fn(),
 }))
 
-vi.mock('@/app/actions/warehouses', () => ({
-  saveWarehouseAction: vi.fn(),
-  transferStockAction: vi.fn(),
-}))
-
-import { KdsBoard } from '@/app/(kds)/kds/kds-board'
-import { VentureKdsHub } from '@/components/kds/VentureKdsHub'
-import { PosTerminal } from '@/app/(pos)/pos/pos-terminal'
-import { VenturePosHub } from '@/components/pos/VenturePosHub'
 import { ReconciliationClient } from '@/app/(panel)/accounting/reconciliation/recon-client'
-import { CrmBoard, QuoteActions } from '@/app/(panel)/crm/crm-board'
-import { VentureCrmHub } from '@/components/crm/VentureCrmHub'
 import { DeliveryHubPanel } from '@/app/(panel)/delivery-hub/delivery-hub-panel'
-import { InventoryPanel } from '@/app/(panel)/inventory/inventory-panel'
 import {
   InvoicePayLinkButton,
   PaymentCreateForms,
   PaymentsEmptyBlock,
 } from '@/app/(panel)/payments/payment-forms'
-import { VenturePurchasesHub } from '@/components/purchases/VenturePurchasesHub'
-import { RecipesPanel } from '@/app/(panel)/recipes/recipes-panel'
-import { VentureRecipesHub } from '@/components/recipes/VentureRecipesHub'
-import { SalesCommandCenter } from '@/components/sales/SalesCommandCenter'
 import { StockCountView } from '@/app/(panel)/stock-count/stock-count-view'
-import { VentureWarehousesHub } from '@/components/warehouses/VentureWarehousesHub'
-import {
-  WarehouseForms,
-  isStockTransferProduct,
-} from '@/app/(panel)/warehouses/warehouse-forms'
 import { LanguageProvider } from '@/lib/i18n'
 
 const TypedLangProvider = LanguageProvider as React.ComponentType<{
@@ -108,85 +67,21 @@ function renderWithLang(locale: 'ar' | 'en', node: React.ReactElement): string {
 }
 
 const OWNED_FILES = [
-  'src/app/(kds)/kds/kds-board.tsx',
-  'src/app/(kds)/kds/page.tsx',
-  'src/components/kds/VentureKdsHub.tsx',
-  'src/app/(pos)/pos/page.tsx',
-  'src/app/(pos)/pos/pos-terminal.tsx',
-  'src/components/pos/VenturePosHub.tsx',
   'src/app/(panel)/accounting/page.tsx',
   'src/app/(panel)/accounting/reconciliation/page.tsx',
   'src/app/(panel)/accounting/reconciliation/recon-client.tsx',
   'src/app/(panel)/central-kitchen/page.tsx',
-  'src/app/(panel)/crm/crm-board.tsx',
-  'src/app/(panel)/crm/page.tsx',
-  'src/components/crm/VentureCrmHub.tsx',
   'src/app/(panel)/delivery-hub/delivery-hub-panel.tsx',
   'src/app/(panel)/delivery-hub/page.tsx',
-  'src/app/(panel)/inventory/inventory-panel.tsx',
-  'src/app/(panel)/inventory/page.tsx',
   'src/app/(panel)/payments/page.tsx',
   'src/app/(panel)/payments/payment-forms.tsx',
-  'src/app/(panel)/purchases/page.tsx',
   'src/app/(panel)/purchases/suppliers/[id]/page.tsx',
-  'src/components/purchases/VenturePurchasesHub.tsx',
-  'src/app/(panel)/recipes/page.tsx',
-  'src/app/(panel)/recipes/recipes-panel.tsx',
-  'src/components/recipes/VentureRecipesHub.tsx',
-  'src/app/(panel)/sales/page.tsx',
   'src/app/(panel)/sales/customers/[id]/page.tsx',
-  'src/components/sales/SalesCommandCenter.tsx',
   'src/app/(panel)/stock-count/page.tsx',
   'src/app/(panel)/stock-count/stock-count-view.tsx',
-  'src/app/(panel)/warehouses/page.tsx',
-  'src/app/(panel)/warehouses/warehouse-forms.tsx',
-  'src/components/warehouses/VentureWarehousesHub.tsx',
 ] as const
 
-describe('Tier 2 (panel) Finance/Sales/Purchases/Inventory/Warehouses + POS & KDS Audits', () => {
-  it('renders /kds and /pos hubs with large touch targets (min-h-11), honest unlinked StateBlock, 3-decimal KWD, and zero Arabic in EN', () => {
-    const kdsAr = renderToStaticMarkup(React.createElement(VentureKdsHub, { locale: 'ar' }))
-    const kdsEn = renderToStaticMarkup(React.createElement(VentureKdsHub, { locale: 'en' }))
-    expect(kdsAr).toContain('dir="rtl"')
-    expect(kdsAr).toContain('data-state-block="unlinked"')
-    expect(kdsAr).toContain('min-h-11')
-    expect(kdsEn).toContain('dir="ltr"')
-    expect(kdsEn).toContain('data-state-block="unlinked"')
-    expect(kdsEn).toContain('min-h-11')
-    expect(kdsEn).not.toContain('غير مربوط بمصدر')
-
-    const kdsBoardEn = renderWithLang('en', React.createElement(KdsBoard))
-    expect(kdsBoardEn).toContain('dir="ltr"')
-    expect(kdsBoardEn).toContain('data-state-block="loading"')
-    expect(kdsBoardEn).toContain('min-h-11')
-    expect(kdsBoardEn).toContain('Kitchen Display')
-
-    const posAr = renderToStaticMarkup(React.createElement(VenturePosHub, { locale: 'ar' }))
-    const posEn = renderToStaticMarkup(React.createElement(VenturePosHub, { locale: 'en' }))
-    expect(posAr).toContain('dir="rtl"')
-    expect(posAr).toContain('data-state-block="unlinked"')
-    expect(posAr).toContain('min-h-11')
-    expect(posEn).toContain('dir="ltr"')
-    expect(posEn).toContain('data-state-block="unlinked"')
-    expect(posEn).toContain('min-h-11')
-    expect(posEn).not.toContain('غير مربوط بمصدر')
-
-    const posTermEn = renderWithLang(
-      'en',
-      React.createElement(PosTerminal, {
-        products: [],
-        walkInId: 'walk-in',
-        customers: [],
-        brands: [],
-        branches: [],
-        orderTypes: [],
-      }),
-    )
-    expect(posTermEn).toContain('0.000 KWD')
-    expect(posTermEn).toContain('data-state-block="unlinked"')
-    expect(posTermEn).toContain('min-h-11')
-  })
-
+describe('Tier 2 (panel) Finance/Accounting/Delivery-Hub/Payments/Stock-Count Audits', () => {
   it('renders ReconciliationClient with 3-decimal KWD, formatInt KPIs, overflow-x-auto DataTable, and loading/error/empty states', () => {
     const data = {
       summary: {
@@ -312,90 +207,7 @@ describe('Tier 2 (panel) Finance/Sales/Purchases/Inventory/Warehouses + POS & KD
     expect(enHtml).toContain('data-state-block="empty"')
   })
 
-  it('renders VentureCrmHub, CrmBoard, and QuoteActions with AR/EN parity, 3-decimal KWD, and empty/unlinked states', () => {
-    const crmAr = renderToStaticMarkup(React.createElement(VentureCrmHub, { locale: 'ar' }))
-    const crmEn = renderToStaticMarkup(React.createElement(VentureCrmHub, { locale: 'en' }))
-    expect(crmAr).toContain('لا توجد عقود كاترينج مرتبطة')
-    expect(crmAr).toContain('data-state-block="unlinked"')
-    expect(crmEn).toContain('No catering contracts are linked')
-    expect(crmEn).not.toContain('لا توجد عقود كاترينج مرتبطة')
-
-    const boardEn = renderToStaticMarkup(
-      React.createElement(CrmBoard, {
-        leads: [],
-        canEdit: true,
-        canCreate: true,
-        customers: [],
-        products: [{ id: 'p1', name: 'Chicken Box', price: 3.5 }],
-        locale: 'en',
-      }),
-    )
-    expect(boardEn).toContain('dir="ltr"')
-    expect(boardEn).toContain('3.500 KWD')
-    expect(boardEn).toContain('data-state-block="empty"')
-    expect(boardEn).not.toContain('فرصة جديدة')
-
-    const quoteEn = renderToStaticMarkup(
-      React.createElement(QuoteActions, { id: 'q1', status: 'DRAFT', locale: 'en' }),
-    )
-    expect(quoteEn).toContain('Convert to sales invoice')
-    expect(quoteEn).not.toContain('تحويل إلى فاتورة مبيعات')
-  })
-
-  it('renders InventoryPanel, RecipesPanel, StockCountView, PaymentCreateForms, WarehouseForms, and Venture hubs cleanly in AR & EN', () => {
-    const invEn = renderWithLang(
-      'en',
-      React.createElement(InventoryPanel, {
-        tab: 'products',
-        q: '',
-        page: 1,
-        total: 0,
-        filter: '',
-        products: [],
-        categories: [],
-        movements: [],
-        canCreate: false,
-        canEdit: false,
-        canDelete: false,
-      }),
-    )
-    expect(invEn).toContain('data-state-block="unlinked"')
-    expect(invEn).not.toContain('غير مربوط بمصدر')
-
-    const recEn = renderWithLang(
-      'en',
-      React.createElement(RecipesPanel, {
-        rows: [
-          {
-            id: 'r1',
-            name: 'وصفة دجاج',
-            nameEn: 'Chicken Bowl',
-            brandCode: 'china-garden',
-            menuProductId: 'm1',
-            menuCode: 'CG-101',
-            menuName: 'Chicken Bowl',
-            sellingPrice: 4.5,
-            ingredientCost: 1.463,
-            foodCostPercent: 32.5,
-            marginPercent: 67.5,
-            targetFoodCostPercent: 30,
-            overTarget: true,
-            lineCount: 4,
-            active: true,
-          },
-        ],
-        products: [],
-        brands: [],
-        canCreate: false,
-        canEdit: false,
-        canDelete: false,
-      }),
-    )
-    expect(recEn).toContain('4.500 KWD')
-    expect(recEn).toContain('1.463 KWD')
-    expect(recEn).toContain('32.5%')
-    expect(recEn).toContain('67.5%')
-
+  it('renders StockCountView and PaymentCreateForms cleanly in AR & EN', () => {
     const stockEn = renderToStaticMarkup(
       React.createElement(StockCountView, {
         locale: 'en',
@@ -444,30 +256,6 @@ describe('Tier 2 (panel) Finance/Sales/Purchases/Inventory/Warehouses + POS & KD
       React.createElement(PaymentsEmptyBlock, { locale: 'ar' }),
     )
     expect(payEmptyAr).toContain('data-state-block="empty"')
-
-    for (const Hub of [VenturePurchasesHub, VentureRecipesHub, VentureWarehousesHub]) {
-      const en = renderToStaticMarkup(React.createElement(Hub, { locale: 'en' }))
-      expect(en).toContain('data-state-block="unlinked"')
-      expect(en).not.toContain('غير مربوط بمصدر')
-    }
-
-    const salesHubEn = renderToStaticMarkup(
-      React.createElement(SalesCommandCenter, { initialLocale: 'en' }),
-    )
-    expect(salesHubEn).toContain('data-state-block="unlinked"')
-    expect(salesHubEn).not.toContain('غير مربوط بمصدر')
-
-    const whFormsEn = renderWithLang(
-      'en',
-      React.createElement(WarehouseForms, {
-        warehouses: [{ id: 'w1', name: 'Central Kitchen' }],
-        products: [{ id: 'p1', name: 'Beef', code: 'RW-100' }],
-        canCreate: true,
-      }),
-    )
-    expect(whFormsEn).toContain('Inter-Branch Stock Transfer')
-    expect(isStockTransferProduct({ id: 'p1', name: '10% on your order', code: 'DISC-10' })).toBe(false)
-    expect(isStockTransferProduct({ id: 'p2', name: 'Beef', code: 'RW-100' })).toBe(true)
   })
 
   it('passes strict static guardrails (zero sub-12px fonts, console.*, any, @ts-ignore, banned buzzwords, croissant/avocado, or toFixed) across all owned files', async () => {
@@ -486,16 +274,5 @@ describe('Tier 2 (panel) Finance/Sales/Purchases/Inventory/Warehouses + POS & KD
       )
       expect(content, `${rel} raw toFixed`).not.toMatch(/\.toFixed\s*\(/)
     }
-
-    const salesPage = await readFile(path.join(process.cwd(), 'src/app/(panel)/sales/page.tsx'), 'utf8')
-    expect(salesPage).toContain('visibleInvoiceWhere')
-    expect(salesPage).toContain('visibleProductWhere')
-    expect(salesPage).toContain('scopeWarehouseIds')
-
-    const purchasesPage = await readFile(path.join(process.cwd(), 'src/app/(panel)/purchases/page.tsx'), 'utf8')
-    expect(purchasesPage).toContain('visiblePurchaseWhere')
-
-    const warehousesPage = await readFile(path.join(process.cwd(), 'src/app/(panel)/warehouses/page.tsx'), 'utf8')
-    expect(warehousesPage).toContain('visibleProductWhere')
   })
 })

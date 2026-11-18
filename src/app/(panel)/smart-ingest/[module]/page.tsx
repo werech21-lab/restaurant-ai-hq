@@ -17,7 +17,6 @@ const EXTRA_ROUTE_LABELS: Record<string, { ar: string; en: string }> = {
   '/erp/compliance': { ar: 'التشريعات والتراخيص', en: 'Compliance & Licensing' },
   '/erp/sales-crm': { ar: 'المبيعات والعملاء', en: 'Sales & CRM' },
   '/erp/projects': { ar: 'المشاريع والفعاليات', en: 'Projects & Events' },
-  '/recipes': { ar: 'الوصفات وتكلفة الغذاء', en: 'Recipes & Food Cost' },
   '/stock-count': { ar: 'الجرد والهدر', en: 'Stock Count & Waste' },
   '/central-kitchen': { ar: 'المطبخ المركزي', en: 'Central Kitchen' },
   '/delivery-hub': { ar: 'منصات التوصيل', en: 'Delivery Platforms' },

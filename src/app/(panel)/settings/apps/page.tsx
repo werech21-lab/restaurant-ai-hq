@@ -20,7 +20,7 @@ async function AppsContent() {
   const host =
     requestHeaders.get("x-forwarded-host") || requestHeaders.get("host") || "localhost:3000";
   const proto = requestHeaders.get("x-forwarded-proto") || "http";
-  const installUrl = `${proto}://${host}/dashboard`;
+  const installUrl = `${proto}://${host}/erp`;
 
   let qr: string | null = null;
   try {

@@ -117,7 +117,7 @@ describe('Wave 3C Tier 3 — Print Documents (4 Routes) & Public/Auth Entry (5 R
             paidLabel: formatKwd(10.25, 'ar'),
             dueLabel: formatKwd(14.75, 'ar'),
             qrDataUrl: SAMPLE_DATA_QR,
-            backHref: '/sales',
+            backHref: '/erp/cores',
             companyName: 'شركة فنتشر فودز لإدارة المطاعم ذ.م.م.',
           },
         }),
@@ -167,7 +167,7 @@ describe('Wave 3C Tier 3 — Print Documents (4 Routes) & Public/Auth Entry (5 R
             paidLabel: formatKwd(0, 'en'),
             dueLabel: formatKwd(0, 'en'),
             qrDataUrl: '',
-            backHref: '/crm?tab=quotes',
+            backHref: '/erp/crm',
           },
         }),
       )

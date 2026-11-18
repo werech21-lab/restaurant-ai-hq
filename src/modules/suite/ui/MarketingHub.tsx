@@ -6,24 +6,23 @@ import { SectionCard } from '@/components/ui/section-card'
 import { permissions } from '@/lib/auth/permissions'
 import type { FormatLocale } from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import AggregatorRadar from '@/modules/governance/ui/AggregatorRadar'
 import SuperOdooBoard from '@/modules/suite/ui/SuperOdooBoard'
 import { suitePrimaryBtn, suiteSecondaryBtn } from '@/modules/suite/ui/shared'
 
-type Tab = 'website' | 'ecommerce' | 'email' | 'automation' | 'radar'
-const tabs: readonly Tab[] = ['website', 'ecommerce', 'email', 'automation', 'radar']
+type Tab = 'website' | 'ecommerce' | 'email' | 'automation'
+const tabs: readonly Tab[] = ['website', 'ecommerce', 'email', 'automation']
 
 function isTab(value: string): value is Tab {
   return (tabs as readonly string[]).includes(value)
 }
 
-function Workspace({ initialTab, held }: { initialTab: string; held: readonly string[] }) {
+function Workspace({ initialTab }: { initialTab: string }) {
   const { t, locale } = useI18n()
   const isAr = locale !== 'en'
   const fmtLocale: FormatLocale = isAr ? 'ar' : 'en'
   const canManage = useCan(permissions.suiteManage)
   const [tab, setTab] = useState<Tab>(isTab(initialTab) ? initialTab : 'website')
-  const titles: Record<Exclude<Tab, 'radar'>, MessageKey> = {
+  const titles: Record<Tab, MessageKey> = {
     website: 'spec.website',
     ecommerce: 'spec.ecommerce',
     email: 'spec.email',
@@ -51,7 +50,7 @@ function Workspace({ initialTab, held }: { initialTab: string; held: readonly st
                 className={active ? suitePrimaryBtn : suiteSecondaryBtn}
                 onClick={() => setTab(item)}
               >
-                {item === 'radar' ? t('erpnav.aggregator') : t(titles[item])}
+                {t(titles[item])}
               </button>
             )
           })}
@@ -59,11 +58,7 @@ function Workspace({ initialTab, held }: { initialTab: string; held: readonly st
       </SectionCard>
 
       <div role="tabpanel" id={`marketing-panel-${tab}`} aria-labelledby={`marketing-tab-${tab}`}>
-        {tab === 'radar' ? (
-          <AggregatorRadar permissions={held} />
-        ) : (
-          <SuperOdooBoard app={tab} title={titles[tab]} canManage={canManage} />
-        )}
+        <SuperOdooBoard app={tab} title={titles[tab]} canManage={canManage} />
       </div>
     </div>
   )
@@ -78,7 +73,7 @@ export default function MarketingHub({
 }) {
   return (
     <PermissionProvider permissions={held}>
-      <Workspace initialTab={initialTab} held={held} />
+      <Workspace initialTab={initialTab} />
     </PermissionProvider>
   )
 }

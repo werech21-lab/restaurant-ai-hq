@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/erp/intelligence',
+  usePathname: () => '/erp',
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -36,7 +36,6 @@ import {
   formatPct,
 } from '@/lib/format'
 import { LanguageProvider } from '@/lib/i18n'
-import IntelligenceWorkspace from '@/modules/governance/ui/IntelligenceWorkspace'
 
 const el = React.createElement
 const TypedLangProvider = LanguageProvider as React.ComponentType<{
@@ -254,22 +253,7 @@ describe('Wave 4 Phase C — Asia/Kuwait Midnight Boundary, Canonical Formatting
     })
   })
 
-  describe('3. Bilingual AR/EN Parity & Heading Hierarchy on IntelligenceWorkspace', () => {
-    it('renders IntelligenceWorkspace with zero Arabic leakage in EN, proper RTL/LTR dir, and zero duplicate <h1>', () => {
-      const enHtml = renderWithLang('en', el(IntelligenceWorkspace, {}))
-      expect(enHtml).toContain('dir="ltr"')
-      expect(enHtml).toContain('Expense &amp; Custody Alerts')
-      expect(enHtml).toContain('Petty Cash &amp; Custody Anomaly Alerts')
-      expect(enHtml).not.toMatch(/[\u0600-\u06FF]/)
-      expect(enHtml).not.toMatch(/<h1\b/i)
-
-      const arHtml = renderWithLang('ar', el(IntelligenceWorkspace, {}))
-      expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('تنبيهات العهد والمصروفات')
-      expect(arHtml).toContain('hr.expense')
-      expect(arHtml).not.toMatch(/<h1\b/i)
-    })
-
+  describe('3. Layout Guardrails, No Nested <main> & Live ERP Route Count', () => {
     it('keeps /erp/intelligence out of TopFilterBar ROUTES_WITH_OWN_H1, removes sub-12px classes in SmartDropzonePortal, and ensures 0 nested <main> across all /erp/*/page.tsx routes', async () => {
       const rootDir = process.cwd()
       const topFilterBarSrc = await readFile(
@@ -301,7 +285,7 @@ describe('Wave 4 Phase C — Asia/Kuwait Midnight Boundary, Canonical Formatting
         }
       }
       await walkErp(erpDir)
-      expect(erpPages.length).toBeGreaterThanOrEqual(55)
+      expect(erpPages.length).toBe(43)
 
       for (const pagePath of erpPages) {
         const rel = path.relative(rootDir, pagePath).replace(/\\/g, '/')

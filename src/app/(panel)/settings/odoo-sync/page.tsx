@@ -35,9 +35,6 @@ async function Content() {
             <Link className="ds-focus-ring text-emerald-700 dark:text-[#8cc63f]" href="/erp/odoo-sync">
               {tx(locale, 'لوحة ERP المتقدمة', 'Advanced ERP Sync')}
             </Link>
-            <Link className="ds-focus-ring text-emerald-700 dark:text-[#8cc63f]" href="/pos">
-              {tx(locale, 'الكاشير', 'POS')}
-            </Link>
           </div>
         }
       />

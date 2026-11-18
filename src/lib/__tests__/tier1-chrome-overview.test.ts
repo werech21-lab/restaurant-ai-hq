@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import React from 'react'
@@ -43,8 +44,7 @@ import { FullJourney360 } from '@/components/aether/FullJourney360'
 import { GlobalFilterBar } from '@/components/aether/GlobalFilterBar'
 import { OdooSyncPill } from '@/components/aether/OdooSyncPill'
 import { TopFilterBar } from '@/components/aether/TopFilterBar'
-import { AetherBiExecutiveDashboard } from '@/components/dashboard/AetherBiExecutiveDashboard'
-import { Sidebar as ErpSidebar } from '@/components/erp-sidebar'
+import { SIDEBAR_SECTIONS, Sidebar as ErpSidebar } from '@/components/erp-sidebar'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooLiveStatusStrip } from '@/components/erp/OdooLiveStatusStrip'
@@ -422,27 +422,56 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       const arHtml = renderWithProviders('ar', el(FullJourney360))
       expect(arHtml).toContain('قيود غير مكتملة لهذه الفترة')
       expect(arHtml).toContain('غير مُرحَّل بعد')
+      expect(arHtml).not.toContain('انضباط الفروع')
+      expect(arHtml).not.toContain('/erp/prep-sla')
     })
   })
 
-  describe('/dashboard AetherBiExecutiveDashboard', () => {
-    it('supports both AR RTL and EN LTR dynamically via LanguageProvider with clean English titleEn', async () => {
-      const arHtml = renderWithProviders('ar', el(AetherBiExecutiveDashboard))
-      expect(arHtml).toContain('dir="rtl"')
-      expect(arHtml).toContain('التقرير المالي والتشغيلي')
-      expect(arHtml).toContain('href="/erp"')
+  describe('Removed No-Source Redirects & Nav Cleanup', () => {
+    it('configures permanent: false redirects for every removed route in next.config.js', async () => {
+      const require = createRequire(import.meta.url)
+      const nextConfig = require(path.join(process.cwd(), 'next.config.js')) as {
+        redirects: () => Promise<Array<{ source: string; destination: string; permanent: boolean }>>
+      }
+      const redirects = await nextConfig.redirects()
+      const bySource = new Map(redirects.map((r) => [r.source, r]))
 
-      const enHtml = renderWithProviders('en', el(AetherBiExecutiveDashboard))
-      expect(enHtml).toContain('dir="ltr"')
-      expect(enHtml).toContain('Financial &amp; Operational Summary')
-      expect(enHtml).toContain('Unlinked from Source — Legacy Static Dashboard')
-      expect(enHtml).not.toContain('غير مربوط بمصدر — Legacy Static Dashboard')
+      const expectedRedirects: Array<[string, string]> = [
+        ['/dashboard', '/erp'],
+        ['/automations', '/erp'],
+        ['/automation', '/erp'],
+        ['/erp/execution-hub', '/erp'],
+        ['/erp/prep-sla', '/erp'],
+        ['/erp/delivery-sla', '/erp'],
+        ['/erp/social-reviews', '/erp'],
+        ['/erp/reviews', '/erp'],
+        ['/erp/competitors', '/erp'],
+        ['/erp/market', '/erp'],
+        ['/erp/regulations', '/erp'],
+        ['/erp/food-safety', '/erp'],
+        ['/erp/demand-forecast', '/erp/planning'],
+        ['/erp/delivery-control', '/erp/aggregator-radar'],
+        ['/erp/events-projects', '/erp'],
+        ['/erp/intelligence', '/erp'],
+        ['/erp/kds', '/erp'],
+        ['/kds', '/erp'],
+        ['/erp/recipes', '/erp/cores'],
+        ['/recipes', '/erp/cores'],
+        ['/inventory', '/erp/warehouse-chain'],
+        ['/warehouses', '/erp/warehouse-chain'],
+        ['/purchases', '/erp/warehouse-chain'],
+        ['/sales', '/erp/cores'],
+        ['/crm', '/erp'],
+        ['/pos', '/erp'],
+      ]
 
-      const dashboardPageSrc = await readFile(
-        path.join(process.cwd(), 'src/app/(panel)/dashboard/page.tsx'),
-        'utf8',
-      )
-      expect(dashboardPageSrc).not.toContain('locale="ar"')
+      for (const [source, destination] of expectedRedirects) {
+        expect(bySource.get(source), `Missing redirect for ${source}`).toEqual({
+          source,
+          destination,
+          permanent: false,
+        })
+      }
     })
   })
 
@@ -467,17 +496,16 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       expect(globalBarOnErp).toBe('')
     })
 
-    it('renders PanelHeaderBar with single LanguageSwitch + ThemeToggle on /dashboard and GlobalFilterBar with 3-decimal KWD on /erp/delivery-control', () => {
-      stubNav.pathname = '/dashboard'
-      const dashBarHtml = renderWithProviders('en', el(TopFilterBar))
-      expect(dashBarHtml).toContain('data-language-switch=""')
-      expect(dashBarHtml).toContain('Switch to Emerald Dark Mode')
+    it('renders PanelHeaderBar with single LanguageSwitch + ThemeToggle on /reports and empty GlobalFilterBar on ERP routes', () => {
+      stubNav.pathname = '/reports'
+      const panelBarHtml = renderWithProviders('en', el(TopFilterBar))
+      expect(panelBarHtml).toContain('data-language-switch=""')
+      expect(panelBarHtml).toContain('Switch to Emerald Dark Mode')
 
-      stubNav.pathname = '/erp/delivery-control'
-      const deliveryBarHtml = renderWithProviders('en', el(GlobalFilterBar))
-      expect(deliveryBarHtml).toMatch(/\.\d{3} KWD/)
+      stubNav.pathname = '/erp/planning'
+      const globalBarHtml = renderWithProviders('en', el(GlobalFilterBar))
+      expect(globalBarHtml).toBe('')
 
-      stubNav.pathname = '/erp/delivery-sla'
       setFilterContext(
         buildLiveSummary({
           partial: true,
@@ -485,9 +513,9 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
           warningEn: 'Some figures are temporarily unavailable',
         }),
       )
-      const deliverySlaTopBar = renderWithProviders('en', el(TopFilterBar))
-      expect(deliverySlaTopBar).toContain('data-odoo-partial-warning="true"')
-      expect(deliverySlaTopBar).toContain('Some figures are temporarily unavailable')
+      const planningTopBar = renderWithProviders('en', el(TopFilterBar))
+      expect(planningTopBar).toContain('data-odoo-partial-warning="true"')
+      expect(planningTopBar).toContain('Some figures are temporarily unavailable')
 
       for (const route of [
         '/erp/receivables',
@@ -571,11 +599,40 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       const sideAr = renderWithProviders('ar', el(ErpSidebar, { user: sampleUser }))
       expect(sideAr).toContain('w-[272px]')
       expect(sideAr).toContain('dir="rtl"')
+      expect(SIDEBAR_SECTIONS.map((s) => s.id)).toEqual([
+        'executive-sales',
+        'operations-sla',
+        'finance-accounting',
+        'reputation-vision',
+        'governance-strategy',
+      ])
+      const removedNavHrefs = [
+        '/erp/prep-sla',
+        '/erp/delivery-sla',
+        '/erp/social-reviews',
+        '/erp/reviews',
+        '/erp/competitors',
+        '/erp/market',
+        '/erp/regulations',
+        '/erp/food-safety',
+        '/erp/demand-forecast',
+        '/erp/delivery-control',
+        '/erp/events-projects',
+        '/erp/intelligence',
+        '/erp/kds',
+        '/erp/recipes',
+      ]
+      for (const href of removedNavHrefs) {
+        expect(sideAr).not.toContain(`href="${href}"`)
+      }
 
       const dockEn = renderWithProviders('en', el(MobileBottomNav))
       expect(dockEn).toContain('grid-cols-5')
       expect(dockEn).toContain('h-16')
       expect(dockEn).toContain('pb-[env(safe-area-inset-bottom)]')
+      for (const href of removedNavHrefs) {
+        expect(dockEn).not.toContain(`href="${href}"`)
+      }
     })
   })
 
@@ -599,8 +656,6 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
         'src/app/erp/layout.tsx',
         'src/app/erp/page.tsx',
         'src/components/aether/FullJourney360.tsx',
-        'src/app/(panel)/dashboard/page.tsx',
-        'src/components/dashboard/AetherBiExecutiveDashboard.tsx',
       ]
 
       const sub12Re = /text-\[(?:10|10\.5|11|11\.5)px\]/

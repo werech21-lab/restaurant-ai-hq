@@ -57,24 +57,6 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
     },
   },
   {
-    match: '/erp/prep-sla',
-    title: {
-      en: 'Kitchen Prep SLA',
-      ar: 'زمن تجهيز المطبخ',
-      mobileEn: 'Prep SLA',
-      mobileAr: 'زمن التجهيز',
-    },
-  },
-  {
-    match: '/erp/delivery-sla',
-    title: {
-      en: 'Rider Delivery SLA',
-      ar: 'زمن توصيل السائق',
-      mobileEn: 'Delivery SLA',
-      mobileAr: 'زمن التوصيل',
-    },
-  },
-  {
     match: '/erp/aggregator-radar',
     title: {
       en: 'Aggregator Commissions',
@@ -94,24 +76,6 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   },
 
   // 3. السمعة والذكاء المرئي (Reputation & Vision AI)
-  {
-    match: '/erp/social-reviews',
-    title: {
-      en: 'Social & Aggregator Reviews',
-      ar: 'التقييمات ومنصات التواصل',
-      mobileEn: 'Reviews',
-      mobileAr: 'التقييمات',
-    },
-  },
-  {
-    match: '/erp/reviews',
-    title: {
-      en: 'Social & Aggregator Reviews',
-      ar: 'التقييمات ومنصات التواصل',
-      mobileEn: 'Reviews',
-      mobileAr: 'التقييمات',
-    },
-  },
   {
     match: '/erp/ai-brief',
     title: {
@@ -151,15 +115,6 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
     },
   },
   {
-    match: '/erp/regulations',
-    title: {
-      en: 'Regulations & Licensing',
-      ar: 'التشريعات والتراخيص',
-      mobileEn: 'Regulations',
-      mobileAr: 'التشريعات',
-    },
-  },
-  {
     match: '/erp/booth-feasibility',
     title: {
       en: 'Booth Feasibility Calculator',
@@ -191,13 +146,9 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   { match: '/erp/sales-scorecard', title: { en: 'Sales Scorecard', ar: 'سجل المبيعات' } },
   { match: '/erp/sales-analysis', title: { en: 'Sales Analysis', ar: 'تحليل المبيعات' } },
   { match: '/erp/menu-engineering', title: { en: 'Menu Prices', ar: 'أسعار المينيو' } },
-  { match: '/erp/delivery-control', title: { en: 'Delivery Control', ar: 'مراقبة التوصيل' } },
   { match: '/erp/alerts', title: { en: 'Automated Financial Alerts', ar: 'التنبيهات المالية الآلية' } },
-  { match: '/erp/demand-forecast', title: { en: 'Demand & Prep Forecaster', ar: 'توقع الطلب وتحضير المطبخ' } },
   { match: '/erp/cost-intelligence', title: { en: 'Cost & Supplier Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين' } },
   { match: '/erp/executive-pnl', title: { en: 'Executive P&L & Budget Variance', ar: 'قائمة الدخل وانحراف الموازنة' } },
-  { match: '/automations', title: { en: 'Automated Notification Rules', ar: 'قواعد التنبيهات التلقائية' } },
-  { match: '/dashboard', title: { en: 'Detailed Financial Report', ar: 'التقرير المالي التفصيلي' } },
   { match: '/erp/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
   { match: '/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
   {
@@ -218,35 +169,11 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
       mobileAr: 'الذمم المدينة',
     },
   },
-  {
-    match: '/erp/competitors',
-    title: {
-      en: 'Competitors & Market Radar',
-      ar: 'رادار المنافسين والسوق',
-      mobileEn: 'Competitors',
-      mobileAr: 'المنافسون',
-    },
-  },
-  {
-    match: '/erp/market',
-    title: {
-      en: 'Competitors & Market Radar',
-      ar: 'رادار المنافسين والسوق',
-      mobileEn: 'Competitors',
-      mobileAr: 'المنافسون',
-    },
-  },
   { match: '/accounting', title: { en: 'Accounting', ar: 'المحاسبة' } },
   { match: '/erp/inventory', title: { en: 'Inventory', ar: 'المخزون' } },
-  { match: '/inventory', title: { en: 'Inventory', ar: 'المخزون' } },
   { match: '/erp/procurement', title: { en: 'Procurement', ar: 'المشتريات' } },
-  { match: '/purchases', title: { en: 'Purchases', ar: 'المشتريات' } },
-  { match: '/warehouses', title: { en: 'Warehouses', ar: 'المستودعات' } },
-  { match: '/erp/food-safety', title: { en: 'Food Safety', ar: 'سلامة الغذاء' } },
-  { match: '/erp/intelligence', title: { en: 'Forensic Intelligence', ar: 'الاستخبارات الجنائية' } },
+  { match: '/erp/crm', title: { en: 'CRM', ar: 'إدارة العملاء' } },
   { match: '/reports', title: { en: 'Reports', ar: 'التقارير' } },
-  { match: '/sales', title: { en: 'Sales', ar: 'المبيعات' } },
-  { match: '/crm', title: { en: 'CRM', ar: 'إدارة العملاء' } },
   { match: '/settings', title: { en: 'Settings', ar: 'الإعدادات' } },
 ]
 

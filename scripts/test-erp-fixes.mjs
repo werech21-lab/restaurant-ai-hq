@@ -173,16 +173,13 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
   const erpRoutes = [
     '/erp',
     '/erp/cores',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
     '/erp/warehouse-chain',
-    '/erp/social-reviews',
     '/erp/weekday-comparison',
     '/erp/before-after',
     '/erp/aggregator-radar',
     '/erp/booth-feasibility',
+    '/erp/events-intelligence',
     '/erp/planning',
-    '/erp/regulations',
     '/erp/feryal-ai',
   ];
   let fullExecBlocked = 0;
@@ -198,24 +195,20 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
   }
 
   const mktAllowedRoutes = [
-    '/erp',
     '/erp/cores',
     '/erp/weekday-comparison',
     '/erp/before-after',
-    '/erp/reviews',
-    '/erp/social-reviews',
     '/erp/booth',
     '/erp/booth-feasibility',
+    '/erp/events-intelligence',
     '/erp/feryal-ai',
   ];
   const mktForbiddenRoutes = [
+    '/erp',
     '/erp/commissions',
     '/erp/aggregator-radar',
     '/erp/planning',
-    '/erp/regulations',
     '/erp/warehouse-chain',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
   ];
   let mktAllowedOk = true;
   for (const r of mktAllowedRoutes) {
@@ -241,8 +234,6 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
 
   const supAllowedRoutes = [
     '/erp/warehouse-chain',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
     '/erp/feryal-ai',
   ];
   const supForbiddenRoutes = [
@@ -253,9 +244,7 @@ import { computeErpComparison } from './src/lib/erp-comparison-engine';
     '/erp/commissions',
     '/erp/aggregator-radar',
     '/erp/planning',
-    '/erp/regulations',
-    '/erp/reviews',
-    '/erp/social-reviews',
+    '/erp/events-intelligence',
     '/erp/booth',
     '/erp/booth-feasibility',
   ];

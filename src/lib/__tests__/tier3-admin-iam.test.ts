@@ -123,10 +123,7 @@ import ProductManager from '@/app/admin/ProductManager'
 import AiRunsPage from '@/app/admin/ai-runs/page'
 import { RolesPanel } from '@/app/(panel)/roles/roles-panel'
 import { UsersPanel } from '@/app/(panel)/users/users-panel'
-import { DeliveryControlV2 } from '@/components/aether/DeliveryControlV2'
-import { DemandForecastV2 } from '@/components/aether/DemandForecastV2'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
-import { CompetitorsIntelligenceStudio } from '@/components/erp/CompetitorsIntelligenceStudio'
 import AcceptInvitation from '@/components/erp/iam/AcceptInvitation'
 import IamWorkspace from '@/components/erp/iam/IamWorkspace'
 import { permissions } from '@/lib/auth/permissions'
@@ -181,9 +178,6 @@ const OWNED_ERP_CHILD_STUDIO_FILES = [
   'src/modules/governance/ui/ComplianceWorkspace.tsx',
   'src/modules/governance/ui/ContractsAdvisor.tsx',
   'src/modules/delivery/ui/DeliveryWorkspace.tsx',
-  'src/components/aether/DeliveryControlV2.tsx',
-  'src/components/aether/DemandForecastV2.tsx',
-  'src/components/erp/CompetitorsIntelligenceStudio.tsx',
   'src/modules/ai/ui/AiWorkspace.tsx',
   'src/modules/ai/ui/ExecutiveCenter.tsx',
   'src/modules/suite/ui/AnalyticPnlPanel.tsx',
@@ -625,19 +619,6 @@ describe('Wave 3C Tier 3 — Admin, IAM, Org, Archive, Roles, Users & Leftover E
       expect(html).toContain('45.250 KWD')
       expect(html).toContain('+45.250 KWD')
       expect(html).toContain('2026-11-15 11:30')
-    })
-
-    it('renders unlinked V2 & Competitors studios cleanly in EN without Arabic leakage and in AR with required sources', () => {
-      for (const comp of [DeliveryControlV2, DemandForecastV2, CompetitorsIntelligenceStudio]) {
-        const enHtml = renderWithLocale('en', el(comp, { anchor: 'top' }))
-        const arHtml = renderWithLocale('ar', el(comp, { anchor: 'top' }))
-
-        expect(enHtml).toContain('Unlinked from Source')
-        expect(enHtml).not.toContain('غير مربوط بمصدر')
-        expect(enHtml).not.toMatch(/[\u0600-\u06FF]/)
-        expect(arHtml).toContain('غير مربوط بمصدر')
-        expect(arHtml).toContain('المصدر المطلوب')
-      }
     })
 
     it('renders AiWorkspace, ExecutiveCenter, DeliveryWorkspace, suite/ui Hubs & SuiteMoney with zero <h1> tags and 3-decimal KWD', () => {
