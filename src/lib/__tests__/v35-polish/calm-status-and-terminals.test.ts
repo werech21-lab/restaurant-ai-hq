@@ -170,6 +170,8 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     ).toBe(1)
     expect(arOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')
     expect(countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar)).toBe(1)
+    expect(arOpCard!.text).toMatch(/\d+\.\d{3}/)
+    expect(arOpCard!.text).toContain('العمولات والاستهلاك تُرحَّل نهاية الشهر')
     expect(arOpCard!.outerHtml).not.toContain('amber-')
     expect(arOpCard!.outerHtml).not.toContain('rose-')
     expect(arOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
@@ -201,30 +203,14 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
       'article',
       (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('عمولات تطبيقات التوصيل'),
     )
-    expect(arCommCard).not.toBeNull()
-    expect(arCommCard!.outerHtml).not.toContain('amber-')
-    expect(arCommCard!.outerHtml).not.toContain('rose-')
-    expect(arCommCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(arCommCard!.outerHtml).not.toContain('<circle')
-    expect(
-      arCommCard!.outerHtml.includes('data-unavailable-state="true"') ||
-        arCommCard!.outerHtml.includes('data-unavailable="true"'),
-    ).toBe(true)
+    expect(arCommCard).toBeNull()
 
     const enCommCard = findCardByTag(
       enHtml,
       'article',
       (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('Aggregator Commissions'),
     )
-    expect(enCommCard).not.toBeNull()
-    expect(enCommCard!.outerHtml).not.toContain('amber-')
-    expect(enCommCard!.outerHtml).not.toContain('rose-')
-    expect(enCommCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(enCommCard!.outerHtml).not.toContain('<circle')
-    expect(
-      enCommCard!.outerHtml.includes('data-unavailable-state="true"') ||
-        enCommCard!.outerHtml.includes('data-unavailable="true"'),
-    ).toBe(true)
+    expect(enCommCard).toBeNull()
 
     const arDistCard = findGlassCardContaining(arHtml, [
       'data-scope-for="gl-distribution"',

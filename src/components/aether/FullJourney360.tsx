@@ -268,6 +268,21 @@ export function FullJourney360({
   const hasPostedOperatingProfit = Boolean(
     gl.available && gl.operatingProfitKwd !== null && gl.netProfitPct !== null,
   )
+  const postedGrossKwd =
+    typeof gl.totalRevenueKwd === 'number' && typeof gl.cogsKwd === 'number'
+      ? Math.round((gl.totalRevenueKwd - gl.cogsKwd) * 1000) / 1000
+      : null
+  const glHiddenByFilter =
+    gl.unavailableReasonEn === 'The general ledger is not split by this filter.'
+  const showOperatingCard =
+    hasPostedOperatingProfit || postedGrossKwd !== null || glHiddenByFilter
+  const monthEndNote = gl.to
+    ? isAr
+      ? `القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
+      : `Posted entries through ${gl.to}; commissions and depreciation are posted at month end`
+    : isAr
+      ? 'العمولات والاستهلاك تُرحَّل نهاية الشهر'
+      : 'Commissions and depreciation are posted at month end'
 
   const periodWindow = useMemo(
     () =>
@@ -1416,7 +1431,8 @@ export function FullJourney360({
                 </div>
               </V35GlassCard>
 
-              {/* Card 3: Net Operating Profit (Explicitly warns «قيود غير مكتملة لهذه الفترة» whenever glIncomplete === true) */}
+              {/* Card 3: posted GL profit. Hidden when the period has no GL lines. */}
+              {showOperatingCard ? (
               <V35GlassCard
                 as="article"
                 hoverLift
@@ -1456,24 +1472,34 @@ export function FullJourney360({
                 ) : (
                   <>
                     <div className="mt-3">
-                      <V35KpiRing
-                        tone="indigo"
-                        size="md"
-                        dataKpi="operating-net"
-                        value={hasPostedOperatingProfit && !glIncomplete ? netPocketKwd : null}
-                        isUnavailable={!hasPostedOperatingProfit || glIncomplete}
-                        percent={hasPostedOperatingProfit && !glIncomplete ? netPocketPct : null}
-                        display={fmtKwdVal(netPocketKwd)}
-                        unavailableTooltip={unavailableTooltip}
-                        ringCenter={
-                          hasPostedOperatingProfit && !glIncomplete ? (
-                            <span dir="ltr" className="tabular-nums">
-                              {`${netPocketPct.toFixed(1)}%`}
-                            </span>
-                          ) : undefined
-                        }
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
+                      {postedGrossKwd !== null && (!hasPostedOperatingProfit || glIncomplete) ? (
+                        <p
+                          dir="ltr"
+                          data-kpi="operating-net"
+                          className="text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl dark:text-white"
+                        >
+                          {fmtKwdVal(postedGrossKwd)}
+                        </p>
+                      ) : (
+                        <V35KpiRing
+                          tone="indigo"
+                          size="md"
+                          dataKpi="operating-net"
+                          value={hasPostedOperatingProfit && !glIncomplete ? netPocketKwd : null}
+                          isUnavailable={!hasPostedOperatingProfit || glIncomplete}
+                          percent={hasPostedOperatingProfit && !glIncomplete ? netPocketPct : null}
+                          display={fmtKwdVal(netPocketKwd)}
+                          unavailableTooltip={unavailableTooltip}
+                          ringCenter={
+                            hasPostedOperatingProfit && !glIncomplete ? (
+                              <span dir="ltr" className="tabular-nums">
+                                {`${netPocketPct.toFixed(1)}%`}
+                              </span>
+                            ) : undefined
+                          }
+                          valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                        />
+                      )}
                     </div>
 
                     <div className="mt-3.5 space-y-1.5">
@@ -1492,6 +1518,11 @@ export function FullJourney360({
                                   : 'Not available yet — GL entries not posted'
                             }
                           />
+                          {postedGrossKwd !== null ? (
+                            <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+                              {monthEndNote}
+                            </p>
+                          ) : null}
                         </div>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
@@ -1514,8 +1545,11 @@ export function FullJourney360({
                   </>
                 )}
               </V35GlassCard>
+              ) : null}
 
-              {/* Card 4: Aggregator Commissions (Shows «غير مُرحَّل بعد» — never 0 — when unposted) */}
+              {/* Card 4: posted platform commission only. Omitted when nothing is posted. */}
+              {(typeof gl.deliveryCommissionsKwd === 'number' && !commissionUnposted) ||
+              glHiddenByFilter ? (
               <V35GlassCard
                 as="article"
                 hoverLift
@@ -1630,6 +1664,7 @@ export function FullJourney360({
                   </>
                 )}
               </V35GlassCard>
+              ) : null}
             </div>
 
             {/* 7 Mapped Branches + Explicit 8th Card «غير منسوب لفرع» */}
