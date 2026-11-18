@@ -482,16 +482,31 @@ describe('phase 13 blocker N1: non-refund order counts never silently fall back 
       })
 
       const cube = await fetchLiveOdooPeriodCube('2026-11-15', '2026-11-15', TEST_REF_NOW_MS)
-      expect(cube.connected).toBe(false)
-      expect(cube.noData).toBe(true)
-      expect(cube.totals.netSalesKwd !== 0 && cube.totals.orders === 0).toBe(false)
+      if (failingTarget === 'hourly') {
+        // Hourly is an independent section: its failure leaves the other sections intact and marks
+        // hourly unavailable — no hourly rows at all, never a silent 0 count.
+        expect(cube.connected).toBe(true)
+        expect(cube.hourlyAvailable).toBe(false)
+        expect(cube.hourlySeries).toEqual([])
+        expect(cube.totals.netSalesKwd !== 0 && cube.totals.orders === 0).toBe(false)
+      } else {
+        expect(cube.connected).toBe(false)
+        expect(cube.noData).toBe(true)
+        expect(cube.totals.netSalesKwd !== 0 && cube.totals.orders === 0).toBe(false)
+      }
 
       const customBucket = await fetchLiveOdooCustomBucket(
         '2026-11-15',
         '2026-11-15',
         TEST_REF_NOW_MS,
       )
-      expect(customBucket).toBeUndefined()
+      if (failingTarget === 'hourly') {
+        // The custom bucket has no hourly section, so it is still built from the intact cube.
+        expect(customBucket).toBeDefined()
+        expect(customBucket?.totals.netSalesKwd).toBe(cube.totals.netSalesKwd)
+      } else {
+        expect(customBucket).toBeUndefined()
+      }
     },
   )
 

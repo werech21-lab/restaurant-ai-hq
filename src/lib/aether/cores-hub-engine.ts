@@ -33,6 +33,7 @@ import {
   type CampaignHaloEvaluation,
   type SocialCampaign,
 } from '@/lib/aether/social-campaigns'
+import type { OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
   reconcileHourlyToPeriod,
   selectDisplayHours,
@@ -297,6 +298,11 @@ export interface DishSimulationResult {
   unitNetAfterKwd: number
 }
 
+const shiftIsoDay = (iso: string, delta: number): string => {
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + delta)
+  return d.toISOString().slice(0, 10)
+}
 const safeNum = (v: unknown, fb = 0): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : fb
 
@@ -448,6 +454,8 @@ export function computeCoresHubSnapshot(
   campaigns: SocialCampaign[],
   liveSummary?: OdooLiveSummary | null,
   liveCube?: OdooPeriodCube | null,
+  /** Independent hourly read for the selected period (route `hourlyA`), used when no cube loaded. */
+  periodHourly?: OdooPeriodHourly | null,
 ): CoresHubSnapshot {
   const ws = computeGlobalWorkspace(filters, liveSummary)
   const canonicalPeriodWin = formatPeriodCalendarWindow(filters.period ?? 'month', {
@@ -659,11 +667,16 @@ export function computeCoresHubSnapshot(
   // 2. Live hourly series (from liveCube when loaded, or liveSummary.hourlySeries)
   // Hourly series for the SELECTED period (Asia/Kuwait hours 00–23), from real Odoo data only:
   //  1. the selected-period cube (/api/erp/live-comparison → fetchLiveOdooPeriodCube), or
-  //  2. for Month (all branches) only: the summary's hourly series, which the connector builds on
+  //  2. the independent light hourly read for the same window (route `hourlyA`), or
+  //  3. for Month (all branches) only: the summary's hourly series, which the connector builds on
   //     the Month bucket bounds (`posOrderDomainOf(boundsMonth)`), so it IS the Month period.
   // A series is used only when Σ(hours) equals that period's net total to the fils; otherwise the
   // hourly section is unavailable (no points, no peak) — never an empty chart with a 0.000 peak.
   const monthBucketTotalKwd = liveSummary?.buckets?.month?.totals?.netSalesKwd
+  const selectedBucket =
+    filters.period === 'custom'
+      ? liveSummary?.customBucket ?? null
+      : liveSummary?.buckets?.[filters.period] ?? null
   let hourlyCandidate: { hour: number; orders: number; netKwd: number }[] = []
   let hourlyPeriodTotalKwd: number | null = null
   let hourlySourced = false
@@ -676,6 +689,19 @@ export function computeCoresHubSnapshot(
       filters.branch === 'all'
         ? safeNum(liveCube.totals?.netSalesKwd)
         : (liveCube.byBranch as Record<string, { netKwd: number } | undefined>)?.[filters.branch]?.netKwd ?? null
+    hourlySourced = true
+  } else if (
+    periodHourly &&
+    periodHourly.available &&
+    filters.branch === 'all' &&
+    selectedBucket &&
+    typeof selectedBucket.totals?.netSalesKwd === 'number' &&
+    periodHourly.dateRange.from === selectedBucket.from &&
+    periodHourly.dateRange.to === shiftIsoDay(selectedBucket.to, -1)
+  ) {
+    // Light hourly read for exactly the selected bucket's window; must still reconcile below.
+    hourlyCandidate = periodHourly.hourlySeries
+    hourlyPeriodTotalKwd = selectedBucket.totals.netSalesKwd
     hourlySourced = true
   } else if (
     filters.period === 'month' &&

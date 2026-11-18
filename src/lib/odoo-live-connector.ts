@@ -70,8 +70,8 @@ import {
   mergeDaySessionPricelistGroups,
   mergeHourGroups,
   mergeSessionGroups,
-  mergeSessionHourGroups,
   mergeSessionPaymentGroups,
+  type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
 import {
   clampPeriodToKuwaitToday,
@@ -355,6 +355,10 @@ export interface OdooPeriodCube {
   dailyUnattributed: Record<string, { netKwd: number; orders: number }>
   hourlySeries: { hour: number; orders: number; netKwd: number }[]
   hourlyByBranch: Record<string, { hour: number; orders: number; netKwd: number }[]>
+  /** Hourly read succeeded (independent of the other sections). `false` → hourly unavailable. */
+  hourlyAvailable?: boolean
+  /** Per-branch hourly read succeeded. `false` → branch-filtered hourly unavailable. */
+  hourlyByBranchAvailable?: boolean
   topProducts: OdooPeriodCubeProductRow[]
   accounting?: OdooLedgerAccountingSummary
   posConfigIds?: {
@@ -4236,6 +4240,231 @@ function buildDisconnectedPeriodCube(
   }
 }
 
+type PeriodHourlyRow = { hour: number; orders: number; netKwd: number }
+
+const emptyHourRows = (): PeriodHourlyRow[] =>
+  Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0, netKwd: 0 }))
+
+/**
+ * Light hourly read: `pos.order` aggregated per hour server-side (`read_group` on
+ * `date_order:hour`, tz Asia/Kuwait) for the given registers and period only — no per-session
+ * grouping. Net = amount_total − amount_tax; orders = non-refund count (same rules as the cube).
+ * Read-only.
+ */
+async function fetchHourlyRowsForConfigs(params: {
+  fromUtc: string
+  toExclusiveUtc: string
+  companyId: number | null
+  configIds: readonly number[]
+}): Promise<PeriodHourlyRow[]> {
+  if (params.configIds.length === 0) return emptyHourRows()
+  const domainOf = (nonRefundOnly: boolean) =>
+    buildPosOrderUtcDomain({
+      fromUtc: params.fromUtc,
+      toExclusiveUtc: params.toExclusiveUtc,
+      companyId: params.companyId,
+      configIds: params.configIds,
+      nonRefundOnly,
+    })
+  const [netRows, countRows] = await Promise.all([
+    executeOdooKw<HourGroupRow[]>(
+      'pos.order',
+      'read_group',
+      [domainOf(false), ['amount_total:sum', 'amount_tax:sum'], ['date_order:hour']],
+      { lazy: false, context: { tz: 'Asia/Kuwait' } },
+    ),
+    executeOdooKw<HourGroupRow[]>(
+      'pos.order',
+      'read_group',
+      [domainOf(true), ['amount_total:sum'], ['date_order:hour']],
+      { lazy: false, context: { tz: 'Asia/Kuwait' } },
+    ),
+  ])
+  const acc = emptyHourRows()
+  for (const row of mergeHourGroups(netRows, countRows)) {
+    const conv = row.hourFromUtc ? odooUtcToKuwaitIso(row.hourFromUtc) : null
+    if (!conv) continue
+    acc[conv.kuwaitHour].netKwd += row.netKwd
+    acc[conv.kuwaitHour].orders += row.orders
+  }
+  return acc.map((h) => ({ hour: h.hour, orders: Math.round(h.orders), netKwd: r3(h.netKwd) }))
+}
+
+/**
+ * Company and per-branch hourly sections, each with its own failure handling so one failing read
+ * never removes the other (and never the rest of the cube).
+ */
+async function fetchPeriodHourlySections(params: {
+  fromUtc: string
+  toExclusiveUtc: string
+  companyId: number | null
+  companyCfgList: readonly number[]
+  cfgIdsByBranch: ReadonlyMap<(typeof ACTIVE_BRANCH_IDS)[number], readonly number[]>
+  branchOfCfg: ReadonlyMap<number, (typeof ACTIVE_BRANCH_IDS)[number]>
+}): Promise<{
+  hourlySeries: PeriodHourlyRow[]
+  hourlyByBranch: Record<string, PeriodHourlyRow[]>
+  hourlyAvailable: boolean
+  hourlyByBranchAvailable: boolean
+}> {
+  const base = { fromUtc: params.fromUtc, toExclusiveUtc: params.toExclusiveUtc, companyId: params.companyId }
+  const unattributedCfgIds = params.companyCfgList.filter((id) => !params.branchOfCfg.has(id))
+  const [company, branches] = await Promise.all([
+    fetchHourlyRowsForConfigs({ ...base, configIds: params.companyCfgList }).then(
+      (rows) => ({ ok: true as const, rows }),
+      () => ({ ok: false as const, rows: [] as PeriodHourlyRow[] }),
+    ),
+    Promise.all([
+      ...ACTIVE_BRANCH_IDS.map(async (lid) => [
+        lid,
+        await fetchHourlyRowsForConfigs({ ...base, configIds: params.cfgIdsByBranch.get(lid) ?? [] }),
+      ] as const),
+      fetchHourlyRowsForConfigs({ ...base, configIds: unattributedCfgIds }).then(
+        (rows) => ['unattributed', rows] as const,
+      ),
+    ]).then(
+      (pairs) => ({ ok: true as const, byBranch: Object.fromEntries(pairs) as Record<string, PeriodHourlyRow[]> }),
+      () => ({ ok: false as const, byBranch: {} as Record<string, PeriodHourlyRow[]> }),
+    ),
+  ])
+  return {
+    hourlySeries: company.rows,
+    hourlyByBranch: branches.byBranch,
+    hourlyAvailable: company.ok,
+    hourlyByBranchAvailable: branches.ok,
+  }
+}
+
+export interface OdooPeriodHourly {
+  connected: boolean
+  available: boolean
+  dateRange: { from: string; to: string }
+  hourlySeries: PeriodHourlyRow[]
+}
+
+/**
+ * Independent company-wide hourly read for a Kuwait period, used when the full period cube is
+ * unavailable. Same register scope as the cube (classifyPeriodCubeConfigs). Read-only.
+ */
+export async function fetchLiveOdooPeriodHourly(
+  fromKwIso: string,
+  toKwIso: string,
+  referenceNowMs = Date.now(),
+): Promise<OdooPeriodHourly> {
+  assertServerRuntime()
+  const isoRe = /^\d{4}-\d{2}-\d{2}$/
+  const fallbackToday = getKuwaitTodayIso(referenceNowMs)
+  const rawFrom = isoRe.test(fromKwIso) ? fromKwIso : fallbackToday
+  const rawTo = isoRe.test(toKwIso) ? toKwIso : rawFrom
+  const clamped = clampPeriodToKuwaitToday(
+    { from: rawFrom <= rawTo ? rawFrom : rawTo, to: rawFrom <= rawTo ? rawTo : rawFrom },
+    referenceNowMs,
+  )
+  const dateRange = { from: clamped.from, to: clamped.to }
+  const unavailable: OdooPeriodHourly = { connected: false, available: false, dateRange, hourlySeries: [] }
+  if (!isOdooLiveEnvConfigured()) return unavailable
+  try {
+    await hydrateAdminPosTerminalMappings()
+    const uid = await authenticateOdoo()
+    const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
+    const [allConfigs, userCompanyRows] = await Promise.all([
+      executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
+        fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
+      }).catch(() =>
+        executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
+          fields: ['id', 'name', 'active', 'company_id'],
+        }),
+      ),
+      safeSubQuery(
+        () => executeOdooKw<{ id: number; company_id?: M2O }[]>('res.users', 'read', [[uid], ['id', 'company_id']]),
+        [],
+      ),
+    ])
+    const companyId =
+      m2oId(userCompanyRows?.[0]?.company_id) ??
+      m2oId(allConfigs.find((c) => m2oId(c.company_id) !== null)?.company_id) ??
+      null
+    const { companyCfgIds } = classifyPeriodCubeConfigs(allConfigs)
+    const hourlySeries = await fetchHourlyRowsForConfigs({
+      fromUtc: bounds.fromUtc,
+      toExclusiveUtc: bounds.toExclusiveUtc,
+      companyId,
+      configIds: [...companyCfgIds],
+    })
+    return { connected: true, available: true, dateRange, hourlySeries }
+  } catch {
+    return unavailable
+  }
+}
+
+type PeriodCubeConfigRow = { id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }
+
+/**
+ * Classifies pos.config registers for a period cube: the active company whitelist (pinned school
+ * canteens included; Qurain, Jahra, the closed restaurant and other decommissioned registers excluded)
+ * and the branch of each register. Shared by the cube and the independent hourly fetch so both use
+ * exactly the same scope.
+ */
+function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
+  const decommCfgIds = new Set<number>()
+  const companyCfgIds = new Set<number>()
+  const branchOfCfg = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
+  const cfgIdsByBranch = new Map<(typeof ACTIVE_BRANCH_IDS)[number], number[]>()
+  for (const lid of ACTIVE_BRANCH_IDS) {
+    cfgIdsByBranch.set(lid, [])
+  }
+  const cfgNameMap = new Map<number, string>()
+  for (const c of allConfigs) {
+    const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
+    const combined = `${c.name} ${extra}`.trim()
+    cfgNameMap.set(c.id, combined)
+    if (c.active === false) {
+      const isGenuinelyDecommissioned =
+        isExcludedRecordId('pos_config', c.id) ||
+        (isPinnedSchoolCanteenConfigId(c.id)
+          ? !companyPosConfigAllowed(c.id, c.name, true)
+          : isDecommissionedWarehouseRecord(c.name))
+      if (isGenuinelyDecommissioned) {
+        decommCfgIds.add(c.id)
+      }
+      continue
+    }
+    if (isPinnedSchoolCanteenConfigId(c.id)) {
+      if (!companyPosConfigAllowed(c.id, c.name, true)) {
+        decommCfgIds.add(c.id)
+        continue
+      }
+    } else {
+      if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
+        decommCfgIds.add(c.id)
+        continue
+      }
+      if (!companyPosConfigAllowed(c.id, c.name, true)) continue
+    }
+    companyCfgIds.add(c.id)
+    const mb = resolveRestaurantBranchForConfig(c.id, c.name, extra)
+    if (mb) {
+      branchOfCfg.set(c.id, mb)
+      cfgIdsByBranch.get(mb)!.push(c.id)
+    }
+  }
+  if (allConfigs.length === 0) {
+    for (const cfgId of REG.allowedPosConfigIds) {
+      const knownName = cfgNameMap.get(cfgId) ?? ''
+      if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
+      companyCfgIds.add(cfgId)
+      if (!branchOfCfg.has(cfgId)) {
+        const mb = resolveRestaurantBranchForConfig(cfgId, knownName)
+        if (mb) {
+          branchOfCfg.set(cfgId, mb)
+          cfgIdsByBranch.get(mb)!.push(cfgId)
+        }
+      }
+    }
+  }
+  return { decommCfgIds, companyCfgIds, branchOfCfg, cfgIdsByBranch, cfgNameMap }
+}
+
 /**
  * Queries Odoo 17 live via `executeOdooKw` for an exact Kuwait date period `[fromKwIso, toKwIso]` (inclusive):
  *  (a) `pos.order` grouped by `session_id` (-> `pos.session.config_id`), `pricelist_id`, `date_order:day`
@@ -4364,62 +4593,8 @@ export async function fetchLiveOdooPeriodCube(
     const companyDomain: unknown[][] =
       resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []
 
-    const decommCfgIds = new Set<number>()
-    const companyCfgIds = new Set<number>()
-    const branchOfCfg = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
-    const cfgIdsByBranch = new Map<(typeof ACTIVE_BRANCH_IDS)[number], number[]>()
-    for (const lid of ACTIVE_BRANCH_IDS) {
-      cfgIdsByBranch.set(lid, [])
-    }
-    const cfgNameMap = new Map<number, string>()
-    for (const c of allConfigs) {
-      const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
-      const combined = `${c.name} ${extra}`.trim()
-      cfgNameMap.set(c.id, combined)
-      if (c.active === false) {
-        const isGenuinelyDecommissioned =
-          isExcludedRecordId('pos_config', c.id) ||
-          (isPinnedSchoolCanteenConfigId(c.id)
-            ? !companyPosConfigAllowed(c.id, c.name, true)
-            : isDecommissionedWarehouseRecord(c.name))
-        if (isGenuinelyDecommissioned) {
-          decommCfgIds.add(c.id)
-        }
-        continue
-      }
-      if (isPinnedSchoolCanteenConfigId(c.id)) {
-        if (!companyPosConfigAllowed(c.id, c.name, true)) {
-          decommCfgIds.add(c.id)
-          continue
-        }
-      } else {
-        if (isExcludedRecordId('pos_config', c.id) || isDecommissionedWarehouseRecord(combined)) {
-          decommCfgIds.add(c.id)
-          continue
-        }
-        if (!companyPosConfigAllowed(c.id, c.name, true)) continue
-      }
-      companyCfgIds.add(c.id)
-      const mb = resolveRestaurantBranchForConfig(c.id, c.name, extra)
-      if (mb) {
-        branchOfCfg.set(c.id, mb)
-        cfgIdsByBranch.get(mb)!.push(c.id)
-      }
-    }
-    if (allConfigs.length === 0) {
-      for (const cfgId of REG.allowedPosConfigIds) {
-        const knownName = cfgNameMap.get(cfgId) ?? ''
-        if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
-        companyCfgIds.add(cfgId)
-        if (!branchOfCfg.has(cfgId)) {
-          const mb = resolveRestaurantBranchForConfig(cfgId, knownName)
-          if (mb) {
-            branchOfCfg.set(cfgId, mb)
-            cfgIdsByBranch.get(mb)!.push(cfgId)
-          }
-        }
-      }
-    }
+    const { decommCfgIds, companyCfgIds, branchOfCfg, cfgIdsByBranch, cfgNameMap } =
+      classifyPeriodCubeConfigs(allConfigs)
 
     const catById = new Map(posCategories.map((c) => [c.id, c]))
     const resolveRootCat = (catId: number | null): { id: number; name: string } | null => {
@@ -4489,6 +4664,17 @@ export async function fetchLiveOdooPeriodCube(
         : []),
     ]
 
+    // Hourly path runs on its own (separate RPCs, own failure handling): a slow or failed hourly
+    // query no longer nulls the cube, and a failed core query no longer blocks hourly.
+    const hourlySectionsPromise = fetchPeriodHourlySections({
+      fromUtc: bounds.fromUtc,
+      toExclusiveUtc: bounds.toExclusiveUtc,
+      companyId: resolvedCompanyId,
+      companyCfgList,
+      cfgIdsByBranch,
+      branchOfCfg,
+    })
+
     type LineGroupRow = {
       product_id: M2O
       price_subtotal?: number
@@ -4500,8 +4686,6 @@ export async function fetchLiveOdooPeriodCube(
     const [
       dailyOrderRows,
       dailyOrderCountRows,
-      hourlyOrderRows,
-      hourlyOrderCountRows,
       paymentRows,
       paymentCountRows,
       lineRowsAll,
@@ -4542,40 +4726,6 @@ export async function fetchLiveOdooPeriodCube(
           cubeOrderDomain(true),
           ['amount_total:sum'],
           ['session_id', 'pricelist_id', 'date_order:day'],
-        ],
-        { lazy: false, context: { tz: 'Asia/Kuwait' } },
-      ),
-      executeOdooKw<
-        {
-          __count?: number
-          amount_total?: number
-          amount_tax?: number
-          session_id: M2O
-          __range?: { 'date_order:hour'?: { from?: string; to?: string } }
-        }[]
-      >(
-        'pos.order',
-        'read_group',
-        [
-          cubeOrderDomain(false),
-          ['amount_total:sum', 'amount_tax:sum'],
-          ['session_id', 'date_order:hour'],
-        ],
-        { lazy: false, context: { tz: 'Asia/Kuwait' } },
-      ),
-      executeOdooKw<
-        {
-          __count?: number
-          session_id: M2O
-          __range?: { 'date_order:hour'?: { from?: string; to?: string } }
-        }[]
-      >(
-        'pos.order',
-        'read_group',
-        [
-          cubeOrderDomain(true),
-          ['amount_total:sum'],
-          ['session_id', 'date_order:hour'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
       ),
@@ -4747,14 +4897,12 @@ export async function fetchLiveOdooPeriodCube(
     }
 
     const mergedDailyOrderRows = mergeDaySessionPricelistGroups(dailyOrderRows, dailyOrderCountRows)
-    const mergedHourlyOrderRows = mergeSessionHourGroups(hourlyOrderRows, hourlyOrderCountRows)
     const mergedPaymentRows = mergeSessionPaymentGroups(paymentRows, paymentCountRows)
 
     const allSessionIds = [
       ...new Set(
         [
           ...mergedDailyOrderRows.map((o) => o.sessionId),
-          ...mergedHourlyOrderRows.map((o) => o.sessionId),
           ...mergedPaymentRows.map((p) => p.sessionId),
         ].filter((x): x is number => x !== null),
       ),
@@ -4953,46 +5101,8 @@ export async function fetchLiveOdooPeriodCube(
       byChannel[ck].orders += unattributedChannels[ck].orders
     }
 
-    const hourlyAcc = Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0, netKwd: 0 }))
-    const hourlyByBranch: OdooPeriodCube['hourlyByBranch'] = {
-      unattributed: Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0, netKwd: 0 })),
-    }
-    for (const lid of ACTIVE_BRANCH_IDS) {
-      hourlyByBranch[lid] = Array.from({ length: 24 }, (_, hour) => ({
-        hour,
-        orders: 0,
-        netKwd: 0,
-      }))
-    }
-    for (const hRow of mergedHourlyOrderRows) {
-      const rawHourUtc = hRow.hourFromUtc
-      const conv = rawHourUtc ? odooUtcToKuwaitIso(rawHourUtc) : null
-      if (!conv) continue
-      const sid = hRow.sessionId
-      const cid = sid !== null ? cfgOfSession.get(sid) : undefined
-      if (cid !== undefined && decommCfgIds.has(cid)) continue
-      const net = hRow.netKwd
-      const ord = hRow.orders
-      const hr = conv.kuwaitHour
-      hourlyAcc[hr].orders += ord
-      hourlyAcc[hr].netKwd += net
-      const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
-      const targetKey = branch ?? 'unattributed'
-      hourlyByBranch[targetKey][hr].orders += ord
-      hourlyByBranch[targetKey][hr].netKwd += net
-    }
-    const hourlySeries = hourlyAcc.map((h) => ({
-      hour: h.hour,
-      orders: Math.round(h.orders),
-      netKwd: r3(h.netKwd),
-    }))
-    for (const k of Object.keys(hourlyByBranch)) {
-      hourlyByBranch[k] = hourlyByBranch[k].map((h) => ({
-        hour: h.hour,
-        orders: Math.round(h.orders),
-        netKwd: r3(h.netKwd),
-      }))
-    }
+    const { hourlySeries, hourlyByBranch, hourlyAvailable, hourlyByBranchAvailable } =
+      await hourlySectionsPromise
 
     // Discounts by product from `discountedLineRows` (`discount > 0`)
     const discountByProductId = new Map<
@@ -5257,6 +5367,8 @@ export async function fetchLiveOdooPeriodCube(
       dailyUnattributed,
       hourlySeries,
       hourlyByBranch,
+      hourlyAvailable,
+      hourlyByBranchAvailable,
       topProducts: topProductsRaw.sort((a, b) => b.netKwd - a.netKwd).slice(0, 50),
       ...(accounting ? { accounting } : {}),
       posConfigIds: {

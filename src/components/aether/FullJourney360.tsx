@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
+import type { OdooPeriodCube, OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
   Info,
   ArrowUpDown,
@@ -301,6 +301,7 @@ export function FullJourney360({
   // Phase 5 · Item 1: the Home hourly chart uses the SELECTED-period cube (exactly as Cores does),
   // never the summary's month-to-date hourly series.
   const [homeCube, setHomeCube] = useState<OdooPeriodCube | null>(initialLiveCube)
+  const [homeHourly, setHomeHourly] = useState<OdooPeriodHourly | null>(null)
   useEffect(() => {
     if (!workspace.odooConnected || workspace.noData) {
       setHomeCube(null)
@@ -321,10 +322,14 @@ export function FullJourney360({
         return r.json()
       })
       .then((data) => {
-        if (!cancelled) setHomeCube(data?.cubeA ? (data.cubeA as OdooPeriodCube) : null)
+        if (cancelled) return
+        setHomeCube(data?.cubeA ? (data.cubeA as OdooPeriodCube) : null)
+        setHomeHourly(data?.hourlyA ? (data.hourlyA as OdooPeriodHourly) : null)
       })
       .catch(() => {
-        if (!cancelled) setHomeCube(null)
+        if (cancelled) return
+        setHomeCube(null)
+        setHomeHourly(null)
       })
       .finally(() => window.clearTimeout(timeout))
     return () => {
@@ -335,8 +340,8 @@ export function FullJourney360({
   }, [periodWindow.fromIso, periodWindow.toInclusiveIso, workspace.odooConnected, workspace.noData])
 
   const coresSnap = useMemo(
-    () => computeCoresHubSnapshot(filters, [], liveSummary, homeCube),
-    [filters, liveSummary, homeCube],
+    () => computeCoresHubSnapshot(filters, [], liveSummary, homeCube, homeHourly),
+    [filters, liveSummary, homeCube, homeHourly],
   )
 
   const activeBucket = useMemo(() => {

@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
   fetchLiveOdooPeriodCube,
+  fetchLiveOdooPeriodHourly,
   sanitizeOdooPublicPayload,
+  type OdooPeriodHourly,
 } from '@/lib/odoo-live-connector'
 import {
   odooSyncResponseHeaders,
@@ -147,6 +149,17 @@ export async function GET(request: NextRequest) {
           fetchLiveOdooPeriodCube(normB.fromIso, normB.toIso),
         ])
 
+    // Hourly for period A, independent of the rest of the cube: from the cube when it loaded, otherwise
+    // from the light hourly read (same register scope). Consumers still require Σ hourly == period total.
+    const hourlyA: OdooPeriodHourly = cubeA.connected
+      ? {
+          connected: true,
+          available: cubeA.hourlyAvailable !== false,
+          dateRange: cubeA.dateRange,
+          hourlySeries: cubeA.hourlyAvailable === false ? [] : cubeA.hourlySeries,
+        }
+      : await fetchLiveOdooPeriodHourly(normA.fromIso, normA.toIso)
+
     if (!cubeA.connected || !cubeB.connected) {
       const disconnectedComparison = computeErpComparison(query, null)
       return NextResponse.json(
@@ -166,6 +179,7 @@ export async function GET(request: NextRequest) {
           database: null,
           cubeA: null,
           cubeB: null,
+          hourlyA,
           dailySeries: [],
           dailyByBranch: {},
           dailyUnattributed: {},
@@ -218,6 +232,7 @@ export async function GET(request: NextRequest) {
         database: null,
         cubeA,
         cubeB,
+        hourlyA,
         dailySeries: mergedDailySeries,
         dailyByBranch: { ...cubeB.dailyByBranch, ...cubeA.dailyByBranch },
         dailyUnattributed: { ...cubeB.dailyUnattributed, ...cubeA.dailyUnattributed },

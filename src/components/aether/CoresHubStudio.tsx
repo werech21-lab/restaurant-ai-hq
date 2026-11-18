@@ -25,7 +25,7 @@ import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
-import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
+import type { OdooPeriodCube, OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
   formatPeriodCalendarWindow,
   GLOBAL_BRANCH_OPTIONS,
@@ -138,6 +138,7 @@ export function CoresHubStudio({
   const [campaigns, setCampaigns] = useState<SocialCampaign[]>([])
   const [isAdFormOpen, setIsAdFormOpen] = useState(false)
   const [liveCube, setLiveCube] = useState<OdooPeriodCube | null>(initialLiveCube)
+  const [periodHourly, setPeriodHourly] = useState<OdooPeriodHourly | null>(null)
   const [cubeLoading, setCubeLoading] = useState(false)
   const [cubeTimedOut, setCubeTimedOut] = useState(false)
   const [cubeError, setCubeError] = useState(false)
@@ -232,6 +233,7 @@ export function CoresHubStudio({
   useEffect(() => {
     if (!workspace.odooConnected || workspace.noData) {
       setLiveCube(null)
+      setPeriodHourly(null)
       setCubeError(false)
       setCubeTimedOut(false)
       setCubeLoading(false)
@@ -261,10 +263,12 @@ export function CoresHubStudio({
         } else {
           setLiveCube(null)
         }
+        setPeriodHourly(data?.hourlyA ? (data.hourlyA as OdooPeriodHourly) : null)
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setLiveCube(null)
+        setPeriodHourly(null)
         const timedOut = error instanceof DOMException && error.name === 'AbortError'
         setCubeTimedOut(timedOut)
         if (!timedOut) setCubeError(true)
@@ -372,8 +376,8 @@ export function CoresHubStudio({
   )
 
   const snapshot = useMemo(
-    () => computeCoresHubSnapshot(filters, campaigns, liveSummary, liveCube),
-    [filters, campaigns, liveSummary, liveCube],
+    () => computeCoresHubSnapshot(filters, campaigns, liveSummary, liveCube, periodHourly),
+    [filters, campaigns, liveSummary, liveCube, periodHourly],
   )
 
   const dateRangeLabel = snapshot.dateRangeLabel

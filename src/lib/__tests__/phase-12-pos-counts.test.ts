@@ -417,14 +417,32 @@ describe('phase 12 blocker B: grouped non-refund order counts, negative-net pres
               },
             ])
           }
+          // The cube now reads hourly per register scope (`session_id.config_id in [...]`) grouped by
+          // `date_order:hour` only; answer it from the same session rows, filtered to that scope.
+          const hourReply = (rows: { session_id: [number, string]; amount_total?: number; amount_tax?: number; __count?: number; __range: unknown }[]) => {
+            if (groupby.includes('session_id')) return rpcReply(rows)
+            const cfgOfSessionId: Record<number, number> = { 601: 8, 602: 17, 603: 19 }
+            const scope = /"session_id\.config_id","in",\[([0-9,]*)\]/.exec(domainStr)?.[1] ?? ''
+            const allowed = new Set(scope.split(',').filter(Boolean).map(Number))
+            const inScope = rows.filter((r) => allowed.has(cfgOfSessionId[r.session_id[0]]))
+            if (inScope.length === 0) return rpcReply([])
+            return rpcReply([
+              {
+                amount_total: inScope.reduce((a, r) => a + (r.amount_total ?? 0), 0),
+                amount_tax: inScope.reduce((a, r) => a + (r.amount_tax ?? 0), 0),
+                __count: inScope.reduce((a, r) => a + (r.__count ?? 0), 0),
+                __range: inScope[0].__range,
+              },
+            ])
+          }
           if (groupby.includes('date_order:hour')) {
             if (domainStr.includes('["amount_total",">=",0]')) {
-              return rpcReply([
+              return hourReply([
                 { session_id: [601, 'S601'], __count: 9, __range: hourRange },
                 { session_id: [602, 'S602'], __count: 9, __range: hourRange },
               ])
             }
-            return rpcReply([
+            return hourReply([
               {
                 session_id: [601, 'S601'],
                 amount_total: 90,
