@@ -28,6 +28,12 @@ function joined(parts: readonly string[]): string {
 
 export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
+    // Explicit pos.config exclusions (owner, 2026-11-18): 24 decommissioned, 25 / 39 Jahra, 40 inactive.
+    kind: 'pos_config',
+    ids: [24, 25, 39, 40],
+    nameParts: [],
+  },
+  {
     kind: 'brand',
     ids: [],
     nameParts: ['heisenberg'],
@@ -125,37 +131,12 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
-    nameParts: ['haw', 'ally'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['haw', 'alli'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['haw', 'ali'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['haw', 'aly'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
     nameParts: ['qu', 'rein'],
   },
   {
     kind: 'branch',
     ids: [],
     nameParts: ['gu', 'rain'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['\u062d', '\u0648', '\u0644', '\u064a'],
   },
   {
     kind: 'branch',
@@ -167,16 +148,11 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
     ids: [],
     nameParts: ['jhr'],
   },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['hwl'],
-  },
 ]
 
 /** Whole tokens only. A substring would also match nearby Arabic words. */
-const WORD_ONLY = new Set(['\u062d\u0648\u0644\u064a', 'qrn', 'jhr', 'hwl'])
-const SHORT_CODE_ONLY = new Set(['qrn', 'jhr', 'hwl'])
+const WORD_ONLY = new Set(['qrn', 'jhr'])
+const SHORT_CODE_ONLY = new Set(['qrn', 'jhr'])
 
 const NAME_FRAGMENTS = ODOO_EXCLUSION_RULES.map((rule) => joined(rule.nameParts)).filter(
   (fragment) => fragment.length > 0,
@@ -190,53 +166,18 @@ export function exclusionDomainFragments(): readonly string[] {
 }
 
 const CLITIC = /^(?:لل|ب|و|ل)/
-const STRONG_CANTEEN_TOKENS = new Set(['npis', 'faips', 'fas', 'canteen', 'canteens'])
-const ARABIC_CANTEEN_FORMS = new Set(['\u0645\u0642\u0635\u0641', '\u0627\u0644\u0645\u0642\u0635\u0641'])
-const ARABIC_SINGULAR_SCHOOL_FORMS = new Set([
-  '\u0645\u062f\u0631\u0633\u0647',
-  '\u0627\u0644\u0645\u062f\u0631\u0633\u0647',
-])
-const ARABIC_STREET_FORMS = new Set(['\u0634\u0627\u0631\u0639', '\u0627\u0644\u0634\u0627\u0631\u0639'])
-
-function matchesArabicForm(token: string, forms: ReadonlySet<string>): boolean {
-  if (forms.has(token)) return true
-  const stripped = token.replace(CLITIC, '')
-  return stripped !== token && forms.has(stripped)
-}
-
 /**
- * Closed-branch-family canteen exemption helper.
- * Applies ONLY to closed-branch-family district tokens without joined digits;
- * Jahra, Qurain, and Heisenberg are never exempted, and POS register inclusion
- * remains strictly governed by pinned pos.config IDs.
+ * There is no closed-branch district any more (owner, 2026-11-18): that district is active (the NPIS
+ * canteen #41 and the Promenade shop #8–#11 sit there), so no name fragment belongs to a closed family.
+ * Kept as stable exports for existing callers.
  */
-function hasClosedBranchCanteenExemption(rawNormalized: string): boolean {
-  if (!rawNormalized) return false
-  if (/\bschool canteens?\b/.test(rawNormalized)) return true
-  const tokens = rawNormalized.split(' ').filter(Boolean)
-  for (const tok of tokens) {
-    if (STRONG_CANTEEN_TOKENS.has(tok) || matchesArabicForm(tok, ARABIC_CANTEEN_FORMS)) {
-      return true
-    }
-  }
-  const hasSingularArabicSchool = tokens.some((tok) =>
-    matchesArabicForm(tok, ARABIC_SINGULAR_SCHOOL_FORMS),
-  )
-  if (!hasSingularArabicSchool) return false
-  const hasStreetMarker = tokens.some(
-    (tok) => tok === 'street' || tok === 'streets' || matchesArabicForm(tok, ARABIC_STREET_FORMS),
-  )
-  return !hasStreetMarker
-}
-
-/** District fragments that a school canteen in the closed-branch district may contain without leaving the company. */
-export function isClosedBranchFamilyFragment(fragment: string): boolean {
-  const normalized = normalizeEntityLabel(fragment)
-  return normalized.startsWith('haw') || normalized === '\u062d\u0648\u0644\u064a' || normalized === 'hwl'
+export function isClosedBranchFamilyFragment(_fragment: string): boolean {
+  void _fragment
+  return false
 }
 
 export function closedBranchFamilyFragments(): readonly string[] {
-  return exclusionDomainFragments().filter((fragment) => isClosedBranchFamilyFragment(fragment))
+  return []
 }
 
 export function normalizeEntityLabel(raw: string): string {
@@ -266,7 +207,7 @@ const JOINED_SUFFIX = /(?:kw|kwt|kuwait|wh|pos)$/
 const COLLAPSED_MARKS = new Set(['heisenberg', 'heizenberg', 'hizenberg', 'heisenburg', 'haisenberg'])
 const LATIN_BRAND_PREFIX = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
 const ARABIC_BRAND_STEM = 'هايزن'
-const CODE_WITH_DIGITS = /^(?:qrn|jhr|hwl)\d*$/
+const CODE_WITH_DIGITS = /^(?:qrn|jhr)\d*$/
 
 function expandTokenCandidates(token: string): string[] {
   const set = new Set<string>([token])
@@ -289,12 +230,9 @@ function markHit(token: string): boolean {
   return token.startsWith(ARABIC_BRAND_STEM)
 }
 
-function tokenExcluded(token: string, closedBranchCanteen: boolean, rawOriginalToken?: string): boolean {
-  const hasJoinedDigit = rawOriginalToken ? /\d/.test(rawOriginalToken) : false
+function tokenExcluded(token: string): boolean {
   for (const candidate of expandTokenCandidates(token)) {
-    if (!markHit(candidate)) continue
-    if (closedBranchCanteen && !hasJoinedDigit && isClosedBranchFamilyFragment(candidate)) continue
-    return true
+    if (markHit(candidate)) return true
   }
   return false
 }
@@ -316,7 +254,6 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   const rawStr = String(raw)
   const text = normalizeEntityLabel(rawStr)
   if (!text) return false
-  const closedBranchCanteen = hasClosedBranchCanteenExemption(text)
   const rawTokens = rawStr
     .normalize('NFKD')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
@@ -325,7 +262,7 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
     .filter(Boolean)
   for (const rawTok of rawTokens) {
     const subTokens = normalizeEntityLabel(rawTok).split(' ').filter(Boolean)
-    if (subTokens.some((tok) => tokenExcluded(tok, closedBranchCanteen, rawTok))) return true
+    if (subTokens.some((tok) => tokenExcluded(tok))) return true
   }
   const tokens = text.split(' ')
   if (collapsedWindowHit(tokens)) return true

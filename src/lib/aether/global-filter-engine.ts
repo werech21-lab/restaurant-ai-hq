@@ -200,6 +200,90 @@ export const DASHBOARD_BRANCH_CARD_IDS = [
 ] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 /**
+ * Custom range without a matching `customBucket` in the payload (e.g. the previous period's payload
+ * is still on screen while the custom fetch is pending or failed): derive the bucket from the SAME
+ * payload's per-day, per-branch rows so the headline and the branch rows come from identical data.
+ * Only when the whole range lies inside the payload's daily coverage; otherwise `undefined`.
+ * Brands / channels are not in the daily rows, so they stay `null` (shown as unavailable).
+ */
+export function deriveCustomBucketFromDaily(
+  liveSummary: Pick<OdooLiveSummary, 'dailyByBranch' | 'dailyUnattributed'> | null | undefined,
+  fromIso: string,
+  toInclusiveIso: string,
+): OdooBucketSummary | undefined {
+  const byDay = liveSummary?.dailyByBranch
+  if (!byDay) return undefined
+  const days = Object.keys(byDay).sort()
+  if (days.length === 0 || fromIso < days[0] || toInclusiveIso > days[days.length - 1]) return undefined
+  const inRange = days.filter((d) => d >= fromIso && d <= toInclusiveIso)
+  const fils = (n: unknown) => Math.round((Number(n) || 0) * 1000)
+  const loc = new Map<string, { netFils: number; orders: number }>()
+  let unFils = 0
+  let unOrders = 0
+  for (const d of inRange) {
+    for (const [branchId, cell] of Object.entries(byDay[d] ?? {})) {
+      const acc = loc.get(branchId) ?? { netFils: 0, orders: 0 }
+      acc.netFils += fils(cell?.netKwd)
+      acc.orders += Math.max(0, Math.round(Number(cell?.orders) || 0))
+      loc.set(branchId, acc)
+    }
+    const u = liveSummary?.dailyUnattributed?.[d]
+    unFils += fils(u?.netKwd)
+    unOrders += Math.max(0, Math.round(Number(u?.orders) || 0))
+  }
+  const byLocation: NonNullable<OdooBucketSummary['byLocation']> = {}
+  const mappedByLocation: NonNullable<OdooBucketSummary['mappedByLocation']> = {}
+  let totalFils = unFils
+  let totalOrders = unOrders
+  for (const [branchId, acc] of loc) {
+    byLocation[branchId] = { netKwd: acc.netFils / 1000, orders: acc.orders, uiChannels: null }
+    mappedByLocation[branchId] = { netKwd: acc.netFils / 1000, orders: acc.orders }
+    totalFils += acc.netFils
+    totalOrders += acc.orders
+  }
+  const net = totalFils / 1000
+  return {
+    key: 'custom',
+    from: fromIso,
+    to: shiftIsoDateDays(toInclusiveIso, 1),
+    days: Math.round((Date.parse(`${toInclusiveIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 86_400_000) + 1,
+    totals: {
+      netSalesKwd: net,
+      orders: totalOrders,
+      aovKwd: totalOrders > 0 ? Math.round((net / totalOrders) * 1000) / 1000 : null,
+      restaurantNetKwd: net,
+      restaurantOrders: totalOrders,
+    },
+    byBrand: null,
+    byLocation,
+    mappedByLocation,
+    unattributedSalesKwd: unFils / 1000,
+    unattributedOrders: unOrders,
+    uiChannels: null,
+  }
+}
+
+/**
+ * The summary bucket for the selected period, shared by the workspace engine and the pages so the
+ * headline and the branch rows always use the same data: period bucket, or for Custom the matching
+ * `customBucket`, else a bucket derived from the same payload's daily rows.
+ */
+export function resolveSummaryBucket(
+  filters: Pick<GlobalFilters, 'period' | 'customFrom' | 'customTo'>,
+  liveSummary: OdooLiveSummary | null | undefined,
+): OdooBucketSummary | undefined {
+  if (!liveSummary) return undefined
+  if (filters.period !== 'custom') return liveSummary.buckets?.[filters.period] ?? undefined
+  if (!filters.customFrom || !filters.customTo) return undefined
+  const clamped = clampPeriodToKuwaitToday({ from: filters.customFrom, to: filters.customTo })
+  const cb = liveSummary.customBucket
+  if (cb && cb.from === clamped.from && (cb.to === shiftIsoDateDays(clamped.to, 1) || cb.to === clamped.to)) {
+    return cb
+  }
+  return deriveCustomBucketFromDaily(liveSummary, clamped.from, clamped.to)
+}
+
+/**
  * Exhibition booths are shown only when the payload actually reports them (a byLocation entry);
  * payloads from before booths were counted have none, and a missing group is never shown as 0.000.
  */
@@ -1373,13 +1457,7 @@ export function computeGlobalWorkspace(
     to: filters.customTo,
   })
   const customBucketMatch =
-    filters.period === 'custom' &&
-    liveSummary.customBucket &&
-    liveSummary.customBucket.from === clampedCustomForBucket.from &&
-    (liveSummary.customBucket.to === shiftIsoDateDays(clampedCustomForBucket.to, 1) ||
-      liveSummary.customBucket.to === clampedCustomForBucket.to)
-      ? liveSummary.customBucket
-      : undefined
+    filters.period === 'custom' ? resolveSummaryBucket(filters, liveSummary) : undefined
 
   const bucketKey: OdooPeriodBucketKey | undefined =
     filters.period === 'custom' ? undefined : filters.period

@@ -527,7 +527,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
     })
   })
 
-  describe('2. Exclusions (Heisenberg, Qurain, Closed Hawally Restaurant, Jahra) Never Surface in Tier 2 Domain Outputs', () => {
+  describe('2. Exclusions (Heisenberg, Qurain, Jahra) Never Surface in Tier 2 Domain Outputs; Hawally names are accepted', () => {
     it('strips excluded entities and non-company items from planning, regulations, social-reviews, booth/events, food-safety, and suite matrix while keeping school canteens', () => {
       // 2A. Planning Engine (`sanitizeStrategicPhases` + `computePlanningHubSnapshot`)
       const sanitizedPhases = sanitizeStrategicPhases([
@@ -581,7 +581,8 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
           expectedMonthlyGainKwd: 2000,
         },
       ])
-      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen'])
+      // Owner decision 2026-11-18: Hawally names are no longer excluded (no closed Hawally restaurant).
+      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen', 'ph-bad-hawally'])
 
       const liveSummary = buildConnectedLiveSummaryForTier2()
       const ws = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, liveSummary, '/erp/planning')
@@ -630,7 +631,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
           titleEn: 'Qurain & Jahra Heisenberg Storage',
         },
       ])
-      expect(regs.map((r) => r.id)).toEqual(['reg-1', 'reg-canteen'])
+      expect(regs.map((r) => r.id)).toEqual(['reg-1', 'reg-canteen', 'reg-bad-1']) // Hawally accepted
 
       // 2C. Social Campaigns & Halo Engine (`sanitizeCampaigns` / `evaluateCampaignOdooHalo`)
       const campaigns = sanitizeRealCampaigns([
@@ -684,7 +685,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
           date: '2026-11-11',
         },
       ])
-      expect(campaigns.map((c) => c.id)).toEqual(['sc-valid-canteen'])
+      expect(campaigns.map((c) => c.id)).toEqual(['sc-valid-canteen', 'sc-bad-hawally']) // Hawally accepted
       expect(campaigns[0]?.branch).toBe('school-canteens')
       const canteenHalo = evaluateCampaignOdooHalo(campaigns[0]!, 'all', 'all', liveSummary)
       expect(canteenHalo.odooConnected).toBe(true)
@@ -730,8 +731,8 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(scenarios.brandBreakdown.map((b) => b.brandName)).toEqual([
         'China Garden',
         "Frank's",
+        'Hawally Pop-up', // Hawally accepted (owner decision 2026-11-18)
       ])
-      expect(scenarios.brandBreakdown[0]?.sharePercent).toBe(50)
 
       // 2E. Food-Safety Sites & Suite Analytic Matrix
       const fsSites = listFoodSafetySites()
@@ -756,6 +757,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         'Farm Brown@Ardiya',
         'China Garden@NPIS Hawally Canteen',
         'Tahina@FAIPS Ahmadi Canteen',
+        'Farm Brown@Hawally Branch', // Hawally accepted (owner decision 2026-11-18)
       ])
     })
 
@@ -871,17 +873,19 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 25, valueKwd: 46.25 })
       // NPIS Hawally (#41 -> 12 qty / 22.2 KWD) + FAIPS Ahmadi (#42 -> 8 qty / 14.8 KWD) preserved under school-canteens!
       expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 20, valueKwd: 37 })
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8)
+      // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500)
       expect(JSON.stringify(wh)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {
         referenceNowMs: TEST_REF_NOW_MS,
       })
       expect(po.connected).toBe(true)
-      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.'])
+      // Hawally Wholesale Market is no longer dropped by name (owner decision 2026-11-18).
+      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.', 'Hawally Wholesale Market'])
       expect(po.byProduct.map((p) => p.productName)).toEqual(['[PP03192] Chicken Brined FB'])
-      expect(po.totals.totalUntaxedKwd).toBe(1850)
-      expect(JSON.stringify(po)).not.toMatch(/heisenberg|qurain|jahra|hawally|croissant|avocado/i)
+      expect(po.totals.totalUntaxedKwd).toBe(1850 + 620)
+      expect(JSON.stringify(po)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
     })
 
     it('preserves pure Tier 2 inventory, procurement, and contract domain math in integer fils', () => {
@@ -951,7 +955,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
   })
 
   describe('3. School Canteens 41 (NPIS Hawally) & 42 (FAIPS Ahmadi) Preserved Where Branch Lists Are Derived', () => {
-    it('preserves pos.config 41 (NPIS Hawally) & 42 (FAIPS Ahmadi) while rejecting closed Hawally restaurant and vetoed exclusions', () => {
+    it('preserves pos.config 41 (NPIS Hawally) & 42 (FAIPS Ahmadi) while accepting Hawally names and rejecting vetoed exclusions', () => {
       expect(posRegistry.schoolCanteenPosConfigIds).toEqual([41, 42, 43])
       expect(schoolCanteenRegisterIds()).toEqual([41, 42, 43])
       expect(isPinnedSchoolCanteenConfigId(41)).toBe(true)
@@ -977,9 +981,11 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(false)
       expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(false)
 
-      // Non-canteen closed Hawally restaurant is strictly rejected
+      // Owner decision 2026-11-18: a Hawally name is not excluded; a register outside the whitelist
+      // (99) still stays out, a whitelisted one (8, Promenade) is accepted.
       expect(companyPosConfigAllowed(99, 'Hawally Restaurant POS', true)).toBe(false)
-      expect(isExcludedOdooEntity('Hawally Restaurant POS')).toBe(true)
+      expect(companyPosConfigAllowed(8, 'Promenade Hawally', true)).toBe(true)
+      expect(isExcludedOdooEntity('Hawally Restaurant POS')).toBe(false)
       expect(isExcludedOdooEntity('NPIS Hawally School Canteen')).toBe(false)
       expect(isExcludedOdooEntity('FAIPS Ahmadi School Canteen')).toBe(false)
 

@@ -731,7 +731,11 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
           dataSource: ds,
         })
         expect(refused.status).toBe('no_odoo_data')
-        expect(refused.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+        // Qurain (central kitchen, owner decision 2026-11-18) answers «غير متاح» pending the audit.
+        expect(
+          refused.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY) ||
+            (excludedBranchQ.includes('القرين') && refused.reply.startsWith('غير متاح')),
+        ).toBe(true)
         expect(refused.verifier.extractedNumbers).toEqual([])
       }
     })

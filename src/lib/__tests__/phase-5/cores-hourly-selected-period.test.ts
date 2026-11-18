@@ -127,15 +127,16 @@ describe('Cores hourly — Today / Yesterday (no real hourly breakdown in the pa
     }
   })
 
-  it('Yesterday: the payload has no data for that day → no hourly points, no peak; the page shows the no-data state, never a 0.000 peak (AR + EN)', async () => {
+  it('Yesterday: real per-branch day rows exist but no hourly breakdown → hourly unavailable, no points, no peak, never a 0.000 peak (AR + EN)', async () => {
     const snap = computeCoresHubSnapshot(YESTERDAY, [], loadLiveTodaySummary())
+    expect(snap.sales.hourlyUnavailable).toBe(true)
     expect(snap.sales.hourly).toEqual([])
     expect(snap.sales.peakHourSalesKwd).toBe(0)
     expect(snap.sales.peakHourShortEn).toBe('—')
     for (const locale of ['ar', 'en'] as const) {
-      const html = await renderCores(locale, YESTERDAY)
-      expect(html).toContain(locale === 'ar' ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No data from Odoo for this period')
-      expect(html).not.toMatch(/(ذروة المبيعات|Peak hour)[^·]*\(0\.000/)
+      const card = hourlyCard(await renderCores(locale, YESTERDAY), locale)
+      expect(card).toContain('data-hourly-unavailable="true"')
+      expect(card).not.toMatch(/(ذروة المبيعات|Peak hour)[^·]*\(0\.000/)
     }
   })
 })

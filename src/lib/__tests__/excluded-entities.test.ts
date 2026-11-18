@@ -9,7 +9,7 @@ import {
 const APPROVED = ['china-garden', 'franks', 'tahina', 'farm-brown', 'noodle-bar', 'karak-cafeteria']
 
 describe('central Odoo exclusion list', () => {
-  it('excludes Heisenberg, Qurain, Jahra, and the closed mall branch by name variants', () => {
+  it('excludes Heisenberg, Qurain and Jahra by name variants; Hawally names are not excluded', () => {
     expect(isExcludedOdooEntity('Heisenberg')).toBe(true)
     expect(isExcludedOdooEntity('هايزنبرغ')).toBe(true)
     expect(isExcludedOdooEntity('هايزن بريج')).toBe(true)
@@ -18,8 +18,9 @@ describe('central Odoo exclusion list', () => {
     expect(isExcludedOdooEntity('Jahra Branch')).toBe(true)
     expect(isExcludedOdooEntity('الجهراء')).toBe(true)
     expect(isExcludedOdooEntity('الجهرة')).toBe(true)
-    expect(isExcludedOdooEntity(['haw', 'ally'].join(''))).toBe(true)
-    expect(isExcludedOdooEntity(['\u062d', '\u0648', '\u0644', '\u064a'].join(''))).toBe(true)
+    // Owner decision 2026-11-18: no closed Hawally restaurant; Hawally names are not excluded (ids only).
+    expect(isExcludedOdooEntity(['haw', 'ally'].join(''))).toBe(false)
+    expect(isExcludedOdooEntity(['\u062d', '\u0648', '\u0644', '\u064a'].join(''))).toBe(false)
     expect(isExcludedOdooEntity('Promenade')).toBe(false)
     expect(isExcludedOdooEntity('مول 360')).toBe(false)
     expect(isExcludedOdooEntity('العارضية')).toBe(false)

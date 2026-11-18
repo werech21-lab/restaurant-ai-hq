@@ -33,7 +33,7 @@ const nipsCanteen = `NPIS ${closedBranch}`
 const closedArabic = ['\u062d', '\u0648', '\u0644', '\u064a'].join('')
 
 describe('phase 9 company POS', () => {
-  it('keeps NPIS Hawally and FAIPS Ahmadi and excludes the closed branch and Jahra devices', () => {
+  it('keeps NPIS Hawally and FAIPS Ahmadi, does not exclude Hawally names, and excludes Jahra devices', () => {
     expect(isPinnedSchoolCanteenConfigId(41)).toBe(true)
     expect(isPinnedSchoolCanteenConfigId(42)).toBe(true)
     expect(isPinnedSchoolCanteenConfigId(99)).toBe(false)
@@ -47,9 +47,10 @@ describe('phase 9 company POS', () => {
       ),
     ).toBe(false)
     expect(isExcludedOdooEntity('FAIPS Ahmadi')).toBe(false)
-    expect(isExcludedOdooEntity(closedBranch)).toBe(true)
-    expect(isExcludedOdooEntity(closedArabic)).toBe(true)
-    expect(isExcludedOdooEntity(`\u0628${closedArabic}`)).toBe(true)
+    // Owner decision 2026-11-18: no closed Hawally restaurant; exclusion is by explicit id only.
+    expect(isExcludedOdooEntity(closedBranch)).toBe(false)
+    expect(isExcludedOdooEntity(closedArabic)).toBe(false)
+    expect(isExcludedOdooEntity(`\u0628${closedArabic}`)).toBe(false)
     expect(isExcludedOdooEntity(`\u0643${closedArabic}`)).toBe(false)
     expect(isExcludedOdooEntity('Delivery (Jahra)')).toBe(true)
     expect(isExcludedOdooEntity('Tasty Snacks(Jahra)')).toBe(true)
@@ -86,12 +87,12 @@ describe('phase 9 company POS', () => {
     await resetAdminPosTerminalMappingsForTests()
   })
 
-  it('keeps a school canteen on the top-branch card and drops the closed branch', () => {
+  it('keeps a school canteen on the top-branch card and drops an excluded (Jahra) branch', () => {
     const card = resolveTopBranchCard({
       period: 'today',
       branches: [
         { id: 'school-canteens', name: nipsCanteen, netSalesKwd: 12.5, orders: 4 },
-        { id: closedBranch, name: closedBranch, netSalesKwd: 90, orders: 20 },
+        { id: 'jahra', name: 'Jahra', netSalesKwd: 90, orders: 20 },
       ],
     })
     expect(card?.id).toBe('school-canteens')
@@ -99,7 +100,7 @@ describe('phase 9 company POS', () => {
     expect(
       resolveTopBranchCard({
         period: 'today',
-        branches: [{ id: closedBranch, name: closedArabic, netSalesKwd: 90, orders: 3 }],
+        branches: [{ id: 'jahra', name: 'الجهراء', netSalesKwd: 90, orders: 3 }],
       }),
     ).toBeNull()
   })
@@ -107,10 +108,11 @@ describe('phase 9 company POS', () => {
   it('does not drop a school canteen with a blind name exclusion', () => {
     const domain: unknown[] = []
     appendOdooNameExclusion(domain, 'name')
-    expect(domain.some((part) => part === '|')).toBe(true)
+    // No Hawally name rule any more, so no canteen exemption clause is needed: nothing in the
+    // domain can match an NPIS/Hawally canteen name.
     expect(
-      domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'NPIS'),
-    ).toBe(true)
+      domain.some((part) => Array.isArray(part) && /npis|haw/i.test(String(part[2]))),
+    ).toBe(false)
     expect(
       domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'school'),
     ).toBe(false)

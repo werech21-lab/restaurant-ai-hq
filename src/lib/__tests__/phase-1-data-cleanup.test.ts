@@ -67,7 +67,8 @@ describe('phase 1 data cleanup', () => {
     for (const name of ['Heisenberg', 'هايزنبرغ', 'Jahra', 'الجهراء', 'القرين', 'Qurain']) {
       expect(isExcludedOdooEntity(name)).toBe(true)
     }
-    expect(isExcludedOdooEntity(['haw', 'ally'].join(''))).toBe(true)
+    // Owner decision 2026-11-18: no closed Hawally restaurant; Hawally names are not excluded (ids only).
+    expect(isExcludedOdooEntity(['haw', 'ally'].join(''))).toBe(false)
     expect(isExcludedOdooEntity('Promenade')).toBe(false)
   })
 

@@ -25,6 +25,7 @@ import {
   type GlobalBrand,
   type GlobalFilters,
   isExhibitionGroupReported,
+  resolveSummaryBucket,
 } from '@/lib/aether/global-filter-engine'
 
 export const UNATTRIBUTED_BRANCH_LABEL_AR = 'غير منسوب لفرع'
@@ -781,7 +782,7 @@ export function computeCoresHubSnapshot(
 
   const activeBucket =
     filters.period === 'custom'
-      ? liveSummary?.customBucket
+      ? resolveSummaryBucket(filters, liveSummary)
       : liveSummary?.buckets?.[filters.period] ?? liveSummary?.buckets?.month
 
   // 3. Brand Share (6 brands strictly)

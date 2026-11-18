@@ -16,9 +16,9 @@ function source(relative: string): string {
 }
 
 describe('phase 6 exclusions', () => {
-  it('matches the closed branch as a whole token and keeps lookalikes', () => {
-    expect(isExcludedOdooEntity('حولي')).toBe(true)
-    expect(isExcludedOdooEntity('فرع حولي')).toBe(true)
+  it('Hawally names are no longer excluded (owner decision 2026-11-18); lookalikes stay accepted', () => {
+    expect(isExcludedOdooEntity('حولي')).toBe(false)
+    expect(isExcludedOdooEntity('فرع حولي')).toBe(false)
     expect(isExcludedOdooEntity('محولين كهرباء')).toBe(false)
     expect(isExcludedOdooEntity('حوليات')).toBe(false)
     expect(isExcludedOdooEntity('مول 360')).toBe(false)
@@ -27,7 +27,7 @@ describe('phase 6 exclusions', () => {
   it('matches the short codes as tokens and not as a prefix', () => {
     expect(isExcludedOdooEntity('QRN')).toBe(true)
     expect(isExcludedOdooEntity('register JHR')).toBe(true)
-    expect(isExcludedOdooEntity('HWL')).toBe(true)
+    expect(isExcludedOdooEntity('HWL')).toBe(false)
     expect(isExcludedOdooEntity('QRNO')).toBe(false)
     expect(isExcludedOdooEntity('JHRA extra')).toBe(false)
     expect(isExcludedOdooEntity('site JHR')).toBe(true)
@@ -35,11 +35,11 @@ describe('phase 6 exclusions', () => {
 
   it('strips an excluded branch key from a warehouse payload', () => {
     const stripped = stripExcludedOdooTree({
-      products: [{ name: 'Noodles', skuCode: 'N1' }, { name: 'Hawally special', skuCode: 'H1' }],
-      byBranchOnHand: { avenues: { qty: 1 }, hawally: { qty: 9 } },
+      products: [{ name: 'Noodles', skuCode: 'N1' }, { name: 'Jahra special', skuCode: 'H1' }],
+      byBranchOnHand: { avenues: { qty: 1 }, jahra: { qty: 9 } },
     })
     expect(stripped.products.map((row) => row.skuCode)).toEqual(['N1'])
-    expect(stripped.byBranchOnHand.hawally).toBeUndefined()
+    expect((stripped.byBranchOnHand as Record<string, unknown>).jahra).toBeUndefined()
     expect(stripped.byBranchOnHand.avenues.qty).toBe(1)
   })
 })

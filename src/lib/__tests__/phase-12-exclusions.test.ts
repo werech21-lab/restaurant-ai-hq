@@ -59,40 +59,43 @@ function buildConsoleRowKept(): (row: Record<string, unknown>) => boolean {
   return new Function(body)() as (row: Record<string, unknown>) => boolean
 }
 
-describe('phase 12 exclusions: non-POS closed-Hawally canteen exemption & parity', () => {
-  it('exempts closed-Hawally school canteen products, locations, registers, and GL accounts while keeping street branches and Jahra/Qurain/Heisenberg excluded', () => {
-    expect(isExcludedOdooEntity('Canteen hawally: insect killer')).toBe(false)
-    expect(isExcludedOdooEntity('مقصف حولي')).toBe(false)
-    expect(isExcludedOdooEntity('مقصف مدرسة حولي')).toBe(false)
-    expect(isExcludedOdooEntity('مدرسة حولي')).toBe(false)
-    expect(isExcludedOdooEntity('بمقصف حولي')).toBe(false)
-    expect(isExcludedOdooEntity('للمقصف حولي')).toBe(false)
-    expect(isExcludedOdooEntity('Hawally School Canteen')).toBe(false)
-    expect(isExcludedOdooEntity('NPIS Hawally (Inactive)')).toBe(false)
-    expect(isExcludedOdooEntity('FAIPS Hawally')).toBe(false)
-    expect(isExcludedOdooEntity('FAS Hawally')).toBe(false)
-    // TODO(Abdullah): confirm
-    expect(isExcludedOdooEntity('Cash On Hand/ NPIS Hawally Branch Cashier - فرع حولي - NPIS')).toBe(false)
+// Owner decision 2026-11-18: there is no closed Hawally restaurant (NPIS Hawally canteen is pos.config
+// 41, the Promenade shop sits in Hawally). Hawally names are therefore never excluded; exclusion is
+// by explicit id (24, 25, 39, 40) plus the Jahra / Qurain / Heisenberg name rules.
+const HAWALLY_NAMES_KEPT = [
+  'Canteen hawally: insect killer',
+  'مقصف حولي',
+  'مقصف مدرسة حولي',
+  'مدرسة حولي',
+  'بمقصف حولي',
+  'للمقصف حولي',
+  'Hawally School Canteen',
+  'NPIS Hawally (Inactive)',
+  'FAIPS Hawally',
+  'FAS Hawally',
+  'Cash On Hand/ NPIS Hawally Branch Cashier - فرع حولي - NPIS',
+  'Hawally School Street Branch',
+  'حولي - شارع المدارس',
+  'مدرسة حولي - شارع تونس',
+  'Breakfast Hawally',
+  'Superfast Hawally',
+  'Hawally2',
+  'Canteen Hawally2',
+  'Branch hawally: closed',
+  'Promenade Hawally',
+  'Breakfast',
+  'Superfast',
+]
+const STILL_EXCLUDED = ['Heisenberg School Canteen', 'FAIPS Qurain', 'NPIS Jahra', 'Jahra01', 'AlJahra', 'HeisenbergKW']
 
-    // Bare English school, plural المدارس, and street-qualified labels stay excluded
-    expect(isExcludedOdooEntity('Hawally School Street Branch')).toBe(true)
-    expect(isExcludedOdooEntity('حولي - شارع المدارس')).toBe(true)
-    expect(isExcludedOdooEntity('مدرسة حولي - شارع تونس')).toBe(true)
-
-    // Substring "fas" inside Breakfast / Superfast must never trigger the FAS canteen exemption
-    expect(isExcludedOdooEntity('Breakfast Hawally')).toBe(true)
-    expect(isExcludedOdooEntity('Superfast Hawally')).toBe(true)
-
-    // Never exempt Heisenberg, Qurain, or Jahra even when combined with canteen markers
-    expect(isExcludedOdooEntity('Heisenberg School Canteen')).toBe(true)
-    expect(isExcludedOdooEntity('FAIPS Qurain')).toBe(true)
-    expect(isExcludedOdooEntity('NPIS Jahra')).toBe(true)
+describe('phase 12 exclusions: Hawally names accepted, Jahra/Qurain/Heisenberg excluded, parity', () => {
+  it('does not exclude any Hawally name (canteen, street, shop) and keeps Jahra/Qurain/Heisenberg excluded', () => {
+    for (const name of HAWALLY_NAMES_KEPT) expect(isExcludedOdooEntity(name), name).toBe(false)
+    for (const name of STILL_EXCLUDED) expect(isExcludedOdooEntity(name), name).toBe(true)
   })
 
   it('preserves Phase 11 joined-name and product lookalike invariants', () => {
     expect(isExcludedOdooEntity('Jahra01')).toBe(true)
-    expect(isExcludedOdooEntity('Hawally2')).toBe(true)
-    expect(isExcludedOdooEntity('Canteen Hawally2')).toBe(true)
     expect(isExcludedOdooEntity('AlJahra')).toBe(true)
     expect(isExcludedOdooEntity('HeisenbergKW')).toBe(true)
 
@@ -103,7 +106,7 @@ describe('phase 12 exclusions: non-POS closed-Hawally canteen exemption & parity
     expect(isExcludedOdooEntity('FAS Fahaheel')).toBe(false)
   })
 
-  it('keeps appendOdooNameExclusion consistent with closed-Hawally canteen exemptions and exclusions', () => {
+  it('keeps appendOdooNameExclusion consistent with isExcludedOdooEntity', () => {
     const domain: unknown[] = []
     appendOdooNameExclusion(domain, 'name')
 
@@ -111,61 +114,13 @@ describe('phase 12 exclusions: non-POS closed-Hawally canteen exemption & parity
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'school')).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'not ilike')).toBe(false)
 
-    // Kept (not excluded -> domain evaluates to true)
-    expect(evalOdooDomain(domain, 'Canteen hawally: insect killer')).toBe(true)
-    expect(evalOdooDomain(domain, 'مقصف حولي')).toBe(true)
-    expect(evalOdooDomain(domain, 'مقصف مدرسة حولي')).toBe(true)
-    expect(evalOdooDomain(domain, 'مدرسة حولي')).toBe(true)
-    expect(evalOdooDomain(domain, 'Hawally School Canteen')).toBe(true)
-    expect(evalOdooDomain(domain, 'NPIS Hawally (Inactive)')).toBe(true)
-    expect(evalOdooDomain(domain, 'FAIPS Hawally')).toBe(true)
-    expect(evalOdooDomain(domain, 'FAS Hawally')).toBe(true)
-    // TODO(Abdullah): confirm
-    expect(evalOdooDomain(domain, 'Cash On Hand/ NPIS Hawally Branch Cashier - فرع حولي - NPIS')).toBe(true)
-    expect(evalOdooDomain(domain, 'Breakfast')).toBe(true)
-    expect(evalOdooDomain(domain, 'Superfast')).toBe(true)
-
-    // Excluded (domain evaluates to false)
-    expect(evalOdooDomain(domain, 'Hawally School Street Branch')).toBe(false)
-    expect(evalOdooDomain(domain, 'Branch hawally: closed')).toBe(false)
-    expect(evalOdooDomain(domain, 'حولي - شارع المدارس')).toBe(false)
-    expect(evalOdooDomain(domain, 'مدرسة حولي - شارع تونس')).toBe(false)
-    expect(evalOdooDomain(domain, 'Heisenberg School Canteen')).toBe(false)
-    expect(evalOdooDomain(domain, 'FAIPS Qurain')).toBe(false)
-    expect(evalOdooDomain(domain, 'NPIS Jahra')).toBe(false)
-    expect(evalOdooDomain(domain, 'Breakfast Hawally')).toBe(false)
-    expect(evalOdooDomain(domain, 'Superfast Hawally')).toBe(false)
-    expect(evalOdooDomain(domain, 'Hawally2')).toBe(false)
-    expect(evalOdooDomain(domain, 'Canteen Hawally2')).toBe(false)
+    for (const name of HAWALLY_NAMES_KEPT) expect(evalOdooDomain(domain, name), name).toBe(true)
+    for (const name of STILL_EXCLUDED) expect(evalOdooDomain(domain, name), name).toBe(false)
   })
 
-  it('keeps odooConsoleExtractor rowKept consistent with closed-Hawally canteen exemptions and exclusions', () => {
+  it('keeps odooConsoleExtractor rowKept consistent with isExcludedOdooEntity', () => {
     const rowKept = buildConsoleRowKept()
-
-    // Kept
-    expect(rowKept({ id: 1, name: 'Canteen hawally: insect killer' })).toBe(true)
-    expect(rowKept({ id: 2, name: 'مقصف حولي' })).toBe(true)
-    expect(rowKept({ id: 3, name: 'مقصف مدرسة حولي' })).toBe(true)
-    expect(rowKept({ id: 4, name: 'مدرسة حولي', street: false })).toBe(true)
-    expect(rowKept({ id: 5, name: 'Hawally School Canteen' })).toBe(true)
-    expect(rowKept({ id: 6, name: 'NPIS Hawally (Inactive)' })).toBe(true)
-    expect(rowKept({ id: 7, name: 'FAIPS Hawally' })).toBe(true)
-    expect(rowKept({ id: 8, name: 'FAS Hawally' })).toBe(true)
-    // TODO(Abdullah): confirm
-    expect(rowKept({ id: 9, name: 'Cash On Hand/ NPIS Hawally Branch Cashier - فرع حولي - NPIS' })).toBe(true)
-    expect(rowKept({ id: 10, name: 'Breakfast' })).toBe(true)
-    expect(rowKept({ id: 11, name: 'Superfast' })).toBe(true)
-
-    // Excluded
-    expect(rowKept({ id: 12, name: 'Hawally School Street Branch' })).toBe(false)
-    expect(rowKept({ id: 13, name: 'حولي - شارع المدارس' })).toBe(false)
-    expect(rowKept({ id: 14, name: 'مدرسة حولي - شارع تونس' })).toBe(false)
-    expect(rowKept({ id: 15, name: 'Heisenberg School Canteen' })).toBe(false)
-    expect(rowKept({ id: 16, name: 'FAIPS Qurain' })).toBe(false)
-    expect(rowKept({ id: 17, name: 'NPIS Jahra' })).toBe(false)
-    expect(rowKept({ id: 18, name: 'Breakfast Hawally' })).toBe(false)
-    expect(rowKept({ id: 19, name: 'Superfast Hawally' })).toBe(false)
-    expect(rowKept({ id: 20, name: 'Hawally2' })).toBe(false)
-    expect(rowKept({ id: 21, name: 'Canteen Hawally2' })).toBe(false)
+    HAWALLY_NAMES_KEPT.forEach((name, i) => expect(rowKept({ id: i + 1, name }), name).toBe(true))
+    STILL_EXCLUDED.forEach((name, i) => expect(rowKept({ id: 100 + i, name }), name).toBe(false))
   })
 })

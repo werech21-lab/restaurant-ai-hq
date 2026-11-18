@@ -29,11 +29,13 @@ describe('r2 — Cores Hub order counts', () => {
     expect(snap.sales.brandShare.find((r) => r.id === 'franks')?.orders).toBe(4)
   })
 
-  it('fallback without a bucket: brand, branch and channel rows show unknown orders, not 0', () => {
-    const snap = computeCoresHubSnapshot(customWithoutBucket, [], loadLiveTodaySummary())
+  it('fallback without a customBucket: branch rows use the payload\'s real daily counts; brand and channel orders stay unknown, never 0', () => {
+    const summary = loadLiveTodaySummary()
+    const snap = computeCoresHubSnapshot(customWithoutBucket, [], summary)
     const ardiya = snap.sales.branchRanking.find((r) => r.id === 'ardiya')
     expect(ardiya?.salesKwd).toBeGreaterThan(0)
-    expect(ardiya?.orders).toBeNull()
+    // The bucket is derived from the same payload's dailyByBranch rows (Arabic/English ledger parity).
+    expect(ardiya?.orders).toBe(summary.dailyByBranch!['2026-11-17'].ardiya.orders)
     for (const row of snap.sales.brandShare) expect(row.orders, row.id).toBeNull()
     for (const row of snap.sales.channelRanking) expect(row.orders, row.id).toBeNull()
   })

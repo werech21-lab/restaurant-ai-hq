@@ -65,6 +65,7 @@ import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
   isExhibitionGroupReported,
+  resolveSummaryBucket,
   formatPeriodCalendarWindow,
   getBranchLabel,
 } from '@/lib/aether/global-filter-engine'
@@ -347,9 +348,10 @@ export function FullJourney360({
 
   const activeBucket = useMemo(() => {
     if (!liveSummary || liveSummary.connected !== true) return null
-    if (filters.period === 'custom') return liveSummary.customBucket ?? null
-    return liveSummary.buckets?.[filters.period] ?? null
-  }, [filters.period, liveSummary])
+    // Same bucket as the headline engine (custom range: matching customBucket, else derived from
+    // the same payload's daily rows) so branch rows always sum to the headline.
+    return resolveSummaryBucket(filters, liveSummary) ?? null
+  }, [filters, liveSummary])
 
   // Branch figures that match the brand filter (exact brand split, or unavailable — never all-brand).
   const branchScope = useMemo(
@@ -2345,6 +2347,7 @@ export function FullJourney360({
                           ledgerRows.map((row) => (
                             <tr
                               key={row.id}
+                              data-ledger-row={row.id}
                               className={`transition-colors hover:bg-slate-50/85 dark:hover:bg-slate-800/45 ${
                                 row.isUnattributed ? 'bg-slate-50/70 dark:bg-slate-800/30' : ''
                               }`}

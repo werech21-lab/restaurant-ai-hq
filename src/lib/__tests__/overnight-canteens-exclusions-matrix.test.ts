@@ -768,9 +768,9 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
     })
   })
 
-  describe('2. All 4 Excluded Entities Matrix — Zero Matches & 0.000 KWD Contribution Across Every Entry Point', () => {
+  describe('2. Excluded Entities Matrix (Heisenberg, Qurain, Jahra; Hawally accepted) — Zero Matches & 0.000 KWD Contribution Across Every Entry Point', () => {
     const EXCLUDED_ENTITY_MATRIX: readonly {
-      family: 'Heisenberg' | 'Qurain' | 'Closed-Hawally-Restaurant' | 'Jahra'
+      family: 'Heisenberg' | 'Qurain' | 'Jahra'
       label: string
       shortCodeOnly?: boolean
     }[] = [
@@ -796,18 +796,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       { family: 'Qurain', label: 'قرين' },
       { family: 'Qurain', label: 'بالقرين' },
 
-      // Family 3: Closed Hawally restaurant branch
-      { family: 'Closed-Hawally-Restaurant', label: 'Hawally' },
-      { family: 'Closed-Hawally-Restaurant', label: 'Hawally2' },
-      { family: 'Closed-Hawally-Restaurant', label: 'Hawally Restaurant' },
-      { family: 'Closed-Hawally-Restaurant', label: 'Hawally School Street Branch' },
-      { family: 'Closed-Hawally-Restaurant', label: 'HWL', shortCodeOnly: true },
-      { family: 'Closed-Hawally-Restaurant', label: 'فرع حولي' },
-      { family: 'Closed-Hawally-Restaurant', label: 'حولي' },
-      { family: 'Closed-Hawally-Restaurant', label: 'بحولي' },
-      { family: 'Closed-Hawally-Restaurant', label: 'حولي - شارع المدارس' },
-
-      // Family 4: Jahra
+      // Family 3: Jahra
       { family: 'Jahra', label: 'Jahra' },
       { family: 'Jahra', label: 'Jahra01' },
       { family: 'Jahra', label: 'AlJahra' },
@@ -878,7 +867,30 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       },
     )
 
-    it('blocks POS category #150 (Heisenberg) and strips all 4 poisoned excluded entities across live Snapshot, PeriodCube, Workspace, CoresHub, Comparison, Reports, BriefFactPack, and Feryal (0.000 KWD)', async () => {
+    // Owner decision 2026-11-18: there is no closed Hawally restaurant (NPIS Hawally canteen is
+    // pos.config 41; the Promenade shop sits in Hawally). Hawally names are no longer an excluded
+    // family: they are accepted by name, and only the register whitelist / explicit ids decide.
+    const HAWALLY_NAMES_ACCEPTED = [
+      'Hawally',
+      'Hawally2',
+      'Hawally Restaurant',
+      'Hawally School Street Branch',
+      'HWL',
+      'فرع حولي',
+      'حولي',
+      'بحولي',
+      'حولي - شارع المدارس',
+      'Promenade Hawally',
+    ]
+    it.each(HAWALLY_NAMES_ACCEPTED)('accepts the Hawally name "%s" on a whitelisted register; a non-whitelisted id stays out', (label) => {
+      expect(isExcludedOdooEntity(label)).toBe(false)
+      expect(companyPosConfigAllowed(8, label, true)).toBe(true)
+      expect(companyPosConfigAllowed(99, label, true)).toBe(false)
+      expect(evalOdooDomain(NAME_EXCLUSION_DOMAIN, label)).toBe(true)
+      expect(CONSOLE_ROW_KEPT({ id: 777, name: label })).toBe(true)
+    })
+
+    it('blocks POS category #150 (Heisenberg) and strips the poisoned excluded entities across live Snapshot, PeriodCube, Workspace, CoresHub, Comparison, Reports, BriefFactPack, and Feryal (0.000 KWD)', async () => {
       expect(isExcludedRecordId('pos_category', 150)).toBe(true)
       expect(isExcludedOdooRecord({ id: 150, name: 'Any Category Name', kind: 'pos_category' })).toBe(
         true,
@@ -949,7 +961,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         briefFacts: pack.facts,
       })
       expect(serializedAll).not.toMatch(
-        /heisenberg|hizenberg|هايزن|qurain|القرين|قرين|jahra|الجهراء|جهراء|فرع حولي|hawally restaurant/i,
+        /heisenberg|hizenberg|هايزن|qurain|القرين|قرين|jahra|الجهراء|جهراء/i,
       )
     })
   })

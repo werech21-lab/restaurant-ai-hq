@@ -73,11 +73,11 @@ describe('phase 7 panel reads', () => {
 
 describe('phase 7 exclusions', () => {
   it('matches the added spellings, prefixes, and digit codes', () => {
-    expect(isExcludedOdooEntity('Hawali')).toBe(true)
+    expect(isExcludedOdooEntity('Hawali')).toBe(false) // Hawally not excluded (owner decision 2026-11-18)
     expect(isExcludedOdooEntity('Qurein')).toBe(true)
     expect(isExcludedOdooEntity('جهراء')).toBe(true)
-    expect(isExcludedOdooEntity('بحولي')).toBe(true)
-    expect(isExcludedOdooEntity('وحولي')).toBe(true)
+    expect(isExcludedOdooEntity('بحولي')).toBe(false)
+    expect(isExcludedOdooEntity('وحولي')).toBe(false)
     expect(isExcludedOdooEntity('للجهراء')).toBe(true)
     expect(isExcludedOdooEntity('JHR01')).toBe(true)
     expect(isExcludedOdooEntity('QRN12')).toBe(true)

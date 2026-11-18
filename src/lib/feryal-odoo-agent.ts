@@ -537,6 +537,7 @@ type NoOdooDataReasonKey =
   | 'gl_branch_not_partitioned'
   /** «الفحاحيل» = school-canteen register FAS Fahaheel (pos.config 43), never Al-Kout. */
   | 'fas_fahaheel_canteen'
+  | 'qurain_central_kitchen'
   | 'generic'
 
 /**
@@ -575,6 +576,8 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
       return 'غير متاح — رصيد المخزون الحالي (stock.quant) غير مربوط بعد بلوحة الإدارة؛ لا تُستخدم أرقام المبيعات بدلاً منه.'
     case 'fas_fahaheel_canteen':
       return `غير متاح — «الفحاحيل» ليس فرع مطاعم؛ يقابله في Odoo مقصف مدرسة FAS Fahaheel (pos.config ${FAS_FAHAHEEL_POS_CONFIG_ID}) ضمن مقاصف المدارس، ومبيعات هذا الصندوق غير مفصولة عن بقية المقاصف في البيانات الحالية.`
+    case 'qurain_central_kitchen':
+      return 'غير متاح — «القرين (المطبخ المركزي)» لم يُضَف بعد إلى إجمالي الشركة: يلزم أولاً تدقيق Odoo (قراءة فقط) لاستبعاد التحويلات الداخلية ووجبات الموظفين والتوريد للفروع والطلبات المكررة مع الفروع الأخرى؛ لا يُعرض رقم قبل اعتماد هذا التدقيق.'
     case 'gl_branch_not_partitioned':
       return 'غير متاح — مصاريف الفرع غير مقسّمة تحليلياً حسب الفرع في قيود account.move.line الحالية؛ لا تُستخدم أرقام المبيعات بدلاً منها.'
     case 'stock_no_data':
@@ -583,6 +586,16 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
     default:
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط المصدر التشغيلي المختص بموديولات Odoo المعتمدة وتحديد المؤشر أو الفترة المطلوبة.`
   }
+}
+
+/** «القرين» / «المطبخ المركزي» / Qurain / Central Kitchen as the subject of a question. */
+export function isQurainCentralKitchenQuestion(question: string): boolean {
+  const norm = normalizeArabicText(question)
+  return (
+    /(?:^|[\s«(])(?:بال|لل|وال|ال|ب|و|ل)?قرين(?=$|[\s،؟?.,!؛:)»])/.test(norm) ||
+    /المطبخ\s+المركزي/.test(norm) ||
+    /\b(?:al-?)?qurain\b|\bcentral\s+kitchen\b/i.test(norm)
+  )
 }
 
 function extractRequestedTopLimit(question: string): number {
@@ -2576,6 +2589,12 @@ export async function askFeryalOdooAgent(
   // 2b. «الفحاحيل» is the FAS Fahaheel school-canteen register, never Al-Kout.
   if (FAS_FAHAHEEL_POS_CONFIG_ID !== null && /(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normalizeArabicText(rawQuestion))) {
     return finalizeNoData('fas_fahaheel_canteen')
+  }
+
+  // 2c. «القرين» / «المطبخ المركزي» is the active central kitchen (owner, 2026-11-18). Its POS sales are
+  // not in company totals until the read-only double-counting audit is approved → «غير متاح», never 0.000.
+  if (isQurainCentralKitchenQuestion(rawQuestion)) {
+    return finalizeNoData('qurain_central_kitchen')
   }
 
   // 3. Branch Scope Check (7 approved branches + school canteens only)

@@ -182,7 +182,7 @@ describe('phase 11 blocker 2: contradictory recommendations across any metric', 
 })
 
 describe('phase 11 blocker 3 & should-fix 1 & should-fix 3: pinned canteen ids, exclusions, tooltip', () => {
-  it('pins canteens by explicit POS config ids, excludes archived configs, Exhibition School Fair, Test canteen, and Hawally School Street Branch', () => {
+  it('pins canteens by explicit POS config ids, excludes archived configs, Exhibition School Fair and Test canteen; Hawally names are accepted on whitelisted ids', () => {
     const pinnedCanteens = schoolCanteenRegisterIds()
     expect(pinnedCanteens.length).toBeGreaterThan(0)
     for (const id of pinnedCanteens) {
@@ -211,10 +211,12 @@ describe('phase 11 blocker 3 & should-fix 1 & should-fix 3: pinned canteen ids, 
     expect(resolveRestaurantBranchForConfig(999, 'Exhibition School Fair')).toBeNull()
     expect(resolveRestaurantBranchForConfig(998, 'Test canteen')).toBeNull()
 
-    // Exclusions win on non-canteen IDs while pinned canteen IDs allow closed-district names
+    // Owner decision 2026-11-18: no closed Hawally restaurant, so a Hawally name is not excluded;
+    // Jahra names still lose on any id.
     const streetBranch = `${closedBranch[0]?.toUpperCase()}${closedBranch.slice(1)} School Street Branch`
-    expect(isExcludedOdooEntity(streetBranch)).toBe(true)
-    expect(companyPosConfigAllowed(3, streetBranch, true)).toBe(false)
+    expect(isExcludedOdooEntity(streetBranch)).toBe(false)
+    expect(companyPosConfigAllowed(3, streetBranch, true)).toBe(true)
+    expect(companyPosConfigAllowed(3, 'Jahra School Street Branch', true)).toBe(false)
     expect(companyPosConfigAllowed(pinnedCanteens[0]!, streetBranch, true)).toBe(true)
     expect(resolveRestaurantBranchForConfig(pinnedCanteens[0]!, streetBranch)).toBe('school-canteens')
   })
@@ -234,10 +236,10 @@ describe('phase 11 blocker 3 & should-fix 1 & should-fix 3: pinned canteen ids, 
     }
   })
 
-  it('catches joined exclusion names without catching Shawali, Qurainy Dates, or the canteens', () => {
+  it('catches joined exclusion names without catching Shawali, Qurainy Dates, Hawally, or the canteens', () => {
     const haw2 = `${closedBranch[0]?.toUpperCase()}${closedBranch.slice(1)}2`
     expect(isExcludedOdooEntity('Jahra01')).toBe(true)
-    expect(isExcludedOdooEntity(haw2)).toBe(true)
+    expect(isExcludedOdooEntity(haw2)).toBe(false) // Hawally not excluded (owner decision 2026-11-18)
     expect(isExcludedOdooEntity('AlJahra')).toBe(true)
     expect(isExcludedOdooEntity('HeisenbergKW')).toBe(true)
 

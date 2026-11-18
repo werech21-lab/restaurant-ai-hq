@@ -368,7 +368,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       },
     )
 
-    it('keeps excluded branch («فرع القرين») out of answers and reports unknown_branch for «فرع المريخ»', async () => {
+    it('answers «فرع القرين» as غير متاح (central kitchen, pending audit) and reports unknown_branch for «فرع المريخ»', async () => {
       const ds = createStubDataSource()
       const qurainPrompt = ['فرع', '\u0627\u0644\u0642\u0631\u064a\u0646'].join(' ')
       const qurainRes = await askFeryalOdooAgent({
@@ -378,7 +378,10 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         skipAuditLog: true,
       })
       expect(qurainRes.status).toBe('no_odoo_data')
-      expect(qurainRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+      // Owner decision 2026-11-18: Qurain is the active central kitchen; until the read-only
+      // double-counting audit is approved its sales are «غير متاح» (never a number, never 0.000).
+      expect(qurainRes.reply.startsWith('غير متاح')).toBe(true)
+      expect(qurainRes.reply).toContain('القرين (المطبخ المركزي)')
       expect(qurainRes.verifier.extractedNumbers).toEqual([])
 
       const marsRes = await askFeryalOdooAgent({
