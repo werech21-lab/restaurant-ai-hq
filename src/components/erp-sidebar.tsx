@@ -252,6 +252,15 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         alwaysVisible: true,
       },
       {
+        key: 'seasons',
+        sectionId: 'governance-strategy',
+        href: '/erp/seasons',
+        labelAr: 'المواسم والمناسبات',
+        labelEn: 'Seasons & Occasions',
+        icon: Calendar,
+        alwaysVisible: true,
+      },
+      {
         key: 'regulations',
         sectionId: 'governance-strategy',
         href: '/erp/regulations',

@@ -13,6 +13,7 @@ import {
   listFeryalAuditEntries,
   UNATTRIBUTED_BRANCH_LABEL_AR,
 } from '@/lib/feryal-odoo-agent'
+import { latestCouncilSnapshot } from '@/server/council/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
     userSub: authGuard.session.sub,
     userRole: authGuard.session.role,
     userNameAr: authGuard.session.nameAr,
+    council: await latestCouncilSnapshot().catch(() => null),
   })
 
   return NextResponse.json(

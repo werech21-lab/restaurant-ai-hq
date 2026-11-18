@@ -20,6 +20,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { TodaysDiscoveries } from '@/components/aether/TodaysDiscoveries'
 import { V35GlassCard } from '@/components/aether/v35/V35GlassCard'
 import { V35KpiRing } from '@/components/aether/v35/V35KpiRing'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
@@ -1109,6 +1110,9 @@ export function FullJourney360({
               </button>
             </V35GlassCard>
           ) : null}
+
+          {/* Today's Discoveries — top 3 cross-advisor findings (council, read-only Odoo) */}
+          <TodaysDiscoveries locale={activeLocale} />
 
           {/* 4-Column Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Static Estimates) */}
           <section className="space-y-4 sm:space-y-5">

@@ -1085,10 +1085,10 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
     })
   })
 
-  describe('4. Auth & RBAC Sanity Across All 109 Routes + Auditor Read-Only Enforcement on /api/erp/*', () => {
-    it('discovers all 109 page.tsx routes and enforces unauthenticated /login redirect on every non-login route', async () => {
+  describe('4. Auth & RBAC Sanity Across All 110 Routes + Auditor Read-Only Enforcement on /api/erp/*', () => {
+    it('discovers all 110 page.tsx routes (incl. /erp/seasons) and enforces unauthenticated /login redirect on every non-login route', async () => {
       const pageFiles = await collectAllPageFiles()
-      expect(pageFiles).toHaveLength(109)
+      expect(pageFiles).toHaveLength(110)
 
       const routeUrls = pageFiles.map(pageFileToRouteUrl)
       expect(routeUrls).toContain('/')

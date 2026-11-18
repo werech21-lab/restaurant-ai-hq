@@ -1,3 +1,5 @@
+import type { CouncilSnapshot } from '@/lib/council/types'
+import { buildAdvisoryBlock } from '@/lib/feryal/advisor-synthesis'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { formatKuwaitDateTime } from '@/lib/format'
 import os from 'node:os'
@@ -216,6 +218,11 @@ export interface AskFeryalOdooAgentInput {
     deterministicDraft: string
   }) => Promise<string | null>
   skipAuditLog?: boolean
+  /**
+   * Latest advisor-council snapshot. When present, Feryal adds the why, 2–3 specific proposals and
+   * a follow-up after the Odoo number (every figure checked by the number guard).
+   */
+  council?: CouncilSnapshot | null
 }
 
 export interface AskFeryalOdooAgentResult {
@@ -230,6 +237,8 @@ export interface AskFeryalOdooAgentResult {
   /** Phase 5 · Item 3: exact data source & last sync attached to every answered reply. */
   source: FeryalAnswerSource | null
   auditEntry: FeryalAuditLogEntry
+  /** Advisor findings and advisors used in the reply (empty when no council was given). */
+  advisory?: { findings: string[]; advisors: string[] }
 }
 
 export interface FeryalAnswerSource {
@@ -585,6 +594,14 @@ export function buildFeryalNoOdooDataSuggestion(reasonKey: NoOdooDataReasonKey):
     case 'generic':
     default:
       return `${FERYAL_NO_ODOO_DATA_REPLY} — يلزم ربط المصدر التشغيلي المختص بموديولات Odoo المعتمدة وتحديد المؤشر أو الفترة المطلوبة.`
+  }
+}
+
+function safeDetectBranchId(question: string): string | null {
+  try {
+    return detectTargetBranchFromQuestion(question).branchId ?? null
+  } catch {
+    return null
   }
 }
 
@@ -2503,7 +2520,27 @@ export async function askFeryalOdooAgent(
     structuredFacts?: Record<string, unknown>
     llmCandidateRejected?: boolean
     sourceModel?: string
+    /** No advisor block (e.g. Qurain: no figure before the double-count audit is approved). */
+    skipAdvisory?: boolean
   }): Promise<AskFeryalOdooAgentResult> => {
+    let advisory: { findings: string[]; advisors: string[] } | undefined
+    if (input.council && !params.skipAdvisory && (params.status === 'answered' || params.status === 'no_odoo_data')) {
+      const block = buildAdvisoryBlock(
+        {
+          question: rawQuestion,
+          branchId: safeDetectBranchId(rawQuestion),
+          council: input.council,
+          formatSync: (iso) => formatKuwaitDateTime(iso, 'ar'),
+        },
+        (text, allowed, opts) => verifyFeryalReplyNumbers(text, allowed, opts),
+      )
+      if (block) {
+        // A no-data reply keeps its one calm line, then bridges to what the advisors already hold.
+        const bridge = params.status === 'no_odoo_data' ? '\n• المتاح الآن من تقارير المستشارين (آخر بيانات Odoo المتزامنة):' : ''
+        params = { ...params, reply: `${params.reply}${bridge}\n${block.text}` }
+        advisory = { findings: block.findings, advisors: block.advisors }
+      }
+    }
     let source: FeryalAnswerSource | null = null
     if (params.status === 'answered' && params.sourceModel) {
       let lastSyncAt: string | null = null
@@ -2544,6 +2581,7 @@ export async function askFeryalOdooAgent(
       facts: numericFactsFromStructured(params.structuredFacts ?? null, params.period),
       source,
       auditEntry,
+      ...(advisory ? { advisory } : {}),
     }
   }
 
@@ -2555,6 +2593,7 @@ export async function askFeryalOdooAgent(
     const reply = buildFeryalNoOdooDataSuggestion(reasonKey)
     const verifier = verifyFeryalReplyNumbers(reply, [])
     return finalize({
+      skipAdvisory: reasonKey === 'qurain_central_kitchen',
       reply,
       status: 'no_odoo_data',
       executedQueries,
