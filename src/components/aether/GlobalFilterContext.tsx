@@ -62,6 +62,7 @@ interface GlobalFilterContextValue {
   isAuditor: boolean
   sessionRole: ExecSessionRole
   syncingOdoo: boolean
+  loadingSummary?: boolean
   syncCooldownSec: number
   triggerOdooSyncNow: () => Promise<void>
   setPeriod: (period: GlobalPeriod) => void
@@ -149,6 +150,7 @@ export function GlobalFilterProvider({
     { day: string; orders: number; netKwd: number }[]
   >([])
   const [syncingOdoo, setSyncingOdoo] = useState(false)
+  const [loadingSummary, setLoadingSummary] = useState(true)
   const [syncCooldownSec, setSyncCooldownSec] = useState(0)
 
   useEffect(() => {
@@ -279,6 +281,7 @@ export function GlobalFilterProvider({
         : `period=${encodeURIComponent(effectiveFilters.period)}`
     const cacheKey = `aether_live_odoo_summary_v1:${qs}`
 
+    let hydratedFromSessionCache = false
     try {
       const cachedRaw = window.sessionStorage.getItem(cacheKey)
       if (cachedRaw) {
@@ -290,13 +293,19 @@ export function GlobalFilterProvider({
           typeof parsed.savedAt === 'number' &&
           Date.now() - parsed.savedAt < 5 * 60_000
         ) {
+          hydratedFromSessionCache = true
           setLiveSummary((prev) => prev ?? parsed.data ?? null)
+          setLoadingSummary(false)
         } else {
           window.sessionStorage.removeItem(cacheKey)
         }
       }
     } catch {
       // ignore sessionStorage quota/access errors
+    }
+
+    if (!hydratedFromSessionCache) {
+      setLoadingSummary((prev) => prev || effectiveFilters.period === 'custom')
     }
 
     const pullSilentStatus = () => {
@@ -311,6 +320,7 @@ export function GlobalFilterProvider({
           if (!active) return
           const normalized = normalizeSyncPayloadToSummary(data)
           setLiveSummary(normalized)
+          setLoadingSummary(false)
           try {
             if (normalized.connected && !normalized.noData) {
               window.sessionStorage.setItem(
@@ -335,6 +345,7 @@ export function GlobalFilterProvider({
             // ignore sessionStorage errors
           }
           setLiveSummary(normalizeSyncPayloadToSummary(null))
+          setLoadingSummary(false)
         })
     }
 
@@ -351,7 +362,10 @@ export function GlobalFilterProvider({
 
     const onSyncEvent = (ev: Event) => {
       const detail = (ev as CustomEvent<Partial<OdooLiveSummary>>).detail
-      if (detail) setLiveSummary(normalizeSyncPayloadToSummary(detail))
+      if (detail) {
+        setLiveSummary(normalizeSyncPayloadToSummary(detail))
+        setLoadingSummary(false)
+      }
     }
     window.addEventListener('aether:odoo-sync', onSyncEvent)
     return () => {
@@ -585,6 +599,7 @@ export function GlobalFilterProvider({
       isAuditor,
       sessionRole: resolvedSessionRole,
       syncingOdoo,
+      loadingSummary,
       syncCooldownSec,
       triggerOdooSyncNow,
       setPeriod,
@@ -604,6 +619,7 @@ export function GlobalFilterProvider({
       isAuditor,
       resolvedSessionRole,
       syncingOdoo,
+      loadingSummary,
       syncCooldownSec,
       triggerOdooSyncNow,
       setPeriod,
@@ -632,6 +648,7 @@ export function useGlobalFilter(): GlobalFilterContextValue {
       isAuditor: false,
       sessionRole: 'admin',
       syncingOdoo: false,
+      loadingSummary: false,
       syncCooldownSec: 0,
       triggerOdooSyncNow: async () => {},
       setPeriod: () => {},

@@ -6,7 +6,13 @@ import Link from 'next/link'
 import { Award, ArrowUpRight, BarChart3, Store, Tag, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
-import { computePeriodOverPeriodDeltaPct, formatSignedDelta } from '@/lib/aether/global-filter-engine'
+import {
+  computePeriodOverPeriodDeltaPct,
+  formatSignedDelta,
+  resolveSummaryBucket,
+  type GlobalBranch,
+} from '@/lib/aether/global-filter-engine'
+import { UNMAPPED_TERMINALS_LABEL_AR, UNMAPPED_TERMINALS_LABEL_EN } from '@/lib/aether/period-delta'
 import {
   UNAVAILABLE_DASH,
   formatInt,
@@ -16,13 +22,31 @@ import {
 } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
+interface ScorecardBranchRow {
+  id: GlobalBranch | 'unattributed'
+  ar: string
+  en: string
+  salesKwd?: number
+  orders: number | null
+  isUnattributed?: boolean
+}
+
 export function SalesScorecardStudio() {
   const { locale } = useI18n()
   const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const isAr = resolvedLocale !== 'en'
-  const { filters, workspace, liveSummary, syncingOdoo, setBrand, setBranch, setChannel } =
-    useGlobalFilter()
+  const {
+    filters,
+    workspace,
+    liveSummary,
+    syncingOdoo,
+    loadingSummary = false,
+    setBrand,
+    setBranch,
+    setChannel,
+  } = useGlobalFilter()
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
+  const activeBucket = resolveSummaryBucket(filters, liveSummary) ?? null
 
   const deltaPct = computePeriodOverPeriodDeltaPct(filters, workspace, liveSummary)
   const deltaBadge = formatSignedDelta(deltaPct ?? 0)
@@ -38,7 +62,99 @@ export function SalesScorecardStudio() {
     })
 
   const brands = sortOptions(workspace.cascadingOptions.brands.filter((b) => b.id !== 'all'))
-  const branches = sortOptions(workspace.cascadingOptions.branches.filter((b) => b.id !== 'all'))
+  const canteensReported =
+    !activeBucket ||
+    Boolean(
+      activeBucket.byLocation?.['school-canteens'] ??
+        activeBucket.mappedByLocation?.['school-canteens'] ??
+        activeBucket.byBrandByLocation?.['school-canteens'],
+    ) ||
+    filters.branch === 'school-canteens'
+
+  const resolveBranchOrders = (branchId: GlobalBranch, salesKwd?: number): number | null => {
+    if (typeof salesKwd !== 'number' || !activeBucket || filters.kuwaitSlice !== 'all') {
+      return null
+    }
+    if (filters.brand === 'all' && filters.channel === 'all') {
+      const cell = activeBucket.mappedByLocation?.[branchId] ?? activeBucket.byLocation?.[branchId]
+      return typeof cell?.orders === 'number' && Number.isFinite(cell.orders)
+        ? Math.max(0, Math.round(cell.orders))
+        : 0
+    }
+    if (filters.brand === 'all' && filters.channel !== 'all') {
+      const cell = activeBucket.byLocation?.[branchId]?.uiChannels?.[filters.channel]
+      return typeof cell?.orders === 'number' && Number.isFinite(cell.orders)
+        ? Math.max(0, Math.round(cell.orders))
+        : 0
+    }
+    if (filters.brand !== 'all' && filters.channel === 'all') {
+      const cell = activeBucket.byBrandByLocation?.[branchId]?.[filters.brand]
+      return typeof cell?.orders === 'number' && Number.isFinite(cell.orders)
+        ? Math.max(0, Math.round(cell.orders))
+        : null
+    }
+    return null
+  }
+
+  const mappedBranches: ScorecardBranchRow[] = sortOptions(
+    workspace.cascadingOptions.branches
+      .filter((b) => b.id !== 'all' && (b.id !== 'school-canteens' || canteensReported))
+      .map((b) => ({
+        id: b.id,
+        ar: b.ar,
+        en: b.en,
+        salesKwd: b.salesKwd,
+        orders: resolveBranchOrders(b.id, b.salesKwd),
+      })),
+  )
+
+  const branches: ScorecardBranchRow[] = [...mappedBranches]
+  if (
+    filters.channel === 'all' &&
+    filters.kuwaitSlice === 'all' &&
+    mappedBranches.every((r) => typeof r.salesKwd === 'number')
+  ) {
+    if (filters.brand === 'all') {
+      const unSales =
+        Math.round(
+          ((activeBucket?.unattributedSalesKwd ?? workspace.unattributedSalesKwd ?? 0) as number) *
+            1000,
+        ) / 1000
+      const unOrdRaw = activeBucket?.unattributedOrders ?? workspace.unattributedOrders ?? 0
+      const unOrders =
+        typeof unOrdRaw === 'number' && Number.isFinite(unOrdRaw)
+          ? Math.max(0, Math.round(unOrdRaw))
+          : 0
+      if (Math.round(unSales * 1000) !== 0 || unOrders > 0) {
+        branches.push({
+          id: 'unattributed',
+          ar: UNMAPPED_TERMINALS_LABEL_AR,
+          en: UNMAPPED_TERMINALS_LABEL_EN,
+          salesKwd: unSales,
+          orders: unOrders,
+          isUnattributed: true,
+        })
+      }
+    } else if (activeBucket?.byBrandByLocation?.unattributed?.[filters.brand]) {
+      const uCell = activeBucket.byBrandByLocation.unattributed[filters.brand]
+      const unSales = Math.round((Number(uCell.netKwd) || 0) * 1000) / 1000
+      const unOrders =
+        typeof uCell.orders === 'number' && Number.isFinite(uCell.orders)
+          ? Math.max(0, Math.round(uCell.orders))
+          : null
+      if (Math.round(unSales * 1000) !== 0 || (unOrders !== null && unOrders > 0)) {
+        branches.push({
+          id: 'unattributed',
+          ar: UNMAPPED_TERMINALS_LABEL_AR,
+          en: UNMAPPED_TERMINALS_LABEL_EN,
+          salesKwd: unSales,
+          orders: unOrders,
+          isUnattributed: true,
+        })
+      }
+    }
+  }
+
   const channels = sortOptions(workspace.cascadingOptions.channels.filter((c) => c.id !== 'all'))
   // Phase 5 · Item 4: each list's shares are over that list's own sum, normalised to 100.0%.
   const sharesFor = (rows: { salesKwd?: number | null }[]): number[] | null =>
@@ -51,7 +167,11 @@ export function SalesScorecardStudio() {
   const hasBrandSales =
     workspace.nullableSalesKwd !== null && brands.some((b) => typeof b.salesKwd === 'number')
 
-  if (syncingOdoo && !liveSummary) {
+  const isLoadingScorecard =
+    (syncingOdoo || loadingSummary) &&
+    (!liveSummary || (filters.period === 'custom' && activeBucket === null))
+
+  if (isLoadingScorecard) {
     return (
       <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6">
         <StateBlock
@@ -59,6 +179,35 @@ export function SalesScorecardStudio() {
           locale={resolvedLocale}
           skeletonRows={5}
           title={isAr ? 'جارٍ تحميل بطاقة أداء المبيعات…' : 'Loading sales scorecard…'}
+        />
+      </div>
+    )
+  }
+
+  if (!liveSummary || !workspace.odooConnected) {
+    return (
+      <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6 min-w-0">
+        <StateBlock
+          state="unavailable"
+          locale={resolvedLocale}
+          title={
+            isAr
+              ? 'الاتصال المباشر مع Odoo غير متاح حالياً'
+              : 'Odoo live connection is Not available'
+          }
+        />
+      </div>
+    )
+  }
+
+  if (workspace.noData) {
+    return (
+      <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-6 min-w-0">
+        <PartialWarningBanner summary={liveSummary} isAr={isAr} />
+        <StateBlock
+          state="empty"
+          locale={resolvedLocale}
+          title={isAr ? 'لا توجد بيانات مبيعات لهذه الفترة' : 'No sales data for this period'}
         />
       </div>
     )
@@ -99,29 +248,14 @@ export function SalesScorecardStudio() {
 
       <PartialWarningBanner summary={liveSummary} isAr={isAr} />
 
-      {!workspace.odooConnected || workspace.noData ? (
-        <StateBlock
-          state={!workspace.odooConnected ? 'unlinked' : 'empty'}
-          locale={resolvedLocale}
-          title={
-            !workspace.odooConnected
-              ? isAr
-                ? 'الاتصال المباشر مع Odoo غير متاح حالياً'
-                : 'Odoo live connection is unavailable'
-              : isAr
-                ? 'لا توجد بيانات مبيعات لهذه الفترة'
-                : 'No sales data for this period'
-          }
-        />
-      ) : null}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <span className="block text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'صافي المبيعات الإجمالي' : 'Total Net Sales'}
           </span>
           <div
             dir="ltr"
+            data-kpi="net-sales"
             title={workspace.nullableSalesKwd === null ? unavailableTooltip : undefined}
             aria-label={workspace.nullableSalesKwd === null ? unavailableTooltip : undefined}
             data-unavailable={workspace.nullableSalesKwd === null ? 'true' : undefined}
@@ -134,7 +268,7 @@ export function SalesScorecardStudio() {
               : formatKwd(workspace.nullableSalesKwd, resolvedLocale)}
           </div>
           <span
-            className={`mt-1 inline-block text-xs font-bold tabular-nums ${
+            className={`mt-1 block text-xs font-bold tabular-nums ${
               deltaBadge.tone === 'emerald'
                 ? 'text-emerald-700 dark:text-emerald-400'
                 : deltaBadge.tone === 'rose'
@@ -152,7 +286,7 @@ export function SalesScorecardStudio() {
         </div>
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <span className="block text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'عدد الطلبات المقبوضة' : 'Settled Orders'}
           </span>
           <div
@@ -176,7 +310,7 @@ export function SalesScorecardStudio() {
         </div>
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <span className="block text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'متوسط قيمة الفاتورة (AOV)' : 'Average Order Value (AOV)'}
           </span>
           <div
@@ -198,7 +332,7 @@ export function SalesScorecardStudio() {
         </div>
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <span className="block text-xs font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'العلامة المتصدرة' : 'Top Performing Brand'}
           </span>
           <div
@@ -308,19 +442,9 @@ export function SalesScorecardStudio() {
               const unavailable = typeof br.salesKwd !== 'number' || branchShares === null
               const sales = br.salesKwd ?? 0
               const share = branchShares?.[idx] ?? 0
-              const selected = filters.branch === br.id
-              return (
-                <button
-                  key={br.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setBranch(br.id)}
-                  className={`ds-focus-ring w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 transition ${
-                    selected
-                      ? 'bg-cyan-500/10 ring-1 ring-cyan-500/30'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'
-                  }`}
-                >
+              const selected = !br.isUnattributed && filters.branch === br.id
+              const innerContent = (
+                <>
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       dir="ltr"
@@ -337,7 +461,10 @@ export function SalesScorecardStudio() {
                     title={unavailable ? unavailableTooltip : undefined}
                     className="ds-num text-end font-mono tabular-nums shrink-0"
                   >
-                    <span className="font-bold text-cyan-700 dark:text-cyan-300 block">
+                    <span
+                      data-scorecard-branch-sales={br.id}
+                      className="font-bold text-cyan-700 dark:text-cyan-300 block"
+                    >
                       {unavailable
                         ? isAr
                           ? 'غير متاح'
@@ -345,9 +472,42 @@ export function SalesScorecardStudio() {
                         : formatKwd(sales, resolvedLocale)}
                     </span>
                     <span className="text-slate-600 dark:text-slate-400">
+                      <span data-scorecard-branch-orders={br.id}>
+                        {unavailable || br.orders === null
+                          ? UNAVAILABLE_DASH
+                          : formatInt(br.orders, resolvedLocale)}
+                      </span>
+                      {' · '}
                       {unavailable ? UNAVAILABLE_DASH : formatPct(share, resolvedLocale)}
                     </span>
                   </div>
+                </>
+              )
+              if (br.isUnattributed) {
+                return (
+                  <div
+                    key={br.id}
+                    data-scorecard-branch-row={br.id}
+                    className="w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 bg-slate-50/70 dark:bg-slate-900/40"
+                  >
+                    {innerContent}
+                  </div>
+                )
+              }
+              return (
+                <button
+                  key={br.id}
+                  type="button"
+                  data-scorecard-branch-row={br.id}
+                  aria-pressed={selected}
+                  onClick={() => setBranch(br.id as GlobalBranch)}
+                  className={`ds-focus-ring w-full py-2.5 flex items-center justify-between gap-2 text-xs rounded-lg px-2 transition ${
+                    selected
+                      ? 'bg-cyan-500/10 ring-1 ring-cyan-500/30'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-900/60'
+                  }`}
+                >
+                  {innerContent}
                 </button>
               )
             })}

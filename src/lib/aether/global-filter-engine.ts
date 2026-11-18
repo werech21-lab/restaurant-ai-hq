@@ -1644,18 +1644,26 @@ export function computeGlobalWorkspace(
   }
 
   const { brand, branch, channel } = filters
+  const customBucketUnavailable = filters.period === 'custom' && activeBkt === undefined
   const bucketTotalsUnavailable = Boolean(
-    activeBkt &&
-      (activeBkt.totals.restaurantNetKwd === null || activeBkt.totals.restaurantOrders === null),
+    customBucketUnavailable ||
+      (activeBkt &&
+        (activeBkt.totals.restaurantNetKwd === null || activeBkt.totals.restaurantOrders === null)),
   )
-  const channelsSectionUnavailable = Boolean(activeBkt && activeBkt.uiChannels === null)
-  const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand === null)
-  const branchesSectionUnavailable = Boolean(activeBkt && activeBkt.byLocation === null)
+  const channelsSectionUnavailable = Boolean(
+    customBucketUnavailable || (activeBkt && activeBkt.uiChannels === null),
+  )
+  const brandsSectionUnavailable = Boolean(
+    customBucketUnavailable || (activeBkt && activeBkt.byBrand === null),
+  )
+  const branchesSectionUnavailable = Boolean(
+    customBucketUnavailable || (activeBkt && activeBkt.byLocation === null),
+  )
   const hourlySectionUnavailable = Boolean(liveSummary.hourlySeries === null)
   const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const sectionUnavailable = Boolean(
     !activeSlice.scopeAvailable ||
-    bucketTotalsUnavailable ||
+      bucketTotalsUnavailable ||
       (channel !== 'all' && channelsSectionUnavailable) ||
       (brand !== 'all' && brandsSectionUnavailable) ||
       (branch !== 'all' && branchesSectionUnavailable) ||
@@ -1898,8 +1906,11 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
-      available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === brand,
+      salesKwd:
+        bucketTotalsUnavailable || !m.scopeAvailable
+          ? undefined
+          : Math.round(m.salesKwd * 1000) / 1000,
+      available: opt.id === 'all' || Math.abs(m.salesKwd) > 0.0005 || opt.id === brand,
     }
   })
 
@@ -1921,13 +1932,16 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
-      available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === branch,
+      salesKwd:
+        bucketTotalsUnavailable || !m.scopeAvailable
+          ? undefined
+          : Math.round(m.salesKwd * 1000) / 1000,
+      available: opt.id === 'all' || Math.abs(m.salesKwd) > 0.0005 || opt.id === branch,
     }
   })
 
   const cascadingChannels: FilterOption<GlobalChannel>[] = GLOBAL_CHANNEL_OPTIONS.map((opt) => {
-    if (opt.id !== 'all' && channelsSectionUnavailable) {
+    if (opt.id !== 'all' && (channelsSectionUnavailable || bucketTotalsUnavailable)) {
       return {
         ...opt,
         healthDot: '🟠' as const,
@@ -1941,8 +1955,11 @@ export function computeGlobalWorkspace(
       ...opt,
       healthDot: m.salesKwd > 0.05 ? ('🟢' as const) : ('🔴' as const),
       weightedNetPct: undefined,
-      salesKwd: bucketTotalsUnavailable ? undefined : Math.round(m.salesKwd * 1000) / 1000,
-      available: opt.id === 'all' || m.salesKwd > 0.05 || opt.id === channel,
+      salesKwd:
+        bucketTotalsUnavailable || !m.scopeAvailable
+          ? undefined
+          : Math.round(m.salesKwd * 1000) / 1000,
+      available: opt.id === 'all' || Math.abs(m.salesKwd) > 0.0005 || opt.id === channel,
     }
   })
 
