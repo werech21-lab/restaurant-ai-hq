@@ -133,7 +133,7 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     expect(html).not.toContain('data-scope-badge=')
   })
 
-  it('2. brand=china-garden, period=today on live fixture: orders/AOV unavailable, branch cards withheld, all 6 ScopeBadges present, net sales 133.550 with product-lines basis', async () => {
+  it('2. brand=china-garden, period=today on live fixture: orders/AOV unavailable, branch & unpartitioned GL cards withheld, visible ScopeBadges present, net sales 133.550 with product-lines basis', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), todayFilters('china-garden'))
 
     const netSalesEl = findKpiElement(html, 'net-sales')
@@ -163,10 +163,7 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     expect(branchSection!.text).not.toMatch(/\b24\b/)
 
     expect(scopeBadgesOf(html)).toEqual({
-      'gl-operating-net': 'company-wide',
-      'aggregator-commissions': 'company-wide',
       'ledger-ar': 'company-wide',
-      'gl-distribution': 'company-wide',
       'sales-net-combo': 'all-brands',
       'weekly-pulse': 'all-brands',
     })

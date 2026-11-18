@@ -57,6 +57,7 @@ import {
   resolveComboChartScope,
 } from '@/lib/aether/brand-scope'
 import { ScopeBadge } from '@/components/aether/ScopeBadge'
+import { PROFIT_AFTER_CLOSE_NOTE } from '@/lib/aether/closed-month-policy'
 import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
@@ -157,10 +158,16 @@ const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفت�
 const NO_ODOO_DATA_EN = 'No Odoo data for this period'
 const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
 const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
-const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
-const UNPOSTED_COMMISSION_EN = 'Not posted yet'
 const COMPANY_MARGIN_NOT_APPLIED_AR = 'هامش الشركة لا يُطبَّق على هذه السلسلة'
 const COMPANY_MARGIN_NOT_APPLIED_EN = 'Company GL margin is not applied to this series'
+const HOME_AGGREGATOR_CHANNEL_IDS = [
+  'talabat-tgo',
+  'talabat-tmp',
+  'keeta',
+  'deliveroo',
+  'jahez',
+  'snoonu',
+] as const
 
 interface BranchCardRow {
   id: string
@@ -251,6 +258,23 @@ export function FullJourney360({
   const hasPostedOperatingProfit = Boolean(
     gl.available && gl.operatingProfitKwd !== null && gl.netProfitPct !== null,
   )
+  const hasPostedOperatingNetAmount = Boolean(
+    gl.available && gl.operatingProfitKwd !== null,
+  )
+  const showOperatingNetCard =
+    maskInternalCosts ||
+    Boolean(gl.available && (hasPostedOperatingNetAmount || gl.netProfitWithheld))
+  const showCommissionCard =
+    maskInternalCosts ||
+    Boolean(gl.available && !commissionUnposted && gl.deliveryCommissionsKwd !== null)
+  const visibleTopKpiCount =
+    2 + (showOperatingNetCard ? 1 : 0) + (showCommissionCard ? 1 : 0)
+  const topKpiGridColsClass =
+    visibleTopKpiCount >= 4
+      ? 'sm:grid-cols-2 lg:grid-cols-4'
+      : visibleTopKpiCount === 3
+        ? 'sm:grid-cols-2 lg:grid-cols-3'
+        : 'sm:grid-cols-2 lg:grid-cols-2'
 
   const periodWindow = useMemo(
     () =>
@@ -261,6 +285,10 @@ export function FullJourney360({
       }),
     [filters.customFrom, filters.customTo, filters.period, liveSummary],
   )
+  const glDisplayToIso = gl.to || periodWindow.toInclusiveIso
+  const glIncompleteNote = isAr
+    ? `القيود المرحّلة حتى ${glDisplayToIso}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
+    : `Posted entries through ${glDisplayToIso}; commissions & depreciation post at month-end`
 
   const provenanceRange = useMemo(
     () => ({
@@ -495,23 +523,33 @@ export function FullJourney360({
       return []
     }
     const src = flowGroup === 'branches' ? coresSnap.sales.branchRanking : coresSnap.sales.timeline
-    const glReady = hasPostedOperatingProfit && !glIncomplete
+    const glReady = hasPostedOperatingProfit
     const canPlotPointMargin = glReady && comboPlotsCompanyMargin
     const glProfitStatusText =
       glReady && !comboPlotsCompanyMargin
         ? isAr
           ? COMPANY_MARGIN_NOT_APPLIED_AR
           : COMPANY_MARGIN_NOT_APPLIED_EN
-        : isAr
-          ? GL_INCOMPLETE_AR
-          : GL_INCOMPLETE_EN
+        : !gl.available
+          ? isAr
+            ? NO_ODOO_DATA_AR
+            : NO_ODOO_DATA_EN
+          : gl.netProfitWithheld
+            ? isAr
+              ? 'صافي التشغيل يُعرض للأشهر المُقفلة فقط'
+              : 'Operating profit shown for closed months only'
+            : isAr
+              ? GL_INCOMPLETE_AR
+              : GL_INCOMPLETE_EN
     return src.map((pt) => {
       const sales = Math.max(0, pt.salesKwd)
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
       const pointMarginRatio = canPlotPointMargin ? pointMarginPct / 100 : 0
       const pocket = canPlotPointMargin ? Math.max(0, sales * pointMarginRatio) : 0
-      const beforeRent = canPlotPointMargin ? Math.max(0, sales * beforeRentRatio) : 0
-      const foodAndDelivery = canPlotPointMargin ? Math.max(0, sales - beforeRent) : 0
+      const beforeRent =
+        canPlotPointMargin && gl.beforeRentPct !== null ? Math.max(0, sales * beforeRentRatio) : 0
+      const foodAndDelivery =
+        canPlotPointMargin && gl.beforeRentPct !== null ? Math.max(0, sales - beforeRent) : 0
       const rawLabel = isAr ? pt.labelAr : pt.labelEn
       const axisLabel =
         flowGroup === 'branches'
@@ -548,20 +586,32 @@ export function FullJourney360({
           : canPlotPointMargin
             ? [
                 { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
-                {
-                  label: isAr ? 'المواد والعمولات المرحّلة:' : 'Posted COGS & Commissions:',
-                  value: fmtKwdVal(foodAndDelivery),
-                  tone: 'slate',
-                },
-                {
-                  label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
-                  value: fmtKwdVal(beforeRent),
-                  tone: 'slate',
-                },
+                ...(gl.beforeRentPct !== null
+                  ? [
+                      {
+                        label: isAr ? 'المواد والعمولات المرحّلة:' : 'Posted COGS & Commissions:',
+                        value: fmtKwdVal(foodAndDelivery),
+                        tone: 'slate' as const,
+                      },
+                      {
+                        label: isAr ? 'الباقي قبل الإيجار:' : 'Before Rent:',
+                        value: fmtKwdVal(beforeRent),
+                        tone: 'slate' as const,
+                      },
+                    ]
+                  : gl.cogsPct !== null
+                    ? [
+                        {
+                          label: isAr ? 'تكلفة البضاعة المرحّلة (COGS):' : 'Posted COGS:',
+                          value: fmtKwdVal(Math.max(0, sales * (gl.cogsPct / 100))),
+                          tone: 'slate' as const,
+                        },
+                      ]
+                    : []),
                 {
                   label: isAr ? 'صافي التشغيل (دفتر الأستاذ):' : 'GL Operating Net:',
                   value: fmtKwdVal(pocket),
-                  tone: 'emerald',
+                  tone: 'emerald' as const,
                   bold: true,
                 },
               ]
@@ -583,7 +633,10 @@ export function FullJourney360({
     comboPlotsCompanyMargin,
     flowGroup,
     fmtKwdVal,
-    glIncomplete,
+    gl.available,
+    gl.beforeRentPct,
+    gl.cogsPct,
+    gl.netProfitWithheld,
     hasPostedOperatingProfit,
     isAr,
     maskInternalCosts,
@@ -609,58 +662,72 @@ export function FullJourney360({
   }, [coresSnap.sales.hourly, coresSnap.sales.hourlyUnavailable, flowGroup, isAr])
 
   const tenKwdDonutSlices = useMemo<DonutSliceDatum[]>(() => {
-    if (!hasPostedOperatingProfit || glIncomplete || commissionUnposted) return []
+    if (!hasPostedOperatingProfit || !gl.totalRevenueKwd || gl.totalRevenueKwd <= 0) return []
     const foodTotal = gl.cogsKwd ?? 0
     const deliveryTotal = gl.deliveryCommissionsKwd ?? 0
     const opexTotal = gl.otherOpexAndDepreciationKwd ?? 0
     const pocketTotal = gl.operatingProfitKwd ?? 0
 
-    return [
+    const candidates: Array<{ include: boolean; slice: DonutSliceDatum }> = [
       {
-        id: 'food',
-        label: isAr ? 'تكلفة البضاعة والمواد (COGS)' : 'Cost of Goods & Packaging (COGS)',
-        subLabel: isAr
-          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(foodTotal)}`
-          : `per 10 KWD • Odoo GL ${fmtKwdVal(foodTotal)}`,
-        value: Math.max(0, food10),
-        valueFormatted: fmtKwdVal(food10),
-        pctFormatted: formatPct(gl.cogsPct, activeLocale),
-        color: '#38BDF8',
+        include: foodTotal > 0,
+        slice: {
+          id: 'food',
+          label: isAr ? 'تكلفة البضاعة والمواد (COGS)' : 'Cost of Goods & Packaging (COGS)',
+          subLabel: isAr
+            ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(foodTotal)}`
+            : `per 10 KWD • Odoo GL ${fmtKwdVal(foodTotal)}`,
+          value: Math.max(0, food10),
+          valueFormatted: fmtKwdVal(food10),
+          pctFormatted: formatPct(gl.cogsPct, activeLocale),
+          color: '#38BDF8',
+        },
       },
       {
-        id: 'delivery',
-        label: isAr ? 'عمولات التوصيل المرحّلة' : 'Posted Delivery Commissions',
-        subLabel: isAr
-          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(deliveryTotal)}`
-          : `per 10 KWD • Odoo GL ${fmtKwdVal(deliveryTotal)}`,
-        value: Math.max(0, delivery10),
-        valueFormatted: fmtKwdVal(delivery10),
-        pctFormatted: formatPct(gl.deliveryCommPct, activeLocale),
-        color: '#818CF8',
+        include: !commissionUnposted && deliveryTotal > 0,
+        slice: {
+          id: 'delivery',
+          label: isAr ? 'عمولات التوصيل المرحّلة' : 'Posted Delivery Commissions',
+          subLabel: isAr
+            ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(deliveryTotal)}`
+            : `per 10 KWD • Odoo GL ${fmtKwdVal(deliveryTotal)}`,
+          value: Math.max(0, delivery10),
+          valueFormatted: fmtKwdVal(delivery10),
+          pctFormatted: formatPct(gl.deliveryCommPct, activeLocale),
+          color: '#818CF8',
+        },
       },
       {
-        id: 'opex',
-        label: isAr ? 'الإيجارات والرواتب والإهلاك والمصاريف' : 'Rent, Payroll, Depr & Opex',
-        subLabel: isAr
-          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(opexTotal)}`
-          : `per 10 KWD • Odoo GL ${fmtKwdVal(opexTotal)}`,
-        value: Math.max(0, opexRent10),
-        valueFormatted: fmtKwdVal(opexRent10),
-        pctFormatted: formatPct(gl.opexRentDeprPct, activeLocale),
-        color: '#94A3B8',
+        include: opexTotal > 0,
+        slice: {
+          id: 'opex',
+          label: isAr ? 'الإيجارات والرواتب والإهلاك والمصاريف' : 'Rent, Payroll, Depr & Opex',
+          subLabel: isAr
+            ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(opexTotal)}`
+            : `per 10 KWD • Odoo GL ${fmtKwdVal(opexTotal)}`,
+          value: Math.max(0, opexRent10),
+          valueFormatted: fmtKwdVal(opexRent10),
+          pctFormatted: formatPct(gl.opexRentDeprPct, activeLocale),
+          color: '#94A3B8',
+        },
       },
       {
-        id: 'pocket',
-        label: isAr ? 'صافي الربح التشغيلي (دفتر الأستاذ)' : 'GL Operating Profit',
-        subLabel: isAr
-          ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(pocketTotal)}`
-          : `per 10 KWD • Odoo GL ${fmtKwdVal(pocketTotal)}`,
-        value: Math.max(0, netPocket10),
-        valueFormatted: fmtKwdVal(netPocket10),
-        pctFormatted: formatPct(gl.netProfitPct, activeLocale),
-        color: '#2563EB',
+        include: pocketTotal > 0,
+        slice: {
+          id: 'pocket',
+          label: isAr ? 'صافي الربح التشغيلي (دفتر الأستاذ)' : 'GL Operating Profit',
+          subLabel: isAr
+            ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(pocketTotal)}`
+            : `per 10 KWD • Odoo GL ${fmtKwdVal(pocketTotal)}`,
+          value: Math.max(0, netPocket10),
+          valueFormatted: fmtKwdVal(netPocket10),
+          pctFormatted: formatPct(gl.netProfitPct, activeLocale),
+          color: '#2563EB',
+        },
       },
     ]
+
+    return candidates.filter((c) => c.include && c.slice.value > 0).map((c) => c.slice)
   }, [
     activeLocale,
     commissionUnposted,
@@ -668,12 +735,14 @@ export function FullJourney360({
     fmtKwdVal,
     food10,
     gl,
-    glIncomplete,
     hasPostedOperatingProfit,
     isAr,
     netPocket10,
     opexRent10,
   ])
+
+  const showGlDistributionCard =
+    maskInternalCosts || Boolean(gl.available && tenKwdDonutSlices.length > 0)
 
   const weekSnapForPulse = useMemo(
     () => computeCoresHubSnapshot({ ...filters, period: 'week' }, [], liveSummary),
@@ -896,6 +965,50 @@ export function FullJourney360({
     [channelMixSegments],
   )
 
+  const aggregatorPosSalesKwd = useMemo<number | null>(() => {
+    if (!workspace.odooConnected || workspace.noData) return null
+    if (homeCube?.byChannel) {
+      let sum = 0
+      for (const cid of HOME_AGGREGATOR_CHANNEL_IDS) {
+        const val = homeCube.byChannel[cid]?.netKwd
+        if (val === null) return null
+        if (typeof val === 'number' && Number.isFinite(val)) sum += val
+      }
+      return Math.round(sum * 1000) / 1000
+    }
+    if (activeBucket) {
+      if (activeBucket.uiChannels === null) return null
+      if (activeBucket.uiChannels) {
+        let sum = 0
+        for (const cid of HOME_AGGREGATOR_CHANNEL_IDS) {
+          const cell = activeBucket.uiChannels[cid]
+          if (cell === null || cell?.netKwd === null) return null
+          if (typeof cell?.netKwd === 'number' && Number.isFinite(cell.netKwd)) sum += cell.netKwd
+        }
+        return Math.round(sum * 1000) / 1000
+      }
+    }
+    if (!channelMixAvailable) return null
+    const sum = channelMixSegments
+      .filter((seg) => (HOME_AGGREGATOR_CHANNEL_IDS as readonly string[]).includes(seg.id))
+      .reduce((acc, seg) => acc + seg.value, 0)
+    return Math.round(sum * 1000) / 1000
+  }, [
+    activeBucket,
+    channelMixAvailable,
+    channelMixSegments,
+    homeCube,
+    workspace.noData,
+    workspace.odooConnected,
+  ])
+
+  const commPctOfAggSales =
+    gl.deliveryCommissionsKwd !== null &&
+    aggregatorPosSalesKwd !== null &&
+    aggregatorPosSalesKwd > 0
+      ? Math.round((gl.deliveryCommissionsKwd / aggregatorPosSalesKwd) * 1000) / 10
+      : null
+
   const ledgerRows = useMemo(() => {
     if (brandBranchScopeUnavailable || branchCards.length === 0) return []
     const q = ledgerSearch.trim().toLowerCase()
@@ -1108,9 +1221,9 @@ export function FullJourney360({
             </V35GlassCard>
           ) : null}
 
-          {/* 4-Column Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Static Estimates) */}
+          {/* Dynamic Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Empty Cards) */}
           <section className="space-y-4 sm:space-y-5">
-            <div className="ae-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            <div className={`ae-stagger grid grid-cols-1 ${topKpiGridColsClass} gap-3.5 sm:gap-4`}>
               {/* Card 1: Net Sales KWD */}
               <V35GlassCard
                 as="article"
@@ -1313,7 +1426,7 @@ export function FullJourney360({
                     </span>
                     <V35Sparkline values={ordersSparkline} color="#2563EB" width={92} height={26} />
                   </div>
-                ) : sparklineUnavailableShown && filters.brand === 'all' ? (
+                ) : sparklineUnavailableShown && workspace.nullableOrders !== null && filters.brand === 'all' ? (
                   <div
                     role="status"
                     data-sparkline-unavailable="true"
@@ -1333,7 +1446,7 @@ export function FullJourney360({
                         {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                       </span>
                     </div>
-                  ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null && !glIncomplete ? (
+                  ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null ? (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         dir="ltr"
@@ -1359,220 +1472,245 @@ export function FullJourney360({
                 </div>
               </V35GlassCard>
 
-              {/* Card 3: Net Operating Profit (Explicitly warns «قيود غير مكتملة لهذه الفترة» whenever glIncomplete === true) */}
-              <V35GlassCard
-                as="article"
-                hoverLift
-                className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')}
-                  </p>
-                  <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
-                  <Link
-                    href="/erp/executive-pnl"
-                    aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
-
-                {maskInternalCosts ? (
-                  <>
-                    <div
-                      data-cost-mask="restricted-finance-gm"
-                      className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+              {/* Card 3: Net Operating Profit (Renders posted GL operating net even when glIncomplete=true with month-end note; withheld in open months; removed when no GL exists) */}
+              {showOperatingNetCard ? (
+                <V35GlassCard
+                  as="article"
+                  hoverLift
+                  className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                      {T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')}
+                    </p>
+                    <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
+                    <Link
+                      href="/erp/executive-pnl"
+                      aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
                     >
-                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                    </div>
-                    <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
-                        {T(
-                          'Rent, payroll & supplier figures masked',
-                          'بيانات الإيجار والرواتب والموردين محجوبة',
-                        )}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-3">
-                      <V35KpiRing
-                        tone="indigo"
-                        size="md"
-                        dataKpi="operating-net"
-                        value={hasPostedOperatingProfit && !glIncomplete ? netPocketKwd : null}
-                        isUnavailable={!hasPostedOperatingProfit || glIncomplete}
-                        percent={hasPostedOperatingProfit && !glIncomplete ? netPocketPct : null}
-                        display={fmtKwdVal(netPocketKwd)}
-                        unavailableTooltip={unavailableTooltip}
-                        ringCenter={
-                          hasPostedOperatingProfit && !glIncomplete ? (
-                            <span dir="ltr" className="tabular-nums">
-                              {`${netPocketPct.toFixed(1)}%`}
-                            </span>
-                          ) : undefined
-                        }
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
-                    </div>
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                  </div>
 
-                    <div className="mt-3.5 space-y-1.5">
-                      {!hasPostedOperatingProfit || glIncomplete ? (
-                        <div data-net-profit-withheld={gl.netProfitWithheld ? 'true' : undefined}>
-                          <UnavailableState
-                            isAr={isAr}
-                            compact
-                            reason={
-                              gl.netProfitWithheld
-                                ? isAr
-                                  ? gl.netProfitWithheldReasonAr
-                                  : gl.netProfitWithheldReasonEn
-                                : isAr
-                                  ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
-                                  : 'Not available yet — GL entries not posted'
-                            }
-                          />
-                        </div>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
-                          <span dir="ltr" className="tabular-nums">
-                            {formatStaticMarginPill(netPocketPct)}
-                          </span>{' '}
-                          <span>{T('GL net share', 'نسبة الصافي المحاسبي')}</span>
+                  {maskInternalCosts ? (
+                    <>
+                      <div
+                        data-cost-mask="restricted-finance-gm"
+                        className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+                      >
+                        {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                      </div>
+                      <div className="mt-3.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                          {T(
+                            'Rent, payroll & supplier figures masked',
+                            'بيانات الإيجار والرواتب والموردين محجوبة',
+                          )}
                         </span>
-                      )}
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="محسوب بمعادلة"
-                        queryOrFormula="account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
-                        compact
-                      />
-                    </div>
-                  </>
-                )}
-              </V35GlassCard>
+                      </div>
+                    </>
+                  ) : hasPostedOperatingNetAmount ? (
+                    <>
+                      <div className="mt-3">
+                        <V35KpiRing
+                          tone="indigo"
+                          size="md"
+                          dataKpi="operating-net"
+                          value={gl.operatingProfitKwd}
+                          percent={typeof gl.netProfitPct === 'number' ? gl.netProfitPct : null}
+                          display={fmtKwdVal(gl.operatingProfitKwd)}
+                          unavailableTooltip={unavailableTooltip}
+                          ringCenter={
+                            typeof gl.netProfitPct === 'number' ? (
+                              <span dir="ltr" className="tabular-nums">
+                                {`${gl.netProfitPct.toFixed(1)}%`}
+                              </span>
+                            ) : (
+                              <TrendingUp className="h-4 w-4" aria-hidden="true" />
+                            )
+                          }
+                          valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                        />
+                      </div>
 
-              {/* Card 4: Aggregator Commissions (Shows «غير مُرحَّل بعد» — never 0 — when unposted) */}
-              <V35GlassCard
-                as="article"
-                hoverLift
-                className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
-                  </p>
-                  <ScopeBadge kind={companyWideScope} target="aggregator-commissions" isAr={isAr} />
-                  <Link
-                    href={isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar') ? '/erp/aggregator-radar' : '/erp/cores'}
-                    aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
+                      <div className="mt-3.5 space-y-1.5">
+                        {typeof gl.netProfitPct === 'number' ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
+                            <span dir="ltr" className="tabular-nums">
+                              {formatStaticMarginPill(gl.netProfitPct)}
+                            </span>{' '}
+                            <span>{T('GL net share', 'نسبة الصافي المحاسبي')}</span>
+                          </span>
+                        ) : null}
+                        {glIncomplete ? (
+                          <p
+                            data-gl-incomplete-note="true"
+                            className="whitespace-normal rounded-xl border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300"
+                          >
+                            {glIncompleteNote}
+                          </p>
+                        ) : null}
+                        <KpiProvenanceBadge
+                          odooModel="account.move.line"
+                          dateRange={{ from: gl.from, to: gl.to }}
+                          lastSyncAt={lastSyncIso}
+                          isStale24h={isStale24h}
+                          kind="محسوب بمعادلة"
+                          queryOrFormula="account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
+                          compact
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div data-net-profit-withheld="true" className="mt-3 space-y-2">
+                        <UnavailableState
+                          isAr={isAr}
+                          compact
+                          reason={
+                            isAr
+                              ? gl.netProfitWithheldReasonAr ?? PROFIT_AFTER_CLOSE_NOTE.ar
+                              : gl.netProfitWithheldReasonEn ?? PROFIT_AFTER_CLOSE_NOTE.en
+                          }
+                        />
+                        {typeof gl.totalRevenueKwd === 'number' && gl.totalRevenueKwd > 0 ? (
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
+                            <span>
+                              {T('Posted GL Rev:', 'إيراد الأستاذ:')}{' '}
+                              <span dir="ltr" className="font-semibold text-slate-800 dark:text-slate-100">
+                                {fmtKwdVal(gl.totalRevenueKwd)}
+                              </span>
+                            </span>
+                            {typeof gl.cogsKwd === 'number' && gl.cogsKwd > 0 ? (
+                              <span>
+                                {T('COGS:', 'التكلفة:')}{' '}
+                                <span dir="ltr" className="font-semibold text-slate-800 dark:text-slate-100">
+                                  {fmtKwdVal(gl.cogsKwd)}
+                                </span>
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="mt-3.5">
+                        <KpiProvenanceBadge
+                          odooModel="account.move.line"
+                          dateRange={{ from: gl.from, to: gl.to }}
+                          lastSyncAt={lastSyncIso}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula="account.move.line(parent_state='posted') — open month profit withheld"
+                          compact
+                        />
+                      </div>
+                    </>
+                  )}
+                </V35GlassCard>
+              ) : null}
 
-                {maskInternalCosts ? (
-                  <>
-                    <div
-                      data-cost-mask="restricted-finance-gm"
-                      className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+              {/* Card 4: Aggregator Commissions (platform_commission from Part 2; omitted completely when unposted/0) */}
+              {showCommissionCard ? (
+                <V35GlassCard
+                  as="article"
+                  hoverLift
+                  className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                      {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
+                    </p>
+                    <ScopeBadge kind={companyWideScope} target="aggregator-commissions" isAr={isAr} />
+                    <Link
+                      href={isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar') ? '/erp/aggregator-radar' : '/erp/cores'}
+                      aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
                     >
-                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                    </div>
-                    <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
-                        {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
-                      </span>
-                    </div>
-                  </>
-                ) : commissionUnposted ? (
-                  <>
-                    <div className="mt-3">
-                      <V35KpiRing
-                        tone="sky"
-                        size="md"
-                        dataKpi="aggregator-commissions"
-                        value={null}
-                        isUnavailable
-                        display={UNAVAILABLE_DASH}
-                        unavailableTooltip={unavailableTooltip}
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
-                    </div>
-                    <div className="mt-3.5 space-y-1.5">
-                      <UnavailableState
-                        data-commission-unposted="true"
-                        isAr={isAr}
-                        compact
-                        reason={
-                          isAr
-                            ? `غير متاح بعد — ${UNPOSTED_COMMISSION_AR}`
-                            : `Not available yet — ${UNPOSTED_COMMISSION_EN}`
-                        }
-                      />
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="فعلي"
-                        queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
-                        compact
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-3">
-                      <V35KpiRing
-                        tone="sky"
-                        size="md"
-                        dataKpi="aggregator-commissions"
-                        value={gl.deliveryCommissionsKwd}
-                        display={fmtKwdVal(gl.deliveryCommissionsKwd)}
-                        percent={typeof gl.deliveryCommPct === 'number' ? gl.deliveryCommPct : null}
-                        unavailableTooltip={unavailableTooltip}
-                        ringCenter={
-                          typeof gl.deliveryCommPct === 'number' ? (
-                            <span dir="ltr" className="tabular-nums">
-                              {`${gl.deliveryCommPct.toFixed(1)}%`}
-                            </span>
-                          ) : (
-                            <Percent className="h-4 w-4" aria-hidden="true" />
-                          )
-                        }
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
-                    </div>
-                    <div className="mt-3.5 space-y-1.5">
-                      {gl.deliveryCommPct !== null ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
-                          <span dir="ltr" className="tabular-nums">
-                            {formatPct(gl.deliveryCommPct, activeLocale)}
-                          </span>{' '}
-                          <span>{T('of GL revenue', 'من إيراد دفتر الأستاذ')}</span>
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+
+                  {maskInternalCosts ? (
+                    <>
+                      <div
+                        data-cost-mask="restricted-finance-gm"
+                        className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+                      >
+                        {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                      </div>
+                      <div className="mt-3.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                          {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
                         </span>
-                      ) : null}
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="فعلي"
-                        queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
-                        compact
-                      />
-                    </div>
-                  </>
-                )}
-              </V35GlassCard>
+                      </div>
+                    </>
+                  ) : (
+                    (() => {
+                      const commissionRingPct = commPctOfAggSales ?? gl.deliveryCommPct
+                      return (
+                        <>
+                          <div className="mt-3">
+                            <V35KpiRing
+                              tone="sky"
+                              size="md"
+                              dataKpi="aggregator-commissions"
+                              value={gl.deliveryCommissionsKwd}
+                              display={fmtKwdVal(gl.deliveryCommissionsKwd)}
+                              percent={typeof commissionRingPct === 'number' ? commissionRingPct : null}
+                              unavailableTooltip={unavailableTooltip}
+                              ringCenter={
+                                typeof commissionRingPct === 'number' ? (
+                                  <span dir="ltr" className="tabular-nums">
+                                    {`${commissionRingPct.toFixed(1)}%`}
+                                  </span>
+                                ) : (
+                                  <Percent className="h-4 w-4" aria-hidden="true" />
+                                )
+                              }
+                              valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                            />
+                          </div>
+                          <div className="mt-3.5 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {commPctOfAggSales !== null ? (
+                                <span
+                                  data-commission-agg-pct="true"
+                                  className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25"
+                                >
+                                  <span dir="ltr" className="tabular-nums">
+                                    {formatPct(commPctOfAggSales, activeLocale)}
+                                  </span>{' '}
+                                  <span>{T('of aggregator sales', 'من مبيعات تطبيقات التوصيل')}</span>
+                                </span>
+                              ) : null}
+                              {gl.deliveryCommPct !== null ? (
+                                <span
+                                  data-commission-gl-pct="true"
+                                  className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
+                                >
+                                  <span dir="ltr" className="tabular-nums">
+                                    {formatPct(gl.deliveryCommPct, activeLocale)}
+                                  </span>{' '}
+                                  <span>{T('of GL revenue', 'من إيراد دفتر الأستاذ')}</span>
+                                </span>
+                              ) : null}
+                            </div>
+                            <KpiProvenanceBadge
+                              odooModel="account.move.line"
+                              dateRange={{ from: gl.from, to: gl.to }}
+                              lastSyncAt={lastSyncIso}
+                              isStale24h={isStale24h}
+                              kind="فعلي"
+                              queryOrFormula="account.move.line(parent_state='posted', platform_commission accounts)"
+                              compact
+                            />
+                          </div>
+                        </>
+                      )
+                    })()
+                  )}
+                </V35GlassCard>
+              ) : null}
             </div>
 
             {/* 7 Mapped Branches + Explicit 8th Card «غير منسوب لفرع» */}
@@ -2048,7 +2186,9 @@ export function FullJourney360({
             <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-12">
               <V35GlassCard
                 id="cash-flow-chart-card"
-                className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-7 dark:border-slate-800"
+                className={`ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 ${
+                  showGlDistributionCard ? 'xl:col-span-7' : 'xl:col-span-12'
+                } dark:border-slate-800`}
               >
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
@@ -2057,12 +2197,24 @@ export function FullJourney360({
                     </h2>
                     <ScopeBadge kind={comboScope.badge} target="sales-net-combo" isAr={isAr} className="mt-1" />
                     <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
-                      {glIncomplete
-                        ? T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
-                        : T(
-                            'Tap or hover any bar to inspect exact KWD from Odoo 17',
-                            'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
-                          )}
+                      {hasPostedOperatingProfit
+                        ? glIncomplete
+                          ? glIncompleteNote
+                          : T(
+                              'Tap or hover any bar to inspect exact KWD from Odoo 17',
+                              'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
+                            )
+                        : !gl.available
+                          ? T(
+                              'Tap or hover any bar to inspect exact POS sales from Odoo 17',
+                              'اضغط أو مرر على أي عمود لعرض مبيعات نقاط البيع الفعلية من أودو 17',
+                            )
+                          : gl.netProfitWithheld
+                            ? T(
+                                'Sales bars from Odoo POS; GL operating profit awaits month close',
+                                'أعمدة المبيعات من نقاط بيع أودو؛ صافي التشغيل بعد إقفال الشهر',
+                              )
+                            : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)}
                     </p>
                   </div>
 
@@ -2085,11 +2237,15 @@ export function FullJourney360({
                     isAr={isAr}
                     salesLegend={T('Sales (pos.order)', 'المبيعات (pos.order)')}
                     netLegend={
-                      hasPostedOperatingProfit && !glIncomplete
+                      hasPostedOperatingProfit
                         ? comboPlotsCompanyMargin
                           ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
                           : T(COMPANY_MARGIN_NOT_APPLIED_EN, COMPANY_MARGIN_NOT_APPLIED_AR)
-                        : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
+                        : !gl.available
+                          ? T('POS Sales Only (no GL entries)', 'المبيعات فقط (لا توجد قيود)')
+                          : gl.netProfitWithheld
+                            ? T('Operating net withheld (open month)', 'الصافي محجوب (شهر مفتوح)')
+                            : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
                     }
                     heightClass="h-60 sm:h-64"
                   />
@@ -2112,80 +2268,71 @@ export function FullJourney360({
                   dateRange={provenanceRange}
                   lastSyncAt={lastSyncIso}
                   isStale24h={isStale24h}
-                  kind={hasPostedOperatingProfit && !glIncomplete ? 'محسوب بمعادلة' : 'فعلي'}
+                  kind={hasPostedOperatingProfit ? 'محسوب بمعادلة' : 'فعلي'}
                   queryOrFormula="pos.order net sales per day/branch + account.move.line posted operating profit ratio"
                 />
               </V35GlassCard>
 
-              <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-5 dark:border-slate-800">
-                <div className="mb-4">
-                  <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
-                    {T(
-                      'How Every 10 KWD of Sales Is Distributed',
-                      'كيف تتوزع كل 10 دنانير من المبيعات؟',
-                    )}
-                  </h2>
-                  <ScopeBadge kind={companyWideScope} target="gl-distribution" isAr={isAr} className="mt-1" />
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
-                    {T(
-                      'Computed strictly from Odoo 17 General Ledger (account.move.line)',
-                      'محسوب حصراً من قيود دفتر الأستاذ العام في أودو 17 (account.move.line)',
-                    )}
-                  </p>
-                </div>
-
-                {maskInternalCosts ? (
-                  <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl border border-slate-200/85 bg-blue-50/75 p-4 backdrop-blur-sm dark:border-slate-800 dark:bg-white/[0.06]">
-                    <span className="inline-flex w-fit items-center rounded-full bg-blue-100/85 px-2.5 py-0.5 text-xs font-bold text-blue-800 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
-                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                    </span>
-                    <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-700 dark:text-slate-200">
+              {showGlDistributionCard ? (
+                <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-5 dark:border-slate-800">
+                  <div className="mb-4">
+                    <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T(
-                        'Internal lease rent, payroll ledger, supplier procurement costs, and net margin splits are restricted to Finance (CFO), GM, DGM, and System Admin.',
-                        'تفاصيل عقود الإيجار، مسيرات الرواتب، تكاليف الموردين، وصافي الهامش محصورة بالمدير المالي والمدير العام ونائبه ومسؤول النظام.',
+                        'How Every 10 KWD of Sales Is Distributed',
+                        'كيف تتوزع كل 10 دنانير من المبيعات؟',
+                      )}
+                    </h2>
+                    <ScopeBadge kind={companyWideScope} target="gl-distribution" isAr={isAr} className="mt-1" />
+                    <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
+                      {T(
+                        'Computed strictly from Odoo 17 General Ledger (account.move.line)',
+                        'محسوب حصراً من قيود دفتر الأستاذ العام في أودو 17 (account.move.line)',
                       )}
                     </p>
                   </div>
-                ) : tenKwdDonutSlices.length > 0 ? (
-                  <div className="space-y-2.5">
-                    <InteractiveDonutChart
-                      slices={tenKwdDonutSlices}
-                      centerValue={fmtKwdVal(netPocket10)}
-                      centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
-                      centerLabel={T('GL Net Share', 'نصيب الصافي')}
-                      isAr={isAr}
-                      legendLayout="beside"
-                    />
-                    <KpiProvenanceBadge
-                      odooModel="account.move.line"
-                      dateRange={{ from: gl.from, to: gl.to }}
-                      lastSyncAt={lastSyncIso}
-                      isStale24h={isStale24h}
-                      kind="محسوب بمعادلة"
-                      queryOrFormula="(COGS + DeliveryCommissions + OpexRentDepr + OperatingProfit) / Revenue * 10 KWD"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-1 flex-col justify-between gap-3">
-                    <UnavailableState
-                      isAr={isAr}
-                      reason={
-                        isAr
-                          ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
-                          : 'Not available yet — GL entries not posted'
-                      }
-                    />
-                    <KpiProvenanceBadge
-                      odooModel="account.move.line"
-                      dateRange={{ from: gl.from, to: gl.to }}
-                      lastSyncAt={lastSyncIso}
-                      isStale24h={isStale24h}
-                      kind="فعلي"
-                      queryOrFormula="account.move.line(parent_state='posted') — accrual completeness guard"
-                    />
-                  </div>
-                )}
-              </V35GlassCard>
+
+                  {maskInternalCosts ? (
+                    <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl border border-slate-200/85 bg-blue-50/75 p-4 backdrop-blur-sm dark:border-slate-800 dark:bg-white/[0.06]">
+                      <span className="inline-flex w-fit items-center rounded-full bg-blue-100/85 px-2.5 py-0.5 text-xs font-bold text-blue-800 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+                        {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                      </span>
+                      <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-700 dark:text-slate-200">
+                        {T(
+                          'Internal lease rent, payroll ledger, supplier procurement costs, and net margin splits are restricted to Finance (CFO), GM, DGM, and System Admin.',
+                          'تفاصيل عقود الإيجار، مسيرات الرواتب، تكاليف الموردين، وصافي الهامش محصورة بالمدير المالي والمدير العام ونائبه ومسؤول النظام.',
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      <InteractiveDonutChart
+                        slices={tenKwdDonutSlices}
+                        centerValue={fmtKwdVal(netPocket10)}
+                        centerSubValue={T('per 10 KWD', 'من كل 10 د.ك')}
+                        centerLabel={T('GL Net Share', 'نصيب الصافي')}
+                        isAr={isAr}
+                        legendLayout="beside"
+                      />
+                      {glIncomplete ? (
+                        <p
+                          data-gl-incomplete-note="true"
+                          className="whitespace-normal rounded-xl border border-slate-200/80 bg-slate-50/75 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300"
+                        >
+                          {glIncompleteNote}
+                        </p>
+                      ) : null}
+                      <KpiProvenanceBadge
+                        odooModel="account.move.line"
+                        dateRange={{ from: gl.from, to: gl.to }}
+                        lastSyncAt={lastSyncIso}
+                        isStale24h={isStale24h}
+                        kind="محسوب بمعادلة"
+                        queryOrFormula="(COGS + DeliveryCommissions + OpexRentDepr + OperatingProfit) / Revenue * 10 KWD"
+                      />
+                    </div>
+                  )}
+                </V35GlassCard>
+              ) : null}
             </div>
 
             {/* Channel Mix Share + Sortable & Searchable Operational Ledger Summary Table */}

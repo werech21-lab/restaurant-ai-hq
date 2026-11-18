@@ -192,61 +192,94 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(enOpCard!.outerHtml).not.toContain('<circle')
   })
 
-  it('renders GL Distribution and Aggregator Commissions cards calmly without amber/rose classes or hollow rings when GL is incomplete / commissions unposted', async () => {
+  it('hides Aggregator Commissions and GL Distribution cards when commissions are unposted / profit withheld, and renders them calmly without amber/rose classes when posted & closed', async () => {
     const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
     const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
 
+    // Part 3: when deliveryCommissions === 0 (unposted), Card 4 is omitted completely (never blank "—").
+    expect(
+      findCardByTag(
+        arHtml,
+        'article',
+        (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('عمولات تطبيقات التوصيل'),
+      ),
+    ).toBeNull()
+    expect(
+      findCardByTag(
+        enHtml,
+        'article',
+        (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('Aggregator Commissions'),
+      ),
+    ).toBeNull()
+    expect(arHtml).not.toContain('غير مُرحَّل بعد')
+    expect(enHtml).not.toContain('Not posted yet')
+
+    // Part 3: when operating profit is withheld (open month), GL Distribution donut is omitted and Combo Chart expands.
+    expect(
+      findGlassCardContaining(arHtml, [
+        'data-scope-for="gl-distribution"',
+        'كيف تتوزع كل 10 دنانير من المبيعات؟',
+      ]),
+    ).toBeNull()
+    expect(
+      findGlassCardContaining(enHtml, [
+        'data-scope-for="gl-distribution"',
+        'How Every 10 KWD of Sales Is Distributed',
+      ]),
+    ).toBeNull()
+    expect(arHtml).toContain('xl:col-span-12')
+
+    // When commissions and closed-month GL are posted, both cards render calmly with zero amber/rose classes.
+    const postedSummary = loadLiveTodaySummary()
+    const gl = postedSummary.buckets!.today!.accounting!
+    Object.assign(gl, {
+      deliveryCommissions: 30.94,
+      deliveryCommissionLinesCount: 4,
+      aggregatorCommissionUnposted: false,
+      depreciation: 25,
+      completeAccrualPosted: true,
+      glIncomplete: false,
+      operatingProfit: 2690.257,
+      glClosedThroughDate: '2026-11-30',
+    })
+    const arPostedHtml = await renderDashboard('ar', postedSummary, todayFilters('all'))
+    const enPostedHtml = await renderDashboard('en', postedSummary, todayFilters('all'))
+
     const arCommCard = findCardByTag(
-      arHtml,
+      arPostedHtml,
       'article',
       (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('عمولات تطبيقات التوصيل'),
     )
     expect(arCommCard).not.toBeNull()
     expect(arCommCard!.outerHtml).not.toContain('amber-')
     expect(arCommCard!.outerHtml).not.toContain('rose-')
-    expect(arCommCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(arCommCard!.outerHtml).not.toContain('<circle')
-    expect(
-      arCommCard!.outerHtml.includes('data-unavailable-state="true"') ||
-        arCommCard!.outerHtml.includes('data-unavailable="true"'),
-    ).toBe(true)
+    expect(arCommCard!.text).toContain('30.940')
 
     const enCommCard = findCardByTag(
-      enHtml,
+      enPostedHtml,
       'article',
       (h) => h.includes('data-scope-for="aggregator-commissions"') || h.includes('Aggregator Commissions'),
     )
     expect(enCommCard).not.toBeNull()
     expect(enCommCard!.outerHtml).not.toContain('amber-')
     expect(enCommCard!.outerHtml).not.toContain('rose-')
-    expect(enCommCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(enCommCard!.outerHtml).not.toContain('<circle')
-    expect(
-      enCommCard!.outerHtml.includes('data-unavailable-state="true"') ||
-        enCommCard!.outerHtml.includes('data-unavailable="true"'),
-    ).toBe(true)
+    expect(enCommCard!.text).toContain('30.940')
 
-    const arDistCard = findGlassCardContaining(arHtml, [
+    const arDistCard = findGlassCardContaining(arPostedHtml, [
       'data-scope-for="gl-distribution"',
       'كيف تتوزع كل 10 دنانير من المبيعات؟',
     ])
     expect(arDistCard).not.toBeNull()
     expect(arDistCard!.outerHtml).not.toContain('amber-')
     expect(arDistCard!.outerHtml).not.toContain('rose-')
-    expect(arDistCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(arDistCard!.outerHtml).not.toContain('<circle')
-    expect(countOccurrences(arDistCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام')).toBe(1)
 
-    const enDistCard = findGlassCardContaining(enHtml, [
+    const enDistCard = findGlassCardContaining(enPostedHtml, [
       'data-scope-for="gl-distribution"',
       'How Every 10 KWD of Sales Is Distributed',
     ])
     expect(enDistCard).not.toBeNull()
     expect(enDistCard!.outerHtml).not.toContain('amber-')
     expect(enDistCard!.outerHtml).not.toContain('rose-')
-    expect(enDistCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(enDistCard!.outerHtml).not.toContain('<circle')
-    expect(countOccurrences(enDistCard!.text, 'Not available yet — GL entries not posted')).toBe(1)
   })
 
   it('styles unattributed branch tile with neutral dashed slate and zero amber or orange classes when unattributed > 0', async () => {

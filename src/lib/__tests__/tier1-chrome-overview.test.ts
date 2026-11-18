@@ -391,8 +391,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       expect(maskedEn).not.toContain('+ Sync Odoo')
     })
 
-    it('renders bilingual unposted commissions and incomplete GL warnings honestly', () => {
-      const incompleteSummary = buildLiveSummary({
+    it('omits empty GL/commission cards when unavailable and renders posted GL operating profit with bilingual month-end note when glIncomplete=true', () => {
+      const noGlSummary = buildLiveSummary({
         buckets: {
           month: buildBucket({
             accounting: {
@@ -400,9 +400,9 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
               glIncomplete: true,
               completeAccrualPosted: false,
               aggregatorCommissionUnposted: true,
-              income: 13500.5,
+              income: 0,
               otherIncome: 0,
-              cogs: 4050.15,
+              cogs: 0,
               deliveryCommissions: 0,
               expense: 0,
               depreciation: 0,
@@ -411,17 +411,53 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
           }),
         },
       })
-      setFilterContext(incompleteSummary)
+      setFilterContext(noGlSummary)
+
+      const noGlEn = renderWithProviders('en', el(FullJourney360))
+      expect(noGlEn).not.toContain('data-kpi="operating-net"')
+      expect(noGlEn).not.toContain('data-kpi="aggregator-commissions"')
+      expect(noGlEn).not.toContain('Not posted yet')
+      expect(noGlEn).not.toContain('How Every 10 KWD of Sales Is Distributed')
+
+      const incompletePostedSummary = buildLiveSummary({
+        buckets: {
+          month: buildBucket({
+            accounting: {
+              available: true,
+              from: '2026-10-17',
+              to: '2026-11-15',
+              lineCount: 120,
+              glIncomplete: true,
+              completeAccrualPosted: false,
+              aggregatorCommissionUnposted: true,
+              income: 13500.5,
+              otherIncome: 0,
+              totalRevenue: 13500.5,
+              cogs: 4050.15,
+              deliveryCommissions: 0,
+              expense: 2000,
+              depreciation: 0,
+              operatingProfit: 7450.35,
+              glClosedThroughDate: '2026-11-15',
+            },
+          }),
+        },
+      })
+      setFilterContext(incompletePostedSummary)
 
       const enHtml = renderWithProviders('en', el(FullJourney360))
-      expect(enHtml).toContain('Incomplete GL entries for this period')
-      expect(enHtml).toContain('Not posted yet')
+      expect(enHtml).toContain('7,450.350 KWD')
+      expect(enHtml).toContain('Posted entries through 2026-11-15; commissions &amp; depreciation post at month-end')
+      expect(enHtml).not.toContain('data-kpi="aggregator-commissions"')
+      expect(enHtml).not.toContain('Not posted yet')
       expect(enHtml).not.toContain('قيود غير مكتملة')
       expect(enHtml).not.toContain('غير مُرحَّل')
 
       const arHtml = renderWithProviders('ar', el(FullJourney360))
-      expect(arHtml).toContain('قيود غير مكتملة لهذه الفترة')
-      expect(arHtml).toContain('غير مُرحَّل بعد')
+      expect(arHtml).toContain('7,450.350 د.ك')
+      expect(arHtml).toContain('القيود المرحّلة حتى 2026-11-15؛ العمولات والاستهلاك تُرحَّل نهاية الشهر')
+      expect(arHtml).not.toContain('data-kpi="aggregator-commissions"')
+      expect(arHtml).not.toContain('غير مُرحَّل بعد')
       expect(arHtml).not.toContain('انضباط الفروع')
       expect(arHtml).not.toContain('/erp/prep-sla')
     })

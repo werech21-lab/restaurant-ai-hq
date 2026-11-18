@@ -597,10 +597,7 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
     expect(enLedger!.text).not.toMatch(/\b24\b/)
 
     expect(scopeBadgesOf(arHtml)).toEqual({
-      'gl-operating-net': 'company-wide',
-      'aggregator-commissions': 'company-wide',
       'ledger-ar': 'company-wide',
-      'gl-distribution': 'company-wide',
       'sales-net-combo': 'all-brands',
       'weekly-pulse': 'all-brands',
     })

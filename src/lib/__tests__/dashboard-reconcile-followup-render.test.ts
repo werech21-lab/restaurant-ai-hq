@@ -28,7 +28,7 @@ vi.mock('@/components/aether/GlobalFilterContext', () => ({
 }))
 
 const FIXTURE_NOW = new Date('2026-11-17T03:05:00Z')
-const COMPANY_WIDE_CARDS = ['gl-operating-net', 'aggregator-commissions', 'ledger-ar', 'gl-distribution'] as const
+const COMPANY_WIDE_CARDS = ['ledger-ar'] as const
 
 async function renderDashboard(summary: OdooLiveSummary, brand: string): Promise<string> {
   setDashboardContext(summary, todayFilters(brand))
@@ -58,10 +58,13 @@ describe('H1 — every company-wide or all-brand card says so under a brand filt
   beforeEach(() => vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ['Date'] }))
   afterEach(() => vi.useRealTimers())
 
-  it('brand = China Garden: the four GL/AR cards carry «على مستوى الشركة», combo and pulse carry «كل العلامات»', async () => {
+  it('brand = China Garden: visible company-wide AR card carries «على مستوى الشركة» (unpartitioned GL cards hidden), combo and pulse carry «كل العلامات»', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), 'china-garden')
     const badges = scopeBadgesOf(html)
     for (const card of COMPANY_WIDE_CARDS) expect(badges[card], card).toBe('company-wide')
+    expect(badges['gl-operating-net']).toBeUndefined()
+    expect(badges['aggregator-commissions']).toBeUndefined()
+    expect(badges['gl-distribution']).toBeUndefined()
     expect(badges['sales-net-combo']).toBe('all-brands')
     expect(badges['weekly-pulse']).toBe('all-brands')
     expect(html.match(/على مستوى الشركة/g)?.length ?? 0).toBeGreaterThanOrEqual(COMPANY_WIDE_CARDS.length)
