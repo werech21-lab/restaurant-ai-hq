@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { constantTimeHexEqual, ENTERPRISE_API_SECURITY_HEADERS } from '@/lib/auth/api-guard'
 import { errorFields, logger } from '@/lib/logger'
 import { runAndStoreCouncil, type CouncilScope } from '@/server/council/service'
+import { isCouncilCronEnabled } from '@/server/council/store'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,10 +14,19 @@ function cronAuthorized(request: NextRequest): boolean {
   return constantTimeHexEqual(request.headers.get('authorization') ?? '', `Bearer ${secret}`)
 }
 
-/** Vercel cron: `?scope=hourly` every hour, `?scope=nightly` once a night (Kuwait). Read-only on Odoo. */
+/**
+ * Vercel cron: `?scope=hourly` every hour, `?scope=nightly` once a night (Kuwait). Read-only on Odoo.
+ * Disabled by default unless `COUNCIL_CRON_ENABLED=true` is explicitly configured in environment variables.
+ */
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401, headers: ENTERPRISE_API_SECURITY_HEADERS })
+  }
+  if (!isCouncilCronEnabled()) {
+    return NextResponse.json(
+      { ok: true, skipped: true, reason: 'COUNCIL_CRON_DISABLED' },
+      { status: 200, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
   const scope: CouncilScope = request.nextUrl.searchParams.get('scope') === 'nightly' ? 'nightly' : 'hourly'
   try {

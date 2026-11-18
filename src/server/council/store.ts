@@ -14,6 +14,13 @@ import { errorFields, logger } from '@/lib/logger'
 import { mergeSeasonEvents, SEASON_KINDS, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
 import type { CouncilSnapshot } from '@/lib/council/types'
 
+/**
+ * Explicit opt-in gate for `/api/cron/council`.
+ * OFF by default when unset, empty, or anything other than `'true'`.
+ */
+export function isCouncilCronEnabled(raw = process.env.COUNCIL_CRON_ENABLED): boolean {
+  return raw?.trim().toLowerCase() === 'true'
+}
 
 const SQLITE_DDL = [
   `CREATE TABLE IF NOT EXISTS council_reports (
