@@ -517,7 +517,7 @@ export function formatPeriodCalendarWindow(
         ? shiftIsoDateDays(anchorIso, -6)
         : period === 'year'
           ? `${anchorIso.slice(0, 4)}-01-01`
-          : shiftIsoDateDays(anchorIso, -29)
+          : `${anchorIso.slice(0, 7)}-01`
   const labels = formatInclusiveIsoRangeLabels(fromIso, anchorIso)
   return { fromIso, toInclusiveIso: anchorIso, ...labels }
 }

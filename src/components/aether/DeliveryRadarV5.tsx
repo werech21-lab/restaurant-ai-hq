@@ -12,7 +12,7 @@ import {
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
-  APPROVED_BRANCH_IDS,
+  DASHBOARD_BRANCH_CARD_IDS,
   formatPeriodCalendarWindow,
   getBranchLabel,
   getChannelLabel,
@@ -401,7 +401,7 @@ export function DeliveryRadarV5({
             },
           ]
         : [
-            ...APPROVED_BRANCH_IDS.map((bid) => ({
+            ...DASHBOARD_BRANCH_CARD_IDS.map((bid) => ({
               id: bid,
               labelAr: getBranchLabel(bid, true),
               labelEn: getBranchLabel(bid, false),
@@ -873,7 +873,7 @@ export function DeliveryRadarV5({
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
-                    {T('Sales by Delivery Platform', 'مبيعات وطلبات كل منصة توصيل')}
+                    {T('Sales by Delivery Platform', 'مبيعات ودفعات كل منصة توصيل')}
                   </h2>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {loadingCube

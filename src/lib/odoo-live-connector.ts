@@ -1903,11 +1903,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const todayIsFallbackDay = false
 
   const weekFromKwIso = shiftIsoDate(anchorDayKwIso, -6)
-  const monthFromKwIso = shiftIsoDate(anchorDayKwIso, -29)
+  const monthFromKwIso = `${anchorDayKwIso.slice(0, 7)}-01`
   // Pre-index 65 days of daily history back from anchorDayKwIso up through tomorrowKwIso
   const series65FromKwIso = shiftIsoDate(anchorDayKwIso, -64)
   const prior30FromKwIso = shiftIsoDate(monthFromKwIso, -30)
-  const mtdFromKwIso = `${anchorDayKwIso.slice(0, 7)}-01`
+  const mtdFromKwIso = monthFromKwIso
   const yearFromKwIso = `${anchorDayKwIso.slice(0, 4)}-01-01`
 
   const bounds65 = kuwaitRangeToOdooUtcStrings(series65FromKwIso, tomorrowKwIso)
