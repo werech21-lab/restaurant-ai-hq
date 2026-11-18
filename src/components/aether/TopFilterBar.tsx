@@ -78,11 +78,8 @@ const ROUTES_WITH_OWN_PARTIAL_BANNER = new Set([
 ])
 
 const ROUTES_WITH_OWN_H1 = new Set([
-  '/erp/food-safety',
   '/erp/alerts',
   '/erp/cost-intelligence',
-  '/erp/demand-forecast',
-  '/erp/market',
   '/erp/ledger',
   '/erp/odoo-sync',
 ])
@@ -94,16 +91,11 @@ export const POS_FILTER_ROUTES = new Set([
   '/erp/weekday-comparison',
   '/erp/before-after',
   '/erp/warehouse-chain',
-  '/erp/prep-sla',
-  '/erp/delivery-sla',
   '/erp/aggregator-radar',
   '/erp/commissions',
-  '/erp/social-reviews',
-  '/erp/reviews',
   '/erp/feryal-ai',
   '/erp/feryal',
   '/erp/planning',
-  '/erp/regulations',
   '/erp/booth-feasibility',
   '/erp/booth',
   '/erp/events-intelligence',
@@ -112,8 +104,6 @@ export const POS_FILTER_ROUTES = new Set([
   '/erp/sales-scorecard',
   '/erp/sales-analysis',
   '/erp/menu-engineering',
-  '/erp/competitors',
-  '/erp/market',
 ])
 
 function toWesternNumerals(input: string): string {

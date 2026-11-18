@@ -256,26 +256,23 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
   }
 
   // Middleware route & bounce-prevention verification for all 8 roles using REAL tokens issued by /api/auth/login
-  const full13Routes = [
+  const fullLiveRoutes = [
     '/erp',
     '/erp/cores',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
     '/erp/warehouse-chain',
-    '/erp/social-reviews',
     '/erp/weekday-comparison',
     '/erp/before-after',
     '/erp/aggregator-radar',
     '/erp/booth-feasibility',
+    '/erp/events-intelligence',
     '/erp/planning',
-    '/erp/regulations',
     '/erp/feryal-ai',
   ];
 
   let fullRolesBounceCount = 0;
   for (const role of ['admin', 'gm', 'dgm', 'ops', 'cfo', 'auditor']) {
     const tok = loginsByRole[role].token;
-    for (const r of full13Routes) {
+    for (const r of fullLiveRoutes) {
       const mw = await middleware(
         new NextRequest('https://aetherbi.com' + r, {
           headers: { cookie: EXEC_SESSION_COOKIE + '=' + tok },
@@ -287,21 +284,18 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
 
   // Marketing allowed & forbidden routes
   const mktAllowed = [
-    '/erp',
     '/erp/cores',
     '/erp/weekday-comparison',
     '/erp/before-after',
-    '/erp/reviews',
+    '/erp/events-intelligence',
     '/erp/booth',
     '/erp/feryal-ai',
   ];
   const mktForbidden = [
+    '/erp',
     '/erp/commissions',
     '/erp/planning',
-    '/erp/regulations',
     '/erp/warehouse-chain',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
   ];
   let mktMwOk = true;
   for (const r of mktAllowed) {
@@ -327,8 +321,6 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
   // Supply allowed & forbidden routes
   const supAllowed = [
     '/erp/warehouse-chain',
-    '/erp/prep-sla',
-    '/erp/delivery-sla',
     '/erp/feryal-ai',
   ];
   const supForbidden = [
@@ -336,8 +328,7 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
     '/erp/cores',
     '/erp/commissions',
     '/erp/planning',
-    '/erp/regulations',
-    '/erp/reviews',
+    '/erp/events-intelligence',
     '/erp/booth',
   ];
   let supMwOk = true;
@@ -503,7 +494,7 @@ assert(
 )
 assert(
   res.opsOk === true,
-  '3) Operations Manager (operations@venturefoodskw.com): Authenticates cleanly, lands on /erp & passes all 13 ERP route checks',
+  '3) Operations Manager (operations@venturefoodskw.com): Authenticates cleanly, lands on /erp & passes all 10 live ERP route checks',
 )
 assert(
   res.cfoOk === true,
@@ -515,7 +506,7 @@ assert(
 )
 assert(
   res.supplyOk === true,
-  '6) Central Kitchen & Supply Manager (supply@venturefoodskw.com & kitchen@venturefoodskw.com): Primary + kitchen@ alias authenticate as supply -> /erp/warehouse-chain, allow kitchen/SLA routes & redirect forbidden routes -> /erp/warehouse-chain',
+  '6) Central Kitchen & Supply Manager (supply@venturefoodskw.com & kitchen@venturefoodskw.com): Primary + kitchen@ alias authenticate as supply -> /erp/warehouse-chain, allow supply/feryal routes & redirect forbidden routes -> /erp/warehouse-chain',
 )
 assert(
   res.adminAuditorOk === true,

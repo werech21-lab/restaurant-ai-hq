@@ -18,15 +18,15 @@ const MODULE_LINKS: Array<{ title: string; href: string; keywords: string }> = [
   { title: 'HR', href: '/hr', keywords: 'hr employees payroll موارد بشرية' },
   { title: 'Compliance Radar', href: '/hr/compliance-radar', keywords: 'compliance residency civil health اقامة' },
   { title: 'Smart HR Upload', href: '/hr/smart-folder-upload', keywords: 'upload folder hr' },
-  { title: 'Inventory', href: '/inventory', keywords: 'stock products مخزون' },
-  { title: 'POS', href: '/pos', keywords: 'cashier كاشير' },
+  { title: 'Inventory', href: '/erp/inventory', keywords: 'stock products مخزون' },
+  { title: 'Warehouses', href: '/erp/warehouse-chain', keywords: 'warehouses stock moves مستودعات' },
   { title: 'Accounting', href: '/accounting', keywords: 'journal accounts محاسبة' },
   { title: 'Reconciliation', href: '/accounting/reconciliation', keywords: 'nbk bank talabat reconcile مطابقة' },
-  { title: 'Purchases', href: '/purchases', keywords: 'suppliers مشتريات' },
-  { title: 'Sales', href: '/sales', keywords: 'invoices مبيعات' },
+  { title: 'Procurement', href: '/erp/procurement', keywords: 'suppliers purchases مشتريات' },
+  { title: 'Sales & Cores', href: '/erp/cores', keywords: 'sales invoices مبيعات' },
   { title: 'Delivery Hub', href: '/delivery-hub', keywords: 'talabat deliveroo jahez' },
-  { title: 'CRM', href: '/crm', keywords: 'customers leads' },
-  { title: 'Recipes', href: '/recipes', keywords: 'bom food cost' },
+  { title: 'CRM', href: '/erp/crm', keywords: 'customers leads عملاء' },
+  { title: 'Kitchen', href: '/erp/kitchen', keywords: 'kitchen production waste مطبخ' },
 ]
 
 export async function GET(request: NextRequest) {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
       kind: 'product',
       title: row.name,
       subtitle: row.code,
-      href: `/inventory?q=${encodeURIComponent(row.code)}`,
+      href: '/erp/inventory',
     })
   }
   for (const row of invoices) {
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       kind: 'invoice',
       title: row.invoiceNumber,
       subtitle: `${row.customer.name} · ${row.totalAmount.toFixed(3)} KWD`,
-      href: `/sales?q=${encodeURIComponent(row.invoiceNumber)}`,
+      href: `/sales/${row.id}/print`,
     })
   }
   for (const row of journals) {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
       kind: 'supplier',
       title: row.name,
       subtitle: `Balance ${row.balance.toFixed(3)} KWD`,
-      href: `/purchases?tab=parties&q=${encodeURIComponent(row.name)}`,
+      href: `/purchases/suppliers/${row.id}`,
     })
   }
   for (const row of customers) {
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
       kind: 'customer',
       title: row.name,
       subtitle: row.phone || 'Customer',
-      href: `/crm?q=${encodeURIComponent(row.name)}`,
+      href: `/sales/customers/${row.id}`,
     })
   }
   for (const row of docs) {

@@ -5,14 +5,10 @@ import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-st
 import Link from 'next/link'
 import {
   BookOpen,
-  Building2,
-  CreditCard,
   Database,
   Landmark,
   Plus,
   ShieldCheck,
-  Truck,
-  Wallet,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
@@ -21,7 +17,6 @@ import {
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
-import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
@@ -35,10 +30,6 @@ import { OdooAccountingAnalyticsHub } from './OdooAccountingAnalyticsHub'
 export type VentureAccountingTabId =
   | 'glSummary'
   | 'receivables'
-  | 'pettyCash'
-  | 'cheques'
-  | 'leases'
-  | 'fleet'
   | 'localDb'
 
 export function VentureAccountingHub({
@@ -95,30 +86,6 @@ export function VentureAccountingHub({
       labelAr: 'الذمم المدينة وأعمار الديون',
       labelEn: 'Receivables & Aging',
       icon: <Landmark className="h-4 w-4" aria-hidden />,
-    },
-    {
-      id: 'pettyCash',
-      labelAr: 'العهد النثرية',
-      labelEn: 'Petty Cash',
-      icon: <Wallet className="h-4 w-4" aria-hidden />,
-    },
-    {
-      id: 'cheques',
-      labelAr: 'الشيكات والتسويات البنكية',
-      labelEn: 'Cheques & Bank Recon',
-      icon: <CreditCard className="h-4 w-4" aria-hidden />,
-    },
-    {
-      id: 'leases',
-      labelAr: 'عقود الإيجارات',
-      labelEn: 'Branch Leases',
-      icon: <Building2 className="h-4 w-4" aria-hidden />,
-    },
-    {
-      id: 'fleet',
-      labelAr: 'مصروفات الأسطول',
-      labelEn: 'Fleet Expenses',
-      icon: <Truck className="h-4 w-4" aria-hidden />,
     },
     ...(liveChildren && !embeddedInErp
       ? [
@@ -414,46 +381,6 @@ export function VentureAccountingHub({
             )}
           </section>
         )
-      )}
-
-      {activeTab === 'pettyCash' && (
-        <UnlinkedSourceNotice
-          isAr={isAr}
-          titleAr="العهد النقدية النثرية وكشوف التصفية (hr.expense)"
-          titleEn="Petty Cash & Custodian Expense Sheets (hr.expense)"
-          reasonAr="كشوف العهد النقدية التفصيلية غير مربوطة باستعلام من موديول hr.expense في Odoo."
-          reasonEn="Detailed petty cash custodian sheets are not connected to an Odoo hr.expense feed."
-        />
-      )}
-
-      {activeTab === 'cheques' && (
-        <UnlinkedSourceNotice
-          isAr={isAr}
-          titleAr="حافظة الشيكات وكشوف المطابقة البنكية"
-          titleEn="Cheque Register & Bank Statement Feeds"
-          reasonAr="سجل الشيكات الصادرة وكشوف الحسابات البنكية التفصيلية غير مربوطة بمصدر بنكي."
-          reasonEn="Issued cheque registers and bank statement feeds are not linked to a banking source."
-        />
-      )}
-
-      {activeTab === 'leases' && (
-        <UnlinkedSourceNotice
-          isAr={isAr}
-          titleAr="جداول عقود إيجارات الفروع (IFRS 16)"
-          titleEn="Branch Lease Schedules (IFRS 16)"
-          reasonAr="جداول استحقاق عقود الإيجارات التفصيلية للفروع غير مربوطة بموديول عقود منفصل في Odoo."
-          reasonEn="Branch-level lease amortization schedules are not linked to a lease contract module in Odoo."
-        />
-      )}
-
-      {activeTab === 'fleet' && (
-        <UnlinkedSourceNotice
-          isAr={isAr}
-          titleAr="تكاليف ومخالفات أسطول المركبات والدراجات"
-          titleEn="Fleet Fuel, Maintenance & Traffic Fines"
-          reasonAr="تفاصيل مركبات التوصيل والوقود والمخالفات غير مربوطة بموديول fleet في Odoo."
-          reasonEn="Delivery vehicle fuel, maintenance, and traffic fine logs are not linked to Odoo Fleet."
-        />
       )}
 
       {activeTab === 'localDb' && liveChildren && <div>{liveChildren}</div>}

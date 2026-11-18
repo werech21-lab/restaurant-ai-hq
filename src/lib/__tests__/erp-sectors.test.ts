@@ -9,6 +9,7 @@ describe('ERP sectors', () => {
     expect(erpSectors).toHaveLength(7)
     const hrefs = erpSectors.flatMap((sector) => sector.links.map((link) => link.href))
     expect(new Set(hrefs).size).toBe(hrefs.length)
+    expect(hrefs.some((h) => h.startsWith('/erp/events-projects') || h.startsWith('/erp/intelligence'))).toBe(false)
 
     const marketing = erpSectors.find((sector) => sector.id === 'marketing')
     expect(marketing?.links.filter((link) => linkPath(link.href) === '/erp/aggregator-radar' || link.href.includes('tab=radar'))).toHaveLength(1)
@@ -36,7 +37,7 @@ describe('ERP sectors', () => {
     expect(activeSectorId('/erp', null)).toBe('executive')
     expect(activeSectorId('/erp/admin', 'accounts')).toBe('executive')
     expect(activeSectorId('/erp/odoo-sync', null)).toBe('executive')
-    expect(activeSectorId('/erp/marketing', 'radar')).toBe('marketing')
+    expect(activeSectorId('/erp/marketing', 'website')).toBe('marketing')
     expect(activeSectorId('/erp/projects', 'helpdesk')).toBe('projects')
     expect(activeSectorId('/erp/aggregator-radar', null)).toBe('marketing')
   })

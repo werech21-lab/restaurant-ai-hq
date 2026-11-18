@@ -81,16 +81,6 @@ import {
   SUPPLIER_ITEMS,
 } from '@/lib/enterprise-giants-engine'
 import {
-  BRAND_SUITABILITY_MATRIX,
-  calculateBreakEven,
-  calculateThreeScenarios,
-  GOLDEN_EVENT_MENU,
-  HISTORICAL_BENCHMARKS,
-  OFFICIAL_EXB_MENUS,
-  recommendBrandForEvent,
-  VENTURE_FOODS_EVENTS,
-} from '@/lib/events/venture-events-engine'
-import {
   getShelfLifeRule,
   listShelfLifeRules,
   primaryOwnerBrand,
@@ -126,10 +116,6 @@ import {
 } from '@/lib/odoo/non-company-products'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import { sanitizePosTerminalDisplayName } from '@/lib/odoo-terminal-mappings'
-import {
-  computeDeliverySlaSnapshot,
-  computeSocialReviewsSnapshot,
-} from '@/lib/ops-expansion-part2'
 import { isHiddenPanelProduct } from '@/lib/panel-visibility'
 import { VENTURE_BRANCHES, VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import { middleware } from '@/middleware'
@@ -400,18 +386,6 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
   describe('1. Tier 2 Zero Fabricated/Demo Numbers & Non-Company Products (croissant, avocado)', () => {
     it('purges static demo datasets and enforces honest unlinked / noData states across Tier 2 engines', () => {
-      // Events & Booth engines: zero hardcoded historical events, menus, benchmarks
-      expect(VENTURE_FOODS_EVENTS).toEqual([])
-      expect(BRAND_SUITABILITY_MATRIX).toEqual([])
-      expect(GOLDEN_EVENT_MENU).toEqual([])
-      expect(OFFICIAL_EXB_MENUS).toEqual([])
-      expect(HISTORICAL_BENCHMARKS).toEqual([])
-      const unlinkedEventRec = recommendBrandForEvent('mega_expo', 5000, 'medium')
-      expect(unlinkedEventRec.primaryBrands).toEqual([])
-      expect(unlinkedEventRec.recommendedMenu).toEqual([])
-      expect(unlinkedEventRec.projectedAovKwd).toBe(0)
-      expect(unlinkedEventRec.recommendedConceptAr).toContain('غير مربوط بمصدر')
-
       // Planning & Regulations engines: zero pre-populated static phases or synthetic regulations
       expect(INITIAL_STRATEGIC_PHASES).toEqual([])
       expect(INITIAL_REGULATIONS).toEqual([])
@@ -420,20 +394,6 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(SUPPLIER_ITEMS).toEqual([])
       expect(PREP_ITEMS).toEqual([])
       expect(CHARGEBACKS).toEqual([])
-
-      // Social Reviews & Delivery SLA engines: honest unlinked telemetry state
-      const reviewsSnap = computeSocialReviewsSnapshot()
-      expect(reviewsSnap.unlinkedSource).toBe(true)
-      expect(reviewsSnap.messageAr).toBe('غير مربوط بمصدر')
-      expect(reviewsSnap.reviews).toEqual([])
-      expect(reviewsSnap.totalReviews).toBe(0)
-      expect(reviewsSnap.avgRating).toBe(0)
-
-      const deliverySlaSnap = computeDeliverySlaSnapshot()
-      expect(deliverySlaSnap.unlinkedSource).toBe(true)
-      expect(deliverySlaSnap.messageAr).toBe('غير مربوط بمصدر')
-      expect(deliverySlaSnap.trips).toEqual([])
-      expect(deliverySlaSnap.meanMinutes).toBe(0)
 
       // Disconnected Planning & Campaign Halo: strict noData with zero fabricated numbers
       const disconnectedWs = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, null)
@@ -690,48 +650,6 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(canteenHalo.odooConnected).toBe(true)
       expect(canteenHalo.noData).toBe(false)
       expect(canteenHalo.after3dSalesKwd).toBeGreaterThan(canteenHalo.before3dSalesKwd)
-
-      // 2D. Booth & Events Calculators (`calculateBreakEven` & `calculateThreeScenarios`)
-      const be = calculateBreakEven({
-        boothRentKwd: 1500,
-        fitoutSignageKwd: 500,
-        permitsTransportKwd: 200,
-        daysCount: 10,
-        staffCount: 4,
-        dailyWagePerStaffKwd: 15,
-        expectedAovKwd: 5,
-        estimatedCogsPercent: 32,
-        dailyOtherFixedCostKwd: 20,
-      })
-      expect(be.totalFixedCostsKwd).toBe(1500 + 500 + 200 + 600 + 200)
-      expect(be.contributionMarginPercent).toBe(68)
-      expect(be.projectedNetProfitAtSales(6000).netProfitKwd).toBeCloseTo(6000 * 0.68 - 3000, 3)
-
-      const scenarios = calculateThreeScenarios({
-        daysCount: 14,
-        totalRentKwd: 2800,
-        fitoutKwd: 700,
-        staffCount: 4,
-        dailyWagePerStaffKwd: 15,
-        expectedAovKwd: 5.5,
-        estimatedCogsPercent: 30,
-        marketingOpexKwd: 300,
-        baselineDailyOrders: 120,
-        selectedBrands: [
-          'China Garden',
-          "Frank's",
-          'Heisenberg',
-          'هايزنبرغ',
-          'Qurain Kitchen',
-          'Jahra Booth',
-          'Hawally Pop-up',
-        ],
-      })
-      expect(scenarios.brandBreakdown.map((b) => b.brandName)).toEqual([
-        'China Garden',
-        "Frank's",
-      ])
-      expect(scenarios.brandBreakdown[0]?.sharePercent).toBe(50)
 
       // 2E. Food-Safety Sites & Suite Analytic Matrix
       const fsSites = listFoodSafetySites()
@@ -1079,21 +997,23 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
     })
   })
 
-  describe('4. Auth & RBAC Sanity Across All 109 Routes + Auditor Read-Only Enforcement on /api/erp/*', () => {
-    it('discovers all 109 page.tsx routes and enforces unauthenticated /login redirect on every non-login route', async () => {
+  describe('4. Auth & RBAC Sanity Across All 85 Routes + Auditor Read-Only Enforcement on /api/erp/*', () => {
+    it('discovers all 85 page.tsx routes and enforces unauthenticated /login redirect on every non-login route', async () => {
       const pageFiles = await collectAllPageFiles()
-      expect(pageFiles).toHaveLength(109)
+      expect(pageFiles).toHaveLength(85)
 
       const routeUrls = pageFiles.map(pageFileToRouteUrl)
       expect(routeUrls).toContain('/')
       expect(routeUrls).toContain('/login')
       expect(routeUrls).toContain('/erp')
-      expect(routeUrls).toContain('/dashboard')
       expect(routeUrls).toContain('/admin')
       expect(routeUrls).toContain('/admin/ai-runs')
-      expect(routeUrls).toContain('/pos')
-      expect(routeUrls).toContain('/kds')
       expect(routeUrls).toContain('/ess')
+      expect(routeUrls).not.toContain('/dashboard')
+      expect(routeUrls).not.toContain('/pos')
+      expect(routeUrls).not.toContain('/kds')
+      expect(routeUrls).not.toContain('/erp/prep-sla')
+      expect(routeUrls).not.toContain('/erp/intelligence')
 
       const unguardedInternalRoutes: string[] = []
       for (const routeUrl of routeUrls) {
@@ -1112,22 +1032,20 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
     it('verifies layout & server-component auth guards alongside role-scoped RBAC matrix across all 8 roles', async () => {
       // Verify server-side layout/page auth guard presence in source
-      const [panelShell, erpShell, posPage, adminPage, adminAiRunsPage] = await Promise.all([
+      const [panelShell, erpShell, adminPage, adminAiRunsPage] = await Promise.all([
         readFile(path.join(ROOT_DIR, 'src/components/shell.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/components/erp/shell.tsx'), 'utf8'),
-        readFile(path.join(ROOT_DIR, 'src/app/(pos)/pos/page.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/app/admin/page.tsx'), 'utf8'),
         readFile(path.join(ROOT_DIR, 'src/app/admin/ai-runs/page.tsx'), 'utf8'),
       ])
       expect(panelShell).toContain('await requireUser()')
       expect(erpShell).toContain('await requireUser()')
-      expect(posPage).toContain('await requireUser()')
       expect(adminPage).toContain('authenticateUser(')
       expect(adminAiRunsPage).toContain('verifyExecSessionToken(')
 
       // Canonical short ERP aliases
       expect(resolveCanonicalErpAlias('/erp/booth')).toBe('/erp/booth-feasibility')
-      expect(resolveCanonicalErpAlias('/erp/reviews')).toBe('/erp/social-reviews')
+      expect(resolveCanonicalErpAlias('/erp/reviews')).toBeNull()
       expect(resolveCanonicalErpAlias('/erp/commissions')).toBe('/erp/aggregator-radar')
 
       const tokens: Record<ExecSessionRole, string> = {
@@ -1155,11 +1073,11 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
       // Marketing & Supply scope isolation
       expect(isErpRouteAllowedForRole('marketing', '/erp/booth-feasibility')).toBe(true)
-      expect(isErpRouteAllowedForRole('marketing', '/erp/social-reviews')).toBe(true)
+      expect(isErpRouteAllowedForRole('marketing', '/erp/events-intelligence')).toBe(true)
       expect(isErpRouteAllowedForRole('marketing', '/erp/planning')).toBe(false)
       expect(isErpRouteAllowedForRole('marketing', '/pos')).toBe(false)
       expect(isErpRouteAllowedForRole('supply', '/erp/warehouse-chain')).toBe(true)
-      expect(isErpRouteAllowedForRole('supply', '/erp/food-safety')).toBe(true)
+      expect(isErpRouteAllowedForRole('supply', '/erp/feryal-ai')).toBe(true)
       expect(isErpRouteAllowedForRole('supply', '/erp/executive-pnl')).toBe(false)
       expect(isErpRouteAllowedForRole('supply', '/kds')).toBe(false)
 

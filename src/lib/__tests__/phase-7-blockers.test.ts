@@ -49,18 +49,12 @@ describe('phase 7 panel reads', () => {
   })
 
   it('does not hide invoices or purchase orders by their first numbers', () => {
-    const sales = source('src/app/(panel)/sales/page.tsx')
     const reports = source('src/lib/reports.ts')
-    expect(sales).not.toContain('DEMO_INVOICE_NUMBERS')
-    expect(sales).toContain('visibleInvoiceWhere')
     expect(reports).not.toContain('DEMO_INVOICE_NUMBERS')
     expect(reports).not.toContain('DEMO_PURCHASE_NUMBERS')
     expect(reports).toContain('visiblePurchaseWhere')
     for (const relative of [
       'src/app/(panel)/reports/page.tsx',
-      'src/app/(panel)/warehouses/page.tsx',
-      'src/app/(panel)/crm/page.tsx',
-      'src/app/(panel)/recipes/page.tsx',
       'src/app/actions/search.ts',
       'src/app/api/panel/search/route.ts',
     ]) {

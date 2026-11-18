@@ -24,33 +24,11 @@ async function CentralKitchenContent() {
 
   const cards = [
     {
-      title: tx(locale, 'الوصفات وتكلفة الغذاء', 'Recipes & food cost'),
-      desc: tx(
-        locale,
-        'إدارة الوصفات المعيارية ونسبة تكلفة الغذاء وخصم المواد عند البيع.',
-        'Manage standard recipes, food-cost %, and ingredient deduction on sale.',
-      ),
-      href: '/recipes',
-      cta: tx(locale, 'فتح الوصفات', 'Open recipes'),
-      primary: true,
-    },
-    {
-      title: tx(locale, 'شاشة المطبخ KDS', 'Kitchen KDS'),
-      desc: tx(
-        locale,
-        'تذاكر التحضير واتفاقيات مستوى الخدمة للفروع.',
-        'Prep tickets and SLA tracking across branches.',
-      ),
-      href: '/kds',
-      cta: tx(locale, 'فتح KDS', 'Open KDS'),
-      primary: false,
-    },
-    {
       title: tx(locale, 'مخزون المطبخ (ERP)', 'Kitchen inventory (ERP)'),
       desc: tx(locale, 'شجرة التصنيع والمشتريات المتقدمة داخل منظومة ERP.', 'MRP and advanced purchasing inside the ERP suite.'),
       href: '/erp/kitchen',
       cta: tx(locale, 'فتح مطبخ ERP', 'Open ERP kitchen'),
-      primary: false,
+      primary: true,
     },
     {
       title: tx(locale, 'الجرد والهدر', 'Stock count & waste'),
@@ -58,17 +36,6 @@ async function CentralKitchenContent() {
       href: '/stock-count',
       cta: tx(locale, 'فتح الجرد', 'Open stock count'),
       primary: false,
-    },
-    {
-      title: tx(locale, 'سلامة الغذاء ومصفوفة الصلاحية', 'Food safety & shelf-life matrix'),
-      desc: tx(
-        locale,
-        'ساعات صلاحية HACCP لتحضيرات PP03* ومواد RW01*، عدّاد FEFO، وملصقات Brother DK-2205.',
-        'HACCP shelf-life hours for PP03* preps and RW01* raw items, FEFO countdown, and Brother DK-2205 labels.',
-      ),
-      href: '/erp/food-safety',
-      cta: tx(locale, 'فتح سلامة الغذاء والبرادات', 'Open Food Safety & Cold Chain'),
-      primary: true,
     },
   ]
 
@@ -78,8 +45,8 @@ async function CentralKitchenContent() {
         title={tx(locale, 'المطبخ المركزي', 'Central kitchen')}
         description={tx(
           locale,
-          `${scopeLabel} · وصفات BOM، خصم المواد، والهدر التشغيلي`,
-          `${scopeLabel} · BOM recipes, ingredient deduction, and operational waste`,
+          `${scopeLabel} · مخزون المطبخ المركزي، الإنتاج، والهدر التشغيلي`,
+          `${scopeLabel} · Central kitchen inventory, production, and operational waste`,
         )}
       />
       <div className="mb-4">

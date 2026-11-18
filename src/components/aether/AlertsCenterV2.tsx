@@ -27,7 +27,6 @@ import {
   type GovernanceAdminThresholds,
 } from '@/lib/governance-compliance'
 import { useOptionalGovernance } from '@/components/erp/GovernanceBellDrawer'
-import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import { KpiCard } from '@/components/ui/kpi-card'
 import { SectionCard } from '@/components/ui/section-card'
 import { StateBlock } from '@/components/ui/state-block'
@@ -107,10 +106,8 @@ function AlertsCenterV2Body({
       setUpdatedAtIso(typeof data.updatedAtIso === 'string' ? data.updatedAtIso : null)
       if (verified.length > 0) {
         setPhase('ready')
-      } else if (configured) {
-        setPhase('empty')
       } else {
-        setPhase('unlinked')
+        setPhase('empty')
       }
     } catch (caught: unknown) {
       if (caught instanceof DOMException && caught.name === 'AbortError') return
@@ -204,19 +201,7 @@ function AlertsCenterV2Body({
           />
         ) : null}
 
-        {phase === 'unlinked' ? (
-          <UnlinkedSourceNotice
-            isAr={isAr}
-            titleAr="مركز التنبيهات المالية الآلية"
-            titleEn="Automated Financial Alerts Center"
-            reasonAr="تم إيقاف التنبيهات الثابتة بالكامل. لا تُعرض أي تنبيهات مالية إلا عند ربطها باستعلامات أودو 17 الفعلية وسقوف يعتمدها مسؤول النظام عبر جرس الحوكمة."
-            reasonEn="Static financial alerts have been removed. Alerts appear only when evaluated against Odoo 17 queries and admin-saved server thresholds."
-            requiredSourceAr="سقوف الأدمن على /api/erp/governance واستعلامات Odoo 17"
-            requiredSourceEn="/api/erp/governance (Admin Thresholds + Odoo 17 Queries)"
-          />
-        ) : null}
-
-        {phase === 'empty' ? (
+        {phase === 'empty' || phase === 'unlinked' ? (
           <StateBlock
             state="empty"
             locale={locale}

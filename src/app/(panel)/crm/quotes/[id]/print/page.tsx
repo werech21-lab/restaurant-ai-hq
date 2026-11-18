@@ -37,7 +37,7 @@ async function PrintContent({ params }: { params: Promise<{ id: string }> }) {
   if (!can(user, 'crm', 'view') && !can(user, 'sales', 'view')) {
     return <Forbidden href={firstAllowedHref(user)} />
   }
-  if (!(await isModuleEnabled('crm'))) return <Forbidden href="/crm" />
+  if (!(await isModuleEnabled('crm'))) return <Forbidden href="/erp/crm" />
 
   const { id } = await params
   const quote = await prisma.quotation.findUnique({
@@ -58,10 +58,10 @@ async function PrintContent({ params }: { params: Promise<{ id: string }> }) {
           )}
           action={
             <a
-              href="/crm?tab=quotes"
+              href="/erp/crm"
               className="ds-motion ds-focus-ring inline-flex min-h-10 items-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-[#04130D]"
             >
-              {tx(locale, 'العودة لعروض الأسعار', 'Back to quotations')}
+              {tx(locale, 'العودة لإدارة العملاء', 'Back to CRM')}
             </a>
           }
         />
@@ -157,7 +157,7 @@ async function PrintContent({ params }: { params: Promise<{ id: string }> }) {
           },
         ],
         qrDataUrl: qr,
-        backHref: '/crm?tab=quotes',
+        backHref: '/erp/crm',
         companyName: company.name,
         companyMeta: [
           company.taxNumber

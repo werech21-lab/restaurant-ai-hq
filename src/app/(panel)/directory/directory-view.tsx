@@ -188,7 +188,7 @@ function DirectoryViewBody({
               {label('الموارد البشرية', 'HR')}
             </Link>
             <Link
-              href="/warehouses"
+              href="/erp/warehouse-chain"
               className="ds-focus-ring rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-surface)] px-3.5 py-2 text-[var(--ds-text-primary)] transition hover:border-emerald-500/45"
             >
               {label('المستودعات والفروع', 'Warehouses')}
@@ -500,7 +500,7 @@ function DirectoryViewBody({
                       {warehouse ? (
                         <Link
                           className="ds-focus-ring inline-block rounded font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
-                          href={`/warehouses?q=${encodeURIComponent(warehouse.id)}`}
+                          href="/erp/warehouse-chain"
                         >
                           {warehouse.name}
                           {warehouse.managerName ? ` · ${warehouse.managerName}` : ''}

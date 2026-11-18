@@ -52,10 +52,8 @@ export interface EnterpriseReportDef {
   titleAr: string
   titleEn: string
   code: string
-  sourceState: 'odoo-live' | 'unlinked'
+  sourceState: 'odoo-live'
   odooModel?: string
-  unlinkedReasonAr?: string
-  unlinkedReasonEn?: string
   summaryAr: string
   summaryEn: string
   headlineMetricAr: string
@@ -727,61 +725,6 @@ export function buildLiveEnterpriseDepartments(
             { key: 'netResidualKwd', labelAr: 'الصافي المتبقي (د.ك)', labelEn: 'Net Residual (KWD)', align: 'right', isCurrency: true },
           ],
           rows: arRows,
-        },
-      ],
-    },
-    {
-      id: 'operations-unlinked',
-      titleAr: 'أقسام غير مربوطة بمصدر بيانات',
-      titleEn: 'Unlinked Departmental Reports',
-      icon: '🔌',
-      accentColor: '#64748b',
-      descriptionAr: 'تقارير الموارد البشرية وسلامة الغذاء والأسطول والعهد النثرية غير مربوطة بمصدر بيانات مباشر.',
-      descriptionEn: 'HR, food-safety sensors, fleet telemetry, and petty cash custodian sheets are not connected to a data source.',
-      reports: [
-        {
-          id: 'hr-payroll-unlinked',
-          departmentId: 'operations-unlinked',
-          titleAr: 'تقارير الموارد البشرية والرواتب والإقامات',
-          titleEn: 'HR, Payroll & Residency Reports',
-          code: 'VF-HR-01',
-          sourceState: 'unlinked',
-          unlinkedReasonAr: 'بيانات مسيرات الرواتب والإقامات غير مربوطة باستعلام من Odoo HR.',
-          unlinkedReasonEn: 'Payroll runs and residency records are not connected to an Odoo HR query.',
-          summaryAr: 'غير مربوط بمصدر',
-          summaryEn: 'Not linked to a source',
-          headlineMetricAr: 'غير مربوط بمصدر',
-          headlineMetricEn: 'Not linked to a source',
-          recordCount: 0,
-          auditedDate: '—',
-          kpis: [],
-          breakdownTitleAr: '',
-          breakdownTitleEn: '',
-          breakdown: [],
-          columns: [],
-          rows: [],
-        },
-        {
-          id: 'qa-fleet-unlinked',
-          departmentId: 'operations-unlinked',
-          titleAr: 'تقارير حساسات التبريد وزمن التوصيل والأسطول',
-          titleEn: 'Cold-Chain IoT, Rider SLA & Fleet Reports',
-          code: 'VF-OPS-01',
-          sourceState: 'unlinked',
-          unlinkedReasonAr: 'حساسات درجات الحرارة وزمن السائقين وتكاليف المركبات غير مربوطة بمصدر بيانات خارجي أو Odoo.',
-          unlinkedReasonEn: 'IoT temperature sensors, rider SLA telemetry, and vehicle logs are not connected to a data source.',
-          summaryAr: 'غير مربوط بمصدر',
-          summaryEn: 'Not linked to a source',
-          headlineMetricAr: 'غير مربوط بمصدر',
-          headlineMetricEn: 'Not linked to a source',
-          recordCount: 0,
-          auditedDate: '—',
-          kpis: [],
-          breakdownTitleAr: '',
-          breakdownTitleEn: '',
-          breakdown: [],
-          columns: [],
-          rows: [],
         },
       ],
     },

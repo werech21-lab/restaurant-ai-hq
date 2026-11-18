@@ -213,14 +213,6 @@ function Workspace({
         icon={<ChefHat className="h-4 w-4" aria-hidden />}
         title={t('kwork.title')}
         subtitle={t('kwork.lead')}
-        actions={
-          <Link
-            href="/erp/kds"
-            className="ds-focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-900 hover:bg-slate-50 dark:border-white/20 dark:bg-[#141F1B] dark:text-slate-50 dark:hover:bg-white/[0.06]"
-          >
-            {isAr ? 'شاشة KDS' : 'Open KDS'}
-          </Link>
-        }
       >
         <div className="rounded-2xl border border-amber-400/40 bg-amber-50/90 px-4 py-3.5 text-amber-950 dark:border-amber-400/25 dark:bg-amber-950/35 dark:text-amber-100">
           <p className="text-sm font-bold">{t('kwork.backflush')}</p>

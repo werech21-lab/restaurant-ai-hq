@@ -554,7 +554,6 @@ export type SummaryCardAction =
   | 'stage-procurement'
   | 'stage-opex'
   | 'href-radar'
-  | 'chart-branches'
   | 'href-menu'
   | 'lens-quiet'
 
@@ -967,8 +966,8 @@ function buildSummaryCards(params: {
       num: 1,
       titleAr: 'المشتريات والمطبخ',
       titleEn: 'Buying & Kitchen',
-      valueAr: odooConnected ? 'غير مربوط بمصدر' : disconnectedLabelAr,
-      valueEn: odooConnected ? 'Unlinked BoM Source' : disconnectedLabelEn,
+      valueAr: odooConnected ? 'حركات فعلية فقط' : disconnectedLabelAr,
+      valueEn: odooConnected ? 'Actual Moves Only' : disconnectedLabelEn,
       descAr: odooConnected
         ? 'حركات المخزن والتالف الفعلي متاحة في شاشة سلسلة المخزن بدون نسب هدر تقديرية.'
         : disconnectedLabelAr,
@@ -1093,31 +1092,8 @@ function buildSummaryCards(params: {
       href: '/erp/receivables',
     },
     {
-      id: 'branch-discipline',
-      num: 4,
-      titleAr: 'انضباط الفروع',
-      titleEn: 'Branch Discipline',
-      valueAr: 'غير مربوط بمصدر',
-      valueEn: 'Unlinked Source',
-      descAr: 'نظام توقيت شاشات المطبخ (KDS) غير مربوط بمصدر في Odoo 17 حالياً.',
-      descEn: 'Kitchen Display System (KDS) prep timestamps are not linked to an Odoo 17 source.',
-      periodLabelAr: activeIsoWindowAr,
-      periodLabelEn: activeIsoWindowEn,
-      sourceLabelAr: 'غير مربوط بمصدر KDS',
-      sourceLabelEn: 'Unlinked KDS Source',
-      accent: 'amber',
-      statusDot: '🟠',
-      statusLabelAr: 'غير مربوط بمصدر',
-      statusLabelEn: 'Unlinked Source',
-      ctaAr: 'حالة الربط ↗',
-      ctaEn: 'Source Status ↗',
-      action: 'chart-branches',
-      targetStage: 'operations',
-      href: '/erp/prep-sla',
-    },
-    {
       id: 'menu-prices',
-      num: 5,
+      num: 4,
       titleAr: 'أسعار المينيو والوجبات',
       titleEn: 'Menu Sales Mix',
       valueAr: odooConnected ? 'بيانات فعلية' : disconnectedLabelAr,
@@ -1139,7 +1115,7 @@ function buildSummaryCards(params: {
     },
     {
       id: 'kitchen-capacity',
-      num: 6,
+      num: 5,
       titleAr: 'مبيعات الساعات الهادئة (3–6 م)',
       titleEn: 'Quiet Hours Sales (3–6 PM)',
       valueAr: !odooConnected

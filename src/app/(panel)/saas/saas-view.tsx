@@ -286,7 +286,7 @@ export function SaasView({
                 </div>
                 <div className="mt-4 border-t border-[var(--ds-border-hairline)] pt-3">
                   <Link
-                    href={`/sales?brand=${encodeURIComponent(b.id)}`}
+                    href="/erp/cores"
                     className="ds-focus-ring inline-flex rounded text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                   >
                     {label(`استعراض مبيعات ${b.nameAr}`, `View ${b.nameEn} Sales`)}

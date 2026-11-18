@@ -48,11 +48,7 @@ vi.mock('@/components/aether/GlobalFilterContext', async (importOriginal) => {
 })
 
 import { BoothStudyV5 } from '@/components/aether/BoothStudyV5'
-import { GrowthPlaybookV5 } from '@/components/aether/GrowthPlaybookV5'
 import { StrategicPlanningStudio } from '@/components/erp/StrategicPlanningStudio'
-import { SocialReviewsStudio } from '@/components/erp/ops-expansion/SocialReviewsStudio'
-import VentureEventsHub from '@/components/events/VentureEventsHub'
-import TalabatGeoZoneRadar from '@/components/radar/TalabatGeoZoneRadar'
 import SmartDropzonePortal from '@/components/SmartDropzonePortal'
 import CrmWorkspace from '@/modules/crm/ui/CrmWorkspace'
 import { CrmMoney, formatCrmDateTime } from '@/modules/crm/ui/shared'
@@ -68,28 +64,17 @@ const REPO_ROOT = path.resolve(__dirname, '../../..')
 const OWNED_FILES = [
   'src/app/erp/ai/page.tsx',
   'src/app/erp/booth-feasibility/page.tsx',
-  'src/app/erp/competitors/page.tsx',
   'src/app/erp/crm/page.tsx',
   'src/app/erp/delivery/page.tsx',
-  'src/app/erp/delivery-control/page.tsx',
-  'src/app/erp/demand-forecast/page.tsx',
   'src/app/erp/events-intelligence/page.tsx',
-  'src/app/erp/events-projects/page.tsx',
-  'src/app/erp/intelligence/page.tsx',
-  'src/app/erp/market/page.tsx',
   'src/app/erp/marketing/page.tsx',
   'src/app/erp/planning/page.tsx',
   'src/app/erp/projects/page.tsx',
   'src/app/erp/sales-crm/page.tsx',
   'src/app/erp/smart-dropzone/page.tsx',
-  'src/app/erp/social-reviews/page.tsx',
   'src/components/aether/BoothStudyV5.tsx',
-  'src/components/aether/GrowthPlaybookV5.tsx',
-  'src/components/radar/TalabatGeoZoneRadar.tsx',
-  'src/components/events/VentureEventsHub.tsx',
   'src/components/erp/StrategicPlanningStudio.tsx',
   'src/components/SmartDropzonePortal.tsx',
-  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
   'src/modules/crm/ui/CrmWorkspace.tsx',
   'src/modules/crm/ui/CustomerDirectory.tsx',
   'src/modules/crm/ui/CustomerForm.tsx',
@@ -106,12 +91,8 @@ const OWNED_FILES = [
 
 const OWNED_CHILD_STUDIOS = [
   'src/components/aether/BoothStudyV5.tsx',
-  'src/components/aether/GrowthPlaybookV5.tsx',
-  'src/components/radar/TalabatGeoZoneRadar.tsx',
-  'src/components/events/VentureEventsHub.tsx',
   'src/components/erp/StrategicPlanningStudio.tsx',
   'src/components/SmartDropzonePortal.tsx',
-  'src/components/erp/ops-expansion/SocialReviewsStudio.tsx',
   'src/modules/crm/ui/CrmWorkspace.tsx',
 ] as const
 
@@ -348,32 +329,7 @@ describe('Tier 2 ERP Intelligence, Strategy, Growth, CRM & Dropzone Suites', () 
     })
   })
 
-  describe('3. Unlinked Intelligence Studios (GrowthPlaybookV5, SocialReviewsStudio, VentureEventsHub, TalabatGeoZoneRadar)', () => {
-    it('renders bilingual unlinked notices without Arabic leaks in EN titles', () => {
-      const components = [
-        { el: React.createElement(GrowthPlaybookV5), enTitle: 'Growth Playbook Estimates' },
-        { el: React.createElement(SocialReviewsStudio), enTitle: 'Customer &amp; Social Reviews' },
-        { el: React.createElement(VentureEventsHub), enTitle: 'Exhibitions, Camps &amp; Special Events Management' },
-        { el: React.createElement(TalabatGeoZoneRadar), enTitle: 'Aggregator Geo-Zone Coverage Radar' },
-      ]
-
-      for (const item of components) {
-        const arHtml = renderWithLocale('ar', item.el)
-        expect(arHtml).toContain('data-unlinked-source="true"')
-        expect(arHtml).toContain('dir="rtl"')
-        expect(arHtml).not.toContain('<h1')
-
-        const enHtml = renderWithLocale('en', item.el)
-        expect(enHtml).toContain('data-unlinked-source="true"')
-        expect(enHtml).toContain(item.enTitle)
-        expect(enHtml).not.toContain('غير مربوط بمصدر')
-        expect(enHtml).not.toMatch(/[\u0600-\u06FF]/)
-        expect(enHtml).not.toContain('<h1')
-      }
-    })
-  })
-
-  describe('4. SmartDropzonePortal (/erp/smart-dropzone)', () => {
+  describe('3. SmartDropzonePortal (/erp/smart-dropzone)', () => {
     it('renders loading StateBlock, 7 department counters, light+dark DS surfaces, and zero <h1> in AR & EN', () => {
       const arHtml = renderWithLocale('ar', React.createElement(SmartDropzonePortal))
       expect(arHtml).toContain('dir="rtl"')
@@ -460,28 +416,16 @@ describe('Tier 2 ERP Intelligence, Strategy, Growth, CRM & Dropzone Suites', () 
       const planSrc = readFileSync(path.join(REPO_ROOT, 'src/components/erp/StrategicPlanningStudio.tsx'), 'utf8')
       expect(planSrc).toContain('grid-cols-2 lg:grid-cols-4')
       expect(planSrc).toContain('p-3.5 sm:p-5')
-
-      const socialSrc = readFileSync(path.join(REPO_ROOT, 'src/components/erp/ops-expansion/SocialReviewsStudio.tsx'), 'utf8')
-      expect(socialSrc).toContain('p-3.5 sm:p-5')
     })
 
-    it('ensures all 17 owned /erp/*/page.tsx wrappers omit nested <main> and only ROUTES_WITH_OWN_H1 render <h1>', () => {
+    it('ensures all 10 owned /erp/*/page.tsx wrappers omit nested <main> and duplicate <h1>', () => {
       const ownedPages = OWNED_FILES.filter((rel) => rel.startsWith('src/app/erp/') && rel.endsWith('/page.tsx'))
-      expect(ownedPages).toHaveLength(17)
-
-      const allowedOwnH1Pages = new Set([
-        'src/app/erp/demand-forecast/page.tsx',
-        'src/app/erp/market/page.tsx',
-      ])
+      expect(ownedPages).toHaveLength(10)
 
       for (const rel of ownedPages) {
         const src = readFileSync(path.join(REPO_ROOT, rel), 'utf8')
         expect(/<main\b/.test(src), `${rel} must not render nested <main> inside ErpShell`).toBe(false)
-        if (allowedOwnH1Pages.has(rel)) {
-          expect(/<h1\b/.test(src), `${rel} is in ROUTES_WITH_OWN_H1 and must render <h1>`).toBe(true)
-        } else {
-          expect(/<h1\b/.test(src), `${rel} must not duplicate TopFilterBar/hub <h1>`).toBe(false)
-        }
+        expect(/<h1\b/.test(src), `${rel} must not duplicate TopFilterBar/hub <h1>`).toBe(false)
       }
     })
   })

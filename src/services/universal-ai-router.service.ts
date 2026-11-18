@@ -78,13 +78,13 @@ const DEPT_META: Record<
   purchases: {
     ar: 'المشتريات والموردين',
     en: 'Purchases & Vendors',
-    href: '/purchases',
+    href: '/erp/procurement',
     module: 'purchases',
   },
   inventory_recipes: {
     ar: 'الوصفات والمخزون والمنيو',
     en: 'Recipes & Inventory',
-    href: '/recipes',
+    href: '/erp/inventory',
     module: 'inventory',
   },
   sales_aggregators: {
@@ -102,7 +102,7 @@ const DEPT_META: Record<
   crm_catering: {
     ar: 'الكاترينج والعملاء',
     en: 'CRM & Catering',
-    href: '/crm',
+    href: '/erp/crm',
     module: 'crm_projects',
   },
 }

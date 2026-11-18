@@ -13,7 +13,6 @@ import {
   Landmark,
   LayoutDashboard,
   LogOut,
-  MessageSquareHeart,
   PackageCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -21,11 +20,7 @@ import {
   PanelRightOpen,
   Radar,
   Receipt,
-  Scale,
   Sparkles,
-  Target,
-  Timer,
-  Truck,
 } from 'lucide-react'
 import { logout } from '@/app/actions/auth'
 import {
@@ -47,7 +42,6 @@ export type SidebarSectionId =
   | 'executive-sales'
   | 'operations-sla'
   | 'finance-accounting'
-  | 'competitors-market'
   | 'reputation-vision'
   | 'governance-strategy'
 
@@ -69,7 +63,7 @@ export interface SidebarSection {
   items: readonly NavItem[]
 }
 
-/** 4 Clean Executive Sections & 13 Unified ERP Routes (AR & EN). */
+/** 5 Clean Executive Sections & 12 Live ERP Routes (AR & EN). */
 export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: 'executive-sales',
@@ -129,24 +123,6 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         alwaysVisible: true,
       },
       {
-        key: 'prep-sla',
-        sectionId: 'operations-sla',
-        href: '/erp/prep-sla',
-        labelAr: 'زمن تجهيز المطبخ',
-        labelEn: 'Kitchen Prep SLA',
-        icon: Timer,
-        alwaysVisible: true,
-      },
-      {
-        key: 'delivery-sla',
-        sectionId: 'operations-sla',
-        href: '/erp/delivery-sla',
-        labelAr: 'زمن توصيل السائق',
-        labelEn: 'Rider Delivery SLA',
-        icon: Truck,
-        alwaysVisible: true,
-      },
-      {
         key: 'aggregator-radar',
         sectionId: 'operations-sla',
         href: '/erp/aggregator-radar',
@@ -194,37 +170,10 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
     ],
   },
   {
-    id: 'competitors-market',
-    labelAr: 'المنافسون والسوق',
-    labelEn: 'Competitors & Market',
-    items: [
-      {
-        key: 'competitors',
-        sectionId: 'competitors-market',
-        href: '/erp/competitors',
-        aliases: ['/erp/market'],
-        labelAr: 'رادار المنافسين والسوق',
-        labelEn: 'Competitors & Market Radar',
-        icon: Target,
-        alwaysVisible: true,
-      },
-    ],
-  },
-  {
     id: 'reputation-vision',
     labelAr: 'السمعة والذكاء المرئي',
     labelEn: 'Reputation & Vision AI',
     items: [
-      {
-        key: 'social-reviews',
-        sectionId: 'reputation-vision',
-        href: '/erp/social-reviews',
-        aliases: ['/erp/reviews'],
-        labelAr: 'التقييمات ومنصات التواصل',
-        labelEn: 'Social & Aggregator Reviews',
-        icon: MessageSquareHeart,
-        alwaysVisible: true,
-      },
       {
         key: 'feryal-ai',
         sectionId: 'reputation-vision',
@@ -249,15 +198,6 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
         labelAr: 'التخطيط والتوقعات',
         labelEn: 'Strategic Planning & Forecast',
         icon: Compass,
-        alwaysVisible: true,
-      },
-      {
-        key: 'regulations',
-        sectionId: 'governance-strategy',
-        href: '/erp/regulations',
-        labelAr: 'التشريعات والتراخيص',
-        labelEn: 'Regulations & Licensing',
-        icon: Scale,
         alwaysVisible: true,
       },
       {

@@ -47,9 +47,9 @@ const HIDDEN_ROUTES = new Set(['/login', '/', '/download', '/home'])
 const PRIMARY_DOCK_ROUTES = new Set([
   '/erp',
   '/erp/cores',
+  '/erp/warehouse-chain',
   '/erp/feryal-ai',
   '/erp/feryal',
-  '/erp/prep-sla',
 ])
 
 function formatSessionTimer(sec: number): string {
@@ -73,7 +73,7 @@ function readDomSessionRole(): ExecSessionRole {
 
 /**
  * Native-Grade 5-Tab Mobile Bottom Dock (`lg:hidden`) +
- * Full 13-Page Categorized "All Modules" Navigation Bottom Sheet.
+ * Categorized "All Modules" Navigation Bottom Sheet.
  * Safe both inside and outside `GovernanceProvider`.
  */
 export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: boolean } = {}) {
@@ -133,9 +133,9 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
   })).filter((section) => section.items.length > 0)
   const dockHomeHref = resolveRoleDefaultHome(activeRole)
   const dockTab2Href =
-    activeRole === 'supply' ? '/erp/delivery-sla' : '/erp/cores'
+    activeRole === 'supply' ? '/erp/warehouse-chain' : '/erp/cores'
   const dockTab4Href =
-    activeRole === 'marketing' ? '/erp/social-reviews' : '/erp/prep-sla'
+    activeRole === 'marketing' ? '/erp/cores' : '/erp/warehouse-chain'
 
   // Keep standalone Manager PIN session & badge count synced even when mounted in RootLayout outside GovernanceProvider
   const syncFallbackGovernance = useCallback(() => {
@@ -222,20 +222,18 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
       pathname.startsWith('/erp/feryal'))
   const opsActive =
     !sheetOpen &&
-    (pathname === dockTab4Href ||
-      pathname.startsWith(`${dockTab4Href}/`) ||
-      (activeRole === 'marketing' && pathname === '/erp/reviews'))
+    (pathname === dockTab4Href || pathname.startsWith(`${dockTab4Href}/`))
   const isSecondaryErpModule =
     pathname.startsWith('/erp/') &&
     !PRIMARY_DOCK_ROUTES.has(pathname) &&
     !pathname.startsWith('/erp/cores/') &&
-    !pathname.startsWith('/erp/feryal') &&
-    !pathname.startsWith('/erp/prep-sla/')
+    !pathname.startsWith('/erp/warehouse-chain/') &&
+    !pathname.startsWith('/erp/feryal')
   const menuActive = sheetOpen || isSecondaryErpModule
 
   return (
     <>
-      {/* Full 13-Page Categorized Navigation Bottom Sheet */}
+      {/* Categorized Navigation Bottom Sheet */}
       {sheetOpen ? (
         <>
           <div
@@ -246,7 +244,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={isAr ? 'جميع أقسام النظام التنفيذي (13 شاشة)' : 'All 13 Executive ERP Modules'}
+            aria-label={isAr ? 'جميع أقسام النظام التنفيذي' : 'All Executive ERP Modules'}
             dir={isAr ? 'rtl' : 'ltr'}
             className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-white/95 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] backdrop-blur-xl shadow-[0_-14px_44px_-10px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 sm:p-5 sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:hidden dark:bg-[#0F1A30]/95 dark:shadow-[0_-14px_44px_-10px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
           >
@@ -431,7 +429,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </span>
           </Link>
 
-          {/* 2) Sales / Delivery SLA -> role-scoped tab 2 */}
+          {/* 2) Sales / Supply Chain -> role-scoped tab 2 */}
           <Link
             href={dockTab2Href}
             aria-current={salesActive ? 'page' : undefined}
@@ -445,8 +443,8 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <span className="truncate">
               {activeRole === 'supply'
                 ? isAr
-                  ? 'التوصيل'
-                  : 'Delivery'
+                  ? 'السلسلة'
+                  : 'Chain'
                 : isAr
                   ? 'المبيعات'
                   : 'Sales'}
@@ -479,7 +477,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </span>
           </Link>
 
-          {/* 4) Ops / Reviews -> role-scoped tab 4 */}
+          {/* 4) Ops / Sales -> role-scoped tab 4 */}
           <Link
             href={dockTab4Href}
             aria-current={opsActive ? 'page' : undefined}
@@ -493,20 +491,20 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <span className="truncate">
               {activeRole === 'marketing'
                 ? isAr
-                  ? 'التقييمات'
-                  : 'Reviews'
+                  ? 'المبيعات'
+                  : 'Sales'
                 : isAr
                   ? 'التشغيل'
                   : 'Ops'}
             </span>
           </Link>
 
-          {/* 5) Menu -> Opens Full 13-Page Categorized Navigation Sheet */}
+          {/* 5) Menu -> Opens Categorized Navigation Sheet */}
           <button
             type="button"
             onClick={() => setSheetOpen((v) => !v)}
             aria-expanded={sheetOpen}
-            aria-label={isAr ? 'فتح جميع الأقسام (13 شاشة)' : 'Open All 13 Modules'}
+            aria-label={isAr ? 'فتح جميع الأقسام' : 'Open All Modules'}
             className={`v35-focus-ring flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl py-1.5 text-xs transition-all duration-[160ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:focus-visible:ring-sky-400/60 ${
               menuActive
                 ? 'bg-blue-50/90 font-bold text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-300 dark:ring-sky-400/25'
