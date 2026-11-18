@@ -19,8 +19,21 @@ import {
   RECEIVABLES_PENDING_STATUS,
 } from '@/lib/aether/receivables-status'
 import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
-import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
+import { appendOdooNameExclusion, isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import { logger, errorFields } from '@/lib/logger'
 import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
+import type {
+  FeryalChatHistoryTurn,
+  FeryalContextPack,
+} from '@/lib/feryal-context-types'
+import {
+  buildFeryalContextPack,
+  collectPackSectionNumbers,
+} from '@/server/ai/feryal-context'
+import {
+  computeRunRateProjection,
+  RUN_RATE_PROJECTION_LABEL_AR,
+} from '@/server/ai/derived-numbers'
 import {
   ALL_FERYAL_BRANCHES,
   EXHIBITION_FERYAL_BRANCH,
@@ -28,16 +41,22 @@ import {
   APPROVED_FERYAL_BRANDS,
   APPROVED_FERYAL_BRANCHES,
   APPROVED_FERYAL_CHANNEL_LIST,
+  buildAllowedDateStrings,
+  containsExcludedEntityText,
+  detectMissingMetricTopics,
   detectOdooToolKind,
   detectTargetBranchFromQuestion,
   detectTargetBrandFromQuestion,
   detectTargetChannelFromQuestion,
   isBranchRankingQuestion,
+  isCentralKitchenQurainQuestion,
+  isSmallTalkOrMetaQuestion,
   KUWAIT_OFFSET_MS,
   normalizeArabicText,
   normalizeDigits,
   resolveFeryalComparisonPeriods,
   resolveFeryalQuestionPeriod,
+  sanitizeFeryalChatHistory,
   SCHOOL_CANTEEN_FERYAL_BRANCH,
   validateFeryalContextDefaults,
   type ApprovedFeryalBranchId,
@@ -206,6 +225,8 @@ export interface AskFeryalOdooAgentInput {
   branch?: string
   brand?: string
   channel?: string
+  history?: FeryalChatHistoryTurn[]
+  contextPack?: FeryalContextPack
   dataSource?: Partial<FeryalOdooDataSource>
   /** Optional candidate LLM phrasing function; output is strictly checked by `verifyFeryalReplyNumbers`. */
   candidatePhraser?: (context: {
@@ -229,6 +250,8 @@ export interface AskFeryalOdooAgentResult {
   facts: ComparableFact[]
   /** Phase 5 · Item 3: exact data source & last sync attached to every answered reply. */
   source: FeryalAnswerSource | null
+  contextPack?: FeryalContextPack
+  missingMetrics?: string[]
   auditEntry: FeryalAuditLogEntry
 }
 
@@ -444,76 +467,88 @@ function isCompetitorQuestion(question: string): boolean {
   return false
 }
 
-function isUnlinkedNonOdooTopic(question: string): {
-  unlinked: boolean
-  reasonKey:
-    | 'kds'
-    | 'drivers'
-    | 'reviews_marketing'
-    | 'iot_compliance'
-    | 'plans_budgets'
-    | 'recipes_bom'
-    | 'hr_unlinked'
-    | null
-} {
+const FORECAST_OR_TARGET_RE =
+  /(توقعات|توقع|المستهدف|مستهدف المبيعات|تنبؤ|نهايه الشهر|خلال الشهر الكامل|run[- ]?rate|\bforecast\b|\bprojection\b|\bsales target\b)/i
+
+const BOOTH_FEASIBILITY_RE = /(جدوي البوث|جدوي المعرض|دراسه جدوي|\bbooth feasibility\b)/i
+
+const PLANS_BUDGETS_RE =
+  /(خطه النمو|خطط النمو|خطط غير مسجله|المستهدف|مستهدف المبيعات|الموازنه التقديريه|توقعات الشهر القادم|توقعات الشهر|تنبؤ الطلب|جدوي البوث|دراسه جدوي|\bsales target\b|\bbudget plan\b|\bforecast\b)/i
+
+const OVERTIME_RE =
+  /(اوفر\s*تايم|ساعات\s+اضافيه|العمل\s+الاضافي|ساعات اضافيه|\bovertime\b)/i
+
+const WHY_OR_DROP_INQUIRY_RE =
+  /(?:^|\s)(?:ليش|لماذا|ليه|شو سبب|ما سبب|وش سبب|سبب التراجع|سبب الانخفاض|سبب النزول|عم تنزل|بتنزل|نازله|تراجع|هبوط|\bwhy\b|\bdrop(?:ping)?\b|\bdeclin(?:e|ing)\b)/i
+
+function isWhyOrDropInquiry(question: string): boolean {
   const normAr = normalizeArabicText(question)
+  if (!normAr) return false
+  if (isBranchRankingQuestion(question)) return false
+  if (resolveFeryalComparisonPeriods(question) !== null) return false
+  return WHY_OR_DROP_INQUIRY_RE.test(normAr)
+}
 
-  // Kitchen ticket prep duration / KDS SLA (not in Odoo 17)
-  if (
-    /(تذاكر تحضير|تذاكر المطبخ|زمن التحضير|سرعه التحضير|وقت التحضير|مده التجهيز|شاشه المطبخ|\bkds\b|\bprep time\b|\bprep sla\b)/i.test(
-      normAr,
+interface QuestionMissingAnalysis {
+  missingMetrics: string[]
+  isForecast: boolean
+  isOvertime: boolean
+  isBoothFeasibility: boolean
+  fallbackReasonKey: NoOdooDataReasonKey
+}
+
+function collectQuestionMissingMetrics(question: string): QuestionMissingAnalysis {
+  const normAr = normalizeArabicText(question)
+  const detected = [...detectMissingMetricTopics(question)]
+  const seen = new Set(detected.map((m) => normalizeArabicText(m)))
+
+  const pushUnique = (label: string) => {
+    const norm = normalizeArabicText(label)
+    if (!seen.has(norm)) {
+      seen.add(norm)
+      detected.push(label)
+    }
+  }
+
+  const isForecast = FORECAST_OR_TARGET_RE.test(normAr)
+  const isBoothFeasibility = BOOTH_FEASIBILITY_RE.test(normAr)
+  const isOvertime = OVERTIME_RE.test(normAr)
+
+  if (isForecast || PLANS_BUDGETS_RE.test(normAr)) {
+    pushUnique(
+      isBoothFeasibility
+        ? 'دراسة الجدوى التفصيلية وتكاليف الإيجار والموازنة التقديرية (crossovered.budget) غير متاحة في Odoo'
+        : 'الموازنات التقديرية ومستهدفات المبيعات الرسمية (crossovered.budget) غير متاحة في Odoo',
     )
-  ) {
-    return { unlinked: true, reasonKey: 'kds' }
   }
 
-  // Delivery drivers / fleet GPS
-  if (
-    /(السائقين|سائقين|سائقي التوصيل|مندوبي التوصيل|تتبع السائق|رحلات التوصيل|\bdrivers\b|\briders\b)/i.test(
-      normAr,
+  if (isOvertime) {
+    const hasHrUnlinked = detected.some((m) =>
+      /(الرواتب|بصمه الحضور|hr\.payslip|hr\.attendance)/i.test(normalizeArabicText(m)),
     )
-  ) {
-    return { unlinked: true, reasonKey: 'drivers' }
+    if (!hasHrUnlinked) {
+      pushUnique(
+        'سجلات البصمة وساعات العمل الإضافي ومسيرات الرواتب (hr.attendance / hr.payslip) غير متاحة في Odoo',
+      )
+    }
   }
 
-  // Social reviews, customer ratings, ad spend / influencers
-  if (
-    /(تقييمات العملاء|التقييمات|مراجعات العملاء|مراجعات جوجل|مراجعات السوشيال|تقييمات السوشيال|تعليقات العملاء|حملات اعلانيه|اعلانات سناب|اعلانات انستقرام|المشاهير|مشاهير|\bcustomer reviews\b|\bsocial reviews\b|\bratings\b|\binfluencer\b|\broas\b)/i.test(
-      normAr,
-    )
-  ) {
-    return { unlinked: true, reasonKey: 'reviews_marketing' }
-  }
+  let fallbackReasonKey: NoOdooDataReasonKey = 'generic'
+  if (/(kds|تحضير|شاشه المطبخ)/i.test(normAr)) fallbackReasonKey = 'kds'
+  else if (/(سائق|gps|drivers|riders)/i.test(normAr)) fallbackReasonKey = 'drivers'
+  else if (/(تقييمات|مراجعات|اعلان|مشاهير|roas)/i.test(normAr)) fallbackReasonKey = 'reviews_marketing'
+  else if (/(تبريد|ثلاجات|بلديه|تراخيص|iot)/i.test(normAr)) fallbackReasonKey = 'iot_compliance'
+  else if (isForecast || PLANS_BUDGETS_RE.test(normAr)) fallbackReasonKey = 'plans_budgets'
+  else if (/(وصفه|وصفات|bom|recipe)/i.test(normAr)) fallbackReasonKey = 'recipes_bom'
+  else if (isOvertime || /(رواتب|بصمه|payslip|biometric)/i.test(normAr)) fallbackReasonKey = 'hr_unlinked'
 
-  // IoT fridge temperature sensors / municipal violations
-  if (/(حساسات التبريد|حراره الثلاجات|مخالفات البلديه|تراخيص الاطفاء|\biot\b)/.test(normAr)) {
-    return { unlinked: true, reasonKey: 'iot_compliance' }
+  return {
+    missingMetrics: detected,
+    isForecast,
+    isOvertime,
+    isBoothFeasibility,
+    fallbackReasonKey,
   }
-
-  // Unregistered strategic plans, sales targets, budgets, forecasts, booth feasibility
-  if (
-    /(خطه النمو|خطط النمو|خطط غير مسجله|المستهدف|مستهدف المبيعات|الموازنه التقديريه|توقعات الشهر القادم|تنبؤ الطلب|جدوي البوث|دراسه جدوي|\bsales target\b|\bbudget plan\b|\bforecast\b)/i.test(
-      normAr,
-    )
-  ) {
-    return { unlinked: true, reasonKey: 'plans_budgets' }
-  }
-
-  // Standard BOM recipes / portion weights
-  if (/(الوصفه المعياريه|وصفات المطبخ|تكلفه الوصفه|مكونات الطبق|\bbom\b|\brecipe cost\b)/i.test(normAr)) {
-    return { unlinked: true, reasonKey: 'recipes_bom' }
-  }
-
-  // Unlinked HR sub-modules (payslips, biometric attendance, residency renewals)
-  if (
-    /(مسيرات الرواتب|مسير الرواتب|قسائم الرواتب|بصمه الحضور|تاخير البصمه|انتهاء الاقامات|نهايه الخدمه|\bpayslips?\b|\bbiometric\b)/i.test(
-      normAr,
-    )
-  ) {
-    return { unlinked: true, reasonKey: 'hr_unlinked' }
-  }
-
-  return { unlinked: false, reasonKey: null }
 }
 
 type NoOdooDataReasonKey =
@@ -645,7 +680,13 @@ let cachedOdooConnectorPromise: Promise<OdooLiveConnectorModule | null> | null =
 
 async function loadOdooConnector(): Promise<OdooLiveConnectorModule | null> {
   if (!cachedOdooConnectorPromise) {
-    cachedOdooConnectorPromise = import('@/lib/odoo-live-connector').catch(() => null)
+    cachedOdooConnectorPromise = import('@/lib/odoo-live-connector').catch((error) => {
+      logger.warn('feryal odoo data source failed', {
+        section: 'connectorImport',
+        ...errorFields(error),
+      })
+      return null
+    })
   }
   return cachedOdooConnectorPromise
 }
@@ -656,7 +697,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const mod = await loadOdooConnector()
       if (!mod) return null
       return await mod.fetchLiveOdooPeriodCube(fromIso, toIso, referenceNowMs)
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'periodCube',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -665,7 +710,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const mod = await loadOdooConnector()
       if (!mod) return null
       return await mod.fetchLiveOdooPurchaseOrders(fromIso, toIso, { referenceNowMs })
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'purchaseOrders',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -674,7 +723,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const mod = await loadOdooConnector()
       if (!mod) return null
       return await mod.fetchLiveOdooWarehouseChain(fromIso, toIso, referenceNowMs)
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'warehouseChain',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -685,7 +738,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const snap = await mod.fetchLiveOdooSnapshot({ period: 'month' })
       if (!snap.connected || snap.source === 'disconnected') return null
       return snap.aggregatorReceivables ?? null
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'receivablesSummary',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -696,7 +753,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const snap = await mod.fetchLiveOdooSnapshot({ period: 'month' })
       if (!snap.connected || snap.source === 'disconnected') return null
       return snap.lastSyncAt ?? snap.syncedAt ?? null
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'lastSyncAt',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -771,7 +832,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
         .slice(0, limit)
 
       return mapped
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'branchTopProducts',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -780,7 +845,11 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
       const mod = await loadOdooConnector()
       if (!mod) return null
       return await mod.fetchLiveOdooHrSummary(referenceNowMs)
-    } catch {
+    } catch (error) {
+      logger.warn('feryal odoo data source failed', {
+        section: 'hrEmployees',
+        ...errorFields(error),
+      })
       return null
     }
   },
@@ -796,6 +865,9 @@ interface ToolExecutionOutput {
   deterministicReply: string
   structuredFacts: Record<string, unknown>
   requireGlIncompleteWarning?: boolean
+  skipFourPartStructure?: boolean
+  skipSourceFooter?: boolean
+  missingMetrics?: string[]
 }
 
 async function runPosOrdersTool(params: {
@@ -916,7 +988,11 @@ async function runPosOrdersTool(params: {
 
   if (targetBranchId) {
     const targetRow = branchRows.find((r) => r.id === targetBranchId)
-    if (!targetRow || (targetRow.orders <= 0 && targetRow.netKwd <= 0)) {
+    const allowZeroExhibitionRow =
+      targetBranchId === 'exhibitions' &&
+      Boolean(targetRow) &&
+      (totalNet1 > 0 || totalOrdersInt > 0)
+    if (!targetRow || (!allowZeroExhibitionRow && targetRow.orders <= 0 && targetRow.netKwd <= 0)) {
       return {
         hasData: false,
         noDataReasonKey: 'pos_no_data',
@@ -2468,6 +2544,998 @@ export function resetFeryalAuditCache(): void {
 }
 
 // ============================================================================
+// PACK-GROUNDED HELPERS & HANDLERS (PART 5)
+// ============================================================================
+
+const padHour2 = (h: number): string => String(Math.max(0, Math.min(23, Math.round(h)))).padStart(2, '0')
+
+const CHANNEL_META_BY_ID = new Map<ApprovedFeryalChannelId, FeryalChannelMeta>(
+  APPROVED_FERYAL_CHANNEL_LIST.map((c) => [c.id, c]),
+)
+
+function channelDisplayNameAr(channelId: string): string {
+  const meta = CHANNEL_META_BY_ID.get(channelId as ApprovedFeryalChannelId)
+  return meta ? meta.nameAr : channelId
+}
+
+function collectPackAllowedEntityNames(pack: FeryalContextPack, extra: readonly string[] = []): string[] {
+  const names = new Set<string>([
+    'Odoo 17',
+    'Odoo17',
+    UNATTRIBUTED_BRANCH_LABEL_AR,
+    'بوثات المعارض',
+    'مقاصف المدارس',
+    'طلبات (TGO + TMP)',
+    'TGO + TMP',
+    'TGO',
+    'TMP',
+    'pos.order',
+    'pos.order.line',
+    'pos.payment',
+    'account.move.line',
+    'purchase.order',
+    'stock.move',
+    'stock.scrap',
+    'stock.quant',
+    'hr.employee',
+    'hr.payslip',
+    'hr.attendance',
+    'mrp.bom',
+    'pos_preparation_display',
+    'crossovered.budget',
+    RUN_RATE_PROJECTION_LABEL_AR,
+    ...extra,
+  ])
+
+  for (const b of ALL_FERYAL_BRANCHES) {
+    names.add(b.nameAr)
+    names.add(b.nameEn)
+    names.add(b.id)
+    for (const alias of b.aliases) {
+      if (!/^\d+$/.test(alias.trim()) && alias.trim().length >= 3) {
+        names.add(alias)
+      }
+    }
+  }
+  for (const br of APPROVED_FERYAL_BRAND_LIST) {
+    names.add(br.nameAr)
+    names.add(br.nameEn)
+    names.add(br.id)
+  }
+  for (const ch of APPROVED_FERYAL_CHANNEL_LIST) {
+    names.add(ch.nameAr)
+    names.add(ch.nameEn)
+    names.add(ch.id)
+  }
+  if (pack.branches.status === 'ok' && pack.branches.data) {
+    for (const item of pack.branches.data.items) {
+      if (!isExcludedOdooEntity(item.nameAr)) names.add(item.nameAr)
+      if (!isExcludedOdooEntity(item.nameEn)) names.add(item.nameEn)
+    }
+  }
+  if (pack.topProducts.status === 'ok' && pack.topProducts.data) {
+    for (const item of pack.topProducts.data.items) {
+      if (item.name && !isExcludedOdooEntity(item.name)) names.add(item.name)
+    }
+  }
+  if (pack.purchases.status === 'ok' && pack.purchases.data?.topVendors) {
+    for (const v of pack.purchases.data.topVendors) {
+      if (v.name && !isExcludedOdooEntity(v.name)) names.add(v.name)
+    }
+  }
+
+  return [...names].filter((s) => s.trim().length >= 3)
+}
+
+function collectPackAllowedDateStrings(pack: FeryalContextPack): string[] {
+  const dates = new Set<string>([
+    ...buildAllowedDateStrings(pack.period.from, pack.period.to),
+    ...buildAllowedDateStrings(pack.previousPeriod.from, pack.previousPeriod.to),
+  ])
+  if (pack.gl.data?.glClosedThroughDate) {
+    for (const d of buildAllowedDateStrings(
+      pack.gl.data.glClosedThroughDate,
+      pack.gl.data.glClosedThroughDate,
+    )) {
+      dates.add(d)
+    }
+  }
+  return [...dates]
+}
+
+function pushNumberWithRounded(target: number[], value: number | null | undefined): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return
+  target.push(value, round1(value), Math.round(value))
+  if (value < 0) {
+    const absVal = Math.abs(value)
+    target.push(absVal, round1(absVal), Math.round(absVal))
+  }
+}
+
+function collectPackToolNumbers(pack: FeryalContextPack, extra: readonly number[] = []): number[] {
+  const out: number[] = []
+  const sectionMap = collectPackSectionNumbers(pack)
+  for (const set of sectionMap.values()) {
+    for (const v of set) {
+      pushNumberWithRounded(out, v)
+    }
+  }
+
+  if (pack.hourly.status === 'ok' && pack.hourly.data) {
+    const { peakHour, weakestHours } = pack.hourly.data
+    if (peakHour) {
+      out.push(peakHour.hour, 0)
+      pushNumberWithRounded(out, peakHour.orders)
+      pushNumberWithRounded(out, peakHour.netKwd)
+    }
+    for (const w of weakestHours) {
+      out.push(w.hour, 0)
+      pushNumberWithRounded(out, w.orders)
+      pushNumberWithRounded(out, w.netKwd)
+    }
+  }
+
+  if (pack.channels.status === 'ok' && pack.channels.data) {
+    const tgo = pack.channels.data.company.find((c) => c.channelId === 'talabat-tgo')
+    const tmp = pack.channels.data.company.find((c) => c.channelId === 'talabat-tmp')
+    if (tgo || tmp) {
+      const talabatNet = (tgo?.netKwd ?? 0) + (tmp?.netKwd ?? 0)
+      const talabatPayments = (tgo?.payments ?? 0) + (tmp?.payments ?? 0)
+      pushNumberWithRounded(out, talabatNet)
+      pushNumberWithRounded(out, talabatPayments)
+      const denom =
+        pack.companyTotals.status === 'ok' &&
+        pack.companyTotals.data &&
+        pack.companyTotals.data.netSalesKwd > 0
+          ? pack.companyTotals.data.netSalesKwd
+          : 0
+      if (denom > 0) {
+        pushNumberWithRounded(out, (talabatNet / denom) * 100)
+      }
+    }
+  }
+
+  if (pack.deltas.status === 'ok' && pack.deltas.data) {
+    const d = pack.deltas.data
+    const ordersDiff = d.currentOrders - d.previousOrders
+    pushNumberWithRounded(out, ordersDiff)
+  }
+
+  for (const n of extra) {
+    pushNumberWithRounded(out, n)
+  }
+
+  return out
+}
+
+function buildPackStructuredFacts(pack: FeryalContextPack): Record<string, unknown> {
+  const branches =
+    pack.branches.status === 'ok' && pack.branches.data
+      ? pack.branches.data.items.map((item) => ({
+          id: item.branchId,
+          nameAr: item.nameAr,
+          netKwd: round1(item.netKwd),
+          orders: item.orders,
+        }))
+      : []
+
+  return {
+    model: 'pos.order',
+    period: { from: pack.period.from, to: pack.period.to },
+    ...(pack.companyTotals.status === 'ok' && pack.companyTotals.data
+      ? {
+          totalNetKwd: round1(pack.companyTotals.data.netSalesKwd),
+          totalOrders: pack.companyTotals.data.orders,
+        }
+      : {}),
+    ...(branches.length > 0 ? { branches } : {}),
+  }
+}
+
+function summarizeHistoryContextForGreeting(history: readonly FeryalChatHistoryTurn[]): {
+  hasHistory: boolean
+  topicHintAr: string | null
+} {
+  if (history.length === 0) {
+    return { hasHistory: false, topicHintAr: null }
+  }
+  const recentCombined = history
+    .slice(-4)
+    .map((h) => h.text)
+    .join(' ')
+
+  const branchDet = detectTargetBranchFromQuestion(recentCombined)
+  if (branchDet.branchId) {
+    const branchMeta = BRANCH_META_BY_ID.get(branchDet.branchId)
+    if (branchMeta) {
+      return { hasHistory: true, topicHintAr: branchMeta.nameAr }
+    }
+  }
+  const brandDet = detectTargetBrandFromQuestion(recentCombined)
+  if (brandDet.brandId) {
+    const meta = APPROVED_FERYAL_BRAND_LIST.find((b) => b.id === brandDet.brandId)
+    if (meta) return { hasHistory: true, topicHintAr: `علامة ${meta.nameAr}` }
+  }
+  const chanDet = detectTargetChannelFromQuestion(recentCombined)
+  if (chanDet.channelId) {
+    return { hasHistory: true, topicHintAr: `قناة ${channelDisplayNameAr(chanDet.channelId)}` }
+  }
+
+  const lastUserTurn = [...history].reverse().find((h) => h.role === 'user')
+  if (lastUserTurn) {
+    const cleanedTopic = normalizeDigits(lastUserTurn.text)
+      .replace(/\d[\d,.]*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 60)
+      .trim()
+    if (cleanedTopic && !isExcludedOdooEntity(cleanedTopic)) {
+      return { hasHistory: true, topicHintAr: cleanedTopic }
+    }
+  }
+  return { hasHistory: true, topicHintAr: null }
+}
+
+function buildSmallTalkPackOutcome(params: {
+  rawQuestion: string
+  history: readonly FeryalChatHistoryTurn[]
+  pack: FeryalContextPack
+}): ToolExecutionOutput {
+  const { rawQuestion, history, pack } = params
+  const normAr = normalizeArabicText(rawQuestion)
+  const { hasHistory, topicHintAr } = summarizeHistoryContextForGreeting(history)
+
+  const asksOldChats =
+    /(محادثات قديم|محادثه قديم|تاريخ المحادثات|تتذكر|تذكر|\bhistory\b|\bprevious chats?\b|\bold chats?\b)/i.test(
+      normAr,
+    )
+  const asksUnderstood =
+    /(فهمت|فاهمه|شو فهمت|ايش فهمت|\bunderstand\b)/i.test(normAr)
+
+  let openingLine: string
+  if (hasHistory) {
+    openingLine = topicHintAr
+      ? `أهلاً بك! نعم أتابع سياق محادثتنا الأخيرة حول «${topicHintAr}» وأبني عليها مباشرة.`
+      : 'أهلاً بك! نعم أتذكر آخر رسائل محادثتنا الحالية وأتابع معك من نفس السياق.'
+  } else if (asksOldChats) {
+    openingLine =
+      'أهلاً بك! أتابع سياق الرسائل المرسلة ضمن هذه الجلسة مباشرة، ولا يتوفر أرشيف محادثات قديمة منفصل إذا لم تُرسل رسائل سابقة في الجلسة.'
+  } else if (asksUnderstood) {
+    openingLine =
+      'أهلاً بك! أنا جاهزة معك لقراءة بيانات فنتشر فودز مباشرة — في سؤالك الحالي لم يُحدد مؤشر أو فرع بعد، أخبريني بما ترغبين بمراجعته.'
+  } else {
+    openingLine =
+      'أهلاً بك! أنا فريال، المديرة التنفيذية لفنتشر فودز، وجاهزة نراجع أداء الشركة معاً.'
+  }
+
+  const extraNumbers: number[] = []
+  const snapshotLines: string[] = []
+  if (
+    pack.connected &&
+    pack.companyTotals.status === 'ok' &&
+    pack.companyTotals.data &&
+    pack.companyTotals.data.netSalesKwd > 0
+  ) {
+    const net1 = round1(pack.companyTotals.data.netSalesKwd)
+    const ordersInt = Math.round(pack.companyTotals.data.orders)
+    extraNumbers.push(pack.companyTotals.data.netSalesKwd, net1, ordersInt)
+    snapshotLines.push(
+      `• نبضة الفترة الحالية (${pack.period.from} → ${pack.period.to}): صافي المبيعات ${formatKwd1(net1)} د.ك عبر ${formatIntCount(ordersInt)} طلبات.`,
+    )
+  }
+
+  const offersBlock = [
+    '• تحليلات جاهزة يمكنني تنفيذها لكِ الآن:',
+    '- أداء الفروع السبعة وبوثات المعارض ومقاصف المدارس ومقارنة الفترات.',
+    '- طلبات TGO وTMP ومنصات التوصيل (كيتا، ديليفيرو، جاهز، سنونو).',
+    '- ساعات الذروة والمبيعات بالساعة وأعلى الأصناف والعلامات الست.',
+  ].join('\n')
+
+  const reply = [openingLine, ...snapshotLines, offersBlock].join('\n\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'pos.order',
+    executedQueries: [],
+    toolNumbers: collectPackToolNumbers(pack, extraNumbers),
+    allowedEntityNames: collectPackAllowedEntityNames(pack),
+    deterministicReply: reply,
+    structuredFacts: buildPackStructuredFacts(pack),
+    skipFourPartStructure: true,
+    skipSourceFooter: !pack.connected,
+  }
+}
+
+function buildQurainCentralKitchenOutcome(params: {
+  pack: FeryalContextPack
+  warehouse: OdooLiveWarehouseChainPayload | null
+  period: { from: string; to: string }
+  missingMetrics: readonly string[]
+}): ToolExecutionOutput {
+  const { pack, warehouse, period, missingMetrics: initialMissing } = params
+  const hasWarehouse = Boolean(warehouse && warehouse.connected && !warehouse.noData)
+  const hasPackStock = pack.stock.status === 'ok' && Boolean(pack.stock.data)
+
+  if (!pack.connected && !hasWarehouse && !hasPackStock) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'stock_no_data',
+      primaryModel: 'stock.move',
+      executedQueries: [],
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('stock_no_data'),
+      structuredFacts: {},
+      missingMetrics: [...initialMissing],
+    }
+  }
+
+  const missingList = [
+    ...new Set([
+      ...initialMissing,
+      'مبيعات نقاط البيع للمطبخ المركزي (القرين) غير متاحة في Odoo (المطبخ المركزي ليس منفذ بيع POS)',
+    ]),
+  ]
+
+  const extraNumbers: number[] = []
+  const executedQueries: FeryalExecutedOdooQuery[] = []
+  const dataLines: string[] = [
+    'المطبخ المركزي (القرين) ليس منفذ بيع POS — لا توجد له مبيعات نقاط بيع في المكعب.',
+  ]
+
+  if (hasWarehouse && warehouse) {
+    const movesInt = Math.round(warehouse.totals.doneMovesCount)
+    const scrapsInt = Math.round(warehouse.totals.scrapOrdersCount)
+    const transfer1 = round1(warehouse.totals.ckToBranchTransferKwd)
+    const inbound1 = round1(warehouse.totals.inboundSupplierKwd)
+    const scrap1 = round1(warehouse.totals.scrapKwd)
+    extraNumbers.push(
+      movesInt,
+      scrapsInt,
+      warehouse.totals.ckToBranchTransferKwd,
+      transfer1,
+      warehouse.totals.inboundSupplierKwd,
+      inbound1,
+      warehouse.totals.scrapKwd,
+      scrap1,
+    )
+    executedQueries.push(
+      {
+        model: 'stock.move',
+        method: 'read_group',
+        domain: [['state', '=', 'done']],
+        groupby: ['product_id', 'location_id', 'location_dest_id'],
+        period,
+      },
+      {
+        model: 'stock.scrap',
+        method: 'search_read',
+        domain: [['state', '=', 'done']],
+        groupby: ['product_id', 'location_id'],
+        period,
+      },
+    )
+    dataLines.push(
+      `- نشاط المخازن والتحويلات للفترة (${period.from} → ${period.to}): ${formatIntCount(movesInt)} حركة مخزنية مكتملة في stock.move بقيمة تحويلات للفروع ${formatKwd1(transfer1)} د.ك وتوريد مستلم ${formatKwd1(inbound1)} د.ك، مقابل ${formatIntCount(scrapsInt)} أوامر إتلاف في stock.scrap بقيمة ${formatKwd1(scrap1)} د.ك.`,
+    )
+  } else if (hasPackStock && pack.stock.data) {
+    const transfers = Math.round(pack.stock.data.transferCount)
+    const scraps = Math.round(pack.stock.data.scrapCount)
+    extraNumbers.push(transfers, scraps)
+    const scrapQtySegment =
+      pack.stock.data.scrapQty !== undefined
+        ? ` بكمية ${formatKwd1(round1(pack.stock.data.scrapQty))} وحدة`
+        : ''
+    if (pack.stock.data.scrapQty !== undefined) {
+      extraNumbers.push(pack.stock.data.scrapQty, round1(pack.stock.data.scrapQty))
+    }
+    executedQueries.push(
+      {
+        model: 'stock.move',
+        method: 'read_group',
+        domain: [['state', '=', 'done']],
+        groupby: ['product_id'],
+        period,
+      },
+      {
+        model: 'stock.scrap',
+        method: 'search_read',
+        domain: [['state', '=', 'done']],
+        groupby: ['product_id'],
+        period,
+      },
+    )
+    dataLines.push(
+      `- حركات المخزن للفترة (${period.from} → ${period.to}): ${formatIntCount(transfers)} حركة تحويل مخزني مكتملة في stock.move و${formatIntCount(scraps)} أوامر إتلاف في stock.scrap${scrapQtySegment}.`,
+    )
+  } else {
+    missingList.push('حركات المخزن التفصيلية (stock.move / stock.scrap) غير متاحة لهذه الفترة في Odoo')
+  }
+
+  if (pack.companyTotals.status === 'ok' && pack.companyTotals.data) {
+    const companyNet1 = round1(pack.companyTotals.data.netSalesKwd)
+    const companyOrdersInt = Math.round(pack.companyTotals.data.orders)
+    extraNumbers.push(pack.companyTotals.data.netSalesKwd, companyNet1, companyOrdersInt)
+    dataLines.push(
+      `- سياق الشركة (POS المعتمدة): صافي مبيعات الفروع والمنافذ المعتمدة ${formatKwd1(companyNet1)} د.ك عبر ${formatIntCount(companyOrdersInt)} طلبات.`,
+    )
+  }
+
+  const reply = [
+    `• قيود تغطية البيانات:\n${formatMissingMetricsBulletLines(missingList)}`,
+    `• التحليل والأرقام المتاحة من Odoo:\n${dataLines.join('\n')}`,
+    '• الاستنتاج:\n- استنتاج: دور المطبخ المركزي تشغيلي وإنتاجي لتغذية الفروع، لذا يظهر أثره في تحويلات stock.move ومشتريات التوريد والهدر لا في فواتير نقاط البيع.',
+    [
+      '• التوصيات:',
+      '- اقتراح (مدير المطبخ المركزي وأمين المخزن): مطابقة تحويلات stock.move الصادرة يومياً مع سندات الاستلام في الفروع السبعة.',
+      '- اقتراح (مشرف الجودة): مراجعة أسباب أوامر الإتلاف في stock.scrap لتقليص الهدر قبل التحويل للفروع.',
+    ].join('\n'),
+  ].join('\n\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'stock.move',
+    executedQueries,
+    toolNumbers: collectPackToolNumbers(pack, extraNumbers),
+    allowedEntityNames: collectPackAllowedEntityNames(pack),
+    deterministicReply: reply,
+    structuredFacts: buildPackStructuredFacts(pack),
+    skipFourPartStructure: true,
+    missingMetrics: missingList,
+  }
+}
+
+function buildForecastPackOutcome(params: {
+  pack: FeryalContextPack
+  missingMetrics: readonly string[]
+}): ToolExecutionOutput {
+  const { pack, missingMetrics: initialMissing } = params
+  if (!pack.connected || pack.companyTotals.status !== 'ok' || !pack.companyTotals.data) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order',
+      executedQueries: [],
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+      missingMetrics: [...initialMissing],
+    }
+  }
+
+  const missingList = [
+    ...new Set([
+      ...initialMissing,
+      'الموازنات التقديرية ومستهدفات المبيعات الرسمية (crossovered.budget) غير متاحة في Odoo',
+    ]),
+  ]
+
+  const actualToDateKwd = pack.companyTotals.data.netSalesKwd
+  const actual1 = round1(actualToDateKwd)
+  const ordersInt = Math.round(pack.companyTotals.data.orders)
+  const elapsedDays = pack.elapsedDaysInMonth
+  const totalDaysInMonth = pack.totalDaysInMonth
+  const projection = computeRunRateProjection({
+    actualToDateKwd,
+    elapsedDays,
+    totalDaysInMonth,
+  })
+
+  const extraNumbers: number[] = [
+    actualToDateKwd,
+    actual1,
+    ordersInt,
+    elapsedDays,
+    totalDaysInMonth,
+    projection.projectedKwd,
+    round1(projection.projectedKwd),
+  ]
+
+  const lines: string[] = [
+    `- المبيعات الفعلية المسجلة في Odoo (${pack.period.from} → ${pack.period.to}): ${formatKwd1(actual1)} د.ك عبر ${formatIntCount(ordersInt)} طلبات.`,
+    `- التوقع بنهاية الشهر (${RUN_RATE_PROJECTION_LABEL_AR}): ${projection.formulaAr}`,
+  ]
+
+  if (pack.branches.status === 'ok' && pack.branches.data && pack.branches.data.items.length > 0) {
+    const topBranches = pack.branches.data.items.slice(0, 2)
+    for (const b of topBranches) {
+      extraNumbers.push(b.netKwd, round1(b.netKwd), b.orders)
+    }
+    const branchSummary = topBranches
+      .map((b) => `${b.nameAr} (${formatKwd1(round1(b.netKwd))} د.ك)`)
+      .join(' و')
+    lines.push(`- أعلى الفروع مساهمة في الأساس الفعلي: ${branchSummary}.`)
+  }
+
+  if (pack.deltas.status === 'ok' && pack.deltas.data && pack.deltas.data.deltaPct !== null) {
+    const d = pack.deltas.data
+    const absPct1 = round1(Math.abs(d.deltaPct ?? 0))
+    const absDelta1 = round1(Math.abs(d.deltaKwd))
+    extraNumbers.push(d.deltaKwd, absDelta1, d.deltaPct ?? 0, absPct1)
+    if (absDelta1 > 0) {
+      const dir = d.deltaKwd > 0 ? 'ارتفاع' : 'تراجع'
+      lines.push(
+        `- المقارنة مع الفترة السابقة (${pack.previousPeriod.from} → ${pack.previousPeriod.to}): ${dir} بمقدار ${formatKwd1(absDelta1)} د.ك (${formatKwd1(absPct1)}%).`,
+      )
+    }
+  }
+
+  const reply = [
+    `• قيود تغطية البيانات:\n${formatMissingMetricsBulletLines(missingList)}`,
+    `• ${RUN_RATE_PROJECTION_LABEL_AR}:\n${lines.join('\n')}`,
+    `• الاستنتاج:\n- استنتاج: يفترض هذا الإسقاط الخطي ثبات وتيرة المبيعات الفعلية الحالية (${formatKwd1(actual1)} د.ك) حتى نهاية الشهر دون احتساب مواسم أو حملات غير مسجلة في Odoo.`,
+    [
+      '• التوصيات:',
+      '- اقتراح (مدير العمليات ومديرو الفروع): متابعة متوسط السلة وساعات الذروة أسبوعياً لتعويض أي فجوة في الفروع الأقل أداءً.',
+      '- اقتراح (المدير المالي): إدخال المستهدف الشهري الرسمي لكل فرع في موديول crossovered.budget داخل Odoo للمقارنة المباشرة.',
+    ].join('\n'),
+  ].join('\n\n')
+
+  return {
+    hasData: true,
+    primaryModel: 'pos.order',
+    executedQueries: [
+      {
+        model: 'pos.order',
+        method: 'read_group',
+        domain: [
+          ['date_order', '>=', `${pack.period.from} 00:00:00`],
+          ['date_order', '<=', `${pack.period.to} 23:59:59`],
+          ['state', 'in', ['paid', 'done', 'invoiced']],
+        ],
+        groupby: ['session_id'],
+        period: { from: pack.period.from, to: pack.period.to },
+      },
+    ],
+    toolNumbers: collectPackToolNumbers(pack, extraNumbers),
+    allowedEntityNames: collectPackAllowedEntityNames(pack),
+    deterministicReply: reply,
+    structuredFacts: buildPackStructuredFacts(pack),
+    skipFourPartStructure: true,
+    missingMetrics: missingList,
+  }
+}
+
+function formatMissingMetricsBulletLines(missingList: readonly string[]): string {
+  return missingList
+    .map((m) => {
+      const cleaned = m
+        .replace(/\s*غير متاح(?:ة)?\s+(?:لهذه الفترة\s+)?(?:في|من)\s+Odoo(?:\s+حالياً)?/gi, '')
+        .replace(/\s*غير متاح(?:ة)?\s+حالياً\s+من\s+Odoo/gi, '')
+        .replace(/[:.\s]+$/, '')
+        .trim()
+      return `- ${cleaned || m}: غير متاح في Odoo.`
+    })
+    .join('\n')
+}
+
+function findHistoryBranchHint(history: readonly FeryalChatHistoryTurn[]): ApprovedFeryalBranchId | null {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const det = detectTargetBranchFromQuestion(history[i].text)
+    if (det.branchId) return det.branchId
+  }
+  return null
+}
+
+function buildPackGroundedOutcome(params: {
+  rawQuestion: string
+  history: readonly FeryalChatHistoryTurn[]
+  pack: FeryalContextPack
+  missingMetrics: readonly string[]
+  fallbackReasonKey: NoOdooDataReasonKey
+  targetBranchId: ApprovedFeryalBranchId | null
+  targetChannelId: ApprovedFeryalChannelId | null
+  targetBrandId: ApprovedFeryalBrandId | null
+  isOvertime: boolean
+  isBoothFeasibility: boolean
+  isWhyOrDrop: boolean
+}): ToolExecutionOutput {
+  const {
+    rawQuestion,
+    history,
+    pack,
+    missingMetrics,
+    fallbackReasonKey,
+    targetBranchId,
+    targetChannelId,
+    targetBrandId,
+    isOvertime,
+    isBoothFeasibility,
+    isWhyOrDrop,
+  } = params
+
+  if (!pack.connected) {
+    return {
+      hasData: false,
+      noDataReasonKey: fallbackReasonKey === 'generic' ? 'pos_no_data' : fallbackReasonKey,
+      primaryModel: 'pos.order',
+      executedQueries: [],
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion(
+        fallbackReasonKey === 'generic' ? 'pos_no_data' : fallbackReasonKey,
+      ),
+      structuredFacts: {},
+      missingMetrics: [...missingMetrics],
+    }
+  }
+
+  const normAr = normalizeArabicText(rawQuestion)
+  const wantsHourly =
+    isOvertime ||
+    /(ساع|ذروه|ذروة|وقت|اوقات|متي|صباح|مساء|ليل|هدوء|ابطا|اضعف ساع|افضل ساع|احسن ساع|تحضير|تجهيز|سائق|\bhour\b|\bpeak\b|\bovertime\b|\bprep\b|\bkds\b|\bdriver)/i.test(
+      normAr,
+    )
+  const wantsChannels =
+    isWhyOrDrop ||
+    targetChannelId !== null ||
+    /(طلبات|توصيل|منص|قناه|قنوات|كيتا|ديليفيرو|جاهز|سنونو|صاله|سفري|تنزل|نزول|انخفاض|تراجع|هبوط|سائق|تسويق|تقييم|اعلان|مشاهير|\btalabat\b|\btgo\b|\btmp\b|\bkeeta\b|\bdeliveroo\b|\bdelivery\b|\bchannel|\bdrop|\bdeclin|\bwhy\b)/i.test(
+      normAr,
+    )
+  const wantsExhibitions =
+    isBoothFeasibility ||
+    targetBranchId === 'exhibitions' ||
+    /(بوث|بوثات|معرض|معارض|exhibitions?|booths?)/i.test(normAr)
+  const wantsBrands =
+    targetBrandId !== null ||
+    /(علامه|علامات|براند|تشاينا|فرانكس|طحينه|فارم براون|نودل|كرك|تسويق|تقييم|اعلان|\bbrand|\broas\b)/i.test(
+      normAr,
+    )
+  const wantsProducts =
+    /(صنف|اصناف|منتج|منتجات|طبق|اطباق|وصفه|وصفات|مكونات|خصم|خصومات|تحضير|\bproduct|\bitem|\bbom\b|\brecipe)/i.test(
+      normAr,
+    )
+  const wantsFollowUpSecond = /(التاني|الثاني|ثاني|\bsecond\b|\bnext branch\b)/i.test(normAr)
+  const wantsBranches =
+    wantsFollowUpSecond ||
+    targetBranchId !== null ||
+    /(فرع|فروع|الفرع|الفروع|مقارنه|توزيع|\bbranch)/i.test(normAr)
+  const wantsHr =
+    isOvertime ||
+    /(موظف|كادر|بصمه|رواتب|اوفر تايم|اضافي|\bhr\b|\bemployee|\bovertime|\bpayslip)/i.test(normAr)
+  const wantsStock =
+    /(مخزن|مخزون|تحويل|هدر|تالف|تبريد|ثلاجات|\bstock\b|\bscrap|\biot)/i.test(normAr)
+
+  const hasSpecificTopic =
+    wantsHourly ||
+    wantsChannels ||
+    wantsExhibitions ||
+    wantsBrands ||
+    wantsProducts ||
+    wantsBranches ||
+    wantsHr ||
+    wantsStock
+
+  const extraNumbers: number[] = []
+  const extraEntities: string[] = []
+  const analysisLines: string[] = []
+  const executedQueries: FeryalExecutedOdooQuery[] = [
+    {
+      model: 'pos.order',
+      method: 'read_group',
+      domain: [
+        ['date_order', '>=', `${pack.period.from} 00:00:00`],
+        ['date_order', '<=', `${pack.period.to} 23:59:59`],
+        ['state', 'in', ['paid', 'done', 'invoiced']],
+      ],
+      groupby: ['session_id'],
+      period: { from: pack.period.from, to: pack.period.to },
+    },
+  ]
+
+  // 1. Company totals baseline
+  if (pack.companyTotals.status === 'ok' && pack.companyTotals.data) {
+    const ct = pack.companyTotals.data
+    const net1 = round1(ct.netSalesKwd)
+    const ordersInt = Math.round(ct.orders)
+    const aov1 = round1(ct.aovKwd)
+    extraNumbers.push(ct.netSalesKwd, net1, ordersInt, ct.aovKwd, aov1)
+    analysisLines.push(
+      `- إجمالي الشركة للفترة (${pack.period.from} → ${pack.period.to}): صافي ${formatKwd1(net1)} د.ك عبر ${formatIntCount(ordersInt)} طلبات بمتوسط سلة ${formatKwd1(aov1)} د.ك.`,
+    )
+  }
+
+  // 2. Hourly load (peak hour & weakest hours)
+  if ((wantsHourly || !hasSpecificTopic) && pack.hourly.status === 'ok' && pack.hourly.data) {
+    const { peakHour, weakestHours } = pack.hourly.data
+    if (peakHour) {
+      const peakNet1 = round1(peakHour.netKwd)
+      const peakOrdersInt = Math.round(peakHour.orders)
+      extraNumbers.push(peakHour.hour, 0, peakHour.netKwd, peakNet1, peakOrdersInt)
+      analysisLines.push(
+        `- ساعة الذروة الأعلى: الساعة ${padHour2(peakHour.hour)}:00 بصافي ${formatKwd1(peakNet1)} د.ك و${formatIntCount(peakOrdersInt)} طلبات.`,
+      )
+    }
+    if (weakestHours.length > 0) {
+      const weakDesc = weakestHours
+        .map((w) => {
+          const wNet1 = round1(w.netKwd)
+          const wOrdInt = Math.round(w.orders)
+          extraNumbers.push(w.hour, 0, w.netKwd, wNet1, wOrdInt)
+          return `الساعة ${padHour2(w.hour)}:00 (${formatKwd1(wNet1)} د.ك — ${formatIntCount(wOrdInt)} طلبات)`
+        })
+        .join('، ')
+      analysisLines.push(`- أهدأ الساعات المسجلة: ${weakDesc}.`)
+    }
+  } else if (wantsHourly && pack.hourly.status !== 'ok') {
+    analysisLines.push('- توزيع المبيعات بالساعة غير متاح في المكعب لهذه الفترة.')
+  }
+
+  // 3. Channels (Talabat TGO + TMP, Keeta, etc.) & Period Deltas
+  if ((wantsChannels || !hasSpecificTopic) && pack.channels.status === 'ok' && pack.channels.data) {
+    const tgo = pack.channels.data.company.find((c) => c.channelId === 'talabat-tgo')
+    const tmp = pack.channels.data.company.find((c) => c.channelId === 'talabat-tmp')
+    const talabatNet = (tgo?.netKwd ?? 0) + (tmp?.netKwd ?? 0)
+    const talabatPayments = (tgo?.payments ?? 0) + (tmp?.payments ?? 0)
+    const nonZeroChannels = pack.channels.data.company.filter((c) => c.netKwd > 0 || c.payments > 0)
+
+    if (talabatNet > 0 || talabatPayments > 0 || wantsChannels) {
+      const tgoNet1 = round1(tgo?.netKwd ?? 0)
+      const tmpNet1 = round1(tmp?.netKwd ?? 0)
+      const talabatNet1 = round1(talabatNet)
+      const tgoPay = Math.round(tgo?.payments ?? 0)
+      const tmpPay = Math.round(tmp?.payments ?? 0)
+      const talPay = Math.round(talabatPayments)
+      extraNumbers.push(
+        tgo?.netKwd ?? 0,
+        tgoNet1,
+        tgoPay,
+        tmp?.netKwd ?? 0,
+        tmpNet1,
+        tmpPay,
+        talabatNet,
+        talabatNet1,
+        talPay,
+      )
+      analysisLines.push(
+        `- قناة طلبات (TGO + TMP): إجمالي ${formatKwd1(talabatNet1)} د.ك (${formatIntCount(talPay)} دفعات) — موزعة بين طلبات أسطول المنصة (talabat-tgo) بقيمة ${formatKwd1(tgoNet1)} د.ك (${formatIntCount(tgoPay)} دفعات) وطلبات سائقي الشركة (talabat-tmp) بقيمة ${formatKwd1(tmpNet1)} د.ك (${formatIntCount(tmpPay)} دفعات).`,
+      )
+    }
+
+    const otherChannels = nonZeroChannels
+      .filter((c) => c.channelId !== 'talabat-tgo' && c.channelId !== 'talabat-tmp')
+      .slice(0, 4)
+    if (otherChannels.length > 0) {
+      const otherText = otherChannels
+        .map((c) => {
+          const cNet1 = round1(c.netKwd)
+          const cPay = Math.round(c.payments)
+          const cShare1 = round1(c.sharePct)
+          extraNumbers.push(c.netKwd, cNet1, cPay, c.sharePct, cShare1)
+          const noun = AGGREGATOR_CHANNEL_IDS.has(c.channelId as ApprovedFeryalChannelId)
+            ? 'دفعات'
+            : 'طلبات'
+          return `${channelDisplayNameAr(c.channelId)}: ${formatKwd1(cNet1)} د.ك (${formatIntCount(cPay)} ${noun} — ${formatKwd1(cShare1)}%)`
+        })
+        .join('، ')
+      analysisLines.push(`- باقي القنوات النشطة: ${otherText}.`)
+    }
+  }
+
+  if ((wantsChannels || isWhyOrDrop || !hasSpecificTopic) && pack.deltas.status === 'ok' && pack.deltas.data) {
+    const d = pack.deltas.data
+    const curNet1 = round1(d.currentNetKwd)
+    const prevNet1 = round1(d.previousNetKwd)
+    const absDelta1 = round1(Math.abs(d.deltaKwd))
+    const absOrdersDelta = Math.abs(d.currentOrders - d.previousOrders)
+    extraNumbers.push(
+      d.currentNetKwd,
+      curNet1,
+      d.previousNetKwd,
+      prevNet1,
+      d.deltaKwd,
+      absDelta1,
+      d.currentOrders,
+      d.previousOrders,
+      absOrdersDelta,
+    )
+    const pctPart =
+      d.deltaPct !== null
+        ? ` (${formatKwd1(round1(Math.abs(d.deltaPct)))}%)`
+        : ''
+    if (d.deltaPct !== null) {
+      extraNumbers.push(d.deltaPct, round1(Math.abs(d.deltaPct)))
+    }
+    const dirWord =
+      absDelta1 === 0 ? 'ثبات في' : d.deltaKwd > 0 ? 'ارتفاع' : 'انخفاض'
+    analysisLines.push(
+      `- التغير مقابل الفترة السابقة (${pack.previousPeriod.from} → ${pack.previousPeriod.to}): ${dirWord} المبيعات بمقدار ${formatKwd1(absDelta1)} د.ك${pctPart} من ${formatKwd1(prevNet1)} د.ك (${formatIntCount(d.previousOrders)} طلبات) إلى ${formatKwd1(curNet1)} د.ك (${formatIntCount(d.currentOrders)} طلبات).`,
+    )
+  }
+
+  // 4. Exhibition Booths & Branches (including follow-up "الفرع التاني")
+  if (pack.branches.status === 'ok' && pack.branches.data) {
+    const items = pack.branches.data.items
+    const exhibitionItem = items.find((b) => b.branchId === 'exhibitions')
+
+    if (wantsExhibitions || (exhibitionItem && (exhibitionItem.netKwd > 0 || exhibitionItem.orders > 0) && !hasSpecificTopic)) {
+      if (exhibitionItem) {
+        const exNet1 = round1(exhibitionItem.netKwd)
+        const exAov1 = round1(exhibitionItem.aovKwd)
+        extraNumbers.push(exhibitionItem.netKwd, exNet1, exhibitionItem.orders, exhibitionItem.aovKwd, exAov1)
+        analysisLines.push(
+          `- بوثات المعارض: صافي ${formatKwd1(exNet1)} د.ك عبر ${formatIntCount(exhibitionItem.orders)} طلبات بمتوسط سلة ${formatKwd1(exAov1)} د.ك.`,
+        )
+      } else {
+        extraNumbers.push(0)
+        analysisLines.push('- بوثات المعارض: لم تسجل مبيعات في المكعب الحالي (0.0 د.ك).')
+      }
+    }
+
+    if (wantsFollowUpSecond && items.length >= 2) {
+      const priorBranchId = findHistoryBranchHint(history)
+      const firstBranch = items[0]
+      const secondBranch =
+        priorBranchId && items[1].branchId === priorBranchId && items.length >= 3
+          ? items[2]
+          : items[1]
+      extraNumbers.push(
+        firstBranch.netKwd,
+        round1(firstBranch.netKwd),
+        firstBranch.orders,
+        secondBranch.netKwd,
+        round1(secondBranch.netKwd),
+        secondBranch.orders,
+        secondBranch.aovKwd,
+        round1(secondBranch.aovKwd),
+      )
+      analysisLines.push(
+        `- متابعة الفرع الثاني بالترتيب: جاء فرع ${secondBranch.nameAr} بصافي ${formatKwd1(round1(secondBranch.netKwd))} د.ك و${formatIntCount(secondBranch.orders)} طلبات بمتوسط سلة ${formatKwd1(round1(secondBranch.aovKwd))} د.ك بعد المتصدر ${firstBranch.nameAr} (${formatKwd1(round1(firstBranch.netKwd))} د.ك).`,
+      )
+    } else if (targetBranchId && targetBranchId !== 'exhibitions') {
+      const targetItem = items.find((b) => b.branchId === targetBranchId)
+      if (targetItem) {
+        extraNumbers.push(
+          targetItem.netKwd,
+          round1(targetItem.netKwd),
+          targetItem.orders,
+          targetItem.aovKwd,
+          round1(targetItem.aovKwd),
+        )
+        analysisLines.push(
+          `- فرع ${targetItem.nameAr}: صافي ${formatKwd1(round1(targetItem.netKwd))} د.ك عبر ${formatIntCount(targetItem.orders)} طلبات بمتوسط سلة ${formatKwd1(round1(targetItem.aovKwd))} د.ك.`,
+        )
+      }
+    } else if ((wantsBranches || !hasSpecificTopic) && items.length > 0) {
+      const topThree = items.slice(0, 3)
+      const branchSummary = topThree
+        .map((b) => {
+          extraNumbers.push(b.netKwd, round1(b.netKwd), b.orders)
+          return `${b.nameAr} (${formatKwd1(round1(b.netKwd))} د.ك — ${formatIntCount(b.orders)} طلبات)`
+        })
+        .join('، ')
+      analysisLines.push(`- أبرز الفروع مبيعاً: ${branchSummary}.`)
+    }
+  }
+
+  // 5. Brands
+  if (wantsBrands && pack.brands.status === 'ok' && pack.brands.data) {
+    const brandItems = targetBrandId
+      ? pack.brands.data.items.filter((b) => b.brandId === targetBrandId)
+      : pack.brands.data.items.slice(0, 3)
+    if (brandItems.length > 0) {
+      const brandDesc = brandItems
+        .map((b) => {
+          extraNumbers.push(b.netKwd, round1(b.netKwd))
+          return `${b.nameAr} (${formatKwd1(round1(b.netKwd))} د.ك)`
+        })
+        .join('، ')
+      analysisLines.push(`- العلامات التجارية: ${brandDesc}.`)
+    }
+  }
+
+  // 6. Top Products
+  if (wantsProducts && pack.topProducts.status === 'ok' && pack.topProducts.data) {
+    const prods = pack.topProducts.data.items.slice(0, 3)
+    if (prods.length > 0) {
+      const prodDesc = prods
+        .map((p) => {
+          extraEntities.push(p.name)
+          extraNumbers.push(p.netKwd, round1(p.netKwd), p.qty, round1(p.qty))
+          return `${p.name} (${formatKwd1(round1(p.netKwd))} د.ك)`
+        })
+        .join('، ')
+      analysisLines.push(`- أعلى الأصناف مبيعاً: ${prodDesc}.`)
+    }
+  }
+
+  // 7. HR headcount (for overtime / attendance questions)
+  if (wantsHr && pack.hr.status === 'ok' && pack.hr.data) {
+    const empCount = Math.round(pack.hr.data.activeEmployeeCount)
+    extraNumbers.push(empCount)
+    executedQueries.push({
+      model: 'hr.employee',
+      method: 'search_read',
+      domain: [['active', '=', true]],
+      groupby: ['department_id'],
+      period: { from: pack.period.from, to: pack.period.to },
+    })
+    analysisLines.push(`- القوى العاملة النشطة المسجلة في hr.employee: ${formatIntCount(empCount)} موظف.`)
+  }
+
+  // 8. Stock moves/scrap
+  if (wantsStock && pack.stock.status === 'ok' && pack.stock.data) {
+    const transfers = Math.round(pack.stock.data.transferCount)
+    const scraps = Math.round(pack.stock.data.scrapCount)
+    extraNumbers.push(transfers, scraps)
+    executedQueries.push({
+      model: 'stock.move',
+      method: 'read_group',
+      domain: [['state', '=', 'done']],
+      groupby: ['product_id'],
+      period: { from: pack.period.from, to: pack.period.to },
+    })
+    analysisLines.push(
+      `- حركات المخزن: ${formatIntCount(transfers)} حركة تحويل و${formatIntCount(scraps)} أوامر إتلاف مسجلة.`,
+    )
+  }
+
+  // Root-cause hypothesis + concrete proposals labelled «اقتراح»
+  let hypothesisLine: string
+  const proposals: string[] = []
+
+  if (isOvertime) {
+    hypothesisLine =
+      '- استنتاج: ضغط الساعات الإضافية يرتبط غالباً بعدم مواءمة جدول الورديات مع الفجوة بين ساعات الهدوء وساعة الذروة.'
+    proposals.push(
+      '- اقتراح (مدير العمليات والموارد البشرية): ترحيل جزء من ساعات التحضير من أهدأ الساعات إلى ما قبل ساعة الذروة لتقليص الأوفر تايم.',
+      '- اقتراح (مديرو الفروع): ربط ساعات البصمة الأسبوعية بحجم الطلبات بالساعة في كل فرع قبل اعتماد أي ساعات إضافية.',
+    )
+  } else if (wantsChannels || isWhyOrDrop) {
+    hypothesisLine =
+      '- استنتاج: تذبذب الطلبات يرتبط بتحول مزيج القنوات بين طلبات TGO وTMP والمنصات المنافسة أو تغيّر حجم الطلبات في الساعات خارج الذروة.'
+    proposals.push(
+      '- اقتراح (مسؤول قنوات التوصيل): مقارنة توافر القوائم ورسوم التوصيل بين talabat-tgo وtalabat-tmp ومنصة كيتا خلال هذا الأسبوع.',
+      '- اقتراح (مدير العمليات): إطلاق عروض باقات أو خصومات موجهة خلال الساعات الأقل طلباً لرفع معدل الطلبات ومتوسط السلة.',
+    )
+  } else if (wantsHourly) {
+    hypothesisLine =
+      '- استنتاج: تركز المبيعات في ساعة الذروة مقابل انخفاض واضح في ساعات الهدوء يعكس فرصة لإعادة توزيع الطاقم والعروض الترويجية.'
+    proposals.push(
+      '- اقتراح (مديرو الفروع): تأمين كامل طاقم المطبخ والكاشير قبل ساعة الذروة لضمان سرعة التسليم ومنع فقدان الطلبات.',
+      '- اقتراح (فريق التسويق): اختبار عروض وقتية خلال ساعات الهدوء لرفع الإشغال دون تكلفة ثابتة إضافية.',
+    )
+  } else if (wantsExhibitions) {
+    hypothesisLine =
+      '- استنتاج: تقييم جدوى البوثات يتطلب مقابلة صافي مبيعات بوثات المعارض الظاهرة في Odoo مع تكلفة الإيجار والتشغيل الفعلية خارج مكعب POS.'
+    proposals.push(
+      '- اقتراح (المدير المالي): مطابقة إيراد بوثات المعارض مع عقد إيجار الموقع وتكلفة الطاقم لحساب نقطة التعادل قبل التجديد.',
+      '- اقتراح (مدير العمليات): التركيز في البوثات على الأصناف الأعلى هامشاً وسرعة في التقديم.',
+    )
+  } else {
+    hypothesisLine =
+      '- استنتاج: المؤشرات المتاحة في المكعب توضح مواطن التركز في المبيعات بين الفروع والقنوات والساعات.'
+    proposals.push(
+      '- اقتراح (مدير العمليات): مراجعة أداء الفروع والقنوات الأقل مساهمة خلال الاجتماع الأسبوعي وتحديد خطة تنشيط واضحة.',
+      '- اقتراح (المدير المالي): استكمال ربط المصادر التشغيلية غير المربوطة في Odoo لمتابعة الأثر التشغيلي والمالي بدقة.',
+    )
+  }
+
+  const blocks: string[] = []
+  if (missingMetrics.length > 0) {
+    blocks.push(`• قيود تغطية البيانات:\n${formatMissingMetricsBulletLines(missingMetrics)}`)
+  }
+  if (analysisLines.length > 0) {
+    blocks.push(`• التحليل والأرقام المتاحة من Odoo:\n${analysisLines.join('\n')}`)
+  }
+  blocks.push(`• الاستنتاج:\n${hypothesisLine}`)
+  blocks.push(`• التوصيات:\n${proposals.join('\n')}`)
+
+  return {
+    hasData: true,
+    primaryModel: 'pos.order',
+    executedQueries,
+    toolNumbers: collectPackToolNumbers(pack, extraNumbers),
+    allowedEntityNames: collectPackAllowedEntityNames(pack, extraEntities),
+    deterministicReply: blocks.join('\n\n'),
+    structuredFacts: buildPackStructuredFacts(pack),
+    skipFourPartStructure: true,
+    missingMetrics: [...missingMetrics],
+  }
+}
+
+// ============================================================================
 // MAIN ENTRYPOINT: `askFeryalOdooAgent`
 // ============================================================================
 
@@ -2479,6 +3547,173 @@ export async function askFeryalOdooAgent(
   const timestampIso = new Date().toISOString()
   const userSub = (input.userSub ?? 'anonymous').trim() || 'anonymous'
   const userRole = (input.userRole ?? 'executive').trim() || 'executive'
+  const sanitizedHistory = sanitizeFeryalChatHistory(input.history)
+
+  const rawDataSource: FeryalOdooDataSource = {
+    ...DEFAULT_ODOO_DATA_SOURCE,
+    ...input.dataSource,
+  }
+
+  type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown }
+  const thrownSections = new Set<string>()
+  const cubePromises = new Map<string, Promise<Settled<OdooPeriodCube | null>>>()
+  const poPromises = new Map<string, Promise<Settled<OdooLivePurchaseSummary | null>>>()
+  const whPromises = new Map<string, Promise<Settled<OdooLiveWarehouseChainPayload | null>>>()
+  const topProdPromises = new Map<string, Promise<Settled<OdooPeriodCubeProductRow[] | null>>>()
+  let recPromise: Promise<Settled<OdooReceivableClearingSummary | null>> | null = null
+  let hrPromise: Promise<Settled<OdooLiveHrSummary | null>> | null = null
+  let syncPromise: Promise<Settled<string | null>> | null = null
+
+  const settle = async <T>(section: string, fn: () => Promise<T>): Promise<Settled<T>> => {
+    try {
+      const value = await fn()
+      return { ok: true, value }
+    } catch (error) {
+      thrownSections.add(section)
+      return { ok: false, error }
+    }
+  }
+
+  const getCubeSettled = (fromIso: string, toIso: string, ref?: number) => {
+    const key = `${fromIso}..${toIso}`
+    let p = cubePromises.get(key)
+    if (!p) {
+      p = settle('periodCube', () => rawDataSource.fetchPeriodCube(fromIso, toIso, ref))
+      cubePromises.set(key, p)
+    }
+    return p
+  }
+
+  const getPoSettled = (fromIso: string, toIso: string, ref?: number) => {
+    const key = `${fromIso}..${toIso}`
+    let p = poPromises.get(key)
+    if (!p) {
+      p = settle('purchases', () => rawDataSource.fetchPurchaseOrders(fromIso, toIso, ref))
+      poPromises.set(key, p)
+    }
+    return p
+  }
+
+  const getWhSettled = (fromIso: string, toIso: string, ref?: number) => {
+    const key = `${fromIso}..${toIso}`
+    let p = whPromises.get(key)
+    if (!p) {
+      p = settle('stock', () => rawDataSource.fetchWarehouseChain(fromIso, toIso, ref))
+      whPromises.set(key, p)
+    }
+    return p
+  }
+
+  const getRecSettled = () => {
+    if (!recPromise) {
+      recPromise = settle('receivables', () => rawDataSource.fetchReceivablesSummary())
+    }
+    return recPromise
+  }
+
+  const getHrSettled = (ref?: number) => {
+    if (!hrPromise) {
+      hrPromise = settle('hr', () =>
+        rawDataSource.fetchHrEmployees ? rawDataSource.fetchHrEmployees(ref) : Promise.resolve(null),
+      )
+    }
+    return hrPromise
+  }
+
+  const getSyncSettled = () => {
+    if (!syncPromise) {
+      syncPromise = settle('lastSyncAt', () =>
+        rawDataSource.getLastSyncAt ? rawDataSource.getLastSyncAt() : Promise.resolve(null),
+      )
+    }
+    return syncPromise
+  }
+
+  const getTopProdSettled = (
+    fromIso: string,
+    toIso: string,
+    branchId: ApprovedFeryalBranchId,
+    limit: number,
+  ) => {
+    const key = `${fromIso}..${toIso}..${branchId}..${limit}`
+    let p = topProdPromises.get(key)
+    if (!p) {
+      p = settle('branchTopProducts', () =>
+        rawDataSource.fetchBranchTopProducts(fromIso, toIso, branchId, limit),
+      )
+      topProdPromises.set(key, p)
+    }
+    return p
+  }
+
+  const packDataSource: FeryalOdooDataSource = {
+    fetchPeriodCube: async (fromIso, toIso, ref) => {
+      const res = await getCubeSettled(fromIso, toIso, ref)
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    fetchPurchaseOrders: async (fromIso, toIso, ref) => {
+      const res = await getPoSettled(fromIso, toIso, ref)
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    fetchWarehouseChain: async (fromIso, toIso, ref) => {
+      const res = await getWhSettled(fromIso, toIso, ref)
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    fetchReceivablesSummary: async () => {
+      const res = await getRecSettled()
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    fetchHrEmployees: async (ref) => {
+      const res = await getHrSettled(ref)
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    getLastSyncAt: async () => {
+      const res = await getSyncSettled()
+      if (!res.ok) throw res.error
+      return res.value
+    },
+    fetchBranchTopProducts: async (fromIso, toIso, branchId, limit) => {
+      const res = await getTopProdSettled(fromIso, toIso, branchId, limit)
+      if (!res.ok) throw res.error
+      return res.value
+    },
+  }
+
+  const toolDataSource: FeryalOdooDataSource = {
+    fetchPeriodCube: async (fromIso, toIso, ref) => {
+      const res = await getCubeSettled(fromIso, toIso, ref)
+      return res.ok ? res.value : null
+    },
+    fetchPurchaseOrders: async (fromIso, toIso, ref) => {
+      const res = await getPoSettled(fromIso, toIso, ref)
+      return res.ok ? res.value : null
+    },
+    fetchWarehouseChain: async (fromIso, toIso, ref) => {
+      const res = await getWhSettled(fromIso, toIso, ref)
+      return res.ok ? res.value : null
+    },
+    fetchReceivablesSummary: async () => {
+      const res = await getRecSettled()
+      return res.ok ? res.value : null
+    },
+    fetchHrEmployees: async (ref) => {
+      const res = await getHrSettled(ref)
+      return res.ok ? res.value : null
+    },
+    getLastSyncAt: async () => {
+      const res = await getSyncSettled()
+      return res.ok ? res.value : null
+    },
+    fetchBranchTopProducts: async (fromIso, toIso, branchId, limit) => {
+      const res = await getTopProdSettled(fromIso, toIso, branchId, limit)
+      return res.ok ? res.value : null
+    },
+  }
 
   const finalize = async (params: {
     reply: string
@@ -2490,16 +3725,19 @@ export async function askFeryalOdooAgent(
     structuredFacts?: Record<string, unknown>
     llmCandidateRejected?: boolean
     sourceModel?: string
+    contextPack?: FeryalContextPack
+    missingMetrics?: string[]
   }): Promise<AskFeryalOdooAgentResult> => {
     let source: FeryalAnswerSource | null = null
     if (params.status === 'answered' && params.sourceModel) {
       let lastSyncAt: string | null = null
       try {
-        const getLastSyncAt = input.dataSource
-          ? input.dataSource.getLastSyncAt
-          : DEFAULT_ODOO_DATA_SOURCE.getLastSyncAt
-        lastSyncAt = (await getLastSyncAt?.()) ?? null
-      } catch {
+        lastSyncAt = (await toolDataSource.getLastSyncAt?.()) ?? null
+      } catch (error) {
+        logger.warn('feryal odoo data source failed', {
+          section: 'lastSyncAt',
+          ...errorFields(error),
+        })
         lastSyncAt = null
       }
       source = { system: 'Odoo 17', model: params.sourceModel, period: params.period, lastSyncAt }
@@ -2530,6 +3768,10 @@ export async function askFeryalOdooAgent(
       period: params.period,
       facts: numericFactsFromStructured(params.structuredFacts ?? null, params.period),
       source,
+      ...(params.contextPack ? { contextPack: params.contextPack } : {}),
+      ...(params.missingMetrics && params.missingMetrics.length > 0
+        ? { missingMetrics: params.missingMetrics }
+        : {}),
       auditEntry,
     }
   }
@@ -2538,6 +3780,7 @@ export async function askFeryalOdooAgent(
     reasonKey: NoOdooDataReasonKey,
     executedQueries: FeryalExecutedOdooQuery[] = [],
     period: { from: string; to: string } | null = null,
+    extras?: { contextPack?: FeryalContextPack; missingMetrics?: string[] },
   ): Promise<AskFeryalOdooAgentResult> => {
     const reply = buildFeryalNoOdooDataSuggestion(reasonKey)
     const verifier = verifyFeryalReplyNumbers(reply, [])
@@ -2548,6 +3791,8 @@ export async function askFeryalOdooAgent(
       verifier,
       toolNumbers: [],
       period,
+      contextPack: extras?.contextPack,
+      missingMetrics: extras?.missingMetrics,
     })
   }
 
@@ -2567,18 +3812,16 @@ export async function askFeryalOdooAgent(
     })
   }
 
-  // 2. Unlinked Non-Odoo Topics -> starts with `لا أملك بيانات من Odoo عن هذا` + linking suggestion
-  const unlinkedCheck = isUnlinkedNonOdooTopic(rawQuestion)
-  if (unlinkedCheck.unlinked) {
-    return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic')
-  }
-
-  // 2b. «الفحاحيل» is the FAS Fahaheel school-canteen register, never Al-Kout.
-  if (FAS_FAHAHEEL_POS_CONFIG_ID !== null && /(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normalizeArabicText(rawQuestion))) {
+  // 2. «الفحاحيل» is the FAS Fahaheel school-canteen register, never Al-Kout.
+  if (
+    FAS_FAHAHEEL_POS_CONFIG_ID !== null &&
+    /(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normalizeArabicText(rawQuestion))
+  ) {
     return finalizeNoData('fas_fahaheel_canteen')
   }
 
-  // 3. Branch Scope Check (7 approved branches + school canteens only)
+  // 3. Branch Scope Check (excluded retail districts & unknown branches, while allowing Qurain central kitchen)
+  const qurainAsked = isCentralKitchenQurainQuestion(rawQuestion)
   const branchDetection = detectTargetBranchFromQuestion(rawQuestion)
   if (branchDetection.unknownBranchRequested) {
     return finalizeNoData('unknown_branch')
@@ -2618,7 +3861,14 @@ export async function askFeryalOdooAgent(
     : channelDetection.channelId ?? validatedDefaults.channelId
 
   const comparisonPeriods = resolveFeryalComparisonPeriods(rawQuestion, nowMs)
-  const resolvedPeriod = resolveFeryalQuestionPeriod(rawQuestion, nowMs, validatedDefaults)
+  const questionMissing = collectQuestionMissingMetrics(rawQuestion)
+  const isSmallTalk = !qurainAsked && isSmallTalkOrMetaQuestion(rawQuestion)
+
+  let resolvedPeriod = resolveFeryalQuestionPeriod(rawQuestion, nowMs, validatedDefaults)
+  if (questionMissing.isForecast && !resolvedPeriod.hasExplicitPeriod && !validatedDefaults.period) {
+    resolvedPeriod = resolveFeryalQuestionPeriod('هذا الشهر', nowMs, validatedDefaults)
+  }
+
   const toolKind = detectOdooToolKind(
     rawQuestion,
     effectiveBranchId,
@@ -2627,117 +3877,258 @@ export async function askFeryalOdooAgent(
     branchDetection.isBranchRanking,
   )
 
-  if (toolKind === 'unknown') {
-    return finalizeNoData('generic', [], { from: resolvedPeriod.from, to: resolvedPeriod.to })
+  // Keep real truthfulness guards on stock-on-hand and branch-level GL expenses
+  if (!isSmallTalk && !qurainAsked) {
+    if (toolKind === 'inventory_on_hand') {
+      return finalizeNoData(
+        'inventory_on_hand',
+        [],
+        { from: resolvedPeriod.from, to: resolvedPeriod.to },
+        {
+          contextPack: input.contextPack,
+          missingMetrics: ['رصيد المخزون الحالي (stock.quant) غير متاح في Odoo'],
+        },
+      )
+    }
+    if (toolKind === 'account_move_lines' && effectiveBranchId && branchDetection.branchId !== null) {
+      return finalizeNoData(
+        'gl_branch_not_partitioned',
+        [],
+        { from: resolvedPeriod.from, to: resolvedPeriod.to },
+        {
+          contextPack: input.contextPack,
+          missingMetrics: ['مصاريف الفرع غير مقسّمة تحليلياً حسب الفرع في Odoo'],
+        },
+      )
+    }
   }
 
-  const dataSource: FeryalOdooDataSource = {
-    ...DEFAULT_ODOO_DATA_SOURCE,
-    ...input.dataSource,
-  }
-
-  let toolOutput: ToolExecutionOutput
   let activePeriod = { from: resolvedPeriod.from, to: resolvedPeriod.to }
   let activeAllowedDateStrings = resolvedPeriod.allowedDateStrings
-
-  switch (toolKind) {
-    case 'pos_comparison': {
-      const comp = comparisonPeriods!
-      const minFrom = comp.periodA.from <= comp.periodB.from ? comp.periodA.from : comp.periodB.from
-      const maxTo = comp.periodA.to >= comp.periodB.to ? comp.periodA.to : comp.periodB.to
-      activePeriod = { from: minFrom, to: maxTo }
-      activeAllowedDateStrings = comp.allowedDateStrings
-      toolOutput = await runPosComparisonTool({
-        dataSource,
-        comparison: comp,
-        targetBranchId: effectiveBranchId,
-        referenceNowMs: nowMs,
-      })
-      break
-    }
-    case 'pos_brands':
-      toolOutput = await runPosBrandsTool({
-        dataSource,
-        period: resolvedPeriod,
-        targetBrandId: effectiveBrandDetection.brandId,
-        targetBranchId: effectiveBranchId,
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'pos_orders':
-      toolOutput = await runPosOrdersTool({
-        dataSource,
-        period: resolvedPeriod,
-        targetBranchId: effectiveBranchId,
-        targetChannelId: effectiveChannelId,
-        isBranchRanking: branchDetection.isBranchRanking || isLowestBranchQuestion(rawQuestion),
-        rankDirection: isLowestBranchQuestion(rawQuestion) ? 'lowest' : 'top',
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'pos_order_lines':
-      toolOutput = await runPosOrderLinesTool({
-        dataSource,
-        period: resolvedPeriod,
-        targetBranchId: effectiveBranchId,
-        question: rawQuestion,
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'inventory_on_hand':
-      return finalizeNoData('inventory_on_hand', [], { from: resolvedPeriod.from, to: resolvedPeriod.to })
-    case 'account_move_lines':
-      // A branch-level expense question cannot be answered from the company-wide GL feed.
-      if (effectiveBranchId && branchDetection.branchId !== null) {
-        return finalizeNoData('gl_branch_not_partitioned', [], { from: resolvedPeriod.from, to: resolvedPeriod.to })
-      }
-      toolOutput = await runAccountMoveLinesTool({
-        dataSource,
-        period: resolvedPeriod,
-        question: rawQuestion,
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'purchase_orders':
-      toolOutput = await runPurchaseOrdersTool({
-        dataSource,
-        period: resolvedPeriod,
-        question: rawQuestion,
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'stock_moves':
-      toolOutput = await runStockMovesAndScrapTool({
-        dataSource,
-        period: resolvedPeriod,
-        referenceNowMs: nowMs,
-      })
-      break
-    case 'hr_employees':
-      toolOutput = await runHrEmployeesTool({
-        dataSource,
-        period: resolvedPeriod,
-        referenceNowMs: nowMs,
-      })
-      break
+  if (toolKind === 'pos_comparison' && comparisonPeriods) {
+    const minFrom =
+      comparisonPeriods.periodA.from <= comparisonPeriods.periodB.from
+        ? comparisonPeriods.periodA.from
+        : comparisonPeriods.periodB.from
+    const maxTo =
+      comparisonPeriods.periodA.to >= comparisonPeriods.periodB.to
+        ? comparisonPeriods.periodA.to
+        : comparisonPeriods.periodB.to
+    activePeriod = { from: minFrom, to: maxTo }
+    activeAllowedDateStrings = comparisonPeriods.allowedDateStrings
   }
+
+  // 5. Build or reuse FeryalContextPack once per turn
+  const contextPack: FeryalContextPack =
+    input.contextPack ??
+    (await buildFeryalContextPack({
+      period: {
+        from: resolvedPeriod.from,
+        to: resolvedPeriod.to,
+        labelAr: resolvedPeriod.periodLabelAr,
+      },
+      dataSource: packDataSource,
+      referenceNowMs: nowMs,
+    }))
+
+  activeAllowedDateStrings = [
+    ...new Set([...activeAllowedDateStrings, ...collectPackAllowedDateStrings(contextPack)]),
+  ]
+
+  let toolOutput: ToolExecutionOutput
+
+  if (isSmallTalk) {
+    toolOutput = buildSmallTalkPackOutcome({
+      rawQuestion,
+      history: sanitizedHistory,
+      pack: contextPack,
+    })
+  } else if (qurainAsked) {
+    const wh = await toolDataSource.fetchWarehouseChain(
+      resolvedPeriod.from,
+      resolvedPeriod.to,
+      nowMs,
+    )
+    toolOutput = buildQurainCentralKitchenOutcome({
+      pack: contextPack,
+      warehouse: wh,
+      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+      missingMetrics: questionMissing.missingMetrics,
+    })
+  } else if (questionMissing.isForecast) {
+    toolOutput = buildForecastPackOutcome({
+      pack: contextPack,
+      missingMetrics: questionMissing.missingMetrics,
+    })
+  } else if (
+    questionMissing.missingMetrics.length > 0 ||
+    toolKind === 'unknown' ||
+    isWhyOrDropInquiry(rawQuestion) ||
+    /(التاني|الثاني|ثاني|\bsecond\b|\bnext branch\b)/i.test(normalizeArabicText(rawQuestion))
+  ) {
+    toolOutput = buildPackGroundedOutcome({
+      rawQuestion,
+      history: sanitizedHistory,
+      pack: contextPack,
+      missingMetrics: questionMissing.missingMetrics,
+      fallbackReasonKey: questionMissing.fallbackReasonKey,
+      targetBranchId: effectiveBranchId,
+      targetChannelId: effectiveChannelId,
+      targetBrandId: effectiveBrandDetection.brandId,
+      isOvertime: questionMissing.isOvertime,
+      isBoothFeasibility: questionMissing.isBoothFeasibility,
+      isWhyOrDrop: isWhyOrDropInquiry(rawQuestion),
+    })
+  } else {
+    switch (toolKind) {
+      case 'pos_comparison': {
+        toolOutput = await runPosComparisonTool({
+          dataSource: toolDataSource,
+          comparison: comparisonPeriods!,
+          targetBranchId: effectiveBranchId,
+          referenceNowMs: nowMs,
+        })
+        break
+      }
+      case 'pos_brands':
+        toolOutput = await runPosBrandsTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          targetBrandId: effectiveBrandDetection.brandId,
+          targetBranchId: effectiveBranchId,
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'pos_orders':
+        toolOutput = await runPosOrdersTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          targetBranchId: effectiveBranchId,
+          targetChannelId: effectiveChannelId,
+          isBranchRanking: branchDetection.isBranchRanking || isLowestBranchQuestion(rawQuestion),
+          rankDirection: isLowestBranchQuestion(rawQuestion) ? 'lowest' : 'top',
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'pos_order_lines':
+        toolOutput = await runPosOrderLinesTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          targetBranchId: effectiveBranchId,
+          question: rawQuestion,
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'account_move_lines':
+        toolOutput = await runAccountMoveLinesTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          question: rawQuestion,
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'purchase_orders':
+        toolOutput = await runPurchaseOrdersTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          question: rawQuestion,
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'stock_moves':
+        toolOutput = await runStockMovesAndScrapTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          referenceNowMs: nowMs,
+        })
+        break
+      case 'hr_employees':
+        toolOutput = await runHrEmployeesTool({
+          dataSource: toolDataSource,
+          period: resolvedPeriod,
+          referenceNowMs: nowMs,
+        })
+        break
+      default:
+        toolOutput = buildPackGroundedOutcome({
+          rawQuestion,
+          history: sanitizedHistory,
+          pack: contextPack,
+          missingMetrics: [],
+          fallbackReasonKey: 'generic',
+          targetBranchId: effectiveBranchId,
+          targetChannelId: effectiveChannelId,
+          targetBrandId: effectiveBrandDetection.brandId,
+          isOvertime: false,
+          isBoothFeasibility: false,
+          isWhyOrDrop: false,
+        })
+    }
+
+    // If a data-source section threw (e.g. purchases/stock/hr/receivables) while other pack sections succeeded,
+    // answer cleanly from available pack sections and report the failed section as unavailable.
+    if (!toolOutput.hasData && contextPack.connected) {
+      const thrownSectionMissing: string[] = []
+      if (toolKind === 'purchase_orders' && thrownSections.has('purchases')) {
+        thrownSectionMissing.push('بيانات المشتريات وأوامر الشراء (purchase.order) غير متاحة حالياً من Odoo')
+      } else if (toolKind === 'stock_moves' && thrownSections.has('stock')) {
+        thrownSectionMissing.push('بيانات حركات المخزن والهدر (stock.move / stock.scrap) غير متاحة حالياً من Odoo')
+      } else if (toolKind === 'hr_employees' && thrownSections.has('hr')) {
+        thrownSectionMissing.push('بيانات الموظفين (hr.employee) غير متاحة حالياً من Odoo')
+      } else if (toolKind === 'account_move_lines' && thrownSections.has('receivables')) {
+        thrownSectionMissing.push('بيانات الذمم المدينة (account.move.line) غير متاحة حالياً من Odoo')
+      }
+
+      if (thrownSectionMissing.length > 0 || (input.contextPack && !input.dataSource)) {
+        toolOutput = buildPackGroundedOutcome({
+          rawQuestion,
+          history: sanitizedHistory,
+          pack: contextPack,
+          missingMetrics: thrownSectionMissing,
+          fallbackReasonKey: toolOutput.noDataReasonKey ?? 'generic',
+          targetBranchId: effectiveBranchId,
+          targetChannelId: effectiveChannelId,
+          targetBrandId: effectiveBrandDetection.brandId,
+          isOvertime: false,
+          isBoothFeasibility: false,
+          isWhyOrDrop: false,
+        })
+      }
+    }
+  }
+
+  const effectiveMissingMetrics =
+    toolOutput.missingMetrics && toolOutput.missingMetrics.length > 0
+      ? toolOutput.missingMetrics
+      : questionMissing.missingMetrics
 
   if (!toolOutput.hasData) {
     return finalizeNoData(
       toolOutput.noDataReasonKey ?? 'generic',
       toolOutput.executedQueries,
       activePeriod,
+      {
+        contextPack,
+        missingMetrics: effectiveMissingMetrics,
+      },
     )
   }
 
-  const verifierOptions = {
+  const deterministicVerifierOptions = {
     allowedDateStrings: activeAllowedDateStrings,
     allowedEntityNames: toolOutput.allowedEntityNames,
-    requireFourPartStructure: true,
+    requireFourPartStructure: !toolOutput.skipFourPartStructure,
     requireGlIncompleteWarning: toolOutput.requireGlIncompleteWarning,
   }
 
-  // 5. Optional candidate phrasing strictly gated by `enforceVerifiedFeryalReply`
+  const candidateVerifierOptions = {
+    allowedDateStrings: activeAllowedDateStrings,
+    allowedEntityNames: toolOutput.allowedEntityNames,
+    requireFourPartStructure: false,
+    requireGlIncompleteWarning: toolOutput.requireGlIncompleteWarning,
+  }
+
+  // 6. Optional candidate phrasing strictly gated by numeric verification & excluded-entity check
   let llmCandidateRejected = false
   if (input.candidatePhraser) {
     try {
@@ -2752,9 +4143,12 @@ export async function askFeryalOdooAgent(
         const candidateCheck = enforceVerifiedFeryalReply(
           candidateText,
           toolOutput.toolNumbers,
-          verifierOptions,
+          candidateVerifierOptions,
         )
-        if (candidateCheck.accepted) {
+        const leaked = containsExcludedEntityText(candidateCheck.reply, {
+          allowQurainCentralKitchen: qurainAsked,
+        })
+        if (candidateCheck.accepted && !leaked) {
           return finalize({
             reply: candidateCheck.reply,
             status: 'answered',
@@ -2763,7 +4157,9 @@ export async function askFeryalOdooAgent(
             toolNumbers: toolOutput.toolNumbers,
             period: activePeriod,
             structuredFacts: toolOutput.structuredFacts,
-            sourceModel: toolOutput.primaryModel,
+            sourceModel: toolOutput.skipSourceFooter ? undefined : toolOutput.primaryModel,
+            contextPack,
+            missingMetrics: effectiveMissingMetrics,
           })
         }
         llmCandidateRejected = true
@@ -2773,14 +4169,18 @@ export async function askFeryalOdooAgent(
     }
   }
 
-  // 6. Mandatory Numeric Verification on Final Grounded Reply
+  // 7. Mandatory Numeric Verification on Final Grounded Reply
   const verified = enforceVerifiedFeryalReply(
     toolOutput.deterministicReply,
     toolOutput.toolNumbers,
-    verifierOptions,
+    deterministicVerifierOptions,
   )
 
-  if (!verified.accepted) {
+  const deterministicLeaked = containsExcludedEntityText(verified.reply, {
+    allowQurainCentralKitchen: qurainAsked,
+  })
+
+  if (!verified.accepted || deterministicLeaked) {
     const fallbackReply = buildFeryalNoOdooDataSuggestion(toolOutput.noDataReasonKey ?? 'generic')
     return finalize({
       reply: fallbackReply,
@@ -2791,6 +4191,8 @@ export async function askFeryalOdooAgent(
       period: activePeriod,
       structuredFacts: toolOutput.structuredFacts,
       llmCandidateRejected,
+      contextPack,
+      missingMetrics: effectiveMissingMetrics,
     })
   }
 
@@ -2803,6 +4205,8 @@ export async function askFeryalOdooAgent(
     period: activePeriod,
     structuredFacts: toolOutput.structuredFacts,
     llmCandidateRejected,
-    sourceModel: toolOutput.primaryModel,
+    sourceModel: toolOutput.skipSourceFooter ? undefined : toolOutput.primaryModel,
+    contextPack,
+    missingMetrics: effectiveMissingMetrics,
   })
 }

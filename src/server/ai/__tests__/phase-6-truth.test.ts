@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { claimResponse, comparisonResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
+import type { FeryalContextPack } from '@/lib/feryal-context-types'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
-import { composeCouncilReply } from '@/server/ai/council'
+import { runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
 import type { BriefFact } from '@/server/ai/brief-types'
 import { computeClaimFigure } from '@/server/ai/structured-claim'
 
@@ -107,48 +108,140 @@ describe('phase 6 number guard', () => {
   })
 })
 
+function makePhase6Pack(): FeryalContextPack {
+  const src = { model: 'pos.order', period: { from: '2026-11-15', to: '2026-11-15' }, lastSyncAt: '2026-11-16T00:00:00.000Z' }
+  const unavail = (model: string) => ({ status: 'unavailable' as const, reason: 'not_loaded', source: { ...src, model } })
+  return {
+    generatedAtIso: '2026-11-16T00:00:00.000Z',
+    connected: true,
+    period: { from: '2026-11-15', to: '2026-11-15', days: 1, labelAr: '2026-11-15', labelEn: '2026-11-15' },
+    previousPeriod: { from: '2026-11-14', to: '2026-11-14' },
+    elapsedDaysInMonth: 15,
+    totalDaysInMonth: 30,
+    companyTotals: { status: 'ok', source: src, data: { netSalesKwd: 14.5, orders: 14, aovKwd: 1.036, mappedBranchesNetKwd: 14.5, unattributedSalesKwd: 0 } },
+    branches: {
+      status: 'ok',
+      source: src,
+      data: {
+        items: [
+          { branchId: 'avenues', nameAr: 'الأفنيوز', nameEn: 'Avenues', netKwd: 10.5, orders: 10, aovKwd: 1.05, group: 'restaurant' },
+          { branchId: 'salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', netKwd: 4, orders: 4, aovKwd: 1, group: 'restaurant' },
+        ],
+      },
+    },
+    unattributed: unavail('pos.order'),
+    channels: unavail('pos.payment'),
+    brands: unavail('pos.order.line'),
+    topProducts: unavail('pos.order.line'),
+    hourly: unavail('pos.order'),
+    deltas: unavail('pos.order'),
+    gl: unavail('account.move.line'),
+    receivables: unavail('account.move.line'),
+    purchases: unavail('purchase.order'),
+    stock: unavail('stock.move'),
+    hr: unavail('hr.employee'),
+    advisorReports: [],
+    companyContext: '',
+  }
+}
+
+function makePhase6AgentResult(pack: FeryalContextPack) {
+  return {
+    reply: 'صافي المبيعات 10.5',
+    status: 'answered' as const,
+    executedQueries: [],
+    verifier: { valid: true, extractedNumbers: [10.5], unverifiedNumbers: [] },
+    toolNumbers: [10.5],
+    period: { from: '2026-11-15', to: '2026-11-15' },
+    facts: [],
+    source: null,
+    contextPack: pack,
+    auditEntry: {
+      id: 'audit-p6',
+      timestampIso: '2026-11-16T00:00:00.000Z',
+      userSub: 'p6',
+      userRole: 'admin',
+      question: 'قارن الأفنيوز والسالمية',
+      status: 'answered' as const,
+      executedQueries: [],
+      verifier: { valid: true, extractedNumbers: [10.5], unverifiedNumbers: [] },
+      finalReply: 'صافي المبيعات 10.5',
+    },
+  }
+}
+
 describe('phase 6 feryal agreement', () => {
-  it('returns no agreement when the models reach opposite conclusions', () => {
-    const composed = composeCouncilReply({
-      odooReply: 'صافي المبيعات 10.5',
-      passed: [
-        { provider: 'anthropic', modelId: 'claude', text: 'وسّع الفرع والصافي 10.5' },
-        { provider: 'google', modelId: 'gemini', text: 'أغلق الفرع والصافي 10.5' },
-      ],
-      failed: [],
-    })
-    expect(composed.agreed).toEqual([])
-    expect(composed.reply).toContain('لا اتفاق')
-    expect(composed.reply).toContain('صافي المبيعات 10.5')
+  const keys = {
+    anthropic: 'test-anthropic-key-0001',
+    google: 'test-google-key-00000001',
+    xai: 'test-grok-key-0000000001',
+  }
+  const models = { anthropic: 'claude', google: 'gemini', xai: 'grok' }
+  const primaryJson = JSON.stringify({
+    answer_ar: 'الأفنيوز سجل 10.5 د.ك مقابل 4 د.ك في السالمية.',
+    claims: [{ text: 'الأفنيوز سجل 10.5 د.ك مقابل 4 د.ك في السالمية.', numbers: [{ value: 10.5, section: 'branches' }, { value: 4, section: 'branches' }] }],
+    proposals: [{ text: 'مراجعة ورديات السالمية لرفع المتوسط.', owner: 'مدير العمليات', kind: 'proposal' }],
+    missing_metrics: [],
   })
 
-  it('lists only the models that share the conclusion', () => {
-    const shared = comparisonResponse({
-      subject_id: 'avenues',
-      relation: 'better',
-      object_id: 'salmiya',
-      metric: 'net_sales',
-      cited_fact_ids: ['fact-avenues'],
-    })
-    const other = comparisonResponse({
-      subject_id: 'salmiya',
-      relation: 'better',
-      object_id: 'avenues',
-      metric: 'net_sales',
-      cited_fact_ids: ['fact-avenues'],
-    })
-    const composed = composeCouncilReply({
-      odooReply: 'صافي المبيعات 10.5',
-      passed: [
-        { provider: 'anthropic', modelId: 'claude', text: shared },
-        { provider: 'google', modelId: 'gemini', text: shared },
-        { provider: 'xai', modelId: 'grok', text: other },
-      ],
-      failed: [],
-    })
-    expect(composed.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
-    expect(composed.reply).toContain('اجتازت الفحص:')
-    expect(composed.reply).not.toContain('xai/grok')
-    expect(composed.reply).toContain('avenues أفضل من salmiya')
+  it('answers from the primary grounded provider even when the reviewer flags (no 2-of-3 gate)', async () => {
+    const pack = makePhase6Pack()
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input)
+      if (url.includes('api.anthropic.com')) {
+        return Response.json({ model: 'claude', content: [{ type: 'text', text: primaryJson }], usage: { input_tokens: 1, output_tokens: 1 } })
+      }
+      return Response.json({
+        modelVersion: 'gemini',
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'flag', note: 'راجع أداء السالمية' }) }] } }],
+      })
+    }
+    const result = await runFeryalCouncil(
+      { question: 'قارن الأفنيوز والسالمية', userId: 'u1', userRole: 'admin' },
+      {
+        askOdoo: (async () => makePhase6AgentResult(pack)) as RunCouncilOptions['askOdoo'],
+        fetchImpl,
+        keys,
+        models,
+        persist: async () => undefined,
+      },
+    )
+    expect(result.status).toBe('answered')
+    expect(result.agreed.map((item) => item.provider)).toEqual(['anthropic'])
+    expect(result.reply).toContain('10.5')
+    expect(result.reply).toContain('ملاحظة المراجع: راجع أداء السالمية')
+    expect(result.reply).not.toContain('لا اتفاق')
+  })
+
+  it('lists primary and approving reviewer in agreed without calling extra providers', async () => {
+    const pack = makePhase6Pack()
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input)
+      if (url.includes('api.anthropic.com')) {
+        return Response.json({ model: 'claude', content: [{ type: 'text', text: primaryJson }], usage: { input_tokens: 1, output_tokens: 1 } })
+      }
+      if (url.includes('generativelanguage.googleapis.com')) {
+        return Response.json({
+          modelVersion: 'gemini',
+          candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'ok', note: '' }) }] } }],
+        })
+      }
+      throw new Error('xai should not be called when primary and reviewer succeed')
+    }
+    const result = await runFeryalCouncil(
+      { question: 'قارن الأفنيوز والسالمية', userId: 'u1', userRole: 'admin' },
+      {
+        askOdoo: (async () => makePhase6AgentResult(pack)) as RunCouncilOptions['askOdoo'],
+        fetchImpl,
+        keys,
+        models,
+        persist: async () => undefined,
+      },
+    )
+    expect(result.status).toBe('answered')
+    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
+    expect(result.participants.some((item) => item.provider === 'xai')).toBe(false)
+    expect(result.reply).toContain('الأفنيوز سجل 10.5 د.ك')
+    expect(result.reply).toContain('اقتراح')
   })
 })

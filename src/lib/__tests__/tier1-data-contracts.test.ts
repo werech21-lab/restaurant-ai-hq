@@ -720,19 +720,32 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
         '264.375',
       )
 
-      // 3. Excluded branches are strictly refused with zero digits
-      for (const excludedBranchQ of [
-        'كم مبيعات فرع الجهراء أمس؟',
+      // 3. Excluded retail branches are strictly refused with zero digits, while Qurain central kitchen
+      //    never triggers unknown_branch and explains its non-POS central kitchen status cleanly.
+      const refused = await askFeryalOdooAgent({
+        question: 'كم مبيعات فرع الجهراء أمس؟',
+        referenceNowMs: TEST_REF_NOW_MS,
+        dataSource: ds,
+      })
+      expect(refused.status).toBe('no_odoo_data')
+      expect(refused.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+      expect(refused.verifier.extractedNumbers).toEqual([])
+
+      for (const qurainQ of [
         'كم مبيعات فرع القرين أمس؟',
+        'شو وضع المطبخ المركزي في القرين؟',
       ]) {
-        const refused = await askFeryalOdooAgent({
-          question: excludedBranchQ,
+        const qurainRes = await askFeryalOdooAgent({
+          question: qurainQ,
           referenceNowMs: TEST_REF_NOW_MS,
           dataSource: ds,
         })
-        expect(refused.status).toBe('no_odoo_data')
-        expect(refused.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
-        expect(refused.verifier.extractedNumbers).toEqual([])
+        expect(qurainRes.status, qurainQ).toBe('answered')
+        expect(qurainRes.reply, qurainQ).toContain('المطبخ المركزي (القرين) ليس منفذ بيع POS')
+        expect(qurainRes.reply, qurainQ).toContain('غير متاح في Odoo')
+        expect(qurainRes.reply, qurainQ).not.toMatch(/pos\.config\s*(?:24|25|39|40)\b/i)
+        expect(qurainRes.verifier.valid, qurainQ).toBe(true)
+        expect(qurainRes.verifier.unverifiedNumbers, qurainQ).toEqual([])
       }
     })
   })

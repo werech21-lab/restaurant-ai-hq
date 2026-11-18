@@ -1,4 +1,7 @@
+import type { FeryalChatHistoryTurn } from '@/lib/feryal-context-types'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+
+export type { FeryalChatHistoryTurn }
 
 export const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
 
@@ -760,6 +763,94 @@ export function isPlausibleUnknownBranchProperNoun(rawToken: string): boolean {
   return /^[\p{L}-]{2,}$/u.test(cleaned)
 }
 
+const MAX_FERYAL_HISTORY_TURNS = 10
+const MAX_FERYAL_HISTORY_TURN_CHARS = 1200
+
+/**
+ * Sanitizes client-supplied conversation history to at most the last 10 valid
+ * `{ role: 'user' | 'assistant', text }` turns, trimming, collapsing whitespace,
+ * capping length, and dropping empty or malformed items.
+ */
+export function sanitizeFeryalChatHistory(raw: unknown): FeryalChatHistoryTurn[] {
+  if (!Array.isArray(raw)) return []
+  const cleaned: FeryalChatHistoryTurn[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const record = item as { role?: unknown; text?: unknown }
+    if (record.role !== 'user' && record.role !== 'assistant') continue
+    if (typeof record.text !== 'string') continue
+    const text = record.text
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, MAX_FERYAL_HISTORY_TURN_CHARS)
+      .trim()
+    if (!text) continue
+    cleaned.push({ role: record.role, text })
+  }
+  return cleaned.slice(-MAX_FERYAL_HISTORY_TURNS)
+}
+
+const CENTRAL_KITCHEN_QURAIN_TEST_RE = new RegExp(
+  `${AR_WORD_START}(?:(?:و|ف)?(?:لل|بال|كال|وال|فال|ب|ل|ك|ال)?قرين|(?:و|ف)?(?:لل|بال|كال|وال|فال|ب|ل|ك|ال)?مطبخ\\s+(?:ال)?مركزي)(?=[\\s،؟?.,!؛:()«»"'-]|$)|\\b(?:(?:al[-\\s]?)?(?:qurain|kurain|qurein)|central[-\\s]+kitchen)\\b`,
+  'i',
+)
+
+const CENTRAL_KITCHEN_QURAIN_REPLACE_RE = new RegExp(
+  `${AR_WORD_START}(?:(?:و|ف)?(?:لل|بال|كال|وال|فال|ب|ل|ك|ال)?مطبخ\\s+(?:ال)?قرين(?:\\s+(?:ال)?مركزي)?|(?:و|ف)?(?:لل|بال|كال|وال|فال|ب|ل|ك|ال)?قرين|(?:و|ف)?(?:لل|بال|كال|وال|فال|ب|ل|ك|ال)?مطبخ\\s+(?:ال)?مركزي)(?=[\\s،؟?.,!؛:()«»"'-]|$)|\\b(?:(?:al[-\\s]?)?(?:qurain|kurain|qurein)(?:[-\\s]+central[-\\s]+kitchen)?|central[-\\s]+kitchen)\\b`,
+  'gi',
+)
+
+/**
+ * Detects questions referencing the Qurain central kitchen («القرين», «قرين»,
+ * «المطبخ المركزي», `qurain`, `central kitchen`) so Feryal explains its non-POS
+ * central-kitchen role and available warehouse/company data instead of throwing
+ * an `unknown_branch` refusal.
+ */
+export function isCentralKitchenQurainQuestion(question: string): boolean {
+  const normAr = normalizeArabicText(question)
+  if (!normAr) return false
+  return CENTRAL_KITCHEN_QURAIN_TEST_RE.test(normAr)
+}
+
+const EXCLUDED_CONFIG_REF_RE =
+  /\b(?:pos\.?config|config_id|config|register|terminal|device)\s*(?:#|=|:)?\s*(?:24|25|39|40)\b/i
+const EXCLUDED_AR_CONFIG_REF_RE =
+  /(?:جهاز|كاشير|صندوق|نقطة بيع|نقطة البيع|سجل|محطة)\s*(?:رقم|#|:)?\s*(?:24|25|39|40)(?=\D|$)/
+const QURAIN_CENTRAL_KITCHEN_LABEL_RE =
+  /(?:ل|ب|و|ف)?(?:المطبخ|لمطبخ)\s+(?:ال)?مركزي(?:\s*\(\s*(?:ال)?قرين\s*\)|\s+(?:في\s+|ب)?(?:ال)?قرين)?|(?:ل|ب|و|ف)?مطبخ\s+(?:ال)?قرين(?:\s+(?:ال)?مركزي)?|\b(?:al[-\s]?)?(?:qurain|kurain|qurein)[-\s]+central[-\s]+kitchen\b|\bcentral[-\s]+kitchen(?:\s*\(\s*(?:al[-\s]?)?(?:qurain|kurain|qurein)\s*\)|\s+(?:in\s+)?(?:al[-\s]?)?(?:qurain|kurain|qurein))?/gi
+
+/**
+ * Checks whether generated text leaks any excluded Odoo entity or excluded POS config ID
+ * (`24`, `25`, `39`, `40`). When `allowQurainCentralKitchen` is true, explicit central-kitchen
+ * phrases («المطبخ المركزي (القرين)» / «المطبخ المركزي في القرين») are allowed while bare
+ * retail-branch references («فرع القرين», «الجهراء», «هايزنبرغ», etc.) remain blocked.
+ */
+export function containsExcludedEntityText(
+  text: string | null | undefined,
+  options?: { allowQurainCentralKitchen?: boolean },
+): boolean {
+  if (!text) return false
+  const normDigits = normalizeDigits(text)
+  if (EXCLUDED_CONFIG_REF_RE.test(normDigits) || EXCLUDED_AR_CONFIG_REF_RE.test(normDigits)) {
+    return true
+  }
+  if (options?.allowQurainCentralKitchen) {
+    const stripped = text.replace(QURAIN_CENTRAL_KITCHEN_LABEL_RE, ' ')
+    return isExcludedOdooEntity(stripped)
+  }
+  return isExcludedOdooEntity(text)
+}
+
+function stripCentralKitchenQurainPhrases(normAr: string): string {
+  return normAr
+    .replace(CENTRAL_KITCHEN_QURAIN_REPLACE_RE, (_match, prefix: string | undefined) => {
+      return `${prefix ?? ''} ، `
+    })
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export interface BranchDetectionResult {
   branchId: ApprovedFeryalBranchId | null
   unknownBranchRequested: boolean
@@ -810,7 +901,13 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
   }
 
   if (!asksByBranchBreakdown && !isBranchRanking) {
-    if (matchedIds.length === 0 && isExcludedOdooEntity(question)) {
+    const isQurainCentralKitchen = isCentralKitchenQurainQuestion(question)
+    const branchCheckText = isQurainCentralKitchen
+      ? stripCentralKitchenQurainPhrases(normAr)
+      : normAr
+    const excludedEntityInput = isQurainCentralKitchen ? branchCheckText : question
+
+    if (matchedIds.length === 0 && isExcludedOdooEntity(excludedEntityInput)) {
       return {
         branchId: null,
         unknownBranchRequested: true,
@@ -819,7 +916,9 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       }
     }
 
-    const arMatches = normAr.matchAll(/(?:^|\s)(?:([^\s،؟?.,!؛:()«»"']+)\s+)?فرع\s+([^\s،؟?.,!؛:()«»"']+)/g)
+    const arMatches = branchCheckText.matchAll(
+      /(?:^|\s)(?:([^\s،؟?.,!؛:()«»"']+)\s+)?(?:و)?فرع\s+([^\s،؟?.,!؛:()«»"']+)/g,
+    )
     const arGovernors = new Set([
       'اي',
       'اعلي',
@@ -852,7 +951,9 @@ export function detectTargetBranchFromQuestion(question: string): BranchDetectio
       }
     }
 
-    const enMatches = normAr.matchAll(/(?:^|\s)(?:([a-z]+)\s+)?branch\s+([a-z][a-z-]{1,24})(?=\s|[؟?.,!]|$)/gi)
+    const enMatches = branchCheckText.matchAll(
+      /(?:^|\s)(?:([a-z]+)\s+)?branch\s+([a-z][a-z-]{1,24})(?=\s|[؟?.,!]|$)/gi,
+    )
     const enGovernors = new Set([
       'which',
       'what',
@@ -1476,6 +1577,114 @@ export function detectOdooToolKind(
   return 'unknown'
 }
 
+const MISSING_METRIC_RULES: ReadonlyArray<{ re: RegExp; description: string }> = [
+  {
+    re: /(تذاكر تحضير|تذاكر المطبخ|زمن التحضير|زمن تحضير|سرعه التحضير|وقت التحضير|وقت تحضير|مده التجهيز|مده التحضير|شاشه المطبخ|\bkds\b|\bprep[- ]?time\b|\bprep sla\b|\bkitchen display\b)/i,
+    description:
+      'زمن تحضير الطلبات وشاشة المطبخ (KDS / Prep Time) غير متاح في Odoo',
+  },
+  {
+    re: /(السائقين|سائقين|سائقي التوصيل|مندوبي التوصيل|تتبع السائق|تتبع السائقين|رحلات التوصيل|\bgps\b|\bdriver tracking\b|\bdrivers?\b|\briders?\b)/i,
+    description:
+      'بيانات السائقين وتتبع GPS وأزمنة التوصيل (Drivers / GPS) غير متاح في Odoo',
+  },
+  {
+    re: /(تقييمات العملاء|التقييمات|تقييم العملاء|مراجعات العملاء|مراجعات جوجل|مراجعات السوشيال|تقييمات السوشيال|تعليقات العملاء|حملات اعلانيه|اعلانات سناب|اعلانات انستقرام|المشاهير|مشاهير|\bcustomer reviews?\b|\bsocial reviews?\b|\bratings?\b|\binfluencers?\b|\broas\b|\bad spend\b)/i,
+    description:
+      'تقييمات العملاء والحملات الإعلانية وعائد الإعلانات (Reviews / ROAS) غير متاح في Odoo',
+  },
+  {
+    re: /(حساسات التبريد|حراره الثلاجات|مخالفات البلديه|تراخيص الاطفاء|التراخيص البلديه|\biot\b|\bfridge temp(?:erature)?s?\b|\blicenses?\b|\bmunicipal violations?\b)/i,
+    description:
+      'قراءات حساسات التبريد والتراخيص والمخالفات (IoT / Licenses) غير متاح في Odoo',
+  },
+  {
+    re: /(الوصفه المعياريه|وصفات المطبخ|تكلفه الوصفه|تكاليف الوصفات|مكونات الطبق|قائمه المواد|\bbom\b|\brecipe cost(?:ing)?\b)/i,
+    description:
+      'الوصفات المعيارية وتكلفة الوصفة وقوائم المواد (BOM / Recipe Cost) غير متاح في Odoo',
+  },
+  {
+    re: /(مسيرات الرواتب|مسير الرواتب|قسائم الرواتب|بصمه الحضور|تاخير البصمه|انتهاء الاقامات|نهايه الخدمه|\bpayslips?\b|\bbiometric\b|\battendance logs?\b)/i,
+    description:
+      'مسيرات الرواتب وبصمة الحضور وتفاصيل الإقامات (Biometric / Payslips) غير متاح في Odoo',
+  },
+]
+
+/**
+ * Maps unlinked non-Odoo operational topics (KDS/prep-time, drivers/GPS, reviews/ROAS,
+ * IoT/licenses, BOM/recipe-cost, biometric/payslips) to clear bilingual descriptions
+ * so Feryal states only what is missing and still answers from the available Odoo pack.
+ */
+export function detectMissingMetricTopics(question: string): string[] {
+  const normAr = normalizeArabicText(question)
+  if (!normAr) return []
+  const topics: string[] = []
+  for (const rule of MISSING_METRIC_RULES) {
+    if (rule.re.test(normAr)) {
+      topics.push(rule.description)
+    }
+  }
+  return topics
+}
+
+const COMPETITOR_INTENT_RE =
+  /(منافس|منافسين|المنافس|المنافسين|منافسينا|منافسه السوق|شركه منافسه|شركات منافسه|مطعم منافس|مطاعم منافسه|\bcompetitor\b|\bcompetitors\b|\brival\b|\brivals\b)/i
+
+const GREETING_PREFIX_RE =
+  /^(?:مرحبا|مرحبتين|اهلا(?:\s+وسهلا)?|اهلين|هلا(?:\s+والله|\s+وغلا)?|يا\s+هلا|السلام\s+عليكم(?:\s+ورحمه\s+الله(?:\s+وبركاته)?)?|وعليكم\s+السلام|صباح\s+الخير|مساء\s+الخير|يعطيك\s+العافيه|hello|hi|hey|good\s+(?:morning|afternoon|evening)|greetings)(?:\s+(?:يا\s+)?(?:فريال|feryal))?(?:[\s،؟?.,!؛:()-]+|$)/i
+
+const PURE_CONVERSATIONAL_OR_META_RE = new RegExp(
+  `${AR_WORD_START}(?:كيف\\s+الحال|كيفك|شلونك|شخبارك|تشرفنا|طمنيني|فهمت(?:ي)?(?:\\s+(?:شو|ايش|شنو|وش|علي|كلامي))?|(?:شو|ايش|شنو|وش|هل)\\s+فهمت(?:ي)?|فاهمه|(?:في|هل\\s+في|عندك)?\\s*محادثات\\s*(?:قديمه|سابقه)|محادثاتنا\\s*(?:القديمه|السابقه)|المحادثات\\s*(?:القديمه|السابقه)|تتذكر(?:ي|ين)?|تذكر(?:ي|ين)?|(?:شو|شنو|ايش|وش|كيف|شلون)\\s+وضعنا|طيب\\s+وبعدين|وبعدين|شو\\s+(?:التالي|الجاي|نسوي|نعمل)|ممكن\\s+تساعديني|شو\\s+تقدري\\s+(?:تسوي|تعملي))(?=[\\s،؟?.,!؛:()«»"'-]|$)|\\b(?:what\\s+did\\s+you\\s+understand|did\\s+you\\s+understand|do\\s+you\\s+understand|how\\s+are\\s+you|old\\s+chats?|previous\\s+chats?|previous\\s+conversations?|conversation\\s+history|chat\\s+history|how\\s+are\\s+we\\s+doing|what\\s+next|and\\s+then|can\\s+you\\s+help)\\b`,
+  'i',
+)
+
+/**
+ * Matches conversational greetings, follow-ups, and meta/memory questions when NOT
+ * asking for a refused competitor, excluded/unknown retail branch, or specific Odoo/missing metric query.
+ */
+export function isSmallTalkOrMetaQuestion(question: string): boolean {
+  const normAr = normalizeArabicText(question)
+  if (!normAr) return false
+
+  if (COMPETITOR_INTENT_RE.test(normAr)) return false
+  if (/(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normAr)) return false
+  if (isCentralKitchenQurainQuestion(question)) return false
+
+  const branchDet = detectTargetBranchFromQuestion(question)
+  if (
+    branchDet.unknownBranchRequested ||
+    branchDet.branchId !== null ||
+    branchDet.asksByBranchBreakdown ||
+    branchDet.isBranchRanking
+  ) {
+    return false
+  }
+
+  const brandDet = detectTargetBrandFromQuestion(question)
+  if (brandDet.brandId !== null || brandDet.asksByBrandBreakdown) return false
+
+  const channelDet = detectTargetChannelFromQuestion(question)
+  if (channelDet.channelId !== null || channelDet.asksByChannelBreakdown) return false
+
+  if (resolveFeryalComparisonPeriods(question) !== null) return false
+  if (detectMissingMetricTopics(question).length > 0) return false
+  if (detectOdooToolKind(question, null, brandDet, false, false) !== 'unknown') return false
+
+  let remainder = normAr
+  while (GREETING_PREFIX_RE.test(remainder)) {
+    const next = remainder.replace(GREETING_PREFIX_RE, '').trim()
+    if (next === remainder) break
+    remainder = next
+  }
+
+  const strippedOnlyGreeting = remainder.replace(/^[\s،؟?.,!؛:()-]+|[\s،؟?.,!؛:()-]+$/g, '')
+  if (!strippedOnlyGreeting) {
+    return true
+  }
+
+  return PURE_CONVERSATIONAL_OR_META_RE.test(strippedOnlyGreeting)
+}
+
 export const FERYAL_CONNECTION_ERROR_AR = 'تعذّر الاتصال — أعد المحاولة' as const
 export const FERYAL_CONNECTION_ERROR_EN =
   'Connection failed — please retry (تعذّر الاتصال — أعد المحاولة)' as const
@@ -1488,6 +1697,7 @@ export interface FeryalChatRequestPayload {
   channel: string
   customFrom?: string
   customTo?: string
+  history?: FeryalChatHistoryTurn[]
 }
 
 export function buildFeryalChatRequestPayload(
@@ -1501,6 +1711,7 @@ export function buildFeryalChatRequestPayload(
     customTo?: string
   },
   urlSearch?: string,
+  history?: readonly FeryalChatHistoryTurn[],
 ): FeryalChatRequestPayload {
   let period = filters.period || 'month'
   let branch = filters.branch || 'all'
@@ -1529,6 +1740,8 @@ export function buildFeryalChatRequestPayload(
     }
   }
 
+  const sanitizedHistory = sanitizeFeryalChatHistory(history)
+
   return {
     question,
     period,
@@ -1536,6 +1749,7 @@ export function buildFeryalChatRequestPayload(
     brand,
     channel,
     ...(period === 'custom' && customFrom && customTo ? { customFrom, customTo } : {}),
+    ...(sanitizedHistory.length > 0 ? { history: sanitizedHistory } : {}),
   }
 }
 

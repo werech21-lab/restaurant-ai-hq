@@ -66,7 +66,7 @@ import {
 import { LanguageProvider } from '@/lib/i18n'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
-import { runFeryalCouncil } from '@/server/ai/council'
+import { COUNCIL_MODEL_FALLBACK_NOTE, runFeryalCouncil } from '@/server/ai/council'
 import { POST as chatPost } from '@/app/api/erp/feryal/chat/route'
 import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
 
@@ -297,6 +297,11 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       {
         phrase: 'فرع القرين',
         expectedBranchId: null,
+        expectedUnknown: false,
+      },
+      {
+        phrase: 'فرع الجهراء',
+        expectedBranchId: null,
         expectedUnknown: true,
       },
       {
@@ -368,7 +373,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       },
     )
 
-    it('keeps excluded branch («فرع القرين») out of answers and reports unknown_branch for «فرع المريخ»', async () => {
+    it('answers Qurain central kitchen honestly without unknown_branch while refusing excluded Jahra and unknown «فرع المريخ»', async () => {
       const ds = createStubDataSource()
       const qurainPrompt = ['فرع', '\u0627\u0644\u0642\u0631\u064a\u0646'].join(' ')
       const qurainRes = await askFeryalOdooAgent({
@@ -377,9 +382,21 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         dataSource: ds,
         skipAuditLog: true,
       })
-      expect(qurainRes.status).toBe('no_odoo_data')
-      expect(qurainRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
-      expect(qurainRes.verifier.extractedNumbers).toEqual([])
+      expect(qurainRes.status).toBe('answered')
+      expect(qurainRes.reply).toContain('المطبخ المركزي (القرين) ليس منفذ بيع POS')
+      expect(qurainRes.reply).toContain('غير متاح في Odoo')
+      expect(qurainRes.reply).not.toMatch(/pos\.config\s*(?:24|25|39|40)\b/i)
+      expect(qurainRes.verifier.valid).toBe(true)
+
+      const jahraRes = await askFeryalOdooAgent({
+        question: 'كم مبيعات فرع الجهراء اليوم؟',
+        referenceNowMs: KUWAIT_NOV_17_2026_MS,
+        dataSource: ds,
+        skipAuditLog: true,
+      })
+      expect(jahraRes.status).toBe('no_odoo_data')
+      expect(jahraRes.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
+      expect(jahraRes.verifier.extractedNumbers).toEqual([])
 
       const marsRes = await askFeryalOdooAgent({
         question: 'كم مبيعات فرع المريخ اليوم؟',
@@ -413,7 +430,10 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         skipAuditLog: true,
       })
 
-      expect(periods).toEqual([{ from: '2026-11-10', to: '2026-11-16' }])
+      expect(periods).toEqual([
+        { from: '2026-11-10', to: '2026-11-16' },
+        { from: '2026-11-03', to: '2026-11-09' },
+      ])
       expect(res.status).toBe('answered')
       expect(res.verifier.valid).toBe(true)
       expect(res.period).toEqual({ from: '2026-11-10', to: '2026-11-16' })
@@ -524,7 +544,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
   })
 
   describe('3. Council degradation with zero/insufficient provider keys vs Odoo failure', () => {
-    it('returns status="answered" with deterministic verified facts + muted bilingual AI-unavailable note when zero provider keys are injected', async () => {
+    it('returns status="answered" with deterministic verified facts + model fallback note when zero provider keys are injected', async () => {
       let networkCalled = false
       const res = await runFeryalCouncil(
         {
@@ -554,8 +574,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(res.verifier.valid).toBe(true)
       expect(res.reply).toContain('مول 360')
       expect(res.reply).toContain('785.8 د.ك')
-      expect(res.reply).toMatch(/غير متاح/)
-      expect(res.reply).toMatch(/unavailable/i)
+      expect(res.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
 
       // Single configured key + provider HTTP 503 also degrades cleanly to verified Odoo facts with status="answered"
       const oneKeyRes = await runFeryalCouncil(
@@ -579,7 +598,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       )
       expect(oneKeyRes.status).toBe('answered')
       expect(oneKeyRes.reply).toContain('785.8 د.ك')
-      expect(oneKeyRes.reply).toMatch(/unavailable/i)
+      expect(oneKeyRes.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
     })
 
     it('uses status="council_failed" when Odoo itself throws', async () => {

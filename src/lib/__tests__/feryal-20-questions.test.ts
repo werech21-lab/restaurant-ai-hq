@@ -349,6 +349,7 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     question: string
     expectedStatus: 'answered' | 'no_odoo_data' | 'competitor_refusal'
     expectedModel?: string
+    isPackGroundedMissingMetric?: boolean
     mustContain: readonly string[]
   }[] = [
     {
@@ -482,8 +483,9 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     {
       num: 19,
       question: 'ما متوسط زمن التحضير في شاشة المطبخ KDS اليوم؟',
-      expectedStatus: 'no_odoo_data',
-      mustContain: [FERYAL_NO_ODOO_DATA_REPLY, 'pos_preparation_display'],
+      expectedStatus: 'answered',
+      isPackGroundedMissingMetric: true,
+      mustContain: ['غير متاح في Odoo', 'KDS', '61,840.0 د.ك', 'اقتراح'],
     },
     {
       num: 20,
@@ -525,10 +527,18 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       }
 
       if (item.expectedStatus === 'answered') {
-        expect(res.reply).toContain('• الرقم:')
-        expect(res.reply).toContain('• السبب من البيانات:')
-        expect(res.reply).toContain('• الإجراء المحدد:')
-        expect(res.reply).toContain('تقدير')
+        if (item.isPackGroundedMissingMetric) {
+          expect(res.reply).toContain('• التحليل والأرقام المتاحة من Odoo:')
+          expect(res.reply).toContain('• الاستنتاج:')
+          expect(res.reply).toContain('• التوصيات:')
+          expect(res.reply).toContain('اقتراح')
+          expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(false)
+        } else {
+          expect(res.reply).toContain('• الرقم:')
+          expect(res.reply).toContain('• السبب من البيانات:')
+          expect(res.reply).toContain('• الإجراء المحدد:')
+          expect(res.reply).toContain('تقدير')
+        }
       } else if (item.expectedStatus === 'no_odoo_data') {
         expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
         expect(res.reply).toContain('يلزم')
@@ -540,18 +550,15 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     }
   })
 
-  it('starts with «لا أملك بيانات من Odoo عن هذا» and suggests exact Odoo module integration for every unlinked or zero-data topic with zero digits', async () => {
+  it('refuses missing-access/missing-vendor Odoo tools with «لا أملك بيانات من Odoo عن هذا» while answering unlinked operational topics from the available Odoo pack', async () => {
     const dsNoHrAccess = create20QuestionDataSource({ hrAccessGranted: false })
 
-    const unlinkedCases: { question: string; expectedModuleHint: string }[] = [
+    const odooToolGapCases: { question: string; expectedModuleHint: string }[] = [
       { question: 'كم عدد الموظفين في الشركة؟', expectedModuleHint: 'hr.employee' },
-      { question: 'أين تتبع السائقين الآن؟', expectedModuleHint: 'fleet' },
-      { question: 'ما تقييمات السوشيال للعملاء؟', expectedModuleHint: 'social' },
-      { question: 'ما خطة النمو غير المسجلة والموازنة التقديرية؟', expectedModuleHint: 'crossovered.budget' },
       { question: 'كم تكلفة المورد شركة الخليج للتغليف غير المسجلة؟', expectedModuleHint: 'purchase.order' },
     ]
 
-    for (const c of unlinkedCases) {
+    for (const c of odooToolGapCases) {
       const res = await askFeryalOdooAgent({
         question: c.question,
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
@@ -562,6 +569,28 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       expect(res.reply, c.question).toContain(c.expectedModuleHint)
       expect(res.verifier.valid, c.question).toBe(true)
       expect(res.verifier.extractedNumbers, c.question).toEqual([])
+    }
+
+    const unlinkedPackCases: { question: string; expectedHint: string }[] = [
+      { question: 'أين تتبع السائقين الآن؟', expectedHint: 'Drivers / GPS' },
+      { question: 'ما تقييمات السوشيال للعملاء؟', expectedHint: 'Reviews / ROAS' },
+      { question: 'ما خطة النمو غير المسجلة والموازنة التقديرية؟', expectedHint: 'crossovered.budget' },
+    ]
+
+    for (const c of unlinkedPackCases) {
+      const res = await askFeryalOdooAgent({
+        question: c.question,
+        referenceNowMs: KUWAIT_NOV_15_2026_MS,
+        dataSource: dsNoHrAccess,
+      })
+      expect(res.status, c.question).toBe('answered')
+      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), c.question).toBe(false)
+      expect(res.reply, c.question).toContain('غير متاح في Odoo')
+      expect(res.reply, c.question).toContain(c.expectedHint)
+      expect(res.reply, c.question).toContain('61,840.0 د.ك')
+      expect(res.reply, c.question).toContain('اقتراح')
+      expect(res.verifier.valid, c.question).toBe(true)
+      expect(res.verifier.unverifiedNumbers, c.question).toEqual([])
     }
   })
 

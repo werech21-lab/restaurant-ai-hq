@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import type { FeryalContextPack } from '@/lib/feryal-context-types'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
-import { composeCouncilReply } from '@/server/ai/council'
+import { COUNCIL_MODEL_FALLBACK_NOTE, runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
 import type { BriefFact } from '@/server/ai/brief-types'
 
 function fact(id: string, value: string): BriefFact {
@@ -83,16 +84,82 @@ describe('phase 7 number guard', () => {
 })
 
 describe('phase 7 feryal opposites', () => {
-  it('does not agree when one model says best and the other says worst', () => {
-    const composed = composeCouncilReply({
-      odooReply: 'صافي 1000',
-      passed: [
-        { provider: 'anthropic', modelId: 'claude', text: 'الأفنيوز هو الأفضل بصافي 1000' },
-        { provider: 'google', modelId: 'gemini', text: 'الأفنيوز هو الأسوأ بصافي 1000' },
-      ],
-      failed: [],
-    })
-    expect(composed.agreed).toEqual([])
-    expect(composed.reply).toContain('لا اتفاق')
+  it('rejects ungrounded free-text provider replies and degrades cleanly to the verified Odoo pack answer', async () => {
+    const src = { model: 'pos.order', period: { from: '2026-11-15', to: '2026-11-15' }, lastSyncAt: '2026-11-16T00:00:00.000Z' }
+    const unavail = (model: string) => ({ status: 'unavailable' as const, reason: 'not_loaded', source: { ...src, model } })
+    const pack: FeryalContextPack = {
+      generatedAtIso: '2026-11-16T00:00:00.000Z',
+      connected: true,
+      period: { from: '2026-11-15', to: '2026-11-15', days: 1, labelAr: '2026-11-15', labelEn: '2026-11-15' },
+      previousPeriod: { from: '2026-11-14', to: '2026-11-14' },
+      elapsedDaysInMonth: 15,
+      totalDaysInMonth: 30,
+      companyTotals: { status: 'ok', source: src, data: { netSalesKwd: 1000, orders: 100, aovKwd: 10, mappedBranchesNetKwd: 1000, unattributedSalesKwd: 0 } },
+      branches: {
+        status: 'ok',
+        source: src,
+        data: { items: [{ branchId: 'avenues', nameAr: 'الأفنيوز', nameEn: 'Avenues', netKwd: 1000, orders: 100, aovKwd: 10, group: 'restaurant' }] },
+      },
+      unattributed: unavail('pos.order'),
+      channels: unavail('pos.payment'),
+      brands: unavail('pos.order.line'),
+      topProducts: unavail('pos.order.line'),
+      hourly: unavail('pos.order'),
+      deltas: unavail('pos.order'),
+      gl: unavail('account.move.line'),
+      receivables: unavail('account.move.line'),
+      purchases: unavail('purchase.order'),
+      stock: unavail('stock.move'),
+      hr: unavail('hr.employee'),
+      advisorReports: [],
+      companyContext: '',
+    }
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input)
+      if (url.includes('api.anthropic.com')) {
+        return Response.json({ model: 'claude', content: [{ type: 'text', text: 'الأفنيوز هو الأفضل بصافي 1000' }], usage: { input_tokens: 1, output_tokens: 1 } })
+      }
+      if (url.includes('generativelanguage.googleapis.com')) {
+        return Response.json({ modelVersion: 'gemini', candidates: [{ content: { parts: [{ text: 'الأفنيوز هو الأسوأ بصافي 1000' }] } }] })
+      }
+      return Response.json({ model: 'grok', choices: [{ message: { content: 'نص حر غير مهيكل 1000' } }] })
+    }
+    const result = await runFeryalCouncil(
+      { question: 'شو أداء الأفنيوز؟', userId: 'u7', userRole: 'admin' },
+      {
+        askOdoo: (async () => ({
+          reply: 'صافي 1000',
+          status: 'answered',
+          executedQueries: [],
+          verifier: { valid: true, extractedNumbers: [1000], unverifiedNumbers: [] },
+          toolNumbers: [1000],
+          period: { from: '2026-11-15', to: '2026-11-15' },
+          facts: [],
+          source: null,
+          contextPack: pack,
+          auditEntry: {
+            id: 'audit-p7',
+            timestampIso: '2026-11-16T00:00:00.000Z',
+            userSub: 'u7',
+            userRole: 'admin',
+            question: 'شو أداء الأفنيوز؟',
+            status: 'answered',
+            executedQueries: [],
+            verifier: { valid: true, extractedNumbers: [1000], unverifiedNumbers: [] },
+            finalReply: 'صافي 1000',
+          },
+        })) as RunCouncilOptions['askOdoo'],
+        fetchImpl,
+        keys: { anthropic: 'test-anthropic-key-0001', google: 'test-google-key-00000001', xai: 'test-grok-key-0000000001' },
+        models: { anthropic: 'claude', google: 'gemini', xai: 'grok' },
+        persist: async () => undefined,
+      },
+    )
+    expect(result.status).toBe('answered')
+    expect(result.agreed).toEqual([])
+    expect(result.participants.every((p) => p.status === 'guard_rejected' && p.errorCode === 'MALFORMED_JSON')).toBe(true)
+    expect(result.reply).toContain('صافي 1000')
+    expect(result.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
+    expect(result.reply).not.toContain('هو الأسوأ')
   })
 })

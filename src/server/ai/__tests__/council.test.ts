@@ -5,7 +5,8 @@ import { getAnthropicApiKey, getGeminiApiKey, getOpenAIApiKey, getXaiApiKey } fr
 import { isAiDailyBriefEnabled } from '@/server/ai/env'
 import { canonicalDecimal, guardAnswerNumbers } from '@/server/ai/number-guard'
 import { probeCouncilHealth, resetCouncilHealthCache } from '@/server/ai/health'
-import { runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
+import { COUNCIL_MODEL_FALLBACK_NOTE, runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
+import type { FeryalContextPack } from '@/lib/feryal-context-types'
 import type { AiRunDraft } from '@/server/ai/persist'
 import type { CouncilKeys } from '@/server/ai/env'
 import type { CouncilModels } from '@/server/ai/models'
@@ -28,6 +29,55 @@ const RETURNED = {
   xai: 'grok-4-0709',
 }
 
+function makeCouncilPack(): FeryalContextPack {
+  const src = {
+    model: 'pos.order',
+    period: { from: '2026-11-15', to: '2026-11-15' },
+    lastSyncAt: '2026-11-16T00:00:00.000Z',
+  }
+  const unavail = (model: string) => ({
+    status: 'unavailable' as const,
+    reason: 'not_loaded',
+    source: { ...src, model },
+  })
+  return {
+    generatedAtIso: '2026-11-16T00:00:00.000Z',
+    connected: true,
+    period: { from: '2026-11-15', to: '2026-11-15', days: 1, labelAr: '2026-11-15', labelEn: '2026-11-15' },
+    previousPeriod: { from: '2026-11-14', to: '2026-11-14' },
+    elapsedDaysInMonth: 15,
+    totalDaysInMonth: 30,
+    companyTotals: {
+      status: 'ok',
+      source: src,
+      data: { netSalesKwd: 14.5, orders: 14, aovKwd: 1.036, mappedBranchesNetKwd: 14.5, unattributedSalesKwd: 0 },
+    },
+    branches: {
+      status: 'ok',
+      source: src,
+      data: {
+        items: [
+          { branchId: 'avenues', nameAr: 'الأفنيوز', nameEn: 'Avenues', netKwd: 10.5, orders: 10, aovKwd: 1.05, group: 'restaurant' },
+          { branchId: 'salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', netKwd: 4.0, orders: 4, aovKwd: 1.0, group: 'restaurant' },
+        ],
+      },
+    },
+    unattributed: unavail('pos.order'),
+    channels: unavail('pos.payment'),
+    brands: unavail('pos.order.line'),
+    topProducts: unavail('pos.order.line'),
+    hourly: unavail('pos.order'),
+    deltas: unavail('pos.order'),
+    gl: unavail('account.move.line'),
+    receivables: unavail('account.move.line'),
+    purchases: unavail('purchase.order'),
+    stock: unavail('stock.move'),
+    hr: unavail('hr.employee'),
+    advisorReports: [],
+    companyContext: '',
+  }
+}
+
 function odooAnswer(status: 'answered' | 'no_odoo_data' = 'answered') {
   const reply = status === 'answered' ? 'صافي المبيعات 10.5' : 'لا أملك بيانات من Odoo عن هذا'
   return {
@@ -37,6 +87,7 @@ function odooAnswer(status: 'answered' | 'no_odoo_data' = 'answered') {
     verifier: { valid: status === 'answered', extractedNumbers: status === 'answered' ? [10.5] : [], unverifiedNumbers: [] },
     toolNumbers: status === 'answered' ? [10.5] : [],
     period: { from: '2026-11-15', to: '2026-11-15' },
+    ...(status === 'answered' ? { contextPack: makeCouncilPack() } : {}),
     facts:
       status === 'answered'
         ? [
@@ -148,6 +199,23 @@ describe('number guard', () => {
 })
 
 describe('feryal council', () => {
+  const validContract = JSON.stringify({
+    answer_ar: 'حقق فرع الأفنيوز صافي مبيعات 10.5 د.ك مقابل 4 د.ك في السالمية.',
+    claims: [
+      {
+        text: 'حقق فرع الأفنيوز صافي مبيعات 10.5 د.ك مقابل 4 د.ك في السالمية.',
+        numbers: [
+          { value: 10.5, section: 'branches' },
+          { value: 4, section: 'branches' },
+        ],
+      },
+    ],
+    root_causes: [{ text: 'ارتفاع متوسط الطلب في الأفنيوز مقابل السالمية.', kind: 'hypothesis' }],
+    proposals: [{ text: 'مراجعة عروض الساعات الهادئة في السالمية اليوم.', owner: 'مدير العمليات', kind: 'proposal' }],
+    missing_metrics: [],
+  })
+  const reviewerOk = JSON.stringify({ status: 'ok', note: '' })
+
   function run(options: {
     texts?: Partial<Record<'anthropic' | 'google' | 'xai', string>>
     hang?: 'anthropic' | 'google' | 'xai'
@@ -157,19 +225,10 @@ describe('feryal council', () => {
     persist?: (rows: readonly AiRunDraft[]) => Promise<void>
     fetchImpl?: typeof fetch
   }) {
-    const agreed = JSON.stringify({
-      comparison: {
-        subject_id: 'avenues',
-        relation: 'better',
-        object_id: 'salmiya',
-        metric: 'net_sales',
-        cited_fact_ids: ['fact-net', 'fact-salmiya'],
-      },
-    })
     const texts = {
-      anthropic: agreed,
-      google: agreed,
-      xai: agreed,
+      anthropic: validContract,
+      google: reviewerOk,
+      xai: validContract,
       ...options.texts,
     }
     let inFlight = 0
@@ -208,18 +267,18 @@ describe('feryal council', () => {
     return { pending, saved, calls, maxInFlight: () => maxInFlight }
   }
 
-  it('calls the three providers in parallel and stores the model id the API returned', async () => {
-    const { pending, saved, maxInFlight } = run({})
+  it('calls the first healthy provider + optional reviewer and stores the model id the API returned', async () => {
+    const { pending, saved, calls } = run({})
     const result = await pending
-    expect(maxInFlight()).toBe(3)
+    expect(calls).toHaveLength(2)
     expect(result.status).toBe('answered')
     expect(result.agreed.map((item) => item.modelId).sort()).toEqual(
-      [RETURNED.anthropic, RETURNED.google, RETURNED.xai].sort(),
+      [RETURNED.anthropic, RETURNED.google].sort(),
     )
-    expect(result.reply).toContain('صافي المبيعات 10.5')
-    expect(result.reply).toContain(RETURNED.anthropic)
+    expect(result.reply).toContain('10.5')
+    expect(result.reply).toContain('اقتراح')
     expect(result.reply).not.toMatch(/Deep Strategic/i)
-    expect(saved).toHaveLength(3)
+    expect(saved).toHaveLength(2)
     const anthropic = saved.find((row) => row.provider === 'anthropic')
     expect(anthropic).toMatchObject({
       modelId: RETURNED.anthropic,
@@ -231,64 +290,93 @@ describe('feryal council', () => {
     })
     expect(anthropic?.modelId).not.toBe(MODELS.anthropic)
     expect(saved.find((row) => row.provider === 'google')?.estCostMicroUsd).toBe(105)
-    expect(saved.find((row) => row.provider === 'xai')?.estCostMicroUsd).toBeNull()
   })
 
-  it('records a timeout without dropping the providers that answered', async () => {
-    const { pending, saved } = run({ hang: 'anthropic', timeoutMs: 400 })
+  it('records a timeout and fails over cleanly to the next configured provider + reviewer', async () => {
+    const { pending, saved } = run({
+      hang: 'anthropic',
+      timeoutMs: 400,
+      texts: { google: validContract, xai: reviewerOk },
+    })
     const result = await pending
     const claude = result.participants.find((item) => item.provider === 'anthropic')
     expect(claude).toMatchObject({ status: 'error', errorCode: 'TIMEOUT', modelId: '' })
     expect(result.agreed.map((item) => item.provider).sort()).toEqual(['google', 'xai'])
     expect(saved.find((row) => row.provider === 'anthropic')?.status).toBe('error')
+    expect(saved.find((row) => row.provider === 'xai')?.estCostMicroUsd).toBeNull()
     expect(result.reply).not.toContain(RETURNED.anthropic)
   })
 
-  it('rejects a model that introduces a number absent from the Odoo facts', async () => {
-    const { pending } = run({ texts: { google: 'المجموع 999.9' } })
+  it('rejects a model that only emits numbers absent from the Odoo pack and fails over cleanly', async () => {
+    const badOnly = JSON.stringify({
+      answer_ar: 'المجموع 999.9',
+      claims: [{ text: 'المجموع 999.9', numbers: [{ value: 999.9, section: 'companyTotals' }] }],
+      proposals: [],
+      missing_metrics: [],
+    })
+    const { pending } = run({ texts: { anthropic: badOnly, google: validContract, xai: reviewerOk } })
     const result = await pending
-    const google = result.participants.find((item) => item.provider === 'google')
-    expect(google).toMatchObject({
+    const anthropic = result.participants.find((item) => item.provider === 'anthropic')
+    expect(anthropic).toMatchObject({
       status: 'guard_rejected',
       errorCode: 'GUARD_REJECTED',
-      modelId: RETURNED.google,
+      modelId: RETURNED.anthropic,
       offendingNumbers: ['999.9'],
     })
     expect(result.reply).not.toContain('999.9')
     expect(result.reply).not.toContain('المجموع')
-    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'xai'])
+    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['google', 'xai'])
   })
 
-  it('rejects an excluded entity that is not in the supplied facts', async () => {
-    const { pending } = run({ texts: { xai: 'أداء هايزنبرغ مع الصافي 10.5' } })
+  it('rejects an excluded entity in model output and fails over cleanly', async () => {
+    const leaked = JSON.stringify({
+      answer_ar: 'أداء هايزنبرغ مع الصافي 10.5',
+      claims: [{ text: 'أداء هايزنبرغ مع الصافي 10.5', numbers: [{ value: 10.5, section: 'branches' }] }],
+      proposals: [],
+      missing_metrics: [],
+    })
+    const { pending } = run({ texts: { anthropic: leaked, google: validContract, xai: reviewerOk } })
     const result = await pending
-    expect(result.participants.find((item) => item.provider === 'xai')).toMatchObject({
+    expect(result.participants.find((item) => item.provider === 'anthropic')).toMatchObject({
       status: 'guard_rejected',
       errorCode: 'EXCLUDED_ENTITY',
     })
     expect(result.reply).not.toContain('هايزنبرغ')
+    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['google', 'xai'])
   })
 
-  it('merges only the guarded answers and names the models that passed', async () => {
-    const { pending } = run({ texts: { xai: 'رقم مختلف 999.9' } })
+  it('drops only the unverified claim per claim and keeps the valid claims and proposals', async () => {
+    const mixed = JSON.stringify({
+      answer_ar: 'صافي المبيعات 10.5 د.ك في الأفنيوز. وبلغت المبيعات الوهمية 999.9 د.ك.',
+      claims: [
+        { text: 'صافي المبيعات 10.5 د.ك في الأفنيوز.', numbers: [{ value: 10.5, section: 'branches' }] },
+        { text: 'وبلغت المبيعات الوهمية 999.9 د.ك.', numbers: [{ value: 999.9, section: 'branches' }] },
+      ],
+      proposals: [{ text: 'متابعة الساعات الهادئة.', owner: 'مدير الفرع', kind: 'proposal' }],
+      missing_metrics: [],
+    })
+    const { pending } = run({ texts: { anthropic: mixed, google: reviewerOk } })
     const result = await pending
     expect(result.status).toBe('answered')
-    expect(result.reply).toContain('avenues أفضل من salmiya في net_sales')
     expect(result.reply).toContain('صافي المبيعات 10.5')
-    expect(result.reply).not.toContain('الصافي المسجّل')
-    expect(result.reply).toContain(`اجتازت الفحص: anthropic/${RETURNED.anthropic}، google/${RETURNED.google}`)
-    expect(result.reply).toContain(`xai/${RETURNED.xai}: GUARD_REJECTED`)
-    expect(result.agreed).toHaveLength(2)
+    expect(result.reply).not.toContain('999.9')
+    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
   })
 
-  it('returns an honest error when every model fails the guard', async () => {
+  it('falls back deterministically with status="answered" when every model fails the guard', async () => {
+    const badOnly = JSON.stringify({
+      answer_ar: 'الرقم 999.9',
+      claims: [{ text: 'الرقم 999.9', numbers: [{ value: 999.9, section: 'companyTotals' }] }],
+      proposals: [],
+      missing_metrics: [],
+    })
     const { pending, saved } = run({
-      texts: { anthropic: '999.9', google: '999.9', xai: '999.9' },
+      texts: { anthropic: badOnly, google: badOnly, xai: badOnly },
     })
     const result = await pending
-    expect(result.status).toBe('council_failed')
+    expect(result.status).toBe('answered')
     expect(result.agreed).toEqual([])
-    expect(result.reply).toContain('تعذّر التحليل')
+    expect(result.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
     expect(result.reply).toContain('صافي المبيعات 10.5')
     expect(result.reply).not.toContain('999.9')
     expect(result.reply).not.toMatch(/Deep Strategic/i)
@@ -314,10 +402,8 @@ describe('feryal council', () => {
   it('skips a provider whose server key is missing', async () => {
     const { pending, calls } = run({ keys: { ...KEYS, xai: '' } })
     const result = await pending
-    expect(result.participants.find((item) => item.provider === 'xai')).toMatchObject({
-      status: 'error',
-      errorCode: 'MISSING_API_KEY',
-    })
+    expect(result.status).toBe('answered')
+    expect(result.participants.some((item) => item.provider === 'xai')).toBe(false)
     expect(calls.some((url) => url.includes('api.x.ai'))).toBe(false)
     expect(calls).toHaveLength(2)
   })
@@ -330,7 +416,7 @@ describe('feryal council', () => {
     })
     const result = await pending
     expect(result.status).toBe('answered')
-    expect(result.agreed).toHaveLength(3)
+    expect(result.agreed).toHaveLength(2)
   })
 })
 

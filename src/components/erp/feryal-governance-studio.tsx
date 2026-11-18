@@ -90,6 +90,7 @@ import {
   buildFeryalChatRequestPayload,
   buildFeryalConnectionErrorOutcome,
   parseFeryalChatHttpResponse,
+  type FeryalChatHistoryTurn,
 } from '@/lib/feryal-intent'
 import {
   isVerifiedOdooGovernanceBreach,
@@ -596,10 +597,18 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
 
         // 2. Exclusive Odoo 17 Tool-Calling Engine (`POST /api/erp/feryal/chat`)
         const urlSearch = typeof window !== 'undefined' ? window.location.search : undefined
+        const historyTurns: FeryalChatHistoryTurn[] = messages
+          .filter((m) => m.replyStatus !== 'connection_error')
+          .slice(-10)
+          .map((m) => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            text: m.text,
+          }))
         const chatRequestBody = buildFeryalChatRequestPayload(
           effectivePrompt,
           workspace.filters,
           urlSearch,
+          historyTurns,
         )
         const res = await fetch('/api/erp/feryal/chat', {
           method: 'POST',
@@ -1328,17 +1337,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                       .filter((item) => item.status === 'ok' && item.modelId)
                       .map((item) => ({ provider: item.provider, modelId: item.modelId }))
                   const agreedCount = agreedChips.length
-                  const councilTotal = Math.max(councilParticipants.length, agreedCount, 3)
-                  const hasConsensus =
-                    agreedCount >= 2 && msg.replyStatus !== 'council_failed' && !msg.contradictoryActions
-                  const nonMissingCouncil = councilParticipants.filter(
-                    (item) => item.errorCode !== 'MISSING_API_KEY',
-                  )
+                  const councilTotal = Math.max(councilParticipants.length, agreedCount)
                   const hasContradictionOrDispute =
-                    Boolean(msg.contradictoryActions) ||
-                    msg.replyStatus === 'council_failed' ||
-                    (msg.replyStatus !== 'answered' && nonMissingCouncil.length >= 2 && agreedCount < 2) ||
-                    /لا اتفاق|متنازع|disputed/i.test(msg.text)
+                    Boolean(msg.contradictoryActions) || msg.replyStatus === 'council_failed'
+                  const hasConsensus = agreedCount >= 2 && !hasContradictionOrDispute
+                  const hasSingleVerified =
+                    agreedCount === 1 &&
+                    msg.replyStatus === 'answered' &&
+                    !hasContradictionOrDispute
 
                   return (
                     <div
@@ -1370,10 +1376,20 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                                 >
                                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                   <span>
-                                    {isAr ? 'إجماع المجلس' : '2-of-3 Consensus'}{' '}
+                                    {isAr ? 'مراجَع بنموذجين' : 'Primary + Reviewer'}{' '}
                                     <span dir="ltr" className="tabular-nums">
                                       ({agreedCount}/{councilTotal})
                                     </span>
+                                  </span>
+                                </span>
+                              ) : hasSingleVerified ? (
+                                <span
+                                  data-feryal-verified="single"
+                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                  <span>
+                                    {isAr ? 'موثّق بالنموذج الأساسي' : 'Primary Verified'}
                                   </span>
                                 </span>
                               ) : hasContradictionOrDispute ? (

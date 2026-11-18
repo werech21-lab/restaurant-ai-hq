@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { claimResponse, comparisonResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
+import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
+import type { FeryalContextPack } from '@/lib/feryal-context-types'
 import { assembleBriefReport, reviewModelText } from '@/server/ai/consensus'
-import { composeCouncilReply } from '@/server/ai/council'
+import { COUNCIL_MODEL_FALLBACK_NOTE, runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
 import type { BriefFact } from '@/server/ai/brief-types'
 import { computeClaimFigure, normalizeComparison, renderClaimText } from '@/server/ai/structured-claim'
 
@@ -206,6 +207,68 @@ describe('phase 8 number computer', () => {
   })
 })
 
+function makePhase8Pack(): FeryalContextPack {
+  const src = { model: 'pos.order', period: { from: '2026-11-15', to: '2026-11-15' }, lastSyncAt: '2026-11-16T00:00:00.000Z' }
+  const unavail = (model: string) => ({ status: 'unavailable' as const, reason: 'not_loaded', source: { ...src, model } })
+  return {
+    generatedAtIso: '2026-11-16T00:00:00.000Z',
+    connected: true,
+    period: { from: '2026-11-15', to: '2026-11-15', days: 1, labelAr: '2026-11-15', labelEn: '2026-11-15' },
+    previousPeriod: { from: '2026-11-14', to: '2026-11-14' },
+    elapsedDaysInMonth: 15,
+    totalDaysInMonth: 30,
+    companyTotals: { status: 'ok', source: src, data: { netSalesKwd: 10.5, orders: 3, aovKwd: 3.5, mappedBranchesNetKwd: 10.5, unattributedSalesKwd: 0 } },
+    branches: {
+      status: 'ok',
+      source: src,
+      data: {
+        items: [
+          { branchId: 'avenues', nameAr: 'الأفنيوز', nameEn: 'Avenues', netKwd: 7.5, orders: 2, aovKwd: 3.75, group: 'restaurant' },
+          { branchId: 'salmiya', nameAr: 'السالمية', nameEn: 'Salmiya', netKwd: 3, orders: 1, aovKwd: 3, group: 'restaurant' },
+        ],
+      },
+    },
+    unattributed: unavail('pos.order'),
+    channels: unavail('pos.payment'),
+    brands: unavail('pos.order.line'),
+    topProducts: unavail('pos.order.line'),
+    hourly: unavail('pos.order'),
+    deltas: unavail('pos.order'),
+    gl: unavail('account.move.line'),
+    receivables: unavail('account.move.line'),
+    purchases: unavail('purchase.order'),
+    stock: unavail('stock.move'),
+    hr: unavail('hr.employee'),
+    advisorReports: [],
+    companyContext: '',
+  }
+}
+
+function makePhase8Agent(pack: FeryalContextPack) {
+  return {
+    reply: 'صافي المبيعات 10.5',
+    status: 'answered' as const,
+    executedQueries: [],
+    verifier: { valid: true, extractedNumbers: [10.5], unverifiedNumbers: [] },
+    toolNumbers: [10.5],
+    period: { from: '2026-11-15', to: '2026-11-15' },
+    facts: [],
+    source: null,
+    contextPack: pack,
+    auditEntry: {
+      id: 'audit-p8',
+      timestampIso: '2026-11-16T00:00:00.000Z',
+      userSub: 'p8',
+      userRole: 'admin',
+      question: 'قارن الأفنيوز والسالمية',
+      status: 'answered' as const,
+      executedQueries: [],
+      verifier: { valid: true, extractedNumbers: [10.5], unverifiedNumbers: [] },
+      finalReply: 'صافي المبيعات 10.5',
+    },
+  }
+}
+
 describe('phase 8 feryal comparisons', () => {
   const chatBreaks = [
     ['الأفنيوز أفضل من السالمية', 'السالمية أفضل من الأفنيوز'],
@@ -213,51 +276,79 @@ describe('phase 8 feryal comparisons', () => {
     ['جيد', 'سيئ'],
     ['top', 'bottom'],
   ]
+  const keys = {
+    anthropic: 'test-anthropic-key-0001',
+    google: 'test-google-key-00000001',
+    xai: 'test-grok-key-0000000001',
+  }
+  const models = { anthropic: 'claude', google: 'gemini', xai: 'grok' }
 
-  it('rejects every reviewer chat paraphrase', () => {
+  it('rejects every free-text chat paraphrase and keeps verified Odoo deterministic truth', async () => {
+    const pack = makePhase8Pack()
     for (const [left, right] of chatBreaks) {
-      const composed = composeCouncilReply({
-        odooReply: 'صافي المبيعات 10.5',
-        passed: [
-          { provider: 'anthropic', modelId: 'claude', text: left },
-          { provider: 'google', modelId: 'gemini', text: right },
-        ],
-        failed: [],
-      })
-      expect(composed.agreed).toEqual([])
-      expect(composed.reply).toContain('لا اتفاق')
-      expect(composed.reply).toContain('صافي المبيعات 10.5')
+      const fetchImpl: typeof fetch = async (input) => {
+        const url = String(input)
+        if (url.includes('api.anthropic.com')) {
+          return Response.json({ model: 'claude', content: [{ type: 'text', text: left }], usage: { input_tokens: 1, output_tokens: 1 } })
+        }
+        if (url.includes('generativelanguage.googleapis.com')) {
+          return Response.json({ modelVersion: 'gemini', candidates: [{ content: { parts: [{ text: right }] } }] })
+        }
+        return Response.json({ model: 'grok', choices: [{ message: { content: left } }] })
+      }
+      const res = await runFeryalCouncil(
+        { question: 'قارن الأفنيوز والسالمية', userId: 'u8', userRole: 'admin' },
+        {
+          askOdoo: (async () => makePhase8Agent(pack)) as RunCouncilOptions['askOdoo'],
+          fetchImpl,
+          keys,
+          models,
+          persist: async () => undefined,
+        },
+      )
+      expect(res.status).toBe('answered')
+      expect(res.agreed).toEqual([])
+      expect(res.participants.every((p) => p.status === 'guard_rejected')).toBe(true)
+      expect(res.reply).toContain('صافي المبيعات 10.5')
+      expect(res.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
     }
   })
 
-  it('does not treat best and worst as the same structure', () => {
-    const best = comparisonResponse({
-      subject_id: 'avenues',
-      relation: 'best',
-      object_id: null,
-      metric: 'net_sales',
-      cited_fact_ids: ['fact-avenues'],
-    })
-    const worst = comparisonResponse({
-      subject_id: 'avenues',
-      relation: 'worst',
-      object_id: null,
-      metric: 'net_sales',
-      cited_fact_ids: ['fact-avenues'],
-    })
-    const composed = composeCouncilReply({
-      odooReply: 'صافي المبيعات 10.5',
-      passed: [
-        { provider: 'anthropic', modelId: 'claude', text: best },
-        { provider: 'google', modelId: 'gemini', text: worst },
+  it('drops claims citing unavailable sections or unverified numbers while keeping verified claims', async () => {
+    const pack = makePhase8Pack()
+    const partialContract = JSON.stringify({
+      answer_ar: 'سجل الأفنيوز 7.5 د.ك من إجمالي 10.5 د.ك.',
+      claims: [
+        { text: 'سجل الأفنيوز 7.5 د.ك من إجمالي 10.5 د.ك.', numbers: [{ value: 7.5, section: 'branches' }, { value: 10.5, section: 'companyTotals' }] },
+        { text: 'بلغت المشتريات 888 د.ك.', numbers: [{ value: 888, section: 'purchases' }] },
       ],
-      failed: [],
+      proposals: [{ text: 'تعزيز متوسط الطلب في السالمية.', owner: 'مدير العمليات', kind: 'proposal' }],
+      missing_metrics: [],
     })
-    expect(composed.agreed).toEqual([])
-    expect(composed.reply).toContain('لا اتفاق')
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input)
+      if (url.includes('api.anthropic.com')) {
+        return Response.json({ model: 'claude', content: [{ type: 'text', text: partialContract }], usage: { input_tokens: 1, output_tokens: 1 } })
+      }
+      return Response.json({ modelVersion: 'gemini', candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'ok', note: '' }) }] } }] })
+    }
+    const res = await runFeryalCouncil(
+      { question: 'قارن الأفنيوز والسالمية', userId: 'u8', userRole: 'admin' },
+      {
+        askOdoo: (async () => makePhase8Agent(pack)) as RunCouncilOptions['askOdoo'],
+        fetchImpl,
+        keys,
+        models,
+        persist: async () => undefined,
+      },
+    )
+    expect(res.status).toBe('answered')
+    expect(res.reply).toContain('7.5')
+    expect(res.reply).toContain('10.5')
+    expect(res.reply).not.toContain('888')
   })
 
-  it('normalises Y worse than X to X better than Y', () => {
+  it('normalises Y worse than X to X better than Y and accepts server-derived differences in council contract', async () => {
     const worse = {
       subject_id: 'salmiya',
       relation: 'worse' as const,
@@ -270,27 +361,33 @@ describe('phase 8 feryal comparisons', () => {
       relation: 'better',
       object_id: 'salmiya',
     })
-    const composed = composeCouncilReply({
-      odooReply: 'صافي المبيعات 10.5',
-      passed: [
-        { provider: 'anthropic', modelId: 'claude', text: comparisonResponse(worse) },
-        {
-          provider: 'google',
-          modelId: 'gemini',
-          text: comparisonResponse({
-            subject_id: 'avenues',
-            relation: 'better',
-            object_id: 'salmiya',
-            metric: 'net_sales',
-            cited_fact_ids: ['fact-avenues'],
-          }),
-        },
-      ],
-      failed: [],
+    const pack = makePhase8Pack()
+    const derivedContract = JSON.stringify({
+      answer_ar: 'الأفنيوز (7.5 د.ك) أفضل من السالمية (3 د.ك) بفارق 4.5 د.ك.',
+      claims: [{ text: 'الأفنيوز (7.5 د.ك) أفضل من السالمية (3 د.ك) بفارق 4.5 د.ك.', numbers: [{ value: 7.5, section: 'branches' }, { value: 3, section: 'branches' }, { value: 4.5, section: 'branches' }] }],
+      proposals: [{ text: 'مراجعة جدول السالمية في الساعات الهادئة.', owner: 'مدير العمليات', kind: 'proposal' }],
+      missing_metrics: [],
     })
-    expect(composed.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
-    expect(composed.reply).toContain('avenues أفضل من salmiya')
-    expect(composed.reply).not.toContain('worse')
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input)
+      if (url.includes('api.anthropic.com')) {
+        return Response.json({ model: 'claude', content: [{ type: 'text', text: derivedContract }], usage: { input_tokens: 1, output_tokens: 1 } })
+      }
+      return Response.json({ modelVersion: 'gemini', candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'ok', note: '' }) }] } }] })
+    }
+    const res = await runFeryalCouncil(
+      { question: 'قارن الأفنيوز والسالمية', userId: 'u8', userRole: 'admin' },
+      {
+        askOdoo: (async () => makePhase8Agent(pack)) as RunCouncilOptions['askOdoo'],
+        fetchImpl,
+        keys,
+        models,
+        persist: async () => undefined,
+      },
+    )
+    expect(res.status).toBe('answered')
+    expect(res.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
+    expect(res.reply).toContain('4.5')
   })
 })
 
@@ -301,6 +398,9 @@ describe('phase 8 gates', () => {
     expect(consensus).not.toContain('guardAnswerAgainstFacts')
     expect(council).not.toContain('guardAnswerAgainstFacts')
     expect(consensus).toContain('structuredClaimSchema')
-    expect(council).toContain('comparisonSchema')
+    expect(council).not.toContain('comparisonSchema')
+    expect(council).toContain('parseFeryalLlmContract')
+    expect(council).toContain('verifyFeryalContractPerClaim')
+    expect(council).toContain('renderFeryalContractReply')
   })
 })

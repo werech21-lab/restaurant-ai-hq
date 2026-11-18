@@ -3,7 +3,7 @@ import { askFeryalOdooAgent, type FeryalOdooDataSource } from '@/lib/feryal-odoo
 import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
-import { runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
+import { COUNCIL_MODEL_FALLBACK_NOTE, runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
 import { assembleBriefReport, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
 import type { BriefFact } from '@/server/ai/brief-types'
 import { computeClaimFigure, comparisonMatchesFacts, type ComparableFact, type StructuredClaim } from '@/server/ai/structured-claim'
@@ -299,32 +299,50 @@ describe('phase 10 feryal comparisons', () => {
     expect(avenuesFact?.id).toBe(fromStructured.find((item) => item.entityId === 'avenues')?.id)
     expect(avenuesFact?.value).toBe('1000')
     expect(salmiyaFact?.value).toBe('400')
-    const trueComparison = JSON.stringify({
-      comparison: {
-        subject_id: 'avenues',
-        relation: 'better',
-        object_id: 'salmiya',
-        metric: 'net_sales_kwd',
-        cited_fact_ids: [avenuesFact?.id, salmiyaFact?.id],
-      },
+    const validContract = JSON.stringify({
+      answer_ar: 'الأفنيوز سجل 1000 د.ك مقابل 400 د.ك في السالمية بفارق 600 د.ك.',
+      claims: [
+        {
+          text: 'الأفنيوز سجل 1000 د.ك مقابل 400 د.ك في السالمية بفارق 600 د.ك.',
+          numbers: [
+            { value: 1000, section: 'branches' },
+            { value: 400, section: 'branches' },
+            { value: 600, section: 'branches' },
+          ],
+        },
+      ],
+      proposals: [{ text: 'توجيه حملات الساعات الهادئة لفرع السالمية.', owner: 'مدير العمليات', kind: 'proposal' }],
+      missing_metrics: [],
     })
-    const falseComparison = JSON.stringify({
-      comparison: {
-        subject_id: 'salmiya',
-        relation: 'better',
-        object_id: 'avenues',
-        metric: 'net_sales_kwd',
-        cited_fact_ids: [avenuesFact?.id, salmiyaFact?.id],
-      },
+    const falseContract = JSON.stringify({
+      answer_ar: 'السالمية سجل 9999 د.ك.',
+      claims: [{ text: 'السالمية سجل 9999 د.ك.', numbers: [{ value: 9999, section: 'branches' }] }],
+      proposals: [],
+      missing_metrics: [],
     })
-    const adopted = await runCouncil(agent, { anthropic: trueComparison, google: trueComparison, xai: falseComparison })
-    expect(adopted.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'google'])
-    expect(adopted.reply).toContain('avenues أفضل من salmiya')
-    expect(adopted.participants.find((item) => item.provider === 'xai')?.status).toBe('guard_rejected')
-    const rejected = await runCouncil(agent, { anthropic: falseComparison, google: falseComparison, xai: falseComparison })
+    const reviewerOk = JSON.stringify({ status: 'ok', note: '' })
+    const adopted = await runCouncil(agent, {
+      anthropic: falseContract,
+      google: validContract,
+      xai: reviewerOk,
+    })
+    expect(adopted.status).toBe('answered')
+    expect(adopted.agreed.map((item) => item.provider).sort()).toEqual(['google', 'xai'])
+    expect(adopted.reply).toContain('1000')
+    expect(adopted.reply).toContain('600')
+    expect(adopted.reply).not.toContain('9999')
+    expect(adopted.participants.find((item) => item.provider === 'anthropic')?.status).toBe('guard_rejected')
+
+    const rejected = await runCouncil(agent, {
+      anthropic: falseContract,
+      google: falseContract,
+      xai: falseContract,
+    })
+    expect(rejected.status).toBe('answered')
     expect(rejected.agreed).toEqual([])
     expect(rejected.participants.every((item) => item.status === 'guard_rejected')).toBe(true)
-    expect(rejected.reply).not.toContain('salmiya أفضل من avenues')
+    expect(rejected.reply).toContain(COUNCIL_MODEL_FALLBACK_NOTE)
+    expect(rejected.reply).not.toContain('9999')
   })
 })
 

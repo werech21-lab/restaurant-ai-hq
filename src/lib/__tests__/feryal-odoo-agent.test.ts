@@ -449,7 +449,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(stockRes.verifier.valid).toBe(true)
   })
 
-  it('refuses unlinked operational topics (kitchen prep tickets, drivers, reviews) with «لا أملك بيانات من Odoo عن هذا» + clear Odoo linking suggestion', async () => {
+  it('answers unlinked operational topics (kitchen prep tickets, drivers, reviews) with «غير متاح في Odoo» + available Odoo pack analysis and proposals', async () => {
     for (const q of [
       'زمن تذاكر تحضير المطبخ اليوم',
       'أداء سائقي التوصيل اليوم',
@@ -460,12 +460,14 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
         dataSource: createLiveFixtureDataSource(),
       })
-      expect(res.status, q).toBe('no_odoo_data')
-      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), q).toBe(true)
-      expect(res.reply.length, q).toBeGreaterThan(FERYAL_NO_ODOO_DATA_REPLY.length + 10)
-      expect(res.reply, q).toContain('يلزم')
+      expect(res.status, q).toBe('answered')
+      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), q).toBe(false)
+      expect(res.reply, q).toContain('غير متاح في Odoo')
+      expect(res.reply, q).toContain('4,259.1 د.ك')
+      expect(res.reply, q).toContain('اقتراح')
+      expect(res.missingMetrics?.length ?? 0, q).toBeGreaterThanOrEqual(1)
       expect(res.verifier.valid, q).toBe(true)
-      expect(res.verifier.extractedNumbers, q).toEqual([])
+      expect(res.verifier.unverifiedNumbers, q).toEqual([])
     }
   })
 

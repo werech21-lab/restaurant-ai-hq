@@ -5,6 +5,7 @@ import {
   executiveAiBurstLimiter,
   requireExecApiSession,
 } from '@/lib/auth/api-guard'
+import { sanitizeFeryalChatHistory } from '@/lib/feryal-intent'
 import {
   APPROVED_FERYAL_BRANCHES,
   FERYAL_NO_ODOO_DATA_REPLY,
@@ -28,6 +29,7 @@ interface FeryalChatPostBody {
   branch?: string
   brand?: string
   channel?: string
+  history?: unknown
 }
 
 export async function GET(req: NextRequest) {
@@ -78,7 +80,10 @@ export async function POST(req: NextRequest) {
 
   let body: FeryalChatPostBody = {}
   try {
-    body = (await req.json()) as FeryalChatPostBody
+    const parsedJson: unknown = await req.json()
+    if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
+      body = parsedJson as FeryalChatPostBody
+    }
   } catch {
     return NextResponse.json(
       { ok: false, error: 'INVALID_JSON' },
@@ -107,6 +112,7 @@ export async function POST(req: NextRequest) {
   }
 
   const safeQuestion = rawQuestion.slice(0, 2000)
+  const history = sanitizeFeryalChatHistory(body.history)
   const validatedDefaults = validateFeryalContextDefaults({
     period: typeof body.period === 'string' ? body.period : null,
     customFrom: typeof body.customFrom === 'string' ? body.customFrom : null,
@@ -119,6 +125,7 @@ export async function POST(req: NextRequest) {
   try {
     const result = await runFeryalCouncil({
       question: safeQuestion,
+      history,
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
