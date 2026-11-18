@@ -4,6 +4,7 @@ import {
   fetchLiveOdooPeriodCube,
   fetchLiveOdooPeriodHourly,
   sanitizeOdooPublicPayload,
+  type OdooPeriodCube,
   type OdooPeriodHourly,
 } from '@/lib/odoo-live-connector'
 import {
@@ -54,6 +55,14 @@ function parseMultiIdParam<T extends string>(
  * 6 brands, payment channels, and hourly/daily series) strictly from live
  * Odoo JSON-RPC data with zero static fallbacks.
  */
+/** The full product list is for server-side menu engineering only; clients get the top 50. */
+function withoutMenuProducts(cube: OdooPeriodCube): OdooPeriodCube {
+  if (!cube.menuProducts) return cube
+  const { menuProducts: _omit, ...rest } = cube
+  void _omit
+  return rest
+}
+
 export async function GET(request: NextRequest) {
   if (!isSameSiteRequest(request.headers)) {
     return NextResponse.json(
@@ -230,8 +239,8 @@ export async function GET(request: NextRequest) {
         periodA: cubeA.dateRange,
         periodB: cubeB.dateRange,
         database: null,
-        cubeA,
-        cubeB,
+        cubeA: withoutMenuProducts(cubeA),
+        cubeB: withoutMenuProducts(cubeB),
         hourlyA,
         dailySeries: mergedDailySeries,
         dailyByBranch: { ...cubeB.dailyByBranch, ...cubeA.dailyByBranch },

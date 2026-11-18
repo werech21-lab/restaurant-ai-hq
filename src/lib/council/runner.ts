@@ -10,6 +10,10 @@ import { deliveryAdvisor, type DeliveryInput } from './advisors/delivery'
 import { hrAdvisor, type HrInput } from './advisors/hr'
 import { inventoryAdvisor, type InventoryInput } from './advisors/inventory'
 import { seasonsAdvisor, type SeasonsInput } from './advisors/seasons'
+import { benchmarkAdvisor, type BenchmarkInput } from './advisors/benchmark'
+import { driversAdvisor, type DriversInput } from './advisors/drivers'
+import { forecastAdvisor, type ForecastInput } from './advisors/forecast'
+import { menuAdvisor, type MenuInput } from './advisors/menu'
 import type { AdvisorId, AdvisorReport, CouncilDiscovery, CouncilFinding, CouncilSnapshot } from './types'
 
 export interface CouncilInputs {
@@ -18,6 +22,10 @@ export interface CouncilInputs {
   hr?: HrInput | null
   inventory?: InventoryInput | null
   seasons?: SeasonsInput | null
+  drivers?: DriversInput | null
+  menu?: MenuInput | null
+  benchmark?: BenchmarkInput | null
+  forecast?: ForecastInput | null
 }
 
 /** Severity proxy (KWD-equivalent, ranking only) for findings not sized in KWD. */
@@ -55,6 +63,10 @@ export function runCouncil(inputs: CouncilInputs, seenLast7Days: ReadonlySet<str
     hrAdvisor.run(inputs.hr ?? { attendance: null }),
     inventoryAdvisor.run(inputs.inventory ?? { quants: null }),
     seasonsAdvisor.run(inputs.seasons ?? { summary: null, events: [] }),
+    driversAdvisor.run(inputs.drivers ?? { summary: null }),
+    menuAdvisor.run(inputs.menu ?? {}),
+    benchmarkAdvisor.run(inputs.benchmark ?? { summary: null }),
+    forecastAdvisor.run(inputs.forecast ?? { summary: null }),
   ]
   const stamps = reports.map((r) => r.generatedAt).filter((s): s is string => Boolean(s)).sort()
   return { generatedAt: stamps[stamps.length - 1] ?? null, reports, discoveries: rankDiscoveries(reports, seenLast7Days) }

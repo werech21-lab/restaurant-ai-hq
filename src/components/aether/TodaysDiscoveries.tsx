@@ -15,6 +15,10 @@ const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
   hr: { ar: 'الموارد البشرية', en: 'HR' },
   inventory: { ar: 'المخزون', en: 'Inventory' },
   seasons: { ar: 'المواسم', en: 'Seasons' },
+  drivers: { ar: 'محرّكات المبيعات', en: 'Sales drivers' },
+  menu: { ar: 'هندسة المنيو', en: 'Menu engineering' },
+  benchmark: { ar: 'مقارنة الفروع', en: 'Branch benchmark' },
+  forecast: { ar: 'التوقع', en: 'Forecast' },
 }
 
 function fmt(n: number, locale: 'ar' | 'en', digits: number): string {
@@ -25,6 +29,7 @@ function evidenceValue(e: CouncilEvidence, locale: 'ar' | 'en'): string {
   const kwd = locale === 'ar' ? 'د.ك' : 'KWD'
   if (e.unit === 'KWD') return `${fmt(e.value, locale, 3)} ${kwd}`
   if (e.unit === 'KWD/order') return `${fmt(e.value, locale, 3)} ${kwd}`
+  if (e.unit === 'KWD/unit') return `${fmt(e.value, locale, 3)} ${kwd}${locale === 'ar' ? ' للوحدة' : ' / unit'}`
   if (e.unit === 'pct') return `${fmt(e.value, locale, 1)}%`
   if (e.unit === 'hours') return `${fmt(e.value, locale, 1)} ${locale === 'ar' ? 'ساعة' : 'h'}`
   return fmt(e.value, locale, 0)

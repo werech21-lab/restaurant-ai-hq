@@ -7,7 +7,7 @@
  * {@link CouncilEstimate} whose formula and inputs are spelled out. Nothing else carries numbers.
  */
 
-export type AdvisorId = 'cfo' | 'delivery' | 'hr' | 'inventory' | 'seasons'
+export type AdvisorId = 'cfo' | 'delivery' | 'hr' | 'inventory' | 'seasons' | 'drivers' | 'menu' | 'benchmark' | 'forecast'
 
 export type CouncilSeverity = 'high' | 'medium' | 'low'
 
@@ -19,7 +19,7 @@ export interface CouncilEvidence {
   period: { from: string; to: string }
   /** The Odoo value itself (KWD, orders, count, hours …). */
   value: number
-  unit: 'KWD' | 'orders' | 'count' | 'hours' | 'pct' | 'KWD/order'
+  unit: 'KWD' | 'orders' | 'count' | 'hours' | 'pct' | 'KWD/order' | 'KWD/unit'
   /** Last Odoo sync of the payload this value was read from (ISO), or null when unknown. */
   syncAt: string | null
   labelAr: string

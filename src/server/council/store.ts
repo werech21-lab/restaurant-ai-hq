@@ -2,7 +2,8 @@ import 'server-only'
 /**
  * Council snapshots and the seasons calendar.
  *
- * Postgres schema is owned by database/migrations/0052_council_reports_and_seasons.sql and is
+ * Postgres schema is owned by database/migrations/0052_council_reports_and_seasons.sql and
+ * 0053_council_decisions.sql, and is
  * never created at runtime. Outside production, without a Postgres URL, a local SQLite table is
  * created for development and tests only.
  */
@@ -12,6 +13,7 @@ import { prisma } from '@/lib/db'
 import { sslOptions } from '@/lib/db-ssl'
 import { errorFields, logger } from '@/lib/logger'
 import { SEASON_KINDS, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
+import type { DecisionOutcome, DecisionRecord } from '@/lib/council/decisions'
 import type { CouncilSnapshot } from '@/lib/council/types'
 
 const SQLITE_DDL = [
@@ -22,6 +24,10 @@ const SQLITE_DDL = [
     id TEXT PRIMARY KEY, kind TEXT NOT NULL, name_ar TEXT NOT NULL, name_en TEXT NOT NULL,
     starts_on TEXT NOT NULL, ends_on TEXT NOT NULL, recurrence TEXT NOT NULL, approximate INTEGER NOT NULL DEFAULT 1,
     previous_starts_on TEXT, previous_ends_on TEXT, notes TEXT, updated_at TEXT NOT NULL, updated_by TEXT)`,
+  `CREATE TABLE IF NOT EXISTS council_decisions (
+    id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, advisor_id TEXT NOT NULL, kind TEXT NOT NULL, branch_id TEXT,
+    title_ar TEXT NOT NULL, title_en TEXT NOT NULL, status TEXT NOT NULL, note TEXT, decided_by TEXT NOT NULL,
+    decided_at TEXT NOT NULL, decided_day TEXT NOT NULL, expected_weekly_kwd REAL, outcome TEXT, outcome_at TEXT)`,
 ]
 
 function postgresUrl(): string | null {
@@ -185,4 +191,87 @@ export async function upsertSeasonEvent(ev: SeasonEvent, updatedBy: string): Pro
 
 export async function deleteSeasonEvent(id: string): Promise<void> {
   await exec(`DELETE FROM season_events WHERE id = $1`, [id])
+}
+
+/* ------------------------------------------------------------------ decision log */
+
+interface DecisionRow {
+  id: string
+  fingerprint: string
+  advisor_id: string
+  kind: string
+  branch_id: string | null
+  title_ar: string
+  title_en: string
+  status: string
+  note: string | null
+  decided_by: string
+  decided_at: string
+  decided_day: string
+  expected_weekly_kwd: number | null
+  outcome: string | null
+  outcome_at: string | null
+}
+
+function decisionFromRow(r: DecisionRow): DecisionRecord {
+  let outcome: DecisionOutcome | null = null
+  try {
+    outcome = r.outcome ? (JSON.parse(r.outcome) as DecisionOutcome) : null
+  } catch {
+    outcome = null
+  }
+  return {
+    id: r.id,
+    fingerprint: r.fingerprint,
+    advisorId: r.advisor_id as DecisionRecord['advisorId'],
+    kind: r.kind,
+    branchId: r.branch_id,
+    titleAr: r.title_ar,
+    titleEn: r.title_en,
+    status: r.status as DecisionRecord['status'],
+    note: r.note,
+    decidedBy: r.decided_by,
+    decidedAt: String(r.decided_at),
+    decidedDay: String(r.decided_day),
+    expectedWeeklyKwd: r.expected_weekly_kwd === null || r.expected_weekly_kwd === undefined ? null : Number(r.expected_weekly_kwd),
+    outcome,
+    outcomeAt: r.outcome_at,
+  }
+}
+
+const DECISION_COLUMNS = 'id, fingerprint, advisor_id, kind, branch_id, title_ar, title_en, status, note, decided_by, decided_at, decided_day, expected_weekly_kwd, outcome, outcome_at'
+
+/** Latest decision per fingerprint, newest first (a re-decision replaces the earlier one). */
+export async function listDecisions(limit = 200): Promise<DecisionRecord[]> {
+  try {
+    const rows = await query<DecisionRow>(`SELECT ${DECISION_COLUMNS} FROM council_decisions ORDER BY decided_at DESC LIMIT $1`, [limit])
+    return rows.map(decisionFromRow)
+  } catch (error) {
+    logger.error('council decisions read failed', errorFields(error))
+    return []
+  }
+}
+
+/** One decision per finding: a new decision on the same fingerprint replaces the previous one. */
+export async function saveDecision(d: DecisionRecord): Promise<void> {
+  await exec(`DELETE FROM council_decisions WHERE fingerprint = $1`, [d.fingerprint])
+  await exec(
+    `INSERT INTO council_decisions (${DECISION_COLUMNS}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [d.id, d.fingerprint, d.advisorId, d.kind, d.branchId, d.titleAr, d.titleEn, d.status, d.note, d.decidedBy, d.decidedAt, d.decidedDay, d.expectedWeeklyKwd, d.outcome ? JSON.stringify(d.outcome) : null, d.outcomeAt],
+  )
+}
+
+export async function saveDecisionOutcome(id: string, outcome: DecisionOutcome, at: string): Promise<void> {
+  await exec(`UPDATE council_decisions SET outcome = $1, outcome_at = $2 WHERE id = $3`, [JSON.stringify(outcome), at, id])
+}
+
+/** Fingerprints already decided (any status): the council does not propose them again. */
+export async function loadDecidedFingerprints(): Promise<Set<string>> {
+  try {
+    const rows = await query<{ fingerprint: string }>(`SELECT fingerprint FROM council_decisions`, [])
+    return new Set(rows.map((r) => String(r.fingerprint)))
+  } catch (error) {
+    logger.error('council decided fingerprints read failed', errorFields(error))
+    return new Set()
+  }
 }

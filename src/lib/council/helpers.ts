@@ -69,7 +69,7 @@ export function estimate(
 export function evidence(
   e: Omit<CouncilEvidence, 'value'> & { value: number },
 ): CouncilEvidence {
-  return { ...e, value: e.unit === 'KWD' || e.unit === 'KWD/order' ? r3(e.value) : e.unit === 'pct' ? r1(e.value) : e.value }
+  return { ...e, value: e.unit === 'KWD' || e.unit === 'KWD/order' || e.unit === 'KWD/unit' ? r3(e.value) : e.unit === 'pct' ? r1(e.value) : e.value }
 }
 
 export function fmtKwd(n: number): string {

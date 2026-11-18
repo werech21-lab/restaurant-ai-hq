@@ -371,6 +371,8 @@ export interface OdooPeriodCube {
   /** Per-branch hourly read succeeded. `false` → branch-filtered hourly unavailable. */
   hourlyByBranchAvailable?: boolean
   topProducts: OdooPeriodCubeProductRow[]
+  /** All product groups of the period (server-side only; absent on older cached cubes). */
+  menuProducts?: OdooPeriodCubeProductRow[]
   accounting?: OdooLedgerAccountingSummary
   posConfigIds?: {
     companyId: number | null
@@ -5393,7 +5395,10 @@ export async function fetchLiveOdooPeriodCube(
       hourlyByBranch,
       hourlyAvailable,
       hourlyByBranchAvailable,
-      topProducts: topProductsRaw.sort((a, b) => b.netKwd - a.netKwd).slice(0, 50),
+      topProducts: [...topProductsRaw].sort((a, b) => b.netKwd - a.netKwd).slice(0, 50),
+      // Every product line group (not only the top 50) — server-side menu engineering needs the
+      // low sellers too. Stripped from client responses (see live-comparison route).
+      menuProducts: [...topProductsRaw].sort((a, b) => b.netKwd - a.netKwd || a.productId - b.productId),
       ...(accounting ? { accounting } : {}),
       posConfigIds: {
         companyId: resolvedCompanyId,
@@ -6780,5 +6785,90 @@ export async function fetchLiveOdooHrSummary(
     return summary
   } catch {
     return buildDisconnectedHrSummary()
+  }
+}
+
+export interface OdooProductCostsPayload {
+  connected: boolean
+  /** productId → unit cost and the Odoo source it came from; products without a cost are absent. */
+  costs: Record<number, { unitCostKwd: number; source: CostSource }>
+  requested: number
+  lastSyncAt: string | null
+}
+
+/**
+ * Read-only unit cost for the given products (menu engineering): `product.product.standard_price`
+ * in the company context, then valuation layers, then confirmed purchase lines — the same chain
+ * as the warehouse chain. A product with no cost in Odoo is left out (never a 0.000 cost).
+ */
+export async function fetchLiveOdooProductCosts(productIds: readonly number[]): Promise<OdooProductCostsPayload> {
+  assertServerRuntime()
+  const ids = [...new Set(productIds.filter((n) => Number.isInteger(n) && n > 0))].slice(0, 2000)
+  const empty: OdooProductCostsPayload = { connected: false, costs: {}, requested: ids.length, lastSyncAt: null }
+  if (!isOdooLiveEnvConfigured() || ids.length === 0) return empty
+  try {
+    const uid = await authenticateOdoo()
+    const userRows = await safeSubQuery(
+      () => executeOdooKw<{ id: number; company_id?: M2O }[]>('res.users', 'read', [[uid], ['id', 'company_id']]),
+      [],
+    )
+    const companyId = m2oId(userRows?.[0]?.company_id) ?? null
+    const companyDomain: unknown[][] = companyId !== null ? [['company_id', '=', companyId]] : []
+    const prods = await safeSubQuery(
+      () =>
+        executeOdooKw<{ id: number; standard_price?: number }[]>(
+          'product.product',
+          'read',
+          [ids, ['id', 'standard_price']],
+          companyId !== null ? { context: { allowed_company_ids: [companyId], company_id: companyId } } : {},
+        ),
+      [],
+    )
+    const standardPrice = new Map(prods.map((p) => [p.id, Number(p.standard_price) || 0]))
+    const uncosted = ids.filter((pid) => !((standardPrice.get(pid) ?? 0) > 0))
+    const [layers, purchases] = await Promise.all([
+      uncosted.length > 0
+        ? safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; value?: number; quantity?: number }[]>(
+                'stock.valuation.layer',
+                'read_group',
+                [[...companyDomain, ['product_id', 'in', uncosted]], ['value:sum', 'quantity:sum'], ['product_id']],
+                { lazy: false },
+              ),
+            [],
+          )
+        : Promise.resolve([] as { product_id: M2O; value?: number; quantity?: number }[]),
+      uncosted.length > 0
+        ? safeSubQuery(
+            () =>
+              executeOdooKw<{ product_id: M2O; price_subtotal?: number; product_uom_qty?: number }[]>(
+                'purchase.order.line',
+                'read_group',
+                [[...companyDomain, ['product_id', 'in', uncosted], ['state', 'in', ['purchase', 'done']]], ['price_subtotal:sum', 'product_uom_qty:sum'], ['product_id']],
+                { lazy: false },
+              ),
+            [],
+          )
+        : Promise.resolve([] as { product_id: M2O; price_subtotal?: number; product_uom_qty?: number }[]),
+    ])
+    const resolved = resolveProductCosts(ids, {
+      standardPrice,
+      valuationLayer: new Map(
+        layers
+          .map((g) => [m2oId(g.product_id), { value: Number(g.value) || 0, quantity: Number(g.quantity) || 0 }] as const)
+          .filter((e): e is [number, { value: number; quantity: number }] => e[0] !== null),
+      ),
+      purchase: new Map(
+        purchases
+          .map((g) => [m2oId(g.product_id), { subtotal: Number(g.price_subtotal) || 0, quantity: Number(g.product_uom_qty) || 0 }] as const)
+          .filter((e): e is [number, { subtotal: number; quantity: number }] => e[0] !== null),
+      ),
+    })
+    const costs: OdooProductCostsPayload['costs'] = {}
+    for (const [pid, c] of resolved) costs[pid] = { unitCostKwd: Math.round(c.unitCostKwd * 1000) / 1000, source: c.source }
+    return { connected: true, costs, requested: ids.length, lastSyncAt: new Date().toISOString() }
+  } catch {
+    return empty
   }
 }

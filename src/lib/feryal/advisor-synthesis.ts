@@ -25,15 +25,20 @@ const ADVISOR_NAME_AR: Record<AdvisorId, string> = {
   hr: 'مستشار الموارد البشرية',
   inventory: 'مستشار المخزون',
   seasons: 'مستشار المواسم',
+  drivers: 'مستشار محرّكات المبيعات',
+  menu: 'مستشار هندسة المنيو',
+  benchmark: 'مستشار مقارنة الفروع',
+  forecast: 'مستشار التوقع',
 }
 
+// The strategic advisors come after the original ones, so the primary advisor of a topic is unchanged.
 const TOPIC_ADVISORS: Record<AdvisoryTopic, AdvisorId[]> = {
-  sales: ['cfo', 'delivery', 'seasons'],
+  sales: ['cfo', 'delivery', 'seasons', 'drivers', 'menu', 'benchmark', 'forecast'],
   delivery: ['delivery', 'cfo'],
   hr: ['hr'],
   inventory: ['inventory'],
   seasons: ['seasons'],
-  strategy: ['cfo', 'delivery', 'hr', 'inventory', 'seasons'],
+  strategy: ['cfo', 'delivery', 'hr', 'inventory', 'seasons', 'drivers', 'menu', 'benchmark', 'forecast'],
 }
 
 /** Topic of a question (Kuwaiti / Gulf dialect, Arabic, English). «طلبات» alone means "orders". */
@@ -63,6 +68,7 @@ const FOLLOW_UP: Record<string, (f: CouncilFinding) => string> = {
 function unitText(e: CouncilEvidence): string {
   if (e.unit === 'KWD') return `${fmtKwd(e.value)} د.ك`
   if (e.unit === 'KWD/order') return `${fmtKwd(e.value)} د.ك للطلب`
+  if (e.unit === 'KWD/unit') return `${fmtKwd(e.value)} د.ك للوحدة`
   if (e.unit === 'pct') return `${e.value.toFixed(1)}%`
   if (e.unit === 'hours') return `${e.value} ساعة`
   return String(e.value)

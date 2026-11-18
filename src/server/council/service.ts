@@ -2,18 +2,31 @@ import 'server-only'
 /**
  * Runs the advisor council on live Odoo data (read-only) and stores the snapshot.
  *
- * - hourly: CFO + Delivery trend + Seasons on the latest week (7 vs 7 completed days); HR and
- *   Inventory reports are carried forward from the last nightly run.
+ * - hourly: CFO + Delivery trend + Seasons + Sales drivers + Benchmark + Forecast on the latest week
+ *   (7 vs 7 completed days); HR, Inventory and Menu reports are carried forward from the last nightly run.
  * - nightly: every advisor on full periods (28 vs 28 completed days, 5-week platform hour matrix,
- *   14 days of attendance, current stock, model probe).
+ *   14 days of attendance, current stock, model probe, all product lines + Odoo unit costs for the
+ *   menu), then the decision log's outcomes are measured.
+ * Findings already decided (accepted / testing / rejected) are not proposed again.
  */
-import { fetchLiveOdooPeriodCube, fetchLiveOdooSnapshot, fetchLiveOdooWarehouseChain, type OdooPeriodCube } from '@/lib/odoo-live-connector'
+import { fetchLiveOdooPeriodCube, fetchLiveOdooProductCosts, fetchLiveOdooSnapshot, fetchLiveOdooWarehouseChain, type OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
 import { kuwaitDayOf, shiftIso } from '@/lib/council/helpers'
 import { rankDiscoveries, runCouncil } from '@/lib/council/runner'
+import { measureDecisionOutcome } from '@/lib/council/decisions'
+import { completedDailyByBranch } from '@/lib/council/series'
 import type { CouncilSnapshot } from '@/lib/council/types'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { fetchAggregatorHourlyMatrix, fetchAttendanceInput, fetchQuantInput, probeOdooModels } from './odoo-reads'
-import { listSeasonEvents, loadLatestCouncilSnapshot, loadShownFingerprints, saveCouncilSnapshot } from './store'
+import {
+  listDecisions,
+  listSeasonEvents,
+  loadDecidedFingerprints,
+  loadLatestCouncilSnapshot,
+  loadShownFingerprints,
+  saveCouncilSnapshot,
+  saveDecisionOutcome,
+} from './store'
 
 export type CouncilScope = 'hourly' | 'nightly'
 
@@ -23,7 +36,10 @@ function branchOfConfig(cube: OdooPeriodCube | null): Map<number, string> {
   return out
 }
 
-export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.now()): Promise<{ snapshot: CouncilSnapshot; kuwaitDay: string }> {
+export async function computeCouncilSnapshot(
+  scope: CouncilScope,
+  nowMs = Date.now(),
+): Promise<{ snapshot: CouncilSnapshot; kuwaitDay: string; summary: OdooLiveSummary | null }> {
   const today = kuwaitDayOf(new Date(nowMs).toISOString())!
   const lastComplete = shiftIso(today, -1)
   const span = scope === 'nightly' ? 28 : 7
@@ -43,6 +59,7 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
   let hr = null
   let inventory = null
   let matrix = null
+  let productCosts: Record<number, { unitCostKwd: number }> | null = null
   if (scope === 'nightly') {
     const [m, att, quants, warehouse, probe] = await Promise.all([
       fetchAggregatorHourlyMatrix(shiftIso(lastComplete, -34), lastComplete, branchOfConfig(cube), cube?.lastSyncAt ?? null),
@@ -55,9 +72,14 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
     hr = { attendance: att }
     const bom = probe?.rows.find((r) => r.model === 'mrp.bom')
     inventory = { quants, warehouse, hasBoms: bom ? bom.installed && (bom.recentCount ?? 0) > 0 : null }
+    const menuIds = (cube?.menuProducts ?? cube?.topProducts ?? []).map((p) => p.productId)
+    const costs = menuIds.length > 0 ? await fetchLiveOdooProductCosts(menuIds).catch(() => null) : null
+    productCosts = costs?.connected ? costs.costs : null
   }
 
-  const seen = await loadShownFingerprints(today)
+  // Shown in the last 7 days, or already decided (accepted / testing / rejected): not proposed again.
+  const [shown, decided] = await Promise.all([loadShownFingerprints(today), loadDecidedFingerprints()])
+  const seen = new Set([...shown, ...decided])
   const fresh = runCouncil(
     {
       cfo: { summary, cube: cube?.connected ? cube : null, priorCube: priorCube?.connected ? priorCube : null, glClosedThrough: null },
@@ -65,25 +87,50 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
       hr,
       inventory,
       seasons: { summary, events: seasonEvents },
+      drivers: { summary, cube: cube?.connected ? cube : null, priorCube: priorCube?.connected ? priorCube : null },
+      menu: scope === 'nightly' ? { cube: cube?.connected ? cube : null, productCosts } : null,
+      benchmark: { summary },
+      forecast: { summary },
     },
     seen,
   )
   if (scope === 'hourly') {
-    // Carry the nightly HR and inventory reports forward instead of re-reading them every hour.
+    // Carry the nightly HR, inventory and menu reports forward instead of re-reading them every hour
+    // (menu needs every product line and the Odoo unit costs, read nightly).
     const last = await loadLatestCouncilSnapshot()
-    const carried = last?.snapshot.reports.filter((r) => r.advisorId === 'hr' || r.advisorId === 'inventory') ?? []
+    const carried = last?.snapshot.reports.filter((r) => r.advisorId === 'hr' || r.advisorId === 'inventory' || r.advisorId === 'menu') ?? []
     if (carried.length > 0) {
       const reports = fresh.reports.map((r) => carried.find((c) => c.advisorId === r.advisorId && c.status !== 'unavailable') ?? r)
-      return { snapshot: { ...fresh, reports, discoveries: rankDiscoveries(reports, seen) }, kuwaitDay: today }
+      return { snapshot: { ...fresh, reports, discoveries: rankDiscoveries(reports, seen) }, kuwaitDay: today, summary }
     }
   }
-  return { snapshot: fresh, kuwaitDay: today }
+  return { snapshot: fresh, kuwaitDay: today, summary }
 }
 
 export async function runAndStoreCouncil(scope: CouncilScope, nowMs = Date.now()): Promise<CouncilSnapshot> {
-  const { snapshot, kuwaitDay } = await computeCouncilSnapshot(scope, nowMs)
+  const { snapshot, kuwaitDay, summary } = await computeCouncilSnapshot(scope, nowMs)
   await saveCouncilSnapshot({ scope, kuwaitDay, snapshot })
+  if (scope === 'nightly') await measureDecisionOutcomes(summary, nowMs)
   return snapshot
+}
+
+/**
+ * Nightly: measures every accepted / testing decision on the payload's completed daily rows
+ * (before vs after, peers as control for a branch). Rejected decisions are not measured.
+ */
+export async function measureDecisionOutcomes(summary: OdooLiveSummary | null, nowMs = Date.now()): Promise<number> {
+  const daily = completedDailyByBranch(summary)
+  if (!daily) return 0
+  const decisions = await listDecisions()
+  let measured = 0
+  for (const d of decisions) {
+    if (d.status === 'rejected') continue
+    if (d.outcome?.state === 'measured' && d.outcome.windowDays >= 28) continue
+    const outcome = measureDecisionOutcome(d, daily)
+    await saveDecisionOutcome(d.id, outcome, new Date(nowMs).toISOString())
+    measured++
+  }
+  return measured
 }
 
 /** Latest stored snapshot for Feryal and Home; null when no run has been stored yet. */
