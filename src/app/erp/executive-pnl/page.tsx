@@ -4,7 +4,7 @@ import { ExecutivePnlStudio } from '@/components/erp/ExecutivePnlStudio'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'قائمة الدخل وانحراف الأستاذ العام | فنتشر فودز · AetherBI',
+  title: 'قائمة الدخل ومطابقة نقاط البيع مع الأستاذ العام | فنتشر فودز · AetherBI',
   description: 'قائمة الدخل التنفيذية ومطابقة مبيعات نقاط البيع مع قيود الأستاذ العام في أودو 17.',
 }
 

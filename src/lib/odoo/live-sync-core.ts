@@ -24,6 +24,7 @@ import {
   mergeSessionGroups,
   mergeSessionPaymentGroups,
 } from './pos-order-query'
+import type { PlatformExpenseClass } from './platform-expense-accounts'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -69,6 +70,30 @@ export interface OdooReceivableAgingBucket {
   linesCount: number
 }
 
+export interface OdooPartnerAgingRow {
+  partnerId: number | null
+  partnerName: string
+  residualKwd: number
+  openDebitsKwd: number
+  unappliedCreditsKwd: number
+  linesCount: number
+  buckets: OdooReceivableAgingBucket[]
+}
+
+export interface OdooApAgingSummary {
+  readable: boolean
+  companyId: number | null
+  asOfDate: string
+  openPayableKwd: number
+  openCreditsKwd: number
+  unappliedDebitsKwd: number
+  openLinesCount: number
+  byAccount: OdooReceivableAccountRow[]
+  byPartner: OdooPartnerAgingRow[]
+  agingBuckets: OdooReceivableAgingBucket[]
+  reason?: string
+}
+
 export interface OdooReceivableClearingSummary {
   readable: boolean
   openReceivableKwd: number
@@ -85,7 +110,11 @@ export interface OdooReceivableClearingSummary {
   openLinesExplanationAr?: string
   openLinesExplanationEn?: string
   sourceModel?: 'account.move.line'
+  companyId?: number | null
+  asOfDate?: string | null
+  partnerCount?: number
   byAccount?: OdooReceivableAccountRow[]
+  byPartner?: OdooPartnerAgingRow[]
   agingBuckets?: OdooReceivableAgingBucket[]
   /** `open-debits-by-due-date`: buckets hold only positive open residuals aged by due date. */
   agingBasis?: 'open-debits-by-due-date'
@@ -94,6 +123,124 @@ export interface OdooReceivableClearingSummary {
   /** Σ negative open residuals: unmatched payments and clearing credits, shown as one separate line. */
   unappliedCreditsKwd?: number
   unappliedCreditLinesCount?: number
+  apAging?: OdooApAgingSummary | null
+}
+
+export interface GlStatementAccountLine {
+  accountId?: number
+  code: string
+  name: string
+  accountType: string
+  amountKwd: number
+  debitKwd?: number
+  creditKwd?: number
+  balanceKwd?: number
+  lineCount?: number
+  expenseClass?: PlatformExpenseClass
+}
+
+export type GlIncomeStatementGroupKey =
+  | 'revenue'
+  | 'cogs'
+  | 'platform_commission'
+  | 'platform_subscription'
+  | 'third_party_delivery'
+  | 'payment_gateway'
+  | 'bank_fees'
+  | 'ads'
+  | 'other_opex'
+  | 'depreciation'
+
+export interface GlIncomeStatementGroup {
+  key: GlIncomeStatementGroupKey
+  labelAr: string
+  labelEn: string
+  accountTypes: string[]
+  totalKwd: number
+  linesCount: number
+  posted: boolean
+  accounts: GlStatementAccountLine[]
+}
+
+export interface GlTrialBalanceRow {
+  accountId?: number
+  code: string
+  name: string
+  accountType: string
+  debitKwd: number
+  creditKwd: number
+  balanceKwd: number
+  lineCount: number
+}
+
+export interface GlTrialBalanceSummary {
+  readable: boolean
+  from: string
+  to: string
+  totalDebitKwd: number
+  totalCreditKwd: number
+  totalBalanceKwd: number
+  balanced: boolean
+  differenceKwd: number
+  accountsCount: number
+  linesCount: number
+  rows: GlTrialBalanceRow[]
+  reason?: string
+}
+
+export interface GlBalanceSheetSummary {
+  readable: boolean
+  asOfDate: string
+  fiscalYearStart: string
+  currentYearEarningsKwd: number
+  priorYearsEarningsKwd?: number
+  assetsTotalKwd: number
+  liabilitiesTotalKwd: number
+  equityAccountsTotalKwd: number
+  equityTotalKwd: number
+  liabilitiesAndEquityTotalKwd: number
+  equationBalanced: boolean
+  differenceKwd: number
+  assetsAccounts: GlStatementAccountLine[]
+  liabilitiesAccounts: GlStatementAccountLine[]
+  equityAccounts: GlStatementAccountLine[]
+  reason?: string
+}
+
+export interface OdooBudgetLineRow {
+  budgetName: string
+  analyticName: string | null
+  plannedKwd: number
+  practicalKwd: number
+  varianceKwd: number
+  dateFrom: string
+  dateTo: string
+}
+
+export interface OdooBudgetProbeSummary {
+  probed: boolean
+  modelPresent: boolean
+  readable: boolean
+  fiscalFrom?: string | null
+  fiscalTo?: string | null
+  lines: OdooBudgetLineRow[]
+  reason?: string
+}
+
+export interface OdooAnalyticBranchPnlRow {
+  analyticId?: number
+  analyticName: string
+  amountKwd: number
+  sharePct: number
+}
+
+export interface OdooAnalyticBranchPnlSummary {
+  readable: boolean
+  populated: boolean
+  unallocatedKwd: number
+  unallocatedSharePct: number
+  branches: OdooAnalyticBranchPnlRow[]
+  reason?: string
 }
 
 export interface OdooLedgerAccountingSummary {
@@ -127,6 +274,25 @@ export interface OdooLedgerAccountingSummary {
     accountType: 'income' | 'income_other'
     amountKwd: number
   }[]
+  incomeStatementGroups?: GlIncomeStatementGroup[]
+  cogsAccounts?: GlStatementAccountLine[]
+  expenseAccounts?: GlStatementAccountLine[]
+  depreciationAccounts?: GlStatementAccountLine[]
+  expenseBreakdown?: Record<
+    PlatformExpenseClass,
+    { totalKwd: number; linesCount: number; accounts: GlStatementAccountLine[] }
+  >
+  platformSubscriptionKwd?: number
+  thirdPartyDeliveryKwd?: number
+  paymentGatewayKwd?: number
+  bankFeesKwd?: number
+  adsKwd?: number
+  otherOpexKwd?: number
+  trialBalance?: GlTrialBalanceSummary
+  balanceSheet?: GlBalanceSheetSummary
+  budgetProbe?: OdooBudgetProbeSummary
+  analyticPnl?: OdooAnalyticBranchPnlSummary
+  unavailableSections?: string[]
 }
 
 export interface OdooUnattributedBranchRow {
@@ -152,12 +318,17 @@ export type OdooUnavailableSectionKey =
   | 'brands.year'
   | 'stockTransfers'
   | 'receivables'
+  | 'ap'
   | 'excluded.month'
   | 'gl.accounts'
   | 'gl.today'
   | 'gl.week'
   | 'gl.month'
   | 'gl.year'
+  | 'gl.trialBalance'
+  | 'gl.balanceSheet'
+  | 'gl.budget'
+  | 'gl.analytic'
   | 'pos.category'
   | 'sessions'
   | 'products'

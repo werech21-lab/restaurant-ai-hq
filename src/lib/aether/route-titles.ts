@@ -148,7 +148,7 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   { match: '/erp/menu-engineering', title: { en: 'Menu Prices', ar: 'أسعار المينيو' } },
   { match: '/erp/alerts', title: { en: 'Automated Financial Alerts', ar: 'التنبيهات المالية الآلية' } },
   { match: '/erp/cost-intelligence', title: { en: 'Cost & Supplier Intelligence', ar: 'ذكاء التكلفة وأسعار الموردين' } },
-  { match: '/erp/executive-pnl', title: { en: 'Executive P&L & Budget Variance', ar: 'قائمة الدخل وانحراف الموازنة' } },
+  { match: '/erp/executive-pnl', title: { en: 'Income Statement & POS–GL Reconciliation', ar: 'قائمة الدخل ومطابقة نقاط البيع مع الأستاذ العام' } },
   { match: '/erp/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
   { match: '/hr', title: { en: 'People & HR', ar: 'الموارد البشرية' } },
   {

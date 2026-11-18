@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
+import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import Link from 'next/link'
 import {
   BookOpen,
@@ -21,6 +22,8 @@ import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
   formatInt,
+  formatKuwaitDate,
+  formatKuwaitDateTime,
   formatKwd,
   getUnavailableTooltip,
 } from '@/lib/format'
@@ -69,8 +72,10 @@ export function VentureAccountingHub({
     liveSummary,
   })
 
+  const hasLiveChildren = Boolean(liveChildren) && !embeddedInErp
+
   const tabs: Array<{
-    id: typeof activeTab
+    id: VentureAccountingTabId
     labelAr: string
     labelEn: string
     icon: React.ReactNode
@@ -87,7 +92,7 @@ export function VentureAccountingHub({
       labelEn: 'Receivables & Aging',
       icon: <Landmark className="h-4 w-4" aria-hidden />,
     },
-    ...(liveChildren && !embeddedInErp
+    ...(hasLiveChildren
       ? [
           {
             id: 'localDb' as const,
@@ -98,6 +103,18 @@ export function VentureAccountingHub({
         ]
       : []),
   ]
+
+  const effectiveTab: VentureAccountingTabId = tabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : 'glSummary'
+
+  const rec = workspace.receivables
+  const amountsVisible = canShowReceivableAmounts(rec)
+  const syncDateDisplay = rec.asOfDate
+    ? formatKuwaitDate(rec.asOfDate, currentLocale)
+    : liveSummary?.kuwaitSyncedAt ??
+      formatKuwaitDateTime(liveSummary?.latestOdooRecordAt ?? liveSummary?.syncedAt ?? null, currentLocale)
+  const companyScopeId = rec.companyId ?? workspace.odooCompanyId ?? liveSummary?.odooCompanyId ?? null
 
   const HeadingTag = embeddedInErp ? 'h2' : 'h1'
 
@@ -176,7 +193,7 @@ export function VentureAccountingHub({
           className="mt-5 flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-800"
         >
           {tabs.map((tab) => {
-            const active = activeTab === tab.id
+            const active = effectiveTab === tab.id
             return (
               <button
                 key={tab.id}
@@ -200,7 +217,7 @@ export function VentureAccountingHub({
 
       {!embeddedInErp ? <PartialWarningBanner summary={liveSummary} isAr={isAr} /> : null}
 
-      {activeTab === 'glSummary' && (
+      {effectiveTab === 'glSummary' && (
         <OdooAccountingAnalyticsHub
           isAr={isAr}
           locale={currentLocale}
@@ -208,31 +225,78 @@ export function VentureAccountingHub({
         />
       )}
 
-      {activeTab === 'receivables' && (
+      {effectiveTab === 'receivables' && (
         !workspace.odooConnected || workspace.noData ? (
           <StateBlock
             state={!workspace.odooConnected ? 'unlinked' : 'empty'}
             locale={currentLocale}
             title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo receivables data for this period'}
           />
-        ) : workspace.receivables.pendingReconciliation ? (
-          // Phase 5 · Item 2: no receivable amounts until per-customer due-date aging is verified.
+        ) : !rec.unavailable && (!amountsVisible || rec.pendingReconciliation) ? (
           <section
             data-receivables-pending="true"
             className="ds-surface space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
           >
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-              {isAr ? 'الذمم المدينة' : 'Receivables'}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <span>
+                {isAr
+                  ? `نطاق الشركة: فنتشر فودز ذ.م.م${companyScopeId ? ` (#${companyScopeId})` : ''}`
+                  : `Company Scope: Venture Foods W.L.L.${companyScopeId ? ` (#${companyScopeId})` : ''}`}
+              </span>
+              <span>
+                {isAr
+                  ? `الرصيد المفتوح كما في ${syncDateDisplay} (جميع البنود المفتوحة، مستقلة عن فلتر الفترة)`
+                  : `Open balance as of ${syncDateDisplay} (all open items, independent of period filter)`}
+              </span>
+            </div>
             <ReceivablesPendingStatus isAr={isAr} showDetail />
-            <p className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
-              {isAr
-                ? `${formatInt(workspace.receivables.unreconciledLineCount, currentLocale)} قيد غير مسوّى (${formatInt(workspace.receivables.posClearingLinesCount, currentLocale)} مقاصة كاشير + ${formatInt(workspace.receivables.platformAndCorporateLinesCount, currentLocale)} ذمم منصات وشركات)`
-                : `${formatInt(workspace.receivables.unreconciledLineCount, currentLocale)} unreconciled lines (${formatInt(workspace.receivables.posClearingLinesCount, currentLocale)} POS clearing + ${formatInt(workspace.receivables.platformAndCorporateLinesCount, currentLocale)} platform/corporate)`}
-            </p>
+            <div className="flex flex-wrap gap-3 text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
+              <span>
+                {isAr
+                  ? `${formatInt(rec.unreconciledLineCount, currentLocale)} قيد غير مسوّى (${formatInt(rec.posClearingLinesCount, currentLocale)} مقاصة كاشير + ${formatInt(rec.platformAndCorporateLinesCount, currentLocale)} ذمم منصات وشركات)`
+                  : `${formatInt(rec.unreconciledLineCount, currentLocale)} unreconciled lines (${formatInt(rec.posClearingLinesCount, currentLocale)} POS clearing + ${formatInt(rec.platformAndCorporateLinesCount, currentLocale)} platform/corporate)`}
+              </span>
+              {typeof rec.partnerCount === 'number' ? (
+                <span>
+                  {isAr
+                    ? `· ${formatInt(rec.partnerCount, currentLocale)} شريكاً`
+                    : `· ${formatInt(rec.partnerCount, currentLocale)} partners`}
+                </span>
+              ) : null}
+            </div>
+            {rec.accountNames && rec.accountNames.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {rec.accountNames.map((acc) => (
+                  <span
+                    key={`${acc.code}-${acc.name}`}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <span dir="ltr" className="font-mono font-bold text-slate-600 dark:text-slate-300">
+                      {acc.code}
+                    </span>{' '}
+                    {isAr ? acc.labelAr : acc.labelEn}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </section>
         ) : (
           <section className="space-y-6">
+            {!rec.unavailable ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-200">
+                <span>
+                  {isAr
+                    ? `نطاق الشركة: فنتشر فودز ذ.م.م${companyScopeId ? ` (#${companyScopeId})` : ''}`
+                    : `Company Scope: Venture Foods W.L.L.${companyScopeId ? ` (#${companyScopeId})` : ''}`}
+                </span>
+                <span>
+                  {isAr
+                    ? `الرصيد المفتوح كما في ${syncDateDisplay} (جميع البنود المفتوحة، مستقلة عن فلتر الفترة)`
+                    : `Open balance as of ${syncDateDisplay} (all open items, independent of period filter)`}
+                </span>
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -240,28 +304,28 @@ export function VentureAccountingHub({
                 </p>
                 <p
                   dir="ltr"
-                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  title={rec.unavailable ? unavailableTooltip : undefined}
+                  aria-label={rec.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={rec.unavailable ? 'true' : undefined}
                   className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-slate-900 dark:text-white"
                 >
-                  {workspace.receivables.unavailable
+                  {rec.unavailable
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.openReceivableKwd, currentLocale)}
+                    : formatKwd(rec.openReceivableKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
                     model="account.move.line"
                     dateRange={{
-                      from: workspace.receivables.fromDate || workspace.dateRange.from,
-                      to: workspace.receivables.toDate || workspace.dateRange.to,
+                      from: rec.fromDate || workspace.dateRange.from,
+                      to: rec.toDate || workspace.dateRange.to,
                     }}
                     lastSyncAt={workspace.lastSyncAt}
                     isStale24h={workspace.isStale24h}
                     kind="فعلي"
-                    queryOrFormula={workspace.receivables.reconciliationFormulaAr}
+                    queryOrFormula={rec.reconciliationFormulaAr}
                     isAr={isAr}
                   />
                 </div>
@@ -273,23 +337,23 @@ export function VentureAccountingHub({
                 </p>
                 <p
                   dir="ltr"
-                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  title={rec.unavailable ? unavailableTooltip : undefined}
+                  aria-label={rec.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={rec.unavailable ? 'true' : undefined}
                   className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-emerald-700 dark:text-emerald-400"
                 >
-                  {workspace.receivables.unavailable
+                  {rec.unavailable
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.grossPositiveReceivableKwd, currentLocale)}
+                    : formatKwd(rec.grossPositiveReceivableKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
                     model="account.move.line"
                     dateRange={{
-                      from: workspace.receivables.fromDate || workspace.dateRange.from,
-                      to: workspace.receivables.toDate || workspace.dateRange.to,
+                      from: rec.fromDate || workspace.dateRange.from,
+                      to: rec.toDate || workspace.dateRange.to,
                     }}
                     lastSyncAt={workspace.lastSyncAt}
                     isStale24h={workspace.isStale24h}
@@ -306,23 +370,23 @@ export function VentureAccountingHub({
                 </p>
                 <p
                   dir="ltr"
-                  title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
-                  data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
+                  title={rec.unavailable ? unavailableTooltip : undefined}
+                  aria-label={rec.unavailable ? unavailableTooltip : undefined}
+                  data-unavailable={rec.unavailable ? 'true' : undefined}
                   className="ds-num mt-2 text-2xl font-extrabold tabular-nums text-sky-700 dark:text-sky-400"
                 >
-                  {workspace.receivables.unavailable
+                  {rec.unavailable
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.creditClearingOffsetKwd, currentLocale)}
+                    : formatKwd(rec.creditClearingOffsetKwd, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
                     model="account.move.line"
                     dateRange={{
-                      from: workspace.receivables.fromDate || workspace.dateRange.from,
-                      to: workspace.receivables.toDate || workspace.dateRange.to,
+                      from: rec.fromDate || workspace.dateRange.from,
+                      to: rec.toDate || workspace.dateRange.to,
                     }}
                     lastSyncAt={workspace.lastSyncAt}
                     isStale24h={workspace.isStale24h}
@@ -334,9 +398,9 @@ export function VentureAccountingHub({
               </article>
             </div>
 
-            {workspace.receivables.unavailable ? (
+            {rec.unavailable ? (
               <StateBlock state="unavailable" locale={currentLocale} compact />
-            ) : workspace.receivables.agingBuckets.length === 0 ? (
+            ) : rec.agingBuckets.length === 0 ? (
               <StateBlock
                 state="empty"
                 locale={currentLocale}
@@ -358,7 +422,7 @@ export function VentureAccountingHub({
                       </tr>
                     </thead>
                     <tbody>
-                      {workspace.receivables.agingBuckets.map((b) => (
+                      {rec.agingBuckets.map((b) => (
                         <tr
                           key={b.key}
                           className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
@@ -383,7 +447,7 @@ export function VentureAccountingHub({
         )
       )}
 
-      {activeTab === 'localDb' && liveChildren && <div>{liveChildren}</div>}
+      {effectiveTab === 'localDb' && hasLiveChildren && <div>{liveChildren}</div>}
     </div>
   )
 }

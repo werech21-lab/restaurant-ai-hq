@@ -24,9 +24,18 @@ import {
   normalizeOdooDateOrderToIso,
   parseBucketKey,
   periodWindowForBucket,
+  type GlBalanceSheetSummary,
+  type GlIncomeStatementGroup,
+  type GlIncomeStatementGroupKey,
+  type GlStatementAccountLine,
+  type GlTrialBalanceSummary,
+  type OdooAnalyticBranchPnlSummary,
+  type OdooApAgingSummary,
   type OdooBucketSummary,
+  type OdooBudgetProbeSummary,
   type OdooLedgerAccountingSummary,
   type OdooLiveSummary,
+  type OdooPartnerAgingRow,
   type OdooPeriodBucketKey,
   type OdooReceivableAccountRow,
   type OdooReceivableClearingSummary,
@@ -34,6 +43,30 @@ import {
   type OdooUnattributedBranchRow,
   type OdooUnavailableSectionKey,
 } from '@/lib/odoo/live-sync-core'
+import {
+  classifyPlatformExpenseAccount,
+  PLATFORM_EXPENSE_CLASSES,
+  PLATFORM_EXPENSE_CLASS_LABELS,
+  summarizePlatformExpenses,
+  type PlatformExpenseAccountInput,
+  type PlatformExpenseClass,
+} from '@/lib/odoo/platform-expense-accounts'
+import {
+  ALL_GL_ACCOUNT_TYPES,
+  ASSET_GL_ACCOUNT_TYPES,
+  BALANCE_SHEET_GL_ACCOUNT_TYPES,
+  EQUITY_GL_ACCOUNT_TYPES,
+  LIABILITY_GL_ACCOUNT_TYPES,
+  PNL_GL_ACCOUNT_TYPES,
+  buildGlTrialBalanceFromGroups,
+  buildPartnerAgingRows,
+  fetchGlAnalyticBreakdown,
+  fetchGlBalanceSheet,
+  probeCrossoveredBudget,
+  type GlAccountMeta,
+  type GlMoveLineGroupRow,
+  type PartnerAgingGroupRow,
+} from '@/lib/odoo/gl-statements'
 import {
   ACTIVE_VENTURE_BRANCH_IDS,
   clearLiveDiscoveredPosLedger,
@@ -176,6 +209,7 @@ type RegistryShape = {
     posRoot: string | null
     analyticId?: number
   }[]
+  excludedBranchAnalyticIds?: number[]
 }
 
 const REG = posRegistry as unknown as RegistryShape
@@ -1043,36 +1077,61 @@ function resolveUiChannelHint(
   return isDeliveryTerminal ? 'takeaway-direct' : 'dine-in'
 }
 
-interface OdooGlAccountMeta {
-  id: number
-  code: string
-  name: string
-  account_type: string
-}
-
-const DELIVERY_COMMISSION_ACCOUNT_CODES = new Set([
-  '40224',
-  '40225',
-  '40228',
-  '40229',
-  '40230',
-  '40232',
-  '40233',
-  '40705',
-  '40706',
-  '40811',
-  '40918',
-  '41030',
-  '41031',
-  '41032',
+const PNL_ACCOUNT_TYPE_SET = new Set<string>(PNL_GL_ACCOUNT_TYPES)
+const BS_ACCOUNT_TYPE_SET = new Set<string>([
+  ...BALANCE_SHEET_GL_ACCOUNT_TYPES,
+  ...ASSET_GL_ACCOUNT_TYPES,
+  ...LIABILITY_GL_ACCOUNT_TYPES,
+  ...EQUITY_GL_ACCOUNT_TYPES,
 ])
 
-function isDeliveryCommissionGlAccount(code: string, name: string): boolean {
-  const c = (code || '').trim()
-  if (DELIVERY_COMMISSION_ACCOUNT_CODES.has(c)) return true
-  return /commission|عمول|talabat|طلبات|deliveroo|ديليفرو|keeta|كيتا|كييتا|jahez|جاهز|snoonu|سنونو|cari|كاري|bilbayt|بالبيت|aggregator/i.test(
-    name || '',
-  )
+function isExcludedGlText(rawText?: string | null): boolean {
+  return isDecommissionedWarehouseRecord(rawText) || isExcludedOdooEntity(rawText)
+}
+
+function isExcludedGlAccount(acc: Pick<GlAccountMeta, 'code' | 'name'>): boolean {
+  return isExcludedGlText(`${acc.code ?? ''} ${acc.name ?? ''}`.trim())
+}
+
+function partitionGlAccounts(accounts: readonly GlAccountMeta[]): {
+  activeById: Map<number, GlAccountMeta>
+  pnlById: Map<number, GlAccountMeta>
+  bsById: Map<number, GlAccountMeta>
+} {
+  const activeById = new Map<number, GlAccountMeta>()
+  const pnlById = new Map<number, GlAccountMeta>()
+  const bsById = new Map<number, GlAccountMeta>()
+  for (const acc of accounts) {
+    if (isExcludedGlAccount(acc)) continue
+    activeById.set(acc.id, acc)
+    if (PNL_ACCOUNT_TYPE_SET.has(acc.account_type)) {
+      pnlById.set(acc.id, acc)
+    } else if (BS_ACCOUNT_TYPE_SET.has(acc.account_type)) {
+      bsById.set(acc.id, acc)
+    }
+  }
+  return { activeById, pnlById, bsById }
+}
+
+function computePnlNetAndAbsFromRows(
+  rows: readonly GlMoveLineGroupRow[],
+  pnlAccountById: ReadonlyMap<number, GlAccountMeta>,
+): { netKwd: number; absKwd: number } {
+  let rawBalanceSum = 0
+  let absKwd = 0
+  for (const r of rows) {
+    const accId = m2oId(r.account_id)
+    if (accId === null) continue
+    const acc = pnlAccountById.get(accId)
+    if (!acc || isExcludedGlAccount(acc)) continue
+    const bal =
+      r.balance !== undefined
+        ? Number(r.balance) || 0
+        : (Number(r.debit) || 0) - (Number(r.credit) || 0)
+    rawBalanceSum += bal
+    absKwd += Math.abs(bal)
+  }
+  return { netKwd: r3(-rawBalanceSum), absKwd: r3(absKwd) }
 }
 
 function isRentPayrollOrDeprGlAccount(code: string, name: string, accountType: string): boolean {
@@ -1118,36 +1177,180 @@ function withGlClosedThrough<T extends OdooLedgerAccountingSummary | null | unde
   return acc ? ({ ...acc, glClosedThroughDate: closedThrough } as T) : acc
 }
 
+async function fetchGlStatementExtensions(params: {
+  companyId: number | null
+  companyDomain: unknown[][]
+  asOfIso: string
+  fiscalYearStartIso: string
+  budgetFromIso: string
+  budgetToIso: string
+  analyticFromIso: string
+  analyticToIso: string
+  analyticPnlNetKwd?: number
+  analyticPnlAbsKwd?: number
+  balanceAccounts: ReadonlyMap<number, GlAccountMeta>
+  ytdPnlAccountById: ReadonlyMap<number, GlAccountMeta>
+  markUnavailable: (section: OdooUnavailableSectionKey) => void
+}): Promise<{
+  glClosedThroughDate: string | null
+  balanceSheet: GlBalanceSheetSummary
+  budgetProbe: OdooBudgetProbeSummary
+  analyticPnl: OdooAnalyticBranchPnlSummary
+}> {
+  const [glClosedThroughDate, balanceSheet, budgetProbe, analyticPnl] = await Promise.all([
+    fetchGlClosedThroughDate(params.companyId),
+    fetchGlBalanceSheet({
+      asOfIso: params.asOfIso,
+      fiscalYearStartIso: params.fiscalYearStartIso,
+      balanceAccounts: params.balanceAccounts,
+      ytdPnlAccountById: params.ytdPnlAccountById,
+      executeOdoo: executeOdooKw,
+      safeSubQuery,
+      markUnavailable: params.markUnavailable,
+      companyDomain: params.companyDomain,
+      isDecommissionedAccount: isExcludedGlText,
+    }),
+    probeCrossoveredBudget({
+      fromIso: params.budgetFromIso,
+      toInclusiveIso: params.budgetToIso,
+      executeOdoo: executeOdooKw,
+      safeSubQuery,
+      markUnavailable: params.markUnavailable,
+      companyDomain: params.companyDomain,
+      isDecommissionedAccount: isExcludedGlText,
+    }),
+    fetchGlAnalyticBreakdown({
+      fromIso: params.analyticFromIso,
+      toInclusiveIso: params.analyticToIso,
+      totalPnlNetKwd: params.analyticPnlNetKwd,
+      totalPnlAbsKwd: params.analyticPnlAbsKwd,
+      excludedAnalyticIds: REG.excludedBranchAnalyticIds ?? [],
+      executeOdoo: executeOdooKw,
+      safeSubQuery,
+      markUnavailable: params.markUnavailable,
+      companyDomain: params.companyDomain,
+      isDecommissionedAccount: isExcludedGlText,
+    }),
+  ])
+  return { glClosedThroughDate, balanceSheet, budgetProbe, analyticPnl }
+}
+
+function mapExpenseClassToGroupKey(cls: PlatformExpenseClass): GlIncomeStatementGroupKey {
+  return cls === 'other' ? 'other_opex' : cls
+}
+
+function sortGlLinesByAbsAmount(a: { amountKwd: number; code: string }, b: { amountKwd: number; code: string }): number {
+  return (
+    Math.abs(b.amountKwd) - Math.abs(a.amountKwd) ||
+    a.code.localeCompare(b.code, undefined, { numeric: true })
+  )
+}
+
 export function buildLedgerAccountingFromGroups(params: {
   fromIso: string
   toInclusiveIso: string
-  accountById: Map<number, OdooGlAccountMeta>
-  rows: { account_id: M2O; balance?: number; __count?: number }[]
+  accountById: ReadonlyMap<number, GlAccountMeta>
+  rows: readonly GlMoveLineGroupRow[]
+  balanceSheet?: GlBalanceSheetSummary
+  budgetProbe?: OdooBudgetProbeSummary
+  analyticPnl?: OdooAnalyticBranchPnlSummary
+  unavailableSections?: string[]
+  includeTrialBalance?: boolean
 }): OdooLedgerAccountingSummary {
-  const { fromIso, toInclusiveIso, accountById, rows } = params
-  let income = 0
-  let otherIncome = 0
-  let cogs = 0
-  let deliveryCommissions = 0
-  let deliveryCommissionLinesCount = 0
-  let expense = 0
-  let depreciation = 0
-  let accrualSignalTotal = 0
-  let lineCount = 0
-  const revenueAccounts: NonNullable<OdooLedgerAccountingSummary['revenueAccounts']> = []
+  const {
+    fromIso,
+    toInclusiveIso,
+    accountById,
+    rows,
+    balanceSheet,
+    budgetProbe,
+    analyticPnl,
+    unavailableSections,
+    includeTrialBalance = true,
+  } = params
+
+  const groupedPnl = new Map<
+    number,
+    {
+      account: GlAccountMeta
+      debit: number
+      credit: number
+      balance: number
+      lineCount: number
+      hasDebitCredit: boolean
+    }
+  >()
 
   for (const r of rows) {
     const accId = m2oId(r.account_id)
     if (accId === null) continue
     const acc = accountById.get(accId)
-    if (!acc) continue
-    const bal = Number(r.balance) || 0
-    const cnt = Math.max(0, Number(r.__count) || 0)
+    if (!acc || isExcludedGlAccount(acc) || !PNL_ACCOUNT_TYPE_SET.has(acc.account_type)) continue
+
+    const debit = Number(r.debit) || 0
+    const credit = Number(r.credit) || 0
+    const bal = r.balance !== undefined ? Number(r.balance) || 0 : debit - credit
+    const cnt = Math.max(0, Math.round(Number(r.__count) || 0))
+    const hasDC = r.debit !== undefined || r.credit !== undefined
+
+    const prev = groupedPnl.get(accId) ?? {
+      account: acc,
+      debit: 0,
+      credit: 0,
+      balance: 0,
+      lineCount: 0,
+      hasDebitCredit: false,
+    }
+    prev.debit += debit
+    prev.credit += credit
+    prev.balance += bal
+    prev.lineCount += cnt
+    prev.hasDebitCredit = prev.hasDebitCredit || hasDC
+    groupedPnl.set(accId, prev)
+  }
+
+  let income = 0
+  let otherIncome = 0
+  let cogs = 0
+  let expense = 0
+  let depreciation = 0
+  let accrualSignalTotal = 0
+  let lineCount = 0
+  let revenueLinesCount = 0
+  let cogsLinesCount = 0
+  let depreciationLinesCount = 0
+
+  const revenueAccounts: NonNullable<OdooLedgerAccountingSummary['revenueAccounts']> = []
+  const revenueAccountLines: GlStatementAccountLine[] = []
+  const cogsAccounts: GlStatementAccountLine[] = []
+  const expenseAccounts: GlStatementAccountLine[] = []
+  const depreciationAccounts: GlStatementAccountLine[] = []
+  const expenseInputs: PlatformExpenseAccountInput[] = []
+
+  for (const entry of groupedPnl.values()) {
+    const { account: acc, debit, credit, balance: bal, lineCount: cnt, hasDebitCredit } = entry
     lineCount += cnt
+
+    const buildLine = (
+      amountRaw: number,
+      expenseClass?: PlatformExpenseClass,
+    ): GlStatementAccountLine => ({
+      accountId: acc.id,
+      code: acc.code,
+      name: acc.name,
+      accountType: acc.account_type,
+      amountKwd: r3(amountRaw),
+      ...(hasDebitCredit ? { debitKwd: r3(debit), creditKwd: r3(credit) } : {}),
+      balanceKwd: r3(bal),
+      lineCount: cnt,
+      ...(expenseClass !== undefined ? { expenseClass } : {}),
+    })
+
     if (acc.account_type === 'income' || acc.account_type === 'income_other') {
       const amount = r3(-bal)
       if (acc.account_type === 'income') income += -bal
       else otherIncome += -bal
+      revenueLinesCount += cnt
       if (amount !== 0) {
         revenueAccounts.push({
           code: acc.code,
@@ -1156,35 +1359,154 @@ export function buildLedgerAccountingFromGroups(params: {
           amountKwd: amount,
         })
       }
+      if (amount !== 0 || cnt > 0) {
+        revenueAccountLines.push(buildLine(-bal))
+      }
     } else if (acc.account_type === 'expense_direct_cost') {
       cogs += bal
+      cogsLinesCount += cnt
+      if (r3(bal) !== 0 || cnt > 0) {
+        cogsAccounts.push(buildLine(bal))
+      }
     } else if (acc.account_type === 'expense') {
       expense += bal
-      if (isDeliveryCommissionGlAccount(acc.code, acc.name)) {
-        deliveryCommissions += bal
-        deliveryCommissionLinesCount += cnt
-      }
+      const expClass = classifyPlatformExpenseAccount(acc.code, acc.name, acc.account_type)
       if (isRentPayrollOrDeprGlAccount(acc.code, acc.name, acc.account_type)) {
         accrualSignalTotal += Math.abs(bal)
       }
+      if (r3(bal) !== 0 || cnt > 0) {
+        expenseAccounts.push(buildLine(bal, expClass))
+        expenseInputs.push({
+          accountId: acc.id,
+          code: acc.code,
+          name: acc.name,
+          accountType: acc.account_type,
+          amountKwd: bal,
+          ...(hasDebitCredit ? { debitKwd: debit, creditKwd: credit } : {}),
+          balanceKwd: bal,
+          lineCount: cnt,
+        })
+      }
     } else if (acc.account_type === 'expense_depreciation') {
       depreciation += bal
+      depreciationLinesCount += cnt
       accrualSignalTotal += Math.abs(bal)
+      if (r3(bal) !== 0 || cnt > 0) {
+        depreciationAccounts.push(buildLine(bal))
+      }
     }
   }
+
+  const rawBreakdown = summarizePlatformExpenses(expenseInputs)
+  const expenseBreakdown = Object.fromEntries(
+    PLATFORM_EXPENSE_CLASSES.map((cls) => [
+      cls,
+      {
+        totalKwd: rawBreakdown[cls].totalKwd,
+        linesCount: rawBreakdown[cls].linesCount,
+        accounts: rawBreakdown[cls].accounts.map((a) => ({
+          ...(a.accountId !== undefined ? { accountId: a.accountId } : {}),
+          code: a.code,
+          name: a.name,
+          accountType: a.accountType,
+          amountKwd: a.amountKwd,
+          ...(a.debitKwd !== undefined ? { debitKwd: a.debitKwd } : {}),
+          ...(a.creditKwd !== undefined ? { creditKwd: a.creditKwd } : {}),
+          ...(a.balanceKwd !== undefined ? { balanceKwd: a.balanceKwd } : {}),
+          lineCount: a.lineCount,
+          expenseClass: a.expenseClass,
+        })),
+      },
+    ]),
+  ) as NonNullable<OdooLedgerAccountingSummary['expenseBreakdown']>
 
   const cleanIncome = r3(income)
   const cleanOtherIncome = r3(otherIncome)
   const totalRevenue = r3(cleanIncome + cleanOtherIncome)
   const cleanCogs = r3(cogs)
-  const cleanDeliveryComm = r3(deliveryCommissions)
+  const cleanPlatformCommission = expenseBreakdown.platform_commission.totalKwd
+  const platformCommissionLinesCount = expenseBreakdown.platform_commission.linesCount
+  const platformSubscriptionKwd = expenseBreakdown.platform_subscription.totalKwd
+  const thirdPartyDeliveryKwd = expenseBreakdown.third_party_delivery.totalKwd
+  const paymentGatewayKwd = expenseBreakdown.payment_gateway.totalKwd
+  const bankFeesKwd = expenseBreakdown.bank_fees.totalKwd
+  const adsKwd = expenseBreakdown.ads.totalKwd
+  const otherOpexKwd = expenseBreakdown.other.totalKwd
   const cleanExpense = r3(expense)
   const cleanDepreciation = r3(depreciation)
-  const otherOpexAndDepreciation = r3(cleanExpense - cleanDeliveryComm + cleanDepreciation)
+  const otherOpexAndDepreciation = r3(cleanExpense - cleanPlatformCommission + cleanDepreciation)
   const operatingProfit = r3(totalRevenue - cleanCogs - cleanExpense - cleanDepreciation)
-  const available = lineCount > 0 && totalRevenue > 0
+
+  revenueAccounts.sort(sortGlLinesByAbsAmount)
+  revenueAccountLines.sort(sortGlLinesByAbsAmount)
+  cogsAccounts.sort(sortGlLinesByAbsAmount)
+  expenseAccounts.sort(sortGlLinesByAbsAmount)
+  depreciationAccounts.sort(sortGlLinesByAbsAmount)
+
+  const incomeStatementGroups: GlIncomeStatementGroup[] = [
+    {
+      key: 'revenue',
+      labelAr: 'الإيرادات (الأستاذ العام)',
+      labelEn: 'Revenue (GL)',
+      accountTypes: ['income', 'income_other'],
+      totalKwd: totalRevenue,
+      linesCount: revenueLinesCount,
+      posted: totalRevenue !== 0 || revenueLinesCount > 0,
+      accounts: revenueAccountLines,
+    },
+    {
+      key: 'cogs',
+      labelAr: 'تكلفة المبيعات (COGS)',
+      labelEn: 'Cost of Goods Sold (COGS)',
+      accountTypes: ['expense_direct_cost'],
+      totalKwd: cleanCogs,
+      linesCount: cogsLinesCount,
+      posted: cleanCogs !== 0 || cogsLinesCount > 0,
+      accounts: cogsAccounts,
+    },
+    ...PLATFORM_EXPENSE_CLASSES.map((cls): GlIncomeStatementGroup => {
+      const bucket = expenseBreakdown[cls]
+      return {
+        key: mapExpenseClassToGroupKey(cls),
+        labelAr: PLATFORM_EXPENSE_CLASS_LABELS[cls].ar,
+        labelEn: PLATFORM_EXPENSE_CLASS_LABELS[cls].en,
+        accountTypes: ['expense'],
+        totalKwd: bucket.totalKwd,
+        linesCount: bucket.linesCount,
+        posted: bucket.totalKwd !== 0 || bucket.linesCount > 0,
+        accounts: bucket.accounts,
+      }
+    }),
+    {
+      key: 'depreciation',
+      labelAr: 'الإهلاك والاستهلاك',
+      labelEn: 'Depreciation & Amortization',
+      accountTypes: ['expense_depreciation'],
+      totalKwd: cleanDepreciation,
+      linesCount: depreciationLinesCount,
+      posted: cleanDepreciation !== 0 || depreciationLinesCount > 0,
+      accounts: depreciationAccounts,
+    },
+  ]
+
+  const trialBalance = includeTrialBalance
+    ? buildGlTrialBalanceFromGroups({
+        fromIso,
+        toInclusiveIso,
+        accountById,
+        rows,
+        filterExcludedAccount: isExcludedGlAccount,
+      })
+    : undefined
+
+  const available =
+    lineCount > 0 &&
+    (Math.abs(totalRevenue) > 0 ||
+      Math.abs(cleanCogs) > 0 ||
+      Math.abs(cleanExpense) > 0 ||
+      Math.abs(cleanDepreciation) > 0)
   const aggregatorCommissionUnposted =
-    !available || (deliveryCommissionLinesCount === 0 && Math.abs(cleanDeliveryComm) < 0.001)
+    !available || (platformCommissionLinesCount === 0 && Math.abs(cleanPlatformCommission) < 0.001)
   const completeAccrualPosted =
     available &&
     accrualSignalTotal > 0.01 &&
@@ -1199,17 +1521,33 @@ export function buildLedgerAccountingFromGroups(params: {
     to: toInclusiveIso,
     sourceModel: 'account.move.line',
     lineCount,
-    revenueAccounts: revenueAccounts.sort((a, b) => Math.abs(b.amountKwd) - Math.abs(a.amountKwd)),
+    revenueAccounts,
+    incomeStatementGroups,
+    cogsAccounts,
+    expenseAccounts,
+    depreciationAccounts,
+    expenseBreakdown,
     income: cleanIncome,
     otherIncome: cleanOtherIncome,
     totalRevenue,
     cogs: cleanCogs,
-    deliveryCommissions: cleanDeliveryComm,
-    deliveryCommissionLinesCount,
+    deliveryCommissions: cleanPlatformCommission,
+    deliveryCommissionLinesCount: platformCommissionLinesCount,
+    platformSubscriptionKwd,
+    thirdPartyDeliveryKwd,
+    paymentGatewayKwd,
+    bankFeesKwd,
+    adsKwd,
+    otherOpexKwd,
     expense: cleanExpense,
     depreciation: cleanDepreciation,
     otherOpexAndDepreciation,
     operatingProfit,
+    ...(trialBalance !== undefined ? { trialBalance } : {}),
+    ...(balanceSheet !== undefined ? { balanceSheet } : {}),
+    ...(budgetProbe !== undefined ? { budgetProbe } : {}),
+    ...(analyticPnl !== undefined ? { analyticPnl } : {}),
+    ...(unavailableSections !== undefined ? { unavailableSections } : {}),
     completeAccrualPosted,
     glIncomplete,
     ...(glIncomplete ? { glWarningAr: 'قيود غير مكتملة لهذه الفترة' } : {}),
@@ -1219,8 +1557,8 @@ export function buildLedgerAccountingFromGroups(params: {
       : {}),
     ...(!available
       ? {
-          unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
-          unavailableReasonEn: 'No posted General Ledger revenue lines exist for this period.',
+          unavailableReasonAr: 'لا توجد قيود أرباح وخسائر مرحّلة في أودو لهذه الفترة.',
+          unavailableReasonEn: 'No posted General Ledger P&L lines exist for this period.',
         }
       : glIncomplete
         ? {
@@ -1232,15 +1570,24 @@ export function buildLedgerAccountingFromGroups(params: {
   }
 }
 
+function splitAccountLabel(
+  accountId: number,
+  rawLabel: string,
+): { accountCode: string; accountName: string } {
+  const m = /^(\d+)\s+(.*)$/.exec((rawLabel || '').trim())
+  return {
+    accountCode: m ? m[1] : String(accountId),
+    accountName: m ? m[2].trim() : (rawLabel || `Account #${accountId}`).trim(),
+  }
+}
+
 function formatReceivableAccountRow(
   accountId: number,
   rawLabel: string,
   residualKwd: number,
   linesCount: number,
 ): OdooReceivableAccountRow {
-  const m = /^(\d+)\s+(.*)$/.exec((rawLabel || '').trim())
-  const accountCode = m ? m[1] : String(accountId)
-  const accountName = m ? m[2].trim() : (rawLabel || `Account #${accountId}`).trim()
+  const { accountCode, accountName } = splitAccountLabel(accountId, rawLabel)
   const lower = accountName.toLowerCase()
   let labelAr = accountName
   let labelEn = accountName
@@ -1284,6 +1631,57 @@ function formatReceivableAccountRow(
     residualKwd: r3(residualKwd),
     linesCount: Math.max(0, Math.round(linesCount)),
   }
+}
+
+function formatPayableAccountRow(
+  accountId: number,
+  rawLabel: string,
+  owedKwd: number,
+  linesCount: number,
+): OdooReceivableAccountRow {
+  const { accountCode, accountName } = splitAccountLabel(accountId, rawLabel)
+  const isTradePayable =
+    accountCode === '201000' || accountCode === '211000' || /\baccount payable\b/i.test(accountName)
+  return {
+    accountId,
+    accountCode,
+    accountName,
+    labelAr: isTradePayable ? `ذمم الموردين التجارية (${accountCode})` : accountName,
+    labelEn: isTradePayable ? `Trade Accounts Payable (${accountCode})` : accountName,
+    residualKwd: r3(owedKwd),
+    linesCount: Math.max(0, Math.round(linesCount)),
+  }
+}
+
+function hasPartnerField(row: PartnerAgingGroupRow): boolean {
+  return row.partner_id !== undefined || row.partnerId !== undefined
+}
+
+function buildApAgingDomains(baseDomain: readonly unknown[][], todayIso: string) {
+  const base = buildArAgingDomains(baseDomain, todayIso)
+  const flipClause = (clause: unknown): unknown => {
+    if (Array.isArray(clause) && clause[0] === 'amount_residual') {
+      if (clause[1] === '>') return ['amount_residual', '<', clause[2]]
+      if (clause[1] === '<') return ['amount_residual', '>', clause[2]]
+    }
+    return clause
+  }
+  return {
+    owedDomains: base.debitDomains.map((d) => ({
+      key: d.key,
+      domain: d.domain.map(flipClause),
+    })),
+    advanceDomain: base.creditDomain.map(flipClause),
+  }
+}
+
+function negateResidualPartnerRows(rows: readonly PartnerAgingGroupRow[]): PartnerAgingGroupRow[] {
+  return rows
+    .filter((r) => hasPartnerField(r) && typeof r.amount_residual === 'number')
+    .map((r) => ({
+      ...r,
+      amount_residual: -(r.amount_residual ?? 0),
+    }))
 }
 
 function resolveDefaultDisconnectedDateRange(
@@ -1732,18 +2130,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
     safeSubQuery(
       () =>
-        executeOdooKw<OdooGlAccountMeta[]>(
+        executeOdooKw<GlAccountMeta[]>(
           'account.account',
           'search_read',
-          [
-            [
-              [
-                'account_type',
-                'in',
-                ['income', 'income_other', 'expense_direct_cost', 'expense', 'expense_depreciation'],
-              ],
-            ],
-          ],
+          [[['account_type', 'in', [...ALL_GL_ACCOUNT_TYPES]]]],
           { fields: ['id', 'code', 'name', 'account_type'] },
         ),
       [],
@@ -1777,12 +2167,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const companyDomain: unknown[][] =
     resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []
 
-  const activeGlAccountById = new Map<number, OdooGlAccountMeta>()
-  for (const acc of glAccountsRaw) {
-    const label = `${acc.code ?? ''} ${acc.name ?? ''}`.trim()
-    if (isDecommissionedWarehouseRecord(label)) continue
-    activeGlAccountById.set(acc.id, acc)
-  }
+  const {
+    activeById: activeGlAccountById,
+    pnlById: activePnlAccountById,
+    bsById: activeBsAccountById,
+  } = partitionGlAccounts(glAccountsRaw)
   const activeGlAccountIds = [...activeGlAccountById.keys()]
 
   const branchOfConfigId = new Map<number, (typeof ACTIVE_BRANCH_IDS)[number]>()
@@ -1976,6 +2365,35 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const exactBrandRowsToday = exactBrandRowsOf(boundsToday)
   const exactBrandRowsWeek = exactBrandRowsOf(boundsWeek)
 
+  const fetchGlWindowRows = (
+    fromIso: string,
+    toIso: string,
+    section: OdooUnavailableSectionKey,
+  ) =>
+    activeGlAccountIds.length > 0
+      ? safeSubQuery(
+          () =>
+            executeOdooKw<GlMoveLineGroupRow[]>(
+              'account.move.line',
+              'read_group',
+              [
+                [
+                  ...companyDomain,
+                  ['parent_state', '=', 'posted'],
+                  ['date', '>=', fromIso],
+                  ['date', '<=', toIso],
+                  ['account_id', 'in', activeGlAccountIds],
+                ],
+                ['debit:sum', 'credit:sum', 'balance:sum'],
+                ['account_id'],
+              ],
+              { lazy: false },
+            ),
+          [],
+          markFailure(section),
+        )
+      : Promise.resolve([] as GlMoveLineGroupRow[])
+
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
   // leaves real KWD paired with 0 orders or a distorted average ticket.
@@ -1994,7 +2412,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     [ytdAggRows, ytdAggCountRows],
     prior30Pair,
     stockTransfers,
-    aggregatorReceivables,
+    aggregatorReceivablesRaw,
+    apAging,
     decommissionedOrders30Rows,
     glTodayRows,
     glWeekRows,
@@ -2438,12 +2857,22 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }, null, markFailure('stockTransfers')),
     safeSubQuery<OdooReceivableClearingSummary | null | undefined>(async () => {
       const arDomain: unknown[][] = [
+        ...companyDomain,
         ['parent_state', '=', 'posted'],
         ['account_id.account_type', '=', 'asset_receivable'],
         ['reconciled', '=', false],
       ]
       const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
-      const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
+      const [
+        byAccRows,
+        minDateRows,
+        maxDateRows,
+        maxMaturityRows,
+        agingDebitRows,
+        agingCreditRows,
+        partnerDebitRows,
+        partnerCreditRows,
+      ] = await Promise.all([
         executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
           'account.move.line',
           'read_group',
@@ -2496,6 +2925,22 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           [agingDomains.creditDomain, ['amount_residual:sum'], ['account_id']],
           { lazy: false },
         ),
+        Promise.all(
+          agingDomains.debitDomains.map((d) =>
+            executeOdooKw<PartnerAgingGroupRow[]>(
+              'account.move.line',
+              'read_group',
+              [d.domain, ['amount_residual:sum'], ['partner_id']],
+              { lazy: false },
+            ),
+          ),
+        ),
+        executeOdooKw<PartnerAgingGroupRow[]>(
+          'account.move.line',
+          'read_group',
+          [agingDomains.creditDomain, ['amount_residual:sum'], ['partner_id']],
+          { lazy: false },
+        ),
       ])
 
       const byAccount: OdooReceivableAccountRow[] = []
@@ -2509,7 +2954,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       for (const r of byAccRows) {
         const accId = m2oId(r.account_id)
         const accName = m2oName(r.account_id) ?? ''
-        if (accId === null || isDecommissionedWarehouseRecord(accName)) continue
+        if (accId === null || isExcludedGlText(accName)) continue
         const resVal = Number(r.amount_residual) || 0
         const cnt = Math.max(0, Number(r.__count) || 0)
         netSum += resVal
@@ -2530,7 +2975,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       // Same account scope as the headline: decommissioned-warehouse accounts are left out.
       const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
         rows
-          .filter((r) => m2oId(r.account_id) !== null && !isDecommissionedWarehouseRecord(m2oName(r.account_id) ?? ''))
+          .filter((r) => m2oId(r.account_id) !== null && !isExcludedGlText(m2oName(r.account_id) ?? ''))
           .reduce(
             (acc, r) => ({
               residualKwd: acc.residualKwd + (Number(r.amount_residual) || 0),
@@ -2545,7 +2990,16 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         credits: groupTotal(agingCreditRows),
       })
       const computedAging = aging.buckets
-      const hasLiveAging = computedAging.some((b) => b.linesCount > 0)
+      const byPartner: OdooPartnerAgingRow[] = buildPartnerAgingRows({
+        debitsByBucketPartner: Object.fromEntries(
+          agingDomains.debitDomains.map((d, i) => [
+            d.key,
+            partnerDebitRows[i].filter(hasPartnerField),
+          ]),
+        ),
+        creditsByPartner: partnerCreditRows.filter(hasPartnerField),
+        isExcludedPartnerName: isExcludedGlText,
+      })
 
       const fromDate =
         typeof minDateRows?.[0]?.date === 'string' && minDateRows[0].date.trim()
@@ -2560,12 +3014,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
       return {
         readable: true,
+        companyId: resolvedCompanyId,
+        asOfDate: todayKwIso,
         openReceivableKwd: r3(netSum),
         grossPositiveReceivableKwd: r3(grossPositive),
         creditClearingOffsetKwd: r3(creditOffset),
         openLinesCount: totalLines,
         posClearingLinesCount,
         platformAndCorporateLinesCount,
+        partnerCount: byPartner.length,
         fromDate,
         toDate,
         latestMaturityDate,
@@ -2579,6 +3036,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(grossPositive).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} credit clearing = ${r3(netSum).toLocaleString('en-US')} KWD.`,
         sourceModel: 'account.move.line',
         byAccount,
+        byPartner,
         agingBuckets: computedAging,
         agingBasis: aging.basis,
         openDebitsKwd: aging.openDebitsKwd,
@@ -2586,6 +3044,125 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
       }
     }, null, markFailure('receivables')),
+    safeSubQuery<OdooApAgingSummary | null>(async () => {
+      const apDomain: unknown[][] = [
+        ...companyDomain,
+        ['parent_state', '=', 'posted'],
+        ['account_id.account_type', '=', 'liability_payable'],
+        ['reconciled', '=', false],
+      ]
+      const apDomains = buildApAgingDomains(apDomain, todayKwIso)
+      const [
+        apByAccRows,
+        apOwedAccRows,
+        apAdvanceAccRows,
+        apPartnerOwedRows,
+        apPartnerAdvanceRows,
+      ] = await Promise.all([
+        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+          'account.move.line',
+          'read_group',
+          [apDomain, ['amount_residual:sum'], ['account_id']],
+          { lazy: false },
+        ),
+        Promise.all(
+          apDomains.owedDomains.map((d) =>
+            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+              'account.move.line',
+              'read_group',
+              [d.domain, ['amount_residual:sum'], ['account_id']],
+              { lazy: false },
+            ),
+          ),
+        ),
+        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+          'account.move.line',
+          'read_group',
+          [apDomains.advanceDomain, ['amount_residual:sum'], ['account_id']],
+          { lazy: false },
+        ),
+        Promise.all(
+          apDomains.owedDomains.map((d) =>
+            executeOdooKw<PartnerAgingGroupRow[]>(
+              'account.move.line',
+              'read_group',
+              [d.domain, ['amount_residual:sum'], ['partner_id']],
+              { lazy: false },
+            ),
+          ),
+        ),
+        executeOdooKw<PartnerAgingGroupRow[]>(
+          'account.move.line',
+          'read_group',
+          [apDomains.advanceDomain, ['amount_residual:sum'], ['partner_id']],
+          { lazy: false },
+        ),
+      ])
+
+      const apByAccount: OdooReceivableAccountRow[] = []
+      let apNetOwed = 0
+      let apTotalLines = 0
+      for (const r of apByAccRows) {
+        const accId = m2oId(r.account_id)
+        const accName = m2oName(r.account_id) ?? ''
+        if (accId === null || isExcludedGlText(accName) || typeof r.amount_residual !== 'number') {
+          continue
+        }
+        // In Odoo GL, payable bills have credit residual (< 0), so amount owed = -amount_residual.
+        const owedVal = -(Number(r.amount_residual) || 0)
+        const cnt = Math.max(0, Number(r.__count) || 0)
+        apNetOwed += owedVal
+        apTotalLines += cnt
+        apByAccount.push(formatPayableAccountRow(accId, accName, owedVal, cnt))
+      }
+      apByAccount.sort((a, b) => b.residualKwd - a.residualKwd)
+
+      const negateAccGroupTotal = (
+        rows: { account_id: M2O; amount_residual?: number; __count?: number }[],
+      ) =>
+        rows
+          .filter(
+            (r) =>
+              m2oId(r.account_id) !== null &&
+              !isExcludedGlText(m2oName(r.account_id) ?? '') &&
+              typeof r.amount_residual === 'number',
+          )
+          .reduce(
+            (acc, r) => ({
+              residualKwd: acc.residualKwd + -(Number(r.amount_residual) || 0),
+              linesCount: acc.linesCount + Math.max(0, Number(r.__count) || 0),
+            }),
+            { residualKwd: 0, linesCount: 0 },
+          )
+
+      const apAgingResult = summarizeArAging({
+        debitsByBucket: Object.fromEntries(
+          apDomains.owedDomains.map((d, i) => [d.key, negateAccGroupTotal(apOwedAccRows[i])]),
+        ),
+        credits: negateAccGroupTotal(apAdvanceAccRows),
+      })
+
+      const apByPartner: OdooPartnerAgingRow[] = buildPartnerAgingRows({
+        debitsByBucketPartner: Object.fromEntries(
+          apDomains.owedDomains.map((d, i) => [d.key, negateResidualPartnerRows(apPartnerOwedRows[i])]),
+        ),
+        creditsByPartner: negateResidualPartnerRows(apPartnerAdvanceRows),
+        isExcludedPartnerName: isExcludedGlText,
+      })
+
+      return {
+        readable: true,
+        companyId: resolvedCompanyId,
+        asOfDate: todayKwIso,
+        openPayableKwd: r3(apNetOwed),
+        openCreditsKwd: apAgingResult.openDebitsKwd,
+        unappliedDebitsKwd: apAgingResult.unappliedCreditsKwd,
+        openLinesCount: apTotalLines,
+        byAccount: apByAccount,
+        byPartner: apByPartner,
+        agingBuckets: apAgingResult.buckets,
+      }
+    }, null, markFailure('ap')),
     decommissionedConfigIds.size > 0
       ? safeSubQuery(
           () =>
@@ -2617,98 +3194,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           markFailure('excluded.month'),
         )
       : Promise.resolve([]),
-    activeGlAccountIds.length > 0
-      ? safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; balance?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [
-                [
-                  ...companyDomain,
-                  ['parent_state', '=', 'posted'],
-                  ['date', '>=', anchorDayKwIso],
-                  ['date', '<=', anchorDayKwIso],
-                  ['account_id', 'in', activeGlAccountIds],
-                ],
-                ['balance:sum'],
-                ['account_id'],
-              ],
-              { lazy: false },
-            ),
-          [],
-          markFailure('gl.today'),
-        )
-      : Promise.resolve([]),
-    activeGlAccountIds.length > 0
-      ? safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; balance?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [
-                [
-                  ...companyDomain,
-                  ['parent_state', '=', 'posted'],
-                  ['date', '>=', weekFromKwIso],
-                  ['date', '<=', anchorDayKwIso],
-                  ['account_id', 'in', activeGlAccountIds],
-                ],
-                ['balance:sum'],
-                ['account_id'],
-              ],
-              { lazy: false },
-            ),
-          [],
-          markFailure('gl.week'),
-        )
-      : Promise.resolve([]),
-    activeGlAccountIds.length > 0
-      ? safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; balance?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [
-                [
-                  ...companyDomain,
-                  ['parent_state', '=', 'posted'],
-                  ['date', '>=', monthFromKwIso],
-                  ['date', '<=', anchorDayKwIso],
-                  ['account_id', 'in', activeGlAccountIds],
-                ],
-                ['balance:sum'],
-                ['account_id'],
-              ],
-              { lazy: false },
-            ),
-          [],
-          markFailure('gl.month'),
-        )
-      : Promise.resolve([]),
-    activeGlAccountIds.length > 0
-      ? safeSubQuery(
-          () =>
-            executeOdooKw<{ account_id: M2O; balance?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [
-                [
-                  ...companyDomain,
-                  ['parent_state', '=', 'posted'],
-                  ['date', '>=', yearFromKwIso],
-                  ['date', '<=', anchorDayKwIso],
-                  ['account_id', 'in', activeGlAccountIds],
-                ],
-                ['balance:sum'],
-                ['account_id'],
-              ],
-              { lazy: false },
-            ),
-          [],
-          markFailure('gl.year'),
-        )
-      : Promise.resolve([]),
+    fetchGlWindowRows(anchorDayKwIso, anchorDayKwIso, 'gl.today'),
+    fetchGlWindowRows(weekFromKwIso, anchorDayKwIso, 'gl.week'),
+    fetchGlWindowRows(monthFromKwIso, anchorDayKwIso, 'gl.month'),
+    fetchGlWindowRows(yearFromKwIso, anchorDayKwIso, 'gl.year'),
   ])
 
   const mergedDaySessionPricelistRows = mergeDaySessionPricelistGroups(
@@ -3259,58 +3748,138 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     ),
   )
 
+  const aggregatorReceivables: OdooReceivableClearingSummary | null | undefined =
+    aggregatorReceivablesRaw
+      ? { ...aggregatorReceivablesRaw, apAging: apAging ?? null }
+      : aggregatorReceivablesRaw
+
   const todayInclusiveIso = shiftIsoDate(todayBucketTo, -1)
   const canonicalInclusiveIso = shiftIsoDate(canonicalBucketToExclusive, -1)
+  const todayWindowEndIso = todayInclusiveIso >= todayBucketFrom ? todayInclusiveIso : todayBucketFrom
   const glAccountsFailed = unavailableSectionSet.has('gl.accounts')
-  const liveTodayAccountingRaw =
-    glAccountsFailed || unavailableSectionSet.has('gl.today')
-      ? null
-      : activeGlAccountIds.length > 0
-        ? buildLedgerAccountingFromGroups({
-            fromIso: todayBucketFrom,
-            toInclusiveIso: todayInclusiveIso >= todayBucketFrom ? todayInclusiveIso : todayBucketFrom,
-            accountById: activeGlAccountById,
-            rows: glTodayRows,
-          })
-        : undefined
-  const liveWeekAccountingRaw =
-    glAccountsFailed || unavailableSectionSet.has('gl.week')
-      ? null
-      : activeGlAccountIds.length > 0
-        ? buildLedgerAccountingFromGroups({
-            fromIso: weekFromKwIso,
-            toInclusiveIso: canonicalInclusiveIso,
-            accountById: activeGlAccountById,
-            rows: glWeekRows,
-          })
-        : undefined
-  const liveMonthAccountingRaw =
-    glAccountsFailed || unavailableSectionSet.has('gl.month')
-      ? null
-      : activeGlAccountIds.length > 0
-        ? buildLedgerAccountingFromGroups({
-            fromIso: monthFromKwIso,
-            toInclusiveIso: canonicalInclusiveIso,
-            accountById: activeGlAccountById,
-            rows: glMonthRows,
-          })
-        : undefined
-  const liveYearAccountingRaw =
-    glAccountsFailed || unavailableSectionSet.has('gl.year')
-      ? null
-      : activeGlAccountIds.length > 0
-        ? buildLedgerAccountingFromGroups({
-            fromIso: yearFromKwIso,
-            toInclusiveIso: canonicalInclusiveIso,
-            accountById: activeGlAccountById,
-            rows: glYearRows,
-          })
-        : undefined
-  const glClosedThroughDate = glAccountsFailed ? null : await fetchGlClosedThroughDate(resolvedCompanyId)
-  const liveTodayAccounting = withGlClosedThrough(liveTodayAccountingRaw, glClosedThroughDate)
-  const liveWeekAccounting = withGlClosedThrough(liveWeekAccountingRaw, glClosedThroughDate)
-  const liveMonthAccounting = withGlClosedThrough(liveMonthAccountingRaw, glClosedThroughDate)
-  const liveYearAccounting = withGlClosedThrough(liveYearAccountingRaw, glClosedThroughDate)
+  const monthPnlStats = computePnlNetAndAbsFromRows(glMonthRows, activePnlAccountById)
+  const glExt =
+    !glAccountsFailed && activeGlAccountIds.length > 0
+      ? await fetchGlStatementExtensions({
+          companyId: resolvedCompanyId,
+          companyDomain,
+          asOfIso: anchorDayKwIso,
+          fiscalYearStartIso: yearFromKwIso,
+          budgetFromIso: yearFromKwIso,
+          budgetToIso: anchorDayKwIso,
+          analyticFromIso: monthFromKwIso,
+          analyticToIso: canonicalInclusiveIso,
+          ...(unavailableSectionSet.has('gl.month')
+            ? {}
+            : {
+                analyticPnlNetKwd: monthPnlStats.netKwd,
+                analyticPnlAbsKwd: monthPnlStats.absKwd,
+              }),
+          balanceAccounts: activeBsAccountById,
+          ytdPnlAccountById: activePnlAccountById,
+          markUnavailable: (s) => unavailableSectionSet.add(s),
+        })
+      : null
+
+  let analyticToday = glExt?.analyticPnl
+  let analyticWeek = glExt?.analyticPnl
+  let analyticYear = glExt?.analyticPnl
+  if (glExt?.analyticPnl.readable && glExt.analyticPnl.populated) {
+    const fetchAnalyticForWindow = (
+      fromIso: string,
+      toIso: string,
+      rows: readonly GlMoveLineGroupRow[],
+      sectionFailed: boolean,
+    ) => {
+      const stats = computePnlNetAndAbsFromRows(rows, activePnlAccountById)
+      return fetchGlAnalyticBreakdown({
+        fromIso,
+        toInclusiveIso: toIso,
+        ...(sectionFailed ? {} : { totalPnlNetKwd: stats.netKwd, totalPnlAbsKwd: stats.absKwd }),
+        excludedAnalyticIds: REG.excludedBranchAnalyticIds ?? [],
+        executeOdoo: executeOdooKw,
+        safeSubQuery,
+        markUnavailable: (s) => unavailableSectionSet.add(s),
+        companyDomain,
+        isDecommissionedAccount: isExcludedGlText,
+      })
+    }
+    ;[analyticToday, analyticWeek, analyticYear] = await Promise.all([
+      fetchAnalyticForWindow(
+        todayBucketFrom,
+        todayWindowEndIso,
+        glTodayRows,
+        unavailableSectionSet.has('gl.today'),
+      ),
+      fetchAnalyticForWindow(
+        weekFromKwIso,
+        canonicalInclusiveIso,
+        glWeekRows,
+        unavailableSectionSet.has('gl.week'),
+      ),
+      fetchAnalyticForWindow(
+        yearFromKwIso,
+        canonicalInclusiveIso,
+        glYearRows,
+        unavailableSectionSet.has('gl.year'),
+      ),
+    ])
+  }
+
+  const glUnavailableSections = [...unavailableSectionSet].filter((s) => s.startsWith('gl.'))
+  const glClosedThroughDate = glExt?.glClosedThroughDate ?? null
+
+  const buildWindowAccounting = (
+    sectionKey: 'gl.today' | 'gl.week' | 'gl.month' | 'gl.year',
+    fromIso: string,
+    toInclusiveIso: string,
+    rows: readonly GlMoveLineGroupRow[],
+    analyticPnl: OdooAnalyticBranchPnlSummary | undefined,
+  ): OdooLedgerAccountingSummary | null | undefined => {
+    if (glAccountsFailed || unavailableSectionSet.has(sectionKey)) return null
+    if (activeGlAccountIds.length === 0) return undefined
+    return withGlClosedThrough(
+      buildLedgerAccountingFromGroups({
+        fromIso,
+        toInclusiveIso,
+        accountById: activeGlAccountById,
+        rows,
+        ...(glExt ? { balanceSheet: glExt.balanceSheet, budgetProbe: glExt.budgetProbe } : {}),
+        ...(analyticPnl !== undefined ? { analyticPnl } : {}),
+        unavailableSections: glUnavailableSections,
+      }),
+      glClosedThroughDate,
+    )
+  }
+
+  const liveTodayAccounting = buildWindowAccounting(
+    'gl.today',
+    todayBucketFrom,
+    todayWindowEndIso,
+    glTodayRows,
+    analyticToday,
+  )
+  const liveWeekAccounting = buildWindowAccounting(
+    'gl.week',
+    weekFromKwIso,
+    canonicalInclusiveIso,
+    glWeekRows,
+    analyticWeek,
+  )
+  const liveMonthAccounting = buildWindowAccounting(
+    'gl.month',
+    monthFromKwIso,
+    canonicalInclusiveIso,
+    glMonthRows,
+    glExt?.analyticPnl,
+  )
+  const liveYearAccounting = buildWindowAccounting(
+    'gl.year',
+    yearFromKwIso,
+    canonicalInclusiveIso,
+    glYearRows,
+    analyticYear,
+  )
 
   const todayBucket = buildReconciledBucket({
     key: 'today',
@@ -4532,6 +5101,12 @@ export async function fetchLiveOdooPeriodCube(
       ) + 1,
     )
 
+    const cubeUnavailableSet = new Set<OdooUnavailableSectionKey>()
+    const markCubeFailure = (section: OdooUnavailableSectionKey) => ({
+      collector: cubeUnavailableSet,
+      section,
+    })
+
     const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderRows] =
       await Promise.all([
         executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
@@ -4561,27 +5136,14 @@ export async function fetchLiveOdooPeriodCube(
         ),
         safeSubQuery(
           () =>
-            executeOdooKw<OdooGlAccountMeta[]>(
+            executeOdooKw<GlAccountMeta[]>(
               'account.account',
               'search_read',
-              [
-                [
-                  [
-                    'account_type',
-                    'in',
-                    [
-                      'income',
-                      'income_other',
-                      'expense_direct_cost',
-                      'expense',
-                      'expense_depreciation',
-                    ],
-                  ],
-                ],
-              ],
+              [[['account_type', 'in', [...ALL_GL_ACCOUNT_TYPES]]]],
               { fields: ['id', 'code', 'name', 'account_type'] },
             ),
           [],
+          markCubeFailure('gl.accounts'),
         ),
         safeSubQuery(
           () =>
@@ -4641,12 +5203,11 @@ export async function fetchLiveOdooPeriodCube(
       REG.brands.filter((b) => b.posRoot).map((b) => [b.posRoot as string, b.id]),
     )
 
-    const activeAccMap = new Map<number, OdooGlAccountMeta>()
-    for (const a of glAccountsRaw) {
-      if (!isDecommissionedWarehouseRecord(`${a.code ?? ''} ${a.name ?? ''}`)) {
-        activeAccMap.set(a.id, a)
-      }
-    }
+    const {
+      activeById: activeAccMap,
+      pnlById: activeCubePnlMap,
+      bsById: activeCubeBsMap,
+    } = partitionGlAccounts(glAccountsRaw)
     const activeAccIds = [...activeAccMap.keys()]
 
     const companyCfgList = [...companyCfgIds]
@@ -4840,7 +5401,7 @@ export async function fetchLiveOdooPeriodCube(
       activeAccIds.length > 0
         ? safeSubQuery(
             () =>
-              executeOdooKw<{ account_id: M2O; balance?: number; __count?: number }[]>(
+              executeOdooKw<GlMoveLineGroupRow[]>(
                 'account.move.line',
                 'read_group',
                 [
@@ -4851,14 +5412,15 @@ export async function fetchLiveOdooPeriodCube(
                     ['date', '<=', dateRange.to],
                     ['account_id', 'in', activeAccIds],
                   ],
-                  ['balance:sum'],
+                  ['debit:sum', 'credit:sum', 'balance:sum'],
                   ['account_id'],
                 ],
                 { lazy: false },
               ),
             [],
+            markCubeFailure('gl.trialBalance'),
           )
-        : Promise.resolve([]),
+        : Promise.resolve([] as GlMoveLineGroupRow[]),
     ])
 
     // Per-branch `pos.order.line` read_group in 2 small waves of <=4 to preserve Odoo worker pool
@@ -5321,16 +5883,50 @@ export async function fetchLiveOdooPeriodCube(
     )
     const excludedEntitiesOrders = Math.max(0, Math.round(Number(decommOrderRows?.[0]?.__count) || 0))
 
+    const cubeGlLinesFailed = cubeUnavailableSet.has('gl.trialBalance')
+    const cubePnlStats = computePnlNetAndAbsFromRows(glRows, activeCubePnlMap)
+    const cubeGlExt =
+      !cubeUnavailableSet.has('gl.accounts') && activeAccIds.length > 0
+        ? await fetchGlStatementExtensions({
+            companyId: resolvedCompanyId,
+            companyDomain,
+            asOfIso: dateRange.to,
+            fiscalYearStartIso: `${dateRange.to.slice(0, 4)}-01-01`,
+            budgetFromIso: dateRange.from,
+            budgetToIso: dateRange.to,
+            analyticFromIso: dateRange.from,
+            analyticToIso: dateRange.to,
+            ...(cubeGlLinesFailed
+              ? {}
+              : {
+                  analyticPnlNetKwd: cubePnlStats.netKwd,
+                  analyticPnlAbsKwd: cubePnlStats.absKwd,
+                }),
+            balanceAccounts: activeCubeBsMap,
+            ytdPnlAccountById: activeCubePnlMap,
+            markUnavailable: (s) => cubeUnavailableSet.add(s),
+          })
+        : null
+
     const accounting = withGlClosedThrough(
-      activeAccIds.length > 0
+      !cubeUnavailableSet.has('gl.accounts') && activeAccIds.length > 0
         ? buildLedgerAccountingFromGroups({
             fromIso: dateRange.from,
             toInclusiveIso: dateRange.to,
             accountById: activeAccMap,
             rows: glRows,
+            includeTrialBalance: !cubeGlLinesFailed,
+            ...(cubeGlExt
+              ? {
+                  balanceSheet: cubeGlExt.balanceSheet,
+                  budgetProbe: cubeGlExt.budgetProbe,
+                  analyticPnl: cubeGlExt.analyticPnl,
+                }
+              : {}),
+            unavailableSections: [...cubeUnavailableSet],
           })
         : undefined,
-      activeAccIds.length > 0 ? await fetchGlClosedThroughDate(resolvedCompanyId) : null,
+      cubeGlExt?.glClosedThroughDate ?? null,
     )
 
     const newestConv = odooUtcToKuwaitIso(latestOrderRows?.[0]?.date_order)

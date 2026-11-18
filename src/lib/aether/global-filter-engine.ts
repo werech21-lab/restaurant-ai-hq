@@ -19,8 +19,17 @@ import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aet
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import type {
+  GlBalanceSheetSummary,
+  GlIncomeStatementGroup,
+  GlStatementAccountLine,
+  GlTrialBalanceSummary,
+  OdooAnalyticBranchPnlSummary,
+  OdooApAgingSummary,
   OdooBucketSummary,
+  OdooBudgetProbeSummary,
+  OdooLedgerAccountingSummary,
   OdooLiveSummary,
+  OdooPartnerAgingRow,
   OdooPeriodBucketKey,
   OdooReceivableAccountRow,
   OdooReceivableAgingBucket,
@@ -619,6 +628,22 @@ export interface WorkspaceLedgerAccounting {
     accountType: 'income' | 'income_other'
     amountKwd: number
   }[]
+  incomeStatementGroups?: GlIncomeStatementGroup[]
+  cogsAccounts?: GlStatementAccountLine[]
+  expenseAccounts?: GlStatementAccountLine[]
+  depreciationAccounts?: GlStatementAccountLine[]
+  expenseBreakdown?: OdooLedgerAccountingSummary['expenseBreakdown']
+  platformSubscriptionKwd?: number | null
+  thirdPartyDeliveryKwd?: number | null
+  paymentGatewayKwd?: number | null
+  bankFeesKwd?: number | null
+  adsKwd?: number | null
+  otherOpexKwd?: number | null
+  trialBalance?: GlTrialBalanceSummary
+  balanceSheet?: GlBalanceSheetSummary
+  budgetProbe?: OdooBudgetProbeSummary
+  analyticPnl?: OdooAnalyticBranchPnlSummary
+  unavailableSections?: string[]
 }
 
 export interface WorkspaceReceivablesMeta {
@@ -628,6 +653,10 @@ export interface WorkspaceReceivablesMeta {
    * amount below is `null` and account/aging lists are empty — only line counts remain.
    */
   pendingReconciliation: boolean
+  companyId?: number | null
+  asOfDate?: string | null
+  partnerCount?: number
+  accountNames?: { code: string; name: string; labelAr: string; labelEn: string }[]
   openReceivableKwd: number | null
   grossPositiveReceivableKwd: number | null
   creditClearingOffsetKwd: number | null
@@ -646,6 +675,7 @@ export interface WorkspaceReceivablesMeta {
   reconciliationFormulaAr: string
   reconciliationFormulaEn: string
   byAccount: OdooReceivableAccountRow[]
+  byPartner?: OdooPartnerAgingRow[]
   agingBuckets: OdooReceivableAgingBucket[]
   /** Positive open residuals (owed to us); `null` when the payload has no due-date aging. */
   openDebitsKwd: number | null
@@ -653,6 +683,7 @@ export interface WorkspaceReceivablesMeta {
   unappliedCreditsKwd: number | null
   agingHiddenReasonAr: string | null
   agingHiddenReasonEn: string | null
+  apAging?: OdooApAgingSummary | null
 }
 
 export interface FeryalSimpleNote {
@@ -849,6 +880,10 @@ function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceiva
   return {
     unavailable: false,
     pendingReconciliation: false,
+    companyId: null,
+    asOfDate: null,
+    partnerCount: 0,
+    accountNames: [],
     openReceivableKwd: 0,
     grossPositiveReceivableKwd: 0,
     creditClearingOffsetKwd: 0,
@@ -867,11 +902,13 @@ function buildEmptyReceivables(fromIso: string, toIso: string): WorkspaceReceiva
     reconciliationFormulaAr: 'لا توجد بيانات من Odoo لهذه الفترة',
     reconciliationFormulaEn: 'No Odoo data for this period',
     byAccount: [],
+    byPartner: [],
     agingBuckets: [],
     openDebitsKwd: null,
     unappliedCreditsKwd: null,
     agingHiddenReasonAr: null,
     agingHiddenReasonEn: null,
+    apAging: null,
   }
 }
 
@@ -879,6 +916,10 @@ function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceR
   return {
     unavailable: true,
     pendingReconciliation: false,
+    companyId: null,
+    asOfDate: null,
+    partnerCount: 0,
+    accountNames: [],
     openReceivableKwd: 0,
     grossPositiveReceivableKwd: 0,
     creditClearingOffsetKwd: 0,
@@ -897,36 +938,61 @@ function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceR
     reconciliationFormulaAr: 'غير متاح',
     reconciliationFormulaEn: '—',
     byAccount: [],
+    byPartner: [],
     agingBuckets: [],
     openDebitsKwd: null,
     unappliedCreditsKwd: null,
     agingHiddenReasonAr: null,
     agingHiddenReasonEn: null,
+    apAging: null,
   }
 }
 
 /**
  * Phase 5 · Item 2: until per-customer due-date aging is verified, strip every receivable amount
- * (net, gross, credits, per-account rows, aging buckets, amount-bearing explanation/formula text).
- * Unreconciled line counts, dates and source labels are kept.
+ * (net, gross, credits, per-account/per-partner rows, aging buckets, AP aging, amount-bearing
+ * explanation/formula text). Non-amount metadata (companyId, asOfDate, partnerCount, accountNames,
+ * line counts, dates, source labels) is preserved.
  */
 export function applyReceivablesExecutivePolicy(
   r: WorkspaceReceivablesMeta,
   verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
 ): WorkspaceReceivablesMeta {
   if (r.unavailable || canShowReceivableAmounts(r, verified)) return r
+  const accountNames =
+    r.accountNames && r.accountNames.length > 0
+      ? r.accountNames.map((a) => ({
+          code: a.code,
+          name: a.name,
+          labelAr: a.labelAr,
+          labelEn: a.labelEn,
+        }))
+      : (r.byAccount ?? []).map((a) => ({
+          code: a.accountCode,
+          name: a.accountName,
+          labelAr: a.labelAr,
+          labelEn: a.labelEn,
+        }))
+  const partnerCount =
+    typeof r.partnerCount === 'number' ? r.partnerCount : (r.byPartner?.length ?? 0)
   return {
     ...r,
     pendingReconciliation: true,
+    companyId: r.companyId ?? null,
+    asOfDate: r.asOfDate ?? null,
+    partnerCount,
+    accountNames,
     openReceivableKwd: null,
     grossPositiveReceivableKwd: null,
     creditClearingOffsetKwd: null,
     byAccount: [],
+    byPartner: [],
     agingBuckets: [],
     openDebitsKwd: null,
     unappliedCreditsKwd: null,
     agingHiddenReasonAr: null,
     agingHiddenReasonEn: null,
+    apAging: null,
     maturityStatusAr: RECEIVABLES_PENDING_STATUS.ar,
     maturityStatusEn: RECEIVABLES_PENDING_STATUS.en,
     openLinesExplanationAr: RECEIVABLES_PENDING_DETAIL.ar,
@@ -1227,6 +1293,12 @@ export function computeGlobalWorkspace(
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
+      platformSubscriptionKwd: null,
+      thirdPartyDeliveryKwd: null,
+      paymentGatewayKwd: null,
+      bankFeesKwd: null,
+      adsKwd: null,
+      otherOpexKwd: null,
       unavailableReasonAr: noDataMessageAr,
       unavailableReasonEn: 'No Odoo data for this period',
     }
@@ -1544,8 +1616,21 @@ export function computeGlobalWorkspace(
   )
   const glWarningAr = glIncompleteFromRaw ? 'قيود غير مكتملة لهذه الفترة' : null
 
+  const round3 = (n: number): number => Math.round((Number.isFinite(n) ? n : 0) * 1000) / 1000
+  const round1 = (n: number): number => Math.round((Number.isFinite(n) ? n : 0) * 10) / 10
+  const resolveExpenseClassKwd = (
+    explicitVal: number | null | undefined,
+    bucketVal: number | undefined,
+  ): number | null => {
+    if (typeof explicitVal === 'number' && Number.isFinite(explicitVal)) return round3(explicitVal)
+    if (typeof bucketVal === 'number' && Number.isFinite(bucketVal)) return round3(bucketVal)
+    return null
+  }
+
   let accounting: WorkspaceLedgerAccounting
   if (!isFullGroupScope) {
+    const exposedAnalyticPnl =
+      rawGl?.analyticPnl?.readable && rawGl.analyticPnl.populated ? rawGl.analyticPnl : undefined
     accounting = {
       available: false,
       completeAccrualPosted: false,
@@ -1553,8 +1638,8 @@ export function computeGlobalWorkspace(
       glWarningAr: 'قيود غير مكتملة لهذه الفترة',
       aggregatorCommissionUnposted,
       aggregatorCommissionDisplayAr,
-      from: resolvedPeriodWindow.fromIso,
-      to: resolvedPeriodWindow.toInclusiveIso,
+      from: rawGl?.from ?? resolvedPeriodWindow.fromIso,
+      to: rawGl?.to ?? resolvedPeriodWindow.toInclusiveIso,
       sourceModel: 'account.move.line',
       lineCount: 0,
       totalRevenueKwd: null,
@@ -1568,12 +1653,22 @@ export function computeGlobalWorkspace(
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
+      platformSubscriptionKwd: null,
+      thirdPartyDeliveryKwd: null,
+      paymentGatewayKwd: null,
+      bankFeesKwd: null,
+      adsKwd: null,
+      otherOpexKwd: null,
+      glClosedThroughDate: rawGl?.glClosedThroughDate ?? null,
       unavailableReasonAr:
         'قيود دفتر الأستاذ العام في أودو غير مقسّمة محاسبياً حسب هذا الفلتر الفرعي — غير متوفر',
       unavailableReasonEn:
         'Odoo General Ledger entries (account.move.line) are not analytically partitioned for this sub-filter — Not available',
+      ...(exposedAnalyticPnl ? { analyticPnl: exposedAnalyticPnl } : {}),
+      ...(rawGl?.budgetProbe ? { budgetProbe: rawGl.budgetProbe } : {}),
+      ...(rawGl?.unavailableSections ? { unavailableSections: rawGl.unavailableSections } : {}),
     }
-  } else if (!rawGl || rawGl.available === false || rawGlRev <= 0 || glIncompleteFromRaw) {
+  } else if (!rawGl || rawGl.available === false || ((rawGl.lineCount ?? 0) <= 0 && rawGlRev <= 0)) {
     const cogsVal = Math.max(0, safeNum(rawGl?.cogs))
     accounting = {
       available: false,
@@ -1586,26 +1681,35 @@ export function computeGlobalWorkspace(
       to: rawGl?.to ?? resolvedPeriodWindow.toInclusiveIso,
       sourceModel: 'account.move.line',
       lineCount: safeNum(rawGl?.lineCount),
-      totalRevenueKwd: rawGlRev > 0 ? Math.round(rawGlRev * 1000) / 1000 : null,
-      cogsKwd: cogsVal > 0 && rawGlRev > 0 ? Math.round(cogsVal * 1000) / 1000 : null,
-      deliveryCommissionsKwd: aggregatorCommissionUnposted
-        ? null
-        : Math.round(postedDelivCommVal * 1000) / 1000,
+      totalRevenueKwd: rawGlRev > 0 ? round3(rawGlRev) : null,
+      cogsKwd: cogsVal > 0 && rawGlRev > 0 ? round3(cogsVal) : null,
+      deliveryCommissionsKwd: aggregatorCommissionUnposted ? null : round3(postedDelivCommVal),
       otherOpexAndDepreciationKwd: null,
       beforeRentKwd: null,
       operatingProfitKwd: null,
-      cogsPct: cogsVal > 0 && rawGlRev > 0 ? Math.round((cogsVal / rawGlRev) * 1000) / 10 : null,
+      cogsPct: cogsVal > 0 && rawGlRev > 0 ? round1((cogsVal / rawGlRev) * 100) : null,
       deliveryCommPct:
         !aggregatorCommissionUnposted && rawGlRev > 0
-          ? Math.round((postedDelivCommVal / rawGlRev) * 1000) / 10
+          ? round1((postedDelivCommVal / rawGlRev) * 100)
           : null,
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
+      platformSubscriptionKwd: null,
+      thirdPartyDeliveryKwd: null,
+      paymentGatewayKwd: null,
+      bankFeesKwd: null,
+      adsKwd: null,
+      otherOpexKwd: null,
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
       revenueAccounts: rawGl?.revenueAccounts ?? [],
       glClosedThroughDate: rawGl?.glClosedThroughDate ?? null,
+      ...(rawGl?.trialBalance ? { trialBalance: rawGl.trialBalance } : {}),
+      ...(rawGl?.balanceSheet ? { balanceSheet: rawGl.balanceSheet } : {}),
+      ...(rawGl?.budgetProbe ? { budgetProbe: rawGl.budgetProbe } : {}),
+      ...(rawGl?.analyticPnl ? { analyticPnl: rawGl.analyticPnl } : {}),
+      ...(rawGl?.unavailableSections ? { unavailableSections: rawGl.unavailableSections } : {}),
     }
     // Phase 5 · Item 7: profit is hidden here too; when the window is not inside closed GL months
     // (including when Odoo has no lock dates at all) say so with the one calm note.
@@ -1621,42 +1725,86 @@ export function computeGlobalWorkspace(
   } else {
     const cogsVal = Math.max(0, safeNum(rawGl.cogs))
     const otherOpexVal =
-      typeof rawGl.otherOpexAndDepreciation === 'number'
+      typeof rawGl.otherOpexAndDepreciation === 'number' && Number.isFinite(rawGl.otherOpexAndDepreciation)
         ? Math.max(0, rawGl.otherOpexAndDepreciation)
         : Math.max(0, postedExpenseVal - postedDelivCommVal) + postedDeprVal
     const opProfitVal =
-      typeof rawGl.operatingProfit === 'number'
+      typeof rawGl.operatingProfit === 'number' && Number.isFinite(rawGl.operatingProfit)
         ? rawGl.operatingProfit
         : rawGlRev - cogsVal - postedDelivCommVal - otherOpexVal
     const glBeforeRentKwd = rawGlRev - cogsVal - postedDelivCommVal
+    const revPositive = rawGlRev > 0
 
     accounting = {
       available: true,
-      completeAccrualPosted: true,
-      glIncomplete: false,
-      glWarningAr: null,
-      aggregatorCommissionUnposted: false,
-      aggregatorCommissionDisplayAr: null,
+      completeAccrualPosted: !glIncompleteFromRaw,
+      glIncomplete: glIncompleteFromRaw,
+      glWarningAr,
+      aggregatorCommissionUnposted,
+      aggregatorCommissionDisplayAr,
       from: rawGl.from ?? resolvedPeriodWindow.fromIso,
       to: rawGl.to ?? resolvedPeriodWindow.toInclusiveIso,
       sourceModel: 'account.move.line',
       lineCount: safeNum(rawGl.lineCount),
-      totalRevenueKwd: Math.round(rawGlRev * 1000) / 1000,
-      cogsKwd: Math.round(cogsVal * 1000) / 1000,
-      deliveryCommissionsKwd: Math.round(postedDelivCommVal * 1000) / 1000,
-      otherOpexAndDepreciationKwd: Math.round(otherOpexVal * 1000) / 1000,
-      beforeRentKwd: Math.round(glBeforeRentKwd * 1000) / 1000,
-      operatingProfitKwd: Math.round(opProfitVal * 1000) / 1000,
-      cogsPct: Math.round((cogsVal / rawGlRev) * 1000) / 10,
-      deliveryCommPct: Math.round((postedDelivCommVal / rawGlRev) * 1000) / 10,
-      opexRentDeprPct: Math.round((otherOpexVal / rawGlRev) * 1000) / 10,
-      beforeRentPct: Math.round((glBeforeRentKwd / rawGlRev) * 1000) / 10,
-      netProfitPct: Math.round((opProfitVal / rawGlRev) * 1000) / 10,
+      totalRevenueKwd: round3(rawGlRev),
+      cogsKwd: round3(cogsVal),
+      deliveryCommissionsKwd: aggregatorCommissionUnposted ? null : round3(postedDelivCommVal),
+      otherOpexAndDepreciationKwd: round3(otherOpexVal),
+      beforeRentKwd: aggregatorCommissionUnposted ? null : round3(glBeforeRentKwd),
+      operatingProfitKwd: round3(opProfitVal),
+      cogsPct: revPositive ? round1((cogsVal / rawGlRev) * 100) : null,
+      deliveryCommPct:
+        !aggregatorCommissionUnposted && revPositive
+          ? round1((postedDelivCommVal / rawGlRev) * 100)
+          : null,
+      opexRentDeprPct: revPositive ? round1((otherOpexVal / rawGlRev) * 100) : null,
+      beforeRentPct:
+        !aggregatorCommissionUnposted && revPositive
+          ? round1((glBeforeRentKwd / rawGlRev) * 100)
+          : null,
+      netProfitPct: revPositive ? round1((opProfitVal / rawGlRev) * 100) : null,
+      platformSubscriptionKwd: resolveExpenseClassKwd(
+        rawGl.platformSubscriptionKwd,
+        rawGl.expenseBreakdown?.platform_subscription?.totalKwd,
+      ),
+      thirdPartyDeliveryKwd: resolveExpenseClassKwd(
+        rawGl.thirdPartyDeliveryKwd,
+        rawGl.expenseBreakdown?.third_party_delivery?.totalKwd,
+      ),
+      paymentGatewayKwd: resolveExpenseClassKwd(
+        rawGl.paymentGatewayKwd,
+        rawGl.expenseBreakdown?.payment_gateway?.totalKwd,
+      ),
+      bankFeesKwd: resolveExpenseClassKwd(
+        rawGl.bankFeesKwd,
+        rawGl.expenseBreakdown?.bank_fees?.totalKwd,
+      ),
+      adsKwd: resolveExpenseClassKwd(rawGl.adsKwd, rawGl.expenseBreakdown?.ads?.totalKwd),
+      otherOpexKwd: resolveExpenseClassKwd(
+        rawGl.otherOpexKwd,
+        rawGl.expenseBreakdown?.other?.totalKwd,
+      ),
       unavailableReasonAr: null,
       unavailableReasonEn: null,
       revenueAccounts: rawGl.revenueAccounts ?? [],
       glClosedThroughDate: rawGl.glClosedThroughDate ?? null,
       netProfitWithheld: false,
+      ...(rawGl.incomeStatementGroups !== undefined
+        ? { incomeStatementGroups: rawGl.incomeStatementGroups }
+        : {}),
+      ...(rawGl.cogsAccounts !== undefined ? { cogsAccounts: rawGl.cogsAccounts } : {}),
+      ...(rawGl.expenseAccounts !== undefined ? { expenseAccounts: rawGl.expenseAccounts } : {}),
+      ...(rawGl.depreciationAccounts !== undefined
+        ? { depreciationAccounts: rawGl.depreciationAccounts }
+        : {}),
+      ...(rawGl.expenseBreakdown !== undefined ? { expenseBreakdown: rawGl.expenseBreakdown } : {}),
+      ...(rawGl.trialBalance !== undefined ? { trialBalance: rawGl.trialBalance } : {}),
+      ...(rawGl.balanceSheet !== undefined ? { balanceSheet: rawGl.balanceSheet } : {}),
+      ...(rawGl.budgetProbe !== undefined ? { budgetProbe: rawGl.budgetProbe } : {}),
+      ...(rawGl.analyticPnl !== undefined ? { analyticPnl: rawGl.analyticPnl } : {}),
+      ...(rawGl.unavailableSections !== undefined
+        ? { unavailableSections: rawGl.unavailableSections }
+        : {}),
     }
     // Phase 5 · Item 7: Net Profit / Net Margin only for windows inside closed GL months.
     if (!isWindowWithinClosedMonths(accounting.to, rawGl.glClosedThroughDate)) {
@@ -1693,16 +1841,17 @@ export function computeGlobalWorkspace(
     groupGlMonth.glIncomplete !== true &&
     groupGlMonth.completeAccrualPosted === true &&
     groupGlMonthRev > 0
-      ? Math.round(
-          ((typeof groupGlMonth.operatingProfit === 'number'
+      ? round1(
+          ((typeof groupGlMonth.operatingProfit === 'number' &&
+          Number.isFinite(groupGlMonth.operatingProfit)
             ? groupGlMonth.operatingProfit
             : groupGlMonthRev -
               safeNum(groupGlMonth.cogs) -
               safeNum(groupGlMonth.expense) -
               safeNum(groupGlMonth.depreciation)) /
             groupGlMonthRev) *
-            1000,
-        ) / 10
+            100,
+        )
       : 0
 
   // Cascading Filter Options strictly from live Odoo POS
@@ -1836,6 +1985,17 @@ export function computeGlobalWorkspace(
       ? {
           unavailable: false,
           pendingReconciliation: false,
+          companyId: arRaw.companyId ?? liveSummary.odooCompanyId ?? null,
+          asOfDate:
+            arRaw.asOfDate ??
+            (liveSummary.syncedAt || liveSummary.lastSyncAt || getKuwaitTimeContext().todayIso),
+          partnerCount: arRaw.partnerCount ?? arRaw.byPartner?.length ?? 0,
+          accountNames: (arRaw.byAccount ?? []).map((a) => ({
+            code: a.accountCode,
+            name: a.accountName,
+            labelAr: a.labelAr,
+            labelEn: a.labelEn,
+          })),
           openReceivableKwd: Math.round(safeNum(arRaw.openReceivableKwd) * 1000) / 1000,
           grossPositiveReceivableKwd:
             Math.round(safeNum(arRaw.grossPositiveReceivableKwd) * 1000) / 1000,
@@ -1854,6 +2014,8 @@ export function computeGlobalWorkspace(
           sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
           sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
           byAccount: arRaw.byAccount ?? [],
+          byPartner: arRaw.byPartner ?? [],
+          apAging: arRaw.apAging ?? null,
           ...(() => {
             const aging = toDisplayableAging(arRaw)
             const formula = formatArReconciliationFormula({

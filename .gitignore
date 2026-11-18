@@ -47,3 +47,10 @@ yarn-error.log*
 
 # Local runtime state (locale preferences, temporary caches)
 /.runtime/
+
+# Local owner AR/AP exports for read-only verification (never committed)
+local-dropzone/*.xlsx
+local-dropzone/*.xls
+local-dropzone/*aged*.csv
+local-dropzone/*receivable*.csv
+local-dropzone/*payable*.csv

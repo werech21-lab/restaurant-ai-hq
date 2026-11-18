@@ -422,6 +422,49 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     })
     mockGlobalFilterState.current = buildContext(partialGl)
 
+    const glPartialEn = renderToStaticMarkup(
+      React.createElement(
+        TypedLangProvider,
+        { initialLocale: 'en' },
+        React.createElement(OdooAccountingAnalyticsHub, { isAr: false, locale: 'en' }),
+      ),
+    )
+    expect(glPartialEn).not.toContain('No Odoo GL data for this period')
+    expect(glPartialEn).toContain('Incomplete GL entries for this period')
+    expect(glPartialEn).toContain('12,500.500 KWD')
+    expect(glPartialEn).toContain('3,750.150 KWD')
+    expect(glPartialEn).toContain('Unposted')
+    expect(glPartialEn).not.toContain('لا توجد بيانات من Odoo لهذه الفترة')
+    expect(glPartialEn).not.toContain('قيود غير مكتملة لهذه الفترة')
+    expect(glPartialEn).not.toContain('غير مُرحَّل بعد')
+
+    // Connected with zero posted GL entries -> renders empty GL StateBlock in English without Arabic
+    const emptyWindowGl = buildLiveSummary({
+      partial: true,
+      buckets: {
+        month: {
+          ...buildLiveSummary().buckets!.month!,
+          accounting: {
+            available: false,
+            from: '2026-10-17',
+            to: '2026-11-15',
+            income: 0,
+            otherIncome: 0,
+            totalRevenue: 0,
+            cogs: 0,
+            deliveryCommissions: 0,
+            expense: 0,
+            depreciation: 0,
+            otherOpexAndDepreciation: 0,
+            operatingProfit: 0,
+            lineCount: 0,
+            glIncomplete: true,
+            aggregatorCommissionUnposted: true,
+          },
+        },
+      },
+    })
+    mockGlobalFilterState.current = buildContext(emptyWindowGl)
     const glUnavailableEn = renderToStaticMarkup(
       React.createElement(
         TypedLangProvider,
