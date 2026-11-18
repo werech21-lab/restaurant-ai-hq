@@ -18,6 +18,7 @@ import { CoverageCounter, resolveProductCosts, type CostSource, type WarehouseVa
  * - Stale-While-Revalidate cache (`TTL: 60s`) + `lastKnownGoodSnapshot` circuit breaker + `30s` manual sync cooldown.
  */
 import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
+import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   channelOfPaymentMethod,
@@ -1058,29 +1059,8 @@ interface OdooGlAccountMeta {
   account_type: string
 }
 
-const DELIVERY_COMMISSION_ACCOUNT_CODES = new Set([
-  '40224',
-  '40225',
-  '40228',
-  '40229',
-  '40230',
-  '40232',
-  '40233',
-  '40705',
-  '40706',
-  '40811',
-  '40918',
-  '41030',
-  '41031',
-  '41032',
-])
-
-function isDeliveryCommissionGlAccount(code: string, name: string): boolean {
-  const c = (code || '').trim()
-  if (DELIVERY_COMMISSION_ACCOUNT_CODES.has(c)) return true
-  return /commission|عمول|talabat|طلبات|deliveroo|ديليفرو|keeta|كيتا|كييتا|jahez|جاهز|snoonu|سنونو|cari|كاري|bilbayt|بالبيت|aggregator/i.test(
-    name || '',
-  )
+function isDeliveryCommissionGlAccount(code: string, name: string, accountType = 'expense'): boolean {
+  return classifyPlatformExpenseAccount(code, name, accountType) === 'platform_commission'
 }
 
 function isRentPayrollOrDeprGlAccount(code: string, name: string, accountType: string): boolean {
@@ -1168,7 +1148,7 @@ export function buildLedgerAccountingFromGroups(params: {
       cogs += bal
     } else if (acc.account_type === 'expense') {
       expense += bal
-      if (isDeliveryCommissionGlAccount(acc.code, acc.name)) {
+      if (isDeliveryCommissionGlAccount(acc.code, acc.name, acc.account_type)) {
         deliveryCommissions += bal
         deliveryCommissionLinesCount += cnt
       }
@@ -2446,6 +2426,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }, null, markFailure('stockTransfers')),
     safeSubQuery<OdooReceivableClearingSummary | null | undefined>(async () => {
       const arDomain: unknown[][] = [
+        ...companyDomain,
         ['parent_state', '=', 'posted'],
         ['account_id.account_type', '=', 'asset_receivable'],
         ['reconciled', '=', false],

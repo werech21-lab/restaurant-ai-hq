@@ -429,9 +429,11 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
         React.createElement(OdooAccountingAnalyticsHub, { isAr: false, locale: 'en' }),
       ),
     )
-    expect(glUnavailableEn).toContain('No Odoo GL data for this period')
     expect(glUnavailableEn).toContain('Incomplete GL entries for this period')
+    expect(glUnavailableEn).toContain('Posted GL Revenue')
+    expect(glUnavailableEn).not.toContain('No Odoo GL data for this period')
     expect(glUnavailableEn).not.toContain('لا توجد بيانات من Odoo لهذه الفترة')
+    expect(glUnavailableEn).not.toContain('قيود غير مكتملة لهذه الفترة')
 
     // With available GL + unposted aggregator commission flag + incomplete GL warning banner
     mockGlobalFilterState.current = buildContext(buildLiveSummary({ partial: true }), {}, (ws) => ({

@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { lastClosedMonthRange } from '@/lib/aether/closed-month-policy'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
@@ -76,7 +77,8 @@ export function ExecutivePnlStudio() {
   const { locale } = useI18n()
   const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const isAr = resolvedLocale !== 'en'
-  const { workspace, liveSummary, syncingOdoo } = useGlobalFilter()
+  const { workspace, liveSummary, syncingOdoo, setCustomRange } = useGlobalFilter()
+  const closedMonth = lastClosedMonthRange(workspace.accounting.glClosedThroughDate)
   const gl = workspace.accounting
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
 
@@ -94,7 +96,7 @@ export function ExecutivePnlStudio() {
 
   const lineItems = [
     {
-      code: '4000–4999',
+      code: 'income',
       labelAr: 'إجمالي الإيرادات المرحلة بدفتر الأستاذ العام (account.move.line)',
       labelEn: 'Posted General Ledger Revenue (account.move.line)',
       amountKwd: gl.totalRevenueKwd,
@@ -102,7 +104,7 @@ export function ExecutivePnlStudio() {
       tone: 'text-emerald-700 dark:text-emerald-400',
     },
     {
-      code: '5000–5199',
+      code: 'expense_direct_cost',
       labelAr: 'تكلفة البضاعة والمواد الغذائية والتعبئة الفعلية (COGS)',
       labelEn: 'Posted Cost of Goods Sold & Packaging (COGS)',
       amountKwd: gl.cogsKwd !== null ? -gl.cogsKwd : null,
@@ -118,7 +120,7 @@ export function ExecutivePnlStudio() {
       tone: 'text-emerald-700 dark:text-emerald-300 font-black',
     },
     {
-      code: '6120',
+      code: 'platform_commission',
       labelAr: 'عمولات منصات التوصيل المرحلة (طلبات، كيتا، ديليفرو، جاهز)',
       labelEn: 'Posted Aggregator Delivery Commissions',
       amountKwd: gl.deliveryCommissionsKwd !== null ? -gl.deliveryCommissionsKwd : null,
@@ -126,7 +128,7 @@ export function ExecutivePnlStudio() {
       tone: 'text-amber-700 dark:text-amber-400',
     },
     {
-      code: '6200–7999',
+      code: 'expense',
       labelAr: 'المصروفات التشغيلية والإيجارات والرواتب والإهلاك المرحلة',
       labelEn: 'Posted Operating Expenses, Rent, Payroll & Depreciation',
       amountKwd:
@@ -191,6 +193,19 @@ export function ExecutivePnlStudio() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {closedMonth ? (
+              <button
+                type="button"
+                onClick={() => setCustomRange(closedMonth.from, closedMonth.to)}
+                className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+              >
+                {isAr ? 'آخر شهر مُقفل' : 'Last closed month'}
+              </button>
+            ) : (
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                {isAr ? 'لا يوجد تاريخ إقفال في أودو.' : 'Odoo has no lock date.'}
+              </p>
+            )}
             <Link
               href="/erp/finance"
               className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800 hover:border-emerald-500/40 hover:bg-white transition dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-white"
@@ -353,7 +368,19 @@ export function ExecutivePnlStudio() {
                     {isAr ? item.labelAr : item.labelEn}
                   </td>
                   <td className={`py-3 px-4 text-end font-bold ${item.tone}`} dir="ltr">
-                    <NullableKwdCell value={item.amountKwd} locale={resolvedLocale} />
+                    {item.code === 'OP-NET' && gl.netProfitWithheld ? (
+                      <span>
+                        {isAr ? gl.netProfitWithheldReasonAr : gl.netProfitWithheldReasonEn}
+                      </span>
+                    ) : item.amountKwd === null ? (
+                      <span>
+                        {isAr
+                          ? 'لم يُرحَّل بعد في أودو لهذه الفترة'
+                          : 'Not yet posted in Odoo for this period'}
+                      </span>
+                    ) : (
+                      <NullableKwdCell value={item.amountKwd} locale={resolvedLocale} />
+                    )}
                   </td>
                   <td className="py-3 px-4 text-end text-slate-700 dark:text-slate-300" dir="ltr">
                     <NullablePctCell value={item.pctOfRev} locale={resolvedLocale} />

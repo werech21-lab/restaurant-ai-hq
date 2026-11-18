@@ -1,0 +1,322 @@
+[
+  {
+    "code": "40127",
+    "name": "Ex. Advertising Contracts For Managing Accounts And Social Networking Sites م. عقود أدارة حسابات و مواقع التواصل الاجتماعى",
+    "account_type": "expense"
+  },
+  {
+    "code": "40128",
+    "name": "Ex. Advertising Campaigns مصروفات. دعاية حملات ترويجية",
+    "account_type": "expense"
+  },
+  {
+    "code": "40129",
+    "name": "Ex. Advertising. Direct Digital Advertising. م. دعاية رقمية مباشرة.",
+    "account_type": "expense"
+  },
+  {
+    "code": "40130",
+    "name": "Ex. Advertising. Indirect Digital Advertising م. دعاية رقمية غير مباشرة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40131",
+    "name": "Ex. Advertising Photograph And Printer م. دعاية مطبوعات",
+    "account_type": "expense"
+  },
+  {
+    "code": "40132",
+    "name": "Ex. Advertising Photograph م. دعاية تصوير",
+    "account_type": "expense"
+  },
+  {
+    "code": "40133",
+    "name": "Ex. Advertising Employee Advertising م. دعاية موظفين",
+    "account_type": "expense"
+  },
+  {
+    "code": "40134",
+    "name": "Ex. Advertising Other Photograph م. دعاية أخرى",
+    "account_type": "expense"
+  },
+  {
+    "code": "40224",
+    "name": "Subscriptions - Talabat Contracts اشتراكات ــ عقود شركة طلبات",
+    "account_type": "expense"
+  },
+  {
+    "code": "40225",
+    "name": "Subscriptions - Deliveroo Contracts اشتراكات ــ عقود شركة ديليفرو",
+    "account_type": "expense"
+  },
+  {
+    "code": "40226",
+    "name": "Subscriptions - Zida Contracts اشتراكات ــ عقود شركة زيدا",
+    "account_type": "expense"
+  },
+  {
+    "code": "40228",
+    "name": "Subscription - Bibayt Contract اشتراك ــ عقد شركة بالبيت السنوي",
+    "account_type": "expense"
+  },
+  {
+    "code": "40229",
+    "name": "Talabat GO Commission sale + Delivery Service 21% - عمولة شركة طلبات بيع + توصيل",
+    "account_type": "expense"
+  },
+  {
+    "code": "40230",
+    "name": "Deliveroo Core Commission sale + Delivery Service 20% - عمولة شركة ديليفرو بيع + توصيل",
+    "account_type": "expense"
+  },
+  {
+    "code": "40231",
+    "name": "The Cost Of The Order Delivery Service - Cary Company تكلفة خدمة توصيل اوردار ــ شركة كاري",
+    "account_type": "expense"
+  },
+  {
+    "code": "40232",
+    "name": "The Cost Of The Order Delivery Service - Armada Company تكلفة خدمة توصيل اوردار ــ شركة ارمادا",
+    "account_type": "expense"
+  },
+  {
+    "code": "40233",
+    "name": "The Cost Of The Order Delivery Service - Wiyak Company تكلفة خدمة توصيل اوردار ــ شركة وياك",
+    "account_type": "expense"
+  },
+  {
+    "code": "40234",
+    "name": "The Cost Of The Order Delivery Service - Khalk Comfortable Company تكلفة خدمة توصيل اوردار ــ شركة خلك مرتاح",
+    "account_type": "expense"
+  },
+  {
+    "code": "40235",
+    "name": "The Cost Of The Order Delivery Service - Sama Al-Khair Company تكلفة خدمة توصيل اوردار ــ شركة سما الخير",
+    "account_type": "expense"
+  },
+  {
+    "code": "40236",
+    "name": "The Cost Of Order Delivery Service - Red Dot Company تكلفة خدمة توصيل اوردار ــ شركة رد دوت",
+    "account_type": "expense"
+  },
+  {
+    "code": "40237",
+    "name": "The Cost Of The Order Delivery Service - New Company تكلفة خدمة توصيل اوردار ــ شركة جديدة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40239",
+    "name": "The Cost Of The Delivery Service - The Company'S Drivers تكلفة خدمة توصيل اوردار ــ سائقين الشركة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40240",
+    "name": "The Cost Of The Order Brand Farm And Franks Delivery Service تكلفة خدمة توصيل اوردارت براند فارم و فرانكس",
+    "account_type": "expense"
+  },
+  {
+    "code": "40241",
+    "name": "The Cost Of The Order Delivery Service - Nova Plus Company تكلفة خدمة توصيل موظفين ــ شركة نوفا بلس",
+    "account_type": "expense"
+  },
+  {
+    "code": "40242",
+    "name": "The Cost Of The Order Delivery Employees تكلفة خدمة توصيل موظفين ــ موظفين الشركة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40378",
+    "name": "Office Commission عمولة مكتب",
+    "account_type": "expense"
+  },
+  {
+    "code": "40702",
+    "name": "Zatat Commission ZATAT عمولة شركة زيتات",
+    "account_type": "expense"
+  },
+  {
+    "code": "40703",
+    "name": "Craves Commission CRAVES عمولة شركة كريفز",
+    "account_type": "expense"
+  },
+  {
+    "code": "40704",
+    "name": "Jeebley Commission JEEBLEY عمولة شركة جيبلي",
+    "account_type": "expense"
+  },
+  {
+    "code": "40705",
+    "name": "Bibayt Company Commission عمولة شركة بالبيت",
+    "account_type": "expense"
+  },
+  {
+    "code": "40706",
+    "name": "Hesabe Commission عمولة شركة حسابي",
+    "account_type": "expense"
+  },
+  {
+    "code": "40756",
+    "name": "Bank Commission عمولة بنكية",
+    "account_type": "expense"
+  },
+  {
+    "code": "40757",
+    "name": "Bank Commission - Central Kitchen عمولة بنكية - المطبخ المركزي",
+    "account_type": "expense"
+  },
+  {
+    "code": "40758",
+    "name": "Bank Commission - Management عمولة بنكية - الادارة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40759",
+    "name": "Bank Commission - Call Center عمولة بنكية - الكول سنتر",
+    "account_type": "expense"
+  },
+  {
+    "code": "40761",
+    "name": "Commissions & Brokerage عمولات & سمسرة",
+    "account_type": "expense"
+  },
+  {
+    "code": "40811",
+    "name": "Talabat MP Commission sale 10% - عمولة شركة طلبات بيع",
+    "account_type": "expense"
+  },
+  {
+    "code": "40812",
+    "name": "Talabat Commission - Thenoodle.Bar TheNoodle.Bar عمولة شركة طلبات ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "40813",
+    "name": "Talabat Commission - Grind GRIND عمولة شركة طلبات ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "40814",
+    "name": "Talabat Commission - Karak Cafteria عمولة شركة طلبات ــ Karak Cafteria",
+    "account_type": "expense"
+  },
+  {
+    "code": "40815",
+    "name": "Talabat Commission - Farm Brown عمولة شركة طلبات ــ Farm Brown",
+    "account_type": "expense"
+  },
+  {
+    "code": "40816",
+    "name": "Talabat Commission - Frank'S عمولة شركة طلبات ــ Frank'S",
+    "account_type": "expense"
+  },
+  {
+    "code": "40866",
+    "name": "Carriage Commission - China Garden China Gardenعمولة شركة كاريدج ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "40867",
+    "name": "Carriage Commission - Thenoodle.Bar TheNoodle.Bar عمولة شركة كاريدج ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "40868",
+    "name": "Carriage Commission - Grind GRIND عمولة شركة كاريدج ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "40918",
+    "name": "Delivero MP Commission sale 8% - عمولة شركة ديليفرو بيع",
+    "account_type": "expense"
+  },
+  {
+    "code": "40919",
+    "name": "Delivery Commission - Thenoodle.Bar عمولة شركة ديليفرو ــ Noodle Bar",
+    "account_type": "expense"
+  },
+  {
+    "code": "40920",
+    "name": "Delivery Commission - Grind عمولة شركة ديليفرو ــ Grind",
+    "account_type": "expense"
+  },
+  {
+    "code": "40921",
+    "name": "Delivery Commission - Karak Cafteria عمولة شركة ديليفرو ــ Karak Cafteria",
+    "account_type": "expense"
+  },
+  {
+    "code": "40922",
+    "name": "Delivery Commission - Farm Brown عمولة شركة ديليفرو ــ Farm Brown",
+    "account_type": "expense"
+  },
+  {
+    "code": "40923",
+    "name": "Delivery Commission - Frank'S عمولة شركة ديليفرو ــ Frank'S",
+    "account_type": "expense"
+  },
+  {
+    "code": "40973",
+    "name": "Zida Commission - China Garden عمولة شركة زيدا ــ China Garden",
+    "account_type": "expense"
+  },
+  {
+    "code": "40974",
+    "name": "Zida Commission - Noodle Bar عمولة شركة زيدا ــ Noodle Bar",
+    "account_type": "expense"
+  },
+  {
+    "code": "40975",
+    "name": "Zida Commission - Grind عمولة شركة زيدا ــ Grind",
+    "account_type": "expense"
+  },
+  {
+    "code": "40976",
+    "name": "Zida Commission - Karak Cafteria عمولة شركة زيدا ــ Karak Cafteria",
+    "account_type": "expense"
+  },
+  {
+    "code": "40977",
+    "name": "Zida Commission - Farm Brown عمولة شركة زيدا ــ Farm Brown",
+    "account_type": "expense"
+  },
+  {
+    "code": "40978",
+    "name": "Zida Commission - Frank'S عمولة شركة زيدا ــ Frank'S",
+    "account_type": "expense"
+  },
+  {
+    "code": "40984",
+    "name": "دعايه واعلان",
+    "account_type": "expense"
+  },
+  {
+    "code": "41028",
+    "name": "Cari Commission sale + delivery service عمولة كاري بيع + خدمة توصيل ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "41029",
+    "name": "Cari Commission - Thenoodle.Bar TheNoodle.Bar عمولة شركة كاري ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "41030",
+    "name": "Jahez Commission sale + delivery service  عمولة جاهز بيع + خدمة نوصيل ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "41031",
+    "name": "keeta  Commission sale + delivery service  عمولة كيتا بيع + خدمة نوصيل ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "41032",
+    "name": "Snoonu Commission sale + delivery service  عمولة سنونو بيع + خدمة نوصيل ــ",
+    "account_type": "expense"
+  },
+  {
+    "code": "41033",
+    "name": "Cari Commission - Frank'S عمولة شركة كاري ــ Frank'S",
+    "account_type": "expense"
+  }
+]

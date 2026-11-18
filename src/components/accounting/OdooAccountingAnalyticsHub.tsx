@@ -54,18 +54,23 @@ export function OdooAccountingAnalyticsHub({
   const rec = workspace.receivables
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
 
-  if (!workspace.odooConnected || workspace.noData || !acc.available) {
+  if (!workspace.odooConnected || workspace.noData) {
     return (
       <StateBlock
-        state={!workspace.odooConnected ? 'unlinked' : 'empty'}
+        state="unavailable"
         locale={resolvedLocale}
         title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo GL data for this period'}
-        description={
-          isAr
-            ? acc.unavailableReasonAr ?? 'تعذر جلب قيود دفتر الأستاذ العام (account.move.line) من Odoo للفترة المحددة.'
-            : acc.unavailableReasonEn ?? 'Unable to retrieve posted general ledger lines (account.move.line) from Odoo for this period.'
-        }
       />
+    )
+  }
+
+  if (!acc.available) {
+    return (
+      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+        {isAr
+          ? acc.unavailableReasonAr ?? 'لم يُرحَّل بعد في أودو لهذه الفترة'
+          : acc.unavailableReasonEn ?? 'Not yet posted in Odoo for this period'}
+      </p>
     )
   }
 

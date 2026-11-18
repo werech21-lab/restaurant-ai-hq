@@ -78,8 +78,8 @@ export function ReceivablesAgingStudio() {
             </h2>
             <p className="text-sm font-medium text-slate-600 dark:text-[#8FA39B]">
               {isAr
-                ? `الفترة الزمنية للقيود المفتوحة: من ${fromFormatted} إلى ${toFormatted} • آخر استحقاق مفوتر: ${maturityFormatted} • آخر مزامنة: ${syncStamp}`
-                : `Unreconciled ledger window: ${fromFormatted} to ${toFormatted} • Latest invoiced maturity: ${maturityFormatted} • Last sync: ${syncStamp}`}
+                ? `رصيد مفتوح حتى ${syncStamp} (كل البنود المفتوحة، مستقل عن فلتر الفترة) • أقدم قيد ${fromFormatted} • أحدث استحقاق ${maturityFormatted}`
+                : `Open balance as of ${syncStamp} (all open items, independent of the period filter) • Oldest line ${fromFormatted} • Latest maturity ${maturityFormatted}`}
             </p>
           </div>
 

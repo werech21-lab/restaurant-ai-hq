@@ -72,6 +72,28 @@ export const PROFIT_AFTER_CLOSE_NOTE = {
   ar: 'يظهر الربح بعد إقفال الشهر في المحاسبة',
 } as const
 
+/** Inclusive from/to of the last fully closed calendar month, or null when nothing is closed. */
+export function lastClosedMonthRange(
+  closedThroughIso: string | null | undefined,
+): { from: string; to: string } | null {
+  const closed = cleanIso(closedThroughIso)
+  if (!closed) return null
+  let y = Number(closed.slice(0, 4))
+  let m = Number(closed.slice(5, 7))
+  const d = Number(closed.slice(8, 10))
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  if (d < lastDay) {
+    m -= 1
+    if (m === 0) {
+      m = 12
+      y -= 1
+    }
+  }
+  const end = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const mm = String(m).padStart(2, '0')
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(end).padStart(2, '0')}` }
+}
+
 export function closedMonthWithheldReason(closedThroughIso: string | null | undefined): {
   ar: string
   en: string

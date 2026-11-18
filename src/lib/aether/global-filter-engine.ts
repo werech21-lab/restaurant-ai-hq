@@ -1649,15 +1649,16 @@ export function computeGlobalWorkspace(
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
-      unavailableReasonAr:
-        'قيود دفتر الأستاذ العام في أودو غير مقسّمة محاسبياً حسب هذا الفلتر الفرعي — غير متوفر',
-      unavailableReasonEn:
-        'Odoo General Ledger entries (account.move.line) are not analytically partitioned for this sub-filter — Not available',
+      unavailableReasonAr: 'دفتر الأستاذ غير مقسّم حسب هذا الفلتر.',
+      unavailableReasonEn: 'The general ledger is not split by this filter.',
     }
   } else if (!rawGl || rawGl.available === false || rawGlRev <= 0 || glIncompleteFromRaw) {
     const cogsVal = Math.max(0, safeNum(rawGl?.cogs))
+    const postedLines = Boolean(
+      rawGl && (rawGlRev > 0 || cogsVal > 0 || postedExpenseVal > 0 || postedDeprVal > 0),
+    )
     accounting = {
-      available: false,
+      available: postedLines,
       completeAccrualPosted: false,
       glIncomplete: true,
       glWarningAr: 'قيود غير مكتملة لهذه الفترة',
@@ -1668,7 +1669,7 @@ export function computeGlobalWorkspace(
       sourceModel: 'account.move.line',
       lineCount: safeNum(rawGl?.lineCount),
       totalRevenueKwd: rawGlRev > 0 ? Math.round(rawGlRev * 1000) / 1000 : null,
-      cogsKwd: cogsVal > 0 && rawGlRev > 0 ? Math.round(cogsVal * 1000) / 1000 : null,
+      cogsKwd: cogsVal > 0 ? Math.round(cogsVal * 1000) / 1000 : null,
       deliveryCommissionsKwd: aggregatorCommissionUnposted
         ? null
         : Math.round(postedDelivCommVal * 1000) / 1000,

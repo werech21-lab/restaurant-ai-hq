@@ -1,0 +1,32 @@
+[
+  {
+    "code": "10001",
+    "name": "Cash On Hand الصندوق",
+    "account_type": "asset_cash"
+  },
+  {
+    "code": "101533",
+    "name": "Cash On Hand/ NPIS Hawally Branch Cashier  - فرع حولي - NPIS",
+    "account_type": "asset_current"
+  },
+  {
+    "code": "10501",
+    "name": "Account Receivable-Talabat Company العملاء - طلبات",
+    "account_type": "asset_receivable"
+  },
+  {
+    "code": "20100",
+    "name": "Account Payable ـــ Creditors حسابات الدائنوان",
+    "account_type": "liability_payable"
+  },
+  {
+    "code": "20301",
+    "name": "Accrued Expenses مصروفات مستحقة",
+    "account_type": "liability_current"
+  },
+  {
+    "code": "30001",
+    "name": "Paid-Up Capital رأس المال",
+    "account_type": "equity"
+  }
+]
