@@ -482,8 +482,8 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     {
       num: 19,
       question: 'ما متوسط زمن التحضير في شاشة المطبخ KDS اليوم؟',
-      expectedStatus: 'no_odoo_data',
-      mustContain: [FERYAL_NO_ODOO_DATA_REPLY, 'pos_preparation_display'],
+      expectedStatus: 'answered',
+      mustContain: ['زمن التحضير غير متاح في Odoo'],
     },
     {
       num: 20,
@@ -540,28 +540,38 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     }
   })
 
-  it('starts with «لا أملك بيانات من Odoo عن هذا» and suggests exact Odoo module integration for every unlinked or zero-data topic with zero digits', async () => {
+  it('answers unlinked topics from the period cube instead of the blanket no-data refusal', async () => {
     const dsNoHrAccess = create20QuestionDataSource({ hrAccessGranted: false })
 
-    const unlinkedCases: { question: string; expectedModuleHint: string }[] = [
-      { question: 'كم عدد الموظفين في الشركة؟', expectedModuleHint: 'hr.employee' },
-      { question: 'أين تتبع السائقين الآن؟', expectedModuleHint: 'fleet' },
-      { question: 'ما تقييمات السوشيال للعملاء؟', expectedModuleHint: 'social' },
-      { question: 'ما خطة النمو غير المسجلة والموازنة التقديرية؟', expectedModuleHint: 'crossovered.budget' },
-      { question: 'كم تكلفة المورد شركة الخليج للتغليف غير المسجلة؟', expectedModuleHint: 'purchase.order' },
+    const stillNoData = ['كم عدد الموظفين في الشركة؟', 'كم تكلفة المورد شركة الخليج للتغليف غير المسجلة؟']
+    const answeredFromCube = [
+      'أين تتبع السائقين الآن؟',
+      'ما تقييمات السوشيال للعملاء؟',
+      'ما خطة النمو غير المسجلة والموازنة التقديرية؟',
     ]
 
-    for (const c of unlinkedCases) {
+    for (const question of stillNoData) {
       const res = await askFeryalOdooAgent({
-        question: c.question,
+        question,
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
         dataSource: dsNoHrAccess,
       })
-      expect(res.status, c.question).toBe('no_odoo_data')
-      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), c.question).toBe(true)
-      expect(res.reply, c.question).toContain(c.expectedModuleHint)
-      expect(res.verifier.valid, c.question).toBe(true)
-      expect(res.verifier.extractedNumbers, c.question).toEqual([])
+      expect(res.status, question).toBe('no_odoo_data')
+      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), question).toBe(true)
+    }
+
+    const unlinkedCases = answeredFromCube
+
+    for (const question of unlinkedCases) {
+      const res = await askFeryalOdooAgent({
+        question,
+        referenceNowMs: KUWAIT_NOV_15_2026_MS,
+        dataSource: dsNoHrAccess,
+      })
+      expect(res.status, question).toBe('answered')
+      expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY), question).toBe(false)
+      expect(res.reply.length, question).toBeGreaterThan(20)
+      expect(res.verifier.valid, question).toBe(true)
     }
   })
 

@@ -1140,7 +1140,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           const fromMs = Date.parse(`${String(gteClause?.[2] ?? '').replace(' ', 'T')}Z`)
           const toMs = Date.parse(`${String(ltClause?.[2] ?? '').replace(' ', 'T')}Z`)
           const spanDays = Math.round((toMs - fromMs) / 86_400_000)
-          if (opts?.failBrandsMonth && spanDays === 30) {
+          if (opts?.failBrandsMonth && spanDays > 7 && spanDays <= 31) {
             return rpcFault(reqId, 'brands.month unavailable')
           }
           return rpcOk(reqId, [{ product_id: [99, 'Sweet & Sour'], price_subtotal: 300, qty: 20 }])
@@ -1157,7 +1157,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           const fromMs = Date.parse(`${String(gteClause?.[2] ?? '').replace(' ', 'T')}Z`)
           const toMs = Date.parse(`${String(ltClause?.[2] ?? '').replace(' ', 'T')}Z`)
           const spanDays = Math.round((toMs - fromMs) / 86_400_000)
-          if (opts?.failChannelsMonth && spanDays === 30) {
+          if (opts?.failChannelsMonth && spanDays > 7 && spanDays <= 31) {
             return rpcFault(reqId, 'channels.month unavailable')
           }
           const isCount = domainStr.includes('["pos_order_id.amount_total",">=",0]')

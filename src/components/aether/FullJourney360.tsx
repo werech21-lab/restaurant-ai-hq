@@ -278,11 +278,11 @@ export function FullJourney360({
     hasPostedOperatingProfit || postedGrossKwd !== null || glHiddenByFilter
   const monthEndNote = gl.to
     ? isAr
-      ? `القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
-      : `Posted entries through ${gl.to}; commissions and depreciation are posted at month end`
+      ? `غير مُرحَّل بعد — القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
+      : `Not posted yet — posted entries through ${gl.to}; commissions and depreciation post at month end`
     : isAr
-      ? 'العمولات والاستهلاك تُرحَّل نهاية الشهر'
-      : 'Commissions and depreciation are posted at month end'
+      ? 'غير مُرحَّل بعد — العمولات والاستهلاك تُرحَّل نهاية الشهر'
+      : 'Not posted yet — commissions and depreciation post at month end'
 
   const periodWindow = useMemo(
     () =>

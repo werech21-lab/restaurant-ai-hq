@@ -1,5 +1,7 @@
 import type { CouncilSnapshot } from '@/lib/council/types'
 import { buildAdvisoryBlock } from '@/lib/feryal/advisor-synthesis'
+import { answerFromFeryalContext, isFeryalSmallTalk } from '@/lib/feryal/context-answer'
+import { logger } from '@/lib/logger'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { formatKuwaitDateTime } from '@/lib/format'
 import os from 'node:os'
@@ -2607,6 +2609,18 @@ export async function askFeryalOdooAgent(
     return finalizeNoData('generic')
   }
 
+  if (isFeryalSmallTalk(rawQuestion)) {
+    const small = answerFromFeryalContext(rawQuestion, null)
+    return finalize({
+      reply: small.reply,
+      status: 'answered',
+      executedQueries: [],
+      verifier: verifyFeryalReplyNumbers(small.reply, []),
+      toolNumbers: [],
+      period: null,
+    })
+  }
+
   // 1. Strict Competitor Refusal -> literal `لا أعرف` ONLY
   if (isCompetitorQuestion(rawQuestion)) {
     return finalize({
@@ -2621,9 +2635,6 @@ export async function askFeryalOdooAgent(
 
   // 2. Unlinked Non-Odoo Topics -> starts with `لا أملك بيانات من Odoo عن هذا` + linking suggestion
   const unlinkedCheck = isUnlinkedNonOdooTopic(rawQuestion)
-  if (unlinkedCheck.unlinked) {
-    return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic')
-  }
 
   // 2b. «الفحاحيل» is the FAS Fahaheel school-canteen register, never Al-Kout.
   if (FAS_FAHAHEEL_POS_CONFIG_ID !== null && /(الفحاحيل|فحاحيل|\bfahaheel\b)/i.test(normalizeArabicText(rawQuestion))) {
@@ -2685,13 +2696,44 @@ export async function askFeryalOdooAgent(
     branchDetection.isBranchRanking,
   )
 
-  if (toolKind === 'unknown') {
-    return finalizeNoData('generic', [], { from: resolvedPeriod.from, to: resolvedPeriod.to })
-  }
-
   const dataSource: FeryalOdooDataSource = {
     ...DEFAULT_ODOO_DATA_SOURCE,
     ...input.dataSource,
+  }
+
+  if (toolKind === 'unknown' || unlinkedCheck.unlinked) {
+    let cube: Awaited<ReturnType<FeryalOdooDataSource['fetchPeriodCube']>> = null
+    try {
+      cube = await dataSource.fetchPeriodCube(resolvedPeriod.from, resolvedPeriod.to, nowMs)
+    } catch (error) {
+      logger.warn('feryal.context', {
+        section: 'period_cube',
+        code: error instanceof Error ? error.name : 'read_failed',
+      })
+    }
+    const answered = answerFromFeryalContext(rawQuestion, cube)
+    if (answered.status === 'no_odoo_data') {
+      return finalizeNoData(unlinkedCheck.reasonKey ?? 'generic', [], {
+        from: resolvedPeriod.from,
+        to: resolvedPeriod.to,
+      })
+    }
+    return finalize({
+      reply: answered.reply,
+      status: 'answered',
+      executedQueries: [
+        {
+          model: 'pos.order',
+          method: 'read_group',
+          domain: [],
+          groupby: [],
+          period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+        },
+      ],
+      verifier: verifyFeryalReplyNumbers(answered.reply, answered.citedNumbers),
+      toolNumbers: answered.citedNumbers,
+      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+    })
   }
 
   let toolOutput: ToolExecutionOutput
