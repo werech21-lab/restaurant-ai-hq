@@ -301,26 +301,27 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(res.executedQueries.some((q) => q.model === 'pos.order')).toBe(true)
     expect(res.period).toEqual({ from: '2026-11-14', to: '2026-11-14' })
 
-    // Exact branch figures + unattributed + total
-    expect(res.reply).toContain('مول 360 785.8 د.ك')
-    expect(res.reply).toContain('السالمية 582.1 د.ك')
-    expect(res.reply).toContain('الكوت 549.3 د.ك')
-    expect(res.reply).toContain('العارضية 526.1 د.ك')
-    expect(res.reply).toContain('بروميناد 517.9 د.ك')
-    expect(res.reply).toContain('الأفنيوز 495.5 د.ك')
-    expect(res.reply).toContain('العاصمة 427.9 د.ك')
-    expect(res.reply).toContain('4,259.1 د.ك')
-    expect(res.reply).toContain('374.5 د.ك')
+    // Exact branch figures + unattributed + total (3-decimal fils precision)
+    expect(res.reply).toContain('مول 360 785.800 د.ك')
+    expect(res.reply).toContain('السالمية 582.100 د.ك')
+    expect(res.reply).toContain('الكوت 549.300 د.ك')
+    expect(res.reply).toContain('العارضية 526.100 د.ك')
+    expect(res.reply).toContain('بروميناد 517.900 د.ك')
+    expect(res.reply).toContain('الأفنيوز 495.500 د.ك')
+    expect(res.reply).toContain('العاصمة 427.900 د.ك')
+    expect(res.reply).toContain('4,259.100 د.ك')
+    expect(res.reply).toContain('374.500 د.ك')
     expect(res.reply).toContain('غير منسوب لفرع')
 
-    // Mandatory 4-part structure + estimate tag
+    // Grounded factual structure + source footer (zero legacy 4-part filler)
     expect(res.reply).toContain('• الرقم:')
     expect(res.reply).toContain('• السبب من البيانات:')
-    expect(res.reply).toContain('• الإجراء المحدد:')
-    expect(res.reply).toContain('تقدير')
+    expect(res.reply).toContain('• المصدر: Odoo 17')
+    expect(res.reply).not.toContain('• الإجراء المحدد:')
+    expect(res.reply).not.toContain('• الأثر المتوقع (تقدير):')
   })
 
-  it('Acceptance #2: answers «مبيعات بروميناد يوم 14/11» with 517.9 KWD and 107 orders (never 822)', async () => {
+  it('Acceptance #2: answers «مبيعات بروميناد يوم 14/11» with 517.900 KWD and 107 orders (never 822)', async () => {
     const res = await askFeryalOdooAgent({
       question: 'مبيعات بروميناد يوم 14/11',
       userSub: 'gm-test',
@@ -331,7 +332,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
 
     expect(res.status).toBe('answered')
     expect(res.verifier.valid).toBe(true)
-    expect(res.reply).toContain('517.9 د.ك')
+    expect(res.reply).toContain('517.900 د.ك')
     expect(res.reply).toContain('107 طلبات')
     expect(res.reply).not.toContain('822')
   })
@@ -349,7 +350,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(liveRes.executedQueries[0]?.model).toBe('pos.order.line')
     expect(liveRes.verifier.valid).toBe(true)
     expect(liveRes.reply).toContain('دجاج سويت آند ساور')
-    expect(liveRes.reply).toContain('412.5 د.ك')
+    expect(liveRes.reply).toContain('412.500 د.ك')
     expect(liveRes.reply).toContain('كرك زعفران عائلي')
 
     const discRes = await askFeryalOdooAgent({
@@ -392,7 +393,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(unknownVendorRes.reply).toContain('purchase.order')
     expect(unknownVendorRes.verifier.valid).toBe(true)
 
-    // Existing vendor in purchase.order -> exact 4-part verified cost
+    // Existing vendor in purchase.order -> exact 3-decimal fils verified cost
     const existingVendorRes = await askFeryalOdooAgent({
       question: 'تكلفة مورد شركة مطاحن الدقيق والمخابز الكويتية',
       userSub: 'cfo-test',
@@ -402,7 +403,7 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     })
     expect(existingVendorRes.status).toBe('answered')
     expect(existingVendorRes.verifier.valid).toBe(true)
-    expect(existingVendorRes.reply).toContain('4,310.2 د.ك')
+    expect(existingVendorRes.reply).toContain('4,310.200 د.ك')
     expect(existingVendorRes.reply).toContain('9 أوامر شراء')
   })
 
@@ -444,8 +445,8 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(stockRes.status).toBe('answered')
     expect(stockRes.executedQueries.some((q) => q.model === 'stock.move')).toBe(true)
     expect(stockRes.executedQueries.some((q) => q.model === 'stock.scrap')).toBe(true)
-    expect(stockRes.reply).toContain('5,120.4 د.ك')
-    expect(stockRes.reply).toContain('92.6 د.ك')
+    expect(stockRes.reply).toContain('5,120.400 د.ك')
+    expect(stockRes.reply).toContain('92.600 د.ك')
     expect(stockRes.verifier.valid).toBe(true)
   })
 
@@ -486,9 +487,8 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
     expect(badHallucination.unverifiedNumbers).toEqual([822])
 
     const badInventedPercent = enforceVerifiedFeryalReply(
-      '• الرقم: 517.9 د.ك\n• السبب من البيانات: 107 طلبات\n• الإجراء المحدد: رفع المبيعات 15%\n• الأثر المتوقع (تقدير): تقدير',
+      '• الرقم: 517.900 د.ك\n• السبب من البيانات: 107 طلبات مع رفع المبيعات 15%',
       [517.9, 107],
-      { requireFourPartStructure: true },
     )
     expect(badInventedPercent.accepted).toBe(false)
     expect(badInventedPercent.verifier.unverifiedNumbers).toEqual([15])
@@ -499,10 +499,10 @@ describe('Feryal Live Odoo 17 Engine & Numeric Verifier', () => {
       referenceNowMs: KUWAIT_NOV_15_2026_MS,
       dataSource: createLiveFixtureDataSource(),
       candidatePhraser: async () =>
-        '• الرقم: بروميناد 822 د.ك\n• السبب من البيانات: 107 طلبات\n• الإجراء المحدد: متابعة اليوم\n• الأثر المتوقع (تقدير): تقدير',
+        '• الرقم: بروميناد 822 د.ك\n• السبب من البيانات: 107 طلبات',
     })
     expect(guardedRes.auditEntry.llmCandidateRejected).toBe(true)
-    expect(guardedRes.reply).toContain('517.9 د.ك')
+    expect(guardedRes.reply).toContain('517.900 د.ك')
     expect(guardedRes.reply).not.toContain('822')
   })
 

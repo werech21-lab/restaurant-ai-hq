@@ -28,6 +28,7 @@ import {
 import { formatDate } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { TodaysDiscoveries } from '@/components/aether/TodaysDiscoveries'
 import { resolveSummaryBucket } from '@/lib/aether/global-filter-engine'
 import { publishPageOdooSync } from '@/lib/odoo-page-sync'
 import { FeryalStudioMessage, feryalPlainText } from '@/components/aether/FeryalStudioMessage'
@@ -280,6 +281,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [activeChatId, setActiveChatId] = useState<string>(() => nextUiId('chat'))
   const [activeNotebookId, setActiveNotebookId] = useState<string>('all')
   const [messages, setMessages] = useState<ChatUiMessage[]>(initialMessages ?? [])
+  const [seenFingerprints, setSeenFingerprints] = useState<string[]>([])
   const [inputText, setInputText] = useState('')
   const [sending, setSending] = useState(initialSending)
   const [activeQuickChipId, setActiveQuickChipId] = useState<QuickAuditChipId | null>(null)
@@ -469,12 +471,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     const freshId = nextUiId('chat')
     setActiveChatId(freshId)
     setMessages([])
+    setSeenFingerprints([])
     setInputText('')
     setMainTab('chat')
   }, [])
 
   const handleSelectChat = useCallback(async (chatId: string) => {
     setActiveChatId(chatId)
+    setSeenFingerprints([])
     setMainTab('chat')
     const thread = await loadChatThread(chatId)
     if (thread) {
@@ -601,6 +605,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           effectivePrompt,
           workspace.filters,
           urlSearch,
+          seenFingerprints,
         )
         const res = await fetch('/api/erp/feryal/chat', {
           method: 'POST',
@@ -622,7 +627,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           verifier,
           council,
           agreedList,
+          usedFingerprints,
         } = parsedOutcome
+        if (usedFingerprints && usedFingerprints.length > 0) {
+          setSeenFingerprints((prev) => Array.from(new Set([...prev, ...usedFingerprints])))
+        }
         if (replyStatus !== 'no_odoo_data' && replyStatus !== 'connection_error') {
           setChatSyncAt(new Date().toISOString())
         }
@@ -682,6 +691,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       messages,
       pendingAttachments,
       persistMessages,
+      seenFingerprints,
       sending,
       workspace.filters,
       workspace.subtitleAr,
@@ -1275,7 +1285,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             {/* Conversation Stream */}
             <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
               {messages.length === 0 ? (
-                <div className="mx-auto max-w-3xl py-6 space-y-5">
+                <div className="mx-auto max-w-4xl py-6 space-y-5">
+                  <TodaysDiscoveries locale={isAr ? 'ar' : 'en'} />
+
                   <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
                     <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
                       <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />

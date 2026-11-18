@@ -25,9 +25,9 @@ interface EvalQ {
 }
 
 export const EVAL_QUESTIONS: EvalQ[] = [
-  { id: 'Q1', kind: 'factual', question: 'كم كانت مبيعات أمس؟', expectsAdvice: true },
+  { id: 'Q1', kind: 'factual', question: 'كم كانت مبيعات أمس؟', expectsAdvice: false },
   { id: 'Q2', kind: 'dialect', question: 'شلون كانت العاصمة امبارح؟', expectsAdvice: true },
-  { id: 'Q3', kind: 'factual', question: 'أي فرع الأعلى مبيعات أمس؟', expectsAdvice: true },
+  { id: 'Q3', kind: 'factual', question: 'أي فرع الأعلى مبيعات أمس؟', expectsAdvice: false },
   { id: 'Q4', kind: 'dialect', question: 'شو صاير بالأفنيوز؟ كم بعنا امس', expectsAdvice: true },
   { id: 'Q5', kind: 'strategic', question: 'شنو أسوي عشان أرفع المبيعات هالأسبوع؟', expectsAdvice: true },
   { id: 'Q6', kind: 'cross-domain', question: 'ليش العاصمة نازلة؟ هل السبب الطاقم ولا المنصات؟', expectsAdvice: true },
@@ -41,6 +41,7 @@ export const EVAL_QUESTIONS: EvalQ[] = [
 
 let council: CouncilSnapshot
 const answers = new Map<string, AskFeryalOdooAgentResult>()
+const seenFingerprints = new Set<string>()
 
 beforeAll(() => {
   const s = loadLiveTodaySummary()
@@ -59,18 +60,25 @@ describe('Feryal — 12 executive eval questions on real data', () => {
       dataSource: createRealPayloadDataSource(loadLiveTodaySummary()),
       skipAuditLog: true,
       council,
+      seenFingerprints,
     })
     answers.set(q.id, res)
-    // Never a fake zero, never an untraced number in the base answer.
+    // Never a fake zero, never legacy 4-part filler, never an untraced number.
     expect(res.reply).not.toMatch(/(?:^|[^\d.,])0\.000(?!\d)/)
-    if (res.status === 'answered') expect(res.verifier.valid, res.reply).toBe(true)
+    expect(res.reply).not.toContain('• الإجراء المحدد:')
+    expect(res.reply).not.toContain('• الأثر المتوقع (تقدير):')
+    expect(res.reply).toContain('• المصدر: Odoo 17')
+    expect(res.verifier.valid, res.reply).toBe(true)
     if (q.expectsAdvice) {
-      expect(res.advisory?.findings.length ?? 0, res.reply).toBeGreaterThan(0)
-      expect(res.reply).toMatch(/• (?:لماذا|غير متوفر في Odoo):/)
+      expect(
+        (res.advisory?.findings.length ?? 0) + (res.advisory?.dataGaps?.length ?? 0),
+        res.reply,
+      ).toBeGreaterThan(0)
+      expect(res.reply).toMatch(/• (?:لماذا|غير متوفر في Odoo[^:]*):/)
       expect(res.reply).toContain('• مصادر المستشارين:')
     }
     // Every numeric advisor Estimate («تقدير: value») carries its formula.
-    for (const line of res.reply.split('\n').filter((l) => l.includes('تقدير:'))) expect(line).toMatch(/تقدير: .+ = .+/)
+    for (const line of res.reply.split('\n').filter((l) => l.includes('تقدير'))) expect(line).toMatch(/تقدير: .+ = .+/)
   })
 
   it('writes the actual answers to docs/phase-5/feryal-council-eval.md', () => {

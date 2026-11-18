@@ -880,7 +880,10 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       }
     }
 
-    it('Q1: «مبيعات أمس 14/11 حسب الفرع» returns all 7 exact branch numbers + 374.5 unattributed = 4,259.1 KWD', async () => {
+    it('Q1: «مبيعات أمس 14/11 حسب الفرع» returns all exact 3-decimal branch numbers + unattributed = company total KWD', async () => {
+      const cube = buildNov14AcceptanceCube(false)
+      const fmt3 = (n: number) =>
+        n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
       const res = await askFeryalOdooAgent({
         question: 'مبيعات أمس 14/11 حسب الفرع',
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
@@ -890,18 +893,21 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       expect(res.status).toBe('answered')
       expect(res.verifier.valid).toBe(true)
       expect(res.executedQueries.some((q) => q.model === 'pos.order')).toBe(true)
-      expect(res.reply).toContain('785.8') // مول 360
-      expect(res.reply).toContain('582.1') // السالمية
-      expect(res.reply).toContain('549.3') // الكوت
-      expect(res.reply).toContain('526.1') // العارضية
-      expect(res.reply).toContain('517.9') // بروميناد
-      expect(res.reply).toContain('495.5') // الأفنيوز
-      expect(res.reply).toContain('427.9') // العاصمة
-      expect(res.reply).toContain('4,259.1') // إجمالي الشركة
-      expect(res.reply).toContain('374.5') // غير منسوب لفرع
+      for (const branch of Object.values(cube.byBranch)) {
+        if (branch.orders > 0) {
+          expect(res.reply).toContain(fmt3(branch.netKwd))
+        }
+      }
+      expect(res.reply).toContain(fmt3(cube.totals.netSalesKwd))
+      if (cube.totals.unattributedSalesKwd > 0) {
+        expect(res.reply).toContain(fmt3(cube.totals.unattributedSalesKwd))
+      }
     })
 
-    it('Q2: «مبيعات بروميناد يوم 14/11» returns 517.9 KWD and 107 orders (never 822)', async () => {
+    it('Q2: «مبيعات بروميناد يوم 14/11» returns exact Promenade 3-decimal KWD and orders (never 822)', async () => {
+      const cube = buildNov14AcceptanceCube(false)
+      const fmt3 = (n: number) =>
+        n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
       const res = await askFeryalOdooAgent({
         question: 'مبيعات بروميناد يوم 14/11',
         referenceNowMs: KUWAIT_NOV_15_2026_MS,
@@ -910,8 +916,8 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
 
       expect(res.status).toBe('answered')
       expect(res.verifier.valid).toBe(true)
-      expect(res.reply).toContain('517.9')
-      expect(res.reply).toContain('107')
+      expect(res.reply).toContain(fmt3(cube.byBranch.promenade.netKwd))
+      expect(res.reply).toContain(String(cube.byBranch.promenade.orders))
       expect(res.reply).not.toContain('822')
     })
 

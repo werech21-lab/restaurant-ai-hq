@@ -6,12 +6,14 @@ import {
   requireExecApiSession,
 } from '@/lib/auth/api-guard'
 import {
-  APPROVED_FERYAL_BRANCHES,
+  ALL_FERYAL_BRANCHES,
+  APPROVED_FERYAL_BRAND_LIST,
   FERYAL_NO_ODOO_DATA_REPLY,
   listFeryalAuditEntries,
   UNATTRIBUTED_BRANCH_LABEL_AR,
   validateFeryalContextDefaults,
 } from '@/lib/feryal-odoo-agent'
+import { sanitizeSeenFingerprints } from '@/lib/feryal-intent'
 import { logger, errorFields } from '@/lib/logger'
 import { runFeryalCouncil } from '@/server/ai/council'
 
@@ -28,6 +30,7 @@ interface FeryalChatPostBody {
   branch?: string
   brand?: string
   channel?: string
+  seenFingerprints?: unknown
 }
 
 export async function GET(req: NextRequest) {
@@ -51,9 +54,9 @@ export async function GET(req: NextRequest) {
       ok: true,
       endpoint: '/api/erp/feryal/chat',
       scope: {
-        brandsCount: 6,
-        branchesCount: 7,
-        branches: APPROVED_FERYAL_BRANCHES.map((b) => ({
+        brandsCount: APPROVED_FERYAL_BRAND_LIST.length,
+        branchesCount: ALL_FERYAL_BRANCHES.length,
+        branches: ALL_FERYAL_BRANCHES.map((b) => ({
           id: b.id,
           nameAr: b.nameAr,
           nameEn: b.nameEn,
@@ -116,6 +119,8 @@ export async function POST(req: NextRequest) {
     channel: typeof body.channel === 'string' ? body.channel : null,
   })
 
+  const seenFingerprints = sanitizeSeenFingerprints(body.seenFingerprints)
+
   try {
     const result = await runFeryalCouncil({
       question: safeQuestion,
@@ -130,6 +135,7 @@ export async function POST(req: NextRequest) {
         brand: validatedDefaults.brandId,
         channel: validatedDefaults.channelId,
       },
+      seenFingerprints,
     })
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
     return NextResponse.json(
@@ -145,6 +151,7 @@ export async function POST(req: NextRequest) {
         verifier: result.verifier,
         period: result.period,
         auditEntry: result.auditEntry,
+        usedFingerprints: result.usedFingerprints ?? [],
         timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),
       },
       { headers: ENTERPRISE_API_SECURITY_HEADERS },

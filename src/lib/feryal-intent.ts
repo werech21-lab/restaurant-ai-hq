@@ -1,4 +1,5 @@
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
+import posRegistry from '@/lib/odoo/pos-registry.json'
 
 export const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000
 
@@ -12,6 +13,7 @@ export type ApprovedFeryalBranchId =
   | 'assima'
   | 'school-canteens'
   | 'exhibitions'
+  | 'qurain'
 
 export type ApprovedFeryalBrandId =
   | 'china-garden'
@@ -152,10 +154,32 @@ export const EXHIBITION_FERYAL_BRANCH: FeryalBranchMeta = {
   ],
 }
 
+export const QURAIN_FERYAL_BRANCH: FeryalBranchMeta = {
+  id: 'qurain',
+  nameAr: 'القرين (المطبخ المركزي)',
+  nameEn: 'Qurain (Central Kitchen)',
+  aliases: [
+    'القرين (المطبخ المركزي)',
+    'المطبخ المركزي',
+    'القرين',
+    'qurain',
+    'al-qurain',
+    'central kitchen',
+  ],
+}
+
+export function isQurainRegistryEnabled(): boolean {
+  return Object.prototype.hasOwnProperty.call(
+    posRegistry.locations as Record<string, unknown>,
+    'qurain',
+  )
+}
+
 export const ALL_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
   ...APPROVED_FERYAL_BRANCHES,
   SCHOOL_CANTEEN_FERYAL_BRANCH,
   EXHIBITION_FERYAL_BRANCH,
+  ...(isQurainRegistryEnabled() ? [QURAIN_FERYAL_BRANCH] : []),
 ]
 
 export const APPROVED_FERYAL_BRANDS: Readonly<Record<ApprovedFeryalBrandId, string>> = {
@@ -325,16 +349,18 @@ const AR_WORD_START = '(^|[\\s(«"\'-])'
  * every downstream matcher (periods, channels, intents) understands colloquial phrasing.
  */
 const GULF_DIALECT_RULES: readonly [RegExp, string][] = [
-  // yesterday: امبارح / إمبارح / البارح / بارح → امس
-  [new RegExp(`${AR_WORD_START}(امبارح|امبارحه|البارح|بارح)${AR_WORD_END}`, 'g'), '$1امس'],
+  // yesterday: امبارح / مبارح / إمبارح / البارح / البارحة / بارح → امس
+  [new RegExp(`${AR_WORD_START}(امبارح|امبارحه|مبارح|مبارحه|البارح|البارحه|بارح)${AR_WORD_END}`, 'g'), '$1امس'],
   // "this <period>": هالشهر / هالاسبوع / هالسنه / هاليوم
   [new RegExp(`${AR_WORD_START}هالشهر${AR_WORD_END}`, 'g'), '$1هذا الشهر'],
   [new RegExp(`${AR_WORD_START}هالاسبوع${AR_WORD_END}`, 'g'), '$1هذا الاسبوع'],
   [new RegExp(`${AR_WORD_START}(هالسنه|هالعام)${AR_WORD_END}`, 'g'), '$1هذه السنه'],
   [new RegExp(`${AR_WORD_START}هاليوم${AR_WORD_END}`, 'g'), '$1اليوم'],
-  // Talabat fleet codes typed bare (TGO / TMP) or as "طلبات TGO"
+  // Talabat fleet codes typed bare (TGO / TMP), transliterated, or as "طلبات TGO" / "طلبات ماركت"
   [/(^|[^a-z-])(?:طلبات\s+)?tgo\b/g, '$1talabat tgo'],
   [/(^|[^a-z-])(?:طلبات\s+)?tmp\b/g, '$1talabat tmp'],
+  [new RegExp(`${AR_WORD_START}تي جي او${AR_WORD_END}`, 'g'), '$1talabat tgo'],
+  [new RegExp(`${AR_WORD_START}طلبات ماركت${AR_WORD_END}`, 'g'), '$1talabat tmp'],
   [/talabat talabat/g, 'talabat'],
   // Keeta spelling variants
   [new RegExp(`${AR_WORD_START}(كييتا|كيته)${AR_WORD_END}`, 'g'), '$1كيتا'],
@@ -988,6 +1014,11 @@ export function isLowestBranchQuestion(question: string): boolean {
   )
 }
 
+const SALARY_SEASON_RE =
+  /(?:ايام|فتره|موسم|وقت|موعد|نزول)\s+(?:الرواتب|الراتب|المعاشات|المعاش)|\b(?:salary\s+days?|payday(?:s|\s+window)?)\b|(?:(?:الرواتب|المعاشات).*(?:قربت|نتجهز|تجهيز|استعداد|نستعد))|(?:(?:نتجهز|تجهيز|استعداد|نستعد).*(?:الرواتب|المعاشات))/i
+const HR_OVERTIME_SHIFT_RE =
+  /(?:اوفر\s*تايم|عمل\s+اضافي|ساعات\s+اضافيه|ورديات|طول\s+الورديه|\bovertime\b|\blong\s+shifts?\b)/i
+
 const FINANCE_STEM_RE =
   /(^|\s)(و|ف)?(ب|ل|ك)?(ال|لل)?(مصاريف|مصروف|مصروفات|صرف|صرفنا|صرفت|رواتب|راتب|عموله|عمولات|ذمم|كاش|بنك|البنك)(?=[\s؟?.,!؛:]|$)|\b(expenses?|salar(y|ies)|commissions?|payroll)\b/i
 const INVENTORY_STEM_RE =
@@ -995,7 +1026,16 @@ const INVENTORY_STEM_RE =
 const TOP_PRODUCT_RE =
   /(اكثر|افضل|اعلي|احسن|اكبر) (صنف|منتج|طبق|وجبه|اكله|ايتم)|(الصنف|المنتج|الطبق|الوجبه) (الاكثر|الافضل|الاعلي)|\b(best[- ]?sellers?|top (selling )?(item|product)s?|most sold (item|product))\b/i
 
+export function isSalarySeasonReadinessQuestion(question: string): boolean {
+  return SALARY_SEASON_RE.test(normalizeArabicText(question))
+}
+
+export function isHrOvertimeOrShiftQuestion(question: string): boolean {
+  return HR_OVERTIME_SHIFT_RE.test(normalizeArabicText(question))
+}
+
 export function isFinanceQuestion(question: string): boolean {
+  if (isSalarySeasonReadinessQuestion(question)) return false
   return FINANCE_STEM_RE.test(normalizeArabicText(question))
 }
 export function isInventoryOnHandQuestion(question: string): boolean {
@@ -1380,6 +1420,7 @@ export type DetectedOdooToolKind =
   | 'purchase_orders'
   | 'stock_moves'
   | 'hr_employees'
+  | 'hr_overtime'
   /** Stock on hand (`stock.quant`) is not linked — answered as «غير متاح», never with sales. */
   | 'inventory_on_hand'
   | 'unknown'
@@ -1392,6 +1433,12 @@ export function detectOdooToolKind(
   isBranchRanking = false,
 ): DetectedOdooToolKind {
   const normAr = normalizeArabicText(question)
+  const isSalarySeason = isSalarySeasonReadinessQuestion(question)
+
+  // 0a. HR Overtime / Shift load (`hr.attendance` / `hr.employee.work_location_id`)
+  if (isHrOvertimeOrShiftQuestion(question)) {
+    return 'hr_overtime'
+  }
 
   // 0. HR Employees (`hr.employee`)
   if (
@@ -1425,13 +1472,15 @@ export function detectOdooToolKind(
     return 'inventory_on_hand'
   }
 
-  // 3a. Expense / payroll / commission / receivable / cash / bank wording — GL, never POS sales.
-  if (FINANCE_STEM_RE.test(normAr)) {
+  // 3a. Expense / payroll / commission / receivable / cash / bank wording — GL, never POS sales
+  // (excluding consumer salary-days seasonal readiness like «أيام الرواتب قربت، شلون نتجهز؟»).
+  if (!isSalarySeason && FINANCE_STEM_RE.test(normAr)) {
     return 'account_move_lines'
   }
 
   // 3. General Ledger / accounting / receivables (`account.move.line`)
   if (
+    !isSalarySeason &&
     /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables\b|\bnet profit\b|\bexpenses\b)/i.test(
       normAr,
     )
@@ -1460,8 +1509,9 @@ export function detectOdooToolKind(
     return 'pos_brands'
   }
 
-  // 7. POS sales / orders / branch ranking / dialect sales & recent intents (`pos.order`)
+  // 7. POS sales / orders / branch ranking / salary-season readiness / dialect sales (`pos.order`)
   const hasPosSalesOrBranchIntent =
+    isSalarySeason ||
     isBranchRanking ||
     targetBranchId !== null ||
     detectTargetChannelFromQuestion(question).channelId !== null ||
@@ -1488,6 +1538,17 @@ export interface FeryalChatRequestPayload {
   channel: string
   customFrom?: string
   customTo?: string
+  seenFingerprints?: string[]
+}
+
+export function sanitizeSeenFingerprints(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const out = raw
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .slice(0, 200)
+    .map((s) => s.trim().slice(0, 120))
+  const unique = [...new Set(out)]
+  return unique.length > 0 ? unique : undefined
 }
 
 export function buildFeryalChatRequestPayload(
@@ -1501,6 +1562,7 @@ export function buildFeryalChatRequestPayload(
     customTo?: string
   },
   urlSearch?: string,
+  seenFingerprints?: readonly string[],
 ): FeryalChatRequestPayload {
   let period = filters.period || 'month'
   let branch = filters.branch || 'all'
@@ -1529,6 +1591,8 @@ export function buildFeryalChatRequestPayload(
     }
   }
 
+  const cleanSeen = sanitizeSeenFingerprints(seenFingerprints)
+
   return {
     question,
     period,
@@ -1536,6 +1600,7 @@ export function buildFeryalChatRequestPayload(
     brand,
     channel,
     ...(period === 'custom' && customFrom && customTo ? { customFrom, customTo } : {}),
+    ...(cleanSeen ? { seenFingerprints: cleanSeen } : {}),
   }
 }
 
@@ -1571,6 +1636,7 @@ export interface ParsedFeryalChatTurnOutcome<
   verifier?: TVerifier
   council?: TCouncil[]
   agreedList?: TAgreed[]
+  usedFingerprints?: string[]
 }
 
 export async function parseFeryalChatHttpResponse<
@@ -1622,6 +1688,7 @@ export async function parseFeryalChatHttpResponse<
           verifier?: TVerifier
           participants?: TCouncil[]
           agreed?: TAgreed[]
+          usedFingerprints?: unknown[]
         })
       : null
 
@@ -1649,6 +1716,9 @@ export async function parseFeryalChatHttpResponse<
           ? 'تعذّر التحليل'
           : 'Analysis failed'
         : payload.model || 'Odoo'
+  const usedFingerprints = Array.isArray(payload.usedFingerprints)
+    ? payload.usedFingerprints.filter((fp): fp is string => typeof fp === 'string')
+    : undefined
 
   return {
     replyText: payload.reply,
@@ -1658,5 +1728,6 @@ export async function parseFeryalChatHttpResponse<
     verifier: payload.verifier,
     council,
     agreedList,
+    ...(usedFingerprints !== undefined ? { usedFingerprints } : {}),
   }
 }

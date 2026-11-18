@@ -683,6 +683,9 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
       }
 
       // 1. Direct query on مقاصف المدارس
+      const canteenCell = cube.byBranch['school-canteens']
+      const fmt3 = (n: number) =>
+        n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
       const directRes = await askFeryalOdooAgent({
         question: 'كم مبيعات مقاصف المدارس أمس 14/11؟',
         referenceNowMs: TEST_REF_NOW_MS,
@@ -691,8 +694,8 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
       expect(directRes.status).toBe('answered')
       expect(directRes.verifier.valid).toBe(true)
       expect(directRes.reply).toContain('مقاصف المدارس')
-      expect(directRes.reply).toContain('264.4')
-      expect(directRes.reply).toContain('63')
+      expect(directRes.reply).toContain(fmt3(canteenCell.netKwd))
+      expect(directRes.reply).toContain(String(canteenCell.orders))
 
       // 2. All-branches query when school-canteens has active sales includes school-canteens in lowestBranch & structured facts
       const allBranchesRes = await askFeryalOdooAgent({
@@ -702,12 +705,12 @@ describe('Tier 1 Cross-Surface Data Contracts, Demo-Product Ban & Real Engine Bu
       })
       expect(allBranchesRes.status).toBe('answered')
       expect(allBranchesRes.verifier.valid).toBe(true)
-      expect(allBranchesRes.reply).toContain('مقاصف المدارس 264.4 د.ك')
+      expect(allBranchesRes.reply).toContain(`مقاصف المدارس ${fmt3(canteenCell.netKwd)} د.ك`)
       const canteenFact = allBranchesRes.facts.find(
         (f) => f.entityId === 'school-canteens' && f.metric === 'net_sales_kwd',
       )
       expect(canteenFact).toBeDefined()
-      expect(canteenFact?.value).toBe('264.4')
+      expect(canteenFact?.value).toBe(String(canteenCell.netKwd))
 
       const directFacts = numericFactsFromStructured(
         {

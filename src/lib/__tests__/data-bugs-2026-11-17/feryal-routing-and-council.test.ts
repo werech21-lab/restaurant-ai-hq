@@ -283,7 +283,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         expect(res.verifier.unverifiedNumbers).toEqual([])
         expect(res.executedQueries.some((q) => q.model === 'pos.order')).toBe(true)
         expect(res.reply).toContain('مول 360')
-        expect(res.reply).toContain('785.8 د.ك')
+        expect(res.reply).toContain('785.800 د.ك')
         expect(res.reply).not.toContain('pos.config')
       },
     )
@@ -440,7 +440,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(defaulted.status).toBe('answered')
       expect(defaulted.period).toEqual({ from: '2026-11-17', to: '2026-11-17' })
       expect(defaulted.reply).toContain('الكوت')
-      expect(defaulted.reply).toContain('549.3 د.ك')
+      expect(defaulted.reply).toContain('549.300 د.ك')
       expect(defaulted.reply).toContain('109 طلبات')
 
       // Explicit branch (السالمية) & explicit period (أمس -> 2026-11-16) override defaults (branch=al-kout, period=today)
@@ -455,7 +455,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(overridden.status).toBe('answered')
       expect(overridden.period).toEqual({ from: '2026-11-16', to: '2026-11-16' })
       expect(overridden.reply).toContain('السالمية')
-      expect(overridden.reply).toContain('582.1 د.ك')
+      expect(overridden.reply).toContain('582.100 د.ك')
 
       // Ranking question ("أي فرع حقق أعلى مبيعات اليوم؟") ranks ALL branches even when branch=al-kout default is set
       const rankedWithDefault = await askFeryalOdooAgent({
@@ -468,7 +468,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
 
       expect(rankedWithDefault.status).toBe('answered')
       expect(rankedWithDefault.reply).toContain('مول 360')
-      expect(rankedWithDefault.reply).toContain('785.8 د.ك')
+      expect(rankedWithDefault.reply).toContain('785.800 د.ك')
     })
 
     it('validates {period, branch, brand, channel} in POST /api/erp/feryal/chat and forwards approved defaults through runFeryalCouncil', async () => {
@@ -499,7 +499,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(councilRes.status).toBe('answered')
       expect(councilRes.period).toEqual({ from: '2026-11-17', to: '2026-11-17' })
       expect(councilRes.reply).toContain('الكوت')
-      expect(councilRes.reply).toContain('549.3 د.ك')
+      expect(councilRes.reply).toContain('549.300 د.ك')
 
       // Route-level validation rejects bogus IDs without crashing
       const adminToken = await createExecSessionToken(DEFAULT_ADMIN_EMAIL, 'admin')
@@ -556,7 +556,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(res.status).toBe('answered')
       expect(res.verifier.valid).toBe(true)
       expect(res.reply).toContain('مول 360')
-      expect(res.reply).toContain('785.8 د.ك')
+      expect(res.reply).toContain('785.800 د.ك')
       expect(res.reply).toMatch(/غير متاح/)
       expect(res.reply).toMatch(/unavailable/i)
 
@@ -581,7 +581,7 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         },
       )
       expect(oneKeyRes.status).toBe('answered')
-      expect(oneKeyRes.reply).toContain('785.8 د.ك')
+      expect(oneKeyRes.reply).toContain('785.800 د.ك')
       expect(oneKeyRes.reply).toMatch(/unavailable/i)
     })
 

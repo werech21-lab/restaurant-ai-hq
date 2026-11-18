@@ -22,14 +22,14 @@ const ROWS: Row[] = [
     status: 'answered',
     model: 'pos.order',
     period: { from: '2026-11-16', to: '2026-11-16' },
-    mustContain: ['4,890.0 د.ك'],
+    mustContain: ['4,890.000 د.ك'],
   },
   {
     question: 'كم مبيعات كيتا بالكوت امبارح؟',
     status: 'answered',
     model: 'pos.order',
     period: { from: '2026-11-16', to: '2026-11-16' },
-    mustContain: ['قناة كيتا', 'الكوت', '160.0 د.ك', '34 دفعات'],
+    mustContain: ['قناة كيتا', 'الكوت', '160.000 د.ك', '34 دفعات'],
     mustNotContain: ['34 طلبات'],
   },
   {
@@ -38,20 +38,20 @@ const ROWS: Row[] = [
     model: 'pos.order',
     period: { from: '2026-11-16', to: '2026-11-16' },
     // Talabat = TGO 160 + TMP 70 at Al-Kout; 32 + 14 payouts. Never total branch sales (690).
-    mustContain: ['TGO + TMP', '230.0 د.ك', '46 دفعات'],
-    mustNotContain: ['690.0 د.ك'],
+    mustContain: ['TGO + TMP', '230.000 د.ك', '46 دفعات'],
+    mustNotContain: ['690.000 د.ك'],
   },
   {
     question: 'كم مصاريف فرع الكوت هالشهر؟',
     status: 'no_odoo_data',
     mustContain: ['غير متاح', 'مصاريف الفرع'],
-    mustNotContain: ['pos.order', '11,040.0'],
+    mustNotContain: ['pos.order', '11,040.000'],
   },
   {
     question: 'كم المخزون بالفرع؟',
     status: 'no_odoo_data',
     mustContain: ['غير متاح', 'المخزون'],
-    mustNotContain: ['pos.order', '78,240.0'],
+    mustNotContain: ['pos.order', '78,240.000'],
   },
   {
     question: 'كم مبيعات فرع الفحاحيل؟',
@@ -59,14 +59,14 @@ const ROWS: Row[] = [
     // FAS Fahaheel is school-canteen register 43; its sales are not separable from the other
     // canteens in the live cube, so the answer is «غير متاح» naming the register — never Al-Kout.
     mustContain: ['غير متاح', 'FAS Fahaheel', 'pos.config 43', 'مقاصف المدارس'],
-    mustNotContain: ['الكوت', '11,040.0'],
+    mustNotContain: ['الكوت', '11,040.000'],
   },
   {
     question: 'شو أكثر صنف انباع امس؟',
     status: 'answered',
     model: 'pos.order.line',
     period: { from: '2026-11-16', to: '2026-11-16' },
-    mustContain: ['وجبة تشاينا جاردن العائلية', '420.0 د.ك'],
+    mustContain: ['وجبة تشاينا جاردن العائلية', '420.000 د.ك'],
     mustNotContain: ['توزعت المبيعات حسب الفرع'],
   },
   {
@@ -75,16 +75,16 @@ const ROWS: Row[] = [
     model: 'pos.order',
     period: { from: '2026-11-01', to: '2026-11-17' },
     // Lowest RESTAURANT branch (canteens and unattributed excluded from the headline).
-    mustContain: ['أضعف فرع مطاعم هو العاصمة', '6,720.0 د.ك'],
+    mustContain: ['أضعف فرع مطاعم هو العاصمة', '6,720.000 د.ك'],
     mustNotContain: ['أضعف فرع مطاعم هو مقاصف', 'تصدر فرع مول 360 المبيعات'],
   },
   {
     question: 'قارن مبيعات اليوم مع امبارح',
     status: 'answered',
     model: 'pos.order',
-    // Same hours until 14:00 Kuwait: today 1,265.0 vs yesterday 1,150.0 = +10.0% (not −72.4%).
-    mustContain: ['نفس الساعات حتى الساعة 14:00', '1,265.0 د.ك', '1,150.0 د.ك', 'بارتفاع', '10.0%'],
-    mustNotContain: ['4,890.0', '72.4%', '65.4%'],
+    // Same hours until 14:00 Kuwait: today 1,265.000 vs yesterday 1,150.000 = +10.0% (not −72.4%).
+    mustContain: ['نفس الساعات حتى الساعة 14:00', '1,265.000 د.ك', '1,150.000 د.ك', 'بارتفاع', '10.0%'],
+    mustNotContain: ['4,890.000', '72.4%', '65.4%'],
   },
   {
     question: 'طلبات TGO و TMP امبارح',
@@ -92,7 +92,7 @@ const ROWS: Row[] = [
     model: 'pos.order',
     period: { from: '2026-11-16', to: '2026-11-16' },
     // Company Talabat = TGO 900 + TMP 400; 180 + 80 payouts.
-    mustContain: ['TGO + TMP', '1,300.0 د.ك', '260 دفعات'],
+    mustContain: ['TGO + TMP', '1,300.000 د.ك', '260 دفعات'],
     mustNotContain: ['260 طلبات'],
   },
 ]

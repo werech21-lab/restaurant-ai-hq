@@ -1132,21 +1132,25 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         expect(Number(briefOrdersFact?.value)).toBe(expected.orders)
 
         // Verify Feryal surfaces this branch as topBranch when boosted to #1 and as lowestBranch when reduced to #8
+        const fmt3 = (n: number) =>
+          n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+        const topSalesKwd = r3(cube.totals.netSalesKwd + expected.netKwd)
+        const topOrders = cube.totals.orders + expected.orders
         const boostedCube: OdooPeriodCube = {
           ...cube,
           byBranch: {
             ...cube.byBranch,
             [branchId]: {
               ...cube.byBranch[branchId],
-              netKwd: 9500.5,
-              orders: 1200,
-              aovKwd: r3(9500.5 / 1200),
+              netKwd: topSalesKwd,
+              orders: topOrders,
+              aovKwd: r3(topSalesKwd / topOrders),
             },
           },
           totals: {
             ...cube.totals,
-            netSalesKwd: r3(cube.totals.netSalesKwd - expected.netKwd + 9500.5),
-            orders: cube.totals.orders - expected.orders + 1200,
+            netSalesKwd: r3(cube.totals.netSalesKwd - expected.netKwd + topSalesKwd),
+            orders: cube.totals.orders - expected.orders + topOrders,
           },
         }
         const feryalDsTop: FeryalOdooDataSource = {
@@ -1163,27 +1167,34 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         })
         expect(feryalTopRes.status).toBe('answered')
         expect(feryalTopRes.verifier.valid).toBe(true)
-        expect(feryalTopRes.reply).toContain('9,500.5 د.ك')
+        expect(feryalTopRes.reply).toContain(`${fmt3(topSalesKwd)} د.ك`)
         const structuredFact = feryalTopRes.facts.find(
           (f) => f.entityId === branchId && f.metric === 'net_sales_kwd',
         )
-        expect(structuredFact?.value).toBe('9500.5')
+        expect(structuredFact?.value).toBe(String(topSalesKwd))
 
+        const minOtherSalesKwd = Math.min(
+          ...Object.entries(cube.byBranch)
+            .filter(([id, b]) => id !== branchId && b.orders > 0)
+            .map(([, b]) => b.netKwd),
+        )
+        const lowSalesKwd = r3(minOtherSalesKwd / 2)
+        const lowOrders = Math.max(1, Math.floor(expected.orders / 2))
         const lowestCube: OdooPeriodCube = {
           ...cube,
           byBranch: {
             ...cube.byBranch,
             [branchId]: {
               ...cube.byBranch[branchId],
-              netKwd: 12.4,
-              orders: 3,
-              aovKwd: r3(12.4 / 3),
+              netKwd: lowSalesKwd,
+              orders: lowOrders,
+              aovKwd: r3(lowSalesKwd / lowOrders),
             },
           },
           totals: {
             ...cube.totals,
-            netSalesKwd: r3(cube.totals.netSalesKwd - expected.netKwd + 12.4),
-            orders: cube.totals.orders - expected.orders + 3,
+            netSalesKwd: r3(cube.totals.netSalesKwd - expected.netKwd + lowSalesKwd),
+            orders: cube.totals.orders - expected.orders + lowOrders,
           },
         }
         const feryalDsLowest: FeryalOdooDataSource = {
@@ -1201,11 +1212,11 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         expect(feryalLowestRes.status).toBe('answered')
         expect(feryalLowestRes.verifier.valid).toBe(true)
         expect(feryalLowestRes.reply).toContain('بينما سجل فرع')
-        expect(feryalLowestRes.reply).toContain('12.4 د.ك')
+        expect(feryalLowestRes.reply).toContain(`${fmt3(lowSalesKwd)} د.ك`)
         const lowestFact = feryalLowestRes.facts.find(
           (f) => f.entityId === branchId && f.metric === 'net_sales_kwd',
         )
-        expect(lowestFact?.value).toBe('12.4')
+        expect(lowestFact?.value).toBe(String(lowSalesKwd))
 
         const directCouncilFacts = numericFactsFromStructured(
           {

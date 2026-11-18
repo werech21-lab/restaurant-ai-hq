@@ -356,98 +356,98 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       question: 'كم مبيعات أمس 14/11 حسب الفرع؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['مول 360 785.8 د.ك', 'السالمية 582.1 د.ك', 'الكوت 549.3 د.ك', 'العارضية 526.1 د.ك', 'بروميناد 517.9 د.ك', 'الأفنيوز 495.5 د.ك', 'العاصمة 427.9 د.ك', '4,259.1 د.ك', '374.5 د.ك'],
+      mustContain: ['مول 360 785.800 د.ك', 'السالمية 582.100 د.ك', 'الكوت 549.300 د.ك', 'العارضية 526.100 د.ك', 'بروميناد 517.900 د.ك', 'الأفنيوز 495.500 د.ك', 'العاصمة 427.900 د.ك', '4,259.100 د.ك', '374.500 د.ك'],
     },
     {
       num: 2,
       question: 'كم مبيعات فرع مول 360 يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['مول 360', '785.8 د.ك', '148 طلبات'],
+      mustContain: ['مول 360', '785.800 د.ك', '148 طلبات'],
     },
     {
       num: 3,
       question: 'كم مبيعات فرع السالمية يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['السالمية', '582.1 د.ك', '118 طلبات'],
+      mustContain: ['السالمية', '582.100 د.ك', '118 طلبات'],
     },
     {
       num: 4,
       question: 'كم مبيعات فرع الكوت يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['الكوت', '549.3 د.ك', '109 طلبات'],
+      mustContain: ['الكوت', '549.300 د.ك', '109 طلبات'],
     },
     {
       num: 5,
       question: 'كم مبيعات فرع العارضية يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['العارضية', '526.1 د.ك', '96 طلبات'],
+      mustContain: ['العارضية', '526.100 د.ك', '96 طلبات'],
     },
     {
       num: 6,
       question: 'كم مبيعات فرع بروميناد يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['بروميناد', '517.9 د.ك', '107 طلبات'],
+      mustContain: ['بروميناد', '517.900 د.ك', '107 طلبات'],
     },
     {
       num: 7,
       question: 'كم مبيعات فرع الأفنيوز يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['الأفنيوز', '495.5 د.ك', '86 طلبات'],
+      mustContain: ['الأفنيوز', '495.500 د.ك', '86 طلبات'],
     },
     {
       num: 8,
       question: 'كم مبيعات فرع العاصمة يوم 14/11؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['العاصمة', '427.9 د.ك', '74 طلبات'],
+      mustContain: ['العاصمة', '427.900 د.ك', '74 طلبات'],
     },
     {
       num: 9,
       question: 'قارن مبيعات يوم 14/11 مقابل يوم 07/11',
       expectedStatus: 'answered',
       expectedModel: 'pos.order',
-      mustContain: ['4,259.1 د.ك', '3,920.0 د.ك', '339.1 د.ك', '8.7%'],
+      mustContain: ['4,259.100 د.ك', '3,920.000 د.ك', '339.100 د.ك', '8.7%'],
     },
     {
       num: 10,
       question: 'كم مبيعات هذا الشهر حسب العلامات الست؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order.line',
-      mustContain: ['تشاينا جاردن 16,420.5 د.ك', 'فرانكس 12,180.0 د.ك', 'فارم براون 11,350.5 د.ك', 'طحينة 9,410.0 د.ك', 'ذا نودل بار 7,640.0 د.ك', 'كافيتيريا كرك 4,839.0 د.ك', '61,840.0 د.ك'],
+      mustContain: ['تشاينا جاردن 16,420.500 د.ك', 'فرانكس 12,180.000 د.ك', 'فارم براون 11,350.500 د.ك', 'طحينة 9,410.000 د.ك', 'ذا نودل بار 7,640.000 د.ك', 'كافيتيريا كرك 4,839.000 د.ك', '61,840.000 د.ك'],
     },
     {
       num: 11,
       question: 'ما أعلى 5 أصناف مبيعاً أمس؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order.line',
-      mustContain: ['دجاج سويت آند ساور', '412.5 د.ك', 'كرك زعفران عائلي', '196.2 د.ك'],
+      mustContain: ['دجاج سويت آند ساور', '412.500 د.ك', 'كرك زعفران عائلي', '196.200 د.ك'],
     },
     {
       num: 12,
       question: 'ما أعلى 5 أصناف مبيعاً هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'pos.order.line',
-      mustContain: ['وجبة تشاينا جاردن العائلية', '5,840.5 د.ك', 'نودلز روبيان ترياكي', '2,950.4 د.ك'],
+      mustContain: ['وجبة تشاينا جاردن العائلية', '5,840.500 د.ك', 'نودلز روبيان ترياكي', '2,950.400 د.ك'],
     },
     {
       num: 13,
       question: 'كم تكلفة المورد شركة مطاحن الدقيق والمخابز الكويتية هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'purchase.order',
-      mustContain: ['شركة مطاحن الدقيق والمخابز الكويتية', '4,310.2 د.ك', '9 أوامر شراء'],
+      mustContain: ['شركة مطاحن الدقيق والمخابز الكويتية', '4,310.200 د.ك', '9 أوامر شراء'],
     },
     {
       num: 14,
       question: 'كم إجمالي المشتريات وأعلى الموردين هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'purchase.order',
-      mustContain: ['6,840.5 د.ك', '14 أوامر شراء', 'شركة مطاحن الدقيق والمخابز الكويتية'],
+      mustContain: ['6,840.500 د.ك', '14 أوامر شراء', 'شركة مطاحن الدقيق والمخابز الكويتية'],
     },
     {
       num: 15,
@@ -455,7 +455,7 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       expectedStatus: 'answered',
       expectedModel: 'account.move.line',
       // Phase 5 · Item 7: November is an open GL month, so Net Profit is withheld (never estimated).
-      mustContain: ['61,840.0 د.ك', '48,000.5 د.ك', 'صافي الربح: غير متاح'],
+      mustContain: ['61,840.000 د.ك', '48,000.500 د.ك', 'صافي الربح: غير متاح'],
     },
     {
       num: 16,
@@ -470,7 +470,7 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       question: 'ما حركات المخزن والتالف هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'stock.move',
-      mustContain: ['184 حركة مخزنية', '5,120.4 د.ك', '6,840.5 د.ك', '92.6 د.ك', '7 أوامر إتلاف'],
+      mustContain: ['184 حركة مخزنية', '5,120.400 د.ك', '6,840.500 د.ك', '92.600 د.ك', '7 أوامر إتلاف'],
     },
     {
       num: 18,
@@ -527,8 +527,9 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       if (item.expectedStatus === 'answered') {
         expect(res.reply).toContain('• الرقم:')
         expect(res.reply).toContain('• السبب من البيانات:')
-        expect(res.reply).toContain('• الإجراء المحدد:')
-        expect(res.reply).toContain('تقدير')
+        expect(res.reply).toContain('• المصدر: Odoo 17')
+        expect(res.reply).not.toContain('• الإجراء المحدد:')
+        expect(res.reply).not.toContain('• الأثر المتوقع (تقدير):')
       } else if (item.expectedStatus === 'no_odoo_data') {
         expect(res.reply.startsWith(FERYAL_NO_ODOO_DATA_REPLY)).toBe(true)
         expect(res.reply).toContain('يلزم')
@@ -577,9 +578,8 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
     expect(directCheck.unverifiedNumbers).toEqual([24.71])
 
     const enforceCheck = enforceVerifiedFeryalReply(
-      '• الرقم: عدد الموظفين 48 موظف ونسبة دوران 14.7%\n• السبب من البيانات: 4 أقسام\n• الإجراء المحدد: مراجعة\n• الأثر المتوقع (تقدير): تقدير',
+      '• الرقم: عدد الموظفين 48 موظف ونسبة دوران 14.7%\n• السبب من البيانات: 4 أقسام',
       [48, 4],
-      { requireFourPartStructure: true },
     )
     expect(enforceCheck.accepted).toBe(false)
     expect(enforceCheck.verifier.unverifiedNumbers).toEqual([14.7])
@@ -590,11 +590,11 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       referenceNowMs: KUWAIT_NOV_15_2026_MS,
       dataSource: ds,
       candidatePhraser: async () =>
-        '• الرقم: مبيعات 14/11 بلغت 9,999.9 د.ك مقابل 3,920.0 د.ك\n• السبب من البيانات: زيادة\n• الإجراء المحدد: متابعة\n• الأثر المتوقع (تقدير): تقدير',
+        '• الرقم: مبيعات 14/11 بلغت 9,999.9 د.ك مقابل 3,920.0 د.ك\n• السبب من البيانات: زيادة',
     })
     expect(guardedComparison.status).toBe('answered')
     expect(guardedComparison.auditEntry.llmCandidateRejected).toBe(true)
-    expect(guardedComparison.reply).toContain('4,259.1 د.ك')
+    expect(guardedComparison.reply).toContain('4,259.100 د.ك')
     expect(guardedComparison.reply).not.toContain('9,999.9')
   })
 })

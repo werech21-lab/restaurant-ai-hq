@@ -1,5 +1,6 @@
 import 'server-only'
 import { createHash, randomUUID } from 'node:crypto'
+import type { CouncilSnapshot } from '@/lib/council/types'
 import {
   askFeryalOdooAgent,
   type AskFeryalOdooAgentResult,
@@ -11,6 +12,7 @@ import {
 import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
+import { latestCouncilSnapshot } from '@/server/council/service'
 import { missingCouncilKeyNames, readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
 import { extractCanonicalDecimals } from './number-guard'
@@ -74,6 +76,7 @@ export interface CouncilResult {
   period: { from: string; to: string } | null
   questionHash: string
   auditEntry: AskFeryalOdooAgentResult['auditEntry'] | null
+  usedFingerprints?: string[]
 }
 
 export interface RunCouncilInput {
@@ -89,10 +92,12 @@ export interface RunCouncilInput {
   branch?: string
   brand?: string
   channel?: string
+  seenFingerprints?: readonly string[] | Set<string>
 }
 
 export interface RunCouncilOptions {
   askOdoo?: typeof askFeryalOdooAgent
+  council?: CouncilSnapshot | null
   fetchImpl?: typeof fetch
   timeoutMs?: number
   keys?: CouncilKeys
@@ -242,6 +247,10 @@ export async function runFeryalCouncil(
   const question = input.question.trim()
   const questionHash = hashQuestion(question)
   const ask = options.askOdoo ?? askFeryalOdooAgent
+  const council =
+    options.council !== undefined
+      ? options.council
+      : await latestCouncilSnapshot().catch(() => null)
   let odoo: AskFeryalOdooAgentResult
   try {
     odoo = await ask({
@@ -257,6 +266,8 @@ export async function runFeryalCouncil(
       branch: input.branch,
       brand: input.brand,
       channel: input.channel,
+      council,
+      seenFingerprints: input.seenFingerprints,
     })
   } catch (error) {
     logger.error('feryal odoo read failed', errorFields(error))
@@ -270,6 +281,7 @@ export async function runFeryalCouncil(
       period: null,
       questionHash,
       auditEntry: null,
+      usedFingerprints: [],
     }
   }
 
@@ -284,6 +296,7 @@ export async function runFeryalCouncil(
       period: odoo.period,
       questionHash,
       auditEntry: odoo.auditEntry,
+      usedFingerprints: odoo.usedFingerprints ?? [],
     }
   }
 
@@ -345,6 +358,8 @@ export async function runFeryalCouncil(
     logger.error('ai run persist failed', errorFields(error))
   }
 
+  const usedFingerprints = odoo.usedFingerprints ?? []
+
   if (composed.agreed.length >= 2) {
     return {
       reply: composed.reply,
@@ -356,6 +371,7 @@ export async function runFeryalCouncil(
       period: odoo.period,
       questionHash,
       auditEntry: odoo.auditEntry,
+      usedFingerprints,
     }
   }
 
@@ -375,6 +391,7 @@ export async function runFeryalCouncil(
       period: odoo.period,
       questionHash,
       auditEntry: odoo.auditEntry,
+      usedFingerprints,
     }
   }
 
@@ -388,5 +405,6 @@ export async function runFeryalCouncil(
     period: odoo.period,
     questionHash,
     auditEntry: odoo.auditEntry,
+    usedFingerprints,
   }
 }
