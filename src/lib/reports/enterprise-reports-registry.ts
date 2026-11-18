@@ -294,15 +294,35 @@ export function buildLiveEnterpriseDepartments(
           {
             lineItem: isAr ? 'المصاريف التشغيلية والإهلاك المرحلة' : 'Posted OPEX & Depreciation',
             model: 'account.move.line',
-            amount: formatKwd(acc.otherOpexAndDepreciationKwd, { showUnit: false }),
-            pctOfRev: formatPct(acc.opexRentDeprPct),
+            amount:
+              acc.otherOpexAndDepreciationKwd === null || workspace.glIncomplete
+                ? isAr
+                  ? 'قيود غير مكتملة لهذه الفترة'
+                  : 'Incomplete GL entries for this period'
+                : formatKwd(acc.otherOpexAndDepreciationKwd, { showUnit: false }),
+            pctOfRev:
+              acc.opexRentDeprPct === null || workspace.glIncomplete
+                ? isAr
+                  ? 'قيود غير مكتملة لهذه الفترة'
+                  : 'Incomplete GL entries for this period'
+                : formatPct(acc.opexRentDeprPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'صافي النتيجة التشغيلية المرحلة' : 'Posted Operating Result',
             model: 'account.move.line',
-            amount: formatKwd(acc.operatingProfitKwd, { showUnit: false }),
-            pctOfRev: formatPct(acc.netProfitPct),
+            amount:
+              acc.operatingProfitKwd === null || workspace.glIncomplete || acc.netProfitWithheld
+                ? isAr
+                  ? 'قيود غير مكتملة لهذه الفترة'
+                  : 'Incomplete GL entries for this period'
+                : formatKwd(acc.operatingProfitKwd, { showUnit: false }),
+            pctOfRev:
+              acc.netProfitPct === null || workspace.glIncomplete || acc.netProfitWithheld
+                ? isAr
+                  ? 'قيود غير مكتملة لهذه الفترة'
+                  : 'Incomplete GL entries for this period'
+                : formatPct(acc.netProfitPct),
             status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
         ]
@@ -566,15 +586,15 @@ export function buildLiveEnterpriseDepartments(
           summaryAr: 'الإيرادات والتكاليف المرحلة فعلياً في حسابات الأستاذ العام للفترة المختارة دون أي نسب تقديرية.',
           summaryEn: 'Strictly posted Odoo general ledger income and expense balances with zero synthetic ratios.',
           headlineMetricAr:
-            connected && acc.available
+            connected && typeof acc.operatingProfitKwd === 'number' && !workspace.glIncomplete && !acc.netProfitWithheld
               ? fmtKwd(acc.operatingProfitKwd, true)
-              : connected && workspace.glIncomplete
+              : connected
                 ? 'قيود غير مكتملة لهذه الفترة'
                 : 'لا توجد بيانات من Odoo لهذه الفترة',
           headlineMetricEn:
-            connected && acc.available
+            connected && typeof acc.operatingProfitKwd === 'number' && !workspace.glIncomplete && !acc.netProfitWithheld
               ? fmtKwd(acc.operatingProfitKwd, false)
-              : connected && workspace.glIncomplete
+              : connected
                 ? 'Incomplete GL entries for this period'
                 : 'No data from Odoo for this period',
           recordCount: glRows.length,
@@ -612,7 +632,12 @@ export function buildLiveEnterpriseDepartments(
                   {
                     labelAr: 'صافي النتيجة المرحلة',
                     labelEn: 'Posted Operating Result',
-                    value: fmtKwd(acc.operatingProfitKwd, isAr),
+                    value:
+                      acc.operatingProfitKwd === null || workspace.glIncomplete || acc.netProfitWithheld
+                        ? isAr
+                          ? 'قيود غير مكتملة لهذه الفترة'
+                          : 'Incomplete GL entries for this period'
+                        : fmtKwd(acc.operatingProfitKwd, isAr),
                     subtextAr: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : undefined,
                     odooModel: 'account.move.line',
                     provenanceKind: 'محسوب بمعادلة',

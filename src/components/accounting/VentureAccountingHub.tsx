@@ -25,6 +25,7 @@ import {
   getUnavailableTooltip,
 } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
+import { GlStatementsPanel } from '@/components/accounting/GlStatementsPanel'
 import { OdooAccountingAnalyticsHub } from './OdooAccountingAnalyticsHub'
 
 export type VentureAccountingTabId = 'glSummary' | 'receivables' | 'localDb'
@@ -203,6 +204,7 @@ export function VentureAccountingHub({
           locale={currentLocale}
           isAuditor={effectiveAuditor}
         />
+        <GlStatementsPanel from={workspace.accounting.from} to={workspace.accounting.to} isAr={isAr} />
       )}
 
       {activeTab === 'receivables' && (

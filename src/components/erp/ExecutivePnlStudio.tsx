@@ -13,6 +13,8 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { accountsForPnlGroup, GlStatementsPanel } from '@/components/accounting/GlStatementsPanel'
+import type { GlAccountLine } from '@/lib/odoo/gl-statements'
 import { lastClosedMonthRange } from '@/lib/aether/closed-month-policy'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import {
@@ -78,6 +80,8 @@ export function ExecutivePnlStudio() {
   const resolvedLocale: 'ar' | 'en' = locale === 'en' ? 'en' : 'ar'
   const isAr = resolvedLocale !== 'en'
   const { workspace, liveSummary, syncingOdoo, setCustomRange } = useGlobalFilter()
+  const [glLines, setGlLines] = React.useState<GlAccountLine[]>([])
+  const onGlLines = React.useCallback((lines: GlAccountLine[]) => setGlLines(lines), [])
   const closedMonth = lastClosedMonthRange(workspace.accounting.glClosedThroughDate)
   const gl = workspace.accounting
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
@@ -360,7 +364,8 @@ export function ExecutivePnlStudio() {
             </thead>
             <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/70">
               {lineItems.map((item) => (
-                <tr key={item.code} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition">
+                <React.Fragment key={item.code}>
+                <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition">
                   <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400" dir="ltr">
                     {item.code}
                   </td>
@@ -386,10 +391,26 @@ export function ExecutivePnlStudio() {
                     <NullablePctCell value={item.pctOfRev} locale={resolvedLocale} />
                   </td>
                 </tr>
+                {accountsForPnlGroup(
+                  glLines,
+                  item.code,
+                  gl.commissionAccounts.map((account) => account.code),
+                ).map((account) => (
+                  <tr key={`${item.code}-${account.code}`}>
+                    <td className="py-1.5 px-4 font-mono text-slate-500" dir="ltr">{account.code}</td>
+                    <td className="py-1.5 px-4 text-slate-600 dark:text-slate-300">{account.name}</td>
+                    <td className="py-1.5 px-4 text-end" dir="ltr">
+                      <NullableKwdCell value={account.balance} locale={resolvedLocale} />
+                    </td>
+                    <td />
+                  </tr>
+                ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
         </div>
+        <GlStatementsPanel from={gl.from} to={gl.to} isAr={isAr} onLines={onGlLines} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
