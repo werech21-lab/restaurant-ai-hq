@@ -102,7 +102,7 @@ const DEPT_META: Record<
   crm_catering: {
     ar: 'الكاترينج والعملاء',
     en: 'CRM & Catering',
-    href: '/crm',
+    href: '/erp/crm',
     module: 'crm_projects',
   },
 }

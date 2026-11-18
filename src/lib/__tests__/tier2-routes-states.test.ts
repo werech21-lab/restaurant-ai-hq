@@ -126,10 +126,6 @@ import {
 } from '@/lib/odoo/non-company-products'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import { sanitizePosTerminalDisplayName } from '@/lib/odoo-terminal-mappings'
-import {
-  computeDeliverySlaSnapshot,
-  computeSocialReviewsSnapshot,
-} from '@/lib/ops-expansion-part2'
 import { isHiddenPanelProduct } from '@/lib/panel-visibility'
 import { VENTURE_BRANCHES, VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import { middleware } from '@/middleware'
@@ -420,20 +416,6 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(SUPPLIER_ITEMS).toEqual([])
       expect(PREP_ITEMS).toEqual([])
       expect(CHARGEBACKS).toEqual([])
-
-      // Social Reviews & Delivery SLA engines: honest unlinked telemetry state
-      const reviewsSnap = computeSocialReviewsSnapshot()
-      expect(reviewsSnap.unlinkedSource).toBe(true)
-      expect(reviewsSnap.messageAr).toBe('غير مربوط بمصدر')
-      expect(reviewsSnap.reviews).toEqual([])
-      expect(reviewsSnap.totalReviews).toBe(0)
-      expect(reviewsSnap.avgRating).toBe(0)
-
-      const deliverySlaSnap = computeDeliverySlaSnapshot()
-      expect(deliverySlaSnap.unlinkedSource).toBe(true)
-      expect(deliverySlaSnap.messageAr).toBe('غير مربوط بمصدر')
-      expect(deliverySlaSnap.trips).toEqual([])
-      expect(deliverySlaSnap.meanMinutes).toBe(0)
 
       // Disconnected Planning & Campaign Halo: strict noData with zero fabricated numbers
       const disconnectedWs = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, null)

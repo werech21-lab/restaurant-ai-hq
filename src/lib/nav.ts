@@ -23,7 +23,7 @@ export const sectionIds = navGroups.flatMap((group) => group.items)
 export const searchIndex: Record<SectionId, string> = {
   ceo: 'غرفة الرئيس التنفيذي قيادة إيرادات تنبيهات قرارات executive room revenue alerts decisions',
   intelligence: 'مركز الاستخبارات تحليل تحقيق أسباب هامش intelligence analysis margin',
-  finance: 'المالية والميزانيات إيرادات ربح انحراف ميزانية finance budget variance',
+  finance: 'المالية والميزانيات إيرادات ربح انحراف ميزانية finance',
   branches: 'الفروع والعلامات شويخ سالمية بروميناد branches brands shuwaikh salmiya promenade',
   kitchen: 'المطبخ المركزي هدر إنتاج وجبات kitchen waste production',
   delivery: 'التوصيل والعقود تالي ديليفري عمولة delivery contracts commission',

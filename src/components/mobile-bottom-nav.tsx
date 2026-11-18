@@ -137,7 +137,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
     activeRole === 'supply' ? '/erp/warehouse-chain' : '/erp/cores'
   const dockTab4Href =
     activeRole === 'marketing'
-      ? '/erp/cores'
+      ? '/erp/booth-feasibility'
       : activeRole === 'supply'
         ? '/erp/warehouse-chain'
         : '/erp/aggregator-radar'
@@ -483,7 +483,8 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </span>
           </Link>
 
-          {/* 4) Ops / Reviews -> role-scoped tab 4 */}
+          {/* 4) Ops tab. Hidden when it would repeat the sales/warehouse tab. */}
+          {dockTab4Href !== dockTab2Href ? (
           <Link
             href={dockTab4Href}
             aria-current={opsActive ? 'page' : undefined}
@@ -497,17 +498,14 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             <span className="truncate">
               {activeRole === 'marketing'
                 ? isAr
-                  ? 'المبيعات'
-                  : 'Sales'
-                : activeRole === 'supply'
-                  ? isAr
-                    ? 'المخزن'
-                    : 'Warehouse'
-                  : isAr
-                    ? 'العمولات'
-                    : 'Fees'}
+                  ? 'البوثات'
+                  : 'Booths'
+                : isAr
+                  ? 'العمولات'
+                  : 'Fees'}
             </span>
           </Link>
+          ) : null}
 
           {/* 5) Menu -> Opens Full 13-Page Categorized Navigation Sheet */}
           <button
