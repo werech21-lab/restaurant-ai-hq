@@ -2,17 +2,26 @@ import 'server-only'
 /**
  * Runs the advisor council on live Odoo data (read-only) and stores the snapshot.
  *
- * - hourly: CFO + Delivery trend + Seasons on the latest week (7 vs 7 completed days); HR and
- *   Inventory reports are carried forward from the last nightly run.
+ * - hourly: CFO + Delivery trend + Seasons on the latest week (7 vs 7 completed days); nightly HR,
+ *   Inventory, and Delivery platform-pause findings (from the 5-week matrix) are carried forward.
  * - nightly: every advisor on full periods (28 vs 28 completed days, 5-week platform hour matrix,
- *   14 days of attendance, current stock, model probe).
+ *   14 days of attendance + work_location_id, current stock + Qurain transfers, model probe, and
+ *   BoM theoretical usage when mrp.bom exists).
  */
 import { fetchLiveOdooPeriodCube, fetchLiveOdooSnapshot, fetchLiveOdooWarehouseChain, type OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
 import { kuwaitDayOf, shiftIso } from '@/lib/council/helpers'
 import { rankDiscoveries, runCouncil } from '@/lib/council/runner'
 import type { AdvisorReport, CouncilDiscovery, CouncilSnapshot } from '@/lib/council/types'
-import { fetchAggregatorHourlyMatrix, fetchAttendanceInput, fetchQuantInput, probeOdooModels, type OdooModelProbe } from './odoo-reads'
+import {
+  fetchAggregatorHourlyMatrix,
+  fetchAttendanceInput,
+  fetchBomUsageInput,
+  fetchQuantInput,
+  fetchQurainTransferInput,
+  probeOdooModels,
+  type OdooModelProbe,
+} from './odoo-reads'
 import { listSeasonEvents, loadLatestCouncilSnapshot, loadShownFingerprints, saveCouncilSnapshot } from './store'
 
 export type CouncilScope = 'hourly' | 'nightly'
@@ -23,6 +32,10 @@ function branchOfConfig(cube: OdooPeriodCube | null): Map<number, string> {
   return out
 }
 
+/**
+ * Resolves whether Odoo holds active Bills of Materials (`mrp.bom`), checking `totalCount` first so
+ * recipes created >30 days ago (`recentCount === 0`) are properly detected.
+ */
 export function resolveHasBomsFromProbe(probe: OdooModelProbe | null | undefined): boolean | null {
   const bom = probe?.rows.find((r) => r.model === 'mrp.bom')
   if (!bom) return null
@@ -98,16 +111,20 @@ export async function computeCouncilSnapshot(scope: CouncilScope, nowMs = Date.n
   let inventory = null
   let matrix = null
   if (scope === 'nightly') {
-    const [m, att, quants, warehouse, probe] = await Promise.all([
-      fetchAggregatorHourlyMatrix(shiftIso(lastComplete, -34), lastComplete, branchOfConfig(cube), cube?.lastSyncAt ?? null),
+    const cfgMap = branchOfConfig(cube)
+    const [m, att, quants, qurainTransfers, warehouse, probe] = await Promise.all([
+      fetchAggregatorHourlyMatrix(shiftIso(lastComplete, -34), lastComplete, cfgMap, cube?.lastSyncAt ?? null),
       fetchAttendanceInput(shiftIso(lastComplete, -13), lastComplete),
       fetchQuantInput(today),
+      fetchQurainTransferInput(aFrom, lastComplete),
       fetchLiveOdooWarehouseChain(aFrom, lastComplete, nowMs).catch(() => null),
       probeOdooModels(nowMs),
     ])
     matrix = m
-    hr = { attendance: att }
-    inventory = { quants, warehouse, hasBoms: resolveHasBomsFromProbe(probe) }
+    hr = { attendance: att, probe }
+    const hasBoms = resolveHasBomsFromProbe(probe)
+    const bomUsage = hasBoms === true ? await fetchBomUsageInput(aFrom, lastComplete, cfgMap, warehouse) : null
+    inventory = { quants, warehouse, qurainTransfers, hasBoms, bomUsage }
   }
 
   const seen = await loadShownFingerprints(today)

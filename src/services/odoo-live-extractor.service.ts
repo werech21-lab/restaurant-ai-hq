@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { AppError } from '@/lib/api/errors'
 import type { AuthContext } from '@/lib/auth/context'
@@ -47,8 +47,9 @@ async function pullGroups(input: LiveExtractInput): Promise<{ model: OdooModel; 
 }
 
 /**
- * Full live pull from venturefoods.walnutss.com:
- * writes an eternal dump under backups/odoo-full-dump/ then stages/applies via odoo-service.
+ * Full live pull from Odoo 17:
+ * writes a timestamped live backup under backups/odoo-full-dump/ then stages/applies via odoo-service.
+ * Static seed dumps are never written or read on production paths.
  */
 export async function extractAndBackupOdooLive(
   auth: AuthContext,
@@ -80,7 +81,6 @@ export async function extractAndBackupOdooLive(
   const backupPath = path.join(backupDir(), fileName)
   const json = JSON.stringify(dump)
   writeFileSync(backupPath, json, 'utf8')
-  writeFileSync(path.join(backupDir(), 'venturefoods_odoo_cids1_dump.json'), json, 'utf8')
 
   const bytes = new TextEncoder().encode(json)
   const outcome = await importOdooFile(auth, idempotencyKey, fileName, bytes)
@@ -113,6 +113,10 @@ export async function extractAndBackupOdooLive(
   }
 }
 
+/**
+ * Calm unavailable state for local static dumps in production:
+ * the stale 31 Oct 2026 1,000-row sample is never read on production paths; live Odoo reads only.
+ */
 export function listLocalOdooDumpSummary(): {
   path: string
   exists: boolean
@@ -120,26 +124,5 @@ export function listLocalOdooDumpSummary(): {
   counts: Record<string, number>
   exportedAt: string | null
 } {
-  const relative = 'backups/odoo-full-dump/venturefoods_odoo_cids1_dump.json'
-  const file = path.join(process.cwd(), relative)
-  try {
-    if (!existsSync(file)) {
-      return { path: relative, exists: false, bytes: 0, counts: {}, exportedAt: null }
-    }
-    const raw = readFileSync(file, 'utf8')
-    const parsed = JSON.parse(raw) as { exportedAt?: string; models?: Record<string, unknown[]> }
-    const counts: Record<string, number> = {}
-    for (const [model, rows] of Object.entries(parsed.models ?? {})) {
-      counts[model] = Array.isArray(rows) ? rows.length : 0
-    }
-    return {
-      path: relative,
-      exists: true,
-      bytes: Buffer.byteLength(raw),
-      counts,
-      exportedAt: parsed.exportedAt ?? null,
-    }
-  } catch {
-    return { path: relative, exists: false, bytes: 0, counts: {}, exportedAt: null }
-  }
+  return { path: '', exists: false, bytes: 0, counts: {}, exportedAt: null }
 }
