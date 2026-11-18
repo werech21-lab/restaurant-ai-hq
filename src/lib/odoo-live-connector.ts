@@ -1995,12 +1995,17 @@ export function buildReconciledBucket(params: {
     }
   }
 
+  const unmappedUiChannelsNormalized: Record<string, { netKwd: number; orders: number }> =
+    Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]))
   if (!channelsUnavailable && unmappedUiRaw) {
     for (const ck of UI_CHANNEL_KEYS) {
       const uEntry = unmappedUiRaw[ck]
       if (!uEntry) continue
-      aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + signedKwd(uEntry.netKwd))
-      aggUiChannels[ck].orders += Math.max(0, Math.round(Number(uEntry.orders) || 0))
+      const nv = r3(signedKwd(uEntry.netKwd))
+      const ov = Math.max(0, Math.round(Number(uEntry.orders) || 0))
+      unmappedUiChannelsNormalized[ck] = { netKwd: nv, orders: ov }
+      aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
+      aggUiChannels[ck].orders += ov
     }
   }
 
@@ -2037,6 +2042,7 @@ export function buildReconciledBucket(params: {
             },
           }),
       uiChannels: channelsUnavailable ? null : aggUiChannels,
+      unmappedUiChannels: channelsUnavailable ? null : unmappedUiChannelsNormalized,
       ...(accounting !== undefined ? { accounting } : {}),
     }
   }
@@ -2073,6 +2079,7 @@ export function buildReconciledBucket(params: {
           },
         }),
     uiChannels: channelsUnavailable ? null : aggUiChannels,
+    unmappedUiChannels: channelsUnavailable ? null : unmappedUiChannelsNormalized,
     ...(accounting !== undefined ? { accounting } : {}),
   }
 }
@@ -2304,11 +2311,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const todayIsFallbackDay = false
 
   const weekFromKwIso = shiftIsoDate(anchorDayKwIso, -6)
-  const monthFromKwIso = shiftIsoDate(anchorDayKwIso, -29)
+  const mtdFromKwIso = `${anchorDayKwIso.slice(0, 7)}-01`
+  const monthFromKwIso = mtdFromKwIso
+  const rolling30FromKwIso = shiftIsoDate(anchorDayKwIso, -29)
   // Pre-index 65 days of daily history back from anchorDayKwIso up through tomorrowKwIso
   const series65FromKwIso = shiftIsoDate(anchorDayKwIso, -64)
-  const prior30FromKwIso = shiftIsoDate(monthFromKwIso, -30)
-  const mtdFromKwIso = `${anchorDayKwIso.slice(0, 7)}-01`
+  const prior30FromKwIso = shiftIsoDate(rolling30FromKwIso, -30)
   const yearFromKwIso = `${anchorDayKwIso.slice(0, 4)}-01-01`
 
   const bounds65 = kuwaitRangeToOdooUtcStrings(series65FromKwIso, tomorrowKwIso)
@@ -2316,7 +2324,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const boundsWeek = kuwaitRangeToOdooUtcStrings(weekFromKwIso, anchorTomorrowKwIso)
   const boundsToday = kuwaitRangeToOdooUtcStrings(anchorDayKwIso, anchorTomorrowKwIso)
   const boundsYear = kuwaitRangeToOdooUtcStrings(yearFromKwIso, anchorTomorrowKwIso)
-  const boundsPrior30 = kuwaitRangeToOdooUtcStrings(prior30FromKwIso, monthFromKwIso)
+  const boundsPrior30 = kuwaitRangeToOdooUtcStrings(prior30FromKwIso, rolling30FromKwIso)
 
   const companyConfigList = [...companyConfigIds]
   const posOrderDomainOf = (
@@ -3320,6 +3328,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   let mtdNet = 0
   let mtdOrders = 0
+  let rolling30RestaurantNet = 0
+  let rolling30RestaurantOrders = 0
 
   const rawTerminalMonthStats = new Map<number, { orders: number; net: number }>()
   const nativeTerminalMonthStats = new Map<number, { orders: number; net: number }>()
@@ -3415,6 +3425,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     if (dayIso >= mtdFromKwIso && dayIso <= anchorDayKwIso) {
       mtdNet += net
       mtdOrders += ordCount
+    }
+    if (dayIso >= rolling30FromKwIso && dayIso <= anchorDayKwIso) {
+      rolling30RestaurantNet += net
+      rolling30RestaurantOrders += ordCount
     }
 
     if (!branch) {
@@ -3926,11 +3940,19 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     excludedUnavailable: excludedMonthFailed,
   })
 
+  const mtdDays = Math.max(
+    1,
+    Math.round(
+      (Date.parse(`${anchorTomorrowKwIso}T00:00:00Z`) - Date.parse(`${mtdFromKwIso}T00:00:00Z`)) /
+        86_400_000,
+    ),
+  )
+
   const monthBucket = buildReconciledBucket({
     key: 'month',
     from: monthFromKwIso,
     to: canonicalBucketToExclusive,
-    days: 30,
+    days: mtdDays,
     locNetMap: locMonthNet,
     locOrdersMap: locMonthOrd,
     unmappedNetKwd: unmappedMonthNet,
@@ -3968,16 +3990,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.year'),
   })
 
-  const mtdDays = Math.max(
-    1,
-    Math.round(
-      (Date.parse(`${anchorTomorrowKwIso}T00:00:00Z`) - Date.parse(`${mtdFromKwIso}T00:00:00Z`)) /
-        86_400_000,
-    ),
-  )
-
-  const monthRestaurantNet = monthBucket.totals.restaurantNetKwd ?? 0
-  const monthRestaurantOrders = monthBucket.totals.restaurantOrders ?? 0
+  const rolling30NetRounded = r3(rolling30RestaurantNet)
+  const rolling30OrdRounded = Math.max(0, Math.round(rolling30RestaurantOrders))
 
   const journeyPulse: OdooLiveSummary['journeyPulse'] | undefined = journeyPulseFailed
     ? null
@@ -3990,16 +4004,16 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           const prior30Orders = Math.max(0, Math.round(Number(prior30NonRefundCount) || 0))
           return {
             rolling30: {
-              from: monthFromKwIso,
+              from: rolling30FromKwIso,
               to: todayBucketFrom,
               days: 30,
-              netKwd: monthRestaurantNet,
-              orders: monthRestaurantOrders,
-              perDayKwd: r3(monthRestaurantNet / 30),
+              netKwd: rolling30NetRounded,
+              orders: rolling30OrdRounded,
+              perDayKwd: r3(rolling30NetRounded / 30),
             },
             prior30: {
               from: prior30FromKwIso,
-              to: shiftIsoDate(monthFromKwIso, -1),
+              to: shiftIsoDate(rolling30FromKwIso, -1),
               days: 30,
               netKwd: prior30Net,
               orders: prior30Orders,
@@ -6102,7 +6116,7 @@ export async function fetchLiveOdooWarehouseChain(
   assertServerRuntime()
   const isoRe = /^\d{4}-\d{2}-\d{2}$/
   const todayIso = getKuwaitTodayIso(referenceNowMs)
-  const defaultFrom = shiftIsoDate(todayIso, -29)
+  const defaultFrom = `${todayIso.slice(0, 7)}-01`
   const f = rawFromIso && isoRe.test(rawFromIso) ? rawFromIso : defaultFrom
   const t = rawToInclusiveIso && isoRe.test(rawToInclusiveIso) ? rawToInclusiveIso : todayIso
   const clamped = clampPeriodToKuwaitToday(
@@ -6814,7 +6828,7 @@ export async function fetchLiveOdooPurchaseOrders(
   const referenceNowMs = options?.referenceNowMs ?? Date.now()
   const isoRe = /^\d{4}-\d{2}-\d{2}$/
   const todayIso = getKuwaitTodayIso(referenceNowMs)
-  const defaultFrom = shiftIsoDate(todayIso, -29)
+  const defaultFrom = `${todayIso.slice(0, 7)}-01`
   const f = rawFromIso && isoRe.test(rawFromIso) ? rawFromIso : defaultFrom
   const t = rawToInclusiveIso && isoRe.test(rawToInclusiveIso) ? rawToInclusiveIso : todayIso
   const clamped = clampPeriodToKuwaitToday(

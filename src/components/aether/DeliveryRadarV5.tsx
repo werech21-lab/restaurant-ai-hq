@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   Building2,
+  ChevronDown,
   FileText,
   Search,
   Truck,
@@ -13,8 +14,9 @@ import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
   APPROVED_BRANCH_IDS,
+  DASHBOARD_BRANCH_CARD_IDS,
+  GLOBAL_BRANCH_OPTIONS,
   formatPeriodCalendarWindow,
-  getBranchLabel,
   getChannelLabel,
   type GlobalBranch,
   type GlobalChannel,
@@ -78,6 +80,17 @@ const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 const safeNum = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : 0
 
+const round3 = (v: number): number => {
+  const n = Math.round(v * 1000) / 1000
+  return n === 0 ? 0 : n
+}
+
+function resolveMatrixBranchLabel(branchId: string, isAr: boolean): string {
+  const opt = GLOBAL_BRANCH_OPTIONS.find((x) => x.id === branchId)
+  if (opt) return isAr ? opt.ar : opt.en
+  return branchId
+}
+
 function readChannelCell(
   cell: { netKwd?: number | null; orders?: number | null } | null | undefined,
 ): { salesKwd: number | null; orders: number | null } {
@@ -106,7 +119,7 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
 
 interface BranchChannelMatrixRow {
   rowId: string
-  branchId: Exclude<GlobalBranch, 'all'> | 'unattributed'
+  branchId: string
   branchLabelAr: string
   branchLabelEn: string
   isUnattributed: boolean
@@ -121,7 +134,7 @@ interface BranchChannelMatrixRow {
 
 /**
  * رادار منصات التوصيل والعمولات (`/erp/aggregator-radar` & `/erp/commissions`)
- * - يقرأ مبيعات وطلبات كل منصة وكل فرع مباشرةً من أودو 17 (`pos.payment` + `pos.order`).
+ * - يقرأ مبيعات وعدد دفعات كل منصة وكل فرع مباشرةً من أودو 17 (`pos.payment` + `pos.order`).
  * - يحذف تماماً أي تقسيم ثابت للعلامات من `ODOO.cube` وأي إيصالات ثابتة من `delivery-receipts-proof.json`.
  * - يعرض «غير مُرحَّل بعد» (لا صفراً!) على عمولات التطبيقات متى كانت غير مرحّلة في `account.move.line`.
  */
@@ -237,12 +250,17 @@ export function DeliveryRadarV5({
   }, [filters.period, liveSummary])
 
   const gl = workspace.accounting
+  const isSubFilterUnpartitioned = Boolean(
+    !gl.available &&
+      !workspace.aggregatorCommissionUnposted &&
+      !gl.aggregatorCommissionUnposted &&
+      gl.unavailableReasonEn,
+  )
   const commissionUnposted = Boolean(
-    workspace.aggregatorCommissionUnposted ||
+    !gl.available ||
+      workspace.aggregatorCommissionUnposted ||
       gl.aggregatorCommissionUnposted ||
-      gl.deliveryCommissionsKwd === null ||
-      filters.period === 'today' ||
-      filters.period === 'week',
+      gl.deliveryCommissionsKwd === null,
   )
 
   const lastSyncIso =
@@ -261,7 +279,9 @@ export function DeliveryRadarV5({
       activeBucket &&
       (activeBucket.uiChannels === null ||
         activeBucket.totals.restaurantNetKwd === null ||
-        (filters.branch !== 'all' && activeBucket.byLocation?.[filters.branch]?.uiChannels === null)),
+        (filters.branch !== 'all' &&
+          (activeBucket.byLocation === null ||
+            activeBucket.byLocation?.[filters.branch]?.uiChannels === null))),
   )
 
   // Channel Totals (6 Aggregator Platforms + Direct Channels) directly from Odoo pos.payment
@@ -325,7 +345,7 @@ export function DeliveryRadarV5({
     const hasNullSales = rows.some((r) => r.salesKwd === null)
     const totalAgg = hasNullSales
       ? null
-      : rows.reduce((s, r) => s + (r.salesKwd as number), 0)
+      : round3(rows.reduce((s, r) => s + (r.salesKwd as number), 0))
     return rows
       .map((r) => ({
         ...r,
@@ -358,20 +378,20 @@ export function DeliveryRadarV5({
       const parsed = readChannelCell(cell)
       if (parsed.salesKwd === null || parsed.orders === null) {
         return {
-          salesKwd: parsed.salesKwd === null ? null : salesKwd,
+          salesKwd: parsed.salesKwd === null ? null : round3(salesKwd),
           orders: parsed.orders === null ? null : orders,
         }
       }
       salesKwd += parsed.salesKwd
       orders += parsed.orders
     }
-    return { salesKwd, orders }
+    return { salesKwd: round3(salesKwd), orders }
   }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
 
   const totalAggregatorSalesKwd = useMemo<number | null>(() => {
     if (channelsUnavailable || platformSummaries.length === 0) return null
     if (platformSummaries.some((r) => r.salesKwd === null)) return null
-    return platformSummaries.reduce((s, r) => s + (r.salesKwd as number), 0)
+    return round3(platformSummaries.reduce((s, r) => s + (r.salesKwd as number), 0))
   }, [channelsUnavailable, platformSummaries])
 
   const totalAggregatorOrders = useMemo<number | null>(() => {
@@ -380,12 +400,72 @@ export function DeliveryRadarV5({
     return platformSummaries.reduce((s, r) => s + (r.orders as number), 0)
   }, [channelsUnavailable, platformSummaries])
 
-  // Branch × Channel Matrix (7 Mapped Branches + Explicit 8th «غير منسوب لفرع»)
+  const commPctOfAggregatorSales = useMemo<number | null>(() => {
+    if (
+      commissionUnposted ||
+      gl.deliveryCommissionsKwd === null ||
+      totalAggregatorSalesKwd === null ||
+      totalAggregatorSalesKwd <= 0
+    ) {
+      return null
+    }
+    return (gl.deliveryCommissionsKwd / totalAggregatorSalesKwd) * 100
+  }, [commissionUnposted, gl.deliveryCommissionsKwd, totalAggregatorSalesKwd])
+
+  const subBucket = gl.expenseBreakdown?.platform_subscription
+  const deliv3pBucket = gl.expenseBreakdown?.third_party_delivery
+  const commissionAccounts = gl.expenseBreakdown?.platform_commission?.accounts ?? []
+  const subscriptionAccounts = subBucket?.accounts ?? []
+  const thirdPartyAccounts = deliv3pBucket?.accounts ?? []
+
+  const hasPostedSubscription = Boolean(
+    gl.available &&
+      ((subBucket &&
+        (subBucket.linesCount > 0 || subBucket.accounts.length > 0 || subBucket.totalKwd !== 0)) ||
+        (typeof gl.platformSubscriptionKwd === 'number' && gl.platformSubscriptionKwd !== 0)),
+  )
+  const subscriptionAmountKwd = hasPostedSubscription
+    ? typeof gl.platformSubscriptionKwd === 'number'
+      ? gl.platformSubscriptionKwd
+      : (subBucket?.totalKwd ?? null)
+    : null
+
+  const hasPostedThirdParty = Boolean(
+    gl.available &&
+      ((deliv3pBucket &&
+        (deliv3pBucket.linesCount > 0 ||
+          deliv3pBucket.accounts.length > 0 ||
+          deliv3pBucket.totalKwd !== 0)) ||
+        (typeof gl.thirdPartyDeliveryKwd === 'number' && gl.thirdPartyDeliveryKwd !== 0)),
+  )
+  const thirdPartyAmountKwd = hasPostedThirdParty
+    ? typeof gl.thirdPartyDeliveryKwd === 'number'
+      ? gl.thirdPartyDeliveryKwd
+      : (deliv3pBucket?.totalKwd ?? null)
+    : null
+
+  const hasAnyCommissionDetailsAccounts =
+    commissionAccounts.length > 0 ||
+    subscriptionAccounts.length > 0 ||
+    thirdPartyAccounts.length > 0
+
+  // Branch × Channel Matrix (All DASHBOARD_BRANCH_CARD_IDS + dynamic active keys + explicit Unattributed)
   const matrixRows = useMemo<BranchChannelMatrixRow[]>(() => {
     if (!workspace.odooConnected || workspace.noData) return []
 
+    const knownSet = new Set<string>(DASHBOARD_BRANCH_CARD_IDS)
+    const knownBranchIds: string[] = [...DASHBOARD_BRANCH_CARD_IDS]
+    for (const key of [
+      ...Object.keys(liveCube?.byBranch ?? {}),
+      ...Object.keys(activeBucket?.byLocation ?? {}),
+    ]) {
+      if (key === 'unattributed' || knownSet.has(key)) continue
+      knownSet.add(key)
+      knownBranchIds.push(key)
+    }
+
     const branchList: Array<{
-      id: Exclude<GlobalBranch, 'all'> | 'unattributed'
+      id: string
       labelAr: string
       labelEn: string
       isUnattributed: boolean
@@ -394,16 +474,16 @@ export function DeliveryRadarV5({
         ? [
             {
               id: filters.branch,
-              labelAr: getBranchLabel(filters.branch, true),
-              labelEn: getBranchLabel(filters.branch, false),
+              labelAr: resolveMatrixBranchLabel(filters.branch, true),
+              labelEn: resolveMatrixBranchLabel(filters.branch, false),
               isUnattributed: false,
             },
           ]
         : [
-            ...APPROVED_BRANCH_IDS.map((bid) => ({
+            ...knownBranchIds.map((bid) => ({
               id: bid,
-              labelAr: getBranchLabel(bid, true),
-              labelEn: getBranchLabel(bid, false),
+              labelAr: resolveMatrixBranchLabel(bid, true),
+              labelEn: resolveMatrixBranchLabel(bid, false),
               isUnattributed: false,
             })),
             {
@@ -413,6 +493,14 @@ export function DeliveryRadarV5({
               isUnattributed: true,
             },
           ]
+
+    const unmappedBucketChannels = activeBucket
+      ? (
+          activeBucket as {
+            unmappedUiChannels?: Record<string, { netKwd?: number | null; orders?: number | null }> | null
+          }
+        ).unmappedUiChannels
+      : undefined
 
     const out: BranchChannelMatrixRow[] = []
     for (const br of branchList) {
@@ -433,13 +521,57 @@ export function DeliveryRadarV5({
           salesKwd = null
           orders = null
         } else if (br.isUnattributed) {
-          if (!liveCube) {
-            salesKwd = null
-            orders = null
-          } else {
+          if (liveCube) {
             const parsed = readChannelCell(liveCube.unattributed?.channels?.[ch.key])
             salesKwd = parsed.salesKwd
             orders = parsed.orders
+          } else if (activeBucket) {
+            if (unmappedBucketChannels !== undefined) {
+              if (unmappedBucketChannels === null) {
+                salesKwd = null
+                orders = null
+              } else {
+                const parsed = readChannelCell(unmappedBucketChannels[ch.key])
+                salesKwd = parsed.salesKwd
+                orders = parsed.orders
+              }
+            } else {
+              const totalCell = readChannelCell(activeBucket.uiChannels?.[ch.key])
+              if (
+                totalCell.salesKwd === null ||
+                totalCell.orders === null ||
+                activeBucket.byLocation === null
+              ) {
+                salesKwd = null
+                orders = null
+              } else {
+                let knownSales = 0
+                let knownOrders = 0
+                let anyKnownNull = false
+                for (const knownId of knownBranchIds) {
+                  const locUi = activeBucket.byLocation?.[knownId]?.uiChannels
+                  if (locUi === null) {
+                    anyKnownNull = true
+                    break
+                  }
+                  const parsedLoc = readChannelCell(locUi?.[ch.key])
+                  if (parsedLoc.salesKwd === null || parsedLoc.orders === null) {
+                    anyKnownNull = true
+                    break
+                  }
+                  knownSales += parsedLoc.salesKwd
+                  knownOrders += parsedLoc.orders
+                }
+                if (anyKnownNull) {
+                  salesKwd = null
+                  orders = null
+                } else {
+                  salesKwd = round3(totalCell.salesKwd - knownSales)
+                  const resOrders = Math.round(totalCell.orders - knownOrders)
+                  orders = resOrders === 0 ? 0 : resOrders
+                }
+              }
+            }
           }
         } else if (liveCube) {
           const parsed = readChannelCell(
@@ -448,15 +580,34 @@ export function DeliveryRadarV5({
           salesKwd = parsed.salesKwd
           orders = parsed.orders
         } else if (activeBucket) {
-          const locUiChannels =
-            activeBucket.byLocation?.[br.id as Exclude<GlobalBranch, 'all'>]?.uiChannels
-          if (locUiChannels === null) {
+          if (activeBucket.byLocation === null) {
             salesKwd = null
             orders = null
           } else {
-            const parsed = readChannelCell(locUiChannels?.[ch.key])
-            salesKwd = parsed.salesKwd
-            orders = parsed.orders
+            const locUiChannels = activeBucket.byLocation?.[br.id]?.uiChannels
+            if (locUiChannels === null) {
+              salesKwd = null
+              orders = null
+            } else {
+              const parsed = readChannelCell(locUiChannels?.[ch.key])
+              salesKwd = parsed.salesKwd
+              orders = parsed.orders
+            }
+          }
+        }
+
+        if (filters.branch === 'all') {
+          const isCoreRestaurantBranch = (APPROVED_BRANCH_IDS as readonly string[]).includes(br.id)
+          if (!isCoreRestaurantBranch) {
+            if (salesKwd === null || orders === null) {
+              const presentInPayload =
+                br.isUnattributed ||
+                Boolean(liveCube?.byBranch && br.id in liveCube.byBranch) ||
+                Boolean(activeBucket?.byLocation && br.id in activeBucket.byLocation)
+              if (!presentInPayload) continue
+            } else if (salesKwd === 0 && orders <= 0) {
+              continue
+            }
           }
         }
 
@@ -508,6 +659,30 @@ export function DeliveryRadarV5({
     workspace.odooConnected,
   ])
 
+  const isMatrixFiltered = Boolean(
+    channelFilter !== 'all' ||
+      (filters.channel !== 'all' &&
+        filters.channel !== 'dine-in' &&
+        filters.channel !== 'takeaway-direct') ||
+      searchQuery.trim() !== '',
+  )
+
+  const matrixTotals = useMemo(() => {
+    if (matrixRows.length === 0) {
+      return { salesKwd: null as number | null, orders: null as number | null }
+    }
+    const hasNullSales = channelsUnavailable || matrixRows.some((r) => r.salesKwd === null)
+    const hasNullOrders = channelsUnavailable || matrixRows.some((r) => r.orders === null)
+    return {
+      salesKwd: hasNullSales
+        ? null
+        : round3(matrixRows.reduce((s, r) => s + (r.salesKwd as number), 0)),
+      orders: hasNullOrders
+        ? null
+        : matrixRows.reduce((s, r) => s + (r.orders as number), 0),
+    }
+  }, [channelsUnavailable, matrixRows])
+
   const donutSlices = useMemo<DonutSliceDatum[]>(() => {
     if (channelsUnavailable) return []
     return platformSummaries
@@ -519,7 +694,7 @@ export function DeliveryRadarV5({
         label: isAr ? p.labelAr : p.labelEn,
         subLabel: isAr
           ? `${f0(p.orders, resolvedLocale)} دفعة`
-          : `${f0(p.orders, resolvedLocale)} payouts / batches`,
+          : `${f0(p.orders, resolvedLocale)} payments`,
         value: p.salesKwd,
         valueFormatted: fmtKwd(p.salesKwd, isAr),
         pctFormatted: f1Pct(p.sharePct, resolvedLocale),
@@ -547,8 +722,8 @@ export function DeliveryRadarV5({
           </div>
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
-              ? `مبيعات ودفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
-              : `Actual aggregator sales & payouts / batches from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
+              ? `مبيعات وعدد دفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
+              : `Actual aggregator sales & payments from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
           </p>
         </div>
 
@@ -632,7 +807,7 @@ export function DeliveryRadarV5({
                   </span>
                 ) : isAr ? (
                   <>
-                    {f0(totalAggregatorOrders, 'ar')} دفعة • متوسط الدفعة{' '}
+                    عدد الدفعات: {f0(totalAggregatorOrders, 'ar')} دفعة • متوسط الدفعة{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -644,7 +819,7 @@ export function DeliveryRadarV5({
                   </>
                 ) : (
                   <>
-                    {f0(totalAggregatorOrders, 'en')} payouts / batches • Avg per payout{' '}
+                    {f0(totalAggregatorOrders, 'en')} payments • Avg per payment{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -687,9 +862,9 @@ export function DeliveryRadarV5({
                     {isAr ? 'غير متاح' : '—'}
                   </span>
                 ) : isAr ? (
-                  `${f0(directSalesSummary.orders, 'ar')} طلب مباشر بدون عمولة تطبيقات`
+                  `${f0(directSalesSummary.orders, 'ar')} دفعة مباشرة بدون عمولة تطبيقات`
                 ) : (
-                  `${f0(directSalesSummary.orders, 'en')} direct orders without aggregator commission`
+                  `${f0(directSalesSummary.orders, 'en')} direct payments without aggregator commission`
                 )}
               </p>
               <KpiProvenanceBadge
@@ -703,7 +878,7 @@ export function DeliveryRadarV5({
               />
             </article>
 
-            {/* KPI 3: Posted Aggregator Commissions in GL («غير مُرحَّل بعد» when unposted — NEVER 0!) */}
+            {/* KPI 3: Posted Aggregator Commissions in GL (Part 2 platform_commission + separated subscriptions & 3rd-party delivery) */}
             <article className="ae-kpi-card flex flex-col justify-between rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
               <p className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">
                 {T('Posted Aggregator Commissions (GL)', 'عمولات التطبيقات المرحّلة في الدفتر')}
@@ -714,39 +889,245 @@ export function DeliveryRadarV5({
                   {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                 </div>
               ) : commissionUnposted ? (
-                <div className="mt-2.5 space-y-1.5">
-                  <span
-                    data-commission-unposted="true"
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-1.5 text-base font-extrabold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
-                  >
-                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
-                    <span>{isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}</span>
-                  </span>
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                    {isAr
-                      ? 'قيود عمولات المنصات لم تُرحَّل بعد لهذه الفترة في دفتر الأستاذ العام (لا تُعرض صفراً).'
-                      : 'Aggregator commission entries are not posted in Odoo GL for this window yet (never displayed as zero).'}
-                  </p>
+                <div className="mt-2.5 space-y-2">
+                  {isSubFilterUnpartitioned ? (
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                      {isAr ? gl.unavailableReasonAr : gl.unavailableReasonEn}
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <span
+                        data-commission-unposted="true"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-amber-100 px-3 py-1.5 text-base font-extrabold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                      >
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
+                        <span>{isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}</span>
+                      </span>
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                        {isAr
+                          ? 'قيود عمولات المنصات لم تُرحَّل بعد لهذه الفترة في دفتر الأستاذ العام (لا تُعرض صفراً).'
+                          : 'Aggregator commission entries are not posted in Odoo GL for this window yet (never displayed as zero).'}
+                      </p>
+                    </div>
+                  )}
+
+                  {hasPostedSubscription || hasPostedThirdParty ? (
+                    <div className="space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-white/10">
+                      {hasPostedSubscription && subscriptionAmountKwd !== null ? (
+                        <div className="flex items-center justify-between gap-2 text-slate-700 dark:text-slate-200">
+                          <span className="font-semibold">
+                            {T('Platform Subscriptions', 'اشتراكات المنصات')}
+                          </span>
+                          <span dir="ltr" className="font-bold tabular-nums">
+                            {fmtKwd(subscriptionAmountKwd, isAr)}
+                          </span>
+                        </div>
+                      ) : null}
+                      {hasPostedThirdParty && thirdPartyAmountKwd !== null ? (
+                        <div className="flex items-center justify-between gap-2 text-slate-700 dark:text-slate-200">
+                          <span className="font-semibold">
+                            {T('3rd-Party Delivery', 'توصيل الطرف الثالث')}
+                          </span>
+                          <span dir="ltr" className="font-bold tabular-nums">
+                            {fmtKwd(thirdPartyAmountKwd, isAr)}
+                          </span>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <>
                   <div
                     dir="ltr"
+                    data-commission-value="true"
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-rose-700 dark:text-rose-300"
                   >
                     {fmtKwd(gl.deliveryCommissionsKwd, isAr)}
                   </div>
-                  <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {gl.deliveryCommPct !== null
-                      ? isAr
-                        ? `${f1Pct(gl.deliveryCommPct, 'ar')} من إجمالي إيراد الدفتر المرحّل`
-                        : `${f1Pct(gl.deliveryCommPct, 'en')} of posted GL revenue`
-                      : isAr
-                        ? GL_INCOMPLETE_AR
-                        : GL_INCOMPLETE_EN}
-                  </p>
+                  <div className="mt-1.5 space-y-0.5 text-xs tabular-nums">
+                    {commPctOfAggregatorSales !== null ? (
+                      <p
+                        data-commission-agg-pct="true"
+                        className="font-bold text-rose-700 dark:text-rose-300"
+                      >
+                        <span dir="ltr">{f1Pct(commPctOfAggregatorSales, resolvedLocale)}</span>{' '}
+                        <span>{T('of aggregator sales', 'من مبيعات تطبيقات التوصيل')}</span>
+                      </p>
+                    ) : null}
+                    <p
+                      data-commission-gl-pct="true"
+                      className="font-semibold text-slate-500 dark:text-slate-400"
+                    >
+                      {gl.deliveryCommPct !== null ? (
+                        <>
+                          <span dir="ltr">{f1Pct(gl.deliveryCommPct, resolvedLocale)}</span>{' '}
+                          <span>{T('of posted GL revenue', 'من إجمالي إيراد الدفتر المرحّل')}</span>
+                        </>
+                      ) : isAr ? (
+                        GL_INCOMPLETE_AR
+                      ) : (
+                        GL_INCOMPLETE_EN
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="mt-2 space-y-1 border-t border-slate-100 pt-2 text-xs dark:border-white/10">
+                    <div
+                      data-commission-subscription-line="true"
+                      className="flex items-center justify-between gap-2 text-slate-700 dark:text-slate-200"
+                    >
+                      <span className="font-semibold">
+                        {T('Platform Subscriptions', 'اشتراكات المنصات')}
+                      </span>
+                      {hasPostedSubscription && subscriptionAmountKwd !== null ? (
+                        <span dir="ltr" className="font-bold tabular-nums">
+                          {fmtKwd(subscriptionAmountKwd, isAr)}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-amber-800 dark:text-amber-300">
+                          {isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      data-commission-third-party-line="true"
+                      className="flex items-center justify-between gap-2 text-slate-700 dark:text-slate-200"
+                    >
+                      <span className="font-semibold">
+                        {T('3rd-Party Delivery', 'توصيل الطرف الثالث')}
+                      </span>
+                      {hasPostedThirdParty && thirdPartyAmountKwd !== null ? (
+                        <span dir="ltr" className="font-bold tabular-nums">
+                          {fmtKwd(thirdPartyAmountKwd, isAr)}
+                        </span>
+                      ) : (
+                        <span className="font-semibold text-amber-800 dark:text-amber-300">
+                          {isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </>
               )}
+
+              {!maskInternalCosts && gl.available && hasAnyCommissionDetailsAccounts ? (
+                <details
+                  data-commission-accounts-details="true"
+                  className="mt-2.5 rounded-xl border border-slate-200/80 bg-slate-50/80 px-2.5 py-2 text-xs dark:border-white/10 dark:bg-white/[0.03]"
+                >
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-semibold text-slate-700 dark:text-slate-200">
+                    <span>
+                      {commissionAccounts.length > 0
+                        ? T('Commission GL Accounts', 'حسابات عمولات الدفتر')
+                        : T('Delivery & Subscription GL Accounts', 'حسابات التوصيل والاشتراكات')}
+                    </span>
+                    <span className="inline-flex items-center gap-1 tabular-nums text-xs font-bold text-slate-500 dark:text-slate-400">
+                      (
+                      {f0(
+                        commissionAccounts.length > 0
+                          ? commissionAccounts.length
+                          : subscriptionAccounts.length + thirdPartyAccounts.length,
+                        resolvedLocale,
+                      )}
+                      )
+                      <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                  </summary>
+                  <div className="mt-2 space-y-2 border-t border-slate-200/70 pt-2 dark:border-white/10">
+                    {commissionAccounts.length > 0 ? (
+                      <ul className="space-y-1">
+                        {commissionAccounts.map((acc) => (
+                          <li
+                            key={`comm-${acc.accountId ?? acc.code}-${acc.name}`}
+                            className="flex items-start justify-between gap-2 text-slate-700 dark:text-slate-200"
+                          >
+                            <span className="min-w-0 break-words">
+                              <span
+                                dir="ltr"
+                                className="font-mono font-bold text-slate-600 dark:text-slate-300"
+                              >
+                                {acc.code}
+                              </span>{' '}
+                              <span>{acc.name}</span>
+                            </span>
+                            <span
+                              dir="ltr"
+                              className="shrink-0 font-bold tabular-nums text-slate-950 dark:text-white"
+                            >
+                              {fmtKwd(acc.amountKwd, isAr)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {subscriptionAccounts.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {T('Platform Subscriptions', 'اشتراكات المنصات')}
+                        </p>
+                        <ul className="space-y-1">
+                          {subscriptionAccounts.map((acc) => (
+                            <li
+                              key={`sub-${acc.accountId ?? acc.code}-${acc.name}`}
+                              className="flex items-start justify-between gap-2 text-slate-700 dark:text-slate-200"
+                            >
+                              <span className="min-w-0 break-words">
+                                <span
+                                  dir="ltr"
+                                  className="font-mono font-bold text-slate-600 dark:text-slate-300"
+                                >
+                                  {acc.code}
+                                </span>{' '}
+                                <span>{acc.name}</span>
+                              </span>
+                              <span
+                                dir="ltr"
+                                className="shrink-0 font-bold tabular-nums text-slate-950 dark:text-white"
+                              >
+                                {fmtKwd(acc.amountKwd, isAr)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {thirdPartyAccounts.length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                          {T('3rd-Party Delivery', 'توصيل الطرف الثالث')}
+                        </p>
+                        <ul className="space-y-1">
+                          {thirdPartyAccounts.map((acc) => (
+                            <li
+                              key={`3p-${acc.accountId ?? acc.code}-${acc.name}`}
+                              className="flex items-start justify-between gap-2 text-slate-700 dark:text-slate-200"
+                            >
+                              <span className="min-w-0 break-words">
+                                <span
+                                  dir="ltr"
+                                  className="font-mono font-bold text-slate-600 dark:text-slate-300"
+                                >
+                                  {acc.code}
+                                </span>{' '}
+                                <span>{acc.name}</span>
+                              </span>
+                              <span
+                                dir="ltr"
+                                className="shrink-0 font-bold tabular-nums text-slate-950 dark:text-white"
+                              >
+                                {fmtKwd(acc.amountKwd, isAr)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
 
               <KpiProvenanceBadge
                 odooModel="account.move.line"
@@ -754,7 +1135,7 @@ export function DeliveryRadarV5({
                 lastSyncAt={lastSyncIso}
                 isStale24h={isStale24h}
                 kind="فعلي"
-                queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
+                queryOrFormula="account.move.line(parent_state='posted', platform_commission accounts)"
                 compact
               />
             </article>
@@ -872,7 +1253,7 @@ export function DeliveryRadarV5({
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
-                    {T('Sales by Delivery Platform', 'مبيعات وطلبات كل منصة توصيل')}
+                    {T('Sales by Delivery Platform', 'مبيعات وعدد دفعات كل منصة توصيل')}
                   </h2>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {loadingCube
@@ -942,7 +1323,7 @@ export function DeliveryRadarV5({
                         ) : isAr ? (
                           `${f0(p.orders, 'ar')} دفعة`
                         ) : (
-                          `${f0(p.orders, 'en')} payouts / batches`
+                          `${f0(p.orders, 'en')} payments`
                         )}
                       </span>
                       <span dir="ltr" className="tabular-nums">
@@ -989,7 +1370,7 @@ export function DeliveryRadarV5({
                       ? undefined
                       : isAr
                         ? `${f0(totalAggregatorOrders, 'ar')} دفعة`
-                        : `${f0(totalAggregatorOrders, 'en')} payouts / batches`
+                        : `${f0(totalAggregatorOrders, 'en')} payments`
                   }
                   centerLabel={T('Aggregators', 'منصات التوصيل')}
                   isAr={isAr}
@@ -999,15 +1380,15 @@ export function DeliveryRadarV5({
             </div>
           </div>
 
-          {/* Branch × Platform Real Odoo Table (7 Branches + 8th «غير منسوب لفرع») */}
+          {/* Branch × Platform Real Odoo Table (Active Branches & Groups + Unattributed) */}
           <section className="ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-emerald-400/[0.09]">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                     {T(
-                      'Branch × Platform Actual POS Matrix (7 Branches + Unattributed)',
-                      'مصفوفة الفروع × منصات التوصيل الفعلية (7 فروع + غير منسوب لفرع)',
+                      'Branch × Platform Actual POS Matrix (Active Branches & Groups + Unattributed)',
+                      'مصفوفة الفروع × منصات التوصيل الفعلية (الفروع والمجموعات النشطة + غير منسوب لفرع)',
                     )}
                   </h2>
                   <span
@@ -1077,8 +1458,8 @@ export function DeliveryRadarV5({
                       <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
                       <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                      <th className="py-2.5 text-end">{T('Payouts / Batches', 'دفعات')}</th>
-                      <th className="py-2.5 text-end">{T('Avg per Payout', 'متوسط الدفعة')}</th>
+                      <th className="py-2.5 text-end">{T('Payments', 'عدد الدفعات')}</th>
+                      <th className="py-2.5 text-end">{T('Avg per payment', 'متوسط الدفعة')}</th>
                       <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>
                     </tr>
@@ -1148,6 +1529,10 @@ export function DeliveryRadarV5({
                             <span className="text-xs font-semibold text-slate-500">
                               {T('Restricted', 'محجوب')}
                             </span>
+                          ) : isSubFilterUnpartitioned ? (
+                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                              {T('Company GL level', 'على مستوى الدفتر العام')}
+                            </span>
                           ) : commissionUnposted ? (
                             <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
                               {isAr ? UNPOSTED_COMMISSION_AR : UNPOSTED_COMMISSION_EN}
@@ -1161,6 +1546,79 @@ export function DeliveryRadarV5({
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr
+                      data-matrix-total-row="true"
+                      className="border-t-2 border-slate-200 bg-slate-50/90 font-bold text-slate-950 tabular-nums dark:border-white/15 dark:bg-white/[0.04] dark:text-white"
+                    >
+                      <td className="py-2.5 text-start" colSpan={2}>
+                        {isMatrixFiltered
+                          ? T('Filtered Total', 'إجمالي التصفية')
+                          : T('Total', 'الإجمالي')}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-matrix-total-sales="true"
+                        data-unavailable={matrixTotals.salesKwd === null ? 'true' : undefined}
+                        title={matrixTotals.salesKwd === null ? unavailableTip : undefined}
+                        className="py-2.5 text-end font-extrabold tabular-nums"
+                      >
+                        {fmtKwd(matrixTotals.salesKwd, isAr)}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-matrix-total-payments="true"
+                        data-unavailable={matrixTotals.orders === null ? 'true' : undefined}
+                        title={matrixTotals.orders === null ? unavailableTip : undefined}
+                        className="py-2.5 text-end font-bold tabular-nums"
+                      >
+                        {matrixTotals.orders === null
+                          ? isAr
+                            ? 'غير متاح'
+                            : '—'
+                          : f0(matrixTotals.orders, resolvedLocale)}
+                      </td>
+                      <td
+                        dir="ltr"
+                        className="py-2.5 text-end font-semibold tabular-nums text-slate-700 dark:text-slate-300"
+                      >
+                        {matrixTotals.orders !== null &&
+                        matrixTotals.orders > 0 &&
+                        matrixTotals.salesKwd !== null
+                          ? fmtKwd(matrixTotals.salesKwd / matrixTotals.orders, isAr)
+                          : '—'}
+                      </td>
+                      <td
+                        dir="ltr"
+                        className="py-2.5 text-end font-bold tabular-nums text-slate-700 dark:text-slate-200"
+                      >
+                        {matrixTotals.salesKwd === null || totalAggregatorSalesKwd === null
+                          ? '—'
+                          : totalAggregatorSalesKwd > 0
+                            ? f1Pct((matrixTotals.salesKwd / totalAggregatorSalesKwd) * 100, resolvedLocale)
+                            : f1Pct(0, resolvedLocale)}
+                      </td>
+                      <td className="py-2.5 text-end text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        {maskInternalCosts ? (
+                          T('Restricted', 'محجوب')
+                        ) : isSubFilterUnpartitioned ? (
+                          T('Company GL level', 'على مستوى الدفتر العام')
+                        ) : commissionUnposted ? (
+                          isAr ? (
+                            UNPOSTED_COMMISSION_AR
+                          ) : (
+                            UNPOSTED_COMMISSION_EN
+                          )
+                        ) : !isMatrixFiltered && filters.branch === 'all' ? (
+                          <span dir="ltr" className="font-extrabold tabular-nums">
+                            {fmtKwd(gl.deliveryCommissionsKwd, isAr)}
+                          </span>
+                        ) : (
+                          T('Posted at company GL level', 'مرحّلة بإجمالي الدفتر العام')
+                        )}
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}

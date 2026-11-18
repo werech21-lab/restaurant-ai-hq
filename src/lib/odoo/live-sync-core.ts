@@ -379,6 +379,7 @@ export interface OdooBucketSummary {
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
   uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+  unmappedUiChannels?: Record<string, { netKwd: number; orders: number }> | null
   accounting?: OdooLedgerAccountingSummary | null
 }
 
@@ -732,7 +733,8 @@ export function periodWindowForBucket(bucket: OdooPeriodBucketKey, now = new Dat
   }
   if (bucket === 'week') return { from: iso(shift(t, -7)), to: iso(shift(t, 1)) }
   if (bucket === 'year') return { from: `${t.getUTCFullYear()}-01-01`, to: iso(shift(t, 1)) }
-  return { from: iso(shift(t, -30)), to: iso(shift(t, 1)) }
+  const monthStart = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1))
+  return { from: iso(monthStart), to: iso(shift(t, 1)) }
 }
 
 export function summaryFromSnapshot(_raw: unknown, note?: string, bucket: OdooPeriodBucketKey = 'month'): OdooLiveSummary {
@@ -775,8 +777,9 @@ export function summaryFromSnapshot(_raw: unknown, note?: string, bucket: OdooPe
 
 /* ----------------------------------------------------------------- live */
 function monthToDate(now = new Date()) {
-  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  const kw = new Date(now.getTime() + KUWAIT_OFFSET_MS)
+  const from = new Date(Date.UTC(kw.getUTCFullYear(), kw.getUTCMonth(), 1))
+  const to = new Date(Date.UTC(kw.getUTCFullYear(), kw.getUTCMonth(), kw.getUTCDate() + 1))
   const iso = (d: Date) => d.toISOString().slice(0, 10)
   return { from: iso(from), to: iso(to) }
 }
@@ -1158,6 +1161,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
         byBrand,
         byLocation,
         uiChannels: aggUiChannels,
+        unmappedUiChannels: Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])),
       }
     : undefined
 

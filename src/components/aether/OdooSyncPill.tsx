@@ -17,7 +17,7 @@ const SIX_HOURS_MS = 6 * 60 * 60 * 1000
 
 /**
  * Odoo 17 Sync Pill in the Single-Row Executive Command Bar.
- * Shows the synced 30-day calendar window, runs a silent 6-hour background refresh check,
+ * Shows the synced Month-to-Date calendar window, runs a silent 6-hour background refresh check,
  * and allows 1-click manual pull from /api/erp/odoo-sync.
  */
 export function OdooSyncPill({ isAr }: { isAr: boolean }) {
@@ -83,11 +83,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
 
   const s = state.summary
   const canonicalMonthWin = formatPeriodCalendarWindow('month', { liveSummary: s ?? null })
-  const r30From = canonicalMonthWin.fromIso
-  const r30To = canonicalMonthWin.toInclusiveIso
-  const mtdDays = s?.journeyPulse?.mtd?.days ?? 0
-  const mtdSuffixAr = mtdDays > 0 ? ` + الشهر الجاري (${mtdDays} يوماً)` : ''
-  const mtdSuffixEn = mtdDays > 0 ? ` + MTD (${mtdDays}d)` : ''
+  const mtdFrom = canonicalMonthWin.fromIso
+  const mtdTo = canonicalMonthWin.toInclusiveIso
 
   const label =
     state.status === 'syncing'
@@ -103,8 +100,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
             ? 'تعذر الاتصال بأودو · إعادة المحاولة'
             : 'Odoo Unreachable · Retry'
           : isAr
-            ? `Odoo 17 · آخر 30 يوماً (${r30From} ← ${r30To})${mtdSuffixAr}`
-            : `Odoo 17 · Last 30d (${r30From} → ${r30To})${mtdSuffixEn}`
+            ? `Odoo 17 · الشهر الجاري (${mtdFrom} ← ${mtdTo})`
+            : `Odoo 17 · Month to Date (${mtdFrom} → ${mtdTo})`
 
   const shortLabel =
     state.status === 'syncing'
@@ -112,8 +109,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         ? 'جارٍ التحديث…'
         : 'Updating…'
       : isAr
-        ? 'Odoo 17 · آخر 30 يوماً'
-        : 'Odoo 17 · Last 30d'
+        ? 'Odoo 17 · الشهر الجاري'
+        : 'Odoo 17 · Month to Date'
 
   const locale = isAr ? 'ar' : 'en'
   const unavailableLabel = getUnavailableTooltip(locale)
@@ -131,8 +128,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
   const title = s
     ? [
         isAr
-          ? `آخر 30 يوماً: ${s.period.from} ← ${s.period.to}${mtdSuffixAr}`
-          : `Last 30d: ${s.period.from} → ${s.period.to}${mtdSuffixEn}`,
+          ? `الشهر الجاري: ${mtdFrom} ← ${mtdTo}`
+          : `Month to Date: ${mtdFrom} → ${mtdTo}`,
         isAr
           ? `صافي المبيعات: ${netSalesLabel} · ${ordersLabel}`
           : `Net sales: ${netSalesLabel} · ${ordersLabel}`,

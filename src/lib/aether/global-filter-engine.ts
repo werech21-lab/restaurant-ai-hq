@@ -442,7 +442,7 @@ export function formatPeriodCalendarWindow(
         ? shiftIsoDateDays(anchorIso, -6)
         : period === 'year'
           ? `${anchorIso.slice(0, 4)}-01-01`
-          : shiftIsoDateDays(anchorIso, -29)
+          : `${anchorIso.slice(0, 7)}-01`
   const labels = formatInclusiveIsoRangeLabels(fromIso, anchorIso)
   return { fromIso, toInclusiveIso: anchorIso, ...labels }
 }
@@ -1249,11 +1249,21 @@ export function computeGlobalWorkspace(
   const activeIsoWindowAr = `من ${resolvedPeriodWindow.fromIso} إلى ${resolvedPeriodWindow.toInclusiveIso}`
   const activeIsoWindowEn = `${resolvedPeriodWindow.fromIso} to ${resolvedPeriodWindow.toInclusiveIso}`
 
+  const resolvedWindowMsFrom = Date.parse(`${resolvedPeriodWindow.fromIso}T00:00:00Z`)
+  const resolvedWindowMsTo = Date.parse(`${resolvedPeriodWindow.toInclusiveIso}T00:00:00Z`)
+  const resolvedCalendarDays =
+    Number.isFinite(resolvedWindowMsFrom) && Number.isFinite(resolvedWindowMsTo)
+      ? Math.min(
+          730,
+          Math.max(1, Math.round((resolvedWindowMsTo - resolvedWindowMsFrom) / 86_400_000) + 1),
+        )
+      : 30
+
   const defaultDays: Record<GlobalPeriod, number> = {
     today: 1,
     week: 7,
-    month: 30,
-    year: 315,
+    month: resolvedCalendarDays,
+    year: resolvedCalendarDays,
     custom: customNorm.days,
   }
 
@@ -2259,6 +2269,43 @@ export function computePeriodOverPeriodDeltaPct(
     : orderedDays.filter((d) => d.day < activeIncompleteTodayIso)
 
   if (filters.period === 'month') {
+    const monthBkt = liveSummary.buckets?.month
+    const monthWin =
+      monthBkt?.from && monthBkt?.to
+        ? formatPeriodCalendarWindow('month', { liveSummary })
+        : null
+    const isMtdBucket = Boolean(
+      monthBkt &&
+        monthWin &&
+        ((monthWin.fromIso.endsWith('-01') &&
+          monthWin.fromIso.slice(0, 7) === monthWin.toInclusiveIso.slice(0, 7)) ||
+          (typeof monthBkt.days === 'number' && monthBkt.days < 28)),
+    )
+    if (isMtdBucket && monthWin) {
+      const rawFrom = monthWin.fromIso
+      const rawTo = monthWin.toInclusiveIso
+      const effectiveTo =
+        !options?.sameHoursLikeForLike && rawTo >= activeIncompleteTodayIso
+          ? shiftIsoDateDays(activeIncompleteTodayIso, -1)
+          : rawTo
+      if (effectiveTo < rawFrom) return null
+      const spanDays = Math.max(
+        1,
+        Math.round(
+          (Date.parse(`${effectiveTo}T00:00:00Z`) - Date.parse(`${rawFrom}T00:00:00Z`)) /
+            86_400_000,
+        ) + 1,
+      )
+      const priorTo = shiftIsoDateDays(rawFrom, -1)
+      const priorFrom = shiftIsoDateDays(rawFrom, -spanDays)
+      const currRows = completedDays.filter((d) => d.day >= rawFrom && d.day <= effectiveTo)
+      const prevRows = completedDays.filter((d) => d.day >= priorFrom && d.day <= priorTo)
+      if (currRows.length > 0 && currRows.length === prevRows.length) {
+        const sum = (rows: typeof completedDays) => rows.reduce((s, d) => s + d.netKwd, 0)
+        return pctChange(sum(currRows), sum(prevRows))
+      }
+      return null
+    }
     const r30 = liveSummary.journeyPulse?.rolling30
     const p30 = liveSummary.journeyPulse?.prior30
     const pulseDelta = r30 && p30 ? pctChange(r30.netKwd, p30.netKwd) : null

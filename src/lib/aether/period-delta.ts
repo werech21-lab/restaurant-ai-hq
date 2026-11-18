@@ -259,9 +259,11 @@ export interface EqualPeriodComparisonInput {
   isUnfilteredCompanyScope: boolean
   customFrom?: string
   customTo?: string
+  monthWindow?: { from: string; to: string; days?: number } | null
   journeyPulse?: {
     rolling30?: { netKwd: number; days?: number }
     prior30?: { netKwd: number; days?: number }
+    mtd?: { netKwd: number; days?: number }
   } | null
   bucketPeriodComparison?: {
     currentNetKwd: number
@@ -314,6 +316,7 @@ export function resolveEqualPeriodSalesDelta(
     isUnfilteredCompanyScope,
     customFrom,
     customTo,
+    monthWindow,
     journeyPulse,
     bucketPeriodComparison,
     fullDailySeries,
@@ -349,7 +352,51 @@ export function resolveEqualPeriodSalesDelta(
   let priorKwd = 0
 
   if (period === 'month') {
-    if (isUnfilteredCompanyScope && validRolling30) {
+    const isExplicitMtd = Boolean(
+      monthWindow &&
+        ((monthWindow.from.endsWith('-01') &&
+          monthWindow.from.slice(0, 7) === monthWindow.to.slice(0, 7)) ||
+          (typeof monthWindow.days === 'number' && monthWindow.days < 28)),
+    )
+    if (isExplicitMtd && monthWindow) {
+      const startIso = monthWindow.from
+      const endIso =
+        !sameHoursLikeForLike && monthWindow.to >= activeIncompleteTodayIso
+          ? shiftIsoDays(activeIncompleteTodayIso, -1)
+          : monthWindow.to
+      if (endIso >= startIso) {
+        const spanDays = Math.max(
+          1,
+          Math.round(
+            (Date.parse(`${endIso}T00:00:00Z`) - Date.parse(`${startIso}T00:00:00Z`)) / 86_400_000,
+          ) + 1,
+        )
+        const priorEndIso = shiftIsoDays(startIso, -1)
+        const priorStartIso = shiftIsoDays(startIso, -spanDays)
+        const curDays = sortedDays.filter((d) => d.day >= startIso && d.day <= endIso)
+        const prevDays = sortedDays.filter((d) => d.day >= priorStartIso && d.day <= priorEndIso)
+        if (curDays.length > 0 && prevDays.length === curDays.length) {
+          const curSum = curDays.reduce((s, d) => s + d.netKwd, 0)
+          const prevSum = prevDays.reduce((s, d) => s + d.netKwd, 0)
+          if (isUnfilteredCompanyScope && curSum > 0 && prevSum > 0) {
+            currentKwd = curSum
+            priorKwd = prevSum
+          } else if (curSum > 0 && prevSum > 0) {
+            priorKwd = currentKwd * (prevSum / curSum)
+          }
+        } else if (
+          isUnfilteredCompanyScope &&
+          bucketPeriodComparison &&
+          bucketPeriodComparison.currentNetKwd > 0 &&
+          bucketPeriodComparison.priorNetKwd > 0
+        ) {
+          currentKwd = bucketPeriodComparison.currentNetKwd
+          priorKwd = bucketPeriodComparison.priorNetKwd
+        } else if (rollingRatio !== null && currentKwd > 0) {
+          priorKwd = currentKwd * rollingRatio
+        }
+      }
+    } else if (isUnfilteredCompanyScope && validRolling30) {
       currentKwd = rolling30Net
       priorKwd = prior30Net
     } else if (

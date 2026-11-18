@@ -324,7 +324,7 @@ describe('Bug B — Aggregator Radar today cube parity, dateRange badge & paymen
     expect(htmlMismatchEn).toContain('2026-11-16 → 2026-11-16')
   })
 
-  it('documents split-tender payment count behaviour and labels matrix column "دفعات" / "Payouts / Batches" (Phase 5 · Item 5)', () => {
+  it('documents split-tender payment count behaviour and labels matrix column "عدد الدفعات" / "Payments" (Phase 5 · Item 5 / Part 4)', () => {
     // 1 split-tender order (#9001) paid half Cash (5.000) + half KNET (5.000) in session 701 produces __count = 1 on each payment_method_id (total 2 payments for 1 order)
     const merged = mergeSessionPaymentGroups(
       [
@@ -349,9 +349,9 @@ describe('Bug B — Aggregator Radar today cube parity, dateRange badge & paymen
     const summary = buildRadarSummary()
     const htmlAr = renderRadar('ar', { period: 'today', branch: 'al-kout' }, summary, todayCube)
     const htmlEn = renderRadar('en', { period: 'today', branch: 'al-kout' }, summary, todayCube)
-    expect(htmlAr).toContain('>دفعات<')
-    expect(htmlEn).toContain('Payouts / Batches')
-    // Aggregator counts are payouts/batches, never "orders".
+    expect(htmlAr).toContain('>عدد الدفعات<')
+    expect(htmlEn).toContain('>Payments<')
+    // Aggregator counts are POS payment lines, never "orders".
     expect(htmlEn).not.toMatch(/\d orders • AOV/)
   })
 })
@@ -417,7 +417,7 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
 
     const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
     const arCard =
-      htmlAr.split('مبيعات وطلبات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
+      htmlAr.split('مبيعات وعدد دفعات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
     expect(arCard).toContain('قيد المطابقة مع المحاسبة')
     expect(arCard).toContain('data-receivables-status="pending-reconciliation"')
     expect(arCard).toContain('412 قيد غير مسوّى في دفتر الذمم')
