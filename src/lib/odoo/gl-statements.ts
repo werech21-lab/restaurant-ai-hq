@@ -91,7 +91,11 @@ export function balanceSheetView(lines: readonly GlAccountLine[]): {
   const liability = present(inScope, isLiability, -1)
   const equity = present(inScope, isEquity, -1)
   const excludedLines = lines
-    .filter((line) => line.salesScopeExcluded)
+    .filter(
+      (line) =>
+        line.salesScopeExcluded &&
+        (isAsset(line.accountType) || isLiability(line.accountType) || isEquity(line.accountType)),
+    )
     .map((line) => ({
       ...line,
       presented: isAsset(line.accountType) ? line.balance : -line.balance,

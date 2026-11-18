@@ -35,12 +35,22 @@ describe('excluded chart accounts stay on the full ledger', () => {
       lineCount: 0,
       salesScopeExcluded: isDecommissionedWarehouseRecord(`${account.code} ${account.name}`),
     }))
-    const excludedNames = lines.filter((line) => line.salesScopeExcluded).map((line) => line.name).sort()
+    const isBalanceSheetType = (accountType: string) =>
+      accountType.startsWith('asset') ||
+      accountType.startsWith('liability') ||
+      accountType.startsWith('equity')
+    const excludedNames = lines
+      .filter((line) => line.salesScopeExcluded && isBalanceSheetType(line.accountType))
+      .map((line) => line.name)
+      .sort()
     expect(excludedNames).toContain('Qurain Cash suspense')
     expect(excludedNames).toContain('Jahra Cash suspens')
     const view = balanceSheetView(lines)
     const grouped = view.groups.find((group) => group.key === 'excluded')
     expect(grouped?.lines.map((line) => line.name).sort()).toEqual(excludedNames)
+    expect(grouped?.lines.some((line) => line.accountType.startsWith('income') || line.accountType.startsWith('expense'))).toBe(
+      false,
+    )
     expect(grouped?.labelAr).toBe('حسابات مستبعدة من نطاق المبيعات')
     expect(grouped?.total).toBe(0)
     const totals = balanceSheetTotals(lines)

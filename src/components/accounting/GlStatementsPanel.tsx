@@ -26,6 +26,7 @@ export function accountsForPnlGroup(
 ): GlAccountLine[] {
   const commission = new Set(commissionCodes)
   return lines.filter((line) => {
+    if (line.salesScopeExcluded) return false
     if (group === 'income') return line.accountType === 'income' || line.accountType === 'income_other'
     if (group === 'expense_direct_cost') return line.accountType === 'expense_direct_cost'
     if (group === 'platform_commission') return commission.has(line.code)
