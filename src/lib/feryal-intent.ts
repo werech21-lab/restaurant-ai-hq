@@ -11,6 +11,7 @@ export type ApprovedFeryalBranchId =
   | 'avenues'
   | 'assima'
   | 'school-canteens'
+  | 'exhibitions'
 
 export type ApprovedFeryalBrandId =
   | 'china-garden'
@@ -131,9 +132,30 @@ export const SCHOOL_CANTEEN_FERYAL_BRANCH: FeryalBranchMeta = {
   ],
 }
 
+/** Exhibition booths — counted in company totals as their own group (owner decision 2026-11-18). */
+export const EXHIBITION_FERYAL_BRANCH: FeryalBranchMeta = {
+  id: 'exhibitions',
+  nameAr: 'بوثات المعارض',
+  nameEn: 'Exhibition Booths',
+  aliases: [
+    'بوثات المعارض',
+    'البوثات',
+    'بوثات',
+    'البوث',
+    'المعارض',
+    'معارض',
+    'اكشاك المعارض',
+    'exhibition booths',
+    'exhibitions',
+    'exhibition',
+    'booths',
+  ],
+}
+
 export const ALL_FERYAL_BRANCHES: readonly FeryalBranchMeta[] = [
   ...APPROVED_FERYAL_BRANCHES,
   SCHOOL_CANTEEN_FERYAL_BRANCH,
+  EXHIBITION_FERYAL_BRANCH,
 ]
 
 export const APPROVED_FERYAL_BRANDS: Readonly<Record<ApprovedFeryalBrandId, string>> = {

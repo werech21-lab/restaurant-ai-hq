@@ -1,4 +1,5 @@
 import {
+  isExhibitionGroupReported,
   APPROVED_BRANCH_IDS,
   APPROVED_BRAND_IDS,
   APPROVED_CHANNEL_IDS,
@@ -169,10 +170,14 @@ export function buildLiveEnterpriseDepartments(
         }).sort((a, b) => b.net - a.net)
       : []
 
-  // 2. Branch Sales Report (7 approved branches + school-canteens + explicit «غير منسوب لفرع»)
+  // 2. Branch Sales Report (7 approved branches + school-canteens + exhibition booths + explicit «غير منسوب لفرع»)
   const targetBranchIds: readonly Exclude<GlobalBranch, 'all'>[] =
     workspace.filters.branch === 'all'
-      ? [...APPROVED_BRANCH_IDS, 'school-canteens']
+      ? [
+          ...APPROVED_BRANCH_IDS,
+          'school-canteens',
+          ...(isExhibitionGroupReported(bucket) ? (['exhibitions'] as const) : []),
+        ]
       : [workspace.filters.branch]
   const branchRows =
     connected && !totalsUnavailable && bucket?.byLocation !== null

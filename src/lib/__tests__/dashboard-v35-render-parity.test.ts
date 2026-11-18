@@ -120,7 +120,10 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     expect(textOfAttr(html, 'data-kpi', 'total-orders')).toBe('24')
 
     const cards = parseBranchCards(html)
-    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length + 1)
+    // This payload predates booth counting (no byLocation.exhibitions), so no booth card is shown —
+    // a group the data doesn't report is never rendered as 0.000.
+    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length)
+    expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)
     expect(Math.abs(sumKwd - 154.7)).toBeLessThanOrEqual(KWD_TOLERANCE)
@@ -214,7 +217,10 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     expect(textOfAttr(html, 'data-kpi', 'total-orders')).toBe('20')
 
     const cards = parseBranchCards(html)
-    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length + 1)
+    // This payload predates booth counting (no byLocation.exhibitions), so no booth card is shown —
+    // a group the data doesn't report is never rendered as 0.000.
+    expect(cards).toHaveLength(DASHBOARD_BRANCH_CARD_IDS.length)
+    expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)
     expect(Math.abs(sumKwd - 128.383)).toBeLessThanOrEqual(KWD_TOLERANCE)

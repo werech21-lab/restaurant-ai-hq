@@ -59,14 +59,14 @@ const ODOO_ENV_KEYS = [
   'ODOO_API_KEY',
 ] as const
 
-const ALL_OPERATING_BRANCHES: readonly Exclude<GlobalBranch, 'all'>[] = [
+const ALL_OPERATING_BRANCHES: readonly Exclude<GlobalBranch, 'all' | 'exhibitions'>[] = [
   ...APPROVED_BRANCH_IDS,
   'school-canteens',
 ]
 
 const BRANCH_FIXTURE_METRICS: Readonly<
   Record<
-    Exclude<GlobalBranch, 'all'>,
+    Exclude<GlobalBranch, 'all' | 'exhibitions'>,
     { configId: number; sessionId: number; configName: string; netKwd: number; orders: number; hour: number }
   >
 > = {

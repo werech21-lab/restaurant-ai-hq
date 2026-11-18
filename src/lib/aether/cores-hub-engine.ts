@@ -24,6 +24,7 @@ import {
   type GlobalBranch,
   type GlobalBrand,
   type GlobalFilters,
+  isExhibitionGroupReported,
 } from '@/lib/aether/global-filter-engine'
 
 export const UNATTRIBUTED_BRANCH_LABEL_AR = 'غير منسوب لفرع'
@@ -835,8 +836,11 @@ export function computeCoresHubSnapshot(
     .sort((a, b) => b.salesKwd - a.salesKwd)
 
   // 4. Branch Ranking (7 branches + explicit 8th row `غير منسوب لفرع`)
+  const boothsReported = liveCube ? Boolean(liveCube.byBranch?.exhibitions) : isExhibitionGroupReported(activeBucket)
   const branchIds: string[] =
-    filters.branch === 'all' ? [...APPROVED_BRANCH_IDS, 'school-canteens'] : [filters.branch]
+    filters.branch === 'all'
+      ? [...APPROVED_BRANCH_IDS, 'school-canteens', ...(boothsReported ? ['exhibitions'] : [])]
+      : [filters.branch]
   const bucketBranchScope =
     liveCube || !activeBucket ? null : resolveBranchScope(activeBucket, filters.brand, branchIds)
   const branchesUnavailable = Boolean(
@@ -859,7 +863,7 @@ export function computeCoresHubSnapshot(
             return { lid, salesKwd: safeNum(cell?.netKwd), orders: null }
           }
           const lRow =
-            liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens']
+            liveCube.byBranch?.[lid as (typeof APPROVED_BRANCH_IDS)[number] | 'school-canteens' | 'exhibitions']
           return { lid, salesKwd: safeNum(lRow?.netKwd), orders: knownCount(lRow?.orders) }
         }
         if (bucketBranchScope?.available) {

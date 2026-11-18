@@ -51,6 +51,8 @@ import {
   isPinnedSchoolCanteenConfigId,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
+  EXHIBITION_BRANCH_ID,
+  isExhibitionConfigId,
   signedKwd,
 } from '@/lib/odoo/company-pos'
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
@@ -139,6 +141,7 @@ const ACTIVE_BRANCH_IDS = [
   'al-kout',
   'ardiya',
   SCHOOL_CANTEEN_BRANCH_ID,
+  EXHIBITION_BRANCH_ID,
 ] as const
 
 const UI_CHANNEL_KEYS = [
@@ -288,6 +291,16 @@ export interface OdooPeriodCubeProductRow {
   discountKwd: number
 }
 
+export interface OdooPeriodCubeBranchCell {
+  netKwd: number
+  orders: number
+  aovKwd: number
+  channels: Record<(typeof UI_CHANNEL_KEYS)[number], { netKwd: number; orders: number }>
+}
+
+/** Connector-internal: every group (booths included) is always built. */
+type CompleteCubeByBranch = Record<(typeof ACTIVE_BRANCH_IDS)[number], OdooPeriodCubeBranchCell>
+
 export interface OdooPeriodCube {
   connected: boolean
   sourceMode: 'odoo17-live' | 'disconnected'
@@ -312,15 +325,12 @@ export interface OdooPeriodCube {
     avgDiscountPct: number
     discountedLinesCount: number
   }
+  /** Every group is present on a live cube; `exhibitions` is optional for cubes cached before booths were counted. */
   byBranch: Record<
-    (typeof ACTIVE_BRANCH_IDS)[number],
-    {
-      netKwd: number
-      orders: number
-      aovKwd: number
-      channels: Record<(typeof UI_CHANNEL_KEYS)[number], { netKwd: number; orders: number }>
-    }
-  >
+    Exclude<(typeof ACTIVE_BRANCH_IDS)[number], typeof EXHIBITION_BRANCH_ID>,
+    OdooPeriodCubeBranchCell
+  > &
+    Partial<Record<typeof EXHIBITION_BRANCH_ID, OdooPeriodCubeBranchCell>>
   unattributed: {
     id: 'unattributed'
     labelAr: string
@@ -938,6 +948,9 @@ export function resolveRestaurantBranchForConfig(
   }
   if (isPinnedSchoolCanteenConfigId(cfgId)) {
     return companyPosConfigAllowed(cfgId, cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
+  }
+  if (isExhibitionConfigId(cfgId)) {
+    return companyPosConfigAllowed(cfgId, cfgName, true) ? EXHIBITION_BRANCH_ID : null
   }
   const ownName = (cfgName || '').trim()
   if (NON_OPERATING_TERMINAL_NAME_RE.test(ownName)) {
@@ -3544,7 +3557,12 @@ function formatEnvelopeFromCore(
             lid === SCHOOL_CANTEEN_BRANCH_ID
               ? 'School canteens'
               : (REG.locations[lid]?.en ?? lid),
-          unit: lid === SCHOOL_CANTEEN_BRANCH_ID ? 'school-canteen' : 'restaurant',
+          unit:
+            lid === SCHOOL_CANTEEN_BRANCH_ID
+              ? 'school-canteen'
+              : lid === EXHIBITION_BRANCH_ID
+                ? 'exhibition'
+                : 'restaurant',
           netSalesKwd: nv,
           orders: ord,
         }
@@ -4179,7 +4197,7 @@ function buildDisconnectedPeriodCube(
       lid,
       { netKwd: 0, orders: 0, aovKwd: 0, channels: emptyChannels() },
     ]),
-  ) as OdooPeriodCube['byBranch']
+  ) as CompleteCubeByBranch
   const byBrand = Object.fromEntries(
     ACTIVE_BRAND_IDS.map((bid) => [
       bid,
@@ -4971,7 +4989,7 @@ export async function fetchLiveOdooPeriodCube(
         lid,
         { netKwd: 0, orders: 0, aovKwd: 0, channels: emptyChannels() },
       ]),
-    ) as OdooPeriodCube['byBranch']
+    ) as CompleteCubeByBranch
     const pricelistFallbackByBranch = Object.fromEntries(
       ACTIVE_BRANCH_IDS.map((lid) => [lid, emptyChannels()]),
     ) as Record<(typeof ACTIVE_BRANCH_IDS)[number], ReturnType<typeof emptyChannels>>

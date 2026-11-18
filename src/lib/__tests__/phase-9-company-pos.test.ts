@@ -59,7 +59,8 @@ describe('phase 9 company POS', () => {
     expect(companyPosConfigAllowed(40, `${nipsCanteen} (Inactive)`, false)).toBe(false)
     expect(companyPosConfigAllowed(25, 'Delivery (Jahra)')).toBe(false)
     expect(companyPosConfigAllowed(39, 'Tasty Snacks(Jahra)')).toBe(false)
-    expect(companyPosConfigAllowed(26, 'Exhibition booth')).toBe(false)
+    // Owner decision 2026-11-18: exhibition booths count in company totals (their own group).
+    expect(companyPosConfigAllowed(26, 'Exhibition booth')).toBe(true)
     expect(companyPosConfigAllowed(3, 'Ardiya')).toBe(true)
     expect(restaurantRegisterIds()).toContain(3)
     expect(restaurantRegisterIds()).not.toContain(26)
@@ -75,7 +76,7 @@ describe('phase 9 company POS', () => {
     expect(resolveRestaurantBranchForConfig(0, closedBranch)).toBeNull()
     expect(resolveRestaurantBranchForConfig(0, 'Central Kitchen')).toBeNull()
     expect(resolveRestaurantBranchForConfig(0, 'Ardiya Main')).toBe('ardiya')
-    expect(resolveRestaurantBranchForConfig(26, 'Summer exhibition')).toBeNull()
+    expect(resolveRestaurantBranchForConfig(26, 'Summer exhibition')).toBe('exhibitions')
     await setAdminPosTerminalMapping({
       terminalId: 41,
       branchId: 'salmiya',

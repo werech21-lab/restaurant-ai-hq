@@ -23,6 +23,7 @@ import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
 import { numericFactsFromStructured } from '@/lib/feryal-council-facts'
 import {
   ALL_FERYAL_BRANCHES,
+  EXHIBITION_FERYAL_BRANCH,
   APPROVED_FERYAL_BRAND_LIST,
   APPROVED_FERYAL_BRANDS,
   APPROVED_FERYAL_BRANCHES,
@@ -871,15 +872,13 @@ async function runPosOrdersTool(params: {
     : null
   const channelClause = channelMeta ? ` (قناة ${channelMeta.nameAr})` : ''
 
-  const canteenBranchRaw = cube.byBranch['school-canteens']
-  const canteenRaw = targetChannelId ? cellOf(canteenBranchRaw?.channels) : canteenBranchRaw
-  const includeCanteenInRows =
-    targetBranchId === 'school-canteens' ||
-    (canteenRaw?.netKwd ?? 0) !== 0 ||
-    (canteenRaw?.orders ?? 0) > 0
-  const activeBranchMetas = includeCanteenInRows
-    ? ALL_FERYAL_BRANCHES
-    : APPROVED_FERYAL_BRANCHES
+  // Company groups (school canteens, exhibition booths) appear when asked for or when they have sales.
+  const groupMetas = [SCHOOL_CANTEEN_FERYAL_BRANCH, EXHIBITION_FERYAL_BRANCH].filter((meta) => {
+    const entry = cube.byBranch[meta.id as 'school-canteens' | 'exhibitions']
+    const raw = targetChannelId ? cellOf(entry?.channels) : entry
+    return targetBranchId === meta.id || (raw?.netKwd ?? 0) !== 0 || (raw?.orders ?? 0) > 0
+  })
+  const activeBranchMetas: readonly FeryalBranchMeta[] = [...APPROVED_FERYAL_BRANCHES, ...groupMetas]
 
   const branchRows = activeBranchMetas.map((meta) => {
     const branchEntry = cube.byBranch[meta.id]
@@ -1024,7 +1023,7 @@ async function runPosOrdersTool(params: {
 
   const topBranch = branchRows[0]
   const secondBranch = branchRows[1]
-  const restaurantRows = branchRows.filter((r) => r.id !== 'school-canteens')
+  const restaurantRows = branchRows.filter((r) => r.id !== 'school-canteens' && r.id !== 'exhibitions')
   const lowestBranch = restaurantRows[restaurantRows.length - 1] ?? branchRows[branchRows.length - 1]
 
   const unattributedSegment =

@@ -139,7 +139,7 @@ function shiftIsoDate(iso: string, deltaDays: number): string {
 function parseValidCampaignList(raw: unknown): SocialCampaign[] {
   if (!Array.isArray(raw)) return []
   const validBrands = new Set<string>(APPROVED_BRAND_IDS)
-  const validBranches = new Set<string>([...APPROVED_BRANCH_IDS, 'school-canteens'])
+  const validBranches = new Set<string>([...APPROVED_BRANCH_IDS, 'school-canteens', 'exhibitions'])
   const validTypes = new Set<string>(SOCIAL_AD_TYPE_OPTIONS.map((t) => t.id))
   const todayIso = formatDate(new Date(), 'en')
   const out: SocialCampaign[] = []

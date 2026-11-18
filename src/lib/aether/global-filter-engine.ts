@@ -61,6 +61,7 @@ export type GlobalBranch =
   | 'al-kout'
   | 'ardiya'
   | 'school-canteens'
+  | 'exhibitions'
 
 export type GlobalChannel =
   | 'all'
@@ -175,6 +176,7 @@ export const GLOBAL_BRANCH_OPTIONS: readonly FilterOption<GlobalBranch>[] = [
   { id: 'al-kout', ar: 'الكوت', en: 'Al-Kout' },
   { id: 'ardiya', ar: 'مطبخ العارضية', en: 'Ardiya' },
   { id: 'school-canteens', ar: 'مقاصف المدارس', en: 'School canteens' },
+  { id: 'exhibitions', ar: 'بوثات المعارض', en: 'Exhibition Booths' },
 ] as const
 
 export const APPROVED_BRANCH_IDS = [
@@ -188,13 +190,25 @@ export const APPROVED_BRANCH_IDS = [
 ] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 /**
- * Branch cards on the Executive Dashboard: the seven restaurants plus the school canteens
- * (pos.config 41 and 42), so the cards add up to the company total.
+ * Branch cards on the Executive Dashboard: the seven restaurants plus the school canteens and the
+ * exhibition booths, so the cards add up to the company total.
  */
 export const DASHBOARD_BRANCH_CARD_IDS = [
   ...APPROVED_BRANCH_IDS,
   'school-canteens',
+  'exhibitions',
 ] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
+
+/**
+ * Exhibition booths are shown only when the payload actually reports them (a byLocation entry);
+ * payloads from before booths were counted have none, and a missing group is never shown as 0.000.
+ */
+export function isExhibitionGroupReported(bucket: { byLocation?: Record<string, unknown> | null; mappedByLocation?: Record<string, unknown> | null } | null | undefined): boolean {
+  return Boolean(bucket?.byLocation?.exhibitions ?? bucket?.mappedByLocation?.exhibitions)
+}
+
+/** Non-restaurant groups that are part of company totals (like branches, but not restaurants). */
+export const COMPANY_GROUP_BRANCH_IDS = ['school-canteens', 'exhibitions'] as const satisfies readonly Exclude<GlobalBranch, 'all'>[]
 
 export const GLOBAL_CHANNEL_OPTIONS: readonly FilterOption<GlobalChannel>[] = [
   { id: 'all', ar: 'كل القنوات', en: 'All Channels' },
@@ -505,7 +519,8 @@ export function isBrandBranchCompatible(brand: GlobalBrand, branch: GlobalBranch
   if (brand === 'all' || branch === 'all') return true
   return (
     (APPROVED_BRAND_IDS as readonly string[]).includes(brand) &&
-    ((APPROVED_BRANCH_IDS as readonly string[]).includes(branch) || branch === 'school-canteens')
+    ((APPROVED_BRANCH_IDS as readonly string[]).includes(branch) ||
+      (COMPANY_GROUP_BRANCH_IDS as readonly string[]).includes(branch))
   )
 }
 
@@ -1735,7 +1750,10 @@ export function computeGlobalWorkspace(
     }
   })
 
-  const cascadingBranches: FilterOption<GlobalBranch>[] = GLOBAL_BRANCH_OPTIONS.map((opt) => {
+  const boothsReported = isExhibitionGroupReported(activeBkt)
+  const cascadingBranches: FilterOption<GlobalBranch>[] = GLOBAL_BRANCH_OPTIONS.filter(
+    (opt) => opt.id !== 'exhibitions' || boothsReported,
+  ).map((opt) => {
     if (opt.id !== 'all' && (bucketTotalsUnavailable || branchesSectionUnavailable)) {
       return {
         ...opt,

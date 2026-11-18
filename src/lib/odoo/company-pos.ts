@@ -8,6 +8,8 @@ import {
 } from './excluded-entities'
 
 export const SCHOOL_CANTEEN_BRANCH_ID = 'school-canteens'
+/** Exhibition booths (registry unit "exhibition") — counted in company totals as their own group (owner decision 2026-11-18). */
+export const EXHIBITION_BRANCH_ID = 'exhibitions'
 
 // TODO(Abdullah): confirm whether archived pinned registers #16 E-Mall (Promenade) and #35 Delivery (Ardiya Temp) should remain active-only or include historical orders.
 export const ARCHIVED_PINNED_REGISTER_POLICY = 'active_only_todo_abdullah' as const
@@ -29,6 +31,7 @@ const PINNED_SCHOOL_CANTEEN_CONFIG_IDS: readonly number[] = Array.isArray(
 
 let restaurantIds: number[] | null = null
 let canteenIds: number[] | null = null
+let exhibitionIds: number[] | null = null
 
 function placeExcluded(id: string): boolean {
   const place = locations[id]
@@ -41,6 +44,7 @@ function placeExcluded(id: string): boolean {
 }
 
 const NON_OPERATING_CONFIG_LABEL_RE = /\b(?:exhibition|exebition|exb|test|demo|training)\b/i
+const EXHIBITION_NON_OPERATING_LABEL_RE = /\b(?:test|demo|training)\b/i
 
 const NON_CANTEEN_EXCLUSION_MARKS = new Set(
   ODOO_EXCLUSION_RULES.map((rule) => normalizeEntityLabel(rule.nameParts.join(''))).filter(
@@ -127,21 +131,42 @@ export function schoolCanteenRegisterIds(): number[] {
   return canteenIds
 }
 
+/**
+ * Exhibition-booth registers on the approved list (registry location unit "exhibition"), e.g.
+ * pos.config 26–33, 37, 38. Record-id and place exclusions still apply.
+ */
+export function exhibitionRegisterIds(): number[] {
+  if (exhibitionIds) return exhibitionIds
+  exhibitionIds = registry.allowedPosConfigIds.filter((cfgId) => {
+    if (isExcludedRecordId('pos_config', cfgId)) return false
+    const loc = registers[String(cfgId)]?.location
+    if (!loc || locations[loc]?.unit !== 'exhibition' || placeExcluded(loc)) return false
+    return true
+  })
+  return exhibitionIds
+}
+
+export function isExhibitionConfigId(id: number | null | undefined): boolean {
+  if (id == null || !Number.isInteger(id) || id <= 0) return false
+  return exhibitionRegisterIds().includes(id)
+}
+
 export function isPinnedSchoolCanteenConfigId(id: number | null | undefined): boolean {
   if (id == null || !Number.isInteger(id) || id <= 0) return false
   return schoolCanteenRegisterIds().includes(id)
 }
 
-/** Full approved company POS device list: 7 restaurant branches + pinned school canteens. */
+/** Full approved company POS device list: 7 restaurant branches + pinned school canteens + exhibition booths. */
 export function companyPosRegisterIds(): number[] {
-  return [...new Set([...restaurantRegisterIds(), ...schoolCanteenRegisterIds()])]
+  return [...new Set([...restaurantRegisterIds(), ...schoolCanteenRegisterIds(), ...exhibitionRegisterIds()])]
 }
 
 /**
  * Company POS allow-list:
  * 1. Archived (`active === false`) configs are NEVER included (`ARCHIVED_PINNED_REGISTER_POLICY`).
  * 2. Pinned school-canteen config IDs are excluded ONLY when Jahra, Qurain, or Heisenberg markers appear in `name`.
- * 3. Non-canteen config IDs must pass full entity & non-operating checks and belong to `restaurantRegisterIds()`.
+ * 3. Exhibition-booth config IDs (`exhibitionRegisterIds()`) pass unless excluded by entity name or test/demo/training.
+ * 4. Other config IDs must pass full entity & non-operating checks and belong to `restaurantRegisterIds()`.
  */
 export function companyPosConfigAllowed(
   id: number,
@@ -156,6 +181,10 @@ export function companyPosConfigAllowed(
     return !hasPinnedCanteenVetoExclusion(label)
   }
   if (isExcludedOdooEntity(label)) return false
+  if (isExhibitionConfigId(id)) {
+    // Booth registers are named "Exhibition…/EXB" by design; only test/demo/training are non-operating.
+    return !EXHIBITION_NON_OPERATING_LABEL_RE.test(label)
+  }
   if (NON_OPERATING_CONFIG_LABEL_RE.test(label)) return false
   return restaurantRegisterIds().includes(id)
 }
@@ -203,10 +232,10 @@ export function anchorKuwaitDay(todayKwIso: string, _newestOrderKwIso?: string |
   return todayKwIso
 }
 
-/** Odoo search domain: explicit approved config IDs (restaurants + pinned canteens), active only. */
+/** Odoo search domain: explicit approved config IDs (restaurants + pinned canteens + exhibition booths), active only. */
 export function companyPosSearchDomain(approvedIdsIn?: readonly number[]): unknown[] {
   const ids = approvedIdsIn
-    ? [...new Set([...approvedIdsIn, ...schoolCanteenRegisterIds()])]
+    ? [...new Set([...approvedIdsIn, ...schoolCanteenRegisterIds(), ...exhibitionRegisterIds()])]
     : companyPosRegisterIds()
   return [
     ['id', 'in', ids],

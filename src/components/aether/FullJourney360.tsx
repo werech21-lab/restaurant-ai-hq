@@ -64,6 +64,7 @@ import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-st
 import { resolveHeroDeltaBadge } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
+  isExhibitionGroupReported,
   formatPeriodCalendarWindow,
   getBranchLabel,
 } from '@/lib/aether/global-filter-engine'
@@ -374,7 +375,10 @@ export function FullJourney360({
     }
 
     const brandScopedRows = filters.brand !== 'all' && branchScope.available ? branchScope : null
-    const mappedRows: BranchCardRow[] = DASHBOARD_BRANCH_CARD_IDS.map((branchId) => {
+    const boothsReported = isExhibitionGroupReported(activeBucket)
+    const mappedRows: BranchCardRow[] = DASHBOARD_BRANCH_CARD_IDS.filter(
+      (id) => id !== 'exhibitions' || boothsReported,
+    ).map((branchId) => {
       const bktLoc = brandScopedRows
         ? brandScopedRows.rows[branchId]
         : (activeBucket?.mappedByLocation?.[branchId] ?? activeBucket?.byLocation?.[branchId])

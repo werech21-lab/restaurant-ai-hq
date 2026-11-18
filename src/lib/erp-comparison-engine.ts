@@ -49,6 +49,7 @@ export const UNATTRIBUTED_BRANCH_ROW_ID = 'unattributed' as const
 const OPERATING_BRANCH_IDS: readonly BranchEntityId[] = [
   ...APPROVED_BRANCH_IDS,
   'school-canteens',
+  'exhibitions',
 ]
 
 export interface DateWindowSelection {
@@ -1172,7 +1173,8 @@ function reconcileUnattributed1dp(cube: OdooPeriodCube): number {
   const totalNet1 = r1(cube.totals.netSalesKwd)
   const mappedSum1 = r1(
     APPROVED_BRANCH_IDS.reduce((acc, brId) => acc + r1(cube.byBranch[brId]?.netKwd ?? 0), 0) +
-      r1(cube.byBranch['school-canteens']?.netKwd ?? 0),
+      r1(cube.byBranch['school-canteens']?.netKwd ?? 0) +
+      r1(cube.byBranch.exhibitions?.netKwd ?? 0),
   )
   const residual1 = r1(Math.max(0, totalNet1 - mappedSum1))
   return Math.abs(residual1 - rawUnattr) <= 0.15 ? residual1 : r1(rawUnattr)

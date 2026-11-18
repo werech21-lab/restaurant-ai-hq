@@ -74,13 +74,16 @@ const REGISTRY_REGISTERS = posRegistry.registers as Record<string, { location: s
 
 const DYNAMIC_RESTAURANT_BRANCH_IDS = Object.entries(REGISTRY_LOCATIONS)
   .filter(([, meta]) => meta.unit === 'restaurant')
-  .map(([id]) => id as Exclude<GlobalBranch, 'all'>)
+  .map(([id]) => id as Exclude<GlobalBranch, 'all' | 'exhibitions'>)
 
 const DYNAMIC_CANTEEN_BRANCH_IDS = Object.entries(REGISTRY_LOCATIONS)
   .filter(([, meta]) => meta.unit === 'canteen')
-  .map(([id]) => id as Exclude<GlobalBranch, 'all'>)
+  .map(([id]) => id as Exclude<GlobalBranch, 'all' | 'exhibitions'>)
 
-const DYNAMIC_OPERATING_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all'>[] = [
+/** This fixture's exhibition booth (pos.config 26), sold on 2026-11-15 only; counted in company totals. */
+const EXHIBITION_BOOTH_26 = { net: 1500.0, orders: 120 } as const
+
+const DYNAMIC_OPERATING_BRANCH_IDS: readonly Exclude<GlobalBranch, 'all' | 'exhibitions'>[] = [
   ...DYNAMIC_RESTAURANT_BRANCH_IDS,
   ...DYNAMIC_CANTEEN_BRANCH_IDS,
 ]
@@ -166,7 +169,7 @@ interface BranchScheduleSpec {
   registers: { configId: number; sessionId: number; name: string; day1Net: number; day1Ord: number; day2Net: number; day2Ord: number; kwHour: number }[]
 }
 
-const BRANCH_SCHEDULES: Readonly<Record<Exclude<GlobalBranch, 'all'>, BranchScheduleSpec>> = {
+const BRANCH_SCHEDULES: Readonly<Record<Exclude<GlobalBranch, 'all' | 'exhibitions'>, BranchScheduleSpec>> = {
   promenade: {
     registers: [
       { configId: 8, sessionId: 801, name: 'Promenade Main 1', day1Net: 312.125, day1Ord: 61, day2Net: 348.25, day2Ord: 68, kwHour: 12 },
@@ -211,7 +214,7 @@ const BRANCH_SCHEDULES: Readonly<Record<Exclude<GlobalBranch, 'all'>, BranchSche
   },
 }
 
-function expectedBranchTotals(branchId: Exclude<GlobalBranch, 'all'>): {
+function expectedBranchTotals(branchId: Exclude<GlobalBranch, 'all' | 'exhibitions'>): {
   netKwd: number
   orders: number
   aovKwd: number
@@ -301,7 +304,8 @@ function installMatrixOdooRpcMock(options?: {
     { id: 94, name: 'Delivery (Jahra)', active: true, sessionId: 994, poisonNet: 1950.75, poisonOrd: 145 },
     { id: 16, name: 'E-Mall (Promenade)', active: false, sessionId: 916, poisonNet: 880.0, poisonOrd: 70 },
     { id: 35, name: 'Delivery (Ardiya Temp)', active: false, sessionId: 935, poisonNet: 640.0, poisonOrd: 55 },
-    { id: 26, name: 'Exhibition Booth 1', active: true, sessionId: 926, poisonNet: 1500.0, poisonOrd: 120 },
+    // Not an exclusion any more: exhibition booths count in company totals (owner decision 2026-11-18).
+    { id: 26, name: 'Exhibition Booth 1', active: true, sessionId: 926, poisonNet: EXHIBITION_BOOTH_26.net, poisonOrd: EXHIBITION_BOOTH_26.orders },
   ]
 
   const allOperatingRegs = DYNAMIC_OPERATING_BRANCH_IDS.flatMap((b) =>
@@ -638,13 +642,13 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       expect(schoolCanteenRegisterIds()).toEqual([41, 42, 43])
       expect(activeRegistersForLocation('school-canteens')).toEqual([41, 42, 43])
 
-      // Exhibitions are strictly excluded from both restaurantRegisterIds and schoolCanteenRegisterIds
+      // Exhibition booths are their own company group: in company registers, not restaurants/canteens
       const exhibitionIds = activeRegistersForLocation('exhibitions')
       expect(exhibitionIds.length).toBeGreaterThan(0)
       for (const exbId of exhibitionIds) {
         expect(restaurantRegisterIds()).not.toContain(exbId)
         expect(schoolCanteenRegisterIds()).not.toContain(exbId)
-        expect(companyPosRegisterIds()).not.toContain(exbId)
+        expect(companyPosRegisterIds()).toContain(exbId)
       }
 
       const searchDomain = companyPosSearchDomain()
@@ -732,9 +736,9 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
           0,
         ),
       )
-      expect(activeEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 379.125))
+      expect(activeEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 379.125 + EXHIBITION_BOOTH_26.net))
 
-      // 2) Inactive 41, 42 & 43 -> 0.000 KWD in school-canteens and company totals equal restaurantOnlySum
+      // 2) Inactive 41, 42 & 43 -> 0.000 KWD in school-canteens; company totals = restaurants + booths
       vi.restoreAllMocks()
       bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
       installMatrixOdooRpcMock({ canteenActive: false })
@@ -746,7 +750,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       const inactiveCanteenBranch = inactiveEnv.branches?.find((b) => b.id === 'school-canteens')
       expect(inactiveCanteenBranch?.netSalesKwd).toBe(0)
       expect(inactiveCanteenBranch?.orders).toBe(0)
-      expect(inactiveEnv.totals.netSalesKwd).toBe(restaurantOnlySum)
+      expect(inactiveEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + EXHIBITION_BOOTH_26.net))
 
       // 3) Mislabelled #41 ("Heisenberg School Canteen") -> #41 vetoed, only #42 + #43 (194.750 KWD, 48 ord) counted!
       vi.restoreAllMocks()
@@ -760,7 +764,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       const vetoCanteenBranch = vetoEnv.branches?.find((b) => b.id === 'school-canteens')
       expect(vetoCanteenBranch?.netSalesKwd).toBe(194.75)
       expect(vetoCanteenBranch?.orders).toBe(48)
-      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 194.75))
+      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 194.75 + EXHIBITION_BOOTH_26.net))
     })
   })
 
@@ -889,12 +893,12 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       const cube = await fetchLiveOdooPeriodCube('2026-11-14', '2026-11-15', TEST_REF_NOW_MS)
 
       const exactExpectedCompanyNet = r3(
-        DYNAMIC_OPERATING_BRANCH_IDS.reduce((s, b) => s + expectedBranchTotals(b).netKwd, 0),
+        DYNAMIC_OPERATING_BRANCH_IDS.reduce((s, b) => s + expectedBranchTotals(b).netKwd, 0) +
+          EXHIBITION_BOOTH_26.net,
       )
-      const exactExpectedCompanyOrders = DYNAMIC_OPERATING_BRANCH_IDS.reduce(
-        (s, b) => s + expectedBranchTotals(b).orders,
-        0,
-      )
+      const exactExpectedCompanyOrders =
+        DYNAMIC_OPERATING_BRANCH_IDS.reduce((s, b) => s + expectedBranchTotals(b).orders, 0) +
+        EXHIBITION_BOOTH_26.orders
 
       // Zero poisoned KWD or orders leaked into Envelope or Cube
       expect(env.totals.netSalesKwd).toBe(exactExpectedCompanyNet)

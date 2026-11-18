@@ -12,6 +12,8 @@ import {
   companyPosConfigAllowed,
   companyPosSearchDomain,
   isPinnedSchoolCanteenConfigId,
+  isExhibitionConfigId,
+  EXHIBITION_BRANCH_ID,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
 } from './company-pos'
@@ -734,6 +736,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const locAgg = new Map<string, { net: number; orders: number }>()
   let schoolNet = 0
   let schoolOrders = 0
+  let boothNet = 0
+  let boothOrders = 0
   for (const g of mergedSessions) {
     const sid = g.sessionId ?? -1
     const cfg = configOfSession.get(sid)
@@ -745,6 +749,11 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
       schoolOrders += orders
       continue
     }
+    if (isExhibitionConfigId(cfg)) {
+      boothNet += net
+      boothOrders += orders
+      continue
+    }
     const loc = REG.registers[String(cfg)]?.location
     if (!loc || REG.locations[loc]?.unit !== 'restaurant' || locationExcluded(loc)) continue
     const b = locAgg.get(loc) ?? { net: 0, orders: 0 }
@@ -752,8 +761,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     b.orders += orders
     locAgg.set(loc, b)
   }
-  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0) + schoolNet)
-  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0) + schoolOrders
+  const targetNet = r3([...locAgg.values()].reduce((s, b) => s + b.net, 0) + schoolNet + boothNet)
+  const totalOrders = [...locAgg.values()].reduce((s, b) => s + b.orders, 0) + schoolOrders + boothOrders
   const rawLocNet = new Map(restaurantLocIds.map((loc) => [loc, r3(locAgg.get(loc)?.net ?? 0)]))
 
   const locRawUi = new Map<string, Record<string, { netKwd: number; orders: number }>>()
@@ -761,6 +770,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     locRawUi.set(loc, Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])))
   }
   const schoolUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
+    UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
+  )
+  const boothUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
     UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
   )
   for (const g of mergedPayments) {
@@ -782,6 +794,11 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     if (isPinnedSchoolCanteenConfigId(cfg)) {
       schoolUi[uiKey].netKwd += amt
       schoolUi[uiKey].orders += cnt
+      continue
+    }
+    if (isExhibitionConfigId(cfg)) {
+      boothUi[uiKey].netKwd += amt
+      boothUi[uiKey].orders += cnt
       continue
     }
     const loc = REG.registers[String(cfg)]?.location
@@ -827,6 +844,19 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     netKwd: r3(schoolNet),
     orders: schoolOrders,
     uiChannels: schoolUiRounded,
+  }
+  const boothUiRounded: Record<string, { netKwd: number; orders: number }> = {}
+  for (const ck of UI_CHANNEL_KEYS) {
+    const nv = r3(boothUi[ck].netKwd)
+    const ov = Math.max(0, Math.round(boothUi[ck].orders || 0))
+    boothUiRounded[ck] = { netKwd: nv, orders: ov }
+    aggUiChannels[ck].netKwd = r3(aggUiChannels[ck].netKwd + nv)
+    aggUiChannels[ck].orders += ov
+  }
+  byLocation[EXHIBITION_BRANCH_ID] = {
+    netKwd: r3(boothNet),
+    orders: boothOrders,
+    uiChannels: boothUiRounded,
   }
 
   const lineDomain = [['order_id.date_order', '>=', periodFromUtc], ['order_id.date_order', '<', periodToUtc], ['order_id.state', 'in', ['paid', 'done', 'invoiced']], ['order_id.session_id.config_id', 'in', visibleConfigIds], ['product_id.pos_categ_id', '!=', 150]]
@@ -1002,6 +1032,14 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
         netSalesKwd: r3(schoolNet),
         orders: schoolOrders,
         sharePct: pct(r3(schoolNet), targetNet),
+      },
+      {
+        id: EXHIBITION_BRANCH_ID,
+        name: 'Exhibition Booths',
+        unit: 'exhibition',
+        netSalesKwd: r3(boothNet),
+        orders: boothOrders,
+        sharePct: pct(r3(boothNet), targetNet),
       },
     ].sort((a, b) => b.netSalesKwd - a.netSalesKwd),
     channels: UI_CHANNEL_KEYS.map((ck) => ({ name: ck, amountKwd: aggUiChannels[ck].netKwd })).sort((a, b) => b.amountKwd - a.amountKwd),
