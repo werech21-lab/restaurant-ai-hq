@@ -59,6 +59,7 @@ import {
 } from '@/lib/aether/brand-scope'
 import { ScopeBadge } from '@/components/aether/ScopeBadge'
 import { buildArTieOut } from '@/lib/odoo/receivable-aging'
+import { isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
 import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
@@ -265,17 +266,39 @@ export function FullJourney360({
       gl.aggregatorCommissionUnposted ||
       gl.deliveryCommissionsKwd === null,
   )
+  const profitWindowClosed = isWindowWithinClosedMonths(gl.to, gl.glClosedThroughDate)
   const hasPostedOperatingProfit = Boolean(
-    gl.available && gl.operatingProfitKwd !== null && gl.netProfitPct !== null,
+    profitWindowClosed &&
+      gl.available &&
+      gl.operatingProfitKwd !== null &&
+      gl.netProfitPct !== null &&
+      !glIncomplete,
   )
-  const postedGrossKwd =
-    typeof gl.totalRevenueKwd === 'number' && typeof gl.cogsKwd === 'number'
-      ? Math.round((gl.totalRevenueKwd - gl.cogsKwd) * 1000) / 1000
-      : null
-  const glHiddenByFilter =
-    gl.unavailableReasonEn === 'The general ledger is not split by this filter.'
+  const postedLedgerLines = (
+    [
+      {
+        key: 'revenue',
+        labelAr: 'إيراد دفتر الأستاذ المرحّل',
+        labelEn: 'Posted GL revenue',
+        value: gl.totalRevenueKwd,
+      },
+      {
+        key: 'cogs',
+        labelAr: 'تكلفة البضاعة المرحّلة',
+        labelEn: 'Posted COGS',
+        value: gl.cogsKwd,
+      },
+      {
+        key: 'expense',
+        labelAr: 'المصروفات المرحّلة',
+        labelEn: 'Posted expenses',
+        value: gl.otherOpexAndDepreciationKwd,
+      },
+    ] as const
+  ).filter((line) => typeof line.value === 'number')
+  const glScopeLimited = gl.glScopeLimited === true
   const showOperatingCard =
-    hasPostedOperatingProfit || postedGrossKwd !== null || glHiddenByFilter
+    hasPostedOperatingProfit || postedLedgerLines.length > 0 || glScopeLimited
   const monthEndNote = gl.to
     ? isAr
       ? `غير مُرحَّل بعد — القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
@@ -1440,7 +1463,9 @@ export function FullJourney360({
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')}
+                    {hasPostedOperatingProfit
+                      ? T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')
+                      : T('Posted general ledger entries', 'قيود دفتر الأستاذ المرحّلة')}
                   </p>
                   <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
                   <Link
@@ -1472,38 +1497,49 @@ export function FullJourney360({
                 ) : (
                   <>
                     <div className="mt-3">
-                      {postedGrossKwd !== null && (!hasPostedOperatingProfit || glIncomplete) ? (
-                        <p
-                          dir="ltr"
-                          data-kpi="operating-net"
-                          className="text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl dark:text-white"
-                        >
-                          {fmtKwdVal(postedGrossKwd)}
-                        </p>
-                      ) : (
+                      {hasPostedOperatingProfit ? (
                         <V35KpiRing
                           tone="indigo"
                           size="md"
                           dataKpi="operating-net"
-                          value={hasPostedOperatingProfit && !glIncomplete ? netPocketKwd : null}
-                          isUnavailable={!hasPostedOperatingProfit || glIncomplete}
-                          percent={hasPostedOperatingProfit && !glIncomplete ? netPocketPct : null}
+                          value={netPocketKwd}
+                          isUnavailable={false}
+                          percent={netPocketPct}
                           display={fmtKwdVal(netPocketKwd)}
                           unavailableTooltip={unavailableTooltip}
                           ringCenter={
-                            hasPostedOperatingProfit && !glIncomplete ? (
-                              <span dir="ltr" className="tabular-nums">
-                                {`${netPocketPct.toFixed(1)}%`}
-                              </span>
-                            ) : undefined
+                            <span dir="ltr" className="tabular-nums">
+                              {`${netPocketPct.toFixed(1)}%`}
+                            </span>
                           }
                           valueClassName="text-xl sm:text-2xl xl:text-[26px]"
                         />
+                      ) : postedLedgerLines.length > 0 ? (
+                        <ul className="space-y-1.5" data-posted-gl-lines="true">
+                          {postedLedgerLines.map((line) => (
+                            <li key={line.key} className="flex items-baseline justify-between gap-3">
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                {isAr ? line.labelAr : line.labelEn}
+                              </span>
+                              <span
+                                dir="ltr"
+                                data-posted-gl={line.key}
+                                className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white"
+                              >
+                                {fmtKwdVal(line.value)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                          {isAr ? gl.unavailableReasonAr : gl.unavailableReasonEn}
+                        </p>
                       )}
                     </div>
 
                     <div className="mt-3.5 space-y-1.5">
-                      {!hasPostedOperatingProfit || glIncomplete ? (
+                      {!hasPostedOperatingProfit ? (
                         <div data-net-profit-withheld={gl.netProfitWithheld ? 'true' : undefined}>
                           <UnavailableState
                             isAr={isAr}
@@ -1518,7 +1554,7 @@ export function FullJourney360({
                                   : 'Not available yet — GL entries not posted'
                             }
                           />
-                          {postedGrossKwd !== null ? (
+                          {postedLedgerLines.length > 0 ? (
                             <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                               {monthEndNote}
                             </p>
@@ -1538,7 +1574,11 @@ export function FullJourney360({
                         lastSyncAt={lastSyncIso}
                         isStale24h={isStale24h}
                         kind="محسوب بمعادلة"
-                        queryOrFormula="account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
+                        queryOrFormula={
+                          hasPostedOperatingProfit
+                            ? "account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
+                            : "account.move.line(parent_state='posted'): income, expense_direct_cost, expense"
+                        }
                         compact
                       />
                     </div>
@@ -1549,7 +1589,7 @@ export function FullJourney360({
 
               {/* Card 4: posted platform commission only. Omitted when nothing is posted. */}
               {(typeof gl.deliveryCommissionsKwd === 'number' && !commissionUnposted) ||
-              glHiddenByFilter ? (
+              glScopeLimited ? (
               <V35GlassCard
                 as="article"
                 hoverLift

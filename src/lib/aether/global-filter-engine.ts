@@ -715,6 +715,8 @@ export interface WorkspaceLedgerAccounting {
   netProfitWithheldReasonEn?: string
   unavailableReasonAr: string | null
   unavailableReasonEn: string | null
+  /** True when a brand, branch, channel, or slice filter hides the company ledger. */
+  glScopeLimited: boolean
   revenueAccounts?: {
     code: string
     name: string
@@ -1336,6 +1338,7 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: noDataMessageAr,
       unavailableReasonEn: 'No Odoo data for this period',
+      glScopeLimited: false,
     }
 
     const cascadingBrands: FilterOption<GlobalBrand>[] = GLOBAL_BRAND_OPTIONS.map((opt) => ({
@@ -1673,11 +1676,13 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: 'دفتر الأستاذ غير مقسّم حسب هذا الفلتر.',
       unavailableReasonEn: 'The general ledger is not split by this filter.',
+      glScopeLimited: true,
     }
   } else if (!rawGl || rawGl.available === false || rawGlRev <= 0 || glIncompleteFromRaw) {
     const cogsVal = Math.max(0, safeNum(rawGl?.cogs))
+    const postedOpexVal = postedExpenseVal + postedDeprVal
     const postedLines = Boolean(
-      rawGl && (rawGlRev > 0 || cogsVal > 0 || postedExpenseVal > 0 || postedDeprVal > 0),
+      rawGl && (rawGlRev > 0 || cogsVal > 0 || postedOpexVal > 0),
     )
     accounting = {
       available: postedLines,
@@ -1695,7 +1700,8 @@ export function computeGlobalWorkspace(
       deliveryCommissionsKwd: aggregatorCommissionUnposted
         ? null
         : Math.round(postedDelivCommVal * 1000) / 1000,
-      otherOpexAndDepreciationKwd: null,
+      otherOpexAndDepreciationKwd:
+        postedOpexVal > 0 ? Math.round(postedOpexVal * 1000) / 1000 : null,
       beforeRentKwd: null,
       operatingProfitKwd: null,
       cogsPct: cogsVal > 0 && rawGlRev > 0 ? Math.round((cogsVal / rawGlRev) * 1000) / 10 : null,
@@ -1708,6 +1714,7 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
+      glScopeLimited: false,
       revenueAccounts: rawGl?.revenueAccounts ?? [],
       glClosedThroughDate: rawGl?.glClosedThroughDate ?? null,
     }
@@ -1758,6 +1765,7 @@ export function computeGlobalWorkspace(
       netProfitPct: Math.round((opProfitVal / rawGlRev) * 1000) / 10,
       unavailableReasonAr: null,
       unavailableReasonEn: null,
+      glScopeLimited: false,
       revenueAccounts: rawGl.revenueAccounts ?? [],
       glClosedThroughDate: rawGl.glClosedThroughDate ?? null,
       netProfitWithheld: false,

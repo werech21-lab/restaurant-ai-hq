@@ -154,40 +154,58 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(enOrdersCard!.text).not.toContain('قيود غير مكتملة')
   })
 
-  it('renders Operating Net Profit card with a single calm UnavailableState line, zero amber/rose classes, and zero hollow KPI ring SVG when glIncomplete=true', async () => {
+  it('lists posted GL lines on an open month and withholds operating profit', async () => {
+    const source = loadLiveTodaySummary().buckets!.today!.accounting!
+    const revenue = source.totalRevenue ?? 0
+    const cogs = source.cogs ?? 0
+    const expense = source.expense ?? 0
+    const kwd = (n: number) =>
+      n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+    const gross = Math.round((revenue - cogs) * 1000) / 1000
     const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
-    const arOpCard = findCardByTag(
-      arHtml,
-      'article',
-      (h) => h.includes('data-scope-for="gl-operating-net"') || h.includes('صافي الربح التشغيلي'),
+    const arOpCard = findCardByTag(arHtml, 'article', (h) =>
+      h.includes('قيود دفتر الأستاذ المرحّلة'),
     )
     expect(arOpCard).not.toBeNull()
-    // Exactly one calm line: the GL-not-posted text, or — when the window is not inside closed GL
-    // months (this payload has no Odoo lock dates) — the withheld-profit note (Phase 5 · Item 7).
+    expect(arOpCard!.text).toContain('قيود دفتر الأستاذ المرحّلة')
+    expect(arOpCard!.text).toContain('إيراد دفتر الأستاذ المرحّل')
+    expect(arOpCard!.text).toContain('تكلفة البضاعة المرحّلة')
+    expect(arOpCard!.text).toContain('المصروفات المرحّلة')
+    expect(arOpCard!.text).not.toContain('صافي الربح التشغيلي')
+    expect(arOpCard!.text).not.toContain(kwd(gross))
+    expect(arOpCard!.outerHtml).toContain('data-posted-gl="revenue"')
+    expect(arOpCard!.outerHtml).toContain(kwd(revenue))
+    expect(arOpCard!.outerHtml).toContain(kwd(cogs))
+    expect(arOpCard!.outerHtml).toContain(kwd(expense))
     expect(
       countOccurrences(arOpCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام') +
         countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar),
     ).toBe(1)
     expect(arOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')
     expect(countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar)).toBe(1)
-    expect(arOpCard!.text).toMatch(/\d+\.\d{3}/)
     expect(arOpCard!.text).toContain('العمولات والاستهلاك تُرحَّل نهاية الشهر')
+    expect(arOpCard!.outerHtml).not.toContain('data-kpi="operating-net"')
     expect(arOpCard!.outerHtml).not.toContain('amber-')
     expect(arOpCard!.outerHtml).not.toContain('rose-')
     expect(arOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
     expect(arOpCard!.outerHtml).not.toContain('<circle')
 
     const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
-    const enOpCard = findCardByTag(
-      enHtml,
-      'article',
-      (h) => h.includes('data-scope-for="gl-operating-net"') || h.includes('Operating Net Profit'),
+    const enOpCard = findCardByTag(enHtml, 'article', (h) =>
+      h.includes('Posted general ledger entries'),
     )
     expect(enOpCard).not.toBeNull()
+    expect(enOpCard!.text).toContain('Posted general ledger entries')
+    expect(enOpCard!.text).toContain('Posted GL revenue')
+    expect(enOpCard!.text).toContain('Posted COGS')
+    expect(enOpCard!.text).toContain('Posted expenses')
+    expect(enOpCard!.text).not.toContain('Operating Net Profit')
+    expect(enOpCard!.text).not.toContain(kwd(gross))
     expect(
       countOccurrences(enOpCard!.text, 'Not available yet — GL entries not posted') +
         countOccurrences(enOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.en),
     ).toBe(1)
+    expect(enOpCard!.text).toContain('Not posted yet')
     expect(enOpCard!.outerHtml).not.toContain('amber-')
     expect(enOpCard!.outerHtml).not.toContain('rose-')
     expect(enOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
