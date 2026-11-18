@@ -5042,7 +5042,7 @@ export function LanguageSwitch({
       <span
         className={`rounded-md px-1.5 py-0.5 font-bold transition-colors ${
           isAr
-            ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+            ? 'btn-colored bg-emerald-700 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
             : 'text-slate-500 dark:text-slate-400'
         }`}
       >
@@ -5054,7 +5054,7 @@ export function LanguageSwitch({
       <span
         className={`rounded-md px-1.5 py-0.5 font-bold tracking-wide transition-colors ${
           !isAr
-            ? 'btn-colored bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
+            ? 'btn-colored bg-emerald-700 text-white shadow-xs dark:bg-emerald-500 dark:text-[#04130D]'
             : 'text-slate-500 dark:text-slate-400'
         }`}
       >

@@ -65,7 +65,9 @@ const SIZE_SPECS: Record<V35KpiRingSize, RingDimensions> = {
     svgPx: 68,
     strokeWidth: 5,
     radius: 29,
-    valueTextClass: 'text-[clamp(1.25rem,1.9vw,1.9rem)] whitespace-nowrap',
+    // Sized from the value column's own width (container query), not the viewport: a vw size
+    // overflowed the 4-column hero card at 1440 px ("130,946.856 KW…").
+    valueTextClass: 'text-[clamp(1.05rem,11.5cqi,1.9rem)] whitespace-nowrap',
     centerTextClass: 'text-xs sm:text-sm',
     gapClass: 'gap-4',
   },
@@ -347,7 +349,7 @@ export function V35KpiRing({
         </div>
       ) : null}
 
-      <div className="min-w-0 flex-1">
+      <div className={cx('min-w-0 flex-1', size === 'lg' && '[container-type:inline-size]')}>
         {resolvedUnavailable ? (
           <span
             dir="ltr"

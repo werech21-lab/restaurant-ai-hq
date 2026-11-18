@@ -201,7 +201,7 @@ export function LoginForm({ nextPath = '' }: LoginFormProps) {
           type="submit"
           disabled={submitting}
           aria-label={submitting ? t('login.submitting') : t('login.submit')}
-          className="ds-focus-ring mt-2 inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+          className="ds-focus-ring mt-2 inline-flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
         >
           {submitting ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

@@ -147,7 +147,8 @@ export function formatCompactKwdTick(v: number, isAr: boolean): string {
   const safe = Number.isFinite(v) ? Math.max(0, v) : 0
   if (safe >= 1000) {
     const k = (safe / 1000).toFixed(1)
-    return isAr ? `${k} ألف` : `${k}k`
+    // Non-breaking space: chart ticks wrap at normal spaces, which split «16.0 ألف» onto two lines.
+    return isAr ? `${k}\u00A0ألف` : `${k}k`
   }
   return formatInt(safe)
 }

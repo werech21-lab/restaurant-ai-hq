@@ -214,9 +214,42 @@ export function GlobalAutoTranslator() {
       }, 150)
     }
 
-    flush()
-    const boot1 = window.setTimeout(flush, 200)
-    const boot2 = window.setTimeout(flush, 800)
+    // Never touch the DOM before React has hydrated it: streamed Suspense sections that are still
+    // dehydrated would see translated text and throw a hydration mismatch (React #418) on every
+    // English panel page. Start after the document has loaded, then one frame later.
+    let boot1 = 0
+    let boot2 = 0
+    let startTimer = 0
+    let started = false
+    const start = () => {
+      if (started) return
+      started = true
+      flush()
+      boot1 = window.setTimeout(flush, 200)
+      boot2 = window.setTimeout(flush, 800)
+      observer.observe(document.body, {
+        subtree: true,
+        childList: true,
+        characterData: false,
+        attributes: true,
+        attributeFilter: [...ATTRS, 'label'],
+      })
+    }
+    // Suspense sections streamed by the server hydrate after `load`, while the main thread is busy;
+    // wait until it is idle (hydration done) before the first pass.
+    let idleHandle = 0
+    const startAfterLoad = () => {
+      const ric = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+      if (ric) {
+        idleHandle = ric(() => {
+          rafRef.current = window.requestAnimationFrame(start)
+        }, { timeout: 2500 })
+      } else {
+        startTimer = window.setTimeout(() => {
+          rafRef.current = window.requestAnimationFrame(start)
+        }, 600)
+      }
+    }
 
     const observer = new MutationObserver((mutations) => {
       // Ignore pure characterData (live countdowns) — those are numbers/timers.
@@ -243,15 +276,14 @@ export function GlobalAutoTranslator() {
       if (needsRun) schedule()
     })
 
-    observer.observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: false,
-      attributes: true,
-      attributeFilter: [...ATTRS, 'label'],
-    })
+    if (document.readyState === 'complete') startAfterLoad()
+    else window.addEventListener('load', startAfterLoad, { once: true })
 
     return () => {
+      window.removeEventListener('load', startAfterLoad)
+      window.clearTimeout(startTimer)
+      const cic = (window as Window & { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
+      if (idleHandle && cic) cic(idleHandle)
       observer.disconnect()
       window.clearTimeout(boot1)
       window.clearTimeout(boot2)

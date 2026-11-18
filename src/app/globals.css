@@ -637,7 +637,7 @@ html:not(.dark) .diyar-hero-header p {
 }
 
 /* Primary Titles, Headings, and Figures */
-html[data-theme='light'] .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html[data-theme='light'] .text-white:not(.btn-colored):not([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class^="bg-red-6"],[class*=" bg-red-6"]):not([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not(:is([class^="bg-amber-5"],[class*=" bg-amber-5"]):not([class*="bg-amber-500/5 "],[class*="bg-amber-500/1"],[class*="bg-amber-500/2"],[class*="bg-amber-500/3"],[class*="bg-amber-500/4"]) *),
 html[data-theme='light'] .text-slate-100,
 html[data-theme='light'] .text-slate-200,
 html[data-theme='light'] .text-gray-50,
@@ -645,7 +645,7 @@ html[data-theme='light'] .text-gray-100,
 html[data-theme='light'] .text-zinc-50,
 html[data-theme='light'] .text-zinc-100,
 html[data-theme='light'] .text-mist-100,
-html.light-mode .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html.light-mode .text-white:not(.btn-colored):not([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class^="bg-red-6"],[class*=" bg-red-6"]):not([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not(:is([class^="bg-amber-5"],[class*=" bg-amber-5"]):not([class*="bg-amber-500/5 "],[class*="bg-amber-500/1"],[class*="bg-amber-500/2"],[class*="bg-amber-500/3"],[class*="bg-amber-500/4"]) *),
 html.light-mode .text-slate-100,
 html.light-mode .text-slate-200,
 html.light-mode .text-gray-50,
@@ -653,7 +653,7 @@ html.light-mode .text-gray-100,
 html.light-mode .text-zinc-50,
 html.light-mode .text-zinc-100,
 html.light-mode .text-mist-100,
-html.light .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html.light .text-white:not(.btn-colored):not([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class^="bg-red-6"],[class*=" bg-red-6"]):not([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not(:is([class^="bg-amber-5"],[class*=" bg-amber-5"]):not([class*="bg-amber-500/5 "],[class*="bg-amber-500/1"],[class*="bg-amber-500/2"],[class*="bg-amber-500/3"],[class*="bg-amber-500/4"]) *),
 html.light .text-slate-100,
 html.light .text-slate-200,
 html.light .text-gray-50,
@@ -661,7 +661,7 @@ html.light .text-gray-100,
 html.light .text-zinc-50,
 html.light .text-zinc-100,
 html.light .text-mist-100,
-html:not(.dark) .text-white:not(.btn-colored):not([class*="bg-blue-6"]):not([class*="bg-emerald-6"]):not([class*="bg-red-6"]):not([class*="bg-purple-6"]):not([class*="bg-indigo-6"]):not([class*="bg-amber-5"] *),
+html:not(.dark) .text-white:not(.btn-colored):not([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class^="bg-red-6"],[class*=" bg-red-6"]):not([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not(:is([class^="bg-amber-5"],[class*=" bg-amber-5"]):not([class*="bg-amber-500/5 "],[class*="bg-amber-500/1"],[class*="bg-amber-500/2"],[class*="bg-amber-500/3"],[class*="bg-amber-500/4"]) *),
 html:not(.dark) .text-slate-100,
 html:not(.dark) .text-slate-200,
 html:not(.dark) .text-gray-50,
@@ -771,58 +771,68 @@ html:not(.dark) .text-gray-900 {
 }
 
 /* 6. Action Buttons Color Fidelity (Ensure colored buttons keep 100% white text) */
-html[data-theme='light'] [class*="bg-blue-6"],
-html[data-theme='light'] [class*="bg-emerald-6"],
-html[data-theme='light'] [class*="bg-red-6"],
-html[data-theme='light'] [class*="bg-purple-6"],
-html[data-theme='light'] [class*="bg-indigo-6"],
-html[data-theme='light'] [class*="bg-teal-6"],
-html.light-mode [class*="bg-blue-6"],
-html.light-mode [class*="bg-emerald-6"],
-html.light-mode [class*="bg-red-6"],
-html.light-mode [class*="bg-purple-6"],
-html.light-mode [class*="bg-indigo-6"],
-html.light-mode [class*="bg-teal-6"],
-html.light [class*="bg-blue-6"],
-html.light [class*="bg-emerald-6"],
-html.light [class*="bg-red-6"],
-html.light [class*="bg-purple-6"],
-html.light [class*="bg-indigo-6"],
-html.light [class*="bg-teal-6"],
-html:not(.dark) [class*="bg-blue-6"],
-html:not(.dark) [class*="bg-emerald-6"],
-html:not(.dark) [class*="bg-red-6"],
-html:not(.dark) [class*="bg-purple-6"],
-html:not(.dark) [class*="bg-indigo-6"],
-html:not(.dark) [class*="bg-teal-6"] {
+html[data-theme='light'] :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]),
+html[data-theme='light'] :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]),
+html[data-theme='light'] :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]),
+html[data-theme='light'] :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]),
+html[data-theme='light'] :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]),
+html[data-theme='light'] :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]),
+html.light-mode :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]),
+html.light-mode :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]),
+html.light-mode :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]),
+html.light-mode :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]),
+html.light-mode :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]),
+html.light-mode :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]),
+html.light :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]),
+html.light :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]),
+html.light :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]),
+html.light :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]),
+html.light :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]),
+html.light :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]),
+html:not(.dark) :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]),
+html:not(.dark) :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]),
+html:not(.dark) :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]),
+html:not(.dark) :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]),
+html:not(.dark) :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]),
+html:not(.dark) :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]) {
   color: #FFFFFF !important;
 }
-html[data-theme='light'] [class*="bg-blue-6"] *,
-html[data-theme='light'] [class*="bg-emerald-6"] *,
-html[data-theme='light'] [class*="bg-red-6"] *,
-html[data-theme='light'] [class*="bg-purple-6"] *,
-html[data-theme='light'] [class*="bg-indigo-6"] *,
-html[data-theme='light'] [class*="bg-teal-6"] *,
-html.light-mode [class*="bg-blue-6"] *,
-html.light-mode [class*="bg-emerald-6"] *,
-html.light-mode [class*="bg-red-6"] *,
-html.light-mode [class*="bg-purple-6"] *,
-html.light-mode [class*="bg-indigo-6"] *,
-html.light-mode [class*="bg-teal-6"] *,
-html.light [class*="bg-blue-6"] *,
-html.light [class*="bg-emerald-6"] *,
-html.light [class*="bg-red-6"] *,
-html.light [class*="bg-purple-6"] *,
-html.light [class*="bg-indigo-6"] *,
-html.light [class*="bg-teal-6"] *,
-html:not(.dark) [class*="bg-blue-6"] *,
-html:not(.dark) [class*="bg-emerald-6"] *,
-html:not(.dark) [class*="bg-red-6"] *,
-html:not(.dark) [class*="bg-purple-6"] *,
-html:not(.dark) [class*="bg-indigo-6"] *,
-html:not(.dark) [class*="bg-teal-6"] * {
+html[data-theme='light'] :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]) *,
+html[data-theme='light'] :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]) *,
+html[data-theme='light'] :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]) *,
+html[data-theme='light'] :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]) *,
+html[data-theme='light'] :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]) *,
+html[data-theme='light'] :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]) *,
+html.light-mode :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]) *,
+html.light-mode :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]) *,
+html.light-mode :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]) *,
+html.light-mode :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]) *,
+html.light-mode :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]) *,
+html.light-mode :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]) *,
+html.light :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]) *,
+html.light :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]) *,
+html.light :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]) *,
+html.light :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]) *,
+html.light :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]) *,
+html.light :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]) *,
+html:not(.dark) :is([class^="bg-blue-6"],[class*=" bg-blue-6"]):not([class*="bg-blue-600/5 "],[class*="bg-blue-600/1"],[class*="bg-blue-600/2"],[class*="bg-blue-600/3"],[class*="bg-blue-600/4"]) *,
+html:not(.dark) :is([class^="bg-emerald-6"],[class*=" bg-emerald-6"]):not([class*="bg-emerald-600/5 "],[class*="bg-emerald-600/1"],[class*="bg-emerald-600/2"],[class*="bg-emerald-600/3"],[class*="bg-emerald-600/4"]) *,
+html:not(.dark) :is([class^="bg-red-6"],[class*=" bg-red-6"]):not([class*="bg-red-600/5 "],[class*="bg-red-600/1"],[class*="bg-red-600/2"],[class*="bg-red-600/3"],[class*="bg-red-600/4"]) *,
+html:not(.dark) :is([class^="bg-purple-6"],[class*=" bg-purple-6"]):not([class*="bg-purple-600/5 "],[class*="bg-purple-600/1"],[class*="bg-purple-600/2"],[class*="bg-purple-600/3"],[class*="bg-purple-600/4"]) *,
+html:not(.dark) :is([class^="bg-indigo-6"],[class*=" bg-indigo-6"]):not([class*="bg-indigo-600/5 "],[class*="bg-indigo-600/1"],[class*="bg-indigo-600/2"],[class*="bg-indigo-600/3"],[class*="bg-indigo-600/4"]) *,
+html:not(.dark) :is([class^="bg-teal-6"],[class*=" bg-teal-6"]):not([class*="bg-teal-600/5 "],[class*="bg-teal-600/1"],[class*="bg-teal-600/2"],[class*="bg-teal-600/3"],[class*="bg-teal-600/4"]) * {
   color: #FFFFFF !important;
 }
+
+/* 6b. AA contrast for white text on the solid action colours (emerald-600 3.77:1, teal-600 3.74:1 →
+   emerald-700 5.48:1, teal-700 5.47:1). Light theme only; pale tints are untouched. */
+html:not(.dark) [class~="bg-emerald-600"] { background-color: #047857 !important; }
+html:not(.dark) :is(a, button)[class~="bg-emerald-600"]:hover { background-color: #065F46 !important; }
+html:not(.dark) [class~="bg-teal-600"] { background-color: #0F766E !important; }
+html:not(.dark) :is(a, button)[class~="bg-teal-600"]:hover { background-color: #115E59 !important; }
+/* Dark theme: the same white-on-emerald-600 pairs (incl. dark:bg-emerald-600 buttons) at AA. */
+:is(html.dark, html[data-theme='dark']) :is([class~="bg-emerald-600"], [class~="dark:bg-emerald-600"]) { background-color: #047857 !important; }
+:is(html.dark, html[data-theme='dark']) :is(a, button):is([class~="bg-emerald-600"], [class~="dark:bg-emerald-600"]):hover { background-color: #065F46 !important; }
 
 /* 7. Disabled Buttons (e.g. وحدة أساسية معتمدة in /app-builder) */
 html[data-theme='light'] button:disabled,
@@ -837,6 +847,14 @@ html:not(.dark) [disabled] {
   color: #1E293B !important;
   border-color: #CBD5E1 !important;
   opacity: 1 !important;
+}
+
+/* 7b. A disabled solid-colour button keeps its grey surface, so its label (and icon/children) must be
+   dark too — the solid-colour white-text rule above otherwise left white text on #E2E8F0 (1.2:1).
+   Repeated attribute raises specificity above that rule. */
+html:not(.dark) [disabled][disabled][disabled],
+html:not(.dark) [disabled][disabled][disabled] * {
+  color: #334155 !important;
 }
 
 /* 8. Soft Luxury Borders in Light Mode */
@@ -949,7 +967,7 @@ html.light-mode .text-rose-400,
 html.light-mode .text-red-400,
 html.light-mode .text-rose-300,
 html.light-mode .text-red-300 {
-  color: #DC2626 !important;
+  color: #B91C1C !important; /* red-700: 6.5:1 (red-600 was 4.4:1) */
 }
 html[data-theme='light'] .bg-rose-500\/10,
 html[data-theme='light'] .bg-red-500\/10,
@@ -999,7 +1017,7 @@ html.light-mode .text-sky-400,
 html.light-mode .text-blue-400,
 html.light-mode .text-sky-300,
 html.light-mode .text-blue-300 {
-  color: #0284C7 !important;
+  color: #0369A1 !important; /* sky-700: 5.9:1 on light surfaces (sky-600 was 3.75:1) */
 }
 html[data-theme='light'] .bg-sky-500\/10,
 html[data-theme='light'] .bg-blue-500\/10,
@@ -1109,7 +1127,10 @@ html.light-mode ::-webkit-scrollbar-thumb {
 /* ==========================================================================
    RTL number safety: numeric spans never flip % / signs or mix with Arabic
    ========================================================================== */
-span.tabular-nums {
+/* :where() keeps this at zero specificity so layout utilities on the same span (inline-flex, flex,
+   hidden, block, gap-*) still apply. As a plain `span.tabular-nums` it outranked `.inline-flex`, which
+   collapsed icon + label + value badges (no gap, dot touching the text) across the app. */
+:where(span.tabular-nums) {
   direction: ltr;
   unicode-bidi: isolate;
   display: inline-block;

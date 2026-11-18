@@ -259,9 +259,10 @@ export function DeliveryRadarV5({
   const channelsUnavailable = Boolean(
     !liveCube &&
       activeBucket &&
-      (activeBucket.uiChannels === null ||
+      // Absent (older / trimmed payload) is unavailable too — never a 0.000 total.
+      (activeBucket.uiChannels == null ||
         activeBucket.totals.restaurantNetKwd === null ||
-        (filters.branch !== 'all' && activeBucket.byLocation?.[filters.branch]?.uiChannels === null)),
+        (filters.branch !== 'all' && activeBucket.byLocation?.[filters.branch]?.uiChannels == null)),
   )
 
   // Channel Totals (6 Aggregator Platforms + Direct Channels) directly from Odoo pos.payment

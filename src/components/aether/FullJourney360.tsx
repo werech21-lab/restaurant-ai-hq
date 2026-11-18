@@ -1146,7 +1146,7 @@ export function FullJourney360({
                     display={fmtKwdVal(workspace.nullableSalesKwd ?? 0)}
                     unavailableTooltip={unavailableTooltip}
                     ringCenter={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
-                    valueClassName="whitespace-nowrap text-[clamp(1.25rem,1.9vw,1.9rem)]"
+                    valueClassName="whitespace-nowrap text-[clamp(1.05rem,11.5cqi,1.9rem)]"
                   />
                 </div>
 

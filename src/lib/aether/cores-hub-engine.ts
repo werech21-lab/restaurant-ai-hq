@@ -792,7 +792,7 @@ export function computeCoresHubSnapshot(
       (unavailableSet.has('products') ||
         unavailableSet.has('pos.category') ||
         (activeBucket &&
-          (activeBucket.byBrand === null || activeBucket.totals.restaurantNetKwd === null))),
+          (activeBucket.byBrand == null || activeBucket.totals.restaurantNetKwd === null))),
   )
   const brandIds =
     filters.brand === 'all' ? [...APPROVED_BRAND_IDS] : [filters.brand]
@@ -932,10 +932,11 @@ export function computeCoresHubSnapshot(
       : mappedBranchPoints
 
   // 5. Channel Ranking (from live POS channel classification)
-  const channelsUnavailable = Boolean(!liveCube && activeBucket && activeBucket.uiChannels === null)
+  // A bucket without a channel section (null, or absent on older payloads) has no channel split.
+  const channelsMissing = Boolean(!liveCube && activeBucket && activeBucket.uiChannels == null)
   const channelIds =
     filters.channel === 'all' ? [...APPROVED_CHANNEL_IDS] : [filters.channel]
-  const channelRowsRaw = channelsUnavailable
+  const channelRowsComputed = channelsMissing
     ? []
     : channelIds.map((cid) => {
         if (liveCube && filters.brand === 'all') {
@@ -959,6 +960,14 @@ export function computeCoresHubSnapshot(
         const wsOpt = ws.cascadingOptions.channels.find((x) => x.id === cid)
         return { cid, salesKwd: safeNum(wsOpt?.salesKwd), orders: null }
       })
+  // Sales with an all-zero channel split means the split was not read — never show it as 0.000.
+  const channelsUnavailable =
+    channelsMissing ||
+    (!liveCube &&
+      channelRowsComputed.length > 0 &&
+      channelRowsComputed.every((r) => r.salesKwd === 0) &&
+      safeNum(ws.salesKwd) > 0)
+  const channelRowsRaw = channelsUnavailable ? [] : channelRowsComputed
   const channelDenomKwd = channelRowsRaw.reduce((s, r) => s + r.salesKwd, 0)
   const channelRanking: SalesPoint[] = channelRowsRaw
     .map((r) =>

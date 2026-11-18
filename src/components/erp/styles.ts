@@ -9,11 +9,11 @@ export const primaryButton =
   'rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const secondaryButton =
-  'rounded-lg border border-[#30363d] px-4 py-2 text-sm text-gray-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg border border-[#30363d] px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const dangerButton =
-  'rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-700 hover:bg-red-500/10 dark:text-red-400 disabled:cursor-not-allowed disabled:opacity-50'
 
-export const errorClass = 'rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300'
+export const errorClass = 'rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300'
 
-export const noticeClass = 'rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-300'
+export const noticeClass = 'rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm text-green-800 dark:text-green-300'

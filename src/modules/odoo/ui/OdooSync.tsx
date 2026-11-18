@@ -145,7 +145,7 @@ function Workspace() {
       {canSync ? (
         <section className={`${panelClass} border-gold-300/40`}>
           <h2 className="text-lg font-bold text-gold-300">{t('odoo.console')}</h2>
-          <p className="mt-2 text-sm text-gray-300">{t('odoo.consoleHelp')}</p>
+          <p className="mt-2 text-sm text-gray-300 [overflow-wrap:anywhere]">{t('odoo.consoleHelp')}</p>
           <textarea
             ref={snippetRef}
             aria-label={t('odoo.console')}

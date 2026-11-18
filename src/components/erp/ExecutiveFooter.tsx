@@ -296,7 +296,7 @@ export function ExecutiveFooter({
 
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-start text-[13px] font-medium tabular-nums text-slate-600 dark:text-slate-300">
+          <span className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-start text-[13px] font-medium text-slate-600 dark:text-slate-300">
             <span
               aria-hidden
               className={`inline-block h-2 w-2 shrink-0 rounded-full ${

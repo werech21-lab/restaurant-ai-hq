@@ -56,7 +56,7 @@ export default function ErpErrorShield({
           </button>
           <button
             type="button"
-            className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+            className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/5"
             onClick={() => {
               clearCorruptClientCache()
               reset()
@@ -66,11 +66,11 @@ export default function ErpErrorShield({
           </button>
           <a
             href="/erp/aggregator-radar"
-            className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-cyan-200 hover:bg-white/5"
+            className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-cyan-800 hover:bg-slate-100 dark:text-cyan-200 dark:hover:bg-white/5"
           >
             Open Aggregator Radar
           </a>
-          <a href="/erp" className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5">
+          <a href="/erp" className="rounded-lg border border-[#30363d] px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/5">
             ERP home
           </a>
         </div>

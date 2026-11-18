@@ -1573,9 +1573,11 @@ export function computeGlobalWorkspace(
     activeBkt &&
       (activeBkt.totals.restaurantNetKwd === null || activeBkt.totals.restaurantOrders === null),
   )
-  const channelsSectionUnavailable = Boolean(activeBkt && activeBkt.uiChannels === null)
-  const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand === null)
-  const branchesSectionUnavailable = Boolean(activeBkt && activeBkt.byLocation === null)
+  // A section absent from the bucket (older / trimmed payloads) is unavailable, exactly like null —
+  // never a row of 0.000 values.
+  const channelsSectionUnavailable = Boolean(activeBkt && activeBkt.uiChannels == null)
+  const brandsSectionUnavailable = Boolean(activeBkt && activeBkt.byBrand == null)
+  const branchesSectionUnavailable = Boolean(activeBkt && activeBkt.byLocation == null)
   const hourlySectionUnavailable = Boolean(liveSummary.hourlySeries === null)
   const activeSlice = computeSliceSalesAndOrders(brand, branch, channel)
   const sectionUnavailable = Boolean(
