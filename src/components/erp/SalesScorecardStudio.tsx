@@ -184,7 +184,7 @@ export function SalesScorecardStudio() {
             title={workspace.nullableAovKwd === null ? unavailableTooltip : undefined}
             aria-label={workspace.nullableAovKwd === null ? unavailableTooltip : undefined}
             data-unavailable={workspace.nullableAovKwd === null ? 'true' : undefined}
-            className="ds-num mt-1 text-2xl font-black font-mono tabular-nums text-amber-700 dark:text-amber-300"
+            className="ds-num mt-1 text-2xl font-black font-mono tabular-nums text-[#1E40AF] dark:text-sky-300"
           >
             {workspace.nullableAovKwd === null
               ? isAr
@@ -298,7 +298,7 @@ export function SalesScorecardStudio() {
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-            <Store size={16} className="text-cyan-600 dark:text-cyan-400" aria-hidden />
+            <Store size={16} className="text-[#0F766E] dark:text-[#5EEAD4]" aria-hidden />
             <h3 className="text-sm font-black text-slate-950 dark:text-white">
               {isAr ? 'ترتيب الـ 7 فروع الفعلية' : '7 Active Branches Scorecard'}
             </h3>
@@ -324,11 +324,11 @@ export function SalesScorecardStudio() {
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       dir="ltr"
-                      className="h-5 w-5 shrink-0 rounded-full bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 font-mono font-bold tabular-nums flex items-center justify-center"
+                      className="h-5 w-5 shrink-0 rounded-full bg-teal-500/15 text-teal-800 dark:text-[#5EEAD4] font-mono font-bold tabular-nums flex items-center justify-center"
                     >
                       {idx + 1}
                     </span>
-                    <span className="font-bold text-slate-900 dark:text-white break-words text-start">
+                    <span className="ae-branch-name font-bold text-[#0F766E] dark:text-[#5EEAD4] break-words text-start">
                       {isAr ? br.ar : br.en}
                     </span>
                   </div>
@@ -337,7 +337,7 @@ export function SalesScorecardStudio() {
                     title={unavailable ? unavailableTooltip : undefined}
                     className="ds-num text-end font-mono tabular-nums shrink-0"
                   >
-                    <span className="font-bold text-cyan-700 dark:text-cyan-300 block">
+                    <span className="font-bold text-[#0F766E] dark:text-[#5EEAD4] block">
                       {unavailable
                         ? isAr
                           ? 'غير متاح'
@@ -356,7 +356,7 @@ export function SalesScorecardStudio() {
 
         <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
           <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-            <TrendingUp size={16} className="text-amber-600 dark:text-amber-400" aria-hidden />
+            <TrendingUp size={16} className="text-[#1E40AF] dark:text-sky-300" aria-hidden />
             <h3 className="text-sm font-black text-slate-950 dark:text-white">
               {isAr ? 'ترتيب قنوات البيع الـ 8' : '8 Sales Channels Scorecard'}
             </h3>
@@ -382,7 +382,7 @@ export function SalesScorecardStudio() {
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       dir="ltr"
-                      className="h-5 w-5 shrink-0 rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 font-mono font-bold tabular-nums flex items-center justify-center"
+                      className="h-5 w-5 shrink-0 rounded-full bg-[#1E40AF]/10 text-[#1E40AF] dark:bg-sky-400/15 dark:text-sky-300 font-mono font-bold tabular-nums flex items-center justify-center"
                     >
                       {idx + 1}
                     </span>
@@ -395,7 +395,7 @@ export function SalesScorecardStudio() {
                     title={unavailable ? unavailableTooltip : undefined}
                     className="ds-num text-end font-mono tabular-nums shrink-0"
                   >
-                    <span className="font-bold text-amber-700 dark:text-amber-300 block">
+                    <span className="font-bold text-[#1E40AF] dark:text-sky-300 block">
                       {unavailable
                         ? isAr
                           ? 'غير متاح'

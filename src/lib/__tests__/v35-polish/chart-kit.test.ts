@@ -155,7 +155,7 @@ describe('V35 Polish — v35-chart-kit SSR render & RTL contracts', () => {
     expect(arDonut).toContain('6.500 د.ك')
     expect(arDonut).toContain('تكلفة المواد')
   })
-  it('V35_DONUT_PALETTE and V35_CHART_COLORS include cobalt, teal, violet, and amber tokens cleanly', async () => {
+  it('V35_DONUT_PALETTE and V35_CHART_COLORS include emerald, teal, light-navy, and amber tokens cleanly', async () => {
     const {
       V35_CHART_COLORS,
       V35_CHART_PALETTE,
@@ -164,21 +164,21 @@ describe('V35 Polish — v35-chart-kit SSR render & RTL contracts', () => {
       V35_HEATMAP_SCALE_LIGHT,
     } = await import('@/components/charts/v35-chart-theme')
 
-    expect(V35_CHART_COLORS.primary).toBe('#2563EB')
+    expect(V35_CHART_COLORS.primary).toBe('#059669')
     expect(V35_CHART_COLORS.teal).toBe('#0D9488')
-    expect(V35_CHART_COLORS.violet).toBe('#7C3AED')
+    expect(V35_CHART_COLORS.secondary).toBe('#1E40AF')
     expect(V35_CHART_COLORS.warning).toBe('#D97706')
     expect(V35_CHART_COLORS.comparison).toBe('#94A3B8')
 
-    expect(V35_DONUT_PALETTE).toContain('#2563EB')
-    expect(V35_DONUT_PALETTE).toContain('#0D9488')
-    expect(V35_DONUT_PALETTE).toContain('#7C3AED')
-    expect(V35_DONUT_PALETTE).toContain('#D97706')
-    expect(V35_DONUT_PALETTE.slice(0, 4)).toEqual(['#2563EB', '#0D9488', '#7C3AED', '#D97706'])
+    expect(V35_DONUT_PALETTE).toContain('#047857')
+    expect(V35_DONUT_PALETTE).toContain('#10B981')
+    expect(V35_DONUT_PALETTE).toContain('#34D399')
+    expect(V35_DONUT_PALETTE).toContain('#1E40AF')
+    expect(V35_DONUT_PALETTE.slice(0, 4)).toEqual(['#047857', '#10B981', '#34D399', '#1E40AF'])
 
-    expect(V35_CHART_PALETTE).toContain('#2563EB')
+    expect(V35_CHART_PALETTE).toContain('#059669')
     expect(V35_CHART_PALETTE).toContain('#0D9488')
-    expect(V35_CHART_PALETTE).toContain('#7C3AED')
+    expect(V35_CHART_PALETTE).toContain('#1E40AF')
     expect(V35_CHART_PALETTE).toContain('#D97706')
 
     expect(V35_HEATMAP_SCALE_LIGHT).toHaveLength(5)
@@ -400,7 +400,7 @@ describe('V35 Polish — v35-chart-kit Recharts RTL & SVG wiring (mocked Rechart
     expect(secArea!.strokeWidth).toBeLessThanOrEqual(2)
     expect(priArea!.strokeWidth).toBeLessThanOrEqual(2)
     expect(secArea!.stroke).toBe('#94A3B8')
-    expect(priArea!.stroke).toBe('#2563EB')
+    expect(priArea!.stroke).toBe('#059669')
     expect(secArea!.fill).toMatch(/^url\(#v35AreaSec-/)
     expect(priArea!.fill).toMatch(/^url\(#v35Area-/)
   })

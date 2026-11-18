@@ -78,10 +78,10 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 ${
               active
-                ? 'btn-colored bg-blue-600 font-semibold text-white shadow-sm dark:bg-sky-500 dark:text-slate-950'
-                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                ? 'btn-colored bg-emerald-700 font-semibold text-white shadow-sm dark:bg-emerald-700 dark:text-white'
+                : 'text-[#4F6673] hover:bg-white/80 hover:text-[#1E3A5F] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             <span>{opt.label}</span>
@@ -89,8 +89,8 @@ function EmeraldPillTabs<K extends string>({
               <span
                 className={`rounded-md px-1.5 py-0.5 text-xs font-extrabold tabular-nums ${
                   active
-                    ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
-                    : 'bg-white text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                    ? 'bg-emerald-800 text-white dark:bg-emerald-800 dark:text-white'
+                    : 'bg-white text-[#1E3A5F] dark:bg-white/10 dark:text-slate-300'
                 }`}
               >
                 {opt.badge}

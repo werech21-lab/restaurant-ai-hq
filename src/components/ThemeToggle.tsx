@@ -47,7 +47,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       {isDark ? (
         <Sun className="h-3.5 w-3.5 shrink-0 text-amber-300 transition-transform duration-200 group-hover:rotate-12" />
       ) : (
-        <Moon className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 group-hover:-rotate-12 dark:text-sky-300" />
+        <Moon className="h-3.5 w-3.5 shrink-0 text-[#047857] transition-transform duration-200 group-hover:-rotate-12 dark:text-emerald-300" />
       )}
       <span className="whitespace-nowrap tracking-tight">
         {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'أزرق' : 'Blue'}

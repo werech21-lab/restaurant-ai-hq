@@ -61,6 +61,7 @@ import {
   type HorizontalRankDatum,
   type MultiSeriesBarDatum,
 } from '@/components/aether/InteractiveHoverCharts'
+import { resolveV35DonutColor, V35_CHART_COLORS } from '@/components/charts/v35-chart-theme'
 
 export type CoreTabId = 'marketing' | 'sales' | 'menu'
 type MenuSortKey = 'sales' | 'units' | 'discount'
@@ -76,9 +77,9 @@ const f3 = (n: number | null | undefined, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3 })
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 const KPI_CARD_CLS =
-  'rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -95,7 +96,7 @@ function EmeraldPillTabs<K extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
+      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-[#EDF2F0]/90 p-1 ring-1 ring-[#1E3A5F]/[0.08] select-none dark:bg-white/[0.06] dark:ring-slate-400/15"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -106,10 +107,10 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 ${
               active
-                ? 'btn-colored bg-emerald-600 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-[#04130D]'
-                : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                ? 'btn-colored bg-emerald-700 font-semibold text-white shadow-sm dark:bg-emerald-700 dark:text-white'
+                : 'text-[#4F6673] hover:bg-white/85 hover:text-[#1E3A5F] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
             {opt.icon ? <span className="shrink-0">{opt.icon}</span> : null}
@@ -419,7 +420,7 @@ export function CoresHubStudio({
         label: isAr ? pt.labelAr : pt.labelEn,
         tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
         primaryValue: pt.salesKwd,
-        primaryColor: pt.color ?? '#10B981',
+        primaryColor: pt.color ?? V35_CHART_COLORS.primary,
         lines: [
           {
             label: isAr ? 'صافي مبيعات POS' : 'POS Net Sales',
@@ -442,7 +443,7 @@ export function CoresHubStudio({
         label: isAr ? pt.labelAr : pt.labelEn,
         tooltipTitle: isAr ? pt.tooltipTitleAr : pt.tooltipTitleEn,
         primaryValue: pt.salesKwd,
-        primaryColor: pt.color ?? '#10B981',
+        primaryColor: pt.color ?? V35_CHART_COLORS.primary,
         lines: [
           {
             label: isAr ? 'صافي المبيعات' : 'Net Sales',
@@ -462,26 +463,26 @@ export function CoresHubStudio({
     () =>
       snapshot.sales.brandShare
         .filter((b) => b.salesKwd > 0)
-        .map((b) => ({
+        .map((b, idx) => ({
           id: b.id,
           label: isAr ? b.labelAr : b.labelEn,
           value: b.salesKwd,
           valueFormatted: formatKwd(b.salesKwd, { locale: resolvedLocale }),
           pctFormatted: f1Pct(b.sharePct, resolvedLocale),
-          color: b.color ?? '#10B981',
+          color: resolveV35DonutColor(idx),
         })),
     [snapshot.sales.brandShare, isAr, resolvedLocale],
   )
 
   const channelRanks: HorizontalRankDatum[] = useMemo(
     () =>
-      snapshot.sales.channelRanking.map((c) => ({
+      snapshot.sales.channelRanking.map((c, idx) => ({
         id: c.id,
         label: isAr ? c.labelAr : c.labelEn,
         value: c.salesKwd,
         valueFormatted: formatKwd(c.salesKwd, { locale: resolvedLocale }),
         subLabel: `${f0(c.orders, resolvedLocale)} ${isAr ? 'طلب' : 'orders'} · ${f1Pct(c.sharePct, resolvedLocale)}`,
-        color: c.color ?? '#10B981',
+        color: resolveV35DonutColor(idx),
         lines: [
           {
             label: isAr ? 'صافي المبيعات' : 'Net Sales',
@@ -667,7 +668,7 @@ export function CoresHubStudio({
                     <span dir="ltr">{formatKwd(snapshot.sales.zeroCommSalesKwd, { locale: resolvedLocale })}</span>{' '}
                     {isAr ? 'مباشر' : 'direct'} ({f1Pct(snapshot.sales.zeroCommSharePct, resolvedLocale)})
                   </div>
-                  <div className="mt-0.5 font-mono text-xs tabular-nums text-sky-700 dark:text-sky-300">
+                  <div className="mt-0.5 font-mono text-xs tabular-nums text-[#1E40AF] dark:text-sky-300">
                     <span dir="ltr">{formatKwd(snapshot.sales.aggregatorSalesKwd, { locale: resolvedLocale })}</span>{' '}
                     {isAr ? 'تطبيقات' : 'apps'} ({f1Pct(snapshot.sales.aggregatorSharePct, resolvedLocale)})
                   </div>
@@ -879,7 +880,11 @@ export function CoresHubStudio({
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="font-semibold">
+                          <div
+                            className={`font-semibold ${
+                              isUnattr ? '' : 'ae-branch-name text-[#0F766E] dark:text-[#5EEAD4]'
+                            }`}
+                          >
                             {isAr ? b.labelAr : b.labelEn}
                           </div>
                           <div className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
@@ -1367,7 +1372,7 @@ export function CoresHubStudio({
                   resetCampaignForm()
                   setIsAdFormOpen((v) => !v)
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60"
               >
                 {isAdFormOpen ? <X className="h-3.5 w-3.5" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
                 <span>{isAr ? 'إضافة فترة حملة يدوية' : 'Log Campaign Window'}</span>
