@@ -1,3 +1,4 @@
+import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
 import fs from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -56,6 +57,19 @@ import { describePosOrderQuery } from '@/lib/odoo/pos-order-query'
 import { buildLiveEnterpriseDepartments } from '@/lib/reports/enterprise-reports-registry'
 
 const TEST_REF_NOW_MS = Date.parse('2026-11-15T12:00:00.000Z') // 15:00 Asia/Kuwait on 2026-11-15
+
+function monthWindowFor(nowMs: number) {
+  const today = new Date(nowMs + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  return kuwaitDateBoundsToOdooUtc(`${today.slice(0, 7)}-01`, today)
+}
+
+const MONTH_WINDOWS = [monthWindowFor(TEST_REF_NOW_MS), monthWindowFor(Date.now())]
+
+function isExactMonthWindow(gte: unknown, lt: unknown): boolean {
+  return MONTH_WINDOWS.some(
+    (window) => gte === window.fromUtc && lt === window.toExclusiveUtc,
+  )
+}
 const KW_DAY_NOV_15 = { 'date_order:day': { from: '2026-11-14 21:00:00', to: '2026-11-15 21:00:00' } }
 const KW_HOUR_13 = { 'date_order:hour': { from: '2026-11-15 10:00:00', to: '2026-11-15 11:00:00' } }
 
@@ -1137,10 +1151,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           const ltClause = domainClauses.find(
             (c) => Array.isArray(c) && c[0] === 'order_id.date_order' && c[1] === '<',
           )
-          const fromMs = Date.parse(`${String(gteClause?.[2] ?? '').replace(' ', 'T')}Z`)
-          const toMs = Date.parse(`${String(ltClause?.[2] ?? '').replace(' ', 'T')}Z`)
-          const spanDays = Math.round((toMs - fromMs) / 86_400_000)
-          if (opts?.failBrandsMonth && spanDays > 7 && spanDays <= 31) {
+          if (opts?.failBrandsMonth && isExactMonthWindow(gteClause?.[2], ltClause?.[2])) {
             return rpcFault(reqId, 'brands.month unavailable')
           }
           return rpcOk(reqId, [{ product_id: [99, 'Sweet & Sour'], price_subtotal: 300, qty: 20 }])
@@ -1154,10 +1165,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           const ltClause = domainClauses.find(
             (c) => Array.isArray(c) && c[0] === 'pos_order_id.date_order' && c[1] === '<',
           )
-          const fromMs = Date.parse(`${String(gteClause?.[2] ?? '').replace(' ', 'T')}Z`)
-          const toMs = Date.parse(`${String(ltClause?.[2] ?? '').replace(' ', 'T')}Z`)
-          const spanDays = Math.round((toMs - fromMs) / 86_400_000)
-          if (opts?.failChannelsMonth && spanDays > 7 && spanDays <= 31) {
+          if (opts?.failChannelsMonth && isExactMonthWindow(gteClause?.[2], ltClause?.[2])) {
             return rpcFault(reqId, 'channels.month unavailable')
           }
           const isCount = domainStr.includes('["pos_order_id.amount_total",">=",0]')

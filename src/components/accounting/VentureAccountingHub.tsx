@@ -199,12 +199,14 @@ export function VentureAccountingHub({
       {!embeddedInErp ? <PartialWarningBanner summary={liveSummary} isAr={isAr} /> : null}
 
       {activeTab === 'glSummary' && (
-        <OdooAccountingAnalyticsHub
-          isAr={isAr}
-          locale={currentLocale}
-          isAuditor={effectiveAuditor}
-        />
-        <GlStatementsPanel from={workspace.accounting.from} to={workspace.accounting.to} isAr={isAr} />
+        <>
+          <OdooAccountingAnalyticsHub
+            isAr={isAr}
+            locale={currentLocale}
+            isAuditor={effectiveAuditor}
+          />
+          <GlStatementsPanel from={workspace.accounting.from} to={workspace.accounting.to} isAr={isAr} />
+        </>
       )}
 
       {activeTab === 'receivables' && (

@@ -79,6 +79,30 @@ function emptyBucket(def: (typeof AR_AGING_BUCKETS)[number]): ArAgingBucketResul
   }
 }
 
+export interface OpenReceivableFact {
+  partnerKey: string
+  accountCode: string
+  residualKwd: number
+}
+
+/** Sums the same open lines once by partner and once by account. */
+export function aggregateReceivablesByPartnerAndAccount(lines: readonly OpenReceivableFact[]): {
+  byPartner: Record<string, number>
+  byAccount: Record<string, number>
+  total: number
+} {
+  const byPartner: Record<string, number> = {}
+  const byAccount: Record<string, number> = {}
+  let total = 0
+  for (const line of lines) {
+    const amount = round3(line.residualKwd)
+    byPartner[line.partnerKey] = round3((byPartner[line.partnerKey] ?? 0) + amount)
+    byAccount[line.accountCode] = round3((byAccount[line.accountCode] ?? 0) + amount)
+    total = round3(total + amount)
+  }
+  return { byPartner, byAccount, total }
+}
+
 /** Builds the result from per-bucket debit totals and one credit total. */
 export function summarizeArAging(input: {
   debitsByBucket: Partial<Record<ArAgingBucketKey, AgingGroupTotal>>

@@ -8,17 +8,8 @@ import {
 } from '@/lib/feryal/context-answer'
 import { monthCube } from '@/lib/__tests__/phase-5/support/feryal-dialect-fixture'
 
-function withBooths() {
-  const cube = monthCube()
-  const canteens = cube.byBranch['school-canteens']
-  cube.byBranch.exhibitions = canteens
-    ? { ...canteens }
-    : cube.byBranch.exhibitions
-  return cube
-}
-
 describe('Feryal answers from the period cube', () => {
-  const cube = withBooths()
+  const cube = monthCube()
 
   it('does not use the no-data refusal for small talk', () => {
     for (const question of ['فهمتي شو؟', 'مرحبا', 'محادثات قديمة', 'السلام عليكم']) {
@@ -55,10 +46,10 @@ describe('Feryal answers from the period cube', () => {
     expect(result.reply).toContain('اقتراح')
   })
 
-  it('includes exhibition booth figures from the cube', () => {
+  it('says exhibition booths are absent when the cube has no exhibitions cell', () => {
     const result = answerFromFeryalContext('شو وضع البوثات؟', cube)
-    expect(result.reply).toContain('بوثات المعارض')
-    expect(result.reply).toContain((cube.byBranch.exhibitions?.netKwd ?? 0).toFixed(3))
+    expect(result.reply).toContain('بوثات المعارض غير ظاهرة في مكعب هذه الفترة.')
+    expect(result.reply).not.toContain((cube.byBranch['school-canteens']?.netKwd ?? 0).toFixed(3))
   })
 
   it('states a missing metric once and still analyses the cube', () => {
