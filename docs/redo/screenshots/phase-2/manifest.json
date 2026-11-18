@@ -1,0 +1,477 @@
+{
+  "verifiedAt": "2026-11-18T09:40:43.898Z",
+  "count": 16,
+  "discoveries": [
+    {
+      "fingerprint": "seasons:salary-days:2026-11-25",
+      "advisorId": "seasons",
+      "linkedAdvisors": [
+        "cfo"
+      ],
+      "score": 710.727,
+      "titleAr": "«أيام الرواتب» بعد 1 أسبوع: آخر مرة كانت المبيعات اليومية +7.0% عن الأيام العادية (الأكثر تأثراً: الأفنيوز +15.5%)",
+      "titleEn": "“Salary days” in 1 week(s): last time daily sales were +7.0% vs normal days (most affected: The Avenues +15.5%)"
+    },
+    {
+      "fingerprint": "inventory:negative-quants:360-mall",
+      "advisorId": "inventory",
+      "linkedAdvisors": [],
+      "score": 229.2,
+      "titleAr": "مخزون مول 360 سالب في 18 من 94 صنفاً (19.1%)",
+      "titleEn": "360 stock is negative on 18 of 94 items (19.1%)"
+    },
+    {
+      "fingerprint": "hr:missed-checkout",
+      "advisorId": "hr",
+      "linkedAdvisors": [],
+      "score": 189.6,
+      "titleAr": "137 من 865 وردية مغلقة تجاوزت 12 ساعة (15.8%) (عينة محدودة بـ1000 سجل)",
+      "titleEn": "137 of 865 closed shifts ran over 12 hours (15.8%) (sample capped at 1000 rows)"
+    }
+  ],
+  "advisorReports": [
+    {
+      "advisorId": "cfo",
+      "status": "partial",
+      "findingsCount": 4,
+      "findings": [
+        {
+          "fingerprint": "cfo:wow-divergence:assima",
+          "titleAr": "العاصمة تراجعت 15.3% أسبوعياً بينما الشركة تراجعت 5.3%",
+          "titleEn": "Assima fell 15.3% week-on-week while the company fell 5.3%"
+        },
+        {
+          "fingerprint": "cfo:wow-outperformer:avenues",
+          "titleAr": "الأفنيوز تتفوّق: +19.2% أسبوعياً مقابل -5.3% للشركة",
+          "titleEn": "The Avenues is outperforming: +19.2% week-on-week vs -5.3% for the company"
+        },
+        {
+          "fingerprint": "cfo:basket-shrink:avenues",
+          "titleAr": "الأفنيوز: الطلبات زادت 13.0% لكن متوسط الفاتورة نزل 9.4%",
+          "titleEn": "The Avenues: orders up 13.0% but the average ticket down 9.4%"
+        },
+        {
+          "fingerprint": "cfo:weekday-gap:ardiya:5",
+          "titleAr": "مطبخ العارضية تبيع يوم الجمعة 125.0% من يومها المعتاد، بينما بقية الفروع 156.8%",
+          "titleEn": "Ardiya sells 125.0% of its normal day on Fridays, while the other branches sell 156.8%"
+        }
+      ],
+      "dataGaps": [
+        "pos.order.line / pos.payment",
+        "res.company (period_lock_date)"
+      ]
+    },
+    {
+      "advisorId": "delivery",
+      "status": "unavailable",
+      "findingsCount": 0,
+      "findings": [],
+      "dataGaps": [
+        "pos.payment",
+        "pos.payment"
+      ]
+    },
+    {
+      "advisorId": "hr",
+      "status": "partial",
+      "findingsCount": 3,
+      "findings": [
+        {
+          "fingerprint": "hr:missed-checkout",
+          "titleAr": "137 من 865 وردية مغلقة تجاوزت 12 ساعة (15.8%) (عينة محدودة بـ1000 سجل)",
+          "titleEn": "137 of 865 closed shifts ran over 12 hours (15.8%) (sample capped at 1000 rows)"
+        },
+        {
+          "fingerprint": "hr:overtime:OOH Section",
+          "titleAr": "186 وردية فوق 10 ساعات؛ الوسيط 9.1 ساعة مقابل وردية معيارية 9 ساعات — الأعلى في OOH Section",
+          "titleEn": "186 shifts over 10 hours; median 9.1 h against a 9-hour standard shift — highest in OOH Section"
+        },
+        {
+          "fingerprint": "hr:open-checkins",
+          "titleAr": "135 حضور مفتوح بلا انصراف (عينة محدودة بـ1000 سجل)",
+          "titleEn": "135 open attendances with no check-out (sample capped at 1000 rows)"
+        }
+      ],
+      "dataGaps": [
+        "hr.employee (work_location_id)",
+        "hr.attendance",
+        "hr.attendance.overtime / resource.calendar"
+      ]
+    },
+    {
+      "advisorId": "inventory",
+      "status": "partial",
+      "findingsCount": 1,
+      "findings": [
+        {
+          "fingerprint": "inventory:negative-quants:360-mall",
+          "titleAr": "مخزون مول 360 سالب في 18 من 94 صنفاً (19.1%)",
+          "titleEn": "360 stock is negative on 18 of 94 items (19.1%)"
+        }
+      ],
+      "dataGaps": [
+        "stock.quant",
+        "stock.move / stock.scrap",
+        "mrp.bom / mrp.bom.line"
+      ]
+    },
+    {
+      "advisorId": "seasons",
+      "status": "partial",
+      "findingsCount": 1,
+      "findings": [
+        {
+          "fingerprint": "seasons:salary-days:2026-11-25",
+          "titleAr": "«أيام الرواتب» بعد 1 أسبوع: آخر مرة كانت المبيعات اليومية +7.0% عن الأيام العادية (الأكثر تأثراً: الأفنيوز +15.5%)",
+          "titleEn": "“Salary days” in 1 week(s): last time daily sales were +7.0% vs normal days (most affected: The Avenues +15.5%)"
+        }
+      ],
+      "dataGaps": [
+        "pos.order",
+        "pos.order"
+      ]
+    }
+  ],
+  "captures": [
+    {
+      "file": "todays-discoveries__ar-1440.png",
+      "route": "todays-discoveries-section",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1270,
+      "pngHeight": 390,
+      "bytes": 144407,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-home-discoveries__ar-1440.png",
+      "route": "erp-home-discoveries",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 4370,
+      "bytes": 955804,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-feryal-ai__ar-1440.png",
+      "route": "erp-feryal-ai",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1541,
+      "bytes": 404213,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-seasons__ar-1440.png",
+      "route": "erp-seasons",
+      "lang": "ar",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1561,
+      "bytes": 331807,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "seasonIds": [
+          "salary-days",
+          "school-holiday-mid",
+          "ramadan-2027",
+          "national-day-2027",
+          "eid-al-fitr-2027",
+          "eid-al-adha-2027",
+          "school-start-2027"
+        ],
+        "confirmBadge": "يحتاج تأكيد المالك",
+        "ramadanHasApprox": true,
+        "hasAmber": false
+      }
+    },
+    {
+      "file": "todays-discoveries__en-1440.png",
+      "route": "todays-discoveries-section",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1270,
+      "pngHeight": 448,
+      "bytes": 160821,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-home-discoveries__en-1440.png",
+      "route": "erp-home-discoveries",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 4573,
+      "bytes": 1054875,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-feryal-ai__en-1440.png",
+      "route": "erp-feryal-ai",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1678,
+      "bytes": 445434,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-seasons__en-1440.png",
+      "route": "erp-seasons",
+      "lang": "en",
+      "viewportWidth": 1440,
+      "pngWidth": 1440,
+      "pngHeight": 1637,
+      "bytes": 374546,
+      "details": {
+        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "seasonIds": [
+          "salary-days",
+          "school-holiday-mid",
+          "ramadan-2027",
+          "national-day-2027",
+          "eid-al-fitr-2027",
+          "eid-al-adha-2027",
+          "school-start-2027"
+        ],
+        "confirmBadge": "Needs owner confirmation",
+        "ramadanHasApprox": true,
+        "hasAmber": false
+      }
+    },
+    {
+      "file": "todays-discoveries__ar-390.png",
+      "route": "todays-discoveries-section",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 358,
+      "pngHeight": 1176,
+      "bytes": 140526,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-home-discoveries__ar-390.png",
+      "route": "erp-home-discoveries",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 8757,
+      "bytes": 780933,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-feryal-ai__ar-390.png",
+      "route": "erp-feryal-ai",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3613,
+      "bytes": 331221,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "اكتشافات اليوم"
+      }
+    },
+    {
+      "file": "erp-seasons__ar-390.png",
+      "route": "erp-seasons",
+      "lang": "ar",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 2891,
+      "bytes": 273307,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "seasonIds": [
+          "salary-days",
+          "school-holiday-mid",
+          "ramadan-2027",
+          "national-day-2027",
+          "eid-al-fitr-2027",
+          "eid-al-adha-2027",
+          "school-start-2027"
+        ],
+        "confirmBadge": "يحتاج تأكيد المالك",
+        "ramadanHasApprox": true,
+        "hasAmber": false
+      }
+    },
+    {
+      "file": "todays-discoveries__en-390.png",
+      "route": "todays-discoveries-section",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 358,
+      "pngHeight": 1316,
+      "bytes": 149166,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-home-discoveries__en-390.png",
+      "route": "erp-home-discoveries",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 9228,
+      "bytes": 842572,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-feryal-ai__en-390.png",
+      "route": "erp-feryal-ai",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3895,
+      "bytes": 353707,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "discoveryIds": [
+          "seasons:salary-days:2026-11-25",
+          "inventory:negative-quants:360-mall",
+          "hr:missed-checkout"
+        ],
+        "estimateCount": 1,
+        "heading": "Today's Discoveries"
+      }
+    },
+    {
+      "file": "erp-seasons__en-390.png",
+      "route": "erp-seasons",
+      "lang": "en",
+      "viewportWidth": 390,
+      "pngWidth": 390,
+      "pngHeight": 3312,
+      "bytes": 319146,
+      "details": {
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "seasonIds": [
+          "salary-days",
+          "school-holiday-mid",
+          "ramadan-2027",
+          "national-day-2027",
+          "eid-al-fitr-2027",
+          "eid-al-adha-2027",
+          "school-start-2027"
+        ],
+        "confirmBadge": "Needs owner confirmation",
+        "ramadanHasApprox": true,
+        "hasAmber": false
+      }
+    }
+  ]
+}
