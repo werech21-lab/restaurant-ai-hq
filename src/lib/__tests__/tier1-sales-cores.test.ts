@@ -553,8 +553,12 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
       React.createElement(CoresHubStudioComponent, { initialTab: 'sales', initialLiveCube: liveCube }),
     )
     expect(salesAr).toContain('23,568.500')
-    expect(salesAr).toContain('2,145.625')
-    expect(salesAr).toContain('2,220.875')
+    // This fixture's hourly rows (Σ 5,486.750) do not add up to its period total (23,568.500), so the
+    // hourly section is unavailable and no peak (2,145.625) is shown — hourly must reconcile.
+    expect(salesAr).not.toContain('2,145.625')
+    expect(salesAr).toContain('data-hourly-unavailable="true"')
+    // 2,220.875 is the 3–6 PM sum of the same non-reconciling hourly rows → also withheld.
+    expect(salesAr).not.toContain('2,220.875')
     expect(salesAr).toContain('5,656.440')
     expect(salesAr).toContain('dir="ltr"')
 

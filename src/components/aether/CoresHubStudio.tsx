@@ -770,13 +770,17 @@ export function CoresHubStudio({
                   {isAr ? 'التوزيع الساعي لطلبات نقاط البيع' : 'Hourly POS Sales Profile'}
                 </h2>
                 <p className="text-xs text-slate-500 tabular-nums">
-                  {snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null)
+                  {cubeLoading && hourlyBars.length === 0
+                    ? null
+                    : snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null)
                     ? (
                         <span data-unavailable="true" title={unavailableTip}>
-                          {isAr ? 'غير متاح' : '—'}
+                          {isAr ? 'غير متاح' : 'Not available'}
                         </span>
                       )
-                    : isAr
+                    : snapshot.sales.peakHourSalesKwd <= 0
+                      ? null
+                      : isAr
                       ? `ذروة المبيعات: ${snapshot.sales.peakHourShortAr} (${formatKwd(snapshot.sales.peakHourSalesKwd, { locale: resolvedLocale })}) · الفترة 3–6 م: ${formatKwd(snapshot.sales.quietWindowSalesKwd, { locale: resolvedLocale })} (${f0(snapshot.sales.quietWindowOrders, resolvedLocale)} طلب)`
                       : `Peak hour: ${snapshot.sales.peakHourShortEn} (${formatKwd(snapshot.sales.peakHourSalesKwd, { locale: resolvedLocale })}) · 3–6 PM: ${formatKwd(snapshot.sales.quietWindowSalesKwd, { locale: resolvedLocale })} (${f0(snapshot.sales.quietWindowOrders, resolvedLocale)} orders)`}
                 </p>
@@ -790,17 +794,17 @@ export function CoresHubStudio({
                 queryOrFormula="Grouped by Asia/Kuwait hour of pos.order.date_order"
               />
             </div>
-            {snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
-              <StateBlock state="unavailable" compact locale={resolvedLocale} />
-            ) : cubeLoading && hourlyBars.length === 0 ? (
+            {cubeLoading && hourlyBars.length === 0 ? (
               <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={3} />
-            ) : (cubeTimedOut || cubeError) && hourlyBars.length === 0 ? (
-              <StateBlock
-                state="error"
-                compact
-                locale={resolvedLocale}
-                onRetry={() => setCubeRetryTick((n) => n + 1)}
-              />
+            ) : snapshot.sales.hourlyUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
+              <div data-hourly-unavailable="true">
+                <StateBlock
+                  state="unavailable"
+                  compact
+                  locale={resolvedLocale}
+                  onRetry={cubeTimedOut || cubeError ? () => setCubeRetryTick((n) => n + 1) : undefined}
+                />
+              </div>
             ) : hourlyBars.length > 0 ? (
               <InteractiveHoverBarChart
                 data={hourlyBars}

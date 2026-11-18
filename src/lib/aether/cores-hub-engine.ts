@@ -657,22 +657,43 @@ export function computeCoresHubSnapshot(
   const strongestDayLabelEn = bestDow >= 0 ? dayNamesEn[bestDow] : '—'
 
   // 2. Live hourly series (from liveCube when loaded, or liveSummary.hourlySeries)
-  // Phase 5 · Item 1: hourly buckets come ONLY from the selected-period cube. The summary's
-  // hourly series covers month-to-date, so it is never substituted for another period.
-  const hourlyUnavailable = Boolean(!liveCube && liveSummary?.hourlySeries === null)
-  const rawHourly =
-    liveCube
-      ? filters.branch !== 'all'
+  // Hourly series for the SELECTED period (Asia/Kuwait hours 00–23), from real Odoo data only:
+  //  1. the selected-period cube (/api/erp/live-comparison → fetchLiveOdooPeriodCube), or
+  //  2. for Month (all branches) only: the summary's hourly series, which the connector builds on
+  //     the Month bucket bounds (`posOrderDomainOf(boundsMonth)`), so it IS the Month period.
+  // A series is used only when Σ(hours) equals that period's net total to the fils; otherwise the
+  // hourly section is unavailable (no points, no peak) — never an empty chart with a 0.000 peak.
+  const monthBucketTotalKwd = liveSummary?.buckets?.month?.totals?.netSalesKwd
+  let hourlyCandidate: { hour: number; orders: number; netKwd: number }[] = []
+  let hourlyPeriodTotalKwd: number | null = null
+  let hourlySourced = false
+  if (liveCube) {
+    hourlyCandidate =
+      filters.branch !== 'all'
         ? liveCube.hourlyByBranch?.[filters.branch] ?? []
         : liveCube.hourlySeries ?? []
-      : []
+    hourlyPeriodTotalKwd =
+      filters.branch === 'all'
+        ? safeNum(liveCube.totals?.netSalesKwd)
+        : (liveCube.byBranch as Record<string, { netKwd: number } | undefined>)?.[filters.branch]?.netKwd ?? null
+    hourlySourced = true
+  } else if (
+    filters.period === 'month' &&
+    filters.branch === 'all' &&
+    Array.isArray(liveSummary?.hourlySeries) &&
+    typeof monthBucketTotalKwd === 'number'
+  ) {
+    hourlyCandidate = liveSummary!.hourlySeries!
+    hourlyPeriodTotalKwd = monthBucketTotalKwd
+    hourlySourced = true
+  }
+  const hourlyReconciliation = reconcileHourlyToPeriod(hourlyCandidate, hourlyPeriodTotalKwd)
+  const hourlyHasSales = hourlyCandidate.some((r) => Math.round(safeNum(r.netKwd) * 1000) !== 0)
+  const hourlyVerified = hourlySourced && hourlyReconciliation.reconciled
+  // Unavailable when no period-matched series exists or it does not reconcile to the period total.
+  const hourlyUnavailable = Boolean(liveSummary) && !hourlyVerified
+  const rawHourly = hourlyVerified && hourlyHasSales ? hourlyCandidate : []
   const orderedHours = selectDisplayHours(rawHourly)
-  const hourlyPeriodTotalKwd: number | null = liveCube
-    ? filters.branch === 'all'
-      ? safeNum(liveCube.totals?.netSalesKwd)
-      : (liveCube.byBranch as Record<string, { netKwd: number } | undefined>)?.[filters.branch]?.netKwd ?? null
-    : null
-  const hourlyReconciliation = reconcileHourlyToPeriod(rawHourly, hourlyPeriodTotalKwd)
 
   const hourlyDenom = rawHourly.reduce((s, r) => s + safeNum(r.netKwd), 0)
   const hourlyPrelim: SalesPoint[] =
@@ -1063,7 +1084,7 @@ export function computeCoresHubSnapshot(
     sales: {
       headline,
       hourlyUnavailable,
-      hourlyReconciliation: liveCube ? hourlyReconciliation : null,
+      hourlyReconciliation: hourlyVerified ? hourlyReconciliation : null,
       channelsUnavailable,
       branchesUnavailable,
       brandsUnavailable,
