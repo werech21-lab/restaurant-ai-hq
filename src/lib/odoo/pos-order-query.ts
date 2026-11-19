@@ -583,6 +583,26 @@ export function mergeSessionPaymentGroups(
 
 export type UtcWindow = { fromUtc: string; toUtc: string }
 
+/** Closed-year reads only. Today stays on the default 8s RPC cap. */
+export const YEAR_CLOSED_READ_TIMEOUT_MS = 45_000
+
+/** Yearly payments are one row per method. Session and date grouping times out. */
+export const YEAR_PAYMENT_GROUP_BY = ['payment_method_id'] as const
+
+export function yearReadCall(window: UtcWindow): {
+  kwargs: { lazy: false; context?: { year_live_slice: true } }
+  timeout?: { timeoutMs: number; timeoutCapMs: number }
+} {
+  const fromMs = Date.parse(`${window.fromUtc.replace(' ', 'T')}Z`)
+  const toMs = Date.parse(`${window.toUtc.replace(' ', 'T')}Z`)
+  const liveSlice = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs - fromMs <= 2 * 86_400_000
+  if (liveSlice) return { kwargs: { lazy: false, context: { year_live_slice: true } } }
+  return {
+    kwargs: { lazy: false },
+    timeout: { timeoutMs: YEAR_CLOSED_READ_TIMEOUT_MS, timeoutCapMs: YEAR_CLOSED_READ_TIMEOUT_MS },
+  }
+}
+
 /** Yesterday and earlier inside the year. Empty when the year starts today. */
 export function yearClosedWindow(yearFromUtc: string, todayFromUtc: string): UtcWindow | null {
   if (yearFromUtc >= todayFromUtc) return null

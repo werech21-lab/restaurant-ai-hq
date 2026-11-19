@@ -72,6 +72,9 @@ import {
   branchIdForStockLocation,
   isCentralKitchenStockLocation,
   isExcludedStockLocation,
+  resolveStockRoots,
+  type ResolvedStockRoots,
+  type StockWarehouseLot,
 } from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
@@ -92,7 +95,9 @@ import {
   mergeSessionGroups,
   mergeSessionPaymentGroups,
   readClosedYearPlusToday,
+  YEAR_PAYMENT_GROUP_BY,
   yearClosedWindow,
+  yearReadCall,
   type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
 import {
@@ -115,6 +120,16 @@ export const ODOO_RPC_TIMEOUT_MS = 8_000
 export const STOCK_READ_GROUP_TIMEOUT_MS = 25_000
 export const AUTH_UID_TTL_MS = 15 * 60_000
 export const LIVE_SNAPSHOT_TTL_MS = 60_000
+/** A partial pull may reuse a complete snapshot only while it is still this fresh. */
+export const LAST_KNOWN_GOOD_MAX_AGE_MS = 30 * 60_000
+
+export function lastKnownGoodIsFresh(
+  snapshot: { fetchedAtMs: number; unavailableSections: readonly string[] } | null | undefined,
+  nowMs: number,
+): boolean {
+  if (!snapshot || snapshot.unavailableSections.length > 0) return false
+  return nowMs - snapshot.fetchedAtMs <= LAST_KNOWN_GOOD_MAX_AGE_MS
+}
 export const MANUAL_SYNC_COOLDOWN_MS = 30_000
 const CIRCUIT_BREAKER_THRESHOLD = 2
 const CIRCUIT_OPEN_DURATION_MS = 20_000
@@ -2046,12 +2061,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const closedYearWindow = yearClosedWindow(boundsYear.fromUtc, boundsToday.fromUtc)
   const todayWindow = { fromUtc: boundsToday.fromUtc, toUtc: boundsToday.toUtc }
   const yearCachePrefix = `${resolvedCompanyId ?? 'none'}|${[...companyConfigList].sort((a, b) => a - b).join(',')}|${anchorDayKwIso}|${[...excludedPosCategoryIds].sort((a, b) => a - b).join(',')}`
-  const yearReadOpts = (window: { fromUtc: string; toUtc: string }) => {
-    const fromMs = Date.parse(`${window.fromUtc.replace(' ', 'T')}Z`)
-    const toMs = Date.parse(`${window.toUtc.replace(' ', 'T')}Z`)
-    const liveSlice = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs - fromMs <= 2 * 86_400_000
-    return liveSlice ? { lazy: false as const, context: { year_live_slice: true } } : { lazy: false as const }
-  }
+  const yearKwargs = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).kwargs
+  const yearTimeout = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).timeout
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
@@ -2293,9 +2304,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
                   [
                     posPaymentDomainOf(window, false),
                     ['amount:sum'],
-                    ['session_id', 'payment_method_id'],
+                    [...YEAR_PAYMENT_GROUP_BY],
                   ],
-                  yearReadOpts(window),
+                  yearKwargs(window),
+                  yearTimeout(window),
                 ),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => {
@@ -2321,9 +2333,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
                   [
                     posPaymentDomainOf(window, true),
                     ['amount:sum'],
-                    ['session_id', 'payment_method_id'],
+                    [...YEAR_PAYMENT_GROUP_BY],
                   ],
-                  yearReadOpts(window),
+                  yearKwargs(window),
+                  yearTimeout(window),
                 ),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => {
@@ -2424,7 +2437,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
                       ['price_subtotal:sum', 'qty:sum'],
                       ['product_id'],
                     ],
-                    yearReadOpts(window),
+                    yearKwargs(window),
+                    yearTimeout(window),
                   ),
                 merge: mergeProductLineGroups,
               }),
@@ -2447,7 +2461,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
                     ['amount_total:sum', 'amount_tax:sum'],
                     ['session_id'],
                   ],
-                  yearReadOpts(window),
+                  yearKwargs(window),
+                  yearTimeout(window),
                 ),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), [
@@ -2464,7 +2479,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
                   'pos.order',
                   'read_group',
                   [posOrderDomainOf(window, true), ['amount_total:sum'], ['session_id']],
-                  yearReadOpts(window),
+                  yearKwargs(window),
+                  yearTimeout(window),
                 ),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), []),
@@ -2720,8 +2736,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         latestMaturityDate,
         maturityStatusAr: 'رصيد متبقٍ غير مسوّى — ليس تصنيف استحقاق',
         maturityStatusEn: 'Open residual — not a due-date status',
-        openLinesExplanationAr: `إجمالي ${totalLines.toLocaleString('en-US')} سطراً غير مسوّى في أودو يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير فردية بحساب 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وعملاء شركات (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} د.ك)، وبالمجموع: +${r3(grossPositive).toLocaleString('en-US')} مدين موجب ناقص ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} مقاصة دائنة = ${r3(netSum).toLocaleString('en-US')} د.ك.`,
-        openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(grossPositive).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} credit clearing = ${r3(netSum).toLocaleString('en-US')} KWD.`,
+        openLinesExplanationAr: `إجمالي ${totalLines.toLocaleString('en-US')} سطراً غير مسوّى في أودو يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير فردية بحساب 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وعملاء شركات (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} د.ك)، وبالمجموع: +${r3(customerSplit.platformOpenDebitsKwd).toLocaleString('en-US')} مدين موجب ناقص ${Math.abs(r3(customerSplit.platformUnappliedCreditsKwd)).toLocaleString('en-US')} مقاصة دائنة = ${r3(platformNetKwd).toLocaleString('en-US')} د.ك.`,
+        openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(customerSplit.platformOpenDebitsKwd).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(customerSplit.platformUnappliedCreditsKwd)).toLocaleString('en-US')} credit clearing = ${r3(platformNetKwd).toLocaleString('en-US')} KWD.`,
         sourceModel: 'account.move.line',
         byAccount,
         agingBuckets: computedAging,
@@ -4201,10 +4217,11 @@ export async function fetchLiveOdooSnapshot(options?: {
       })
     }
     const freshCore = await inflightCorePull
-    const previousGood = lastKnownGoodSnapshot
-    if (freshCore.unavailableSections.length > 0 && previousGood && previousGood.unavailableSections.length === 0) {
+    const nowAfterPull = Date.now()
+    const previousGood = lastKnownGoodIsFresh(lastKnownGoodSnapshot, nowAfterPull) ? lastKnownGoodSnapshot : null
+    if (lastKnownGoodSnapshot && !previousGood) lastKnownGoodSnapshot = null
+    if (freshCore.unavailableSections.length > 0 && previousGood) {
       coreSnapshotCache = previousGood
-      const nowAfterPull = Date.now()
       const customBucket = isCustomPeriod
         ? await fetchLiveOdooCustomBucket(options?.customFrom, options?.customTo, nowAfterPull)
         : undefined
@@ -4220,7 +4237,6 @@ export async function fetchLiveOdooSnapshot(options?: {
     consecutiveUpstreamFailures = 0
     circuitOpenUntilMs = 0
 
-    const nowAfterPull = Date.now()
     const customBucket = isCustomPeriod
       ? await fetchLiveOdooCustomBucket(options?.customFrom, options?.customTo, nowAfterPull)
       : undefined
@@ -5601,6 +5617,8 @@ export async function fetchLiveOdooPeriodCube(
 function resolveStockLocationRole(
   locationId: number,
   usage: string,
+  parentPath: string | null,
+  roots: ResolvedStockRoots,
 ): {
   excluded: boolean
   usage: string
@@ -5616,14 +5634,14 @@ function resolveStockLocationRole(
   if (usage === 'inventory') {
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
-  if (usage === 'internal') {
-    if (isExcludedStockLocation(locationId)) {
+  if (usage === 'internal' || usage === 'view') {
+    if (isExcludedStockLocation(locationId, parentPath, roots)) {
       return { excluded: true, usage, role: 'other', branchId: null }
     }
-    if (isCentralKitchenStockLocation(locationId)) {
+    if (isCentralKitchenStockLocation(locationId, parentPath, roots)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
-    const branchId = branchIdForStockLocation(locationId)
+    const branchId = branchIdForStockLocation(locationId, parentPath, roots)
     if (branchId) {
       return { excluded: false, usage, role: 'branch', branchId }
     }
@@ -5731,7 +5749,7 @@ export async function fetchLiveOdooWarehouseChain(
     const uid = await authenticateOdoo()
     const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
 
-    const [userCompanyRows, locationsRaw, quantFieldsMeta, moveFieldsMeta, scrapFieldsMeta, posCategories] =
+    const [userCompanyRows, locationsRaw, warehousesRaw, quantFieldsMeta, moveFieldsMeta, scrapFieldsMeta, posCategories] =
       await Promise.all([
         safeSubQuery(
           () =>
@@ -5742,16 +5760,26 @@ export async function fetchLiveOdooWarehouseChain(
             ),
           [],
         ),
-        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string }[]>(
+        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string; parent_path?: string | false }[]>(
           'stock.location',
           'search_read',
-          // Internal locations carry on-hand stock. Supplier, customer and inventory
-          // locations are the ones move classification needs; view/transit rows are not.
-          [[['usage', 'in', ['internal', 'supplier', 'customer', 'inventory']]]],
+          // View rows are included so a move into a child of the branch (child_of / parent_path) stays on that branch.
+          [[['usage', 'in', ['internal', 'view', 'supplier', 'customer', 'inventory']]]],
           {
-            fields: ['id', 'name', 'complete_name', 'usage'],
+            fields: ['id', 'name', 'complete_name', 'usage', 'parent_path'],
             context: { active_test: false },
+            limit: 2000,
           },
+        ),
+        safeSubQuery(
+          () =>
+            executeOdooKw<{ code?: string; lot_stock_id?: M2O; view_location_id?: M2O }[]>(
+              'stock.warehouse',
+              'search_read',
+              [[]],
+              { fields: ['code', 'lot_stock_id', 'view_location_id'], limit: 100 },
+            ),
+          [],
         ),
         safeSubQuery(
           () =>
@@ -5819,6 +5847,12 @@ export async function fetchLiveOdooWarehouseChain(
       }
     }
 
+    const warehouseLots: StockWarehouseLot[] = warehousesRaw.map((row) => ({
+      code: String(row.code ?? ''),
+      lotStockId: m2oId(row.lot_stock_id),
+      viewLocationId: m2oId(row.view_location_id),
+    }))
+    const stockRoots = resolveStockRoots(warehouseLots)
     const locationMeta = new Map<
       number,
       ReturnType<typeof resolveStockLocationRole> & { label: string }
@@ -5826,7 +5860,8 @@ export async function fetchLiveOdooWarehouseChain(
     const excludedLocationIds: number[] = []
     for (const loc of locationsRaw) {
       const label = (loc.complete_name || loc.name || `Location #${loc.id}`).trim()
-      const meta = resolveStockLocationRole(loc.id, loc.usage || 'other')
+      const parentPath = typeof loc.parent_path === 'string' ? loc.parent_path : null
+      const meta = resolveStockLocationRole(loc.id, loc.usage || 'other', parentPath, stockRoots)
       locationMeta.set(loc.id, { ...meta, label })
       if (meta.excluded) excludedLocationIds.push(loc.id)
     }
