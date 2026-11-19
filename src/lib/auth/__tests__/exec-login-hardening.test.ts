@@ -132,7 +132,7 @@ describe('login rate-limit and DB-path hardening', () => {
     expect(await sessionRole(res)).toBe('admin')
   })
 
-  it('rejects a DB user whose role is not on the allowlist', async () => {
+  it('returns no_access when the password matches and the role title is unknown', async () => {
     findUnique.mockResolvedValue({
       id: 'u-wh',
       email: 'warehouse@venturefoodskw.com',
@@ -141,7 +141,10 @@ describe('login rate-limit and DB-path hardening', () => {
       role: { name: 'Warehouse', isAdmin: false },
     })
     const res = await POST(loginRequest('warehouse@venturefoodskw.com', DB_PASSWORD, '198.51.100.81'))
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(403)
+    const body = (await res.json()) as { reason?: string; errorEn?: string }
+    expect(body.reason).toBe('no_access')
+    expect(body.errorEn).toMatch(/not on the access list/i)
     expect(await sessionRole(res)).toBeNull()
   })
 
@@ -168,7 +171,8 @@ describe('login rate-limit and DB-path hardening', () => {
       role: { name: 'viewer', isAdmin: false },
     })
     const res = await POST(loginRequest('external.auditor@venturefoodskw.com', DB_PASSWORD, '198.51.100.82'))
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(403)
+    expect(((await res.json()) as { reason?: string }).reason).toBe('no_access')
   })
 
   it('grants admin when the email is listed in AETHER_ADMIN_EMAILS and the role table does not map', async () => {

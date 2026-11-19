@@ -16,7 +16,9 @@ import {
   execCookieOptions,
   sanitizeExecNextPath,
 } from "@/lib/auth/exec-session";
-import { resolveAccessRole } from "@/lib/auth/role-source";
+import { maskEmail, resolveAccessRole } from "@/lib/auth/role-source";
+import { logger } from "@/lib/logger";
+import { NO_ACCESS_MESSAGE } from "@/app/login/login-error-message";
 import { SessionSecretMissingError } from "@/lib/auth/session-secret";
 import { resolvePostLoginRedirectForRole } from "@/lib/auth/role-access-policy";
 import { firstAllowedHref, type AccessUser } from "@/lib/permissions";
@@ -112,9 +114,8 @@ export async function login(
       isAdmin: user.role.isAdmin,
     });
     if (!resolvedRole) {
-      loginIpFailureLimiter.check(ipKey);
-      loginAccountFailureLimiter.check(accountKey);
-      return invalid;
+      logger.warn("access_role_missing", { email: maskEmail(user.email) });
+      return { error: NO_ACCESS_MESSAGE.ar };
     }
 
     loginAccountFailureLimiter.reset(accountKey);

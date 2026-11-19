@@ -18,8 +18,10 @@ import {
   sanitizeExecNextPath,
   type ExecRole,
 } from '@/lib/auth/exec-session'
-import { resolveAccessRole } from '@/lib/auth/role-source'
+import { maskEmail, NO_ACCESS_REASON, resolveAccessRole } from '@/lib/auth/role-source'
 import { SessionSecretMissingError } from '@/lib/auth/session-secret'
+import { logger } from '@/lib/logger'
+import { NO_ACCESS_MESSAGE } from '@/app/login/login-error-message'
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 import { checkRequestOrigin } from '@/lib/http-origin'
 import {
@@ -117,6 +119,7 @@ export async function POST(request: NextRequest) {
   let authenticatedEmail: string | null = null
   let authenticatedRole: ExecRole | null = null
   let prismaUserId: string | null = null
+  let passwordMatchedWithoutRole: string | null = null
 
   if (email && password) {
     const matched = await authenticateExecutiveCredentials(email, password)
@@ -150,6 +153,8 @@ export async function POST(request: NextRequest) {
               authenticatedEmail = normalizedDbEmail
               authenticatedRole = role
               prismaUserId = dbUser.id
+            } else {
+              passwordMatchedWithoutRole = normalizedDbEmail
             }
           }
         }
@@ -157,6 +162,19 @@ export async function POST(request: NextRequest) {
         // Prisma DB may be unavailable in serverless environments; never break executive login.
       }
     }
+  }
+
+  if (passwordMatchedWithoutRole && !authenticatedRole) {
+    logger.warn('access_role_missing', { email: maskEmail(passwordMatchedWithoutRole) })
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: NO_ACCESS_REASON,
+        errorAr: NO_ACCESS_MESSAGE.ar,
+        errorEn: NO_ACCESS_MESSAGE.en,
+      },
+      { status: 403, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
   }
 
   if (!authenticatedEmail || !authenticatedRole) {

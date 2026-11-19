@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { computeCoresHubSnapshot } from '@/lib/aether/cores-hub-engine'
+import { DEFAULT_GLOBAL_FILTERS } from '@/lib/aether/global-filter-engine'
+import { buildReconciledBucket } from '@/lib/odoo-live-connector'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import {
   buildRegisterReconciliation,
   classifyIncludedRegister,
@@ -43,6 +47,62 @@ describe('per-register reconciliation', () => {
         0,
       ),
     ).toBeNull()
+  })
+})
+
+describe('connector bucket register reconciliation', () => {
+  it('keeps the allowed configs in a connector-shaped bucket and drops the exclusions', () => {
+    const included = [
+      { configId: 8, configName: 'labelled promenade 8', netKwd: 1.1, orders: 1 },
+      { configId: 9, configName: 'labelled promenade 9', netKwd: 1.2, orders: 1 },
+      { configId: 10, configName: 'labelled promenade 10', netKwd: 1.3, orders: 1 },
+      { configId: 11, configName: 'labelled promenade 11', netKwd: 1.4, orders: 1 },
+      ...[26, 27, 28, 29, 30, 31, 32, 33, 37, 38].map((configId) => ({
+        configId,
+        configName: `labelled booth ${configId}`,
+        netKwd: 0.1,
+        orders: 1,
+      })),
+      { configId: 41, configName: 'labelled canteen 41', netKwd: 0.3, orders: 1 },
+      { configId: 42, configName: 'labelled canteen 42', netKwd: 0.3, orders: 1 },
+      { configId: 43, configName: 'labelled canteen 43', netKwd: 0.3, orders: 1 },
+    ]
+    const excluded = [
+      { configId: 24, configName: 'labelled closed 24', netKwd: 9, orders: 1 },
+      { configId: 25, configName: 'labelled closed 25', netKwd: 9, orders: 1 },
+      { configId: 39, configName: 'labelled closed 39', netKwd: 9, orders: 1 },
+      { configId: 40, configName: 'labelled closed 40', netKwd: 9, orders: 1 },
+      { configId: 3, configName: 'Qurain Kitchen', netKwd: 9, orders: 1 },
+      { configId: 14, configName: 'Jahra register', netKwd: 9, orders: 1 },
+      { configId: 15, configName: 'هايزن بريج', netKwd: 9, orders: 1 },
+    ]
+    const includedNet = Math.round(included.reduce((sum, row) => sum + row.netKwd, 0) * 1000) / 1000
+    const bucket = buildReconciledBucket({
+      key: 'month',
+      from: '2026-11-01',
+      to: '2026-11-19',
+      days: 18,
+      locNetMap: new Map([['promenade', includedNet]]),
+      locOrdersMap: new Map([['promenade', included.length]]),
+      brandRawWeights: new Map([['china-garden', includedNet]]),
+      brandQtyWeights: new Map([['china-garden', 1]]),
+      locUiRawMap: new Map(),
+      registerRows: [...included, ...excluded],
+    })
+    const summary = {
+      source: 'live',
+      connected: true,
+      sourceMode: 'odoo17-live',
+      syncedAt: '2026-11-19T00:00:00.000Z',
+      noData: false,
+      buckets: { month: bucket },
+    } as OdooLiveSummary
+    const snap = computeCoresHubSnapshot({ ...DEFAULT_GLOBAL_FILTERS, period: 'month' }, [], summary)
+    const ids = snap.sales.registerReconciliation?.rows.map((row) => row.configId) ?? []
+    expect(ids).toEqual(expect.arrayContaining([8, 9, 10, 11, 26, 33, 37, 38, 41, 42, 43]))
+    expect(ids).not.toEqual(expect.arrayContaining([24, 25, 39, 40, 3, 14, 15]))
+    expect(snap.sales.registerReconciliation?.includedNetKwd).toBe(includedNet)
+    expect(snap.sales.registerReconciliation?.gapKwd).toBe(0)
   })
 })
 

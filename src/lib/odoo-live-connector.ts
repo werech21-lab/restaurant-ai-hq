@@ -58,6 +58,7 @@ import {
   signedKwd,
 } from '@/lib/odoo/company-pos'
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
+import { buildRegisterReconciliation } from '@/lib/odoo/register-reconciliation'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
 import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
 import {
@@ -1483,6 +1484,8 @@ export function buildReconciledBucket(params: {
   brandAllocation?: BrandAllocationResult | null
   locUiRawMap: Map<string, Record<string, { netKwd: number; orders: number }>>
   unmappedUiRaw?: Record<string, { netKwd: number; orders: number }>
+  /** Per-config nets from the same allowed session groups that built the company total. */
+  registerRows?: ReadonlyArray<{ configId: number; configName: string; netKwd: number; orders: number }>
   accounting?: OdooBucketSummary['accounting']
   totalsUnavailable?: boolean
   channelsUnavailable?: boolean
@@ -1507,6 +1510,7 @@ export function buildReconciledBucket(params: {
     brandAllocation,
     locUiRawMap,
     unmappedUiRaw,
+    registerRows,
     accounting,
     totalsUnavailable = false,
     channelsUnavailable = false,
@@ -1677,6 +1681,9 @@ export function buildReconciledBucket(params: {
           },
         }),
     uiChannels: channelsUnavailable ? null : aggUiChannels,
+    ...(registerRows
+      ? { registerReconciliation: buildRegisterReconciliation(registerRows, companyNet) }
+      : {}),
     ...(accounting !== undefined ? { accounting } : {}),
   }
 }
@@ -2790,6 +2797,29 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const locWeekOrd = new Map<string, number>()
   const locMonthNet = new Map<string, number>()
   const locMonthOrd = new Map<string, number>()
+  const registerToday = new Map<number, { net: number; orders: number }>()
+  const registerWeek = new Map<number, { net: number; orders: number }>()
+  const registerMonth = new Map<number, { net: number; orders: number }>()
+
+  const bumpAllowedRegister = (
+    map: Map<number, { net: number; orders: number }>,
+    cfgId: number | undefined,
+    amount: number,
+    count: number,
+  ) => {
+    if (cfgId === undefined || !companyConfigIds.has(cfgId)) return
+    const prev = map.get(cfgId) ?? { net: 0, orders: 0 }
+    prev.net += amount
+    prev.orders += count
+    map.set(cfgId, prev)
+  }
+  const registerRowsFor = (map: Map<number, { net: number; orders: number }>) =>
+    [...map.entries()].map(([configId, agg]) => ({
+      configId,
+      configName: displayConfigNameById.get(configId) ?? configNameById.get(configId) ?? '',
+      netKwd: agg.net,
+      orders: agg.orders,
+    }))
 
   let unmappedTodayNet = 0
   let unmappedTodayOrd = 0
@@ -2874,6 +2904,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) {
       continue
     }
+    if (dayIso === anchorDayKwIso) bumpAllowedRegister(registerToday, cfgId, net, ordCount)
+    if (dayIso >= weekFromKwIso && dayIso <= anchorDayKwIso) bumpAllowedRegister(registerWeek, cfgId, net, ordCount)
+    if (dayIso >= monthFromKwIso && dayIso <= anchorDayKwIso) bumpAllowedRegister(registerMonth, cfgId, net, ordCount)
     const branch = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
     const nativeBranch = cfgId !== undefined ? nativeBranchOfConfigId.get(cfgId) : undefined
 
@@ -3210,12 +3243,14 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   // 7. Build YTD bucket (`year`) strictly from live `ytdAggRows` (`session_id -> config_id`) without forced reconciliation
   const locYearNet = new Map<string, number>()
   const locYearOrd = new Map<string, number>()
+  const registerYear = new Map<number, { net: number; orders: number }>()
   let unmappedYearNet = 0
   let unmappedYearOrd = 0
   for (const yrRow of mergedYtdSessionRows) {
     const sid = yrRow.sessionId
     const cfgId = sid !== null ? configOfSession.get(sid) : undefined
     if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
+    bumpAllowedRegister(registerYear, cfgId, yrRow.netKwd, yrRow.orders)
     const net = yrRow.netKwd
     const ord = yrRow.orders
     if (ord <= 0 && net === 0) continue
@@ -3309,6 +3344,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveTodayAccounting,
     channelsUnavailable: channelsTodayFailed,
     brandAllocation: brandAllocationToday,
+    registerRows: registerRowsFor(registerToday),
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.today'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3331,6 +3367,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveWeekAccounting,
     channelsUnavailable: channelsWeekFailed,
     brandAllocation: brandAllocationWeek,
+    registerRows: registerRowsFor(registerWeek),
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.week'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3361,6 +3398,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     accounting: liveMonthAccounting,
     channelsUnavailable: channelsMonthFailed,
     brandOrdersMap: brandOrders30,
+    registerRows: registerRowsFor(registerMonth),
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.month'),
     excludedUnavailable: excludedMonthFailed,
   })
@@ -3382,6 +3420,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     totalsUnavailable: yearTotalsFailed,
     channelsUnavailable: channelsYearFailed,
     brandOrdersMap: brandOrdersYear,
+    registerRows: registerRowsFor(registerYear),
     brandsUnavailable: brandMetaFailed || unavailableSectionSet.has('brands.year'),
   })
 

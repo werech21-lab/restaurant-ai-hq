@@ -2,6 +2,7 @@ export type LoginErrorPayload = {
   errorAr?: string
   errorEn?: string
   error?: string
+  reason?: string
   retryAfterSeconds?: number
 }
 
@@ -31,6 +32,7 @@ export function resolveLoginErrorMessage(
   data: LoginErrorPayload | null | undefined,
 ): LoginErrorMessage {
   const payload = data ?? {}
+  if (payload.reason === 'no_access') return NO_ACCESS_MESSAGE
   if (status === 429) {
     const seconds = Number(payload.retryAfterSeconds)
     const minutes = Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.ceil(seconds / 60)) : null
