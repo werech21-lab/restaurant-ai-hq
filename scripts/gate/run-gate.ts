@@ -13,9 +13,17 @@
  * - Exits 0 if and only if all 4 deploy conditions and all 15 pages PASS.
  */
 
+import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { chromium, type ConsoleMessage, type Locator, type Page, type Response } from '@playwright/test'
+import {
+  chromium,
+  type Browser,
+  type ConsoleMessage,
+  type Locator,
+  type Page,
+  type Response,
+} from '@playwright/test'
 import {
   DEFAULT_GATE_TIMEOUT_MS,
   DEFAULT_SETTLE_TIMEOUT_MS,
@@ -503,6 +511,19 @@ async function authenticateQaUser(
   console.log(`[gate] QA login succeeded; landed on ${currentPath}.`)
 }
 
+async function launchGateBrowser(): Promise<Browser> {
+  const customExec = (process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? '').trim()
+  if (customExec) {
+    return chromium.launch({ executablePath: customExec, headless: true })
+  }
+  const bundledPath = chromium.executablePath()
+  if (bundledPath && existsSync(bundledPath)) {
+    return chromium.launch({ headless: true })
+  }
+  // Fallback to system Google Chrome (e.g. macOS 13 where Playwright skips bundled Chromium)
+  return chromium.launch({ channel: 'chrome', headless: true })
+}
+
 async function runGate(): Promise<number> {
   const startedAt = new Date()
   let config: GateConfig
@@ -530,7 +551,7 @@ async function runGate(): Promise<number> {
   await mkdir(resolvedOutDir, { recursive: true })
 
   const tracker = createMissingTestIdTracker()
-  const browser = await chromium.launch({ headless: true })
+  const browser = await launchGateBrowser()
 
   let nonGetBlockedCount = 0
 
