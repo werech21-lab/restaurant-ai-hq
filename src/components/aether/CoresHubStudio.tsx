@@ -967,7 +967,7 @@ export function CoresHubStudio({
                         <li key={row.configId} className="flex items-center justify-between gap-2">
                           <span className="min-w-0 truncate">
                             {row.configName}
-                            <span className="ms-1 text-[11px] text-[#4F6673]">
+                            <span className="ms-1 text-xs text-[#4F6673]">
                               {row.bucket === 'exhibition-booths'
                                 ? isAr
                                   ? 'بوثات المعارض'
