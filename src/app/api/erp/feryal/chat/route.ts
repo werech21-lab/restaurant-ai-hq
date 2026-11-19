@@ -12,6 +12,12 @@ import {
   UNATTRIBUTED_BRANCH_LABEL_AR,
   validateFeryalContextDefaults,
 } from '@/lib/feryal-odoo-agent'
+import {
+  isConfirmedPriceSheet,
+  isUnconfirmedDocumentDraft,
+  type ConfirmedPriceSheet,
+} from '@/lib/feryal/document-intake-types'
+import { UNCONFIRMED_DRAFT_REJECTED_ERROR } from '@/lib/feryal/executive-advisor'
 import { logger, errorFields } from '@/lib/logger'
 import { runFeryalCouncil } from '@/server/ai/council'
 
@@ -28,6 +34,23 @@ interface FeryalChatPostBody {
   branch?: string
   brand?: string
   channel?: string
+  confirmedPriceSheet?: unknown
+  priceSheet?: unknown
+  draft?: unknown
+  intakeDraft?: unknown
+}
+
+function unconfirmedDraftRejectedResponse() {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: 'HUMAN_CONFIRMATION_REQUIRED',
+      code: UNCONFIRMED_DRAFT_REJECTED_ERROR,
+      message:
+        'Extracted drafts (Extracted Draft (Unconfirmed)) must be reviewed and confirmed by a human (User Input (Confirmed)) before running executive simulations.',
+    },
+    { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+  )
 }
 
 export async function GET(req: NextRequest) {
@@ -86,11 +109,38 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  if (body.draft !== undefined || body.intakeDraft !== undefined) {
+    return unconfirmedDraftRejectedResponse()
+  }
+
+  let confirmedPriceSheet: ConfirmedPriceSheet | null = null
+  const sheetCandidate =
+    body.confirmedPriceSheet !== undefined ? body.confirmedPriceSheet : body.priceSheet
+
+  if (sheetCandidate !== undefined && sheetCandidate !== null) {
+    if (isUnconfirmedDocumentDraft(sheetCandidate) || !isConfirmedPriceSheet(sheetCandidate)) {
+      return unconfirmedDraftRejectedResponse()
+    }
+    if (sheetCandidate.rows.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'EMPTY_CONFIRMED_PRICE_SHEET',
+          message: 'Confirmed price sheet must contain at least one active SKU row.',
+        },
+        { status: 400, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    confirmedPriceSheet = sheetCandidate
+  }
+
   const rawQuestion =
     (typeof body.question === 'string' && body.question.trim()) ||
     (typeof body.prompt === 'string' && body.prompt.trim()) ||
     (typeof body.message === 'string' && body.message.trim()) ||
-    ''
+    (confirmedPriceSheet
+      ? `Run 3-scenario executive pricing simulation on confirmed price sheet (${confirmedPriceSheet.fileName})`
+      : '')
 
   if (!rawQuestion) {
     return NextResponse.json(
@@ -130,6 +180,7 @@ export async function POST(req: NextRequest) {
         brand: validatedDefaults.brandId,
         channel: validatedDefaults.channelId,
       },
+      ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
     })
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
     return NextResponse.json(
@@ -150,6 +201,9 @@ export async function POST(req: NextRequest) {
       { headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
   } catch (error) {
+    if (error instanceof Error && error.message === UNCONFIRMED_DRAFT_REJECTED_ERROR) {
+      return unconfirmedDraftRejectedResponse()
+    }
     logger.error('feryal council failed', errorFields(error))
     return NextResponse.json(
       {

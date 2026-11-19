@@ -189,6 +189,31 @@ export function formatFileSizeShort(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+export const DOCUMENT_INTAKE_ACCEPT =
+  '.xlsx,.csv,.jpg,.jpeg,.png,.webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,image/jpeg,image/png,image/webp'
+
+export function isSpreadsheetIntakeFile(file: Pick<File, 'name' | 'type'>): boolean {
+  const name = (file.name || '').toLowerCase()
+  const mime = (file.type || '').toLowerCase()
+  if (/\.(xlsx|csv)$/i.test(name)) return true
+  return (
+    mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    mime === 'text/csv' ||
+    mime === 'application/csv'
+  )
+}
+
+export function isSupportedIntakeImageFile(file: Pick<File, 'name' | 'type'>): boolean {
+  const name = (file.name || '').toLowerCase()
+  const mime = (file.type || '').toLowerCase()
+  if (/\.(jpe?g|png|webp)$/i.test(name)) return true
+  return mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/webp'
+}
+
+export function isSupportedDocumentIntakeFile(file: Pick<File, 'name' | 'type'>): boolean {
+  return isSpreadsheetIntakeFile(file) || isSupportedIntakeImageFile(file)
+}
+
 export function isSupportedMediaFile(file: File): boolean {
   const t = (file.type || '').toLowerCase()
   if (t.startsWith('image/') || t.startsWith('video/')) return true

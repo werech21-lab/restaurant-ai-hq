@@ -58,14 +58,46 @@ const NUMBER_TOKEN = /[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g
 const NUMBER_OR_PERCENT = /[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\s*%?/g
 const FROM_TO =
   /(?:from|من)\s+([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s+(?:to|إلى|الى)\s+([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/giu
+
 const SKIP_KEYS = new Set([
   'id',
   'period',
   'scope',
   'source',
+  'sourceTag',
   'reply',
   'executedQueries',
   'name',
+  'itemName',
+  'matchedOdooProductName',
+  'entityId',
+  'entityName',
+  'entityType',
+  'metric',
+  'unit',
+  'label',
+  'labelEn',
+  'labelAr',
+  'optionKey',
+  'recommendedOptionKey',
+  'abcTier',
+  'riskTag',
+  'playbookAction',
+  'brand',
+  'brandId',
+  'branch',
+  'branchId',
+  'fileName',
+  'fileKind',
+  'draftId',
+  'rowId',
+  'confirmedAtIso',
+  'productId',
+  'matchedOdooProductId',
+  'categoryId',
+  'configIds',
+  'chunks',
+  'rank',
   'code',
   'model',
   'domain',
@@ -73,7 +105,17 @@ const SKIP_KEYS = new Set([
   'to',
   'hour',
   'date',
+  'cogsBoundaryNoteEn',
+  'cogsBoundaryNoteAr',
+  'rationaleEn',
+  'rationaleAr',
 ])
+
+const NUMERIC_ARRAY_KEYS = new Set(['toolNumbers', 'canonicalDecimals', 'allowedDecimals'])
+const PERCENT_ARRAY_KEYS = new Set(['allowedPercents', 'percentDecimals'])
+const NUMERIC_FIELD_KEY_RE =
+  /(?:Kwd|Qty|Count|Orders|Pct|Percent|Delta|Price|Amount|Sales|Rev|Revenue)$/i
+const PERCENT_FIELD_KEY_RE = /(?:Pct|Percent|SharePct)$/i
 
 export function extractCanonicalDecimals(text: string): string[] {
   const normalized = normalizeGuardDigits(text)
@@ -86,7 +128,13 @@ export function extractCanonicalDecimals(text: string): string[] {
 }
 
 function pushCanonical(target: string[], value: string | number): void {
-  const canonical = typeof value === 'number' ? decimalFromNumber(value) : canonicalDecimal(value)
+  if (typeof value === 'number') {
+    const canonical = decimalFromNumber(value)
+    if (canonical) target.push(canonical)
+    return
+  }
+  const trimmed = value.trim().replace(/%\s*$/, '')
+  const canonical = canonicalDecimal(trimmed)
   if (canonical) target.push(canonical)
 }
 
@@ -95,13 +143,22 @@ export function collectFactValueDecimals(facts: unknown): string[] {
   const found: string[] = []
   const walk = (node: unknown, key: string | null) => {
     if (key && SKIP_KEYS.has(key)) return
-    if (key === 'toolNumbers' && Array.isArray(node)) {
+    if (key && NUMERIC_ARRAY_KEYS.has(key) && Array.isArray(node)) {
       for (const value of node) {
         if (typeof value === 'number' && Number.isFinite(value)) pushCanonical(found, value)
+        else if (typeof value === 'string') pushCanonical(found, value)
       }
       return
     }
     if (key === 'value' && (typeof node === 'string' || typeof node === 'number')) {
+      pushCanonical(found, node)
+      return
+    }
+    if (
+      key &&
+      NUMERIC_FIELD_KEY_RE.test(key) &&
+      (typeof node === 'string' || (typeof node === 'number' && Number.isFinite(node)))
+    ) {
       pushCanonical(found, node)
       return
     }
@@ -117,6 +174,116 @@ export function collectFactValueDecimals(facts: unknown): string[] {
   return [...new Set(found)]
 }
 
+function collectPercentValueDecimals(facts: unknown, options?: GroundingOptions): string[] {
+  const found: string[] = []
+  for (const raw of options?.allowedPercents ?? []) {
+    pushCanonical(found, raw)
+  }
+  const walk = (node: unknown, key: string | null) => {
+    if (key && PERCENT_ARRAY_KEYS.has(key) && Array.isArray(node)) {
+      for (const value of node) {
+        if (typeof value === 'number' || typeof value === 'string') pushCanonical(found, value)
+      }
+      return
+    }
+    if (
+      key &&
+      PERCENT_FIELD_KEY_RE.test(key) &&
+      (typeof node === 'string' || (typeof node === 'number' && Number.isFinite(node)))
+    ) {
+      pushCanonical(found, node)
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, null)
+      return
+    }
+    if (node && typeof node === 'object') {
+      const record = node as Record<string, unknown>
+      const unit = typeof record.unit === 'string' ? record.unit.trim().toLowerCase() : ''
+      const id = typeof record.id === 'string' ? record.id : ''
+      const label = typeof record.label === 'string' ? record.label : ''
+      const rawVal = record.value
+      const isPercentLabeledFact =
+        unit === '%' ||
+        unit === 'pct' ||
+        unit === 'percent' ||
+        /(?:^|[_|:-])(?:pct|percent|share|abc|elasticity)(?:$|[_|:-])/i.test(id) ||
+        /%|\bpct\b|\bpercent\b|\bshare\b|\belasticity\b|نسبة|حصة/iu.test(label) ||
+        (typeof rawVal === 'string' && /%\s*$/.test(rawVal))
+      if (isPercentLabeledFact && (typeof rawVal === 'string' || typeof rawVal === 'number')) {
+        pushCanonical(found, rawVal)
+      }
+      for (const [childKey, child] of Object.entries(record)) {
+        if (SKIP_KEYS.has(childKey)) continue
+        walk(child, childKey)
+      }
+    }
+  }
+  walk(facts, null)
+  return [...new Set(found)]
+}
+
+function isExecutiveFactPack(facts: unknown): boolean {
+  let detected = false
+  const walk = (node: unknown, depth: number) => {
+    if (detected || depth > 4 || !node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node.slice(0, 8)) walk(item, depth + 1)
+      return
+    }
+    const record = node as Record<string, unknown>
+    if (
+      'labeledFacts' in record ||
+      'skuVelocity' in record ||
+      'tierSummary' in record ||
+      'baseDeltaKwd' in record ||
+      'conservativeDeltaKwd' in record ||
+      'stressTestDeltaKwd' in record ||
+      record.source === ODOO_VERIFIED_ACTUAL_LABEL ||
+      record.source === USER_INPUT_CONFIRMED_LABEL ||
+      record.source === DETERMINISTIC_SIMULATION_LABEL ||
+      record.sourceTag === USER_INPUT_CONFIRMED_LABEL
+    ) {
+      detected = true
+      return
+    }
+    for (const child of Object.values(record)) walk(child, depth + 1)
+  }
+  walk(facts, 0)
+  return detected
+}
+
+function detectsPosCogsUnavailable(facts: unknown): boolean {
+  let explicitReadable: boolean | null = null
+  let sawPosItems = false
+  const walk = (node: unknown, depth: number) => {
+    if (depth > 5 || !node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node.slice(0, 12)) walk(item, depth + 1)
+      return
+    }
+    const record = node as Record<string, unknown>
+    if (typeof record.cogsReadable === 'boolean') {
+      explicitReadable = record.cogsReadable
+    }
+    if (
+      (typeof record.metric === 'string' && record.metric.startsWith('item_')) ||
+      'skuVelocity' in record ||
+      'abcTier' in record ||
+      'odooRealizedUnitPriceKwd' in record ||
+      'avgRealizedPriceKwd' in record
+    ) {
+      sawPosItems = true
+    }
+    for (const child of Object.values(record)) walk(child, depth + 1)
+  }
+  walk(facts, 0)
+  if (explicitReadable === false) return true
+  if (explicitReadable === true) return false
+  return sawPosItems
+}
+
 export function collectAllowedDecimals(facts: unknown): Set<string> {
   return new Set(collectFactValueDecimals(facts))
 }
@@ -127,7 +294,15 @@ function writtenScale(raw: string): number {
 }
 
 function matchesRounded(exact: Decimal, written: Decimal, scale: number): boolean {
-  return exact.roundHalfUp(scale).compare(written) === 0
+  if (exact.roundHalfUp(scale).compare(written) === 0) return true
+  // Also accept half-up rounding to 0dp, 1dp, 2dp, or 3dp when trailing zeros were omitted (e.g. `10.5` for `10.50`).
+  if (scale <= 3) {
+    for (const targetScale of [0, 1, 2, 3]) {
+      if (targetScale < scale) continue
+      if (exact.roundHalfUp(targetScale).compare(written) === 0) return true
+    }
+  }
+  return false
 }
 
 function pairMatches(
@@ -144,12 +319,12 @@ function pairMatches(
       const right = values[j]
       if (!left || !right) continue
       if (mode === 'delta') {
-        if (matchesRounded(left.sub(right), written, scale)) return true
+        if (left.sub(right).roundHalfUp(scale).compare(written) === 0) return true
         continue
       }
       if (mode === 'ratio') {
         const ratio = left.div(right, scale + 6)
-        if (ratio && matchesRounded(ratio, written, scale)) return true
+        if (ratio && ratio.roundHalfUp(scale).compare(written) === 0) return true
         continue
       }
       if (right.sign() === 0) continue
@@ -164,10 +339,20 @@ function pairMatches(
 
 function hasCue(text: string, kind: 'difference' | 'ratio' | 'growth'): boolean {
   if (kind === 'difference') {
-    return /(?:^|[^\p{L}\p{N}])(?:difference|delta|gap|فرق|الفارق|الفرق|بفارق)(?=$|[^\p{L}\p{N}])/iu.test(text)
+    return /(?:^|[^\p{L}\p{N}])(?:difference|delta|gap|impact|فرق|الفارق|الفرق|بفارق|الأثر|أثر)(?=$|[^\p{L}\p{N}])/iu.test(
+      text,
+    )
   }
-  if (kind === 'ratio') return /%\s*of\b|\bratio\b|\bshare\b|\bof\b|نسبة/iu.test(text)
-  return /(?:^|[^\p{L}\p{N}])(?:growth|percent|change|نمو|نسبة)(?=$|[^\p{L}\p{N}])/iu.test(text)
+  if (kind === 'ratio') return /%\s*of\b|\bratio\b|\bshare\b|\bof\b|\babc\b|\btier\b|نسبة|حصة/iu.test(text)
+  return /(?:^|[^\p{L}\p{N}])(?:growth|percent|change|increase|decrease|hike|drop|elasticity|نمو|نسبة|زيادة|تغير|انخفاض)(?=$|[^\p{L}\p{N}])/iu.test(
+    text,
+  )
+}
+
+function hasLossOrDropCue(text: string): boolean {
+  return /\b(?:drop|drops|dropped|decline|decrease|loss|lower|negative|reduction|volume\s+loss|stress[- ]test|conservative)\b|(?:انخفاض|تراجع|خسارة|نقص|هبوط|تحفظي|ضغط)/iu.test(
+    text,
+  )
 }
 
 interface FactValueRow {
@@ -203,20 +388,37 @@ function periodDeltaSign(facts: unknown): -1 | 0 | 1 | null {
   return [...signs][0] ?? null
 }
 
-function directionMatches(text: string, facts: unknown): boolean {
+function localClauseAround(text: string, start: number, end: number): string {
+  let left = start
+  while (left > 0 && start - left < 56 && !/[\n.!?;؛|]/.test(text[left - 1] ?? '')) {
+    left -= 1
+  }
+  let right = end
+  while (right < text.length && right - end < 56 && !/[\n.!?;؛|]/.test(text[right] ?? '')) {
+    right += 1
+  }
+  return text.slice(left, right)
+}
+
+function directionMatches(text: string, facts: unknown, executiveMode: boolean): boolean {
   FROM_TO.lastIndex = 0
   const pairs: Array<-1 | 0 | 1> = []
   for (const match of text.matchAll(FROM_TO)) {
     const start = match.index ?? 0
     const end = start + match[0].length
-    const window = text.slice(Math.max(0, start - 64), Math.min(text.length, end + 64))
     const from = Decimal.parse(match[1] ?? '')
     const to = Decimal.parse(match[2] ?? '')
     if (!from || !to) return false
     const pairSign = to.sub(from).sign()
     pairs.push(pairSign)
+    const window = executiveMode
+      ? localClauseAround(text, start, end)
+      : text.slice(Math.max(0, start - 64), Math.min(text.length, end + 64))
     const word = directionSign(window)
     if (word !== 0 && pairSign !== word) return false
+  }
+  if (executiveMode) {
+    return true
   }
   const whole = directionSign(text)
   if (whole === 0) return true
@@ -229,20 +431,89 @@ function directionMatches(text: string, facts: unknown): boolean {
 
 export const PROPOSED_USER_INPUT_LABEL = 'Proposed / User Input'
 export const ODOO_VERIFIED_ACTUALS_LABEL = 'Odoo Verified Actuals'
+export const ODOO_VERIFIED_ACTUAL_LABEL = 'Odoo Verified Actual'
+export const USER_INPUT_CONFIRMED_LABEL = 'User Input (Confirmed)'
+export const DETERMINISTIC_SIMULATION_LABEL = 'Deterministic Simulation'
+
+export const EXPLICIT_GROUNDING_LABELS = [
+  ODOO_VERIFIED_ACTUAL_LABEL,
+  USER_INPUT_CONFIRMED_LABEL,
+  DETERMINISTIC_SIMULATION_LABEL,
+  PROPOSED_USER_INPUT_LABEL,
+  ODOO_VERIFIED_ACTUALS_LABEL,
+] as const
 
 export interface GroundingOptions {
   /** The user's question. Numbers they typed are allowed only when the answer labels them. */
   question?: string
-  /** Extra proposed amounts already parsed from the question. */
+  /** Extra proposed amounts already parsed from the question or ConfirmedPriceSheet. */
   userInputs?: readonly string[]
+  /** Deterministic whitelist of allowed numeric values (Odoo actuals, confirmed inputs, simulation KWD). */
+  allowedDecimals?: readonly (string | number)[]
+  /** Deterministic whitelist of allowed percentage values (ABC shares, % changes, elasticity scenarios). */
+  allowedPercents?: readonly (string | number)[]
+  /** Verbatim entity names (e.g. '360 Mall', 'مول 360', 'Combo 2') masked prior to number scanning. */
+  allowedEntityNames?: readonly string[]
+  /** Explicitly reject any invented COGS / gross margin / net margin claims on POS SKUs. */
+  forbidPosCogsMarginClaims?: boolean
+  /** Multi-SKU executive brief mode: enables local per-clause direction check & markdown section ordinals. */
+  executiveBriefMode?: boolean
+}
+
+function escapeRegExp(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function maskIsoDates(text: string): string {
   return text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')
 }
 
+function maskExecutiveStructuralTokens(
+  text: string,
+  entityNames: readonly string[],
+  executiveMode: boolean,
+): string {
+  let out = text
+  if (entityNames.length > 0) {
+    const sorted = [...new Set(entityNames.map((n) => normalizeGuardDigits(n).trim()).filter((n) => n.length >= 3))].sort(
+      (a, b) => b.length - a.length,
+    )
+    for (const entity of sorted) {
+      out = out.replace(new RegExp(escapeRegExp(entity), 'giu'), ' ')
+    }
+  }
+  if (executiveMode) {
+    out = out
+      .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/gm, ' ')
+      .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
+      .replace(/\b(?:integration\s+user|user|مستخدم(?:\s+الربط)?)\s+225\b/giu, ' ')
+      .replace(/\bpos\.config\s+(?:24|36|25|39|40)\b/giu, ' ')
+      .replace(/\b(?:pos_category|category|فئة)\s+150\b/giu, ' ')
+  }
+  return out
+}
+
+export function hasExplicitGroundingLabel(text: string): boolean {
+  return (
+    text.includes(ODOO_VERIFIED_ACTUAL_LABEL) ||
+    text.includes(USER_INPUT_CONFIRMED_LABEL) ||
+    text.includes(DETERMINISTIC_SIMULATION_LABEL) ||
+    text.includes(PROPOSED_USER_INPUT_LABEL) ||
+    text.includes(ODOO_VERIFIED_ACTUALS_LABEL) ||
+    /proposed\s*\/\s*user input/i.test(text) ||
+    /user input\s*\(\s*confirmed\s*\)/i.test(text) ||
+    /odoo verified actuals?/i.test(text) ||
+    /deterministic simulation/i.test(text)
+  )
+}
+
 function hasProposedLabel(text: string): boolean {
-  return text.includes(PROPOSED_USER_INPUT_LABEL) || /proposed\s*\/\s*user input/i.test(text)
+  return (
+    text.includes(PROPOSED_USER_INPUT_LABEL) ||
+    text.includes(USER_INPUT_CONFIRMED_LABEL) ||
+    /proposed\s*\/\s*user input/i.test(text) ||
+    /user input\s*\(\s*confirmed\s*\)/i.test(text)
+  )
 }
 
 function decimalsIn(text: string): string[] {
@@ -259,25 +530,66 @@ function proposedDecimals(options: GroundingOptions | undefined, labeled: boolea
   return [...found]
 }
 
-function matchesRoundedValue(exact: Decimal, written: Decimal, scale: number): boolean {
-  return matchesRounded(exact, written, scale)
+function absDecimal(d: Decimal): Decimal {
+  return d.sign() < 0 ? Decimal.fromParts(-d.scaled, d.scale) : d
+}
+
+function matchesSingleValue(
+  written: Decimal,
+  scale: number,
+  values: readonly Decimal[],
+  allowUnsignedLossMagnitude: boolean,
+): boolean {
+  const exactScaleMatch = (exact: Decimal): boolean => exact.roundHalfUp(scale).compare(written) === 0
+  for (const value of values) {
+    if (exactScaleMatch(value)) return true
+    if (allowUnsignedLossMagnitude && value.sign() < 0 && written.sign() > 0 && exactScaleMatch(absDecimal(value))) {
+      return true
+    }
+  }
+  return false
+}
+
+function matchesExecutiveHalfUpTolerance(
+  written: Decimal,
+  scale: number,
+  values: readonly Decimal[],
+  allowUnsignedLossMagnitude: boolean,
+): boolean {
+  for (const value of values) {
+    if (matchesRounded(value, written, scale)) return true
+    if (allowUnsignedLossMagnitude && value.sign() < 0 && written.sign() > 0 && matchesRounded(absDecimal(value), written, scale)) {
+      return true
+    }
+  }
+  return false
 }
 
 /** Sums, differences, products, and qty × (proposed − current), including half-up rounding. */
-function matchesDerivation(written: Decimal, scale: number, values: readonly Decimal[]): boolean {
-  const pool = values.slice(0, 40)
-  for (const value of pool) {
-    if (matchesRoundedValue(value, written, scale)) return true
+function matchesDerivation(
+  written: Decimal,
+  scale: number,
+  values: readonly Decimal[],
+  executiveMode: boolean,
+  allowUnsignedLossMagnitude: boolean,
+): boolean {
+  if (
+    executiveMode
+      ? matchesExecutiveHalfUpTolerance(written, scale, values, allowUnsignedLossMagnitude)
+      : matchesSingleValue(written, scale, values, false)
+  ) {
+    return true
   }
+  const pool = values.slice(0, 40)
   for (let i = 0; i < pool.length; i += 1) {
     for (let j = 0; j < pool.length; j += 1) {
       if (i === j) continue
       const left = pool[i]
       const right = pool[j]
       if (!left || !right) continue
-      if (matchesRoundedValue(left.add(right), written, scale)) return true
-      if (matchesRoundedValue(left.sub(right), written, scale)) return true
-      if (matchesRoundedValue(left.mul(right), written, scale)) return true
+      if (left.add(right).roundHalfUp(scale).compare(written) === 0) return true
+      if (left.sub(right).roundHalfUp(scale).compare(written) === 0) return true
+      if (left.mul(right).roundHalfUp(scale).compare(written) === 0) return true
     }
   }
   const tripleLimit = Math.min(pool.length, 24)
@@ -289,7 +601,7 @@ function matchesDerivation(written: Decimal, scale: number, values: readonly Dec
         const right = pool[j]
         const factor = pool[k]
         if (!left || !right || !factor) continue
-        if (matchesRoundedValue(left.sub(right).mul(factor), written, scale)) return true
+        if (left.sub(right).mul(factor).roundHalfUp(scale).compare(written) === 0) return true
       }
     }
   }
@@ -301,7 +613,57 @@ function matchesDerivation(written: Decimal, scale: number, values: readonly Dec
       if (!next) continue
       sum = sum.add(next)
     }
-    if (matchesRoundedValue(sum, written, scale)) return true
+    if (sum.roundHalfUp(scale).compare(written) === 0) return true
+  }
+  return false
+}
+
+function matchesPercentPool(
+  written: Decimal,
+  scale: number,
+  percentValues: readonly Decimal[],
+  allowUnsignedLossMagnitude: boolean,
+): boolean {
+  for (const exact of percentValues) {
+    if (matchesRounded(exact, written, scale)) return true
+    if (allowUnsignedLossMagnitude && exact.sign() < 0 && written.sign() > 0 && matchesRounded(absDecimal(exact), written, scale)) {
+      return true
+    }
+  }
+  const pool = percentValues.slice(0, 24)
+  for (let i = 0; i < pool.length; i += 1) {
+    for (let j = 0; j < pool.length; j += 1) {
+      if (i === j) continue
+      const left = pool[i]
+      const right = pool[j]
+      if (!left || !right) continue
+      if (left.add(right).roundHalfUp(scale).compare(written) === 0) return true
+      if (left.sub(right).roundHalfUp(scale).compare(written) === 0) return true
+    }
+  }
+  return false
+}
+
+const COGS_OR_MARGIN_CLAIM_RE =
+  /\b(?:cogs|cost\s+of\s+goods(?:\s+sold)?|food\s+cost|recipe\s+cost|unit\s+cost|item\s+cost|sku\s+cost|gross\s+margin|net\s+margin|profit\s+margin|contribution\s+margin|gross\s+profit)\b|(?:تكلف[ةه]\s*(?:البضاع[ةه]|المبيعات|الصنف|الأصناف|الاصناف|الطبق|الوصف[ةه]|المواد|الوحد[ةه])|هامش\s*(?:الربح|ربح|إجمالي|اجمالي|صافي|المساهم[ةه]|الصنف)|الهامش\s*(?:الإجمالي|الاجمالي|الصافي))/iu
+
+const COGS_UNAVAILABLE_NEGATION_RE =
+  /\b(?:not\s+(?:readable|available|estimated|calculated|computed|provided|accessible|linked|known|shown|included)|unreadable|unavailable|cannot|can't|can\s+not|unable\s+to|lacks?\b|missing|without|no\s+(?:cogs|margin|margins|cost|read|access|permission|standard_price)|do\s+not|does\s+not|never|omit(?:ted)?|excluded|refused|restricted|revenue[- ]only|gross\s+revenue\s+only|not\s+(?:net\s+)?(?:profit|margin|cogs))\b|(?:غير\s*(?:متاح|متاحة|متاحين|متوفر|متوفرة|مقروء|مقروءة|مقدر|مقدرة|محسوب|محسوبة|مربوط)|لا\s*(?:يمكن|تتوفر|يتوفر|يملك|تملك|نملك|يوجد|توجد|تقدر|تُقدر|نقدر|نخمن|يحتسب|تحتسب|يُحتسب|نحتسب)|يتعذر|تعذر|بدون|دون\s+(?:تكلف|هامش|قراءة|صلاحية)|ليست?\s+(?:متاح|متوفر|مقروء)|لا\s+يشمل\s+(?:تكلف|هامش))/iu
+
+function hasInventedPosCogsOrMarginClaim(normalizedText: string): boolean {
+  const clauses = normalizedText.split(/[\n.!?;؛]+/)
+  for (const rawClause of clauses) {
+    const clause = rawClause.trim()
+    if (!clause) continue
+    if (!COGS_OR_MARGIN_CLAIM_RE.test(clause)) continue
+    if (COGS_UNAVAILABLE_NEGATION_RE.test(clause)) continue
+    const cleaned = clause
+      .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/, ' ')
+      .replace(/\b(?:integration\s+user|user|مستخدم(?:\s+الربط)?)\s+225\b/giu, ' ')
+      .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
+    if (/\d/.test(cleaned)) {
+      return true
+    }
   }
   return false
 }
@@ -328,26 +690,50 @@ export function guardAnswerNumbers(answer: string, allowed: ReadonlySet<string>)
 
 /**
  * Every number must be a cited fact value, a half-up rounding of one, a Decimal
- * derivation of those values (including qty × (proposed − current)), or a number
- * the user typed that the answer labels `Proposed / User Input`.
+ * derivation of those values (including qty × (proposed − current)), a deterministic
+ * simulation / ABC figure, or a user-confirmed number labeled `Proposed / User Input`
+ * or `User Input (Confirmed)`.
  */
 export function guardAnswerAgainstFacts(
   answer: string,
   facts: unknown,
   options?: GroundingOptions,
 ): NumberGuardResult {
-  const normalized = maskIsoDates(normalizeGuardDigits(answer))
-  if (/\d(?:\.\d+)?e[+-]?\d/i.test(normalized)) {
+  const digitsNormalized = normalizeGuardDigits(answer)
+  if (/\d(?:\.\d+)?e[+-]?\d/i.test(digitsNormalized)) {
     return { ok: false, offending: ['SCIENTIFIC'] }
   }
-  const labeled = hasProposedLabel(normalized)
+  const executiveMode = options?.executiveBriefMode === true || isExecutiveFactPack(facts)
+  const posCogsUnavailable =
+    options?.forbidPosCogsMarginClaims === true || detectsPosCogsUnavailable(facts)
+
+  const maskedDates = maskIsoDates(digitsNormalized)
+  const normalized = maskExecutiveStructuralTokens(
+    maskedDates,
+    options?.allowedEntityNames ?? [],
+    executiveMode,
+  )
+
+  const labeled = hasProposedLabel(digitsNormalized)
   const userCanon = proposedDecimals(options, labeled)
-  const valueCanon = [...collectFactValueDecimals(facts), ...userCanon]
+  const explicitAllowedCanon: string[] = []
+  for (const raw of options?.allowedDecimals ?? []) {
+    pushCanonical(explicitAllowedCanon, raw)
+  }
+  const valueCanon = [...new Set([...collectFactValueDecimals(facts), ...explicitAllowedCanon, ...userCanon])]
   const valueSet = new Set(valueCanon)
   const parsed = valueCanon.flatMap((token) => {
     const decimal = Decimal.parse(token)
     return decimal ? [decimal] : []
   })
+
+  const percentCanon = collectPercentValueDecimals(facts, options)
+  const percentParsed = percentCanon.flatMap((token) => {
+    const decimal = Decimal.parse(token)
+    return decimal ? [decimal] : []
+  })
+  const allowUnsignedLossMagnitude = executiveMode && hasLossOrDropCue(digitsNormalized)
+
   FROM_TO.lastIndex = 0
   const explainedGrowth = hasCue(normalized, 'growth') || FROM_TO.test(normalized)
   FROM_TO.lastIndex = 0
@@ -365,15 +751,19 @@ export function guardAnswerAgainstFacts(
     seen.add(`${percent ? '%' : ''}${canonical}`)
     const scale = writtenScale(numeric)
     const ok = percent
-      ? (explainedGrowth && pairMatches(written, scale, parsed, 'growth')) ||
+      ? matchesPercentPool(written, scale, percentParsed, allowUnsignedLossMagnitude) ||
+        (explainedGrowth && pairMatches(written, scale, parsed, 'growth')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'share'))
       : valueSet.has(canonical) ||
-        matchesDerivation(written, scale, parsed) ||
+        matchesDerivation(written, scale, parsed, executiveMode, allowUnsignedLossMagnitude) ||
         (explainedDifference && pairMatches(written, scale, parsed, 'delta')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'ratio'))
     if (!ok) offending.push(canonical)
   }
-  if (!directionMatches(normalized, facts)) offending.push('DIRECTION')
+  if (posCogsUnavailable && hasInventedPosCogsOrMarginClaim(maskedDates)) {
+    offending.push('COGS_MARGIN_UNAVAILABLE')
+  }
+  if (!directionMatches(normalized, facts, executiveMode)) offending.push('DIRECTION')
   return { ok: offending.length === 0, offending }
 }
 
