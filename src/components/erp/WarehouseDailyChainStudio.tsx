@@ -675,20 +675,25 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
                       <td className="px-2 py-2.5 text-end font-semibold">
-                        {b.health === 'no-movement' && b.dispatchedFromWarehouseKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.dispatchedFromWarehouseKwd, val.movesValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.dispatchedFromWarehouseKwd, val.movesValued))}
-                          />
+                        {b.transferMoves > 0 || b.dispatchedKg > 0 ? (
+                          <span className="tabular-nums">
+                            <span dir="ltr">{fmtInt(b.dispatchedKg)}</span>
+                            {val.movesValued ? <span className="text-slate-500"> · {fmtKwd(b.dispatchedFromWarehouseKwd)}</span> : null}
+                          </span>
+                        ) : (
+                          noneCell
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300">
-                        <ValueCell
-                          value={b.transferMoves}
-                          locale={fmtLocale}
-                          text={fmtInt(b.transferMoves)}
-                        />
+                        {b.transferMoves > 0 ? (
+                          <ValueCell
+                            value={b.transferMoves}
+                            locale={fmtLocale}
+                            text={fmtInt(b.transferMoves)}
+                          />
+                        ) : (
+                          noneCell
+                        )}
                       </td>
                       <td className="px-2 py-2.5 text-end font-semibold">
                         {b.health === 'no-movement' && b.bomTheoreticalCostKwd === 0 ? noneCell : (
@@ -709,11 +714,10 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
-                        <ValueCell
-                          value={kv(b.closingStockKwd, val.onHandValued)}
-                          locale={fmtLocale}
-                          text={fmtKwd(kv(b.closingStockKwd, val.onHandValued))}
-                        />
+                        <span className="tabular-nums">
+                          <span dir="ltr">{fmtInt(b.closingStockQty)}</span>
+                          {val.onHandValued ? <span className="text-slate-500"> · {fmtKwd(b.closingStockKwd)}</span> : null}
+                        </span>
                       </td>
                       <td className="px-2 py-2.5 text-end font-semibold">
                         <ValueCell

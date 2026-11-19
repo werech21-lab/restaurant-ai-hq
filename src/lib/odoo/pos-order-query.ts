@@ -586,8 +586,54 @@ export type UtcWindow = { fromUtc: string; toUtc: string }
 /** Closed-year reads only. Today stays on the default 8s RPC cap. */
 export const YEAR_CLOSED_READ_TIMEOUT_MS = 45_000
 
-/** Yearly payments are one row per method. Session and date grouping times out. */
-export const YEAR_PAYMENT_GROUP_BY = ['payment_method_id'] as const
+/**
+ * Yearly payments stay grouped by session and method so each branch keeps its
+ * channel split. The closed window is read per register (one config id) under
+ * the 45s cap, then cached.
+ */
+export const YEAR_PAYMENT_GROUP_BY = ['session_id', 'payment_method_id'] as const
+
+export const YEAR_REGISTER_READ_CONCURRENCY = 8
+
+export interface YearChannelPayment {
+  configId: number | null
+  methodName: string
+  netKwd: number
+  orders: number
+}
+
+/** Each payment is added once, to one branch channel or to the unmapped bucket. */
+export function foldYearBranchChannels(input: {
+  payments: readonly YearChannelPayment[]
+  branchOfConfig: (configId: number) => string | null
+  isDeliveryConfig: (configId: number) => boolean
+  channelOf: (methodName: string, isDelivery: boolean) => string
+  branchIds: readonly string[]
+  channelKeys: readonly string[]
+}): {
+  byBranch: Record<string, Record<string, { netKwd: number; orders: number }>>
+  unmapped: Record<string, { netKwd: number; orders: number }>
+  totalNet: number
+} {
+  const blank = () => Object.fromEntries(input.channelKeys.map((key) => [key, { netKwd: 0, orders: 0 }]))
+  const byBranch: Record<string, Record<string, { netKwd: number; orders: number }>> = {}
+  for (const id of input.branchIds) byBranch[id] = blank()
+  const unmapped = blank()
+  let totalNet = 0
+  for (const payment of input.payments) {
+    totalNet += payment.netKwd
+    const branch = payment.configId == null ? null : input.branchOfConfig(payment.configId)
+    const channel = input.channelOf(
+      payment.methodName,
+      payment.configId != null && input.isDeliveryConfig(payment.configId),
+    )
+    const bucket = branch && byBranch[branch] ? byBranch[branch] : unmapped
+    const cell = bucket[channel] ?? (bucket[channel] = { netKwd: 0, orders: 0 })
+    cell.netKwd += payment.netKwd
+    cell.orders += payment.orders
+  }
+  return { byBranch, unmapped, totalNet }
+}
 
 export function yearReadCall(window: UtcWindow): {
   kwargs: { lazy: false; context?: { year_live_slice: true } }

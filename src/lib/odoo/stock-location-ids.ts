@@ -1,23 +1,18 @@
 /**
- * Stock locations for the seven restaurants and the central kitchen.
- *
- * The quant export only contains 360, KOUT, ASM, PRM and QRN. Avenues, Salmiya,
- * Ardiya and Jahra are resolved from `stock.warehouse` (code → lot_stock_id and
- * view_location_id) because those rows were not in the export. pos.config 41 and
- * 42 are school-canteen registers, not stock locations.
- * A location that is not a mapped warehouse, and not a child of one, stays
- * unattributed.
+ * Confirmed Odoo stock.location ids from the Venture Foods quant export
+ * (database/seeds/venturefoods_odoo_cids1_dump.json, exported 2026-10-31).
+ * That extract's internal locations are only:
+ *   219 360/Stock, 227 KOUT/Stock, 235 ASM/Stock, 251 PRM/Stock, 259 QRN/Stock.
+ * Avenues, Salmiya, Ardiya and Jahra have no stock.location row in the export,
+ * and the live Odoo credentials are not readable from this environment, so no
+ * further ids are recorded. pos.config 41 and 42 are school-canteen registers,
+ * not stock locations.
+ * A location matches a root when its id, or any id in parent_path (Odoo child_of),
+ * is one of these constants. Anything else stays unattributed.
  */
-export type StockLocationBranchId =
-  | '360-mall'
-  | 'al-kout'
-  | 'assima'
-  | 'promenade'
-  | 'avenues'
-  | 'salmiya'
-  | 'ardiya'
+export type StockLocationBranchId = '360-mall' | 'al-kout' | 'assima' | 'promenade'
 
-/** Locations confirmed in the quant export. The other three restaurants come from stock.warehouse. */
+/** child_of these ids. Confirmed in the quant export; not warehouse codes. */
 export const STOCK_LOCATION_BRANCH_BY_ID: Record<number, StockLocationBranchId> = {
   219: '360-mall',
   227: 'al-kout',
@@ -25,37 +20,22 @@ export const STOCK_LOCATION_BRANCH_BY_ID: Record<number, StockLocationBranchId> 
   251: 'promenade',
 }
 
-/** QRN/Stock — Qurain central kitchen, confirmed in the quant export. */
+/**
+ * QRN/Stock. Kitchen-to-branch transfers leave this location (and its children).
+ * A transfer is not a sale: only a move onward to a customer location is consumption.
+ */
 export const CENTRAL_KITCHEN_STOCK_LOCATION_IDS = [259] as const
 
 /**
- * Seed ids. Jahra's lot and view locations are added from stock.warehouse
- * when its code is one of EXCLUDED_WAREHOUSE_CODES.
+ * Jahra stock.location ids. The quant export has none, so this stays empty
+ * rather than guessing a warehouse code.
  */
 export const EXCLUDED_STOCK_LOCATION_IDS = [] as const
 
-/** Odoo stock.warehouse.code → restaurant. KOUT is the live code; KOT is the registry alias. */
-export const STOCK_WAREHOUSE_BRANCH_BY_CODE = {
-  '360': '360-mall',
-  KOUT: 'al-kout',
-  KOT: 'al-kout',
-  ASM: 'assima',
-  PRM: 'promenade',
-  AVN: 'avenues',
-  SLM: 'salmiya',
-  ARD: 'ardiya',
-} as const
-
-export const CENTRAL_KITCHEN_WAREHOUSE_CODES = ['QRN'] as const
-
-/** Closed Jahra warehouse. Its lot and view locations are excluded by id. */
-export const EXCLUDED_WAREHOUSE_CODES = ['JHR'] as const
-
-export interface StockWarehouseLot {
-  code: string
-  lotStockId: number | null
-  viewLocationId: number | null
-}
+export const STOCK_LOCATION_CHILD_OF_IDS: readonly number[] = [
+  ...Object.keys(STOCK_LOCATION_BRANCH_BY_ID).map((id) => Number(id)),
+  ...CENTRAL_KITCHEN_STOCK_LOCATION_IDS,
+]
 
 export interface ResolvedStockRoots {
   branchById: Record<number, StockLocationBranchId>
@@ -63,35 +43,11 @@ export interface ResolvedStockRoots {
   excludedIds: number[]
 }
 
-function addId(target: Set<number>, id: number | null): void {
-  if (id !== null && Number.isInteger(id) && id > 0) target.add(id)
-}
-
-export function resolveStockRoots(warehouses: readonly StockWarehouseLot[]): ResolvedStockRoots {
-  const branchById: Record<number, StockLocationBranchId> = { ...STOCK_LOCATION_BRANCH_BY_ID }
-  const kitchenIds = new Set<number>(CENTRAL_KITCHEN_STOCK_LOCATION_IDS)
-  const excludedIds = new Set<number>(EXCLUDED_STOCK_LOCATION_IDS)
-  for (const warehouse of warehouses) {
-    const code = warehouse.code.trim().toUpperCase()
-    const branch = STOCK_WAREHOUSE_BRANCH_BY_CODE[code as keyof typeof STOCK_WAREHOUSE_BRANCH_BY_CODE]
-    if ((EXCLUDED_WAREHOUSE_CODES as readonly string[]).includes(code)) {
-      addId(excludedIds, warehouse.lotStockId)
-      addId(excludedIds, warehouse.viewLocationId)
-      continue
-    }
-    if ((CENTRAL_KITCHEN_WAREHOUSE_CODES as readonly string[]).includes(code)) {
-      addId(kitchenIds, warehouse.lotStockId)
-      addId(kitchenIds, warehouse.viewLocationId)
-      continue
-    }
-    if (!branch) continue
-    if (warehouse.lotStockId !== null && warehouse.lotStockId > 0) branchById[warehouse.lotStockId] = branch
-    if (warehouse.viewLocationId !== null && warehouse.viewLocationId > 0) branchById[warehouse.viewLocationId] = branch
-  }
+export function resolveStockRoots(): ResolvedStockRoots {
   return {
-    branchById,
-    kitchenIds: [...kitchenIds],
-    excludedIds: [...excludedIds],
+    branchById: { ...STOCK_LOCATION_BRANCH_BY_ID },
+    kitchenIds: [...CENTRAL_KITCHEN_STOCK_LOCATION_IDS],
+    excludedIds: [...EXCLUDED_STOCK_LOCATION_IDS],
   }
 }
 
@@ -111,7 +67,7 @@ export function locationPathIds(locationId: number, parentPath?: string | null):
 export function branchIdForStockLocation(
   locationId: number,
   parentPath?: string | null,
-  roots: ResolvedStockRoots = resolveStockRoots([]),
+  roots: ResolvedStockRoots = resolveStockRoots(),
 ): StockLocationBranchId | null {
   if (!Number.isInteger(locationId) || locationId <= 0) return null
   for (const id of locationPathIds(locationId, parentPath)) {
@@ -124,7 +80,7 @@ export function branchIdForStockLocation(
 export function isCentralKitchenStockLocation(
   locationId: number,
   parentPath?: string | null,
-  roots: ResolvedStockRoots = resolveStockRoots([]),
+  roots: ResolvedStockRoots = resolveStockRoots(),
 ): boolean {
   const kitchen = new Set(roots.kitchenIds)
   return locationPathIds(locationId, parentPath).some((id) => kitchen.has(id))
@@ -133,7 +89,7 @@ export function isCentralKitchenStockLocation(
 export function isExcludedStockLocation(
   locationId: number,
   parentPath?: string | null,
-  roots: ResolvedStockRoots = resolveStockRoots([]),
+  roots: ResolvedStockRoots = resolveStockRoots(),
 ): boolean {
   const excluded = new Set(roots.excludedIds)
   return locationPathIds(locationId, parentPath).some((id) => excluded.has(id))

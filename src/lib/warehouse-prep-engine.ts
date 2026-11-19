@@ -142,6 +142,7 @@ export interface BranchDailyChainNode {
   requiresInvestigation: boolean
   branchNetStockDeltaKwd: number
   closingStockKwd: number
+  closingStockQty: number
   health: ChainHealthStatus
 }
 
@@ -635,6 +636,12 @@ export function computeWarehouseDailyChain(
       const aovKwd = posOrders > 0 ? r2(posSalesKwd / posOrders) : 0
       const wastePct = wasteShare(scrapKwd, consumedKwd, scrapKg, consumedKg, wasteValued)
       const closingStockKwd = r2(onHandCell?.valueKwd ?? 0)
+      const closingStockQty = r1(onHandCell?.qty ?? 0)
+      const transferMoves = Math.max(
+        0,
+        Math.round(bMove?.receivedFromCkMoves ?? 0),
+        receivedKg > 0 || receivedKwd > 0 ? 1 : 0,
+      )
 
       return {
         branchId: brId,
@@ -642,7 +649,7 @@ export function computeWarehouseDailyChain(
         branchNameEn: getBranchLabel(brId, false),
         dispatchedFromWarehouseKwd: receivedKwd,
         dispatchedKg: receivedKg,
-        transferMoves: receivedKwd > 0 || receivedKg > 0 ? 1 : 0,
+        transferMoves,
         receivedByBranchKwd: receivedKwd,
         receivedKg,
         transitGapKwd: 0,
@@ -661,7 +668,8 @@ export function computeWarehouseDailyChain(
         requiresInvestigation: wastePct > 2,
         branchNetStockDeltaKwd: r2(receivedKwd - actualConsumedKwd),
         closingStockKwd,
-        health: classifyHealth(wastePct, consumedKg + scrapKg),
+        closingStockQty,
+        health: classifyHealth(wastePct, consumedKg + scrapKg + receivedKg),
       }
     })
 
@@ -752,6 +760,7 @@ export function computeWarehouseDailyChain(
     const actualKg = r1(theoKg + scrapKg)
     const wastePct = wasteShare(scrapKwd, theoKwd, scrapKg, theoKg, wasteValued)
     const closingStockKwd = r2(chain.byBranchOnHand?.[brId]?.valueKwd ?? 0)
+    const closingStockQty = r1(chain.byBranchOnHand?.[brId]?.qty ?? 0)
     return {
       branchId: brId,
       branchNameAr: getBranchLabel(brId, true),
@@ -777,7 +786,8 @@ export function computeWarehouseDailyChain(
       requiresInvestigation: wastePct > 2,
       branchNetStockDeltaKwd: r2(dispatchedKwd - actualKwd),
       closingStockKwd,
-      health: classifyHealth(wastePct, theoKg + scrapKg),
+      closingStockQty,
+      health: classifyHealth(wastePct, theoKg + scrapKg + dispatchedKg),
     }
   })
 

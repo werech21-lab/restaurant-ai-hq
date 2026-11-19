@@ -73,8 +73,8 @@ import {
   isCentralKitchenStockLocation,
   isExcludedStockLocation,
   resolveStockRoots,
+  STOCK_LOCATION_CHILD_OF_IDS,
   type ResolvedStockRoots,
-  type StockWarehouseLot,
 } from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
@@ -96,6 +96,8 @@ import {
   mergeSessionPaymentGroups,
   readClosedYearPlusToday,
   YEAR_PAYMENT_GROUP_BY,
+  YEAR_REGISTER_READ_CONCURRENCY,
+  foldYearBranchChannels,
   yearClosedWindow,
   yearReadCall,
   type HourGroupRow,
@@ -435,6 +437,7 @@ export interface OdooLiveWarehouseMoveDayRow {
     {
       receivedFromCkKwd: number
       receivedFromCkQty: number
+      receivedFromCkMoves?: number
       consumedKwd: number
       consumedQty: number
       scrapKwd: number
@@ -1025,6 +1028,13 @@ export function resolveRestaurantBranchForConfig(
     return loc as (typeof ACTIVE_BRANCH_IDS)[number]
   }
   return null
+}
+
+/** Delivery terminals by pos.config id: Ardiya registers and Delivery (Qurain) id 24. */
+function isDeliveryPosConfigId(cfgId: number | undefined): boolean {
+  if (cfgId == null || !Number.isInteger(cfgId)) return false
+  const loc = REG.registers[String(cfgId)]?.location
+  return loc === 'ardiya' || loc === 'qurain-delivery'
 }
 
 /** Fuzzy brand hint resolver from POS terminal or pricelist name when product lines are aggregated. */
@@ -2063,6 +2073,41 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const yearCachePrefix = `${resolvedCompanyId ?? 'none'}|${[...companyConfigList].sort((a, b) => a - b).join(',')}|${anchorDayKwIso}|${[...excludedPosCategoryIds].sort((a, b) => a - b).join(',')}`
   const yearKwargs = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).kwargs
   const yearTimeout = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).timeout
+  const readYearPayments = async (
+    window: { fromUtc: string; toUtc: string },
+    nonRefundOnly: boolean,
+  ) => {
+    const ids = [...companyConfigList]
+    const rows: { session_id: M2O; payment_method_id: M2O; amount?: number; __count?: number }[] = []
+    if (ids.length === 0) return rows
+    let cursor = 0
+    const workers = Array.from({ length: Math.min(YEAR_REGISTER_READ_CONCURRENCY, ids.length) }, async () => {
+      while (cursor < ids.length) {
+        const cfgId = ids[cursor]
+        cursor += 1
+        const page = await executeOdooKw<typeof rows>(
+          'pos.payment',
+          'read_group',
+          [
+            buildPosPaymentUtcDomain({
+              fromUtc: window.fromUtc,
+              toExclusiveUtc: window.toUtc,
+              companyId: resolvedCompanyId,
+              configIds: [cfgId],
+              nonRefundOnly,
+            }),
+            ['amount:sum'],
+            [...YEAR_PAYMENT_GROUP_BY],
+          ],
+          yearKwargs(window),
+          yearTimeout(window),
+        )
+        rows.push(...page)
+      }
+    })
+    await Promise.all(workers)
+    return rows
+  }
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
@@ -2290,25 +2335,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               cacheKey: `channels.year.net|${yearCachePrefix}`,
               closed: closedYearWindow,
               today: todayWindow,
-              read: (window) =>
-                executeOdooKw<
-                  {
-                    session_id: M2O
-                    payment_method_id: M2O
-                    amount: number
-                    __count?: number
-                  }[]
-                >(
-                  'pos.payment',
-                  'read_group',
-                  [
-                    posPaymentDomainOf(window, false),
-                    ['amount:sum'],
-                    [...YEAR_PAYMENT_GROUP_BY],
-                  ],
-                  yearKwargs(window),
-                  yearTimeout(window),
-                ),
+              read: (window) => readYearPayments(window, false),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => {
                   const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
@@ -2320,24 +2347,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               cacheKey: `channels.year.count|${yearCachePrefix}`,
               closed: closedYearWindow,
               today: todayWindow,
-              read: (window) =>
-                executeOdooKw<
-                  {
-                    session_id: M2O
-                    payment_method_id: M2O
-                    __count?: number
-                  }[]
-                >(
-                  'pos.payment',
-                  'read_group',
-                  [
-                    posPaymentDomainOf(window, true),
-                    ['amount:sum'],
-                    [...YEAR_PAYMENT_GROUP_BY],
-                  ],
-                  yearKwargs(window),
-                  yearTimeout(window),
-                ),
+              read: (window) => readYearPayments(window, true),
               merge: (rows) =>
                 mergeRowsByKey(rows, (row) => {
                   const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
@@ -3162,7 +3172,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       locMonthOrd.set(branch, (locMonthOrd.get(branch) ?? 0) + ordCount)
 
       const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-      const isDelivCfg = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
+      const isDelivCfg = isDeliveryPosConfigId(cfgId)
       const plName = row.pricelistName
       const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, isDelivCfg)
       const hintRow = pricelistUiHints30.get(branch)!
@@ -3372,36 +3382,19 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const buildLocAndUnmappedUiMap = (
     payRows: { sessionId: number | null; paymentMethodName: string; netKwd: number; orders: number }[],
   ) => {
-    const locMap = new Map<string, Record<string, { netKwd: number; orders: number }>>()
-    for (const lid of ACTIVE_BRANCH_IDS) {
-      locMap.set(
-        lid,
-        Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])),
-      )
-    }
-    const unmappedUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
-      UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
-    )
-    for (const p of payRows) {
-      const sid = p.sessionId
-      const cfgId = sid !== null ? configOfSession.get(sid) : undefined
-      if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
-      const lid = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
-      const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-      const isDelivCfg = lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
-      const uiKey = resolveUiChannelHint(p.paymentMethodName, isDelivCfg)
-      const amt = p.netKwd
-      const cnt = p.orders
-      if (!lid) {
-        unmappedUi[uiKey].netKwd += amt
-        unmappedUi[uiKey].orders += cnt
-      } else {
-        const row = locMap.get(lid)!
-        row[uiKey].netKwd += amt
-        row[uiKey].orders += cnt
-      }
-    }
-    return { locMap, unmappedUi }
+    const folded = foldYearBranchChannels({
+      payments: payRows.flatMap((p) => {
+        const cfgId = p.sessionId !== null ? configOfSession.get(p.sessionId) : undefined
+        if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) return []
+        return [{ configId: cfgId ?? null, methodName: p.paymentMethodName, netKwd: p.netKwd, orders: p.orders }]
+      }),
+      branchOfConfig: (configId) => branchOfConfigId.get(configId) ?? null,
+      isDeliveryConfig: isDeliveryPosConfigId,
+      channelOf: resolveUiChannelHint,
+      branchIds: ACTIVE_BRANCH_IDS,
+      channelKeys: UI_CHANNEL_KEYS,
+    })
+    return { locMap: new Map(Object.entries(folded.byBranch)), unmappedUi: folded.unmapped }
   }
 
   const channelsMonthFailed = unavailableSectionSet.has('channels.month')
@@ -5232,7 +5225,7 @@ export async function fetchLiveOdooPeriodCube(
         unattributedOrders += ord
         dPrev.unattributedNetKwd += net
         dPrev.unattributedOrders += ord
-        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, false)
+        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, isDeliveryPosConfigId(cid))
         pricelistFallbackUnattributed[chKey].netKwd += net
         pricelistFallbackUnattributed[chKey].orders += ord
       } else {
@@ -5248,7 +5241,7 @@ export async function fetchLiveOdooPeriodCube(
         bPrev.orders += ord
         byB.set(branch, bPrev)
 
-        const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
+        const isDeliv = isDeliveryPosConfigId(cid)
         const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, isDeliv)
         pricelistFallbackByBranch[branch][chKey].netKwd += net
         pricelistFallbackByBranch[branch][chKey].orders += ord
@@ -5267,7 +5260,7 @@ export async function fetchLiveOdooPeriodCube(
         if (cid !== undefined && decommCfgIds.has(cid)) continue
         const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
         const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
-        const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
+        const isDeliv = isDeliveryPosConfigId(cid)
         const chKey = resolveUiChannelHint(p.paymentMethodName, isDeliv)
         const amt = p.netKwd
         const cnt = p.orders
@@ -5749,7 +5742,7 @@ export async function fetchLiveOdooWarehouseChain(
     const uid = await authenticateOdoo()
     const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
 
-    const [userCompanyRows, locationsRaw, warehousesRaw, quantFieldsMeta, moveFieldsMeta, scrapFieldsMeta, posCategories] =
+    const [userCompanyRows, locationsRaw, quantFieldsMeta, moveFieldsMeta, scrapFieldsMeta, posCategories] =
       await Promise.all([
         safeSubQuery(
           () =>
@@ -5770,16 +5763,6 @@ export async function fetchLiveOdooWarehouseChain(
             context: { active_test: false },
             limit: 2000,
           },
-        ),
-        safeSubQuery(
-          () =>
-            executeOdooKw<{ code?: string; lot_stock_id?: M2O; view_location_id?: M2O }[]>(
-              'stock.warehouse',
-              'search_read',
-              [[]],
-              { fields: ['code', 'lot_stock_id', 'view_location_id'], limit: 100 },
-            ),
-          [],
         ),
         safeSubQuery(
           () =>
@@ -5847,12 +5830,7 @@ export async function fetchLiveOdooWarehouseChain(
       }
     }
 
-    const warehouseLots: StockWarehouseLot[] = warehousesRaw.map((row) => ({
-      code: String(row.code ?? ''),
-      lotStockId: m2oId(row.lot_stock_id),
-      viewLocationId: m2oId(row.view_location_id),
-    }))
-    const stockRoots = resolveStockRoots(warehouseLots)
+    const stockRoots = resolveStockRoots()
     const locationMeta = new Map<
       number,
       ReturnType<typeof resolveStockLocationRole> & { label: string }
@@ -5873,11 +5851,14 @@ export async function fetchLiveOdooWarehouseChain(
       scrapFieldsMeta && 'date_done' in scrapFieldsMeta ? 'date_done' : 'create_date'
     const scrapHasUomField = Boolean(scrapFieldsMeta && 'product_uom_id' in scrapFieldsMeta)
 
-    const moveDomain: unknown[][] = [
+    const moveDomain: unknown[] = [
       ...companyDomain,
       ['state', '=', 'done'],
       ['date', '>=', bounds.fromUtc],
       ['date', '<', bounds.toExclusiveUtc],
+      '|',
+      ['location_id', 'child_of', [...STOCK_LOCATION_CHILD_OF_IDS]],
+      ['location_dest_id', 'child_of', [...STOCK_LOCATION_CHILD_OF_IDS]],
       ...(excludedLocationIds.length > 0
         ? [
             ['location_id', 'not in', excludedLocationIds],
@@ -6283,6 +6264,7 @@ export async function fetchLiveOdooWarehouseChain(
           byBranch[lid] = {
             receivedFromCkKwd: 0,
             receivedFromCkQty: 0,
+            receivedFromCkMoves: 0,
             consumedKwd: 0,
             consumedQty: 0,
             scrapKwd: 0,
@@ -6333,9 +6315,11 @@ export async function fetchLiveOdooWarehouseChain(
       } else if (flow.kind === 'transfer') {
         dRow.ckToBranchTransferKwd += valKwd
         dRow.ckToBranchTransferQty += qty
-        if (flow.branchId && dRow.byBranch[flow.branchId]) {
-          dRow.byBranch[flow.branchId].receivedFromCkKwd += valKwd
-          dRow.byBranch[flow.branchId].receivedFromCkQty += qty
+        const branchMove = flow.branchId ? dRow.byBranch[flow.branchId] : undefined
+        if (branchMove) {
+          branchMove.receivedFromCkKwd += valKwd
+          branchMove.receivedFromCkQty += qty
+          branchMove.receivedFromCkMoves = (branchMove.receivedFromCkMoves ?? 0) + Math.max(0, Number(md.__count) || (qty > 0 ? 1 : 0))
         }
       } else if (flow.kind === 'consumption') {
         dRow.posConsumptionKwd += valKwd
@@ -6401,6 +6385,7 @@ export async function fetchLiveOdooWarehouseChain(
           roundedByBranch[lid] = {
             receivedFromCkKwd: r3(b?.receivedFromCkKwd ?? 0),
             receivedFromCkQty: r3(b?.receivedFromCkQty ?? 0),
+            receivedFromCkMoves: Math.max(0, Math.round(b?.receivedFromCkMoves ?? 0)),
             consumedKwd: r3(b?.consumedKwd ?? 0),
             consumedQty: r3(b?.consumedQty ?? 0),
             scrapKwd: r3(b?.scrapKwd ?? 0),

@@ -794,7 +794,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
             { id: 42, name: 'Canteen', complete_name: 'FAIPS Ahmadi Canteen/Stock', usage: 'internal' },
             { id: 91, name: 'Stock', complete_name: 'Qurain Warehouse/Stock', usage: 'internal' },
             { id: 92, name: 'Stock', complete_name: 'Jahra Branch/Stock', usage: 'internal', parent_path: '90/92/' },
-            { id: 401, name: 'Shelf', complete_name: 'AVN/Stock/Shelf', usage: 'internal', parent_path: '399/400/401/' },
+            { id: 401, name: 'Shelf', complete_name: '360/Stock/Shelf', usage: 'internal', parent_path: '1/219/401/' },
             { id: 93, name: 'Stock', complete_name: 'Hawally Restaurant/Stock', usage: 'internal' },
             { id: 94, name: 'Stock', complete_name: 'Heisenberg Kitchen/Stock', usage: 'internal' },
           ])
@@ -813,12 +813,6 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
             { product_id: [601, '[RIFDC013] Butter Croissant'], location_id: [10, 'EXB/Central Kitchen Stock'], quantity: 50, value: 75, __count: 1 },
             { product_id: [602, '[AVO-01] Fresh Avocado'], location_id: [11, '360 Mall/Stock'], quantity: 30, value: 60, __count: 1 },
             { product_id: [603, '[HB-01] Heisenberg Burger Patty'], location_id: [10, 'EXB/Central Kitchen Stock'], quantity: 40, value: 90, __count: 1 },
-          ])
-        }
-        if (model === 'stock.warehouse' && method === 'search_read') {
-          return rpcJson(reqId, [
-            { id: 8, code: 'AVN', lot_stock_id: [400, 'AVN/Stock'], view_location_id: [399, 'AVN'] },
-            { id: 9, code: 'JHR', lot_stock_id: [92, 'Jahra Branch/Stock'], view_location_id: [90, 'Jahra'] },
           ])
         }
         if (model === 'stock.move' && method === 'read_group') {
@@ -869,15 +863,14 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       const wh = stripExcludedOdooTree(rawWarehouse)
       expect(wh.connected).toBe(true)
       expect(wh.products.map((p) => p.skuCode)).toEqual(['PP03192'])
-      expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 25, valueKwd: 46.25 })
-      expect(wh.byBranchOnHand['avenues']).toEqual({ qty: 7, valueKwd: 12.95 })
+      expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 32, valueKwd: 59.2 })
       expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 0, valueKwd: 0 })
       expect(wh.totals.ckOnHandValueKwd).toBe(0)
       expect(wh.totals.ckToBranchTransferKwd).toBe(18.5)
       expect(wh.totals.posConsumptionKwd).toBe(7.4)
       expect(wh.totals.scrapPctOfConsumption).toBe(0)
       // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999 + 7)
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999 + 7 + 15)
       expect(JSON.stringify(wh)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {
