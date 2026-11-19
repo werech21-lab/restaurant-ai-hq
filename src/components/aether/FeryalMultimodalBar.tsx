@@ -1,12 +1,15 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
-import { Camera, Film, ImagePlus, Loader2, Sparkles, X } from 'lucide-react'
+import { Camera, FileSpreadsheet, Film, ImagePlus, Loader2, Sparkles, X } from 'lucide-react'
 import {
+  DOCUMENT_INTAKE_ACCEPT,
   FERYAL_VISION_QUICK_PRESETS,
   formatDurationClock,
   formatFileSizeShort,
   getComplianceBadgeMeta,
+  isSpreadsheetIntakeFile,
+  isSupportedDocumentIntakeFile,
   isSupportedMediaFile,
   type FeryalMediaAttachment,
   type StoredAttachmentMeta,
@@ -17,8 +20,10 @@ export function FeryalMediaPickerButton({
   isAr,
   disabled,
   processing,
+  uploadingIntake,
   attachmentCount,
   onFilesSelected,
+  onIntakeFileSelected,
   openPickerRef,
   openCameraRef,
   size = 'md',
@@ -26,15 +31,19 @@ export function FeryalMediaPickerButton({
   isAr: boolean
   disabled?: boolean
   processing?: boolean
+  uploadingIntake?: boolean
   attachmentCount?: number
   onFilesSelected: (files: File[]) => void
+  onIntakeFileSelected?: (file: File) => void
   openPickerRef?: React.MutableRefObject<(() => void) | null>
   openCameraRef?: React.MutableRefObject<(() => void) | null>
   size?: 'md' | 'lg'
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const intakeInputRef = useRef<HTMLInputElement | null>(null)
   const cameraRef = useRef<HTMLInputElement | null>(null)
   const hCls = size === 'lg' ? 'h-[48px] sm:h-[52px]' : 'h-[44px] sm:h-[48px]'
+  const busy = Boolean(disabled || processing || uploadingIntake)
 
   useEffect(() => {
     if (openPickerRef) {
@@ -54,18 +63,54 @@ export function FeryalMediaPickerButton({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/*,video/mp4,video/webm,video/quicktime,video/*"
+        accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,image/jpeg,image/png,image/webp,image/*,video/mp4,video/webm,video/quicktime,video/*"
         multiple
-        aria-label={isAr ? 'اختيار ملفات صور أو فيديو' : 'Choose photo or video files'}
+        aria-label={
+          isAr
+            ? 'اختيار ملفات جداول أسعار أو صور أو فيديو'
+            : 'Choose price sheet, photo, or video files'
+        }
         className="hidden"
         onChange={(e) => {
-          const raw = Array.from(e.target.files ?? []).filter(isSupportedMediaFile)
+          const allFiles = Array.from(e.target.files ?? [])
+          if (onIntakeFileSelected) {
+            const firstIntake = allFiles.find(
+              (f) => isSpreadsheetIntakeFile(f) || isSupportedDocumentIntakeFile(f),
+            )
+            if (firstIntake && (isSpreadsheetIntakeFile(firstIntake) || allFiles.length === 1)) {
+              onIntakeFileSelected(firstIntake)
+              e.target.value = ''
+              return
+            }
+          }
+          const raw = allFiles.filter(isSupportedMediaFile)
           if (raw.length > 0) {
             onFilesSelected(raw)
           }
           e.target.value = ''
         }}
       />
+      {onIntakeFileSelected ? (
+        <input
+          ref={intakeInputRef}
+          type="file"
+          data-feryal-intake-input="true"
+          accept={DOCUMENT_INTAKE_ACCEPT}
+          aria-label={
+            isAr
+              ? 'رفع جدول أسعار Excel أو CSV أو صورة قائمة للمراجعة'
+              : 'Upload Excel, CSV, or menu price image for review'
+          }
+          className="hidden"
+          onChange={(e) => {
+            const selected = Array.from(e.target.files ?? []).find(isSupportedDocumentIntakeFile)
+            if (selected) {
+              onIntakeFileSelected(selected)
+            }
+            e.target.value = ''
+          }}
+        />
+      ) : null}
       <input
         ref={cameraRef}
         type="file"
@@ -82,14 +127,49 @@ export function FeryalMediaPickerButton({
         }}
       />
 
+      {onIntakeFileSelected ? (
+        <button
+          type="button"
+          data-feryal-intake-trigger="true"
+          disabled={busy}
+          onClick={() => intakeInputRef.current?.click()}
+          title={
+            isAr
+              ? 'رفع جدول أسعار (.xlsx / .csv) أو صورة قائمة (.jpg / .png / .webp) للمراجعة والتأكيد قبل التحليل'
+              : 'Upload price sheet (.xlsx / .csv) or menu image (.jpg / .png / .webp) for review & confirmation'
+          }
+          aria-label={
+            isAr
+              ? 'رفع جدول أسعار أو صورة قائمة للمراجعة'
+              : 'Upload price sheet or menu image for review'
+          }
+          className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-50 px-3 sm:px-3.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30 dark:hover:bg-emerald-900/60`}
+        >
+          {uploadingIntake ? (
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-700 dark:text-emerald-300" />
+          ) : (
+            <FileSpreadsheet className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+          )}
+          <span className="hidden sm:inline">
+            {uploadingIntake
+              ? isAr
+                ? 'جارٍ الاستخراج…'
+                : 'Extracting…'
+              : isAr
+                ? 'جدول أسعار / صورة'
+                : 'Price Sheet'}
+          </span>
+        </button>
+      ) : null}
+
       <button
         type="button"
-        disabled={disabled || processing}
+        disabled={busy}
         onClick={() => inputRef.current?.click()}
         title={
           isAr
-            ? 'إرفاق صورة (JPG/PNG/WEBP) أو فيديو (MP4/WEBM/MOV) لتحليل فريال البصري'
-            : 'Attach photo (JPG/PNG/WEBP) or video (MP4/WEBM/MOV) for Feryal Vision'
+            ? 'إرفاق صورة (JPG/PNG/WEBP) أو ملف (XLSX/CSV) أو فيديو (MP4/WEBM/MOV)'
+            : 'Attach photo (JPG/PNG/WEBP), sheet (XLSX/CSV), or video (MP4/WEBM/MOV)'
         }
         aria-label={isAr ? 'إرفاق صورة أو فيديو' : 'Attach photo or video'}
         className={`relative inline-flex ${hCls} shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-[#F6F7F8] px-3 sm:px-3.5 text-xs font-semibold text-neutral-700 transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45 dark:bg-[#09110E] dark:text-slate-200 dark:hover:bg-emerald-950/60 dark:hover:text-emerald-300`}
@@ -117,7 +197,7 @@ export function FeryalMediaPickerButton({
 
       <button
         type="button"
-        disabled={disabled || processing}
+        disabled={busy}
         onClick={() => cameraRef.current?.click()}
         title={isAr ? 'التقاط بالكاميرا (طبق / مطبخ / فاتورة)' : 'Camera Capture'}
         aria-label={isAr ? 'التقاط بالكاميرا' : 'Capture with camera'}

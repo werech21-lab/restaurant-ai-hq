@@ -38,6 +38,11 @@ import {
   FeryalPendingAttachmentsTray,
   FeryalVisionCompliancePill,
 } from '@/components/aether/FeryalMultimodalBar'
+import { FeryalDocumentReviewCard } from '@/components/aether/FeryalDocumentReviewCard'
+import type {
+  ConfirmedPriceSheet,
+  DocumentIntakeDraft,
+} from '@/lib/feryal/document-intake-types'
 import { PartialWarningBanner } from '@/components/ui/partial-warning-banner'
 import { StateBlock } from '@/components/ui/state-block'
 import {
@@ -51,6 +56,7 @@ import {
 import {
   buildDefaultMediaPrompt,
   callFeryalVisionInspector,
+  isSupportedDocumentIntakeFile,
   isSupportedMediaFile,
   processFeryalMediaFile,
   revokeAttachmentObjectUrls,
@@ -231,6 +237,7 @@ export interface FeryalGovernanceStudioProps {
   initialBreachesError?: boolean
   initialAuditError?: boolean
   initialSending?: boolean
+  initialPendingDraft?: DocumentIntakeDraft | null
 }
 
 export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
@@ -243,6 +250,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialBreachesError = false,
     initialAuditError = false,
     initialSending = false,
+    initialPendingDraft = null,
   } = props ?? {}
   const { locale } = useI18n()
   const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
@@ -301,10 +309,15 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [noteTitle, setNoteTitle] = useState('')
   const [noteDetail, setNoteDetail] = useState('')
 
-  // Multimodal attachments
+  // Multimodal attachments & Document Intake Human Confirmation Gate
   const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
   const [processingMedia, setProcessingMedia] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
+  const [pendingIntakeDraft, setPendingIntakeDraft] = useState<DocumentIntakeDraft | null>(
+    initialPendingDraft,
+  )
+  const [uploadingIntake, setUploadingIntake] = useState(false)
+  const [intakeError, setIntakeError] = useState<string | null>(null)
   const openPickerRef = useRef<(() => void) | null>(null)
   const openCameraRef = useRef<(() => void) | null>(null)
 
@@ -531,21 +544,94 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     setMediaError(null)
   }, [])
 
+  const handleIntakeFileSelected = useCallback(
+    async (file: File) => {
+      if (isAuditor || uploadingIntake || sending) return
+      if (!isSupportedDocumentIntakeFile(file)) {
+        setIntakeError(
+          isAr
+            ? 'الصيغة غير مدعومة — يرجى رفع ملف Excel (.xlsx) أو CSV (.csv) أو صورة قائمة (.jpg / .png / .webp).'
+            : 'Unsupported file format — upload .xlsx, .csv, .jpg, .png, or .webp.',
+        )
+        return
+      }
+      setUploadingIntake(true)
+      setIntakeError(null)
+      setMainTab('chat')
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('period', workspace.filters.period || 'month')
+        if (workspace.filters.customFrom) {
+          fd.append('customFrom', workspace.filters.customFrom)
+        }
+        if (workspace.filters.customTo) {
+          fd.append('customTo', workspace.filters.customTo)
+        }
+        if (workspace.filters.brand && workspace.filters.brand !== 'all') {
+          fd.append('brand', workspace.filters.brand)
+        }
+        if (workspace.filters.branch && workspace.filters.branch !== 'all') {
+          fd.append('branch', workspace.filters.branch)
+        }
+
+        const res = await fetch('/api/erp/feryal/document-intake', {
+          method: 'POST',
+          body: fd,
+        })
+        const data = (await res.json().catch(() => null)) as {
+          ok?: boolean
+          draft?: DocumentIntakeDraft
+          error?: string
+        } | null
+
+        if (!res.ok || !data?.ok || !data.draft) {
+          setIntakeError(
+            isAr
+              ? 'تعذّر استخراج جدول الأسعار من الملف المرفق — تحقق من الأعمدة أو دقة الصورة.'
+              : 'Could not extract price rows from the uploaded file — check column headers or image clarity.',
+          )
+          return
+        }
+        setPendingIntakeDraft(data.draft)
+      } catch {
+        setIntakeError(
+          isAr
+            ? 'تعذّر الاتصال بخدمة استخراج الجداول — أعد المحاولة.'
+            : 'Connection failed while uploading document — please retry.',
+        )
+      } finally {
+        setUploadingIntake(false)
+      }
+    },
+    [
+      isAr,
+      isAuditor,
+      sending,
+      uploadingIntake,
+      workspace.filters.branch,
+      workspace.filters.brand,
+      workspace.filters.customFrom,
+      workspace.filters.customTo,
+      workspace.filters.period,
+    ],
+  )
+
   const sendQuestion = useCallback(
-    async (overridePrompt?: string) => {
+    async (overridePrompt?: string, confirmedPriceSheet?: ConfirmedPriceSheet) => {
       if (isAuditor || sending) return
       const rawPrompt = (overridePrompt ?? inputText).trim()
-      const hasMedia = pendingAttachments.length > 0
+      const hasMedia = !confirmedPriceSheet && pendingAttachments.length > 0
 
-      if (!rawPrompt && !hasMedia) return
+      if (!rawPrompt && !hasMedia && !confirmedPriceSheet) return
 
       const effectivePrompt =
         rawPrompt || buildDefaultMediaPrompt(pendingAttachments, isAr ? 'ar' : 'en')
 
-      const attachmentMetas: StoredAttachmentMeta[] = pendingAttachments.map(
-        toStoredAttachmentMeta,
-      )
-      const attachmentsSnapshot = [...pendingAttachments]
+      const attachmentMetas: StoredAttachmentMeta[] = hasMedia
+        ? pendingAttachments.map(toStoredAttachmentMeta)
+        : []
+      const attachmentsSnapshot = hasMedia ? [...pendingAttachments] : []
 
       const userMsg: ChatUiMessage = {
         id: nextUiId('u'),
@@ -557,13 +643,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
 
       const optimisticList = [...messages, userMsg]
       setMessages(optimisticList)
-      if (!overridePrompt) setInputText('')
+      if (!overridePrompt || confirmedPriceSheet) setInputText('')
       if (hasMedia) handleClearAllAttachments()
       setSending(true)
       setMainTab('chat')
 
       try {
-        // 1. Visual attachment inspection via `/api/erp/feryal/vision` ONLY when media is attached
+        // 1. Visual attachment inspection ONLY when non-intake media (e.g. video) is attached
         if (attachmentsSnapshot.length > 0) {
           const visionRes = await callFeryalVisionInspector({
             prompt: effectivePrompt,
@@ -594,12 +680,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           return
         }
 
-        // 2. Exclusive Odoo 17 Tool-Calling Engine (`POST /api/erp/feryal/chat`)
+        // 2. Exclusive Odoo 17 Tool-Calling & 3-Model Council Engine (`POST /api/erp/feryal/chat`)
         const urlSearch = typeof window !== 'undefined' ? window.location.search : undefined
         const chatRequestBody = buildFeryalChatRequestPayload(
           effectivePrompt,
           workspace.filters,
           urlSearch,
+          confirmedPriceSheet,
         )
         const res = await fetch('/api/erp/feryal/chat', {
           method: 'POST',
@@ -1552,6 +1639,47 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             {/* Composer */}
             {!isAuditor ? (
               <div className="border-t border-slate-200/80 bg-white p-3.5 dark:border-white/10 dark:bg-[#101815]">
+                {intakeError ? (
+                  <div
+                    role="alert"
+                    className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-rose-500/25 dark:bg-rose-950/60 dark:text-rose-200"
+                  >
+                    <span>{intakeError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setIntakeError(null)}
+                      aria-label={isAr ? 'إغلاق التنبيه' : 'Dismiss alert'}
+                      className="cursor-pointer rounded px-1.5 py-0.5 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : null}
+
+                {pendingIntakeDraft ? (
+                  <FeryalDocumentReviewCard
+                    draft={pendingIntakeDraft}
+                    isAr={isAr}
+                    submitting={sending}
+                    onDraftChange={setPendingIntakeDraft}
+                    onCancel={() => {
+                      setPendingIntakeDraft(null)
+                      setIntakeError(null)
+                    }}
+                    onConfirmAndRun={(confirmedSheet) => {
+                      const typed = inputText.trim()
+                      const promptForAnalysis =
+                        typed ||
+                        (isAr
+                          ? `حلّلي جدول الأسعار المؤكد (${confirmedSheet.fileName} — ${confirmedSheet.rows.length} صنفاً) عبر السيناريوهات الثلاثة وقدّمي القرار التنفيذي وخطة الأصناف.`
+                          : `Run the 3-scenario executive pricing simulation on confirmed price sheet (${confirmedSheet.fileName} — ${confirmedSheet.rows.length} SKUs) and deliver the executive verdict and SKU playbook.`)
+                      setPendingIntakeDraft(null)
+                      setIntakeError(null)
+                      void sendQuestion(promptForAnalysis, confirmedSheet)
+                    }}
+                  />
+                ) : null}
+
                 <FeryalPendingAttachmentsTray
                   isAr={isAr}
                   attachments={pendingAttachments}
@@ -1573,8 +1701,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     isAr={isAr}
                     disabled={sending}
                     processing={processingMedia}
+                    uploadingIntake={uploadingIntake}
                     attachmentCount={pendingAttachments.length}
                     onFilesSelected={handleFilesSelected}
+                    onIntakeFileSelected={(file) => void handleIntakeFileSelected(file)}
                     openPickerRef={openPickerRef}
                     openCameraRef={openCameraRef}
                   />

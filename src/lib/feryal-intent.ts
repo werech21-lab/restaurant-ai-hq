@@ -995,8 +995,41 @@ const INVENTORY_STEM_RE =
 const TOP_PRODUCT_RE =
   /(اكثر|افضل|اعلي|احسن|اكبر) (صنف|منتج|طبق|وجبه|اكله|ايتم)|(الصنف|المنتج|الطبق|الوجبه) (الاكثر|الافضل|الاعلي)|\b(best[- ]?sellers?|top (selling )?(item|product)s?|most sold (item|product))\b/i
 
+/** Detects executive pricing simulations, Pareto/ABC menu velocity, or SKU menu-engineering strategy prompts. */
+export function isExecutivePricingOrMenuStrategyQuestion(question: string): boolean {
+  const norm = normalizeArabicText(question)
+  if (!norm) return false
+  if (
+    /\b(?:pareto|abc\s+(?:tier|tiers|analysis|classification|matrix|velocity|menu)|menu\s+(?:engineering|velocity|strategy|optimization|pricing|simulation|playbook)|price\s+(?:simulation|scenarios?|elasticity|sheet|proposal|options?|playbook)|pricing\s+(?:strategy|scenarios?|playbook|options?|simulation|impact|review)|executive\s+(?:pricing|menu|sku))\b/i.test(
+      norm,
+    )
+  ) {
+    return true
+  }
+  if (
+    /(?:باريتو|تصنيف\s*abc|تحليل\s*abc|فئات\s*abc|هندسه\s*(?:المنيو|القائمه|الاصناف)|مرونه\s*(?:السعر|الاسعار)|محاكاه\s*(?:الاسعار|التسعير)|سيناريوهات\s*(?:التسعير|الاسعار)|جدول\s*(?:الاسعار|تسعير)|اسعار\s*مقترحه|خيارات\s*التسعير|استراتيجيه\s*التسعير|خطه\s*تسعير|رفع\s*اسعار\s*(?:المنيو|الاصناف|القائمه)|تعديل\s*اسعار\s*(?:المنيو|الاصناف))/.test(
+      norm,
+    )
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Detects predominant prompt language ('ar' if Arabic script letters are present, else 'en'). */
+export function detectFeryalPromptLocale(question: string): 'ar' | 'en' {
+  const arMatches = question.match(/[\u0600-\u06FF]/g)?.length ?? 0
+  const enMatches = question.match(/[A-Za-z]/g)?.length ?? 0
+  if (arMatches === 0 && enMatches > 0) return 'en'
+  if (arMatches >= enMatches) return 'ar'
+  return arMatches >= 4 ? 'ar' : 'en'
+}
+
 /** Item-level POS pricing, distinct from a brand total. */
 export function isItemLevelPosQuestion(question: string): boolean {
+  if (isExecutivePricingOrMenuStrategyQuestion(question)) {
+    return true
+  }
   const norm = normalizeArabicText(question)
   if (
     /(menu items|item-level|item level|per[- ]sku|\bskus?\b|pricing impact|proposed price|price impact|quantities sold|price_subtotal|pos\.order\.line|top selling menu)/i.test(
@@ -1505,6 +1538,7 @@ export interface FeryalChatRequestPayload {
   channel: string
   customFrom?: string
   customTo?: string
+  confirmedPriceSheet?: unknown
 }
 
 export function buildFeryalChatRequestPayload(
@@ -1518,6 +1552,7 @@ export function buildFeryalChatRequestPayload(
     customTo?: string
   },
   urlSearch?: string,
+  confirmedPriceSheet?: unknown,
 ): FeryalChatRequestPayload {
   let period = filters.period || 'month'
   let branch = filters.branch || 'all'
@@ -1553,6 +1588,7 @@ export function buildFeryalChatRequestPayload(
     brand,
     channel,
     ...(period === 'custom' && customFrom && customTo ? { customFrom, customTo } : {}),
+    ...(confirmedPriceSheet !== undefined ? { confirmedPriceSheet } : {}),
   }
 }
 

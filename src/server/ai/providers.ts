@@ -5,7 +5,9 @@ export type ProviderId = 'anthropic' | 'google' | 'xai'
 export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 'xai']
 
 const MIN_KEY_LENGTH = 20
-const ANALYSIS_MAX_TOKENS = 800
+export const ANALYSIS_MAX_TOKENS = 800
+export const EXECUTIVE_COUNCIL_MAX_TOKENS = 2_000
+const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
 export interface ProviderCallInput {
   provider: ProviderId
@@ -106,7 +108,10 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 function tokenBudget(input: ProviderCallInput): number {
-  return input.maxTokens && input.maxTokens > 0 ? input.maxTokens : ANALYSIS_MAX_TOKENS
+  if (typeof input.maxTokens === 'number' && Number.isFinite(input.maxTokens) && input.maxTokens > 0) {
+    return Math.min(MAX_PROVIDER_OUTPUT_TOKENS, Math.round(input.maxTokens))
+  }
+  return ANALYSIS_MAX_TOKENS
 }
 
 function anthropicBody(input: ProviderCallInput): string {
@@ -249,7 +254,8 @@ function parseGemini(payload: unknown): { modelId: string; text: string; tokensI
   const text = parts
     .map((part) => {
       const record = asRecord(part)
-      return record && typeof record.text === 'string' ? record.text : ''
+      if (!record || record.thought === true || typeof record.text !== 'string') return ''
+      return record.text
     })
     .join('')
     .trim()
