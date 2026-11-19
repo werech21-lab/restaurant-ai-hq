@@ -222,7 +222,88 @@ function directionMatches(text: string, facts: unknown): boolean {
   if (whole === 0) return true
   if (pairs.length > 0) return pairs.every((pairSign) => pairSign === whole)
   const delta = periodDeltaSign(facts)
-  return delta != null && delta === whole
+  // A single period has no earlier/later pair. "increase" is not a contradiction.
+  if (delta == null) return true
+  return delta === whole
+}
+
+export const PROPOSED_USER_INPUT_LABEL = 'Proposed / User Input'
+export const ODOO_VERIFIED_ACTUALS_LABEL = 'Odoo Verified Actuals'
+
+export interface GroundingOptions {
+  /** The user's question. Numbers they typed are allowed only when the answer labels them. */
+  question?: string
+  /** Extra proposed amounts already parsed from the question. */
+  userInputs?: readonly string[]
+}
+
+function maskIsoDates(text: string): string {
+  return text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')
+}
+
+function hasProposedLabel(text: string): boolean {
+  return text.includes(PROPOSED_USER_INPUT_LABEL) || /proposed\s*\/\s*user input/i.test(text)
+}
+
+function decimalsIn(text: string): string[] {
+  return extractCanonicalDecimals(maskIsoDates(normalizeGuardDigits(text)))
+}
+
+function proposedDecimals(options: GroundingOptions | undefined, labeled: boolean): string[] {
+  if (!labeled) return []
+  const found = new Set<string>(decimalsIn(options?.question ?? ''))
+  for (const raw of options?.userInputs ?? []) {
+    const canonical = canonicalDecimal(raw)
+    if (canonical) found.add(canonical)
+  }
+  return [...found]
+}
+
+function matchesRoundedValue(exact: Decimal, written: Decimal, scale: number): boolean {
+  return matchesRounded(exact, written, scale)
+}
+
+/** Sums, differences, products, and qty × (proposed − current), including half-up rounding. */
+function matchesDerivation(written: Decimal, scale: number, values: readonly Decimal[]): boolean {
+  const pool = values.slice(0, 40)
+  for (const value of pool) {
+    if (matchesRoundedValue(value, written, scale)) return true
+  }
+  for (let i = 0; i < pool.length; i += 1) {
+    for (let j = 0; j < pool.length; j += 1) {
+      if (i === j) continue
+      const left = pool[i]
+      const right = pool[j]
+      if (!left || !right) continue
+      if (matchesRoundedValue(left.add(right), written, scale)) return true
+      if (matchesRoundedValue(left.sub(right), written, scale)) return true
+      if (matchesRoundedValue(left.mul(right), written, scale)) return true
+    }
+  }
+  const tripleLimit = Math.min(pool.length, 24)
+  for (let i = 0; i < tripleLimit; i += 1) {
+    for (let j = 0; j < tripleLimit; j += 1) {
+      if (i === j) continue
+      for (let k = 0; k < tripleLimit; k += 1) {
+        const left = pool[i]
+        const right = pool[j]
+        const factor = pool[k]
+        if (!left || !right || !factor) continue
+        if (matchesRoundedValue(left.sub(right).mul(factor), written, scale)) return true
+      }
+    }
+  }
+  if (pool.length > 1) {
+    let sum = pool[0]
+    if (!sum) return false
+    for (let i = 1; i < pool.length; i += 1) {
+      const next = pool[i]
+      if (!next) continue
+      sum = sum.add(next)
+    }
+    if (matchesRoundedValue(sum, written, scale)) return true
+  }
+  return false
 }
 
 export interface NumberGuardResult {
@@ -245,13 +326,23 @@ export function guardAnswerNumbers(answer: string, allowed: ReadonlySet<string>)
   return { ok: offending.length === 0, offending }
 }
 
-/** Every number must be a cited fact value, or a server-side Decimal derivation of those values. */
-export function guardAnswerAgainstFacts(answer: string, facts: unknown): NumberGuardResult {
-  const normalized = normalizeGuardDigits(answer)
+/**
+ * Every number must be a cited fact value, a half-up rounding of one, a Decimal
+ * derivation of those values (including qty × (proposed − current)), or a number
+ * the user typed that the answer labels `Proposed / User Input`.
+ */
+export function guardAnswerAgainstFacts(
+  answer: string,
+  facts: unknown,
+  options?: GroundingOptions,
+): NumberGuardResult {
+  const normalized = maskIsoDates(normalizeGuardDigits(answer))
   if (/\d(?:\.\d+)?e[+-]?\d/i.test(normalized)) {
     return { ok: false, offending: ['SCIENTIFIC'] }
   }
-  const valueCanon = collectFactValueDecimals(facts)
+  const labeled = hasProposedLabel(normalized)
+  const userCanon = proposedDecimals(options, labeled)
+  const valueCanon = [...collectFactValueDecimals(facts), ...userCanon]
   const valueSet = new Set(valueCanon)
   const parsed = valueCanon.flatMap((token) => {
     const decimal = Decimal.parse(token)
@@ -277,10 +368,20 @@ export function guardAnswerAgainstFacts(answer: string, facts: unknown): NumberG
       ? (explainedGrowth && pairMatches(written, scale, parsed, 'growth')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'share'))
       : valueSet.has(canonical) ||
+        matchesDerivation(written, scale, parsed) ||
         (explainedDifference && pairMatches(written, scale, parsed, 'delta')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'ratio'))
     if (!ok) offending.push(canonical)
   }
   if (!directionMatches(normalized, facts)) offending.push('DIRECTION')
   return { ok: offending.length === 0, offending }
+}
+
+/** Same check the council uses so a rounded or derived Odoo figure is not an unverified number. */
+export function reviewGroundedNumbers(
+  answer: string,
+  facts: unknown,
+  options?: GroundingOptions,
+): NumberGuardResult {
+  return guardAnswerAgainstFacts(answer, facts, options)
 }

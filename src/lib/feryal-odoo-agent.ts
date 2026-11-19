@@ -62,9 +62,19 @@ import {
   type ValidatedFeryalContextDefaults,
   AGGREGATOR_CHANNEL_IDS,
   getKuwaitCalendarParts,
+  isItemLevelPosQuestion,
   isLowestBranchQuestion,
   underlyingChannelIds,
 } from '@/lib/feryal-intent'
+import {
+  asksMarginOrCogs,
+  brandLabel,
+  buildItemPricingAnswer,
+  COGS_UNAVAILABLE_REPLY,
+  fetchItemPricingFromOdoo,
+  posRootForBrand,
+  type ItemPricingRead,
+} from '@/lib/feryal/item-pricing'
 import type { ComparableFact } from '@/server/ai/structured-claim'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
@@ -201,6 +211,13 @@ export interface FeryalOdooDataSource {
     limit: number,
   ) => Promise<OdooPeriodCubeProductRow[] | null>
   fetchHrEmployees?: (referenceNowMs?: number) => Promise<OdooLiveHrSummary | null>
+  /** Read-only pos.order.line totals by product. Tests inject this; production uses the Odoo reader. */
+  fetchItemPricingLines?: (input: {
+    fromIso: string
+    toIso: string
+    branchLocation: string | null
+    posRoot: string | null
+  }) => Promise<ItemPricingRead | null>
 }
 
 export interface AskFeryalOdooAgentInput {
@@ -1132,14 +1149,81 @@ async function runPosOrdersTool(params: {
   }
 }
 
+async function runItemLevelPricingTool(params: {
+  dataSource: FeryalOdooDataSource
+  period: { from: string; to: string; periodLabelAr: string }
+  targetBranchId: ApprovedFeryalBranchId | null
+  targetBrandId: ApprovedFeryalBrandId | null
+  question: string
+}): Promise<ToolExecutionOutput> {
+  const { dataSource, period, targetBranchId, targetBrandId, question } = params
+  const posRoot = posRootForBrand(targetBrandId)
+  const read =
+    (await (dataSource.fetchItemPricingLines ?? fetchItemPricingFromOdoo)({
+      fromIso: period.from,
+      toIso: period.to,
+      branchLocation: targetBranchId,
+      posRoot,
+    })) ?? null
+  const brand = brandLabel(targetBrandId)
+  const executedQueries: FeryalExecutedOdooQuery[] = [
+    {
+      model: 'pos.order.line',
+      method: 'read_group',
+      domain: read?.domain ?? [],
+      groupby: ['product_id'],
+      period: { from: period.from, to: period.to },
+    },
+  ]
+  if (!read || read.rows.length === 0) {
+    return {
+      hasData: false,
+      noDataReasonKey: 'pos_no_data',
+      primaryModel: 'pos.order.line',
+      executedQueries,
+      toolNumbers: [],
+      allowedEntityNames: [],
+      deterministicReply: buildFeryalNoOdooDataSuggestion('pos_no_data'),
+      structuredFacts: {},
+    }
+  }
+  const built = buildItemPricingAnswer({
+    question,
+    periodLabel: period.periodLabelAr,
+    brandNameAr: brand?.ar ?? null,
+    rows: read.rows,
+  })
+  if (asksMarginOrCogs(question) && !built.reply.includes(COGS_UNAVAILABLE_REPLY)) {
+    built.reply = `${built.reply}\n${COGS_UNAVAILABLE_REPLY}`
+    built.toolNumbers.push(225)
+  }
+  return {
+    hasData: true,
+    primaryModel: 'pos.order.line',
+    executedQueries,
+    toolNumbers: built.toolNumbers,
+    allowedEntityNames: built.allowedEntityNames,
+    deterministicReply: built.reply,
+    structuredFacts: {
+      ...built.structuredFacts,
+      period: { from: period.from, to: period.to },
+      brandId: targetBrandId,
+    },
+  }
+}
+
 async function runPosOrderLinesTool(params: {
   dataSource: FeryalOdooDataSource
   period: { from: string; to: string; periodLabelAr: string }
   targetBranchId: ApprovedFeryalBranchId | null
+  targetBrandId?: ApprovedFeryalBrandId | null
   question: string
   referenceNowMs?: number
 }): Promise<ToolExecutionOutput> {
-  const { dataSource, period, targetBranchId, question, referenceNowMs } = params
+  const { dataSource, period, targetBranchId, targetBrandId = null, question, referenceNowMs } = params
+  if (isItemLevelPosQuestion(question)) {
+    return runItemLevelPricingTool({ dataSource, period, targetBranchId, targetBrandId, question })
+  }
   const topLimit = extractRequestedTopLimit(question)
   const normAr = normalizeArabicText(question)
   const asksDiscounts = /(الخصومات|خصومات|نسبه الخصم|\bdiscounts?\b)/i.test(normAr)
@@ -1239,6 +1323,10 @@ async function runPosOrderLinesTool(params: {
     allowedEntityNames.push(item.name)
     return {
       name: item.name,
+      productId: item.productId,
+      netKwd: item.netKwd,
+      qty: item.qty,
+      unitPriceKwd: item.qty > 0 ? Math.round((item.netKwd / item.qty) * 1000) / 1000 : null,
       net1,
       qtyDisplay: Number.isInteger(qty1) ? formatIntCount(qty1) : formatKwd1(qty1),
       discount1: round1(item.discountKwd),
@@ -2882,6 +2970,7 @@ export async function askFeryalOdooAgent(
         dataSource,
         period: resolvedPeriod,
         targetBranchId: effectiveBranchId,
+        targetBrandId: effectiveBrandDetection.brandId,
         question: rawQuestion,
         referenceNowMs: nowMs,
       })

@@ -995,6 +995,22 @@ const INVENTORY_STEM_RE =
 const TOP_PRODUCT_RE =
   /(اكثر|افضل|اعلي|احسن|اكبر) (صنف|منتج|طبق|وجبه|اكله|ايتم)|(الصنف|المنتج|الطبق|الوجبه) (الاكثر|الافضل|الاعلي)|\b(best[- ]?sellers?|top (selling )?(item|product)s?|most sold (item|product))\b/i
 
+/** Item-level POS pricing, distinct from a brand total. */
+export function isItemLevelPosQuestion(question: string): boolean {
+  const norm = normalizeArabicText(question)
+  if (
+    /(menu items|item-level|item level|per[- ]sku|\bskus?\b|pricing impact|proposed price|price impact|quantities sold|price_subtotal|pos\.order\.line|top selling menu)/i.test(
+      norm,
+    )
+  ) {
+    return true
+  }
+  if (/(سعر مقترح|اسعار الاصناف|تسعير الصنف|اثر السعر|تاثير السعر|لو صار السعر|لو رفعنا السعر)/.test(norm)) {
+    return true
+  }
+  return /what[- ]if/i.test(norm) && /\d/.test(norm) && /(price|سعر|kwd)/i.test(norm)
+}
+
 export function isFinanceQuestion(question: string): boolean {
   return FINANCE_STEM_RE.test(normalizeArabicText(question))
 }
@@ -1331,7 +1347,7 @@ export function resolveFeryalQuestionPeriod(
   }
 
   if (
-    /\b(this year|year)\b/i.test(normDigits) ||
+    /\b(this year|year|ytd|year to date)\b/i.test(normDigits) ||
     /(هذه السنه|هذا العام|السنه الحاليه|من بدايه السنه|العام)/.test(normAr)
   ) {
     const win = computeStandardPeriodWindow('year', kwToday)
@@ -1446,6 +1462,7 @@ export function detectOdooToolKind(
 
   // 5. Top selling products / POS line items / item discounts (`pos.order.line`)
   const asksItemLines =
+    isItemLevelPosQuestion(question) ||
     TOP_PRODUCT_RE.test(normAr) ||
     /(pos\.order\.line|اعلي \d+ اصناف|اعلي اصناف|اعلي الاصناف|افضل الاصناف|افضل \d+ اصناف|الاصناف الاكثر|مبيعات الاصناف|الاصناف|الاطباق|المنتجات|الخصومات|نسبه الخصم|خصومات الاصناف|\btop \d* ?items\b|\btop \d* ?products\b|\bdiscounts\b)/i.test(
       normAr,

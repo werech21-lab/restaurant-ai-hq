@@ -13,7 +13,7 @@ import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { logger, errorFields } from '@/lib/logger'
 import { missingCouncilKeyNames, readCouncilKeys, type CouncilKeys } from './env'
 import { resolveCouncilModels, type CouncilModels } from './models'
-import { extractCanonicalDecimals } from './number-guard'
+import { reviewGroundedNumbers } from './number-guard'
 import {
   comparisonKey,
   comparisonMatchesFacts,
@@ -98,6 +98,7 @@ export interface RunCouncilOptions {
   keys?: CouncilKeys
   models?: CouncilModels
   persist?: (rows: readonly AiRunDraft[]) => Promise<void>
+  sleepImpl?: (ms: number) => Promise<void>
 }
 
 export function hashQuestion(question: string): string {
@@ -182,31 +183,62 @@ function factsForModel(result: AskFeryalOdooAgentResult): ComparableFact[] {
   return result.facts ?? []
 }
 
+function extractJsonObject(text: string): string | null {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  try {
+    JSON.parse(trimmed)
+    return trimmed
+  } catch {
+    const start = trimmed.indexOf('{')
+    const end = trimmed.lastIndexOf('}')
+    if (start < 0 || end <= start) return null
+    const slice = trimmed.slice(start, end + 1)
+    try {
+      JSON.parse(slice)
+      return slice
+    } catch {
+      return null
+    }
+  }
+}
+
 function reviewAnswer(
   text: string,
   facts: readonly ComparableFact[],
   factsJson: string,
+  question: string,
 ): { status: 'ok' | 'guard_rejected'; errorCode: string | null; offending: string[] } {
   if (isExcludedOdooEntity(text) && !isExcludedOdooEntity(factsJson)) {
     return { status: 'guard_rejected', errorCode: 'EXCLUDED_ENTITY', offending: [] }
   }
-  const parsed = parseComparisonText(text)
-  if (!parsed) {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extractCanonicalDecimals(text) }
+  const grounded = reviewGroundedNumbers(text, facts, { question })
+  const json = extractJsonObject(text)
+  const parsed = json ? parseComparisonText(json) : null
+  if (json && !parsed) {
+    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: grounded.offending }
   }
-  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  let body: unknown
-  try {
-    body = JSON.parse(trimmed)
-  } catch {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: [] }
+  if (parsed && json) {
+    let body: unknown
+    try {
+      body = JSON.parse(json)
+    } catch {
+      return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: grounded.offending }
+    }
+    const record = body && typeof body === 'object' && !Array.isArray(body) ? (body as { comparison?: unknown }) : null
+    const candidate = record && 'comparison' in record ? record.comparison : body
+    const result = comparisonSchema.safeParse(candidate)
+    const matches =
+      result.success && comparisonMatchesFacts(result.data, facts, { activeBranchIds: ACTIVE_VENTURE_BRANCH_IDS })
+    if (!matches) {
+      return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: grounded.offending }
+    }
+    const outside = text.replace(json, ' ')
+    const extra = reviewGroundedNumbers(outside, facts, { question })
+    if (!extra.ok) return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extra.offending }
+    return { status: 'ok', errorCode: null, offending: [] }
   }
-  const record = body && typeof body === 'object' && !Array.isArray(body) ? (body as { comparison?: unknown }) : null
-  const candidate = record && 'comparison' in record ? record.comparison : body
-  const result = comparisonSchema.safeParse(candidate)
-  if (!result.success || !comparisonMatchesFacts(result.data, facts, { activeBranchIds: ACTIVE_VENTURE_BRANCH_IDS })) {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: extractCanonicalDecimals(text) }
-  }
+  if (!grounded.ok) return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: grounded.offending }
+  if (!/\d/.test(text)) return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: [] }
   return { status: 'ok', errorCode: null, offending: [] }
 }
 
@@ -304,6 +336,7 @@ export async function runFeryalCouncil(
         user: userMessage,
         timeoutMs: options.timeoutMs ?? COUNCIL_ANALYSIS_TIMEOUT_MS,
         fetchImpl: options.fetchImpl,
+        sleepImpl: options.sleepImpl,
       }),
     ),
   )
@@ -314,7 +347,7 @@ export async function runFeryalCouncil(
   const drafts: AiRunDraft[] = []
 
   for (const call of calls) {
-    const review = call.status === 'ok' ? reviewAnswer(call.text, facts, factsJson) : null
+    const review = call.status === 'ok' ? reviewAnswer(call.text, facts, factsJson, question) : null
     const participant = participantFrom(call, review)
     participants.push(participant)
     if (participant.status === 'ok') {
@@ -351,6 +384,27 @@ export async function runFeryalCouncil(
       status: 'answered',
       participants,
       agreed: composed.agreed,
+      executedQueries: odoo.executedQueries,
+      verifier: odoo.verifier,
+      period: odoo.period,
+      questionHash,
+      auditEntry: odoo.auditEntry,
+    }
+  }
+
+  const groundedExplanations = passed
+    .filter((item) => parseComparisonText(item.text) === null && extractJsonObject(item.text) === null)
+    .map((item) => item.text.trim())
+    .filter((text) => text.length > 0)
+  if (odoo.verifier.valid && groundedExplanations.length > 0) {
+    const failureLines = failed.map(
+      (item) => `- ${attribution(item.provider, item.modelId)}: ${item.errorCode ?? 'ERROR'}`,
+    )
+    return {
+      reply: [odoo.reply, ...groundedExplanations, ...failureLines].filter((line) => line.length > 0).join('\n\n'),
+      status: 'answered',
+      participants,
+      agreed: [],
       executedQueries: odoo.executedQueries,
       verifier: odoo.verifier,
       period: odoo.period,

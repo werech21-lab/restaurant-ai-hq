@@ -16,6 +16,7 @@ export interface ProviderCallInput {
   timeoutMs: number
   maxTokens?: number
   fetchImpl?: typeof fetch
+  sleepImpl?: (ms: number) => Promise<void>
 }
 
 export interface ProviderCallResult {
@@ -283,26 +284,45 @@ function parseProvider(provider: ProviderId, payload: unknown) {
   return parseXai(payload)
 }
 
+export const GOOGLE_RATE_LIMIT_ATTEMPTS = 3
+const GOOGLE_RATE_LIMIT_BACKOFF_MS = [400, 1_200]
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function retryAfterMs(response: Response): number | null {
+  const raw = response.headers.get('retry-after')
+  if (!raw) return null
+  const seconds = Number(raw)
+  if (!Number.isFinite(seconds) || seconds < 0) return null
+  return Math.min(2_000, Math.round(seconds * 1000))
+}
+
 function isAbortError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
   const name = (error as { name?: unknown }).name
   return name === 'AbortError' || name === 'TimeoutError'
 }
 
-export async function callProvider(input: ProviderCallInput): Promise<ProviderCallResult> {
+async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Promise<ProviderCallResult & { retryAfterMs: number | null }> {
   const started = Date.now()
-  if (input.apiKey.trim().length < MIN_KEY_LENGTH) {
-    return failure(input, 0, 'MISSING_API_KEY')
-  }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), input.timeoutMs)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const request = requestFor(input, controller.signal)
+    const request = requestFor({ ...input, timeoutMs }, controller.signal)
     const response = await (input.fetchImpl ?? fetch)(request.url, request.init)
-    if (!response.ok) return failure(input, Date.now() - started, httpErrorCode(response.status))
+    if (!response.ok) {
+      return {
+        ...failure(input, Date.now() - started, httpErrorCode(response.status)),
+        retryAfterMs: response.status === 429 ? retryAfterMs(response) : null,
+      }
+    }
     const parsed = parseProvider(input.provider, await readJson(response))
-    if (!parsed) return failure(input, Date.now() - started, 'MISSING_MODEL_ID')
-    if (!parsed.text) return failure(input, Date.now() - started, 'EMPTY_ANSWER')
+    if (!parsed) return { ...failure(input, Date.now() - started, 'MISSING_MODEL_ID'), retryAfterMs: null }
+    if (!parsed.text) return { ...failure(input, Date.now() - started, 'EMPTY_ANSWER'), retryAfterMs: null }
     return {
       provider: input.provider,
       requestedModel: input.model,
@@ -313,12 +333,39 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
       tokensOut: parsed.tokensOut,
       status: 'ok',
       errorCode: null,
+      retryAfterMs: null,
     }
   } catch (error) {
-    return failure(input, Date.now() - started, isAbortError(error) ? 'TIMEOUT' : 'NETWORK')
+    return {
+      ...failure(input, Date.now() - started, isAbortError(error) ? 'TIMEOUT' : 'NETWORK'),
+      retryAfterMs: null,
+    }
   } finally {
     clearTimeout(timer)
   }
+}
+
+export async function callProvider(input: ProviderCallInput): Promise<ProviderCallResult> {
+  const started = Date.now()
+  if (input.apiKey.trim().length < MIN_KEY_LENGTH) {
+    return failure(input, 0, 'MISSING_API_KEY')
+  }
+  const deadline = Date.now() + input.timeoutMs
+  const attempts = input.provider === 'google' ? GOOGLE_RATE_LIMIT_ATTEMPTS : 1
+  let last: ProviderCallResult = failure(input, 0, 'HTTP_RATE_LIMIT')
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const remaining = deadline - Date.now()
+    if (remaining < 200) return { ...last, latencyMs: Date.now() - started }
+    const once = await callProviderOnce(input, remaining)
+    last = once
+    const retry = input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1
+    if (!retry) return { ...once, latencyMs: Date.now() - started }
+    const wait = once.retryAfterMs ?? GOOGLE_RATE_LIMIT_BACKOFF_MS[attempt] ?? 1_200
+    const room = deadline - Date.now() - 200
+    if (room < wait) return { ...once, latencyMs: Date.now() - started }
+    await (input.sleepImpl ?? delay)(wait)
+  }
+  return { ...last, latencyMs: Date.now() - started }
 }
 
 export async function pingProvider(input: {

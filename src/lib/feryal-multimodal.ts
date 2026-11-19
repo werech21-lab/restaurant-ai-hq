@@ -535,14 +535,58 @@ export interface FeryalVisionAuditResponse {
   engineLabelEn: string
 }
 
+export const FERYAL_PRICE_TABLE_UPLOAD_EN =
+  'I cannot read prices out of this image as Odoo data. Paste the price table as text or Excel. Anything you paste is Proposed / User Input, not Odoo Verified Actuals. OCR, if you run it, must stay tagged User Input.'
+
+export const FERYAL_PRICE_TABLE_UPLOAD_AR =
+  'لا أقرأ الأسعار من هذه الصورة كبيانات Odoo. الصق جدول الأسعار كنص أو Excel. أي رقم تلصقه هو Proposed / User Input وليس Odoo Verified Actuals. أي OCR يبقى موسوماً User Input.'
+
+export const FERYAL_VISUAL_NOT_ODOO_EN =
+  'This photo or video is not an Odoo read. I will not invent figures from it.'
+
+export const FERYAL_VISUAL_NOT_ODOO_AR =
+  'هذه الصورة أو هذا الفيديو ليسا قراءة من Odoo. لن أخترع أرقاماً منهما.'
+
+export function looksLikePriceTableUpload(prompt: string, fileNames: readonly string[]): boolean {
+  const blob = `${prompt} ${fileNames.join(' ')}`
+  return /(price|prices|تسعير|سعر|اسعار|أسعار|menu|kwd|د\.ك|excel|xlsx|csv)/i.test(blob)
+}
+
+export function honestVisualReply(input: {
+  prompt: string
+  lang: 'ar' | 'en'
+  fileNames: readonly string[]
+}): string {
+  const priceTable = looksLikePriceTableUpload(input.prompt, input.fileNames)
+  if (input.lang === 'ar') return priceTable ? FERYAL_PRICE_TABLE_UPLOAD_AR : FERYAL_VISUAL_NOT_ODOO_AR
+  return priceTable ? FERYAL_PRICE_TABLE_UPLOAD_EN : FERYAL_VISUAL_NOT_ODOO_EN
+}
+
 export async function callFeryalVisionInspector(params: {
   prompt: string
   lang: 'ar' | 'en'
   workspaceContext: string
   attachments: readonly FeryalMediaAttachment[]
 }): Promise<FeryalVisionAuditResponse | null> {
-  void params
-  return null
+  void params.workspaceContext
+  const reply = honestVisualReply({
+    prompt: params.prompt,
+    lang: params.lang,
+    fileNames: params.attachments.map((attachment) => attachment.name),
+  })
+  const complianceTier = inferVisionComplianceFromText(reply)
+  const badge = getComplianceBadgeMeta(complianceTier)
+  return {
+    ok: true,
+    reply,
+    complianceTier,
+    complianceBadgeAr: badge.ar,
+    complianceBadgeEn: badge.en,
+    provider: 'deterministic',
+    model: 'no-ocr',
+    engineLabelAr: 'بدون قراءة أسعار من الصورة',
+    engineLabelEn: 'No price OCR',
+  }
 }
 
 export function buildDefaultMediaPrompt(
