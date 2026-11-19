@@ -406,7 +406,8 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(unlinkedEventRec.primaryBrands).toEqual([])
       expect(unlinkedEventRec.recommendedMenu).toEqual([])
       expect(unlinkedEventRec.projectedAovKwd).toBe(0)
-      expect(unlinkedEventRec.recommendedConceptAr).toContain('غير مربوط بمصدر')
+      expect(unlinkedEventRec.recommendedConceptAr).toBe('')
+      expect(unlinkedEventRec.recommendedConceptEn).toBe('')
 
       // Planning & Regulations engines: zero pre-populated static phases or synthetic regulations
       expect(INITIAL_STRATEGIC_PHASES).toEqual([])

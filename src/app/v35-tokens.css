@@ -1,11 +1,13 @@
 /* ==========================================================================
-   AETHER BI V35 — VISUAL DESIGN SYSTEM TOKENS
+   AETHER BI V35 — VISUAL DESIGN SYSTEM TOKENS (EMERALD & LIGHT NAVY)
    --------------------------------------------------------------------------
-   Primary Aesthetic (Light): Pale cool blue-white canvas (#F1F5FC / #EEF4FD),
-   soft radial blue/periwinkle ambient tints (#DBEAFE / #E0E7FF), translucent
-   frosted white glass cards, dark navy floating rounded rail (#0D162A -> #101D38),
-   cobalt/sky accents (#2563EB, #3B82F6, #60A5FA), and pastel semantic pills.
-   Dark Mode: Coherent midnight-navy glass (#080E1D / #0F1A30) with sky accents.
+   Primary Aesthetic (Light): Soft mint-white page canvas (#F4F8F6 / #EDF2F0),
+   crisp white cards (#FFFFFF) with subtle navy hairline borders and shadows,
+   navy ink hierarchy (#1E3A5F / #4F6673), teal branch highlight (#0F766E),
+   primary emerald accents (#047857 AA / #059669), soft mint pills (#ECFDF5),
+   light navy secondary accent (#1E40AF), and emerald-teal hero gradient.
+   Dark Mode: Coherent executive midnight-navy surfaces (#090D16 / #0F172A)
+   with WCAG AA bright emerald accents (#34D399) and teal branch highlight.
    ========================================================================== */
 
 :root {
@@ -38,7 +40,7 @@
 }
 
 /* ==========================================================================
-   LIGHT MODE — CHART LIBRARY WHITE CARDS & CRISP HAIRLINE ELEVATION
+   LIGHT MODE — EMERALD & LIGHT NAVY CARDS & CRISP HAIRLINE ELEVATION
    ========================================================================== */
 :root,
 html[data-theme='light'],
@@ -48,71 +50,75 @@ html:not(.dark) {
   color-scheme: light;
 
   /* Canvas & Subtle Ambient Tints */
-  --v35-bg-canvas: #F1F5FC;
-  --v35-bg-canvas-alt: #EEF4FD;
-  --v35-ambient-1: rgba(219, 234, 254, 0.72); /* #DBEAFE */
-  --v35-ambient-2: rgba(224, 231, 255, 0.66); /* #E0E7FF */
-  --v35-ambient-3: rgba(191, 219, 254, 0.44); /* #BFDBFE */
+  --v35-bg-canvas: #F4F8F6;
+  --v35-bg-canvas-alt: #EDF2F0;
+  --v35-ambient-1: rgba(209, 250, 229, 0.70); /* #D1FAE5 */
+  --v35-ambient-2: rgba(219, 234, 254, 0.54); /* #DBEAFE */
+  --v35-ambient-3: rgba(204, 251, 241, 0.44); /* #CCFBF1 */
 
-  /* Crisp Chart Library Card & Frosted Topbar Surfaces */
-  --v35-glass-bg: rgba(255, 255, 255, 0.96);
+  /* Crisp Card & Frosted Topbar Surfaces */
+  --v35-glass-bg: #FFFFFF;
   --v35-glass-bg-strong: #FFFFFF;
-  --v35-glass-bg-subtle: rgba(248, 250, 252, 0.92);
-  --v35-glass-bg-nested: rgba(241, 245, 249, 0.72);
+  --v35-glass-bg-subtle: rgba(244, 248, 246, 0.94);
+  --v35-glass-bg-nested: rgba(237, 242, 240, 0.72);
   --v35-glass-bg-hover: #FFFFFF;
-  --v35-glass-topbar: rgba(255, 255, 255, 0.92);
+  --v35-glass-topbar: rgba(255, 255, 255, 0.94);
 
-  /* Hairline Rings & Subtle Card Elevation */
-  --v35-border-hairline: rgba(203, 213, 225, 0.78);
-  --v35-border-strong: rgba(148, 163, 184, 0.42);
-  --v35-border-accent: rgba(37, 99, 235, 0.28);
+  /* Navy Hairline Borders & Subtle Card Elevation */
+  --v35-border-hairline: rgba(30, 58, 95, 0.08);
+  --v35-border-strong: rgba(30, 58, 95, 0.16);
+  --v35-border-accent: rgba(5, 150, 105, 0.30);
   --v35-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.90);
-  --v35-shadow-glass: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --v35-shadow-glass: 0 2px 6px rgba(30, 58, 95, 0.03);
   --v35-shadow-glass-hover:
-    0 2px 6px rgba(15, 23, 42, 0.06),
-    0 1px 2px rgba(15, 23, 42, 0.04);
+    0 6px 18px rgba(30, 58, 95, 0.07),
+    0 1px 3px rgba(5, 150, 105, 0.08);
   --v35-shadow-elevated:
-    0 8px 24px -6px rgba(15, 23, 42, 0.10),
-    0 1px 3px rgba(15, 23, 42, 0.05);
-  --v35-chart-ghost: rgba(226, 232, 240, 0.68);
+    0 10px 26px -6px rgba(30, 58, 95, 0.12),
+    0 1px 3px rgba(30, 58, 95, 0.05);
+  --v35-chart-ghost: rgba(209, 250, 229, 0.50);
 
   /* Dark Navy Floating Sidebar Rail */
-  --v35-rail-bg-start: #0D162A;
-  --v35-rail-bg-end: #101D38;
+  --v35-rail-bg-start: #0F172A;
+  --v35-rail-bg-end: #1E3A5F;
   --v35-rail-surface: rgba(255, 255, 255, 0.055);
-  --v35-rail-surface-hover: rgba(255, 255, 255, 0.095);
+  --v35-rail-surface-hover: rgba(255, 255, 255, 0.10);
   --v35-rail-border: rgba(148, 163, 184, 0.18);
   --v35-rail-text: #CBD5E1;
   --v35-rail-text-strong: #F8FAFC;
   --v35-rail-text-muted: #94A3B8;
   --v35-rail-shadow:
-    0 10px 28px -12px rgba(13, 22, 42, 0.28),
+    0 10px 28px -12px rgba(15, 23, 42, 0.30),
     0 0 0 1px rgba(148, 163, 184, 0.16);
 
-  /* Cobalt / Blue Accents */
-  --v35-accent: #2563EB;
-  --v35-accent-mid: #3B82F6;
-  --v35-accent-soft: #60A5FA;
+  /* Emerald & Light Navy Accents (AA text #047857; structural/bar #059669) */
+  --v35-accent: #047857;
+  --v35-accent-bright: #059669;
+  --v35-accent-mid: #059669;
+  --v35-accent-soft: #10B981;
+  --v35-accent-wash: #ECFDF5;
+  --v35-accent-2: #1E40AF;
+  --v35-branch-color: #0F766E;
+  --v35-bar-soft: #D1FAE5;
+  --v35-bar-main: #059669;
   --v35-accent-ink: #FFFFFF;
-  --v35-accent-tint: rgba(37, 99, 235, 0.10);
-  --v35-accent-ring: rgba(59, 130, 246, 0.30);
+  --v35-accent-tint: rgba(5, 150, 105, 0.10);
+  --v35-accent-ring: rgba(5, 150, 105, 0.30);
 
-  /* Hero Sapphire Card Emphasis */
-  --v35-hero-bg: #1D4ED8;
-  --v35-hero-gradient: linear-gradient(135deg, #1E3A8A 0%, #2563EB 54%, #1D4ED8 100%);
-  --v35-hero-shadow:
-    0 1px 3px rgba(15, 23, 42, 0.12),
-    0 0 0 1px rgba(37, 99, 235, 0.28);
+  /* Hero Emerald-Teal Card Emphasis (WCAG AA across full gradient) */
+  --v35-hero-bg: #047857;
+  --v35-hero-gradient: linear-gradient(135deg, #065F46 0%, #047857 58%, #0F766E 100%);
+  --v35-hero-shadow: 0 10px 26px rgba(5, 150, 105, 0.22);
   --v35-hero-shadow-hover:
-    0 4px 12px -2px rgba(15, 23, 42, 0.14),
-    0 0 0 1px rgba(37, 99, 235, 0.42);
+    0 14px 32px rgba(5, 150, 105, 0.28),
+    0 0 0 1px rgba(5, 150, 105, 0.36);
 
-  /* Foreground Text */
-  --v35-text-primary: #0F172A;
-  --v35-text-secondary: #334155;
-  --v35-text-muted: #52637A;
+  /* Light Navy Foreground Ink Hierarchy */
+  --v35-text-primary: #1E3A5F;
+  --v35-text-secondary: #334E68;
+  --v35-text-muted: #4F6673;
 
-  /* Restrained Pastel Semantic Tokens */
+  /* Restrained Pastel Semantic Tokens (Preserved) */
   --v35-positive: #047857;
   --v35-positive-bg: rgba(209, 250, 229, 0.72);
   --v35-positive-border: rgba(110, 231, 183, 0.68);
@@ -122,33 +128,33 @@ html:not(.dark) {
   --v35-warning: #92400E;
   --v35-warning-bg: rgba(245, 158, 11, 0.08);
   --v35-warning-border: rgba(180, 83, 9, 0.20);
-  --v35-unavailable: #475569;
-  --v35-unavailable-bg: rgba(226, 232, 240, 0.72);
-  --v35-unavailable-border: rgba(148, 163, 184, 0.42);
+  --v35-unavailable: #4F6673;
+  --v35-unavailable-bg: rgba(237, 242, 240, 0.85);
+  --v35-unavailable-border: rgba(30, 58, 95, 0.16);
 
   /* Legacy Palette RGB & DS Token Alignment (Light) */
-  --ink-950: 241 245 252;
+  --ink-950: 244 248 246;
   --ink-900: 255 255 255;
-  --ink-800: 238 244 253;
+  --ink-800: 237 242 240;
   --ink-700: 226 232 240;
   --ink-600: 203 213 225;
   --shadow-card: var(--v35-shadow-glass);
   --shadow-lift: var(--v35-shadow-glass-hover);
 
-  --ds-bg-canvas: #F1F5FC;
-  --ds-bg-surface: rgba(255, 255, 255, 0.96);
+  --ds-bg-canvas: #F4F8F6;
+  --ds-bg-surface: #FFFFFF;
   --ds-bg-elevated: #FFFFFF;
-  --ds-bg-subtle: #EEF4FD;
-  --ds-bg-hover: rgba(37, 99, 235, 0.06);
-  --ds-border-hairline: rgba(203, 213, 225, 0.78);
-  --ds-border-strong: rgba(148, 163, 184, 0.42);
-  --ds-border-accent: rgba(37, 99, 235, 0.28);
-  --ds-text-primary: #0F172A;
-  --ds-text-secondary: #334155;
-  --ds-text-muted: #52637A;
-  --ds-accent: #2563EB;
+  --ds-bg-subtle: #EDF2F0;
+  --ds-bg-hover: rgba(5, 150, 105, 0.06);
+  --ds-border-hairline: rgba(30, 58, 95, 0.08);
+  --ds-border-strong: rgba(30, 58, 95, 0.16);
+  --ds-border-accent: rgba(5, 150, 105, 0.30);
+  --ds-text-primary: #1E3A5F;
+  --ds-text-secondary: #334E68;
+  --ds-text-muted: #4F6673;
+  --ds-accent: #047857;
   --ds-accent-ink: #FFFFFF;
-  --ds-accent-soft: #EFF6FF;
+  --ds-accent-soft: #ECFDF5;
   --ds-positive: #047857;
   --ds-positive-bg: #ECFDF5;
   --ds-positive-border: #A7F3D0;
@@ -158,19 +164,19 @@ html:not(.dark) {
   --ds-warning: #92400E;
   --ds-warning-bg: #FBF7EE;
   --ds-warning-border: rgba(180, 83, 9, 0.20);
-  --ds-unavailable: #475569;
-  --ds-unavailable-bg: #F1F5F9;
-  --ds-unavailable-border: #CBD5E1;
-  --ds-chart-grid: rgba(148, 163, 184, 0.20);
-  --ds-chart-axis: #475569;
-  --ds-skeleton-base: rgba(148, 163, 184, 0.16);
-  --ds-skeleton-sheen: rgba(148, 163, 184, 0.28);
+  --ds-unavailable: #4F6673;
+  --ds-unavailable-bg: #EDF2F0;
+  --ds-unavailable-border: rgba(30, 58, 95, 0.18);
+  --ds-chart-grid: rgba(30, 58, 95, 0.09);
+  --ds-chart-axis: #4F6673;
+  --ds-skeleton-base: rgba(30, 58, 95, 0.10);
+  --ds-skeleton-sheen: rgba(30, 58, 95, 0.20);
   --ds-shadow-card: var(--v35-shadow-glass);
   --ds-shadow-elevated: var(--v35-shadow-elevated);
 }
 
 /* ==========================================================================
-   DARK MODE — EXECUTIVE SLATE / ZINC NEUTRALS & SINGLE COBALT ACCENT
+   DARK MODE — EXECUTIVE MIDNIGHT NAVY SURFACES & AA EMERALD ACCENT
    ========================================================================== */
 html[data-theme='dark'],
 html.dark {
@@ -179,11 +185,11 @@ html.dark {
   /* Canvas & Restrained Ambient Tints */
   --v35-bg-canvas: #090D16;
   --v35-bg-canvas-alt: #0D1320;
-  --v35-ambient-1: rgba(37, 99, 235, 0.16);
-  --v35-ambient-2: rgba(59, 130, 246, 0.10);
-  --v35-ambient-3: rgba(148, 163, 184, 0.08);
+  --v35-ambient-1: rgba(5, 150, 105, 0.16);
+  --v35-ambient-2: rgba(30, 64, 175, 0.12);
+  --v35-ambient-3: rgba(13, 148, 136, 0.10);
 
-  /* Executive Slate Surfaces */
+  /* Executive Midnight Navy Slate Surfaces */
   --v35-glass-bg: #0F172A;
   --v35-glass-bg-strong: #131C2E;
   --v35-glass-bg-subtle: #0B111E;
@@ -194,10 +200,10 @@ html.dark {
   /* 1px Hairline Borders & Restrained Elevation */
   --v35-border-hairline: rgba(148, 163, 184, 0.16);
   --v35-border-strong: rgba(148, 163, 184, 0.28);
-  --v35-border-accent: rgba(59, 130, 246, 0.36);
+  --v35-border-accent: rgba(52, 211, 153, 0.34);
   --v35-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --v35-shadow-glass: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --v35-shadow-glass-hover: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --v35-shadow-glass: 0 2px 6px rgba(0, 0, 0, 0.36);
+  --v35-shadow-glass-hover: 0 4px 12px rgba(0, 0, 0, 0.48);
   --v35-shadow-elevated:
     0 8px 24px -4px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(148, 163, 184, 0.20);
@@ -216,30 +222,36 @@ html.dark {
     0 4px 16px -4px rgba(0, 0, 0, 0.50),
     0 0 0 1px rgba(148, 163, 184, 0.16);
 
-  /* Single Cobalt Accent (AA contrast on #0F172A/#131C2E) */
-  --v35-accent: #60A5FA;
-  --v35-accent-mid: #3B82F6;
-  --v35-accent-soft: #93C5FD;
-  --v35-accent-ink: #090D16;
-  --v35-accent-tint: rgba(59, 130, 246, 0.14);
-  --v35-accent-ring: rgba(59, 130, 246, 0.36);
+  /* AA Emerald Accent + Teal Branch Highlight on #0F172A/#131C2E */
+  --v35-accent: #34D399;
+  --v35-accent-bright: #10B981;
+  --v35-accent-mid: #10B981;
+  --v35-accent-soft: #6EE7B7;
+  --v35-accent-wash: rgba(16, 185, 129, 0.14);
+  --v35-accent-2: #93C5FD;
+  --v35-branch-color: #5EEAD4;
+  --v35-bar-soft: rgba(16, 185, 129, 0.18);
+  --v35-bar-main: #10B981;
+  --v35-accent-ink: #04130D;
+  --v35-accent-tint: rgba(16, 185, 129, 0.14);
+  --v35-accent-ring: rgba(52, 211, 153, 0.36);
 
-  /* Hero Slate-Cobalt Card Emphasis */
-  --v35-hero-bg: #1E3A8A;
-  --v35-hero-gradient: linear-gradient(135deg, #1E293B 0%, #1E3A8A 65%, #1D4ED8 100%);
+  /* Hero Midnight-Emerald Card Emphasis */
+  --v35-hero-bg: #064E3B;
+  --v35-hero-gradient: linear-gradient(135deg, #0F172A 0%, #065F46 58%, #047857 100%);
   --v35-hero-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(59, 130, 246, 0.32);
+    0 10px 28px rgba(5, 150, 105, 0.26),
+    0 0 0 1px rgba(16, 185, 129, 0.32);
   --v35-hero-shadow-hover:
-    0 4px 12px rgba(0, 0, 0, 0.50),
-    0 0 0 1px rgba(59, 130, 246, 0.48);
+    0 14px 32px rgba(5, 150, 105, 0.34),
+    0 0 0 1px rgba(52, 211, 153, 0.45);
 
   /* Foreground Text (AA/AAA Contrast) */
   --v35-text-primary: #F8FAFC;
   --v35-text-secondary: #CBD5E1;
   --v35-text-muted: #94A3B8;
 
-  /* Restrained Semantic Tokens (Dark) */
+  /* Restrained Semantic Tokens (Dark, Preserved) */
   --v35-positive: #34D399;
   --v35-positive-bg: rgba(16, 185, 129, 0.16);
   --v35-positive-border: rgba(52, 211, 153, 0.30);
@@ -275,13 +287,13 @@ html.dark {
   --ds-bg-hover: #172236;
   --ds-border-hairline: rgba(148, 163, 184, 0.16);
   --ds-border-strong: rgba(148, 163, 184, 0.28);
-  --ds-border-accent: rgba(59, 130, 246, 0.36);
+  --ds-border-accent: rgba(52, 211, 153, 0.36);
   --ds-text-primary: #F8FAFC;
   --ds-text-secondary: #CBD5E1;
   --ds-text-muted: #94A3B8;
-  --ds-accent: #60A5FA;
-  --ds-accent-ink: #090D16;
-  --ds-accent-soft: rgba(59, 130, 246, 0.14);
+  --ds-accent: #34D399;
+  --ds-accent-ink: #04130D;
+  --ds-accent-soft: rgba(16, 185, 129, 0.14);
   --ds-positive: #34D399;
   --ds-positive-bg: rgba(16, 185, 129, 0.14);
   --ds-positive-border: rgba(52, 211, 153, 0.30);

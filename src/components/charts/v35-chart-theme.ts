@@ -1,21 +1,21 @@
 import { formatInt } from '@/lib/format'
 
 /**
- * V35 Executive Chart Theme & Shared Palette (server-safe, zero `'use client'`).
- * Refined "Chart Library" aesthetic combining calm slate/zinc neutrals, cobalt primary
- * (`#2563EB` light / `#3B82F6` dark), soft teal, violet, amber, sky, and comparison slate.
+ * V35 Executive Chart Theme (server-safe, zero `'use client'`).
+ * Emerald primary with light-navy ink. The first three series are emerald, navy, and amber
+ * so a chart never opens on three greens.
  */
 export const V35_CHART_COLORS = {
-  primary: '#2563EB',
-  primaryDark: '#3B82F6',
-  primarySoft: '#60A5FA',
-  primaryDeep: '#1D4ED8',
+  primary: '#059669',
+  primaryDark: '#047857',
+  primarySoft: '#10B981',
+  primaryDeep: '#065F46',
   comparison: '#94A3B8',
-  secondary: '#475569',
-  secondaryMuted: '#94A3B8',
-  indigo: '#818CF8',
+  secondary: '#1E40AF',
+  secondaryMuted: '#4F6673',
+  indigo: '#7C3AED',
   info: '#0EA5E9',
-  emerald: '#10B981',
+  emerald: '#059669',
   teal: '#0D9488',
   tealSoft: '#14B8A6',
   violet: '#7C3AED',
@@ -23,48 +23,49 @@ export const V35_CHART_COLORS = {
   warning: '#D97706',
   amberSoft: '#F59E0B',
   negative: '#E11D48',
-  gridStroke: '#E2E8F0',
-  axisTick: '#64748B',
-  ghostBarLight: 'rgba(226, 232, 240, 0.72)',
+  gridStroke: '#E2ECE8',
+  axisTick: '#4F6673',
+  ghostBarLight: 'rgba(209, 250, 229, 0.50)',
   ghostBarDark: 'rgba(148, 163, 184, 0.14)',
 } as const
 
+/** Series order: emerald, light navy, amber, then violet, teal, slate. */
 export const V35_DONUT_PALETTE = [
-  '#2563EB',
-  '#0D9488',
-  '#7C3AED',
+  '#059669',
+  '#1E40AF',
   '#D97706',
-  '#0EA5E9',
+  '#7C3AED',
+  '#0D9488',
   '#64748B',
 ] as const
 
 export const V35_CHART_PALETTE = [
   V35_CHART_COLORS.primary,
-  V35_CHART_COLORS.teal,
-  V35_CHART_COLORS.violet,
+  V35_CHART_COLORS.secondary,
   V35_CHART_COLORS.warning,
-  V35_CHART_COLORS.info,
+  V35_CHART_COLORS.violet,
+  V35_CHART_COLORS.teal,
   V35_CHART_COLORS.comparison,
 ] as const
 
 /**
- * 5-step subtle slate -> sky -> cobalt intensity stops (0 = quietest -> 4 = peak)
+ * 5-step mint -> emerald intensity stops (0 = quietest -> 4 = peak)
  * for `HourWeekdayHeatmap` in Light & Dark modes.
  */
 export const V35_HEATMAP_SCALE_LIGHT = [
-  '#F1F5F9',
-  '#E0F2FE',
-  '#BAE6FD',
-  '#60A5FA',
-  '#2563EB',
+  '#EDF2F0',
+  '#D1FAE5',
+  '#6EE7B7',
+  '#10B981',
+  '#047857',
 ] as const
 
 export const V35_HEATMAP_SCALE_DARK = [
   '#1E293B',
-  '#0C4A6E',
-  '#0369A1',
-  '#2563EB',
-  '#3B82F6',
+  '#064E3B',
+  '#047857',
+  '#10B981',
+  '#34D399',
 ] as const
 
 export const V35_CHART_GRID_PROPS = {
@@ -96,11 +97,11 @@ export const V35_TOOLTIP_TONE_CLASS: Record<ChartTooltipTone, string> = {
   rose: 'text-rose-600',
   amber: 'text-amber-700',
   slate: 'text-slate-500',
-  blue: 'text-blue-700',
+  blue: 'text-[#047857]',
 }
 
 export const V35_CHART_CARD_CLASS =
-  'rounded-2xl border border-slate-200/85 bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95'
+  'rounded-2xl border border-slate-200/85 bg-white p-4 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] dark:border-slate-800 dark:bg-slate-900/95'
 
 export const V35_CHART_PLOT_SURFACE_CLASS = 'relative px-1 pt-2'
 
@@ -111,7 +112,7 @@ export function resolveV35DonutColor(index: number, explicit?: string): string {
 }
 
 /**
- * Normalizes legacy ultra-dark bar fills (`#0B1220`, `#0F172A`) to V35 cobalt blue
+ * Normalizes legacy ultra-dark bar fills (`#0B1220`, `#0F172A`) to the emerald primary
  * so bars stay crisp on both frosted light and midnight-navy dark canvases.
  */
 export function normalizeV35SeriesColor(
@@ -144,11 +145,14 @@ export function formatCompactAxisLabel(raw: string): string {
  * rendering `7.3 ألف` / `5.4 ألف` / `1.1 ألف` in Arabic and `7.3k` / `5.4k` in English.
  */
 export function formatCompactKwdTick(v: number, isAr: boolean): string {
-  const safe = Number.isFinite(v) ? Math.max(0, v) : 0
-  if (safe >= 1000) {
-    const k = (safe / 1000).toFixed(1)
-    // Non-breaking space: chart ticks wrap at normal spaces, which split «16.0 ألف» onto two lines.
-    return isAr ? `${k}\u00A0ألف` : `${k}k`
-  }
-  return formatInt(safe)
+  if (!Number.isFinite(v)) return '0'
+  const negative = v < 0
+  const abs = Math.abs(v)
+  const body =
+    abs >= 1000
+      ? isAr
+        ? `${(abs / 1000).toFixed(1)}\u00A0ألف`
+        : `${(abs / 1000).toFixed(1)}k`
+      : formatInt(abs)
+  return negative && /[1-9]/.test(body) ? `-${body}` : body
 }

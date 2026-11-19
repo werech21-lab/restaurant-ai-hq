@@ -278,10 +278,10 @@ export function recommendBrandForEvent(
 } {
   return {
     primaryBrands: [],
-    recommendedConceptAr: 'غير مربوط بمصدر',
-    recommendedConceptEn: 'Not linked to a data source',
-    reasoningAr: 'غير مربوط بمصدر بيانات تاريخي للفعاليات في Odoo.',
-    reasoningEn: 'Not linked to historical event records in Odoo.',
+    recommendedConceptAr: '',
+    recommendedConceptEn: '',
+    reasoningAr: '',
+    reasoningEn: '',
     projectedAovKwd: 0,
     recommendedMenu: [],
     suggestedBoothSqM: 0,
@@ -559,8 +559,8 @@ export interface EventContractIntelligence {
 export const MARINA_KASHTA_CONTRACT_DATA: EventContractIntelligence = {
   contractId: '',
   contractFileName: '',
-  eventNameAr: 'غير مربوط بمصدر',
-  eventNameEn: 'Not linked to a data source',
+  eventNameAr: '',
+  eventNameEn: '',
   organizerAr: '',
   organizerEn: '',
   organizerContact: '',

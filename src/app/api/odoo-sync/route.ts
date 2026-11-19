@@ -19,8 +19,8 @@ import {
   type ExecSessionRole,
 } from '@/lib/auth/exec-session'
 import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
+import { resolveSupabaseExecAccess } from '@/lib/auth/supabase-access'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
-import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -77,32 +77,25 @@ export async function resolveVerifiedSyncCaller(
 
   const token = request.cookies.get(SESSION_COOKIE)?.value
   if (token) {
-    const userId = await verifySessionToken(token)
-    if (userId) {
+    const legacy = await verifySessionToken(token)
+    if (legacy) {
       return {
-        userId,
-        role: 'admin',
-        isAuditor: false,
+        userId: legacy.userId,
+        role: legacy.role,
+        isAuditor: legacy.role === 'auditor',
         isCron: false,
       }
     }
   }
 
-  try {
-    const supabase = await createClient()
-    if (supabase) {
-      const { data } = await supabase.auth.getUser()
-      if (data.user) {
-        return {
-          userId: data.user.id,
-          role: 'admin',
-          isAuditor: false,
-          isCron: false,
-        }
-      }
+  const access = await resolveSupabaseExecAccess()
+  if (access.status === 'allowed') {
+    return {
+      userId: access.userId,
+      role: access.role,
+      isAuditor: access.role === 'auditor',
+      isCron: false,
     }
-  } catch {
-    // no Supabase session
   }
 
   return null

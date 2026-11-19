@@ -18,7 +18,6 @@ import {
   type GlobalPeriod,
 } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
-import UnlinkedSourceNotice from '@/components/erp/UnlinkedSourceNotice'
 import { PartialWarningBanner, StateBlock } from '@/components/ui'
 import { UNAVAILABLE_DASH, formatInt, formatKwd, formatPct } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
@@ -68,7 +67,13 @@ export function DepartmentalReportsHub({
   )
 
   const departments = useMemo(
-    () => buildLiveEnterpriseDepartments(workspace, liveSummary, isAr),
+    () =>
+      buildLiveEnterpriseDepartments(workspace, liveSummary, isAr)
+        .map((department) => ({
+          ...department,
+          reports: department.reports.filter((report) => report.sourceState !== 'unlinked'),
+        }))
+        .filter((department) => department.reports.length > 0),
     [workspace, liveSummary, isAr],
   )
 
@@ -273,15 +278,7 @@ export function DepartmentalReportsHub({
             )}
           </div>
 
-          {currentReport.sourceState === 'unlinked' ? (
-            <UnlinkedSourceNotice
-              isAr={isAr}
-              titleAr={currentReport.titleAr}
-              titleEn={currentReport.titleEn}
-              reasonAr={currentReport.unlinkedReasonAr}
-              reasonEn={currentReport.unlinkedReasonEn}
-            />
-          ) : !workspace.odooConnected || workspace.noData || currentReport.rows.length === 0 ? (
+          {!workspace.odooConnected || workspace.noData || currentReport.rows.length === 0 ? (
             <StateBlock
               state={!workspace.odooConnected ? 'unlinked' : 'empty'}
               locale={currentLocale}
@@ -455,18 +452,8 @@ export function DepartmentalReportsHub({
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{report.code}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                            report.sourceState === 'unlinked'
-                              ? 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
-                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                          }`}
-                        >
-                          {report.sourceState === 'unlinked'
-                            ? isAr
-                              ? 'غير مربوط بمصدر'
-                              : 'Not linked'
-                            : report.odooModel ?? 'Odoo'}
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                          {report.odooModel ?? 'Odoo'}
                         </span>
                       </div>
                       <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">

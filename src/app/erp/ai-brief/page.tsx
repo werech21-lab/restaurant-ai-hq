@@ -90,7 +90,7 @@ export default async function AiBriefPage() {
   const [role, listed] = await Promise.all([resolveServerExecSessionRole(), safeListDailyBriefs(14)])
   const { briefs, error } = listed
   const [latest, ...older] = briefs
-  const canRun = canTriggerManualOdooSync(role)
+  const canRun = role !== null && canTriggerManualOdooSync(role)
   const retryAt = manualRetryAt(
     latestManualAtMs(
       briefs.map((brief) => ({

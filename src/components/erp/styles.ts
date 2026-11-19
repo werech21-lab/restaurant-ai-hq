@@ -1,12 +1,12 @@
 export const panelClass = 'rounded-xl border border-[#30363d] bg-[#1c2128] p-5'
 
 export const inputClass =
-  'mt-1.5 w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-gray-100 outline-none focus:border-blue-500'
+  'mt-1.5 w-full rounded-xl border border-[#30363d] bg-[#0d1117] px-3 py-2.5 text-sm text-gray-100 outline-none focus:border-emerald-500'
 
 export const labelClass = 'text-sm text-gray-400'
 
 export const primaryButton =
-  'rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50'
 
 export const secondaryButton =
   'rounded-lg border border-[#30363d] px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-gray-200 dark:hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50'

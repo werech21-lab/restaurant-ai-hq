@@ -54,8 +54,8 @@ export function buildCfoRealismForPlay(p: JourneyPlay): CfoRealismProfile {
   return {
     playId: p.id,
     provenance: {
-      badgeAr: 'غير مربوط بمصدر',
-      badgeEn: 'Unlinked source',
+      badgeAr: '',
+      badgeEn: '',
       models: [],
       recordsScanned: 0,
       correlationAr: '',

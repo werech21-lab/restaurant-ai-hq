@@ -75,9 +75,9 @@ const f3 = (n: number | null | undefined, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3 })
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 const KPI_CARD_CLS =
-  'rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -669,7 +669,7 @@ export function CoresHubStudio({
                     <span dir="ltr">{formatKwd(snapshot.sales.zeroCommSalesKwd, { locale: resolvedLocale })}</span>{' '}
                     {isAr ? 'مباشر' : 'direct'} ({f1Pct(snapshot.sales.zeroCommSharePct, resolvedLocale)})
                   </div>
-                  <div className="mt-0.5 font-mono text-xs tabular-nums text-sky-700 dark:text-sky-300">
+                  <div className="mt-0.5 font-mono text-xs tabular-nums text-[#0F766E] dark:text-emerald-300">
                     <span dir="ltr">{formatKwd(snapshot.sales.aggregatorSalesKwd, { locale: resolvedLocale })}</span>{' '}
                     {isAr ? 'تطبيقات' : 'apps'} ({f1Pct(snapshot.sales.aggregatorSharePct, resolvedLocale)})
                   </div>
@@ -956,6 +956,58 @@ export function CoresHubStudio({
                       </>
                     )}
                   </p>
+                ) : null}
+                {snapshot.sales.registerReconciliation ? (
+                  <div data-register-reconciliation="true" className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold text-[#1E3A5F] dark:text-slate-100">
+                      {isAr ? 'مطابقة صناديق نقاط البيع' : 'POS register reconciliation'}
+                    </p>
+                    <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      {snapshot.sales.registerReconciliation.rows.map((row) => (
+                        <li key={row.configId} className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {row.configName}
+                            <span className="ms-1 text-xs text-[#4F6673]">
+                              {row.bucket === 'exhibition-booths'
+                                ? isAr
+                                  ? 'بوثات المعارض'
+                                  : 'Exhibition booths'
+                                : row.bucket === 'school-canteen'
+                                  ? isAr
+                                    ? 'مقاصف المدارس'
+                                    : 'School canteens'
+                                  : isAr
+                                    ? 'مطاعم'
+                                    : 'Restaurants'}
+                            </span>
+                          </span>
+                          <span dir="ltr" className="shrink-0 font-semibold tabular-nums">
+                            {formatKwd(row.netKwd, { locale: resolvedLocale })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      {isAr ? 'مجموع الصناديق المشمولة' : 'Included registers'}{' '}
+                      <span dir="ltr" className="font-semibold tabular-nums">
+                        {formatKwd(snapshot.sales.registerReconciliation.includedNetKwd, { locale: resolvedLocale })}
+                      </span>
+                      {' · '}
+                      {isAr ? 'صافي الشركة' : 'Company net'}{' '}
+                      <span dir="ltr" className="font-semibold tabular-nums">
+                        {formatKwd(snapshot.sales.registerReconciliation.companyNetKwd, { locale: resolvedLocale })}
+                      </span>
+                      {Math.abs(snapshot.sales.registerReconciliation.gapKwd) >= 0.0005 ? (
+                        <>
+                          {' · '}
+                          {isAr ? 'الفرق' : 'Gap'}{' '}
+                          <span dir="ltr" className="font-semibold tabular-nums">
+                            {formatKwd(snapshot.sales.registerReconciliation.gapKwd, { locale: resolvedLocale })}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
                 ) : null}
               </div>
               {!snapshot.sales.brandsUnavailable ? (

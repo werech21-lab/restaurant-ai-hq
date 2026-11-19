@@ -117,9 +117,13 @@ describe('login rate-limit and DB-path hardening', () => {
     expect(await sessionRole(res)).toBeNull()
   })
 
-  it('maps a matching DB user to exec role admin', async () => {
+  it('maps a DB user with an admin role row to exec role admin', async () => {
     findUnique.mockResolvedValue({
-      id: 'u-wh', email: 'warehouse@venturefoodskw.com', isActive: true, passwordHash: dbHash,
+      id: 'u-wh',
+      email: 'warehouse@venturefoodskw.com',
+      isActive: true,
+      passwordHash: dbHash,
+      role: { name: 'Warehouse', isAdmin: true },
     })
     const res = await POST(loginRequest('warehouse@venturefoodskw.com', DB_PASSWORD, '198.51.100.71'))
     expect(findUnique).toHaveBeenCalledTimes(1)
@@ -128,14 +132,61 @@ describe('login rate-limit and DB-path hardening', () => {
     expect(await sessionRole(res)).toBe('admin')
   })
 
-  it('maps a matching DB auditor email to exec role auditor', async () => {
+  it('returns no_access when the password matches and the role title is unknown', async () => {
     findUnique.mockResolvedValue({
-      id: 'u-aud', email: 'external.auditor@venturefoodskw.com', isActive: true, passwordHash: dbHash,
+      id: 'u-wh',
+      email: 'warehouse@venturefoodskw.com',
+      isActive: true,
+      passwordHash: dbHash,
+      role: { name: 'Warehouse', isAdmin: false },
+    })
+    const res = await POST(loginRequest('warehouse@venturefoodskw.com', DB_PASSWORD, '198.51.100.81'))
+    expect(res.status).toBe(403)
+    const body = (await res.json()) as { reason?: string; errorEn?: string }
+    expect(body.reason).toBe('no_access')
+    expect(body.errorEn).toMatch(/not on the access list/i)
+    expect(await sessionRole(res)).toBeNull()
+  })
+
+  it('maps a DB role named auditor to exec role auditor', async () => {
+    findUnique.mockResolvedValue({
+      id: 'u-aud',
+      email: 'external.auditor@venturefoodskw.com',
+      isActive: true,
+      passwordHash: dbHash,
+      role: { name: 'auditor', isAdmin: false },
     })
     const res = await POST(loginRequest('external.auditor@venturefoodskw.com', DB_PASSWORD, '198.51.100.72'))
     expect(res.status).toBe(200)
     expect(((await res.json()) as { role: string }).role).toBe('auditor')
     expect(await sessionRole(res)).toBe('auditor')
+  })
+
+  it('does not treat an email that merely contains auditor as an auditor or an admin', async () => {
+    findUnique.mockResolvedValue({
+      id: 'u-aud',
+      email: 'external.auditor@venturefoodskw.com',
+      isActive: true,
+      passwordHash: dbHash,
+      role: { name: 'viewer', isAdmin: false },
+    })
+    const res = await POST(loginRequest('external.auditor@venturefoodskw.com', DB_PASSWORD, '198.51.100.82'))
+    expect(res.status).toBe(403)
+    expect(((await res.json()) as { reason?: string }).reason).toBe('no_access')
+  })
+
+  it('grants admin when the email is listed in AETHER_ADMIN_EMAILS and the role table does not map', async () => {
+    vi.stubEnv('AETHER_ADMIN_EMAILS', 'warehouse@venturefoodskw.com')
+    findUnique.mockResolvedValue({
+      id: 'u-wh',
+      email: 'warehouse@venturefoodskw.com',
+      isActive: true,
+      passwordHash: dbHash,
+      role: { name: 'Warehouse', isAdmin: false },
+    })
+    const res = await POST(loginRequest('warehouse@venturefoodskw.com', DB_PASSWORD, '198.51.100.83'))
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { role: string }).role).toBe('admin')
   })
 
   it('rejects an inactive DB user and a wrong DB password', async () => {

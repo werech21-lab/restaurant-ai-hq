@@ -2,6 +2,7 @@ export type LoginErrorPayload = {
   errorAr?: string
   errorEn?: string
   error?: string
+  reason?: string
   retryAfterSeconds?: number
 }
 
@@ -10,6 +11,16 @@ export type LoginErrorMessage = { ar: string; en: string }
 const INVALID: LoginErrorMessage = {
   ar: 'بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة المرور.',
   en: 'Invalid credentials. Please check your email and password.',
+}
+
+export const NO_ACCESS_MESSAGE: LoginErrorMessage = {
+  ar: 'هذا الحساب غير مدرج في قائمة الدخول. اطلب من مسؤول النظام إضافته قبل المحاولة مرة أخرى.',
+  en: 'This account is not on the access list. Ask an administrator to add it before trying again.',
+}
+
+export function messageForLoginReason(reason: string | undefined | null): LoginErrorMessage | null {
+  if (reason === 'no_access') return NO_ACCESS_MESSAGE
+  return null
 }
 
 /**
@@ -21,6 +32,7 @@ export function resolveLoginErrorMessage(
   data: LoginErrorPayload | null | undefined,
 ): LoginErrorMessage {
   const payload = data ?? {}
+  if (payload.reason === 'no_access') return NO_ACCESS_MESSAGE
   if (status === 429) {
     const seconds = Number(payload.retryAfterSeconds)
     const minutes = Number.isFinite(seconds) && seconds > 0 ? Math.max(1, Math.ceil(seconds / 60)) : null

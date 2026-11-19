@@ -194,18 +194,19 @@ export async function requireExecApiSession(
 
   if (!resolvedSession) {
     const legacyJwt = request.cookies.get(SESSION_COOKIE)?.value
-    const legacyUserId = legacyJwt ? await verifySessionToken(legacyJwt) : null
-    if (legacyUserId) {
-      const profile = resolveExecRoleProfile('admin')
+    const legacy = legacyJwt ? await verifySessionToken(legacyJwt) : null
+    if (legacy) {
+      const profile = resolveExecRoleProfile(legacy.role)
+      const issuedAt = Math.floor(Date.now() / 1000)
       resolvedSession = {
-        sub: legacyUserId,
-        role: 'admin',
+        sub: legacy.userId,
+        role: legacy.role,
         nameAr: profile.nameAr,
         nameEn: profile.nameEn,
         titleAr: profile.titleAr,
         titleEn: profile.titleEn,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        iat: issuedAt,
+        exp: issuedAt + 3600,
       }
     }
   }

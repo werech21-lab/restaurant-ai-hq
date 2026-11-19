@@ -18,6 +18,10 @@ import {
   sanitizeExecNextPath,
   type ExecRole,
 } from '@/lib/auth/exec-session'
+import { maskEmail, NO_ACCESS_REASON, resolveAccessRole } from '@/lib/auth/role-source'
+import { SessionSecretMissingError } from '@/lib/auth/session-secret'
+import { logger } from '@/lib/logger'
+import { NO_ACCESS_MESSAGE } from '@/app/login/login-error-message'
 import { resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
 import { checkRequestOrigin } from '@/lib/http-origin'
 import {
@@ -113,8 +117,9 @@ export async function POST(request: NextRequest) {
   const safeNext = sanitizeExecNextPath(next, '/erp')
 
   let authenticatedEmail: string | null = null
-  let authenticatedRole: ExecRole = 'admin'
+  let authenticatedRole: ExecRole | null = null
   let prismaUserId: string | null = null
+  let passwordMatchedWithoutRole: string | null = null
 
   if (email && password) {
     const matched = await authenticateExecutiveCredentials(email, password)
@@ -132,15 +137,25 @@ export async function POST(request: NextRequest) {
             email: true,
             isActive: true,
             passwordHash: true,
+            role: { select: { name: true, isAdmin: true } },
           },
         })
         if (dbUser && dbUser.isActive && dbUser.passwordHash) {
           const matches = await bcrypt.compare(password, dbUser.passwordHash)
           if (matches) {
             const normalizedDbEmail = dbUser.email.trim().toLowerCase()
-            authenticatedEmail = normalizedDbEmail
-            authenticatedRole = normalizedDbEmail.includes('auditor') ? 'auditor' : 'admin'
-            prismaUserId = dbUser.id
+            const role = resolveAccessRole({
+              email: normalizedDbEmail,
+              roleName: dbUser.role?.name,
+              isAdmin: dbUser.role?.isAdmin,
+            })
+            if (role) {
+              authenticatedEmail = normalizedDbEmail
+              authenticatedRole = role
+              prismaUserId = dbUser.id
+            } else {
+              passwordMatchedWithoutRole = normalizedDbEmail
+            }
           }
         }
       } catch {
@@ -149,7 +164,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (!authenticatedEmail) {
+  if (passwordMatchedWithoutRole && !authenticatedRole) {
+    logger.warn('access_role_missing', { email: maskEmail(passwordMatchedWithoutRole) })
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: NO_ACCESS_REASON,
+        errorAr: NO_ACCESS_MESSAGE.ar,
+        errorEn: NO_ACCESS_MESSAGE.en,
+      },
+      { status: 403, headers: ENTERPRISE_API_SECURITY_HEADERS },
+    )
+  }
+
+  if (!authenticatedEmail || !authenticatedRole) {
     loginIpFailureLimiter.check(ipKey)
     const failDecision = loginAccountFailureLimiter.check(accountKey)
     if (!failDecision.allowed) {
@@ -178,10 +206,22 @@ export async function POST(request: NextRequest) {
     authenticatedRole,
     next ? safeNext : '',
   )
-  const execToken = await createExecSessionToken(
-    authenticatedEmail,
-    authenticatedRole,
-  )
+  let execToken: string
+  try {
+    execToken = await createExecSessionToken(authenticatedEmail, authenticatedRole)
+  } catch (err) {
+    if (err instanceof SessionSecretMissingError) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Authentication is not configured.',
+          errorAr: 'تسجيل الدخول غير مهيأ على الخادم. راجع مسؤول النظام.',
+        },
+        { status: 503, headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+    throw err
+  }
   const response = NextResponse.json(
     {
       ok: true,
@@ -202,7 +242,7 @@ export async function POST(request: NextRequest) {
 
   if (prismaUserId && authenticatedRole !== 'auditor') {
     try {
-      const legacyToken = await signSessionToken(prismaUserId)
+      const legacyToken = await signSessionToken(prismaUserId, authenticatedRole)
       response.cookies.set(SESSION_COOKIE, legacyToken, {
         ...sessionCookieOptions,
         secure: isProduction,

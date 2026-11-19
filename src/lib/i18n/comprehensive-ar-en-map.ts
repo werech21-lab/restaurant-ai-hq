@@ -2419,7 +2419,6 @@ export const COMPREHENSIVE_AR_EN: Record<string, string> = {
   'عقد إيجار فرع': 'Contract Rent Branch',
   'عملاء متأخرون': 'Late-paying customers',
   'عمولة التوصيل': 'Delivery commission',
-  'غير مربوط بعد': 'Not linked yet',
   'فاتورة المورد': 'Supplier invoice',
   'فاتورة مبيعات': 'Invoice',
   'فرع الكوت مول': 'Branch Al-Kout Mall',

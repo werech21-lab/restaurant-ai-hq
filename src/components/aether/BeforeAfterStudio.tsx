@@ -78,9 +78,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 ${
               active
-                ? 'btn-colored bg-blue-600 font-semibold text-white shadow-sm dark:bg-sky-500 dark:text-slate-950'
+                ? 'btn-colored bg-emerald-700 font-semibold text-white shadow-sm dark:bg-emerald-500 dark:text-slate-950'
                 : 'text-slate-600 hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
             }`}
           >
@@ -586,7 +586,7 @@ export function BeforeAfterStudio() {
                       ? 'bg-slate-50/85 dark:bg-slate-800/35'
                       : !r.isCompatible
                         ? 'opacity-45'
-                        : 'even:bg-slate-50/60 hover:bg-blue-50/40 dark:even:bg-white/[0.02] dark:hover:bg-white/[0.04]'
+                        : 'even:bg-slate-50/60 hover:bg-[#ECFDF5]/70 dark:even:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                   }
                 >
                   <td className="px-4 py-3">
@@ -680,7 +680,7 @@ export function BeforeAfterStudio() {
               disabled={showNoData || loading}
               onClick={() => window.print()}
               aria-label={T('Print comparison report', 'طباعة تقرير المقارنة')}
-              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/85 bg-slate-50/90 px-3 text-[12.5px] font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800/80"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200/85 bg-slate-50/90 px-3 text-[12.5px] font-semibold text-slate-700 transition-all duration-150 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-200 dark:hover:bg-slate-800/80"
             >
               <Printer className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>{T('Print', 'طباعة')}</span>
@@ -959,7 +959,7 @@ export function BeforeAfterStudio() {
                 const p = getBucketPair(peakBucket)
                 const isOrders = chartMetric === 'orders'
                 return (
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-slate-50/75 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-sky-400/15 dark:bg-slate-900/40 dark:text-slate-200">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/70 bg-slate-50/75 px-3 py-2 text-xs font-semibold text-slate-700 dark:border-emerald-400/15 dark:bg-slate-900/40 dark:text-slate-200">
                     <div className="flex flex-wrap items-center gap-3 tabular-nums">
                       <span className="text-slate-600 dark:text-slate-300">
                         {seriesLabelBefore}:{' '}
@@ -974,7 +974,7 @@ export function BeforeAfterStudio() {
                       <span className="text-slate-300 dark:text-slate-600" aria-hidden>
                         {isAr ? '←' : '→'}
                       </span>
-                      <span className="font-semibold text-blue-700 dark:text-sky-300">
+                      <span className="font-semibold text-[#047857] dark:text-emerald-300">
                         {seriesLabelAfter}:{' '}
                         <span dir="ltr">
                           {isOrders
@@ -987,9 +987,9 @@ export function BeforeAfterStudio() {
                     </div>
                     <div
                       dir={isAr ? 'rtl' : 'ltr'}
-                      className="inline-flex flex-wrap items-center gap-2 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200/80 tabular-nums dark:bg-slate-900/70 dark:text-slate-100 dark:ring-sky-400/20"
+                      className="inline-flex flex-wrap items-center gap-2 rounded-lg bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200/80 tabular-nums dark:bg-slate-900/70 dark:text-slate-100 dark:ring-emerald-400/20"
                     >
-                      <span className="text-blue-700 dark:text-sky-300">
+                      <span className="text-[#047857] dark:text-emerald-300">
                         {isAr ? `الذروة: ${peakBucket.labelAr}` : `Peak: ${peakBucket.labelEn}`}
                       </span>
                       <span dir="ltr">

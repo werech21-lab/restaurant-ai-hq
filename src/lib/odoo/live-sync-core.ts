@@ -24,6 +24,7 @@ import {
   mergeSessionGroups,
   mergeSessionPaymentGroups,
 } from './pos-order-query'
+import { buildRegisterReconciliation, type RegisterReconciliation } from './register-reconciliation'
 import registry from './pos-registry.json'
 
 export interface OdooEnv {
@@ -211,6 +212,8 @@ export interface OdooBucketSummary {
   excludedSummary?: { netSalesKwd: number; orders: number }
   periodComparison?: { currentNetKwd: number; priorNetKwd: number; days: number }
   uiChannels?: Record<string, { netKwd: number; orders: number }> | null
+  /** Included pos.config nets from the same session groups as the company total. Absent when none were read. */
+  registerReconciliation?: RegisterReconciliation | null
   accounting?: OdooLedgerAccountingSummary | null
 }
 
@@ -735,6 +738,8 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   ]
   const sessions = sessionIds.length ? ((await ek('pos.session', 'read', [sessionIds, ['id', 'config_id']])) as { id: number; config_id: M2O }[]) : []
   const configOfSession = new Map(sessions.map((s) => [s.id, m2oId(s.config_id)]))
+  const configLabel = new Map(configs.map((config) => [config.id, String(config.name ?? '')]))
+  const registerAgg = new Map<number, { net: number; orders: number }>()
 
   const locAgg = new Map<string, { net: number; orders: number }>()
   let schoolNet = 0
@@ -747,6 +752,10 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     if (cfg === undefined || cfg === null || !allowedSet.has(cfg)) continue
     const net = g.netKwd
     const orders = g.orders
+    const prior = registerAgg.get(cfg) ?? { net: 0, orders: 0 }
+    prior.net += net
+    prior.orders += orders
+    registerAgg.set(cfg, prior)
     if (isPinnedSchoolCanteenConfigId(cfg)) {
       schoolNet += net
       schoolOrders += orders
@@ -990,6 +999,15 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
         byBrand,
         byLocation,
         uiChannels: aggUiChannels,
+        registerReconciliation: buildRegisterReconciliation(
+          [...registerAgg.entries()].map(([configId, agg]) => ({
+            configId,
+            configName: configLabel.get(configId) ?? '',
+            netKwd: agg.net,
+            orders: agg.orders,
+          })),
+          targetNet,
+        ),
       }
     : undefined
 

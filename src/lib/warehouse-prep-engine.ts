@@ -1,5 +1,5 @@
 /**
- * Live Odoo Warehouse Chain & Unlinked Order Prep SLA Engine
+ * Live Odoo Warehouse Chain engine. Kitchen prep timestamps are not in this deployment.
  * (`src/lib/warehouse-prep-engine.ts`)
  *
  * Powers:
@@ -7,7 +7,7 @@
  *      exclusively by `stock.move` (`state='done'`), `stock.scrap` (`state='done'`),
  *      and `stock.quant` (`location_id.usage='internal'`).
  *   2. `/erp/prep-sla` — Explicitly disabled (`unlinkedSource: true`,
- *      `messageAr: 'غير مربوط بمصدر'`) because Odoo 17 POS in this deployment has
+ *      empty prep messages) because Odoo 17 POS in this deployment has
  *      no KDS kitchen preparation timestamps connected.
  *
  * Strict Guarantees:
@@ -891,7 +891,7 @@ export function computeWarehouseDailyChain(
 }
 
 // =============================================================================
-// PART 2: KITCHEN ORDER PREPARATION SLA — UNLINKED SOURCE (`غير مربوط بمصدر`)
+// PART 2: KITCHEN ORDER PREPARATION SLA — no KDS timestamps in this Odoo deployment
 // =============================================================================
 
 export type PrepSlaTier = 'green' | 'yellow' | 'red'
@@ -1000,7 +1000,7 @@ export function formatSecondsMmSs(totalSeconds: number): string {
 /**
  * Disabled KDS ticket engine: Odoo 17 POS has no live KDS prep timestamps
  * connected in this deployment. Returns `unlinkedSource: true` and
- * `messageAr: 'غير مربوط بمصدر'` with zero tickets.
+ * empty messages with zero tickets. No prep-time card is rendered.
  */
 export function computeOrderPrepSlaSnapshot(
   filters: GlobalFilters = DEFAULT_GLOBAL_FILTERS,
@@ -1009,8 +1009,8 @@ export function computeOrderPrepSlaSnapshot(
 ): OrderPrepSlaSnapshot {
   return {
     unlinkedSource: true,
-    messageAr: 'غير مربوط بمصدر',
-    messageEn: 'Not linked to a KDS data source',
+    messageAr: '',
+    messageEn: '',
     filters,
     totalTickets: 0,
     avgPrepMinutes: 0,

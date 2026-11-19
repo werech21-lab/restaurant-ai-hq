@@ -45,6 +45,18 @@ module.exports = {
           skyIce: '#BAE6FD',
           skyPale: '#E0F2FE',
         },
+        emeraldNavy: {
+          outer: '#EDF2F0',
+          page: '#F4F8F6',
+          ink: '#1E3A5F',
+          muted: '#4F6673',
+          branch: '#0F766E',
+          emerald: '#059669',
+          emeraldAa: '#047857',
+          emeraldSoft: '#ECFDF5',
+          navyAccent: '#1E40AF',
+          barSoft: '#D1FAE5',
+        },
         ink: {
           950: 'rgb(var(--ink-950) / <alpha-value>)',
           900: 'rgb(var(--ink-900) / <alpha-value>)',

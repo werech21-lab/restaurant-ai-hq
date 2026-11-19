@@ -63,10 +63,10 @@ const DEFAULT_COPY: Record<
     descEn: 'This metric could not be verified from the live source right now.',
   },
   unlinked: {
-    titleAr: 'المصدر غير مربوط حالياً',
-    titleEn: 'Source not connected',
-    descAr: 'اربط مصدر البيانات الحي لعرض الأرقام التشغيلية الفعلية.',
-    descEn: 'Connect the live data source to display verified operational metrics.',
+    titleAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+    titleEn: 'No Odoo data for this period',
+    descAr: 'لا تُعرض أرقام لهذه الفترة لأن المصدر الحي لم يُرجع بيانات.',
+    descEn: 'No figures are shown for this period because the live source returned no data.',
   },
   forbidden: {
     titleAr: 'صلاحية العرض غير متوفرة',

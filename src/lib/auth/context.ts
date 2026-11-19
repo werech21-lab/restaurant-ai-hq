@@ -18,8 +18,12 @@ import {
 } from '@/lib/auth/panel-bridge'
 import { db } from '@/lib/pg'
 import { createClient } from '@/lib/supabase/server'
+import { isValidExecRole } from '@/lib/auth/exec-role-meta'
 import { applyPermissionFlags } from '@/lib/auth/member-flags'
+import { NO_ACCESS_REASON } from '@/lib/auth/role-source'
+import { resolveSupabaseExecAccess } from '@/lib/auth/supabase-access'
 import type { Permission } from '@/lib/auth/permissions'
+import { SESSION_COOKIE } from '@/lib/session'
 
 export type AuthContext = {
   userId: string
@@ -64,22 +68,46 @@ async function resolveExecSession(request?: NextRequest): Promise<{
   }
 }
 
-export async function resolveServerExecSessionRole(): Promise<ExecSessionRole> {
+function isNextRedirect(err: unknown): boolean {
+  return Boolean(
+    err &&
+      typeof err === 'object' &&
+      'digest' in err &&
+      String((err as { digest?: string }).digest).startsWith('NEXT_REDIRECT'),
+  )
+}
+
+function loginRedirectTarget(nextPath: string | undefined, reason?: string): string {
+  const params = new URLSearchParams()
+  if (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')) {
+    params.set('next', nextPath)
+  }
+  if (reason) params.set('reason', reason)
+  const query = params.toString()
+  return query ? `/login?${query}` : '/login'
+}
+
+/**
+ * Executive role for this request. Missing, unknown, or role-less sessions are
+ * null — never admin.
+ */
+export async function resolveServerExecSessionRole(): Promise<ExecSessionRole | null> {
   const execSession = await resolveExecSession()
   if (execSession) return execSession.role
   try {
+    const access = await resolveSupabaseExecAccess()
+    if (access.status === 'allowed') return access.role
+    if (access.status === 'rejected') return null
+  } catch {
+    // Supabase is optional. A failure is anonymous, not admin.
+  }
+  try {
     const panel = await getPanelSessionUser()
-    if (
-      panel &&
-      typeof panel.email === 'string' &&
-      panel.email.toLowerCase().includes('auditor')
-    ) {
-      return 'auditor'
-    }
+    if (panel?.sessionRole && isValidExecRole(panel.sessionRole)) return panel.sessionRole
   } catch {
     // fall through
   }
-  return 'admin'
+  return null
 }
 
 /**
@@ -114,39 +142,34 @@ async function resolveUserId(missingClient: 'throw' | 'none'): Promise<string | 
  * Redirects unauthenticated visitors to `/login`.
  */
 export async function requirePageUser(nextPath?: string): Promise<string> {
-  let resolvedId: string | null = null
   try {
     const execSession = await resolveExecSession()
     if (execSession) {
-      resolvedId = panelBridgeUserId(
+      return panelBridgeUserId(
         execSession.role === 'auditor'
           ? 'usr_venture_auditor_001'
           : 'usr_venture_exec_001',
       )
-    } else {
-      const userId = await resolveUserId('none')
-      if (userId) {
-        resolvedId = userId
-      } else {
-        const panel = await getPanelSessionUser()
-        if (panel) {
-          resolvedId = panelBridgeUserId(panel.id)
-        }
-      }
     }
-  } catch {
-    resolvedId = null
+
+    const access = await resolveSupabaseExecAccess()
+    if (access.status === 'allowed') return access.userId
+    if (access.status === 'rejected') redirect(loginRedirectTarget(nextPath, NO_ACCESS_REASON))
+
+    const panel = await getPanelSessionUser()
+    if (panel?.sessionRole && isValidExecRole(panel.sessionRole)) {
+      return panelBridgeUserId(panel.id)
+    }
+
+    const jar = await cookies()
+    if (jar.get(SESSION_COOKIE)?.value) {
+      redirect(loginRedirectTarget(nextPath, NO_ACCESS_REASON))
+    }
+  } catch (err) {
+    if (isNextRedirect(err)) throw err
   }
 
-  if (!resolvedId) {
-    const safeTarget =
-      nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
-        ? `/login?next=${encodeURIComponent(nextPath)}`
-        : '/login'
-    redirect(safeTarget)
-  }
-
-  return resolvedId
+  redirect(loginRedirectTarget(nextPath))
 }
 
 /**
@@ -254,7 +277,7 @@ export async function authenticateUser(
   }
 
   const panel = await getPanelSessionUser()
-  if (!panel) {
+  if (!panel?.sessionRole || !isValidExecRole(panel.sessionRole)) {
     if (supabaseMissing) {
       throw new AppError(500, 'server_misconfigured', 'The server is not configured.')
     }
@@ -262,8 +285,7 @@ export async function authenticateUser(
   }
   const tenantId = requestedTenant ?? (await resolvePanelBridgeTenantId()) ?? '00000000-0000-0000-0000-000000000001'
   const fullPanelSet = panelBridgePermissionSet()
-  const isAuditorPanel =
-    typeof panel.email === 'string' && panel.email.toLowerCase().includes('auditor')
+  const isAuditorPanel = panel.sessionRole === 'auditor'
   if (
     isAuditorPanel &&
     request &&
@@ -309,12 +331,9 @@ export async function readSessionPermissions(): Promise<string[]> {
     }
 
     const panel = await getPanelSessionUser()
-    if (panel) {
+    if (panel?.sessionRole && isValidExecRole(panel.sessionRole)) {
       const fullPanelSet = [...panelBridgePermissionSet()]
-      const isAuditorPanel =
-        ('isAuditor' in panel && Boolean((panel as { isAuditor?: boolean }).isAuditor)) ||
-        (typeof panel.email === 'string' && panel.email.toLowerCase().includes('auditor'))
-      if (isAuditorPanel) {
+      if (panel.sessionRole === 'auditor' || panel.isAuditor) {
         return fullPanelSet.filter((p) => p.endsWith('.read')).sort()
       }
       return fullPanelSet.sort()

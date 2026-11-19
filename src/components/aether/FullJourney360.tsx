@@ -129,9 +129,9 @@ function EmeraldPillTabs<K extends string>({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(opt.id)}
-            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${btnPadding} ${
+            className={`inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 ${btnPadding} ${
               active
-                ? 'btn-colored bg-blue-600 font-semibold text-white shadow-[0_4px_12px_-2px_rgba(37,99,235,0.36)] dark:bg-sky-500 dark:text-slate-950'
+                ? 'btn-colored bg-emerald-700 font-semibold text-white shadow-[0_4px_12px_-2px_rgba(5,150,105,0.34)] dark:bg-emerald-500 dark:text-slate-950'
                 : 'text-slate-600 hover:bg-white/85 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.08] dark:hover:text-white'
             }`}
           >
@@ -592,12 +592,12 @@ export function FullJourney360({
           ? GL_INCOMPLETE_AR
           : GL_INCOMPLETE_EN
     return src.map((pt) => {
-      const sales = Math.max(0, pt.salesKwd)
+      const sales = pt.salesKwd
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
       const pointMarginRatio = canPlotPointMargin ? pointMarginPct / 100 : 0
-      const pocket = canPlotPointMargin ? Math.max(0, sales * pointMarginRatio) : 0
-      const beforeRent = canPlotPointMargin ? Math.max(0, sales * beforeRentRatio) : 0
-      const foodAndDelivery = canPlotPointMargin ? Math.max(0, sales - beforeRent) : 0
+      const pocket = canPlotPointMargin ? sales * pointMarginRatio : 0
+      const beforeRent = canPlotPointMargin ? sales * beforeRentRatio : 0
+      const foodAndDelivery = canPlotPointMargin ? sales - beforeRent : 0
       const rawLabel = isAr ? pt.labelAr : pt.labelEn
       const axisLabel =
         flowGroup === 'branches'
@@ -688,7 +688,7 @@ export function FullJourney360({
       return {
         hour: Number.isFinite(hrNum) ? hrNum : hourLabel,
         label: hourLabel,
-        netKwd: Math.max(0, pt.salesKwd),
+        netKwd: pt.salesKwd,
         orders: typeof pt.orders === 'number' && Number.isFinite(pt.orders) ? pt.orders : undefined,
       }
     })
@@ -711,7 +711,7 @@ export function FullJourney360({
         value: Math.max(0, food10),
         valueFormatted: fmtKwdVal(food10),
         pctFormatted: formatPct(gl.cogsPct, activeLocale),
-        color: '#38BDF8',
+        color: '#059669',
       },
       {
         id: 'delivery',
@@ -722,7 +722,7 @@ export function FullJourney360({
         value: Math.max(0, delivery10),
         valueFormatted: fmtKwdVal(delivery10),
         pctFormatted: formatPct(gl.deliveryCommPct, activeLocale),
-        color: '#818CF8',
+        color: '#1E40AF',
       },
       {
         id: 'opex',
@@ -744,7 +744,7 @@ export function FullJourney360({
         value: Math.max(0, netPocket10),
         valueFormatted: fmtKwdVal(netPocket10),
         pctFormatted: formatPct(gl.netProfitPct, activeLocale),
-        color: '#2563EB',
+        color: '#D97706',
       },
     ]
   }, [
@@ -801,7 +801,7 @@ export function FullJourney360({
     const arShort = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
 
     return sevenDays.map((pt, idx) => {
-      const salesKwd = Math.max(0, pt.salesKwd)
+      const salesKwd = pt.salesKwd
       const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pt.id)
       const dow = isoMatch
         ? new Date(
@@ -1045,14 +1045,14 @@ export function FullJourney360({
             <h2 className="text-xl sm:text-[24px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('Executive Dashboard', 'لوحة القيادة التنفيذية')}
             </h2>
-            <span className="inline-flex items-center rounded-full bg-blue-50/90 px-3 py-0.5 text-[13px] font-semibold text-blue-800 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+            <span className="inline-flex items-center rounded-full bg-[#ECFDF5] px-3 py-0.5 text-[13px] font-semibold text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
               {T('Company Summary', 'ملخص الشركة')}
             </span>
           </div>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             {todaySoFarLabel ? (
-              <span data-today-so-far="true" className="ms-1.5 inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[12px] font-semibold text-blue-900 ring-1 ring-blue-200 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20">
+              <span data-today-so-far="true" className="ms-1.5 inline-flex items-center rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[12px] font-semibold text-[#1E3A5F] ring-1 ring-blue-200 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-sky-300/20">
                 {T('So far today · until ', 'حتى الآن · حتى ')}
                 <span dir="ltr" className="ms-1 tabular-nums">{todaySoFarLabel}</span>
               </span>
@@ -1068,7 +1068,7 @@ export function FullJourney360({
               disabled={syncing}
               aria-label={T('Sync Odoo', 'مزامنة أودو')}
               title={T('Sync Odoo 17 Data', 'مزامنة بيانات أودو 17')}
-              className="ae-emerald-cta-pill inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white transition-all duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:opacity-60"
+              className="ae-emerald-cta-pill inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white transition-all duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
               <span>{T('+ Sync Odoo', '+ مزامنة أودو')}</span>
@@ -1077,15 +1077,15 @@ export function FullJourney360({
 
           <Link
             href="/erp/weekday-comparison"
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-400/25 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.12] dark:hover:text-sky-200"
+            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
           >
-            <CalendarRange className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-sky-400" />
+            <CalendarRange className="h-3.5 w-3.5 shrink-0 text-[#047857] dark:text-sky-400" />
             <span>{T('Compare Dates', 'مقارنة التواريخ')}</span>
           </Link>
 
           <Link
             href="/erp/before-after"
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-400/25 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20 dark:hover:bg-white/[0.12] dark:hover:text-sky-200"
+            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
           >
             <span>{T('Before & After Comparison ↗', 'مقارنة الفترات (قبل وبعد) ↗')}</span>
           </Link>
@@ -1175,7 +1175,7 @@ export function FullJourney360({
                 type="button"
                 onClick={() => void refreshOdoo()}
                 disabled={syncing}
-                className="ae-emerald-cta-pill inline-flex h-10 cursor-pointer items-center gap-2 rounded-full px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 disabled:opacity-60"
+                className="ae-emerald-cta-pill inline-flex h-10 cursor-pointer items-center gap-2 rounded-full px-5 text-sm font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:opacity-60"
               >
                 <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
                 <span>{T('Retry Odoo Sync', 'إعادة مزامنة أودو')}</span>
@@ -1214,7 +1214,7 @@ export function FullJourney360({
                     .getElementById('admin-pos-terminal-mapping')
                     ?.scrollIntoView({ behavior: 'smooth' })
                 }
-                className="inline-flex shrink-0 cursor-pointer items-center rounded-full bg-slate-100/90 px-3.5 py-1.5 text-xs font-semibold text-slate-800 ring-1 ring-slate-300/70 transition-colors hover:bg-slate-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-slate-100 dark:ring-white/15 dark:hover:bg-white/[0.14]"
+                className="inline-flex shrink-0 cursor-pointer items-center rounded-full bg-slate-100/90 px-3.5 py-1.5 text-xs font-semibold text-slate-800 ring-1 ring-slate-300/70 transition-colors hover:bg-slate-200/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-slate-100 dark:ring-white/15 dark:hover:bg-white/[0.14]"
               >
                 {T('Map POS Terminals ↓', 'ربط أجهزة الكاشير ↓')}
               </button>
@@ -1262,7 +1262,7 @@ export function FullJourney360({
 
                 {salesSparkline.length >= 2 ? (
                   <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5">
-                    <span className="text-xs font-medium text-sky-100/95">
+                    <span className="text-xs font-medium text-white/90">
                       {coresSnap.sales.timeline.length >= 2
                         ? T('Period trend', 'اتجاه الفترة')
                         : T('Hourly trend', 'اتجاه اليوم')}
@@ -1273,7 +1273,7 @@ export function FullJourney360({
                   <div
                     role="status"
                     data-sparkline-unavailable="true"
-                    className="mt-2.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-sky-100/90"
+                    className="mt-2.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-white/85"
                   >
                     {T(SPARKLINE_UNAVAILABLE_EN, SPARKLINE_UNAVAILABLE_AR)}
                   </div>
@@ -1334,7 +1334,7 @@ export function FullJourney360({
                   {workspace.nullableSalesKwd !== null && workspace.brandBasis === 'product-lines' ? (
                     <p
                       data-brand-basis="product-lines"
-                      className="whitespace-normal text-xs font-medium tabular-nums text-sky-100/95"
+                      className="whitespace-normal text-xs font-medium tabular-nums text-white/90"
                     >
                       {T(SCOPE_LABELS.productLinesBasis.en, SCOPE_LABELS.productLinesBasis.ar)}
                       {workspace.brandBasisGapKwd !== null ? (
@@ -1352,7 +1352,7 @@ export function FullJourney360({
                   workspace.unattributedSalesKwd > 0 &&
                   filters.brand === 'all' &&
                   filters.branch === 'all' ? (
-                    <p className="whitespace-normal text-xs font-medium tabular-nums text-sky-100/95">
+                    <p className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
                       {isAr ? (
                         <>
                           منها {UNATTRIBUTED_BRANCH_LABEL_AR}:{' '}
@@ -1400,7 +1400,7 @@ export function FullJourney360({
                   <Link
                     href="/erp/cores"
                     aria-label={T('Orders Details', 'تفاصيل الطلبات')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
                   >
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
@@ -1431,7 +1431,7 @@ export function FullJourney360({
                         ? T('Order trend', 'اتجاه الطلبات')
                         : T('Hourly orders', 'الطلبات بالساعة')}
                     </span>
-                    <V35Sparkline values={ordersSparkline} color="#2563EB" width={92} height={26} />
+                    <V35Sparkline values={ordersSparkline} color="#059669" width={92} height={26} />
                   </div>
                 ) : sparklineUnavailableShown && filters.brand === 'all' ? (
                   <div
@@ -1448,7 +1448,7 @@ export function FullJourney360({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         data-cost-mask="restricted-finance-gm"
-                        className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
+                        className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
                       >
                         {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                       </span>
@@ -1460,7 +1460,7 @@ export function FullJourney360({
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
                           beforeRentRatio < 0
                             ? 'bg-slate-100/90 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
-                            : 'bg-blue-50/90 text-blue-700 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25'
+                            : 'bg-[#ECFDF5] text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
                         }`}
                       >
                         {formatStaticMarginPill(gl.beforeRentPct)} • {fmtKwdVal(gl.beforeRentKwd)}
@@ -1496,7 +1496,7 @@ export function FullJourney360({
                   <Link
                     href="/erp/executive-pnl"
                     aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
                   >
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
@@ -1511,7 +1511,7 @@ export function FullJourney360({
                       {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                     </div>
                     <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
                         {T(
                           'Rent, payroll & supplier figures masked',
                           'بيانات الإيجار والرواتب والموردين محجوبة',
@@ -1628,7 +1628,7 @@ export function FullJourney360({
                   <Link
                     href={isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar') ? '/erp/aggregator-radar' : '/erp/cores'}
                     aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50/85 text-blue-700 ring-1 ring-slate-400/25 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:bg-white/[0.08] dark:text-sky-300 dark:ring-sky-400/20"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
                   >
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
@@ -1643,7 +1643,7 @@ export function FullJourney360({
                       {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                     </div>
                     <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-400/25 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
                         {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
                       </span>
                     </div>
@@ -1719,7 +1719,7 @@ export function FullJourney360({
                         </p>
                       ) : null}
                       {commissionOfAggregatorPct !== null ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
                           <span dir="ltr" className="tabular-nums">
                             {formatPct(commissionOfAggregatorPct, activeLocale)}
                           </span>{' '}
@@ -1727,7 +1727,7 @@ export function FullJourney360({
                         </span>
                       ) : null}
                       {gl.deliveryCommPct !== null ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50/90 px-2.5 py-0.5 text-xs font-semibold text-sky-800 ring-1 ring-sky-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
                           <span dir="ltr" className="tabular-nums">
                             {formatPct(gl.deliveryCommPct, activeLocale)}
                           </span>{' '}
@@ -1828,7 +1828,7 @@ export function FullJourney360({
                             className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
                               bRow.isUnattributed
                                 ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300'
-                                : 'bg-blue-500/15 text-blue-700 dark:bg-sky-400/15 dark:text-sky-300'
+                                : 'bg-emerald-600/15 text-[#047857] dark:bg-emerald-400/15 dark:text-emerald-300'
                             }`}
                           >
                             <Building2 className="h-4 w-4" />
@@ -1855,7 +1855,7 @@ export function FullJourney360({
                           className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
                             bRow.isUnattributed
                               ? 'bg-slate-200/80 text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-600/50'
-                              : 'bg-blue-100/85 text-blue-900 ring-1 ring-blue-400/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25'
+                              : 'bg-[#D1FAE5] text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
                           }`}
                         >
                           {formatPct(bRow.sharePct, activeLocale)}
@@ -1984,7 +1984,7 @@ export function FullJourney360({
                   </div>
 
                   {activeWeeklyDay ? (
-                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/85 bg-blue-50/80 px-3.5 py-1 text-xs font-semibold tabular-nums text-slate-800 backdrop-blur-sm dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-100">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/85 bg-[#ECFDF5] px-3.5 py-1 text-xs font-semibold tabular-nums text-slate-800 backdrop-blur-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
                       <span>{isAr ? activeWeeklyDay.dayNameAr : activeWeeklyDay.dayNameEn}</span>
                       <span aria-hidden className="text-slate-300 dark:text-white/20">
                         •
@@ -2015,13 +2015,13 @@ export function FullJourney360({
                           onMouseEnter={() => setSelectedPillId(day.id)}
                           aria-pressed={isSelected}
                           aria-label={`${isAr ? day.dayNameAr : day.dayNameEn} (${day.shortDate}): ${fmtKwdVal(day.salesKwd)}`}
-                          className="group flex cursor-pointer flex-col items-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                          className="group flex cursor-pointer flex-col items-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60"
                         >
                           <div className="relative flex h-40 sm:h-44 w-full flex-col items-center justify-end">
                             {isSelected ? (
                               <span
                                 dir={isAr ? 'rtl' : 'ltr'}
-                                className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-bold tabular-nums text-blue-800 ring-1 ring-blue-500/35 dark:bg-sky-400/20 dark:text-sky-200 dark:ring-sky-400/40"
+                                className="mb-2 inline-flex items-center whitespace-nowrap rounded-full bg-emerald-600/15 px-2 py-0.5 text-xs font-bold tabular-nums text-[#047857] ring-1 ring-emerald-600/30 dark:bg-emerald-400/20 dark:text-emerald-200 dark:ring-emerald-400/40"
                               >
                                 {`${day.compactKwd} ${isAr ? 'د.ك' : 'KWD'}`}
                               </span>
@@ -2050,8 +2050,8 @@ export function FullJourney360({
                               }
                               className={`w-full max-w-[44px] rounded-full transition-all duration-300 ${
                                 isSelected
-                                  ? 'ae-emerald-peak-pill bg-gradient-to-t from-blue-600 to-sky-400 shadow-[0_8px_22px_rgba(37,99,235,0.34)]'
-                                  : 'ae-pill-hatch ring-1 ring-blue-500/20 group-hover:ring-blue-400/45 dark:ring-sky-400/25'
+                                  ? 'ae-emerald-peak-pill bg-gradient-to-t from-emerald-700 to-emerald-400 shadow-[0_8px_22px_rgba(5,150,105,0.34)]'
+                                  : 'ae-pill-hatch ring-1 ring-emerald-600/20 group-hover:ring-blue-400/45 dark:ring-emerald-400/25'
                               }`}
                             />
                           </div>
@@ -2059,7 +2059,7 @@ export function FullJourney360({
                           <span
                             className={`mt-2.5 text-[12.5px] font-semibold tracking-tight ${
                               isSelected
-                                ? 'text-blue-700 dark:text-sky-300'
+                                ? 'text-[#047857] dark:text-emerald-300'
                                 : 'text-slate-600 dark:text-slate-300'
                             }`}
                           >
@@ -2116,7 +2116,7 @@ export function FullJourney360({
                   </div>
 
                   {maskInternalCosts ? (
-                    <div className="rounded-2xl bg-blue-50/70 p-4 text-sm font-medium text-slate-700 ring-1 ring-slate-400/25 backdrop-blur-sm dark:bg-white/[0.06] dark:text-slate-200 dark:ring-sky-400/20">
+                    <div className="rounded-2xl bg-[#ECFDF5]/90 p-4 text-sm font-medium text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-sm dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20">
                       {T(
                         'Receivables & ledger balances are restricted to Finance/GM.',
                         'أرصدة الذمم المدينة وقيود دفتر الأستاذ محصورة بالمالية والمدير العام.',
@@ -2126,7 +2126,7 @@ export function FullJourney360({
                     <div className="space-y-3">
                       <Link
                         href={isErpRouteAllowedForRole(sessionRole, '/erp/receivables') ? '/erp/receivables' : '/erp/cores'}
-                        className="block rounded-[20px] border border-slate-300/80 bg-slate-50/75 p-4 backdrop-blur-sm transition-colors hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:border-slate-700/75 dark:bg-slate-900/45 dark:hover:bg-slate-800/60"
+                        className="block rounded-[20px] border border-slate-300/80 bg-slate-50/75 p-4 backdrop-blur-sm transition-colors hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:border-slate-700/75 dark:bg-slate-900/45 dark:hover:bg-slate-800/60"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -2236,7 +2236,7 @@ export function FullJourney360({
 
                 <Link
                   href="/erp/feryal-ai"
-                  className="ae-emerald-cta-pill mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-transform duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                  className="ae-emerald-cta-pill mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold text-white transition-transform duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60"
                 >
                   <Sparkles className="h-4 w-4 shrink-0" />
                   <span>{T('Ask Feryal About Odoo Data', 'اسأل فريال عن بيانات أودو')}</span>
@@ -2335,8 +2335,8 @@ export function FullJourney360({
                 </div>
 
                 {maskInternalCosts ? (
-                  <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl border border-slate-200/85 bg-blue-50/75 p-4 backdrop-blur-sm dark:border-slate-800 dark:bg-white/[0.06]">
-                    <span className="inline-flex w-fit items-center rounded-full bg-blue-100/85 px-2.5 py-0.5 text-xs font-bold text-blue-800 ring-1 ring-blue-500/20 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25">
+                  <div className="flex flex-1 flex-col justify-between gap-3 rounded-2xl border border-slate-200/85 bg-[#ECFDF5] p-4 backdrop-blur-sm dark:border-slate-800 dark:bg-white/[0.06]">
+                    <span className="inline-flex w-fit items-center rounded-full bg-[#D1FAE5] px-2.5 py-0.5 text-xs font-bold text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
                       {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
                     </span>
                     <p className="whitespace-normal text-[13.5px] font-medium leading-relaxed text-slate-700 dark:text-slate-200">
@@ -2473,7 +2473,7 @@ export function FullJourney360({
                         onChange={(e) => setLedgerSearch(e.target.value)}
                         placeholder={isAr ? 'ابحث…' : 'Search branch…'}
                         aria-label={isAr ? 'ابحث عن فرع' : 'Search branch'}
-                        className="h-9 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 ps-9 pe-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-sky-400 dark:focus:bg-slate-900"
+                        className="h-9 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 ps-9 pe-3 text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-700/80 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-sky-400 dark:focus:bg-slate-900"
                       />
                     </div>
                   ) : null}
@@ -2519,8 +2519,8 @@ export function FullJourney360({
                                 <button
                                   type="button"
                                   onClick={() => toggleLedgerSort(col.key)}
-                                  className={`inline-flex cursor-pointer items-center gap-1 font-semibold transition-colors hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 dark:hover:text-sky-300 ${
-                                    isSorted ? 'text-blue-700 dark:text-sky-300' : ''
+                                  className={`inline-flex cursor-pointer items-center gap-1 font-semibold transition-colors hover:text-[#047857] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:hover:text-emerald-300 ${
+                                    isSorted ? 'text-[#047857] dark:text-emerald-300' : ''
                                   }`}
                                 >
                                   <span>{col.label}</span>

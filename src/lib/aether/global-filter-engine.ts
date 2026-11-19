@@ -1069,33 +1069,6 @@ function buildSummaryCards(params: {
 
   return [
     {
-      id: 'procurement-kitchen',
-      num: 1,
-      titleAr: 'المشتريات والمطبخ',
-      titleEn: 'Buying & Kitchen',
-      valueAr: odooConnected ? 'غير مربوط بمصدر' : disconnectedLabelAr,
-      valueEn: odooConnected ? 'Unlinked BoM Source' : disconnectedLabelEn,
-      descAr: odooConnected
-        ? 'حركات المخزن والتالف الفعلي متاحة في شاشة سلسلة المخزن بدون نسب هدر تقديرية.'
-        : disconnectedLabelAr,
-      descEn: odooConnected
-        ? 'Actual stock moves & scrap are shown in Warehouse Chain without synthetic trim estimates.'
-        : disconnectedLabelEn,
-      periodLabelAr: activeIsoWindowAr,
-      periodLabelEn: activeIsoWindowEn,
-      sourceLabelAr: 'أودو 17 — stock.move / stock.scrap',
-      sourceLabelEn: 'Odoo 17 (stock.move + stock.scrap)',
-      accent: 'amber',
-      statusDot: '🟠',
-      statusLabelAr: odooConnected ? 'حركات فعلية فقط' : 'غير متصل',
-      statusLabelEn: odooConnected ? 'Actual Moves Only' : 'Disconnected',
-      ctaAr: 'فحص المخزن ↗',
-      ctaEn: 'Warehouse Chain ↗',
-      action: 'stage-procurement',
-      targetStage: 'procurement',
-      href: '/erp/warehouse-chain',
-    },
-    {
       id: 'expenses-maint',
       num: 2,
       titleAr: 'الفواتير والصيانة',

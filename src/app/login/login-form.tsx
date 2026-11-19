@@ -12,6 +12,7 @@ import { useI18n } from '@/lib/i18n'
 
 type LoginFormProps = {
   nextPath?: string
+  initialError?: LoginErrorMessage | null
 }
 
 type LoginApiResponse = LoginErrorPayload & {
@@ -19,12 +20,12 @@ type LoginApiResponse = LoginErrorPayload & {
   redirectTo?: string
 }
 
-export function LoginForm({ nextPath = '' }: LoginFormProps) {
+export function LoginForm({ nextPath = '', initialError = null }: LoginFormProps) {
   const { t, locale, companyName } = useI18n()
   const isAr = locale === 'ar'
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<LoginErrorMessage | null>(null)
+  const [errorMsg, setErrorMsg] = useState<LoginErrorMessage | null>(initialError)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

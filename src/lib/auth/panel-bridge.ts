@@ -2,7 +2,6 @@ import { createHash } from 'crypto'
 import { getCurrentUser } from '@/lib/erp-auth'
 import { permissions } from '@/lib/auth/permissions'
 import { db } from '@/lib/pg'
-import type { AccessUser } from '@/lib/permissions'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -12,7 +11,7 @@ export function panelBridgeUserId(panelUserId: string): string {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`
 }
 
-export async function getPanelSessionUser(): Promise<AccessUser | null> {
+export async function getPanelSessionUser(): Promise<Awaited<ReturnType<typeof getCurrentUser>>> {
   try {
     return await getCurrentUser()
   } catch {

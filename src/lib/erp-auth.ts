@@ -9,6 +9,9 @@ import {
   verifyExecSessionToken,
   type ExecSessionRole,
 } from "@/lib/auth/exec-session";
+import { isValidExecRole } from "@/lib/auth/exec-role-meta";
+import { resolveAccessRole } from "@/lib/auth/role-source";
+import { resolveSupabaseExecAccess } from "@/lib/auth/supabase-access";
 import { can, type AccessUser, type PermissionAction } from "@/lib/permissions";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
@@ -72,14 +75,19 @@ function buildNamedExecutiveUser(
 }
 
 export const getCurrentSessionRole = cache(
-  async (): Promise<ExecSessionRole> => {
+  async (): Promise<ExecSessionRole | null> => {
     try {
       const jar = await cookies();
       const execToken = jar.get(EXEC_SESSION_COOKIE)?.value;
       const execSession = await verifyExecSessionToken(execToken);
-      return execSession?.role ?? "admin";
+      if (execSession) return execSession.role;
+      const access = await resolveSupabaseExecAccess();
+      if (access.status === "allowed") return access.role;
+      if (access.status === "rejected") return null;
+      const legacy = await verifySessionToken(jar.get(SESSION_COOKIE)?.value ?? "");
+      return legacy?.role ?? null;
     } catch {
-      return "admin";
+      return null;
     }
   },
 );
@@ -94,23 +102,38 @@ export const getCurrentUser = cache(
         return buildNamedExecutiveUser(execSession.role, execSession.sub);
       }
 
+      const supabaseAccess = await resolveSupabaseExecAccess();
+      if (supabaseAccess.status === "allowed") {
+        return buildNamedExecutiveUser(
+          supabaseAccess.role,
+          supabaseAccess.email || DEFAULT_ADMIN_EMAIL,
+        );
+      }
+      if (supabaseAccess.status === "rejected") return null;
+
       const token = jar.get(SESSION_COOKIE)?.value;
       if (!token) return null;
-      const userId = await verifySessionToken(token);
-      if (!userId) return null;
+      const legacy = await verifySessionToken(token);
+      if (!legacy) return null;
 
       const user = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: legacy.userId },
         include: { role: { include: { permissions: true } } },
       });
       if (!user || !user.isActive) return null;
+      const allowed = resolveAccessRole({
+        email: user.email,
+        roleName: user.role.name,
+        isAdmin: user.role.isAdmin,
+      });
+      if (!allowed || allowed !== legacy.role || !isValidExecRole(legacy.role)) return null;
 
       return {
         id: user.id,
         name: user.name,
         email: user.email,
-        sessionRole: "admin",
-        isAuditor: false,
+        sessionRole: legacy.role,
+        isAuditor: legacy.role === "auditor",
         role: {
           id: user.role.id,
           name: user.role.name,
@@ -132,10 +155,25 @@ export const getCurrentUser = cache(
 
 export async function requireUser(): Promise<ErpAuthenticatedUser> {
   const user = await getCurrentUser();
-  if (!user) {
-    redirect("/login");
+  if (user?.sessionRole && isValidExecRole(user.sessionRole)) return user;
+  const access = await resolveSupabaseExecAccess();
+  if (access.status === "rejected") redirect("/login?reason=no_access");
+  try {
+    const jar = await cookies();
+    if (jar.get(SESSION_COOKIE)?.value) redirect("/login?reason=no_access");
+  } catch (err) {
+    if (isNextRedirect(err)) throw err;
   }
-  return user;
+  redirect("/login");
+}
+
+function isNextRedirect(err: unknown): boolean {
+  return Boolean(
+    err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      String((err as { digest?: string }).digest).startsWith("NEXT_REDIRECT"),
+  );
 }
 
 export async function checkPermission(module: string, action: PermissionAction) {
