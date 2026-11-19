@@ -11,6 +11,7 @@ import {
   READINESS_MODEL_SPECS,
   assembleReadinessAudit,
   buildCashierChecks,
+  buildGapAnalysis,
   buildNoCostScope,
   classifyOdooReadFailure,
   classifyStandardPrice,
@@ -21,6 +22,7 @@ import {
   isFilledOdooValue,
   isReadinessAuditRole,
   listedProductCost,
+  outsideWithQurainConfigIds,
   publicOdooError,
   readinessAuditToCsv,
   resolveAttendanceBranchLink,
@@ -394,8 +396,81 @@ describe('readiness audit pure rules', () => {
       firstOrderKuwait: '2026-01-16',
       lastOrderKuwait: '2026-11-01',
     })
-    expect(rows[1]).toMatchObject({ found: true, orders: 0, netKwd: 0, firstOrderAt: null })
+    expect(rows[1]).toMatchObject({ found: true, orders: 0, netKwd: 0, firstOrderAt: null, primaryError: null, readError: null })
     expect(rows[2]).toMatchObject({ found: false, name: null, orders: 0, netKwd: 0 })
+    const failed = buildCashierChecks({
+      configs: [],
+      sums: [],
+      mins: [],
+      maxes: [],
+      configField: 'config_id',
+      read: false,
+      primaryError: 'cannot group by config_id',
+      fallbackError: "Invalid field 'session_id.config_id' on model 'pos.order'",
+      fromKuwait: '2026-01-01',
+      toKuwait: '2026-11-19',
+    })
+    expect(failed[0]?.read).toBe(false)
+    expect(failed[0]?.primaryError).toBe('cannot group by config_id')
+    expect(failed[0]?.readError).toContain('cannot group by config_id')
+    expect(failed[0]?.readError).toContain('session_id.config_id')
+    const recovered = buildCashierChecks({
+      configs: [{ id: 24, name: 'Delivery (Qurain)', active: true }],
+      sums: [{ config_id: 24, amount_total: 266603.4, amount_tax: 0, __count: 40000 }],
+      mins: [],
+      maxes: [],
+      configField: 'config_id',
+      read: true,
+      primaryError: 'cannot group by config_id',
+      fromKuwait: '2026-01-01',
+      toKuwait: '2026-11-19',
+    })
+    expect(recovered[0]).toMatchObject({
+      read: true,
+      orders: 40000,
+      netKwd: 266603.4,
+      primaryError: 'cannot group by config_id',
+      readError: null,
+      fallbackError: null,
+    })
+  })
+
+  it('attributes the 2026 gap to every register outside withQurain', () => {
+    const configs = [
+      { id: 8, name: 'Promenade Mall', active: true },
+      { id: 24, name: 'Delivery (Qurain)', active: true },
+      { id: 16, name: 'E-Mall', active: false },
+      { id: 35, name: 'Archived register', active: false },
+    ]
+    const withQurain = [8, 24, 36]
+    expect(outsideWithQurainConfigIds(configs, withQurain)).toEqual([16, 25, 35, 39, 40])
+    const gap = buildGapAnalysis({
+      scopesReady: true,
+      configs,
+      withQurainIds: withQurain,
+      withQurainOrders: 324232,
+      withQurainNetKwd: 1743484.342,
+      read: true,
+      sums: [
+        { config_id: [16, 'E-Mall'], amount_total: 1000.5, amount_tax: 0.5, __count: 10 },
+        { config_id: [25, 'Jahra'], amount_total: 2000, amount_tax: 0, __count: 20 },
+        { config_id: [35, 'Archived register'], amount_total: 6806.568, amount_tax: 0, __count: 3827 },
+        { config_id: [24, 'Delivery (Qurain)'], amount_total: 999, amount_tax: 0, __count: 9 },
+      ],
+      fromKuwait: '2026-01-01',
+      toKuwait: '2026-11-19',
+    })
+    expect(gap.rows.map((row) => row.configId)).toEqual([16, 25, 35, 39, 40])
+    expect(gap.rows.find((row) => row.configId === 25)?.excluded).toBe(true)
+    expect(gap.rows.find((row) => row.configId === 39)?.excluded).toBe(true)
+    expect(gap.rows.find((row) => row.configId === 40)?.excluded).toBe(true)
+    expect(gap.rows.find((row) => row.configId === 16)).toMatchObject({ active: false, orders: 10, netKwd: 1000, excluded: false })
+    expect(gap.rows.find((row) => row.configId === 35)).toMatchObject({ orders: 3827, netKwd: 6806.568 })
+    expect(gap.rows.find((row) => row.configId === 39)).toMatchObject({ found: false, orders: 0, netKwd: 0 })
+    expect(gap.outsideOrders).toBe(3857)
+    expect(gap.outsideNetKwd).toBe(9806.568)
+    expect(gap.withQurainNetKwd).toBe(1743484.342)
+    expect(gap.rows.some((row) => row.configId === 24)).toBe(false)
   })
 
   it('writes a CSV without secret columns and keeps formula text in a cell', () => {
@@ -466,8 +541,50 @@ describe('readiness audit collector', () => {
       report.productsWithoutCost.withQurain.rows.at(-1)?.netKwd60 ?? 0,
     )
     const cashier = report.cashiers.find((row) => row.configId === 24)
-    expect(cashier).toMatchObject({ found: true, orders: 3, netKwd: 10 })
+    expect(cashier).toMatchObject({ found: true, read: true, orders: 3, netKwd: 10, primaryError: null, readError: null })
     expect(report.cashiers.map((row) => row.configId)).toEqual([24, 16, 35])
+    expect(report.gapAnalysis.rows.map((row) => row.configId)).toEqual(expect.arrayContaining([16, 25, 39, 40]))
+    expect(report.gapAnalysis.rows.some((row) => row.configId === 24)).toBe(false)
+    expect(report.gapAnalysis.rows.find((row) => row.configId === 16)?.netKwd).toBe(2)
+  })
+
+  it('keeps the config_id error and fills cashiers from one ungrouped read per config', async () => {
+    const seen: string[] = []
+    const client: OdooReadClient = {
+      async execute<T>(model: string, method: OdooReadMethod, args: unknown[] = [], kwargs: Record<string, unknown> = {}): Promise<T> {
+        const blob = JSON.stringify(args)
+        if (model === 'pos.order' && method === 'read_group') {
+          seen.push(blob)
+          if (blob.includes('session_id.config_id')) throw new Error('session_id.config_id was sent')
+          const groupby = Array.isArray(args[2]) ? args[2].map(String) : []
+          if (groupby.includes('config_id') && blob.includes('[24,16,35]')) {
+            throw new Error('cannot group by config_id')
+          }
+          if (groupby.length === 0) {
+            return [{ amount_total: 4, amount_tax: 1, __count: 2 }] as T
+          }
+        }
+        return fakeOdoo(model, method, args, kwargs) as T
+      },
+    }
+    const report = await collectReadinessAudit(client, {
+      clock: () => Date.parse('2026-11-19T08:00:00.000Z'),
+      budgetMs: 60_000,
+      minRemainingMs: 0,
+      kuwaitToday: '2026-11-19',
+      generatedAt: '2026-11-19T08:00:00.000Z',
+    })
+    expect(seen.some((blob) => blob.includes('session_id.config_id'))).toBe(false)
+    const cashier = report.cashiers.find((row) => row.configId === 24)
+    expect(cashier).toMatchObject({
+      read: true,
+      orders: 2,
+      netKwd: 3,
+      primaryError: 'cannot group by config_id',
+      readError: null,
+      fallbackError: null,
+    })
+    expect(report.cashiers.every((row) => row.read && row.primaryError === 'cannot group by config_id')).toBe(true)
   })
 
   it('stops before any Odoo call when the budget is already spent', async () => {

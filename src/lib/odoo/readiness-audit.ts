@@ -28,6 +28,12 @@ export const CASHIER_CONFIG_IDS = [24, 16, 35] as const
 /** Delivery (Qurain) and Delivery (Qurain Temp). Included in withQurain by id, even when excluded or inactive. */
 export const QURAIN_SCOPE_CONFIG_IDS = [24, 36] as const
 export const CASHIER_FROM_KUWAIT = '2026-01-01'
+/**
+ * Registers the Odoo pivot can still include after withQurain is removed:
+ * archived 16 and 35, and excluded 25, 39, and 40. They are always listed in
+ * the gap even when the config read did not return them.
+ */
+export const GAP_REGISTER_IDS = [16, 35, 25, 39, 40] as const
 export const POS_SALE_STATES = ['paid', 'done', 'invoiced'] as const
 export const NO_COST_TOP_SIZES = [50, 80] as const
 
@@ -578,13 +584,12 @@ export function buildAuditPosOrderDomain(input: {
   fromUtc: string
   toExclusiveUtc: string
   configIds: readonly number[]
-  configField?: 'config_id' | 'session_id.config_id'
 }): unknown[][] {
   return [
     ['state', 'in', [...POS_SALE_STATES]],
     ['date_order', '>=', input.fromUtc],
     ['date_order', '<', input.toExclusiveUtc],
-    [input.configField ?? 'config_id', 'in', [...input.configIds]],
+    ['config_id', 'in', [...input.configIds]],
   ]
 }
 
@@ -761,6 +766,11 @@ export interface CashierCheck {
   netKwd: number | null
   companyId: number | null
   companyName: string | null
+  /** Set when the grouped config_id call failed, including when a per-config read then succeeded. */
+  primaryError: string | null
+  /** Set when the per-config read for this register failed. */
+  fallbackError: string | null
+  /** Both errors when this register was not read. Null when the numbers were read. */
   readError: string | null
   firstOrderAt: string | null
   lastOrderAt: string | null
@@ -783,6 +793,29 @@ export interface ScopeReport {
   orders2026: number | null
   netKwd2026: number | null
   windowError: string | null
+}
+
+export interface GapConfigRow {
+  configId: number
+  name: string | null
+  active: boolean | null
+  found: boolean
+  excluded: boolean
+  read: boolean
+  orders: number | null
+  netKwd: number | null
+}
+
+export interface GapAnalysis {
+  window: { fromKuwait: string; toKuwait: string }
+  withQurainOrders: number | null
+  withQurainNetKwd: number | null
+  outsideOrders: number | null
+  outsideNetKwd: number | null
+  read: boolean
+  primaryError: string | null
+  fallbackError: string | null
+  rows: GapConfigRow[]
 }
 
 export interface ModelReport {
@@ -845,6 +878,7 @@ export interface ReadinessReport {
     withQurain: NoCostScope
   }
   cashiers: CashierCheck[]
+  gapAnalysis: GapAnalysis
   notes: string[]
 }
 
@@ -881,6 +915,14 @@ export interface AuditFacts {
   cashierMaxes: readonly Record<string, unknown>[]
   cashierConfigField: string
   cashierError?: string | null
+  cashierPrimaryError?: string | null
+  cashierFallbackError?: string | null
+  cashierUnread?: readonly { configId: number; error: string }[]
+  gapSums?: readonly Record<string, unknown>[]
+  gapRead?: boolean
+  gapPrimaryError?: string | null
+  gapFallbackError?: string | null
+  gapUnread?: readonly { configId: number; error: string }[]
   staff: {
     attendanceFields: readonly string[]
     employeeFields: readonly string[]
@@ -1249,6 +1291,26 @@ function dateFromGroup(row: Record<string, unknown>): string | null {
   return raw
 }
 
+export function outsideWithQurainConfigIds(
+  configs: readonly { id: number }[],
+  withQurain: readonly number[],
+): number[] {
+  const inside = new Set(withQurain)
+  const ids = new Set<number>()
+  for (const row of configs) {
+    if (Number.isInteger(row.id) && row.id > 0 && !inside.has(row.id)) ids.add(row.id)
+  }
+  for (const id of GAP_REGISTER_IDS) {
+    if (!inside.has(id)) ids.add(id)
+  }
+  return [...ids].sort((a, b) => a - b)
+}
+
+function joinReadErrors(primary: string | null | undefined, fallback: string | null | undefined): string | null {
+  const parts = [primary, fallback].filter((part): part is string => typeof part === 'string' && part.length > 0)
+  return parts.length > 0 ? parts.join(' | ') : null
+}
+
 export function buildCashierChecks(input: {
   configs: readonly PosConfigRow[]
   sums: readonly Record<string, unknown>[]
@@ -1257,6 +1319,9 @@ export function buildCashierChecks(input: {
   configField: string
   read: boolean
   readError?: string | null
+  primaryError?: string | null
+  fallbackError?: string | null
+  unread?: readonly { configId: number; error: string }[]
   fromKuwait: string
   toKuwait: string
 }): CashierCheck[] {
@@ -1295,47 +1360,133 @@ export function buildCashierChecks(input: {
       if (!bucket.last || date > bucket.last) bucket.last = date
     }
   }
+  const unread = new Map((input.unread ?? []).map((row) => [row.configId, row.error]))
   return CASHIER_CONFIG_IDS.map((configId) => {
     const config = meta.get(configId)
     const bucket = agg.get(configId)
     const window = { fromKuwait: input.fromKuwait, toKuwait: input.toKuwait }
-    if (!input.read) {
+    const fallbackError = unread.get(configId) ?? (!input.read ? (input.fallbackError ?? null) : null)
+    const readable = input.read && !unread.has(configId)
+    const identity = {
+      configId,
+      name: config?.name ?? null,
+      active: config ? config.active : null,
+      found: Boolean(config),
+      companyId: config?.companyId ?? null,
+      companyName: config?.companyName ?? null,
+      primaryError: input.primaryError ?? null,
+      window,
+    }
+    if (!readable) {
       return {
-        configId,
-        name: config?.name ?? null,
-        active: config ? config.active : null,
-        found: Boolean(config),
+        ...identity,
+        companyId: config?.companyId ?? null,
         read: false,
         orders: null,
         netKwd: null,
-        companyId: config?.companyId ?? null,
-        companyName: config?.companyName ?? null,
-        readError: input.readError ?? null,
+        fallbackError,
+        readError: input.readError ?? joinReadErrors(input.primaryError, fallbackError),
         firstOrderAt: null,
         lastOrderAt: null,
         firstOrderKuwait: null,
         lastOrderKuwait: null,
-        window,
       }
+    }
+    return {
+      ...identity,
+      companyId: bucket?.companyId ?? config?.companyId ?? null,
+      read: true,
+      orders: bucket?.orders ?? 0,
+      netKwd: bucket ? posOrderNet(bucket.total, bucket.tax) : 0,
+      fallbackError: null,
+      readError: null,
+      firstOrderAt: bucket?.first ?? null,
+      lastOrderAt: bucket?.last ?? null,
+      firstOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.first ?? null),
+      lastOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.last ?? null),
+    }
+  })
+}
+
+export function buildGapAnalysis(input: {
+  scopesReady: boolean
+  configs: readonly PosConfigRow[]
+  withQurainIds: readonly number[]
+  withQurainOrders: number | null
+  withQurainNetKwd: number | null
+  sums: readonly Record<string, unknown>[]
+  read: boolean
+  primaryError?: string | null
+  fallbackError?: string | null
+  unread?: readonly { configId: number; error: string }[]
+  fromKuwait: string
+  toKuwait: string
+}): GapAnalysis {
+  const window = { fromKuwait: input.fromKuwait, toKuwait: input.toKuwait }
+  if (!input.scopesReady) {
+    return {
+      window,
+      withQurainOrders: null,
+      withQurainNetKwd: null,
+      outsideOrders: null,
+      outsideNetKwd: null,
+      read: false,
+      primaryError: input.primaryError ?? null,
+      fallbackError: input.fallbackError ?? 'The register list was not read, so configs outside withQurain are unknown.',
+      rows: [],
+    }
+  }
+  const ids = outsideWithQurainConfigIds(input.configs, input.withQurainIds)
+  const meta = new Map(input.configs.map((row) => [row.id, row]))
+  const unread = new Map((input.unread ?? []).map((row) => [row.configId, row.error]))
+  const buckets = new Map<number, { orders: number; total: number; tax: number }>()
+  if (input.read) {
+    for (const row of input.sums) {
+      const id = m2oId(row.config_id)
+      if (id == null) continue
+      const bucket = buckets.get(id) ?? { orders: 0, total: 0, tax: 0 }
+      bucket.orders += Math.max(0, Math.round(Number(row.__count) || 0))
+      bucket.total += Number(row.amount_total) || 0
+      bucket.tax += Number(row.amount_tax) || 0
+      buckets.set(id, bucket)
+    }
+  }
+  let outsideOrders = 0
+  let outsideTotal = 0
+  let outsideTax = 0
+  let complete = input.read
+  const rows: GapConfigRow[] = ids.map((configId) => {
+    const config = meta.get(configId)
+    const failed = !input.read || unread.has(configId)
+    const bucket = buckets.get(configId)
+    if (failed) complete = false
+    else {
+      outsideOrders += bucket?.orders ?? 0
+      outsideTotal += bucket?.total ?? 0
+      outsideTax += bucket?.tax ?? 0
     }
     return {
       configId,
       name: config?.name ?? null,
       active: config ? config.active : null,
       found: Boolean(config),
-      read: true,
-      orders: bucket?.orders ?? 0,
-      netKwd: bucket ? posOrderNet(bucket.total, bucket.tax) : 0,
-      companyId: bucket?.companyId ?? config?.companyId ?? null,
-      companyName: config?.companyName ?? null,
-      readError: null,
-      firstOrderAt: bucket?.first ?? null,
-      lastOrderAt: bucket?.last ?? null,
-      firstOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.first ?? null),
-      lastOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.last ?? null),
-      window,
+      excluded: isExcludedRecordId('pos_config', configId),
+      read: !failed,
+      orders: failed ? null : (bucket?.orders ?? 0),
+      netKwd: failed ? null : bucket ? posOrderNet(bucket.total, bucket.tax) : 0,
     }
   })
+  return {
+    window,
+    withQurainOrders: input.withQurainOrders,
+    withQurainNetKwd: input.withQurainNetKwd,
+    outsideOrders: complete ? outsideOrders : null,
+    outsideNetKwd: complete ? posOrderNet(outsideTotal, outsideTax) : null,
+    read: input.read && complete,
+    primaryError: input.primaryError ?? null,
+    fallbackError: input.fallbackError ?? null,
+    rows,
+  }
 }
 
 function scopeReport(
@@ -1414,8 +1565,26 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
     configField: facts.cashierConfigField,
     read: facts.cashiersRead,
     readError: facts.cashierError ?? null,
+    primaryError: facts.cashierPrimaryError ?? null,
+    fallbackError: facts.cashierFallbackError ?? null,
+    unread: facts.cashierUnread,
     fromKuwait: CASHIER_FROM_KUWAIT,
     toKuwait: facts.kuwaitToday < CASHIER_FROM_KUWAIT ? CASHIER_FROM_KUWAIT : facts.kuwaitToday,
+  })
+  const yearEnd = facts.kuwaitToday < CASHIER_FROM_KUWAIT ? CASHIER_FROM_KUWAIT : facts.kuwaitToday
+  const gapAnalysis = buildGapAnalysis({
+    scopesReady: facts.scopesReady,
+    configs: facts.configs,
+    withQurainIds: resolved.withQurain,
+    withQurainOrders: facts.scopeWindow?.withQurain?.orders ?? null,
+    withQurainNetKwd: facts.scopeWindow?.withQurain?.netKwd ?? null,
+    sums: facts.gapSums ?? [],
+    read: facts.gapRead ?? false,
+    primaryError: facts.gapPrimaryError ?? null,
+    fallbackError: facts.gapFallbackError ?? null,
+    unread: facts.gapUnread,
+    fromKuwait: CASHIER_FROM_KUWAIT,
+    toKuwait: yearEnd,
   })
   return {
     ok: true,
@@ -1455,6 +1624,7 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
       withQurain: withProducts,
     },
     cashiers,
+    gapAnalysis,
     notes: readinessNotes(facts),
   }
 }
@@ -1481,7 +1651,7 @@ function readinessNotes(facts: AuditFacts): string[] {
     'standard_price is read with the in-scope company context and falls back to product.template. A field missing from the read is not treated as cost zero.',
     'Net KWD on orders is amount_total minus amount_tax. Net KWD on lines is price_subtotal. Both are rounded to 3 decimals.',
     `Key-field completeness is the share of filled values on a sample of up to ${COMPLETENESS_SAMPLE_SIZE} rows. A model passes at ${COMPLETENESS_GO_MIN_PCT}% or more.`,
-    `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time.`,
+    `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time. gapAnalysis lists every pos.config outside withQurain, including archived 16 and 35 and excluded 25, 39, and 40.`,
     'Seasons needs at least 365 days between the earliest and latest in-scope order (Kuwait dates) on the with-Qurain scope.',
   ]
   if (facts.partial) notes.push('The 60 second budget ended before every read finished. Unchecked models are HOLD.')
@@ -1734,6 +1904,126 @@ export function readinessAuditToCsv(report: ReadinessReport): string {
         cashier.netKwd,
         cashier.firstOrderAt,
         cashier.lastOrderAt,
+      ]),
+    )
+  }
+  lines.push(
+    csvRow([
+      'gap_totals',
+      'outsideWithQurain',
+      '',
+      '',
+      joinReadErrors(report.gapAnalysis.primaryError, report.gapAnalysis.fallbackError),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      report.gapAnalysis.outsideOrders,
+      report.gapAnalysis.outsideNetKwd,
+    ]),
+  )
+  lines.push(
+    csvRow([
+      'gap_meta',
+      'withQurain',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      report.gapAnalysis.withQurainOrders,
+      report.gapAnalysis.withQurainNetKwd,
+    ]),
+  )
+  for (const row of report.gapAnalysis.rows) {
+    lines.push(
+      csvRow([
+        'gap_config',
+        'outsideWithQurain',
+        '',
+        '',
+        row.excluded ? 'excluded' : '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        row.configId,
+        row.name,
+        row.active,
+        row.orders,
+        row.netKwd,
       ]),
     )
   }

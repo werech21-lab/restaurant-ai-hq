@@ -35,6 +35,7 @@ import {
   probeFieldNames,
   publicOdooError,
   r3,
+  outsideWithQurainConfigIds,
   resolveReadinessScopes,
   standardPriceFieldProbe,
   sumLineNet,
@@ -133,6 +134,14 @@ export async function collectReadinessAudit(
   }
   let cashiersRead = false
   let cashierError: string | null = null
+  let cashierPrimaryError: string | null = null
+  let cashierFallbackError: string | null = null
+  let cashierUnread: { configId: number; error: string }[] = []
+  let gapSums: Record<string, unknown>[] = []
+  let gapRead = false
+  let gapPrimaryError: string | null = null
+  let gapFallbackError: string | null = null
+  let gapUnread: { configId: number; error: string }[] = []
   let cashierSums: Record<string, unknown>[] = []
   let cashierMins: Record<string, unknown>[] = []
   let cashierMaxes: Record<string, unknown>[] = []
@@ -235,22 +244,49 @@ export async function collectReadinessAudit(
   }
 
   cashierConfigField = 'config_id'
+  const outsideIds = scopesReady ? outsideWithQurainConfigIds(configs, resolvedIds.withQurain) : []
   if (canStart()) {
-    try {
-      const grouped = await readCashierGroups(read, year.fromUtc, year.toExclusiveUtc)
-      cashierSums = grouped.sums
-      cashierMins = grouped.mins
-      cashierMaxes = grouped.maxes
-      cashiersRead = grouped.sums.length > 0 || grouped.mins.length > 0 || grouped.maxes.length > 0 || grouped.read
-      cashierError = null
-    } catch (error) {
-      if (error instanceof BudgetStop) partial = true
-      else if (isFatalOdooFailure(error)) throw error
-      else {
-        cashiersRead = false
-        cashierError = publicOdooError(error)
-      }
-    }
+    await Promise.all([
+      (async () => {
+        try {
+          const grouped = await readConfigOrderWindow(read, CASHIER_CONFIG_IDS, year.fromUtc, year.toExclusiveUtc, true)
+          cashierSums = grouped.sums
+          cashierMins = grouped.mins
+          cashierMaxes = grouped.maxes
+          cashiersRead = grouped.read
+          cashierPrimaryError = grouped.primaryError
+          cashierFallbackError = grouped.fallbackError
+          cashierUnread = grouped.unread
+          cashierError = grouped.read ? null : joinWindowErrors(grouped.primaryError, grouped.fallbackError)
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else {
+            cashiersRead = false
+            cashierError = publicOdooError(error)
+            cashierFallbackError = cashierError
+          }
+        }
+      })(),
+      (async () => {
+        if (!scopesReady) return
+        try {
+          const grouped = await readConfigOrderWindow(read, outsideIds, year.fromUtc, year.toExclusiveUtc, false)
+          gapSums = grouped.sums
+          gapRead = grouped.read
+          gapPrimaryError = grouped.primaryError
+          gapFallbackError = grouped.fallbackError
+          gapUnread = grouped.unread
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else {
+            gapRead = false
+            gapFallbackError = publicOdooError(error)
+          }
+        }
+      })(),
+    ])
   } else {
     partial = true
   }
@@ -368,6 +404,14 @@ export async function collectReadinessAudit(
     standardPrice,
     cashiersRead,
     cashierError,
+    cashierPrimaryError,
+    cashierFallbackError,
+    cashierUnread,
+    gapSums,
+    gapRead,
+    gapPrimaryError,
+    gapFallbackError,
+    gapUnread,
     cashierSums,
     cashierMins,
     cashierMaxes,
@@ -592,6 +636,55 @@ async function readScopedOrders(
   return { orders, earliest, latest, historyDays: historyDaySpan(earliest, latest) }
 }
 
+function joinWindowErrors(primary: string | null, fallback: string | null): string | null {
+  const parts = [primary, fallback].filter((part): part is string => part != null && part.length > 0)
+  return parts.length > 0 ? parts.join(' | ') : null
+}
+
+async function readPosGroups(
+  read: ReadFn,
+  domain: unknown[][],
+  aggregates: string[],
+  groupby: string[],
+): Promise<Record<string, unknown>[]> {
+  const grouped = await read<unknown>(
+    'pos.order',
+    'read_group',
+    [domain, aggregates, groupby],
+    { lazy: false, context: ORDER_READ_CONTEXT },
+    ORDER_READ_OPTIONS,
+  )
+  const rows = asRecordList(grouped)
+  if (!rows) throw new Error('pos.order read_group returned an unexpected payload')
+  return rows
+}
+
+function stampAggregate(rows: readonly Record<string, unknown>[], configId: number): Record<string, unknown> {
+  let total = 0
+  let tax = 0
+  let orders = 0
+  let dateOrder: unknown = null
+  let dateMin: unknown = null
+  let dateMax: unknown = null
+  for (const row of rows) {
+    total += Number(row.amount_total) || 0
+    tax += Number(row.amount_tax) || 0
+    orders += Math.max(0, Math.round(Number(row.__count) || 0))
+    if (dateOrder == null && row.date_order != null) dateOrder = row.date_order
+    if (dateMin == null && row.date_order_min != null) dateMin = row.date_order_min
+    if (dateMax == null && row.date_order_max != null) dateMax = row.date_order_max
+  }
+  return {
+    config_id: configId,
+    amount_total: total,
+    amount_tax: tax,
+    __count: orders,
+    ...(dateOrder != null ? { date_order: dateOrder } : {}),
+    ...(dateMin != null ? { date_order_min: dateMin } : {}),
+    ...(dateMax != null ? { date_order_max: dateMax } : {}),
+  }
+}
+
 async function readScopeWindow(
   read: ReadFn,
   configIds: readonly number[],
@@ -599,76 +692,96 @@ async function readScopeWindow(
   toExclusiveUtc: string,
 ): Promise<{ orders: number; netKwd: number }> {
   if (configIds.length === 0) return { orders: 0, netKwd: 0 }
-  const domains = (['config_id', 'session_id.config_id'] as const).map((configField) =>
-    buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds, configField }),
-  )
+  const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
   let lastError: unknown = null
-  for (const domain of domains) {
-    for (const groupby of [['config_id'], ['session_id.config_id'], []] as const) {
-      try {
-        const grouped = await read<unknown>(
-          'pos.order',
-          'read_group',
-          [domain, ['amount_total:sum', 'amount_tax:sum'], [...groupby]],
-          { lazy: false, context: ORDER_READ_CONTEXT },
-          ORDER_READ_OPTIONS,
-        )
-        const rows = asRecordList(grouped)
-        if (rows && rows.length > 0) return sumPosOrderGroups(rows)
-      } catch (error) {
-        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
-        lastError = error
-      }
+  for (const groupby of [['config_id'], []] as const) {
+    try {
+      const rows = await readPosGroups(read, domain, ['amount_total:sum', 'amount_tax:sum'], [...groupby])
+      return sumPosOrderGroups(rows)
+    } catch (error) {
+      if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+      lastError = error
     }
   }
   throw lastError instanceof Error ? lastError : new Error('pos.order read_group returned no 2026 totals')
 }
 
-async function readCashierGroups(
+async function readConfigOrderWindow(
   read: ReadFn,
+  configIds: readonly number[],
   fromUtc: string,
   toExclusiveUtc: string,
-): Promise<{ sums: Record<string, unknown>[]; mins: Record<string, unknown>[]; maxes: Record<string, unknown>[]; read: boolean }> {
-  const fields = ['config_id', 'session_id.config_id'] as const
-  let lastError: unknown = null
-  for (const configField of fields) {
-    const domain = buildAuditPosOrderDomain({
-      fromUtc,
-      toExclusiveUtc,
-      configIds: CASHIER_CONFIG_IDS,
-      configField,
-    })
-    const kwargs = { lazy: false, context: ORDER_READ_CONTEXT }
-    const call = (aggregates: string[]) =>
-      read<unknown>('pos.order', 'read_group', [domain, aggregates, [configField]], kwargs, ORDER_READ_OPTIONS)
-    const settled = await Promise.all([
-      call(['amount_total:sum', 'amount_tax:sum']).then(
-        (value) => ({ ok: true as const, value }),
-        (error: unknown) => ({ ok: false as const, error }),
-      ),
-      call(['date_order:min']).then(
-        (value) => ({ ok: true as const, value }),
-        (error: unknown) => ({ ok: false as const, error }),
-      ),
-      call(['date_order:max']).then(
-        (value) => ({ ok: true as const, value }),
-        (error: unknown) => ({ ok: false as const, error }),
-      ),
-    ])
-    for (const result of settled) {
-      if (!result.ok && (result.error instanceof BudgetStop || isFatalOdooFailure(result.error))) throw result.error
-      if (!result.ok) lastError = result.error
-    }
-    if (settled[0].ok) {
-      return {
-        sums: asRecordList(settled[0].value) ?? [],
-        mins: settled[1].ok ? (asRecordList(settled[1].value) ?? []) : [],
-        maxes: settled[2].ok ? (asRecordList(settled[2].value) ?? []) : [],
-        read: true,
+  withDates: boolean,
+): Promise<{
+  sums: Record<string, unknown>[]
+  mins: Record<string, unknown>[]
+  maxes: Record<string, unknown>[]
+  read: boolean
+  primaryError: string | null
+  fallbackError: string | null
+  unread: { configId: number; error: string }[]
+}> {
+  if (configIds.length === 0) {
+    return { sums: [], mins: [], maxes: [], read: true, primaryError: null, fallbackError: null, unread: [] }
+  }
+  const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
+  try {
+    const sums = await readPosGroups(read, domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id'])
+    let mins: Record<string, unknown>[] = []
+    let maxes: Record<string, unknown>[] = []
+    if (withDates) {
+      try {
+        ;[mins, maxes] = await Promise.all([
+          readPosGroups(read, domain, ['date_order:min'], ['config_id']),
+          readPosGroups(read, domain, ['date_order:max'], ['config_id']),
+        ])
+      } catch (error) {
+        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
       }
     }
+    return { sums, mins, maxes, read: true, primaryError: null, fallbackError: null, unread: [] }
+  } catch (error) {
+    if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+    const primaryError = publicOdooError(error)
+    const sums: Record<string, unknown>[] = []
+    const mins: Record<string, unknown>[] = []
+    const maxes: Record<string, unknown>[] = []
+    const unread: { configId: number; error: string }[] = []
+    await Promise.all(
+      configIds.map(async (configId) => {
+        const one = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds: [configId] })
+        try {
+          const rows = await readPosGroups(read, one, ['amount_total:sum', 'amount_tax:sum'], [])
+          sums.push(stampAggregate(rows, configId))
+          if (withDates) {
+            try {
+              const [minRows, maxRows] = await Promise.all([
+                readPosGroups(read, one, ['date_order:min'], []),
+                readPosGroups(read, one, ['date_order:max'], []),
+              ])
+              mins.push(stampAggregate(minRows, configId))
+              maxes.push(stampAggregate(maxRows, configId))
+            } catch (dateError) {
+              if (dateError instanceof BudgetStop || isFatalOdooFailure(dateError)) throw dateError
+            }
+          }
+        } catch (fallbackError) {
+          if (fallbackError instanceof BudgetStop || isFatalOdooFailure(fallbackError)) throw fallbackError
+          unread.push({ configId, error: publicOdooError(fallbackError) })
+        }
+      }),
+    )
+    const fallbackError = unread.length > 0 ? unread.map((row) => `${row.configId}: ${row.error}`).join(' | ') : null
+    return {
+      sums,
+      mins,
+      maxes,
+      read: unread.length < configIds.length,
+      primaryError,
+      fallbackError,
+      unread,
+    }
   }
-  throw lastError instanceof Error ? lastError : new Error('pos.order cashier read_group failed')
 }
 
 async function diagnoseStandardPrice(
