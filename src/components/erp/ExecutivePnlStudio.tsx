@@ -223,7 +223,7 @@ export function ExecutivePnlStudio() {
               className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 transition dark:text-emerald-300"
             >
               <Receipt size={14} aria-hidden />
-              <span>{isAr ? 'أعمار الذمم المدينة' : 'AR Aging'}</span>
+              <span>{isAr ? 'الذمم المدينة المفتوحة' : 'Open receivables'}</span>
               <ArrowUpRight size={13} aria-hidden />
             </Link>
           </div>

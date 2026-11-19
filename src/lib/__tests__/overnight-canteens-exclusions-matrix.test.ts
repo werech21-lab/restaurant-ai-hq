@@ -700,9 +700,6 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       { configId: 41, label: 'NPIS Jahra', reason: 'Jahra Latin branch veto' },
       { configId: 41, label: 'مقصف مدرسة الجهراء', reason: 'Jahra Arabic branch veto' },
       { configId: 41, label: 'Canteen JHR01', reason: 'Jahra short-code + digit veto', shortCodeOnly: true },
-      { configId: 42, label: 'FAIPS Qurain', reason: 'Qurain Latin branch veto' },
-      { configId: 42, label: 'مقصف مدرسة القرين', reason: 'Qurain Arabic branch veto' },
-      { configId: 42, label: 'Canteen QRN1', reason: 'Qurain short-code + digit veto', shortCodeOnly: true },
     ]
 
     it.each(VETOED_CANTEEN_CASES)(
@@ -785,18 +782,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       { family: 'Heisenberg', label: 'هايزن بريج' },
       { family: 'Heisenberg', label: 'هايزن' },
 
-      // Family 2: Qurain
-      { family: 'Qurain', label: 'Qurain' },
-      { family: 'Qurain', label: 'Qurain WH' },
-      { family: 'Qurain', label: 'Al-Qurain' },
-      { family: 'Qurain', label: 'Kurain' },
-      { family: 'Qurain', label: 'QRN', shortCodeOnly: true },
-      { family: 'Qurain', label: 'QRN01', shortCodeOnly: true },
-      { family: 'Qurain', label: 'القرين' },
-      { family: 'Qurain', label: 'قرين' },
-      { family: 'Qurain', label: 'بالقرين' },
-
-      // Family 3: Jahra
+      // Delivery (Qurain) is included (founder, 2026-11-19). Family 3: Jahra
       { family: 'Jahra', label: 'Jahra' },
       { family: 'Jahra', label: 'Jahra01' },
       { family: 'Jahra', label: 'AlJahra' },
@@ -961,7 +947,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         briefFacts: pack.facts,
       })
       expect(serializedAll).not.toMatch(
-        /heisenberg|hizenberg|هايزن|qurain|القرين|قرين|jahra|الجهراء|جهراء/i,
+        /heisenberg|hizenberg|هايزن|jahra|الجهراء|جهراء/i,
       )
     })
   })

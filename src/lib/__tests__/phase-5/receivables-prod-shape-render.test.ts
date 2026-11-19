@@ -94,7 +94,7 @@ describe('production-shape receivables never render an amount', () => {
     const recv = renderAr(React.createElement(VentureAccountingHub, { initialTab: 'receivables', embeddedInErp: true }))
     expectNoOverdueClaim(recv)
     expect(recv).not.toContain('data-receivables-pending="true"')
-    expect(recv).toContain('77,462.759')
+    expect(recv).toContain('0.000')
     const gl = renderAr(React.createElement(VentureAccountingHub, { initialTab: 'glSummary' }))
     expectNoOverdueClaim(gl)
   })

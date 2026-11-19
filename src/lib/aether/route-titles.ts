@@ -182,9 +182,9 @@ const ROUTE_TITLES: { match: string; exact?: boolean; title: RouteTitle }[] = [
   {
     match: '/erp/receivables',
     title: {
-      en: 'AR & Receivables Aging',
-      ar: 'الذمم المدينة وأعمار الديون',
-      mobileEn: 'AR Aging',
+      en: 'Open receivables',
+      ar: 'الذمم المدينة المفتوحة',
+      mobileEn: 'Open AR',
       mobileAr: 'الذمم المدينة',
     },
   },

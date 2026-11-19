@@ -2678,11 +2678,7 @@ export async function askFeryalOdooAgent(
     return finalizeNoData('fas_fahaheel_canteen')
   }
 
-  // 2c. «القرين» / «المطبخ المركزي» is the active central kitchen (owner, 2026-11-18). Its POS sales are
-  // not in company totals until the read-only double-counting audit is approved → «غير متاح», never 0.000.
-  if (isQurainCentralKitchenQuestion(rawQuestion)) {
-    return finalizeNoData('qurain_central_kitchen')
-  }
+  // 2c. Delivery (Qurain) is inside company sales (founder, 2026-11-19). Do not refuse the question.
 
   // 3. Branch Scope Check (7 approved branches + school canteens only)
   const branchDetection = detectTargetBranchFromQuestion(rawQuestion)

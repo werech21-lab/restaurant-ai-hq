@@ -552,55 +552,24 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
     expect(enTable!.outerHtml).not.toContain('data-branch-card')
   })
 
-  it('withholds all-brand Channel Mix and [data-ledger-table="true"] via calm UnavailableState on brand=china-garden (AR & EN)', async () => {
+  it('omits Channel Mix and the branch ledger on brand=china-garden when there is no exact split (AR & EN)', async () => {
     const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('china-garden'))
     const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('china-garden'))
 
-    const arChannelCard = findCardByTag(
-      arHtml,
-      'section',
-      (h) => h.includes('data-chart-card="true"') && h.includes('توزيع المبيعات حسب القناة'),
-    )
-    expect(arChannelCard).not.toBeNull()
-    expect(arChannelCard!.outerHtml).toContain('data-unavailable-state="true"')
-    expect(arChannelCard!.text).toContain('غير متاح بعد')
-    expect(arChannelCard!.outerHtml).not.toContain('data-chart-kind="stacked-progress"')
-    expect(arChannelCard!.outerHtml).not.toContain('62.950')
+    expect(arHtml).not.toContain('توزيع المبيعات حسب القناة')
+    expect(arHtml).not.toContain('غير متاح بعد')
+    expect(arHtml).not.toContain('غير متاح لهذا الفلتر')
+    expect(enHtml).not.toContain('Sales Mix by Channel')
+    expect(enHtml).not.toContain('Not available yet')
+    expect(enHtml).not.toContain('Not available for this filter')
 
-    const enChannelCard = findCardByTag(
-      enHtml,
-      'section',
-      (h) => h.includes('data-chart-card="true"') && h.includes('Sales Mix by Channel'),
-    )
-    expect(enChannelCard).not.toBeNull()
-    expect(enChannelCard!.outerHtml).toContain('data-unavailable-state="true"')
-    expect(enChannelCard!.text).toContain('Not available yet')
-    expect(enChannelCard!.outerHtml).not.toContain('data-chart-kind="stacked-progress"')
-    expect(enChannelCard!.outerHtml).not.toContain('62.950')
-
-    const arLedger = findElementByAttr(arHtml, 'data-ledger-table', 'true')
-    expect(arLedger).not.toBeNull()
-    expect(arLedger!.outerHtml).toContain('data-unavailable-state="true"')
-    expect(arLedger!.text).toContain('غير متاح بعد')
-    expect(arLedger!.outerHtml).not.toContain('<table')
-    expect(arLedger!.outerHtml).not.toContain('154.700')
-    expect(arLedger!.outerHtml).not.toContain('99.350')
-    expect(arLedger!.text).not.toMatch(/\b24\b/)
-
-    const enLedger = findElementByAttr(enHtml, 'data-ledger-table', 'true')
-    expect(enLedger).not.toBeNull()
-    expect(enLedger!.outerHtml).toContain('data-unavailable-state="true"')
-    expect(enLedger!.text).toContain('Not available yet')
-    expect(enLedger!.outerHtml).not.toContain('<table')
-    expect(enLedger!.outerHtml).not.toContain('154.700')
-    expect(enLedger!.outerHtml).not.toContain('99.350')
-    expect(enLedger!.text).not.toMatch(/\b24\b/)
+    expect(findElementByAttr(arHtml, 'data-ledger-table', 'true')).toBeNull()
+    expect(findElementByAttr(enHtml, 'data-ledger-table', 'true')).toBeNull()
+    expect(arHtml).not.toContain('data-branch-card=')
+    expect(enHtml).not.toContain('data-branch-card=')
 
     expect(scopeBadgesOf(arHtml)).toEqual({
-      'gl-operating-net': 'company-wide',
-      'aggregator-commissions': 'company-wide',
       'ledger-ar': 'company-wide',
-      'gl-distribution': 'company-wide',
       'sales-net-combo': 'all-brands',
       'weekly-pulse': 'all-brands',
     })

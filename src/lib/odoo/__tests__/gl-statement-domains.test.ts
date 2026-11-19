@@ -43,7 +43,7 @@ describe('excluded chart accounts stay on the full ledger', () => {
       .filter((line) => line.salesScopeExcluded && isBalanceSheetType(line.accountType))
       .map((line) => line.name)
       .sort()
-    expect(excludedNames).toContain('Qurain Cash suspense')
+    expect(excludedNames).not.toContain('Qurain Cash suspense')
     expect(excludedNames).toContain('Jahra Cash suspens')
     const view = balanceSheetView(lines)
     const grouped = view.groups.find((group) => group.key === 'excluded')

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
+import { customerReceivableNetKwd } from '@/lib/odoo/live-sync-core'
 import {
   GLOBAL_PERIOD_OPTIONS,
   formatPeriodCalendarWindow,
@@ -80,8 +81,8 @@ export function VentureAccountingHub({
     },
     {
       id: 'receivables',
-      labelAr: 'الذمم المدينة وأعمار الديون',
-      labelEn: 'Receivables & Aging',
+      labelAr: 'الذمم المدينة المفتوحة',
+      labelEn: 'Open receivables',
       icon: <Landmark className="h-4 w-4" aria-hidden />,
     },
     ...(liveChildren && !embeddedInErp
@@ -233,7 +234,7 @@ export function VentureAccountingHub({
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.openReceivableKwd, currentLocale)}
+                    : formatKwd(customerReceivableNetKwd(workspace.receivables), currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge

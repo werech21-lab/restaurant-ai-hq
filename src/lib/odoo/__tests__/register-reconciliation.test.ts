@@ -17,7 +17,8 @@ describe('per-register reconciliation', () => {
     expect(classifyIncludedRegister(41, 'NPIS Hawally canteen')).toBe('school-canteen')
     expect(classifyIncludedRegister(26, 'Exhibition booth')).toBe('exhibition-booths')
     expect(classifyIncludedRegister(24, 'Closed register')).toBeNull()
-    expect(classifyIncludedRegister(8, 'Qurain kitchen')).toBeNull()
+    expect(classifyIncludedRegister(8, 'Qurain kitchen')).toBe('restaurant')
+    expect(classifyIncludedRegister(4, 'Delivery (Qurain)')).toBe('restaurant')
     expect(classifyIncludedRegister(8, 'هايزن بريج')).toBeNull()
   })
 
@@ -66,13 +67,13 @@ describe('connector bucket register reconciliation', () => {
       { configId: 41, configName: 'labelled canteen 41', netKwd: 0.3, orders: 1 },
       { configId: 42, configName: 'labelled canteen 42', netKwd: 0.3, orders: 1 },
       { configId: 43, configName: 'labelled canteen 43', netKwd: 0.3, orders: 1 },
+      { configId: 3, configName: 'Delivery (Qurain)', netKwd: 9, orders: 1 },
     ]
     const excluded = [
       { configId: 24, configName: 'labelled closed 24', netKwd: 9, orders: 1 },
       { configId: 25, configName: 'labelled closed 25', netKwd: 9, orders: 1 },
       { configId: 39, configName: 'labelled closed 39', netKwd: 9, orders: 1 },
       { configId: 40, configName: 'labelled closed 40', netKwd: 9, orders: 1 },
-      { configId: 3, configName: 'Qurain Kitchen', netKwd: 9, orders: 1 },
       { configId: 14, configName: 'Jahra register', netKwd: 9, orders: 1 },
       { configId: 15, configName: 'هايزن بريج', netKwd: 9, orders: 1 },
     ]
@@ -100,7 +101,8 @@ describe('connector bucket register reconciliation', () => {
     const snap = computeCoresHubSnapshot({ ...DEFAULT_GLOBAL_FILTERS, period: 'month' }, [], summary)
     const ids = snap.sales.registerReconciliation?.rows.map((row) => row.configId) ?? []
     expect(ids).toEqual(expect.arrayContaining([8, 9, 10, 11, 26, 33, 37, 38, 41, 42, 43]))
-    for (const id of [24, 25, 39, 40, 3, 14, 15]) {
+    expect(ids).toContain(3)
+    for (const id of [24, 25, 39, 40, 14, 15]) {
       expect(ids).not.toContain(id)
     }
     expect(snap.sales.registerReconciliation?.includedNetKwd).toBe(includedNet)

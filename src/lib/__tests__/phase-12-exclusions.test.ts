@@ -86,7 +86,7 @@ const HAWALLY_NAMES_KEPT = [
   'Breakfast',
   'Superfast',
 ]
-const STILL_EXCLUDED = ['Heisenberg School Canteen', 'FAIPS Qurain', 'NPIS Jahra', 'Jahra01', 'AlJahra', 'HeisenbergKW']
+const STILL_EXCLUDED = ['Heisenberg School Canteen', 'NPIS Jahra', 'Jahra01', 'AlJahra', 'HeisenbergKW']
 
 describe('phase 12 exclusions: Hawally names accepted, Jahra/Qurain/Heisenberg excluded, parity', () => {
   it('does not exclude any Hawally name (canteen, street, shop) and keeps Jahra/Qurain/Heisenberg excluded', () => {

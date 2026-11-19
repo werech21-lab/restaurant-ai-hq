@@ -61,9 +61,10 @@ describe('exclusions are unchanged', () => {
 
   it('a booth register is still rejected if its name carries an excluded entity, or it is inactive / test', () => {
     const booth = registryBoothIds[0]
-    for (const name of ['Qurain booth', 'Jahra exhibition', 'Qurain WH POS']) {
-      expect(companyPosConfigAllowed(booth, name)).toBe(false)
+    for (const name of ['Qurain booth', 'Qurain WH POS', 'Delivery (Qurain)']) {
+      expect(companyPosConfigAllowed(booth, name)).toBe(true)
     }
+    expect(companyPosConfigAllowed(booth, 'Jahra exhibition')).toBe(false)
     expect(companyPosConfigAllowed(booth, boothLabel.en, false)).toBe(false)
     expect(companyPosConfigAllowed(booth, 'Exhibition test')).toBe(false)
   })

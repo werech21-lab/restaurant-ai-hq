@@ -36,7 +36,8 @@ describe('phase 12 blocker A: pinned school canteen POS config rule & branch res
     ).toBe(true)
 
     expect(companyPos.companyPosConfigAllowed(41, 'NPIS Jahra')).toBe(false)
-    expect(companyPos.companyPosConfigAllowed(42, 'FAIPS Qurain')).toBe(false)
+    expect(companyPos.companyPosConfigAllowed(42, 'FAIPS Qurain')).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(99, 'Delivery (Qurain)')).toBe(true)
     expect(companyPos.companyPosConfigAllowed(41, 'Heisenberg School Canteen')).toBe(false)
     expect(companyPos.companyPosConfigAllowed(41, 'NPIS Hawally', false)).toBe(false)
     expect(companyPos.companyPosConfigAllowed(99999, 'NPIS Hawally')).toBe(false)

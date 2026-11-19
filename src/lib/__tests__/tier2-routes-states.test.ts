@@ -565,7 +565,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         },
       ])
       // Owner decision 2026-11-18: Hawally names are no longer excluded (no closed Hawally restaurant).
-      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen', 'ph-bad-hawally'])
+      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen', 'ph-bad-qurain', 'ph-bad-hawally'])
 
       const liveSummary = buildConnectedLiveSummaryForTier2()
       const ws = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, liveSummary, '/erp/planning')
@@ -581,7 +581,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(planSnap.noData).toBe(false)
       expect(planSnap.scenarios).toHaveLength(3)
       const serializedPlan = JSON.stringify(planSnap)
-      expect(serializedPlan).not.toMatch(/heisenberg|qurain|jahra|هايزن|القرين|الجهراء/i)
+      expect(serializedPlan).not.toMatch(/heisenberg|jahra|هايزن|الجهراء/i)
 
       // 2B. Regulations Engine (`sanitizeRegulations`)
       const regs = sanitizeRegulations([
@@ -714,6 +714,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(scenarios.brandBreakdown.map((b) => b.brandName)).toEqual([
         'China Garden',
         "Frank's",
+        'Qurain Kitchen',
         'Hawally Pop-up', // Hawally accepted (owner decision 2026-11-18)
       ])
 
@@ -741,6 +742,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         'China Garden@NPIS Hawally Canteen',
         'Tahina@FAIPS Ahmadi Canteen',
         'Farm Brown@Hawally Branch', // Hawally accepted (owner decision 2026-11-18)
+        'Franks@Qurain',
       ])
     })
 
@@ -857,18 +859,18 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       // NPIS Hawally (#41 -> 12 qty / 22.2 KWD) + FAIPS Ahmadi (#42 -> 8 qty / 14.8 KWD) preserved under school-canteens!
       expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 20, valueKwd: 37 })
       // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500)
-      expect(JSON.stringify(wh)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999)
+      expect(JSON.stringify(wh)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {
         referenceNowMs: TEST_REF_NOW_MS,
       })
       expect(po.connected).toBe(true)
       // Hawally Wholesale Market is no longer dropped by name (owner decision 2026-11-18).
-      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.', 'Hawally Wholesale Market'])
+      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.', 'Qurain Cold Logistics', 'Hawally Wholesale Market'])
       expect(po.byProduct.map((p) => p.productName)).toEqual(['[PP03192] Chicken Brined FB'])
-      expect(po.totals.totalUntaxedKwd).toBe(1850 + 620)
-      expect(JSON.stringify(po)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
+      expect(po.totals.totalUntaxedKwd).toBe(1850 + 900 + 620)
+      expect(JSON.stringify(po)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
     })
 
     it('preserves pure Tier 2 inventory, procurement, and contract domain math in integer fils', () => {
@@ -961,7 +963,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
 
       // Pinned canteens STILL vetoed if Heisenberg, Qurain, or Jahra appears
       expect(companyPosConfigAllowed(41, 'Heisenberg NPIS Hawally', true)).toBe(false)
-      expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(false)
+      expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(true)
       expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(false)
 
       // Owner decision 2026-11-18: a Hawally name is not excluded; a register outside the whitelist

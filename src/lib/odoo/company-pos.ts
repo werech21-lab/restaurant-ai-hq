@@ -55,7 +55,7 @@ const NON_CANTEEN_EXCLUSION_MARKS = new Set(
 const ARABIC_CLITIC_RE = /^(?:لل|ب|و|ل)/
 const LATIN_AL_PREFIX_RE = /^al(?=[a-z]{4,})/
 const JOINED_SUFFIX_RE = /(?:kw|kwt|kuwait|wh|pos)$/
-const NON_CANTEEN_CODE_DIGITS_RE = /^(?:qrn|jhr)\d*$/
+const NON_CANTEEN_CODE_DIGITS_RE = /^(?:jhr)\d*$/
 const LATIN_BRAND_PREFIX_RE = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
 const ARABIC_BRAND_STEM = 'هايزن'
 
@@ -157,6 +157,11 @@ export function isPinnedSchoolCanteenConfigId(id: number | null | undefined): bo
 }
 
 /** Full approved company POS device list: 7 restaurant branches + pinned school canteens + exhibition booths. */
+/** Live cashier "Delivery (Qurain)". Included in company totals (founder, 2026-11-19). */
+export function isDeliveryQurainConfig(name: string | null | undefined): boolean {
+  return /^delivery\s*\(\s*qurain\s*\)$/i.test((name ?? '').trim())
+}
+
 export function companyPosRegisterIds(): number[] {
   return [...new Set([...restaurantRegisterIds(), ...schoolCanteenRegisterIds(), ...exhibitionRegisterIds()])]
 }
@@ -164,7 +169,7 @@ export function companyPosRegisterIds(): number[] {
 /**
  * Company POS allow-list:
  * 1. Archived (`active === false`) configs are NEVER included (`ARCHIVED_PINNED_REGISTER_POLICY`).
- * 2. Pinned school-canteen config IDs are excluded ONLY when Jahra, Qurain, or Heisenberg markers appear in `name`.
+ * 2. Pinned school-canteen config IDs are excluded ONLY when Jahra or Heisenberg markers appear in `name`.
  * 3. Exhibition-booth config IDs (`exhibitionRegisterIds()`) pass unless excluded by entity name or test/demo/training.
  * 4. Other config IDs must pass full entity & non-operating checks and belong to `restaurantRegisterIds()`.
  */
@@ -180,6 +185,7 @@ export function companyPosConfigAllowed(
   if (isPinnedSchoolCanteenConfigId(id)) {
     return !hasPinnedCanteenVetoExclusion(label)
   }
+  if (isDeliveryQurainConfig(label)) return true
   if (isExcludedOdooEntity(label)) return false
   if (isExhibitionConfigId(id)) {
     // Booth registers are named "Exhibition…/EXB" by design; only test/demo/training are non-operating.

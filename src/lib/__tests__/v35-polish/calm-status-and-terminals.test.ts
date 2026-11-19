@@ -234,23 +234,13 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
       'data-scope-for="gl-distribution"',
       'كيف تتوزع كل 10 دنانير من المبيعات؟',
     ])
-    expect(arDistCard).not.toBeNull()
-    expect(arDistCard!.outerHtml).not.toContain('amber-')
-    expect(arDistCard!.outerHtml).not.toContain('rose-')
-    expect(arDistCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(arDistCard!.outerHtml).not.toContain('<circle')
-    expect(countOccurrences(arDistCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام')).toBe(1)
+    expect(arDistCard).toBeNull()
 
     const enDistCard = findGlassCardContaining(enHtml, [
       'data-scope-for="gl-distribution"',
       'How Every 10 KWD of Sales Is Distributed',
     ])
-    expect(enDistCard).not.toBeNull()
-    expect(enDistCard!.outerHtml).not.toContain('amber-')
-    expect(enDistCard!.outerHtml).not.toContain('rose-')
-    expect(enDistCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(enDistCard!.outerHtml).not.toContain('<circle')
-    expect(countOccurrences(enDistCard!.text, 'Not available yet — GL entries not posted')).toBe(1)
+    expect(enDistCard).toBeNull()
   })
 
   it('styles unattributed branch tile with neutral dashed slate and zero amber or orange classes when unattributed > 0', async () => {

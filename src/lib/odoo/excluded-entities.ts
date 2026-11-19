@@ -76,26 +76,6 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
-    nameParts: ['qurain'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['kurain'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['قرين'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['القرين'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
     nameParts: ['jahra'],
   },
   {
@@ -131,28 +111,13 @@ export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
     kind: 'branch',
     ids: [],
-    nameParts: ['qu', 'rein'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['gu', 'rain'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
-    nameParts: ['qrn'],
-  },
-  {
-    kind: 'branch',
-    ids: [],
     nameParts: ['jhr'],
   },
 ]
 
 /** Whole tokens only. A substring would also match nearby Arabic words. */
-const WORD_ONLY = new Set(['qrn', 'jhr'])
-const SHORT_CODE_ONLY = new Set(['qrn', 'jhr'])
+const WORD_ONLY = new Set(['jhr'])
+const SHORT_CODE_ONLY = new Set(['jhr'])
 
 const NAME_FRAGMENTS = ODOO_EXCLUSION_RULES.map((rule) => joined(rule.nameParts)).filter(
   (fragment) => fragment.length > 0,
@@ -207,7 +172,7 @@ const JOINED_SUFFIX = /(?:kw|kwt|kuwait|wh|pos)$/
 const COLLAPSED_MARKS = new Set(['heisenberg', 'heizenberg', 'hizenberg', 'heisenburg', 'haisenberg'])
 const LATIN_BRAND_PREFIX = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
 const ARABIC_BRAND_STEM = 'هايزن'
-const CODE_WITH_DIGITS = /^(?:qrn|jhr)\d*$/
+const CODE_WITH_DIGITS = /^(?:jhr)\d*$/
 
 function expandTokenCandidates(token: string): string[] {
   const set = new Set<string>([token])

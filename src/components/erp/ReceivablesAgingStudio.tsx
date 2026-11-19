@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { isPosClearingAccount, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
+import { customerReceivableNetKwd, isPosClearingAccount, receivablesCustomerSplit, splitOpenResiduals } from '@/lib/odoo/live-sync-core'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileText, Wallet } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
@@ -24,7 +24,9 @@ export function ReceivablesAgingStudio() {
   const ar = workspace.receivables
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
   const amountsVisible = canShowReceivableAmounts(ar)
-  const split = receivablesCustomerSplit(ar.byAccount ?? [])
+  const partners = (ar.byPartner ?? []).filter((row) => !isPosClearingAccount(`${row.accountCode} ${row.accountName}`))
+  const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
+  const split = receivablesCustomerSplit(ar.byAccount ?? [], partners)
   const customerAccounts = split.splitKnown
     ? [...split.customerAccounts].sort((a, b) => {
         const order = ['10501', '10502', '10503', '10504', '10505', '10507', '10508', '10509', '121000']
@@ -33,15 +35,12 @@ export function ReceivablesAgingStudio() {
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
       })
     : []
-  const platformNet = split.splitKnown ? split.platformNetKwd : ar.platformNetKwd ?? ar.openReceivableKwd
-  const platformDebits = split.splitKnown ? split.platformOpenDebitsKwd : ar.platformOpenDebitsKwd ?? ar.openDebitsKwd
-  const platformCredits = split.splitKnown
-    ? split.platformUnappliedCreditsKwd
-    : ar.platformUnappliedCreditsKwd ?? (ar.unappliedCreditsKwd ?? (ar.creditClearingOffsetKwd === null ? null : -Math.abs(ar.creditClearingOffsetKwd)))
+  const platformNet = customerReceivableNetKwd(ar)
+  const platformDebits = partnerSplit?.openDebitsKwd ?? ar.platformOpenDebitsKwd ?? split.platformOpenDebitsKwd
+  const platformCredits = partnerSplit?.unappliedCreditsKwd ?? ar.platformUnappliedCreditsKwd ?? split.platformUnappliedCreditsKwd
   const platformLines = split.splitKnown ? split.platformLineCount : ar.platformAndCorporateLinesCount
   const posResidual = split.splitKnown ? split.posClearingResidualKwd : ar.posClearingResidualKwd
   const posLines = split.splitKnown ? split.posClearingLineCount : ar.posClearingLinesCount
-  const partners = (ar.byPartner ?? []).filter((row) => !isPosClearingAccount(`${row.accountCode} ${row.accountName}`))
   const oldestPosting = ar.oldestOpenPostingDate ?? (split.splitKnown ? null : ar.fromDate)
   const kuwaitToday = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Kuwait',
@@ -72,7 +71,7 @@ export function ReceivablesAgingStudio() {
           state="loading"
           locale={resolvedLocale}
           skeletonRows={5}
-          title={isAr ? 'جارٍ تحميل ذمم المنصات وأعمار الديون…' : 'Loading receivables aging…'}
+          title={isAr ? 'جارٍ تحميل ذمم المنصات والشركات…' : 'Loading open receivables…'}
         />
       </div>
     )
@@ -98,8 +97,8 @@ export function ReceivablesAgingStudio() {
             </span>
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white break-words">
               {T(
-                'Aggregator & Corporate Accounts Receivable Aging',
-                'ذمم المنصات والعملاء وأعمار الديون التفصيلية',
+                'Platform & corporate open receivables',
+                'ذمم المنصات والشركات المفتوحة',
               )}
             </h2>
             <p className="text-sm font-medium text-slate-600 dark:text-[#8FA39B]">
@@ -193,7 +192,7 @@ export function ReceivablesAgingStudio() {
               : formatKwd(platformCredits, resolvedLocale)}
           </div>
           <p className="mt-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
-            {T('Deliveroo, POS Clearing (10552) & Snoonu', 'ديليفرو، مقاصة نقاط البيع 10552 وسنونو')}
+            {T('Unapplied credits on platform and trade accounts', 'دائن غير مطبّق على حسابات المنصات والشركات')}
           </p>
         </article>
 

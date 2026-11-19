@@ -18,6 +18,7 @@ import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import {
   receivablesCustomerSplit,
+  splitOpenResiduals,
   type OdooBucketSummary,
   type OdooLiveSummary,
   type OdooPeriodBucketKey,
@@ -1038,10 +1039,11 @@ export function applyReceivablesExecutivePolicy(
   verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
 ): WorkspaceReceivablesMeta {
   if (r.unavailable || canShowReceivableAmounts(r, verified)) return r
-  const split = r.byAccount.length > 0 ? receivablesCustomerSplit(r.byAccount) : null
   const partners = (r.byPartner ?? []).filter(
     (row) => !/10552/.test(`${row.accountCode} ${row.accountName}`),
   )
+  const split = r.byAccount.length > 0 ? receivablesCustomerSplit(r.byAccount, partners) : null
+  const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
   return {
     ...r,
     pendingReconciliation: true,
@@ -1050,10 +1052,16 @@ export function applyReceivablesExecutivePolicy(
     byAccount: r.byAccount,
     byPartner: partners,
     platformNetKwd: split ? split.platformNetKwd : (r.platformNetKwd ?? null),
-    platformOpenDebitsKwd: split ? split.platformOpenDebitsKwd : (r.platformOpenDebitsKwd ?? null),
-    platformUnappliedCreditsKwd: split
-      ? split.platformUnappliedCreditsKwd
-      : (r.platformUnappliedCreditsKwd ?? null),
+    platformOpenDebitsKwd: partnerSplit
+      ? partnerSplit.openDebitsKwd
+      : typeof r.platformOpenDebitsKwd === 'number'
+        ? r.platformOpenDebitsKwd
+        : (split?.platformOpenDebitsKwd ?? null),
+    platformUnappliedCreditsKwd: partnerSplit
+      ? partnerSplit.unappliedCreditsKwd
+      : typeof r.platformUnappliedCreditsKwd === 'number'
+        ? r.platformUnappliedCreditsKwd
+        : (split?.platformUnappliedCreditsKwd ?? null),
     posClearingResidualKwd: split ? split.posClearingResidualKwd : (r.posClearingResidualKwd ?? null),
     agingHiddenReasonAr: 'تصنيف الاستحقاق حسب تاريخ الاستحقاق غير معروض. الأرصدة المتبقية معروضة كما هي في أودو.',
     agingHiddenReasonEn: 'Due-date aging labels are withheld. Residual balances are the open Odoo amounts.',

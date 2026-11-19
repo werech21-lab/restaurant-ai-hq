@@ -11,7 +11,7 @@ import {
   type GlobalChannel,
   type GlobalWorkspaceSlice,
 } from '@/lib/aether/global-filter-engine'
-import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import { customerReceivableNetKwd, type OdooBucketSummary, type OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { KpiProvenanceKind } from '@/components/erp/KpiProvenanceBadge'
 import { PROFIT_AFTER_CLOSE_NOTE } from '@/lib/aether/closed-month-policy'
 import { formatInt, formatKwd, formatPct } from '@/lib/format'
@@ -261,6 +261,7 @@ export function buildLiveEnterpriseDepartments(
 
   const acc = workspace.accounting
   const rec = workspace.receivables
+  const customerReceivableKwd = customerReceivableNetKwd(rec)
 
   const glRows: Record<string, string | number>[] =
     connected && acc.available
@@ -685,8 +686,8 @@ export function buildLiveEnterpriseDepartments(
         {
           id: 'ar-aging-ledger',
           departmentId: 'finance',
-          titleAr: 'الذمم المدينة المفتوحة وأعمار الديون',
-          titleEn: 'Open Accounts Receivable & Aging',
+          titleAr: 'الذمم المدينة المفتوحة',
+          titleEn: 'Open receivables',
           code: 'VF-FIN-02',
           sourceState: 'odoo-live',
           odooModel: 'account.move.line',
@@ -696,12 +697,12 @@ export function buildLiveEnterpriseDepartments(
             ? 'لا توجد بيانات من Odoo لهذه الفترة'
             : rec.unavailable
               ? 'غير متاح'
-              : fmtKwd(rec.openReceivableKwd, true),
+              : fmtKwd(customerReceivableKwd, true),
           headlineMetricEn: !connected
             ? 'No data from Odoo for this period'
             : rec.unavailable
               ? '—'
-              : fmtKwd(rec.openReceivableKwd, false),
+              : fmtKwd(customerReceivableKwd, false),
           recordCount: arRows.length,
           auditedDate: `${rec.fromDate} → ${rec.toDate}`,
           kpis: connected
@@ -713,7 +714,7 @@ export function buildLiveEnterpriseDepartments(
                     ? isAr
                       ? 'غير متاح'
                       : '—'
-                    : fmtKwd(rec.openReceivableKwd, isAr),
+                    : fmtKwd(customerReceivableKwd, isAr),
                   odooModel: 'account.move.line',
                   provenanceKind: 'فعلي',
                   queryOrFormula: rec.reconciliationFormulaAr,

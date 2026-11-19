@@ -16,8 +16,9 @@ describe('Qurain monthly audit', () => {
   })
 
   it('does not flip the company exclusion', () => {
-    expect(isExcludedOdooEntity('القرين')).toBe(true)
-    expect(isExcludedOdooEntity('Qurain')).toBe(true)
+    expect(isExcludedOdooEntity('القرين')).toBe(false)
+    expect(isExcludedOdooEntity('Qurain')).toBe(false)
+    expect(isExcludedOdooEntity('Delivery (Qurain)')).toBe(false)
   })
 
   it('groups synthetic sales and omits accounts when they were not readable', () => {

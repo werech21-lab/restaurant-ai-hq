@@ -838,8 +838,8 @@ export function CoresHubStudio({
                     ? `مجموع الساعات = إجمالي الفترة (${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })}) · الفرق 0.000 د.ك`
                     : `Σ hourly = period total (${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })}) · variance 0.000 KWD`
                   : isAr
-                    ? `مجموع الساعات ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} مقابل إجمالي الفترة ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })} — قيد المطابقة`
-                    : `Σ hourly ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} vs period total ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })} — pending reconciliation`}
+                    ? `مجموع الساعات ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} · إجمالي الفترة ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })}`
+                    : `Σ hourly ${formatKwd(snapshot.sales.hourlyReconciliation.hourlySumKwd, { locale: resolvedLocale })} · period total ${formatKwd(snapshot.sales.hourlyReconciliation.periodTotalKwd, { locale: resolvedLocale })}`}
               </p>
             ) : null}
           </div>

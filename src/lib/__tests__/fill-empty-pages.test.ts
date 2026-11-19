@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { applyReceivablesExecutivePolicy } from '@/lib/aether/global-filter-engine'
 import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED } from '@/lib/aether/receivables-status'
 import { seasonLiftsFromDaily } from '@/lib/council/advisors/seasons'
-import { buildReceivablePartnerRows } from '@/lib/odoo/live-sync-core'
+import { buildReceivablePartnerRows, customerReceivableNetKwd, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
 import { warehouseChainErrorPayload } from '@/lib/odoo-live-connector'
 import { defaultWarehouseQueryWindow } from '@/lib/warehouse-prep-engine'
 import { loadLiveTodaySummary } from './support/dashboard-fixture'
@@ -90,6 +92,64 @@ describe('receivables policy keeps residuals', () => {
     expect(out.posClearingResidualKwd).toBe(300)
     expect(out.maturityStatusAr).not.toMatch(/مستحق|متأخر/)
     expect(out.maturityStatusEn.toLowerCase()).not.toContain('overdue')
+  })
+})
+
+describe('receivable debit and credit split', () => {
+  const accounts = [
+    {
+      accountId: 9,
+      accountCode: '10509',
+      accountName: 'Hesabe',
+      labelAr: 'حسابي',
+      labelEn: 'Hesabe',
+      residualKwd: 30310.675,
+      linesCount: 10,
+    },
+    {
+      accountId: 52,
+      accountCode: '10552',
+      accountName: 'POS',
+      labelAr: 'كاشير',
+      labelEn: 'POS',
+      residualKwd: -992.319,
+      linesCount: 4,
+    },
+  ]
+  const partners = [
+    { residualKwd: 31612.547, linesCount: 8, accountCode: '10509', accountName: 'Hesabe' },
+    { residualKwd: -1301.872, linesCount: 2, accountCode: '10509', accountName: 'Hesabe' },
+  ]
+
+  it('uses partner residuals for debits and credits, and one 10552-free net', () => {
+    const accountOnly = receivablesCustomerSplit(accounts)
+    expect(accountOnly.platformOpenDebitsKwd).toBe(30310.675)
+    expect(accountOnly.platformUnappliedCreditsKwd).toBe(0)
+    const split = receivablesCustomerSplit(accounts, partners)
+    expect(split.platformNetKwd).toBe(30310.675)
+    expect(split.platformOpenDebitsKwd).toBe(31612.547)
+    expect(split.platformUnappliedCreditsKwd).toBe(-1301.872)
+    expect(split.posClearingResidualKwd).toBe(-992.319)
+    expect(customerReceivableNetKwd({
+      platformNetKwd: split.platformNetKwd,
+      byAccount: accounts,
+      openReceivableKwd: 29318.356,
+    })).toBe(30310.675)
+    expect(customerReceivableNetKwd({ byAccount: accounts, openReceivableKwd: 29318.356 })).toBe(30310.675)
+  })
+
+  it('the company pages and the credits caption use that same net', () => {
+    const files = [
+      'src/components/aether/FullJourney360.tsx',
+      'src/components/accounting/OdooAccountingAnalyticsHub.tsx',
+      'src/components/accounting/VentureAccountingHub.tsx',
+    ]
+    for (const rel of files) {
+      expect(readFileSync(path.join(process.cwd(), rel), 'utf8')).toContain('customerReceivableNetKwd')
+    }
+    const studio = readFileSync(path.join(process.cwd(), 'src/components/erp/ReceivablesAgingStudio.tsx'), 'utf8')
+    expect(studio).not.toContain('POS Clearing (10552)')
+    expect(studio).not.toContain('أعمار الديون')
   })
 })
 

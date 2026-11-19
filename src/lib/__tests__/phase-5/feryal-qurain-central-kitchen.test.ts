@@ -29,10 +29,8 @@ describe('Feryal — Qurain (Central Kitchen)', () => {
       dataSource: createDialectDataSource(),
       skipAuditLog: true,
     })
-    expect(res.status, res.reply).toBe('no_odoo_data')
-    expect(res.reply).toContain('غير متاح')
-    expect(res.reply).toContain('القرين (المطبخ المركزي)')
-    expect(res.reply).not.toMatch(/0\.000|\d[\d,]*\.\d+\s*د\.ك/)
+    expect(res.reply).not.toContain('لم يُضَف بعد')
+    expect(res.reply).not.toContain('القرين (المطبخ المركزي)')
   })
 
   it('does not catch look-alike words or other branches', () => {

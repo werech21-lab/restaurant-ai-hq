@@ -163,8 +163,39 @@ export function receivableAccountCode(label: string, accountId: number): string 
   return match ? match[1] : String(accountId)
 }
 
-/** Splits open receivable accounts into platform/trade versus cashier clearing 10552. */
-export function receivablesCustomerSplit(accounts: readonly OdooReceivableAccountRow[]): ReceivableCustomerSplit {
+/**
+ * Signed residuals into gross open debits and unapplied credits.
+ * An account-level net hides credits that a partner or line still carries.
+ */
+export function splitOpenResiduals(
+  rows: readonly { residualKwd: number; linesCount?: number }[],
+): { netKwd: number; openDebitsKwd: number; unappliedCreditsKwd: number; lineCount: number } {
+  let openDebitsKwd = 0
+  let unappliedCreditsKwd = 0
+  let lineCount = 0
+  for (const row of rows) {
+    const residual = Number(row.residualKwd) || 0
+    lineCount += Math.max(0, Math.round(row.linesCount ?? 0))
+    if (residual > 0) openDebitsKwd += residual
+    else if (residual < 0) unappliedCreditsKwd += residual
+  }
+  return {
+    netKwd: roundReceivableKwd(openDebitsKwd + unappliedCreditsKwd),
+    openDebitsKwd: roundReceivableKwd(openDebitsKwd),
+    unappliedCreditsKwd: roundReceivableKwd(unappliedCreditsKwd),
+    lineCount,
+  }
+}
+
+/**
+ * Splits open receivable accounts into platform/trade versus cashier clearing 10552.
+ * Debit and credit totals come from partner/line residuals when those rows are passed.
+ * The net stays the sum of non-10552 account residuals.
+ */
+export function receivablesCustomerSplit(
+  accounts: readonly OdooReceivableAccountRow[],
+  partnerRows?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[],
+): ReceivableCustomerSplit {
   const customerAccounts: OdooReceivableAccountRow[] = []
   const posAccounts: OdooReceivableAccountRow[] = []
   for (const row of accounts) {
@@ -172,15 +203,19 @@ export function receivablesCustomerSplit(accounts: readonly OdooReceivableAccoun
     else customerAccounts.push(row)
   }
   let platformNetKwd = 0
-  let platformOpenDebitsKwd = 0
-  let platformUnappliedCreditsKwd = 0
+  let accountDebits = 0
+  let accountCredits = 0
   let platformLineCount = 0
   for (const row of customerAccounts) {
     platformNetKwd += row.residualKwd
     platformLineCount += row.linesCount
-    if (row.residualKwd > 0) platformOpenDebitsKwd += row.residualKwd
-    else if (row.residualKwd < 0) platformUnappliedCreditsKwd += row.residualKwd
+    if (row.residualKwd > 0) accountDebits += row.residualKwd
+    else if (row.residualKwd < 0) accountCredits += row.residualKwd
   }
+  const customerPartners = (partnerRows ?? []).filter(
+    (row) => !isPosClearingAccount(`${row.accountCode ?? ''} ${row.accountName ?? ''}`),
+  )
+  const lineSplit = customerPartners.length > 0 ? splitOpenResiduals(customerPartners) : null
   let posClearingResidualKwd = 0
   let posClearingLineCount = 0
   for (const row of posAccounts) {
@@ -188,16 +223,44 @@ export function receivablesCustomerSplit(accounts: readonly OdooReceivableAccoun
     posClearingLineCount += row.linesCount
   }
   return {
-    splitKnown: accounts.length > 0,
+    splitKnown: accounts.length > 0 || customerPartners.length > 0,
     platformNetKwd: roundReceivableKwd(platformNetKwd),
-    platformOpenDebitsKwd: roundReceivableKwd(platformOpenDebitsKwd),
-    platformUnappliedCreditsKwd: roundReceivableKwd(platformUnappliedCreditsKwd),
+    platformOpenDebitsKwd: lineSplit ? lineSplit.openDebitsKwd : roundReceivableKwd(accountDebits),
+    platformUnappliedCreditsKwd: lineSplit ? lineSplit.unappliedCreditsKwd : roundReceivableKwd(accountCredits),
     platformLineCount,
     posClearingResidualKwd: roundReceivableKwd(posClearingResidualKwd),
     posClearingLineCount,
     customerAccounts,
     posAccounts,
   }
+}
+
+/**
+ * One 10552-free open residual for every page, the brief, and Feryal.
+ * Falls back to the account split, then to the mixed ledger net only when no account rows exist.
+ */
+export function customerReceivableNetKwd(
+  input:
+    | {
+        unavailable?: boolean
+        platformNetKwd?: number | null
+        byAccount?: readonly OdooReceivableAccountRow[]
+        openReceivableKwd?: number | null
+      }
+    | null
+    | undefined,
+): number | null {
+  if (!input || input.unavailable) return null
+  if (typeof input.platformNetKwd === 'number' && Number.isFinite(input.platformNetKwd)) {
+    return roundReceivableKwd(input.platformNetKwd)
+  }
+  if (input.byAccount && input.byAccount.length > 0) {
+    return receivablesCustomerSplit(input.byAccount).platformNetKwd
+  }
+  if (typeof input.openReceivableKwd === 'number' && Number.isFinite(input.openReceivableKwd)) {
+    return roundReceivableKwd(input.openReceivableKwd)
+  }
+  return null
 }
 
 /**

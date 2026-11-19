@@ -26,6 +26,7 @@ import {
   computeOdooFreshnessStatus,
   isPosClearingAccount,
   receivablesCustomerSplit,
+  splitOpenResiduals,
   normalizeOdooDateOrderToIso,
   parseBucketKey,
   periodWindowForBucket,
@@ -935,17 +936,12 @@ function kuwaitRangeToOdooUtcStrings(fromKuwaitIso: string, toExclusiveKuwaitIso
 }
 
 /**
- * Strictly identifies decommissioned warehouse/branch records so ONLY Ardiya Central Kitchen (`EXB` / `CK`)
- * and the 7 active Venture Foods branches ever appear in inventory, transfers, or POS aggregations.
+ * Jahra and Heisenberg stay out of inventory, transfers, and POS aggregations.
+ * Delivery (Qurain) is a live cashier and is not decommissioned (founder, 2026-11-19).
  */
-const DECOMMISSIONED_SITE_RE = new RegExp(
-  ['qur', 'ain|\\bqr', 'n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646'].join(''),
-  'i',
-)
-
 export function isDecommissionedWarehouseRecord(rawText?: string | null): boolean {
   if (!rawText) return false
-  return DECOMMISSIONED_SITE_RE.test(rawText) || isExcludedOdooEntity(rawText)
+  return isExcludedOdooEntity(rawText)
 }
 
 /**
@@ -2551,7 +2547,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       )
       const postingDay = (raw: string | false | undefined): string | null =>
         typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null
-      const byPartner = buildReceivablePartnerRows(
+      const partnerResiduals = buildReceivablePartnerRows(
         partnerGroups
           .map((g) => ({
             partnerId: m2oId(g.partner_id),
@@ -2567,7 +2563,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               !isDecommissionedWarehouseRecord(g.accountLabel) &&
               !isDecommissionedWarehouseRecord(g.partnerName),
           ),
-      ).slice(0, 80)
+      )
+      const partnerLineSplit = partnerResiduals.length > 0 ? splitOpenResiduals(partnerResiduals) : null
+      const byPartner = partnerResiduals.slice(0, 80)
       const oldestOpenPostingDate =
         byPartner
           .map((row) => row.oldestPostingDate)
@@ -2628,8 +2626,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         unappliedCreditsKwd: aging.unappliedCreditsKwd,
         unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
         platformNetKwd,
-        platformOpenDebitsKwd: customerSplit.platformOpenDebitsKwd,
-        platformUnappliedCreditsKwd: customerSplit.platformUnappliedCreditsKwd,
+        platformOpenDebitsKwd: partnerLineSplit?.openDebitsKwd ?? customerSplit.platformOpenDebitsKwd,
+        platformUnappliedCreditsKwd: partnerLineSplit?.unappliedCreditsKwd ?? customerSplit.platformUnappliedCreditsKwd,
         posClearingResidualKwd: customerSplit.posClearingResidualKwd,
         oldestOpenPostingDate,
         byPartner,

@@ -556,8 +556,9 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
       expect(badgeSrc).not.toContain('!compact && (')
 
       // Verify server-side exclusion filters remain active for raw Odoo records («القرين», «هايزن بريج»)
-      expect(isExcludedOdooEntity('القرين')).toBe(true)
-      expect(isExcludedOdooEntity('Al-Qurain Kitchen')).toBe(true)
+      expect(isExcludedOdooEntity('القرين')).toBe(false)
+      expect(isExcludedOdooEntity('Al-Qurain Kitchen')).toBe(false)
+      expect(isExcludedOdooEntity('Delivery (Qurain)')).toBe(false)
       expect(isExcludedOdooEntity('هايزن بريج')).toBe(true)
       expect(isExcludedOdooEntity('Heisenberg')).toBe(true)
       expect(isExcludedOdooEntity('هايزنبرغ')).toBe(true)
