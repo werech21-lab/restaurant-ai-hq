@@ -810,12 +810,14 @@ export function StrategicPlanningStudio() {
                 <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">
                   {isAr ? sig.titleAr : sig.titleEn}
                 </h3>
+                {(isAr ? sig.impactBadgeAr : sig.impactBadgeEn).trim().length > 0 ? (
                 <span
                   dir="ltr"
                   className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-[12px] font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
                 >
                   {isAr ? `تقدير • ${sig.impactBadgeAr}` : `Est • ${sig.impactBadgeEn}`}
                 </span>
+                ) : null}
               </div>
               <p className="text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-300">
                 {isAr ? sig.detailAr : sig.detailEn}

@@ -1524,7 +1524,6 @@ function buildInsights(
   selectionB: ComparisonSliceTotals,
   byBranch: EntityVarianceRow[],
   byBrand: EntityVarianceRow[],
-  accountingAvailable: boolean,
 ): ErpComparisonAutoInsights {
   if (!connected || noData) {
     return {
@@ -1577,9 +1576,6 @@ function buildInsights(
       ? ` · Standalone "${UNMAPPED_TERMINALS_LABEL_EN}": ${selectionA.unattributedSalesKwd.toLocaleString('en-US')} KWD in (A) vs ${selectionB.unattributedSalesKwd.toLocaleString('en-US')} KWD in (B).`
       : ''
 
-  const glPartAr = accountingAvailable ? '' : ` · ${GL_INCOMPLETE_AR}.`
-  const glPartEn = accountingAvailable ? '' : ` · ${GL_INCOMPLETE_EN}.`
-
   return {
     topGainer,
     biggestDecline,
@@ -1589,8 +1585,8 @@ function buildInsights(
     biggestDeclineBranch,
     headlineAr,
     headlineEn,
-    summaryAr: `${headlineAr}${unattrPartAr}${glPartAr}`,
-    summaryEn: `${headlineEn}${unattrPartEn}${glPartEn}`,
+    summaryAr: `${headlineAr}${unattrPartAr}`,
+    summaryEn: `${headlineEn}${unattrPartEn}`,
   }
 }
 
@@ -1874,7 +1870,6 @@ export function computeErpComparison(
     selectionB,
     byBranch,
     byBrand,
-    accountingAvailable,
   )
 
   const scopeSummary = buildScopeSummary(rawQuery)
@@ -1960,12 +1955,11 @@ export function buildComparisonCsv(result: ErpComparisonResult, isAr: boolean): 
       : 'KPI,Selection A,Selection B,Variance,Variance %',
   )
   for (const k of result.kpiList) {
-    const unavail = isAr ? GL_INCOMPLETE_AR : GL_INCOMPLETE_EN
     lines.push(
       [
         esc(isAr ? k.labelAr : k.labelEn),
-        esc(k.available === false ? unavail : k.valueA),
-        esc(k.available === false ? unavail : k.valueB),
+        esc(k.available === false ? '—' : k.valueA),
+        esc(k.available === false ? '—' : k.valueB),
         esc(k.available === false ? '—' : k.deltaAbs),
         esc(k.available === false ? '—' : `${k.deltaPct}%`),
       ].join(','),

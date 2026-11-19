@@ -770,7 +770,7 @@ export function computePlanningHubSnapshot(
         ? 'Commissions: Unposted'
         : accountingAvailable
           ? `${fmtOne(ardiyaFoodPct)}% COGS + ${fmtOne(deliveryFeePct)}% Comm.`
-          : 'GL Incomplete',
+          : '',
       formulaAr: costShareFormulaAr,
       formulaEn: costShareFormulaEn,
       detailAr: localizeArabicPlanningCopy(
@@ -784,6 +784,10 @@ export function computePlanningHubSnapshot(
       tone: 'amber',
     },
   ]
+  const visibleSignals = signals.filter((sig) => {
+    if (sig.id !== 'sig-channel-spread') return true
+    return accountingAvailable || Boolean(baseWorkspace.aggregatorCommissionUnposted)
+  })
 
   return {
     odooConnected: true,
@@ -832,7 +836,7 @@ export function computePlanningHubSnapshot(
     momentumFormulaAr,
     momentumFormulaEn,
     scenarios,
-    signals,
+    signals: visibleSignals,
   }
 }
 
