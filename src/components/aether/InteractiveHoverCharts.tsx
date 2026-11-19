@@ -67,7 +67,7 @@ function resolveHeightFromClass(heightClass?: string, fallback = 240): number {
 
 /**
  * Side-by-side interactive Before vs After Comparison Bar Chart built on V35 `ComparisonBarChart`.
- * Muted slate (`#94A3B8`) for Before vs V35 cobalt blue (`#2563EB`) for After,
+ * Muted slate (`#94A3B8`) for Before vs emerald (`#059669`) for After,
  * with frosted glass hover tooltips showing Before, After, +/- diff, and % change.
  */
 export function BeforeAfterDualBarChart({
@@ -309,7 +309,7 @@ export interface ComboBarLineDatum {
  * - When `data.length === 1`: delegates to V35 `TimelineAreaChart` (hourly area when `hourlyFallback`
  *   is provided, or compact single-value stat — never one fat bar!).
  * - When `data.length > 1`: delegates to V35 `SalesNetComposedChart` with slim ghost-backed slate
- *   sales bars and smooth cobalt blue operating net line.
+ *   sales bars and a smooth emerald operating net line.
  */
 export function SalesNetComboChart({
   data,
@@ -591,7 +591,7 @@ export function InteractiveHorizontalRankList({
               </div>
             </div>
 
-            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800/80">
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[#D1FAE5]/55 dark:bg-slate-800/80">
               <div
                 style={{
                   width: `${widthPct}%`,

@@ -335,7 +335,7 @@ function GlassTooltipLines({
         : badgeTone === 'amber'
           ? 'bg-amber-50 text-amber-800'
           : badgeTone === 'blue'
-            ? 'bg-blue-50 text-blue-700'
+            ? 'bg-[#ECFDF5] text-[#047857]'
             : 'bg-slate-100 text-slate-800'
 
   return (
@@ -491,8 +491,8 @@ export function TimelineAreaChart({
 
         <div className="rounded-2xl border border-slate-200/85 bg-slate-50/75 p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-800/45">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50/90 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-sky-400/25 dark:bg-sky-400/15 dark:text-sky-200">
-              <span className="h-2 w-2 rounded-full bg-blue-600 dark:bg-sky-400" aria-hidden />
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-600/20 bg-[#ECFDF5] px-3 py-1 text-xs font-semibold text-[#047857] dark:border-emerald-400/25 dark:bg-emerald-400/15 dark:text-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-400" aria-hidden />
               <span dir="ltr" className="tabular-nums">
                 {dateDisplay}
               </span>
@@ -1279,7 +1279,7 @@ export function V35DonutChart({
         : tone === 'neutral'
           ? 'bg-slate-100/80 text-slate-800 dark:bg-slate-800/70 dark:text-slate-200'
           : tone === 'blue'
-            ? 'bg-blue-50/90 text-blue-950 dark:bg-sky-950/50 dark:text-sky-200'
+            ? 'bg-[#ECFDF5] text-[#047857] dark:bg-emerald-950/50 dark:text-emerald-200'
             : 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200'
 
   const resolveValToneCls = (tone?: V35DonutSummaryRow['tone']) =>
@@ -1290,7 +1290,7 @@ export function V35DonutChart({
         : tone === 'neutral'
           ? 'text-slate-950 dark:text-white'
           : tone === 'blue'
-            ? 'text-blue-700 dark:text-sky-300'
+            ? 'text-[#047857] dark:text-emerald-300'
             : 'text-emerald-700 dark:text-emerald-300'
 
   const allSummaryRows: V35DonutSummaryRow[] = summaryRows
@@ -1391,7 +1391,7 @@ export function V35DonutChart({
           {centerSubValue && !highlightedSlice ? (
             <span
               dir={dir}
-              className="mt-1 max-w-[104px] whitespace-nowrap text-xs font-semibold tabular-nums text-blue-700 dark:text-sky-300"
+              className="mt-1 max-w-[104px] whitespace-nowrap text-xs font-semibold tabular-nums text-[#047857] dark:text-emerald-300"
             >
               {centerSubValue}
             </span>
@@ -1443,12 +1443,12 @@ export function V35DonutChart({
             onFocus={() => setFocusedId(s.id)}
             onBlur={() => setFocusedId((cur) => (cur === s.id ? null : cur))}
             className={cx(
-              'relative flex cursor-pointer flex-col justify-center gap-1 rounded-xl border px-3 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60',
+              'relative flex cursor-pointer flex-col justify-center gap-1 rounded-xl border px-3 py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60',
               isSelected
-                ? 'border-blue-500/50 bg-blue-50/85 dark:border-sky-400/50 dark:bg-sky-950/40'
+                ? 'border-emerald-600/45 bg-[#ECFDF5] dark:border-emerald-400/50 dark:bg-emerald-950/40'
                 : isHovered || isFocused
-                  ? 'border-blue-400/50 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-sky-400/40 dark:bg-slate-800/80'
-                  : 'border-slate-200/85 bg-white hover:border-slate-300 hover:bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700 dark:hover:bg-slate-800/70',
+                  ? 'border-emerald-500/45 bg-white shadow-[0_2px_6px_rgba(30,58,95,0.03)] dark:border-emerald-400/40 dark:bg-slate-800/80'
+                  : 'border-[#1E3A5F]/[0.08] bg-white hover:border-[#1E3A5F]/20 hover:bg-[#F4F8F6]/70 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700 dark:hover:bg-slate-800/70',
             )}
           >
             <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
@@ -1513,9 +1513,9 @@ export function V35DonutChart({
     allSummaryRows.length > 0 ? (
       <div className="space-y-1.5">
         {highlightedSlice ? (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-200/80 bg-blue-50/90 px-3.5 py-2 text-xs text-blue-950 dark:border-sky-400/25 dark:bg-sky-950/50 dark:text-sky-200">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-600/20 bg-[#ECFDF5] px-3.5 py-2 text-xs text-[#1E3A5F] dark:border-emerald-400/25 dark:bg-emerald-950/50 dark:text-emerald-200">
             <span className="whitespace-normal font-medium">{highlightedSlice.label}</span>
-            <span dir="ltr" className="shrink-0 font-semibold tabular-nums text-blue-700 dark:text-sky-300">
+            <span dir="ltr" className="shrink-0 font-semibold tabular-nums text-[#047857] dark:text-emerald-300">
               {resolveSliceDisplayValue(highlightedSlice)} ({highlightedSlice.pctFormatted})
             </span>
           </div>
@@ -1770,13 +1770,13 @@ export function StackedProgressBar({
               onFocus={() => setActiveHoverId(seg.id)}
               onBlur={() => setActiveHoverId((cur) => (cur === seg.id ? null : cur))}
               className={cx(
-                'rounded-xl border px-3 py-2.5 text-start transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60',
+                'rounded-xl border px-3 py-2.5 text-start transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60',
                 isInteractive ? 'cursor-pointer' : '',
                 isSelected
-                  ? 'border-blue-500/50 bg-blue-50/80 dark:border-sky-400/45 dark:bg-sky-950/35'
+                  ? 'border-emerald-600/45 bg-[#ECFDF5] dark:border-emerald-400/45 dark:bg-emerald-950/35'
                   : isHovered
-                    ? 'border-blue-400/50 bg-slate-50/70 dark:border-sky-400/35 dark:bg-slate-800/70'
-                    : 'border-slate-200/85 bg-white hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700',
+                    ? 'border-emerald-500/45 bg-[#F4F8F6]/70 dark:border-emerald-400/35 dark:bg-slate-800/70'
+                    : 'border-[#1E3A5F]/[0.08] bg-white hover:border-[#1E3A5F]/20 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700',
               )}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -1807,7 +1807,7 @@ export function StackedProgressBar({
                   </span>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800/80">
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#D1FAE5]/55 dark:bg-slate-800/80">
                 <div
                   style={{ width: `${fillWidth}%`, backgroundColor: seg.resolvedColor }}
                   className="h-full rounded-full transition-all duration-150"
@@ -2233,7 +2233,7 @@ export function SalesNetComposedChart({
               ({isAr ? 'المحور الأيمن' : 'Left Axis'})
             </span>
           </span>
-          <span className="inline-flex items-center gap-2 font-bold text-blue-700 dark:text-sky-300">
+          <span className="inline-flex items-center gap-2 font-bold text-[#047857] dark:text-emerald-300">
             <span className="relative inline-flex h-3 w-5 items-center justify-center" aria-hidden>
               <span
                 className="h-[2.5px] w-full rounded-full"
@@ -2245,7 +2245,7 @@ export function SalesNetComposedChart({
               />
             </span>
             <span>{netLegend}</span>
-            <span className="text-xs font-semibold text-blue-700 dark:text-sky-300">
+            <span className="text-xs font-semibold text-[#047857] dark:text-emerald-300">
               ({isAr ? 'المحور الأيسر المستقل' : 'Right Axis'})
             </span>
           </span>
@@ -2257,7 +2257,7 @@ export function SalesNetComposedChart({
           <span className="whitespace-nowrap font-bold text-slate-600 dark:text-slate-300">
             {isAr ? 'المبيعات (ألف د.ك)' : 'Sales (K KWD)'}
           </span>
-          <span className="whitespace-nowrap font-bold text-blue-700 dark:text-sky-300">
+          <span className="whitespace-nowrap font-bold text-[#047857] dark:text-emerald-300">
             {isAr ? 'الصافي بالجيب (ألف د.ك)' : 'Net Profit (K KWD)'}
           </span>
         </div>

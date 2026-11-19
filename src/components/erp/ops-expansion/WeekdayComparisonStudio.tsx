@@ -54,17 +54,17 @@ import {
 } from '@/lib/erp-comparison-engine'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl border border-slate-200/85 bg-white p-3.5 sm:p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-800 dark:bg-slate-900/95'
+  'ae-bento-card rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] dark:border-slate-800 dark:bg-slate-900/95'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl border border-slate-200/85 bg-white p-3.5 sm:p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all duration-150 dark:border-slate-800 dark:bg-slate-900/95'
+  'ae-kpi-card rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] transition-all duration-150 dark:border-slate-800 dark:bg-slate-900/95'
 const SEGMENT_TRACK_CLS =
-  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-slate-200/85 bg-slate-100/90 p-1 dark:border-slate-800 dark:bg-slate-900/80'
+  'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-[#1E3A5F]/[0.08] bg-[#EDF2F0]/90 p-1 dark:border-slate-800 dark:bg-slate-900/80'
 const SEGMENT_BTN_CLS =
   'shrink-0 whitespace-nowrap rounded-xl px-3.5 py-2 text-[13px] font-medium transition-all duration-150 cursor-pointer'
 const SEGMENT_BTN_ACTIVE_CLS =
-  'bg-white font-semibold text-blue-700 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 dark:bg-sky-500/20 dark:text-sky-200 dark:ring-sky-400/25'
+  'bg-white font-semibold text-[#047857] shadow-[0_2px_6px_rgba(30,58,95,0.05)] ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/25'
 const SEGMENT_BTN_IDLE_CLS =
-  'text-slate-600 hover:bg-white/75 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+  'text-[#4F6673] hover:bg-white/75 hover:text-[#1E3A5F] dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
 const TABLE_SCROLL_CLS =
   'overflow-x-auto rounded-2xl border border-slate-200/85 bg-slate-50/75 p-1 dark:border-slate-800 dark:bg-slate-950/60'
 

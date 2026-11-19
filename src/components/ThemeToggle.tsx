@@ -7,7 +7,7 @@ import { useI18n } from '@/lib/i18n'
 
 /**
  * Tactile Executive Theme Switcher:
- * - Light Studio ("Cool Frost" #F1F5FC / #FFFFFF)
+ * - Light Studio (mint canvas #F4F8F6 / white cards, navy ink #1E3A5F)
  * - Dark Midnight-Navy ("Blue Dark" #080E1D / #0F1A30 / #60A5FA)
  */
 export function ThemeToggle({ className = '' }: { className?: string }) {
@@ -47,7 +47,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       {isDark ? (
         <Sun className="h-3.5 w-3.5 shrink-0 text-amber-300 transition-transform duration-200 group-hover:rotate-12" />
       ) : (
-        <Moon className="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 group-hover:-rotate-12 dark:text-sky-300" />
+        <Moon className="h-3.5 w-3.5 shrink-0 text-[#047857] transition-transform duration-200 group-hover:-rotate-12 dark:text-emerald-300" />
       )}
       <span className="whitespace-nowrap tracking-tight">
         {isDark ? (isAr ? 'نهاري' : 'Light') : isAr ? 'أزرق' : 'Blue'}

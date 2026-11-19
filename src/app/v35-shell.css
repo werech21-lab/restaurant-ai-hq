@@ -1,12 +1,13 @@
 /* ==========================================================================
-   AETHER BI V35 — ARCHITECTURAL FROSTED GLASS SHELL & FLOATING RAIL LAYER
+   AETHER BI V35 — EMERALD & LIGHT NAVY SHELL & FLOATING RAIL LAYER
    --------------------------------------------------------------------------
-   Layered AFTER `globals.css` and `aether-v2.css`.
-   - Light (Primary): Pale cool blue-white canvas, soft radial blue ambient
-     blobs, translucent frosted white glass cards (`24px`), frosted pill topbar,
-     and a dark navy floating rounded sidebar rail (`28px` radius, 14px inset).
-   - Dark: Deep midnight-navy glass canvas (`#080E1D` / `#0F1A30`) with
-     sky-blue accents (`#60A5FA`) and AA foreground contrast.
+   Layered AFTER `globals.css`, `aether-v2.css`, and `v35-tokens.css`.
+   - Light (Primary): Soft mint-white canvas (#F4F8F6 / #EDF2F0), crisp white
+     cards (#FFFFFF) with navy hairline borders, Light Navy ink (#1E3A5F /
+     #4F6673), teal branch highlight (#0F766E), Emerald primary accents
+     (#047857 AA / #059669), and dark navy floating rail (#0F172A -> #1E3A5F).
+   - Dark: Deep executive navy surfaces (#090D16 / #0F172A) with bright AA
+     emerald accents (#34D399) and teal branch highlight (#5EEAD4).
    - Full RTL (`[dir='rtl']`) & reduced-motion support.
    ========================================================================== */
 
@@ -258,9 +259,9 @@ html.light-mode #ae-sidebar .ae-side-logo,
 html:not(.dark) #ae-sidebar .ae-side-logo,
 html.dark #ae-sidebar .ae-side-logo,
 html[data-theme='dark'] #ae-sidebar .ae-side-logo {
-  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%) !important;
+  background: linear-gradient(135deg, #065F46 0%, #047857 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.32) !important;
+  box-shadow: 0 2px 8px -2px rgba(5, 150, 105, 0.34) !important;
 }
 
 #ae-sidebar .ae-side-toggle,
@@ -305,9 +306,9 @@ html.light-mode #ae-sidebar .ae-side-link[data-active='true'],
 html:not(.dark) #ae-sidebar .ae-side-link[data-active='true'],
 html.dark #ae-sidebar .ae-side-link[data-active='true'],
 html[data-theme='dark'] #ae-sidebar .ae-side-link[data-active='true'] {
-  background-image: linear-gradient(90deg, rgba(37, 99, 235, 0.92) 0%, rgba(59, 130, 246, 0.82) 100%) !important;
+  background-image: linear-gradient(90deg, rgba(4, 120, 87, 0.96) 0%, rgba(6, 95, 70, 0.92) 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 2px 8px -2px rgba(5, 150, 105, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
   font-weight: 600;
 }
 
@@ -317,8 +318,8 @@ html.light-mode #ae-sidebar .ae-side-pill-indicator,
 html:not(.dark) #ae-sidebar .ae-side-pill-indicator,
 html.dark #ae-sidebar .ae-side-pill-indicator,
 html[data-theme='dark'] #ae-sidebar .ae-side-pill-indicator {
-  background: linear-gradient(90deg, rgba(37, 99, 235, 0.94) 0%, rgba(59, 130, 246, 0.84) 100%) !important;
-  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  background: linear-gradient(90deg, rgba(4, 120, 87, 0.96) 0%, rgba(6, 95, 70, 0.92) 100%) !important;
+  box-shadow: 0 2px 8px -2px rgba(5, 150, 105, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
 #ae-sidebar .ae-side-logout,
@@ -592,7 +593,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
   border-radius: var(--v35-radius-card);
   background-color: var(--v35-hero-bg);
   background-image: var(--v35-hero-gradient);
-  border: 1px solid rgba(59, 130, 246, 0.32);
+  border: 1px solid rgba(16, 185, 129, 0.34);
   box-shadow: var(--v35-hero-shadow);
   color: #FFFFFF;
 }
@@ -601,7 +602,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
 .v35-glass-card[data-variant='hero'][data-hover-lift='true']:hover {
   transform: translateY(-2px);
   background-color: var(--v35-hero-bg);
-  border-color: rgba(59, 130, 246, 0.48);
+  border-color: rgba(16, 185, 129, 0.50);
   box-shadow: var(--v35-hero-shadow-hover);
 }
 
@@ -629,7 +630,7 @@ html.dark #ae-root .app-content .bg-\[\#F6F7F9\]:not([role='tooltip'] *) {
   color: var(--v35-text-primary);
 }
 
-/* ---------- 5. V35 Hero Sapphire Card & Peak/Hatch Weekly Pills ---------- */
+/* ---------- 5. V35 Hero Emerald Card & Peak/Hatch Weekly Pills ---------- */
 #ae-root .ae-hero-emerald-card,
 .ae-hero-emerald-card,
 html[data-theme='light'] #ae-root .ae-hero-emerald-card,
@@ -678,23 +679,30 @@ html.light-mode #ae-root .ae-hero-emerald-card .ae-hero-pill,
 html:not(.dark) #ae-root .ae-hero-emerald-card .ae-hero-pill,
 html.dark #ae-root .ae-hero-emerald-card .ae-hero-pill,
 html[data-theme='dark'] #ae-root .ae-hero-emerald-card .ae-hero-pill {
-  background-color: rgba(255, 255, 255, 0.16) !important;
+  background-color: rgba(6, 78, 59, 0.44) !important;
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   color: #FFFFFF !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24) !important;
 }
 
-/* Keep provenance bar & pills inside hero card frosted navy/white glass in Light & Dark */
+/* Dark emerald frosted scrim inside Hero card keeps >= 4.5:1 AA contrast */
 #ae-root .ae-hero-emerald-card .bg-black\/20,
+#ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
 html[data-theme='light'] #ae-root .ae-hero-emerald-card .bg-black\/20,
+html[data-theme='light'] #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
 html.light-mode #ae-root .ae-hero-emerald-card .bg-black\/20,
+html.light-mode #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
 html.light #ae-root .ae-hero-emerald-card .bg-black\/20,
+html.light #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
 html:not(.dark) #ae-root .ae-hero-emerald-card .bg-black\/20,
+html:not(.dark) #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
 html.dark #ae-root .ae-hero-emerald-card .bg-black\/20,
-html[data-theme='dark'] #ae-root .ae-hero-emerald-card .bg-black\/20 {
-  background-color: rgba(13, 22, 42, 0.28) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20) !important;
+html.dark #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\],
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card .bg-black\/20,
+html[data-theme='dark'] #ae-root .ae-hero-emerald-card .bg-white\/\[0\.08\] {
+  background-color: rgba(6, 78, 59, 0.42) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22) !important;
 }
 
 #ae-root .ae-hero-emerald-card [data-kpi-provenance] > span.rounded-md,
@@ -713,9 +721,9 @@ html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > s
 html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button,
 .v35-glass-hero [data-kpi-provenance] > span.rounded-md,
 .v35-glass-hero [data-kpi-provenance] > button {
-  background: rgba(255, 255, 255, 0.16) !important;
+  background: rgba(6, 78, 59, 0.48) !important;
   border-color: rgba(255, 255, 255, 0.28) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.26) !important;
   color: #FFFFFF !important;
 }
 
@@ -726,7 +734,7 @@ html:not(.dark) #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:ho
 html.dark #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
 html[data-theme='dark'] #ae-root .ae-hero-emerald-card [data-kpi-provenance] > button:hover,
 .v35-glass-hero [data-kpi-provenance] > button:hover {
-  background: rgba(255, 255, 255, 0.26) !important;
+  background: rgba(6, 78, 59, 0.65) !important;
 }
 
 #ae-root .ae-hero-emerald-card [data-kpi-provenance] [role='tooltip'],
@@ -789,7 +797,7 @@ html:not(.dark) #ae-root .ae-hero-emerald-card .ae-hero-circle-btn * {
   color: #0F172A !important;
 }
 
-/* Weekly Pulse Peak Pill & Diagonal-Hatched Track Pills (V35 Blue/Sky) */
+/* Weekly Pulse Peak Pill & Diagonal-Hatched Track Pills (Emerald & Mint) */
 .ae-emerald-peak-pill,
 #ae-root .ae-emerald-peak-pill,
 html[data-theme='light'] .ae-emerald-peak-pill,
@@ -798,9 +806,9 @@ html.light .ae-emerald-peak-pill,
 html:not(.dark) .ae-emerald-peak-pill,
 html.dark .ae-emerald-peak-pill,
 html[data-theme='dark'] .ae-emerald-peak-pill {
-  background-color: var(--v35-accent-mid) !important;
-  background-image: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%) !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+  background-color: var(--v35-bar-main) !important;
+  background-image: linear-gradient(180deg, #10B981 0%, #059669 100%) !important;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   border: none !important;
 }
 
@@ -810,30 +818,30 @@ html[data-theme='light'] .ae-pill-hatch,
 html.light-mode .ae-pill-hatch,
 html.light .ae-pill-hatch,
 html:not(.dark) .ae-pill-hatch {
-  background-color: rgba(59, 130, 246, 0.06) !important;
+  background-color: var(--v35-bar-soft) !important;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(59, 130, 246, 0.18) 0px,
-    rgba(59, 130, 246, 0.18) 4px,
-    rgba(96, 165, 250, 0.05) 4px,
-    rgba(96, 165, 250, 0.05) 9px
+    rgba(5, 150, 105, 0.16) 0px,
+    rgba(5, 150, 105, 0.16) 4px,
+    rgba(209, 250, 229, 0.65) 4px,
+    rgba(209, 250, 229, 0.65) 9px
   ) !important;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.22) !important;
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.22) !important;
 }
 
 html.dark .ae-pill-hatch,
 html[data-theme='dark'] .ae-pill-hatch,
 html.dark #ae-root .ae-pill-hatch,
 html[data-theme='dark'] #ae-root .ae-pill-hatch {
-  background-color: rgba(96, 165, 250, 0.08) !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(96, 165, 250, 0.24) 0px,
-    rgba(96, 165, 250, 0.24) 4px,
-    rgba(96, 165, 250, 0.05) 4px,
-    rgba(96, 165, 250, 0.05) 9px
+    rgba(16, 185, 129, 0.24) 0px,
+    rgba(16, 185, 129, 0.24) 4px,
+    rgba(16, 185, 129, 0.05) 4px,
+    rgba(16, 185, 129, 0.05) 9px
   ) !important;
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.26) !important;
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.26) !important;
 }
 
 .ae-emerald-cta-pill,
@@ -842,11 +850,11 @@ html.light-mode .ae-emerald-cta-pill,
 html:not(.dark) .ae-emerald-cta-pill,
 html.dark .ae-emerald-cta-pill,
 html[data-theme='dark'] .ae-emerald-cta-pill {
-  background-color: #2563EB !important;
-  background-image: linear-gradient(135deg, #1E40AF 0%, #2563EB 55%, #3B82F6 100%) !important;
+  background-color: #047857 !important;
+  background-image: linear-gradient(135deg, #065F46 0%, #047857 58%, #0F766E 100%) !important;
   color: #FFFFFF !important;
   border: none !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(59, 130, 246, 0.30) !important;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.22), 0 0 0 1px rgba(5, 150, 105, 0.30) !important;
 }
 
 .ae-emerald-cta-pill *,
@@ -887,7 +895,7 @@ html[data-theme='light'] #ae-root [data-sliding-pill-indicator='true'] {
 
 html.dark #ae-root [data-sliding-pill-indicator='true'],
 html[data-theme='dark'] #ae-root [data-sliding-pill-indicator='true'] {
-  background-color: #2563EB !important;
+  background-color: #047857 !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30) !important;
 }
 
@@ -906,9 +914,9 @@ html[data-theme='dark'] #ae-root button[data-sliding-pill-btn='true'][data-activ
 html[data-theme='light'] #ae-root button.ae-btn-primary,
 #ae-root .ae-pill-dark,
 #ae-root .ae-seg > button[data-active='true'] {
-  background-color: var(--v35-accent) !important;
+  background-color: #047857 !important;
   color: #FFFFFF !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16) !important;
+  box-shadow: 0 1px 2px rgba(30, 58, 95, 0.16) !important;
 }
 
 html.dark #ae-root button.ae-btn-primary,
@@ -917,7 +925,7 @@ html.dark #ae-root .ae-pill-dark,
 html[data-theme='dark'] #ae-root .ae-pill-dark,
 html.dark #ae-root .ae-seg > button[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-seg > button[data-active='true'] {
-  background-color: #2563EB !important;
+  background-color: #047857 !important;
   color: #FFFFFF !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30) !important;
 }
@@ -945,16 +953,16 @@ html[data-theme='dark'] #ae-root .ae-icon-badge {
 }
 
 #ae-root .ae-chip {
-  background-color: rgba(219, 234, 254, 0.78) !important;
-  color: #1E40AF !important;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.24) !important;
+  background-color: #ECFDF5 !important;
+  color: #047857 !important;
+  box-shadow: 0 0 0 1px rgba(5, 150, 105, 0.24) !important;
 }
 
 html.dark #ae-root .ae-chip,
 html[data-theme='dark'] #ae-root .ae-chip {
-  background-color: rgba(59, 130, 246, 0.14) !important;
-  color: #BFDBFE !important;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28) !important;
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  color: #A7F3D0 !important;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.28) !important;
 }
 
 #ae-root .ae-select,
@@ -992,15 +1000,15 @@ html[data-theme='dark'] #ae-root .ae-palette {
 }
 
 #ae-root .ae-palette-item[data-active='true'] {
-  background-color: rgba(219, 234, 254, 0.72) !important;
+  background-color: rgba(209, 250, 229, 0.72) !important;
 }
 
 html.dark #ae-root .ae-palette-item[data-active='true'],
 html[data-theme='dark'] #ae-root .ae-palette-item[data-active='true'] {
-  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-color: rgba(16, 185, 129, 0.16) !important;
 }
 
-/* Dark mode tables match Executive Slate/Cobalt instead of Obsidian-Emerald */
+/* Dark mode tables align with Executive Midnight Navy + Emerald hover */
 html.dark #ae-root .app-content thead th,
 html[data-theme='dark'] #ae-root .app-content thead th {
   background-color: var(--v35-glass-bg-subtle) !important;
@@ -1017,7 +1025,7 @@ html[data-theme='dark'] #ae-root .app-content tfoot td {
 
 html.dark #ae-root .app-content tbody tr:hover,
 html[data-theme='dark'] #ae-root .app-content tbody tr:hover {
-  background-color: rgba(59, 130, 246, 0.08) !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
 }
 
 /* ---------- 7. Native-Grade Frosted Mobile Chrome (`< 1024px`) ---------- */
@@ -1096,7 +1104,7 @@ html[data-theme='dark'] .ae-bottom-sheet {
 }
 
 #ae-root .ae-glow-sky {
-  background-image: radial-gradient(240px circle at 100% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
+  background-image: radial-gradient(240px circle at 100% 0%, rgba(15, 118, 110, 0.10), transparent 70%) !important;
 }
 
 #ae-root .ae-glow-amber {
@@ -1115,7 +1123,35 @@ html[data-theme='dark'] .ae-bottom-sheet {
 }
 
 [dir='rtl'] #ae-root .ae-glow-sky {
-  background-image: radial-gradient(240px circle at 0% 0%, rgba(59, 130, 246, 0.10), transparent 70%) !important;
+  background-image: radial-gradient(240px circle at 0% 0%, rgba(15, 118, 110, 0.10), transparent 70%) !important;
+}
+
+/* ---------- 8b. Emerald & Light Navy Ink + Branch Hierarchy ---------- */
+#ae-root .ae-branch-name,
+html[data-theme='light'] #ae-root .ae-branch-name,
+html.light-mode #ae-root .ae-branch-name,
+html.light #ae-root .ae-branch-name,
+html:not(.dark) #ae-root .ae-branch-name {
+  color: var(--v35-branch-color) !important;
+}
+
+html.dark #ae-root .ae-branch-name,
+html[data-theme='dark'] #ae-root .ae-branch-name {
+  color: var(--v35-branch-color) !important;
+}
+
+html[data-theme='light'] #ae-root .app-content :is(h1, h2, h3, h4, .text-slate-950, .text-slate-900, .text-slate-800):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html.light-mode #ae-root .app-content :is(h1, h2, h3, h4, .text-slate-950, .text-slate-900, .text-slate-800):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html.light #ae-root .app-content :is(h1, h2, h3, h4, .text-slate-950, .text-slate-900, .text-slate-800):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html:not(.dark) #ae-root .app-content :is(h1, h2, h3, h4, .text-slate-950, .text-slate-900, .text-slate-800):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']) {
+  color: var(--v35-text-primary) !important;
+}
+
+html[data-theme='light'] #ae-root .app-content :is(.text-slate-600, .text-slate-500):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html.light-mode #ae-root .app-content :is(.text-slate-600, .text-slate-500):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html.light #ae-root .app-content :is(.text-slate-600, .text-slate-500):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']),
+html:not(.dark) #ae-root .app-content :is(.text-slate-600, .text-slate-500):not(.ae-hero-emerald-card):not(.ae-hero-emerald-card *):not([data-variant='hero']):not([data-variant='hero'] *):not(.btn-colored):not(.btn-colored *):not(.ae-emerald-cta-pill):not(.ae-emerald-cta-pill *):not([role='tooltip']):not([role='tooltip'] *):not(.ae-branch-name):not([class*='text-emerald-']):not([class*='text-teal-']):not([class*='text-rose-']):not([class*='text-amber-']):not([class*='text-[#']) {
+  color: var(--v35-text-muted) !important;
 }
 
 [dir='rtl'] #ae-root .ae-glow-amber {
