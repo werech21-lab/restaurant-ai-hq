@@ -818,6 +818,87 @@ export interface GapAnalysis {
   rows: GapConfigRow[]
 }
 
+/** Odoo pivot figures the reconciliation tries to reproduce. Amounts are KWD. */
+export const PIVOT_ALL_AMOUNT_KWD = 1_753_290.91
+export const PIVOT_ALL_ORDERS = 328_089
+export const PIVOT_CONFIG_24_AMOUNT_KWD = 266_603.4
+
+export interface ReconciliationStateRow {
+  state: string
+  orders: number
+  amountTotal: number
+  amountPaid: number | null
+  amountTax: number
+  netKwd: number
+}
+
+export interface ReconciliationTotals {
+  orders: number
+  amountTotal: number
+  amountPaid: number | null
+  netKwd: number
+  refundOrders: number
+  refundAmountTotal: number
+}
+
+export interface ReconciliationWindow {
+  timezone: 'kuwait' | 'utc'
+  fromUtc: string
+  toExclusiveUtc: string
+  byState: ReconciliationStateRow[]
+  saleStates: ReconciliationTotals
+  allStates: ReconciliationTotals
+  openSession: { orders: number; amountTotal: number; netKwd: number } | null
+  readError: string | null
+}
+
+export interface ReconciliationScopeReport {
+  id: 'all' | 'config24'
+  label: string
+  configId: number | null
+  windows: ReconciliationWindow[]
+}
+
+export interface PivotMatch {
+  target: 'allCashiers' | 'config24'
+  targetAmountKwd: number
+  targetOrders: number | null
+  scope: 'all' | 'config24'
+  timezone: 'kuwait' | 'utc'
+  combination: string
+  amountKwd: number
+  orders: number | null
+}
+
+export interface ReconciliationReport {
+  read: boolean
+  method: string
+  targets: {
+    allCashiers: { amountKwd: number; orders: number }
+    config24: { amountKwd: number }
+  }
+  scopes: ReconciliationScopeReport[]
+  matches: PivotMatch[]
+}
+
+export interface ReconciliationRawState {
+  state: string
+  orders: number
+  amountTotal: number
+  amountPaid: number | null
+  amountTax: number
+}
+
+export interface ReconciliationRawWindow {
+  timezone: 'kuwait' | 'utc'
+  fromUtc: string
+  toExclusiveUtc: string
+  byState: readonly ReconciliationRawState[]
+  refundsByState: readonly { state: string; orders: number; amountTotal: number }[]
+  openSession: { orders: number; amountTotal: number; amountTax: number } | null
+  readError: string | null
+}
+
 export interface ModelReport {
   model: string
   exists: boolean
@@ -879,6 +960,7 @@ export interface ReadinessReport {
   }
   cashiers: CashierCheck[]
   gapAnalysis: GapAnalysis
+  reconciliation: ReconciliationReport
   notes: string[]
 }
 
@@ -923,6 +1005,10 @@ export interface AuditFacts {
   gapPrimaryError?: string | null
   gapFallbackError?: string | null
   gapUnread?: readonly { configId: number; error: string }[]
+  reconciliationRaw?: {
+    all: readonly ReconciliationRawWindow[]
+    config24: readonly ReconciliationRawWindow[]
+  }
   staff: {
     attendanceFields: readonly string[]
     employeeFields: readonly string[]
@@ -1489,6 +1575,214 @@ export function buildGapAnalysis(input: {
   }
 }
 
+const RECON_KNOWN_STATES = ['draft', 'cancel', 'paid', 'done', 'invoiced'] as const
+const RECON_METHOD =
+  'pos.order.config_id is not stored, so it is not used as a groupby. Each config is an ungrouped read_group filtered by config_id. Reconciliation groups by the stored state field, with a config_id = 24 domain for that register.'
+
+function addOptional(current: number | null, next: number | null): number | null {
+  if (current == null && next == null) return null
+  return r3((current ?? 0) + (next ?? 0))
+}
+
+function samePivotMoney(actual: number, target: number): boolean {
+  return Math.round(actual * 100) === Math.round(target * 100)
+}
+
+function totalsFromStates(
+  rows: readonly ReconciliationStateRow[],
+  refunds: readonly { state: string; orders: number; amountTotal: number }[],
+  states: readonly string[] | null,
+): ReconciliationTotals {
+  const allowed = states == null ? null : new Set(states)
+  let orders = 0
+  let amountTotal = 0
+  let amountTax = 0
+  let amountPaid: number | null = null
+  for (const row of rows) {
+    if (allowed && !allowed.has(row.state)) continue
+    orders += row.orders
+    amountTotal += row.amountTotal
+    amountTax += row.amountTax
+    amountPaid = addOptional(amountPaid, row.amountPaid)
+  }
+  let refundOrders = 0
+  let refundAmountTotal = 0
+  for (const row of refunds) {
+    if (allowed && !allowed.has(row.state)) continue
+    refundOrders += row.orders
+    refundAmountTotal += row.amountTotal
+  }
+  return {
+    orders,
+    amountTotal: r3(amountTotal),
+    amountPaid,
+    netKwd: posOrderNet(amountTotal, amountTax),
+    refundOrders,
+    refundAmountTotal: r3(refundAmountTotal),
+  }
+}
+
+function presentStates(rows: readonly ReconciliationRawState[]): ReconciliationStateRow[] {
+  const byName = new Map<string, ReconciliationRawState>()
+  for (const row of rows) {
+    const name = row.state.trim() || 'false'
+    const existing = byName.get(name)
+    if (!existing) {
+      byName.set(name, { ...row, state: name })
+      continue
+    }
+    existing.orders += row.orders
+    existing.amountTotal += row.amountTotal
+    existing.amountTax += row.amountTax
+    existing.amountPaid = addOptional(existing.amountPaid, row.amountPaid)
+  }
+  for (const state of RECON_KNOWN_STATES) {
+    if (!byName.has(state)) {
+      byName.set(state, { state, orders: 0, amountTotal: 0, amountPaid: null, amountTax: 0 })
+    }
+  }
+  const ordered = [...RECON_KNOWN_STATES, ...[...byName.keys()].filter((state) => !RECON_KNOWN_STATES.includes(state as (typeof RECON_KNOWN_STATES)[number])).sort()]
+  return ordered.map((state) => {
+    const row = byName.get(state) ?? { state, orders: 0, amountTotal: 0, amountPaid: null, amountTax: 0 }
+    return {
+      state,
+      orders: row.orders,
+      amountTotal: r3(row.amountTotal),
+      amountPaid: row.amountPaid == null ? null : r3(row.amountPaid),
+      amountTax: r3(row.amountTax),
+      netKwd: posOrderNet(row.amountTotal, row.amountTax),
+    }
+  })
+}
+
+function windowFromRaw(raw: ReconciliationRawWindow): ReconciliationWindow {
+  const byState = presentStates(raw.byState)
+  return {
+    timezone: raw.timezone,
+    fromUtc: raw.fromUtc,
+    toExclusiveUtc: raw.toExclusiveUtc,
+    byState,
+    saleStates: totalsFromStates(byState, raw.refundsByState, POS_SALE_STATES),
+    allStates: totalsFromStates(byState, raw.refundsByState, null),
+    openSession: raw.openSession
+      ? {
+          orders: raw.openSession.orders,
+          amountTotal: r3(raw.openSession.amountTotal),
+          netKwd: posOrderNet(raw.openSession.amountTotal, raw.openSession.amountTax),
+        }
+      : null,
+    readError: raw.readError,
+  }
+}
+
+interface ReconCandidate {
+  combination: string
+  amountKwd: number
+  orders: number | null
+}
+
+function candidatesFor(scope: 'all' | 'config24', window: ReconciliationWindow): ReconCandidate[] {
+  const where = scope === 'all' ? 'all configs' : 'config 24'
+  const prefix = `${window.timezone} / ${where}`
+  const out: ReconCandidate[] = []
+  const push = (combination: string, amountKwd: number | null, orders: number | null) => {
+    if (amountKwd == null || !Number.isFinite(amountKwd)) return
+    out.push({ combination: `${prefix} / ${combination}`, amountKwd, orders })
+  }
+  const block = (name: string, totals: ReconciliationTotals) => {
+    push(`${name} / amount_total`, totals.amountTotal, totals.orders)
+    push(`${name} / amount_paid`, totals.amountPaid, totals.orders)
+    push(`${name} / amount_total - amount_tax`, totals.netKwd, totals.orders)
+    push(`${name} / amount_total excluding refunds`, r3(totals.amountTotal - totals.refundAmountTotal), totals.orders - totals.refundOrders)
+  }
+  block('sale states paid+done+invoiced', window.saleStates)
+  block('all states', window.allStates)
+  const selected = (label: string, states: readonly string[]) => {
+    const totals = totalsFromStates(window.byState, [], states)
+    push(`${label} / amount_total`, totals.amountTotal, totals.orders)
+    push(`${label} / amount_paid`, totals.amountPaid, totals.orders)
+    push(`${label} / amount_total - amount_tax`, totals.netKwd, totals.orders)
+  }
+  selected('all states except draft and cancel', window.byState.map((row) => row.state).filter((state) => state !== 'draft' && state !== 'cancel'))
+  selected('paid+done', ['paid', 'done'])
+  for (const row of window.byState) {
+    push(`state=${row.state} / amount_total`, row.amountTotal, row.orders)
+    push(`state=${row.state} / amount_paid`, row.amountPaid, row.orders)
+    push(`state=${row.state} / amount_total - amount_tax`, row.netKwd, row.orders)
+  }
+  if (window.openSession) {
+    push('open sessions / amount_total', window.openSession.amountTotal, window.openSession.orders)
+    push('open sessions / amount_total - amount_tax', window.openSession.netKwd, window.openSession.orders)
+  }
+  return out
+}
+
+export function buildReconciliation(input: {
+  all?: readonly ReconciliationRawWindow[]
+  config24?: readonly ReconciliationRawWindow[]
+}): ReconciliationReport {
+  const scopes: ReconciliationScopeReport[] = [
+    {
+      id: 'all',
+      label: 'Every pos.order in the 2026 window, no config filter',
+      configId: null,
+      windows: (input.all ?? []).map(windowFromRaw),
+    },
+    {
+      id: 'config24',
+      label: 'pos.config 24 only, domain config_id = 24, no groupby on config_id',
+      configId: 24,
+      windows: (input.config24 ?? []).map(windowFromRaw),
+    },
+  ]
+  const matches: PivotMatch[] = []
+  for (const scope of scopes) {
+    for (const window of scope.windows) {
+      for (const candidate of candidatesFor(scope.id, window)) {
+        if (
+          scope.id === 'all' &&
+          candidate.orders === PIVOT_ALL_ORDERS &&
+          samePivotMoney(candidate.amountKwd, PIVOT_ALL_AMOUNT_KWD)
+        ) {
+          matches.push({
+            target: 'allCashiers',
+            targetAmountKwd: PIVOT_ALL_AMOUNT_KWD,
+            targetOrders: PIVOT_ALL_ORDERS,
+            scope: scope.id,
+            timezone: window.timezone,
+            combination: candidate.combination,
+            amountKwd: candidate.amountKwd,
+            orders: candidate.orders,
+          })
+        }
+        if (scope.id === 'config24' && samePivotMoney(candidate.amountKwd, PIVOT_CONFIG_24_AMOUNT_KWD)) {
+          matches.push({
+            target: 'config24',
+            targetAmountKwd: PIVOT_CONFIG_24_AMOUNT_KWD,
+            targetOrders: null,
+            scope: scope.id,
+            timezone: window.timezone,
+            combination: candidate.combination,
+            amountKwd: candidate.amountKwd,
+            orders: candidate.orders,
+          })
+        }
+      }
+    }
+  }
+  const read = scopes.some((scope) => scope.windows.some((window) => window.byState.some((row) => row.orders > 0) || window.readError == null))
+  return {
+    read,
+    method: RECON_METHOD,
+    targets: {
+      allCashiers: { amountKwd: PIVOT_ALL_AMOUNT_KWD, orders: PIVOT_ALL_ORDERS },
+      config24: { amountKwd: PIVOT_CONFIG_24_AMOUNT_KWD },
+    },
+    scopes,
+    matches,
+  }
+}
+
 function scopeReport(
   name: ScopeName,
   configIds: readonly number[],
@@ -1625,6 +1919,7 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
     },
     cashiers,
     gapAnalysis,
+    reconciliation: buildReconciliation(facts.reconciliationRaw ?? {}),
     notes: readinessNotes(facts),
   }
 }
@@ -1651,7 +1946,8 @@ function readinessNotes(facts: AuditFacts): string[] {
     'standard_price is read with the in-scope company context and falls back to product.template. A field missing from the read is not treated as cost zero.',
     'Net KWD on orders is amount_total minus amount_tax. Net KWD on lines is price_subtotal. Both are rounded to 3 decimals.',
     `Key-field completeness is the share of filled values on a sample of up to ${COMPLETENESS_SAMPLE_SIZE} rows. A model passes at ${COMPLETENESS_GO_MIN_PCT}% or more.`,
-    `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time. gapAnalysis lists every pos.config outside withQurain, including archived 16 and 35 and excluded 25, 39, and 40.`,
+    `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time. pos.order.config_id is not stored, so those totals are one ungrouped read_group per config. gapAnalysis lists every pos.config outside withQurain, including archived 16 and 35 and excluded 25, 39, and 40.`,
+    'reconciliation compares Kuwait day boundaries with UTC boundaries, order state (including draft and cancel), open sessions, amount_total, amount_paid, and amount_total minus amount_tax. matches lists the combinations that equal the Odoo pivot of 1,753,290.91 KWD / 328,089 orders, or config 24 at 266,603.40 KWD.',
     'Seasons needs at least 365 days between the earliest and latest in-scope order (Kuwait dates) on the with-Qurain scope.',
   ]
   if (facts.partial) notes.push('The 60 second budget ended before every read finished. Unchecked models are HOLD.')
@@ -2024,6 +2320,92 @@ export function readinessAuditToCsv(report: ReadinessReport): string {
         row.active,
         row.orders,
         row.netKwd,
+      ]),
+    )
+  }
+  for (const scope of report.reconciliation.scopes) {
+    for (const window of scope.windows) {
+      for (const state of window.byState) {
+        lines.push(
+          csvRow([
+            'recon_state',
+            scope.id,
+            '',
+            '',
+            `${window.timezone} ${state.state}`,
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            '',
+            state.orders,
+            state.amountTotal,
+          ]),
+        )
+      }
+    }
+  }
+  for (const match of report.reconciliation.matches) {
+    lines.push(
+      csvRow([
+        'recon_match',
+        match.scope,
+        '',
+        '',
+        match.combination,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        match.orders,
+        match.amountKwd,
       ]),
     )
   }

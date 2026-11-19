@@ -13,6 +13,7 @@ import {
   buildCashierChecks,
   buildGapAnalysis,
   buildNoCostScope,
+  buildReconciliation,
   classifyOdooReadFailure,
   classifyStandardPrice,
   fieldCompletenessPct,
@@ -473,6 +474,83 @@ describe('readiness audit pure rules', () => {
     expect(gap.rows.some((row) => row.configId === 24)).toBe(false)
   })
 
+  it('names the timezone, state, and amount combination that matches the Odoo pivot', () => {
+    const report = buildReconciliation({
+      all: [
+        {
+          timezone: 'kuwait',
+          fromUtc: '2025-12-31 21:00:00',
+          toExclusiveUtc: '2026-11-19 21:00:00',
+          byState: [
+            { state: 'paid', orders: 300_000, amountTotal: 1_700_000, amountPaid: 1_600_000, amountTax: 100 },
+            { state: 'done', orders: 28_089, amountTotal: 53_290.91, amountPaid: 50_000, amountTax: 0 },
+            { state: 'draft', orders: 10, amountTotal: 5, amountPaid: 0, amountTax: 0 },
+            { state: 'cancel', orders: 3, amountTotal: 1, amountPaid: 0, amountTax: 0 },
+          ],
+          refundsByState: [{ state: 'paid', orders: 1, amountTotal: -10 }],
+          openSession: { orders: 4, amountTotal: 20, amountTax: 0 },
+          readError: null,
+        },
+        {
+          timezone: 'utc',
+          fromUtc: '2026-01-01 00:00:00',
+          toExclusiveUtc: '2026-11-19 08:00:00',
+          byState: [{ state: 'paid', orders: 1, amountTotal: 1, amountPaid: 1, amountTax: 0 }],
+          refundsByState: [],
+          openSession: null,
+          readError: null,
+        },
+      ],
+      config24: [
+        {
+          timezone: 'kuwait',
+          fromUtc: '2025-12-31 21:00:00',
+          toExclusiveUtc: '2026-11-19 21:00:00',
+          byState: [{ state: 'paid', orders: 12, amountTotal: 264_686.358, amountPaid: 200_000, amountTax: 0 }],
+          refundsByState: [],
+          openSession: null,
+          readError: null,
+        },
+        {
+          timezone: 'utc',
+          fromUtc: '2026-01-01 00:00:00',
+          toExclusiveUtc: '2026-11-19 08:00:00',
+          byState: [{ state: 'paid', orders: 40, amountTotal: 100, amountPaid: 266_603.4, amountTax: 0 }],
+          refundsByState: [],
+          openSession: null,
+          readError: null,
+        },
+      ],
+    })
+    expect(report.scopes.find((scope) => scope.id === 'all')?.windows[0]?.byState.map((row) => row.state)).toEqual(
+      expect.arrayContaining(['draft', 'cancel', 'paid', 'done', 'invoiced']),
+    )
+    expect(report.scopes[0]?.windows[0]?.saleStates).toMatchObject({ orders: 328_089, amountTotal: 1_753_290.91 })
+    expect(report.scopes[0]?.windows[0]?.saleStates.refundOrders).toBe(1)
+    expect(report.scopes[0]?.windows[0]?.saleStates.refundAmountTotal).toBe(-10)
+    expect(report.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          target: 'allCashiers',
+          timezone: 'kuwait',
+          orders: 328_089,
+          amountKwd: 1_753_290.91,
+          combination: 'kuwait / all configs / sale states paid+done+invoiced / amount_total',
+        }),
+        expect.objectContaining({
+          target: 'config24',
+          timezone: 'utc',
+          amountKwd: 266_603.4,
+          combination: 'utc / config 24 / sale states paid+done+invoiced / amount_paid',
+        }),
+      ]),
+    )
+    expect(report.matches.some((match) => match.target === 'config24' && match.timezone === 'kuwait')).toBe(false)
+    expect(report.matches.some((match) => match.target === 'allCashiers' && match.combination.includes('amount_total - amount_tax'))).toBe(false)
+    expect(buildReconciliation({}).matches).toEqual([])
+    expect(buildReconciliation({}).read).toBe(false)
+  })
+
   it('writes a CSV without secret columns and keeps formula text in a cell', () => {
     const report = assembleReadinessAudit(
       passingFacts({
@@ -546,21 +624,24 @@ describe('readiness audit collector', () => {
     expect(report.gapAnalysis.rows.map((row) => row.configId)).toEqual(expect.arrayContaining([16, 25, 39, 40]))
     expect(report.gapAnalysis.rows.some((row) => row.configId === 24)).toBe(false)
     expect(report.gapAnalysis.rows.find((row) => row.configId === 16)?.netKwd).toBe(2)
+    const recon = report.reconciliation.scopes.find((scope) => scope.id === 'all')
+    const kuwait = recon?.windows.find((window) => window.timezone === 'kuwait')
+    expect(kuwait?.byState.map((row) => row.state)).toEqual(expect.arrayContaining(['draft', 'cancel', 'paid']))
+    expect(kuwait?.openSession?.orders).toBe(2)
+    expect(report.reconciliation.method).toContain('not stored')
   })
 
-  it('keeps the config_id error and fills cashiers from one ungrouped read per config', async () => {
+  it('reads each cashier with an ungrouped config_id domain and does not group by config_id', async () => {
     const seen: string[] = []
     const client: OdooReadClient = {
       async execute<T>(model: string, method: OdooReadMethod, args: unknown[] = [], kwargs: Record<string, unknown> = {}): Promise<T> {
         const blob = JSON.stringify(args)
         if (model === 'pos.order' && method === 'read_group') {
-          seen.push(blob)
+          seen.push(`${blob} groupby=${JSON.stringify(args[2] ?? [])}`)
           if (blob.includes('session_id.config_id')) throw new Error('session_id.config_id was sent')
           const groupby = Array.isArray(args[2]) ? args[2].map(String) : []
-          if (groupby.includes('config_id') && blob.includes('[24,16,35]')) {
-            throw new Error('cannot group by config_id')
-          }
-          if (groupby.length === 0) {
+          if (groupby.includes('config_id')) throw new Error('grouped by config_id')
+          if (groupby.length === 0 && blob.includes('"config_id","in",[24]')) {
             return [{ amount_total: 4, amount_tax: 1, __count: 2 }] as T
           }
         }
@@ -574,17 +655,16 @@ describe('readiness audit collector', () => {
       kuwaitToday: '2026-11-19',
       generatedAt: '2026-11-19T08:00:00.000Z',
     })
-    expect(seen.some((blob) => blob.includes('session_id.config_id'))).toBe(false)
+    expect(seen.some((blob) => blob.includes('session_id.config_id') || blob.includes('grouped by config_id'))).toBe(false)
+    expect(seen.some((blob) => blob.includes('"config_id","in",[24]') && blob.includes('groupby=[]'))).toBe(true)
     const cashier = report.cashiers.find((row) => row.configId === 24)
     expect(cashier).toMatchObject({
       read: true,
       orders: 2,
       netKwd: 3,
-      primaryError: 'cannot group by config_id',
+      primaryError: null,
       readError: null,
-      fallbackError: null,
     })
-    expect(report.cashiers.every((row) => row.read && row.primaryError === 'cannot group by config_id')).toBe(true)
   })
 
   it('stops before any Odoo call when the budget is already spent', async () => {
@@ -670,6 +750,8 @@ function fakeOdoo(
   }
   if (method === 'read_group') {
     const aggregates = Array.isArray(args[1]) ? args[1].map(String) : []
+    const groupby = Array.isArray(args[2]) ? args[2].map(String) : []
+    const domain = JSON.stringify(args[0] ?? [])
     if (model === 'pos.payment') {
       return [{ payment_method_id: [1, 'Cash'], amount: 12, __count: 3 }]
     }
@@ -679,12 +761,27 @@ function fakeOdoo(
         { product_id: [101, 'Idle'], qty: 0, price_subtotal: 0, __count: 0 },
       ]
     }
-    if (aggregates.some((field) => field.includes('amount_total'))) {
+    if (groupby.includes('state')) {
+      if (domain.includes('"amount_total","<",0')) {
+        return [{ state: 'paid', amount_total: -2, __count: 1 }]
+      }
       return [
+        { state: 'paid', amount_total: 20, amount_tax: 2, amount_paid: 18, __count: 5 },
+        { state: 'draft', amount_total: 3, amount_tax: 0, amount_paid: 0, __count: 1 },
+        { state: 'cancel', amount_total: 1, amount_tax: 0, amount_paid: 0, __count: 1 },
+      ]
+    }
+    if (domain.includes('session_id.state')) {
+      return [{ amount_total: 4, amount_tax: 0, __count: 2 }]
+    }
+    if (aggregates.some((field) => field.includes('amount_total'))) {
+      const catalog = [
         { config_id: [24, 'Decommissioned'], amount_total: 10.5, amount_tax: 0.5, __count: 3 },
         { config_id: [16, 'E-Mall'], amount_total: 2, amount_tax: 0, __count: 1 },
         { config_id: [35, 'Delivery Ardiya Temp'], amount_total: 5, amount_tax: 0, __count: 2 },
       ]
+      const single = catalog.find((row) => domain.includes(`"config_id","in",[${row.config_id[0]}]`))
+      return single ? [single] : catalog
     }
     const stamp = aggregates.some((field) => field.includes('max')) ? '2026-11-01 12:00:00' : '2026-01-15 00:00:00'
     return [

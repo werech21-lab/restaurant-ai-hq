@@ -44,6 +44,7 @@ import {
   uncheckedModelFact,
   assembleReadinessAudit,
   type AuditFacts,
+  type ReconciliationRawWindow,
   type ChannelRow,
   type LineAgg,
   type LineSalesInput,
@@ -142,6 +143,7 @@ export async function collectReadinessAudit(
   let gapPrimaryError: string | null = null
   let gapFallbackError: string | null = null
   let gapUnread: { configId: number; error: string }[] = []
+  let reconciliationRaw: { all: ReconciliationRawWindow[]; config24: ReconciliationRawWindow[] } = { all: [], config24: [] }
   let cashierSums: Record<string, unknown>[] = []
   let cashierMins: Record<string, unknown>[] = []
   let cashierMaxes: Record<string, unknown>[] = []
@@ -286,6 +288,15 @@ export async function collectReadinessAudit(
           }
         }
       })(),
+      (async () => {
+        try {
+          reconciliationRaw = await readReconciliation(read, year.fromUtc, year.toExclusiveUtc, clock())
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else partial = true
+        }
+      })(),
     ])
   } else {
     partial = true
@@ -412,6 +423,7 @@ export async function collectReadinessAudit(
     gapPrimaryError,
     gapFallbackError,
     gapUnread,
+    reconciliationRaw,
     cashierSums,
     cashierMins,
     cashierMaxes,
@@ -693,17 +705,8 @@ async function readScopeWindow(
 ): Promise<{ orders: number; netKwd: number }> {
   if (configIds.length === 0) return { orders: 0, netKwd: 0 }
   const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
-  let lastError: unknown = null
-  for (const groupby of [['config_id'], []] as const) {
-    try {
-      const rows = await readPosGroups(read, domain, ['amount_total:sum', 'amount_tax:sum'], [...groupby])
-      return sumPosOrderGroups(rows)
-    } catch (error) {
-      if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
-      lastError = error
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('pos.order read_group returned no 2026 totals')
+  const rows = await readPosGroups(read, domain, ['amount_total:sum', 'amount_tax:sum'], [])
+  return sumPosOrderGroups(rows)
 }
 
 async function readConfigOrderWindow(
@@ -724,63 +727,168 @@ async function readConfigOrderWindow(
   if (configIds.length === 0) {
     return { sums: [], mins: [], maxes: [], read: true, primaryError: null, fallbackError: null, unread: [] }
   }
-  const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
-  try {
-    const sums = await readPosGroups(read, domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id'])
-    let mins: Record<string, unknown>[] = []
-    let maxes: Record<string, unknown>[] = []
-    if (withDates) {
+  const sums: Record<string, unknown>[] = []
+  const mins: Record<string, unknown>[] = []
+  const maxes: Record<string, unknown>[] = []
+  const unread: { configId: number; error: string }[] = []
+  await Promise.all(
+    configIds.map(async (configId) => {
+      const one = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds: [configId] })
       try {
-        ;[mins, maxes] = await Promise.all([
-          readPosGroups(read, domain, ['date_order:min'], ['config_id']),
-          readPosGroups(read, domain, ['date_order:max'], ['config_id']),
-        ])
+        const rows = await readPosGroups(read, one, ['amount_total:sum', 'amount_tax:sum'], [])
+        sums.push(stampAggregate(rows, configId))
+        if (withDates) {
+          try {
+            const [minRows, maxRows] = await Promise.all([
+              readPosGroups(read, one, ['date_order:min'], []),
+              readPosGroups(read, one, ['date_order:max'], []),
+            ])
+            mins.push(stampAggregate(minRows, configId))
+            maxes.push(stampAggregate(maxRows, configId))
+          } catch (dateError) {
+            if (dateError instanceof BudgetStop || isFatalOdooFailure(dateError)) throw dateError
+          }
+        }
       } catch (error) {
         if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        unread.push({ configId, error: publicOdooError(error) })
       }
+    }),
+  )
+  return {
+    sums,
+    mins,
+    maxes,
+    read: unread.length < configIds.length,
+    primaryError: null,
+    fallbackError: unread.length > 0 ? unread.map((row) => `${row.configId}: ${row.error}`).join(' | ') : null,
+    unread,
+  }
+}
+
+function aggAmount(row: Record<string, unknown>, field: string): number | null {
+  const value = field in row ? row[field] : row[`${field}_sum`]
+  if (!(field in row) && !(`${field}_sum` in row)) return null
+  if (value === false || value == null) return 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function stateOf(value: unknown): string {
+  if (typeof value === 'string' && value.trim() !== '' && value !== 'false') return value
+  return 'false'
+}
+
+function parseStateAmounts(rows: readonly Record<string, unknown>[]): ReconciliationRawWindow['byState'] {
+  return rows.map((row) => ({
+    state: stateOf(row.state),
+    orders: Math.max(0, Math.round(Number(row.__count) || 0)),
+    amountTotal: aggAmount(row, 'amount_total') ?? 0,
+    amountPaid: aggAmount(row, 'amount_paid'),
+    amountTax: aggAmount(row, 'amount_tax') ?? 0,
+  }))
+}
+
+async function readStateGroups(
+  read: ReadFn,
+  domain: unknown[][],
+  withPaid: boolean,
+): Promise<Record<string, unknown>[]> {
+  const aggregates = withPaid
+    ? ['amount_total:sum', 'amount_tax:sum', 'amount_paid:sum']
+    : ['amount_total:sum', 'amount_tax:sum']
+  return readPosGroups(read, domain, aggregates, ['state'])
+}
+
+async function readReconciliationWindow(
+  read: ReadFn,
+  configId: number | null,
+  fromUtc: string,
+  toExclusiveUtc: string,
+  timezone: 'kuwait' | 'utc',
+): Promise<ReconciliationRawWindow> {
+  const domain: unknown[][] = [
+    ['date_order', '>=', fromUtc],
+    ['date_order', '<', toExclusiveUtc],
+  ]
+  if (configId != null) domain.push(['config_id', '=', configId])
+  const errors: string[] = []
+  let byState: ReconciliationRawWindow['byState'] = []
+  try {
+    try {
+      byState = parseStateAmounts(await readStateGroups(read, domain, true))
+    } catch (error) {
+      if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+      errors.push(publicOdooError(error))
+      byState = parseStateAmounts(await readStateGroups(read, domain, false))
     }
-    return { sums, mins, maxes, read: true, primaryError: null, fallbackError: null, unread: [] }
   } catch (error) {
     if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
-    const primaryError = publicOdooError(error)
-    const sums: Record<string, unknown>[] = []
-    const mins: Record<string, unknown>[] = []
-    const maxes: Record<string, unknown>[] = []
-    const unread: { configId: number; error: string }[] = []
-    await Promise.all(
-      configIds.map(async (configId) => {
-        const one = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds: [configId] })
-        try {
-          const rows = await readPosGroups(read, one, ['amount_total:sum', 'amount_tax:sum'], [])
-          sums.push(stampAggregate(rows, configId))
-          if (withDates) {
-            try {
-              const [minRows, maxRows] = await Promise.all([
-                readPosGroups(read, one, ['date_order:min'], []),
-                readPosGroups(read, one, ['date_order:max'], []),
-              ])
-              mins.push(stampAggregate(minRows, configId))
-              maxes.push(stampAggregate(maxRows, configId))
-            } catch (dateError) {
-              if (dateError instanceof BudgetStop || isFatalOdooFailure(dateError)) throw dateError
-            }
-          }
-        } catch (fallbackError) {
-          if (fallbackError instanceof BudgetStop || isFatalOdooFailure(fallbackError)) throw fallbackError
-          unread.push({ configId, error: publicOdooError(fallbackError) })
-        }
-      }),
+    errors.push(publicOdooError(error))
+  }
+  let refundsByState: ReconciliationRawWindow['refundsByState'] = []
+  try {
+    const rows = await readPosGroups(read, [...domain, ['amount_total', '<', 0]], ['amount_total:sum'], ['state'])
+    refundsByState = rows.map((row) => ({
+      state: stateOf(row.state),
+      orders: Math.max(0, Math.round(Number(row.__count) || 0)),
+      amountTotal: aggAmount(row, 'amount_total') ?? 0,
+    }))
+  } catch (error) {
+    if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+    errors.push(publicOdooError(error))
+  }
+  let openSession: ReconciliationRawWindow['openSession'] = null
+  try {
+    const rows = await readPosGroups(
+      read,
+      [...domain, ['session_id.state', '!=', 'closed']],
+      ['amount_total:sum', 'amount_tax:sum'],
+      [],
     )
-    const fallbackError = unread.length > 0 ? unread.map((row) => `${row.configId}: ${row.error}`).join(' | ') : null
-    return {
-      sums,
-      mins,
-      maxes,
-      read: unread.length < configIds.length,
-      primaryError,
-      fallbackError,
-      unread,
+    let orders = 0
+    let amountTotal = 0
+    let amountTax = 0
+    for (const row of rows) {
+      orders += Math.max(0, Math.round(Number(row.__count) || 0))
+      amountTotal += aggAmount(row, 'amount_total') ?? 0
+      amountTax += aggAmount(row, 'amount_tax') ?? 0
     }
+    openSession = { orders, amountTotal, amountTax }
+  } catch (error) {
+    if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+    errors.push(publicOdooError(error))
+  }
+  return {
+    timezone,
+    fromUtc,
+    toExclusiveUtc,
+    byState,
+    refundsByState,
+    openSession,
+    readError: errors.length > 0 ? errors.join(' | ') : null,
+  }
+}
+
+async function readReconciliation(
+  read: ReadFn,
+  kuwaitFromUtc: string,
+  kuwaitToExclusiveUtc: string,
+  nowMs: number,
+): Promise<{ all: ReconciliationRawWindow[]; config24: ReconciliationRawWindow[] }> {
+  const utcTo = new Date(nowMs).toISOString().slice(0, 19).replace('T', ' ')
+  const jobs: { scope: 'all' | 'config24'; configId: number | null; timezone: 'kuwait' | 'utc'; fromUtc: string; toExclusiveUtc: string }[] = [
+    { scope: 'all', configId: null, timezone: 'kuwait', fromUtc: kuwaitFromUtc, toExclusiveUtc: kuwaitToExclusiveUtc },
+    { scope: 'all', configId: null, timezone: 'utc', fromUtc: '2026-01-01 00:00:00', toExclusiveUtc: utcTo },
+    { scope: 'config24', configId: 24, timezone: 'kuwait', fromUtc: kuwaitFromUtc, toExclusiveUtc: kuwaitToExclusiveUtc },
+    { scope: 'config24', configId: 24, timezone: 'utc', fromUtc: '2026-01-01 00:00:00', toExclusiveUtc: utcTo },
+  ]
+  const windows = await Promise.all(
+    jobs.map((job) => readReconciliationWindow(read, job.configId, job.fromUtc, job.toExclusiveUtc, job.timezone)),
+  )
+  return {
+    all: windows.filter((_, index) => jobs[index]?.scope === 'all'),
+    config24: windows.filter((_, index) => jobs[index]?.scope === 'config24'),
   }
 }
 
