@@ -48,6 +48,25 @@ describe('VF team role map with AETHER_ADMIN_EMAILS unset', () => {
     },
   )
 
+  it('keeps Role.isAdmin as admin even when the title maps to a narrower role', () => {
+    expect(
+      resolveAccessRole({
+        email: 'mohameda@venturefoodskw.com',
+        roleName: 'Financial Manager',
+        isAdmin: true,
+        adminEmails: new Set(),
+      }),
+    ).toBe('admin')
+    expect(
+      resolveAccessRole({
+        email: 'mohameda@venturefoodskw.com',
+        roleName: 'المدير المالي',
+        isAdmin: true,
+        adminEmails: new Set(),
+      }),
+    ).toBe('admin')
+  })
+
   it('denies an unknown title when the account is not an admin', () => {
     expect(
       resolveAccessRole({

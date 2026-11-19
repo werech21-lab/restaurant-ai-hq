@@ -1,5 +1,3 @@
-import { logger } from '@/lib/logger'
-
 /**
  * Production refuses the built-in fallback key. Set one of
  * AETHER_SESSION_SECRET, SESSION_SECRET, or AUTH_SECRET (16+ characters).
@@ -42,10 +40,16 @@ export function configuredSessionSecret(): string | null {
 function noteMissingSessionSecret(): void {
   if (missingSecretLogged) return
   missingSecretLogged = true
-  logger.error('session_secret_missing', {
-    message:
-      'Refusing to sign or verify sessions because NODE_ENV=production and AETHER_SESSION_SECRET, SESSION_SECRET, and AUTH_SECRET are unset or shorter than 16 characters. The built-in fallback key is disabled.',
-  })
+  // console.error is safe in the Edge middleware bundle. logger.error uses process.stderr.
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      time: new Date().toISOString(),
+      message: 'session_secret_missing',
+      detail:
+        'Refusing to sign or verify sessions because NODE_ENV=production and AETHER_SESSION_SECRET, SESSION_SECRET, and AUTH_SECRET are unset or shorter than 16 characters. The built-in fallback key is disabled.',
+    }),
+  )
 }
 
 /** Env secret, or the dev/test fallback. Production without a real secret throws. */

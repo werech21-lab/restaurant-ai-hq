@@ -100,7 +100,9 @@ describe('connector bucket register reconciliation', () => {
     const snap = computeCoresHubSnapshot({ ...DEFAULT_GLOBAL_FILTERS, period: 'month' }, [], summary)
     const ids = snap.sales.registerReconciliation?.rows.map((row) => row.configId) ?? []
     expect(ids).toEqual(expect.arrayContaining([8, 9, 10, 11, 26, 33, 37, 38, 41, 42, 43]))
-    expect(ids).not.toEqual(expect.arrayContaining([24, 25, 39, 40, 3, 14, 15]))
+    for (const id of [24, 25, 39, 40, 3, 14, 15]) {
+      expect(ids).not.toContain(id)
+    }
     expect(snap.sales.registerReconciliation?.includedNetKwd).toBe(includedNet)
     expect(snap.sales.registerReconciliation?.gapKwd).toBe(0)
   })

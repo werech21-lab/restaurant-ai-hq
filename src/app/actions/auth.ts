@@ -19,6 +19,7 @@ import {
 import { maskEmail, resolveAccessRole } from "@/lib/auth/role-source";
 import { logger } from "@/lib/logger";
 import { NO_ACCESS_MESSAGE } from "@/app/login/login-error-message";
+import { getLocale } from "@/lib/i18n/server";
 import { SessionSecretMissingError } from "@/lib/auth/session-secret";
 import { resolvePostLoginRedirectForRole } from "@/lib/auth/role-access-policy";
 import { firstAllowedHref, type AccessUser } from "@/lib/permissions";
@@ -115,7 +116,8 @@ export async function login(
     });
     if (!resolvedRole) {
       logger.warn("access_role_missing", { email: maskEmail(user.email) });
-      return { error: NO_ACCESS_MESSAGE.ar };
+      const locale = await getLocale();
+      return { error: locale === "en" ? NO_ACCESS_MESSAGE.en : NO_ACCESS_MESSAGE.ar };
     }
 
     loginAccountFailureLimiter.reset(accountKey);

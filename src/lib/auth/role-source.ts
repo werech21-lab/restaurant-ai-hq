@@ -71,7 +71,8 @@ export function adminEmailsFromEnv(env: NodeJS.ProcessEnv = process.env): Readon
 /**
  * Resolves an executive role from the role table, then the named-account
  * allowlist, then AETHER_ADMIN_EMAILS. Unknown identities get null (deny).
- * A mapped role name wins so an allowlist entry cannot upgrade an auditor.
+ * `Role.isAdmin` is checked before the team-title map so an admin flag is never
+ * downgraded to cfo, supply, or another mapped title.
  */
 export function resolveAccessRole(input: {
   email?: string | null
@@ -81,9 +82,9 @@ export function resolveAccessRole(input: {
 }): ExecRole | null {
   const fromRoleName = normalizeExecSessionRole(input.roleName)
   if (fromRoleName) return fromRoleName
+  if (input.isAdmin === true) return 'admin'
   const fromTeamTitle = execRoleFromVfTeamTitle(input.roleName)
   if (fromTeamTitle) return fromTeamTitle
-  if (input.isAdmin === true) return 'admin'
 
   const email = String(input.email ?? '').trim().toLowerCase()
   if (!email) return null

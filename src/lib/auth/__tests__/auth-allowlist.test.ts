@@ -14,7 +14,6 @@ import {
   SessionSecretMissingError,
   resetSessionSecretLogForTests,
 } from '@/lib/auth/session-secret'
-import { logger } from '@/lib/logger'
 import { middleware } from '@/middleware'
 import { getSecret, SESSION_COOKIE, signSessionToken, verifySessionToken } from '@/lib/session'
 
@@ -124,7 +123,7 @@ describe('legacy session cookies', () => {
 describe('production session secret', () => {
   it('refuses the built-in fallback when production has no secret, without throwing from verify', async () => {
     const token = await createExecSessionToken('gm@venturefoodskw.com', 'gm')
-    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     for (const key of SECRET_KEYS) vi.stubEnv(key, '')
     vi.stubEnv('NODE_ENV', 'production')
     resetSessionSecretLogForTests()
@@ -135,8 +134,8 @@ describe('production session secret', () => {
       SessionSecretMissingError,
     )
     expect(errorSpy).toHaveBeenCalled()
-    const messages = errorSpy.mock.calls.map((call) => String(call[0]))
-    expect(messages).toContain('session_secret_missing')
+    const logged = errorSpy.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(logged).toContain('session_secret_missing')
     errorSpy.mockRestore()
   })
 })
