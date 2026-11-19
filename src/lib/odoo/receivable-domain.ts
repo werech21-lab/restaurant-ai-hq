@@ -1,41 +1,32 @@
 import { POS_CLEARING_ACCOUNT_CODE } from '@/lib/odoo/live-sync-core'
 
 /**
- * Posted receivable accounts other than cashier clearing 10552.
- * These codes are the account ids. Platform accounts 10501–10509 are journal
- * entries, so the domain does not mention move_type.
+ * Odoo account.account id of cashier clearing 10552 (dump account id 35).
+ * Every other posted asset_receivable account stays in the open balance.
  */
-export const RECEIVABLE_ACCOUNT_CODES = [
-  '10501',
-  '10502',
-  '10503',
-  '10504',
-  '10505',
-  '10507',
-  '10508',
-  '10509',
-  '121000',
-] as const
+export const POS_CLEARING_ACCOUNT_ID = 35
 
 export function buildOpenReceivableClauses(): unknown[][] {
   return [
     ['parent_state', '=', 'posted'],
     ['reconciled', '=', false],
     ['account_id.account_type', '=', 'asset_receivable'],
-    ['account_id.code', 'in', [...RECEIVABLE_ACCOUNT_CODES]],
+    ['account_id', '!=', POS_CLEARING_ACCOUNT_ID],
   ]
 }
 
 export function openReceivableLineIncluded(line: {
   accountCode: string
+  accountId?: number | null
   accountType: string
   moveType: string
   parentState: string
   reconciled: boolean
 }): boolean {
   void line.moveType
-  void line.accountType
   if (line.parentState !== 'posted' || line.reconciled) return false
+  if (line.accountType !== 'asset_receivable') return false
+  if (line.accountId === POS_CLEARING_ACCOUNT_ID) return false
   if (line.accountCode === POS_CLEARING_ACCOUNT_CODE) return false
-  return (RECEIVABLE_ACCOUNT_CODES as readonly string[]).includes(line.accountCode)
+  return true
 }

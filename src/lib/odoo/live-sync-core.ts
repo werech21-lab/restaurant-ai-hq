@@ -246,6 +246,7 @@ export function customerReceivableNetKwd(
         unavailable?: boolean
         platformNetKwd?: number | null
         byAccount?: readonly OdooReceivableAccountRow[]
+        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
         openReceivableKwd?: number | null
       }
     | null
@@ -256,7 +257,7 @@ export function customerReceivableNetKwd(
     return roundReceivableKwd(input.platformNetKwd)
   }
   if (input.byAccount && input.byAccount.length > 0) {
-    return receivablesCustomerSplit(input.byAccount).platformNetKwd
+    return receivablesCustomerSplit(input.byAccount, input.byPartner).platformNetKwd
   }
   if (typeof input.openReceivableKwd === 'number' && Number.isFinite(input.openReceivableKwd)) {
     return roundReceivableKwd(input.openReceivableKwd)
@@ -288,13 +289,16 @@ export function customerReceivableFigures(
         openDebitsKwd?: number | null
         unappliedCreditsKwd?: number | null
         byAccount?: readonly OdooReceivableAccountRow[]
+        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
         openReceivableKwd?: number | null
       }
     | null
     | undefined,
 ): CustomerReceivableFigures {
   const accountSplit =
-    input?.byAccount && input.byAccount.length > 0 ? receivablesCustomerSplit(input.byAccount) : null
+    input?.byAccount && input.byAccount.length > 0
+      ? receivablesCustomerSplit(input.byAccount, input.byPartner)
+      : null
   const netKwd = accountSplit ? accountSplit.platformNetKwd : customerReceivableNetKwd(input)
   const openDebitsKwd = accountSplit
     ? accountSplit.platformOpenDebitsKwd
@@ -917,10 +921,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const locationExcluded = (id: string) => {
-    const loc = REG.locations[id]
-    return isExcludedOdooEntity(id) || isExcludedOdooEntity(loc?.en) || isExcludedOdooEntity(loc?.ar) || isExcludedOdooEntity(loc?.code)
-  }
+  const locationExcluded = (_id: string) => false
   const restaurantLocIds = Object.entries(REG.locations)
     .filter(([id, v]) => v.unit === 'restaurant' && !locationExcluded(id))
     .map(([id]) => id)
@@ -932,11 +933,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     .filter((config) => config.active !== false && companyPosConfigAllowed(config.id, config.name, true))
   const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
   const allowedSet = new Set(visibleConfigIds)
-  const configNameById = new Map(configs.map((c) => [c.id, c.name]))
   const isDeliveryCfg = (cfgId: number) => {
     const loc = REG.registers[String(cfgId)]?.location
-    const nm = configNameById.get(cfgId) ?? ''
-    return loc === 'ardiya' || /delivery|call\s*center/i.test(nm)
+    return loc === 'ardiya' || loc === 'call-center' || loc === 'qurain-delivery'
   }
 
   const categories = ((await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[])

@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
+import { isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import { companyPosConfigAllowed, isPinnedSchoolCanteenConfigId } from '@/lib/odoo/company-pos'
 import { errorFields, logger } from '@/lib/logger'
 import {
@@ -418,7 +418,7 @@ export function recordLiveDiscoveredPosLedger(input: {
         (t) =>
           Number.isInteger(t.terminal_id) &&
           t.terminal_id > 0 &&
-          !isExcludedOdooEntity(t.terminal_name),
+          !isExcludedRecordId('pos_config', t.terminal_id),
       )
       .map((t) => ({
         terminal_id: t.terminal_id,
@@ -432,7 +432,7 @@ export function recordLiveDiscoveredPosLedger(input: {
           Number.isInteger(t.terminal_id) &&
           t.terminal_id > 0 &&
           isValidActiveVentureBranchId(t.branch_id) &&
-          !isExcludedOdooEntity(t.terminal_name),
+          !isExcludedRecordId('pos_config', t.terminal_id),
       )
       .map((t) => ({
         terminal_id: t.terminal_id,

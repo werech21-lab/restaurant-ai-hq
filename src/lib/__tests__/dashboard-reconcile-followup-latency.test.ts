@@ -103,7 +103,7 @@ describe('M1 latency — bounded exact brand reads', { timeout: FAST_FAIL_MS }, 
       routeMaxDurationMs('api/odoo-sync/route.ts'),
       routeMaxDurationMs('api/erp/live-comparison/route.ts'),
     )
-    expect(limitMs).toBe(30_000)
+    expect(limitMs).toBe(120_000)
     // Rows run alongside the main reads; counts run after them. Together they stay under half the limit.
     expect(EXACT_BRAND_ROWS_BUDGET_MS + BRAND_ORDER_COUNTS_BUDGET_MS).toBeLessThanOrEqual(limitMs / 2)
   })

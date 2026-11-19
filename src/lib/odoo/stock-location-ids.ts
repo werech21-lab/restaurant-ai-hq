@@ -1,16 +1,26 @@
 /**
- * Odoo `stock.location` ids. A location name never chooses a branch.
- * Add an id here when it is confirmed. Anything absent stays unattributed.
+ * Odoo stock.location ids taken from the Venture Foods quant export
+ * (database/seeds/venturefoods_odoo_cids1_dump.json). pos.config 41 and 42
+ * are school-canteen registers, not stock locations.
+ * A location that is not listed here stays unattributed.
  */
 export const STOCK_LOCATION_BRANCH_BY_ID = {
-  11: '360-mall',
-  41: 'school-canteens',
-  42: 'school-canteens',
+  219: '360-mall',
+  227: 'al-kout',
+  235: 'assima',
+  251: 'promenade',
 } as const
 
 export type StockLocationBranchId = (typeof STOCK_LOCATION_BRANCH_BY_ID)[keyof typeof STOCK_LOCATION_BRANCH_BY_ID]
 
-export const CENTRAL_KITCHEN_STOCK_LOCATION_IDS = [10] as const
+/** QRN/Stock — Qurain central kitchen. */
+export const CENTRAL_KITCHEN_STOCK_LOCATION_IDS = [259] as const
+
+/**
+ * Jahra stock locations. The quant export has no Jahra location row, so this
+ * stays empty until that id is confirmed. Names are not used.
+ */
+export const EXCLUDED_STOCK_LOCATION_IDS = [] as const
 
 export function branchIdForStockLocation(locationId: number): StockLocationBranchId | null {
   if (!Number.isInteger(locationId) || locationId <= 0) return null
@@ -20,4 +30,8 @@ export function branchIdForStockLocation(locationId: number): StockLocationBranc
 
 export function isCentralKitchenStockLocation(locationId: number): boolean {
   return (CENTRAL_KITCHEN_STOCK_LOCATION_IDS as readonly number[]).includes(locationId)
+}
+
+export function isExcludedStockLocation(locationId: number): boolean {
+  return (EXCLUDED_STOCK_LOCATION_IDS as readonly number[]).includes(locationId)
 }

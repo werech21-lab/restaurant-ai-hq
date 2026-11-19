@@ -27,7 +27,6 @@ import {
   computeOdooFreshnessStatus,
   isPosClearingAccount,
   receivablesCustomerSplit,
-  splitOpenResiduals,
   normalizeOdooDateOrderToIso,
   parseBucketKey,
   periodWindowForBucket,
@@ -69,7 +68,11 @@ import { buildRegisterReconciliation } from '@/lib/odoo/register-reconciliation'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
 import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
 import { buildOpenReceivableClauses } from '@/lib/odoo/receivable-domain'
-import { branchIdForStockLocation, isCentralKitchenStockLocation } from '@/lib/odoo/stock-location-ids'
+import {
+  branchIdForStockLocation,
+  isCentralKitchenStockLocation,
+  isExcludedStockLocation,
+} from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
   countOrdersPerBrandWithin,
@@ -1919,9 +1922,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const root = resolveRootCat(c.id)
     if (
       isExcludedRecordId('pos_category', c.id) ||
-      isExcludedRecordId('pos_category', root?.id) ||
-      isExcludedOdooEntity(c.name) ||
-      isExcludedOdooEntity(root?.name)
+      isExcludedRecordId('pos_category', root?.id)
     ) {
       excludedPosCategoryIds.add(c.id)
     }
@@ -2620,10 +2621,9 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       }
       byAccount.sort((a, b) => b.residualKwd - a.residualKwd)
 
-      const customerSplit = receivablesCustomerSplit(byAccount)
-      const platformAndCorporateLinesCount = customerSplit.platformLineCount
-      const platformNetKwd = customerSplit.platformNetKwd
-      const posAccountIds = customerSplit.posAccounts.map((row) => row.accountId)
+      const posAccountIds = byAccount
+        .filter((row) => isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`))
+        .map((row) => row.accountId)
       const partnerDomain: unknown[][] = [
         ...arDomain,
         ...(posAccountIds.length > 0 ? [['account_id', 'not in', posAccountIds]] : []),
@@ -2666,8 +2666,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
               !isDecommissionedWarehouseRecord(g.partnerName),
           ),
       )
-      const partnerLineSplit = partnerResiduals.length > 0 ? splitOpenResiduals(partnerResiduals) : null
-      const byPartner = partnerResiduals.slice(0, 80)
+      const customerSplit = receivablesCustomerSplit(byAccount, partnerResiduals)
+      const platformAndCorporateLinesCount = customerSplit.platformLineCount
+      const platformNetKwd = customerSplit.platformNetKwd
+      const byPartner = partnerResiduals
       const oldestOpenPostingDate =
         byPartner
           .map((row) => row.oldestPostingDate)
@@ -3720,7 +3722,7 @@ function formatEnvelopeFromCore(
           }
         })
           .filter(
-            (b) => b.netKwd > 0 && !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.brand),
+            (b) => b.netKwd > 0,
           )
           .sort((a, b) => b.netKwd - a.netKwd)
 
@@ -3745,7 +3747,7 @@ function formatEnvelopeFromCore(
           netSalesKwd: nv,
           orders: ord,
         }
-      }).filter((b) => !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.name))
+      })
 
   const branchSumNet = bucketTotalsUnavailable
     ? null
@@ -4199,8 +4201,22 @@ export async function fetchLiveOdooSnapshot(options?: {
       })
     }
     const freshCore = await inflightCorePull
+    const previousGood = lastKnownGoodSnapshot
+    if (freshCore.unavailableSections.length > 0 && previousGood && previousGood.unavailableSections.length === 0) {
+      coreSnapshotCache = previousGood
+      const nowAfterPull = Date.now()
+      const customBucket = isCustomPeriod
+        ? await fetchLiveOdooCustomBucket(options?.customFrom, options?.customTo, nowAfterPull)
+        : undefined
+      return formatEnvelopeFromCore(previousGood, bucket, {
+        readOnly,
+        cached: true,
+        referenceNowMs: nowAfterPull,
+        customBucket,
+      })
+    }
     coreSnapshotCache = freshCore
-    lastKnownGoodSnapshot = freshCore
+    if (freshCore.unavailableSections.length === 0) lastKnownGoodSnapshot = freshCore
     consecutiveUpstreamFailures = 0
     circuitOpenUntilMs = 0
 
@@ -4793,9 +4809,7 @@ export async function fetchLiveOdooPeriodCube(
       const root = resolveRootCat(c.id)
       if (
         isExcludedRecordId('pos_category', c.id) ||
-        isExcludedRecordId('pos_category', root?.id) ||
-        isExcludedOdooEntity(c.name) ||
-        isExcludedOdooEntity(root?.name)
+        isExcludedRecordId('pos_category', root?.id)
       ) {
         excludedPosCatIds.add(c.id)
       }
@@ -5603,6 +5617,9 @@ function resolveStockLocationRole(
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
   if (usage === 'internal') {
+    if (isExcludedStockLocation(locationId)) {
+      return { excluded: true, usage, role: 'other', branchId: null }
+    }
     if (isCentralKitchenStockLocation(locationId)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
@@ -5610,7 +5627,7 @@ function resolveStockLocationRole(
     if (branchId) {
       return { excluded: false, usage, role: 'branch', branchId }
     }
-    return { excluded: false, usage, role: 'ck', branchId: null }
+    return { excluded: false, usage, role: 'other', branchId: null }
   }
   return { excluded: false, usage, role: 'other', branchId: null }
 }
@@ -5796,9 +5813,7 @@ export async function fetchLiveOdooWarehouseChain(
       }
       if (
         isExcludedRecordId('pos_category', c.id) ||
-        isExcludedRecordId('pos_category', root.id) ||
-        isExcludedOdooEntity(c.name) ||
-        isExcludedOdooEntity(root.name)
+        isExcludedRecordId('pos_category', root.id)
       ) {
         excludedPosCatIds.add(c.id)
       }
@@ -6158,7 +6173,7 @@ export async function fetchLiveOdooWarehouseChain(
         branchesOnHandValueKwd += val
         byBranchOnHand[loc.branchId].qty = r3(byBranchOnHand[loc.branchId].qty + qty)
         byBranchOnHand[loc.branchId].valueKwd = r3(byBranchOnHand[loc.branchId].valueKwd + val)
-      } else {
+      } else if (loc?.role === 'ck') {
         ckOnHandValueKwd += val
       }
     }

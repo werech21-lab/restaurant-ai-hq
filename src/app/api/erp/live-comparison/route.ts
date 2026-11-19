@@ -33,7 +33,7 @@ import {
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 30
+export const maxDuration = 120
 
 function parseMultiIdParam<T extends string>(
   raw: string | null,

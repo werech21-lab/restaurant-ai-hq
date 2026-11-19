@@ -24,7 +24,7 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 30
+export const maxDuration = 120
 
 export const odooSyncResponseHeaders: Record<string, string> = {
   ...ENTERPRISE_API_SECURITY_HEADERS,

@@ -589,15 +589,36 @@ export function yearClosedWindow(yearFromUtc: string, todayFromUtc: string): Utc
   return { fromUtc: yearFromUtc, toUtc: todayFromUtc }
 }
 
-const yearClosedRows = new Map<string, unknown[]>()
+const YEAR_CLOSED_TTL_MS = 30 * 60 * 1000
+const YEAR_CLOSED_MAX = 32
+const yearClosedRows = new Map<string, { rows: unknown[]; at: number }>()
 
 export function clearYearClosedCache(): void {
   yearClosedRows.clear()
 }
 
+function readYearClosedCache(key: string, now: number): unknown[] | undefined {
+  const hit = yearClosedRows.get(key)
+  if (!hit) return undefined
+  if (now - hit.at > YEAR_CLOSED_TTL_MS) {
+    yearClosedRows.delete(key)
+    return undefined
+  }
+  return hit.rows
+}
+
+function writeYearClosedCache(key: string, rows: unknown[], now: number): void {
+  yearClosedRows.set(key, { rows, at: now })
+  while (yearClosedRows.size > YEAR_CLOSED_MAX) {
+    const oldest = yearClosedRows.keys().next().value
+    if (!oldest) break
+    yearClosedRows.delete(oldest)
+  }
+}
+
 /**
- * Closed days of the year are read once and reused. Only today is read on later calls.
- * A failed today read keeps the closed rows so the year section stays available.
+ * Closed days of the year are read once and reused for 30 minutes, up to 32 keys.
+ * Only today is read on later calls. A failed today read still fails the section.
  */
 export async function readClosedYearPlusToday<T>(input: {
   cacheKey: string
@@ -606,14 +627,15 @@ export async function readClosedYearPlusToday<T>(input: {
   read: (window: UtcWindow) => Promise<T[]>
   merge: (rows: readonly T[]) => T[]
 }): Promise<T[]> {
+  const now = Date.now()
   let closedRows: T[] = []
   if (input.closed) {
-    const hit = yearClosedRows.get(input.cacheKey) as T[] | undefined
+    const hit = readYearClosedCache(input.cacheKey, now) as T[] | undefined
     if (hit) {
       closedRows = hit
     } else {
       closedRows = await input.read(input.closed)
-      yearClosedRows.set(input.cacheKey, closedRows)
+      writeYearClosedCache(input.cacheKey, closedRows, now)
     }
   }
   const todayRows = await input.read(input.today)
