@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import { requireUser } from '@/lib/erp-auth'
 import { ScopeProvider } from '@/components/ScopeProvider'
@@ -27,9 +28,9 @@ import {
 } from '@/lib/auth/exec-role-meta'
 import {
   EXEC_SESSION_COOKIE,
-  inferExecRoleFromEmail,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
+import { NO_ACCESS_REASON, resolveAccessRole } from '@/lib/auth/role-source'
 import { getCompany } from '@/lib/company'
 import { LOCKED_MODULES } from '@/lib/modules'
 import { enabledModuleKeys } from '@/lib/modules-db'
@@ -46,11 +47,10 @@ export {
   type SidebarSectionId,
 }
 
-export function resolveShellRoleBadge(rawRole?: unknown): ExecRoleProfile {
+export function resolveShellRoleBadge(rawRole?: unknown): ExecRoleProfile | null {
   const normalized = normalizeExecSessionRole(rawRole)
-  const validRole: ExecRole =
-    normalized && EXEC_ROLE_WHITELIST.has(normalized) ? normalized : 'admin'
-  return resolveExecRoleProfile(validRole)
+  if (!normalized || !EXEC_ROLE_WHITELIST.has(normalized)) return null
+  return resolveExecRoleProfile(normalized)
 }
 
 async function resolveActiveSessionRole(user: {
@@ -75,17 +75,15 @@ async function resolveActiveSessionRole(user: {
   if (fromUser && EXEC_ROLE_WHITELIST.has(fromUser)) {
     return fromUser
   }
-  if (
-    user.isAuditor === true ||
-    user.role?.name === 'Read-Only Auditor' ||
-    (typeof user.email === 'string' && user.email.toLowerCase().includes('auditor'))
-  ) {
+  if (user.isAuditor === true || user.role?.name === 'Read-Only Auditor') {
     return 'auditor'
   }
-  if (typeof user.email === 'string' && user.email.trim().length > 0) {
-    return inferExecRoleFromEmail(user.email)
-  }
-  return 'admin'
+  const fromAllowlist = resolveAccessRole({
+    email: user.email,
+    roleName: user.role?.name,
+  })
+  if (fromAllowlist) return fromAllowlist
+  redirect(`/login?reason=${NO_ACCESS_REASON}`)
 }
 
 /**
@@ -106,6 +104,7 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
     },
   )
   const roleBadge = resolveShellRoleBadge(resolvedRole)
+  if (!roleBadge) redirect(`/login?reason=${NO_ACCESS_REASON}`)
   const sessionRole = roleBadge.role
   const isAuditor = roleBadge.isAuditor
   const scope = await getActiveScope()

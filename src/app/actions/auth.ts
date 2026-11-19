@@ -16,6 +16,8 @@ import {
   execCookieOptions,
   sanitizeExecNextPath,
 } from "@/lib/auth/exec-session";
+import { resolveAccessRole } from "@/lib/auth/role-source";
+import { SessionSecretMissingError } from "@/lib/auth/session-secret";
 import { resolvePostLoginRedirectForRole } from "@/lib/auth/role-access-policy";
 import { firstAllowedHref, type AccessUser } from "@/lib/permissions";
 import { SESSION_COOKIE, sessionCookieOptions, signSessionToken } from "@/lib/session";
@@ -60,7 +62,17 @@ export async function login(
   const execMatch = await authenticateExecutiveCredentials(email, password);
   if (execMatch.valid) {
     loginAccountFailureLimiter.reset(accountKey);
-    const execToken = await createExecSessionToken(execMatch.email, execMatch.role);
+    let execToken: string;
+    try {
+      execToken = await createExecSessionToken(execMatch.email, execMatch.role);
+    } catch (err) {
+      if (err instanceof SessionSecretMissingError) {
+        return {
+          error: "تسجيل الدخول غير مهيأ على الخادم. راجع مسؤول النظام.",
+        };
+      }
+      throw err;
+    }
     const jar = await cookies();
     jar.set(
       EXEC_SESSION_COOKIE,
@@ -94,10 +106,20 @@ export async function login(
       return invalid;
     }
 
+    const resolvedRole = resolveAccessRole({
+      email: user.email,
+      roleName: user.role.name,
+      isAdmin: user.role.isAdmin,
+    });
+    if (!resolvedRole) {
+      loginIpFailureLimiter.check(ipKey);
+      loginAccountFailureLimiter.check(accountKey);
+      return invalid;
+    }
+
     loginAccountFailureLimiter.reset(accountKey);
-    const resolvedRole = user.email.toLowerCase().includes("auditor") ? "auditor" : "admin";
     const [legacyToken, execToken, jar] = await Promise.all([
-      resolvedRole === "auditor" ? Promise.resolve("") : signSessionToken(user.id),
+      resolvedRole === "auditor" ? Promise.resolve("") : signSessionToken(user.id, resolvedRole),
       createExecSessionToken(user.email, resolvedRole),
       cookies(),
     ]);
@@ -124,7 +146,10 @@ export async function login(
       },
     };
     destination = firstAllowedHref(access) || "/erp";
-  } catch {
+  } catch (err) {
+    if (err instanceof SessionSecretMissingError) {
+      return { error: "تسجيل الدخول غير مهيأ على الخادم. راجع مسؤول النظام." };
+    }
     loginIpFailureLimiter.check(ipKey);
     loginAccountFailureLimiter.check(accountKey);
     return invalid;

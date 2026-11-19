@@ -10,6 +10,7 @@ import {
   type ExecRoleProfile,
   type ExecSessionRole,
 } from '@/lib/auth/exec-role-meta'
+import { ExecRoleDeniedError, resolveSessionSecret } from '@/lib/auth/session-secret'
 
 export {
   EXEC_ROLE_PROFILES,
@@ -103,11 +104,7 @@ interface NamedAccountSpec {
 }
 
 function getSessionSecret(): string {
-  const fromEnv =
-    process.env.AETHER_SESSION_SECRET?.trim() ||
-    process.env.SESSION_SECRET?.trim() ||
-    process.env.AUTH_SECRET?.trim()
-  return fromEnv && fromEnv.length >= 16 ? fromEnv : deriveFallbackSessionKey()
+  return resolveSessionSecret(deriveFallbackSessionKey())
 }
 
 export function getExpectedAbdullahEmail(): string {
@@ -271,8 +268,10 @@ function getNamedAccountSpecs(): NamedAccountSpec[] {
   ]
 }
 
-export function inferExecRoleFromEmail(email: string): ExecRole {
+/** Named-account allowlist. Unknown emails are denied, not treated as admin. */
+export function inferExecRoleFromEmail(email: string): ExecRole | null {
   const clean = String(email || '').trim().toLowerCase()
+  if (!clean) return null
   if (clean === DEFAULT_AUDITOR_EMAIL || clean === getExpectedAuditorEmail()) {
     return 'auditor'
   }
@@ -309,7 +308,15 @@ export function inferExecRoleFromEmail(email: string): ExecRole {
   ) {
     return 'supply'
   }
-  return 'admin'
+  if (
+    clean === DEFAULT_ABDULLAH_EMAIL ||
+    clean === DEFAULT_ADMIN_EMAIL ||
+    clean === getExpectedAbdullahEmail() ||
+    clean === getExpectedExecEmail()
+  ) {
+    return 'admin'
+  }
+  return null
 }
 
 function hexToBytes(hex: string): Uint8Array {
@@ -522,9 +529,12 @@ export async function createExecSessionToken(
   email: string,
   role?: ExecSessionRole | 'executive',
 ): Promise<string> {
-  const sub = String(email || DEFAULT_ADMIN_EMAIL).trim().toLowerCase()
+  const sub = String(email || '').trim().toLowerCase()
   const normalizedRole =
     normalizeExecSessionRole(role) ?? inferExecRoleFromEmail(sub)
+  if (!sub || !normalizedRole || !EXEC_ROLE_WHITELIST.has(normalizedRole)) {
+    throw new ExecRoleDeniedError()
+  }
   const profile = resolveExecRoleProfile(normalizedRole)
   const iat = Math.floor(Date.now() / 1000)
   const exp = iat + EXEC_SESSION_MAX_AGE

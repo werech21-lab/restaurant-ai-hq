@@ -27,7 +27,7 @@ export default async function FeryalAiCommandPage() {
             />
           }
         >
-          <FeryalGovernanceStudio sessionRole={sessionRole} />
+          <FeryalGovernanceStudio sessionRole={sessionRole ?? undefined} />
         </Suspense>
       </div>
     </div>

@@ -13,6 +13,8 @@ import {
   resolveRoleDefaultHome,
   resolveRoleRedirectForForbiddenRoute,
 } from '@/lib/auth/role-access-policy'
+import { NO_ACCESS_REASON } from '@/lib/auth/role-source'
+import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 
 export type ExecRole =
   | 'admin'
@@ -303,15 +305,20 @@ export async function middleware(request: NextRequest) {
       request.cookies.get(EXEC_SESSION_COOKIE)?.value ??
       request.cookies.get('aether_exec_session')?.value
     const execSession = await verifyExecSessionToken(rawToken)
+    const legacyRaw = request.cookies.get(SESSION_COOKIE)?.value
+    const legacySession =
+      !execSession && legacyRaw ? await verifySessionToken(legacyRaw) : null
+    const activeRole = execSession?.role ?? legacySession?.role ?? null
+    const rejectedLegacy = Boolean(legacyRaw) && !execSession && !legacySession
 
-    if (execSession && EXEC_ROLE_WHITELIST.has(execSession.role)) {
+    if (activeRole && EXEC_ROLE_WHITELIST.has(activeRole)) {
       const method = request.method.toUpperCase()
       if (
         (path === '/api/erp/terminal-mappings' ||
           path.startsWith('/api/erp/terminal-mappings/') ||
           path === '/api/erp/role-directory' ||
           path.startsWith('/api/erp/role-directory/')) &&
-        execSession.role !== 'admin'
+        activeRole !== 'admin'
       ) {
         return seal(
           NextResponse.json(
@@ -324,7 +331,7 @@ export async function middleware(request: NextRequest) {
           ),
         )
       }
-      if (execSession.role === 'auditor') {
+      if (activeRole === 'auditor') {
         if (MUTATION_METHODS.has(method) && isAuditorRestrictedMutationPath(path)) {
           return seal(
             NextResponse.json(
@@ -359,7 +366,7 @@ export async function middleware(request: NextRequest) {
       }
       if (
         MUTATION_METHODS.has(method) &&
-        !canTriggerManualOdooSync(execSession.role) &&
+        !canTriggerManualOdooSync(activeRole) &&
         (path === '/api/erp/odoo-sync' ||
           path.startsWith('/api/erp/odoo-sync/') ||
           path === '/api/odoo-sync' ||
@@ -379,21 +386,21 @@ export async function middleware(request: NextRequest) {
       }
 
       if (path === '/') {
-        const homeUrl = new URL(resolveRoleDefaultHome(execSession.role), request.url)
+        const homeUrl = new URL(resolveRoleDefaultHome(activeRole), request.url)
         return seal(NextResponse.redirect(homeUrl, { status: 307 }))
       }
       if (path === '/login') {
         const rawNext = request.nextUrl.searchParams.get('next')
         const safeNext = rawNext ? sanitizeExecNextPath(rawNext, '/erp') : ''
-        const destPath = resolvePostLoginRedirectForRole(execSession.role, safeNext)
+        const destPath = resolvePostLoginRedirectForRole(activeRole, safeNext)
         const destUrl = new URL(destPath, request.url)
         return seal(NextResponse.redirect(destUrl, { status: 307 }))
       }
 
       if (!path.startsWith('/api/') && !isPublicAssetOrRoute(path)) {
-        if (!isErpRouteAllowedForRole(execSession.role, path)) {
+        if (!isErpRouteAllowedForRole(activeRole, path)) {
           const fallbackUrl = new URL(
-            resolveRoleRedirectForForbiddenRoute(execSession.role),
+            resolveRoleRedirectForForbiddenRoute(activeRole),
             request.url,
           )
           return seal(NextResponse.redirect(fallbackUrl, { status: 307 }))
@@ -417,6 +424,7 @@ export async function middleware(request: NextRequest) {
     // Unauthenticated handling:
     if (path === '/') {
       const loginUrl = new URL('/login', request.url)
+      if (rejectedLegacy) loginUrl.searchParams.set('reason', NO_ACCESS_REASON)
       return seal(NextResponse.redirect(loginUrl, { status: 307 }))
     }
 
@@ -438,10 +446,13 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url)
       const requestedPath = `${path}${request.nextUrl.search}`
       loginUrl.searchParams.set('next', requestedPath)
+      if (rejectedLegacy) loginUrl.searchParams.set('reason', NO_ACCESS_REASON)
       return seal(NextResponse.redirect(loginUrl, { status: 307 }))
     }
 
-    return seal(NextResponse.redirect(new URL('/login', request.url), { status: 307 }))
+    const fallbackLogin = new URL('/login', request.url)
+    if (rejectedLegacy) fallbackLogin.searchParams.set('reason', NO_ACCESS_REASON)
+    return seal(NextResponse.redirect(fallbackLogin, { status: 307 }))
   } catch {
     if (path.startsWith('/api/') && !PUBLIC_EXACT_PATHS.has(path)) {
       return seal(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }))

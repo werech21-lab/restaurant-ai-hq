@@ -12,6 +12,16 @@ const INVALID: LoginErrorMessage = {
   en: 'Invalid credentials. Please check your email and password.',
 }
 
+export const NO_ACCESS_MESSAGE: LoginErrorMessage = {
+  ar: 'هذا الحساب غير مدرج في قائمة الدخول. اطلب من مسؤول النظام إضافته قبل المحاولة مرة أخرى.',
+  en: 'This account is not on the access list. Ask an administrator to add it before trying again.',
+}
+
+export function messageForLoginReason(reason: string | undefined | null): LoginErrorMessage | null {
+  if (reason === 'no_access') return NO_ACCESS_MESSAGE
+  return null
+}
+
 /**
  * Maps a failed /api/auth/login response to a bilingual message. A 429 (too many attempts) and a
  * 403 (cross-origin refused) must never be shown as "invalid credentials".

@@ -1,4 +1,4 @@
-import { requirePageUser, resolveServerExecSessionRole } from '@/lib/auth/context'
+import { readSessionPermissions, requirePageUser, resolveServerExecSessionRole } from '@/lib/auth/context'
 import { panelBridgePermissionSet } from '@/lib/auth/panel-bridge'
 import GovernanceDesk from '@/modules/governance/ui/GovernanceDesk'
 
@@ -13,8 +13,9 @@ export default async function GovernancePage({ searchParams }: { searchParams: P
   await requirePageUser('/erp/governance')
   const sessionRole = await resolveServerExecSessionRole()
   const allPermissions = [...panelBridgePermissionSet()].sort()
-  const permissions =
-    sessionRole === 'auditor'
+  const permissions = !sessionRole
+    ? await readSessionPermissions()
+    : sessionRole === 'auditor'
       ? allPermissions.filter((perm) => !perm.endsWith('.manage') && !perm.endsWith('.dispatch'))
       : allPermissions
   const query = await searchParams
