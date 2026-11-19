@@ -19,6 +19,7 @@ Read-only Playwright deployment verification gate that checks the 4 owner deploy
 4. **Page health:**
    - No HTTP status `>= 400` on page loads or page requests (retries once on 5xx).
    - No browser console errors or uncaught page errors.
+   - **Vercel preview toolbar noise allowlist:** HTTP `>= 400` responses and console errors originating exclusively from Vercel preview toolbar / feedback / analytics injection (`vercel.live`, `*.vercel.live`, `/_vercel/insights*`, `/_vercel/speed-insights*`, `/_vercel/toolbar*`, and `vercel-toolbar` widget scripts) are counted under `ignoredToolbarNoiseCount` in `summary.json` and `SUMMARY.md` without failing the gate or triggering 5xx retries. Application routes, `/api/*`, Next.js (`/_next/*`), Odoo, and Supabase errors always fail strictly.
 
 After login, the script enforces **GET-only** navigation and blocks any non-`GET`/`HEAD`/`OPTIONS` requests. It never logs passwords, cookies, or Vercel bypass tokens.
 

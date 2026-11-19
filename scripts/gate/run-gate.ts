@@ -15,7 +15,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { chromium, type Locator, type Page, type Response } from '@playwright/test'
+import { chromium, type ConsoleMessage, type Locator, type Page, type Response } from '@playwright/test'
 import {
   DEFAULT_GATE_TIMEOUT_MS,
   DEFAULT_SETTLE_TIMEOUT_MS,
@@ -24,6 +24,7 @@ import {
   evaluateYtdCheck,
   extractExplicitKwdAmount,
   findBannedStrings,
+  isVercelToolbarNoise,
   parseGateEnv,
   parseKwdNumber,
   redactSensitiveText,
@@ -173,9 +174,10 @@ interface InteractionDiagnostics {
   httpErrors: HttpErrorRecord[]
   consoleErrors: string[]
   pageErrors: string[]
+  ignoredToolbarNoiseCount: number
 }
 
-async function captureInteractionDiagnostics(
+async function runTrackedInteraction(
   page: Page,
   secrets: readonly string[],
   action: () => Promise<void>,
@@ -183,22 +185,34 @@ async function captureInteractionDiagnostics(
   const httpErrors: HttpErrorRecord[] = []
   const consoleErrors: string[] = []
   const pageErrors: string[] = []
+  let ignoredToolbarNoiseCount = 0
 
   const onResponse = (res: Response) => {
     const status = res.status()
     if (status >= 400) {
+      const rawUrl = res.url()
+      if (isVercelToolbarNoise(rawUrl)) {
+        ignoredToolbarNoiseCount += 1
+        return
+      }
       const req = res.request()
       httpErrors.push({
         status,
         method: req.method(),
-        url: sanitizeUrlForReport(res.url()),
+        url: sanitizeUrlForReport(rawUrl),
         resourceType: req.resourceType(),
       })
     }
   }
-  const onConsole = (msg: { type: () => string; text: () => string }) => {
+  const onConsole = (msg: ConsoleMessage) => {
     if (msg.type() === 'error') {
-      consoleErrors.push(redactSensitiveText(msg.text(), secrets))
+      const rawText = msg.text()
+      const sourceUrl = msg.location()?.url ?? ''
+      if (isVercelToolbarNoise(rawText, sourceUrl)) {
+        ignoredToolbarNoiseCount += 1
+        return
+      }
+      consoleErrors.push(redactSensitiveText(rawText, secrets))
     }
   }
   const onPageError = (err: Error) => {
@@ -216,7 +230,7 @@ async function captureInteractionDiagnostics(
     page.off('pageerror', onPageError)
   }
 
-  return { httpErrors, consoleErrors, pageErrors }
+  return { httpErrors, consoleErrors, pageErrors, ignoredToolbarNoiseCount }
 }
 
 async function waitForPageSettled(
@@ -257,6 +271,7 @@ interface PageVisitBuffers {
   httpErrors: HttpErrorRecord[]
   consoleErrors: string[]
   pageErrors: string[]
+  ignoredToolbarNoiseCount: number
   finalPath: string
 }
 
@@ -271,22 +286,34 @@ async function visitWith5xxRetry(
     const httpErrors: HttpErrorRecord[] = []
     const consoleErrors: string[] = []
     const pageErrors: string[] = []
+    let ignoredToolbarNoiseCount = 0
 
     const onResponse = (res: Response) => {
       const status = res.status()
       if (status >= 400) {
+        const rawUrl = res.url()
+        if (isVercelToolbarNoise(rawUrl)) {
+          ignoredToolbarNoiseCount += 1
+          return
+        }
         const req = res.request()
         httpErrors.push({
           status,
           method: req.method(),
-          url: sanitizeUrlForReport(res.url()),
+          url: sanitizeUrlForReport(rawUrl),
           resourceType: req.resourceType(),
         })
       }
     }
-    const onConsole = (msg: { type: () => string; text: () => string }) => {
+    const onConsole = (msg: ConsoleMessage) => {
       if (msg.type() === 'error') {
-        consoleErrors.push(redactSensitiveText(msg.text(), secrets))
+        const rawText = msg.text()
+        const sourceUrl = msg.location()?.url ?? ''
+        if (isVercelToolbarNoise(rawText, sourceUrl)) {
+          ignoredToolbarNoiseCount += 1
+          return
+        }
+        consoleErrors.push(redactSensitiveText(rawText, secrets))
       }
     }
     const onPageError = (err: Error) => {
@@ -345,6 +372,7 @@ async function visitWith5xxRetry(
       httpErrors: filteredHttpErrors,
       consoleErrors,
       pageErrors,
+      ignoredToolbarNoiseCount,
       finalPath,
     }
   }
@@ -361,7 +389,11 @@ async function visitWith5xxRetry(
   console.log(`[gate] 5xx detected on ${sanitizeUrlForReport(targetUrl)} — retrying once...`)
   await sleep(RETRY_DELAY_MS)
   const second = await attempt()
-  return { ...second, retriedOn5xx: true }
+  return {
+    ...second,
+    ignoredToolbarNoiseCount: first.ignoredToolbarNoiseCount + second.ignoredToolbarNoiseCount,
+    retriedOn5xx: true,
+  }
 }
 
 function mergeBannedHits(
@@ -554,6 +586,7 @@ async function runGate(): Promise<number> {
         config.navigationTimeoutMs,
         config.settleTimeoutMs,
       )
+      let ignoredToolbarNoiseCount = visit.ignoredToolbarNoiseCount
       const artifacts = await capturePageArtifacts(page, resolvedOutDir, slug, secrets)
       let bannedHits = findBannedStrings(artifacts.visibleText)
       const failures: string[] = []
@@ -650,10 +683,11 @@ async function runGate(): Promise<number> {
           tracker,
         )
         if (tabMatch.locator) {
-          const tabDiag = await captureInteractionDiagnostics(page, secrets, async () => {
+          const tabDiag = await runTrackedInteraction(page, secrets, async () => {
             await tabMatch.locator!.click()
             await sleep(400)
           })
+          ignoredToolbarNoiseCount += tabDiag.ignoredToolbarNoiseCount
           for (const httpErr of tabDiag.httpErrors) {
             visit.httpErrors.push(httpErr)
             failures.push(`HTTP ${httpErr.status} (${httpErr.resourceType}) ${httpErr.url}`)
@@ -720,6 +754,7 @@ async function runGate(): Promise<number> {
         httpErrors: visit.httpErrors,
         consoleErrors: visit.consoleErrors,
         pageErrors: visit.pageErrors,
+        ignoredToolbarNoiseCount,
         bannedHits,
         keyNumbers,
         failures,
@@ -741,7 +776,7 @@ async function runGate(): Promise<number> {
     )
 
     // Ensure the Year filter is active; if URL hydration did not switch it, select Year in UI
-    const ytdInteractionDiag = await captureInteractionDiagnostics(page, secrets, async () => {
+    const ytdInteractionDiag = await runTrackedInteraction(page, secrets, async () => {
       const currentSearch = new URL(page.url()).searchParams
       if (currentSearch.get('period') !== 'year') {
         const trigger = await resolveSelector(
@@ -789,6 +824,8 @@ async function runGate(): Promise<number> {
 
     const coresReport = pageReports.find((p) => p.path === '/erp/cores')
     if (coresReport) {
+      coresReport.ignoredToolbarNoiseCount +=
+        ytdVisit.ignoredToolbarNoiseCount + ytdInteractionDiag.ignoredToolbarNoiseCount
       coresReport.keyNumbers.ytd2026Total = ytdActual
       if (ytdCheck.deltaPct !== null) {
         coresReport.keyNumbers.ytdDeltaPct = `${ytdCheck.deltaPct >= 0 ? '+' : ''}${ytdCheck.deltaPct.toFixed(3)}%`
@@ -866,7 +903,9 @@ async function runGate(): Promise<number> {
     for (const p of summary.pages) {
       console.log(`  [${p.passed ? 'PASS' : 'FAIL'}] ${p.path}${p.failures.length > 0 ? ` — ${p.failures[0]}` : ''}`)
     }
-    console.log(`  OVERALL: ${summary.overall} (exit ${summary.exitCode})`)
+    console.log(
+      `  OVERALL: ${summary.overall} (exit ${summary.exitCode}, ignored toolbar noise: ${summary.ignoredToolbarNoiseCount})`,
+    )
     console.log(`  Reports: ${summaryJsonPath}`)
     console.log(`           ${summaryMdPath}`)
     console.log('==========================================================\n')

@@ -116,6 +116,7 @@ export interface PageGateReport {
   httpErrors: HttpErrorRecord[]
   consoleErrors: string[]
   pageErrors: string[]
+  ignoredToolbarNoiseCount: number
   bannedHits: BannedStringHit[]
   keyNumbers: Record<string, string | number | null>
   failures: string[]
@@ -133,6 +134,7 @@ export interface GateSummary {
   expectedReceivables: number
   expectedYtd: number
   ytdTolerancePct: number
+  ignoredToolbarNoiseCount: number
   conditions: {
     bannedStrings: { passed: boolean; totalHits: number; pagesAffected: string[] }
     receivables: ReceivablesCheckResult
@@ -142,6 +144,7 @@ export interface GateSummary {
       httpErrorCount: number
       consoleErrorCount: number
       pageErrorCount: number
+      ignoredToolbarNoiseCount: number
     }
   }
   pages: PageGateReport[]
@@ -286,6 +289,235 @@ export function redactSensitiveText(
   out = out.replace(/((?:set-cookie|cookie|authorization)\s*[:=]\s*)[^\r\n;]+/gi, '$1[REDACTED]')
   out = out.replace(/((?:aether_exec_session|_vercel_jwt)\s*=\s*)[^\s;,"'<>]+/gi, '$1[REDACTED]')
   return out
+}
+
+const ALLOWED_TOOLBAR_PROTOCOLS = new Set(['http:', 'https:', 'ws:', 'wss:'])
+
+function parseToolbarCandidateUrl(raw: string): { url: URL; hasExplicitHost: boolean } | null {
+  const trimmed = raw.trim()
+  if (!trimmed || /\s/.test(trimmed)) return null
+  // Reject path-traversal segments before WHATWG URL normalization collapses `..`
+  if (/(?:^|\/)\.\.(?:\/|$|\?|#)/.test(trimmed)) return null
+
+  if (/^(?:https?|wss?):\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed)
+      if (!ALLOWED_TOOLBAR_PROTOCOLS.has(url.protocol)) return null
+      if (url.username || url.password) return null
+      return { url, hasExplicitHost: true }
+    } catch {
+      return null
+    }
+  }
+
+  if (trimmed.startsWith('//') && !trimmed.startsWith('///')) {
+    try {
+      const url = new URL(`https:${trimmed}`)
+      if (url.username || url.password) return null
+      return { url, hasExplicitHost: true }
+    } catch {
+      return null
+    }
+  }
+
+  if (trimmed.startsWith('/')) {
+    try {
+      const url = new URL(trimmed, 'https://preview-origin.invalid')
+      return { url, hasExplicitHost: false }
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
+function isVercelToolbarUrl(rawUrl: string): boolean {
+  const parsed = parseToolbarCandidateUrl(rawUrl)
+  if (!parsed) return false
+
+  const host = parsed.url.hostname.toLowerCase().replace(/\.$/, '')
+  const rawPathname = parsed.url.pathname.toLowerCase()
+  // Strip optional `:line:col` suffix only when no query/hash is present
+  const pathname =
+    !parsed.url.search && !parsed.url.hash ? rawPathname.replace(/(?::\d+)+$/, '') : rawPathname
+
+  // 1. Strict hostname check: `vercel.live` or `*.vercel.live` only (never `*.vercel.app` or query params)
+  if (parsed.hasExplicitHost && (host === 'vercel.live' || host.endsWith('.vercel.live'))) {
+    return true
+  }
+
+  // 2. Never allowlist Odoo or Supabase hosts
+  if (
+    parsed.hasExplicitHost &&
+    (host === 'odoo.com' ||
+      host.endsWith('.odoo.com') ||
+      host === 'supabase.co' ||
+      host.endsWith('.supabase.co') ||
+      host === 'supabase.in' ||
+      host.endsWith('.supabase.in') ||
+      host.endsWith('.supabase.red'))
+  ) {
+    return false
+  }
+
+  // 3. Never allowlist application routes, API routes, Next.js chunks, Odoo RPC, or Supabase endpoints
+  if (
+    pathname === '/api' ||
+    pathname.startsWith('/api/') ||
+    pathname === '/_next' ||
+    pathname.startsWith('/_next/') ||
+    pathname === '/erp' ||
+    pathname.startsWith('/erp/') ||
+    pathname === '/login' ||
+    pathname.startsWith('/login/') ||
+    pathname === '/jsonrpc' ||
+    pathname.startsWith('/jsonrpc/') ||
+    pathname.startsWith('/xmlrpc/') ||
+    pathname.startsWith('/web/dataset/') ||
+    pathname.startsWith('/rest/v1/') ||
+    pathname.startsWith('/auth/v1/') ||
+    pathname.startsWith('/storage/v1/') ||
+    pathname.startsWith('/realtime/v1/')
+  ) {
+    return false
+  }
+
+  // 4. Preview-origin Vercel analytics, speed-insights, and toolbar widget endpoints/scripts
+  if (pathname === '/_vercel/insights' || pathname.startsWith('/_vercel/insights/')) {
+    return true
+  }
+  if (pathname === '/_vercel/speed-insights' || pathname.startsWith('/_vercel/speed-insights/')) {
+    return true
+  }
+  if (
+    pathname === '/_vercel/toolbar' ||
+    pathname.startsWith('/_vercel/toolbar/') ||
+    /^\/_vercel\/toolbar[-._][a-z0-9._/-]*$/i.test(pathname) ||
+    (pathname.startsWith('/_vercel/') && pathname.includes('vercel-toolbar'))
+  ) {
+    return true
+  }
+  if (
+    /(?:^|\/)[^/]*vercel-toolbar[^/]*\.(?:m?js|cjs|css)$/i.test(pathname) ||
+    /(?:^|\/)vercel-toolbar\/[a-z0-9._/-]+\.(?:m?js|cjs|css)$/i.test(pathname)
+  ) {
+    return true
+  }
+
+  return false
+}
+
+function cleanExtractedUrlToken(rawToken: string): string {
+  let cleaned = rawToken.trim().replace(/[.,;:!?]+$/, '')
+  if (/^(?:(?:https?|wss?):\/\/[^/]+\/|\/\/[^/]+\/|\/)/.test(cleaned) && !/[?#]/.test(cleaned)) {
+    cleaned = cleaned.replace(/(?::\d+)+$/, '')
+  }
+  return cleaned
+}
+
+function extractTargetUrlsFromConsoleMessage(message: string): string[] {
+  // Remove CORS initiator origin (`from origin 'https://preview.vercel.app'`) and CSP directive
+  // policy strings (`because it violates ...` / `("script-src ...")`) so only target resource URLs remain.
+  const stripped = message
+    .replace(/\bfrom origin\s+['"]?(?:https?|wss?):\/\/[^\s'"]+['"]?/gi, ' ')
+    .replace(/\bbecause it violates\b[\s\S]*$/i, ' ')
+    .replace(
+      /\(\s*["'](?:default|script|connect|frame|style|img|font|media|object|child|worker|manifest)-src\b[^)]*\)/gi,
+      ' ',
+    )
+
+  const urls: string[] = []
+  const fullUrlRe = /(?:(?:https?|wss?):\/\/|\/\/[a-z0-9.-]+\.[a-z]{2,}\/)[^\s'"<>`()[\]]+/gi
+
+  let match: RegExpExecArray | null
+  while ((match = fullUrlRe.exec(stripped)) !== null) {
+    const token = cleanExtractedUrlToken(match[0])
+    if (token) urls.push(token)
+  }
+
+  const remainder = stripped.replace(fullUrlRe, ' ')
+  const relPathRe =
+    /(?:^|[\s'"`(])(\/(?:_vercel|_next|api|erp|login|jsonrpc|xmlrpc|web\/dataset|rest\/v1|auth\/v1|storage\/v1|realtime\/v1|[^/\s'"<>`()[\]]*vercel-toolbar)[^\s'"<>`()[\]]*)/gi
+  while ((match = relPathRe.exec(remainder)) !== null) {
+    const token = cleanExtractedUrlToken(match[1] ?? '')
+    if (token) urls.push(token)
+  }
+
+  return urls
+}
+
+const TOOLBAR_NETWORK_OR_POLICY_ERROR_RE =
+  /\b(?:CORS|Cross-Origin Request Blocked|Access-Control-Allow-Origin|Content Security Policy|CSP|WebSocket|net::ERR_[A-Z0-9_]+|Failed to (?:load|fetch|connect)|Loading failed for the <script>|blocked by|ERR_BLOCKED_BY_CLIENT|ERR_FAILED|ERR_ABORTED|ERR_CONNECTION_[A-Z_]+|ERR_NAME_NOT_RESOLVED)\b|\b\d{3}\s*\([A-Za-z ]+\)|^(?:GET|HEAD|POST|PUT|DELETE|OPTIONS)\s+(?:https?:\/\/|\/)/i
+
+const JS_RUNTIME_EXCEPTION_RE =
+  /^\s*(?:Uncaught\s+)?(?:TypeError|ReferenceError|SyntaxError|RangeError|URIError|EvalError)\s*:/i
+
+/**
+ * Returns `true` ONLY when an HTTP >= 400 URL or browser `console.error` message
+ * originates exclusively from Vercel preview toolbar / feedback / analytics injection:
+ * - Hostnames `vercel.live` or `*.vercel.live` (parsed hostname strictly; never query params or `*.vercel.app`).
+ * - Preview-origin pathnames `/_vercel/insights*`, `/_vercel/speed-insights*`, `/_vercel/toolbar*`,
+ *   or `*vercel-toolbar*` widget script URLs.
+ * - Console errors whose `sourceUrl` (`msg.location().url`) is itself a toolbar URL, OR browser
+ *   network/CORS/CSP/WebSocket load errors exclusively targeting those Vercel toolbar/insights endpoints.
+ *
+ * Strictly returns `false` on all application (`/erp*`), `/api/*`, Next.js (`/_next/*`), Odoo, and Supabase errors.
+ */
+export function isVercelToolbarNoise(urlOrMessage: string, sourceUrl?: string): boolean {
+  const input = (urlOrMessage ?? '').trim()
+  const src = (sourceUrl ?? '').trim()
+  if (!input && !src) return false
+
+  // Direct URL check when called with a single URL (e.g. `res.url()` in `onResponse`)
+  const standaloneCandidate = parseToolbarCandidateUrl(input)
+  if (standaloneCandidate && !src) {
+    return isVercelToolbarUrl(input)
+  }
+
+  // When `sourceUrl` (`msg.location().url`) is available, evaluate it first:
+  if (src) {
+    if (isVercelToolbarUrl(src)) {
+      if (standaloneCandidate && !isVercelToolbarUrl(input)) {
+        return false
+      }
+      return true
+    }
+
+    // `sourceUrl` is an app/Next.js/API/Odoo/Supabase/document URL (not a toolbar script).
+    // Never ignore JS runtime exceptions from app scripts; only allow browser network/CORS/CSP/WebSocket
+    // load errors whose target URL(s) are exclusively Vercel toolbar/insights endpoints.
+    if (JS_RUNTIME_EXCEPTION_RE.test(input)) {
+      return false
+    }
+    if (!TOOLBAR_NETWORK_OR_POLICY_ERROR_RE.test(input)) {
+      return false
+    }
+    const targetUrls = extractTargetUrlsFromConsoleMessage(input)
+    return targetUrls.length > 0 && targetUrls.every(isVercelToolbarUrl)
+  }
+
+  // Console message without `sourceUrl`:
+  if (JS_RUNTIME_EXCEPTION_RE.test(input)) {
+    const hasStackFrame = /\bat\s+(?:[^\s()]+\s+\()?(?:https?:\/\/|\/)/i.test(input)
+    if (!hasStackFrame) return false
+    if (/(?:\/_next\/|\/api\/|\/erp\b|odoo|supabase)/i.test(input)) return false
+    const stackUrls = extractTargetUrlsFromConsoleMessage(input)
+    return stackUrls.length > 0 && stackUrls.every(isVercelToolbarUrl)
+  }
+
+  if (TOOLBAR_NETWORK_OR_POLICY_ERROR_RE.test(input)) {
+    const targetUrls = extractTargetUrlsFromConsoleMessage(input)
+    return targetUrls.length > 0 && targetUrls.every(isVercelToolbarUrl)
+  }
+
+  const hasToolbarOriginMarker =
+    /\bat\s+(?:[^\s()]+\s+\()?(?:https?:\/\/|\/)/i.test(input) ||
+    /\[vercel[- ]toolbar\]/i.test(input)
+  if (!hasToolbarOriginMarker) return false
+  if (/(?:\/_next\/|\/api\/|\/erp\b|odoo|supabase)/i.test(input)) return false
+  const urls = extractTargetUrlsFromConsoleMessage(input)
+  return urls.length > 0 && urls.every(isVercelToolbarUrl)
 }
 
 const ARABIC_INDIC_MAP: Record<string, string> = {
@@ -775,6 +1007,10 @@ export function buildGateSummary(input: {
   )
   const consoleErrorCount = input.pages.reduce((sum, p) => sum + p.consoleErrors.length, 0)
   const pageErrorCount = input.pages.reduce((sum, p) => sum + p.pageErrors.length, 0)
+  const ignoredToolbarNoiseCount = input.pages.reduce(
+    (sum, p) => sum + p.ignoredToolbarNoiseCount,
+    0,
+  )
 
   const bannedPassed = totalBannedHits === 0
   const httpAndConsolePassed =
@@ -801,6 +1037,7 @@ export function buildGateSummary(input: {
     expectedReceivables: input.expectedReceivables,
     expectedYtd: input.expectedYtd,
     ytdTolerancePct: input.ytdTolerancePct,
+    ignoredToolbarNoiseCount,
     conditions: {
       bannedStrings: {
         passed: bannedPassed,
@@ -814,6 +1051,7 @@ export function buildGateSummary(input: {
         httpErrorCount,
         consoleErrorCount,
         pageErrorCount,
+        ignoredToolbarNoiseCount,
       },
     },
     pages: input.pages,
@@ -852,6 +1090,9 @@ export function renderSummaryMarkdown(summary: GateSummary): string {
   lines.push(
     `- **Thresholds:** Receivables = \`${summary.expectedReceivables.toFixed(3)} KWD\`, 2026 YTD = \`${summary.expectedYtd.toLocaleString('en-US')} KWD\` (±${summary.ytdTolerancePct}%)`,
   )
+  lines.push(
+    `- **Ignored Vercel Toolbar Noise (\`ignoredToolbarNoiseCount\`):** \`${summary.ignoredToolbarNoiseCount}\``,
+  )
   if (summary.nonGetBlockedCount > 0) {
     lines.push(`- **Non-GET Requests Blocked After Login:** \`${summary.nonGetBlockedCount}\``)
   }
@@ -882,7 +1123,7 @@ export function renderSummaryMarkdown(summary: GateSummary): string {
     } |`,
   )
   lines.push(
-    `| d | No HTTP >= 400 and no console errors | ${summary.conditions.httpAndConsole.passed ? 'PASS' : 'FAIL'} | HTTP>=400: ${summary.conditions.httpAndConsole.httpErrorCount}, console errors: ${summary.conditions.httpAndConsole.consoleErrorCount}, page errors: ${summary.conditions.httpAndConsole.pageErrorCount} |`,
+    `| d | No HTTP >= 400 and no console errors | ${summary.conditions.httpAndConsole.passed ? 'PASS' : 'FAIL'} | HTTP>=400: ${summary.conditions.httpAndConsole.httpErrorCount}, console errors: ${summary.conditions.httpAndConsole.consoleErrorCount}, page errors: ${summary.conditions.httpAndConsole.pageErrorCount}, ignored toolbar noise: ${summary.ignoredToolbarNoiseCount} |`,
   )
   lines.push('')
   lines.push('## Per-Page Results')

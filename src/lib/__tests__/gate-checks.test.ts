@@ -21,6 +21,7 @@ import {
   extractExplicitKwdAmount,
   extractKwdNumbers,
   findBannedStrings,
+  isVercelToolbarNoise,
   normalizeNumericText,
   parseGateEnv,
   parseKwdNumber,
@@ -351,6 +352,7 @@ describe('gate environment parsing, secret redaction, selectors, and summary ren
       httpErrors: [],
       consoleErrors: [],
       pageErrors: [],
+      ignoredToolbarNoiseCount: 0,
       bannedHits: [],
       keyNumbers: { receivablesCard: 30310.675 },
       failures: [],
@@ -398,12 +400,14 @@ describe('gate environment parsing, secret redaction, selectors, and summary ren
     expect(summary.overall).toBe('PASS')
     expect(summary.exitCode).toBe(0)
     expect(summary.baseUrl).toBe('https://preview.example.com/')
+    expect(summary.ignoredToolbarNoiseCount).toBe(0)
 
     const md = renderSummaryMarkdown(summary)
     expect(md).toContain('# AetherBI Deployment Gate Summary — PASS')
     expect(md).toContain('| Page | Result | Key Numbers | Failure Reasons |')
     expect(md).toContain('erp-receivables-card-value')
     expect(md).toContain('Missing `data-testid` Notes')
+    expect(md).toContain('ignoredToolbarNoiseCount')
     expect(md).not.toContain('token=secret')
 
     // Failing page flips overall to FAIL and exitCode to 1
@@ -423,5 +427,293 @@ describe('gate environment parsing, secret redaction, selectors, and summary ren
     })
     expect(failSummary.overall).toBe('FAIL')
     expect(failSummary.exitCode).toBe(1)
+  })
+
+  it('reports ignoredToolbarNoiseCount across pages, passing on toolbar-only noise and failing on real app/API errors', () => {
+    const rec = evaluateReceivablesCheck({
+      erpCard: 30310.675,
+      erpLineUnderCard: 30310.675,
+      erpBadgeValue: 30310.675,
+      erpBadgePresent: true,
+      erpTieOutStatus: 'ties',
+      erpCreditsLine: -1351.372,
+      financeGlCard: 30310.675,
+      financeReceivablesTabCard: 30310.675,
+      financeCreditsCard: -1351.372,
+      receivablesCard: 30310.675,
+      receivablesCreditsCard: -1351.372,
+    })
+    const ytd = evaluateYtdCheck(1743500)
+
+    const erpPage: PageGateReport = {
+      path: '/erp',
+      finalPath: '/erp',
+      passed: true,
+      httpStatus: 200,
+      retriedOn5xx: false,
+      httpErrors: [],
+      consoleErrors: [],
+      pageErrors: [],
+      ignoredToolbarNoiseCount: 3,
+      bannedHits: [],
+      keyNumbers: { receivablesCard: 30310.675 },
+      failures: [],
+      screenshotFile: '01-erp.png',
+      textFile: '01-erp.txt',
+    }
+    const coresPage: PageGateReport = {
+      ...erpPage,
+      path: '/erp/cores',
+      finalPath: '/erp/cores',
+      ignoredToolbarNoiseCount: 4, // includes initial visit + YTD interaction noise
+      keyNumbers: { ytd2026Total: 1743500 },
+    }
+    const financePage: PageGateReport = {
+      ...erpPage,
+      path: '/erp/finance',
+      finalPath: '/erp/finance',
+      ignoredToolbarNoiseCount: 2, // includes initial visit + receivables tab interaction noise
+    }
+
+    const passWithToolbarNoise = buildGateSummary({
+      timestampIso: '2026-11-19T12:30:45.000Z',
+      baseUrl: 'https://preview.vercel.app',
+      shareUrlUsed: true,
+      outDir: './gate-out/20261119-123045',
+      expectedReceivables: 30310.675,
+      expectedYtd: 1743500,
+      ytdTolerancePct: 0.5,
+      pages: [erpPage, coresPage, financePage],
+      receivables: rec,
+      ytd2026: ytd,
+      missingTestIds: [],
+      nonGetBlockedCount: 2,
+    })
+
+    expect(passWithToolbarNoise.overall).toBe('PASS')
+    expect(passWithToolbarNoise.exitCode).toBe(0)
+    expect(passWithToolbarNoise.ignoredToolbarNoiseCount).toBe(9)
+    expect(passWithToolbarNoise.conditions.httpAndConsole.passed).toBe(true)
+    expect(passWithToolbarNoise.conditions.httpAndConsole.ignoredToolbarNoiseCount).toBe(9)
+
+    const passMd = renderSummaryMarkdown(passWithToolbarNoise)
+    expect(passMd).toContain('- **Ignored Vercel Toolbar Noise (`ignoredToolbarNoiseCount`):** `9`')
+    expect(passMd).toContain(
+      '| d | No HTTP >= 400 and no console errors | PASS | HTTP>=400: 0, console errors: 0, page errors: 0, ignored toolbar noise: 9 |',
+    )
+
+    // Real API HTTP >= 400 alongside toolbar noise MUST fail
+    const failOnRealHttpError = buildGateSummary({
+      timestampIso: '2026-11-19T12:30:45.000Z',
+      baseUrl: 'https://preview.vercel.app',
+      shareUrlUsed: true,
+      outDir: './gate-out/20261119-123045',
+      expectedReceivables: 30310.675,
+      expectedYtd: 1743500,
+      ytdTolerancePct: 0.5,
+      pages: [
+        erpPage,
+        {
+          ...financePage,
+          passed: false,
+          httpErrors: [
+            {
+              status: 500,
+              method: 'GET',
+              url: 'https://preview.vercel.app/api/erp/odoo-sync',
+              resourceType: 'fetch',
+            },
+          ],
+          failures: ['HTTP 500 (fetch) https://preview.vercel.app/api/erp/odoo-sync'],
+        },
+      ],
+      receivables: rec,
+      ytd2026: ytd,
+      missingTestIds: [],
+      nonGetBlockedCount: 0,
+    })
+    expect(failOnRealHttpError.overall).toBe('FAIL')
+    expect(failOnRealHttpError.exitCode).toBe(1)
+    expect(failOnRealHttpError.ignoredToolbarNoiseCount).toBe(5)
+    expect(failOnRealHttpError.conditions.httpAndConsole.passed).toBe(false)
+    expect(failOnRealHttpError.conditions.httpAndConsole.httpErrorCount).toBe(1)
+
+    // Real app console error alongside toolbar noise MUST fail
+    const failOnRealConsoleError = buildGateSummary({
+      timestampIso: '2026-11-19T12:30:45.000Z',
+      baseUrl: 'https://preview.vercel.app',
+      shareUrlUsed: true,
+      outDir: './gate-out/20261119-123045',
+      expectedReceivables: 30310.675,
+      expectedYtd: 1743500,
+      ytdTolerancePct: 0.5,
+      pages: [
+        {
+          ...erpPage,
+          passed: false,
+          consoleErrors: ["TypeError: Cannot read properties of undefined (reading 'receivables')"],
+          failures: ["Console error: TypeError: Cannot read properties of undefined (reading 'receivables')"],
+        },
+      ],
+      receivables: rec,
+      ytd2026: ytd,
+      missingTestIds: [],
+      nonGetBlockedCount: 0,
+    })
+    expect(failOnRealConsoleError.overall).toBe('FAIL')
+    expect(failOnRealConsoleError.exitCode).toBe(1)
+    expect(failOnRealConsoleError.ignoredToolbarNoiseCount).toBe(3)
+    expect(failOnRealConsoleError.conditions.httpAndConsole.passed).toBe(false)
+    expect(failOnRealConsoleError.conditions.httpAndConsole.consoleErrorCount).toBe(1)
+  })
+})
+
+describe('isVercelToolbarNoise strict allowlist', () => {
+  it('ignores Vercel preview toolbar, feedback, Pusher WebSocket, insights, and speed-insights URLs', () => {
+    expect(isVercelToolbarNoise('https://vercel.live/_next-live/feedback/feedback.js')).toBe(true)
+    expect(isVercelToolbarNoise('https://vercel.live/api/feedback/threads?slug=aether')).toBe(true)
+    expect(isVercelToolbarNoise('https://ws-us3.vercel.live/pusher')).toBe(true)
+    expect(isVercelToolbarNoise('wss://ws-us3.vercel.live/app/key123?protocol=7')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/insights/view')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/insights/script.js')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/insights')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/speed-insights/vitals')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/speed-insights/script.js')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/speed-insights')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/toolbar/script.js')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_vercel/toolbar')).toBe(true)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/vercel-toolbar.js')).toBe(true)
+    expect(isVercelToolbarNoise('https://assets.vercel.com/v1/vercel-toolbar.min.js')).toBe(true)
+  })
+
+  it('ignores console errors originating from vercel.live scripts or CORS/CSP/WebSocket errors targeting toolbar endpoints', () => {
+    // Console errors whose `sourceUrl` (`msg.location().url`) is on `vercel.live` or `/_vercel/*`
+    expect(
+      isVercelToolbarNoise(
+        'Uncaught Error: Feedback widget failed to initialize',
+        'https://vercel.live/_next-live/feedback/feedback.js',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        'Failed to load resource: the server responded with a status of 403 ()',
+        'https://vercel.live/_next-live/feedback/feedback.js',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        'Failed to load resource: net::ERR_BLOCKED_BY_CLIENT',
+        'https://preview.vercel.app/_vercel/insights/view',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        'Failed to load resource: net::ERR_BLOCKED_BY_CLIENT',
+        'https://preview.vercel.app/_vercel/speed-insights/vitals',
+      ),
+    ).toBe(true)
+
+    // CORS / CSP / WebSocket / network load errors targeting `vercel.live` even when `sourceUrl` is the preview document
+    expect(
+      isVercelToolbarNoise(
+        "Access to fetch at 'https://vercel.live/_next-live/feedback/feedback.js' from origin 'https://preview.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present.",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        "Refused to load the script 'https://vercel.live/_next-live/feedback/feedback.js' because it violates the following Content Security Policy directive: \"script-src 'self' https://preview.vercel.app\".",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        "Refused to connect to 'wss://ws-us3.vercel.live/pusher' because it violates the following Content Security Policy directive: \"connect-src 'self' https://*.supabase.co\".",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        "WebSocket connection to 'wss://ws-us3.vercel.live/pusher?protocol=7' failed: Error during WebSocket handshake: Unexpected response code: 403",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(true)
+    expect(
+      isVercelToolbarNoise(
+        'POST https://preview.vercel.app/_vercel/insights/view net::ERR_BLOCKED_BY_CLIENT',
+        'https://preview.vercel.app/_next/static/chunks/main.js',
+      ),
+    ).toBe(true)
+  })
+
+  it('strictly rejects application routes, /api/*, /_next/*, query-param spoofing, Odoo, Supabase, and app JS errors', () => {
+    // Application & Next.js & API URLs on `*.vercel.app`
+    expect(isVercelToolbarNoise('https://preview.vercel.app/erp')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/erp/finance')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/api/erp/odoo-sync')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_next/static/chunks/main.js')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/_next/static/chunks/vercel-toolbar.js')).toBe(
+      false,
+    )
+
+    // Query-parameter, hash, userinfo, lookalike-domain, and path-traversal spoofing
+    expect(isVercelToolbarNoise('https://preview.vercel.app/api/foo?next=https://vercel.live')).toBe(
+      false,
+    )
+    expect(isVercelToolbarNoise('https://preview.vercel.app/api/x?ref=vercel.live')).toBe(false)
+    expect(
+      isVercelToolbarNoise('https://preview.vercel.app/api/x?script=/_vercel/toolbar/script.js'),
+    ).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/erp#https://vercel.live')).toBe(false)
+    expect(isVercelToolbarNoise('https://vercel.live@preview.vercel.app/erp')).toBe(false)
+    expect(isVercelToolbarNoise('https://evilvercel.live/feedback.js')).toBe(false)
+    expect(isVercelToolbarNoise('https://vercel.live.evil.example/feedback.js')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/api/../_vercel/insights/view')).toBe(
+      false,
+    )
+
+    // Odoo JSON-RPC & XML-RPC URLs
+    expect(isVercelToolbarNoise('https://venturefoods.odoo.com/jsonrpc')).toBe(false)
+    expect(isVercelToolbarNoise('https://venturefoods.odoo.com/web/dataset/call_kw')).toBe(false)
+    expect(isVercelToolbarNoise('https://preview.vercel.app/jsonrpc')).toBe(false)
+
+    // Supabase URLs
+    expect(isVercelToolbarNoise('https://abcdefghijklm.supabase.co/rest/v1/profiles')).toBe(false)
+    expect(isVercelToolbarNoise('https://abcdefghijklm.supabase.co/auth/v1/token')).toBe(false)
+
+    // Real application console errors (`TypeError`, API 500s, CORS/CSP on real endpoints)
+    expect(
+      isVercelToolbarNoise(
+        "TypeError: Cannot read properties of undefined (reading 'map')",
+        'https://preview.vercel.app/_next/static/chunks/main.js',
+      ),
+    ).toBe(false)
+    expect(
+      isVercelToolbarNoise("TypeError: Cannot read properties of undefined (reading 'total')"),
+    ).toBe(false)
+    expect(
+      isVercelToolbarNoise(
+        'TypeError: Failed while processing redirect https://vercel.live',
+        'https://preview.vercel.app/_next/static/chunks/main.js',
+      ),
+    ).toBe(false)
+    expect(
+      isVercelToolbarNoise(
+        'Failed to load resource: the server responded with a status of 500 ()',
+        'https://preview.vercel.app/api/erp/odoo-sync',
+      ),
+    ).toBe(false)
+    expect(
+      isVercelToolbarNoise(
+        "Access to fetch at 'https://preview.vercel.app/api/erp/odoo-sync?ref=vercel.live' from origin 'https://preview.vercel.app' has been blocked by CORS policy",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(false)
+    expect(
+      isVercelToolbarNoise(
+        "Refused to connect to 'https://abcdefghijklm.supabase.co/rest/v1/kpi' because it violates the following Content Security Policy directive: \"connect-src 'self' https://vercel.live\".",
+        'https://preview.vercel.app/erp',
+      ),
+    ).toBe(false)
   })
 })
