@@ -3,8 +3,10 @@ import {
   JAHRA_POS_CONFIG_IDS,
   KITCHEN_SOURCE_POS_CONFIG_IDS,
   branchIdForStockLocation,
+  classifyWarehouseMove,
   isCentralKitchenStockLocation,
   isExcludedStockLocation,
+  kitchenTransfersToCount,
   stockRootsFromRegisterChain,
 } from '@/lib/odoo/stock-location-ids'
 import { LAST_KNOWN_GOOD_MAX_AGE_MS, lastKnownGoodIsFresh } from '@/lib/odoo-live-connector'
@@ -59,6 +61,46 @@ describe('stock locations from the register warehouse chain', () => {
     expect(isCentralKitchenStockLocation(260, '258/259/260/', roots)).toBe(true)
     expect(branchIdForStockLocation(260, '258/259/260/', roots)).toBeNull()
     expect(branchIdForStockLocation(41, null, roots)).toBeNull()
+  })
+})
+
+describe('kitchen transfers through transit', () => {
+  const ck = { role: 'ck' as const, branchId: null, excluded: false, locationId: 259 }
+  const branch = { role: 'branch' as const, branchId: 'avenues', excluded: false, locationId: 400 }
+  const transit = { role: 'transit' as const, branchId: null, excluded: false, locationId: 900 }
+  const jahra = { role: 'branch' as const, branchId: null, excluded: true, locationId: 92 }
+  const supplier = { role: 'supplier' as const, branchId: null, excluded: false, locationId: 1 }
+
+  it('counts the arrival leg once when the kitchen also fed that transit location', () => {
+    const direct = classifyWarehouseMove(ck, branch)
+    const outbound = classifyWarehouseMove(ck, transit)
+    const inbound = classifyWarehouseMove(transit, branch)
+    const moves = [
+      { ...direct, qty: 4 },
+      { ...outbound, qty: 10 },
+      { ...inbound, qty: 10 },
+    ]
+    const counted = kitchenTransfersToCount(moves)
+    expect(counted).toHaveLength(2)
+    expect(counted.reduce((sum, row) => sum + row.qty, 0)).toBe(14)
+    expect(counted.some((row) => row.kind === 'transit_out')).toBe(false)
+    expect(counted.find((row) => row.kind === 'transit_in')?.branchId).toBe('avenues')
+  })
+
+  it('does not count a transit arrival that the kitchen did not feed', () => {
+    const inbound = classifyWarehouseMove(transit, branch)
+    expect(kitchenTransfersToCount([{ ...inbound, qty: 6 }])).toHaveLength(0)
+  })
+
+  it('drops Jahra before a supplier receipt and from every total', () => {
+    expect(classifyWarehouseMove(supplier, jahra).kind).toBe('excluded')
+    expect(classifyWarehouseMove(ck, jahra).kind).toBe('excluded')
+    expect(classifyWarehouseMove(jahra, branch).kind).toBe('excluded')
+    const kept = [
+      { kind: 'excluded' as const, transitLocationId: null, qty: 99 },
+      { kind: 'transfer' as const, transitLocationId: null, qty: 3 },
+    ]
+    expect(kitchenTransfersToCount(kept).reduce((sum, row) => sum + row.qty, 0)).toBe(3)
   })
 })
 

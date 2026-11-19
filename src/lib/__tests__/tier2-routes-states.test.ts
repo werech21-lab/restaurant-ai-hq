@@ -893,7 +893,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(wh.totals.posConsumptionKwd).toBe(7.4)
       expect(wh.totals.scrapPctOfConsumption).toBe(0)
       // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999 + 7 + 15)
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999 + 7)
       expect(JSON.stringify(wh)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {

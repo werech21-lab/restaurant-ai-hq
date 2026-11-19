@@ -131,6 +131,72 @@ export function isCentralKitchenStockLocation(
   return locationPathIds(locationId, parentPath).some((id) => kitchen.has(id))
 }
 
+export type WarehouseMoveKind =
+  | 'excluded'
+  | 'inbound'
+  | 'transfer'
+  | 'transit_out'
+  | 'transit_in'
+  | 'consumption'
+  | 'scrap_move'
+  | 'internal_other'
+
+export interface WarehouseEndpoint {
+  role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'transit' | 'other'
+  branchId: string | null
+  excluded: boolean
+  locationId: number | null
+}
+
+/** Exclusion is decided before a supplier receipt, so Jahra stock never enters a total. */
+export function classifyWarehouseMove(
+  src: WarehouseEndpoint | undefined,
+  dst: WarehouseEndpoint | undefined,
+): { kind: WarehouseMoveKind; branchId: string | null; transitLocationId: number | null } {
+  if (src?.excluded || dst?.excluded) return { kind: 'excluded', branchId: null, transitLocationId: null }
+  if (src?.role === 'supplier' && dst && dst.role !== 'supplier') {
+    return {
+      kind: 'inbound',
+      branchId: dst.role === 'branch' ? dst.branchId : null,
+      transitLocationId: null,
+    }
+  }
+  if (src?.role === 'ck' && dst?.role === 'branch') {
+    return { kind: 'transfer', branchId: dst.branchId, transitLocationId: null }
+  }
+  if (src?.role === 'ck' && (dst?.role === 'transit' || dst?.role === 'other')) {
+    return { kind: 'transit_out', branchId: null, transitLocationId: dst.locationId }
+  }
+  if ((src?.role === 'transit' || src?.role === 'other') && dst?.role === 'branch') {
+    return { kind: 'transit_in', branchId: dst.branchId, transitLocationId: src.locationId }
+  }
+  if ((src?.role === 'branch' || src?.role === 'ck') && dst?.role === 'customer') {
+    return { kind: 'consumption', branchId: src.branchId, transitLocationId: null }
+  }
+  if (dst?.role === 'scrap') {
+    return { kind: 'scrap_move', branchId: src?.branchId ?? null, transitLocationId: null }
+  }
+  return { kind: 'internal_other', branchId: dst?.branchId ?? src?.branchId ?? null, transitLocationId: null }
+}
+
+/**
+ * Direct kitchen-to-branch moves count once. A transit pair counts only the leg
+ * that arrives at the branch, and only when the kitchen also sent stock into that
+ * transit location. The outbound leg is not added again.
+ */
+export function kitchenTransfersToCount<T extends { kind: WarehouseMoveKind; transitLocationId: number | null }>(
+  moves: readonly T[],
+): T[] {
+  const fedByKitchen = new Set<number>()
+  for (const move of moves) {
+    if (move.kind === 'transit_out' && move.transitLocationId != null) fedByKitchen.add(move.transitLocationId)
+  }
+  return moves.filter((move) => {
+    if (move.kind === 'transfer') return true
+    return move.kind === 'transit_in' && move.transitLocationId != null && fedByKitchen.has(move.transitLocationId)
+  })
+}
+
 export function isExcludedStockLocation(
   locationId: number,
   parentPath?: string | null,

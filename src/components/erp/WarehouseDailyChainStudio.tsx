@@ -293,12 +293,6 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
   // A KWD figure is shown only when Odoo holds the cost behind it; otherwise «غير متاح» (never 0.000).
   const val = snap.valuation
   const kv = (n: number, ok: boolean): number | null => (ok ? n : null)
-  /** A branch with no recorded movement shows a quiet «—» (none), not a row of 0.000 values. */
-  const noneCell = (
-    <span data-no-movement="true" className="text-slate-400 dark:text-slate-500" title={isAr ? 'لا حركة مسجلة' : 'No recorded movement'}>
-      —
-    </span>
-  )
 
   const fmtKwd = useCallback(
     (v: number | null | undefined) => formatKwd(v, { locale: fmtLocale }),
@@ -662,7 +656,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                     <th className="px-2 py-2.5 text-end">{T('Transfers (qty)', 'التحويلات المستلمة')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Moves Count', 'عدد الحركات')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Dispensed (qty)', 'الكمية المنصرفة')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Scrap (KWD)', 'التالف المسجّل')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Scrap (qty)', 'كمية التالف')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Current On-Hand', 'الرصيد الحالي')}</th>
                     <th className="px-2 py-2.5 text-end">{T('POS Sales', 'مبيعات الفرع')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Status', 'الحالة')}</th>
@@ -674,23 +668,29 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                       <td className="px-2 py-2.5 font-bold text-slate-900 dark:text-white">
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
-                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums" dir="ltr">
-                        {fmtInt(b.dispatchedKg)}
-                      </td>
-                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300 tabular-nums" dir="ltr">
-                        {fmtInt(b.transferMoves)}
-                      </td>
-                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums" dir="ltr">
-                        {fmtInt(b.bomTheoreticalKg)}
-                      </td>
-                      <td className={`px-2 py-2.5 text-end font-semibold ${scrapTone(kv(b.abnormalShrinkageKwd, val.scrapValued))}`}>
-                        {b.health === 'no-movement' && b.abnormalShrinkageKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.abnormalShrinkageKwd, val.scrapValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.abnormalShrinkageKwd, val.scrapValued))}
-                          />
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        {b.dispatchedKg > 0 || b.transferMoves > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.dispatchedKg)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
                         )}
+                      </td>
+                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300 tabular-nums">
+                        {b.transferMoves > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.transferMoves)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        {b.bomTheoreticalKg > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.bomTheoreticalKg)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        <bdi dir="ltr">{fmtInt(b.abnormalShrinkageKg)}</bdi>
                       </td>
                       <td className="px-2 py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
                         <span className="tabular-nums">

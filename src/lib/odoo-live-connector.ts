@@ -75,7 +75,9 @@ import {
   JAHRA_POS_CONFIG_IDS,
   KITCHEN_SOURCE_POS_CONFIG_IDS,
   STOCK_LOCATION_MAP_TTL_MS,
+  classifyWarehouseMove,
   emptyStockRoots,
+  kitchenTransfersToCount,
   stockRootsFromRegisterChain,
   type RegisterPickingLink,
   type ResolvedStockRoots,
@@ -5707,7 +5709,7 @@ function resolveStockLocationRole(
 ): {
   excluded: boolean
   usage: string
-  role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'other'
+  role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'transit' | 'other'
   branchId: (typeof ACTIVE_BRANCH_IDS)[number] | null
 } {
   if (usage === 'supplier') {
@@ -5718,6 +5720,12 @@ function resolveStockLocationRole(
   }
   if (usage === 'inventory') {
     return { excluded: false, usage, role: 'scrap', branchId: null }
+  }
+  if (usage === 'transit') {
+    if (isExcludedStockLocation(locationId, parentPath, roots)) {
+      return { excluded: true, usage, role: 'transit', branchId: null }
+    }
+    return { excluded: false, usage, role: 'transit', branchId: null }
   }
   if (usage === 'internal' || usage === 'view') {
     if (isExcludedStockLocation(locationId, parentPath, roots)) {
@@ -5849,7 +5857,7 @@ export async function fetchLiveOdooWarehouseChain(
           'stock.location',
           'search_read',
           // View rows are included so a move into a child of the branch (child_of / parent_path) stays on that branch.
-          [[['usage', 'in', ['internal', 'view', 'supplier', 'customer', 'inventory']]]],
+          [[['usage', 'in', ['internal', 'view', 'transit', 'supplier', 'customer', 'inventory']]]],
           {
             fields: ['id', 'name', 'complete_name', 'usage', 'parent_path'],
             context: { active_test: false },
@@ -6254,6 +6262,7 @@ export async function fetchLiveOdooWarehouseChain(
       const locId = m2oId(q.location_id)
       if (pid === null || locId === null) continue
       const loc = locationMeta.get(locId)
+      if (loc?.excluded) continue
       const pRow = ensureProdRow(pid, m2oName(q.product_id) ?? '')
       if (!pRow) continue
 
@@ -6276,64 +6285,70 @@ export async function fetchLiveOdooWarehouseChain(
       }
     }
 
-    const classifyMoveFlow = (srcLocId: number | null, dstLocId: number | null) => {
-      const src = srcLocId !== null ? locationMeta.get(srcLocId) : undefined
-      const dst = dstLocId !== null ? locationMeta.get(dstLocId) : undefined
-      if (src?.role === 'supplier' && dst && dst.role !== 'supplier') {
-        const branchId = dst.role === 'branch' && !dst.excluded ? dst.branchId : null
-        return { kind: 'inbound' as const, branchId }
+    const endpoint = (locationId: number | null) => {
+      if (locationId === null) return undefined
+      const loc = locationMeta.get(locationId)
+      if (!loc) return undefined
+      return {
+        role: loc.role,
+        branchId: loc.branchId,
+        excluded: loc.excluded,
+        locationId,
       }
-      if (src?.excluded || dst?.excluded) return { kind: 'internal_other' as const, branchId: null }
-      if (src?.role === 'ck' && dst?.role === 'branch') {
-        return { kind: 'transfer' as const, branchId: dst.branchId }
-      }
-      if ((src?.role === 'branch' || src?.role === 'ck') && dst?.role === 'customer') {
-        return { kind: 'consumption' as const, branchId: src.branchId }
-      }
-      if (dst?.role === 'scrap') {
-        return { kind: 'scrap_move' as const, branchId: src?.branchId ?? null }
-      }
-      return { kind: 'internal_other' as const, branchId: dst?.branchId ?? src?.branchId ?? null }
     }
+    const classifyMoveFlow = (srcLocId: number | null, dstLocId: number | null) =>
+      classifyWarehouseMove(endpoint(srcLocId), endpoint(dstLocId))
 
     let inboundSupplierKwd = 0
     let ckToBranchTransferKwd = 0
     let posConsumptionKwd = 0
     let doneMovesCount = 0
 
+    const productMoves: {
+      flow: ReturnType<typeof classifyMoveFlow>
+      pRow: NonNullable<ReturnType<typeof ensureProdRow>>
+      qty: number
+      valKwd: number
+      count: number
+    }[] = []
     for (const m of moveByProductGroups) {
       const pid = m2oId(m.product_id)
       const srcId = m2oId(m.location_id)
       const dstId = m2oId(m.location_dest_id)
       if (pid === null) continue
       const flow = classifyMoveFlow(srcId, dstId)
+      if (flow.kind === 'excluded') continue
       const pRow = ensureProdRow(pid, m2oName(m.product_id) ?? '')
       if (!pRow) continue
 
       const rawQty = Number(moveQtyField === 'quantity' ? m.quantity : m.product_uom_qty) || 0
       const qty = Math.max(0, rawQty)
       const valKwd = qty * pRow.unitCostKwd
-      doneMovesCount += Math.max(0, Number(m.__count) || 0)
-      if (flow.kind === 'internal_other') {
-        // Branch-to-branch and other internal moves are not sales and not receivables.
+      const count = Math.max(0, Number(m.__count) || 0)
+      doneMovesCount += count
+      productMoves.push({ flow, pRow, qty, valKwd, count })
+    }
+    const countedProductTransfers = new Set(kitchenTransfersToCount(productMoves.map((row) => row.flow)))
+    for (const row of productMoves) {
+      const countedTransfer = countedProductTransfers.has(row.flow)
+      if (row.flow.kind === 'internal_other' || row.flow.kind === 'transit_out' || (row.flow.kind === 'transit_in' && !countedTransfer)) {
         continue
       }
-      if (flow.kind === 'inbound' || flow.kind === 'transfer' || flow.kind === 'consumption') {
-        movesCoverage.add(qty, pRow.costKnown === true)
+      if (row.flow.kind === 'inbound' || countedTransfer || row.flow.kind === 'consumption') {
+        movesCoverage.add(row.qty, row.pRow.costKnown === true)
       }
-
-      if (flow.kind === 'inbound') {
-        inboundSupplierKwd += valKwd
-        pRow.inboundQty += qty
-        pRow.inboundValueKwd += valKwd
-      } else if (flow.kind === 'transfer') {
-        ckToBranchTransferKwd += valKwd
-        pRow.transferQty += qty
-        pRow.transferValueKwd += valKwd
-      } else if (flow.kind === 'consumption') {
-        posConsumptionKwd += valKwd
-        pRow.consumedQty += qty
-        pRow.consumedValueKwd += valKwd
+      if (row.flow.kind === 'inbound') {
+        inboundSupplierKwd += row.valKwd
+        row.pRow.inboundQty += row.qty
+        row.pRow.inboundValueKwd += row.valKwd
+      } else if (countedTransfer) {
+        ckToBranchTransferKwd += row.valKwd
+        row.pRow.transferQty += row.qty
+        row.pRow.transferValueKwd += row.valKwd
+      } else if (row.flow.kind === 'consumption') {
+        posConsumptionKwd += row.valKwd
+        row.pRow.consumedQty += row.qty
+        row.pRow.consumedValueKwd += row.valKwd
       }
     }
 
@@ -6371,6 +6386,13 @@ export async function fetchLiveOdooWarehouseChain(
       return d
     }
 
+    const dayMoves: {
+      flow: ReturnType<typeof classifyMoveFlow>
+      day: string
+      qty: number
+      valKwd: number
+      count: number
+    }[] = []
     for (const md of moveByDayGroups) {
       const pid = m2oId(md.product_id)
       const srcId = m2oId(md.location_id)
@@ -6379,6 +6401,7 @@ export async function fetchLiveOdooWarehouseChain(
       const conv = rawDayUtc ? odooUtcToKuwaitIso(rawDayUtc) : null
       if (pid === null || !conv) continue
       const flow = classifyMoveFlow(srcId, dstId)
+      if (flow.kind === 'excluded') continue
       const pMeta = prodInfoById.get(pid)
       if (pMeta?.excluded) continue
 
@@ -6386,28 +6409,37 @@ export async function fetchLiveOdooWarehouseChain(
         0,
         Number(moveQtyField === 'quantity' ? md.quantity : md.product_uom_qty) || 0,
       )
-      const valKwd = qty * (pMeta?.unitCostKwd ?? 0)
-      const dRow = ensureDayRow(conv.kuwaitDate)
-      dRow.movesCount += Math.max(0, Number(md.__count) || 0)
-
-      if (flow.kind === 'inbound') {
-        dRow.inboundSupplierKwd += valKwd
-        dRow.inboundSupplierQty += qty
-      } else if (flow.kind === 'transfer') {
-        dRow.ckToBranchTransferKwd += valKwd
-        dRow.ckToBranchTransferQty += qty
-        const branchMove = flow.branchId ? dRow.byBranch[flow.branchId] : undefined
+      dayMoves.push({
+        flow,
+        day: conv.kuwaitDate,
+        qty,
+        valKwd: qty * (pMeta?.unitCostKwd ?? 0),
+        count: Math.max(0, Number(md.__count) || (qty > 0 ? 1 : 0)),
+      })
+    }
+    const countedDayTransfers = new Set(kitchenTransfersToCount(dayMoves.map((row) => row.flow)))
+    for (const row of dayMoves) {
+      const dRow = ensureDayRow(row.day)
+      dRow.movesCount += row.count
+      const countedTransfer = countedDayTransfers.has(row.flow)
+      if (row.flow.kind === 'inbound') {
+        dRow.inboundSupplierKwd += row.valKwd
+        dRow.inboundSupplierQty += row.qty
+      } else if (countedTransfer) {
+        dRow.ckToBranchTransferKwd += row.valKwd
+        dRow.ckToBranchTransferQty += row.qty
+        const branchMove = row.flow.branchId ? dRow.byBranch[row.flow.branchId] : undefined
         if (branchMove) {
-          branchMove.receivedFromCkKwd += valKwd
-          branchMove.receivedFromCkQty += qty
-          branchMove.receivedFromCkMoves = (branchMove.receivedFromCkMoves ?? 0) + Math.max(0, Number(md.__count) || (qty > 0 ? 1 : 0))
+          branchMove.receivedFromCkKwd += row.valKwd
+          branchMove.receivedFromCkQty += row.qty
+          branchMove.receivedFromCkMoves = (branchMove.receivedFromCkMoves ?? 0) + row.count
         }
-      } else if (flow.kind === 'consumption') {
-        dRow.posConsumptionKwd += valKwd
-        dRow.posConsumptionQty += qty
-        if (flow.branchId && dRow.byBranch[flow.branchId]) {
-          dRow.byBranch[flow.branchId].consumedKwd += valKwd
-          dRow.byBranch[flow.branchId].consumedQty += qty
+      } else if (row.flow.kind === 'consumption') {
+        dRow.posConsumptionKwd += row.valKwd
+        dRow.posConsumptionQty += row.qty
+        if (row.flow.branchId && dRow.byBranch[row.flow.branchId]) {
+          dRow.byBranch[row.flow.branchId].consumedKwd += row.valKwd
+          dRow.byBranch[row.flow.branchId].consumedQty += row.qty
         }
       }
     }
