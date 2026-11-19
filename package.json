@@ -9,6 +9,7 @@
     "lint": "eslint src scripts --ext .ts,.tsx,.js,.mjs",
     "test": "vitest run",
     "e2e": "playwright test",
+    "gate": "tsx scripts/gate/run-gate.ts",
     "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
     "db:status:staging": "node --env-file=.env.staging scripts/migrate.mjs --status",
     "db:push": "prisma db push",
