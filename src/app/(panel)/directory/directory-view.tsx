@@ -506,9 +506,7 @@ function DirectoryViewBody({
                           {warehouse.managerName ? ` · ${warehouse.managerName}` : ''}
                         </Link>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[var(--ds-text-muted)]">
-                          <span>{label('غير مربوط بعد', 'Not linked yet')}</span>
-                        </span>
+                        <UnavailableCell tooltip={unavailableTooltip} />
                       )}
                     </td>
                   </tr>

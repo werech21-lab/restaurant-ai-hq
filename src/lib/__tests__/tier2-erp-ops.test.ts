@@ -53,7 +53,6 @@ import type { ComplianceBreachItem } from '@/lib/governance-compliance'
 import { LanguageProvider, type MessageKey } from '@/lib/i18n'
 import { AlertsCenterV2 } from '@/components/aether/AlertsCenterV2'
 import { GovernanceProvider } from '@/components/erp/GovernanceBellDrawer'
-import { UnlinkedSourceNotice } from '@/components/erp/UnlinkedSourceNotice'
 import GovernanceDesk from '@/modules/governance/ui/GovernanceDesk'
 import HrWorkspace from '@/modules/hr/ui/HrWorkspace'
 import { InventoryOverview } from '@/modules/inventory/ui/InventoryOverview'
@@ -75,7 +74,6 @@ const OWNED_ROUTE_PAGES = [
 ] as const
 
 const OWNED_UI_FILES = [
-  'src/components/erp/UnlinkedSourceNotice.tsx',
   'src/components/aether/AlertsCenterV2.tsx',
   'src/modules/governance/ui/GovernanceDesk.tsx',
   'src/modules/hr/ui/HrWorkspace.tsx',
@@ -209,39 +207,6 @@ describe('Tier 2 ERP Operations — Static & Layout Guardrails', () => {
 })
 
 describe('Tier 2 Shared Flagged Components — AR/EN Parity, Null Honesty & States', () => {
-  it('renders UnlinkedSourceNotice cleanly in AR and EN without Arabic pill leaks in EN', () => {
-    const arHtml = renderToStaticMarkup(
-      React.createElement(UnlinkedSourceNotice, {
-        isAr: true,
-        titleAr: 'عنوان الاختبار',
-        requiredSourceAr: 'أودو',
-      }),
-    )
-    expect(arHtml).toContain('data-unlinked-source="true"')
-    expect(arHtml).toContain('غير مربوط بمصدر')
-    expect(arHtml).toContain('dir="rtl"')
-
-    const enHtml = renderToStaticMarkup(
-      React.createElement(UnlinkedSourceNotice, {
-        isAr: false,
-        titleEn: 'غير مربوط بمصدر — Contracts Registry',
-        requiredSourceEn: 'Odoo Documents',
-      }),
-    )
-    expect(enHtml).toContain('data-unlinked-source="true"')
-    expect(enHtml).toContain('Unlinked from Source')
-    expect(enHtml).toContain('Unlinked from Source — Contracts Registry')
-    expect(enHtml).not.toContain('غير مربوط بمصدر')
-    expect(enHtml).toContain('dir="ltr"')
-
-    const compactEnViaContext = renderWithHosts(
-      'en',
-      React.createElement(UnlinkedSourceNotice, { compact: true, reasonEn: 'Awaiting telemetry' }),
-    )
-    expect(compactEnViaContext).toContain('Unlinked from Source')
-    expect(compactEnViaContext).not.toContain('غير مربوط بمصدر')
-  })
-
   it('renders AlertsCenterV2 across loading, error, unlinked, empty, and ready states with 3-decimal KWD and Asia/Kuwait timestamps', () => {
     const loadingHtml = renderWithHosts(
       'en',

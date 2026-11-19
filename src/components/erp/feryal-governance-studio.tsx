@@ -1755,8 +1755,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 title={
                   !workspace.odooConnected
                     ? isAr
-                      ? 'مصدر Odoo غير متصل حالياً'
-                      : 'Odoo source is not connected'
+                      ? 'الاتصال المباشر مع Odoo غير متاح حالياً'
+                      : 'Odoo live connection is unavailable'
                     : isAr
                       ? 'لا توجد ملاحظات يومية متاحة لهذه الشريحة'
                       : 'No daily notes available for this slice'

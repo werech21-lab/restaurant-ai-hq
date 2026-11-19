@@ -3,7 +3,7 @@
  *
  * All static invented employee records, hardcoded salaries, and static leave balances
  * (`24.71`, `166`, etc.) have been purged. Real workforce figures must be fetched
- * from Odoo (`hr.employee`) or database records; unlinked views show `UnlinkedSourceNotice`.
+ * from Odoo (`hr.employee`) or database records. A view with no workforce source is omitted.
  */
 
 export type VentureEmployee = {

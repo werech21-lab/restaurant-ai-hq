@@ -116,7 +116,6 @@ const MANUAL: Record<string, string> = {
   'روابط الدفع': 'Payment links',
   مربوط: 'Linked',
   'دليل فقط': 'Directory only',
-  'غير مربوط بعد': 'Not linked yet',
   'رفع المجلد الذكي': 'Smart folder upload',
   'رادار الإقامات وكروت البلدية': 'Residency & Health Card Radar',
   'محرك الأتمتة': 'Automation engine',
