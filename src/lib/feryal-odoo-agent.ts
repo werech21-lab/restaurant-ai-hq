@@ -27,8 +27,6 @@ import type {
 import type { OdooReceivableClearingSummary } from '@/lib/odoo/live-sync-core'
 import {
   PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
-  RECEIVABLES_PENDING_DETAIL,
-  RECEIVABLES_PENDING_STATUS,
 } from '@/lib/aether/receivables-status'
 import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { appendOdooNameExclusion } from '@/lib/odoo/excluded-entities'
@@ -1360,15 +1358,15 @@ async function runAccountMoveLinesTool(params: {
   const allowedEntityNames: string[] = []
 
   if (asksReceivables && receivables && receivables.readable && !PER_CUSTOMER_DUE_DATE_AGING_VERIFIED) {
-    // Phase 5 · Item 2: never quote a signed net / ledger balance as overdue until per-customer
-    // due-date aging is verified. Report the neutral status plus the factual open-line count only.
+    const quoted = typeof receivables.platformNetKwd === 'number' ? receivables.platformNetKwd : receivables.openReceivableKwd
+    const openRec1 = round1(quoted)
     const openLines = Math.round(receivables.openLinesCount)
-    toolNumbers.push(openLines)
+    toolNumbers.push(quoted, openRec1, openLines)
     const reply = [
-      `• الرقم: الذمم المدينة — ${RECEIVABLES_PENDING_STATUS.ar}؛ يوجد ${formatIntCount(openLines)} قيد ذمم غير مسوّى في account.move.line.`,
-      `• السبب من البيانات: ${RECEIVABLES_PENDING_DETAIL.ar}`,
-      `• الإجراء المحدد: يستكمل قسم المحاسبة مطابقة تحصيلات المنصات والعملاء مع القيود المفتوحة وبناء أعمار الذمم لكل عميل.`,
-      `• الأثر المتوقع (تقدير): لا يوجد تقدير — لا تُعرض مبالغ متأخرة قبل اكتمال المطابقة.`,
+      `• الرقم: الرصيد المتبقي المفتوح ${formatKwd1(openRec1)} د.ك على ${formatIntCount(openLines)} قيد غير مسوّى في account.move.line. هذا رصيد متبقٍ وليس تصنيف استحقاق.`,
+      `• السبب من البيانات: مجموع amount_residual للقيود المرحلة غير المسوّاة.`,
+      `• الإجراء المحدد: تبقى مطابقة تاريخ الاستحقاق لكل عميل خارج هذا الرقم.`,
+      `• الأثر المتوقع (تقدير): لا يوجد تقدير.`,
     ].join('\n')
     return {
       hasData: true,
@@ -1380,7 +1378,8 @@ async function runAccountMoveLinesTool(params: {
       structuredFacts: {
         model: 'account.move.line',
         period: { from: period.from, to: period.to },
-        receivablesStatus: 'pending-reconciliation',
+        receivablesStatus: 'residual-shown',
+        openReceivableKwd: openRec1,
         openLinesCount: openLines,
       },
     }

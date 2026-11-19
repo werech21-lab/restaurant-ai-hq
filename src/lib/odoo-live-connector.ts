@@ -21,8 +21,11 @@ import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
 import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
+  buildReceivablePartnerRows,
   channelOfPaymentMethod,
   computeOdooFreshnessStatus,
+  isPosClearingAccount,
+  receivablesCustomerSplit,
   normalizeOdooDateOrderToIso,
   parseBucketKey,
   periodWindowForBucket,
@@ -94,6 +97,8 @@ if (typeof window !== 'undefined') {
 
 export const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
 export const ODOO_RPC_TIMEOUT_MS = 8_000
+/** stock.quant / stock.move read_group only. Other RPC calls stay on the 8s cap. */
+export const STOCK_READ_GROUP_TIMEOUT_MS = 25_000
 export const AUTH_UID_TTL_MS = 15 * 60_000
 export const LIVE_SNAPSHOT_TTL_MS = 60_000
 export const MANUAL_SYNC_COOLDOWN_MS = 30_000
@@ -448,7 +453,10 @@ export interface OdooLiveWarehouseChainPayload {
   connected: boolean
   sourceMode: 'odoo17-live' | 'disconnected'
   noData: boolean
+  /** Set when the query failed. Exceptions are never reported as an empty period. */
+  fetchStatus?: 'ok' | 'timeout' | 'error' | 'disconnected'
   messageAr?: string
+  messageEn?: string
   odooCompanyId: number | null
   lastSyncAt: string | null
   isStale24h: boolean
@@ -730,11 +738,12 @@ async function rawOdooJsonRpc<T = unknown>(
   method: string,
   args: unknown[],
   timeoutMs = ODOO_RPC_TIMEOUT_MS,
+  timeoutCapMs = ODOO_RPC_TIMEOUT_MS,
 ): Promise<T> {
   assertServerRuntime()
   const safeBaseUrl = normalizeOdooBaseUrl(cfg.url)
   const effectiveTimeoutMs = Math.min(
-    ODOO_RPC_TIMEOUT_MS,
+    timeoutCapMs,
     Math.max(1_000, timeoutMs || ODOO_RPC_TIMEOUT_MS),
   )
   const controller = new AbortController()
@@ -844,7 +853,7 @@ export async function executeOdooKw<T = unknown>(
   method: string,
   args: unknown[] = [],
   kwargs: Record<string, unknown> = {},
-  options?: { timeoutMs?: number },
+  options?: { timeoutMs?: number; timeoutCapMs?: number },
 ): Promise<T> {
   const cfg = readServerOdooConfig()
   if (!cfg) {
@@ -854,8 +863,9 @@ export async function executeOdooKw<T = unknown>(
     )
   }
 
-  const timeoutMs = Math.min(ODOO_RPC_TIMEOUT_MS, options?.timeoutMs ?? ODOO_RPC_TIMEOUT_MS)
-  let uid = await authenticateOdoo({ timeoutMs })
+  const cap = options?.timeoutCapMs ?? ODOO_RPC_TIMEOUT_MS
+  const timeoutMs = Math.min(cap, Math.max(1_000, options?.timeoutMs ?? ODOO_RPC_TIMEOUT_MS))
+  let uid = await authenticateOdoo({ timeoutMs: Math.min(ODOO_RPC_TIMEOUT_MS, timeoutMs) })
 
   try {
     return await rawOdooJsonRpc<T>(
@@ -864,6 +874,7 @@ export async function executeOdooKw<T = unknown>(
       'execute_kw',
       [cfg.db, uid, cfg.apiKey, model, method, args, kwargs],
       timeoutMs,
+      cap,
     )
   } catch (firstErr) {
     if (firstErr instanceof OdooConnectorError) {
@@ -871,13 +882,14 @@ export async function executeOdooKw<T = unknown>(
     }
     const errText = firstErr instanceof Error ? firstErr.message.toLowerCase() : ''
     if (errText.includes('session') || errText.includes('access denied') || errText.includes('uid')) {
-      uid = await authenticateOdoo({ forceReauth: true, timeoutMs })
+      uid = await authenticateOdoo({ forceReauth: true, timeoutMs: Math.min(ODOO_RPC_TIMEOUT_MS, timeoutMs) })
       return rawOdooJsonRpc<T>(
         cfg,
         'object',
         'execute_kw',
         [cfg.db, uid, cfg.apiKey, model, method, args, kwargs],
         timeoutMs,
+        cap,
       )
     }
     throw firstErr
@@ -2510,8 +2522,57 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       }
       byAccount.sort((a, b) => b.residualKwd - a.residualKwd)
 
-      const platformAndCorporateLinesCount = Math.max(0, totalLines - posClearingLinesCount)
-      const platformNetKwd = r3(netSum - posClearingNetKwd)
+      const customerSplit = receivablesCustomerSplit(byAccount)
+      const platformAndCorporateLinesCount = customerSplit.platformLineCount
+      const platformNetKwd = customerSplit.platformNetKwd
+      const posAccountIds = customerSplit.posAccounts.map((row) => row.accountId)
+      const partnerDomain: unknown[][] = [
+        ...arDomain,
+        ...(posAccountIds.length > 0 ? [['account_id', 'not in', posAccountIds]] : []),
+      ]
+      const partnerGroups = await safeSubQuery(
+        () =>
+          executeOdooKw<
+            {
+              partner_id: M2O
+              account_id: M2O
+              amount_residual?: number
+              __count?: number
+              date?: string | false
+              date_min?: string | false
+            }[]
+          >(
+            'account.move.line',
+            'read_group',
+            [partnerDomain, ['amount_residual:sum', 'date:min'], ['partner_id', 'account_id']],
+            { lazy: false },
+          ),
+        [],
+      )
+      const postingDay = (raw: string | false | undefined): string | null =>
+        typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null
+      const byPartner = buildReceivablePartnerRows(
+        partnerGroups
+          .map((g) => ({
+            partnerId: m2oId(g.partner_id),
+            partnerName: m2oName(g.partner_id) ?? '',
+            accountId: m2oId(g.account_id),
+            accountLabel: m2oName(g.account_id) ?? '',
+            residualKwd: Number(g.amount_residual) || 0,
+            linesCount: Math.max(0, Number(g.__count) || 0),
+            oldestPostingDate: postingDay(g.date_min) ?? postingDay(g.date),
+          }))
+          .filter(
+            (g) =>
+              !isDecommissionedWarehouseRecord(g.accountLabel) &&
+              !isDecommissionedWarehouseRecord(g.partnerName),
+          ),
+      ).slice(0, 80)
+      const oldestOpenPostingDate =
+        byPartner
+          .map((row) => row.oldestPostingDate)
+          .filter((day): day is string => Boolean(day))
+          .sort()[0] ?? null
 
       // Same account scope as the headline: decommissioned-warehouse accounts are left out.
       const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
@@ -2555,12 +2616,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         fromDate,
         toDate,
         latestMaturityDate,
-        maturityStatusAr: latestMaturityDate
-          ? `مستحق التحصيل والمقاصة حالياً (آخر استحقاق مفوتر ${latestMaturityDate} + تسويات منصات أسبوعية جارية)`
-          : 'مستحق التحصيل والمقاصة ضمن دورة التسويات الأسبوعية الجارية',
-        maturityStatusEn: latestMaturityDate
-          ? `Currently due for collection & clearing (latest invoiced maturity ${latestMaturityDate} + weekly aggregator settlements)`
-          : 'Currently due within weekly aggregator clearing cycle',
+        maturityStatusAr: 'رصيد متبقٍ غير مسوّى — ليس تصنيف استحقاق',
+        maturityStatusEn: 'Open residual — not a due-date status',
         openLinesExplanationAr: `إجمالي ${totalLines.toLocaleString('en-US')} سطراً غير مسوّى في أودو يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير فردية بحساب 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وعملاء شركات (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} د.ك)، وبالمجموع: +${r3(grossPositive).toLocaleString('en-US')} مدين موجب ناقص ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} مقاصة دائنة = ${r3(netSum).toLocaleString('en-US')} د.ك.`,
         openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(grossPositive).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} credit clearing = ${r3(netSum).toLocaleString('en-US')} KWD.`,
         sourceModel: 'account.move.line',
@@ -2570,6 +2627,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         openDebitsKwd: aging.openDebitsKwd,
         unappliedCreditsKwd: aging.unappliedCreditsKwd,
         unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
+        platformNetKwd,
+        platformOpenDebitsKwd: customerSplit.platformOpenDebitsKwd,
+        platformUnappliedCreditsKwd: customerSplit.platformUnappliedCreditsKwd,
+        posClearingResidualKwd: customerSplit.posClearingResidualKwd,
+        oldestOpenPostingDate,
+        byPartner,
       }
     }, null, markFailure('receivables')),
     decommissionedConfigIds.size > 0
@@ -5475,6 +5538,31 @@ function resolveStockLocationRole(
   return { excluded: false, usage, role: 'other', branchId: null }
 }
 
+function isWarehouseTimeout(err: unknown): boolean {
+  if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) return true
+  const msg = err instanceof Error ? err.message : ''
+  return /abort|timeout|timed out/i.test(msg)
+}
+
+/** A failed warehouse read. This is an error, never an empty period. */
+export function warehouseChainErrorPayload(
+  dateRange: { from: string; to: string },
+  kind: 'timeout' | 'error',
+): OdooLiveWarehouseChainPayload {
+  const payload = buildDisconnectedWarehouseChain(dateRange, '')
+  const timeout = kind === 'timeout'
+  return {
+    ...payload,
+    connected: false,
+    noData: false,
+    fetchStatus: kind,
+    messageAr: timeout ? 'انتهت مهلة جلب حركات المخزن من أودو' : 'تعذّر قراءة حركات المخزن من أودو',
+    messageEn: timeout
+      ? 'The warehouse request to Odoo timed out.'
+      : 'Warehouse movements could not be read from Odoo.',
+  }
+}
+
 function buildDisconnectedWarehouseChain(
   dateRange: { from: string; to: string },
   messageAr = 'لا توجد بيانات من Odoo لهذه الفترة',
@@ -5560,12 +5648,14 @@ export async function fetchLiveOdooWarehouseChain(
             ),
           [],
         ),
-        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string; company_id?: M2O }[]>(
+        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string }[]>(
           'stock.location',
           'search_read',
-          [[['active', 'in', [true, false]]]],
+          // Internal locations carry on-hand stock. Supplier, customer and inventory
+          // locations are the ones move classification needs; view/transit rows are not.
+          [[['usage', 'in', ['internal', 'supplier', 'customer', 'inventory']]]],
           {
-            fields: ['id', 'name', 'complete_name', 'usage', 'company_id'],
+            fields: ['id', 'name', 'complete_name', 'usage'],
             context: { active_test: false },
           },
         ),
@@ -5701,6 +5791,7 @@ export async function fetchLiveOdooWarehouseChain(
           ['product_id', 'location_id'],
         ],
         { lazy: false },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ).catch(() =>
         executeOdooKw<
           {
@@ -5709,9 +5800,13 @@ export async function fetchLiveOdooWarehouseChain(
             quantity?: number
             __count?: number
           }[]
-        >('stock.quant', 'read_group', [quantDomain, ['quantity:sum'], ['product_id', 'location_id']], {
-          lazy: false,
-        }),
+        >(
+          'stock.quant',
+          'read_group',
+          [quantDomain, ['quantity:sum'], ['product_id', 'location_id']],
+          { lazy: false },
+          { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
+        ),
       ),
       executeOdooKw<
         {
@@ -5727,6 +5822,7 @@ export async function fetchLiveOdooWarehouseChain(
         'read_group',
         [moveDomain, [`${moveQtyField}:sum`], ['location_id', 'location_dest_id', 'product_id']],
         { lazy: false },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ),
       executeOdooKw<
         {
@@ -5747,6 +5843,7 @@ export async function fetchLiveOdooWarehouseChain(
           ['location_id', 'location_dest_id', 'product_id', 'date:day'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ),
       safeSubQuery(
         () =>
@@ -6267,8 +6364,11 @@ export async function fetchLiveOdooWarehouseChain(
     }
     warehouseChainCache.set(cacheKey, { fetchedAtMs, payload })
     return payload
-  } catch {
-    return buildDisconnectedWarehouseChain(dateRange)
+  } catch (err) {
+    const kind = isWarehouseTimeout(err) ? 'timeout' : 'error'
+    const redacted = redactOdooSecrets(err instanceof Error ? `${err.name}: ${err.message}` : 'warehouse chain query failed')
+    console.error('[warehouse-chain]', kind, redacted)
+    return warehouseChainErrorPayload(dateRange, kind)
   }
 }
 

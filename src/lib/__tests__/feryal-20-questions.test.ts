@@ -462,8 +462,7 @@ describe('Feryal 20-Question Comprehensive Odoo 17 Suite (feryal-20-questions)',
       question: 'كم رصيد الذمم المدينة المفتوحة هذا الشهر؟',
       expectedStatus: 'answered',
       expectedModel: 'account.move.line',
-      // Phase 5 · Item 2: no receivable amount until per-customer due-date aging is verified.
-      mustContain: ['قيد المطابقة مع المحاسبة', '19 قيد'],
+      mustContain: ['12,450.8', '19 قيد'],
     },
     {
       num: 17,

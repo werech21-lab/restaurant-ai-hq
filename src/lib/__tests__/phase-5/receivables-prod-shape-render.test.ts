@@ -55,14 +55,8 @@ function renderedAmounts(html: string): number[] {
   )
 }
 
-function expectNoLeak(html: string) {
-  for (const v of PROD_VALUES) expect(html).not.toContain(v)
-  for (const n of renderedAmounts(html)) {
-    expect(n, `amount ${n}`).toBeGreaterThanOrEqual(0)
-    expect(n, `amount ${n}`).toBeLessThan(1_000_000)
-  }
-  expect(html).toContain('قيد المطابقة مع المحاسبة')
-  expect(html).not.toMatch(/overdue|متأخر/i)
+function expectNoOverdueClaim(html: string) {
+  expect(html).not.toMatch(/overdue|متأخر|مستحق/i)
 }
 
 describe('production-shape receivables never render an amount', () => {
@@ -72,39 +66,36 @@ describe('production-shape receivables never render an amount', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('workspace receivables are pending with no amounts, rows or buckets; delivery-dues card shows the status', () => {
+  it('workspace keeps residuals, withholds aging labels, and keeps 10552 out of the platform residual', () => {
     const ws = computeGlobalWorkspace(todayFilters('all'), withProductionReceivables(loadLiveTodaySummary()))
     expect(ws.receivables.pendingReconciliation).toBe(true)
-    expect(ws.receivables.openReceivableKwd).toBeNull()
-    expect(ws.receivables.grossPositiveReceivableKwd).toBeNull()
-    expect(ws.receivables.creditClearingOffsetKwd).toBeNull()
-    expect(ws.receivables.byAccount).toEqual([])
     expect(ws.receivables.agingBuckets).toEqual([])
-    expect(ws.receivables.openDebitsKwd).toBeNull()
-    expect(ws.receivables.unappliedCreditsKwd).toBeNull()
-    expect(ws.receivables.unreconciledLineCount).toBe(66570)
+    expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
+    expect(ws.receivables.byAccount).toHaveLength(1)
+    expect(ws.receivables.platformNetKwd).toBe(0)
+    expect(ws.receivables.posClearingResidualKwd).toBe(-79267.054)
+    expect(ws.receivables.maturityStatusAr).not.toMatch(/مستحق|متأخر/)
     const dues = ws.summaryCards.find((c) => c.id === 'delivery-dues')!
-    expect(dues.valueAr).toBe('قيد المطابقة مع المحاسبة')
-    expect(dues.valueEn).toBe('Pending Accounting Reconciliation')
-    expect(JSON.stringify(ws)).not.toContain('77,462.759')
+    expect(dues.valueAr).not.toBe('قيد المطابقة مع المحاسبة')
   })
 
   it('/erp/receivables (ReceivablesAgingStudio)', async () => {
     const { ReceivablesAgingStudio } = await import('@/components/erp/ReceivablesAgingStudio')
     const html = renderAr(React.createElement(ReceivablesAgingStudio))
-    expectNoLeak(html)
-    expect(html).toContain('66,570')
+    expectNoOverdueClaim(html)
+    expect(html).toContain('data-pos-clearing="10552"')
+    expect(html).toContain('data-platform-residual="true"')
+    const platform = html.split('data-platform-residual="true"')[1]?.slice(0, 180) ?? ''
+    expect(platform).not.toContain('79,267.054')
   })
 
   it('/erp/finance and /accounting (VentureAccountingHub, receivables + GL tabs)', async () => {
     const { VentureAccountingHub } = await import('@/components/accounting/VentureAccountingHub')
     const recv = renderAr(React.createElement(VentureAccountingHub, { initialTab: 'receivables', embeddedInErp: true }))
-    expectNoLeak(recv)
-    expect(recv).toContain('data-receivables-pending="true"')
+    expectNoOverdueClaim(recv)
+    expect(recv).not.toContain('data-receivables-pending="true"')
+    expect(recv).toContain('77,462.759')
     const gl = renderAr(React.createElement(VentureAccountingHub, { initialTab: 'glSummary' }))
-    for (const v of PROD_VALUES) expect(gl).not.toContain(v)
-    const { OdooAccountingAnalyticsHub } = await import('@/components/accounting/OdooAccountingAnalyticsHub')
-    const hub = renderAr(React.createElement(OdooAccountingAnalyticsHub, { isAr: true, locale: 'ar' }))
-    for (const v of PROD_VALUES) expect(hub).not.toContain(v)
+    expectNoOverdueClaim(gl)
   })
 })

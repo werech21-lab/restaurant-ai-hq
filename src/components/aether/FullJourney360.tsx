@@ -62,7 +62,6 @@ import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { resolveHeroDeltaBadge, resolveTodaySameHoursComparison } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
@@ -2139,17 +2138,16 @@ export function FullJourney360({
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
                             className="text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
                           >
-                            {workspace.receivables.unavailable ? (
+                            {workspace.receivables.unavailable || workspace.receivables.openReceivableKwd === null ? (
                               UNAVAILABLE_DASH
-                            ) : receivablesAmountsVisible ? (
-                              fmtKwdVal(workspace.receivables.openReceivableKwd)
                             ) : (
-                              <ReceivablesPendingStatus isAr={isAr} size="sm" />
+                              fmtKwdVal(workspace.receivables.openReceivableKwd)
                             )}
                           </span>
                         </div>
 
                         {receivablesAmountsVisible &&
+                        !workspace.receivables.agingLabelsWithheld &&
                         workspace.receivables.agingBuckets.length > 0 ? (
                           <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
                             {workspace.receivables.agingBuckets.map((bkt) => (
@@ -2171,13 +2169,13 @@ export function FullJourney360({
                           </div>
                         ) : null}
 
-                        {receivablesAmountsVisible && arTieOut ? (
+                        {!workspace.receivables.unavailable && arTieOut ? (
                           <dl
                             data-ar-tie-out={arTieOut.ties ? 'ties' : 'mismatch'}
                             className="mt-2.5 space-y-1 text-xs font-medium text-slate-700 dark:text-slate-300"
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <dt>{T('Aging total (open debits)', 'إجمالي أعمار الذمم (مدين مفتوح)')}</dt>
+                              <dt>{T('Gross open debits', 'إجمالي المدين المفتوح')}</dt>
                               <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openDebitsKwd)}</dd>
                             </div>
                             <div data-ar-unapplied-credits="true" className="flex items-center justify-between gap-2">

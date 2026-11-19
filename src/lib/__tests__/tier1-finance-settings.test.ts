@@ -369,12 +369,9 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     const liveEn = renderToStaticMarkup(
       React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(ReceivablesAgingStudio)),
     )
-    // Phase 5 · Item 2: amounts are withheld — neutral status, line counts and the sync stamp only.
-    expect(liveEn).toContain('Pending Accounting Reconciliation')
-    expect(liveEn).not.toContain('4,500.125 KWD')
-    expect(liveEn).not.toContain('+5,100.375 KWD')
-    expect(liveEn).not.toContain('-600.250 KWD')
+    expect(liveEn).toContain('4,500.125 KWD')
     expect(liveEn).toContain('2026-11-16 00:30')
+    expect(liveEn).not.toMatch(/overdue/i)
 
     // Unavailable receivables state
     mockGlobalFilterState.current = buildContext(

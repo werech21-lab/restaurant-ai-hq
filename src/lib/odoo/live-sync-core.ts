@@ -70,6 +70,43 @@ export interface OdooReceivableAgingBucket {
   linesCount: number
 }
 
+/** Cashier clearing (10552) is not customer or platform AR. */
+export const POS_CLEARING_ACCOUNT_CODE = '10552'
+
+export interface OdooReceivablePartnerRow {
+  partnerId: number
+  partnerName: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  residualKwd: number
+  linesCount: number
+  /** Oldest posting date in the group (`account.move.line.date`), not a due date. */
+  oldestPostingDate: string | null
+}
+
+export interface ReceivablePartnerGroupInput {
+  partnerId: number | null
+  partnerName: string
+  accountId: number | null
+  accountLabel: string
+  residualKwd: number
+  linesCount: number
+  oldestPostingDate: string | null
+}
+
+export interface ReceivableCustomerSplit {
+  splitKnown: boolean
+  platformNetKwd: number
+  platformOpenDebitsKwd: number
+  platformUnappliedCreditsKwd: number
+  platformLineCount: number
+  posClearingResidualKwd: number
+  posClearingLineCount: number
+  customerAccounts: OdooReceivableAccountRow[]
+  posAccounts: OdooReceivableAccountRow[]
+}
+
 export interface OdooReceivableClearingSummary {
   readable: boolean
   openReceivableKwd: number
@@ -95,6 +132,101 @@ export interface OdooReceivableClearingSummary {
   /** Σ negative open residuals: unmatched payments and clearing credits, shown as one separate line. */
   unappliedCreditsKwd?: number
   unappliedCreditLinesCount?: number
+  /** Open residual of every receivable account except cashier clearing 10552. */
+  platformNetKwd?: number
+  /** Positive open residuals excluding 10552. */
+  platformOpenDebitsKwd?: number
+  /** Negative open residuals excluding 10552. */
+  platformUnappliedCreditsKwd?: number
+  /** Residual on account 10552 only. */
+  posClearingResidualKwd?: number
+  /** Oldest posting date among open lines that are not 10552. */
+  oldestOpenPostingDate?: string | null
+  /** Open lines grouped by partner and account, with 10552 removed. */
+  byPartner?: OdooReceivablePartnerRow[]
+}
+
+function roundReceivableKwd(n: number): number {
+  return Object.is(n, -0) ? 0 : Math.round(n * 1000) / 1000
+}
+
+/** True for cashier clearing 10552, whether the token is a code or an Odoo account label. */
+export function isPosClearingAccount(codeOrLabel: string | null | undefined): boolean {
+  const text = (codeOrLabel ?? '').trim()
+  if (!text) return false
+  if (new RegExp(`(?:^|\\D)${POS_CLEARING_ACCOUNT_CODE}(?:\\D|$)`).test(text)) return true
+  return /account receivable \(pos\)/i.test(text)
+}
+
+export function receivableAccountCode(label: string, accountId: number): string {
+  const match = /^(\d+)\b/.exec(label.trim())
+  return match ? match[1] : String(accountId)
+}
+
+/** Splits open receivable accounts into platform/trade versus cashier clearing 10552. */
+export function receivablesCustomerSplit(accounts: readonly OdooReceivableAccountRow[]): ReceivableCustomerSplit {
+  const customerAccounts: OdooReceivableAccountRow[] = []
+  const posAccounts: OdooReceivableAccountRow[] = []
+  for (const row of accounts) {
+    if (isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`)) posAccounts.push(row)
+    else customerAccounts.push(row)
+  }
+  let platformNetKwd = 0
+  let platformOpenDebitsKwd = 0
+  let platformUnappliedCreditsKwd = 0
+  let platformLineCount = 0
+  for (const row of customerAccounts) {
+    platformNetKwd += row.residualKwd
+    platformLineCount += row.linesCount
+    if (row.residualKwd > 0) platformOpenDebitsKwd += row.residualKwd
+    else if (row.residualKwd < 0) platformUnappliedCreditsKwd += row.residualKwd
+  }
+  let posClearingResidualKwd = 0
+  let posClearingLineCount = 0
+  for (const row of posAccounts) {
+    posClearingResidualKwd += row.residualKwd
+    posClearingLineCount += row.linesCount
+  }
+  return {
+    splitKnown: accounts.length > 0,
+    platformNetKwd: roundReceivableKwd(platformNetKwd),
+    platformOpenDebitsKwd: roundReceivableKwd(platformOpenDebitsKwd),
+    platformUnappliedCreditsKwd: roundReceivableKwd(platformUnappliedCreditsKwd),
+    platformLineCount,
+    posClearingResidualKwd: roundReceivableKwd(posClearingResidualKwd),
+    posClearingLineCount,
+    customerAccounts,
+    posAccounts,
+  }
+}
+
+/**
+ * Partner × account residuals for posted, unreconciled receivable lines.
+ * Cashier clearing 10552 is dropped here so it cannot land in the customer table.
+ */
+export function buildReceivablePartnerRows(groups: readonly ReceivablePartnerGroupInput[]): OdooReceivablePartnerRow[] {
+  const rows: OdooReceivablePartnerRow[] = []
+  for (const group of groups) {
+    if (group.accountId === null) continue
+    const accountCode = receivableAccountCode(group.accountLabel, group.accountId)
+    const accountName = group.accountLabel.trim() || `Account #${group.accountId}`
+    if (isPosClearingAccount(`${accountCode} ${accountName}`)) continue
+    const posting = group.oldestPostingDate && /^\d{4}-\d{2}-\d{2}/.test(group.oldestPostingDate)
+      ? group.oldestPostingDate.slice(0, 10)
+      : null
+    rows.push({
+      partnerId: group.partnerId ?? 0,
+      partnerName: group.partnerName.trim() || (group.partnerId === null ? 'بدون شريك' : `Partner #${group.partnerId}`),
+      accountId: group.accountId,
+      accountCode,
+      accountName,
+      residualKwd: roundReceivableKwd(group.residualKwd),
+      linesCount: Math.max(0, Math.round(group.linesCount)),
+      oldestPostingDate: posting,
+    })
+  }
+  rows.sort((a, b) => Math.abs(b.residualKwd) - Math.abs(a.residualKwd) || a.partnerName.localeCompare(b.partnerName))
+  return rows
 }
 
 export interface OdooLedgerAccountingSummary {

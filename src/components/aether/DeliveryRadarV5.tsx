@@ -28,8 +28,6 @@ import {
   resolveReceivablesDateRange,
   selectReceivablesHeadline,
 } from '@/lib/aether/receivables-headline'
-import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
@@ -834,17 +832,6 @@ export function DeliveryRadarV5({
                       {isAr ? 'غير متاح' : '—'}
                     </span>
                   </p>
-                </>
-              ) : !canShowReceivableAmounts(workspace.receivables) ? (
-                <>
-                  <ReceivablesPendingStatus isAr={isAr} className="mt-2.5" />
-                  {receivablesHeadline.lines !== null ? (
-                    <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                      {isAr
-                        ? `${f0(receivablesHeadline.lines, 'ar')} قيد غير مسوّى في دفتر الذمم`
-                        : `${f0(receivablesHeadline.lines, 'en')} unreconciled receivable lines`}
-                    </p>
-                  ) : null}
                 </>
               ) : (
                 <>

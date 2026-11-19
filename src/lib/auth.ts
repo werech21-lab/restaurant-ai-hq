@@ -10,6 +10,7 @@
  *   - `'marketing'` : Marketing Lead • GM & DGM Office (`marketing@venturefoodskw.com` + alias `mkt@venturefoodskw.com` — `مسؤول التسويق • مكتب المدير العام ونائبه`)
  *   - `'supply'`    : Central Kitchen & Supply Manager (`supply@venturefoodskw.com` + alias `kitchen@venturefoodskw.com` — `مدير المطبخ المركزي وسلسلة الإمداد`)
  *   - `'auditor'`   : External Read-Only Auditor (`auditor@venturefoodskw.com` — `مراجع — قراءة فقط`)
+ *                     and the QA read-only login (`qa-readonly@venturefoodskw.com`, password from `AETHER_QA_PASSWORD` only)
  */
 
 export {
@@ -35,6 +36,7 @@ export {
   DEFAULT_ADMIN_PASSWORD_SHA256,
   DEFAULT_AUDITOR_EMAIL,
   DEFAULT_AUDITOR_PASSWORD_SHA256,
+  DEFAULT_QA_EMAIL,
   DEFAULT_CFO_EMAIL,
   DEFAULT_CFO_PASSWORD_SHA256,
   DEFAULT_DGM_EMAIL,
@@ -56,6 +58,7 @@ export {
   execCookieOptions,
   getExpectedAbdullahEmail,
   getExpectedAuditorEmail,
+  getExpectedQaEmail,
   getExpectedCfoEmail,
   getExpectedDgmEmail,
   getExpectedExecEmail,

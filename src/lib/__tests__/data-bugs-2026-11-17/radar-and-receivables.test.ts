@@ -406,32 +406,24 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       ),
     ).toEqual({ from: '2025-01-15', to: '2026-11-14' })
 
-    // Phase 5 · Item 2: DeliveryRadarV5 never shows -77K (or any receivable amount) to executives until
-    // per-customer due-date aging is verified; it renders the neutral status plus the open-line count.
-    // The workspace itself withholds the amount (no -77,462.759 reaches any component).
     const summary = buildRadarSummary()
     const ws = computeGlobalWorkspace({ ...DEFAULT_GLOBAL_FILTERS, period: 'today' }, summary)
     expect(ws.receivables.pendingReconciliation).toBe(true)
-    expect(ws.receivables.openReceivableKwd).toBeNull()
+    expect(ws.receivables.agingBuckets).toEqual([])
+    expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
     expect(summary.aggregatorReceivables?.openReceivableKwd).toBe(-77462.759)
 
     const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
     const arCard =
-      htmlAr.split('مبيعات وطلبات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
-    expect(arCard).toContain('قيد المطابقة مع المحاسبة')
-    expect(arCard).toContain('data-receivables-status="pending-reconciliation"')
-    expect(arCard).toContain('412 قيد غير مسوّى في دفتر الذمم')
-    expect(arCard).not.toContain('-77,462.759')
-    expect(arCard).not.toContain('-87,462.759')
-    expect(arCard).not.toContain('10,000.000')
-    expect(arCard).not.toMatch(/overdue|متأخر/i)
+      htmlAr.split('مبيعات ودفعات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
+    expect(arCard).toContain('10,000.000')
+    expect(arCard).not.toContain('قيد المطابقة مع المحاسبة')
+    expect(arCard).not.toMatch(/overdue|متأخر|مستحق/i)
 
     const htmlEn = renderRadar('en', { period: 'today' }, summary, buildRadarTodayCube())
     const enCard =
       htmlEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
-    expect(enCard).toContain('Pending Accounting Reconciliation')
-    expect(enCard).not.toContain('-77,462.759')
-    expect(enCard).not.toContain('10,000.000 KWD')
+    expect(enCard).toContain('10,000.000')
     expect(enCard).not.toMatch(/overdue/i)
   })
 

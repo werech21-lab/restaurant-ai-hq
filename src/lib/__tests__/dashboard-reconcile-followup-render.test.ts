@@ -122,12 +122,12 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(buildArTieOut({ openDebitsKwd: null, unappliedCreditsKwd: null, openReceivableKwd: 1182.708 })).toBeNull()
   })
 
-  it('due-date basis: until per-customer aging is verified (Phase 5 · Item 2) the card shows the neutral status, not the tie-out amounts', async () => {
+  it('due-date basis: residuals stay visible and due-date aging labels stay withheld', async () => {
     const html = await renderDashboard(withDueDateAging(loadLiveTodaySummary()), 'all')
-    expect(html).toContain('data-receivables-status="pending-reconciliation"')
-    expect(html).toContain('قيد المطابقة مع المحاسبة')
-    expect(html).not.toContain('data-ar-tie-out=')
-    expect(html).not.toContain('1,182.708')
+    expect(html).not.toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).toContain('data-ar-tie-out=')
+    expect(html).toContain('1,182.708')
+    expect(html).not.toMatch(/overdue|متأخر|مستحق/)
   })
 
   it('the reconciliation formula uses the same line-level credit figure as the card (formula), and is withheld from the workspace while pending', () => {
@@ -142,16 +142,16 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(formula.en).toContain('2,593.49')
     expect(formula.en).toContain('1,182.71')
     expect(formula.en.toLowerCase()).toContain('unapplied')
-    // Phase 5 · Item 2: executives see the neutral status instead of the formula amounts.
     const ws = computeGlobalWorkspace(todayFilters('all'), withDueDateAging(loadLiveTodaySummary()))
-    expect(ws.receivables.reconciliationFormulaEn).toBe('Pending Accounting Reconciliation')
+    expect(ws.receivables.reconciliationFormulaEn.toLowerCase()).not.toContain('aging')
+    expect(ws.receivables.openReceivableKwd).not.toBeNull()
   })
 
-  it('legacy payload: no tie-out and no second credit figure; neutral pending status instead of amounts', async () => {
+  it('legacy payload: residual is shown and due-date buckets stay hidden', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), 'all')
     expect(html).not.toContain('data-ar-tie-out=')
-    expect(html).not.toContain('data-ar-unapplied-credits=')
-    expect(html).toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).not.toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).not.toMatch(/overdue|متأخر/)
   })
 })
 

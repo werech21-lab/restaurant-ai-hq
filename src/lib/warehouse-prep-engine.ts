@@ -253,6 +253,24 @@ export interface WarehouseChainSnapshot {
 
 const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 
+/** First warehouse load stays inside a month (or 31 days). Wider filters expand only on request. */
+export function defaultWarehouseQueryWindow(window: {
+  fromIso: string
+  toInclusiveIso: string
+}): { fromIso: string; toInclusiveIso: string; narrowed: boolean } {
+  const iso = /^\d{4}-\d{2}-\d{2}$/
+  const from = window.fromIso
+  const to = window.toInclusiveIso
+  if (!iso.test(from) || !iso.test(to) || from > to) {
+    return { fromIso: from, toInclusiveIso: to, narrowed: false }
+  }
+  const span = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1
+  if (span <= 31) return { fromIso: from, toInclusiveIso: to, narrowed: false }
+  const monthStart = `${to.slice(0, 8)}01`
+  const narrowFrom = monthStart >= from ? monthStart : from
+  return { fromIso: narrowFrom, toInclusiveIso: to, narrowed: narrowFrom !== from }
+}
+
 export interface WarehouseValuationFlags {
   onHandValued: boolean
   movesValued: boolean

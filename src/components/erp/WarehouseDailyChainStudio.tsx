@@ -29,6 +29,7 @@ import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveWarehouseChainPayload } from '@/lib/odoo-live-connector'
 import {
   computeWarehouseDailyChain,
+  defaultWarehouseQueryWindow,
   RAW_MATERIAL_CATEGORIES,
   type ChainHealthStatus,
   type RawMaterialCategory,
@@ -150,6 +151,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
   const [timedOut, setTimedOut] = useState(initialTimedOut)
   const [fetchError, setFetchError] = useState(initialError)
   const [reloadNonce, setReloadNonce] = useState<number>(0)
+  const [useFullPeriod, setUseFullPeriod] = useState(false)
 
   const periodWindow = useMemo(
     () =>
@@ -160,6 +162,12 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
       }),
     [filters.customFrom, filters.customTo, filters.period, liveSummary],
   )
+  const narrowWindow = useMemo(() => defaultWarehouseQueryWindow(periodWindow), [periodWindow])
+  const queryWindow = useFullPeriod || !narrowWindow.narrowed ? periodWindow : narrowWindow
+
+  useEffect(() => {
+    setUseFullPeriod(false)
+  }, [periodWindow.fromIso, periodWindow.toInclusiveIso])
 
   useEffect(() => {
     if (hasInitialChain && reloadNonce === 0) return
@@ -168,14 +176,14 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
 
     let cancelled = false
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 20_000)
+    const timeout = window.setTimeout(() => controller.abort(), 32_000)
     setLoading(true)
     setTimedOut(false)
     setFetchError(false)
 
     const qs = new URLSearchParams({
-      from: periodWindow.fromIso,
-      to: periodWindow.toInclusiveIso,
+      from: queryWindow.fromIso,
+      to: queryWindow.toInclusiveIso,
     })
 
     fetch(`/api/erp/warehouse-chain?${qs.toString()}`, {
@@ -184,14 +192,28 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
       signal: controller.signal,
     })
       .then(async (res) => {
-        if (!res.ok) {
-          throw new Error('fetch_failed')
-        }
-        return res.json()
-      })
-      .then((data) => {
+        const data = (await res.json().catch(() => null)) as {
+          connected?: boolean
+          noData?: boolean
+          fetchStatus?: string
+          timedOut?: boolean
+          warehouseChain?: OdooLiveWarehouseChainPayload | null
+        } | null
         if (cancelled) return
+        const status = data?.fetchStatus
+        if (res.status === 504 || data?.timedOut || status === 'timeout') {
+          setWarehouseChain(null)
+          setTimedOut(true)
+          return
+        }
+        if (!res.ok || status === 'error') {
+          setWarehouseChain(null)
+          setFetchError(true)
+          return
+        }
         if (data?.warehouseChain && data.connected) {
+          setWarehouseChain(stripExcludedOdooTree(data.warehouseChain) as OdooLiveWarehouseChainPayload)
+        } else if (data?.warehouseChain) {
           setWarehouseChain(stripExcludedOdooTree(data.warehouseChain) as OdooLiveWarehouseChainPayload)
         } else {
           setWarehouseChain(null)
@@ -221,8 +243,8 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
     initialError,
     initialLoading,
     initialTimedOut,
-    periodWindow.fromIso,
-    periodWindow.toInclusiveIso,
+    queryWindow.fromIso,
+    queryWindow.toInclusiveIso,
     reloadNonce,
   ])
 
@@ -349,6 +371,18 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
             <span>{T('Refresh Warehouse Data', 'تحديث بيانات المخزن')}</span>
           </button>
+          {narrowWindow.narrowed ? (
+            <button
+              type="button"
+              data-warehouse-window={useFullPeriod ? 'full' : 'narrow'}
+              onClick={() => setUseFullPeriod((open) => !open)}
+              className="inline-flex h-9.5 cursor-pointer items-center rounded-full px-4 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/15 dark:hover:bg-white/5"
+            >
+              {useFullPeriod
+                ? T('Back to this month', 'العودة لبداية الشهر')
+                : T('Show the full selected period', 'عرض الفترة المحددة كاملة')}
+            </button>
+          ) : null}
         </div>
       </div>
 

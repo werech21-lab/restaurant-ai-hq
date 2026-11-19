@@ -85,6 +85,7 @@ interface WindowStats {
   baselinePerDayFils: number
   upliftPct: number
   topBranch: { id: string; upliftPct: number } | null
+  topBranches: { id: string; upliftPct: number }[]
 }
 
 /** Per-day sales in the window vs the same weekdays in the 4 weeks around it (window excluded). */
@@ -104,11 +105,52 @@ function compareWindow(d: CompletedDaily, w: { from: string; to: string }): Wind
   const upliftPct = pctChange(windowPerDayFils, baselinePerDayFils)
   if (upliftPct === null) return null
   let topBranch: WindowStats['topBranch'] = null
+  const ranked: { id: string; upliftPct: number }[] = []
   for (const id of d.branchIds) {
     const u = pctChange(perDay(inData, id), perDay(base, id))
-    if (u !== null && perDay(base, id) > baselinePerDayFils * 0.05 && (!topBranch || Math.abs(u) > Math.abs(topBranch.upliftPct))) topBranch = { id, upliftPct: u }
+    if (u !== null && perDay(base, id) > baselinePerDayFils * 0.05) {
+      ranked.push({ id, upliftPct: u })
+      if (!topBranch || Math.abs(u) > Math.abs(topBranch.upliftPct)) topBranch = { id, upliftPct: u }
+    }
   }
-  return { window: w, windowPerDayFils, baselinePerDayFils, upliftPct, topBranch }
+  ranked.sort((a, b) => Math.abs(b.upliftPct) - Math.abs(a.upliftPct))
+  return { window: w, windowPerDayFils, baselinePerDayFils, upliftPct, topBranch, topBranches: ranked.slice(0, 3) }
+}
+
+export interface SeasonOccurrenceLift {
+  eventId: string
+  window: { from: string; to: string }
+  avgDailyKwd: number
+  baselineDailyKwd: number
+  liftPct: number
+  topBranches: { id: string; nameAr: string; nameEn: string; liftPct: number }[]
+}
+
+/** Last occurrence that is fully inside the daily series, versus the normal-day baseline. */
+export function seasonLiftsFromDaily(summary: OdooLiveSummary | null, events: readonly SeasonEvent[]): SeasonOccurrenceLift[] {
+  const d = completedDailyByBranch(summary)
+  if (!d) return []
+  const lifts: SeasonOccurrenceLift[] = []
+  for (const ev of events) {
+    const previous =
+      ev.recurrence === 'monthly'
+        ? monthlyPrevious(ev, d, 1)
+        : [
+            { from: ev.startsOn, to: ev.endsOn },
+            { from: ev.previousStartsOn ?? addYears(ev.startsOn, -1), to: ev.previousEndsOn ?? addYears(ev.endsOn, -1) },
+          ]
+    const stats = previous.map((w) => compareWindow(d, w)).find((s): s is WindowStats => s !== null)
+    if (!stats) continue
+    lifts.push({
+      eventId: ev.id,
+      window: stats.window,
+      avgDailyKwd: fromFils(Math.round(stats.windowPerDayFils)),
+      baselineDailyKwd: fromFils(Math.round(stats.baselinePerDayFils)),
+      liftPct: r1(stats.upliftPct),
+      topBranches: stats.topBranches.map((b) => ({ id: b.id, nameAr: branchLabel(b.id).ar, nameEn: branchLabel(b.id).en, liftPct: r1(b.upliftPct) })),
+    })
+  }
+  return lifts
 }
 
 function prepPlan(ev: SeasonEvent, s: WindowStats, weeksAhead: number): CouncilProposal[] {

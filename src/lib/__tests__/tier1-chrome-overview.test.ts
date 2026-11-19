@@ -298,9 +298,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       expect(arHtml).toContain('13,001.000 د.ك')
       expect(arHtml).toContain('10.001 د.ك')
       expect(arHtml).toContain('4,000.125 د.ك')
-      // Phase 5 · Item 2: receivables show the neutral status, not the 1,245.500 balance.
-      expect(arHtml).toContain('قيد المطابقة مع المحاسبة')
-      expect(arHtml).not.toContain('1,245.500 د.ك')
+      expect(arHtml).toContain('1,245.500 د.ك')
+      expect(arHtml).not.toMatch(/متأخر|overdue/i)
       // Phase 5 · Item 7: open-month operating profit is withheld on Home.
       expect(arHtml).not.toContain('3,375.125 د.ك')
       expect(arHtml).toContain('data-net-profit-withheld="true"')
@@ -310,8 +309,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       expect(enHtml).toContain('13,001.000 KWD')
       expect(enHtml).toContain('10.001 KWD')
       expect(enHtml).toContain('4,000.125 KWD')
-      expect(enHtml).toContain('Pending Accounting Reconciliation')
-      expect(enHtml).not.toContain('1,245.500 KWD')
+      expect(enHtml).toContain('1,245.500 KWD')
+      expect(enHtml).not.toMatch(/overdue/i)
       expect(enHtml).not.toContain('3,375.125 KWD')
       expect(enHtml).toContain('Unattributed to Branch')
       expect(enHtml).not.toContain('غير منسوب لفرع')

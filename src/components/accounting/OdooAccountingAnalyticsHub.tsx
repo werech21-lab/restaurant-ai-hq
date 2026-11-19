@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { AlertTriangle, BookOpen, Landmark, Receipt, Scale, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
@@ -302,8 +301,6 @@ export function OdooAccountingAnalyticsHub({
               ) : (
                 UNAVAILABLE_DASH
               )
-            ) : rec.pendingReconciliation ? (
-              <ReceivablesPendingStatus isAr={isAr} size="sm" />
             ) : (
               formatKwd(rec.openReceivableKwd, resolvedLocale)
             )}
@@ -320,11 +317,6 @@ export function OdooAccountingAnalyticsHub({
               : isAr
                 ? `${formatInt(rec.unreconciledLineCount, resolvedLocale)} سطر ذمم غير مسوّى`
                 : `${formatInt(rec.unreconciledLineCount, resolvedLocale)} unreconciled AR lines`}
-          </p>
-          <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">
-            {isAr
-              ? 'أعمار الذمم حسب الشريك (0–30 / 31–60 / +60): غير مُتحقق'
-              : 'Partner ageing (0–30 / 31–60 / 60+): unverified'}
           </p>
           <div className="mt-3">
             <KpiProvenanceBadge

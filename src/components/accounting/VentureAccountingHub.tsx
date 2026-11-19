@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import Link from 'next/link'
 import {
   BookOpen,
@@ -216,22 +215,6 @@ export function VentureAccountingHub({
             locale={currentLocale}
             title={isAr ? 'لا توجد بيانات من Odoo لهذه الفترة' : 'No Odoo receivables data for this period'}
           />
-        ) : workspace.receivables.pendingReconciliation ? (
-          // Phase 5 · Item 2: no receivable amounts until per-customer due-date aging is verified.
-          <section
-            data-receivables-pending="true"
-            className="ds-surface space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-          >
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-              {isAr ? 'الذمم المدينة' : 'Receivables'}
-            </p>
-            <ReceivablesPendingStatus isAr={isAr} showDetail />
-            <p className="text-xs font-medium tabular-nums text-slate-600 dark:text-slate-300">
-              {isAr
-                ? `${formatInt(workspace.receivables.unreconciledLineCount, currentLocale)} قيد غير مسوّى (${formatInt(workspace.receivables.posClearingLinesCount, currentLocale)} مقاصة كاشير + ${formatInt(workspace.receivables.platformAndCorporateLinesCount, currentLocale)} ذمم منصات وشركات)`
-                : `${formatInt(workspace.receivables.unreconciledLineCount, currentLocale)} unreconciled lines (${formatInt(workspace.receivables.posClearingLinesCount, currentLocale)} POS clearing + ${formatInt(workspace.receivables.platformAndCorporateLinesCount, currentLocale)} platform/corporate)`}
-            </p>
-          </section>
         ) : (
           <section className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -337,14 +320,7 @@ export function VentureAccountingHub({
 
             {workspace.receivables.unavailable ? (
               <StateBlock state="unavailable" locale={currentLocale} compact />
-            ) : workspace.receivables.agingBuckets.length === 0 ? (
-              <StateBlock
-                state="empty"
-                locale={currentLocale}
-                compact
-                title={isAr ? 'لا توجد شرائح أعمار ذمم مسجلة' : 'No receivable aging buckets recorded'}
-              />
-            ) : (
+            ) : workspace.receivables.agingBuckets.length === 0 ? null : (
               <div className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
                   {isAr ? 'توزيع أعمار الذمم المدينة من Odoo' : 'Odoo Receivable Aging Buckets'}

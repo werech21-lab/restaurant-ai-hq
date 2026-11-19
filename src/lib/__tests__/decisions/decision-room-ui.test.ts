@@ -85,13 +85,25 @@ describe('Decision Room', () => {
     expect(log).toContain(`${decided.outcome.peersChangePct! > 0 ? '+' : ''}${decided.outcome.peersChangePct!.toFixed(1)}%`)
   })
 
-  it('no stored council run → only the page header: no unavailable card, no tiles, no tabs, no figures', () => {
+  it('no stored council run still renders drivers, branches and forecast from daily POS', () => {
     const html = render('ar', 'all', { reports: [], summary: null, generatedAt: null })
     expect(html).toContain('غرفة القرار')
+    expect(html).toContain('data-room-view="drivers"')
+    expect(html).toContain('data-room-tab="drivers"')
+    expect(html).toContain('data-room-tab="benchmark"')
+    expect(html).toContain('data-room-tab="forecast"')
+    expect(html).not.toContain('data-room-tab="all"')
+    expect(html).not.toContain('data-room-finding=')
     expect(html).not.toContain('data-unavailable="true"')
-    expect(html).not.toContain('data-room-tiles')
+    expect(render('en', 'benchmark', { reports: [], summary: null, generatedAt: null })).toContain('data-room-view="benchmark"')
+    expect(render('en', 'forecast', { reports: [], summary: null, generatedAt: null })).toContain('data-room-view="forecast"')
+  })
+
+  it('no stored council run and no daily series renders the header only', () => {
+    const html = render('ar', 'all', { reports: [], summary: null, generatedAt: null, liveSummary: null })
+    expect(html).toContain('غرفة القرار')
     expect(html).not.toContain('data-room-tab=')
-    expect(html).not.toMatch(/\d+\.\d{3}/)
+    expect(html).not.toContain('data-room-view=')
   })
 })
 

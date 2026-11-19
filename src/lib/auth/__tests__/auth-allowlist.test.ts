@@ -30,6 +30,7 @@ describe('executive role allowlist', () => {
     expect(inferExecRoleFromEmail('abdullah@venturefoodskw.com')).toBe('admin')
     expect(inferExecRoleFromEmail('admin@venturefoodskw.com')).toBe('admin')
     expect(inferExecRoleFromEmail('auditor@venturefoodskw.com')).toBe('auditor')
+    expect(inferExecRoleFromEmail('qa-readonly@venturefoodskw.com')).toBe('auditor')
     expect(inferExecRoleFromEmail('someone@gmail.com')).toBeNull()
     expect(inferExecRoleFromEmail('not-an-auditor@example.com')).toBeNull()
   })
