@@ -659,9 +659,9 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
                     <th className="px-2 py-2.5 text-start">{T('Branch', 'الفرع')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Transfers In (KWD)', 'التحويلات المستلمة')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Transfers (qty)', 'التحويلات المستلمة')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Moves Count', 'عدد الحركات')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Consumption (KWD)', 'المنصرف المسجّل')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Dispensed (qty)', 'الكمية المنصرفة')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Scrap (KWD)', 'التالف المسجّل')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Current On-Hand', 'الرصيد الحالي')}</th>
                     <th className="px-2 py-2.5 text-end">{T('POS Sales', 'مبيعات الفرع')}</th>
@@ -674,35 +674,14 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                       <td className="px-2 py-2.5 font-bold text-slate-900 dark:text-white">
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
-                      <td className="px-2 py-2.5 text-end font-semibold">
-                        {b.transferMoves > 0 || b.dispatchedKg > 0 ? (
-                          <span className="tabular-nums">
-                            <span dir="ltr">{fmtInt(b.dispatchedKg)}</span>
-                            {val.movesValued ? <span className="text-slate-500"> · {fmtKwd(b.dispatchedFromWarehouseKwd)}</span> : null}
-                          </span>
-                        ) : (
-                          noneCell
-                        )}
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums" dir="ltr">
+                        {fmtInt(b.dispatchedKg)}
                       </td>
-                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300">
-                        {b.transferMoves > 0 ? (
-                          <ValueCell
-                            value={b.transferMoves}
-                            locale={fmtLocale}
-                            text={fmtInt(b.transferMoves)}
-                          />
-                        ) : (
-                          noneCell
-                        )}
+                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300 tabular-nums" dir="ltr">
+                        {fmtInt(b.transferMoves)}
                       </td>
-                      <td className="px-2 py-2.5 text-end font-semibold">
-                        {b.health === 'no-movement' && b.bomTheoreticalCostKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.bomTheoreticalCostKwd, val.movesValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.bomTheoreticalCostKwd, val.movesValued))}
-                          />
-                        )}
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums" dir="ltr">
+                        {fmtInt(b.bomTheoreticalKg)}
                       </td>
                       <td className={`px-2 py-2.5 text-end font-semibold ${scrapTone(kv(b.abnormalShrinkageKwd, val.scrapValued))}`}>
                         {b.health === 'no-movement' && b.abnormalShrinkageKwd === 0 ? noneCell : (

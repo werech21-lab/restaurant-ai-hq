@@ -18,7 +18,7 @@ import { CoverageCounter, resolveProductCosts, type CostSource, type WarehouseVa
  * - Stale-While-Revalidate cache (`TTL: 60s`) + `lastKnownGoodSnapshot` circuit breaker + `30s` manual sync cooldown.
  */
 import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
-import { logger } from '@/lib/logger'
+import { errorFields, logger } from '@/lib/logger'
 import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
@@ -72,9 +72,14 @@ import {
   branchIdForStockLocation,
   isCentralKitchenStockLocation,
   isExcludedStockLocation,
-  resolveStockRoots,
-  STOCK_LOCATION_CHILD_OF_IDS,
+  JAHRA_POS_CONFIG_IDS,
+  KITCHEN_SOURCE_POS_CONFIG_IDS,
+  STOCK_LOCATION_MAP_TTL_MS,
+  emptyStockRoots,
+  stockRootsFromRegisterChain,
+  type RegisterPickingLink,
   type ResolvedStockRoots,
+  type StockLocationBranchId,
 } from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
@@ -196,7 +201,7 @@ const UI_CHANNEL_KEYS = [
 
 type RegistryShape = {
   allowedPosConfigIds: number[]
-  registers: Record<string, { location: string }>
+  registers: Record<string, { location: string; delivery?: boolean }>
   locations: Record<
     string,
     {
@@ -1030,11 +1035,10 @@ export function resolveRestaurantBranchForConfig(
   return null
 }
 
-/** Delivery terminals by pos.config id: Ardiya registers and Delivery (Qurain) id 24. */
+/** Delivery terminals by pos.config id. The flag is set on the registry row. */
 function isDeliveryPosConfigId(cfgId: number | undefined): boolean {
   if (cfgId == null || !Number.isInteger(cfgId)) return false
-  const loc = REG.registers[String(cfgId)]?.location
-  return loc === 'ardiya' || loc === 'qurain-delivery'
+  return REG.registers[String(cfgId)]?.delivery === true
 }
 
 /** Fuzzy brand hint resolver from POS terminal or pricelist name when product lines are aggregated. */
@@ -5607,6 +5611,94 @@ export async function fetchLiveOdooPeriodCube(
   }
 }
 
+const RESTAURANT_STOCK_BRANCHES = new Set<StockLocationBranchId>([
+  '360-mall',
+  'al-kout',
+  'assima',
+  'promenade',
+  'avenues',
+  'salmiya',
+  'ardiya',
+])
+
+let stockLocationMapCache: { at: number; roots: ResolvedStockRoots } | null = null
+
+function branchOfRestaurantConfig(configId: number): StockLocationBranchId | null {
+  const loc = REG.registers[String(configId)]?.location
+  if (!loc || !RESTAURANT_STOCK_BRANCHES.has(loc as StockLocationBranchId)) return null
+  return loc as StockLocationBranchId
+}
+
+/** pos.config → picking type → warehouse lot and view. Cached for 24 hours. */
+async function loadStockRoots(): Promise<ResolvedStockRoots> {
+  const now = Date.now()
+  if (stockLocationMapCache && now - stockLocationMapCache.at < STOCK_LOCATION_MAP_TTL_MS) {
+    return stockLocationMapCache.roots
+  }
+  const branchOfConfig: Record<number, StockLocationBranchId> = {}
+  for (const [id, row] of Object.entries(REG.registers)) {
+    const branch = branchOfRestaurantConfig(Number(id))
+    if (branch) branchOfConfig[Number(id)] = branch
+  }
+  const configIds = [
+    ...new Set<number>([
+      ...Object.keys(branchOfConfig).map(Number),
+      ...JAHRA_POS_CONFIG_IDS,
+      ...KITCHEN_SOURCE_POS_CONFIG_IDS,
+    ]),
+  ]
+  try {
+    const configs = await executeOdooKw<{ id: number; picking_type_id?: M2O }[]>(
+      'pos.config',
+      'search_read',
+      [[['id', 'in', configIds]]],
+      { fields: ['id', 'picking_type_id'], context: { active_test: false } },
+    )
+    const pickingIds = [...new Set(configs.map((row) => m2oId(row.picking_type_id)).filter((id): id is number => id !== null))]
+    const pickingTypes = pickingIds.length
+      ? await executeOdooKw<{ id: number; warehouse_id?: M2O }[]>(
+          'stock.picking.type',
+          'read',
+          [pickingIds, ['id', 'warehouse_id']],
+        )
+      : []
+    const warehouseIds = [...new Set(pickingTypes.map((row) => m2oId(row.warehouse_id)).filter((id): id is number => id !== null))]
+    const warehouses = warehouseIds.length
+      ? await executeOdooKw<{ id: number; lot_stock_id?: M2O; view_location_id?: M2O }[]>(
+          'stock.warehouse',
+          'read',
+          [warehouseIds, ['id', 'lot_stock_id', 'view_location_id']],
+        )
+      : []
+    const roots = stockRootsFromRegisterChain({
+      branchOfConfig,
+      configs: configs.map((row): RegisterPickingLink => ({
+        configId: row.id,
+        pickingTypeId: m2oId(row.picking_type_id),
+      })),
+      pickingTypes: pickingTypes.map((row) => ({
+        pickingTypeId: row.id,
+        warehouseId: m2oId(row.warehouse_id),
+      })),
+      warehouses: warehouses.map((row) => ({
+        warehouseId: row.id,
+        lotStockId: m2oId(row.lot_stock_id),
+        viewLocationId: m2oId(row.view_location_id),
+      })),
+    })
+    stockLocationMapCache = { at: now, roots }
+    logger.info('stock.location ids resolved', {
+      branchLocationIds: roots.branchById,
+      kitchenLocationIds: roots.kitchenIds,
+      excludedLocationIds: roots.excludedIds,
+    })
+    return roots
+  } catch (err) {
+    logger.warn('stock.location id resolution failed', errorFields(err))
+    return emptyStockRoots()
+  }
+}
+
 function resolveStockLocationRole(
   locationId: number,
   usage: string,
@@ -5830,7 +5922,7 @@ export async function fetchLiveOdooWarehouseChain(
       }
     }
 
-    const stockRoots = resolveStockRoots()
+    const stockRoots = await loadStockRoots()
     const locationMeta = new Map<
       number,
       ReturnType<typeof resolveStockLocationRole> & { label: string }
@@ -5851,20 +5943,11 @@ export async function fetchLiveOdooWarehouseChain(
       scrapFieldsMeta && 'date_done' in scrapFieldsMeta ? 'date_done' : 'create_date'
     const scrapHasUomField = Boolean(scrapFieldsMeta && 'product_uom_id' in scrapFieldsMeta)
 
-    const moveDomain: unknown[] = [
+    const moveDomain: unknown[][] = [
       ...companyDomain,
       ['state', '=', 'done'],
       ['date', '>=', bounds.fromUtc],
       ['date', '<', bounds.toExclusiveUtc],
-      '|',
-      ['location_id', 'child_of', [...STOCK_LOCATION_CHILD_OF_IDS]],
-      ['location_dest_id', 'child_of', [...STOCK_LOCATION_CHILD_OF_IDS]],
-      ...(excludedLocationIds.length > 0
-        ? [
-            ['location_id', 'not in', excludedLocationIds],
-            ['location_dest_id', 'not in', excludedLocationIds],
-          ]
-        : []),
     ]
 
     const scrapDomain: unknown[][] = [
@@ -6171,7 +6254,6 @@ export async function fetchLiveOdooWarehouseChain(
       const locId = m2oId(q.location_id)
       if (pid === null || locId === null) continue
       const loc = locationMeta.get(locId)
-      if (loc?.excluded) continue
       const pRow = ensureProdRow(pid, m2oName(q.product_id) ?? '')
       if (!pRow) continue
 
@@ -6197,10 +6279,11 @@ export async function fetchLiveOdooWarehouseChain(
     const classifyMoveFlow = (srcLocId: number | null, dstLocId: number | null) => {
       const src = srcLocId !== null ? locationMeta.get(srcLocId) : undefined
       const dst = dstLocId !== null ? locationMeta.get(dstLocId) : undefined
-      if (src?.excluded || dst?.excluded) return { kind: 'excluded' as const, branchId: null }
-      if (src?.role === 'supplier' && (dst?.role === 'ck' || dst?.role === 'branch')) {
-        return { kind: 'inbound' as const, branchId: dst.branchId }
+      if (src?.role === 'supplier' && dst && dst.role !== 'supplier') {
+        const branchId = dst.role === 'branch' && !dst.excluded ? dst.branchId : null
+        return { kind: 'inbound' as const, branchId }
       }
+      if (src?.excluded || dst?.excluded) return { kind: 'internal_other' as const, branchId: null }
       if (src?.role === 'ck' && dst?.role === 'branch') {
         return { kind: 'transfer' as const, branchId: dst.branchId }
       }
@@ -6224,7 +6307,6 @@ export async function fetchLiveOdooWarehouseChain(
       const dstId = m2oId(m.location_dest_id)
       if (pid === null) continue
       const flow = classifyMoveFlow(srcId, dstId)
-      if (flow.kind === 'excluded') continue
       const pRow = ensureProdRow(pid, m2oName(m.product_id) ?? '')
       if (!pRow) continue
 
@@ -6297,7 +6379,6 @@ export async function fetchLiveOdooWarehouseChain(
       const conv = rawDayUtc ? odooUtcToKuwaitIso(rawDayUtc) : null
       if (pid === null || !conv) continue
       const flow = classifyMoveFlow(srcId, dstId)
-      if (flow.kind === 'excluded') continue
       const pMeta = prodInfoById.get(pid)
       if (pMeta?.excluded) continue
 

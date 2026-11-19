@@ -799,6 +799,29 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
             { id: 94, name: 'Stock', complete_name: 'Heisenberg Kitchen/Stock', usage: 'internal' },
           ])
         }
+        if (model === 'pos.config' && method === 'search_read') {
+          return rpcJson(reqId, [
+            { id: 17, picking_type_id: [901, '360'] },
+            { id: 24, picking_type_id: [902, 'QRN'] },
+            { id: 36, picking_type_id: [902, 'QRN'] },
+            { id: 25, picking_type_id: [903, 'JAH'] },
+            { id: 39, picking_type_id: [903, 'JAH'] },
+          ])
+        }
+        if (model === 'stock.picking.type' && method === 'read') {
+          return rpcJson(reqId, [
+            { id: 901, warehouse_id: [801, '360'] },
+            { id: 902, warehouse_id: [802, 'QRN'] },
+            { id: 903, warehouse_id: [803, 'JAH'] },
+          ])
+        }
+        if (model === 'stock.warehouse' && method === 'read') {
+          return rpcJson(reqId, [
+            { id: 801, lot_stock_id: [219, '360/Stock'], view_location_id: [218, '360'] },
+            { id: 802, lot_stock_id: [259, 'QRN/Stock'], view_location_id: [258, 'QRN'] },
+            { id: 803, lot_stock_id: [92, 'Jahra'], view_location_id: [90, 'Jahra'] },
+          ])
+        }
         if (model === 'stock.quant' && method === 'read_group') {
           return rpcJson(reqId, [
             { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [10, 'EXB/Central Kitchen Stock'], quantity: 80, value: 148.0, __count: 1 },

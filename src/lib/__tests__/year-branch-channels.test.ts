@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   YEAR_CLOSED_READ_TIMEOUT_MS,
   YEAR_PAYMENT_GROUP_BY,
@@ -8,6 +9,50 @@ import {
 
 const BRANCHES = ['360-mall', 'al-kout', 'assima', 'promenade', 'avenues', 'salmiya', 'ardiya'] as const
 const CHANNELS = ['dine-in', 'talabat-tgo', 'takeaway-direct'] as const
+
+const deliveryIds = Object.entries(posRegistry.registers)
+  .filter(([, row]) => 'delivery' in row && row.delivery === true)
+  .map(([id]) => Number(id))
+  .sort((a, b) => a - b)
+
+describe('delivery register ids', () => {
+  it('keeps the round-6 delivery set, including registers 11, 15, 18, 20 and 22', () => {
+    expect(deliveryIds).toEqual([3, 11, 15, 18, 20, 22, 23, 24, 35])
+  })
+
+  it('keeps year takeaway at 24,276 and leaves dine-in on the non-delivery registers', () => {
+    const isDelivery = (id: number) => deliveryIds.includes(id)
+    const payments = [
+      { configId: 11, methodName: 'Cash', netKwd: 1_000, orders: 10 },
+      { configId: 15, methodName: 'Cash', netKwd: 1_000, orders: 10 },
+      { configId: 18, methodName: 'Cash', netKwd: 1_000, orders: 10 },
+      { configId: 20, methodName: 'Cash', netKwd: 1_098, orders: 10 },
+      { configId: 22, methodName: 'Cash', netKwd: 1_000, orders: 10 },
+      { configId: 24, methodName: 'Cash', netKwd: 12_000, orders: 80 },
+      { configId: 3, methodName: 'Cash', netKwd: 7_178, orders: 40 },
+      { configId: 17, methodName: 'Cash', netKwd: 134_698, orders: 4000 },
+      { configId: 17, methodName: 'Talabat Go', netKwd: 90_004, orders: 2100 },
+    ]
+    const folded = foldYearBranchChannels({
+      payments,
+      branchOfConfig: (id) => (id === 17 ? '360-mall' : id === 3 ? 'ardiya' : id === 11 ? 'promenade' : null),
+      isDeliveryConfig: isDelivery,
+      channelOf: (method, delivery) =>
+        method.includes('Talabat') ? 'talabat-tgo' : delivery ? 'takeaway-direct' : 'dine-in',
+      branchIds: BRANCHES,
+      channelKeys: CHANNELS,
+    })
+    const takeaway =
+      BRANCHES.reduce((sum, id) => sum + (folded.byBranch[id]['takeaway-direct']?.netKwd ?? 0), 0) +
+      (folded.unmapped['takeaway-direct']?.netKwd ?? 0)
+    const dineIn =
+      BRANCHES.reduce((sum, id) => sum + (folded.byBranch[id]['dine-in']?.netKwd ?? 0), 0) +
+      (folded.unmapped['dine-in']?.netKwd ?? 0)
+    expect(takeaway).toBe(24_276)
+    expect(dineIn).toBe(134_698)
+    expect(folded.byBranch['360-mall']['talabat-tgo'].netKwd).toBe(90_004)
+  })
+})
 
 describe('year branch channels', () => {
   it('groups the year payment read by session and method, with a 45s closed-year timeout', () => {
