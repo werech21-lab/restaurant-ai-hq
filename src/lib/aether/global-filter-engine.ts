@@ -14,6 +14,7 @@ import {
   canShowReceivableAmounts,
 } from '@/lib/aether/receivables-status'
 import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
+import { SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import {
@@ -130,7 +131,7 @@ export const GLOBAL_PERIOD_OPTIONS: readonly FilterOption<GlobalPeriod>[] = [
 
 export const GLOBAL_KUWAIT_SLICE_OPTIONS: readonly FilterOption<KuwaitSlice>[] = [
   { id: 'all', ar: 'كل الأوقات', en: 'All Times' },
-  { id: 'payday', ar: 'أيام الرواتب 20–28', en: 'Paydays 20–28' },
+  { id: 'payday', ar: `أيام الرواتب ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}`, en: `Paydays ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}` },
   { id: 'mid-month', ar: 'منتصف الشهر 10–19', en: 'Mid-Month 10–19' },
   { id: 'weekend', ar: 'الويكند والزوارة', en: 'Weekend & Gatherings' },
   { id: 'quiet-hours', ar: 'الساعات الهادئة 3–6', en: 'Quiet Hours 3–6' },
@@ -932,7 +933,7 @@ function computeLiveKuwaitSliceMultipliers(
   const matching = daily.filter((d) => {
     const dom = Number(d.day.slice(8, 10))
     const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-    if (slice === 'payday') return dom >= 20 && dom <= 28
+    if (slice === 'payday') return dom >= SALARY_WINDOW_DAYS.start && dom <= SALARY_WINDOW_DAYS.end
     if (slice === 'mid-month') return dom >= 10 && dom <= 19
     if (slice === 'weekend') return dow === 4 || dow === 5 || dow === 6
     return true
