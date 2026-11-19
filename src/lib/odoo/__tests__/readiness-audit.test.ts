@@ -13,17 +13,20 @@ import {
   buildCashierChecks,
   buildNoCostScope,
   classifyOdooReadFailure,
+  classifyStandardPrice,
   fieldCompletenessPct,
   historyDaySpan,
   isDeliveryQurainName,
   isFatalOdooFailure,
   isFilledOdooValue,
   isReadinessAuditRole,
+  listedProductCost,
   readinessAuditToCsv,
   resolveAttendanceBranchLink,
   resolveReadinessScopes,
   salesStatesMatchPosOrderQuery,
   sanitizeReadinessReport,
+  standardPriceFieldProbe,
   type AuditFacts,
   type LineSalesInput,
   type ModelFact,
@@ -120,12 +123,13 @@ describe('readiness audit pure rules', () => {
       { id: 35, name: 'Delivery Ardiya Temp', active: true },
     ])
     expect(scopes.withoutQurain).toEqual(expect.arrayContaining([8, 26, 35]))
-    for (const id of [4, 9, 99, 7, 24, 16]) expect(scopes.withoutQurain).not.toContain(id)
-    expect(scopes.withQurain).toEqual([...scopes.withoutQurain, 4, 9].sort((a, b) => a - b))
+    for (const id of [4, 9, 99, 7, 24, 16, 36]) expect(scopes.withoutQurain).not.toContain(id)
+    expect(scopes.withQurain).toEqual([...scopes.withoutQurain, 4, 9, 24, 36].sort((a, b) => a - b))
     expect(scopes.withQurain).not.toContain(99)
     const outlet = scopes.qurain.find((row) => row.id === 24)
     expect(outlet?.explicitlyExcluded).toBe(true)
-    expect(outlet?.includedInWithQurain).toBe(false)
+    expect(outlet?.includedInWithQurain).toBe(true)
+    expect(scopes.qurain.find((row) => row.id === 36)?.includedInWithQurain).toBe(true)
     expect(scopes.qurain.find((row) => row.id === 4)?.includedInWithQurain).toBe(true)
     expect(scopes.qurain.find((row) => row.id === 99)?.includedInWithQurain).toBe(false)
   })
@@ -230,6 +234,21 @@ describe('readiness audit pure rules', () => {
     const staff = assembleReadinessAudit(facts).advisors.find((row) => row.id === 'staff')
     expect(staff?.decision).toBe('HOLD')
     expect(staff?.branchLink?.populated).toBe(false)
+    const attendance = READINESS_MODEL_SPECS.find((spec) => spec.model === 'hr.attendance')
+    const payslip = READINESS_MODEL_SPECS.find((spec) => spec.model === 'hr.payslip')
+    if (!attendance || !payslip) throw new Error('missing staff specs')
+    const base = passingFacts()
+    const off = assembleReadinessAudit({
+      ...base,
+      models: {
+        ...base.models,
+        'hr.attendance': okModel(attendance, { rowCount: 0, completenessPct: null, completenessMeasured: true, sampleSize: 0 }),
+        'hr.payslip': okModel(payslip, { access: 'denied', readable: false, exists: true, rowCount: null, completenessMeasured: false }),
+      },
+    }).advisors.find((row) => row.id === 'staff')
+    expect(off?.decision).toBe('OFF')
+    expect(off?.hidden).toBe(true)
+    expect(off?.reason).toContain('hr.payslip is not readable')
     expect(isFilledOdooValue(false)).toBe(false)
     expect(isFilledOdooValue(0)).toBe(true)
     expect(fieldCompletenessPct([{ debit: 0, credit: false }], ['debit', 'credit'])).toBe(50)
@@ -297,6 +316,52 @@ describe('readiness audit pure rules', () => {
     expect(warehouse?.reason).toContain('1 active product')
     const clear = assembleReadinessAudit(passingFacts())
     expect(clear.advisors.find((row) => row.id === 'warehouse')?.decision).toBe('GO')
+  })
+
+  it('separates an unreadable cost field, a company-context zero, and a true zero', () => {
+    expect(listedProductCost({ hasStandardPrice: false, standardPrice: undefined }, null)).toEqual({ known: false })
+    expect(listedProductCost({ hasStandardPrice: true, standardPrice: 0 }, null)).toMatchObject({
+      known: true,
+      standardPriceKwd: 0,
+      source: 'product.product',
+    })
+    expect(
+      listedProductCost({ hasStandardPrice: false, standardPrice: undefined }, { hasStandardPrice: true, standardPrice: false }),
+    ).toMatchObject({ known: true, standardPriceKwd: 0, source: 'product.template' })
+    expect(standardPriceFieldProbe({ standard_price: { type: 'float', groups: 'product.group_stock_manager' } })).toEqual({
+      present: true,
+      groups: 'product.group_stock_manager',
+    })
+    const blocked = classifyStandardPrice({
+      productField: { present: false, groups: null },
+      templateField: { present: false, groups: null },
+      readReturnsKey: false,
+      companiesTried: [1],
+      activeProducts: 40,
+      observations: [],
+    })
+    expect(blocked.case).toBe('not_readable')
+    expect(blocked.counts.notReadable).toBe(40)
+    const contextZero = classifyStandardPrice({
+      productField: { present: true, groups: 'base.group_user' },
+      templateField: { present: true, groups: null },
+      readReturnsKey: true,
+      companiesTried: [1, 2],
+      activeProducts: 2,
+      observations: [{ values: [0, 1.5] }, { values: [0, 0] }],
+    })
+    expect(contextZero.case).toBe('mixed')
+    expect(contextZero.counts).toEqual({ notReadable: 0, companyContextZero: 1, trulyZero: 1 })
+    const realZero = classifyStandardPrice({
+      productField: { present: true, groups: null },
+      templateField: { present: true, groups: null },
+      readReturnsKey: true,
+      companiesTried: [1, 2],
+      activeProducts: 1,
+      observations: [{ values: [0, 'absent'] }],
+    })
+    expect(realZero.counts.notReadable).toBe(1)
+    expect(realZero.counts.trulyZero).toBe(0)
   })
 
   it('reports cashier configs 24, 16, and 35 with signed net and Kuwait dates', () => {
@@ -380,11 +445,12 @@ describe('readiness audit collector', () => {
     expect(new Set(calls).size).toBeGreaterThan(0)
     for (const method of calls) expect(ODOO_READ_METHODS).toContain(method)
     expect(report.readOnly).toBe(true)
-    expect(report.scopes.withoutQurain.configIds).toContain(8)
-    expect(report.scopes.withoutQurain.configIds).not.toContain(4)
-    expect(report.scopes.withQurain.configIds).toEqual(
-      [...report.scopes.withoutQurain.configIds, 4].sort((a, b) => a - b),
-    )
+    expect(report.scopes.withoutQurain.configIds).toEqual([8, 35])
+    expect(report.scopes.withQurain.configIds).toEqual([4, 8, 24, 35, 36])
+    expect(report.scopes.withQurain.netKwd2026).toBeTypeOf('number')
+    expect(report.scopes.withoutQurain.netKwd2026).toBeTypeOf('number')
+    expect(report.standardPrice?.case).toBe('truly_zero')
+    expect(report.standardPrice?.counts.trulyZero).toBeGreaterThan(0)
     expect(report.advisors.find((row) => row.id === 'finance')?.decision).toBe('GO')
     expect(report.advisors.find((row) => row.id === 'seasons')?.decision).toBe('GO')
     expect(report.advisors.find((row) => row.id === 'staff')?.decision).toBe('GO')

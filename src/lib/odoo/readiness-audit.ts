@@ -25,6 +25,8 @@ export const COMPLETENESS_SAMPLE_SIZE = 80
 export const READINESS_PAGE_SIZE = 200
 export const MAX_ZERO_COST_PRODUCTS = 2_000
 export const CASHIER_CONFIG_IDS = [24, 16, 35] as const
+/** Delivery (Qurain) and Delivery (Qurain Temp). Included in withQurain by id, even when excluded or inactive. */
+export const QURAIN_SCOPE_CONFIG_IDS = [24, 36] as const
 export const CASHIER_FROM_KUWAIT = '2026-01-01'
 export const POS_SALE_STATES = ['paid', 'done', 'invoiced'] as const
 export const NO_COST_TOP_SIZES = [50, 80] as const
@@ -40,7 +42,7 @@ export function isOdooReadMethod(method: string): method is OdooReadMethod {
 
 export type AdvisorId = 'finance' | 'platforms' | 'warehouse' | 'staff' | 'seasons'
 export type ScopeName = 'withoutQurain' | 'withQurain'
-export type ReadinessDecision = 'GO' | 'HOLD'
+export type ReadinessDecision = 'GO' | 'HOLD' | 'OFF'
 export type ModelAccess = 'ok' | 'missing' | 'denied' | 'error' | 'unchecked'
 
 export interface ModelSpec {
@@ -113,7 +115,8 @@ export const READINESS_MODEL_SPECS: readonly ModelSpec[] = [
     model: 'product.product',
     dateField: 'create_date',
     keyFields: ['name', 'default_code', 'standard_price'],
-    requiredFields: ['standard_price'],
+    // standard_price is company-dependent and may be absent from fields_get. The cost scan reads it separately.
+    requiredFields: ['name'],
     countDomain: [['active', '=', true]],
     extraFields: [],
     emptyRowsAllowed: false,
@@ -339,6 +342,7 @@ export interface PosConfigRow {
   id: number
   name: string
   active: boolean
+  companyId?: number | null
 }
 
 export interface QurainRegister {
@@ -355,41 +359,242 @@ export interface ResolvedScopes {
   qurain: QurainRegister[]
 }
 
+const FORCED_QURAIN_IDS = new Set<number>(QURAIN_SCOPE_CONFIG_IDS)
+
 /**
- * `withQurain` is the company allow-list after Delivery (Qurain) was included:
- * `companyPosConfigAllowed`, which accepts that cashier name and no longer drops
- * Qurain from an allowlisted register. `withoutQurain` is the same list with
- * those Qurain registers removed. A Qurain name that the allow-list still
- * rejects stays out of both.
+ * `withoutQurain` is the company allow-list with Qurain registers removed.
+ * `withQurain` is that list plus configs 24 and 36 by id (Delivery (Qurain)
+ * and Delivery (Qurain Temp)), including when 24 is explicitly excluded or 36
+ * is inactive. Other Qurain names the allow-list rejects stay out of both.
  */
 export function resolveReadinessScopes(configs: readonly PosConfigRow[]): ResolvedScopes {
   const withIds: number[] = []
   const withoutIds: number[] = []
   const qurain: QurainRegister[] = []
+  const seenQurain = new Set<number>()
   for (const row of configs) {
     if (!Number.isInteger(row.id) || row.id <= 0) continue
     const name = row.name ?? ''
     const active = row.active !== false
     const explicitlyExcluded = isExcludedRecordId('pos_config', row.id)
-    const qurainName = isDeliveryQurainName(name) || isDeliveryQurainConfig(name)
+    const forced = FORCED_QURAIN_IDS.has(row.id)
+    const qurainName = forced || isDeliveryQurainName(name) || isDeliveryQurainConfig(name)
     const inCompanyTotals = active && companyPosConfigAllowed(row.id, name, true)
     if (qurainName) {
+      seenQurain.add(row.id)
       qurain.push({
         id: row.id,
         name,
         active,
         explicitlyExcluded,
-        includedInWithQurain: inCompanyTotals,
+        includedInWithQurain: forced || inCompanyTotals,
       })
     }
-    if (!inCompanyTotals) continue
-    withIds.push(row.id)
-    if (!qurainName) withoutIds.push(row.id)
+    if (forced || inCompanyTotals) withIds.push(row.id)
+    if (inCompanyTotals && !qurainName) withoutIds.push(row.id)
+  }
+  for (const id of QURAIN_SCOPE_CONFIG_IDS) {
+    if (!withIds.includes(id)) withIds.push(id)
+    if (!seenQurain.has(id)) {
+      qurain.push({
+        id,
+        name: `pos.config ${id}`,
+        active: false,
+        explicitlyExcluded: isExcludedRecordId('pos_config', id),
+        includedInWithQurain: true,
+      })
+    }
   }
   const withoutQurain = [...new Set(withoutIds)].sort((a, b) => a - b)
   const withQurain = [...new Set(withIds)].sort((a, b) => a - b)
   qurain.sort((a, b) => a.id - b.id)
   return { withoutQurain, withQurain, qurain }
+}
+
+/** Company context for company-dependent fields such as standard_price. */
+export function odooCompanyContext(
+  companyIds: readonly number[],
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const ids = [...new Set(companyIds.filter((id) => Number.isInteger(id) && id > 0))]
+  const context: Record<string, unknown> = { active_test: false, ...extra }
+  if (ids.length > 0) {
+    context.allowed_company_ids = ids
+    context.force_company = ids[0]
+  }
+  return context
+}
+
+export type ListedCost =
+  | { known: true; standardPriceKwd: number; source: 'product.product' | 'product.template' }
+  | { known: false }
+
+/**
+ * A missing key is not a zero cost. A present value of false, null, or <= 0 is a known zero-or-negative cost.
+ */
+export function listedProductCost(
+  variant: { hasStandardPrice: boolean; standardPrice: unknown },
+  template: { hasStandardPrice: boolean; standardPrice: unknown } | null,
+): ListedCost {
+  if (variant.hasStandardPrice) {
+    return { known: true, standardPriceKwd: costNumber(variant.standardPrice), source: 'product.product' }
+  }
+  if (template?.hasStandardPrice) {
+    return { known: true, standardPriceKwd: costNumber(template.standardPrice), source: 'product.template' }
+  }
+  return { known: false }
+}
+
+export type StandardPriceCase = 'not_readable' | 'company_context_zero' | 'truly_zero' | 'mixed'
+
+export interface StandardPriceFieldProbe {
+  present: boolean
+  groups: string | null
+}
+
+export interface StandardPriceDiagnosis {
+  /** Which situation the founder should act on. Counts below are the full split. */
+  case: StandardPriceCase
+  readable: boolean
+  readReturnsKey: boolean
+  productField: StandardPriceFieldProbe
+  templateField: StandardPriceFieldProbe
+  companiesTried: number[]
+  counts: {
+    /** (a) The integration user cannot read standard_price. */
+    notReadable: number
+    /** (b) Readable, but at least one company context returns <= 0 while another returns a cost. */
+    companyContextZero: number
+    /** (c) Readable, and every company context that returned the key has cost <= 0. */
+    trulyZero: number
+  }
+}
+
+export type CompanyCostReading = number | 'absent'
+
+/**
+ * Classifies each product after standard_price was read once per company in scope.
+ * A missing key is case (a), not a zero. A zero in one company and a positive cost in another is case (b).
+ */
+export function classifyStandardPrice(input: {
+  productField: StandardPriceFieldProbe
+  templateField: StandardPriceFieldProbe
+  readReturnsKey: boolean
+  companiesTried: readonly number[]
+  activeProducts: number
+  observations: readonly { values: readonly CompanyCostReading[] }[]
+}): StandardPriceDiagnosis {
+  const fieldReadable = input.productField.present || input.templateField.present || input.readReturnsKey
+  const base = {
+    readable: fieldReadable,
+    readReturnsKey: input.readReturnsKey,
+    productField: input.productField,
+    templateField: input.templateField,
+    companiesTried: [...input.companiesTried],
+  }
+  if (!fieldReadable) {
+    return {
+      ...base,
+      case: 'not_readable',
+      counts: { notReadable: Math.max(0, input.activeProducts), companyContextZero: 0, trulyZero: 0 },
+    }
+  }
+  let notReadable = 0
+  let companyContextZero = 0
+  let trulyZero = 0
+  for (const observation of input.observations) {
+    const bucket = costObservationCase(observation.values)
+    if (bucket === 'not_readable') notReadable += 1
+    else if (bucket === 'company_context_zero') companyContextZero += 1
+    else if (bucket === 'truly_zero') trulyZero += 1
+  }
+  const caseName: StandardPriceCase =
+    companyContextZero > 0 && trulyZero > 0
+      ? 'mixed'
+      : companyContextZero > 0
+        ? 'company_context_zero'
+        : notReadable > 0 && trulyZero === 0
+          ? 'not_readable'
+          : 'truly_zero'
+  return { ...base, case: caseName, counts: { notReadable, companyContextZero, trulyZero } }
+}
+
+function costObservationCase(
+  values: readonly CompanyCostReading[],
+): 'not_readable' | 'company_context_zero' | 'truly_zero' | 'has_cost' {
+  let sawPositive = false
+  let sawZero = false
+  let sawNumber = false
+  let sawAbsent = false
+  for (const value of values) {
+    if (value === 'absent') {
+      sawAbsent = true
+      continue
+    }
+    sawNumber = true
+    if (value <= 0) sawZero = true
+    else sawPositive = true
+  }
+  if (!sawNumber) return 'not_readable'
+  if (sawPositive && sawZero) return 'company_context_zero'
+  if (sawAbsent && !sawPositive) return 'not_readable'
+  if (sawZero) return 'truly_zero'
+  return 'has_cost'
+}
+
+export function standardPriceFieldProbe(payload: unknown): StandardPriceFieldProbe {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { present: false, groups: null }
+  const info = (payload as Record<string, unknown>).standard_price
+  if (!info || typeof info !== 'object' || Array.isArray(info)) return { present: false, groups: null }
+  const groups = (info as Record<string, unknown>).groups
+  if (Array.isArray(groups)) return { present: true, groups: groups.map(String).join(', ') || null }
+  if (typeof groups === 'string' && groups.trim()) return { present: true, groups: groups }
+  return { present: true, groups: null }
+}
+
+function costNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return r3(value)
+  if (value === false || value === null || value === undefined || value === '') return 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? r3(parsed) : 0
+}
+
+export function buildAuditPosOrderDomain(input: {
+  fromUtc: string
+  toExclusiveUtc: string
+  configIds: readonly number[]
+}): unknown[][] {
+  return [
+    ['state', 'in', [...POS_SALE_STATES]],
+    ['date_order', '>=', input.fromUtc],
+    ['date_order', '<', input.toExclusiveUtc],
+    ['config_id', 'in', [...input.configIds]],
+  ]
+}
+
+export function buildAuditLineDomain(input: {
+  fromUtc: string
+  toExclusiveUtc: string
+  configIds: readonly number[]
+}): unknown[][] {
+  return [
+    ['order_id.state', 'in', [...POS_SALE_STATES]],
+    ['order_id.date_order', '>=', input.fromUtc],
+    ['order_id.date_order', '<', input.toExclusiveUtc],
+    ['order_id.config_id', 'in', [...input.configIds]],
+  ]
+}
+
+export function sumPosOrderGroups(rows: readonly Record<string, unknown>[]): { orders: number; netKwd: number } {
+  let orders = 0
+  let total = 0
+  let tax = 0
+  for (const row of rows) {
+    orders += Math.max(0, Math.round(Number(row.__count) || 0))
+    total += Number(row.amount_total) || 0
+    tax += Number(row.amount_tax) || 0
+  }
+  return { orders, netKwd: posOrderNet(total, tax) }
 }
 
 export function isFilledOdooValue(value: unknown): boolean {
@@ -405,12 +610,15 @@ export function fieldCompletenessPct(
 ): number | null {
   if (rows.length === 0 || fields.length === 0) return null
   let filled = 0
-  const total = rows.length * fields.length
+  let total = 0
   for (const row of rows) {
     for (const field of fields) {
+      if (!Object.prototype.hasOwnProperty.call(row, field)) continue
+      total += 1
       if (isFilledOdooValue(row[field])) filled += 1
     }
   }
+  if (total === 0) return null
   return Math.round((filled / total) * 1000) / 10
 }
 
@@ -483,6 +691,7 @@ export interface ProductInput {
   name: string
   defaultCode: string | null
   standardPriceKwd: number
+  costSource?: 'product.product' | 'product.template'
 }
 
 export interface LineAgg {
@@ -501,6 +710,7 @@ export interface NoCostProductRow {
   qty60: number
   netKwd60: number
   priority: 'P1' | 'P2'
+  costSource: 'product.product' | 'product.template'
 }
 
 export interface NoCostTop {
@@ -532,6 +742,7 @@ export interface CashierCheck {
   read: boolean
   orders: number | null
   netKwd: number | null
+  companyId: number | null
   firstOrderAt: string | null
   lastOrderAt: string | null
   firstOrderKuwait: string | null
@@ -550,6 +761,8 @@ export interface ScopeReport {
   earliestKuwait: string | null
   latestKuwait: string | null
   historyDays: number | null
+  orders2026: number | null
+  netKwd2026: number | null
 }
 
 export interface ModelReport {
@@ -578,6 +791,7 @@ export interface AdvisorReport {
   title: string
   decision: ReadinessDecision
   reason: string
+  hidden?: boolean
   models: ModelReport[]
   channels?: {
     windowDays: 60
@@ -599,11 +813,13 @@ export interface ReadinessReport {
   salesStates: readonly ['paid', 'done', 'invoiced']
   scopes: Record<ScopeName, ScopeReport>
   qurainRegisters: QurainRegister[]
+  standardPrice: StandardPriceDiagnosis | null
   advisors: AdvisorReport[]
   productsWithoutCost: {
     truncated: boolean
     scanned: boolean
     lineSalesRead: boolean
+    costFieldAbsent: number
     withoutQurain: NoCostScope
     withQurain: NoCostScope
   }
@@ -633,6 +849,10 @@ export interface AuditFacts {
   productsTruncated: boolean
   lineSalesRead: boolean
   lineSales: Record<ScopeName, LineSalesInput>
+  scopeWindow?: Record<ScopeName, { orders: number; netKwd: number } | null>
+  costReadable?: boolean
+  costAbsentCount?: number
+  standardPrice?: StandardPriceDiagnosis | null
   cashiersRead: boolean
   cashierSums: readonly Record<string, unknown>[]
   cashierMins: readonly Record<string, unknown>[]
@@ -759,13 +979,25 @@ function decideWarehouse(facts: AuditFacts, withQurain: NoCostScope): string {
     return 'HOLD: the active register list was not read, so 60-day sales of zero-cost products are unknown.'
   }
   if (!facts.productsScanned) return 'HOLD: the zero-cost product scan did not finish.'
+  if (facts.costReadable === false) {
+    return 'HOLD: standard_price was absent on product.product and product.template, so a missing cost was not treated as zero.'
+  }
+  if (facts.standardPrice?.case === 'not_readable') {
+    const productGroups = facts.standardPrice.productField.groups ?? 'none'
+    const templateGroups = facts.standardPrice.templateField.groups ?? 'none'
+    return `HOLD: standard_price is not readable for the integration user (${facts.standardPrice.counts.notReadable} active products). product.product groups: ${productGroups}. product.template groups: ${templateGroups}. The user needs read access on the cost field before accounting can enter or check costs.`
+  }
   if (facts.productsTruncated) return 'HOLD: the zero-cost product scan was truncated before the time budget.'
   if (!facts.lineSalesRead) return 'HOLD: pos.order.line sales for the cost gap could not be grouped.'
   if (withQurain.totals.p1Count > 0) {
     const count = withQurain.totals.p1Count
     const noun = count === 1 ? 'product' : 'products'
     const verb = count === 1 ? 'has' : 'have'
-    return `HOLD: ${count} active ${noun} sold in the last 60 days ${verb} standard_price <= 0.`
+    return `HOLD: ${count} active ${noun} sold in the last 60 days ${verb} a true standard_price <= 0 in every company in scope. Accounting needs to enter those costs.`
+  }
+  const contextZeros = facts.standardPrice?.counts.companyContextZero ?? 0
+  if (contextZeros > 0) {
+    return `GO: product cost, stock, scrap, bills of materials, and purchase lines are readable. ${contextZeros} products read as 0 in one company and have a cost in another, so that zero is the company context rather than a missing cost.`
   }
   return `GO: product cost, stock, scrap, bills of materials, and purchase lines are readable. No active product sold in the last 60 days has standard_price <= 0 (${withQurain.totals.p2Count} unsold zero-cost products remain).`
 }
@@ -804,29 +1036,40 @@ export function resolveAttendanceBranchLink(input: {
   return { via: null, populated: false }
 }
 
-function decideStaff(facts: AuditFacts): { reason: string; branchLink: BranchLink } {
-  const blocked = firstModelBlock(facts, 'staff')
-  const empty: BranchLink = { via: null, populated: false }
-  if (blocked) return { reason: blocked, branchLink: facts.staff ? resolveAttendanceBranchLink(facts.staff) : empty }
-  if (!facts.staff) {
-    return { reason: 'HOLD: attendance branch fields were not read.', branchLink: empty }
+function decideStaff(facts: AuditFacts): { reason: string; branchLink: BranchLink; hidden: boolean } {
+  const attendance = facts.models['hr.attendance']
+  const payslip = facts.models['hr.payslip']
+  const branchLink = facts.staff ? resolveAttendanceBranchLink(facts.staff) : { via: null, populated: false }
+  if (attendance?.access === 'ok' && attendance.rowCount === 0 && payslip?.access === 'denied') {
+    return {
+      reason: 'OFF: hr.attendance has no rows and hr.payslip is not readable, so the staff advisor is hidden.',
+      branchLink,
+      hidden: true,
+    }
   }
-  const branchLink = resolveAttendanceBranchLink(facts.staff)
+  const blocked = firstModelBlock(facts, 'staff')
+  if (blocked) return { reason: blocked, branchLink, hidden: false }
+  if (!facts.staff) {
+    return { reason: 'HOLD: attendance branch fields were not read.', branchLink, hidden: false }
+  }
   if (!branchLink.populated) {
     if (branchLink.via) {
       return {
         reason: `HOLD: attendance has ${branchLink.via} but it is empty on the sample, so it cannot be tied to a branch.`,
         branchLink,
+        hidden: false,
       }
     }
     return {
       reason: 'HOLD: attendance cannot be linked to a branch (no work location, department, or branch field on hr.attendance or hr.employee).',
       branchLink,
+      hidden: false,
     }
   }
   return {
     reason: `GO: hr.attendance, hr.employee, and hr.payslip are readable, and attendance links to a branch via ${branchLink.via}.`,
     branchLink,
+    hidden: false,
   }
 }
 
@@ -910,6 +1153,7 @@ export function buildNoCostScope(products: readonly ProductInput[], sales: LineS
       qty60: window.qty,
       netKwd60: window.netKwd,
       priority: sold ? 'P1' : 'P2',
+      costSource: product.costSource ?? 'product.product',
     })
   }
   rows.sort((a, b) => b.netKwd60 - a.netKwd60 || b.qty60 - a.qty60 || a.productId - b.productId)
@@ -991,11 +1235,11 @@ export function buildCashierChecks(input: {
   toKuwait: string
 }): CashierCheck[] {
   const meta = new Map(input.configs.map((row) => [row.id, row]))
-  const agg = new Map<number, { orders: number; total: number; tax: number; first: string | null; last: string | null }>()
+  const agg = new Map<number, { orders: number; total: number; tax: number; first: string | null; last: string | null; companyId: number | null }>()
   const ensure = (id: number) => {
     const existing = agg.get(id)
     if (existing) return existing
-    const created = { orders: 0, total: 0, tax: 0, first: null, last: null }
+    const created = { orders: 0, total: 0, tax: 0, first: null, last: null, companyId: null as number | null }
     agg.set(id, created)
     return created
   }
@@ -1007,6 +1251,8 @@ export function buildCashierChecks(input: {
       bucket.orders += Math.max(0, Math.round(Number(row.__count) || 0))
       bucket.total += Number(row.amount_total) || 0
       bucket.tax += Number(row.amount_tax) || 0
+      const companyId = m2oId(row.company_id)
+      if (bucket.companyId == null && companyId != null) bucket.companyId = companyId
     }
     for (const row of input.mins) {
       const id = configIdFromGroup(row, input.configField)
@@ -1036,6 +1282,7 @@ export function buildCashierChecks(input: {
         read: false,
         orders: null,
         netKwd: null,
+        companyId: config?.companyId ?? null,
         firstOrderAt: null,
         lastOrderAt: null,
         firstOrderKuwait: null,
@@ -1051,6 +1298,7 @@ export function buildCashierChecks(input: {
       read: true,
       orders: bucket?.orders ?? 0,
       netKwd: bucket ? posOrderNet(bucket.total, bucket.tax) : 0,
+      companyId: bucket?.companyId ?? config?.companyId ?? null,
       firstOrderAt: bucket?.first ?? null,
       lastOrderAt: bucket?.last ?? null,
       firstOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.first ?? null),
@@ -1064,14 +1312,15 @@ function scopeReport(
   name: ScopeName,
   configIds: readonly number[],
   orders: ScopedOrders | null,
+  window: { orders: number; netKwd: number } | null,
 ): ScopeReport {
   return {
     name,
     includesQurain: name === 'withQurain',
     label:
       name === 'withQurain'
-        ? 'Active allow-list plus active Delivery (Qurain) registers'
-        : 'Active allow-list, Qurain excluded',
+        ? 'Allow-list plus Delivery (Qurain) configs 24 and 36'
+        : 'Allow-list with Qurain registers removed',
     configIds: [...configIds],
     orders: orders?.orders ?? null,
     earliest: orders?.earliest ?? null,
@@ -1079,11 +1328,15 @@ function scopeReport(
     earliestKuwait: odooNaiveUtcToKuwaitDate(orders?.earliest ?? null),
     latestKuwait: odooNaiveUtcToKuwaitDate(orders?.latest ?? null),
     historyDays: orders?.historyDays ?? null,
+    orders2026: window?.orders ?? null,
+    netKwd2026: window?.netKwd ?? null,
   }
 }
 
 function decisionOf(reason: string): ReadinessDecision {
-  return reason.startsWith('GO:') ? 'GO' : 'HOLD'
+  if (reason.startsWith('GO:')) return 'GO'
+  if (reason.startsWith('OFF:')) return 'OFF'
+  return 'HOLD'
 }
 
 export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
@@ -1115,7 +1368,10 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
         withQurain: facts.channels.withQurain,
       }
     }
-    if (id === 'staff') report.branchLink = staff.branchLink
+    if (id === 'staff') {
+      report.branchLink = staff.branchLink
+      if (staff.hidden) report.hidden = true
+    }
     return report
   })
   const cashiers = buildCashierChecks({
@@ -1139,15 +1395,27 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
     kuwaitToday: facts.kuwaitToday,
     salesStates: POS_SALE_STATES,
     scopes: {
-      withoutQurain: scopeReport('withoutQurain', resolved.withoutQurain, facts.scopedOrders.withoutQurain),
-      withQurain: scopeReport('withQurain', resolved.withQurain, facts.scopedOrders.withQurain),
+      withoutQurain: scopeReport(
+        'withoutQurain',
+        resolved.withoutQurain,
+        facts.scopedOrders.withoutQurain,
+        facts.scopeWindow?.withoutQurain ?? null,
+      ),
+      withQurain: scopeReport(
+        'withQurain',
+        resolved.withQurain,
+        facts.scopedOrders.withQurain,
+        facts.scopeWindow?.withQurain ?? null,
+      ),
     },
     qurainRegisters: resolved.qurain,
+    standardPrice: facts.standardPrice ?? null,
     advisors,
     productsWithoutCost: {
       truncated: facts.productsTruncated,
       scanned: facts.productsScanned,
       lineSalesRead: facts.lineSalesRead,
+      costFieldAbsent: facts.costAbsentCount ?? 0,
       withoutQurain: withoutProducts,
       withQurain: withProducts,
     },
@@ -1173,8 +1441,9 @@ function specFor(model: string): ModelSpec {
 function readinessNotes(facts: AuditFacts): string[] {
   const notes = [
     'Read-only. This audit does not write to Odoo or to the application database, and it adds no migration.',
-    'Sales states are paid, done, and invoiced. Dates use Kuwait day boundaries (UTC+3). withQurain is the active pos.config set accepted by companyPosConfigAllowed, including Delivery (Qurain).',
-    'withoutQurain is that same allow-list with Qurain registers removed. Explicit exclusions 24, 25, 39, and 40 stay out of both. A Qurain name the allow-list still rejects is in neither scope. This audit does not change company totals.',
+    'Sales states are paid, done, and invoiced. Dates use Kuwait day boundaries (UTC+3).',
+    'withQurain is the company allow-list plus pos.config 24 (Delivery (Qurain)) and 36 (Delivery (Qurain Temp)), including when 24 is excluded or 36 is inactive. withoutQurain is the allow-list with Qurain registers removed. Both scopes report net KWD from 2026-01-01 through today.',
+    'standard_price is read with the in-scope company context and falls back to product.template. A field missing from the read is not treated as cost zero.',
     'Net KWD on orders is amount_total minus amount_tax. Net KWD on lines is price_subtotal. Both are rounded to 3 decimals.',
     `Key-field completeness is the share of filled values on a sample of up to ${COMPLETENESS_SAMPLE_SIZE} rows. A model passes at ${COMPLETENESS_GO_MIN_PCT}% or more.`,
     `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time.`,

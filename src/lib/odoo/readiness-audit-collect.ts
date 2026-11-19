@@ -7,15 +7,18 @@ import {
   CASHIER_CONFIG_IDS,
   CASHIER_FROM_KUWAIT,
   COMPLETENESS_SAMPLE_SIZE,
+  listedProductCost,
   MAX_ZERO_COST_PRODUCTS,
+  QURAIN_SCOPE_CONFIG_IDS,
   READINESS_BUDGET_MS,
   READINESS_MIN_REMAINING_MS,
   READINESS_MODEL_SPECS,
   READINESS_PAGE_SIZE,
   asRecordList,
-  buildCashierOrderDomain,
-  buildPosOrderLineDomain,
+  buildAuditLineDomain,
+  buildAuditPosOrderDomain,
   classifyOdooReadFailure,
+  classifyStandardPrice,
   emptyLineSales,
   fieldCompletenessPct,
   historyDaySpan,
@@ -24,14 +27,16 @@ import {
   kuwaitDateBoundsToOdooUtc,
   kuwaitTodayOr,
   m2oId,
-  orderHistoryDomain,
+  odooCompanyContext,
   parseLineGroups,
   parsePaymentGroups,
   paymentWindowDomain,
   probeFieldNames,
   r3,
   resolveReadinessScopes,
+  standardPriceFieldProbe,
   sumLineNet,
+  sumPosOrderGroups,
   trailingKuwaitWindow,
   uncheckedModelFact,
   assembleReadinessAudit,
@@ -47,6 +52,7 @@ import {
   type ReadinessReport,
   type ScopeName,
   type ScopedOrders,
+  type StandardPriceDiagnosis,
 } from '@/lib/odoo/readiness-audit'
 
 export interface OdooReadClient {
@@ -116,6 +122,13 @@ export async function collectReadinessAudit(
   let cashierMins: Record<string, unknown>[] = []
   let cashierMaxes: Record<string, unknown>[] = []
   let cashierConfigField = 'config_id'
+  let costReadable = true
+  let costAbsentCount = 0
+  let standardPrice: StandardPriceDiagnosis | null = null
+  const scopeWindow: Record<ScopeName, { orders: number; netKwd: number } | null> = {
+    withoutQurain: null,
+    withQurain: null,
+  }
 
   try {
     configs = await readConfigs(read)
@@ -126,25 +139,44 @@ export async function collectReadinessAudit(
     else scopesReady = false
   }
 
+  let companyIds = companyIdsOf(configs)
+  if (companyIds.length === 0 && canStart()) {
+    try {
+      const companies = await read<unknown>('res.company', 'search_read', [[]], { fields: ['id'], limit: 20 })
+      companyIds = (asRecordList(companies) ?? [])
+        .map((row) => m2oId(row.id))
+        .filter((id): id is number => id != null)
+    } catch (error) {
+      if (isFatalOdooFailure(error)) throw error
+    }
+  }
+  const companyContext = odooCompanyContext(companyIds)
+
   if (canStart()) {
-    for (const spec of READINESS_MODEL_SPECS) {
+    const specs = [...READINESS_MODEL_SPECS]
+    for (let index = 0; index < specs.length; index += 4) {
       if (!canStart()) {
         partial = true
         break
       }
-      try {
-        const probed = await probeModel(read, spec)
-        models[spec.model] = probed.fact
-        fieldNames.set(spec.model, probed.fields)
-        samples.set(spec.model, probed.sample)
-      } catch (error) {
-        if (error instanceof BudgetStop) {
-          partial = true
-          break
-        }
-        if (isFatalOdooFailure(error)) throw error
-        models[spec.model] = failedFact(spec, error)
-      }
+      const wave = specs.slice(index, index + 4)
+      await Promise.all(
+        wave.map(async (spec) => {
+          try {
+            const probed = await probeModel(read, spec, spec.model === 'product.product' ? companyContext : null)
+            models[spec.model] = probed.fact
+            fieldNames.set(spec.model, probed.fields)
+            samples.set(spec.model, probed.sample)
+          } catch (error) {
+            if (error instanceof BudgetStop) {
+              partial = true
+              return
+            }
+            if (isFatalOdooFailure(error)) throw error
+            models[spec.model] = failedFact(spec, error)
+          }
+        }),
+      )
     }
   } else {
     partial = true
@@ -152,39 +184,50 @@ export async function collectReadinessAudit(
 
   const resolvedIds = scopesReady ? scopeIds(configs) : { withoutQurain: [] as number[], withQurain: [] as number[] }
   const todayBounds = kuwaitDateBoundsToOdooUtc(kuwaitToday, kuwaitToday)
+  const yearEnd = kuwaitToday < CASHIER_FROM_KUWAIT ? CASHIER_FROM_KUWAIT : kuwaitToday
+  const year = kuwaitDateBoundsToOdooUtc(CASHIER_FROM_KUWAIT, yearEnd)
+  const window60 = trailingKuwaitWindow(kuwaitToday, 60)
+  const bounds60 = kuwaitDateBoundsToOdooUtc(window60.from, window60.to)
+  const window30 = trailingKuwaitWindow(kuwaitToday, 30)
+  const bounds30 = kuwaitDateBoundsToOdooUtc(window30.from, window30.to)
 
   if (scopesReady && canStart()) {
-    for (const scope of SCOPES) {
-      if (!canStart()) {
-        partial = true
-        break
-      }
-      try {
-        scopedOrders[scope] = await readScopedOrders(read, resolvedIds[scope], todayBounds.toExclusiveUtc)
-      } catch (error) {
-        if (error instanceof BudgetStop) {
-          partial = true
-          break
+    await Promise.all(
+      SCOPES.map(async (scope) => {
+        try {
+          scopedOrders[scope] = await readScopedOrders(read, resolvedIds[scope], todayBounds.toExclusiveUtc, companyContext)
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else scopedOrders[scope] = null
         }
-        if (isFatalOdooFailure(error)) throw error
-        scopedOrders[scope] = null
-      }
-    }
+        try {
+          scopeWindow[scope] = await readScopeWindow(
+            read,
+            resolvedIds[scope],
+            year.fromUtc,
+            year.toExclusiveUtc,
+            companyContext,
+          )
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else scopeWindow[scope] = null
+        }
+      }),
+    )
   } else if (scopesReady) {
     partial = true
   }
 
-  const orderFields = new Set(fieldNames.get('pos.order') ?? [])
-  cashierConfigField = orderFields.has('config_id') ? 'config_id' : 'session_id.config_id'
+  cashierConfigField = 'config_id'
   if (canStart()) {
     try {
-      const yearEnd = kuwaitToday < CASHIER_FROM_KUWAIT ? CASHIER_FROM_KUWAIT : kuwaitToday
-      const year = kuwaitDateBoundsToOdooUtc(CASHIER_FROM_KUWAIT, yearEnd)
-      const grouped = await readCashierGroups(read, cashierConfigField, year.fromUtc, year.toExclusiveUtc)
+      const grouped = await readCashierGroups(read, year.fromUtc, year.toExclusiveUtc, companyContext)
       cashierSums = grouped.sums
       cashierMins = grouped.mins
       cashierMaxes = grouped.maxes
-      cashiersRead = true
+      cashiersRead = grouped.sums.length > 0 || grouped.mins.length > 0 || grouped.maxes.length > 0 || grouped.read
     } catch (error) {
       if (error instanceof BudgetStop) partial = true
       else if (isFatalOdooFailure(error)) throw error
@@ -194,46 +237,42 @@ export async function collectReadinessAudit(
     partial = true
   }
 
-  const window60 = trailingKuwaitWindow(kuwaitToday, 60)
-  const bounds60 = kuwaitDateBoundsToOdooUtc(window60.from, window60.to)
   if (scopesReady && canStart()) {
-    for (const scope of SCOPES) {
-      if (!canStart()) {
-        partial = true
-        break
-      }
-      const ids = resolvedIds[scope]
-      if (ids.length === 0) {
-        channels[scope] = []
-        continue
-      }
-      try {
-        const grouped = await read(
-          'pos.payment',
-          'read_group',
-          [paymentWindowDomain(ids, bounds60.fromUtc, bounds60.toExclusiveUtc), ['amount:sum'], ['payment_method_id']],
-          { lazy: false },
-        )
-        channels[scope] = parsePaymentGroups(grouped) ?? null
-      } catch (error) {
-        if (error instanceof BudgetStop) {
-          partial = true
-          break
+    await Promise.all(
+      SCOPES.map(async (scope) => {
+        const ids = resolvedIds[scope]
+        if (ids.length === 0) {
+          channels[scope] = []
+          return
         }
-        if (isFatalOdooFailure(error)) throw error
-        channels[scope] = null
-      }
-    }
+        try {
+          const grouped = await read(
+            'pos.payment',
+            'read_group',
+            [paymentWindowDomain(ids, bounds60.fromUtc, bounds60.toExclusiveUtc), ['amount:sum'], ['payment_method_id']],
+            { lazy: false, context: companyContext },
+          )
+          channels[scope] = parsePaymentGroups(grouped) ?? null
+        } catch (error) {
+          if (error instanceof BudgetStop) partial = true
+          else if (isFatalOdooFailure(error)) throw error
+          else channels[scope] = null
+        }
+      }),
+    )
   } else if (scopesReady) {
     partial = true
   }
 
   if (canStart()) {
     try {
-      const paged = await readZeroCostProducts(read)
+      const paged = await diagnoseStandardPrice(read, companyIds)
       products = paged.products
       productsTruncated = paged.truncated
       productsScanned = !paged.stopped
+      costReadable = paged.costReadable
+      costAbsentCount = paged.costAbsentCount
+      standardPrice = paged.diagnosis
       if (paged.stopped) partial = true
     } catch (error) {
       if (error instanceof BudgetStop) partial = true
@@ -244,45 +283,34 @@ export async function collectReadinessAudit(
     partial = true
   }
 
-  const window30 = trailingKuwaitWindow(kuwaitToday, 30)
-  const bounds30 = kuwaitDateBoundsToOdooUtc(window30.from, window30.to)
   const lineFields = new Set(fieldNames.get('pos.order.line') ?? ['price_subtotal', 'qty', 'product_id'])
   const netField = lineFields.has('price_subtotal') ? 'price_subtotal' : 'price_subtotal_incl'
   if (productsScanned && scopesReady && canStart()) {
-    let linesOk = true
-    for (const scope of SCOPES) {
-      if (!canStart()) {
-        partial = true
-        linesOk = false
-        break
-      }
-      const ids = resolvedIds[scope]
-      if (ids.length === 0) {
-        lineSales[scope] = emptyLineSales()
-        continue
-      }
-      try {
-        const [days30, days60] = await Promise.all([
-          readLineGroup(read, ids, bounds30.fromUtc, bounds30.toExclusiveUtc, netField),
-          readLineGroup(read, ids, bounds60.fromUtc, bounds60.toExclusiveUtc, netField),
-        ])
-        if (!days30 || !days60) {
-          linesOk = false
-          break
+    const lineResults = await Promise.all(
+      SCOPES.map(async (scope) => {
+        const ids = resolvedIds[scope]
+        if (ids.length === 0) return { scope, sales: emptyLineSales(), ok: true }
+        try {
+          const [days30, days60] = await Promise.all([
+            readLineGroup(read, ids, bounds30.fromUtc, bounds30.toExclusiveUtc, netField, companyContext),
+            readLineGroup(read, ids, bounds60.fromUtc, bounds60.toExclusiveUtc, netField, companyContext),
+          ])
+          if (!days30 || !days60) return { scope, sales: emptyLineSales(), ok: false }
+          return { scope, sales: { days30, days60, allNet60Kwd: sumLineNet(days60) }, ok: true }
+        } catch (error) {
+          if (error instanceof BudgetStop) {
+            partial = true
+            return { scope, sales: emptyLineSales(), ok: false }
+          }
+          if (isFatalOdooFailure(error)) throw error
+          return { scope, sales: emptyLineSales(), ok: false }
         }
-        lineSales[scope] = { days30, days60, allNet60Kwd: sumLineNet(days60) }
-      } catch (error) {
-        if (error instanceof BudgetStop) {
-          partial = true
-          linesOk = false
-          break
-        }
-        if (isFatalOdooFailure(error)) throw error
-        linesOk = false
-        break
-      }
+      }),
+    )
+    lineSalesRead = lineResults.every((result) => result.ok)
+    for (const result of lineResults) {
+      if (result.ok) lineSales[result.scope] = result.sales
     }
-    lineSalesRead = linesOk
   } else if (productsScanned && scopesReady) {
     partial = true
   }
@@ -315,6 +343,10 @@ export async function collectReadinessAudit(
     productsTruncated,
     lineSalesRead,
     lineSales,
+    scopeWindow,
+    costReadable,
+    costAbsentCount,
+    standardPrice,
     cashiersRead,
     cashierSums,
     cashierMins,
@@ -344,7 +376,7 @@ async function readConfigs(read: ReadFn): Promise<PosConfigRow[]> {
   let offset = 0
   for (;;) {
     const page = await read<unknown>('pos.config', 'search_read', [[]], {
-      fields: ['id', 'name', 'active'],
+      fields: ['id', 'name', 'active', 'company_id'],
       limit: READINESS_PAGE_SIZE,
       offset,
       order: 'id asc',
@@ -354,36 +386,41 @@ async function readConfigs(read: ReadFn): Promise<PosConfigRow[]> {
     for (const row of list) {
       const id = m2oId(row.id)
       if (id == null) continue
-      rows.push({
-        id,
-        name: typeof row.name === 'string' ? row.name : `pos.config ${id}`,
-        active: row.active !== false,
-      })
+      rows.push(configRow(id, row))
     }
     if (list.length < READINESS_PAGE_SIZE) break
     offset += list.length
     if (offset >= 1_000) break
   }
   const have = new Set(rows.map((row) => row.id))
-  const missing = CASHIER_CONFIG_IDS.filter((id) => !have.has(id))
+  const missing = [...new Set([...CASHIER_CONFIG_IDS, ...QURAIN_SCOPE_CONFIG_IDS])].filter((id) => !have.has(id))
   if (missing.length > 0) {
-    const cashierDomain: unknown[][] = [['id', 'in', [...missing]]]
+    const cashierDomain: unknown[][] = [['id', 'in', missing]]
     const extra = await read<unknown>('pos.config', 'search_read', [cashierDomain], {
-      fields: ['id', 'name', 'active'],
+      fields: ['id', 'name', 'active', 'company_id'],
       limit: missing.length,
       context: { active_test: false },
     })
     for (const row of asRecordList(extra) ?? []) {
       const id = m2oId(row.id)
       if (id == null || have.has(id)) continue
-      rows.push({
-        id,
-        name: typeof row.name === 'string' ? row.name : `pos.config ${id}`,
-        active: row.active !== false,
-      })
+      rows.push(configRow(id, row))
     }
   }
   return rows
+}
+
+function configRow(id: number, row: Record<string, unknown>): PosConfigRow {
+  return {
+    id,
+    name: typeof row.name === 'string' ? row.name : `pos.config ${id}`,
+    active: row.active !== false,
+    companyId: m2oId(row.company_id),
+  }
+}
+
+function companyIdsOf(configs: readonly PosConfigRow[]): number[] {
+  return [...new Set(configs.map((row) => row.companyId).filter((id): id is number => id != null && id > 0))]
 }
 
 function scopeIds(configs: readonly PosConfigRow[]): Record<ScopeName, number[]> {
@@ -394,6 +431,7 @@ function scopeIds(configs: readonly PosConfigRow[]): Record<ScopeName, number[]>
 async function probeModel(
   read: ReadFn,
   spec: ModelSpec,
+  companyContext: Record<string, unknown> | null,
 ): Promise<{ fact: ModelFact; fields: string[]; sample: Record<string, unknown>[] }> {
   const wanted = probeFieldNames(spec)
   const described = await read<unknown>(spec.model, 'fields_get', [wanted], { attributes: ['type', 'string'] })
@@ -414,9 +452,10 @@ async function probeModel(
   let completenessPct: number | null = null
   if (rowCount != null && rowCount > 0 && sampleFields.length > 0) {
     const sampled = await read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
-      fields: sampleFields,
+      fields: spec.model === 'product.product' ? [...new Set([...sampleFields, 'standard_price', 'product_tmpl_id'])] : sampleFields,
       limit: COMPLETENESS_SAMPLE_SIZE,
       order: 'id asc',
+      ...(companyContext ? { context: companyContext } : {}),
     })
     sample = asRecordList(sampled) ?? []
     completenessMeasured = sample.length > 0 || presentKeys.length === 0
@@ -478,92 +517,343 @@ function failedFact(spec: ModelSpec, error: unknown): ModelFact {
   }
 }
 
-async function readScopedOrders(read: ReadFn, configIds: readonly number[], toExclusiveUtc: string): Promise<ScopedOrders> {
+async function readScopedOrders(
+  read: ReadFn,
+  configIds: readonly number[],
+  toExclusiveUtc: string,
+  context: Record<string, unknown>,
+): Promise<ScopedOrders> {
   if (configIds.length === 0) return { orders: 0, earliest: null, latest: null, historyDays: null }
-  const domain = orderHistoryDomain(configIds, toExclusiveUtc)
-  const count = await read<unknown>('pos.order', 'search_count', [domain])
+  const domain = buildAuditPosOrderDomain({
+    fromUtc: '2000-01-01 00:00:00',
+    toExclusiveUtc,
+    configIds,
+  })
+  const count = await read<unknown>('pos.order', 'search_count', [domain], { context })
   const orders = typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0
   if (orders <= 0) return { orders, earliest: null, latest: null, historyDays: null }
   const [first, last] = await Promise.all([
-    read<unknown>('pos.order', 'search_read', [domain], { fields: ['date_order'], limit: 1, order: 'date_order asc' }),
-    read<unknown>('pos.order', 'search_read', [domain], { fields: ['date_order'], limit: 1, order: 'date_order desc' }),
+    read<unknown>('pos.order', 'search_read', [domain], { fields: ['date_order'], limit: 1, order: 'date_order asc', context }),
+    read<unknown>('pos.order', 'search_read', [domain], { fields: ['date_order'], limit: 1, order: 'date_order desc', context }),
   ])
   const earliest = dateOf(asRecordList(first)?.[0], 'date_order')
   const latest = dateOf(asRecordList(last)?.[0], 'date_order')
   return { orders, earliest, latest, historyDays: historyDaySpan(earliest, latest) }
 }
 
-async function readCashierGroups(
+async function readScopeWindow(
   read: ReadFn,
-  configField: string,
+  configIds: readonly number[],
   fromUtc: string,
   toExclusiveUtc: string,
-): Promise<{ sums: Record<string, unknown>[]; mins: Record<string, unknown>[]; maxes: Record<string, unknown>[] }> {
-  const domain = buildCashierOrderDomain({
+  context: Record<string, unknown>,
+): Promise<{ orders: number; netKwd: number }> {
+  if (configIds.length === 0) return { orders: 0, netKwd: 0 }
+  const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
+  const grouped = await read<unknown>(
+    'pos.order',
+    'read_group',
+    [domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id']],
+    { lazy: false, context },
+  )
+  return sumPosOrderGroups(asRecordList(grouped) ?? [])
+}
+
+async function readCashierGroups(
+  read: ReadFn,
+  fromUtc: string,
+  toExclusiveUtc: string,
+  context: Record<string, unknown>,
+): Promise<{ sums: Record<string, unknown>[]; mins: Record<string, unknown>[]; maxes: Record<string, unknown>[]; read: boolean }> {
+  const domain = buildAuditPosOrderDomain({
     fromUtc,
     toExclusiveUtc,
     configIds: CASHIER_CONFIG_IDS,
-    configField,
   })
-  const [sums, mins, maxes] = await Promise.all([
-    read<unknown>('pos.order', 'read_group', [domain, ['amount_total:sum', 'amount_tax:sum'], [configField]], { lazy: false }),
-    read<unknown>('pos.order', 'read_group', [domain, ['date_order:min'], [configField]], { lazy: false }),
-    read<unknown>('pos.order', 'read_group', [domain, ['date_order:max'], [configField]], { lazy: false }),
+  const kwargs = { lazy: false, context }
+  const settled = await Promise.all([
+    read<unknown>('pos.order', 'read_group', [domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id', 'company_id']], kwargs).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+    read<unknown>('pos.order', 'read_group', [domain, ['date_order:min'], ['config_id']], kwargs).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
+    read<unknown>('pos.order', 'read_group', [domain, ['date_order:max'], ['config_id']], kwargs).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    ),
   ])
+  for (const result of settled) {
+    if (!result.ok && (result.error instanceof BudgetStop || isFatalOdooFailure(result.error))) throw result.error
+  }
+  const sums = settled[0].ok ? (asRecordList(settled[0].value) ?? []) : []
+  const mins = settled[1].ok ? (asRecordList(settled[1].value) ?? []) : []
+  const maxes = settled[2].ok ? (asRecordList(settled[2].value) ?? []) : []
+  if (settled.some((result) => result.ok)) return { sums, mins, maxes, read: true }
+  const perConfig = await Promise.all(
+    CASHIER_CONFIG_IDS.map(async (configId) => {
+      const one = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds: [configId] })
+      const grouped = await read<unknown>(
+        'pos.order',
+        'read_group',
+        [one, ['amount_total:sum', 'amount_tax:sum', 'date_order:min', 'date_order:max'], ['config_id', 'company_id']],
+        kwargs,
+      )
+      return asRecordList(grouped) ?? []
+    }),
+  )
+  const rows = perConfig.flat()
+  return { sums: rows, mins: rows, maxes: rows, read: true }
+}
+
+async function diagnoseStandardPrice(
+  read: ReadFn,
+  companyIds: readonly number[],
+): Promise<{
+  products: ProductInput[]
+  truncated: boolean
+  stopped: boolean
+  costReadable: boolean
+  costAbsentCount: number
+  diagnosis: StandardPriceDiagnosis
+}> {
+  const [productFields, templateFields] = await Promise.all([
+    read<unknown>('product.product', 'fields_get', [['standard_price']], { attributes: ['type', 'string', 'groups'] }).catch(
+      (error: unknown) => {
+        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        return null
+      },
+    ),
+    read<unknown>('product.template', 'fields_get', [['standard_price']], { attributes: ['type', 'string', 'groups'] }).catch(
+      (error: unknown) => {
+        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        return null
+      },
+    ),
+  ])
+  const productField = standardPriceFieldProbe(productFields)
+  const templateField = standardPriceFieldProbe(templateFields)
+  const companies = companyIds.length > 0 ? [...companyIds] : []
+  const contexts = companies.length > 0 ? companies.map((id) => odooCompanyContext([id])) : [odooCompanyContext([])]
+  const probes = await Promise.all(
+    contexts.map(async (context) => {
+      try {
+        const listed = await read<unknown>('product.product', 'search_read', [[['active', '=', true]]], {
+          fields: ['id', 'standard_price', 'product_tmpl_id'],
+          limit: 1,
+          order: 'id asc',
+          context,
+        })
+        const row = asRecordList(listed)?.[0]
+        const variantKey = row != null && Object.prototype.hasOwnProperty.call(row, 'standard_price')
+        let templateKey = false
+        const templateId = row ? m2oId(row.product_tmpl_id) : null
+        if (!variantKey && templateId != null) {
+          const templates = await read<unknown>('product.template', 'search_read', [[['id', '=', templateId]]], {
+            fields: ['id', 'standard_price'],
+            limit: 1,
+            context,
+          })
+          const template = asRecordList(templates)?.[0]
+          templateKey = template != null && Object.prototype.hasOwnProperty.call(template, 'standard_price')
+        }
+        return variantKey || templateKey
+      } catch (error) {
+        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        return false
+      }
+    }),
+  )
+  const readReturnsKey = probes.some(Boolean)
+  const fieldReadable = productField.present || templateField.present || readReturnsKey
+  if (!fieldReadable) {
+    let activeProducts = 0
+    try {
+      const count = await read<unknown>('product.product', 'search_count', [[['active', '=', true]]])
+      activeProducts = typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0
+    } catch (error) {
+      if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+    }
+    const diagnosis = classifyStandardPrice({
+      productField,
+      templateField,
+      readReturnsKey,
+      companiesTried: companies,
+      activeProducts,
+      observations: [],
+    })
+    return {
+      products: [],
+      truncated: false,
+      stopped: false,
+      costReadable: false,
+      costAbsentCount: diagnosis.counts.notReadable,
+      diagnosis,
+    }
+  }
+
+  const zeroByCompany: Array<Map<number, ProductInput>> = []
+  let truncated = false
+  let stopped = false
+  const readableContexts: number[] = []
+  for (let index = 0; index < contexts.length; index += 1) {
+    if (!probes[index]) {
+      zeroByCompany.push(new Map())
+      continue
+    }
+    readableContexts.push(index)
+    const context = contexts[index] ?? odooCompanyContext([])
+    let pages: { rows: Record<string, unknown>[]; truncated: boolean; stopped: boolean }
+    try {
+      pages = await pageProducts(
+        read,
+        [['active', '=', true], ['standard_price', '<=', 0]],
+        ['id', 'name', 'default_code', 'standard_price', 'product_tmpl_id'],
+        context,
+      )
+    } catch (error) {
+      if (error instanceof BudgetStop) throw error
+      pages = await pageProducts(
+        read,
+        [['active', '=', true]],
+        ['id', 'name', 'default_code', 'standard_price', 'product_tmpl_id'],
+        context,
+      )
+    }
+    truncated = truncated || pages.truncated
+    stopped = stopped || pages.stopped
+    const templates = await templateStandardPrices(read, pages.rows, context)
+    const found = new Map<number, ProductInput>()
+    for (const row of pages.rows) {
+      const id = m2oId(row.id)
+      if (id == null) continue
+      const hasVariant = Object.prototype.hasOwnProperty.call(row, 'standard_price')
+      const templateId = m2oId(row.product_tmpl_id)
+      const template = templateId == null ? null : (templates.get(templateId) ?? null)
+      const cost = listedProductCost(
+        { hasStandardPrice: hasVariant, standardPrice: row.standard_price },
+        template,
+      )
+      if (!cost.known || cost.standardPriceKwd > 0) continue
+      const name = typeof row.name === 'string' && row.name.trim() ? row.name.trim() : `Product ${id}`
+      const code = typeof row.default_code === 'string' && row.default_code.trim() ? row.default_code.trim() : null
+      found.set(id, {
+        id,
+        name,
+        defaultCode: code,
+        standardPriceKwd: cost.standardPriceKwd,
+        costSource: cost.source,
+      })
+    }
+    zeroByCompany.push(found)
+  }
+
+  const observations: { values: Array<number | 'absent'> }[] = []
+  const trulyZero = new Map<number, ProductInput>()
+  const ids = new Set<number>()
+  for (const found of zeroByCompany) for (const id of found.keys()) ids.add(id)
+  for (const id of ids) {
+    const values: Array<number | 'absent'> = readableContexts.map((index) => {
+      const row = zeroByCompany[index]?.get(id)
+      return row ? row.standardPriceKwd : 1
+    })
+    observations.push({ values })
+    const inEveryReadableCompany = readableContexts.every((index) => zeroByCompany[index]?.has(id))
+    if (inEveryReadableCompany) {
+      const sample = readableContexts.map((index) => zeroByCompany[index]?.get(id)).find((row) => row != null)
+      if (sample) trulyZero.set(id, sample)
+    }
+  }
+  const diagnosis = classifyStandardPrice({
+    productField,
+    templateField,
+    readReturnsKey,
+    companiesTried: companies,
+    activeProducts: ids.size,
+    observations,
+  })
   return {
-    sums: asRecordList(sums) ?? [],
-    mins: asRecordList(mins) ?? [],
-    maxes: asRecordList(maxes) ?? [],
+    products: [...trulyZero.values()],
+    truncated,
+    stopped,
+    costReadable: true,
+    costAbsentCount: diagnosis.counts.notReadable,
+    diagnosis,
   }
 }
 
-async function readZeroCostProducts(read: ReadFn): Promise<{ products: ProductInput[]; truncated: boolean; stopped: boolean }> {
-  const products: ProductInput[] = []
-  const seen = new Set<number>()
+async function pageProducts(
+  read: ReadFn,
+  domain: unknown[][],
+  fields: string[],
+  context: Record<string, unknown>,
+): Promise<{ rows: Record<string, unknown>[]; truncated: boolean; stopped: boolean }> {
+  const rows: Record<string, unknown>[] = []
   let offset = 0
   let truncated = false
   let stopped = false
-  while (products.length < MAX_ZERO_COST_PRODUCTS) {
+  while (rows.length < MAX_ZERO_COST_PRODUCTS) {
     let page: unknown
     try {
-      page = await read<unknown>(
-        'product.product',
-        'search_read',
-        [[['active', '=', true], ['standard_price', '<=', 0]]],
-        {
-          fields: ['id', 'name', 'default_code', 'standard_price'],
-          limit: READINESS_PAGE_SIZE,
-          offset,
-          order: 'id asc',
-        },
-      )
+      page = await read<unknown>('product.product', 'search_read', [domain], {
+        fields,
+        limit: READINESS_PAGE_SIZE,
+        offset,
+        order: 'id asc',
+        context,
+      })
     } catch (error) {
       if (error instanceof BudgetStop) {
         stopped = true
-        truncated = products.length > 0
+        truncated = rows.length > 0
         break
       }
       throw error
     }
     const list = asRecordList(page) ?? []
-    for (const row of list) {
-      const id = m2oId(row.id)
-      if (id == null || seen.has(id)) continue
-      seen.add(id)
-      const name = typeof row.name === 'string' && row.name.trim() ? row.name.trim() : `Product ${id}`
-      const code = typeof row.default_code === 'string' && row.default_code.trim() ? row.default_code.trim() : null
-      products.push({
-        id,
-        name,
-        defaultCode: code,
-        standardPriceKwd: r3(Number(row.standard_price) || 0),
-      })
-    }
+    rows.push(...list)
     if (list.length < READINESS_PAGE_SIZE) break
     offset += list.length
   }
-  if (products.length >= MAX_ZERO_COST_PRODUCTS) truncated = true
-  return { products, truncated, stopped }
+  if (rows.length >= MAX_ZERO_COST_PRODUCTS) truncated = true
+  return { rows, truncated, stopped }
+}
+
+async function templateStandardPrices(
+  read: ReadFn,
+  rows: readonly Record<string, unknown>[],
+  context: Record<string, unknown>,
+): Promise<Map<number, { hasStandardPrice: boolean; standardPrice: unknown }>> {
+  const out = new Map<number, { hasStandardPrice: boolean; standardPrice: unknown }>()
+  const ids = [
+    ...new Set(
+      rows
+        .filter((row) => !Object.prototype.hasOwnProperty.call(row, 'standard_price'))
+        .map((row) => m2oId(row.product_tmpl_id))
+        .filter((id): id is number => id != null),
+    ),
+  ]
+  if (ids.length === 0) return out
+  try {
+    const listed = await read<unknown>('product.template', 'search_read', [[['id', 'in', ids]]], {
+      fields: ['id', 'standard_price'],
+      limit: ids.length,
+      context,
+    })
+    for (const row of asRecordList(listed) ?? []) {
+      const id = m2oId(row.id)
+      if (id == null) continue
+      out.set(id, {
+        hasStandardPrice: Object.prototype.hasOwnProperty.call(row, 'standard_price'),
+        standardPrice: row.standard_price,
+      })
+    }
+  } catch (error) {
+    if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+  }
+  return out
 }
 
 async function readLineGroup(
@@ -572,16 +862,17 @@ async function readLineGroup(
   fromUtc: string,
   toExclusiveUtc: string,
   netField: string,
+  context: Record<string, unknown>,
 ): Promise<LineAgg[] | null> {
   const grouped = await read<unknown>(
     'pos.order.line',
     'read_group',
     [
-      buildPosOrderLineDomain({ fromUtc, toExclusiveUtc, configIds }),
+      buildAuditLineDomain({ fromUtc, toExclusiveUtc, configIds }),
       ['qty:sum', `${netField}:sum`],
       ['product_id'],
     ],
-    { lazy: false },
+    { lazy: false, context },
   )
   const rows = asRecordList(grouped)
   if (!rows) return null
