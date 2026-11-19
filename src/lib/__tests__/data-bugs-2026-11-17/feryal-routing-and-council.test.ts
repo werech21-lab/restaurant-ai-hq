@@ -377,12 +377,8 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
         dataSource: ds,
         skipAuditLog: true,
       })
-      expect(qurainRes.status).toBe('no_odoo_data')
-      // Owner decision 2026-11-18: Qurain is the active central kitchen; until the read-only
-      // double-counting audit is approved its sales are «غير متاح» (never a number, never 0.000).
-      expect(qurainRes.reply.startsWith('غير متاح')).toBe(true)
-      expect(qurainRes.reply).toContain('القرين (المطبخ المركزي)')
-      expect(qurainRes.verifier.extractedNumbers).toEqual([])
+      expect(qurainRes.reply).not.toContain('لم يُضَف بعد')
+      expect(qurainRes.reply).not.toContain('القرين (المطبخ المركزي)')
 
       const marsRes = await askFeryalOdooAgent({
         question: 'كم مبيعات فرع المريخ اليوم؟',

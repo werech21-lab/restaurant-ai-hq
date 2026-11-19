@@ -53,9 +53,9 @@ export interface LineRow {
 
 export interface BrandScopeWindow {
   /** `pos.order` domain for the window (company configs, paid states, refunds included). */
-  orderDomain: unknown[][]
+  orderDomain: unknown[]
   /** `pos.order.line` domain for the same orders, without the excluded-category clause. */
-  lineDomain: unknown[][]
+  lineDomain: unknown[]
   excludedCategoryIds: readonly number[]
 }
 
@@ -79,7 +79,7 @@ function m2oName(v: M2O): string {
 function searchReadBounded<T>(
   execute: OdooExecute,
   model: string,
-  domain: unknown[][],
+  domain: unknown[],
   fields: string[],
   maxRows: number,
 ): Promise<T[]> {
@@ -190,7 +190,7 @@ export async function fetchExactBrandAllocation(
  */
 export async function countOrdersPerBrand(
   execute: OdooExecute,
-  nonRefundOrderDomain: unknown[][],
+  nonRefundOrderDomain: unknown[],
   productIdsByBrand: ReadonlyMap<string, readonly number[]>,
   brandIds: readonly string[],
 ): Promise<Map<string, number>> {
@@ -210,7 +210,7 @@ export async function countOrdersPerBrand(
 /** `countOrdersPerBrand` bounded by `budgetMs`; `null` (unknown, shown as —) on timeout or failure. */
 export async function countOrdersPerBrandWithin(
   execute: OdooExecute,
-  nonRefundOrderDomain: unknown[][],
+  nonRefundOrderDomain: unknown[],
   productIdsByBrand: ReadonlyMap<string, readonly number[]>,
   brandIds: readonly string[],
   options: { budgetMs?: number } = {},

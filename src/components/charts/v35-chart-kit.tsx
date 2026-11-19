@@ -1927,7 +1927,7 @@ function resolveHeatLevel(value: number, minVal: number, maxVal: number): 0 | 1 
 /**
  * V35 Hour × Weekday Activity Heatmap (strict Answer 3):
  * - Renders the Hour × Weekday matrix ONLY when non-empty real `cells` are supplied.
- * - Missing/null/empty `cells` immediately render `<UnavailableState compact />` (`«غير متاح بعد»`) with zero fabricated cells.
+ * - Missing/null/empty `cells` immediately render `<UnavailableState compact />` (`«لا قراءة لهذه الخانة»`) with zero fabricated cells.
  * - Missing `(dow, hour)` intersections inside a partial matrix render empty unavailable slots (never `0.000 KWD`).
  */
 export function HourWeekdayHeatmap({

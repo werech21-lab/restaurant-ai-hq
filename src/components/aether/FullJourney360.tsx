@@ -62,7 +62,6 @@ import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { resolveHeroDeltaBadge, resolveTodaySameHoursComparison } from '@/lib/aether/hero-delta'
 import {
   DASHBOARD_BRANCH_CARD_IDS,
@@ -160,10 +159,6 @@ type LedgerSortKey = 'label' | 'salesKwd' | 'orders' | 'aovKwd' | 'sharePct'
 
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 const NO_ODOO_DATA_EN = 'No Odoo data for this period'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
-const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
-const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
-const UNPOSTED_COMMISSION_EN = 'Not posted yet'
 const COMPANY_MARGIN_NOT_APPLIED_AR = 'هامش الشركة لا يُطبَّق على هذه السلسلة'
 const COMPANY_MARGIN_NOT_APPLIED_EN = 'Company GL margin is not applied to this series'
 
@@ -296,9 +291,7 @@ export function FullJourney360({
       },
     ] as const
   ).filter((line) => typeof line.value === 'number')
-  const glScopeLimited = gl.glScopeLimited === true
-  const showOperatingCard =
-    hasPostedOperatingProfit || postedLedgerLines.length > 0 || glScopeLimited
+  const showOperatingCard = hasPostedOperatingProfit || postedLedgerLines.length > 0
   const monthEndNote = gl.to
     ? isAr
       ? `غير مُرحَّل بعد — القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
@@ -588,9 +581,11 @@ export function FullJourney360({
         ? isAr
           ? COMPANY_MARGIN_NOT_APPLIED_AR
           : COMPANY_MARGIN_NOT_APPLIED_EN
-        : isAr
-          ? GL_INCOMPLETE_AR
-          : GL_INCOMPLETE_EN
+        : glReady
+          ? isAr
+            ? 'صافي التشغيل (دفتر الأستاذ)'
+            : 'GL Operating Profit'
+          : ''
     return src.map((pt) => {
       const sales = pt.salesKwd
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
@@ -879,13 +874,15 @@ export function FullJourney360({
 
   // Cards that stay company-wide say so whenever a brand is selected (no silent scope mixing).
   const companyWideScope = companyWideBadgeFor(filters.brand)
-  const arTieOut = workspace.receivables.unavailable
-    ? null
-    : buildArTieOut({
-        openDebitsKwd: workspace.receivables.openDebitsKwd,
-        unappliedCreditsKwd: workspace.receivables.unappliedCreditsKwd,
-        openReceivableKwd: workspace.receivables.openReceivableKwd ?? 0,
-      })
+  const receivableFigures = workspace.receivables.figures
+  const arTieOut =
+    workspace.receivables.unavailable || receivableFigures?.netKwd == null
+      ? null
+      : buildArTieOut({
+          openDebitsKwd: receivableFigures.openDebitsKwd,
+          unappliedCreditsKwd: receivableFigures.unappliedCreditsKwd,
+          openReceivableKwd: receivableFigures.netKwd,
+        })
 
   const receivablesAmountsVisible = canShowReceivableAmounts(workspace.receivables)
   const salesSparkline = useMemo<number[]>(() => {
@@ -1564,19 +1561,13 @@ export function FullJourney360({
                     </div>
 
                     <div className="mt-3.5 space-y-1.5">
-                      {!hasPostedOperatingProfit ? (
-                        <div data-net-profit-withheld={gl.netProfitWithheld ? 'true' : undefined}>
+                      {!hasPostedOperatingProfit && gl.netProfitWithheld ? (
+                        <div data-net-profit-withheld="true">
                           <UnavailableState
                             isAr={isAr}
                             compact
                             reason={
-                              gl.netProfitWithheld
-                                ? isAr
-                                  ? gl.netProfitWithheldReasonAr
-                                  : gl.netProfitWithheldReasonEn
-                                : isAr
-                                  ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
-                                  : 'Not available yet — GL entries not posted'
+                              isAr ? gl.netProfitWithheldReasonAr : gl.netProfitWithheldReasonEn
                             }
                           />
                           {postedLedgerLines.length > 0 ? (
@@ -1585,14 +1576,14 @@ export function FullJourney360({
                             </p>
                           ) : null}
                         </div>
-                      ) : (
+                      ) : hasPostedOperatingProfit ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
                           <span dir="ltr" className="tabular-nums">
                             {formatStaticMarginPill(netPocketPct)}
                           </span>{' '}
                           <span>{T('GL net share', 'نسبة الصافي المحاسبي')}</span>
                         </span>
-                      )}
+                      ) : null}
                       <KpiProvenanceBadge
                         odooModel="account.move.line"
                         dateRange={{ from: gl.from, to: gl.to }}
@@ -1613,8 +1604,7 @@ export function FullJourney360({
               ) : null}
 
               {/* Card 4: posted platform commission only. Omitted when nothing is posted. */}
-              {(typeof gl.deliveryCommissionsKwd === 'number' && !commissionUnposted) ||
-              glScopeLimited ? (
+              {typeof gl.deliveryCommissionsKwd === 'number' && !commissionUnposted ? (
               <V35GlassCard
                 as="article"
                 hoverLift
@@ -1646,42 +1636,6 @@ export function FullJourney360({
                       <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
                         {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
                       </span>
-                    </div>
-                  </>
-                ) : commissionUnposted ? (
-                  <>
-                    <div className="mt-3">
-                      <V35KpiRing
-                        tone="sky"
-                        size="md"
-                        dataKpi="aggregator-commissions"
-                        value={null}
-                        isUnavailable
-                        display={UNAVAILABLE_DASH}
-                        unavailableTooltip={unavailableTooltip}
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
-                    </div>
-                    <div className="mt-3.5 space-y-1.5">
-                      <UnavailableState
-                        data-commission-unposted="true"
-                        isAr={isAr}
-                        compact
-                        reason={
-                          isAr
-                            ? `غير متاح بعد — ${UNPOSTED_COMMISSION_AR}`
-                            : `Not available yet — ${UNPOSTED_COMMISSION_EN}`
-                        }
-                      />
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="فعلي"
-                        queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
-                        compact
-                      />
                     </div>
                   </>
                 ) : (
@@ -1765,6 +1719,7 @@ export function FullJourney360({
             </div>
 
             {/* 7 Mapped Branches + Explicit 8th Card «غير منسوب لفرع» */}
+            {branchCards.length > 0 ? (
             <V35GlassCard
               as="section"
               aria-label={T('Branches & Unattributed POS Sales', 'أداء الفروع السبعة والمبيعات غير المنسوبة لفرع')}
@@ -1937,35 +1892,13 @@ export function FullJourney360({
                   </span>
                 </p>
               ) : null}
-              {branchCards.length > 0 ? null : (
-                <StateBlock
-                  state="unavailable"
-                  locale={activeLocale}
-                  compact
-                  className="rounded-[24px] backdrop-blur-md"
-                  title={
-                    brandBranchScopeUnavailable
-                      ? T(SCOPE_LABELS.unavailableForFilter.en, SCOPE_LABELS.unavailableForFilter.ar)
-                      : T('Branch breakdown unavailable', 'تفصيل الفروع غير متاح حالياً')
-                  }
-                  description={
-                    brandBranchScopeUnavailable
-                      ? T(
-                          'No exact split of this brand by branch is available for this period, so all-brand branch figures are not shown.',
-                          'لا يتوفر تقسيم دقيق لهذه العلامة حسب الفرع لهذه الفترة، لذلك لا تُعرض أرقام الفروع لكل العلامات.',
-                        )
-                      : T(
-                          'Branch-level POS data is temporarily unavailable for this period.',
-                          'بيانات نقاط البيع حسب الفروع غير متاحة مؤقتاً لهذه الفترة.',
-                        )
-                  }
-                />
-              )}
             </V35GlassCard>
+            ) : null}
 
             {/* 2-Column Row: Weekly Daily POS Bars + Open Ledger Receivables & Feryal */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
               {/* Left (`lg:col-span-7`): Weekly Performance Analytics */}
+              {weeklyPills.length > 0 ? (
               <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 lg:col-span-7 dark:border-slate-800">
                 <div className="flex flex-wrap items-start justify-between gap-2.5">
                   <div className="min-w-0">
@@ -1999,7 +1932,6 @@ export function FullJourney360({
                   ) : null}
                 </div>
 
-                {weeklyPills.length > 0 ? (
                   <div
                     dir="ltr"
                     className="mt-5 grid grid-cols-7 items-end gap-2.5 sm:gap-4 pt-6 pb-1"
@@ -2072,17 +2004,6 @@ export function FullJourney360({
                       )
                     })}
                   </div>
-                ) : (
-                  <div className="my-4">
-                    <StateBlock
-                      state={workspace.odooConnected && !workspace.noData ? 'unavailable' : 'empty'}
-                      locale={activeLocale}
-                      compact
-                      className="rounded-[24px] backdrop-blur-md"
-                      title={T(NO_ODOO_DATA_EN, NO_ODOO_DATA_AR)}
-                    />
-                  </div>
-                )}
 
                 <KpiProvenanceBadge
                   odooModel="pos.order"
@@ -2096,6 +2017,7 @@ export function FullJourney360({
                   queryOrFormula="pos.order daily series grouped by Asia/Kuwait calendar day"
                 />
               </V35GlassCard>
+              ) : null}
 
               {/* Right (`lg:col-span-5`): Cumulative Open Receivables & Accounting Status */}
               <V35GlassCard
@@ -2139,17 +2061,16 @@ export function FullJourney360({
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
                             className="text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
                           >
-                            {workspace.receivables.unavailable ? (
+                            {workspace.receivables.unavailable || receivableFigures?.netKwd == null ? (
                               UNAVAILABLE_DASH
-                            ) : receivablesAmountsVisible ? (
-                              fmtKwdVal(workspace.receivables.openReceivableKwd)
                             ) : (
-                              <ReceivablesPendingStatus isAr={isAr} size="sm" />
+                              fmtKwdVal(receivableFigures.netKwd)
                             )}
                           </span>
                         </div>
 
                         {receivablesAmountsVisible &&
+                        !workspace.receivables.agingLabelsWithheld &&
                         workspace.receivables.agingBuckets.length > 0 ? (
                           <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
                             {workspace.receivables.agingBuckets.map((bkt) => (
@@ -2171,13 +2092,13 @@ export function FullJourney360({
                           </div>
                         ) : null}
 
-                        {receivablesAmountsVisible && arTieOut ? (
+                        {!workspace.receivables.unavailable && arTieOut ? (
                           <dl
                             data-ar-tie-out={arTieOut.ties ? 'ties' : 'mismatch'}
                             className="mt-2.5 space-y-1 text-xs font-medium text-slate-700 dark:text-slate-300"
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <dt>{T('Aging total (open debits)', 'إجمالي أعمار الذمم (مدين مفتوح)')}</dt>
+                              <dt>{T('Gross open debits', 'إجمالي المدين المفتوح')}</dt>
                               <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openDebitsKwd)}</dd>
                             </div>
                             <div data-ar-unapplied-credits="true" className="flex items-center justify-between gap-2">
@@ -2245,7 +2166,9 @@ export function FullJourney360({
             </div>
 
             {/* Combo Chart + 10-KWD Ledger Distribution */}
+            {comboData.length > 0 || maskInternalCosts || tenKwdDonutSlices.length > 0 ? (
             <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-12">
+              {comboData.length > 0 ? (
               <V35GlassCard
                 id="cash-flow-chart-card"
                 className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-7 dark:border-slate-800"
@@ -2257,12 +2180,10 @@ export function FullJourney360({
                     </h2>
                     <ScopeBadge kind={comboScope.badge} target="sales-net-combo" isAr={isAr} className="mt-1" />
                     <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
-                      {glIncomplete
-                        ? T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
-                        : T(
-                            'Tap or hover any bar to inspect exact KWD from Odoo 17',
-                            'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
-                          )}
+                      {T(
+                        'Tap or hover any bar to inspect exact KWD from Odoo 17',
+                        'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
+                      )}
                     </p>
                   </div>
 
@@ -2278,7 +2199,6 @@ export function FullJourney360({
                   />
                 </div>
 
-                {comboData.length > 0 ? (
                   <SalesNetComboChart
                     data={comboData}
                     hourlyFallback={comboHourlyFallback}
@@ -2289,23 +2209,10 @@ export function FullJourney360({
                         ? comboPlotsCompanyMargin
                           ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
                           : T(COMPANY_MARGIN_NOT_APPLIED_EN, COMPANY_MARGIN_NOT_APPLIED_AR)
-                        : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
+                        : T('Sales (pos.order)', 'المبيعات (pos.order)')
                     }
                     heightClass="h-60 sm:h-64"
                   />
-                ) : (
-                  <StateBlock
-                    state="unavailable"
-                    locale={activeLocale}
-                    compact
-                    className="rounded-[24px] backdrop-blur-md"
-                    title={T('Chart series unavailable', 'سلسلة الرسم البياني غير متاحة')}
-                    description={T(
-                      'POS or branch breakdown data is temporarily unavailable for this view.',
-                      'بيانات نقاط البيع أو تفصيل الفروع غير متاحة مؤقتاً لهذا العرض.',
-                    )}
-                  />
-                )}
 
                 <KpiProvenanceBadge
                   odooModel="pos.order + account.move.line"
@@ -2316,7 +2223,9 @@ export function FullJourney360({
                   queryOrFormula="pos.order net sales per day/branch + account.move.line posted operating profit ratio"
                 />
               </V35GlassCard>
+              ) : null}
 
+              {(maskInternalCosts || tenKwdDonutSlices.length > 0) ? (
               <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-5 dark:border-slate-800">
                 <div className="mb-4">
                   <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
@@ -2346,7 +2255,7 @@ export function FullJourney360({
                       )}
                     </p>
                   </div>
-                ) : tenKwdDonutSlices.length > 0 ? (
+                ) : (
                   <div className="space-y-2.5">
                     <InteractiveDonutChart
                       slices={tenKwdDonutSlices}
@@ -2365,31 +2274,16 @@ export function FullJourney360({
                       queryOrFormula="(COGS + DeliveryCommissions + OpexRentDepr + OperatingProfit) / Revenue * 10 KWD"
                     />
                   </div>
-                ) : (
-                  <div className="flex flex-1 flex-col justify-between gap-3">
-                    <UnavailableState
-                      isAr={isAr}
-                      reason={
-                        isAr
-                          ? 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
-                          : 'Not available yet — GL entries not posted'
-                      }
-                    />
-                    <KpiProvenanceBadge
-                      odooModel="account.move.line"
-                      dateRange={{ from: gl.from, to: gl.to }}
-                      lastSyncAt={lastSyncIso}
-                      isStale24h={isStale24h}
-                      kind="فعلي"
-                      queryOrFormula="account.move.line(parent_state='posted') — accrual completeness guard"
-                    />
-                  </div>
                 )}
               </V35GlassCard>
+              ) : null}
             </div>
+            ) : null}
 
             {/* Channel Mix Share + Sortable & Searchable Operational Ledger Summary Table */}
+            {channelMixSegments.length > 0 || (branchCards.length > 0 && !brandBranchScopeUnavailable) ? (
             <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-12">
+              {channelMixSegments.length > 0 ? (
               <div className="xl:col-span-5">
                 <ChartCard
                   title={T('Sales Mix by Channel', 'توزيع المبيعات حسب القناة')}
@@ -2426,22 +2320,16 @@ export function FullJourney360({
                   showGridBackdrop={false}
                   minHeightClass="min-h-0"
                 >
-                  {channelMixSegments.length > 0 ? (
-                    <StackedProgressBar
-                      segments={channelMixSegments}
-                      isAr={isAr}
-                      locale={activeLocale}
-                    />
-                  ) : (
-                    <UnavailableState
-                      compact
-                      isAr={isAr}
-                      reason={isAr ? 'غير متاح بعد' : 'Not available yet'}
-                    />
-                  )}
+                  <StackedProgressBar
+                    segments={channelMixSegments}
+                    isAr={isAr}
+                    locale={activeLocale}
+                  />
                 </ChartCard>
               </div>
+              ) : null}
 
+              {branchCards.length > 0 && !brandBranchScopeUnavailable ? (
               <V35GlassCard
                 as="section"
                 data-ledger-table="true"
@@ -2479,15 +2367,6 @@ export function FullJourney360({
                   ) : null}
                 </div>
 
-                {branchCards.length === 0 || brandBranchScopeUnavailable ? (
-                  <div className="mt-4">
-                    <UnavailableState
-                      compact
-                      isAr={isAr}
-                      reason={isAr ? 'غير متاح بعد' : 'Not available yet'}
-                    />
-                  </div>
-                ) : (
                   <div className="mt-4 max-h-[420px] overflow-x-auto overflow-y-auto rounded-2xl border border-slate-200/85 bg-white dark:border-slate-800 dark:bg-slate-900/95">
                     <table className="w-full min-w-[560px] border-collapse text-start text-[13px]">
                       <thead className="sticky top-0 z-10 border-b border-slate-200/85 bg-slate-50/95 text-xs font-semibold text-slate-600 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300">
@@ -2605,9 +2484,10 @@ export function FullJourney360({
                       </tbody>
                     </table>
                   </div>
-                )}
               </V35GlassCard>
+              ) : null}
             </div>
+            ) : null}
 
             {sessionRole === 'admin' && !auditorReadOnly ? (
               <div id="admin-pos-terminal-mapping" className="space-y-5">

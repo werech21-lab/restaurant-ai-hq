@@ -63,23 +63,42 @@ export function kuwaitDateBoundsToOdooUtc(
   }
 }
 
+/**
+ * One register clause: `config_id in [allowlist]`, including Qurain ids 24 and 36.
+ * A company OR makes the yearly product read too slow, so the company is not part of this clause.
+ */
+export function posRegisterScopeClauses(input: {
+  companyId?: number | null
+  configIds: readonly number[]
+  configField: string
+  companyField: string
+}): unknown[] {
+  void input.companyId
+  void input.companyField
+  const ids = [...new Set(input.configIds.filter((id) => Number.isInteger(id) && id > 0))]
+  if (ids.length === 0) return [['id', '=', 0]]
+  return [[input.configField, 'in', ids]]
+}
+
 export function buildPosOrderUtcDomain(input: {
   fromUtc: string
   toExclusiveUtc: string
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const configIds = input.configIds ?? companyPosRegisterIds()
-  const domain: unknown[][] = [
+  const domain: unknown[] = [
     ['state', 'in', ['paid', 'done', 'invoiced']],
     ['date_order', '>=', input.fromUtc],
     ['date_order', '<', input.toExclusiveUtc],
+    ...posRegisterScopeClauses({
+      companyId: input.companyId,
+      configIds,
+      configField: 'session_id.config_id',
+      companyField: 'company_id',
+    }),
   ]
-  if (input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)) {
-    domain.push(['company_id', '=', input.companyId])
-  }
-  domain.push(['session_id.config_id', 'in', [...configIds]])
   if (input.nonRefundOnly) {
     domain.push(['amount_total', '>=', 0])
   }
@@ -92,7 +111,7 @@ export function buildPosOrderKpiDomain(input: {
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const bounds = kuwaitDateBoundsToOdooUtc(
     input.fromKuwaitDate,
     input.toInclusiveKuwaitDate ?? input.fromKuwaitDate,
@@ -112,17 +131,19 @@ export function buildPosPaymentUtcDomain(input: {
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const configIds = input.configIds ?? companyPosRegisterIds()
-  const domain: unknown[][] = [
+  const domain: unknown[] = [
     ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
     ['pos_order_id.date_order', '>=', input.fromUtc],
     ['pos_order_id.date_order', '<', input.toExclusiveUtc],
+    ...posRegisterScopeClauses({
+      companyId: input.companyId,
+      configIds,
+      configField: 'session_id.config_id',
+      companyField: 'pos_order_id.company_id',
+    }),
   ]
-  if (input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)) {
-    domain.push(['pos_order_id.company_id', '=', input.companyId])
-  }
-  domain.push(['session_id.config_id', 'in', [...configIds]])
   if (input.nonRefundOnly) {
     domain.push(['pos_order_id.amount_total', '>=', 0], ['amount', '>=', 0])
   }
@@ -558,4 +579,173 @@ export function mergeSessionPaymentGroups(
       orders: countsByKey.get(key) ?? 0,
     }
   })
+}
+
+export type UtcWindow = { fromUtc: string; toUtc: string }
+
+/** Closed-year reads only. Today stays on the default 8s RPC cap. */
+export const YEAR_CLOSED_READ_TIMEOUT_MS = 45_000
+
+/**
+ * Yearly payments stay grouped by session and method so each branch keeps its
+ * channel split. The closed window is read per register (one config id) under
+ * the 45s cap, then cached.
+ */
+export const YEAR_PAYMENT_GROUP_BY = ['session_id', 'payment_method_id'] as const
+
+export const YEAR_REGISTER_READ_CONCURRENCY = 8
+
+export interface YearChannelPayment {
+  configId: number | null
+  methodName: string
+  netKwd: number
+  orders: number
+}
+
+/** Each payment is added once, to one branch channel or to the unmapped bucket. */
+export function foldYearBranchChannels(input: {
+  payments: readonly YearChannelPayment[]
+  branchOfConfig: (configId: number) => string | null
+  isDeliveryConfig: (configId: number) => boolean
+  channelOf: (methodName: string, isDelivery: boolean) => string
+  branchIds: readonly string[]
+  channelKeys: readonly string[]
+}): {
+  byBranch: Record<string, Record<string, { netKwd: number; orders: number }>>
+  unmapped: Record<string, { netKwd: number; orders: number }>
+  totalNet: number
+} {
+  const blank = () => Object.fromEntries(input.channelKeys.map((key) => [key, { netKwd: 0, orders: 0 }]))
+  const byBranch: Record<string, Record<string, { netKwd: number; orders: number }>> = {}
+  for (const id of input.branchIds) byBranch[id] = blank()
+  const unmapped = blank()
+  let totalNet = 0
+  for (const payment of input.payments) {
+    totalNet += payment.netKwd
+    const branch = payment.configId == null ? null : input.branchOfConfig(payment.configId)
+    const channel = input.channelOf(
+      payment.methodName,
+      payment.configId != null && input.isDeliveryConfig(payment.configId),
+    )
+    const bucket = branch && byBranch[branch] ? byBranch[branch] : unmapped
+    const cell = bucket[channel] ?? (bucket[channel] = { netKwd: 0, orders: 0 })
+    cell.netKwd += payment.netKwd
+    cell.orders += payment.orders
+  }
+  return { byBranch, unmapped, totalNet }
+}
+
+export function yearReadCall(window: UtcWindow): {
+  kwargs: { lazy: false; context?: { year_live_slice: true } }
+  timeout?: { timeoutMs: number; timeoutCapMs: number }
+} {
+  const fromMs = Date.parse(`${window.fromUtc.replace(' ', 'T')}Z`)
+  const toMs = Date.parse(`${window.toUtc.replace(' ', 'T')}Z`)
+  const liveSlice = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs - fromMs <= 2 * 86_400_000
+  if (liveSlice) return { kwargs: { lazy: false, context: { year_live_slice: true } } }
+  return {
+    kwargs: { lazy: false },
+    timeout: { timeoutMs: YEAR_CLOSED_READ_TIMEOUT_MS, timeoutCapMs: YEAR_CLOSED_READ_TIMEOUT_MS },
+  }
+}
+
+/** Yesterday and earlier inside the year. Empty when the year starts today. */
+export function yearClosedWindow(yearFromUtc: string, todayFromUtc: string): UtcWindow | null {
+  if (yearFromUtc >= todayFromUtc) return null
+  return { fromUtc: yearFromUtc, toUtc: todayFromUtc }
+}
+
+const YEAR_CLOSED_TTL_MS = 30 * 60 * 1000
+const YEAR_CLOSED_MAX = 32
+const yearClosedRows = new Map<string, { rows: unknown[]; at: number }>()
+
+export function clearYearClosedCache(): void {
+  yearClosedRows.clear()
+}
+
+function readYearClosedCache(key: string, now: number): unknown[] | undefined {
+  const hit = yearClosedRows.get(key)
+  if (!hit) return undefined
+  if (now - hit.at > YEAR_CLOSED_TTL_MS) {
+    yearClosedRows.delete(key)
+    return undefined
+  }
+  return hit.rows
+}
+
+function writeYearClosedCache(key: string, rows: unknown[], now: number): void {
+  yearClosedRows.set(key, { rows, at: now })
+  while (yearClosedRows.size > YEAR_CLOSED_MAX) {
+    const oldest = yearClosedRows.keys().next().value
+    if (!oldest) break
+    yearClosedRows.delete(oldest)
+  }
+}
+
+/**
+ * Closed days of the year are read once and reused for 30 minutes, up to 32 keys.
+ * Only today is read on later calls. A failed today read still fails the section.
+ */
+export async function readClosedYearPlusToday<T>(input: {
+  cacheKey: string
+  closed: UtcWindow | null
+  today: UtcWindow
+  read: (window: UtcWindow) => Promise<T[]>
+  merge: (rows: readonly T[]) => T[]
+}): Promise<T[]> {
+  const now = Date.now()
+  let closedRows: T[] = []
+  if (input.closed) {
+    const hit = readYearClosedCache(input.cacheKey, now) as T[] | undefined
+    if (hit) {
+      closedRows = hit
+    } else {
+      closedRows = await input.read(input.closed)
+      writeYearClosedCache(input.cacheKey, closedRows, now)
+    }
+  }
+  const todayRows = await input.read(input.today)
+  return input.merge([...closedRows, ...todayRows])
+}
+
+export function mergeProductLineGroups<
+  T extends { product_id?: PosM2O; price_subtotal?: number; qty?: number; __count?: number },
+>(rows: readonly T[]): T[] {
+  const map = new Map<number, T>()
+  for (const row of rows) {
+    const id = m2oId(row.product_id)
+    if (id === null) continue
+    const prev = map.get(id)
+    if (!prev) {
+      map.set(id, { ...row })
+      continue
+    }
+    prev.price_subtotal = (Number(prev.price_subtotal) || 0) + (Number(row.price_subtotal) || 0)
+    prev.qty = (Number(prev.qty) || 0) + (Number(row.qty) || 0)
+    prev.__count = (Number(prev.__count) || 0) + (Number(row.__count) || 0)
+  }
+  return [...map.values()]
+}
+
+export function mergeRowsByKey<T extends { __count?: number }>(
+  rows: readonly T[],
+  keyOf: (row: T) => string,
+  numericFields: readonly (keyof T)[],
+): T[] {
+  const map = new Map<string, T>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    const prev = map.get(key)
+    if (!prev) {
+      map.set(key, { ...row })
+      continue
+    }
+    for (const field of numericFields) {
+      const left = Number(prev[field]) || 0
+      const right = Number(row[field]) || 0
+      ;(prev[field] as number) = left + right
+    }
+    prev.__count = (Number(prev.__count) || 0) + (Number(row.__count) || 0)
+  }
+  return [...map.values()]
 }

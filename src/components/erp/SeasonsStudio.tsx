@@ -9,7 +9,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useLang } from '@/components/aether/ui'
 import { UnavailableState } from '@/components/ui'
-import { SEASON_KINDS, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
+import { SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
+import { SEASON_KINDS, seasonLiftsFromDaily, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
+import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { AdvisorReport } from '@/lib/council/types'
 
 const KIND_LABEL: Record<SeasonKind, { ar: string; en: string }> = {
@@ -21,7 +23,7 @@ const KIND_LABEL: Record<SeasonKind, { ar: string; en: string }> = {
   summer: { ar: 'الصيف', en: 'Summer' },
   winter: { ar: 'الشتاء', en: 'Winter' },
   'national-day': { ar: 'العيد الوطني', en: 'National Day' },
-  'salary-days': { ar: 'أيام الرواتب', en: 'Salary days' },
+  'salary-days': { ar: `أيام الرواتب ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}`, en: `Salary days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}` },
   custom: { ar: 'مناسبة أخرى', en: 'Other occasion' },
 }
 
@@ -32,17 +34,19 @@ export interface SeasonsStudioViewProps {
   events: SeasonEvent[] | null
   suggested: boolean
   report: AdvisorReport | null
+  liveSummary?: OdooLiveSummary | null
   canEdit: boolean
   onSave?: (ev: SeasonEvent) => void
   onDelete?: (id: string) => void
 }
 
-export function SeasonsStudioView({ locale, events, suggested, report, canEdit, onSave, onDelete }: SeasonsStudioViewProps) {
+export function SeasonsStudioView({ locale, events, suggested, report, liveSummary = null, canEdit, onSave, onDelete }: SeasonsStudioViewProps) {
   const isAr = locale === 'ar'
   const t = (en: string, ar: string) => (isAr ? ar : en)
   const [draft, setDraft] = useState<SeasonEvent>(EMPTY)
   const findingFor = (ev: SeasonEvent) => report?.findings.find((f) => f.fingerprint === `seasons:${ev.id}:${ev.startsOn}`) ?? null
-  const gapFor = (ev: SeasonEvent) => report?.dataGaps.find((g) => g.missingEn.includes(`“${ev.nameEn}”`)) ?? null
+  const lifts = events ? seasonLiftsFromDaily(liveSummary ?? null, events) : []
+  const liftFor = (ev: SeasonEvent) => lifts.find((row) => row.eventId === ev.id) ?? null
   const input = 'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[13px] text-slate-900 dark:border-white/15 dark:bg-white/[0.06] dark:text-white'
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-5 p-3 sm:p-5" data-seasons-studio="true">
@@ -62,14 +66,19 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
         <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {events.map((ev) => {
             const f = findingFor(ev)
-            const g = gapFor(ev)
+            const lift = liftFor(ev)
             return (
               <li key={ev.id} data-season={ev.id} className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.04]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
                     <p className="text-[12px] text-slate-500 dark:text-slate-400" dir="ltr">
-                      {`${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
+                      {ev.kind === 'salary-days'
+                        ? t(
+                            `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} of each month, Kuwait time`,
+                            `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} من كل شهر، بتوقيت الكويت`,
+                          )
+                        : `${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
                     </p>
                   </div>
                   {canEdit ? (
@@ -79,6 +88,30 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
                     </div>
                   ) : null}
                 </div>
+                {lift ? (
+                  <div data-season-lift={ev.id} className="space-y-1 text-[12.5px] text-slate-700 dark:text-slate-300">
+                    <p>
+                      {ev.kind === 'salary-days'
+                        ? t(
+                            `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} vs the other days of the same months`,
+                            `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} مقابل بقية أيام نفس الأشهر`,
+                          )
+                        : t('Last occurrence', 'آخر مرة')}{' '}
+                      {ev.kind === 'salary-days' ? null : <bdi dir="ltr">{`${lift.window.from} → ${lift.window.to}`}</bdi>}
+                      {' · '}
+                      {t('avg day', 'متوسط اليوم')} <bdi dir="ltr">{lift.avgDailyKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</bdi>
+                      {' · '}
+                      {t('normal day', 'يوم عادي')} <bdi dir="ltr">{lift.baselineDailyKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</bdi>
+                      {' · '}
+                      <bdi dir="ltr">{`${lift.liftPct >= 0 ? '+' : ''}${lift.liftPct.toFixed(1)}%`}</bdi>
+                    </p>
+                    {lift.topBranches.length > 0 ? (
+                      <p>
+                        {t('Top branches', 'أكثر الفروع تأثراً')}: {lift.topBranches.map((b) => `${isAr ? b.nameAr : b.nameEn} ${b.liftPct >= 0 ? '+' : ''}${b.liftPct.toFixed(1)}%`).join(' · ')}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {f ? (
                   <div className="space-y-1.5 text-[12.5px] text-slate-700 dark:text-slate-300">
                     <p className="font-semibold text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</p>
@@ -95,14 +128,7 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
                       ))}
                     </ul>
                   </div>
-                ) : g ? (
-                  <p className="text-[12.5px] text-slate-600 dark:text-slate-400" data-season-gap="true">
-                    <span className="font-semibold">{t('Not in Odoo: ', 'غير متوفر في Odoo: ')}</span>
-                    {isAr ? `${g.missingAr} — ${g.recordAr}` : `${g.missingEn} — ${g.recordEn}`}
-                  </p>
-                ) : (
-                  <p className="text-[12px] text-slate-500 dark:text-slate-400">{t('Outside the planning horizon, or no advisor run stored yet.', 'خارج أفق التخطيط، أو لا يوجد تشغيل محفوظ للمستشار بعد.')}</p>
-                )}
+                ) : null}
               </li>
             )
           })}
@@ -140,19 +166,13 @@ export function SeasonsStudioView({ locale, events, suggested, report, canEdit, 
         </form>
       ) : null}
 
-      {report && report.dataGaps.length > 0 ? (
-        <section className="space-y-1 text-[12px] text-slate-600 dark:text-slate-400">
-          <p className="font-semibold">{t('Data gaps', 'بيانات غير متوفرة')}</p>
-          <ul className="list-disc space-y-0.5 ps-5">{report.dataGaps.map((g, i) => <li key={i}>{isAr ? g.missingAr : g.missingEn}</li>)}</ul>
-        </section>
-      ) : null}
     </div>
   )
 }
 
 export function SeasonsStudio() {
   const { isAr } = useLang()
-  const { sessionRole, isAuditor } = useGlobalFilter()
+  const { sessionRole, isAuditor, liveSummary } = useGlobalFilter()
   const [state, setState] = useState<{ events: SeasonEvent[] | null; suggested: boolean; report: AdvisorReport | null }>({ events: null, suggested: false, report: null })
   const load = useCallback(() => {
     fetch('/api/erp/seasons', { credentials: 'same-origin' })
@@ -169,6 +189,7 @@ export function SeasonsStudio() {
       events={state.events}
       suggested={state.suggested}
       report={state.report}
+      liveSummary={liveSummary}
       canEdit={sessionRole === 'admin' && !isAuditor}
       onSave={(ev) => void send('POST', ev)}
       onDelete={(id) => void send('DELETE', undefined, id)}

@@ -672,9 +672,9 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
     setMockFilterContext({ liveSummary: buildLiveSummary(), liveCube: buildLiveCube() })
     const connectedEn = renderWithLang('en', React.createElement(DeliveryRadarV5))
     expect(connectedEn).toContain('KWD')
-    // Phase 5 · Item 2: open receivables render as a neutral status, never as an amount.
-    expect(connectedEn).toContain('Pending Accounting Reconciliation')
-    expect(connectedEn).not.toContain('6,420.375')
+    expect(connectedEn).toContain('6,420.375')
+    expect(connectedEn).not.toContain('Pending Accounting Reconciliation')
+    expect(connectedEn).not.toMatch(/overdue/i)
   })
 
   it('/erp/weekday-comparison, /erp/before-after & control bar render honest states, AR/EN copy, 3-decimal KWD & Least Decline badge', () => {

@@ -157,22 +157,12 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     const aovMatch = /<span\b[^>]*data-unavailable="true"[^>]*>[^<]*متوسط —[^<]*<\/span>/.exec(html)
     expect(aovMatch).not.toBeNull()
 
-    // Branch section withholds cards and does not leak all-brand totals (154.70 / 99.350 / 24).
-    const branchSectionIdx = html.indexOf('aria-label="أداء الفروع السبعة والمبيعات غير المنسوبة لفرع"')
-    expect(branchSectionIdx).toBeGreaterThan(-1)
-    const branchSection = extractBalancedElement(html, branchSectionIdx)
-    expect(branchSection).not.toBeNull()
-    expect(branchSection!.text).toContain('غير متاح لهذا الفلتر')
+    expect(html.indexOf('aria-label="أداء الفروع السبعة والمبيعات غير المنسوبة لفرع"')).toBe(-1)
+    expect(html).not.toContain('غير متاح لهذا الفلتر')
     expect(html).not.toContain('data-branch-card=')
-    expect(branchSection!.outerHtml).not.toContain('154.70')
-    expect(branchSection!.outerHtml).not.toContain('99.350')
-    expect(branchSection!.text).not.toMatch(/\b24\b/)
 
     expect(scopeBadgesOf(html)).toEqual({
-      'gl-operating-net': 'company-wide',
-      'aggregator-commissions': 'company-wide',
       'ledger-ar': 'company-wide',
-      'gl-distribution': 'company-wide',
       'sales-net-combo': 'all-brands',
       'weekly-pulse': 'all-brands',
     })

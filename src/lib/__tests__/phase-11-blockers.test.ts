@@ -216,7 +216,7 @@ describe('phase 11 blocker 3 & should-fix 1 & should-fix 3: pinned canteen ids, 
     const streetBranch = `${closedBranch[0]?.toUpperCase()}${closedBranch.slice(1)} School Street Branch`
     expect(isExcludedOdooEntity(streetBranch)).toBe(false)
     expect(companyPosConfigAllowed(3, streetBranch, true)).toBe(true)
-    expect(companyPosConfigAllowed(3, 'Jahra School Street Branch', true)).toBe(false)
+    expect(companyPosConfigAllowed(3, 'Jahra School Street Branch', true)).toBe(true)
     expect(companyPosConfigAllowed(pinnedCanteens[0]!, streetBranch, true)).toBe(true)
     expect(resolveRestaurantBranchForConfig(pinnedCanteens[0]!, streetBranch)).toBe('school-canteens')
   })

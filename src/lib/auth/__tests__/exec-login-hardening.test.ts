@@ -14,6 +14,8 @@ import {
   loginIpFailureLimiter,
 } from '@/lib/auth/api-guard'
 import { EXEC_SESSION_COOKIE, verifyExecSessionToken } from '@/lib/auth/exec-session'
+import { middleware } from '@/middleware'
+import { SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
 
 // Test-only password injected through the AETHER_*_PASSWORD env override.
 const TEMP_PASSWORD = 'test-exec-login-pass'
@@ -30,10 +32,10 @@ const NAMED = [
 const ENV_KEYS = [
   'AETHER_ABDULLAH_PASSWORD', 'AETHER_ADMIN_PASSWORD', 'AETHER_GM_PASSWORD', 'AETHER_DGM_PASSWORD',
   'AETHER_OPS_PASSWORD', 'AETHER_CFO_PASSWORD', 'AETHER_MARKETING_PASSWORD', 'AETHER_SUPPLY_PASSWORD',
-  'AETHER_AUDITOR_PASSWORD', 'AETHER_ABDULLAH_EMAIL', 'AETHER_ADMIN_EMAIL', 'AETHER_GM_EMAIL',
+  'AETHER_AUDITOR_PASSWORD', 'AETHER_QA_PASSWORD', 'AETHER_ABDULLAH_EMAIL', 'AETHER_ADMIN_EMAIL', 'AETHER_GM_EMAIL',
   'AETHER_DGM_EMAIL', 'AETHER_OPS_EMAIL', 'AETHER_CFO_EMAIL', 'AETHER_FINANCE_EMAIL',
   'AETHER_MARKETING_EMAIL', 'AETHER_MKT_EMAIL', 'AETHER_SUPPLY_EMAIL', 'AETHER_KITCHEN_EMAIL',
-  'AETHER_AUDITOR_EMAIL',
+  'AETHER_AUDITOR_EMAIL', 'AETHER_QA_EMAIL',
 ]
 
 // Test-only DB credentials (never real): generated per run.
@@ -187,6 +189,40 @@ describe('login rate-limit and DB-path hardening', () => {
     const res = await POST(loginRequest('warehouse@venturefoodskw.com', DB_PASSWORD, '198.51.100.83'))
     expect(res.status).toBe(200)
     expect(((await res.json()) as { role: string }).role).toBe('admin')
+  })
+
+  it('qa-readonly fails closed without AETHER_QA_PASSWORD, then logs in as a read-only auditor', async () => {
+    vi.stubEnv('AETHER_QA_PASSWORD', '')
+    const closed = await POST(loginRequest('qa-readonly@venturefoodskw.com', TEMP_PASSWORD, '198.51.100.91'))
+    expect(closed.status).toBe(401)
+    expect(await sessionRole(closed)).toBeNull()
+
+    vi.stubEnv('AETHER_QA_PASSWORD', TEMP_PASSWORD)
+    const open = await POST(loginRequest('qa-readonly@venturefoodskw.com', TEMP_PASSWORD, '198.51.100.92'))
+    expect(open.status).toBe(200)
+    expect(((await open.json()) as { role: string }).role).toBe('auditor')
+    expect(await sessionRole(open)).toBe('auditor')
+
+    const raw = open.headers.get('set-cookie') ?? ''
+    const token = new RegExp(`${EXEC_SESSION_COOKIE}=([^;]+)`).exec(raw)?.[1]
+    expect(token).toBeTruthy()
+    const post = await middleware(
+      new NextRequest('https://aetherbi.com/api/erp/governance', {
+        method: 'POST',
+        headers: { cookie: `${EXEC_SESSION_COOKIE}=${token}` },
+      }),
+    )
+    expect(post.status).toBe(403)
+
+    for (const href of SIDEBAR_SECTIONS.flatMap((section) => section.items.map((item) => item.href))) {
+      const get = await middleware(
+        new NextRequest(`https://aetherbi.com${href}`, {
+          method: 'GET',
+          headers: { cookie: `${EXEC_SESSION_COOKIE}=${token}` },
+        }),
+      )
+      expect(get.status, href).toBeLessThan(300)
+    }
   })
 
   it('rejects an inactive DB user and a wrong DB password', async () => {

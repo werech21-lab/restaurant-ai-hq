@@ -28,7 +28,6 @@ vi.mock('@/components/aether/GlobalFilterContext', () => ({
 }))
 
 const FIXTURE_NOW = new Date('2026-11-17T03:05:00Z')
-const COMPANY_WIDE_CARDS = ['gl-operating-net', 'aggregator-commissions', 'ledger-ar', 'gl-distribution'] as const
 
 async function renderDashboard(summary: OdooLiveSummary, brand: string): Promise<string> {
   setDashboardContext(summary, todayFilters(brand))
@@ -58,13 +57,16 @@ describe('H1 — every company-wide or all-brand card says so under a brand filt
   beforeEach(() => vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ['Date'] }))
   afterEach(() => vi.useRealTimers())
 
-  it('brand = China Garden: the four GL/AR cards carry «على مستوى الشركة», combo and pulse carry «كل العلامات»', async () => {
+  it('brand = China Garden: the open-AR card carries «على مستوى الشركة»; GL cards with no filter split are omitted', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), 'china-garden')
     const badges = scopeBadgesOf(html)
-    for (const card of COMPANY_WIDE_CARDS) expect(badges[card], card).toBe('company-wide')
+    expect(badges['ledger-ar']).toBe('company-wide')
+    expect(badges['gl-operating-net']).toBeUndefined()
+    expect(badges['aggregator-commissions']).toBeUndefined()
+    expect(badges['gl-distribution']).toBeUndefined()
+    expect(html).not.toContain('دفتر الأستاذ غير مقسّم حسب هذا الفلتر')
     expect(badges['sales-net-combo']).toBe('all-brands')
     expect(badges['weekly-pulse']).toBe('all-brands')
-    expect(html.match(/على مستوى الشركة/g)?.length ?? 0).toBeGreaterThanOrEqual(COMPANY_WIDE_CARDS.length)
   })
 
   it('brand = all: no scope badge is shown anywhere', async () => {
@@ -122,12 +124,12 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(buildArTieOut({ openDebitsKwd: null, unappliedCreditsKwd: null, openReceivableKwd: 1182.708 })).toBeNull()
   })
 
-  it('due-date basis: until per-customer aging is verified (Phase 5 · Item 2) the card shows the neutral status, not the tie-out amounts', async () => {
+  it('due-date basis: residuals stay visible and due-date aging labels stay withheld', async () => {
     const html = await renderDashboard(withDueDateAging(loadLiveTodaySummary()), 'all')
-    expect(html).toContain('data-receivables-status="pending-reconciliation"')
-    expect(html).toContain('قيد المطابقة مع المحاسبة')
-    expect(html).not.toContain('data-ar-tie-out=')
-    expect(html).not.toContain('1,182.708')
+    expect(html).not.toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).toContain('data-ar-tie-out=')
+    expect(html).toContain('1,182.708')
+    expect(html).not.toMatch(/overdue|متأخر|مستحق/)
   })
 
   it('the reconciliation formula uses the same line-level credit figure as the card (formula), and is withheld from the workspace while pending', () => {
@@ -142,16 +144,16 @@ describe('M3 — AR card: aging total + unapplied credits tie back to open AR wi
     expect(formula.en).toContain('2,593.49')
     expect(formula.en).toContain('1,182.71')
     expect(formula.en.toLowerCase()).toContain('unapplied')
-    // Phase 5 · Item 2: executives see the neutral status instead of the formula amounts.
     const ws = computeGlobalWorkspace(todayFilters('all'), withDueDateAging(loadLiveTodaySummary()))
-    expect(ws.receivables.reconciliationFormulaEn).toBe('Pending Accounting Reconciliation')
+    expect(ws.receivables.reconciliationFormulaEn.toLowerCase()).not.toContain('aging')
+    expect(ws.receivables.openReceivableKwd).not.toBeNull()
   })
 
-  it('legacy payload: no tie-out and no second credit figure; neutral pending status instead of amounts', async () => {
+  it('legacy payload: residual is shown and due-date buckets stay hidden', async () => {
     const html = await renderDashboard(loadLiveTodaySummary(), 'all')
     expect(html).not.toContain('data-ar-tie-out=')
-    expect(html).not.toContain('data-ar-unapplied-credits=')
-    expect(html).toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).not.toContain('data-receivables-status="pending-reconciliation"')
+    expect(html).not.toMatch(/overdue|متأخر/)
   })
 })
 

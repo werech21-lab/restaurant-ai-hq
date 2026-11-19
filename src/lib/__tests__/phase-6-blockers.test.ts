@@ -25,7 +25,8 @@ describe('phase 6 exclusions', () => {
   })
 
   it('matches the short codes as tokens and not as a prefix', () => {
-    expect(isExcludedOdooEntity('QRN')).toBe(true)
+    expect(isExcludedOdooEntity('QRN')).toBe(false)
+    expect(isExcludedOdooEntity('Delivery (Qurain)')).toBe(false)
     expect(isExcludedOdooEntity('register JHR')).toBe(true)
     expect(isExcludedOdooEntity('HWL')).toBe(false)
     expect(isExcludedOdooEntity('QRNO')).toBe(false)

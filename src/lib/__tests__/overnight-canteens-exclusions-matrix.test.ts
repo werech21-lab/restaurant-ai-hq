@@ -700,21 +700,18 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       { configId: 41, label: 'NPIS Jahra', reason: 'Jahra Latin branch veto' },
       { configId: 41, label: 'مقصف مدرسة الجهراء', reason: 'Jahra Arabic branch veto' },
       { configId: 41, label: 'Canteen JHR01', reason: 'Jahra short-code + digit veto', shortCodeOnly: true },
-      { configId: 42, label: 'FAIPS Qurain', reason: 'Qurain Latin branch veto' },
-      { configId: 42, label: 'مقصف مدرسة القرين', reason: 'Qurain Arabic branch veto' },
-      { configId: 42, label: 'Canteen QRN1', reason: 'Qurain short-code + digit veto', shortCodeOnly: true },
     ]
 
     it.each(VETOED_CANTEEN_CASES)(
-      'VETOES mislabelled POS #$configId ("$label" — $reason) across companyPos, excludedEntities, domain, console, and branch resolver',
+      'keeps mislabelled POS #$configId ("$label" — $reason) by id; the name does not remove it',
       ({ configId, label, shortCodeOnly }) => {
-        expect(companyPosConfigAllowed(configId, label, true)).toBe(false)
+        expect(companyPosConfigAllowed(configId, label, true)).toBe(true)
         expect(isExcludedOdooEntity(label)).toBe(true)
         if (!shortCodeOnly) {
-          expect(evalOdooDomain(NAME_EXCLUSION_DOMAIN, label)).toBe(false)
+          expect(evalOdooDomain(NAME_EXCLUSION_DOMAIN, label)).toBe(true)
           expect(CONSOLE_ROW_KEPT({ id: configId, name: label })).toBe(false)
         }
-        expect(resolveRestaurantBranchForConfig(configId, label)).toBeNull()
+        expect(resolveRestaurantBranchForConfig(configId, label)).toBe('school-canteens')
       },
     )
 
@@ -752,7 +749,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       expect(inactiveCanteenBranch?.orders).toBe(0)
       expect(inactiveEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + EXHIBITION_BOOTH_26.net))
 
-      // 3) Mislabelled #41 ("Heisenberg School Canteen") -> #41 vetoed, only #42 + #43 (194.750 KWD, 48 ord) counted!
+      // 3) A Heisenberg name on pos.config 41 does not remove it. The id stays in the total.
       vi.restoreAllMocks()
       bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
       installMatrixOdooRpcMock({ canteenActive: true, vetoCanteen41Label: 'Heisenberg School Canteen' })
@@ -762,9 +759,9 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         referenceNowMs: TEST_REF_NOW_MS,
       })
       const vetoCanteenBranch = vetoEnv.branches?.find((b) => b.id === 'school-canteens')
-      expect(vetoCanteenBranch?.netSalesKwd).toBe(194.75)
-      expect(vetoCanteenBranch?.orders).toBe(48)
-      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 194.75 + EXHIBITION_BOOTH_26.net))
+      expect(vetoCanteenBranch?.netSalesKwd).toBe(379.125)
+      expect(vetoCanteenBranch?.orders).toBe(90)
+      expect(vetoEnv.totals.netSalesKwd).toBe(r3(restaurantOnlySum + 379.125 + EXHIBITION_BOOTH_26.net))
     })
   })
 
@@ -785,18 +782,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
       { family: 'Heisenberg', label: 'هايزن بريج' },
       { family: 'Heisenberg', label: 'هايزن' },
 
-      // Family 2: Qurain
-      { family: 'Qurain', label: 'Qurain' },
-      { family: 'Qurain', label: 'Qurain WH' },
-      { family: 'Qurain', label: 'Al-Qurain' },
-      { family: 'Qurain', label: 'Kurain' },
-      { family: 'Qurain', label: 'QRN', shortCodeOnly: true },
-      { family: 'Qurain', label: 'QRN01', shortCodeOnly: true },
-      { family: 'Qurain', label: 'القرين' },
-      { family: 'Qurain', label: 'قرين' },
-      { family: 'Qurain', label: 'بالقرين' },
-
-      // Family 3: Jahra
+      // Delivery (Qurain) is included (founder, 2026-11-19). Family 3: Jahra
       { family: 'Jahra', label: 'Jahra' },
       { family: 'Jahra', label: 'Jahra01' },
       { family: 'Jahra', label: 'AlJahra' },
@@ -817,14 +803,14 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         expect(isExcludedOdooEntity(label)).toBe(true)
         expect(isExcludedOdooRecord({ id: 777, name: label, kind: 'branch' })).toBe(true)
 
-        // Even if someone attaches an excluded name to an approved restaurant register #8, it MUST be blocked
-        expect(companyPosConfigAllowed(8, label, true)).toBe(false)
+        // An excluded name on an approved register id does not remove the register.
+        expect(companyPosConfigAllowed(8, label, true)).toBe(true)
         expect(companyPosConfigAllowed(99, label, true)).toBe(false)
-        expect(resolveRestaurantBranchForConfig(8, label)).toBeNull()
+        expect(resolveRestaurantBranchForConfig(8, label)).toBe('promenade')
         expect(resolveRestaurantBranchForConfig(99, label)).toBeNull()
 
         if (!shortCodeOnly) {
-          expect(evalOdooDomain(NAME_EXCLUSION_DOMAIN, label)).toBe(false)
+          expect(evalOdooDomain(NAME_EXCLUSION_DOMAIN, label)).toBe(true)
           expect(CONSOLE_ROW_KEPT({ id: 777, name: label })).toBe(false)
         }
 
@@ -961,7 +947,7 @@ describe('Overnight Parameterized Matrix — Per-Branch Checklist, School Cantee
         briefFacts: pack.facts,
       })
       expect(serializedAll).not.toMatch(
-        /heisenberg|hizenberg|هايزن|qurain|القرين|قرين|jahra|الجهراء|جهراء/i,
+        /heisenberg|hizenberg|هايزن|jahra|الجهراء|جهراء/i,
       )
     })
   })

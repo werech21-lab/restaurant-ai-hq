@@ -391,11 +391,21 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
   const t = (en: string, ar: string) => (isAr ? ar : en)
   const avail = useMemo(() => analysisAvailability(liveSummary), [liveSummary])
   const hasMenu = reports.some((r) => r.advisorId === 'menu' && r.findings.length > 0)
+  const showCouncil = reports.length > 0
   const tabHasContent = (id: DecisionRoomTab): boolean =>
-    id === 'all' ? true : id === 'log' ? decisions.length > 0 : id === 'menu' ? hasMenu : avail[id]
+    id === 'all' ? showCouncil : id === 'log' ? decisions.length > 0 : id === 'menu' ? hasMenu : avail[id]
   const [chosenTab, setTab] = useState<DecisionRoomTab>(props.initialTab ?? 'all')
   // A tab with nothing to show falls back to "all" (an empty section is never rendered).
-  const tab: DecisionRoomTab = tabHasContent(chosenTab) ? chosenTab : 'all'
+  const fallbackTab: DecisionRoomTab = tabHasContent('all')
+    ? 'all'
+    : avail.drivers
+      ? 'drivers'
+      : avail.benchmark
+        ? 'benchmark'
+        : avail.forecast
+          ? 'forecast'
+          : 'all'
+  const tab: DecisionRoomTab = tabHasContent(chosenTab) ? chosenTab : fallbackTab
   const decisionBy = useMemo(() => new Map(decisions.map((d) => [d.fingerprint, d])), [decisions])
   const findings = useMemo(() => {
     const all = reports.flatMap((r) => r.findings).filter((f) => f.proposals.length > 0 || f.kind === 'company-split' || f.kind === 'forecast-next7')
@@ -434,9 +444,9 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
 
       {loading ? (
         <div className={`${CARD} text-[13px] text-slate-500`} aria-busy="true">{t('Loading the advisor reports…', 'جاري تحميل تقارير المستشارين…')}</div>
-      ) : reports.length === 0 ? null : (
+      ) : (
         <>
-          {summary && summary.ar.length > 0 ? (
+          {showCouncil && summary && summary.ar.length > 0 ? (
             <section data-executive-summary={summary.source} className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 shadow-sm sm:p-5 dark:border-sky-400/20 dark:bg-sky-400/[0.07]">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">{t('Executive summary', 'الملخص التنفيذي')}</h2>
@@ -451,7 +461,7 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
             </section>
           ) : null}
 
-          {openCount > 0 || sizedCount > 0 || measuringCount > 0 ? (
+          {showCouncil && (openCount > 0 || sizedCount > 0 || measuringCount > 0) ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-room-tiles="true">
               {openCount > 0 ? <p className={CARD}><span className="block text-xs text-slate-500 dark:text-slate-400">{t('Open proposals', 'المقترحات المفتوحة')}</span><b className="text-xl tabular-nums" dir="ltr">{openCount}</b></p> : null}
               {sizedCount > 0 ? (
@@ -461,6 +471,7 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
             </div>
           ) : null}
 
+          {tabs.length > 0 ? (
           <nav role="tablist" aria-label={t('Decision Room sections', 'أقسام غرفة القرار')} className="flex gap-1.5 overflow-x-auto rounded-2xl bg-slate-100 p-1 dark:bg-white/[0.05]">
             {tabs.map((x) => (
               <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} data-room-tab={x.id} onClick={() => setTab(x.id)}
@@ -469,6 +480,7 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
               </button>
             ))}
           </nav>
+          ) : null}
 
           {tab === 'drivers' ? <DriversView summary={liveSummary} locale={locale} /> : null}
           {tab === 'benchmark' ? <BenchmarkView summary={liveSummary} locale={locale} /> : null}
@@ -476,15 +488,15 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
 
           {tab === 'log' ? (
             <DecisionLog decisions={decisions} locale={locale} />
-          ) : findings.length === 0 ? null : (
+          ) : showCouncil && findings.length > 0 ? (
             <ol className="grid grid-cols-1 gap-3 xl:grid-cols-2">
               {findings.map((f) => (
                 <FindingCard key={f.fingerprint} f={f} locale={locale} decision={decisionBy.get(f.fingerprint) ?? null} canDecide={canDecide} onDecide={onDecide} busy={busyFingerprint === f.fingerprint} />
               ))}
             </ol>
-          )}
+          ) : null}
 
-          {tab !== 'log' && gaps.length > 0 ? (
+          {showCouncil && tab !== 'log' && gaps.length > 0 ? (
             <section data-room-gaps="true" className="space-y-1.5 text-[13px] text-slate-600 dark:text-slate-400">
               <h2 className="font-semibold text-slate-800 dark:text-slate-200">{t('What Odoo does not record yet (and what to record)', 'ما لا يسجله Odoo بعد (وما يجب تسجيله)')}</h2>
               <ul className="list-disc space-y-1 ps-5">
@@ -495,10 +507,12 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
             </section>
           ) : null}
 
+          {showCouncil ? (
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {t('Today’s top three also appear on ', 'أهم ثلاثة اكتشافات تظهر أيضاً في ')}
             <Link href="/erp" className="font-semibold underline underline-offset-2">{t('the Executive Dashboard', 'لوحة القيادة التنفيذية')}</Link>.
           </p>
+          ) : null}
         </>
       )}
     </div>

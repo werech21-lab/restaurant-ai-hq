@@ -35,7 +35,8 @@ describe('M7 — company-wide cards say so when a brand is selected', () => {
 
   it('M7: the GL and AR cards render the company-wide badge only when brand ≠ all', async () => {
     const brandHtml = await render()
-    expect(scopeBadgesOf(brandHtml)['gl-operating-net']).toBe('company-wide')
+    expect(scopeBadgesOf(brandHtml)['gl-operating-net']).toBeUndefined()
+    expect(brandHtml).not.toContain('دفتر الأستاذ غير مقسّم حسب هذا الفلتر')
     expect(scopeBadgesOf(brandHtml)['ledger-ar']).toBe('company-wide')
     const allHtml = await render(loadLiveTodaySummary(), 'all')
     expect(scopeBadgesOf(allHtml)['gl-operating-net']).toBeUndefined()
@@ -46,7 +47,7 @@ describe('M7 — company-wide cards say so when a brand is selected', () => {
     const html = await render()
     expect(scopeBadgesOf(html)['weekly-pulse']).toBe('all-brands')
     expect(html).toContain('data-delta-comparison="none"')
-    expect(html).toContain(SCOPE_LABELS.unavailableForFilter.ar)
+    expect(html).not.toContain(SCOPE_LABELS.unavailableForFilter.ar)
     expect(html).toContain('data-brand-basis="product-lines"')
   })
 

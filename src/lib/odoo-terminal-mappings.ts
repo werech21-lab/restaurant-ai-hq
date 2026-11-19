@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { isExcludedOdooEntity } from '@/lib/aether/period-delta'
+import { isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import { companyPosConfigAllowed, isPinnedSchoolCanteenConfigId } from '@/lib/odoo/company-pos'
 import { errorFields, logger } from '@/lib/logger'
 import {
@@ -418,7 +418,7 @@ export function recordLiveDiscoveredPosLedger(input: {
         (t) =>
           Number.isInteger(t.terminal_id) &&
           t.terminal_id > 0 &&
-          !isExcludedOdooEntity(t.terminal_name),
+          !isExcludedRecordId('pos_config', t.terminal_id),
       )
       .map((t) => ({
         terminal_id: t.terminal_id,
@@ -432,7 +432,7 @@ export function recordLiveDiscoveredPosLedger(input: {
           Number.isInteger(t.terminal_id) &&
           t.terminal_id > 0 &&
           isValidActiveVentureBranchId(t.branch_id) &&
-          !isExcludedOdooEntity(t.terminal_name),
+          !isExcludedRecordId('pos_config', t.terminal_id),
       )
       .map((t) => ({
         terminal_id: t.terminal_id,
@@ -662,12 +662,12 @@ export function computeTerminalMappingLedgerSnapshot(): TerminalMappingLedgerSna
 
   const excludedBreakdown: ExcludedEntityReconciliationRow[] = [
     {
-      entity_id: 'decommissioned-wh-pos-24-36',
-      terminal_ids: [24, 36],
+      entity_id: 'excluded-pos-25-39-40',
+      terminal_ids: [25, 39, 40],
       label_en: DECOMM_UNIT_LABEL_EN,
       label_ar: DECOMM_UNIT_LABEL_AR,
-      reason_en: 'Decommissioned warehouse & closed delivery dispatch unit excluded from active 7-branch ledger',
-      reason_ar: 'وحدة تشغيلية ومستودع متوقف مستبعد بالكامل من دفتر الفروع السبعة النشطة',
+      reason_en: 'Jahra and inactive registers 25, 39 and 40 stay out. Delivery (Qurain) 24 and archived 36 stay in company sales.',
+      reason_ar: 'سجلات 25 و39 و40 تبقى خارج الإجمالي. توصيل القرين 24 و36 المؤرشف داخل مبيعات الشركة.',
       orders_count: Math.max(0, Math.round(sourceData.excludedPos24Orders + sourceData.excludedPos36Orders)),
       net_sales_kwd: r3(sourceData.excludedPos24Kwd + sourceData.excludedPos36Kwd),
     },

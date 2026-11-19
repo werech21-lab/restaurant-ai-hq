@@ -52,20 +52,25 @@ describe('booths are included in company registers', () => {
 })
 
 describe('exclusions are unchanged', () => {
-  it('Jahra (25, 39) and decommissioned 24 are not company registers', () => {
-    for (const id of [24, 25, 39]) {
+  it('includes active Delivery (Qurain) 24, keeps archived 36 out of the active list, and keeps Jahra out', () => {
+    expect(REG.allowedPosConfigIds).toContain(24)
+    expect(REG.allowedPosConfigIds).not.toContain(36)
+    expect(companyPosConfigAllowed(24, 'Delivery (Qurain)')).toBe(true)
+    expect(companyPosConfigAllowed(36, 'Delivery (Qurain Temp)', false)).toBe(true)
+    expect(companyPosConfigAllowed(16, 'E-Mall (promenade)', false)).toBe(false)
+    expect(companyPosConfigAllowed(35, 'Delivery (Ardiya Temp)', false)).toBe(false)
+    for (const id of [25, 39, 40]) {
       expect(REG.allowedPosConfigIds).not.toContain(id)
       expect(companyPosRegisterIds()).not.toContain(id)
     }
   })
 
-  it('a booth register is still rejected if its name carries an excluded entity, or it is inactive / test', () => {
+  it('a booth id stays allowed whatever its name says, and an inactive copy stays out', () => {
     const booth = registryBoothIds[0]
-    for (const name of ['Qurain booth', 'Jahra exhibition', 'Qurain WH POS']) {
-      expect(companyPosConfigAllowed(booth, name)).toBe(false)
+    for (const name of ['Qurain booth', 'Qurain WH POS', 'Delivery (Qurain)', 'Jahra exhibition', 'Exhibition test']) {
+      expect(companyPosConfigAllowed(booth, name)).toBe(true)
     }
     expect(companyPosConfigAllowed(booth, boothLabel.en, false)).toBe(false)
-    expect(companyPosConfigAllowed(booth, 'Exhibition test')).toBe(false)
   })
 
   it('a register outside the whitelist named "exhibition" is not admitted', () => {

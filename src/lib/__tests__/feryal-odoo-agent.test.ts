@@ -166,7 +166,7 @@ function buildNov14PeriodCube(): OdooPeriodCube {
       operatingProfit: 1858.4,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
     },
   }
 }

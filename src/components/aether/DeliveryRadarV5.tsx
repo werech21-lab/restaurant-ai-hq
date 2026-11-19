@@ -28,8 +28,6 @@ import {
   resolveReceivablesDateRange,
   selectReceivablesHeadline,
 } from '@/lib/aether/receivables-headline'
-import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { ReceivablesPendingStatus } from '@/components/ui/receivables-pending-status'
 import { InteractiveDonutChart, type DonutSliceDatum } from '@/components/aether/InteractiveHoverCharts'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
 import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
@@ -73,7 +71,7 @@ const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفت�
 const NO_ODOO_DATA_EN = 'No data from Odoo for this period'
 const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
 const UNPOSTED_COMMISSION_EN = 'Not posted yet'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_AR = 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
 const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 
 const safeNum = (v: unknown): number =>
@@ -834,17 +832,6 @@ export function DeliveryRadarV5({
                       {isAr ? 'غير متاح' : '—'}
                     </span>
                   </p>
-                </>
-              ) : !canShowReceivableAmounts(workspace.receivables) ? (
-                <>
-                  <ReceivablesPendingStatus isAr={isAr} className="mt-2.5" />
-                  {receivablesHeadline.lines !== null ? (
-                    <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                      {isAr
-                        ? `${f0(receivablesHeadline.lines, 'ar')} قيد غير مسوّى في دفتر الذمم`
-                        : `${f0(receivablesHeadline.lines, 'en')} unreconciled receivable lines`}
-                    </p>
-                  ) : null}
                 </>
               ) : (
                 <>

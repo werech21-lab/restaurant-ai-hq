@@ -35,16 +35,18 @@ describe('phase 12 blocker A: pinned school canteen POS config rule & branch res
       companyPos.companyPosConfigAllowed(42, 'FAIPS Ahmadi Venture Foods Hawally: PoS Orders'),
     ).toBe(true)
 
-    expect(companyPos.companyPosConfigAllowed(41, 'NPIS Jahra')).toBe(false)
-    expect(companyPos.companyPosConfigAllowed(42, 'FAIPS Qurain')).toBe(false)
-    expect(companyPos.companyPosConfigAllowed(41, 'Heisenberg School Canteen')).toBe(false)
+    expect(companyPos.companyPosConfigAllowed(41, 'NPIS Jahra')).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(42, 'FAIPS Qurain')).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(24, 'Delivery (Qurain)', false)).toBe(true)
+    expect(companyPos.companyPosConfigAllowed(99, 'Delivery (Qurain)')).toBe(false)
+    expect(companyPos.companyPosConfigAllowed(41, 'Heisenberg School Canteen')).toBe(true)
     expect(companyPos.companyPosConfigAllowed(41, 'NPIS Hawally', false)).toBe(false)
     expect(companyPos.companyPosConfigAllowed(99999, 'NPIS Hawally')).toBe(false)
 
     expect(
       resolveRestaurantBranchForConfig(42, 'FAIPS Ahmadi', 'Venture Foods Hawally: PoS Orders'),
     ).toBe('school-canteens')
-    expect(resolveRestaurantBranchForConfig(41, 'NPIS Jahra')).toBeNull()
+    expect(resolveRestaurantBranchForConfig(41, 'NPIS Jahra')).toBe('school-canteens')
 
     expect(sanitizePosTerminalDisplayName(41, 'Hawally School Canteen')).toBe('School Canteen')
   })
@@ -564,7 +566,7 @@ describe('phase 12 should-fix 2: word-boundary non-operating check on cfgName on
     expect(
       resolveRestaurantBranchForConfig(20, 'Delivery (Salmyia)', 'Latest Contest: PoS Orders'),
     ).toBe('salmiya')
-    expect(resolveRestaurantBranchForConfig(20, 'Test Delivery (Salmyia)', '')).toBeNull()
+    expect(resolveRestaurantBranchForConfig(20, 'Test Delivery (Salmyia)', '')).toBe('salmiya')
   })
 })
 
@@ -655,7 +657,8 @@ describe('phase 12 should-fix 3 (option b): archived pinned register #16 policy 
     expect(cube.connected).toBe(true)
     expect(cube.posConfigIds?.excludedConfigIds).not.toContain(16)
     expect(cube.posConfigIds?.excludedConfigIds).not.toContain(99999)
-    expect(cube.posConfigIds?.excludedConfigIds).toContain(24)
+    expect(cube.posConfigIds?.excludedConfigIds).not.toContain(24)
+    expect(cube.posConfigIds?.includedConfigIds).toContain(24)
     expect(cube.posConfigIds?.configIdsByBranch?.promenade).toEqual([8])
     expect(cube.posConfigIds?.configIdsByBranch?.['school-canteens']).toEqual([42])
   })
@@ -690,8 +693,6 @@ describe('pos.config 43 FAS Fahaheel is a pinned school canteen (owner decision 
         'al-kout',
       )
     }
-    expect(resolveRestaurantBranchForConfig(9043, 'China Garden (KOUT)', '', { ignoreAdminOverride: true })).toBe(
-      'al-kout',
-    )
+    expect(resolveRestaurantBranchForConfig(9043, 'China Garden (KOUT)', '', { ignoreAdminOverride: true })).toBeNull()
   })
 })

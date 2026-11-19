@@ -282,6 +282,8 @@ function installParityOdooRpcMock() {
       }
 
       if (groupby.length === 1 && groupby[0] === 'session_id') {
+        const kwargs = (args[6] as { context?: { year_live_slice?: boolean } } | undefined) ?? {}
+        if (kwargs.context?.year_live_slice) return rpcJson(reqId, [])
         return rpcJson(
           reqId,
           ALL_OPERATING_BRANCHES.map((branchId) => {

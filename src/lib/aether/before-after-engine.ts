@@ -11,7 +11,7 @@
  *   - Zero synthetic multipliers on sales, brands, channels, or hours.
  *   - GL profit is reported only when complete accrual entries are posted in
  *     Odoo `account.move.line`; otherwise `glIncomplete: true` with
- *     `قيود غير مكتملة لهذه الفترة`.
+ *     `دفتر الأستاذ بلا بند مصروف لهذه الفترة`.
  */
 
 import {
@@ -148,7 +148,7 @@ export interface BeforeAfterSnapshot {
 
 const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 const NO_DATA_EN = 'No data from Odoo for this period'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_AR = ''
 
 function round1(v: number): number {
   return Math.round((Number.isFinite(v) ? v : 0) * 10) / 10

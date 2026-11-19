@@ -6,24 +6,30 @@
  *   2. ONLY the 7 active Odoo restaurant locations (+ standalone 8th bucket «غير منسوب لفرع»).
  *   3. Zero static fallback datasets (`odoo-dataset`, `odoo-journey`, `full-journey-enterprise-brain`, `odoo-cfo-realism`).
  *   4. Strict disconnect truth (`odooConnected: false`, `noData: true`, `'لا توجد بيانات من Odoo لهذه الفترة'`).
- *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'قيود غير مكتملة لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
+ *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'دفتر الأستاذ بلا بند مصروف لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
  */
 
 import {
   PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
-  RECEIVABLES_PENDING_DETAIL,
-  RECEIVABLES_PENDING_STATUS,
   canShowReceivableAmounts,
 } from '@/lib/aether/receivables-status'
 import { closedMonthWithheldReason, isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
+import { SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
-import type {
-  OdooBucketSummary,
-  OdooLiveSummary,
-  OdooPeriodBucketKey,
-  OdooReceivableAccountRow,
-  OdooReceivableAgingBucket,
+import {
+  customerReceivableFigures,
+  customerReceivableNetKwd,
+  isPosClearingAccount,
+  receivablesCustomerSplit,
+  splitOpenResiduals,
+  type CustomerReceivableFigures,
+  type OdooBucketSummary,
+  type OdooLiveSummary,
+  type OdooPeriodBucketKey,
+  type OdooReceivableAccountRow,
+  type OdooReceivableAgingBucket,
+  type OdooReceivablePartnerRow,
 } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { companyDailySeries, resolveBrandHeadline } from '@/lib/aether/brand-scope'
@@ -129,7 +135,7 @@ export const GLOBAL_PERIOD_OPTIONS: readonly FilterOption<GlobalPeriod>[] = [
 
 export const GLOBAL_KUWAIT_SLICE_OPTIONS: readonly FilterOption<KuwaitSlice>[] = [
   { id: 'all', ar: 'كل الأوقات', en: 'All Times' },
-  { id: 'payday', ar: 'أيام الرواتب 20–28', en: 'Paydays 20–28' },
+  { id: 'payday', ar: `أيام الرواتب ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}`, en: `Paydays ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}` },
   { id: 'mid-month', ar: 'منتصف الشهر 10–19', en: 'Mid-Month 10–19' },
   { id: 'weekend', ar: 'الويكند والزوارة', en: 'Weekend & Gatherings' },
   { id: 'quiet-hours', ar: 'الساعات الهادئة 3–6', en: 'Quiet Hours 3–6' },
@@ -731,10 +737,12 @@ export interface WorkspaceLedgerAccounting {
 export interface WorkspaceReceivablesMeta {
   unavailable?: boolean
   /**
-   * Phase 5 · Item 2: true until per-customer due-date aging is verified. While pending, every
-   * amount below is `null` and account/aging lists are empty — only line counts remain.
+   * True until per-customer due-date aging is verified. While true, due-date aging labels are
+   * withheld. Residual balances, account rows and partner rows stay visible.
    */
   pendingReconciliation: boolean
+  /** Due-date buckets (overdue / 0–30 / 60+) are omitted while aging is unverified. */
+  agingLabelsWithheld?: boolean
   openReceivableKwd: number | null
   grossPositiveReceivableKwd: number | null
   creditClearingOffsetKwd: number | null
@@ -760,6 +768,16 @@ export interface WorkspaceReceivablesMeta {
   unappliedCreditsKwd: number | null
   agingHiddenReasonAr: string | null
   agingHiddenReasonEn: string | null
+  /** Open residual excluding cashier clearing 10552. Null when the account split was not read. */
+  platformNetKwd?: number | null
+  platformOpenDebitsKwd?: number | null
+  platformUnappliedCreditsKwd?: number | null
+  posClearingResidualKwd?: number | null
+  /** Single customer-receivable total. Pages must read this and not recompute it. */
+  figures?: CustomerReceivableFigures
+  /** Oldest posting date on open lines that are not 10552. Not a due date. */
+  oldestOpenPostingDate?: string | null
+  byPartner?: OdooReceivablePartnerRow[]
 }
 
 export interface FeryalSimpleNote {
@@ -921,7 +939,7 @@ function computeLiveKuwaitSliceMultipliers(
   const matching = daily.filter((d) => {
     const dom = Number(d.day.slice(8, 10))
     const dow = new Date(`${d.day}T12:00:00Z`).getUTCDay()
-    if (slice === 'payday') return dom >= 20 && dom <= 28
+    if (slice === 'payday') return dom >= SALARY_WINDOW_DAYS.start && dom <= SALARY_WINDOW_DAYS.end
     if (slice === 'mid-month') return dom >= 10 && dom <= 19
     if (slice === 'weekend') return dow === 4 || dow === 5 || dow === 6
     return true
@@ -1012,35 +1030,94 @@ function buildUnavailableReceivables(fromIso: string, toIso: string): WorkspaceR
   }
 }
 
+const DUE_DATE_CLAIM = /مستحق|متأخر|overdue|due date|date_maturity|maturity/i
+
+function withoutDueDateClaim(text: string, fallback: string): string {
+  return DUE_DATE_CLAIM.test(text) ? fallback : text
+}
+
 /**
- * Phase 5 · Item 2: until per-customer due-date aging is verified, strip every receivable amount
- * (net, gross, credits, per-account rows, aging buckets, amount-bearing explanation/formula text).
- * Unreconciled line counts, dates and source labels are kept.
+ * Until per-customer due-date aging is verified, withhold overdue / aging labels only.
+ * Residual balances, account rows and partner rows stay. `PER_CUSTOMER_DUE_DATE_AGING_VERIFIED`
+ * remains the switch for showing due-date buckets.
  */
+function sealCustomerReceivables(r: WorkspaceReceivablesMeta): WorkspaceReceivablesMeta {
+  const figures = customerReceivableFigures(r)
+  return {
+    ...r,
+    figures,
+    reconciliationFormulaAr: figures.formulaAr,
+    reconciliationFormulaEn: figures.formulaEn,
+  }
+}
+
 export function applyReceivablesExecutivePolicy(
   r: WorkspaceReceivablesMeta,
   verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
 ): WorkspaceReceivablesMeta {
-  if (r.unavailable || canShowReceivableAmounts(r, verified)) return r
-  return {
+  if (r.unavailable || canShowReceivableAmounts(r, verified)) return sealCustomerReceivables(r)
+  const partners = (r.byPartner ?? []).filter(
+    (row) => !isPosClearingAccount(row.accountCode),
+  )
+  const split = r.byAccount.length > 0 ? receivablesCustomerSplit(r.byAccount, partners) : null
+  const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
+  return sealCustomerReceivables({
     ...r,
     pendingReconciliation: true,
-    openReceivableKwd: null,
-    grossPositiveReceivableKwd: null,
-    creditClearingOffsetKwd: null,
-    byAccount: [],
+    agingLabelsWithheld: true,
     agingBuckets: [],
-    openDebitsKwd: null,
-    unappliedCreditsKwd: null,
-    agingHiddenReasonAr: null,
-    agingHiddenReasonEn: null,
-    maturityStatusAr: RECEIVABLES_PENDING_STATUS.ar,
-    maturityStatusEn: RECEIVABLES_PENDING_STATUS.en,
-    openLinesExplanationAr: RECEIVABLES_PENDING_DETAIL.ar,
-    openLinesExplanationEn: RECEIVABLES_PENDING_DETAIL.en,
-    reconciliationFormulaAr: RECEIVABLES_PENDING_STATUS.ar,
-    reconciliationFormulaEn: RECEIVABLES_PENDING_STATUS.en,
+    byAccount: r.byAccount,
+    byPartner: partners,
+    platformNetKwd: split ? split.platformNetKwd : (r.platformNetKwd ?? null),
+    platformOpenDebitsKwd: partnerSplit
+      ? partnerSplit.openDebitsKwd
+      : typeof r.platformOpenDebitsKwd === 'number'
+        ? r.platformOpenDebitsKwd
+        : (split?.platformOpenDebitsKwd ?? null),
+    platformUnappliedCreditsKwd: partnerSplit
+      ? partnerSplit.unappliedCreditsKwd
+      : typeof r.platformUnappliedCreditsKwd === 'number'
+        ? r.platformUnappliedCreditsKwd
+        : (split?.platformUnappliedCreditsKwd ?? null),
+    posClearingResidualKwd: split ? split.posClearingResidualKwd : (r.posClearingResidualKwd ?? null),
+    agingHiddenReasonAr: 'تصنيف الاستحقاق حسب تاريخ الاستحقاق غير معروض. الأرصدة المتبقية معروضة كما هي في أودو.',
+    agingHiddenReasonEn: 'Due-date aging labels are withheld. Residual balances are the open Odoo amounts.',
+    maturityStatusAr: 'رصيد متبقٍ غير مسوّى — ليس تصنيف استحقاق',
+    maturityStatusEn: 'Open residual — not a due-date status',
+    openLinesExplanationAr: withoutDueDateClaim(
+      r.openLinesExplanationAr,
+      'الأرصدة المعروضة هي المتبقي غير المسوّى في دفتر الأستاذ.',
+    ),
+    openLinesExplanationEn: withoutDueDateClaim(
+      r.openLinesExplanationEn,
+      'Figures are unreconciled residuals from the ledger.',
+    ),
+    ...residualFormulaWithoutAging(r),
+  })
+}
+
+/** Residual tie-out only. The due-date "(aging)" wording is not used while aging is unverified. */
+function residualFormulaWithoutAging(r: WorkspaceReceivablesMeta): {
+  reconciliationFormulaAr: string
+  reconciliationFormulaEn: string
+} {
+  const netKwd = customerReceivableNetKwd(r)
+  const debitsKwd = typeof r.platformOpenDebitsKwd === 'number' ? r.platformOpenDebitsKwd : null
+  const creditsKwd = typeof r.platformUnappliedCreditsKwd === 'number' ? r.platformUnappliedCreditsKwd : null
+  if (netKwd === null) {
+    return {
+      reconciliationFormulaAr: withoutDueDateClaim(r.reconciliationFormulaAr, 'رصيد متبقٍ غير مسوّى'),
+      reconciliationFormulaEn: withoutDueDateClaim(r.reconciliationFormulaEn, 'Open residual'),
+    }
   }
+  const formula = formatArReconciliationFormula({
+    openReceivableKwd: netKwd,
+    grossPositiveReceivableKwd: debitsKwd ?? netKwd,
+    creditClearingOffsetKwd: creditsKwd ?? 0,
+    openDebitsKwd: debitsKwd,
+    unappliedCreditsKwd: creditsKwd,
+  })
+  return { reconciliationFormulaAr: formula.ar, reconciliationFormulaEn: formula.en }
 }
 
 function buildSummaryCards(params: {
@@ -1078,7 +1155,7 @@ function buildSummaryCards(params: {
           ? disconnectedLabelAr
           : opexActualKwd !== null
             ? fKwd(opexActualKwd, true)
-            : (glWarningAr ?? 'قيود غير مكتملة لهذه الفترة'),
+            : (glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'),
       valueEn:
         !odooConnected
           ? disconnectedLabelEn
@@ -1103,7 +1180,7 @@ function buildSummaryCards(params: {
       sourceLabelEn: 'Odoo 17 (account.move.line · Opex)',
       accent: opexActualKwd !== null ? 'sky' : 'amber',
       statusDot: opexActualKwd !== null ? '🟢' : '🟠',
-      statusLabelAr: opexActualKwd !== null ? 'قيود مرحّلة' : 'قيود غير مكتملة لهذه الفترة',
+      statusLabelAr: opexActualKwd !== null ? 'قيود مرحّلة' : 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       statusLabelEn: opexActualKwd !== null ? 'Posted GL' : 'Incomplete GL',
       ctaAr: 'تفاصيل المصاريف ↗',
       ctaEn: 'Monthly Bills ↗',
@@ -1118,32 +1195,24 @@ function buildSummaryCards(params: {
       titleEn: 'Cumulative Aggregator Receivables',
       valueAr: !odooConnected
         ? disconnectedLabelAr
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_STATUS.ar
-          : receivables.unavailable || deliveryDuesKwd === null
-            ? 'غير متاح'
-            : fKwd(deliveryDuesKwd, true),
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? 'غير متاح'
+          : fKwd(deliveryDuesKwd, true),
       valueEn: !odooConnected
         ? disconnectedLabelEn
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_STATUS.en
-          : receivables.unavailable || deliveryDuesKwd === null
-            ? '—'
-            : fKwd(deliveryDuesKwd, false),
+        : receivables.unavailable || deliveryDuesKwd === null
+          ? '—'
+          : fKwd(deliveryDuesKwd, false),
       descAr: !odooConnected
         ? disconnectedLabelAr
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_DETAIL.ar
-          : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.unavailable || deliveryDuesKwd === null
           ? 'بعض الأرقام غير متاحة الآن — تعذّر جلب أرصدة الذمم المدينة مؤقتاً.'
-          : `الفترة: من ${receivables.fromDate} إلى ${receivables.toDate} • ${receivables.reconciliationFormulaAr}.`,
+          : `رصيد متبقٍ مفتوح (بدون تصنيف استحقاق) • من ${receivables.fromDate} إلى ${receivables.toDate}.`,
       descEn: !odooConnected
         ? disconnectedLabelEn
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_DETAIL.en
-          : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.unavailable || deliveryDuesKwd === null
           ? 'Some figures are temporarily unavailable — could not retrieve open receivables.'
-          : `Period: ${receivables.fromDate} to ${receivables.toDate} • ${receivables.reconciliationFormulaEn}.`,
+          : `Open residual (not a due-date status) • ${receivables.fromDate} to ${receivables.toDate}.`,
       periodLabelAr: `من ${receivables.fromDate} إلى ${receivables.toDate}`,
       periodLabelEn: `${receivables.fromDate} to ${receivables.toDate}`,
       sourceLabelAr: receivables.sourceLabelAr,
@@ -1152,16 +1221,12 @@ function buildSummaryCards(params: {
       statusDot: '🟠',
       statusLabelAr: !odooConnected
         ? 'غير متصل'
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_STATUS.ar
-          : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.unavailable || deliveryDuesKwd === null
           ? 'غير متاح'
           : 'رصيد فعلي من أودو',
       statusLabelEn: !odooConnected
         ? 'Disconnected'
-        : receivables.pendingReconciliation
-          ? RECEIVABLES_PENDING_STATUS.en
-          : receivables.unavailable || deliveryDuesKwd === null
+        : receivables.unavailable || deliveryDuesKwd === null
           ? 'Unavailable'
           : 'Odoo 17 AR',
       badgeAr: 'رصيد تراكمي',
@@ -1627,7 +1692,7 @@ export function computeGlobalWorkspace(
       postedDelivCommVal <= 0 ||
       postedDeprVal <= 0,
   )
-  const glWarningAr = glIncompleteFromRaw ? 'قيود غير مكتملة لهذه الفترة' : null
+  const glWarningAr = glIncompleteFromRaw ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : null
 
   let accounting: WorkspaceLedgerAccounting
   if (!isFullGroupScope) {
@@ -1635,7 +1700,7 @@ export function computeGlobalWorkspace(
       available: false,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       aggregatorCommissionUnposted,
       aggregatorCommissionDisplayAr,
       from: resolvedPeriodWindow.fromIso,
@@ -1670,7 +1735,7 @@ export function computeGlobalWorkspace(
       available: postedLines,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       aggregatorCommissionUnposted,
       aggregatorCommissionDisplayAr,
       from: rawGl?.from ?? resolvedPeriodWindow.fromIso,
@@ -1703,7 +1768,7 @@ export function computeGlobalWorkspace(
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
-      unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+      unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
       glScopeLimited: false,
       revenueAccounts: rawGl?.revenueAccounts ?? [],
@@ -1899,7 +1964,7 @@ export function computeGlobalWorkspace(
     salesKwd <= 0
       ? 'لا توجد مبيعات مسجلة في هذا التقاطع'
       : accounting.netProfitPct === null
-        ? (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
+        ? (accounting.glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة')
         : `صافي الربح المحاسبي (دفتر الأستاذ العام): ${accounting.netProfitPct.toFixed(1)}%`
 
   const benchmarkEn =
@@ -1919,7 +1984,7 @@ export function computeGlobalWorkspace(
     rootCauseEn = `Odoo GL (account.move.line): COGS ${accounting.cogsPct?.toFixed(1)}% • Posted Commissions ${accounting.deliveryCommPct?.toFixed(1)}% • Rent/Opex/Depr ${accounting.opexRentDeprPct?.toFixed(1)}% • Operating Net ${accounting.netProfitPct.toFixed(1)}%.`
   } else {
     const commNoteAr = aggregatorCommissionUnposted ? ' • عمولات المنصات: غير مُرحَّل بعد' : ''
-    rootCauseAr = `قيود غير مكتملة لهذه الفترة${commNoteAr}`
+    rootCauseAr = `دفتر الأستاذ بلا بند مصروف لهذه الفترة${commNoteAr}`
     rootCauseEn = `Incomplete GL entries for this period${aggregatorCommissionUnposted ? ' • Aggregator commissions: Unposted' : ''}`
   }
 
@@ -1966,6 +2031,15 @@ export function computeGlobalWorkspace(
           sourceLabelAr: 'أودو 17 — قيود دفتر الأستاذ للذمم المدينة غير المسوّاة',
           sourceLabelEn: 'Odoo 17 — Receivable Ledger (account.move.line · asset_receivable · reconciled=false)',
           byAccount: arRaw.byAccount ?? [],
+          byPartner: arRaw.byPartner ?? [],
+          platformNetKwd: typeof arRaw.platformNetKwd === 'number' ? arRaw.platformNetKwd : null,
+          platformOpenDebitsKwd:
+            typeof arRaw.platformOpenDebitsKwd === 'number' ? arRaw.platformOpenDebitsKwd : null,
+          platformUnappliedCreditsKwd:
+            typeof arRaw.platformUnappliedCreditsKwd === 'number' ? arRaw.platformUnappliedCreditsKwd : null,
+          posClearingResidualKwd:
+            typeof arRaw.posClearingResidualKwd === 'number' ? arRaw.posClearingResidualKwd : null,
+          oldestOpenPostingDate: arRaw.oldestOpenPostingDate ?? null,
           ...(() => {
             const aging = toDisplayableAging(arRaw)
             const formula = formatArReconciliationFormula({
@@ -1989,12 +2063,18 @@ export function computeGlobalWorkspace(
       : buildEmptyReceivables(resolvedPeriodWindow.fromIso, resolvedPeriodWindow.toInclusiveIso)
   const receivables = applyReceivablesExecutivePolicy(rawReceivablesMeta)
 
+  const owedKwd =
+    typeof receivables.platformOpenDebitsKwd === 'number'
+      ? receivables.platformOpenDebitsKwd
+      : receivables.openDebitsKwd !== null
+        ? receivables.openDebitsKwd
+        : receivables.openReceivableKwd
   const deliveryDuesKwd: number | null =
-    receivables.unavailable || receivables.pendingReconciliation || receivables.openReceivableKwd === null
+    receivables.unavailable || owedKwd === null
       ? null
       : channel === 'dine-in'
         ? 0
-        : Math.max(0, Math.round(receivables.openReceivableKwd))
+        : Math.max(0, Math.round(owedKwd))
 
   const quietHoursShare = computeLiveKuwaitSliceMultipliers(
     'quiet-hours',
@@ -2039,7 +2119,7 @@ export function computeGlobalWorkspace(
   const glMarginLabelAr =
     accounting.netProfitPct !== null
       ? `${accounting.netProfitPct.toFixed(1)}%`
-      : (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
+      : (accounting.glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة')
   const glMarginLabelEn =
     accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'Incomplete GL entries'
   const feryalSalesAr = nullableSalesKwd === null ? 'غير متاح' : fKwd(nullableSalesKwd, true)

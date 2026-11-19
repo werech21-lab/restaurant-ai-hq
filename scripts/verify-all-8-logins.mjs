@@ -403,6 +403,38 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
     }),
   );
 
+  const prevQaEnv = process.env.AETHER_QA_PASSWORD;
+  delete process.env.AETHER_QA_PASSWORD;
+  const qaClosed = await authenticateExecutiveCredentials('qa-readonly@venturefoodskw.com', 'closed-probe');
+  const qaProbePass = 'qa-readonly-probe';
+  process.env.AETHER_QA_PASSWORD = qaProbePass;
+  const qaAuth = await authenticateExecutiveCredentials(' QA-READONLY@venturefoodskw.com ', ' ' + qaProbePass + ' ');
+  const qaLogin = await callLogin('qa-readonly@venturefoodskw.com', qaProbePass, '10.88.1.14', { nodeEnv: 'production' });
+  const qaPost = await middleware(
+    new NextRequest('https://aetherbi.com/api/erp/governance', {
+      method: 'POST',
+      headers: { cookie: EXEC_SESSION_COOKIE + '=' + qaLogin.token, 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'sync' }),
+    }),
+  );
+  const qaPages = [
+    '/erp', '/erp/cores', '/erp/weekday-comparison', '/erp/before-after',
+    '/erp/warehouse-chain', '/erp/aggregator-radar', '/erp/finance', '/erp/receivables',
+    '/erp/executive-pnl', '/erp/feryal-ai', '/erp/decisions', '/erp/planning',
+    '/erp/seasons', '/erp/booth-feasibility',
+  ];
+  let qaGetsOk = qaLogin.status === 200 && qaLogin.body && qaLogin.body.role === 'auditor';
+  for (const r of qaPages) {
+    const mw = await middleware(
+      new NextRequest('https://aetherbi.com' + r, {
+        headers: { cookie: EXEC_SESSION_COOKIE + '=' + qaLogin.token },
+      }),
+    );
+    if (mw.status >= 300) qaGetsOk = false;
+  }
+  if (prevQaEnv === undefined) delete process.env.AETHER_QA_PASSWORD;
+  else process.env.AETHER_QA_PASSWORD = prevQaEnv;
+
   console.log(
     JSON.stringify({
       whitelistSize: MW_ROLE_WHITELIST.size === 8 && EXEC_ROLE_WHITELIST.size === 8,
@@ -474,6 +506,7 @@ import { hashManagerPin, verifyManagerPin, DEFAULT_MASTER_PIN_HASH } from './src
       shellBadgesOk,
       fullRolesBounceCount,
       rootAndLoginRedirectOk,
+      qaOk: qaClosed.valid === false && qaAuth.valid === true && qaAuth.role === 'auditor' && qaPost.status === 403 && qaGetsOk,
     }),
   );
 })();
@@ -493,6 +526,10 @@ try {
 
 const res = JSON.parse(raw.split('\n').pop() ?? '{}')
 
+assert(
+  res.qaOk === true,
+  'QA read-only (qa-readonly@venturefoodskw.com): fails closed without AETHER_QA_PASSWORD, logs in as auditor when set, GET sidebar routes stay open, POST is 403',
+)
 assert(
   res.gmOk === true,
   '1) General Manager (gm@venturefoodskw.com + approval PIN): Authenticates cleanly, lands on /erp, enforces exact password case, survives stale env vars & verifies PIN 2026',

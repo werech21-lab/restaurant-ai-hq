@@ -1,11 +1,5 @@
 import registry from './pos-registry.json'
-import {
-  ODOO_EXCLUSION_RULES,
-  isClosedBranchFamilyFragment,
-  isExcludedOdooEntity,
-  isExcludedRecordId,
-  normalizeEntityLabel,
-} from './excluded-entities'
+import { isExcludedRecordId } from './excluded-entities'
 
 export const SCHOOL_CANTEEN_BRANCH_ID = 'school-canteens'
 /** Exhibition booths (registry unit "exhibition") — counted in company totals as their own group (owner decision 2026-11-18). */
@@ -33,77 +27,10 @@ let restaurantIds: number[] | null = null
 let canteenIds: number[] | null = null
 let exhibitionIds: number[] | null = null
 
-function placeExcluded(id: string): boolean {
-  const place = locations[id]
-  return (
-    isExcludedOdooEntity(id) ||
-    isExcludedOdooEntity(place?.en) ||
-    isExcludedOdooEntity(place?.ar) ||
-    isExcludedOdooEntity(place?.code)
-  )
-}
-
-const NON_OPERATING_CONFIG_LABEL_RE = /\b(?:exhibition|exebition|exb|test|demo|training)\b/i
-const EXHIBITION_NON_OPERATING_LABEL_RE = /\b(?:test|demo|training)\b/i
-
-const NON_CANTEEN_EXCLUSION_MARKS = new Set(
-  ODOO_EXCLUSION_RULES.map((rule) => normalizeEntityLabel(rule.nameParts.join(''))).filter(
-    (mark) => mark.length > 0 && !isClosedBranchFamilyFragment(mark),
-  ),
-)
-
-const ARABIC_CLITIC_RE = /^(?:لل|ب|و|ل)/
-const LATIN_AL_PREFIX_RE = /^al(?=[a-z]{4,})/
-const JOINED_SUFFIX_RE = /(?:kw|kwt|kuwait|wh|pos)$/
-const NON_CANTEEN_CODE_DIGITS_RE = /^(?:qrn|jhr)\d*$/
-const LATIN_BRAND_PREFIX_RE = /^(?:heisenberg|heizenberg|hizenberg|heisenburg|haisenberg)/
-const ARABIC_BRAND_STEM = 'هايزن'
-
-function expandTokenCandidates(token: string): string[] {
-  const set = new Set<string>([token])
-  const arStripped = token.replace(ARABIC_CLITIC_RE, '')
-  if (arStripped !== token && arStripped.length > 0) set.add(arStripped)
-  const alStripped = token.replace(LATIN_AL_PREFIX_RE, '')
-  if (alStripped !== token && alStripped.length > 0) set.add(alStripped)
-  for (const current of [...set]) {
-    const suffixStripped = current.replace(JOINED_SUFFIX_RE, '')
-    if (suffixStripped !== current && suffixStripped.length >= 3) {
-      set.add(suffixStripped)
-    }
-  }
-  return [...set]
-}
-
-function hasPinnedCanteenVetoExclusion(raw: string | null | undefined): boolean {
-  if (raw == null) return false
-  const text = normalizeEntityLabel(String(raw))
-  if (!text) return false
-  const tokens = text.split(' ').filter(Boolean)
-  for (const token of tokens) {
-    for (const candidate of expandTokenCandidates(token)) {
-      if (isClosedBranchFamilyFragment(candidate)) continue
-      if (
-        NON_CANTEEN_CODE_DIGITS_RE.test(candidate) ||
-        NON_CANTEEN_EXCLUSION_MARKS.has(candidate) ||
-        LATIN_BRAND_PREFIX_RE.test(candidate) ||
-        candidate.startsWith(ARABIC_BRAND_STEM)
-      ) {
-        return true
-      }
-    }
-  }
-  for (let start = 0; start < tokens.length; start += 1) {
-    let joined = ''
-    for (let index = start; index < tokens.length && index < start + 12; index += 1) {
-      joined += tokens[index]?.replace(/[^a-z0-9]+/g, '') ?? ''
-      if (!isClosedBranchFamilyFragment(joined) && LATIN_BRAND_PREFIX_RE.test(joined)) {
-        return true
-      }
-      if (joined.length > 16) break
-    }
-  }
+function placeExcluded(_id: string): boolean {
   return false
 }
+
 
 /** Restaurant registers on the approved list. Exhibitions and school canteens are not included here. */
 export function restaurantRegisterIds(): number[] {
@@ -157,35 +84,44 @@ export function isPinnedSchoolCanteenConfigId(id: number | null | undefined): bo
 }
 
 /** Full approved company POS device list: 7 restaurant branches + pinned school canteens + exhibition booths. */
+/**
+ * Delivery (Qurain) pos.config ids. Id 24 matched the Odoo cashier pivot
+ * (about 21,590 KWD / 3,099 orders in the 30 days to 14 Nov 2026, against
+ * Qurain's Oct 24,543 and 1–19 Nov 13,074). Inclusion is by id, not by name.
+ */
+export const QURAIN_POS_CONFIG_IDS = [24, 36] as const
+
+export function isQurainPosConfigId(id: number | null | undefined): boolean {
+  return typeof id === 'number' && (QURAIN_POS_CONFIG_IDS as readonly number[]).includes(id)
+}
+
+/** Name hint for the admin diagnostic. Company totals do not use this. */
+export function isDeliveryQurainConfig(name: string | null | undefined): boolean {
+  return /^delivery\s*\(\s*qurain\s*\)$/i.test((name ?? '').trim())
+}
+
 export function companyPosRegisterIds(): number[] {
   return [...new Set([...restaurantRegisterIds(), ...schoolCanteenRegisterIds(), ...exhibitionRegisterIds()])]
 }
 
 /**
- * Company POS allow-list:
- * 1. Archived (`active === false`) configs are NEVER included (`ARCHIVED_PINNED_REGISTER_POLICY`).
- * 2. Pinned school-canteen config IDs are excluded ONLY when Jahra, Qurain, or Heisenberg markers appear in `name`.
- * 3. Exhibition-booth config IDs (`exhibitionRegisterIds()`) pass unless excluded by entity name or test/demo/training.
- * 4. Other config IDs must pass full entity & non-operating checks and belong to `restaurantRegisterIds()`.
+ * Company POS allow-list. The name is display-only.
+ * 1. Delivery (Qurain) ids are included even when archived or in another company.
+ * 2. Every other archived config stays out.
+ * 3. Excluded pos.config ids (Jahra 25/39, inactive 40) stay out.
+ * 4. School-canteen, exhibition, and restaurant ids come from pos-registry.json.
  */
 export function companyPosConfigAllowed(
   id: number,
-  name: string | null | undefined,
+  _name: string | null | undefined,
   active = true,
 ): boolean {
-  if (active === false) return false
   if (!Number.isInteger(id) || id <= 0) return false
+  if (isQurainPosConfigId(id)) return true
+  if (active === false) return false
   if (isExcludedRecordId('pos_config', id)) return false
-  const label = name ?? ''
-  if (isPinnedSchoolCanteenConfigId(id)) {
-    return !hasPinnedCanteenVetoExclusion(label)
-  }
-  if (isExcludedOdooEntity(label)) return false
-  if (isExhibitionConfigId(id)) {
-    // Booth registers are named "Exhibition…/EXB" by design; only test/demo/training are non-operating.
-    return !EXHIBITION_NON_OPERATING_LABEL_RE.test(label)
-  }
-  if (NON_OPERATING_CONFIG_LABEL_RE.test(label)) return false
+  if (isPinnedSchoolCanteenConfigId(id)) return true
+  if (isExhibitionConfigId(id)) return true
   return restaurantRegisterIds().includes(id)
 }
 

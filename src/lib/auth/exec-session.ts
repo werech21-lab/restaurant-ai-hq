@@ -40,6 +40,8 @@ export const DEFAULT_MARKETING_ALIAS_EMAIL = 'mkt@venturefoodskw.com'
 export const DEFAULT_SUPPLY_EMAIL = 'supply@venturefoodskw.com'
 export const DEFAULT_SUPPLY_ALIAS_EMAIL = 'kitchen@venturefoodskw.com'
 export const DEFAULT_AUDITOR_EMAIL = 'auditor@venturefoodskw.com'
+/** Read-only QA login. Password comes only from `AETHER_QA_PASSWORD` at runtime. */
+export const DEFAULT_QA_EMAIL = 'qa-readonly@venturefoodskw.com'
 
 const DEFAULT_PASSWORD_SALT = 'vf-aether-exec-2026-v1:'
 
@@ -101,6 +103,8 @@ interface NamedAccountSpec {
   expectedEmail: string
   envPassword: string | undefined
   defaultPasswordSha256: string
+  /** No built-in digest. Login succeeds only when the env password is set and matches. */
+  envPasswordOnly?: boolean
 }
 
 function getSessionSecret(): string {
@@ -175,6 +179,12 @@ export function getExpectedSupplyAliasEmail(): string {
 
 export function getExpectedAuditorEmail(): string {
   return (process.env.AETHER_AUDITOR_EMAIL || DEFAULT_AUDITOR_EMAIL)
+    .trim()
+    .toLowerCase()
+}
+
+export function getExpectedQaEmail(): string {
+  return (process.env.AETHER_QA_EMAIL || DEFAULT_QA_EMAIL)
     .trim()
     .toLowerCase()
 }
@@ -265,6 +275,14 @@ function getNamedAccountSpecs(): NamedAccountSpec[] {
       envPassword: process.env.AETHER_AUDITOR_PASSWORD,
       defaultPasswordSha256: DEFAULT_AUDITOR_PASSWORD_SHA256,
     },
+    {
+      role: 'auditor',
+      canonicalEmail: DEFAULT_QA_EMAIL,
+      expectedEmail: getExpectedQaEmail(),
+      envPassword: process.env.AETHER_QA_PASSWORD,
+      defaultPasswordSha256: '',
+      envPasswordOnly: true,
+    },
   ]
 }
 
@@ -273,6 +291,9 @@ export function inferExecRoleFromEmail(email: string): ExecRole | null {
   const clean = String(email || '').trim().toLowerCase()
   if (!clean) return null
   if (clean === DEFAULT_AUDITOR_EMAIL || clean === getExpectedAuditorEmail()) {
+    return 'auditor'
+  }
+  if (clean === DEFAULT_QA_EMAIL || clean === getExpectedQaEmail()) {
     return 'auditor'
   }
   if (clean === DEFAULT_GM_EMAIL || clean === getExpectedGmEmail()) {
@@ -452,9 +473,11 @@ export async function authenticateExecutiveCredentials(
       timingSafeEqualBytes(emailDigest, expectedEmailDigest)
     // Phase 5 · Item 10: once rotated passwords are in place, AETHER_ENFORCE_ROTATED_PASSWORDS=true
     // revokes the built-in defaults so only the env-var password logs in (fail-closed if unset).
-    const passMatches =
-      (!enforceRotated && timingSafeEqualBytes(inputPassDigest, defaultPassDigest)) ||
-      (envPassDigest.length > 0 && timingSafeEqualBytes(inputPassDigest, envPassDigest))
+    const envPassMatches =
+      envPassDigest.length > 0 && timingSafeEqualBytes(inputPassDigest, envPassDigest)
+    const passMatches = specs[i].envPasswordOnly
+      ? envPassMatches
+      : (!enforceRotated && timingSafeEqualBytes(inputPassDigest, defaultPassDigest)) || envPassMatches
 
     if (nonEmpty && emailMatches && passMatches && !matchedSpec) {
       matchedSpec = specs[i]

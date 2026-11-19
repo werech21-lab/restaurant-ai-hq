@@ -38,8 +38,11 @@ describe('/erp/seasons', () => {
   it.each(['ar', 'en'] as const)('%s: salary days show the comparison and prep plan; Ramadan shows its data gap', (locale) => {
     const html = renderToStaticMarkup(createElement(SeasonsStudioView, { locale, events: [...SUGGESTED_SEASON_EVENTS], suggested: true, report, canEdit: true }))
     expect(html).toContain('data-season="salary-days"')
+    expect(html).toContain(locale === 'ar' ? 'أيام 5–10 من كل شهر' : 'Days 5–10 of each month')
     expect(html).toContain(locale === 'ar' ? 'خطة التحضير' : 'Prep plan')
-    expect(html).toMatch(/data-season="ramadan-2027"[\s\S]*?data-season-gap="true"/)
+    expect(html).toContain('data-season="ramadan-2027"')
+    expect(html).not.toContain('data-season-gap')
+    expect(html).not.toContain('لا يوجد تشغيل')
     expect(html).not.toMatch(/(?:^|[^\d.,])0\.000(?!\d)/)
   })
 

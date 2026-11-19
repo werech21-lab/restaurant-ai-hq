@@ -39,7 +39,7 @@ describe('P&L groups expand to the posted accounts', () => {
       ),
     ) as { models: { 'account.account': { code: string; name: string; account_type: string }[] } }
     const chart = dump.models['account.account']
-    const watched = ['9950473', '40097', '50406']
+    const watched = ['9950473', '40097']
     const lines: GlAccountLine[] = chart.map((account) => ({
       code: account.code,
       name: account.name,
@@ -50,6 +50,7 @@ describe('P&L groups expand to the posted accounts', () => {
       lineCount: 0,
       salesScopeExcluded: isDecommissionedWarehouseRecord(`${account.code} ${account.name}`),
     }))
+    expect(lines.find((line) => line.code === '50406')?.salesScopeExcluded).toBe(false)
     for (const code of watched) {
       const account = lines.find((line) => line.code === code)
       expect(account?.salesScopeExcluded).toBe(true)

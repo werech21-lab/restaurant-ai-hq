@@ -64,8 +64,11 @@ describe('phase 1 data cleanup', () => {
   it('matches excluded entities by stored id and Arabic or English name', () => {
     expect(isExcludedRecordId('pos_category', 150)).toBe(true)
     expect(ODOO_EXCLUSION_RULES.some((rule) => rule.ids.includes(150))).toBe(true)
-    for (const name of ['Heisenberg', 'هايزنبرغ', 'Jahra', 'الجهراء', 'القرين', 'Qurain']) {
+    for (const name of ['Heisenberg', 'هايزنبرغ', 'Jahra', 'الجهراء']) {
       expect(isExcludedOdooEntity(name)).toBe(true)
+    }
+    for (const name of ['القرين', 'Qurain', 'Delivery (Qurain)']) {
+      expect(isExcludedOdooEntity(name)).toBe(false)
     }
     // Owner decision 2026-11-18: no closed Hawally restaurant; Hawally names are not excluded (ids only).
     expect(isExcludedOdooEntity(['haw', 'ally'].join(''))).toBe(false)

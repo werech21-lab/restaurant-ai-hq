@@ -11,8 +11,8 @@ const closed = ['haw', 'ally'].join('')
 
 describe('phase 10 exclusions', () => {
   it('adds the missing spellings and keeps school canteens', () => {
-    expect(isExcludedOdooEntity('قرين')).toBe(true)
-    expect(isExcludedOdooEntity('Kurain')).toBe(true)
+    expect(isExcludedOdooEntity('قرين')).toBe(false)
+    expect(isExcludedOdooEntity('Kurain')).toBe(false)
     expect(isExcludedOdooEntity('Heisenburg')).toBe(true)
     expect(isExcludedOdooEntity('Haisenberg')).toBe(true)
     expect(isExcludedOdooEntity('جهرا')).toBe(true)
@@ -29,13 +29,13 @@ describe('phase 10 exclusions', () => {
     expect(isExcludedOdooEntity('Qurainy Dates')).toBe(false)
     // Owner decision 2026-11-18: no closed Hawally restaurant; Hawally names are not excluded (ids only).
     expect(isExcludedOdooEntity(closed)).toBe(false)
-    expect(isExcludedOdooEntity('Al-Qurain Kitchen')).toBe(true)
+    expect(isExcludedOdooEntity('Al-Qurain Kitchen')).toBe(false)
     const domain: unknown[] = []
     appendOdooNameExclusion(domain, 'name')
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'not ilike')).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && part[2] === ` ${closed} `)).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && String(part[2] ?? '').toLowerCase().includes(closed))).toBe(false)
-    expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && /jahra/i.test(String(part[2])))).toBe(true)
+    expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && /jahra/i.test(String(part[2])))).toBe(false)
     const script = odooConsoleExtractor()
     expect(script).toContain('split(')
     expect(script).not.toContain('blob.indexOf(fragment)')

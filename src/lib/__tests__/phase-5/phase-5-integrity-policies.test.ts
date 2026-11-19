@@ -100,7 +100,7 @@ describe('Phase 5 · Item 2 — receivables executive status', () => {
 
   it('uses the approved bilingual wording', () => {
     expect(RECEIVABLES_PENDING_STATUS.en).toBe('Pending Accounting Reconciliation')
-    expect(RECEIVABLES_PENDING_STATUS.ar).toBe('قيد المطابقة مع المحاسبة')
+    expect(RECEIVABLES_PENDING_STATUS.ar).toBe('بانتظار مراجعة المحاسبة')
   })
 })
 

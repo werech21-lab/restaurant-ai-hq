@@ -29,6 +29,7 @@ import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveWarehouseChainPayload } from '@/lib/odoo-live-connector'
 import {
   computeWarehouseDailyChain,
+  defaultWarehouseQueryWindow,
   RAW_MATERIAL_CATEGORIES,
   type ChainHealthStatus,
   type RawMaterialCategory,
@@ -150,6 +151,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
   const [timedOut, setTimedOut] = useState(initialTimedOut)
   const [fetchError, setFetchError] = useState(initialError)
   const [reloadNonce, setReloadNonce] = useState<number>(0)
+  const [useFullPeriod, setUseFullPeriod] = useState(false)
 
   const periodWindow = useMemo(
     () =>
@@ -160,6 +162,12 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
       }),
     [filters.customFrom, filters.customTo, filters.period, liveSummary],
   )
+  const narrowWindow = useMemo(() => defaultWarehouseQueryWindow(periodWindow), [periodWindow])
+  const queryWindow = useFullPeriod || !narrowWindow.narrowed ? periodWindow : narrowWindow
+
+  useEffect(() => {
+    setUseFullPeriod(false)
+  }, [periodWindow.fromIso, periodWindow.toInclusiveIso])
 
   useEffect(() => {
     if (hasInitialChain && reloadNonce === 0) return
@@ -168,14 +176,14 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
 
     let cancelled = false
     const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 20_000)
+    const timeout = window.setTimeout(() => controller.abort(), 32_000)
     setLoading(true)
     setTimedOut(false)
     setFetchError(false)
 
     const qs = new URLSearchParams({
-      from: periodWindow.fromIso,
-      to: periodWindow.toInclusiveIso,
+      from: queryWindow.fromIso,
+      to: queryWindow.toInclusiveIso,
     })
 
     fetch(`/api/erp/warehouse-chain?${qs.toString()}`, {
@@ -184,14 +192,28 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
       signal: controller.signal,
     })
       .then(async (res) => {
-        if (!res.ok) {
-          throw new Error('fetch_failed')
-        }
-        return res.json()
-      })
-      .then((data) => {
+        const data = (await res.json().catch(() => null)) as {
+          connected?: boolean
+          noData?: boolean
+          fetchStatus?: string
+          timedOut?: boolean
+          warehouseChain?: OdooLiveWarehouseChainPayload | null
+        } | null
         if (cancelled) return
+        const status = data?.fetchStatus
+        if (res.status === 504 || data?.timedOut || status === 'timeout') {
+          setWarehouseChain(null)
+          setTimedOut(true)
+          return
+        }
+        if (!res.ok || status === 'error') {
+          setWarehouseChain(null)
+          setFetchError(true)
+          return
+        }
         if (data?.warehouseChain && data.connected) {
+          setWarehouseChain(stripExcludedOdooTree(data.warehouseChain) as OdooLiveWarehouseChainPayload)
+        } else if (data?.warehouseChain) {
           setWarehouseChain(stripExcludedOdooTree(data.warehouseChain) as OdooLiveWarehouseChainPayload)
         } else {
           setWarehouseChain(null)
@@ -221,8 +243,8 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
     initialError,
     initialLoading,
     initialTimedOut,
-    periodWindow.fromIso,
-    periodWindow.toInclusiveIso,
+    queryWindow.fromIso,
+    queryWindow.toInclusiveIso,
     reloadNonce,
   ])
 
@@ -271,12 +293,6 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
   // A KWD figure is shown only when Odoo holds the cost behind it; otherwise «غير متاح» (never 0.000).
   const val = snap.valuation
   const kv = (n: number, ok: boolean): number | null => (ok ? n : null)
-  /** A branch with no recorded movement shows a quiet «—» (none), not a row of 0.000 values. */
-  const noneCell = (
-    <span data-no-movement="true" className="text-slate-400 dark:text-slate-500" title={isAr ? 'لا حركة مسجلة' : 'No recorded movement'}>
-      —
-    </span>
-  )
 
   const fmtKwd = useCallback(
     (v: number | null | undefined) => formatKwd(v, { locale: fmtLocale }),
@@ -349,6 +365,18 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} aria-hidden />
             <span>{T('Refresh Warehouse Data', 'تحديث بيانات المخزن')}</span>
           </button>
+          {narrowWindow.narrowed ? (
+            <button
+              type="button"
+              data-warehouse-window={useFullPeriod ? 'full' : 'narrow'}
+              onClick={() => setUseFullPeriod((open) => !open)}
+              className="inline-flex h-9.5 cursor-pointer items-center rounded-full px-4 text-xs font-semibold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50 dark:text-slate-200 dark:ring-white/15 dark:hover:bg-white/5"
+            >
+              {useFullPeriod
+                ? T('Back to this month', 'العودة لبداية الشهر')
+                : T('Show the full selected period', 'عرض الفترة المحددة كاملة')}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -625,10 +653,10 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                 <thead>
                   <tr className="border-b border-slate-200 text-xs font-bold text-slate-500 dark:border-white/10 dark:text-slate-400">
                     <th className="px-2 py-2.5 text-start">{T('Branch', 'الفرع')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Transfers In (KWD)', 'التحويلات المستلمة')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Transfers (qty)', 'التحويلات المستلمة')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Moves Count', 'عدد الحركات')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Consumption (KWD)', 'المنصرف المسجّل')}</th>
-                    <th className="px-2 py-2.5 text-end">{T('Scrap (KWD)', 'التالف المسجّل')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Dispensed (qty)', 'الكمية المنصرفة')}</th>
+                    <th className="px-2 py-2.5 text-end">{T('Scrap (qty)', 'كمية التالف')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Current On-Hand', 'الرصيد الحالي')}</th>
                     <th className="px-2 py-2.5 text-end">{T('POS Sales', 'مبيعات الفرع')}</th>
                     <th className="px-2 py-2.5 text-end">{T('Status', 'الحالة')}</th>
@@ -640,46 +668,35 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                       <td className="px-2 py-2.5 font-bold text-slate-900 dark:text-white">
                         {isAr ? b.branchNameAr : b.branchNameEn}
                       </td>
-                      <td className="px-2 py-2.5 text-end font-semibold">
-                        {b.health === 'no-movement' && b.dispatchedFromWarehouseKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.dispatchedFromWarehouseKwd, val.movesValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.dispatchedFromWarehouseKwd, val.movesValued))}
-                          />
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        {b.dispatchedKg > 0 || b.transferMoves > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.dispatchedKg)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
                         )}
                       </td>
-                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300">
-                        <ValueCell
-                          value={b.transferMoves}
-                          locale={fmtLocale}
-                          text={fmtInt(b.transferMoves)}
-                        />
-                      </td>
-                      <td className="px-2 py-2.5 text-end font-semibold">
-                        {b.health === 'no-movement' && b.bomTheoreticalCostKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.bomTheoreticalCostKwd, val.movesValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.bomTheoreticalCostKwd, val.movesValued))}
-                          />
+                      <td className="px-2 py-2.5 text-end text-slate-600 dark:text-slate-300 tabular-nums">
+                        {b.transferMoves > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.transferMoves)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
                         )}
                       </td>
-                      <td className={`px-2 py-2.5 text-end font-semibold ${scrapTone(kv(b.abnormalShrinkageKwd, val.scrapValued))}`}>
-                        {b.health === 'no-movement' && b.abnormalShrinkageKwd === 0 ? noneCell : (
-                          <ValueCell
-                            value={kv(b.abnormalShrinkageKwd, val.scrapValued)}
-                            locale={fmtLocale}
-                            text={fmtKwd(kv(b.abnormalShrinkageKwd, val.scrapValued))}
-                          />
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        {b.bomTheoreticalKg > 0 ? (
+                          <bdi dir="ltr">{fmtInt(b.bomTheoreticalKg)}</bdi>
+                        ) : (
+                          <span data-no-movement="true" className="text-slate-400 dark:text-slate-500">—</span>
                         )}
+                      </td>
+                      <td className="px-2 py-2.5 text-end font-semibold tabular-nums">
+                        <bdi dir="ltr">{fmtInt(b.abnormalShrinkageKg)}</bdi>
                       </td>
                       <td className="px-2 py-2.5 text-end font-bold text-emerald-700 dark:text-emerald-300">
-                        <ValueCell
-                          value={kv(b.closingStockKwd, val.onHandValued)}
-                          locale={fmtLocale}
-                          text={fmtKwd(kv(b.closingStockKwd, val.onHandValued))}
-                        />
+                        <span className="tabular-nums">
+                          <span dir="ltr">{fmtInt(b.closingStockQty)}</span>
+                          {val.onHandValued ? <span className="text-slate-500"> · {fmtKwd(b.closingStockKwd)}</span> : null}
+                        </span>
                       </td>
                       <td className="px-2 py-2.5 text-end font-semibold">
                         <ValueCell

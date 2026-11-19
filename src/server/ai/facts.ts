@@ -1,5 +1,5 @@
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
-import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED, RECEIVABLES_PENDING_STATUS } from '@/lib/aether/receivables-status'
+import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED } from '@/lib/aether/receivables-status'
 import type { BriefFact, BriefSection } from './brief-types'
 import { decimalFromNumber } from './number-guard'
 import { factForGuard, sanitizePeriodOdooIds, sourceForMetric, type PeriodOdooIds } from './source-links'
@@ -43,6 +43,7 @@ export interface BriefPurchaseInput {
 export interface BriefReceivableInput {
   readable?: boolean
   openReceivableKwd?: number
+  platformNetKwd?: number
 }
 
 export interface BriefFactPack {
@@ -192,8 +193,8 @@ function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, perio
   }
   const citedPeriod = periodOf(cube, period)
   if (!accounting.available || accounting.glIncomplete) {
-    sections.push({ id: 'cogs', status: 'unverified', noteAr: 'قيود غير مكتملة لهذه الفترة.' })
-    sections.push({ id: 'commissions', status: 'unverified', noteAr: 'قيود غير مكتملة لهذه الفترة.' })
+    sections.push({ id: 'cogs', status: 'unverified', noteAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة.' })
+    sections.push({ id: 'commissions', status: 'unverified', noteAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة.' })
     return
   }
   if (typeof accounting.cogs === 'number') {
@@ -269,16 +270,18 @@ export function buildBriefFactPack(input: {
     sections.push({ id: 'purchases', status: 'not_linked', noteAr: 'لا توجد أوامر شراء مرتبطة لهذه الفترة.' })
   }
 
-  if (input.receivables?.readable && !PER_CUSTOMER_DUE_DATE_AGING_VERIFIED) {
-    // Phase 5 · Item 2: no receivable amount reaches the AI until per-customer aging is verified.
-    sections.push({ id: 'receivables', status: 'linked', noteAr: RECEIVABLES_PENDING_STATUS.ar })
-  } else if (input.receivables?.readable && typeof input.receivables.openReceivableKwd === 'number') {
-    pushAmount(facts, 'open_receivable_kwd', input.yesterday, 'company', input.receivables.openReceivableKwd, 'KWD', null)
-    sections.push({ id: 'receivables', status: 'linked', noteAr: 'الرصيد المفتوح من Odoo.' })
+  if (input.receivables?.readable && (typeof input.receivables.platformNetKwd === 'number' || typeof input.receivables.openReceivableKwd === 'number')) {
+    const residual = typeof input.receivables.platformNetKwd === 'number' ? input.receivables.platformNetKwd : input.receivables.openReceivableKwd
+    pushAmount(facts, 'open_receivable_kwd', input.yesterday, 'company', residual, 'KWD', null)
+    sections.push({ id: 'receivables', status: 'linked', noteAr: 'الرصيد المتبقي المفتوح من Odoo.' })
   } else {
     sections.push({ id: 'receivables', status: 'not_linked', noteAr: 'لا توجد أرصدة مدينة مقروءة من Odoo.' })
   }
-  sections.push({ id: 'receivables_aging', status: 'unverified', noteAr: 'أعمار الديون غير مُتحققة وغير مدرجة.' })
+  sections.push({
+    id: 'receivables_aging',
+    status: PER_CUSTOMER_DUE_DATE_AGING_VERIFIED ? 'linked' : 'unverified',
+    noteAr: 'تصنيف الاستحقاق حسب تاريخ الاستحقاق غير مدرج.',
+  })
 
   const droppable = facts.filter((fact) => fact.metric === 'hourly_net_sales_kwd' || fact.metric === 'product_net_sales_kwd')
   const kept = facts.filter((fact) => fact.metric !== 'hourly_net_sales_kwd' && fact.metric !== 'product_net_sales_kwd')

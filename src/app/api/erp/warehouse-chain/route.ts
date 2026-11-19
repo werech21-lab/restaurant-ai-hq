@@ -3,6 +3,7 @@ import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
   fetchLiveOdooWarehouseChain,
+  redactOdooSecrets,
   sanitizeOdooPublicPayload,
 } from '@/lib/odoo-live-connector'
 import {
@@ -14,7 +15,7 @@ import { sanitizeIsoDate } from '@/lib/erp-comparison-engine'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-export const maxDuration = 30
+export const maxDuration = 60
 
 /**
  * GET `/api/erp/warehouse-chain`:
@@ -56,6 +57,33 @@ export async function GET(request: NextRequest) {
 
   try {
     const payload = await fetchLiveOdooWarehouseChain(fromIso, toIso)
+    if (payload.fetchStatus === 'timeout' || payload.fetchStatus === 'error') {
+      return NextResponse.json(
+        sanitizeOdooPublicPayload({
+          ok: false,
+          readOnly: caller.isAuditor,
+          role: caller.role,
+          connected: false,
+          sourceMode: 'disconnected',
+          noData: false,
+          fetchStatus: payload.fetchStatus,
+          timedOut: payload.fetchStatus === 'timeout',
+          messageAr: payload.messageAr,
+          messageEn: payload.messageEn,
+          summary: null,
+          lastSyncAt: null,
+          isStale24h: false,
+          odooCompanyId: null,
+          dateRange: { from: fromIso, to: toIso },
+          database: null,
+          warehouseChain: null,
+        }),
+        {
+          status: payload.fetchStatus === 'timeout' ? 504 : 502,
+          headers: odooSyncResponseHeaders,
+        },
+      )
+    }
     if (!payload.connected) {
       return NextResponse.json(
         sanitizeOdooPublicPayload({
@@ -91,16 +119,20 @@ export async function GET(request: NextRequest) {
       }),
       { status: 200, headers: odooSyncResponseHeaders },
     )
-  } catch {
+  } catch (err) {
+    console.error('[warehouse-chain] route', redactOdooSecrets(err instanceof Error ? err.message : 'warehouse route failed'))
     return NextResponse.json(
       sanitizeOdooPublicPayload({
-        ok: true,
+        ok: false,
         readOnly: caller.isAuditor,
         role: caller.role,
         connected: false,
         sourceMode: 'disconnected',
-        noData: true,
-        messageAr: 'لا توجد بيانات من Odoo لهذه الفترة',
+        noData: false,
+        fetchStatus: 'error',
+        timedOut: false,
+        messageAr: 'تعذّر قراءة حركات المخزن من أودو',
+        messageEn: 'Warehouse movements could not be read from Odoo.',
         summary: null,
         lastSyncAt: null,
         isStale24h: false,
@@ -109,7 +141,7 @@ export async function GET(request: NextRequest) {
         database: null,
         warehouseChain: null,
       }),
-      { status: 200, headers: odooSyncResponseHeaders },
+      { status: 502, headers: odooSyncResponseHeaders },
     )
   }
 }

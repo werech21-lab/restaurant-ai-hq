@@ -794,13 +794,9 @@ export function WeekdayComparisonStudio() {
                 kpi.id === 'netPocketMargin'
               const isUnavailable =
                 kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
-              const unavailableReason = isGlKpi
-                ? isAr
-                  ? comparison.accountingUnavailableReasonAr ?? 'قيود غير مكتملة لهذه الفترة'
-                  : comparison.accountingUnavailableReasonEn ?? 'Incomplete GL entries for this period'
-                : isAr
-                  ? kpi.unavailableReasonAr ?? 'غير متاح'
-                  : kpi.unavailableReasonEn ?? 'Unavailable'
+              const unavailableReason = isAr
+                ? kpi.unavailableReasonAr ?? 'غير متاح'
+                : kpi.unavailableReasonEn ?? 'Unavailable'
               const badgeTone =
                 kpi.trend === 'flat'
                   ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -808,6 +804,7 @@ export function WeekdayComparisonStudio() {
                     ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
 
+              if (isGlKpi && isUnavailable) return null
               return (
                 <div key={kpi.id} className={KPI_CLS}>
                   <div className="flex items-start justify-between gap-1.5">

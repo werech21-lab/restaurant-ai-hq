@@ -14,12 +14,16 @@ import {
   loginIpAttemptLimiter,
   loginIpFailureLimiter,
 } from '@/lib/auth/api-guard'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import {
   EXEC_SESSION_COOKIE,
   DEFAULT_MARKETING_PASSWORD_SHA256,
   verifyExecSessionToken,
 } from '@/lib/auth/exec-session'
 import { isErpRouteAllowedForRole, resolvePostLoginRedirectForRole } from '@/lib/auth/role-access-policy'
+import { SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
+import { middleware } from '@/middleware'
 
 // Test-only password injected through the AETHER_*_PASSWORD env override (real defaults are hashed in exec-session).
 const TEMP_PASSWORD = 'test-exec-login-pass'
@@ -37,6 +41,7 @@ const ACCOUNTS: ReadonlyArray<{ email: string; role: string }> = [
   { email: 'supply@venturefoodskw.com', role: 'supply' },
   { email: 'kitchen@venturefoodskw.com', role: 'supply' },
   { email: 'auditor@venturefoodskw.com', role: 'auditor' },
+  { email: 'qa-readonly@venturefoodskw.com', role: 'auditor' },
 ]
 
 const ENV_PASSWORD_KEYS = [
@@ -49,6 +54,7 @@ const ENV_PASSWORD_KEYS = [
   'AETHER_MARKETING_PASSWORD',
   'AETHER_SUPPLY_PASSWORD',
   'AETHER_AUDITOR_PASSWORD',
+  'AETHER_QA_PASSWORD',
 ]
 
 const ENV_EMAIL_KEYS = [
@@ -64,6 +70,7 @@ const ENV_EMAIL_KEYS = [
   'AETHER_SUPPLY_EMAIL',
   'AETHER_KITCHEN_EMAIL',
   'AETHER_AUDITOR_EMAIL',
+  'AETHER_QA_EMAIL',
 ]
 
 function loginRequest(email: string, password: string, ip = '203.0.113.7'): NextRequest {
@@ -164,6 +171,48 @@ describe('named executive login', () => {
   it('keeps the marketing landing route', () => {
     expect(resolvePostLoginRedirectForRole('marketing')).toBe('/erp/cores')
     expect(isErpRouteAllowedForRole('marketing', '/erp/cores')).toBe(true)
+  })
+
+  it('qa-readonly fails closed when AETHER_QA_PASSWORD is unset and has no built-in digest', async () => {
+    const source = readFileSync(path.join(process.cwd(), 'src/lib/auth/exec-session.ts'), 'utf8')
+    expect(source).not.toMatch(/DEFAULT_QA_PASSWORD/)
+    vi.stubEnv('AETHER_QA_PASSWORD', '')
+    const res = await POST(loginRequest('qa-readonly@venturefoodskw.com', TEMP_PASSWORD, '203.0.113.90'))
+    expect(res.status).toBe(401)
+    expect(sessionCookie(res)).toBeNull()
+  })
+
+  it('qa-readonly logs in as auditor and can GET every sidebar route, while POST is forbidden', async () => {
+    vi.stubEnv('AETHER_QA_PASSWORD', TEMP_PASSWORD)
+    const res = await POST(loginRequest('qa-readonly@venturefoodskw.com', TEMP_PASSWORD, '203.0.113.91'))
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as { role: string }).role).toBe('auditor')
+    const token = sessionCookie(res)
+    expect(token).not.toBeNull()
+    const session = await verifyExecSessionToken(decodeURIComponent(token!))
+    expect(session?.role).toBe('auditor')
+
+    const hrefs = SIDEBAR_SECTIONS.flatMap((section) => section.items.map((item) => item.href))
+    expect(hrefs.length).toBeGreaterThan(0)
+    for (const href of hrefs) {
+      expect(isErpRouteAllowedForRole('auditor', href), href).toBe(true)
+      const page = await middleware(
+        new NextRequest(`https://aetherbi.com${href}`, {
+          method: 'GET',
+          headers: { cookie: `${EXEC_SESSION_COOKIE}=${token}` },
+        }),
+      )
+      expect(page.status, href).toBeLessThan(300)
+    }
+
+    const post = await middleware(
+      new NextRequest('https://aetherbi.com/api/erp/governance', {
+        method: 'POST',
+        headers: { cookie: `${EXEC_SESSION_COOKIE}=${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ ok: false }),
+      }),
+    )
+    expect(post.status).toBe(403)
   })
 })
 

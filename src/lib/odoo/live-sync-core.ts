@@ -8,6 +8,7 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
+import { formatArReconciliationFormula } from './receivable-aging'
 import {
   companyPosConfigAllowed,
   companyPosSearchDomain,
@@ -70,6 +71,43 @@ export interface OdooReceivableAgingBucket {
   linesCount: number
 }
 
+/** Cashier clearing (10552) is not customer or platform AR. */
+export const POS_CLEARING_ACCOUNT_CODE = '10552'
+
+export interface OdooReceivablePartnerRow {
+  partnerId: number
+  partnerName: string
+  accountId: number
+  accountCode: string
+  accountName: string
+  residualKwd: number
+  linesCount: number
+  /** Oldest posting date in the group (`account.move.line.date`), not a due date. */
+  oldestPostingDate: string | null
+}
+
+export interface ReceivablePartnerGroupInput {
+  partnerId: number | null
+  partnerName: string
+  accountId: number | null
+  accountLabel: string
+  residualKwd: number
+  linesCount: number
+  oldestPostingDate: string | null
+}
+
+export interface ReceivableCustomerSplit {
+  splitKnown: boolean
+  platformNetKwd: number
+  platformOpenDebitsKwd: number
+  platformUnappliedCreditsKwd: number
+  platformLineCount: number
+  posClearingResidualKwd: number
+  posClearingLineCount: number
+  customerAccounts: OdooReceivableAccountRow[]
+  posAccounts: OdooReceivableAccountRow[]
+}
+
 export interface OdooReceivableClearingSummary {
   readable: boolean
   openReceivableKwd: number
@@ -95,6 +133,231 @@ export interface OdooReceivableClearingSummary {
   /** Σ negative open residuals: unmatched payments and clearing credits, shown as one separate line. */
   unappliedCreditsKwd?: number
   unappliedCreditLinesCount?: number
+  /** Open residual of every receivable account except cashier clearing 10552. */
+  platformNetKwd?: number
+  /** Positive open residuals excluding 10552. */
+  platformOpenDebitsKwd?: number
+  /** Negative open residuals excluding 10552. */
+  platformUnappliedCreditsKwd?: number
+  /** Residual on account 10552 only. */
+  posClearingResidualKwd?: number
+  /** Oldest posting date among open lines that are not 10552. */
+  oldestOpenPostingDate?: string | null
+  /** Open lines grouped by partner and account, with 10552 removed. */
+  byPartner?: OdooReceivablePartnerRow[]
+}
+
+function roundReceivableKwd(n: number): number {
+  return Object.is(n, -0) ? 0 : Math.round(n * 1000) / 1000
+}
+
+/** True only when the account code is cashier clearing 10552. The label is ignored. */
+export function isPosClearingAccount(codeOrLabel: string | null | undefined): boolean {
+  const text = (codeOrLabel ?? '').trim()
+  if (!text) return false
+  const leading = /^(\d+)\b/.exec(text)
+  return leading?.[1] === POS_CLEARING_ACCOUNT_CODE || text === POS_CLEARING_ACCOUNT_CODE
+}
+
+export function receivableAccountCode(label: string, accountId: number): string {
+  const match = /^(\d+)\b/.exec(label.trim())
+  return match ? match[1] : String(accountId)
+}
+
+/**
+ * Signed residuals into gross open debits and unapplied credits.
+ * An account-level net hides credits that a partner or line still carries.
+ */
+export function splitOpenResiduals(
+  rows: readonly { residualKwd: number; linesCount?: number }[],
+): { netKwd: number; openDebitsKwd: number; unappliedCreditsKwd: number; lineCount: number } {
+  let openDebitsKwd = 0
+  let unappliedCreditsKwd = 0
+  let lineCount = 0
+  for (const row of rows) {
+    const residual = Number(row.residualKwd) || 0
+    lineCount += Math.max(0, Math.round(row.linesCount ?? 0))
+    if (residual > 0) openDebitsKwd += residual
+    else if (residual < 0) unappliedCreditsKwd += residual
+  }
+  return {
+    netKwd: roundReceivableKwd(openDebitsKwd + unappliedCreditsKwd),
+    openDebitsKwd: roundReceivableKwd(openDebitsKwd),
+    unappliedCreditsKwd: roundReceivableKwd(unappliedCreditsKwd),
+    lineCount,
+  }
+}
+
+/**
+ * Splits open receivable accounts into platform/trade versus cashier clearing 10552.
+ * Debit and credit totals come from partner/line residuals when those rows are passed.
+ * The net stays the sum of non-10552 account residuals.
+ */
+export function receivablesCustomerSplit(
+  accounts: readonly OdooReceivableAccountRow[],
+  partnerRows?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[],
+): ReceivableCustomerSplit {
+  const customerAccounts: OdooReceivableAccountRow[] = []
+  const posAccounts: OdooReceivableAccountRow[] = []
+  for (const row of accounts) {
+    if (isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`)) posAccounts.push(row)
+    else customerAccounts.push(row)
+  }
+  let platformNetKwd = 0
+  let accountDebits = 0
+  let accountCredits = 0
+  let platformLineCount = 0
+  for (const row of customerAccounts) {
+    platformNetKwd += row.residualKwd
+    platformLineCount += row.linesCount
+    if (row.residualKwd > 0) accountDebits += row.residualKwd
+    else if (row.residualKwd < 0) accountCredits += row.residualKwd
+  }
+  const customerPartners = (partnerRows ?? []).filter(
+    (row) => !isPosClearingAccount(`${row.accountCode ?? ''} ${row.accountName ?? ''}`),
+  )
+  const lineSplit = customerPartners.length > 0 ? splitOpenResiduals(customerPartners) : null
+  let posClearingResidualKwd = 0
+  let posClearingLineCount = 0
+  for (const row of posAccounts) {
+    posClearingResidualKwd += row.residualKwd
+    posClearingLineCount += row.linesCount
+  }
+  return {
+    splitKnown: accounts.length > 0 || customerPartners.length > 0,
+    platformNetKwd: roundReceivableKwd(platformNetKwd),
+    platformOpenDebitsKwd: lineSplit ? lineSplit.openDebitsKwd : roundReceivableKwd(accountDebits),
+    platformUnappliedCreditsKwd: lineSplit ? lineSplit.unappliedCreditsKwd : roundReceivableKwd(accountCredits),
+    platformLineCount,
+    posClearingResidualKwd: roundReceivableKwd(posClearingResidualKwd),
+    posClearingLineCount,
+    customerAccounts,
+    posAccounts,
+  }
+}
+
+/**
+ * One 10552-free open residual for every page, the brief, and Feryal.
+ * Falls back to the account split, then to the mixed ledger net only when no account rows exist.
+ */
+export function customerReceivableNetKwd(
+  input:
+    | {
+        unavailable?: boolean
+        platformNetKwd?: number | null
+        byAccount?: readonly OdooReceivableAccountRow[]
+        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
+        openReceivableKwd?: number | null
+      }
+    | null
+    | undefined,
+): number | null {
+  if (!input || input.unavailable) return null
+  if (typeof input.platformNetKwd === 'number' && Number.isFinite(input.platformNetKwd)) {
+    return roundReceivableKwd(input.platformNetKwd)
+  }
+  if (input.byAccount && input.byAccount.length > 0) {
+    return receivablesCustomerSplit(input.byAccount, input.byPartner).platformNetKwd
+  }
+  if (typeof input.openReceivableKwd === 'number' && Number.isFinite(input.openReceivableKwd)) {
+    return roundReceivableKwd(input.openReceivableKwd)
+  }
+  return null
+}
+
+export type CustomerReceivableFigures = {
+  netKwd: number | null
+  openDebitsKwd: number | null
+  unappliedCreditsKwd: number | null
+  formulaAr: string
+  formulaEn: string
+}
+
+/** The only customer-receivable total. Every page reads this object. */
+function finiteKwd(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? roundReceivableKwd(value) : null
+}
+
+export function customerReceivableFigures(
+  input:
+    | {
+        unavailable?: boolean
+        agingLabelsWithheld?: boolean
+        platformNetKwd?: number | null
+        platformOpenDebitsKwd?: number | null
+        platformUnappliedCreditsKwd?: number | null
+        openDebitsKwd?: number | null
+        unappliedCreditsKwd?: number | null
+        byAccount?: readonly OdooReceivableAccountRow[]
+        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
+        openReceivableKwd?: number | null
+      }
+    | null
+    | undefined,
+): CustomerReceivableFigures {
+  const accountSplit =
+    input?.byAccount && input.byAccount.length > 0
+      ? receivablesCustomerSplit(input.byAccount, input.byPartner)
+      : null
+  const netKwd = accountSplit ? accountSplit.platformNetKwd : customerReceivableNetKwd(input)
+  const openDebitsKwd = accountSplit
+    ? accountSplit.platformOpenDebitsKwd
+    : finiteKwd(input?.platformOpenDebitsKwd) ?? finiteKwd(input?.openDebitsKwd)
+  const unappliedCreditsKwd = accountSplit
+    ? accountSplit.platformUnappliedCreditsKwd
+    : finiteKwd(input?.platformUnappliedCreditsKwd) ?? finiteKwd(input?.unappliedCreditsKwd)
+  if (netKwd === null) {
+    return {
+      netKwd: null,
+      openDebitsKwd,
+      unappliedCreditsKwd,
+      formulaAr: 'رصيد متبقٍ غير مسوّى',
+      formulaEn: 'Open residual',
+    }
+  }
+  const formula = formatArReconciliationFormula({
+    openReceivableKwd: netKwd,
+    grossPositiveReceivableKwd: openDebitsKwd ?? netKwd,
+    creditClearingOffsetKwd: unappliedCreditsKwd ?? 0,
+    openDebitsKwd: input?.agingLabelsWithheld ? null : openDebitsKwd,
+    unappliedCreditsKwd: input?.agingLabelsWithheld ? null : unappliedCreditsKwd,
+  })
+  return {
+    netKwd,
+    openDebitsKwd,
+    unappliedCreditsKwd,
+    formulaAr: formula.ar,
+    formulaEn: formula.en,
+  }
+}
+
+/**
+ * Partner × account residuals for posted, unreconciled receivable lines.
+ * Cashier clearing 10552 is dropped here so it cannot land in the customer table.
+ */
+export function buildReceivablePartnerRows(groups: readonly ReceivablePartnerGroupInput[]): OdooReceivablePartnerRow[] {
+  const rows: OdooReceivablePartnerRow[] = []
+  for (const group of groups) {
+    if (group.accountId === null) continue
+    const accountCode = receivableAccountCode(group.accountLabel, group.accountId)
+    const accountName = group.accountLabel.trim() || `Account #${group.accountId}`
+    if (isPosClearingAccount(`${accountCode} ${accountName}`)) continue
+    const posting = group.oldestPostingDate && /^\d{4}-\d{2}-\d{2}/.test(group.oldestPostingDate)
+      ? group.oldestPostingDate.slice(0, 10)
+      : null
+    rows.push({
+      partnerId: group.partnerId ?? 0,
+      partnerName: group.partnerName.trim() || (group.partnerId === null ? 'بدون شريك' : `Partner #${group.partnerId}`),
+      accountId: group.accountId,
+      accountCode,
+      accountName,
+      residualKwd: roundReceivableKwd(group.residualKwd),
+      linesCount: Math.max(0, Math.round(group.linesCount)),
+      oldestPostingDate: posting,
+    })
+  }
+  rows.sort((a, b) => Math.abs(b.residualKwd) - Math.abs(a.residualKwd) || a.partnerName.localeCompare(b.partnerName))
+  return rows
 }
 
 export interface OdooLedgerAccountingSummary {
@@ -658,10 +921,7 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
   const ek = (model: string, method: string, args: unknown[], kwargs: Record<string, unknown> = {}) =>
     call('object', 'execute_kw', [db, uid, env.ODOO_API_KEY, model, method, args, kwargs])
 
-  const locationExcluded = (id: string) => {
-    const loc = REG.locations[id]
-    return isExcludedOdooEntity(id) || isExcludedOdooEntity(loc?.en) || isExcludedOdooEntity(loc?.ar) || isExcludedOdooEntity(loc?.code)
-  }
+  const locationExcluded = (_id: string) => false
   const restaurantLocIds = Object.entries(REG.locations)
     .filter(([id, v]) => v.unit === 'restaurant' && !locationExcluded(id))
     .map(([id]) => id)
@@ -673,11 +933,9 @@ export async function fetchLiveOdooSummary(env: OdooEnv, period = monthToDate(),
     .filter((config) => config.active !== false && companyPosConfigAllowed(config.id, config.name, true))
   const visibleConfigIds = configs.map((config) => config.id).filter((id) => !isExcludedRecordId('pos_config', id))
   const allowedSet = new Set(visibleConfigIds)
-  const configNameById = new Map(configs.map((c) => [c.id, c.name]))
   const isDeliveryCfg = (cfgId: number) => {
     const loc = REG.registers[String(cfgId)]?.location
-    const nm = configNameById.get(cfgId) ?? ''
-    return loc === 'ardiya' || /delivery|call\s*center/i.test(nm)
+    return loc === 'ardiya' || loc === 'call-center' || loc === 'qurain-delivery'
   }
 
   const categories = ((await ek('pos.category', 'search_read', [[]], { fields: ['id', 'name', 'parent_id'] })) as { id: number; name: string; parent_id: M2O }[])

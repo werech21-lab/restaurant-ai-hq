@@ -14,7 +14,7 @@ const source = (relative: string) => readFileSync(path.join(process.cwd(), relat
 describe('phase 8 exclusions', () => {
   it('matches the added spellings and keeps a leading kaf', () => {
     expect(isExcludedOdooEntity('Hawaly')).toBe(false) // Hawally not excluded (owner decision 2026-11-18)
-    expect(isExcludedOdooEntity('Gurain')).toBe(true)
+    expect(isExcludedOdooEntity('Gurain')).toBe(false)
     expect(isExcludedOdooEntity('Jahara')).toBe(true)
     expect(isExcludedOdooEntity('الجهرا')).toBe(true)
     expect(isExcludedOdooEntity('Heizenberg')).toBe(true)

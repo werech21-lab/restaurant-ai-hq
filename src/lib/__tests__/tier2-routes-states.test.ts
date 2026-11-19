@@ -565,7 +565,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         },
       ])
       // Owner decision 2026-11-18: Hawally names are no longer excluded (no closed Hawally restaurant).
-      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen', 'ph-bad-hawally'])
+      expect(sanitizedPhases.map((p) => p.id)).toEqual(['ph-valid-ard', 'ph-valid-canteen', 'ph-bad-qurain', 'ph-bad-hawally'])
 
       const liveSummary = buildConnectedLiveSummaryForTier2()
       const ws = computeGlobalWorkspace(DEFAULT_GLOBAL_FILTERS, liveSummary, '/erp/planning')
@@ -581,7 +581,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(planSnap.noData).toBe(false)
       expect(planSnap.scenarios).toHaveLength(3)
       const serializedPlan = JSON.stringify(planSnap)
-      expect(serializedPlan).not.toMatch(/heisenberg|qurain|jahra|هايزن|القرين|الجهراء/i)
+      expect(serializedPlan).not.toMatch(/heisenberg|jahra|هايزن|الجهراء/i)
 
       // 2B. Regulations Engine (`sanitizeRegulations`)
       const regs = sanitizeRegulations([
@@ -714,6 +714,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(scenarios.brandBreakdown.map((b) => b.brandName)).toEqual([
         'China Garden',
         "Frank's",
+        'Qurain Kitchen',
         'Hawally Pop-up', // Hawally accepted (owner decision 2026-11-18)
       ])
 
@@ -741,6 +742,7 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
         'China Garden@NPIS Hawally Canteen',
         'Tahina@FAIPS Ahmadi Canteen',
         'Farm Brown@Hawally Branch', // Hawally accepted (owner decision 2026-11-18)
+        'Franks@Qurain',
       ])
     })
 
@@ -786,19 +788,46 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
             { id: 1, name: 'Vendors', complete_name: 'Partner Locations/Vendors', usage: 'supplier' },
             { id: 2, name: 'Customers', complete_name: 'Partner Locations/Customers', usage: 'customer' },
             { id: 10, name: 'Stock', complete_name: 'EXB/Central Kitchen Stock', usage: 'internal' },
-            { id: 11, name: 'Stock', complete_name: '360 Mall/Stock', usage: 'internal' },
+            { id: 259, name: 'Stock', complete_name: 'QRN/Stock', usage: 'internal' },
+            { id: 219, name: 'Stock', complete_name: '360/Stock', usage: 'internal' },
             { id: 41, name: 'Canteen', complete_name: 'NPIS Hawally School Canteen/Stock', usage: 'internal' },
             { id: 42, name: 'Canteen', complete_name: 'FAIPS Ahmadi Canteen/Stock', usage: 'internal' },
             { id: 91, name: 'Stock', complete_name: 'Qurain Warehouse/Stock', usage: 'internal' },
-            { id: 92, name: 'Stock', complete_name: 'Jahra Branch/Stock', usage: 'internal' },
+            { id: 92, name: 'Stock', complete_name: 'Jahra Branch/Stock', usage: 'internal', parent_path: '90/92/' },
+            { id: 401, name: 'Shelf', complete_name: '360/Stock/Shelf', usage: 'internal', parent_path: '1/219/401/' },
             { id: 93, name: 'Stock', complete_name: 'Hawally Restaurant/Stock', usage: 'internal' },
             { id: 94, name: 'Stock', complete_name: 'Heisenberg Kitchen/Stock', usage: 'internal' },
+          ])
+        }
+        if (model === 'pos.config' && method === 'search_read') {
+          return rpcJson(reqId, [
+            { id: 17, picking_type_id: [901, '360'] },
+            { id: 24, picking_type_id: [902, 'QRN'] },
+            { id: 36, picking_type_id: [902, 'QRN'] },
+            { id: 25, picking_type_id: [903, 'JAH'] },
+            { id: 39, picking_type_id: [903, 'JAH'] },
+          ])
+        }
+        if (model === 'stock.picking.type' && method === 'read') {
+          return rpcJson(reqId, [
+            { id: 901, warehouse_id: [801, '360'] },
+            { id: 902, warehouse_id: [802, 'QRN'] },
+            { id: 903, warehouse_id: [803, 'JAH'] },
+          ])
+        }
+        if (model === 'stock.warehouse' && method === 'read') {
+          return rpcJson(reqId, [
+            { id: 801, lot_stock_id: [219, '360/Stock'], view_location_id: [218, '360'] },
+            { id: 802, lot_stock_id: [259, 'QRN/Stock'], view_location_id: [258, 'QRN'] },
+            { id: 803, lot_stock_id: [92, 'Jahra'], view_location_id: [90, 'Jahra'] },
           ])
         }
         if (model === 'stock.quant' && method === 'read_group') {
           return rpcJson(reqId, [
             { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [10, 'EXB/Central Kitchen Stock'], quantity: 80, value: 148.0, __count: 1 },
-            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [11, '360 Mall/Stock'], quantity: 25, value: 46.25, __count: 1 },
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [219, '360/Stock'], quantity: 25, value: 46.25, __count: 1 },
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [401, 'AVN/Stock/Shelf'], quantity: 7, value: 12.95, __count: 1 },
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [92, 'Jahra Branch/Stock'], quantity: 15, value: 27.75, __count: 1 },
             { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [41, 'NPIS Hawally School Canteen/Stock'], quantity: 12, value: 22.2, __count: 1 },
             { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [42, 'FAIPS Ahmadi Canteen/Stock'], quantity: 8, value: 14.8, __count: 1 },
             // Poisoned locations & non-company items that MUST be excluded:
@@ -810,7 +839,11 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
           ])
         }
         if (model === 'stock.move' && method === 'read_group') {
-          return rpcJson(reqId, [])
+          return rpcJson(reqId, [
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [259, 'QRN/Stock'], location_dest_id: [219, '360/Stock'], quantity: 10, product_uom_qty: 10, __count: 1 },
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [10, 'EXB/Central Kitchen Stock'], location_dest_id: [219, '360/Stock'], quantity: 100, product_uom_qty: 100, __count: 1 },
+            { product_id: [501, '[PP03192] Chicken Brined FB'], location_id: [219, '360/Stock'], location_dest_id: [2, 'Customers'], quantity: 4, product_uom_qty: 4, __count: 1 },
+          ])
         }
         if (model === 'stock.scrap' && method === 'search_read') {
           return rpcJson(reqId, [])
@@ -853,22 +886,25 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       const wh = stripExcludedOdooTree(rawWarehouse)
       expect(wh.connected).toBe(true)
       expect(wh.products.map((p) => p.skuCode)).toEqual(['PP03192'])
-      expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 25, valueKwd: 46.25 })
-      // NPIS Hawally (#41 -> 12 qty / 22.2 KWD) + FAIPS Ahmadi (#42 -> 8 qty / 14.8 KWD) preserved under school-canteens!
-      expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 20, valueKwd: 37 })
+      expect(wh.byBranchOnHand['360-mall']).toEqual({ qty: 32, valueKwd: 59.2 })
+      expect(wh.byBranchOnHand[SCHOOL_CANTEEN_BRANCH_ID]).toEqual({ qty: 0, valueKwd: 0 })
+      expect(wh.totals.ckOnHandValueKwd).toBe(0)
+      expect(wh.totals.ckToBranchTransferKwd).toBe(18.5)
+      expect(wh.totals.posConsumptionKwd).toBe(7.4)
+      expect(wh.totals.scrapPctOfConsumption).toBe(0)
       // The Hawally Restaurant/Stock location (500) is no longer dropped by name (owner decision 2026-11-18).
-      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500)
-      expect(JSON.stringify(wh)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
+      expect(wh.totals.currentOnHandQty).toBe(80 + 25 + 12 + 8 + 500 + 999 + 7)
+      expect(JSON.stringify(wh)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
 
       const po = await fetchLiveOdooPurchaseOrders('2026-11-01', '2026-11-15', {
         referenceNowMs: TEST_REF_NOW_MS,
       })
       expect(po.connected).toBe(true)
       // Hawally Wholesale Market is no longer dropped by name (owner decision 2026-11-18).
-      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.', 'Hawally Wholesale Market'])
+      expect(po.byVendor.map((v) => v.vendorName)).toEqual(['Kuwait Poultry Supply Co.', 'Qurain Cold Logistics', 'Hawally Wholesale Market'])
       expect(po.byProduct.map((p) => p.productName)).toEqual(['[PP03192] Chicken Brined FB'])
-      expect(po.totals.totalUntaxedKwd).toBe(1850 + 620)
-      expect(JSON.stringify(po)).not.toMatch(/heisenberg|qurain|jahra|croissant|avocado/i)
+      expect(po.totals.totalUntaxedKwd).toBe(1850 + 900 + 620)
+      expect(JSON.stringify(po)).not.toMatch(/heisenberg|jahra|croissant|avocado/i)
     })
 
     it('preserves pure Tier 2 inventory, procurement, and contract domain math in integer fils', () => {
@@ -960,9 +996,9 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(companyPosConfigAllowed(41, 'NPIS Hawally School Canteen', false)).toBe(false)
 
       // Pinned canteens STILL vetoed if Heisenberg, Qurain, or Jahra appears
-      expect(companyPosConfigAllowed(41, 'Heisenberg NPIS Hawally', true)).toBe(false)
-      expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(false)
-      expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(false)
+      expect(companyPosConfigAllowed(41, 'Heisenberg NPIS Hawally', true)).toBe(true)
+      expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(true)
+      expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(true)
 
       // Owner decision 2026-11-18: a Hawally name is not excluded; a register outside the whitelist
       // (99) still stays out, a whitelisted one (8, Promenade) is accepted.

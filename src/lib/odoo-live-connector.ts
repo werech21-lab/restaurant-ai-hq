@@ -18,11 +18,15 @@ import { CoverageCounter, resolveProductCosts, type CostSource, type WarehouseVa
  * - Stale-While-Revalidate cache (`TTL: 60s`) + `lastKnownGoodSnapshot` circuit breaker + `30s` manual sync cooldown.
  */
 import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
+import { errorFields, logger } from '@/lib/logger'
 import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
+  buildReceivablePartnerRows,
   channelOfPaymentMethod,
   computeOdooFreshnessStatus,
+  isPosClearingAccount,
+  receivablesCustomerSplit,
   normalizeOdooDateOrderToIso,
   parseBucketKey,
   periodWindowForBucket,
@@ -50,7 +54,9 @@ import {
 import {
   anchorKuwaitDay,
   companyPosConfigAllowed,
+  isQurainPosConfigId,
   isPinnedSchoolCanteenConfigId,
+  QURAIN_POS_CONFIG_IDS,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   EXHIBITION_BRANCH_ID,
@@ -61,6 +67,22 @@ import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import { buildRegisterReconciliation } from '@/lib/odoo/register-reconciliation'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
 import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
+import { buildOpenReceivableClauses } from '@/lib/odoo/receivable-domain'
+import {
+  branchIdForStockLocation,
+  isCentralKitchenStockLocation,
+  isExcludedStockLocation,
+  JAHRA_POS_CONFIG_IDS,
+  KITCHEN_SOURCE_POS_CONFIG_IDS,
+  STOCK_LOCATION_MAP_TTL_MS,
+  classifyWarehouseMove,
+  emptyStockRoots,
+  kitchenTransfersToCount,
+  stockRootsFromRegisterChain,
+  type RegisterPickingLink,
+  type ResolvedStockRoots,
+  type StockLocationBranchId,
+} from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
   countOrdersPerBrandWithin,
@@ -70,12 +92,21 @@ import {
 } from '@/lib/odoo/brand-scope-fetch'
 import {
   buildPosOrderUtcDomain,
+  posRegisterScopeClauses,
   buildPosPaymentUtcDomain,
   kuwaitDateBoundsToOdooUtc,
   mergeDaySessionPricelistGroups,
   mergeHourGroups,
+  mergeProductLineGroups,
+  mergeRowsByKey,
   mergeSessionGroups,
   mergeSessionPaymentGroups,
+  readClosedYearPlusToday,
+  YEAR_PAYMENT_GROUP_BY,
+  YEAR_REGISTER_READ_CONCURRENCY,
+  foldYearBranchChannels,
+  yearClosedWindow,
+  yearReadCall,
   type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
 import {
@@ -94,8 +125,20 @@ if (typeof window !== 'undefined') {
 
 export const KUWAIT_OFFSET_MS = 3 * 3600 * 1000
 export const ODOO_RPC_TIMEOUT_MS = 8_000
+/** stock.quant / stock.move read_group only. Other RPC calls stay on the 8s cap. */
+export const STOCK_READ_GROUP_TIMEOUT_MS = 25_000
 export const AUTH_UID_TTL_MS = 15 * 60_000
 export const LIVE_SNAPSHOT_TTL_MS = 60_000
+/** A partial pull may reuse a complete snapshot only while it is still this fresh. */
+export const LAST_KNOWN_GOOD_MAX_AGE_MS = 30 * 60_000
+
+export function lastKnownGoodIsFresh(
+  snapshot: { fetchedAtMs: number; unavailableSections: readonly string[] } | null | undefined,
+  nowMs: number,
+): boolean {
+  if (!snapshot || snapshot.unavailableSections.length > 0) return false
+  return nowMs - snapshot.fetchedAtMs <= LAST_KNOWN_GOOD_MAX_AGE_MS
+}
 export const MANUAL_SYNC_COOLDOWN_MS = 30_000
 const CIRCUIT_BREAKER_THRESHOLD = 2
 const CIRCUIT_OPEN_DURATION_MS = 20_000
@@ -160,7 +203,7 @@ const UI_CHANNEL_KEYS = [
 
 type RegistryShape = {
   allowedPosConfigIds: number[]
-  registers: Record<string, { location: string }>
+  registers: Record<string, { location: string; delivery?: boolean }>
   locations: Record<
     string,
     {
@@ -379,6 +422,7 @@ export interface OdooPeriodCube {
   posConfigIds?: {
     companyId: number | null
     configIdsByBranch: Record<string, number[]>
+    includedConfigIds?: number[]
     excludedConfigIds: number[]
     excludedPosCategoryIds: number[]
   }
@@ -400,6 +444,7 @@ export interface OdooLiveWarehouseMoveDayRow {
     {
       receivedFromCkKwd: number
       receivedFromCkQty: number
+      receivedFromCkMoves?: number
       consumedKwd: number
       consumedQty: number
       scrapKwd: number
@@ -448,7 +493,10 @@ export interface OdooLiveWarehouseChainPayload {
   connected: boolean
   sourceMode: 'odoo17-live' | 'disconnected'
   noData: boolean
+  /** Set when the query failed. Exceptions are never reported as an empty period. */
+  fetchStatus?: 'ok' | 'timeout' | 'error' | 'disconnected'
   messageAr?: string
+  messageEn?: string
   odooCompanyId: number | null
   lastSyncAt: string | null
   isStale24h: boolean
@@ -730,11 +778,12 @@ async function rawOdooJsonRpc<T = unknown>(
   method: string,
   args: unknown[],
   timeoutMs = ODOO_RPC_TIMEOUT_MS,
+  timeoutCapMs = ODOO_RPC_TIMEOUT_MS,
 ): Promise<T> {
   assertServerRuntime()
   const safeBaseUrl = normalizeOdooBaseUrl(cfg.url)
   const effectiveTimeoutMs = Math.min(
-    ODOO_RPC_TIMEOUT_MS,
+    timeoutCapMs,
     Math.max(1_000, timeoutMs || ODOO_RPC_TIMEOUT_MS),
   )
   const controller = new AbortController()
@@ -844,7 +893,7 @@ export async function executeOdooKw<T = unknown>(
   method: string,
   args: unknown[] = [],
   kwargs: Record<string, unknown> = {},
-  options?: { timeoutMs?: number },
+  options?: { timeoutMs?: number; timeoutCapMs?: number },
 ): Promise<T> {
   const cfg = readServerOdooConfig()
   if (!cfg) {
@@ -854,8 +903,9 @@ export async function executeOdooKw<T = unknown>(
     )
   }
 
-  const timeoutMs = Math.min(ODOO_RPC_TIMEOUT_MS, options?.timeoutMs ?? ODOO_RPC_TIMEOUT_MS)
-  let uid = await authenticateOdoo({ timeoutMs })
+  const cap = options?.timeoutCapMs ?? ODOO_RPC_TIMEOUT_MS
+  const timeoutMs = Math.min(cap, Math.max(1_000, options?.timeoutMs ?? ODOO_RPC_TIMEOUT_MS))
+  let uid = await authenticateOdoo({ timeoutMs: Math.min(ODOO_RPC_TIMEOUT_MS, timeoutMs) })
 
   try {
     return await rawOdooJsonRpc<T>(
@@ -864,6 +914,7 @@ export async function executeOdooKw<T = unknown>(
       'execute_kw',
       [cfg.db, uid, cfg.apiKey, model, method, args, kwargs],
       timeoutMs,
+      cap,
     )
   } catch (firstErr) {
     if (firstErr instanceof OdooConnectorError) {
@@ -871,13 +922,14 @@ export async function executeOdooKw<T = unknown>(
     }
     const errText = firstErr instanceof Error ? firstErr.message.toLowerCase() : ''
     if (errText.includes('session') || errText.includes('access denied') || errText.includes('uid')) {
-      uid = await authenticateOdoo({ forceReauth: true, timeoutMs })
+      uid = await authenticateOdoo({ forceReauth: true, timeoutMs: Math.min(ODOO_RPC_TIMEOUT_MS, timeoutMs) })
       return rawOdooJsonRpc<T>(
         cfg,
         'object',
         'execute_kw',
         [cfg.db, uid, cfg.apiKey, model, method, args, kwargs],
         timeoutMs,
+        cap,
       )
     }
     throw firstErr
@@ -923,17 +975,25 @@ function kuwaitRangeToOdooUtcStrings(fromKuwaitIso: string, toExclusiveKuwaitIso
 }
 
 /**
- * Strictly identifies decommissioned warehouse/branch records so ONLY Ardiya Central Kitchen (`EXB` / `CK`)
- * and the 7 active Venture Foods branches ever appear in inventory, transfers, or POS aggregations.
+ * Jahra and Heisenberg stay out of inventory, transfers, and POS aggregations.
+ * Delivery (Qurain) is a live cashier and is not decommissioned (founder, 2026-11-19).
  */
-const DECOMMISSIONED_SITE_RE = new RegExp(
-  ['qur', 'ain|\\bqr', 'n\\b|\\u0627\\u0644\\u0642\\u0631\\u064a\\u0646'].join(''),
-  'i',
-)
+const EXCLUDED_GL_ACCOUNT_CODES = [
+  '10114',
+  '10119',
+  '101531',
+  '10328',
+  '40079',
+  '40080',
+  '40097',
+  '9950473',
+] as const
 
+/** Account-code exclusion only. A display name never decides this. */
 export function isDecommissionedWarehouseRecord(rawText?: string | null): boolean {
   if (!rawText) return false
-  return DECOMMISSIONED_SITE_RE.test(rawText) || isExcludedOdooEntity(rawText)
+  const code = /^(\d+)\b/.exec(rawText.trim())?.[1]
+  return code != null && (EXCLUDED_GL_ACCOUNT_CODES as readonly string[]).includes(code)
 }
 
 /**
@@ -945,64 +1005,42 @@ export function isDecommissionedWarehouseRecord(rawText?: string | null): boolea
  * Any active company terminal not tied to a single mall branch (e.g. Central / Multi-Branch POS Terminals)
  * returns `null` here and is rolled 100% into reconciled `companyNet` (`0.000 KWD` variance).
  */
-const NON_OPERATING_TERMINAL_NAME_RE = /\b(?:test|training|demo|closed|cancelled)\b/i
-
 export function resolveRestaurantBranchForConfig(
   cfgId: number,
-  cfgName: string,
-  extraContext = '',
+  _cfgName: string,
+  _extraContext = '',
   options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
-  if (isExcludedRecordId('pos_config', cfgId)) {
+  if (isExcludedRecordId('pos_config', cfgId) || isQurainPosConfigId(cfgId)) {
     return null
   }
   if (isPinnedSchoolCanteenConfigId(cfgId)) {
-    return companyPosConfigAllowed(cfgId, cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
+    return companyPosConfigAllowed(cfgId, _cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
   }
   if (isExhibitionConfigId(cfgId)) {
-    return companyPosConfigAllowed(cfgId, cfgName, true) ? EXHIBITION_BRANCH_ID : null
+    return companyPosConfigAllowed(cfgId, _cfgName, true) ? EXHIBITION_BRANCH_ID : null
   }
-  const ownName = (cfgName || '').trim()
-  if (NON_OPERATING_TERMINAL_NAME_RE.test(ownName)) {
-    return null
-  }
-  const combined = `${ownName} ${extraContext || ''}`.trim()
-  if (isDecommissionedWarehouseRecord(combined)) {
-    return null
-  }
-  const lower = combined.toLowerCase()
-  if (/\b(?:exhibition|exebition|exb|bazaar|booth|catering)\b/i.test(lower)) {
-    return null
-  }
-
   if (!options?.ignoreAdminOverride) {
     const adminMapped = getAdminPosTerminalBranch(cfgId)
-    if (adminMapped) {
-      return adminMapped
-    }
+    if (adminMapped) return adminMapped
   }
-
   const regEntry = REG.registers[String(cfgId)]
-  if (regEntry) {
-    const loc = regEntry.location
-    if (loc === 'call-center') return 'ardiya'
-    if (
-      REG.locations[loc]?.unit === 'restaurant' &&
-      (ACTIVE_BRANCH_IDS as readonly string[]).includes(loc)
-    ) {
-      return loc as (typeof ACTIVE_BRANCH_IDS)[number]
-    }
-    return null
+  if (!regEntry) return null
+  const loc = regEntry.location
+  if (loc === 'call-center') return 'ardiya'
+  if (
+    REG.locations[loc]?.unit === 'restaurant' &&
+    (ACTIVE_BRANCH_IDS as readonly string[]).includes(loc)
+  ) {
+    return loc as (typeof ACTIVE_BRANCH_IDS)[number]
   }
-
-  if (/\bavn\b|avenue|افنيوز|الأفنيوز/.test(lower)) return 'avenues'
-  if (/\b360\b|٣٦٠/.test(lower)) return '360-mall'
-  if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
-  if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
-  if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
-  if (/\bkot\b|\bkout\b|كوت|الكوت/.test(lower)) return 'al-kout'
-  if (/\bard\b|\bck\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
   return null
+}
+
+/** Delivery terminals by pos.config id. The flag is set on the registry row. */
+function isDeliveryPosConfigId(cfgId: number | undefined): boolean {
+  if (cfgId == null || !Number.isInteger(cfgId)) return false
+  return REG.registers[String(cfgId)]?.delivery === true
 }
 
 /** Fuzzy brand hint resolver from POS terminal or pricelist name when product lines are aggregated. */
@@ -1215,19 +1253,19 @@ export function buildLedgerAccountingFromGroups(params: {
     operatingProfit,
     completeAccrualPosted,
     glIncomplete,
-    ...(glIncomplete ? { glWarningAr: 'قيود غير مكتملة لهذه الفترة' } : {}),
+    ...(glIncomplete ? { glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' } : {}),
     aggregatorCommissionUnposted,
     ...(aggregatorCommissionUnposted
       ? { aggregatorCommissionDisplayAr: 'غير مُرحَّل بعد' }
       : {}),
     ...(!available
       ? {
-          unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+          unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
           unavailableReasonEn: 'No posted General Ledger revenue lines exist for this period.',
         }
       : glIncomplete
         ? {
-            unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+            unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
             unavailableReasonEn:
               'Journal entries (expenses, commissions, or depreciation) are incomplete for this period.',
           }
@@ -1244,34 +1282,33 @@ function formatReceivableAccountRow(
   const m = /^(\d+)\s+(.*)$/.exec((rawLabel || '').trim())
   const accountCode = m ? m[1] : String(accountId)
   const accountName = m ? m[2].trim() : (rawLabel || `Account #${accountId}`).trim()
-  const lower = accountName.toLowerCase()
   let labelAr = accountName
   let labelEn = accountName
-  if (accountCode === '10501' || /talabat/.test(lower)) {
+  if (accountCode === '10501') {
     labelAr = 'ذمم منصة طلبات (10501)'
     labelEn = 'Talabat Receivable (10501)'
-  } else if (accountCode === '10502' || /deliveroo/.test(lower)) {
+  } else if (accountCode === '10502') {
     labelAr = 'تسويات منصة ديليفرو (10502)'
     labelEn = 'Deliveroo Receivable Clearing (10502)'
-  } else if (accountCode === '10503' || /cari/.test(lower)) {
+  } else if (accountCode === '10503') {
     labelAr = 'ذمم منصة كاري (10503)'
     labelEn = 'Cari Receivable (10503)'
-  } else if (accountCode === '10504' || /jahez/.test(lower)) {
+  } else if (accountCode === '10504') {
     labelAr = 'ذمم منصة جاهز (10504)'
     labelEn = 'Jahez Receivable (10504)'
-  } else if (accountCode === '10505' || /keeta/.test(lower)) {
+  } else if (accountCode === '10505') {
     labelAr = 'ذمم منصة كيتا (10505)'
     labelEn = 'Keeta Receivable (10505)'
-  } else if (accountCode === '10507' || /snoonu/.test(lower)) {
+  } else if (accountCode === '10507') {
     labelAr = 'تسويات منصة سنونو (10507)'
     labelEn = 'Snoonu Receivable Clearing (10507)'
-  } else if (accountCode === '10508' || /hesabe\s*online|اوردبل/.test(lower)) {
+  } else if (accountCode === '10508') {
     labelAr = 'ذمم الدفع الإلكتروني أونلاين (10508)'
     labelEn = 'Hesabe Online Receivable (10508)'
-  } else if (accountCode === '10509' || /payment\s*link|لينك/.test(lower)) {
+  } else if (accountCode === '10509') {
     labelAr = 'ذمم روابط الدفع المباشر (10509)'
     labelEn = 'Hesabe Payment Link Receivable (10509)'
-  } else if (accountCode === '10552' || /pos/.test(lower)) {
+  } else if (accountCode === '10552') {
     labelAr = 'تسويات نقاط البيع قيد المقاصة (10552)'
     labelEn = 'POS Clearing Receivable (10552)'
   } else if (accountCode === '121000') {
@@ -1688,6 +1725,63 @@ export function buildReconciledBucket(params: {
   }
 }
 
+type PosConfigReadRow = {
+  id: number
+  name: string
+  active?: boolean
+  company_id?: M2O
+  picking_type_id?: M2O
+}
+
+/**
+ * Active registers, plus any Qurain id even when archived. A second read logs
+ * every pos.config whose name contains Qurain / قرين, or whose id is 24.
+ */
+async function fetchPosConfigsIncludingQurain(): Promise<PosConfigReadRow[]> {
+  const active = await executeOdooKw<PosConfigReadRow[]>(
+    'pos.config',
+    'search_read',
+    [[['active', '=', true]]],
+    { fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'] },
+  ).catch(() =>
+    executeOdooKw<PosConfigReadRow[]>(
+      'pos.config',
+      'search_read',
+      [[['active', '=', true]]],
+      { fields: ['id', 'name', 'active', 'company_id'] },
+    ),
+  )
+  /* id-match-diagnostic-start */
+  const diagnostic = await executeOdooKw<PosConfigReadRow[]>(
+    'pos.config',
+    'search_read',
+    [[
+      '|',
+      '|',
+      ['name', 'ilike', 'Qurain'],
+      ['name', 'ilike', 'قرين'],
+      ['id', 'in', [...QURAIN_POS_CONFIG_IDS]],
+    ]],
+    { fields: ['id', 'name', 'active', 'company_id'] },
+  ).catch(() => [] as PosConfigReadRow[])
+  for (const row of diagnostic) {
+    logger.info('pos.config qurain diagnostic', {
+      id: row.id,
+      name: row.name,
+      active: row.active !== false,
+      companyId: m2oId(row.company_id),
+    })
+  }
+  /* id-match-diagnostic-end */
+  const byId = new Map<number, PosConfigReadRow>()
+  for (const row of active) byId.set(row.id, row)
+  for (const row of diagnostic) {
+    if (!isQurainPosConfigId(row.id)) continue
+    byId.set(row.id, { ...byId.get(row.id), ...row, id: row.id, name: row.name })
+  }
+  return [...byId.values()]
+}
+
 async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   await hydrateAdminPosTerminalMappings()
   const cfg = readServerOdooConfig()
@@ -1707,27 +1801,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   // 1. Discover & map all POS configs (`id`, `name`, `company_id`, `picking_type_id`), POS categories, GL Chart of Accounts, user's company_id, and latest order timestamp
   const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderCandidates] = await Promise.all([
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-          'pos.config',
-          'search_read',
-          [[['active', '=', true]]],
-          {
-            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-          },
-        ),
-      [],
-    ).then(async (rows) =>
-      rows.length > 0
-        ? rows
-        : executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-            'pos.config',
-            'search_read',
-            [[['active', '=', true]]],
-            { fields: ['id', 'name', 'active', 'company_id'] },
-          ),
-    ),
+    fetchPosConfigsIncludingQurain().catch(() => [] as PosConfigReadRow[]),
     safeSubQuery(
       () =>
         executeOdooKw<{ id: number; name: string; parent_id: M2O }[]>(
@@ -1805,6 +1879,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const combined = `${c.name} ${extraCtx}`.trim()
     configNameById.set(c.id, combined)
     displayConfigNameById.set(c.id, sanitizePosTerminalDisplayName(c.id, c.name))
+    if (isQurainPosConfigId(c.id)) {
+      companyConfigIds.add(c.id)
+      continue
+    }
     if (c.active === false) {
       const isGenuinelyDecommissioned =
         isExcludedRecordId('pos_config', c.id) ||
@@ -1841,7 +1919,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
   if (allConfigs.length === 0) {
-    for (const cfgId of REG.allowedPosConfigIds) {
+    for (const cfgId of [...new Set([...REG.allowedPosConfigIds, ...QURAIN_POS_CONFIG_IDS])]) {
       const knownName = configNameById.get(cfgId) ?? ''
       if (decommissionedConfigIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
       companyConfigIds.add(cfgId)
@@ -1875,26 +1953,30 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const root = resolveRootCat(c.id)
     if (
       isExcludedRecordId('pos_category', c.id) ||
-      isExcludedRecordId('pos_category', root?.id) ||
-      isExcludedOdooEntity(c.name) ||
-      isExcludedOdooEntity(root?.name)
+      isExcludedRecordId('pos_category', root?.id)
     ) {
       excludedPosCategoryIds.add(c.id)
     }
   }
 
-  const companyConfigClause: unknown[][] =
+  const excludedPosDomain: unknown[] =
     companyConfigIds.size > 0
-      ? [['session_id.config_id', 'in', [...companyConfigIds]]]
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'session_id.config_id',
+          companyField: 'company_id',
+        })
       : [['id', '=', 0]]
-  const companyLineClause: unknown[][] =
-    companyConfigIds.size > 0
-      ? [['order_id.session_id.config_id', 'in', [...companyConfigIds]]]
-      : [['id', '=', 0]]
-  const excludedPosDomain: unknown[][] = [...companyDomain, ...companyConfigClause]
-  const excludedPosLineDomain: unknown[][] = [
-    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...companyLineClause,
+  const excludedPosLineDomain: unknown[] = [
+    ...(companyConfigIds.size > 0
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'order_id.session_id.config_id',
+          companyField: 'company_id',
+        })
+      : [['id', '=', 0]]),
     ...(excludedPosCategoryIds.size > 0
       ? [['product_id.pos_categ_id', 'not in', [...excludedPosCategoryIds]]]
       : []),
@@ -1913,6 +1995,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     latestOrderCandidates.find((r) => {
       const cid = m2oId(r.config_id)
       const compId = m2oId(r.company_id)
+      if (cid !== null && isQurainPosConfigId(cid)) return true
       if (cid !== null && decommissionedConfigIds.has(cid)) return false
       if (resolvedCompanyId !== null && compId !== null && compId !== resolvedCompanyId) return false
       return true
@@ -1943,7 +2026,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const posOrderDomainOf = (
     b: { fromUtc: string; toUtc: string },
     nonRefundOnly = false,
-  ): unknown[][] =>
+  ): unknown[] =>
     companyConfigList.length > 0
       ? buildPosOrderUtcDomain({
           fromUtc: b.fromUtc,
@@ -1956,7 +2039,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const posPaymentDomainOf = (
     b: { fromUtc: string; toUtc: string },
     nonRefundOnly = false,
-  ): unknown[][] =>
+  ): unknown[] =>
     companyConfigList.length > 0
       ? buildPosPaymentUtcDomain({
           fromUtc: b.fromUtc,
@@ -1970,12 +2053,18 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   // 3a. Exact brand scope rows (today + last 7 days) start now, alongside the main reads, under a
   // fixed time budget. A slow or failed read resolves `null` and the bucket keeps the labelled
   // product-line basis (see `startExactBrandRowsRead`).
-  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[][] => [
+  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[] => [
     ['order_id.date_order', '>=', b.fromUtc],
     ['order_id.date_order', '<', b.toUtc],
     ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...companyLineClause,
+    ...(companyConfigIds.size > 0
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'order_id.session_id.config_id',
+          companyField: 'company_id',
+        })
+      : [['id', '=', 0]]),
   ]
   const exactBrandRowsOf = (b: { fromUtc: string; toUtc: string }) =>
     startExactBrandRowsRead(executeOdooKw as OdooExecute, {
@@ -1985,6 +2074,46 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     })
   const exactBrandRowsToday = exactBrandRowsOf(boundsToday)
   const exactBrandRowsWeek = exactBrandRowsOf(boundsWeek)
+  const closedYearWindow = yearClosedWindow(boundsYear.fromUtc, boundsToday.fromUtc)
+  const todayWindow = { fromUtc: boundsToday.fromUtc, toUtc: boundsToday.toUtc }
+  const yearCachePrefix = `${resolvedCompanyId ?? 'none'}|${[...companyConfigList].sort((a, b) => a - b).join(',')}|${anchorDayKwIso}|${[...excludedPosCategoryIds].sort((a, b) => a - b).join(',')}`
+  const yearKwargs = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).kwargs
+  const yearTimeout = (window: { fromUtc: string; toUtc: string }) => yearReadCall(window).timeout
+  const readYearPayments = async (
+    window: { fromUtc: string; toUtc: string },
+    nonRefundOnly: boolean,
+  ) => {
+    const ids = [...companyConfigList]
+    const rows: { session_id: M2O; payment_method_id: M2O; amount?: number; __count?: number }[] = []
+    if (ids.length === 0) return rows
+    let cursor = 0
+    const workers = Array.from({ length: Math.min(YEAR_REGISTER_READ_CONCURRENCY, ids.length) }, async () => {
+      while (cursor < ids.length) {
+        const cfgId = ids[cursor]
+        cursor += 1
+        const page = await executeOdooKw<typeof rows>(
+          'pos.payment',
+          'read_group',
+          [
+            buildPosPaymentUtcDomain({
+              fromUtc: window.fromUtc,
+              toExclusiveUtc: window.toUtc,
+              companyId: resolvedCompanyId,
+              configIds: [cfgId],
+              nonRefundOnly,
+            }),
+            ['amount:sum'],
+            [...YEAR_PAYMENT_GROUP_BY],
+          ],
+          yearKwargs(window),
+          yearTimeout(window),
+        )
+        rows.push(...page)
+      }
+    })
+    await Promise.all(workers)
+    return rows
+  }
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
@@ -2208,39 +2337,30 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       safeSubQuery(
         () =>
           Promise.all([
-            executeOdooKw<
-              {
-                session_id: M2O
-                payment_method_id: M2O
-                amount: number
-                __count?: number
-              }[]
-            >(
-              'pos.payment',
-              'read_group',
-              [
-                posPaymentDomainOf(boundsYear, false),
-                ['amount:sum'],
-                ['session_id', 'payment_method_id'],
-              ],
-              { lazy: false },
-            ),
-            executeOdooKw<
-              {
-                session_id: M2O
-                payment_method_id: M2O
-                __count?: number
-              }[]
-            >(
-              'pos.payment',
-              'read_group',
-              [
-                posPaymentDomainOf(boundsYear, true),
-                ['amount:sum'],
-                ['session_id', 'payment_method_id'],
-              ],
-              { lazy: false },
-            ),
+            readClosedYearPlusToday({
+              cacheKey: `channels.year.net|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) => readYearPayments(window, false),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => {
+                  const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
+                  const method = Array.isArray(row.payment_method_id) ? row.payment_method_id[0] : 'none'
+                  return `${session}|${method}`
+                }, ['amount']),
+            }),
+            readClosedYearPlusToday({
+              cacheKey: `channels.year.count|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) => readYearPayments(window, true),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => {
+                  const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
+                  const method = Array.isArray(row.payment_method_id) ? row.payment_method_id[0] : 'none'
+                  return `${session}|${method}`
+                }, []),
+            }),
           ]),
         [[], []],
         markFailure('channels.year'),
@@ -2315,47 +2435,72 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
         : safeSubQuery(
             () =>
-              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-                'pos.order.line',
-                'read_group',
-                [
-                  [
-                    ['order_id.date_order', '>=', boundsYear.fromUtc],
-                    ['order_id.date_order', '<', boundsYear.toUtc],
-                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                    ...excludedPosLineDomain,
-                  ],
-                  ['price_subtotal:sum', 'qty:sum'],
-                  ['product_id'],
-                ],
-                { lazy: false },
-              ),
+              readClosedYearPlusToday({
+                cacheKey: `brands.year|${yearCachePrefix}`,
+                closed: closedYearWindow,
+                today: todayWindow,
+                read: (window) =>
+                  executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                    'pos.order.line',
+                    'read_group',
+                    [
+                      [
+                        ['order_id.date_order', '>=', window.fromUtc],
+                        ['order_id.date_order', '<', window.toUtc],
+                        ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                        ...excludedPosLineDomain,
+                      ],
+                      ['price_subtotal:sum', 'qty:sum'],
+                      ['product_id'],
+                    ],
+                    yearKwargs(window),
+                    yearTimeout(window),
+                  ),
+                merge: mergeProductLineGroups,
+              }),
             [],
             markFailure('brands.year'),
           ),
       safeSubQuery(
         () =>
           Promise.all([
-            executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
-              'pos.order',
-              'read_group',
-              [
-                posOrderDomainOf(boundsYear, false),
-                ['amount_total:sum', 'amount_tax:sum'],
-                ['session_id'],
-              ],
-              { lazy: false },
-            ),
-            executeOdooKw<{ session_id: M2O; __count?: number }[]>(
-              'pos.order',
-              'read_group',
-              [
-                posOrderDomainOf(boundsYear, true),
-                ['amount_total:sum'],
-                ['session_id'],
-              ],
-              { lazy: false },
-            ),
+            readClosedYearPlusToday({
+              cacheKey: `year.net|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
+                  'pos.order',
+                  'read_group',
+                  [
+                    posOrderDomainOf(window, false),
+                    ['amount_total:sum', 'amount_tax:sum'],
+                    ['session_id'],
+                  ],
+                  yearKwargs(window),
+                  yearTimeout(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), [
+                  'amount_total',
+                  'amount_tax',
+                ]),
+            }),
+            readClosedYearPlusToday({
+              cacheKey: `year.count|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<{ session_id: M2O; __count?: number }[]>(
+                  'pos.order',
+                  'read_group',
+                  [posOrderDomainOf(window, true), ['amount_total:sum'], ['session_id']],
+                  yearKwargs(window),
+                  yearTimeout(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), []),
+            }),
           ]),
         [[], []],
         markFailure('year'),
@@ -2424,9 +2569,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     safeSubQuery<OdooReceivableClearingSummary | null | undefined>(async () => {
       const arDomain: unknown[][] = [
         ...companyDomain,
-        ['parent_state', '=', 'posted'],
-        ['account_id.account_type', '=', 'asset_receivable'],
-        ['reconciled', '=', false],
+        ...buildOpenReceivableClauses(),
       ]
       const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
       const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
@@ -2500,7 +2643,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         const cnt = Math.max(0, Number(r.__count) || 0)
         netSum += resVal
         totalLines += cnt
-        if (accName.includes('10552') || /Account Receivable \(PoS\)/i.test(accName)) {
+        if (isPosClearingAccount(accName)) {
           posClearingLinesCount += cnt
           posClearingNetKwd += resVal
         }
@@ -2510,8 +2653,60 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       }
       byAccount.sort((a, b) => b.residualKwd - a.residualKwd)
 
-      const platformAndCorporateLinesCount = Math.max(0, totalLines - posClearingLinesCount)
-      const platformNetKwd = r3(netSum - posClearingNetKwd)
+      const posAccountIds = byAccount
+        .filter((row) => isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`))
+        .map((row) => row.accountId)
+      const partnerDomain: unknown[][] = [
+        ...arDomain,
+        ...(posAccountIds.length > 0 ? [['account_id', 'not in', posAccountIds]] : []),
+      ]
+      const partnerGroups = await safeSubQuery(
+        () =>
+          executeOdooKw<
+            {
+              partner_id: M2O
+              account_id: M2O
+              amount_residual?: number
+              __count?: number
+              date?: string | false
+              date_min?: string | false
+            }[]
+          >(
+            'account.move.line',
+            'read_group',
+            [partnerDomain, ['amount_residual:sum', 'date:min'], ['partner_id', 'account_id']],
+            { lazy: false },
+          ),
+        [],
+      )
+      const postingDay = (raw: string | false | undefined): string | null =>
+        typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null
+      const partnerResiduals = buildReceivablePartnerRows(
+        partnerGroups
+          .map((g) => ({
+            partnerId: m2oId(g.partner_id),
+            partnerName: m2oName(g.partner_id) ?? '',
+            accountId: m2oId(g.account_id),
+            accountLabel: m2oName(g.account_id) ?? '',
+            residualKwd: Number(g.amount_residual) || 0,
+            linesCount: Math.max(0, Number(g.__count) || 0),
+            oldestPostingDate: postingDay(g.date_min) ?? postingDay(g.date),
+          }))
+          .filter(
+            (g) =>
+              !isDecommissionedWarehouseRecord(g.accountLabel) &&
+              !isDecommissionedWarehouseRecord(g.partnerName),
+          ),
+      )
+      const customerSplit = receivablesCustomerSplit(byAccount, partnerResiduals)
+      const platformAndCorporateLinesCount = customerSplit.platformLineCount
+      const platformNetKwd = customerSplit.platformNetKwd
+      const byPartner = partnerResiduals
+      const oldestOpenPostingDate =
+        byPartner
+          .map((row) => row.oldestPostingDate)
+          .filter((day): day is string => Boolean(day))
+          .sort()[0] ?? null
 
       // Same account scope as the headline: decommissioned-warehouse accounts are left out.
       const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
@@ -2555,14 +2750,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         fromDate,
         toDate,
         latestMaturityDate,
-        maturityStatusAr: latestMaturityDate
-          ? `مستحق التحصيل والمقاصة حالياً (آخر استحقاق مفوتر ${latestMaturityDate} + تسويات منصات أسبوعية جارية)`
-          : 'مستحق التحصيل والمقاصة ضمن دورة التسويات الأسبوعية الجارية',
-        maturityStatusEn: latestMaturityDate
-          ? `Currently due for collection & clearing (latest invoiced maturity ${latestMaturityDate} + weekly aggregator settlements)`
-          : 'Currently due within weekly aggregator clearing cycle',
-        openLinesExplanationAr: `إجمالي ${totalLines.toLocaleString('en-US')} سطراً غير مسوّى في أودو يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير فردية بحساب 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وعملاء شركات (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} د.ك)، وبالمجموع: +${r3(grossPositive).toLocaleString('en-US')} مدين موجب ناقص ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} مقاصة دائنة = ${r3(netSum).toLocaleString('en-US')} د.ك.`,
-        openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(grossPositive).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(creditOffset)).toLocaleString('en-US')} credit clearing = ${r3(netSum).toLocaleString('en-US')} KWD.`,
+        maturityStatusAr: 'رصيد متبقٍ غير مسوّى — ليس تصنيف استحقاق',
+        maturityStatusEn: 'Open residual — not a due-date status',
+        openLinesExplanationAr: `إجمالي ${totalLines.toLocaleString('en-US')} سطراً غير مسوّى في أودو يتكون من ${posClearingLinesCount.toLocaleString('en-US')} قيد مقاصة إيصالات كاشير فردية بحساب 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} د.ك) + ${platformAndCorporateLinesCount.toLocaleString('en-US')} قيود منصات توصيل وعملاء شركات (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} د.ك)، وبالمجموع: +${r3(customerSplit.platformOpenDebitsKwd).toLocaleString('en-US')} مدين موجب ناقص ${Math.abs(r3(customerSplit.platformUnappliedCreditsKwd)).toLocaleString('en-US')} مقاصة دائنة = ${r3(platformNetKwd).toLocaleString('en-US')} د.ك.`,
+        openLinesExplanationEn: `The ${totalLines.toLocaleString('en-US')} unreconciled Odoo lines consist of ${posClearingLinesCount.toLocaleString('en-US')} individual POS receipt clearing entries in account 10552 (${r3(posClearingNetKwd).toLocaleString('en-US')} KWD) plus ${platformAndCorporateLinesCount.toLocaleString('en-US')} aggregator & corporate AR lines (${platformNetKwd >= 0 ? '+' : ''}${platformNetKwd.toLocaleString('en-US')} KWD): +${r3(customerSplit.platformOpenDebitsKwd).toLocaleString('en-US')} positive debit minus ${Math.abs(r3(customerSplit.platformUnappliedCreditsKwd)).toLocaleString('en-US')} credit clearing = ${r3(platformNetKwd).toLocaleString('en-US')} KWD.`,
         sourceModel: 'account.move.line',
         byAccount,
         agingBuckets: computedAging,
@@ -2570,6 +2761,12 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         openDebitsKwd: aging.openDebitsKwd,
         unappliedCreditsKwd: aging.unappliedCreditsKwd,
         unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
+        platformNetKwd,
+        platformOpenDebitsKwd: customerSplit.platformOpenDebitsKwd,
+        platformUnappliedCreditsKwd: customerSplit.platformUnappliedCreditsKwd,
+        posClearingResidualKwd: customerSplit.posClearingResidualKwd,
+        oldestOpenPostingDate,
+        byPartner,
       }
     }, null, markFailure('receivables')),
     decommissionedConfigIds.size > 0
@@ -2981,7 +3178,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       locMonthOrd.set(branch, (locMonthOrd.get(branch) ?? 0) + ordCount)
 
       const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-      const isDelivCfg = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
+      const isDelivCfg = isDeliveryPosConfigId(cfgId)
       const plName = row.pricelistName
       const hintedCh = resolveUiChannelHint(`${plName} ${cfgName}`, isDelivCfg)
       const hintRow = pricelistUiHints30.get(branch)!
@@ -3019,8 +3216,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       companyConfigIds.has(c.id) &&
       !decommissionedConfigIds.has(c.id) &&
       !nativeBranchOfConfigId.has(c.id) &&
-      !discoveredCandidateMap.has(c.id) &&
-      !NON_OPERATING_TERMINAL_NAME_RE.test(c.name || '')
+      !discoveredCandidateMap.has(c.id)
     ) {
       discoveredCandidateMap.set(c.id, {
         terminal_id: c.id,
@@ -3192,36 +3388,19 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const buildLocAndUnmappedUiMap = (
     payRows: { sessionId: number | null; paymentMethodName: string; netKwd: number; orders: number }[],
   ) => {
-    const locMap = new Map<string, Record<string, { netKwd: number; orders: number }>>()
-    for (const lid of ACTIVE_BRANCH_IDS) {
-      locMap.set(
-        lid,
-        Object.fromEntries(UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }])),
-      )
-    }
-    const unmappedUi: Record<string, { netKwd: number; orders: number }> = Object.fromEntries(
-      UI_CHANNEL_KEYS.map((ck) => [ck, { netKwd: 0, orders: 0 }]),
-    )
-    for (const p of payRows) {
-      const sid = p.sessionId
-      const cfgId = sid !== null ? configOfSession.get(sid) : undefined
-      if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) continue
-      const lid = cfgId !== undefined ? branchOfConfigId.get(cfgId) : undefined
-      const cfgName = (cfgId !== undefined ? configNameById.get(cfgId) : '') ?? ''
-      const isDelivCfg = lid === 'ardiya' || /delivery|call\s*center/i.test(cfgName)
-      const uiKey = resolveUiChannelHint(p.paymentMethodName, isDelivCfg)
-      const amt = p.netKwd
-      const cnt = p.orders
-      if (!lid) {
-        unmappedUi[uiKey].netKwd += amt
-        unmappedUi[uiKey].orders += cnt
-      } else {
-        const row = locMap.get(lid)!
-        row[uiKey].netKwd += amt
-        row[uiKey].orders += cnt
-      }
-    }
-    return { locMap, unmappedUi }
+    const folded = foldYearBranchChannels({
+      payments: payRows.flatMap((p) => {
+        const cfgId = p.sessionId !== null ? configOfSession.get(p.sessionId) : undefined
+        if (cfgId !== undefined && decommissionedConfigIds.has(cfgId)) return []
+        return [{ configId: cfgId ?? null, methodName: p.paymentMethodName, netKwd: p.netKwd, orders: p.orders }]
+      }),
+      branchOfConfig: (configId) => branchOfConfigId.get(configId) ?? null,
+      isDeliveryConfig: isDeliveryPosConfigId,
+      channelOf: resolveUiChannelHint,
+      branchIds: ACTIVE_BRANCH_IDS,
+      channelKeys: UI_CHANNEL_KEYS,
+    })
+    return { locMap: new Map(Object.entries(folded.byBranch)), unmappedUi: folded.unmapped }
   }
 
   const channelsMonthFailed = unavailableSectionSet.has('channels.month')
@@ -3558,7 +3737,7 @@ function formatEnvelopeFromCore(
           }
         })
           .filter(
-            (b) => b.netKwd > 0 && !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.brand),
+            (b) => b.netKwd > 0,
           )
           .sort((a, b) => b.netKwd - a.netKwd)
 
@@ -3583,7 +3762,7 @@ function formatEnvelopeFromCore(
           netSalesKwd: nv,
           orders: ord,
         }
-      }).filter((b) => !isExcludedOdooEntity(b.id) && !isExcludedOdooEntity(b.name))
+      })
 
   const branchSumNet = bucketTotalsUnavailable
     ? null
@@ -4037,12 +4216,26 @@ export async function fetchLiveOdooSnapshot(options?: {
       })
     }
     const freshCore = await inflightCorePull
+    const nowAfterPull = Date.now()
+    const previousGood = lastKnownGoodIsFresh(lastKnownGoodSnapshot, nowAfterPull) ? lastKnownGoodSnapshot : null
+    if (lastKnownGoodSnapshot && !previousGood) lastKnownGoodSnapshot = null
+    if (freshCore.unavailableSections.length > 0 && previousGood) {
+      coreSnapshotCache = previousGood
+      const customBucket = isCustomPeriod
+        ? await fetchLiveOdooCustomBucket(options?.customFrom, options?.customTo, nowAfterPull)
+        : undefined
+      return formatEnvelopeFromCore(previousGood, bucket, {
+        readOnly,
+        cached: true,
+        referenceNowMs: nowAfterPull,
+        customBucket,
+      })
+    }
     coreSnapshotCache = freshCore
-    lastKnownGoodSnapshot = freshCore
+    if (freshCore.unavailableSections.length === 0) lastKnownGoodSnapshot = freshCore
     consecutiveUpstreamFailures = 0
     circuitOpenUntilMs = 0
 
-    const nowAfterPull = Date.now()
     const customBucket = isCustomPeriod
       ? await fetchLiveOdooCustomBucket(options?.customFrom, options?.customTo, nowAfterPull)
       : undefined
@@ -4403,13 +4596,7 @@ export async function fetchLiveOdooPeriodHourly(
     const uid = await authenticateOdoo()
     const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
     const [allConfigs, userCompanyRows] = await Promise.all([
-      executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
-        fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-      }).catch(() =>
-        executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
-          fields: ['id', 'name', 'active', 'company_id'],
-        }),
-      ),
+      fetchPosConfigsIncludingQurain(),
       safeSubQuery(
         () => executeOdooKw<{ id: number; company_id?: M2O }[]>('res.users', 'read', [[uid], ['id', 'company_id']]),
         [],
@@ -4436,7 +4623,7 @@ type PeriodCubeConfigRow = { id: number; name: string; active?: boolean; company
 
 /**
  * Classifies pos.config registers for a period cube: the active company whitelist (pinned school
- * canteens included; Qurain, Jahra, the closed restaurant and other decommissioned registers excluded)
+ * canteens and Delivery (Qurain) ids 24 and 36 included; Jahra and other excluded ids stay out)
  * and the branch of each register. Shared by the cube and the independent hourly fetch so both use
  * exactly the same scope.
  */
@@ -4453,6 +4640,10 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
     const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
     const combined = `${c.name} ${extra}`.trim()
     cfgNameMap.set(c.id, combined)
+    if (isQurainPosConfigId(c.id)) {
+      companyCfgIds.add(c.id)
+      continue
+    }
     if (c.active === false) {
       const isGenuinelyDecommissioned =
         isExcludedRecordId('pos_config', c.id) ||
@@ -4484,7 +4675,7 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
     }
   }
   if (allConfigs.length === 0) {
-    for (const cfgId of REG.allowedPosConfigIds) {
+    for (const cfgId of [...new Set([...REG.allowedPosConfigIds, ...QURAIN_POS_CONFIG_IDS])]) {
       const knownName = cfgNameMap.get(cfgId) ?? ''
       if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
       companyCfgIds.add(cfgId)
@@ -4551,21 +4742,7 @@ export async function fetchLiveOdooPeriodCube(
 
     const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderRows] =
       await Promise.all([
-        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-          'pos.config',
-          'search_read',
-          [[['active', '=', true]]],
-          {
-            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-          },
-        ).catch(() =>
-          executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-            'pos.config',
-            'search_read',
-            [[['active', '=', true]]],
-            { fields: ['id', 'name', 'active', 'company_id'] },
-          ),
-        ),
+        fetchPosConfigsIncludingQurain(),
         safeSubQuery(
           () =>
             executeOdooKw<{ id: number; name: string; parent_id: M2O }[]>(
@@ -4647,9 +4824,7 @@ export async function fetchLiveOdooPeriodCube(
       const root = resolveRootCat(c.id)
       if (
         isExcludedRecordId('pos_category', c.id) ||
-        isExcludedRecordId('pos_category', root?.id) ||
-        isExcludedOdooEntity(c.name) ||
-        isExcludedOdooEntity(root?.name)
+        isExcludedRecordId('pos_category', root?.id)
       ) {
         excludedPosCatIds.add(c.id)
       }
@@ -4667,7 +4842,7 @@ export async function fetchLiveOdooPeriodCube(
     const activeAccIds = [...activeAccMap.keys()]
 
     const companyCfgList = [...companyCfgIds]
-    const cubeOrderDomain = (nonRefundOnly = false): unknown[][] =>
+    const cubeOrderDomain = (nonRefundOnly = false): unknown[] =>
       companyCfgList.length > 0
         ? buildPosOrderUtcDomain({
             fromUtc: bounds.fromUtc,
@@ -4677,7 +4852,7 @@ export async function fetchLiveOdooPeriodCube(
             nonRefundOnly,
           })
         : [['id', '=', 0]]
-    const cubePaymentDomain = (nonRefundOnly = false): unknown[][] =>
+    const cubePaymentDomain = (nonRefundOnly = false): unknown[] =>
       companyCfgList.length > 0
         ? buildPosPaymentUtcDomain({
             fromUtc: bounds.fromUtc,
@@ -4687,12 +4862,16 @@ export async function fetchLiveOdooPeriodCube(
             nonRefundOnly,
           })
         : [['id', '=', 0]]
-    const cubeLineClause: unknown[][] =
+    const cubeLineClause: unknown[] =
       companyCfgIds.size > 0
-        ? [['order_id.session_id.config_id', 'in', companyCfgList]]
+        ? posRegisterScopeClauses({
+            companyId: resolvedCompanyId,
+            configIds: companyCfgList,
+            configField: 'order_id.session_id.config_id',
+            companyField: 'company_id',
+          })
         : [['id', '=', 0]]
-    const exclLineDomain: unknown[][] = [
-      ...companyDomain,
+    const exclLineDomain: unknown[] = [
       ...cubeLineClause,
       ...(excludedPosCatIds.size > 0
         ? [['product_id.pos_categ_id', 'not in', [...excludedPosCatIds]]]
@@ -5052,7 +5231,7 @@ export async function fetchLiveOdooPeriodCube(
         unattributedOrders += ord
         dPrev.unattributedNetKwd += net
         dPrev.unattributedOrders += ord
-        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, false)
+        const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, isDeliveryPosConfigId(cid))
         pricelistFallbackUnattributed[chKey].netKwd += net
         pricelistFallbackUnattributed[chKey].orders += ord
       } else {
@@ -5068,7 +5247,7 @@ export async function fetchLiveOdooPeriodCube(
         bPrev.orders += ord
         byB.set(branch, bPrev)
 
-        const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
+        const isDeliv = isDeliveryPosConfigId(cid)
         const chKey = resolveUiChannelHint(`${plNm} ${cfgNm}`, isDeliv)
         pricelistFallbackByBranch[branch][chKey].netKwd += net
         pricelistFallbackByBranch[branch][chKey].orders += ord
@@ -5087,7 +5266,7 @@ export async function fetchLiveOdooPeriodCube(
         if (cid !== undefined && decommCfgIds.has(cid)) continue
         const branch = cid !== undefined ? branchOfCfg.get(cid) : undefined
         const cfgNm = (cid !== undefined ? cfgNameMap.get(cid) : '') ?? ''
-        const isDeliv = branch === 'ardiya' || /delivery|call\s*center/i.test(cfgNm)
+        const isDeliv = isDeliveryPosConfigId(cid)
         const chKey = resolveUiChannelHint(p.paymentMethodName, isDeliv)
         const amt = p.netKwd
         const cnt = p.orders
@@ -5417,6 +5596,7 @@ export async function fetchLiveOdooPeriodCube(
             [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))],
           ]),
         ),
+        includedConfigIds: [...companyCfgIds].filter((id) => Number.isInteger(id) && id > 0),
         excludedConfigIds: [...decommCfgIds].filter((id) => Number.isInteger(id) && id > 0),
         excludedPosCategoryIds: [...excludedPosCatIds].filter((id) => Number.isInteger(id) && id > 0),
       },
@@ -5433,46 +5613,159 @@ export async function fetchLiveOdooPeriodCube(
   }
 }
 
+const RESTAURANT_STOCK_BRANCHES = new Set<StockLocationBranchId>([
+  '360-mall',
+  'al-kout',
+  'assima',
+  'promenade',
+  'avenues',
+  'salmiya',
+  'ardiya',
+])
+
+let stockLocationMapCache: { at: number; roots: ResolvedStockRoots } | null = null
+
+function branchOfRestaurantConfig(configId: number): StockLocationBranchId | null {
+  const loc = REG.registers[String(configId)]?.location
+  if (!loc || !RESTAURANT_STOCK_BRANCHES.has(loc as StockLocationBranchId)) return null
+  return loc as StockLocationBranchId
+}
+
+/** pos.config → picking type → warehouse lot and view. Cached for 24 hours. */
+async function loadStockRoots(): Promise<ResolvedStockRoots> {
+  const now = Date.now()
+  if (stockLocationMapCache && now - stockLocationMapCache.at < STOCK_LOCATION_MAP_TTL_MS) {
+    return stockLocationMapCache.roots
+  }
+  const branchOfConfig: Record<number, StockLocationBranchId> = {}
+  for (const [id, row] of Object.entries(REG.registers)) {
+    const branch = branchOfRestaurantConfig(Number(id))
+    if (branch) branchOfConfig[Number(id)] = branch
+  }
+  const configIds = [
+    ...new Set<number>([
+      ...Object.keys(branchOfConfig).map(Number),
+      ...JAHRA_POS_CONFIG_IDS,
+      ...KITCHEN_SOURCE_POS_CONFIG_IDS,
+    ]),
+  ]
+  try {
+    const configs = await executeOdooKw<{ id: number; picking_type_id?: M2O }[]>(
+      'pos.config',
+      'search_read',
+      [[['id', 'in', configIds]]],
+      { fields: ['id', 'picking_type_id'], context: { active_test: false } },
+    )
+    const pickingIds = [...new Set(configs.map((row) => m2oId(row.picking_type_id)).filter((id): id is number => id !== null))]
+    const pickingTypes = pickingIds.length
+      ? await executeOdooKw<{ id: number; warehouse_id?: M2O }[]>(
+          'stock.picking.type',
+          'read',
+          [pickingIds, ['id', 'warehouse_id']],
+        )
+      : []
+    const warehouseIds = [...new Set(pickingTypes.map((row) => m2oId(row.warehouse_id)).filter((id): id is number => id !== null))]
+    const warehouses = warehouseIds.length
+      ? await executeOdooKw<{ id: number; lot_stock_id?: M2O; view_location_id?: M2O }[]>(
+          'stock.warehouse',
+          'read',
+          [warehouseIds, ['id', 'lot_stock_id', 'view_location_id']],
+        )
+      : []
+    const roots = stockRootsFromRegisterChain({
+      branchOfConfig,
+      configs: configs.map((row): RegisterPickingLink => ({
+        configId: row.id,
+        pickingTypeId: m2oId(row.picking_type_id),
+      })),
+      pickingTypes: pickingTypes.map((row) => ({
+        pickingTypeId: row.id,
+        warehouseId: m2oId(row.warehouse_id),
+      })),
+      warehouses: warehouses.map((row) => ({
+        warehouseId: row.id,
+        lotStockId: m2oId(row.lot_stock_id),
+        viewLocationId: m2oId(row.view_location_id),
+      })),
+    })
+    stockLocationMapCache = { at: now, roots }
+    logger.info('stock.location ids resolved', {
+      branchLocationIds: roots.branchById,
+      kitchenLocationIds: roots.kitchenIds,
+      excludedLocationIds: roots.excludedIds,
+    })
+    return roots
+  } catch (err) {
+    logger.warn('stock.location id resolution failed', errorFields(err))
+    return emptyStockRoots()
+  }
+}
+
 function resolveStockLocationRole(
-  rawLabel: string,
+  locationId: number,
   usage: string,
+  parentPath: string | null,
+  roots: ResolvedStockRoots,
 ): {
   excluded: boolean
   usage: string
-  role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'other'
+  role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'transit' | 'other'
   branchId: (typeof ACTIVE_BRANCH_IDS)[number] | null
 } {
-  const text = (rawLabel || '').trim()
-  if (isDecommissionedWarehouseRecord(text)) {
-    return { excluded: true, usage, role: 'other', branchId: null }
-  }
   if (usage === 'supplier') {
     return { excluded: false, usage, role: 'supplier', branchId: null }
   }
   if (usage === 'customer') {
     return { excluded: false, usage, role: 'customer', branchId: null }
   }
-  const lower = text.toLowerCase()
-  if (usage === 'inventory' || /scrap|waste|spoil|تالف|هدر|إتلاف/.test(lower)) {
+  if (usage === 'inventory') {
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
-  if (usage === 'internal') {
-    if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف/i.test(lower)) {
-      return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
+  if (usage === 'transit') {
+    if (isExcludedStockLocation(locationId, parentPath, roots)) {
+      return { excluded: true, usage, role: 'transit', branchId: null }
     }
-    if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
+    return { excluded: false, usage, role: 'transit', branchId: null }
+  }
+  if (usage === 'internal' || usage === 'view') {
+    if (isExcludedStockLocation(locationId, parentPath, roots)) {
+      return { excluded: true, usage, role: 'other', branchId: null }
+    }
+    if (isCentralKitchenStockLocation(locationId, parentPath, roots)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
-    const matchedBranch = resolveRestaurantBranchForConfig(-1, text)
-    if (matchedBranch) {
-      if (matchedBranch === 'ardiya' && /wh|stock|warehouse|مخزن/.test(lower) && !/pos|branch|فرع/.test(lower)) {
-        return { excluded: false, usage, role: 'ck', branchId: null }
-      }
-      return { excluded: false, usage, role: 'branch', branchId: matchedBranch }
+    const branchId = branchIdForStockLocation(locationId, parentPath, roots)
+    if (branchId) {
+      return { excluded: false, usage, role: 'branch', branchId }
     }
-    return { excluded: false, usage, role: 'ck', branchId: null }
+    return { excluded: false, usage, role: 'other', branchId: null }
   }
   return { excluded: false, usage, role: 'other', branchId: null }
+}
+
+function isWarehouseTimeout(err: unknown): boolean {
+  if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) return true
+  const msg = err instanceof Error ? err.message : ''
+  return /abort|timeout|timed out/i.test(msg)
+}
+
+/** A failed warehouse read. This is an error, never an empty period. */
+export function warehouseChainErrorPayload(
+  dateRange: { from: string; to: string },
+  kind: 'timeout' | 'error',
+): OdooLiveWarehouseChainPayload {
+  const payload = buildDisconnectedWarehouseChain(dateRange, '')
+  const timeout = kind === 'timeout'
+  return {
+    ...payload,
+    connected: false,
+    noData: false,
+    fetchStatus: kind,
+    messageAr: timeout ? 'انتهت مهلة جلب حركات المخزن من أودو' : 'تعذّر قراءة حركات المخزن من أودو',
+    messageEn: timeout
+      ? 'The warehouse request to Odoo timed out.'
+      : 'Warehouse movements could not be read from Odoo.',
+  }
 }
 
 function buildDisconnectedWarehouseChain(
@@ -5560,13 +5853,15 @@ export async function fetchLiveOdooWarehouseChain(
             ),
           [],
         ),
-        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string; company_id?: M2O }[]>(
+        executeOdooKw<{ id: number; name: string; complete_name?: string; usage: string; parent_path?: string | false }[]>(
           'stock.location',
           'search_read',
-          [[['active', 'in', [true, false]]]],
+          // View rows are included so a move into a child of the branch (child_of / parent_path) stays on that branch.
+          [[['usage', 'in', ['internal', 'view', 'transit', 'supplier', 'customer', 'inventory']]]],
           {
-            fields: ['id', 'name', 'complete_name', 'usage', 'company_id'],
+            fields: ['id', 'name', 'complete_name', 'usage', 'parent_path'],
             context: { active_test: false },
+            limit: 2000,
           },
         ),
         safeSubQuery(
@@ -5629,14 +5924,13 @@ export async function fetchLiveOdooWarehouseChain(
       }
       if (
         isExcludedRecordId('pos_category', c.id) ||
-        isExcludedRecordId('pos_category', root.id) ||
-        isExcludedOdooEntity(c.name) ||
-        isExcludedOdooEntity(root.name)
+        isExcludedRecordId('pos_category', root.id)
       ) {
         excludedPosCatIds.add(c.id)
       }
     }
 
+    const stockRoots = await loadStockRoots()
     const locationMeta = new Map<
       number,
       ReturnType<typeof resolveStockLocationRole> & { label: string }
@@ -5644,7 +5938,8 @@ export async function fetchLiveOdooWarehouseChain(
     const excludedLocationIds: number[] = []
     for (const loc of locationsRaw) {
       const label = (loc.complete_name || loc.name || `Location #${loc.id}`).trim()
-      const meta = resolveStockLocationRole(label, loc.usage || 'other')
+      const parentPath = typeof loc.parent_path === 'string' ? loc.parent_path : null
+      const meta = resolveStockLocationRole(loc.id, loc.usage || 'other', parentPath, stockRoots)
       locationMeta.set(loc.id, { ...meta, label })
       if (meta.excluded) excludedLocationIds.push(loc.id)
     }
@@ -5661,12 +5956,6 @@ export async function fetchLiveOdooWarehouseChain(
       ['state', '=', 'done'],
       ['date', '>=', bounds.fromUtc],
       ['date', '<', bounds.toExclusiveUtc],
-      ...(excludedLocationIds.length > 0
-        ? [
-            ['location_id', 'not in', excludedLocationIds],
-            ['location_dest_id', 'not in', excludedLocationIds],
-          ]
-        : []),
     ]
 
     const scrapDomain: unknown[][] = [
@@ -5701,6 +5990,7 @@ export async function fetchLiveOdooWarehouseChain(
           ['product_id', 'location_id'],
         ],
         { lazy: false },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ).catch(() =>
         executeOdooKw<
           {
@@ -5709,9 +5999,13 @@ export async function fetchLiveOdooWarehouseChain(
             quantity?: number
             __count?: number
           }[]
-        >('stock.quant', 'read_group', [quantDomain, ['quantity:sum'], ['product_id', 'location_id']], {
-          lazy: false,
-        }),
+        >(
+          'stock.quant',
+          'read_group',
+          [quantDomain, ['quantity:sum'], ['product_id', 'location_id']],
+          { lazy: false },
+          { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
+        ),
       ),
       executeOdooKw<
         {
@@ -5727,6 +6021,7 @@ export async function fetchLiveOdooWarehouseChain(
         'read_group',
         [moveDomain, [`${moveQtyField}:sum`], ['location_id', 'location_dest_id', 'product_id']],
         { lazy: false },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ),
       executeOdooKw<
         {
@@ -5747,6 +6042,7 @@ export async function fetchLiveOdooWarehouseChain(
           ['location_id', 'location_dest_id', 'product_id', 'date:day'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        { timeoutMs: STOCK_READ_GROUP_TIMEOUT_MS, timeoutCapMs: STOCK_READ_GROUP_TIMEOUT_MS },
       ),
       safeSubQuery(
         () =>
@@ -5984,35 +6280,37 @@ export async function fetchLiveOdooWarehouseChain(
         branchesOnHandValueKwd += val
         byBranchOnHand[loc.branchId].qty = r3(byBranchOnHand[loc.branchId].qty + qty)
         byBranchOnHand[loc.branchId].valueKwd = r3(byBranchOnHand[loc.branchId].valueKwd + val)
-      } else {
+      } else if (loc?.role === 'ck') {
         ckOnHandValueKwd += val
       }
     }
 
-    const classifyMoveFlow = (srcLocId: number | null, dstLocId: number | null) => {
-      const src = srcLocId !== null ? locationMeta.get(srcLocId) : undefined
-      const dst = dstLocId !== null ? locationMeta.get(dstLocId) : undefined
-      if (src?.excluded || dst?.excluded) return { kind: 'excluded' as const, branchId: null }
-      if (src?.role === 'supplier' && (dst?.role === 'ck' || dst?.role === 'branch')) {
-        return { kind: 'inbound' as const, branchId: dst.branchId }
+    const endpoint = (locationId: number | null) => {
+      if (locationId === null) return undefined
+      const loc = locationMeta.get(locationId)
+      if (!loc) return undefined
+      return {
+        role: loc.role,
+        branchId: loc.branchId,
+        excluded: loc.excluded,
+        locationId,
       }
-      if (src?.role === 'ck' && dst?.role === 'branch') {
-        return { kind: 'transfer' as const, branchId: dst.branchId }
-      }
-      if ((src?.role === 'branch' || src?.role === 'ck') && dst?.role === 'customer') {
-        return { kind: 'consumption' as const, branchId: src.branchId }
-      }
-      if (dst?.role === 'scrap') {
-        return { kind: 'scrap_move' as const, branchId: src?.branchId ?? null }
-      }
-      return { kind: 'internal_other' as const, branchId: dst?.branchId ?? src?.branchId ?? null }
     }
+    const classifyMoveFlow = (srcLocId: number | null, dstLocId: number | null) =>
+      classifyWarehouseMove(endpoint(srcLocId), endpoint(dstLocId))
 
     let inboundSupplierKwd = 0
     let ckToBranchTransferKwd = 0
     let posConsumptionKwd = 0
     let doneMovesCount = 0
 
+    const productMoves: {
+      flow: ReturnType<typeof classifyMoveFlow>
+      pRow: NonNullable<ReturnType<typeof ensureProdRow>>
+      qty: number
+      valKwd: number
+      count: number
+    }[] = []
     for (const m of moveByProductGroups) {
       const pid = m2oId(m.product_id)
       const srcId = m2oId(m.location_id)
@@ -6026,23 +6324,31 @@ export async function fetchLiveOdooWarehouseChain(
       const rawQty = Number(moveQtyField === 'quantity' ? m.quantity : m.product_uom_qty) || 0
       const qty = Math.max(0, rawQty)
       const valKwd = qty * pRow.unitCostKwd
-      doneMovesCount += Math.max(0, Number(m.__count) || 0)
-      if (flow.kind === 'inbound' || flow.kind === 'transfer' || flow.kind === 'consumption') {
-        movesCoverage.add(qty, pRow.costKnown === true)
+      const count = Math.max(0, Number(m.__count) || 0)
+      doneMovesCount += count
+      productMoves.push({ flow, pRow, qty, valKwd, count })
+    }
+    const countedProductTransfers = new Set(kitchenTransfersToCount(productMoves.map((row) => row.flow)))
+    for (const row of productMoves) {
+      const countedTransfer = countedProductTransfers.has(row.flow)
+      if (row.flow.kind === 'internal_other' || row.flow.kind === 'transit_out' || (row.flow.kind === 'transit_in' && !countedTransfer)) {
+        continue
       }
-
-      if (flow.kind === 'inbound') {
-        inboundSupplierKwd += valKwd
-        pRow.inboundQty += qty
-        pRow.inboundValueKwd += valKwd
-      } else if (flow.kind === 'transfer') {
-        ckToBranchTransferKwd += valKwd
-        pRow.transferQty += qty
-        pRow.transferValueKwd += valKwd
-      } else if (flow.kind === 'consumption') {
-        posConsumptionKwd += valKwd
-        pRow.consumedQty += qty
-        pRow.consumedValueKwd += valKwd
+      if (row.flow.kind === 'inbound' || countedTransfer || row.flow.kind === 'consumption') {
+        movesCoverage.add(row.qty, row.pRow.costKnown === true)
+      }
+      if (row.flow.kind === 'inbound') {
+        inboundSupplierKwd += row.valKwd
+        row.pRow.inboundQty += row.qty
+        row.pRow.inboundValueKwd += row.valKwd
+      } else if (countedTransfer) {
+        ckToBranchTransferKwd += row.valKwd
+        row.pRow.transferQty += row.qty
+        row.pRow.transferValueKwd += row.valKwd
+      } else if (row.flow.kind === 'consumption') {
+        posConsumptionKwd += row.valKwd
+        row.pRow.consumedQty += row.qty
+        row.pRow.consumedValueKwd += row.valKwd
       }
     }
 
@@ -6055,6 +6361,7 @@ export async function fetchLiveOdooWarehouseChain(
           byBranch[lid] = {
             receivedFromCkKwd: 0,
             receivedFromCkQty: 0,
+            receivedFromCkMoves: 0,
             consumedKwd: 0,
             consumedQty: 0,
             scrapKwd: 0,
@@ -6079,6 +6386,13 @@ export async function fetchLiveOdooWarehouseChain(
       return d
     }
 
+    const dayMoves: {
+      flow: ReturnType<typeof classifyMoveFlow>
+      day: string
+      qty: number
+      valKwd: number
+      count: number
+    }[] = []
     for (const md of moveByDayGroups) {
       const pid = m2oId(md.product_id)
       const srcId = m2oId(md.location_id)
@@ -6095,26 +6409,37 @@ export async function fetchLiveOdooWarehouseChain(
         0,
         Number(moveQtyField === 'quantity' ? md.quantity : md.product_uom_qty) || 0,
       )
-      const valKwd = qty * (pMeta?.unitCostKwd ?? 0)
-      const dRow = ensureDayRow(conv.kuwaitDate)
-      dRow.movesCount += Math.max(0, Number(md.__count) || 0)
-
-      if (flow.kind === 'inbound') {
-        dRow.inboundSupplierKwd += valKwd
-        dRow.inboundSupplierQty += qty
-      } else if (flow.kind === 'transfer') {
-        dRow.ckToBranchTransferKwd += valKwd
-        dRow.ckToBranchTransferQty += qty
-        if (flow.branchId && dRow.byBranch[flow.branchId]) {
-          dRow.byBranch[flow.branchId].receivedFromCkKwd += valKwd
-          dRow.byBranch[flow.branchId].receivedFromCkQty += qty
+      dayMoves.push({
+        flow,
+        day: conv.kuwaitDate,
+        qty,
+        valKwd: qty * (pMeta?.unitCostKwd ?? 0),
+        count: Math.max(0, Number(md.__count) || (qty > 0 ? 1 : 0)),
+      })
+    }
+    const countedDayTransfers = new Set(kitchenTransfersToCount(dayMoves.map((row) => row.flow)))
+    for (const row of dayMoves) {
+      const dRow = ensureDayRow(row.day)
+      dRow.movesCount += row.count
+      const countedTransfer = countedDayTransfers.has(row.flow)
+      if (row.flow.kind === 'inbound') {
+        dRow.inboundSupplierKwd += row.valKwd
+        dRow.inboundSupplierQty += row.qty
+      } else if (countedTransfer) {
+        dRow.ckToBranchTransferKwd += row.valKwd
+        dRow.ckToBranchTransferQty += row.qty
+        const branchMove = row.flow.branchId ? dRow.byBranch[row.flow.branchId] : undefined
+        if (branchMove) {
+          branchMove.receivedFromCkKwd += row.valKwd
+          branchMove.receivedFromCkQty += row.qty
+          branchMove.receivedFromCkMoves = (branchMove.receivedFromCkMoves ?? 0) + row.count
         }
-      } else if (flow.kind === 'consumption') {
-        dRow.posConsumptionKwd += valKwd
-        dRow.posConsumptionQty += qty
-        if (flow.branchId && dRow.byBranch[flow.branchId]) {
-          dRow.byBranch[flow.branchId].consumedKwd += valKwd
-          dRow.byBranch[flow.branchId].consumedQty += qty
+      } else if (row.flow.kind === 'consumption') {
+        dRow.posConsumptionKwd += row.valKwd
+        dRow.posConsumptionQty += row.qty
+        if (row.flow.branchId && dRow.byBranch[row.flow.branchId]) {
+          dRow.byBranch[row.flow.branchId].consumedKwd += row.valKwd
+          dRow.byBranch[row.flow.branchId].consumedQty += row.qty
         }
       }
     }
@@ -6173,6 +6498,7 @@ export async function fetchLiveOdooWarehouseChain(
           roundedByBranch[lid] = {
             receivedFromCkKwd: r3(b?.receivedFromCkKwd ?? 0),
             receivedFromCkQty: r3(b?.receivedFromCkQty ?? 0),
+            receivedFromCkMoves: Math.max(0, Math.round(b?.receivedFromCkMoves ?? 0)),
             consumedKwd: r3(b?.consumedKwd ?? 0),
             consumedQty: r3(b?.consumedQty ?? 0),
             scrapKwd: r3(b?.scrapKwd ?? 0),
@@ -6267,8 +6593,11 @@ export async function fetchLiveOdooWarehouseChain(
     }
     warehouseChainCache.set(cacheKey, { fetchedAtMs, payload })
     return payload
-  } catch {
-    return buildDisconnectedWarehouseChain(dateRange)
+  } catch (err) {
+    const kind = isWarehouseTimeout(err) ? 'timeout' : 'error'
+    const redacted = redactOdooSecrets(err instanceof Error ? `${err.name}: ${err.message}` : 'warehouse chain query failed')
+    console.error('[warehouse-chain]', kind, redacted)
+    return warehouseChainErrorPayload(dateRange, kind)
   }
 }
 

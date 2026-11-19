@@ -6,7 +6,7 @@
  * Verifies in one deterministic pass:
  *   1. Secret hygiene (.env.local untracked, zero raw API keys in Git, zero PIN leaks)
  *   2. Permanent purge of legacy static snapshots & OdooAuditCertificateModal
- *   3. Strict 6-Brand & 7-Branch + standalone «غير منسوب لفرع» + server-side exclusions («القرين», «هايزن بريج»)
+ *   3. Strict 6-Brand & 7-Branch + standalone «غير منسوب لفرع» + Delivery (Qurain) included; Heisenberg and Jahra excluded
  *   4. Static production scan (0 Math.random, faker, OdooAuditCertificate, فارق 0.000, or Hawally UI strings)
  *   5. Runtime disconnect truth & multi-period reactivity (today/week/month/year, غير مُرحَّل بعد, قيود غير مكتملة لهذه الفترة)
  *   6. Feryal Live Odoo Agent 5 acceptance invariants & Executive Governance / Printable A4 Circulars
@@ -193,7 +193,7 @@ import { askFeryalOdooAgent, FERYAL_COMPETITOR_REFUSAL, FERYAL_NO_ODOO_DATA_REPL
     brandsOk: JSON.stringify([...APPROVED_BRAND_IDS].sort()) === JSON.stringify(['china-garden','farm-brown','franks','karak-cafeteria','noodle-bar','tahina']),
     branchesOk: JSON.stringify([...APPROVED_BRANCH_IDS].sort()) === JSON.stringify(['360-mall','al-kout','ardiya','assima','avenues','promenade','salmiya']),
     unmappedLabelOk: UNMAPPED_TERMINALS_LABEL_AR === 'غير منسوب لفرع',
-    exclusionsOk: isExcludedOdooEntity('القرين') && isExcludedOdooEntity('هايزن بريج') && !isExcludedOdooEntity('Promenade'),
+    exclusionsOk: !isExcludedOdooEntity('القرين') && !isExcludedOdooEntity('Delivery (Qurain)') && isExcludedOdooEntity('هايزن بريج') && isExcludedOdooEntity('Jahra') && !isExcludedOdooEntity('Promenade'),
     disconnectOk:
       discEnv.connected === false &&
       discEnv.noData === true &&
@@ -233,7 +233,7 @@ const probe = JSON.parse(probeOut.split('\n').pop() ?? '{}')
 assert(probe.brandsOk === true, 'Strictly ONLY the 6 approved Venture Foods brands')
 assert(probe.branchesOk === true, 'Strictly ONLY the 7 approved Venture Foods operating branches')
 assert(probe.unmappedLabelOk === true, '8th unattributed bucket labeled «غير منسوب لفرع»')
-assert(probe.exclusionsOk === true, 'Server-side Odoo exclusions active for «القرين» & «هايزن بريج»')
+assert(probe.exclusionsOk === true, 'Delivery (Qurain) is included; Heisenberg and Jahra stay excluded')
 assert(
   probe.disconnectOk === true,
   'Zero-fallback disconnect truth across Snapshot, Workspace, Comparison, Before/After, Warehouse & Planning',

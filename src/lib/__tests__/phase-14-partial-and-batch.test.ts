@@ -264,9 +264,10 @@ function installOdooMockWithOptionalSectionFailure(target?: {
         amount = 150
         count = 5
       } else if (spanDays === 1) {
-        paySection = 'channels.today'
-        amount = 90
-        count = 3
+        const kwargs = (args[6] as { context?: { year_live_slice?: boolean } } | undefined) ?? {}
+        paySection = kwargs.context?.year_live_slice ? 'channels.year' : 'channels.today'
+        amount = kwargs.context?.year_live_slice ? 90 : 90
+        count = kwargs.context?.year_live_slice ? 3 : 3
       }
 
       if (shouldFail(paySection, isCount)) {
@@ -1023,7 +1024,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           ]
           if (opts?.includeDecommissionedConfig) {
             configs.push({
-              id: 24,
+              id: 25,
               name: 'Heisenberg 1',
               active: true,
               company_id: [1, 'Venture Foods'],
@@ -1080,7 +1081,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
         }
 
         if (model === 'pos.order' && method === 'read_group') {
-          if (domainStr.includes('[24]')) {
+          if (domainStr.includes('[25]')) {
             if (opts?.failExcludedMonth) return rpcFault(reqId, 'excluded.month unavailable')
             return rpcOk(reqId, [
               {
