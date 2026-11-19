@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useLang } from '@/components/aether/ui'
 import { UnavailableState } from '@/components/ui'
+import { SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import { SEASON_KINDS, seasonLiftsFromDaily, type SeasonEvent, type SeasonKind } from '@/lib/council/advisors/seasons'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { AdvisorReport } from '@/lib/council/types'
@@ -22,7 +23,7 @@ const KIND_LABEL: Record<SeasonKind, { ar: string; en: string }> = {
   summer: { ar: 'الصيف', en: 'Summer' },
   winter: { ar: 'الشتاء', en: 'Winter' },
   'national-day': { ar: 'العيد الوطني', en: 'National Day' },
-  'salary-days': { ar: 'أيام الرواتب', en: 'Salary days' },
+  'salary-days': { ar: `أيام الرواتب ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}`, en: `Salary days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end}` },
   custom: { ar: 'مناسبة أخرى', en: 'Other occasion' },
 }
 
@@ -72,7 +73,12 @@ export function SeasonsStudioView({ locale, events, suggested, report, liveSumma
                   <div>
                     <p className="text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
                     <p className="text-[12px] text-slate-500 dark:text-slate-400" dir="ltr">
-                      {`${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
+                      {ev.kind === 'salary-days'
+                        ? t(
+                            `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} of each month, Kuwait time`,
+                            `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} من كل شهر، بتوقيت الكويت`,
+                          )
+                        : `${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
                     </p>
                   </div>
                   {canEdit ? (
@@ -85,7 +91,13 @@ export function SeasonsStudioView({ locale, events, suggested, report, liveSumma
                 {lift ? (
                   <div data-season-lift={ev.id} className="space-y-1 text-[12.5px] text-slate-700 dark:text-slate-300">
                     <p>
-                      {t('Last occurrence', 'آخر مرة')} <bdi dir="ltr">{`${lift.window.from} → ${lift.window.to}`}</bdi>
+                      {ev.kind === 'salary-days'
+                        ? t(
+                            `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} vs the other days of the same months`,
+                            `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} مقابل بقية أيام نفس الأشهر`,
+                          )
+                        : t('Last occurrence', 'آخر مرة')}{' '}
+                      {ev.kind === 'salary-days' ? null : <bdi dir="ltr">{`${lift.window.from} → ${lift.window.to}`}</bdi>}
                       {' · '}
                       {t('avg day', 'متوسط اليوم')} <bdi dir="ltr">{lift.avgDailyKwd.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</bdi>
                       {' · '}

@@ -116,13 +116,17 @@ describe('Inventory advisor (real 31 Oct export)', () => {
 
 describe('Seasons advisor (real daily rows)', () => {
   const r = seasonsAdvisor.run({ summary, events: SUGGESTED_SEASON_EVENTS })
-  it('salary days: compares the two previous salary windows in the data vs normal days', () => {
+  it('salary days: compares Kuwait days 5–10 with the other days of the same months', () => {
     const f = r.findings.find((x) => x.fingerprint.startsWith('seasons:salary-days'))!
-    expect(f.evidence.filter((e) => e.labelEn === 'Average day in the window').map((e) => e.period)).toEqual([
-      { from: '2026-10-25', to: '2026-10-31' },
-      { from: '2026-09-25', to: '2026-10-01' },
-    ])
+    const window = f.evidence.find((e) => e.labelEn === 'Average day on days 5–10')
+    const other = f.evidence.find((e) => e.labelEn === 'Average of the other days in the same months')
+    expect(window?.period).toEqual({ from: '2026-10-05', to: '2026-11-10' })
+    expect(other?.value).toBeGreaterThan(0)
+    expect(window?.value).toBeGreaterThan(0)
+    expect(JSON.stringify(f)).not.toContain('2026-11-25')
     expect(f.proposals).toHaveLength(3)
+    expect(f.rootCause.en).toContain('day 5')
+    expect(f.rootCause.en).toContain('day 10')
   })
   it('a season whose last-year window is not in the data is a data gap, never a number', () => {
     expect(r.dataGaps.some((g) => g.missingEn.includes('Ramadan') && g.missingEn.includes('2026-02-18'))).toBe(true)
@@ -151,7 +155,9 @@ describe('council runner', () => {
 
   it('links advisors that point at the same branch', () => {
     const snap = runCouncil(fullInputs())
-    const salary = snap.discoveries.find((d) => d.finding.fingerprint.startsWith('seasons:salary-days'))
+    const ranked = rankDiscoveries(snap.reports, new Set(), 30)
+    const salary = ranked.find((d) => d.finding.fingerprint.startsWith('seasons:salary-days'))
+    expect(salary?.finding.entities.branchId).toBeTruthy()
     expect(salary?.linkedAdvisors).toContain('cfo')
   })
 
