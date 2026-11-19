@@ -314,7 +314,7 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       expect(enHtml).not.toContain('3,375.125 KWD')
       expect(enHtml).toContain('Unattributed to Branch')
       expect(enHtml).not.toContain('غير منسوب لفرع')
-      expect(enHtml).not.toContain('قيود غير مكتملة')
+      expect(enHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
       expect(enHtml).not.toContain('غير مُرحَّل')
     })
 
@@ -412,13 +412,12 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
       setFilterContext(incompleteSummary)
 
       const enHtml = renderWithProviders('en', el(FullJourney360))
-      expect(enHtml).toContain('Incomplete GL entries for this period')
+      expect(enHtml).not.toContain('Incomplete GL entries for this period')
       expect(enHtml).toContain('Not posted yet')
-      expect(enHtml).not.toContain('قيود غير مكتملة')
-      expect(enHtml).not.toContain('غير مُرحَّل')
+      expect(enHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
 
       const arHtml = renderWithProviders('ar', el(FullJourney360))
-      expect(arHtml).toContain('قيود غير مكتملة لهذه الفترة')
+      expect(arHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
       expect(arHtml).toContain('غير مُرحَّل بعد')
     })
   })

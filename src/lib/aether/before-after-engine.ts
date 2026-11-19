@@ -11,7 +11,7 @@
  *   - Zero synthetic multipliers on sales, brands, channels, or hours.
  *   - GL profit is reported only when complete accrual entries are posted in
  *     Odoo `account.move.line`; otherwise `glIncomplete: true` with
- *     `قيود غير مكتملة لهذه الفترة`.
+ *     `دفتر الأستاذ بلا بند مصروف لهذه الفترة`.
  */
 
 import {

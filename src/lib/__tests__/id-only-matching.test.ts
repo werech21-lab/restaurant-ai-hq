@@ -63,8 +63,8 @@ describe('id-only register and account matching', () => {
       companyId: 1,
       configIds: [8, 24],
     })
-    expect(domain).toContain('|')
-    expect(JSON.stringify(domain)).toContain('[24]')
+    expect(domain).not.toContain('|')
+    expect(JSON.stringify(domain)).toContain('[8,24]')
     expect(JSON.stringify(domain)).not.toContain('stock.picking')
     expect(JSON.stringify(domain)).not.toContain('stock.move')
   })

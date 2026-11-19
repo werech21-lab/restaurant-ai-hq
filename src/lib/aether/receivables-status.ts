@@ -6,7 +6,7 @@
  * (`account.move.line.date_maturity` grouped by `partner_id`), every executive surface renders a
  * calm neutral status instead of an amount:
  *
- *   EN: "Pending Accounting Reconciliation"   AR: "قيد المطابقة مع المحاسبة"
+ *   EN: "Pending Accounting Reconciliation"   AR: "بانتظار مراجعة المحاسبة"
  *
  * Flip `PER_CUSTOMER_DUE_DATE_AGING_VERIFIED` to `true` only after finance signs off the
  * per-customer aging reconciliation. Ledger facts (unreconciled line counts) remain visible.
@@ -16,7 +16,7 @@ export const PER_CUSTOMER_DUE_DATE_AGING_VERIFIED = false as const
 
 export const RECEIVABLES_PENDING_STATUS = {
   en: 'Pending Accounting Reconciliation',
-  ar: 'قيد المطابقة مع المحاسبة',
+  ar: 'بانتظار مراجعة المحاسبة',
 } as const
 
 export const RECEIVABLES_PENDING_DETAIL = {

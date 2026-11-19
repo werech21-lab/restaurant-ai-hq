@@ -68,6 +68,8 @@ import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import { buildRegisterReconciliation } from '@/lib/odoo/register-reconciliation'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
 import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
+import { buildOpenReceivableClauses } from '@/lib/odoo/receivable-domain'
+import { branchIdForStockLocation, isCentralKitchenStockLocation } from '@/lib/odoo/stock-location-ids'
 import {
   allocateExactBrandRows,
   countOrdersPerBrandWithin,
@@ -82,8 +84,12 @@ import {
   kuwaitDateBoundsToOdooUtc,
   mergeDaySessionPricelistGroups,
   mergeHourGroups,
+  mergeProductLineGroups,
+  mergeRowsByKey,
   mergeSessionGroups,
   mergeSessionPaymentGroups,
+  readClosedYearPlusToday,
+  yearClosedWindow,
   type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
 import {
@@ -1213,19 +1219,19 @@ export function buildLedgerAccountingFromGroups(params: {
     operatingProfit,
     completeAccrualPosted,
     glIncomplete,
-    ...(glIncomplete ? { glWarningAr: 'قيود غير مكتملة لهذه الفترة' } : {}),
+    ...(glIncomplete ? { glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' } : {}),
     aggregatorCommissionUnposted,
     ...(aggregatorCommissionUnposted
       ? { aggregatorCommissionDisplayAr: 'غير مُرحَّل بعد' }
       : {}),
     ...(!available
       ? {
-          unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+          unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
           unavailableReasonEn: 'No posted General Ledger revenue lines exist for this period.',
         }
       : glIncomplete
         ? {
-            unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+            unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
             unavailableReasonEn:
               'Journal entries (expenses, commissions, or depreciation) are incomplete for this period.',
           }
@@ -2036,6 +2042,15 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     })
   const exactBrandRowsToday = exactBrandRowsOf(boundsToday)
   const exactBrandRowsWeek = exactBrandRowsOf(boundsWeek)
+  const closedYearWindow = yearClosedWindow(boundsYear.fromUtc, boundsToday.fromUtc)
+  const todayWindow = { fromUtc: boundsToday.fromUtc, toUtc: boundsToday.toUtc }
+  const yearCachePrefix = `${resolvedCompanyId ?? 'none'}|${[...companyConfigList].sort((a, b) => a - b).join(',')}|${anchorDayKwIso}|${[...excludedPosCategoryIds].sort((a, b) => a - b).join(',')}`
+  const yearReadOpts = (window: { fromUtc: string; toUtc: string }) => {
+    const fromMs = Date.parse(`${window.fromUtc.replace(' ', 'T')}Z`)
+    const toMs = Date.parse(`${window.toUtc.replace(' ', 'T')}Z`)
+    const liveSlice = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs - fromMs <= 2 * 86_400_000
+    return liveSlice ? { lazy: false as const, context: { year_live_slice: true } } : { lazy: false as const }
+  }
 
   // 3. Parallel PostgreSQL-side `read_group` queries across ALL active company POS terminals.
   // Every `(net, nonRefundCount)` query pair executes as ONE atomic unit so a count failure never
@@ -2259,39 +2274,63 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       safeSubQuery(
         () =>
           Promise.all([
-            executeOdooKw<
-              {
-                session_id: M2O
-                payment_method_id: M2O
-                amount: number
-                __count?: number
-              }[]
-            >(
-              'pos.payment',
-              'read_group',
-              [
-                posPaymentDomainOf(boundsYear, false),
-                ['amount:sum'],
-                ['session_id', 'payment_method_id'],
-              ],
-              { lazy: false },
-            ),
-            executeOdooKw<
-              {
-                session_id: M2O
-                payment_method_id: M2O
-                __count?: number
-              }[]
-            >(
-              'pos.payment',
-              'read_group',
-              [
-                posPaymentDomainOf(boundsYear, true),
-                ['amount:sum'],
-                ['session_id', 'payment_method_id'],
-              ],
-              { lazy: false },
-            ),
+            readClosedYearPlusToday({
+              cacheKey: `channels.year.net|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<
+                  {
+                    session_id: M2O
+                    payment_method_id: M2O
+                    amount: number
+                    __count?: number
+                  }[]
+                >(
+                  'pos.payment',
+                  'read_group',
+                  [
+                    posPaymentDomainOf(window, false),
+                    ['amount:sum'],
+                    ['session_id', 'payment_method_id'],
+                  ],
+                  yearReadOpts(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => {
+                  const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
+                  const method = Array.isArray(row.payment_method_id) ? row.payment_method_id[0] : 'none'
+                  return `${session}|${method}`
+                }, ['amount']),
+            }),
+            readClosedYearPlusToday({
+              cacheKey: `channels.year.count|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<
+                  {
+                    session_id: M2O
+                    payment_method_id: M2O
+                    __count?: number
+                  }[]
+                >(
+                  'pos.payment',
+                  'read_group',
+                  [
+                    posPaymentDomainOf(window, true),
+                    ['amount:sum'],
+                    ['session_id', 'payment_method_id'],
+                  ],
+                  yearReadOpts(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => {
+                  const session = Array.isArray(row.session_id) ? row.session_id[0] : 'none'
+                  const method = Array.isArray(row.payment_method_id) ? row.payment_method_id[0] : 'none'
+                  return `${session}|${method}`
+                }, []),
+            }),
           ]),
         [[], []],
         markFailure('channels.year'),
@@ -2366,47 +2405,69 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         ? Promise.resolve([] as { product_id: M2O; price_subtotal: number; qty?: number }[])
         : safeSubQuery(
             () =>
-              executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
-                'pos.order.line',
-                'read_group',
-                [
-                  [
-                    ['order_id.date_order', '>=', boundsYear.fromUtc],
-                    ['order_id.date_order', '<', boundsYear.toUtc],
-                    ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-                    ...excludedPosLineDomain,
-                  ],
-                  ['price_subtotal:sum', 'qty:sum'],
-                  ['product_id'],
-                ],
-                { lazy: false },
-              ),
+              readClosedYearPlusToday({
+                cacheKey: `brands.year|${yearCachePrefix}`,
+                closed: closedYearWindow,
+                today: todayWindow,
+                read: (window) =>
+                  executeOdooKw<{ product_id: M2O; price_subtotal: number; qty?: number }[]>(
+                    'pos.order.line',
+                    'read_group',
+                    [
+                      [
+                        ['order_id.date_order', '>=', window.fromUtc],
+                        ['order_id.date_order', '<', window.toUtc],
+                        ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
+                        ...excludedPosLineDomain,
+                      ],
+                      ['price_subtotal:sum', 'qty:sum'],
+                      ['product_id'],
+                    ],
+                    yearReadOpts(window),
+                  ),
+                merge: mergeProductLineGroups,
+              }),
             [],
             markFailure('brands.year'),
           ),
       safeSubQuery(
         () =>
           Promise.all([
-            executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
-              'pos.order',
-              'read_group',
-              [
-                posOrderDomainOf(boundsYear, false),
-                ['amount_total:sum', 'amount_tax:sum'],
-                ['session_id'],
-              ],
-              { lazy: false },
-            ),
-            executeOdooKw<{ session_id: M2O; __count?: number }[]>(
-              'pos.order',
-              'read_group',
-              [
-                posOrderDomainOf(boundsYear, true),
-                ['amount_total:sum'],
-                ['session_id'],
-              ],
-              { lazy: false },
-            ),
+            readClosedYearPlusToday({
+              cacheKey: `year.net|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<{ session_id: M2O; amount_total?: number; amount_tax?: number; __count?: number }[]>(
+                  'pos.order',
+                  'read_group',
+                  [
+                    posOrderDomainOf(window, false),
+                    ['amount_total:sum', 'amount_tax:sum'],
+                    ['session_id'],
+                  ],
+                  yearReadOpts(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), [
+                  'amount_total',
+                  'amount_tax',
+                ]),
+            }),
+            readClosedYearPlusToday({
+              cacheKey: `year.count|${yearCachePrefix}`,
+              closed: closedYearWindow,
+              today: todayWindow,
+              read: (window) =>
+                executeOdooKw<{ session_id: M2O; __count?: number }[]>(
+                  'pos.order',
+                  'read_group',
+                  [posOrderDomainOf(window, true), ['amount_total:sum'], ['session_id']],
+                  yearReadOpts(window),
+                ),
+              merge: (rows) =>
+                mergeRowsByKey(rows, (row) => String(Array.isArray(row.session_id) ? row.session_id[0] : 'none'), []),
+            }),
           ]),
         [[], []],
         markFailure('year'),
@@ -2475,10 +2536,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     safeSubQuery<OdooReceivableClearingSummary | null | undefined>(async () => {
       const arDomain: unknown[][] = [
         ...companyDomain,
-        ['parent_state', '=', 'posted'],
-        ['account_id.account_type', '=', 'asset_receivable'],
-        ['reconciled', '=', false],
-        ['move_id.move_type', 'in', ['out_invoice', 'out_refund']],
+        ...buildOpenReceivableClauses(),
       ]
       const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
       const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
@@ -2670,8 +2728,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         unappliedCreditsKwd: aging.unappliedCreditsKwd,
         unappliedCreditLinesCount: aging.unappliedCreditLinesCount,
         platformNetKwd,
-        platformOpenDebitsKwd: partnerLineSplit?.openDebitsKwd ?? customerSplit.platformOpenDebitsKwd,
-        platformUnappliedCreditsKwd: partnerLineSplit?.unappliedCreditsKwd ?? customerSplit.platformUnappliedCreditsKwd,
+        platformOpenDebitsKwd: customerSplit.platformOpenDebitsKwd,
+        platformUnappliedCreditsKwd: customerSplit.platformUnappliedCreditsKwd,
         posClearingResidualKwd: customerSplit.posClearingResidualKwd,
         oldestOpenPostingDate,
         byPartner,
@@ -5526,27 +5584,8 @@ export async function fetchLiveOdooPeriodCube(
   }
 }
 
-/**
- * stock.location has no pos.config id. On-hand is attributed from the location's
- * own label (code or display name in the registry). This does not include or
- * exclude a register.
- */
-function branchIdFromStockLocationLabel(
-  rawLabel: string,
-): (typeof ACTIVE_BRANCH_IDS)[number] | null {
-  const lower = rawLabel.toLowerCase()
-  if (/\bavn\b|avenue|افنيوز|الأفنيوز/.test(lower)) return 'avenues'
-  if (/\b360\b|٣٦٠/.test(lower)) return '360-mall'
-  if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
-  if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
-  if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
-  if (/\bkot\b|\bkout\b|كوت|الكوت/.test(lower)) return 'al-kout'
-  if (/\bard\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
-  return null
-}
-
 function resolveStockLocationRole(
-  rawLabel: string,
+  locationId: number,
   usage: string,
 ): {
   excluded: boolean
@@ -5554,33 +5593,22 @@ function resolveStockLocationRole(
   role: 'ck' | 'branch' | 'supplier' | 'customer' | 'scrap' | 'other'
   branchId: (typeof ACTIVE_BRANCH_IDS)[number] | null
 } {
-  const text = (rawLabel || '').trim()
-  if (isDecommissionedWarehouseRecord(text)) {
-    return { excluded: true, usage, role: 'other', branchId: null }
-  }
   if (usage === 'supplier') {
     return { excluded: false, usage, role: 'supplier', branchId: null }
   }
   if (usage === 'customer') {
     return { excluded: false, usage, role: 'customer', branchId: null }
   }
-  const lower = text.toLowerCase()
-  if (usage === 'inventory' || /scrap|waste|spoil|تالف|هدر|إتلاف/.test(lower)) {
+  if (usage === 'inventory') {
     return { excluded: false, usage, role: 'scrap', branchId: null }
   }
   if (usage === 'internal') {
-    if (/\b(?:npis|faips|fas|canteen|canteens)\b|مقصف/i.test(lower)) {
-      return { excluded: false, usage, role: 'branch', branchId: SCHOOL_CANTEEN_BRANCH_ID }
-    }
-    if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
+    if (isCentralKitchenStockLocation(locationId)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
-    const matchedBranch = branchIdFromStockLocationLabel(text)
-    if (matchedBranch) {
-      if (matchedBranch === 'ardiya' && /wh|stock|warehouse|مخزن/.test(lower) && !/pos|branch|فرع/.test(lower)) {
-        return { excluded: false, usage, role: 'ck', branchId: null }
-      }
-      return { excluded: false, usage, role: 'branch', branchId: matchedBranch }
+    const branchId = branchIdForStockLocation(locationId)
+    if (branchId) {
+      return { excluded: false, usage, role: 'branch', branchId }
     }
     return { excluded: false, usage, role: 'ck', branchId: null }
   }
@@ -5783,7 +5811,7 @@ export async function fetchLiveOdooWarehouseChain(
     const excludedLocationIds: number[] = []
     for (const loc of locationsRaw) {
       const label = (loc.complete_name || loc.name || `Location #${loc.id}`).trim()
-      const meta = resolveStockLocationRole(label, loc.usage || 'other')
+      const meta = resolveStockLocationRole(loc.id, loc.usage || 'other')
       locationMeta.set(loc.id, { ...meta, label })
       if (meta.excluded) excludedLocationIds.push(loc.id)
     }

@@ -47,8 +47,17 @@ describe('one customer-receivable figure on every page', () => {
           accountName: 'Talabat',
           labelAr: '10501',
           labelEn: '10501',
-          residualKwd: 30310.675,
+          residualKwd: 31662.047,
           linesCount: 2,
+        },
+        {
+          accountId: 3,
+          accountCode: '10509',
+          accountName: 'Hesabe',
+          labelAr: '10509',
+          labelEn: '10509',
+          residualKwd: -1351.372,
+          linesCount: 1,
         },
         {
           accountId: 2,

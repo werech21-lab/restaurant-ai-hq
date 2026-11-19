@@ -71,7 +71,7 @@ const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفت�
 const NO_ODOO_DATA_EN = 'No data from Odoo for this period'
 const UNPOSTED_COMMISSION_AR = 'غير مُرحَّل بعد'
 const UNPOSTED_COMMISSION_EN = 'Not posted yet'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_AR = 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
 const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 
 const safeNum = (v: unknown): number =>

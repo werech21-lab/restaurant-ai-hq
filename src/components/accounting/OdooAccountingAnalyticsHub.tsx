@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { AlertTriangle, BookOpen, Landmark, Receipt, Scale, TrendingUp } from 'lucide-react'
+import { BookOpen, Landmark, Receipt, Scale, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
 import { StateBlock } from '@/components/ui'
@@ -77,27 +77,6 @@ export function OdooAccountingAnalyticsHub({
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
-      {(workspace.glIncomplete || acc.glIncomplete) && (
-        <div
-          role="status"
-          className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
-        >
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-          <div className="space-y-1 text-sm">
-            <p className="font-bold">
-              {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}
-            </p>
-            <p className="text-xs leading-relaxed opacity-90">
-              {isAr
-                ? acc.glWarningAr ??
-                  workspace.glWarningAr ??
-                  'لم يتم ترحيل جميع قيود الاستحقاق أو الإيجارات أو الرواتب أو عمولات المنصات في دفتر الأستاذ العام لهذه الفترة بعد.'
-                : 'Full accrual entries (rent, payroll, or aggregator commissions) have not yet been posted in Odoo GL for this period.'}
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <article className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -265,11 +244,6 @@ export function OdooAccountingAnalyticsHub({
               {isAr ? acc.netProfitWithheldReasonAr : acc.netProfitWithheldReasonEn}
             </p>
           ) : null}
-          {(workspace.glIncomplete || acc.glIncomplete) && (
-            <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
-              {isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}
-            </p>
-          )}
           <div className="mt-3">
             <KpiProvenanceBadge
               model="account.move.line"

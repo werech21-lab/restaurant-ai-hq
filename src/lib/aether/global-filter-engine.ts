@@ -6,7 +6,7 @@
  *   2. ONLY the 7 active Odoo restaurant locations (+ standalone 8th bucket «غير منسوب لفرع»).
  *   3. Zero static fallback datasets (`odoo-dataset`, `odoo-journey`, `full-journey-enterprise-brain`, `odoo-cfo-realism`).
  *   4. Strict disconnect truth (`odooConnected: false`, `noData: true`, `'لا توجد بيانات من Odoo لهذه الفترة'`).
- *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'قيود غير مكتملة لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
+ *   5. Explicit GL incomplete warning (`glIncomplete: true`, `'دفتر الأستاذ بلا بند مصروف لهذه الفترة'`) and unposted commission indicator (`'غير مُرحَّل بعد'`).
  */
 
 import {
@@ -1155,7 +1155,7 @@ function buildSummaryCards(params: {
           ? disconnectedLabelAr
           : opexActualKwd !== null
             ? fKwd(opexActualKwd, true)
-            : (glWarningAr ?? 'قيود غير مكتملة لهذه الفترة'),
+            : (glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'),
       valueEn:
         !odooConnected
           ? disconnectedLabelEn
@@ -1180,7 +1180,7 @@ function buildSummaryCards(params: {
       sourceLabelEn: 'Odoo 17 (account.move.line · Opex)',
       accent: opexActualKwd !== null ? 'sky' : 'amber',
       statusDot: opexActualKwd !== null ? '🟢' : '🟠',
-      statusLabelAr: opexActualKwd !== null ? 'قيود مرحّلة' : 'قيود غير مكتملة لهذه الفترة',
+      statusLabelAr: opexActualKwd !== null ? 'قيود مرحّلة' : 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       statusLabelEn: opexActualKwd !== null ? 'Posted GL' : 'Incomplete GL',
       ctaAr: 'تفاصيل المصاريف ↗',
       ctaEn: 'Monthly Bills ↗',
@@ -1692,7 +1692,7 @@ export function computeGlobalWorkspace(
       postedDelivCommVal <= 0 ||
       postedDeprVal <= 0,
   )
-  const glWarningAr = glIncompleteFromRaw ? 'قيود غير مكتملة لهذه الفترة' : null
+  const glWarningAr = glIncompleteFromRaw ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : null
 
   let accounting: WorkspaceLedgerAccounting
   if (!isFullGroupScope) {
@@ -1700,7 +1700,7 @@ export function computeGlobalWorkspace(
       available: false,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       aggregatorCommissionUnposted,
       aggregatorCommissionDisplayAr,
       from: resolvedPeriodWindow.fromIso,
@@ -1735,7 +1735,7 @@ export function computeGlobalWorkspace(
       available: postedLines,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       aggregatorCommissionUnposted,
       aggregatorCommissionDisplayAr,
       from: rawGl?.from ?? resolvedPeriodWindow.fromIso,
@@ -1768,7 +1768,7 @@ export function computeGlobalWorkspace(
       opexRentDeprPct: null,
       beforeRentPct: null,
       netProfitPct: null,
-      unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
+      unavailableReasonAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
       glScopeLimited: false,
       revenueAccounts: rawGl?.revenueAccounts ?? [],
@@ -1964,7 +1964,7 @@ export function computeGlobalWorkspace(
     salesKwd <= 0
       ? 'لا توجد مبيعات مسجلة في هذا التقاطع'
       : accounting.netProfitPct === null
-        ? (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
+        ? (accounting.glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة')
         : `صافي الربح المحاسبي (دفتر الأستاذ العام): ${accounting.netProfitPct.toFixed(1)}%`
 
   const benchmarkEn =
@@ -1984,7 +1984,7 @@ export function computeGlobalWorkspace(
     rootCauseEn = `Odoo GL (account.move.line): COGS ${accounting.cogsPct?.toFixed(1)}% • Posted Commissions ${accounting.deliveryCommPct?.toFixed(1)}% • Rent/Opex/Depr ${accounting.opexRentDeprPct?.toFixed(1)}% • Operating Net ${accounting.netProfitPct.toFixed(1)}%.`
   } else {
     const commNoteAr = aggregatorCommissionUnposted ? ' • عمولات المنصات: غير مُرحَّل بعد' : ''
-    rootCauseAr = `قيود غير مكتملة لهذه الفترة${commNoteAr}`
+    rootCauseAr = `دفتر الأستاذ بلا بند مصروف لهذه الفترة${commNoteAr}`
     rootCauseEn = `Incomplete GL entries for this period${aggregatorCommissionUnposted ? ' • Aggregator commissions: Unposted' : ''}`
   }
 
@@ -2119,7 +2119,7 @@ export function computeGlobalWorkspace(
   const glMarginLabelAr =
     accounting.netProfitPct !== null
       ? `${accounting.netProfitPct.toFixed(1)}%`
-      : (accounting.glWarningAr ?? 'قيود غير مكتملة لهذه الفترة')
+      : (accounting.glWarningAr ?? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة')
   const glMarginLabelEn =
     accounting.netProfitPct !== null ? `${accounting.netProfitPct.toFixed(1)}%` : 'Incomplete GL entries'
   const feryalSalesAr = nullableSalesKwd === null ? 'غير متاح' : fKwd(nullableSalesKwd, true)

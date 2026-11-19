@@ -159,8 +159,6 @@ type LedgerSortKey = 'label' | 'salesKwd' | 'orders' | 'aovKwd' | 'sharePct'
 
 const NO_ODOO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 const NO_ODOO_DATA_EN = 'No Odoo data for this period'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
-const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 const COMPANY_MARGIN_NOT_APPLIED_AR = 'هامش الشركة لا يُطبَّق على هذه السلسلة'
 const COMPANY_MARGIN_NOT_APPLIED_EN = 'Company GL margin is not applied to this series'
 
@@ -583,9 +581,11 @@ export function FullJourney360({
         ? isAr
           ? COMPANY_MARGIN_NOT_APPLIED_AR
           : COMPANY_MARGIN_NOT_APPLIED_EN
-        : isAr
-          ? GL_INCOMPLETE_AR
-          : GL_INCOMPLETE_EN
+        : glReady
+          ? isAr
+            ? 'صافي التشغيل (دفتر الأستاذ)'
+            : 'GL Operating Profit'
+          : ''
     return src.map((pt) => {
       const sales = pt.salesKwd
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
@@ -2180,12 +2180,10 @@ export function FullJourney360({
                     </h2>
                     <ScopeBadge kind={comboScope.badge} target="sales-net-combo" isAr={isAr} className="mt-1" />
                     <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
-                      {glIncomplete
-                        ? T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
-                        : T(
-                            'Tap or hover any bar to inspect exact KWD from Odoo 17',
-                            'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
-                          )}
+                      {T(
+                        'Tap or hover any bar to inspect exact KWD from Odoo 17',
+                        'اضغط أو مرر على أي عمود لعرض القيم الفعلية من أودو 17',
+                      )}
                     </p>
                   </div>
 
@@ -2211,7 +2209,7 @@ export function FullJourney360({
                         ? comboPlotsCompanyMargin
                           ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
                           : T(COMPANY_MARGIN_NOT_APPLIED_EN, COMPANY_MARGIN_NOT_APPLIED_AR)
-                        : T(GL_INCOMPLETE_EN, GL_INCOMPLETE_AR)
+                        : T('Sales (pos.order)', 'المبيعات (pos.order)')
                     }
                     heightClass="h-60 sm:h-64"
                   />

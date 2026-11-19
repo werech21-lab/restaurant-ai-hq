@@ -225,10 +225,10 @@ function buildPeriodBucketFixture(params: {
       operatingProfit: params.glComplete ? params.operatingProfitKwd : 0,
       completeAccrualPosted: params.glComplete,
       glIncomplete: !params.glComplete,
-      glWarningAr: !params.glComplete ? 'قيود غير مكتملة لهذه الفترة' : undefined,
+      glWarningAr: !params.glComplete ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : undefined,
       aggregatorCommissionUnposted: params.commissionUnposted,
       aggregatorCommissionDisplayAr: params.commissionUnposted ? 'غير مُرحَّل بعد' : undefined,
-      unavailableReasonAr: !params.glComplete ? 'قيود غير مكتملة لهذه الفترة' : undefined,
+      unavailableReasonAr: !params.glComplete ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : undefined,
       unavailableReasonEn: !params.glComplete ? 'Incomplete GL entries for this period' : undefined,
     },
   }
@@ -457,7 +457,7 @@ function buildNov14AcceptanceCube(includeTopProducts = true): OdooPeriodCube {
       operatingProfit: 0,
       completeAccrualPosted: false,
       glIncomplete: true,
-      glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+      glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
       aggregatorCommissionUnposted: true,
       aggregatorCommissionDisplayAr: 'غير مُرحَّل بعد',
     },
@@ -693,7 +693,7 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
   })
 
   describe('3. Dynamic Period Reactivity (today, week, month, year) & Accounting Honesty', () => {
-    it('updates GlobalWorkspace, Enterprise Reports, Accounting, and Strategic Planning across today/week/month/year and renders غير مُرحَّل بعد + قيود غير مكتملة لهذه الفترة when unposted', () => {
+    it('updates GlobalWorkspace, Enterprise Reports, Accounting, and Strategic Planning across today/week/month/year and renders غير مُرحَّل بعد + دفتر الأستاذ بلا بند مصروف لهذه الفترة when unposted', () => {
       const liveSummary = buildMultiPeriodLiveSummaryFixture()
       const periods: readonly GlobalPeriod[] = ['today', 'week', 'month', 'year']
 
@@ -733,18 +733,18 @@ describe('Zero Invented Data & Live Odoo 17 Truth — Comprehensive Acceptance S
           expect(ws.accounting.aggregatorCommissionDisplayAr).toBe('غير مُرحَّل بعد')
           expect(ws.accounting.deliveryCommissionsKwd).toBeNull()
 
-          // Incomplete GL entries must surface «قيود غير مكتملة لهذه الفترة»
+          // Incomplete GL entries must surface «دفتر الأستاذ بلا بند مصروف لهذه الفترة»
           expect(ws.glIncomplete).toBe(true)
-          expect(ws.glWarningAr).toBe('قيود غير مكتملة لهذه الفترة')
+          expect(ws.glWarningAr).toBe('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
           expect(ws.accounting.glIncomplete).toBe(true)
-          expect(ws.accounting.glWarningAr).toBe('قيود غير مكتملة لهذه الفترة')
+          expect(ws.accounting.glWarningAr).toBe('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
 
           expect(planning.glIncomplete).toBe(true)
-          expect(planning.glWarningAr).toBe('قيود غير مكتملة لهذه الفترة')
+          expect(planning.glWarningAr).toBe('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
           expect(planning.aggregatorCommissionUnposted).toBe(true)
 
           const serializedGlReport = JSON.stringify(glReport)
-          expect(serializedGlReport).toContain('قيود غير مكتملة لهذه الفترة')
+          expect(serializedGlReport).toContain('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
           expect(serializedGlReport).toContain('غير مُرحَّل بعد')
         } else {
           // Complete posted accrual periods (month, year) expose real GL figures

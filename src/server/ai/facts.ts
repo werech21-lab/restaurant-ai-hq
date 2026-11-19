@@ -193,8 +193,8 @@ function appendAccounting(facts: BriefFact[], cube: BriefCubeInput | null, perio
   }
   const citedPeriod = periodOf(cube, period)
   if (!accounting.available || accounting.glIncomplete) {
-    sections.push({ id: 'cogs', status: 'unverified', noteAr: 'قيود غير مكتملة لهذه الفترة.' })
-    sections.push({ id: 'commissions', status: 'unverified', noteAr: 'قيود غير مكتملة لهذه الفترة.' })
+    sections.push({ id: 'cogs', status: 'unverified', noteAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة.' })
+    sections.push({ id: 'commissions', status: 'unverified', noteAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة.' })
     return
   }
   if (typeof accounting.cogs === 'number') {

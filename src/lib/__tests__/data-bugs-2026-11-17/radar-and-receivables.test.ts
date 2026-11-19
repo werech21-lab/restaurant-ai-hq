@@ -417,7 +417,7 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     const arCard =
       htmlAr.split('مبيعات ودفعات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
     expect(arCard).toContain('10,000.000')
-    expect(arCard).not.toContain('قيد المطابقة مع المحاسبة')
+    expect(arCard).not.toContain('بانتظار مراجعة المحاسبة')
     expect(arCard).not.toMatch(/overdue|متأخر|مستحق/i)
 
     const htmlEn = renderRadar('en', { period: 'today' }, summary, buildRadarTodayCube())

@@ -275,7 +275,7 @@ function buildLiveCube(
           operatingProfit: 0,
           completeAccrualPosted: false,
           glIncomplete: true,
-          glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+          glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
           aggregatorCommissionUnposted: true,
           aggregatorCommissionDisplayAr: 'غير مُرحَّل بعد',
         }
@@ -441,7 +441,7 @@ describe('V35 Polish — WeekdayComparisonStudio & BeforeAfterStudio shared char
       cubeA: glIncompleteA,
       cubeB: glIncompleteB,
     })
-    expect(incompleteHtml).not.toContain('قيود غير مكتملة')
+    expect(incompleteHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
     expect(incompleteHtml).not.toContain('تكلفة المواد وعمولات المنصات')
     expect(incompleteHtml).toContain('1,520.600')
   })

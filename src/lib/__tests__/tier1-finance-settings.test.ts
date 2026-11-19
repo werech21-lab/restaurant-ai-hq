@@ -426,11 +426,11 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
         React.createElement(OdooAccountingAnalyticsHub, { isAr: false, locale: 'en' }),
       ),
     )
-    expect(glUnavailableEn).toContain('Incomplete GL entries for this period')
+    expect(glUnavailableEn).not.toContain('Incomplete GL entries for this period')
     expect(glUnavailableEn).toContain('Posted GL Revenue')
     expect(glUnavailableEn).not.toContain('No Odoo GL data for this period')
     expect(glUnavailableEn).not.toContain('لا توجد بيانات من Odoo لهذه الفترة')
-    expect(glUnavailableEn).not.toContain('قيود غير مكتملة لهذه الفترة')
+    expect(glUnavailableEn).not.toContain('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
 
     // With available GL + unposted aggregator commission flag + incomplete GL warning banner
     mockGlobalFilterState.current = buildContext(buildLiveSummary({ partial: true }), {}, (ws) => ({
@@ -451,9 +451,9 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
         React.createElement(OdooAccountingAnalyticsHub, { isAr: false, locale: 'en' }),
       ),
     )
-    expect(glEn).toContain('Incomplete GL entries for this period')
+    expect(glEn).not.toContain('Incomplete GL entries for this period')
     expect(glEn).toContain('Unposted')
-    expect(glEn).not.toContain('قيود غير مكتملة لهذه الفترة')
+    expect(glEn).not.toContain('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
     expect(glEn).not.toContain('غير مُرحَّل بعد')
 
     // VentureAccountingHub partial banner when not embeddedInErp

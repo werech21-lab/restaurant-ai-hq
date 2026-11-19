@@ -12,7 +12,7 @@
  *     explicitly as row #8 in `byBranch` and never redistributed into the 7 branches.
  *   - GL profit/expense metrics report real values only when complete accrual entries
  *     are posted in Odoo `account.move.line`; otherwise `accountingAvailable: false`
- *     with `قيود غير مكتملة لهذه الفترة`.
+ *     with `دفتر الأستاذ بلا بند مصروف لهذه الفترة`.
  */
 
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'

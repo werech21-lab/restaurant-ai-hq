@@ -264,9 +264,10 @@ function installOdooMockWithOptionalSectionFailure(target?: {
         amount = 150
         count = 5
       } else if (spanDays === 1) {
-        paySection = 'channels.today'
-        amount = 90
-        count = 3
+        const kwargs = (args[6] as { context?: { year_live_slice?: boolean } } | undefined) ?? {}
+        paySection = kwargs.context?.year_live_slice ? 'channels.year' : 'channels.today'
+        amount = kwargs.context?.year_live_slice ? 90 : 90
+        count = kwargs.context?.year_live_slice ? 3 : 3
       }
 
       if (shouldFail(paySection, isCount)) {

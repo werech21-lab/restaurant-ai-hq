@@ -120,7 +120,7 @@ export {
 
 export const FERYAL_COMPETITOR_REFUSAL = 'لا أعرف' as const
 export const FERYAL_NO_ODOO_DATA_REPLY = 'لا أملك بيانات من Odoo عن هذا' as const
-export const FERYAL_INCOMPLETE_GL_WARNING = 'قيود غير مكتملة لهذه الفترة' as const
+export const FERYAL_INCOMPLETE_GL_WARNING = 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' as const
 export const UNATTRIBUTED_BRANCH_LABEL_AR = 'غير منسوب لفرع' as const
 
 export type FeryalOdooModelName =

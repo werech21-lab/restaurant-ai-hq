@@ -274,7 +274,7 @@ describe('V35 Polish — Chart Library Cards, Headers, Sparklines, StackedProgre
       expect(arEmpty).toContain('data-chart-kind="stacked-progress"')
       expect(arEmpty).toContain('data-chart-mode="unavailable"')
       expect(arEmpty).toContain('data-unavailable-state="true"')
-      expect(arEmpty).toContain('غير متاح بعد')
+      expect(arEmpty).toContain('لا قراءة من دفتر الأستاذ لهذه الخانة')
     }
 
     const enEmpty = renderToStaticMarkup(
@@ -335,7 +335,7 @@ describe('V35 Polish — Chart Library Cards, Headers, Sparklines, StackedProgre
       expect(arUnavailable).toContain('data-chart-kind="hour-weekday-heatmap"')
       expect(arUnavailable).toContain('data-chart-mode="unavailable"')
       expect(arUnavailable).toContain('data-unavailable-state="true"')
-      expect(arUnavailable).toContain('غير متاح بعد')
+      expect(arUnavailable).toContain('لا قراءة من دفتر الأستاذ لهذه الخانة')
       expect(arUnavailable).not.toContain('<table')
       expect(arUnavailable).not.toContain('data-heat-level=')
       expect(arUnavailable).not.toContain('0.000')
@@ -557,7 +557,7 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
     const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('china-garden'))
 
     expect(arHtml).not.toContain('توزيع المبيعات حسب القناة')
-    expect(arHtml).not.toContain('غير متاح بعد')
+    expect(arHtml).not.toContain('لا قراءة لهذه الخانة')
     expect(arHtml).not.toContain('غير متاح لهذا الفلتر')
     expect(enHtml).not.toContain('Sales Mix by Channel')
     expect(enHtml).not.toContain('Not available yet')

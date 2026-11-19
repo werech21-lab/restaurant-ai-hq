@@ -302,7 +302,7 @@ export function DepartmentalReportsHub({
                   className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
                 >
                   <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" aria-hidden />
-                  <span>{isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'}</span>
+                  <span>{isAr ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : 'Incomplete GL entries for this period'}</span>
                 </div>
               )}
 

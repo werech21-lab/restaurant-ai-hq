@@ -195,7 +195,7 @@ function buildLiveSummary(connected = true, glIncomplete = false): OdooLiveSumma
             operatingProfit: 0,
             completeAccrualPosted: false,
             glIncomplete: true,
-            glWarningAr: 'قيود غير مكتملة لهذه الفترة',
+            glWarningAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
             aggregatorCommissionUnposted: true,
             aggregatorCommissionDisplayAr: 'غير مُرحَّل بعد',
           },
@@ -322,7 +322,7 @@ describe('Tier 2 ERP Intelligence, Strategy, Growth, CRM & Dropzone Suites', () 
     it('surfaces GL incomplete warning honestly in AR & EN when accounting is unposted', () => {
       setGlobalState(buildLiveSummary(true, true))
       const arHtml = renderWithLocale('ar', React.createElement(StrategicPlanningStudio))
-      expect(arHtml).not.toContain('قيود غير مكتملة')
+      expect(arHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
 
       const enHtml = renderWithLocale('en', React.createElement(StrategicPlanningStudio))
       expect(enHtml).not.toContain('Incomplete GL entries for this period')

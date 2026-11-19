@@ -16,7 +16,7 @@ interface StatementPayload {
   balanceSheet: { lines: GlAccountLine[]; unavailableSections: string[] }
 }
 
-const INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const INCOMPLETE_AR = 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
 const INCOMPLETE_EN = 'Incomplete GL entries for this period'
 
 export function accountsForPnlGroup(

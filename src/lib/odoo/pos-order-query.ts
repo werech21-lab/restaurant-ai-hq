@@ -1,7 +1,6 @@
 import { getKuwaitTodayIso } from '../aether/period-delta'
 import {
   companyPosRegisterIds,
-  isQurainPosConfigId,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   signedKwd,
@@ -65,8 +64,8 @@ export function kuwaitDateBoundsToOdooUtc(
 }
 
 /**
- * Company filter plus register ids. Qurain ids are OR-ed without a company match
- * so an archived register in another company still enters the company total.
+ * One register clause: `config_id in [allowlist]`, including Qurain ids 24 and 36.
+ * A company OR makes the yearly product read too slow, so the company is not part of this clause.
  */
 export function posRegisterScopeClauses(input: {
   companyId?: number | null
@@ -74,26 +73,11 @@ export function posRegisterScopeClauses(input: {
   configField: string
   companyField: string
 }): unknown[] {
-  const qurainIds = input.configIds.filter((id) => isQurainPosConfigId(id))
-  const otherIds = input.configIds.filter((id) => !isQurainPosConfigId(id))
-  const hasCompany =
-    input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)
-  if (!hasCompany || qurainIds.length === 0) {
-    const clauses: unknown[] = []
-    if (hasCompany) clauses.push([input.companyField, '=', input.companyId])
-    clauses.push([input.configField, 'in', [...input.configIds]])
-    return clauses
-  }
-  if (otherIds.length === 0) {
-    return [[input.configField, 'in', [...qurainIds]]]
-  }
-  return [
-    '|',
-    '&',
-    [input.companyField, '=', input.companyId],
-    [input.configField, 'in', [...otherIds]],
-    [input.configField, 'in', [...qurainIds]],
-  ]
+  void input.companyId
+  void input.companyField
+  const ids = [...new Set(input.configIds.filter((id) => Number.isInteger(id) && id > 0))]
+  if (ids.length === 0) return [['id', '=', 0]]
+  return [[input.configField, 'in', ids]]
 }
 
 export function buildPosOrderUtcDomain(input: {
@@ -595,4 +579,85 @@ export function mergeSessionPaymentGroups(
       orders: countsByKey.get(key) ?? 0,
     }
   })
+}
+
+export type UtcWindow = { fromUtc: string; toUtc: string }
+
+/** Yesterday and earlier inside the year. Empty when the year starts today. */
+export function yearClosedWindow(yearFromUtc: string, todayFromUtc: string): UtcWindow | null {
+  if (yearFromUtc >= todayFromUtc) return null
+  return { fromUtc: yearFromUtc, toUtc: todayFromUtc }
+}
+
+const yearClosedRows = new Map<string, unknown[]>()
+
+export function clearYearClosedCache(): void {
+  yearClosedRows.clear()
+}
+
+/**
+ * Closed days of the year are read once and reused. Only today is read on later calls.
+ * A failed today read keeps the closed rows so the year section stays available.
+ */
+export async function readClosedYearPlusToday<T>(input: {
+  cacheKey: string
+  closed: UtcWindow | null
+  today: UtcWindow
+  read: (window: UtcWindow) => Promise<T[]>
+  merge: (rows: readonly T[]) => T[]
+}): Promise<T[]> {
+  let closedRows: T[] = []
+  if (input.closed) {
+    const hit = yearClosedRows.get(input.cacheKey) as T[] | undefined
+    if (hit) {
+      closedRows = hit
+    } else {
+      closedRows = await input.read(input.closed)
+      yearClosedRows.set(input.cacheKey, closedRows)
+    }
+  }
+  const todayRows = await input.read(input.today)
+  return input.merge([...closedRows, ...todayRows])
+}
+
+export function mergeProductLineGroups<
+  T extends { product_id?: PosM2O; price_subtotal?: number; qty?: number; __count?: number },
+>(rows: readonly T[]): T[] {
+  const map = new Map<number, T>()
+  for (const row of rows) {
+    const id = m2oId(row.product_id)
+    if (id === null) continue
+    const prev = map.get(id)
+    if (!prev) {
+      map.set(id, { ...row })
+      continue
+    }
+    prev.price_subtotal = (Number(prev.price_subtotal) || 0) + (Number(row.price_subtotal) || 0)
+    prev.qty = (Number(prev.qty) || 0) + (Number(row.qty) || 0)
+    prev.__count = (Number(prev.__count) || 0) + (Number(row.__count) || 0)
+  }
+  return [...map.values()]
+}
+
+export function mergeRowsByKey<T extends { __count?: number }>(
+  rows: readonly T[],
+  keyOf: (row: T) => string,
+  numericFields: readonly (keyof T)[],
+): T[] {
+  const map = new Map<string, T>()
+  for (const row of rows) {
+    const key = keyOf(row)
+    const prev = map.get(key)
+    if (!prev) {
+      map.set(key, { ...row })
+      continue
+    }
+    for (const field of numericFields) {
+      const left = Number(prev[field]) || 0
+      const right = Number(row[field]) || 0
+      ;(prev[field] as number) = left + right
+    }
+    prev.__count = (Number(prev.__count) || 0) + (Number(row.__count) || 0)
+  }
+  return [...map.values()]
 }

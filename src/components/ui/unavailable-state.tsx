@@ -3,7 +3,7 @@ import { BadgeInfo } from 'lucide-react'
 import type { FormatLocale } from '@/lib/format'
 import { cx } from './cx'
 
-export const DEFAULT_UNAVAILABLE_REASON_AR = 'غير متاح بعد — لم تُرحّل قيود الدفتر العام'
+export const DEFAULT_UNAVAILABLE_REASON_AR = 'لا قراءة من دفتر الأستاذ لهذه الخانة'
 export const DEFAULT_UNAVAILABLE_REASON_EN = 'Not available yet — GL entries not posted'
 
 export interface UnavailableStateProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {

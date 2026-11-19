@@ -76,7 +76,7 @@ describe('production-shape receivables never render an amount', () => {
     expect(ws.receivables.posClearingResidualKwd).toBe(-79267.054)
     expect(ws.receivables.maturityStatusAr).not.toMatch(/مستحق|متأخر/)
     const dues = ws.summaryCards.find((c) => c.id === 'delivery-dues')!
-    expect(dues.valueAr).not.toBe('قيد المطابقة مع المحاسبة')
+    expect(dues.valueAr).not.toBe('بانتظار مراجعة المحاسبة')
   })
 
   it('/erp/receivables (ReceivablesAgingStudio)', async () => {

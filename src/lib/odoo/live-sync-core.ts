@@ -293,10 +293,15 @@ export function customerReceivableFigures(
     | null
     | undefined,
 ): CustomerReceivableFigures {
-  const netKwd = customerReceivableNetKwd(input)
-  const openDebitsKwd = finiteKwd(input?.platformOpenDebitsKwd) ?? finiteKwd(input?.openDebitsKwd)
-  const unappliedCreditsKwd =
-    finiteKwd(input?.platformUnappliedCreditsKwd) ?? finiteKwd(input?.unappliedCreditsKwd)
+  const accountSplit =
+    input?.byAccount && input.byAccount.length > 0 ? receivablesCustomerSplit(input.byAccount) : null
+  const netKwd = accountSplit ? accountSplit.platformNetKwd : customerReceivableNetKwd(input)
+  const openDebitsKwd = accountSplit
+    ? accountSplit.platformOpenDebitsKwd
+    : finiteKwd(input?.platformOpenDebitsKwd) ?? finiteKwd(input?.openDebitsKwd)
+  const unappliedCreditsKwd = accountSplit
+    ? accountSplit.platformUnappliedCreditsKwd
+    : finiteKwd(input?.platformUnappliedCreditsKwd) ?? finiteKwd(input?.unappliedCreditsKwd)
   if (netKwd === null) {
     return {
       netKwd: null,

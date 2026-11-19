@@ -144,14 +144,14 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
     const arOrdersCard = findCardByTag(arHtml, 'article', (h) => h.includes('data-kpi="total-orders"'))
     expect(arOrdersCard).not.toBeNull()
-    expect(arOrdersCard!.text).not.toContain('قيود غير مكتملة')
+    expect(arOrdersCard!.text).not.toContain('دفتر الأستاذ بلا بند مصروف')
     expect(arOrdersCard!.text).not.toContain('Incomplete GL')
 
     const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
     const enOrdersCard = findCardByTag(enHtml, 'article', (h) => h.includes('data-kpi="total-orders"'))
     expect(enOrdersCard).not.toBeNull()
     expect(enOrdersCard!.text).not.toContain('Incomplete GL')
-    expect(enOrdersCard!.text).not.toContain('قيود غير مكتملة')
+    expect(enOrdersCard!.text).not.toContain('دفتر الأستاذ بلا بند مصروف')
   })
 
   it('lists posted GL lines on an open month and withholds operating profit', async () => {
@@ -178,7 +178,7 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(arOpCard!.outerHtml).toContain(kwd(cogs))
     expect(arOpCard!.outerHtml).toContain(kwd(expense))
     expect(
-      countOccurrences(arOpCard!.text, 'غير متاح بعد — لم تُرحّل قيود الدفتر العام') +
+      countOccurrences(arOpCard!.text, 'لا قراءة من دفتر الأستاذ لهذه الخانة') +
         countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar),
     ).toBe(1)
     expect(arOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')

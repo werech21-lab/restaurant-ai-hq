@@ -111,7 +111,7 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
 
 function withheldProfitLabel(isAr: boolean, incomplete: boolean, withheld: boolean): string {
   if (!incomplete && withheld) return isAr ? PROFIT_AFTER_CLOSE_NOTE.ar : PROFIT_AFTER_CLOSE_NOTE.en
-  return isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period'
+  return isAr ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : 'Incomplete GL entries for this period'
 }
 
 /**
@@ -304,16 +304,16 @@ export function buildLiveEnterpriseDepartments(
             amount:
               acc.otherOpexAndDepreciationKwd === null || workspace.glIncomplete
                 ? isAr
-                  ? 'قيود غير مكتملة لهذه الفترة'
+                  ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
                   : 'Incomplete GL entries for this period'
                 : formatKwd(acc.otherOpexAndDepreciationKwd, { showUnit: false }),
             pctOfRev:
               acc.opexRentDeprPct === null || workspace.glIncomplete
                 ? isAr
-                  ? 'قيود غير مكتملة لهذه الفترة'
+                  ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
                   : 'Incomplete GL entries for this period'
                 : formatPct(acc.opexRentDeprPct),
-            status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
+            status: workspace.glIncomplete ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
           {
             lineItem: isAr ? 'صافي النتيجة التشغيلية المرحلة' : 'Posted Operating Result',
@@ -325,10 +325,10 @@ export function buildLiveEnterpriseDepartments(
             pctOfRev:
               acc.netProfitPct === null || workspace.glIncomplete || acc.netProfitWithheld
                 ? isAr
-                  ? 'قيود غير مكتملة لهذه الفترة'
+                  ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة'
                   : 'Incomplete GL entries for this period'
                 : formatPct(acc.netProfitPct),
-            status: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
+            status: workspace.glIncomplete ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : isAr ? 'مرحّل' : 'Posted',
           },
         ]
       : []
@@ -641,7 +641,7 @@ export function buildLiveEnterpriseDepartments(
                       acc.operatingProfitKwd === null || workspace.glIncomplete || acc.netProfitWithheld
                         ? withheldProfitLabel(isAr, workspace.glIncomplete, Boolean(acc.netProfitWithheld))
                         : fmtKwd(acc.operatingProfitKwd, isAr),
-                    subtextAr: workspace.glIncomplete ? 'قيود غير مكتملة لهذه الفترة' : undefined,
+                    subtextAr: workspace.glIncomplete ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : undefined,
                     odooModel: 'account.move.line',
                     provenanceKind: 'محسوب بمعادلة',
                     queryOrFormula: 'الإيراد المرحل − تكلفة البضاعة − عمولات التوصيل − المصاريف المرحلة',
@@ -663,8 +663,8 @@ export function buildLiveEnterpriseDepartments(
                     {
                       labelAr: 'صافي النتيجة المرحلة',
                       labelEn: 'Posted Operating Result',
-                      value: isAr ? 'قيود غير مكتملة لهذه الفترة' : 'Incomplete GL entries for this period',
-                      subtextAr: 'قيود غير مكتملة لهذه الفترة',
+                      value: isAr ? 'دفتر الأستاذ بلا بند مصروف لهذه الفترة' : 'Incomplete GL entries for this period',
+                      subtextAr: 'دفتر الأستاذ بلا بند مصروف لهذه الفترة',
                       odooModel: 'account.move.line',
                       provenanceKind: 'محسوب بمعادلة',
                       queryOrFormula: 'الإيراد المرحل − تكلفة البضاعة − عمولات التوصيل − المصاريف المرحلة',
