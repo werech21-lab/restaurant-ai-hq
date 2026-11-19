@@ -66,7 +66,7 @@ function passingFacts(overrides: Partial<AuditFacts> = {}): AuditFacts {
     scopesReady: true,
     configs: [
       { id: 8, name: 'Promenade Mall', active: true },
-      { id: 4, name: 'Qurain Kitchen', active: true },
+      { id: 4, name: 'Delivery (Qurain)', active: true },
     ],
     models,
     scopedOrders: {
@@ -107,27 +107,27 @@ describe('readiness audit pure rules', () => {
     expect(isDeliveryQurainName('Shawali')).toBe(false)
   })
 
-  it('splits the active allow-list from Delivery (Qurain)', () => {
+  it('splits the company allow-list from Delivery (Qurain)', () => {
     const scopes = resolveReadinessScopes([
       { id: 8, name: 'Promenade Mall', active: true },
+      { id: 9, name: 'Qurain Kitchen', active: true },
       { id: 26, name: 'Exhibition Booth', active: true },
-      { id: 4, name: 'Qurain Kitchen', active: true },
-      { id: 7, name: 'Qurain Closed', active: false },
-      { id: 24, name: 'Qurain Outlet', active: true },
+      { id: 4, name: 'Delivery (Qurain)', active: true },
+      { id: 99, name: 'Qurain Kitchen', active: true },
+      { id: 7, name: 'Delivery (Qurain)', active: false },
+      { id: 24, name: 'Delivery (Qurain)', active: true },
       { id: 16, name: 'E-Mall', active: false },
       { id: 35, name: 'Delivery Ardiya Temp', active: true },
     ])
-    expect(scopes.withoutQurain).toContain(8)
-    expect(scopes.withoutQurain).toContain(26)
-    expect(scopes.withoutQurain).toContain(35)
-    expect(scopes.withoutQurain).not.toContain(4)
-    expect(scopes.withoutQurain).not.toContain(7)
-    expect(scopes.withoutQurain).not.toContain(24)
-    expect(scopes.withoutQurain).not.toContain(16)
-    expect(scopes.withQurain).toEqual([...scopes.withoutQurain, 4].sort((a, b) => a - b))
+    expect(scopes.withoutQurain).toEqual(expect.arrayContaining([8, 26, 35]))
+    for (const id of [4, 9, 99, 7, 24, 16]) expect(scopes.withoutQurain).not.toContain(id)
+    expect(scopes.withQurain).toEqual([...scopes.withoutQurain, 4, 9].sort((a, b) => a - b))
+    expect(scopes.withQurain).not.toContain(99)
     const outlet = scopes.qurain.find((row) => row.id === 24)
     expect(outlet?.explicitlyExcluded).toBe(true)
     expect(outlet?.includedInWithQurain).toBe(false)
+    expect(scopes.qurain.find((row) => row.id === 4)?.includedInWithQurain).toBe(true)
+    expect(scopes.qurain.find((row) => row.id === 99)?.includedInWithQurain).toBe(false)
   })
 
   it('counts Kuwait history days and treats 365 as enough for seasons', () => {
@@ -440,7 +440,7 @@ function fakeOdoo(
   if (model === 'pos.config' && method === 'search_read') {
     return [
       { id: 8, name: 'Promenade Mall', active: true },
-      { id: 4, name: 'Qurain Kitchen', active: true },
+      { id: 4, name: 'Delivery (Qurain)', active: true },
       { id: 24, name: 'Decommissioned', active: false },
       { id: 16, name: 'E-Mall', active: false },
       { id: 35, name: 'Delivery Ardiya Temp', active: true },

@@ -6,7 +6,7 @@
  */
 import { isQurainLabel } from '../../../scripts/lib/qurain-audit-lib.mjs'
 import { getKuwaitTodayIso } from '@/lib/aether/period-delta'
-import { companyPosConfigAllowed, posOrderNet } from '@/lib/odoo/company-pos'
+import { companyPosConfigAllowed, isDeliveryQurainConfig, posOrderNet } from '@/lib/odoo/company-pos'
 import { isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import {
   KUWAIT_OFFSET_MS,
@@ -355,32 +355,39 @@ export interface ResolvedScopes {
   qurain: QurainRegister[]
 }
 
+/**
+ * `withQurain` is the company allow-list after Delivery (Qurain) was included:
+ * `companyPosConfigAllowed`, which accepts that cashier name and no longer drops
+ * Qurain from an allowlisted register. `withoutQurain` is the same list with
+ * those Qurain registers removed. A Qurain name that the allow-list still
+ * rejects stays out of both.
+ */
 export function resolveReadinessScopes(configs: readonly PosConfigRow[]): ResolvedScopes {
-  const allowed: number[] = []
+  const withIds: number[] = []
+  const withoutIds: number[] = []
   const qurain: QurainRegister[] = []
   for (const row of configs) {
     if (!Number.isInteger(row.id) || row.id <= 0) continue
     const name = row.name ?? ''
     const active = row.active !== false
     const explicitlyExcluded = isExcludedRecordId('pos_config', row.id)
-    const qurainName = isDeliveryQurainName(name)
-    if (active && companyPosConfigAllowed(row.id, name, true)) {
-      allowed.push(row.id)
-    }
+    const qurainName = isDeliveryQurainName(name) || isDeliveryQurainConfig(name)
+    const inCompanyTotals = active && companyPosConfigAllowed(row.id, name, true)
     if (qurainName) {
       qurain.push({
         id: row.id,
         name,
         active,
         explicitlyExcluded,
-        includedInWithQurain: active && !explicitlyExcluded,
+        includedInWithQurain: inCompanyTotals,
       })
     }
+    if (!inCompanyTotals) continue
+    withIds.push(row.id)
+    if (!qurainName) withoutIds.push(row.id)
   }
-  const withoutQurain = [...new Set(allowed)].sort((a, b) => a - b)
-  const withQurain = [
-    ...new Set([...withoutQurain, ...qurain.filter((row) => row.includedInWithQurain).map((row) => row.id)]),
-  ].sort((a, b) => a - b)
+  const withoutQurain = [...new Set(withoutIds)].sort((a, b) => a - b)
+  const withQurain = [...new Set(withIds)].sort((a, b) => a - b)
   qurain.sort((a, b) => a.id - b.id)
   return { withoutQurain, withQurain, qurain }
 }
@@ -1166,8 +1173,8 @@ function specFor(model: string): ModelSpec {
 function readinessNotes(facts: AuditFacts): string[] {
   const notes = [
     'Read-only. This audit does not write to Odoo or to the application database, and it adds no migration.',
-    'Sales states are paid, done, and invoiced. Dates use Kuwait day boundaries (UTC+3). The allow-list is the active pos.config set accepted by companyPosConfigAllowed.',
-    'withQurain adds active registers whose names match the Qurain classifier and are not explicit exclusions (pos.config 24, 25, 39, 40). withoutQurain is that allow-list with Qurain left out. Company totals are not changed here.',
+    'Sales states are paid, done, and invoiced. Dates use Kuwait day boundaries (UTC+3). withQurain is the active pos.config set accepted by companyPosConfigAllowed, including Delivery (Qurain).',
+    'withoutQurain is that same allow-list with Qurain registers removed. Explicit exclusions 24, 25, 39, and 40 stay out of both. A Qurain name the allow-list still rejects is in neither scope. This audit does not change company totals.',
     'Net KWD on orders is amount_total minus amount_tax. Net KWD on lines is price_subtotal. Both are rounded to 3 decimals.',
     `Key-field completeness is the share of filled values on a sample of up to ${COMPLETENESS_SAMPLE_SIZE} rows. A model passes at ${COMPLETENESS_GO_MIN_PCT}% or more.`,
     `Cashier configs ${CASHIER_CONFIG_IDS.join(', ')} are reported even when they sit outside the sales allow-list. The window is ${CASHIER_FROM_KUWAIT} through today, Kuwait time.`,
