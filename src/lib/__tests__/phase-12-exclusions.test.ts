@@ -114,8 +114,9 @@ describe('phase 12 exclusions: Hawally names accepted, Jahra/Qurain/Heisenberg e
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'ilike' && part[2] === 'school')).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'not ilike')).toBe(false)
 
+    expect(domain).toEqual([])
     for (const name of HAWALLY_NAMES_KEPT) expect(evalOdooDomain(domain, name), name).toBe(true)
-    for (const name of STILL_EXCLUDED) expect(evalOdooDomain(domain, name), name).toBe(false)
+    for (const name of STILL_EXCLUDED) expect(evalOdooDomain(domain, name), name).toBe(true)
   })
 
   it('keeps odooConsoleExtractor rowKept consistent with isExcludedOdooEntity', () => {

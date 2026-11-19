@@ -1,6 +1,7 @@
 import { getKuwaitTodayIso } from '../aether/period-delta'
 import {
   companyPosRegisterIds,
+  isQurainPosConfigId,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   signedKwd,
@@ -63,23 +64,57 @@ export function kuwaitDateBoundsToOdooUtc(
   }
 }
 
+/**
+ * Company filter plus register ids. Qurain ids are OR-ed without a company match
+ * so an archived register in another company still enters the company total.
+ */
+export function posRegisterScopeClauses(input: {
+  companyId?: number | null
+  configIds: readonly number[]
+  configField: string
+  companyField: string
+}): unknown[] {
+  const qurainIds = input.configIds.filter((id) => isQurainPosConfigId(id))
+  const otherIds = input.configIds.filter((id) => !isQurainPosConfigId(id))
+  const hasCompany =
+    input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)
+  if (!hasCompany || qurainIds.length === 0) {
+    const clauses: unknown[] = []
+    if (hasCompany) clauses.push([input.companyField, '=', input.companyId])
+    clauses.push([input.configField, 'in', [...input.configIds]])
+    return clauses
+  }
+  if (otherIds.length === 0) {
+    return [[input.configField, 'in', [...qurainIds]]]
+  }
+  return [
+    '|',
+    '&',
+    [input.companyField, '=', input.companyId],
+    [input.configField, 'in', [...otherIds]],
+    [input.configField, 'in', [...qurainIds]],
+  ]
+}
+
 export function buildPosOrderUtcDomain(input: {
   fromUtc: string
   toExclusiveUtc: string
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const configIds = input.configIds ?? companyPosRegisterIds()
-  const domain: unknown[][] = [
+  const domain: unknown[] = [
     ['state', 'in', ['paid', 'done', 'invoiced']],
     ['date_order', '>=', input.fromUtc],
     ['date_order', '<', input.toExclusiveUtc],
+    ...posRegisterScopeClauses({
+      companyId: input.companyId,
+      configIds,
+      configField: 'session_id.config_id',
+      companyField: 'company_id',
+    }),
   ]
-  if (input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)) {
-    domain.push(['company_id', '=', input.companyId])
-  }
-  domain.push(['session_id.config_id', 'in', [...configIds]])
   if (input.nonRefundOnly) {
     domain.push(['amount_total', '>=', 0])
   }
@@ -92,7 +127,7 @@ export function buildPosOrderKpiDomain(input: {
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const bounds = kuwaitDateBoundsToOdooUtc(
     input.fromKuwaitDate,
     input.toInclusiveKuwaitDate ?? input.fromKuwaitDate,
@@ -112,17 +147,19 @@ export function buildPosPaymentUtcDomain(input: {
   companyId?: number | null
   configIds?: readonly number[]
   nonRefundOnly?: boolean
-}): unknown[][] {
+}): unknown[] {
   const configIds = input.configIds ?? companyPosRegisterIds()
-  const domain: unknown[][] = [
+  const domain: unknown[] = [
     ['pos_order_id.state', 'in', ['paid', 'done', 'invoiced']],
     ['pos_order_id.date_order', '>=', input.fromUtc],
     ['pos_order_id.date_order', '<', input.toExclusiveUtc],
+    ...posRegisterScopeClauses({
+      companyId: input.companyId,
+      configIds,
+      configField: 'session_id.config_id',
+      companyField: 'pos_order_id.company_id',
+    }),
   ]
-  if (input.companyId !== null && input.companyId !== undefined && Number.isInteger(input.companyId)) {
-    domain.push(['pos_order_id.company_id', '=', input.companyId])
-  }
-  domain.push(['session_id.config_id', 'in', [...configIds]])
   if (input.nonRefundOnly) {
     domain.push(['pos_order_id.amount_total', '>=', 0], ['amount', '>=', 0])
   }

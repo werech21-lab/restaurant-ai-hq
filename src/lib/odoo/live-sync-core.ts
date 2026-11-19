@@ -8,6 +8,7 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
+import { formatArReconciliationFormula } from './receivable-aging'
 import {
   companyPosConfigAllowed,
   companyPosSearchDomain,
@@ -150,12 +151,12 @@ function roundReceivableKwd(n: number): number {
   return Object.is(n, -0) ? 0 : Math.round(n * 1000) / 1000
 }
 
-/** True for cashier clearing 10552, whether the token is a code or an Odoo account label. */
+/** True only when the account code is cashier clearing 10552. The label is ignored. */
 export function isPosClearingAccount(codeOrLabel: string | null | undefined): boolean {
   const text = (codeOrLabel ?? '').trim()
   if (!text) return false
-  if (new RegExp(`(?:^|\\D)${POS_CLEARING_ACCOUNT_CODE}(?:\\D|$)`).test(text)) return true
-  return /account receivable \(pos\)/i.test(text)
+  const leading = /^(\d+)\b/.exec(text)
+  return leading?.[1] === POS_CLEARING_ACCOUNT_CODE || text === POS_CLEARING_ACCOUNT_CODE
 }
 
 export function receivableAccountCode(label: string, accountId: number): string {
@@ -261,6 +262,64 @@ export function customerReceivableNetKwd(
     return roundReceivableKwd(input.openReceivableKwd)
   }
   return null
+}
+
+export type CustomerReceivableFigures = {
+  netKwd: number | null
+  openDebitsKwd: number | null
+  unappliedCreditsKwd: number | null
+  formulaAr: string
+  formulaEn: string
+}
+
+/** The only customer-receivable total. Every page reads this object. */
+function finiteKwd(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? roundReceivableKwd(value) : null
+}
+
+export function customerReceivableFigures(
+  input:
+    | {
+        unavailable?: boolean
+        agingLabelsWithheld?: boolean
+        platformNetKwd?: number | null
+        platformOpenDebitsKwd?: number | null
+        platformUnappliedCreditsKwd?: number | null
+        openDebitsKwd?: number | null
+        unappliedCreditsKwd?: number | null
+        byAccount?: readonly OdooReceivableAccountRow[]
+        openReceivableKwd?: number | null
+      }
+    | null
+    | undefined,
+): CustomerReceivableFigures {
+  const netKwd = customerReceivableNetKwd(input)
+  const openDebitsKwd = finiteKwd(input?.platformOpenDebitsKwd) ?? finiteKwd(input?.openDebitsKwd)
+  const unappliedCreditsKwd =
+    finiteKwd(input?.platformUnappliedCreditsKwd) ?? finiteKwd(input?.unappliedCreditsKwd)
+  if (netKwd === null) {
+    return {
+      netKwd: null,
+      openDebitsKwd,
+      unappliedCreditsKwd,
+      formulaAr: 'رصيد متبقٍ غير مسوّى',
+      formulaEn: 'Open residual',
+    }
+  }
+  const formula = formatArReconciliationFormula({
+    openReceivableKwd: netKwd,
+    grossPositiveReceivableKwd: openDebitsKwd ?? netKwd,
+    creditClearingOffsetKwd: unappliedCreditsKwd ?? 0,
+    openDebitsKwd: input?.agingLabelsWithheld ? null : openDebitsKwd,
+    unappliedCreditsKwd: input?.agingLabelsWithheld ? null : unappliedCreditsKwd,
+  })
+  return {
+    netKwd,
+    openDebitsKwd,
+    unappliedCreditsKwd,
+    formulaAr: formula.ar,
+    formulaEn: formula.en,
+  }
 }
 
 /**

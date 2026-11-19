@@ -16,9 +16,12 @@ describe('per-register reconciliation', () => {
     expect(classifyIncludedRegister(8, 'Promenade POS')).toBe('restaurant')
     expect(classifyIncludedRegister(41, 'NPIS Hawally canteen')).toBe('school-canteen')
     expect(classifyIncludedRegister(26, 'Exhibition booth')).toBe('exhibition-booths')
-    expect(classifyIncludedRegister(24, 'Closed register')).toBeNull()
+    expect(classifyIncludedRegister(24, 'Closed register')).toBe('restaurant')
+    expect(classifyIncludedRegister(25, 'Jahra')).toBeNull()
     expect(classifyIncludedRegister(8, 'Qurain kitchen')).toBe('restaurant')
-    expect(classifyIncludedRegister(4, 'Delivery (Qurain)')).toBe('restaurant')
+    expect(classifyIncludedRegister(4, 'Delivery (Qurain)')).toBeNull()
+    expect(classifyIncludedRegister(24, 'Delivery (Qurain)')).toBe('restaurant')
+    expect(classifyIncludedRegister(36, 'Delivery (Qurain Temp)')).toBe('restaurant')
     expect(classifyIncludedRegister(8, 'هايزن بريج')).toBeNull()
   })
 
@@ -29,7 +32,7 @@ describe('per-register reconciliation', () => {
         { configId: 8, configName: 'synthetic promenade', netKwd: 2, orders: 4 },
         { configId: 41, configName: 'synthetic canteen', netKwd: 1.5, orders: 2 },
         { configId: 26, configName: 'synthetic booth', netKwd: -0.25, orders: 1 },
-        { configId: 24, configName: 'synthetic excluded', netKwd: 9, orders: 3 },
+        { configId: 40, configName: 'synthetic excluded', netKwd: 9, orders: 3 },
       ],
       3.25,
     )
@@ -67,15 +70,14 @@ describe('connector bucket register reconciliation', () => {
       { configId: 41, configName: 'labelled canteen 41', netKwd: 0.3, orders: 1 },
       { configId: 42, configName: 'labelled canteen 42', netKwd: 0.3, orders: 1 },
       { configId: 43, configName: 'labelled canteen 43', netKwd: 0.3, orders: 1 },
-      { configId: 3, configName: 'Delivery (Qurain)', netKwd: 9, orders: 1 },
+      { configId: 24, configName: 'Delivery (Qurain)', netKwd: 9, orders: 1 },
     ]
     const excluded = [
-      { configId: 24, configName: 'labelled closed 24', netKwd: 9, orders: 1 },
       { configId: 25, configName: 'labelled closed 25', netKwd: 9, orders: 1 },
       { configId: 39, configName: 'labelled closed 39', netKwd: 9, orders: 1 },
       { configId: 40, configName: 'labelled closed 40', netKwd: 9, orders: 1 },
-      { configId: 14, configName: 'Jahra register', netKwd: 9, orders: 1 },
-      { configId: 15, configName: 'هايزن بريج', netKwd: 9, orders: 1 },
+      { configId: 9001, configName: 'Jahra register', netKwd: 9, orders: 1 },
+      { configId: 9002, configName: 'هايزن بريج', netKwd: 9, orders: 1 },
     ]
     const includedNet = Math.round(included.reduce((sum, row) => sum + row.netKwd, 0) * 1000) / 1000
     const bucket = buildReconciledBucket({
@@ -101,8 +103,8 @@ describe('connector bucket register reconciliation', () => {
     const snap = computeCoresHubSnapshot({ ...DEFAULT_GLOBAL_FILTERS, period: 'month' }, [], summary)
     const ids = snap.sales.registerReconciliation?.rows.map((row) => row.configId) ?? []
     expect(ids).toEqual(expect.arrayContaining([8, 9, 10, 11, 26, 33, 37, 38, 41, 42, 43]))
-    expect(ids).toContain(3)
-    for (const id of [24, 25, 39, 40, 14, 15]) {
+    expect(ids).toContain(24)
+    for (const id of [25, 39, 40, 9001, 9002]) {
       expect(ids).not.toContain(id)
     }
     expect(snap.sales.registerReconciliation?.includedNetKwd).toBe(includedNet)

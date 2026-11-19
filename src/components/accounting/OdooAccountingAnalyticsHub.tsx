@@ -3,7 +3,6 @@
 import React from 'react'
 import { AlertTriangle, BookOpen, Landmark, Receipt, Scale, TrendingUp } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { customerReceivableNetKwd } from '@/lib/odoo/live-sync-core'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
 import { StateBlock } from '@/components/ui'
 import {
@@ -303,7 +302,7 @@ export function OdooAccountingAnalyticsHub({
                 UNAVAILABLE_DASH
               )
             ) : (
-              formatKwd(customerReceivableNetKwd(rec), resolvedLocale)
+              formatKwd(rec.figures?.netKwd ?? null, resolvedLocale)
             )}
           </div>
           <p

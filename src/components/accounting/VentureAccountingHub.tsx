@@ -10,7 +10,6 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
-import { customerReceivableNetKwd } from '@/lib/odoo/live-sync-core'
 import {
   GLOBAL_PERIOD_OPTIONS,
   formatPeriodCalendarWindow,
@@ -234,7 +233,7 @@ export function VentureAccountingHub({
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(customerReceivableNetKwd(workspace.receivables), currentLocale)}
+                    : formatKwd(workspace.receivables.figures?.netKwd ?? null, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -246,7 +245,7 @@ export function VentureAccountingHub({
                     lastSyncAt={workspace.lastSyncAt}
                     isStale24h={workspace.isStale24h}
                     kind="فعلي"
-                    queryOrFormula={workspace.receivables.reconciliationFormulaAr}
+                    queryOrFormula={workspace.receivables.figures?.formulaAr ?? ''}
                     isAr={isAr}
                   />
                 </div>
@@ -267,7 +266,7 @@ export function VentureAccountingHub({
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.grossPositiveReceivableKwd, currentLocale)}
+                    : formatKwd(workspace.receivables.figures?.openDebitsKwd ?? null, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge
@@ -300,7 +299,7 @@ export function VentureAccountingHub({
                     ? isAr
                       ? 'غير متاح'
                       : UNAVAILABLE_DASH
-                    : formatKwd(workspace.receivables.creditClearingOffsetKwd, currentLocale)}
+                    : formatKwd(workspace.receivables.figures?.unappliedCreditsKwd ?? null, currentLocale)}
                 </p>
                 <div className="mt-3">
                   <KpiProvenanceBadge

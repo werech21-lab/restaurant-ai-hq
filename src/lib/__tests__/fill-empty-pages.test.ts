@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { applyReceivablesExecutivePolicy } from '@/lib/aether/global-filter-engine'
 import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED } from '@/lib/aether/receivables-status'
+import { isSalaryWindowDay, SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import { seasonLiftsFromDaily } from '@/lib/council/advisors/seasons'
 import { buildReceivablePartnerRows, customerReceivableNetKwd, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
 import { warehouseChainErrorPayload } from '@/lib/odoo-live-connector'
@@ -145,7 +146,7 @@ describe('receivable debit and credit split', () => {
       'src/components/accounting/VentureAccountingHub.tsx',
     ]
     for (const rel of files) {
-      expect(readFileSync(path.join(process.cwd(), rel), 'utf8')).toContain('customerReceivableNetKwd')
+      expect(readFileSync(path.join(process.cwd(), rel), 'utf8')).toContain('.figures')
     }
     const studio = readFileSync(path.join(process.cwd(), 'src/components/erp/ReceivablesAgingStudio.tsx'), 'utf8')
     expect(studio).not.toContain('POS Clearing (10552)')
@@ -199,6 +200,10 @@ describe('season lift from the daily series', () => {
     const lifts = seasonLiftsFromDaily(summary, events)
     const salary = lifts.find((row) => row.eventId === 'salary-days')
     expect(salary).toBeTruthy()
+    expect(SALARY_WINDOW_DAYS).toEqual({ start: 5, end: 10 })
+    expect(isSalaryWindowDay(salary!.window.from)).toBe(true)
+    expect(isSalaryWindowDay(salary!.window.to)).toBe(true)
+    expect(salary!.window.from).not.toBe('2026-11-25')
     expect(salary!.avgDailyKwd).toBeGreaterThan(0)
     expect(salary!.baselineDailyKwd).toBeGreaterThan(0)
     expect(Number.isFinite(salary!.liftPct)).toBe(true)

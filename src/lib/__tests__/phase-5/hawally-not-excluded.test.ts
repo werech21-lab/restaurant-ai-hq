@@ -27,19 +27,22 @@ describe('Hawally is an active district, not an exclusion', () => {
     expect(resolveRestaurantBranchForConfig(41, 'NPIS Hawally')).toBe('school-canteens')
   })
 
-  it('explicit id exclusions: 24, 25, 39, 40', () => {
-    for (const id of [24, 25, 39, 40]) {
+  it('explicit id exclusions: 25, 39, 40; Delivery (Qurain) 24 stays in', () => {
+    expect(isExcludedRecordId('pos_config', 24)).toBe(false)
+    expect(companyPosConfigAllowed(24, 'Delivery (Qurain)')).toBe(true)
+    for (const id of [25, 39, 40]) {
       expect(isExcludedRecordId('pos_config', id)).toBe(true)
       expect(companyPosConfigAllowed(id, 'any name')).toBe(false)
       expect(companyPosRegisterIds()).not.toContain(id)
     }
   })
 
-  it('Jahra is still rejected by name', () => {
+  it('a Jahra name does not remove an allowlisted register id', () => {
     for (const name of ['Delivery (Jahra)', 'Tasty Snacks(Jahra)', 'الجهراء']) {
       expect(isExcludedOdooEntity(name)).toBe(true)
     }
-    expect(companyPosConfigAllowed(8, 'Promenade Jahra')).toBe(false)
+    expect(companyPosConfigAllowed(8, 'Promenade Jahra')).toBe(true)
+    expect(resolveRestaurantBranchForConfig(8, 'Promenade Jahra')).toBe('promenade')
   })
 
   it('real payload: branch rows sum to the total, unattributed is 0, Scorecard shares total 100.0%', () => {

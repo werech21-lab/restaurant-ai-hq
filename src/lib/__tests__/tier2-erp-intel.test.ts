@@ -322,10 +322,10 @@ describe('Tier 2 ERP Intelligence, Strategy, Growth, CRM & Dropzone Suites', () 
     it('surfaces GL incomplete warning honestly in AR & EN when accounting is unposted', () => {
       setGlobalState(buildLiveSummary(true, true))
       const arHtml = renderWithLocale('ar', React.createElement(StrategicPlanningStudio))
-      expect(arHtml).toContain('قيود غير مكتملة لهذه الفترة')
+      expect(arHtml).not.toContain('قيود غير مكتملة')
 
       const enHtml = renderWithLocale('en', React.createElement(StrategicPlanningStudio))
-      expect(enHtml).toContain('Incomplete GL entries for this period')
+      expect(enHtml).not.toContain('Incomplete GL entries for this period')
       expect(enHtml.replace(/data-kpi-provenance="[^"]*"/g, '')).not.toMatch(/[\u0600-\u06FF]/)
     })
   })

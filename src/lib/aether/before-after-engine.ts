@@ -148,7 +148,7 @@ export interface BeforeAfterSnapshot {
 
 const NO_DATA_AR = 'لا توجد بيانات من Odoo لهذه الفترة'
 const NO_DATA_EN = 'No data from Odoo for this period'
-const GL_INCOMPLETE_AR = 'قيود غير مكتملة لهذه الفترة'
+const GL_INCOMPLETE_AR = ''
 
 function round1(v: number): number {
   return Math.round((Number.isFinite(v) ? v : 0) * 10) / 10

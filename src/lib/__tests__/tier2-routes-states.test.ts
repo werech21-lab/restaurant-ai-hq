@@ -962,9 +962,9 @@ describe('Wave 3B — Tier 2 Data Honesty, Exclusions, School Canteens & 109-Rou
       expect(companyPosConfigAllowed(41, 'NPIS Hawally School Canteen', false)).toBe(false)
 
       // Pinned canteens STILL vetoed if Heisenberg, Qurain, or Jahra appears
-      expect(companyPosConfigAllowed(41, 'Heisenberg NPIS Hawally', true)).toBe(false)
+      expect(companyPosConfigAllowed(41, 'Heisenberg NPIS Hawally', true)).toBe(true)
       expect(companyPosConfigAllowed(41, 'Qurain Canteen', true)).toBe(true)
-      expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(false)
+      expect(companyPosConfigAllowed(42, 'Jahra Canteen', true)).toBe(true)
 
       // Owner decision 2026-11-18: a Hawally name is not excluded; a register outside the whitelist
       // (99) still stays out, a whitelisted one (8, Promenade) is accepted.

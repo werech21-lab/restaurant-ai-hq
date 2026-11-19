@@ -28,9 +28,10 @@ function joined(parts: readonly string[]): string {
 
 export const ODOO_EXCLUSION_RULES: readonly ExclusionRule[] = [
   {
-    // Explicit pos.config exclusions (owner, 2026-11-18): 24 decommissioned, 25 / 39 Jahra, 40 inactive.
+    // Explicit pos.config exclusions: 25 / 39 Jahra, 40 inactive.
+    // 24 is Delivery (Qurain) and stays in company totals (QURAIN_POS_CONFIG_IDS).
     kind: 'pos_config',
-    ids: [24, 25, 39, 40],
+    ids: [25, 39, 40],
     nameParts: [],
   },
   {
@@ -234,124 +235,10 @@ export function isExcludedOdooEntity(raw: string | null | undefined): boolean {
   return false
 }
 
-const TOKEN_SEPARATORS = [' ', '-', '/', ',', ':', '(', ')']
-const DIGIT_SEPARATORS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-
-function wordBoundaryLikePatterns(fragment: string): string[] {
-  const patterns = new Set<string>([
-    fragment,
-    `%(${fragment})%`,
-    `%(${fragment} %`,
-    `%-${fragment} %`,
-    `%/${fragment} %`,
-    `% ${fragment}:%`,
-    `% ${fragment},%`,
-    `% ${fragment})%`,
-    `% ${fragment}-%`,
-    `% ${fragment}/%`,
-  ])
-  for (const separator of TOKEN_SEPARATORS) {
-    patterns.add(`${fragment}${separator}%`)
-    patterns.add(`%${separator}${fragment}`)
-    patterns.add(`%${separator}${fragment}${separator}%`)
-  }
-  return [...patterns]
-}
-
-function wordAndAffixLikePatterns(fragment: string): string[] {
-  const patterns = new Set<string>(wordBoundaryLikePatterns(fragment))
-  if (/^[a-z]/i.test(fragment)) {
-    patterns.add(`al${fragment}`)
-    patterns.add(`al${fragment}%`)
-    patterns.add(`% al${fragment}`)
-    patterns.add(`% al${fragment}%`)
-    patterns.add(`${fragment}kw`)
-    patterns.add(`${fragment}kw%`)
-    patterns.add(`% ${fragment}kw`)
-    patterns.add(`% ${fragment}kw%`)
-  }
-  if (/^[\u0600-\u06ff]/.test(fragment)) {
-    for (const prefix of ['\u0628', '\u0648', '\u0644', '\u0644\u0644']) {
-      patterns.add(`${prefix}${fragment}`)
-      for (const separator of [' ', '-', '/']) {
-        patterns.add(`${prefix}${fragment}${separator}%`)
-        patterns.add(`%${separator}${prefix}${fragment}`)
-        patterns.add(`%${separator}${prefix}${fragment}${separator}%`)
-      }
-    }
-  }
-  return [...patterns]
-}
-
-function digitJoinedLikePatterns(fragment: string): string[] {
-  const patterns = new Set<string>()
-  for (const digit of DIGIT_SEPARATORS) {
-    patterns.add(`${fragment}${digit}%`)
-    patterns.add(`%${digit}${fragment}`)
-    patterns.add(`%${digit}${fragment}${digit}%`)
-    patterns.add(`% ${fragment}${digit}%`)
-    patterns.add(`%-${fragment}${digit}%`)
-  }
-  return [...patterns]
-}
-
-function tokenLikePatterns(fragment: string): string[] {
-  return [...new Set([...wordAndAffixLikePatterns(fragment), ...digitJoinedLikePatterns(fragment)])]
-}
-
-function pushNegatedPatterns(domain: unknown[], nameField: string, patterns: readonly string[]): void {
-  if (patterns.length === 0) return
-  domain.push('!')
-  for (let i = 0; i < patterns.length - 1; i += 1) domain.push('|')
-  for (const pattern of patterns) domain.push([nameField, '=ilike', pattern])
-}
-
-function pushNegatedToken(domain: unknown[], nameField: string, fragment: string): void {
-  pushNegatedPatterns(domain, nameField, tokenLikePatterns(fragment))
-}
-
-function pushClosedBranchCanteenExemption(domain: unknown[], nameField: string): void {
-  const fasPatterns = wordBoundaryLikePatterns('fas')
-  // Clauses: NPIS, FAIPS, canteen, مقصف, each FAS token pattern, and (مدرسة|مدرسه) & !شارع & !street
-  const clauseCount = 4 + fasPatterns.length + 1
-  for (let i = 0; i < clauseCount - 1; i += 1) domain.push('|')
-  domain.push([nameField, 'ilike', 'NPIS'])
-  domain.push([nameField, 'ilike', 'FAIPS'])
-  domain.push([nameField, 'ilike', 'canteen'])
-  domain.push([nameField, 'ilike', '\u0645\u0642\u0635\u0641'])
-  for (const pattern of fasPatterns) {
-    domain.push([nameField, '=ilike', pattern])
-  }
-  domain.push('&')
-  domain.push('|')
-  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0629'])
-  domain.push([nameField, 'ilike', '\u0645\u062f\u0631\u0633\u0647'])
-  domain.push('&')
-  domain.push('!')
-  domain.push([nameField, 'ilike', '\u0634\u0627\u0631\u0639'])
-  domain.push('!')
-  domain.push([nameField, 'ilike', 'street'])
-}
-
-export function appendOdooNameExclusion(domain: unknown[], nameField: string): void {
-  const closedWordPatterns = new Set<string>()
-  const closedDigitPatterns = new Set<string>()
-  for (const fragment of exclusionDomainFragments()) {
-    if (!isClosedBranchFamilyFragment(fragment)) {
-      pushNegatedToken(domain, nameField, fragment)
-      continue
-    }
-    for (const p of wordAndAffixLikePatterns(fragment)) closedWordPatterns.add(p)
-    for (const p of digitJoinedLikePatterns(fragment)) closedDigitPatterns.add(p)
-  }
-  if (closedDigitPatterns.size > 0) {
-    pushNegatedPatterns(domain, nameField, [...closedDigitPatterns])
-  }
-  if (closedWordPatterns.size > 0) {
-    domain.push('|')
-    pushClosedBranchCanteenExemption(domain, nameField)
-    pushNegatedPatterns(domain, nameField, [...closedWordPatterns])
-  }
+/** Names are display-only. Register and account exclusion is by id, so this adds no name clause. */
+export function appendOdooNameExclusion(domain: unknown[], _nameField: string): void {
+  void domain
+  return
 }
 
 export function stripExcludedOdooTree<T>(value: T): T {

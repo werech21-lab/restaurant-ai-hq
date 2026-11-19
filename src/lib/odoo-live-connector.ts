@@ -18,6 +18,7 @@ import { CoverageCounter, resolveProductCosts, type CostSource, type WarehouseVa
  * - Stale-While-Revalidate cache (`TTL: 60s`) + `lastKnownGoodSnapshot` circuit breaker + `30s` manual sync cooldown.
  */
 import { resolveGlClosedThroughDate } from '@/lib/aether/closed-month-policy'
+import { logger } from '@/lib/logger'
 import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
@@ -54,7 +55,9 @@ import {
 import {
   anchorKuwaitDay,
   companyPosConfigAllowed,
+  isQurainPosConfigId,
   isPinnedSchoolCanteenConfigId,
+  QURAIN_POS_CONFIG_IDS,
   posOrderNet,
   SCHOOL_CANTEEN_BRANCH_ID,
   EXHIBITION_BRANCH_ID,
@@ -74,6 +77,7 @@ import {
 } from '@/lib/odoo/brand-scope-fetch'
 import {
   buildPosOrderUtcDomain,
+  posRegisterScopeClauses,
   buildPosPaymentUtcDomain,
   kuwaitDateBoundsToOdooUtc,
   mergeDaySessionPricelistGroups,
@@ -385,6 +389,7 @@ export interface OdooPeriodCube {
   posConfigIds?: {
     companyId: number | null
     configIdsByBranch: Record<string, number[]>
+    includedConfigIds?: number[]
     excludedConfigIds: number[]
     excludedPosCategoryIds: number[]
   }
@@ -939,9 +944,22 @@ function kuwaitRangeToOdooUtcStrings(fromKuwaitIso: string, toExclusiveKuwaitIso
  * Jahra and Heisenberg stay out of inventory, transfers, and POS aggregations.
  * Delivery (Qurain) is a live cashier and is not decommissioned (founder, 2026-11-19).
  */
+const EXCLUDED_GL_ACCOUNT_CODES = [
+  '10114',
+  '10119',
+  '101531',
+  '10328',
+  '40079',
+  '40080',
+  '40097',
+  '9950473',
+] as const
+
+/** Account-code exclusion only. A display name never decides this. */
 export function isDecommissionedWarehouseRecord(rawText?: string | null): boolean {
   if (!rawText) return false
-  return isExcludedOdooEntity(rawText)
+  const code = /^(\d+)\b/.exec(rawText.trim())?.[1]
+  return code != null && (EXCLUDED_GL_ACCOUNT_CODES as readonly string[]).includes(code)
 }
 
 /**
@@ -953,63 +971,35 @@ export function isDecommissionedWarehouseRecord(rawText?: string | null): boolea
  * Any active company terminal not tied to a single mall branch (e.g. Central / Multi-Branch POS Terminals)
  * returns `null` here and is rolled 100% into reconciled `companyNet` (`0.000 KWD` variance).
  */
-const NON_OPERATING_TERMINAL_NAME_RE = /\b(?:test|training|demo|closed|cancelled)\b/i
-
 export function resolveRestaurantBranchForConfig(
   cfgId: number,
-  cfgName: string,
-  extraContext = '',
+  _cfgName: string,
+  _extraContext = '',
   options?: { ignoreAdminOverride?: boolean },
 ): (typeof ACTIVE_BRANCH_IDS)[number] | null {
-  if (isExcludedRecordId('pos_config', cfgId)) {
+  if (isExcludedRecordId('pos_config', cfgId) || isQurainPosConfigId(cfgId)) {
     return null
   }
   if (isPinnedSchoolCanteenConfigId(cfgId)) {
-    return companyPosConfigAllowed(cfgId, cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
+    return companyPosConfigAllowed(cfgId, _cfgName, true) ? SCHOOL_CANTEEN_BRANCH_ID : null
   }
   if (isExhibitionConfigId(cfgId)) {
-    return companyPosConfigAllowed(cfgId, cfgName, true) ? EXHIBITION_BRANCH_ID : null
+    return companyPosConfigAllowed(cfgId, _cfgName, true) ? EXHIBITION_BRANCH_ID : null
   }
-  const ownName = (cfgName || '').trim()
-  if (NON_OPERATING_TERMINAL_NAME_RE.test(ownName)) {
-    return null
-  }
-  const combined = `${ownName} ${extraContext || ''}`.trim()
-  if (isDecommissionedWarehouseRecord(combined)) {
-    return null
-  }
-  const lower = combined.toLowerCase()
-  if (/\b(?:exhibition|exebition|exb|bazaar|booth|catering)\b/i.test(lower)) {
-    return null
-  }
-
   if (!options?.ignoreAdminOverride) {
     const adminMapped = getAdminPosTerminalBranch(cfgId)
-    if (adminMapped) {
-      return adminMapped
-    }
+    if (adminMapped) return adminMapped
   }
-
   const regEntry = REG.registers[String(cfgId)]
-  if (regEntry) {
-    const loc = regEntry.location
-    if (loc === 'call-center') return 'ardiya'
-    if (
-      REG.locations[loc]?.unit === 'restaurant' &&
-      (ACTIVE_BRANCH_IDS as readonly string[]).includes(loc)
-    ) {
-      return loc as (typeof ACTIVE_BRANCH_IDS)[number]
-    }
-    return null
+  if (!regEntry) return null
+  const loc = regEntry.location
+  if (loc === 'call-center') return 'ardiya'
+  if (
+    REG.locations[loc]?.unit === 'restaurant' &&
+    (ACTIVE_BRANCH_IDS as readonly string[]).includes(loc)
+  ) {
+    return loc as (typeof ACTIVE_BRANCH_IDS)[number]
   }
-
-  if (/\bavn\b|avenue|افنيوز|الأفنيوز/.test(lower)) return 'avenues'
-  if (/\b360\b|٣٦٠/.test(lower)) return '360-mall'
-  if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
-  if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
-  if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
-  if (/\bkot\b|\bkout\b|كوت|الكوت/.test(lower)) return 'al-kout'
-  if (/\bard\b|\bck\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
   return null
 }
 
@@ -1252,34 +1242,33 @@ function formatReceivableAccountRow(
   const m = /^(\d+)\s+(.*)$/.exec((rawLabel || '').trim())
   const accountCode = m ? m[1] : String(accountId)
   const accountName = m ? m[2].trim() : (rawLabel || `Account #${accountId}`).trim()
-  const lower = accountName.toLowerCase()
   let labelAr = accountName
   let labelEn = accountName
-  if (accountCode === '10501' || /talabat/.test(lower)) {
+  if (accountCode === '10501') {
     labelAr = 'ذمم منصة طلبات (10501)'
     labelEn = 'Talabat Receivable (10501)'
-  } else if (accountCode === '10502' || /deliveroo/.test(lower)) {
+  } else if (accountCode === '10502') {
     labelAr = 'تسويات منصة ديليفرو (10502)'
     labelEn = 'Deliveroo Receivable Clearing (10502)'
-  } else if (accountCode === '10503' || /cari/.test(lower)) {
+  } else if (accountCode === '10503') {
     labelAr = 'ذمم منصة كاري (10503)'
     labelEn = 'Cari Receivable (10503)'
-  } else if (accountCode === '10504' || /jahez/.test(lower)) {
+  } else if (accountCode === '10504') {
     labelAr = 'ذمم منصة جاهز (10504)'
     labelEn = 'Jahez Receivable (10504)'
-  } else if (accountCode === '10505' || /keeta/.test(lower)) {
+  } else if (accountCode === '10505') {
     labelAr = 'ذمم منصة كيتا (10505)'
     labelEn = 'Keeta Receivable (10505)'
-  } else if (accountCode === '10507' || /snoonu/.test(lower)) {
+  } else if (accountCode === '10507') {
     labelAr = 'تسويات منصة سنونو (10507)'
     labelEn = 'Snoonu Receivable Clearing (10507)'
-  } else if (accountCode === '10508' || /hesabe\s*online|اوردبل/.test(lower)) {
+  } else if (accountCode === '10508') {
     labelAr = 'ذمم الدفع الإلكتروني أونلاين (10508)'
     labelEn = 'Hesabe Online Receivable (10508)'
-  } else if (accountCode === '10509' || /payment\s*link|لينك/.test(lower)) {
+  } else if (accountCode === '10509') {
     labelAr = 'ذمم روابط الدفع المباشر (10509)'
     labelEn = 'Hesabe Payment Link Receivable (10509)'
-  } else if (accountCode === '10552' || /pos/.test(lower)) {
+  } else if (accountCode === '10552') {
     labelAr = 'تسويات نقاط البيع قيد المقاصة (10552)'
     labelEn = 'POS Clearing Receivable (10552)'
   } else if (accountCode === '121000') {
@@ -1696,6 +1685,63 @@ export function buildReconciledBucket(params: {
   }
 }
 
+type PosConfigReadRow = {
+  id: number
+  name: string
+  active?: boolean
+  company_id?: M2O
+  picking_type_id?: M2O
+}
+
+/**
+ * Active registers, plus any Qurain id even when archived. A second read logs
+ * every pos.config whose name contains Qurain / قرين, or whose id is 24.
+ */
+async function fetchPosConfigsIncludingQurain(): Promise<PosConfigReadRow[]> {
+  const active = await executeOdooKw<PosConfigReadRow[]>(
+    'pos.config',
+    'search_read',
+    [[['active', '=', true]]],
+    { fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'] },
+  ).catch(() =>
+    executeOdooKw<PosConfigReadRow[]>(
+      'pos.config',
+      'search_read',
+      [[['active', '=', true]]],
+      { fields: ['id', 'name', 'active', 'company_id'] },
+    ),
+  )
+  /* id-match-diagnostic-start */
+  const diagnostic = await executeOdooKw<PosConfigReadRow[]>(
+    'pos.config',
+    'search_read',
+    [[
+      '|',
+      '|',
+      ['name', 'ilike', 'Qurain'],
+      ['name', 'ilike', 'قرين'],
+      ['id', 'in', [...QURAIN_POS_CONFIG_IDS]],
+    ]],
+    { fields: ['id', 'name', 'active', 'company_id'] },
+  ).catch(() => [] as PosConfigReadRow[])
+  for (const row of diagnostic) {
+    logger.info('pos.config qurain diagnostic', {
+      id: row.id,
+      name: row.name,
+      active: row.active !== false,
+      companyId: m2oId(row.company_id),
+    })
+  }
+  /* id-match-diagnostic-end */
+  const byId = new Map<number, PosConfigReadRow>()
+  for (const row of active) byId.set(row.id, row)
+  for (const row of diagnostic) {
+    if (!isQurainPosConfigId(row.id)) continue
+    byId.set(row.id, { ...byId.get(row.id), ...row, id: row.id, name: row.name })
+  }
+  return [...byId.values()]
+}
+
 async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   await hydrateAdminPosTerminalMappings()
   const cfg = readServerOdooConfig()
@@ -1715,27 +1761,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
 
   // 1. Discover & map all POS configs (`id`, `name`, `company_id`, `picking_type_id`), POS categories, GL Chart of Accounts, user's company_id, and latest order timestamp
   const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderCandidates] = await Promise.all([
-    safeSubQuery(
-      () =>
-        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-          'pos.config',
-          'search_read',
-          [[['active', '=', true]]],
-          {
-            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-          },
-        ),
-      [],
-    ).then(async (rows) =>
-      rows.length > 0
-        ? rows
-        : executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-            'pos.config',
-            'search_read',
-            [[['active', '=', true]]],
-            { fields: ['id', 'name', 'active', 'company_id'] },
-          ),
-    ),
+    fetchPosConfigsIncludingQurain().catch(() => [] as PosConfigReadRow[]),
     safeSubQuery(
       () =>
         executeOdooKw<{ id: number; name: string; parent_id: M2O }[]>(
@@ -1813,6 +1839,10 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const combined = `${c.name} ${extraCtx}`.trim()
     configNameById.set(c.id, combined)
     displayConfigNameById.set(c.id, sanitizePosTerminalDisplayName(c.id, c.name))
+    if (isQurainPosConfigId(c.id)) {
+      companyConfigIds.add(c.id)
+      continue
+    }
     if (c.active === false) {
       const isGenuinelyDecommissioned =
         isExcludedRecordId('pos_config', c.id) ||
@@ -1849,7 +1879,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
   if (allConfigs.length === 0) {
-    for (const cfgId of REG.allowedPosConfigIds) {
+    for (const cfgId of [...new Set([...REG.allowedPosConfigIds, ...QURAIN_POS_CONFIG_IDS])]) {
       const knownName = configNameById.get(cfgId) ?? ''
       if (decommissionedConfigIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
       companyConfigIds.add(cfgId)
@@ -1891,18 +1921,24 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     }
   }
 
-  const companyConfigClause: unknown[][] =
+  const excludedPosDomain: unknown[] =
     companyConfigIds.size > 0
-      ? [['session_id.config_id', 'in', [...companyConfigIds]]]
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'session_id.config_id',
+          companyField: 'company_id',
+        })
       : [['id', '=', 0]]
-  const companyLineClause: unknown[][] =
-    companyConfigIds.size > 0
-      ? [['order_id.session_id.config_id', 'in', [...companyConfigIds]]]
-      : [['id', '=', 0]]
-  const excludedPosDomain: unknown[][] = [...companyDomain, ...companyConfigClause]
-  const excludedPosLineDomain: unknown[][] = [
-    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...companyLineClause,
+  const excludedPosLineDomain: unknown[] = [
+    ...(companyConfigIds.size > 0
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'order_id.session_id.config_id',
+          companyField: 'company_id',
+        })
+      : [['id', '=', 0]]),
     ...(excludedPosCategoryIds.size > 0
       ? [['product_id.pos_categ_id', 'not in', [...excludedPosCategoryIds]]]
       : []),
@@ -1921,6 +1957,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     latestOrderCandidates.find((r) => {
       const cid = m2oId(r.config_id)
       const compId = m2oId(r.company_id)
+      if (cid !== null && isQurainPosConfigId(cid)) return true
       if (cid !== null && decommissionedConfigIds.has(cid)) return false
       if (resolvedCompanyId !== null && compId !== null && compId !== resolvedCompanyId) return false
       return true
@@ -1951,7 +1988,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const posOrderDomainOf = (
     b: { fromUtc: string; toUtc: string },
     nonRefundOnly = false,
-  ): unknown[][] =>
+  ): unknown[] =>
     companyConfigList.length > 0
       ? buildPosOrderUtcDomain({
           fromUtc: b.fromUtc,
@@ -1964,7 +2001,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   const posPaymentDomainOf = (
     b: { fromUtc: string; toUtc: string },
     nonRefundOnly = false,
-  ): unknown[][] =>
+  ): unknown[] =>
     companyConfigList.length > 0
       ? buildPosPaymentUtcDomain({
           fromUtc: b.fromUtc,
@@ -1978,12 +2015,18 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
   // 3a. Exact brand scope rows (today + last 7 days) start now, alongside the main reads, under a
   // fixed time budget. A slow or failed read resolves `null` and the bucket keeps the labelled
   // product-line basis (see `startExactBrandRowsRead`).
-  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[][] => [
+  const companyLineWindowDomain = (b: { fromUtc: string; toUtc: string }): unknown[] => [
     ['order_id.date_order', '>=', b.fromUtc],
     ['order_id.date_order', '<', b.toUtc],
     ['order_id.state', 'in', ['paid', 'done', 'invoiced']],
-    ...(resolvedCompanyId !== null ? [['company_id', '=', resolvedCompanyId]] : []),
-    ...companyLineClause,
+    ...(companyConfigIds.size > 0
+      ? posRegisterScopeClauses({
+          companyId: resolvedCompanyId,
+          configIds: [...companyConfigIds],
+          configField: 'order_id.session_id.config_id',
+          companyField: 'company_id',
+        })
+      : [['id', '=', 0]]),
   ]
   const exactBrandRowsOf = (b: { fromUtc: string; toUtc: string }) =>
     startExactBrandRowsRead(executeOdooKw as OdooExecute, {
@@ -2435,6 +2478,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         ['parent_state', '=', 'posted'],
         ['account_id.account_type', '=', 'asset_receivable'],
         ['reconciled', '=', false],
+        ['move_id.move_type', 'in', ['out_invoice', 'out_refund']],
       ]
       const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
       const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
@@ -2508,7 +2552,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         const cnt = Math.max(0, Number(r.__count) || 0)
         netSum += resVal
         totalLines += cnt
-        if (accName.includes('10552') || /Account Receivable \(PoS\)/i.test(accName)) {
+        if (isPosClearingAccount(accName)) {
           posClearingLinesCount += cnt
           posClearingNetKwd += resVal
         }
@@ -3080,8 +3124,7 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       companyConfigIds.has(c.id) &&
       !decommissionedConfigIds.has(c.id) &&
       !nativeBranchOfConfigId.has(c.id) &&
-      !discoveredCandidateMap.has(c.id) &&
-      !NON_OPERATING_TERMINAL_NAME_RE.test(c.name || '')
+      !discoveredCandidateMap.has(c.id)
     ) {
       discoveredCandidateMap.set(c.id, {
         terminal_id: c.id,
@@ -4464,13 +4507,7 @@ export async function fetchLiveOdooPeriodHourly(
     const uid = await authenticateOdoo()
     const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
     const [allConfigs, userCompanyRows] = await Promise.all([
-      executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
-        fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-      }).catch(() =>
-        executeOdooKw<PeriodCubeConfigRow[]>('pos.config', 'search_read', [[['active', '=', true]]], {
-          fields: ['id', 'name', 'active', 'company_id'],
-        }),
-      ),
+      fetchPosConfigsIncludingQurain(),
       safeSubQuery(
         () => executeOdooKw<{ id: number; company_id?: M2O }[]>('res.users', 'read', [[uid], ['id', 'company_id']]),
         [],
@@ -4497,7 +4534,7 @@ type PeriodCubeConfigRow = { id: number; name: string; active?: boolean; company
 
 /**
  * Classifies pos.config registers for a period cube: the active company whitelist (pinned school
- * canteens included; Qurain, Jahra, the closed restaurant and other decommissioned registers excluded)
+ * canteens and Delivery (Qurain) ids 24 and 36 included; Jahra and other excluded ids stay out)
  * and the branch of each register. Shared by the cube and the independent hourly fetch so both use
  * exactly the same scope.
  */
@@ -4514,6 +4551,10 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
     const extra = `${m2oName(c.company_id) ?? ''} ${m2oName(c.picking_type_id) ?? ''}`.trim()
     const combined = `${c.name} ${extra}`.trim()
     cfgNameMap.set(c.id, combined)
+    if (isQurainPosConfigId(c.id)) {
+      companyCfgIds.add(c.id)
+      continue
+    }
     if (c.active === false) {
       const isGenuinelyDecommissioned =
         isExcludedRecordId('pos_config', c.id) ||
@@ -4545,7 +4586,7 @@ function classifyPeriodCubeConfigs(allConfigs: readonly PeriodCubeConfigRow[]) {
     }
   }
   if (allConfigs.length === 0) {
-    for (const cfgId of REG.allowedPosConfigIds) {
+    for (const cfgId of [...new Set([...REG.allowedPosConfigIds, ...QURAIN_POS_CONFIG_IDS])]) {
       const knownName = cfgNameMap.get(cfgId) ?? ''
       if (decommCfgIds.has(cfgId) || !companyPosConfigAllowed(cfgId, knownName, true)) continue
       companyCfgIds.add(cfgId)
@@ -4612,21 +4653,7 @@ export async function fetchLiveOdooPeriodCube(
 
     const [allConfigs, posCategories, glAccountsRaw, userCompanyRows, latestOrderRows] =
       await Promise.all([
-        executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-          'pos.config',
-          'search_read',
-          [[['active', '=', true]]],
-          {
-            fields: ['id', 'name', 'active', 'company_id', 'picking_type_id'],
-          },
-        ).catch(() =>
-          executeOdooKw<{ id: number; name: string; active?: boolean; company_id?: M2O; picking_type_id?: M2O }[]>(
-            'pos.config',
-            'search_read',
-            [[['active', '=', true]]],
-            { fields: ['id', 'name', 'active', 'company_id'] },
-          ),
-        ),
+        fetchPosConfigsIncludingQurain(),
         safeSubQuery(
           () =>
             executeOdooKw<{ id: number; name: string; parent_id: M2O }[]>(
@@ -4728,7 +4755,7 @@ export async function fetchLiveOdooPeriodCube(
     const activeAccIds = [...activeAccMap.keys()]
 
     const companyCfgList = [...companyCfgIds]
-    const cubeOrderDomain = (nonRefundOnly = false): unknown[][] =>
+    const cubeOrderDomain = (nonRefundOnly = false): unknown[] =>
       companyCfgList.length > 0
         ? buildPosOrderUtcDomain({
             fromUtc: bounds.fromUtc,
@@ -4738,7 +4765,7 @@ export async function fetchLiveOdooPeriodCube(
             nonRefundOnly,
           })
         : [['id', '=', 0]]
-    const cubePaymentDomain = (nonRefundOnly = false): unknown[][] =>
+    const cubePaymentDomain = (nonRefundOnly = false): unknown[] =>
       companyCfgList.length > 0
         ? buildPosPaymentUtcDomain({
             fromUtc: bounds.fromUtc,
@@ -4748,12 +4775,16 @@ export async function fetchLiveOdooPeriodCube(
             nonRefundOnly,
           })
         : [['id', '=', 0]]
-    const cubeLineClause: unknown[][] =
+    const cubeLineClause: unknown[] =
       companyCfgIds.size > 0
-        ? [['order_id.session_id.config_id', 'in', companyCfgList]]
+        ? posRegisterScopeClauses({
+            companyId: resolvedCompanyId,
+            configIds: companyCfgList,
+            configField: 'order_id.session_id.config_id',
+            companyField: 'company_id',
+          })
         : [['id', '=', 0]]
-    const exclLineDomain: unknown[][] = [
-      ...companyDomain,
+    const exclLineDomain: unknown[] = [
       ...cubeLineClause,
       ...(excludedPosCatIds.size > 0
         ? [['product_id.pos_categ_id', 'not in', [...excludedPosCatIds]]]
@@ -5478,6 +5509,7 @@ export async function fetchLiveOdooPeriodCube(
             [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))],
           ]),
         ),
+        includedConfigIds: [...companyCfgIds].filter((id) => Number.isInteger(id) && id > 0),
         excludedConfigIds: [...decommCfgIds].filter((id) => Number.isInteger(id) && id > 0),
         excludedPosCategoryIds: [...excludedPosCatIds].filter((id) => Number.isInteger(id) && id > 0),
       },
@@ -5492,6 +5524,25 @@ export async function fetchLiveOdooPeriodCube(
   } catch {
     return buildDisconnectedPeriodCube(dateRange)
   }
+}
+
+/**
+ * stock.location has no pos.config id. On-hand is attributed from the location's
+ * own label (code or display name in the registry). This does not include or
+ * exclude a register.
+ */
+function branchIdFromStockLocationLabel(
+  rawLabel: string,
+): (typeof ACTIVE_BRANCH_IDS)[number] | null {
+  const lower = rawLabel.toLowerCase()
+  if (/\bavn\b|avenue|افنيوز|الأفنيوز/.test(lower)) return 'avenues'
+  if (/\b360\b|٣٦٠/.test(lower)) return '360-mall'
+  if (/\basm\b|assima|asima|عاصمة|العاصمة/.test(lower)) return 'assima'
+  if (/\bprm\b|promenade|بروميناد|البروميناد/.test(lower)) return 'promenade'
+  if (/\bslm\b|salmiya|salmyia|سالمية|السالمية/.test(lower)) return 'salmiya'
+  if (/\bkot\b|\bkout\b|كوت|الكوت/.test(lower)) return 'al-kout'
+  if (/\bard\b|ardiya|call\s*center|عارضية|العارضية/.test(lower)) return 'ardiya'
+  return null
 }
 
 function resolveStockLocationRole(
@@ -5524,7 +5575,7 @@ function resolveStockLocationRole(
     if (/exb|central\s*kitchen|main\s*warehouse|مطبخ\s*مركزي|مخزن\s*مركزي|المخزن\s*الرئيسي/.test(lower)) {
       return { excluded: false, usage, role: 'ck', branchId: null }
     }
-    const matchedBranch = resolveRestaurantBranchForConfig(-1, text)
+    const matchedBranch = branchIdFromStockLocationLabel(text)
     if (matchedBranch) {
       if (matchedBranch === 'ardiya' && /wh|stock|warehouse|مخزن/.test(lower) && !/pos|branch|فرع/.test(lower)) {
         return { excluded: false, usage, role: 'ck', branchId: null }
@@ -6122,6 +6173,10 @@ export async function fetchLiveOdooWarehouseChain(
       const qty = Math.max(0, rawQty)
       const valKwd = qty * pRow.unitCostKwd
       doneMovesCount += Math.max(0, Number(m.__count) || 0)
+      if (flow.kind === 'internal_other') {
+        // Branch-to-branch and other internal moves are not sales and not receivables.
+        continue
+      }
       if (flow.kind === 'inbound' || flow.kind === 'transfer' || flow.kind === 'consumption') {
         movesCoverage.add(qty, pRow.costKnown === true)
       }

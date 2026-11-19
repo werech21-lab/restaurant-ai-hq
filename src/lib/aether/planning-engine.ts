@@ -765,7 +765,7 @@ export function computePlanningHubSnapshot(
         ? 'عمولات: غير مُرحَّل بعد'
         : accountingAvailable
           ? `${fmtOne(ardiyaFoodPct)}% مواد + ${fmtOne(deliveryFeePct)}% عمولات`
-          : 'قيود غير مكتملة',
+          : '',
       impactBadgeEn: baseWorkspace.aggregatorCommissionUnposted
         ? 'Commissions: Unposted'
         : accountingAvailable
@@ -860,7 +860,7 @@ export function buildDeterministicStrategicBriefingSections(
       metricBadgeEn: `Est: ${fmtInt(snap.monthlyBaselineSalesKwd)} KWD / calendar month`,
       bodyAr: localizeArabicPlanningCopy(
         hasGl
-          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري لطول الشهر التقويمي بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف مقدّرة ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك وصافي تقديري ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%).${snap.glIncomplete ? ' تنبيه: قيود غير مكتملة لهذه الفترة في دفتر الأستاذ.' : ''}`
+          ? `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري لطول الشهر التقويمي بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك) وتكاليف مقدّرة ${fmtInt(snap.monthlyBaselineCostsKwd)} د.ك وصافي تقديري ${fmtInt(snap.monthlyBaselineNetKwd)} د.ك (${fmtOne(snap.monthlyBaselineMarginPct)}%).`
           : `يرتكز النطاق النشط (${cleanScopeAr}) على خط أساس تقديري لطول الشهر التقويمي بواقع ${fmtInt(snap.monthlyBaselineSalesKwd)} د.ك مبيعات (متوسط اليوم التقديري: ${fmtInt(snap.dailyAverageSalesKwd)} د.ك)، بينما تقدير التكاليف وصافي التدفق غير متوفر لحين اكتمال قيود دفتر الأستاذ المرحّلة.`,
       ),
       bodyEn: hasGl

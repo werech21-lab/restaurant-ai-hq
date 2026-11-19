@@ -819,12 +819,8 @@ export function BeforeAfterStudio() {
               // GL KPIs follow the accounting state; order KPIs are unavailable when counts are unknown.
               const isUnavailable =
                 kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
-              const unavailableNoteAr = isGlKpi
-                ? comparison.accountingUnavailableReasonAr ?? 'قيود غير مكتملة لهذه الفترة'
-                : kpi.unavailableReasonAr ?? 'غير متاح'
-              const unavailableNoteEn = isGlKpi
-                ? comparison.accountingUnavailableReasonEn ?? 'Incomplete GL entries for this period'
-                : kpi.unavailableReasonEn ?? 'Unavailable'
+              const unavailableNoteAr = kpi.unavailableReasonAr ?? 'غير متاح'
+              const unavailableNoteEn = kpi.unavailableReasonEn ?? 'Unavailable'
               const signed = formatSignedDelta(kpi.deltaPct)
               const badgeTone =
                 kpi.trend === 'flat' || signed.sign === 'flat'
@@ -833,6 +829,7 @@ export function BeforeAfterStudio() {
                     ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
 
+              if (isGlKpi && isUnavailable) return null
               return (
                 <article
                   key={kpi.id}

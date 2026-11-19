@@ -179,9 +179,9 @@ describe('profit lock and receivables flag', () => {
 })
 
 describe('excluded POS configs stay excluded', () => {
-  it('keeps ids 24, 25, 39 and 40 out of the included set', () => {
+  it('keeps Jahra and inactive ids out, and keeps Delivery (Qurain) 24 in', () => {
     const ids = ODOO_EXCLUSION_RULES.find((rule) => rule.kind === 'pos_config')?.ids ?? []
-    expect([...ids].sort((a, b) => a - b)).toEqual([24, 25, 39, 40])
+    expect([...ids].sort((a, b) => a - b)).toEqual([25, 39, 40])
   })
 })
 

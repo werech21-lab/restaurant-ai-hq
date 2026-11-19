@@ -441,9 +441,8 @@ describe('V35 Polish — WeekdayComparisonStudio & BeforeAfterStudio shared char
       cubeA: glIncompleteA,
       cubeB: glIncompleteB,
     })
-    expect(incompleteHtml).toContain('data-unavailable="true"')
-    expect(incompleteHtml).toContain('data-unavailable-state="true"')
-    expect(incompleteHtml).toContain('—')
+    expect(incompleteHtml).not.toContain('قيود غير مكتملة')
+    expect(incompleteHtml).not.toContain('تكلفة المواد وعمولات المنصات')
     expect(incompleteHtml).toContain('1,520.600')
   })
 
@@ -495,9 +494,8 @@ describe('V35 Polish — WeekdayComparisonStudio & BeforeAfterStudio shared char
       cubeA: glIncompleteA,
       cubeB: glIncompleteB,
     })
-    expect(incompleteHtml).toContain('data-unavailable="true"')
-    expect(incompleteHtml).toContain('data-unavailable-state="true"')
-    expect(incompleteHtml).toContain('—')
+    expect(incompleteHtml).not.toContain('Incomplete GL entries for this period')
+    expect(incompleteHtml).not.toContain('COGS & Platform Commissions')
     expect(incompleteHtml).toContain('1,583.900')
   })
 

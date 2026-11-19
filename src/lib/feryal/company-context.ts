@@ -41,8 +41,8 @@ export const COMPANY_CONTEXT = {
     ar: 'القرين (المطبخ المركزي)',
     en: 'Qurain (Central Kitchen)',
     role: 'Active central kitchen: production and dispatch to the branches.',
-    salesStatus: 'pending-audit' as const,
-    salesNoteAr: 'مبيعات القرين خارج إجمالي الشركة حتى يُعتمد تدقيق الازدواجية (scripts/audit-qurain-double-count.mjs).',
+    salesStatus: 'included' as const,
+    salesNoteAr: 'مبيعات التوصيل Delivery (Qurain) داخل إجمالي الشركة عبر pos.config 24 النشط و36 المؤرشف (QURAIN_POS_CONFIG_IDS). السجل 16 و35 ليسا ضمن الإجمالي.',
   },
   goals: [
     { id: 'raise-sales', ar: 'رفع المبيعات', en: 'Raise sales' },

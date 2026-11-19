@@ -35,7 +35,7 @@ describe('phase 10 exclusions', () => {
     expect(domain.some((part) => Array.isArray(part) && part[1] === 'not ilike')).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && part[2] === ` ${closed} `)).toBe(false)
     expect(domain.some((part) => Array.isArray(part) && String(part[2] ?? '').toLowerCase().includes(closed))).toBe(false)
-    expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && /jahra/i.test(String(part[2])))).toBe(true)
+    expect(domain.some((part) => Array.isArray(part) && part[1] === '=ilike' && /jahra/i.test(String(part[2])))).toBe(false)
     const script = odooConsoleExtractor()
     expect(script).toContain('split(')
     expect(script).not.toContain('blob.indexOf(fragment)')

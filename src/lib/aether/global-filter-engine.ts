@@ -18,8 +18,12 @@ import { SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import {
+  customerReceivableFigures,
+  customerReceivableNetKwd,
+  isPosClearingAccount,
   receivablesCustomerSplit,
   splitOpenResiduals,
+  type CustomerReceivableFigures,
   type OdooBucketSummary,
   type OdooLiveSummary,
   type OdooPeriodBucketKey,
@@ -769,6 +773,8 @@ export interface WorkspaceReceivablesMeta {
   platformOpenDebitsKwd?: number | null
   platformUnappliedCreditsKwd?: number | null
   posClearingResidualKwd?: number | null
+  /** Single customer-receivable total. Pages must read this and not recompute it. */
+  figures?: CustomerReceivableFigures
   /** Oldest posting date on open lines that are not 10552. Not a due date. */
   oldestOpenPostingDate?: string | null
   byPartner?: OdooReceivablePartnerRow[]
@@ -1035,17 +1041,27 @@ function withoutDueDateClaim(text: string, fallback: string): string {
  * Residual balances, account rows and partner rows stay. `PER_CUSTOMER_DUE_DATE_AGING_VERIFIED`
  * remains the switch for showing due-date buckets.
  */
+function sealCustomerReceivables(r: WorkspaceReceivablesMeta): WorkspaceReceivablesMeta {
+  const figures = customerReceivableFigures(r)
+  return {
+    ...r,
+    figures,
+    reconciliationFormulaAr: figures.formulaAr,
+    reconciliationFormulaEn: figures.formulaEn,
+  }
+}
+
 export function applyReceivablesExecutivePolicy(
   r: WorkspaceReceivablesMeta,
   verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
 ): WorkspaceReceivablesMeta {
-  if (r.unavailable || canShowReceivableAmounts(r, verified)) return r
+  if (r.unavailable || canShowReceivableAmounts(r, verified)) return sealCustomerReceivables(r)
   const partners = (r.byPartner ?? []).filter(
-    (row) => !/10552/.test(`${row.accountCode} ${row.accountName}`),
+    (row) => !isPosClearingAccount(row.accountCode),
   )
   const split = r.byAccount.length > 0 ? receivablesCustomerSplit(r.byAccount, partners) : null
   const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
-  return {
+  return sealCustomerReceivables({
     ...r,
     pendingReconciliation: true,
     agingLabelsWithheld: true,
@@ -1077,7 +1093,7 @@ export function applyReceivablesExecutivePolicy(
       'Figures are unreconciled residuals from the ledger.',
     ),
     ...residualFormulaWithoutAging(r),
-  }
+  })
 }
 
 /** Residual tie-out only. The due-date "(aging)" wording is not used while aging is unverified. */
@@ -1085,22 +1101,21 @@ function residualFormulaWithoutAging(r: WorkspaceReceivablesMeta): {
   reconciliationFormulaAr: string
   reconciliationFormulaEn: string
 } {
-  if (
-    r.openReceivableKwd === null ||
-    r.grossPositiveReceivableKwd === null ||
-    r.creditClearingOffsetKwd === null
-  ) {
+  const netKwd = customerReceivableNetKwd(r)
+  const debitsKwd = typeof r.platformOpenDebitsKwd === 'number' ? r.platformOpenDebitsKwd : null
+  const creditsKwd = typeof r.platformUnappliedCreditsKwd === 'number' ? r.platformUnappliedCreditsKwd : null
+  if (netKwd === null) {
     return {
       reconciliationFormulaAr: withoutDueDateClaim(r.reconciliationFormulaAr, 'رصيد متبقٍ غير مسوّى'),
       reconciliationFormulaEn: withoutDueDateClaim(r.reconciliationFormulaEn, 'Open residual'),
     }
   }
   const formula = formatArReconciliationFormula({
-    openReceivableKwd: r.openReceivableKwd,
-    grossPositiveReceivableKwd: r.grossPositiveReceivableKwd,
-    creditClearingOffsetKwd: r.creditClearingOffsetKwd,
-    openDebitsKwd: null,
-    unappliedCreditsKwd: null,
+    openReceivableKwd: netKwd,
+    grossPositiveReceivableKwd: debitsKwd ?? netKwd,
+    creditClearingOffsetKwd: creditsKwd ?? 0,
+    openDebitsKwd: debitsKwd,
+    unappliedCreditsKwd: creditsKwd,
   })
   return { reconciliationFormulaAr: formula.ar, reconciliationFormulaEn: formula.en }
 }

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { customerReceivableNetKwd, isPosClearingAccount, receivablesCustomerSplit, splitOpenResiduals } from '@/lib/odoo/live-sync-core'
+import { isPosClearingAccount, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
 import Link from 'next/link'
 import { ArrowLeft, ArrowRight, CheckCircle2, Clock, FileText, Wallet } from 'lucide-react'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
@@ -24,8 +24,7 @@ export function ReceivablesAgingStudio() {
   const ar = workspace.receivables
   const unavailableTooltip = getUnavailableTooltip(resolvedLocale)
   const amountsVisible = canShowReceivableAmounts(ar)
-  const partners = (ar.byPartner ?? []).filter((row) => !isPosClearingAccount(`${row.accountCode} ${row.accountName}`))
-  const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
+  const partners = (ar.byPartner ?? []).filter((row) => !isPosClearingAccount(row.accountCode))
   const split = receivablesCustomerSplit(ar.byAccount ?? [], partners)
   const customerAccounts = split.splitKnown
     ? [...split.customerAccounts].sort((a, b) => {
@@ -35,9 +34,10 @@ export function ReceivablesAgingStudio() {
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
       })
     : []
-  const platformNet = customerReceivableNetKwd(ar)
-  const platformDebits = partnerSplit?.openDebitsKwd ?? ar.platformOpenDebitsKwd ?? split.platformOpenDebitsKwd
-  const platformCredits = partnerSplit?.unappliedCreditsKwd ?? ar.platformUnappliedCreditsKwd ?? split.platformUnappliedCreditsKwd
+  const figures = ar.figures
+  const platformNet = figures?.netKwd ?? null
+  const platformDebits = figures?.openDebitsKwd ?? null
+  const platformCredits = figures?.unappliedCreditsKwd ?? null
   const platformLines = split.splitKnown ? split.platformLineCount : ar.platformAndCorporateLinesCount
   const posResidual = split.splitKnown ? split.posClearingResidualKwd : ar.posClearingResidualKwd
   const posLines = split.splitKnown ? split.posClearingLineCount : ar.posClearingLinesCount
@@ -313,7 +313,7 @@ export function ReceivablesAgingStudio() {
           </h3>
           <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-            <span>{isAr ? ar.reconciliationFormulaAr : ar.reconciliationFormulaEn}</span>
+            <span>{isAr ? figures?.formulaAr : figures?.formulaEn}</span>
           </span>
         </div>
 

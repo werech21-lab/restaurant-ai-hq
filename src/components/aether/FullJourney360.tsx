@@ -61,7 +61,6 @@ import { ScopeBadge } from '@/components/aether/ScopeBadge'
 import { buildArTieOut } from '@/lib/odoo/receivable-aging'
 import { isWindowWithinClosedMonths } from '@/lib/aether/closed-month-policy'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { customerReceivableNetKwd } from '@/lib/odoo/live-sync-core'
 import { normalizeSharesTo100 } from '@/lib/aether/share-normalization'
 import { resolveHeroDeltaBadge, resolveTodaySameHoursComparison } from '@/lib/aether/hero-delta'
 import {
@@ -875,13 +874,15 @@ export function FullJourney360({
 
   // Cards that stay company-wide say so whenever a brand is selected (no silent scope mixing).
   const companyWideScope = companyWideBadgeFor(filters.brand)
-  const arTieOut = workspace.receivables.unavailable
-    ? null
-    : buildArTieOut({
-        openDebitsKwd: workspace.receivables.openDebitsKwd,
-        unappliedCreditsKwd: workspace.receivables.unappliedCreditsKwd,
-        openReceivableKwd: workspace.receivables.openReceivableKwd ?? 0,
-      })
+  const receivableFigures = workspace.receivables.figures
+  const arTieOut =
+    workspace.receivables.unavailable || receivableFigures?.netKwd == null
+      ? null
+      : buildArTieOut({
+          openDebitsKwd: receivableFigures.openDebitsKwd,
+          unappliedCreditsKwd: receivableFigures.unappliedCreditsKwd,
+          openReceivableKwd: receivableFigures.netKwd,
+        })
 
   const receivablesAmountsVisible = canShowReceivableAmounts(workspace.receivables)
   const salesSparkline = useMemo<number[]>(() => {
@@ -2060,10 +2061,10 @@ export function FullJourney360({
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
                             className="text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
                           >
-                            {workspace.receivables.unavailable || customerReceivableNetKwd(workspace.receivables) === null ? (
+                            {workspace.receivables.unavailable || receivableFigures?.netKwd == null ? (
                               UNAVAILABLE_DASH
                             ) : (
-                              fmtKwdVal(customerReceivableNetKwd(workspace.receivables))
+                              fmtKwdVal(receivableFigures.netKwd)
                             )}
                           </span>
                         </div>

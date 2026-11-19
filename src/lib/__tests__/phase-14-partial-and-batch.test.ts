@@ -1023,7 +1023,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           ]
           if (opts?.includeDecommissionedConfig) {
             configs.push({
-              id: 24,
+              id: 25,
               name: 'Heisenberg 1',
               active: true,
               company_id: [1, 'Venture Foods'],
@@ -1080,7 +1080,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
         }
 
         if (model === 'pos.order' && method === 'read_group') {
-          if (domainStr.includes('[24]')) {
+          if (domainStr.includes('[25]')) {
             if (opts?.failExcludedMonth) return rpcFault(reqId, 'excluded.month unavailable')
             return rpcOk(reqId, [
               {

@@ -76,7 +76,8 @@ describe('phase 9 company POS', () => {
     expect(resolveRestaurantBranchForConfig(25, 'Delivery (Jahra)')).toBeNull()
     expect(resolveRestaurantBranchForConfig(0, closedBranch)).toBeNull()
     expect(resolveRestaurantBranchForConfig(0, 'Central Kitchen')).toBeNull()
-    expect(resolveRestaurantBranchForConfig(0, 'Ardiya Main')).toBe('ardiya')
+    expect(resolveRestaurantBranchForConfig(0, 'Ardiya Main')).toBeNull()
+    expect(resolveRestaurantBranchForConfig(23, 'Ardiya Main')).toBe('ardiya')
     expect(resolveRestaurantBranchForConfig(26, 'Summer exhibition')).toBe('exhibitions')
     await setAdminPosTerminalMapping({
       terminalId: 41,
