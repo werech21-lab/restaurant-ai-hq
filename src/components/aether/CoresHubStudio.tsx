@@ -957,6 +957,58 @@ export function CoresHubStudio({
                     )}
                   </p>
                 ) : null}
+                {snapshot.sales.registerReconciliation ? (
+                  <div data-register-reconciliation="true" className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold text-[#1E3A5F] dark:text-slate-100">
+                      {isAr ? 'مطابقة صناديق نقاط البيع' : 'POS register reconciliation'}
+                    </p>
+                    <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      {snapshot.sales.registerReconciliation.rows.map((row) => (
+                        <li key={row.configId} className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {row.configName}
+                            <span className="ms-1 text-[11px] text-[#4F6673]">
+                              {row.bucket === 'exhibition-booths'
+                                ? isAr
+                                  ? 'بوثات المعارض'
+                                  : 'Exhibition booths'
+                                : row.bucket === 'school-canteen'
+                                  ? isAr
+                                    ? 'مقاصف المدارس'
+                                    : 'School canteens'
+                                  : isAr
+                                    ? 'مطاعم'
+                                    : 'Restaurants'}
+                            </span>
+                          </span>
+                          <span dir="ltr" className="shrink-0 font-semibold tabular-nums">
+                            {formatKwd(row.netKwd, { locale: resolvedLocale })}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      {isAr ? 'مجموع الصناديق المشمولة' : 'Included registers'}{' '}
+                      <span dir="ltr" className="font-semibold tabular-nums">
+                        {formatKwd(snapshot.sales.registerReconciliation.includedNetKwd, { locale: resolvedLocale })}
+                      </span>
+                      {' · '}
+                      {isAr ? 'صافي الشركة' : 'Company net'}{' '}
+                      <span dir="ltr" className="font-semibold tabular-nums">
+                        {formatKwd(snapshot.sales.registerReconciliation.companyNetKwd, { locale: resolvedLocale })}
+                      </span>
+                      {Math.abs(snapshot.sales.registerReconciliation.gapKwd) >= 0.0005 ? (
+                        <>
+                          {' · '}
+                          {isAr ? 'الفرق' : 'Gap'}{' '}
+                          <span dir="ltr" className="font-semibold tabular-nums">
+                            {formatKwd(snapshot.sales.registerReconciliation.gapKwd, { locale: resolvedLocale })}
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                ) : null}
               </div>
               {!snapshot.sales.brandsUnavailable ? (
                 <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">

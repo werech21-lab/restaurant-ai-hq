@@ -145,11 +145,14 @@ export function formatCompactAxisLabel(raw: string): string {
  * rendering `7.3 ألف` / `5.4 ألف` / `1.1 ألف` in Arabic and `7.3k` / `5.4k` in English.
  */
 export function formatCompactKwdTick(v: number, isAr: boolean): string {
-  const safe = Number.isFinite(v) ? Math.max(0, v) : 0
-  if (safe >= 1000) {
-    const k = (safe / 1000).toFixed(1)
-    // Non-breaking space: chart ticks wrap at normal spaces, which split «16.0 ألف» onto two lines.
-    return isAr ? `${k}\u00A0ألف` : `${k}k`
-  }
-  return formatInt(safe)
+  if (!Number.isFinite(v)) return '0'
+  const negative = v < 0
+  const abs = Math.abs(v)
+  const body =
+    abs >= 1000
+      ? isAr
+        ? `${(abs / 1000).toFixed(1)}\u00A0ألف`
+        : `${(abs / 1000).toFixed(1)}k`
+      : formatInt(abs)
+  return negative && /[1-9]/.test(body) ? `-${body}` : body
 }

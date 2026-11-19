@@ -592,12 +592,12 @@ export function FullJourney360({
           ? GL_INCOMPLETE_AR
           : GL_INCOMPLETE_EN
     return src.map((pt) => {
-      const sales = Math.max(0, pt.salesKwd)
+      const sales = pt.salesKwd
       const pointMarginPct = canPlotPointMargin ? netPocketPct : 0
       const pointMarginRatio = canPlotPointMargin ? pointMarginPct / 100 : 0
-      const pocket = canPlotPointMargin ? Math.max(0, sales * pointMarginRatio) : 0
-      const beforeRent = canPlotPointMargin ? Math.max(0, sales * beforeRentRatio) : 0
-      const foodAndDelivery = canPlotPointMargin ? Math.max(0, sales - beforeRent) : 0
+      const pocket = canPlotPointMargin ? sales * pointMarginRatio : 0
+      const beforeRent = canPlotPointMargin ? sales * beforeRentRatio : 0
+      const foodAndDelivery = canPlotPointMargin ? sales - beforeRent : 0
       const rawLabel = isAr ? pt.labelAr : pt.labelEn
       const axisLabel =
         flowGroup === 'branches'
@@ -688,7 +688,7 @@ export function FullJourney360({
       return {
         hour: Number.isFinite(hrNum) ? hrNum : hourLabel,
         label: hourLabel,
-        netKwd: Math.max(0, pt.salesKwd),
+        netKwd: pt.salesKwd,
         orders: typeof pt.orders === 'number' && Number.isFinite(pt.orders) ? pt.orders : undefined,
       }
     })
@@ -801,7 +801,7 @@ export function FullJourney360({
     const arShort = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
 
     return sevenDays.map((pt, idx) => {
-      const salesKwd = Math.max(0, pt.salesKwd)
+      const salesKwd = pt.salesKwd
       const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(pt.id)
       const dow = isoMatch
         ? new Date(

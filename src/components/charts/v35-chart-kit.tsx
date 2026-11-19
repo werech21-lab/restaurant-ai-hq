@@ -12,6 +12,7 @@ import {
   Line,
   Pie,
   PieChart,
+  Rectangle,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -299,8 +300,81 @@ const WEEKDAY_LABELS_EN: Record<number, string> = {
   6: 'Sat',
 }
 
+/** Keeps a signed refund. Non-finite values become 0. */
 function safeFinite(v: number | null | undefined): number {
-  return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
+  if (typeof v !== 'number' || !Number.isFinite(v)) return 0
+  return v === 0 ? 0 : v
+}
+
+function safeNonNegative(v: number | null | undefined): number {
+  return Math.max(0, safeFinite(v))
+}
+
+function resolveSignedAxisBounds(values: ReadonlyArray<number>): {
+  min: number
+  max: number
+  domain: [number | 'auto', number | 'auto']
+} {
+  let min = 0
+  let max = 0
+  for (const v of values) {
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      if (v < min) min = v
+      if (v > max) max = v
+    }
+  }
+  const domain: [number | 'auto', number | 'auto'] =
+    min < 0 ? ['auto', max > 0 ? 'auto' : 0] : [0, 'auto']
+  return { min, max, domain }
+}
+
+type SignedBarShapeProps = {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  fill?: string
+  radius?: number | [number, number, number, number]
+  className?: string
+}
+
+/** Negative refund bars sit below the zero line with a positive SVG height. */
+export function renderSignedBarShape(rawProps: unknown): React.ReactElement {
+  const p = (rawProps ?? {}) as SignedBarShapeProps
+  const { x, y, width, height, fill, radius, className } = p
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof width !== 'number' ||
+    typeof height !== 'number' ||
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height === 0
+  ) {
+    return <g />
+  }
+  const normalizedY = height >= 0 ? y : y + height
+  const normalizedHeight = Math.abs(height)
+  const resolvedRadius: number | [number, number, number, number] | undefined = Array.isArray(radius)
+    ? height >= 0
+      ? radius
+      : [radius[3], radius[2], radius[1], radius[0]]
+    : radius
+  return (
+    <Rectangle
+      x={x}
+      y={normalizedY}
+      width={width}
+      height={normalizedHeight}
+      fill={fill}
+      radius={resolvedRadius}
+      className={className}
+      isAnimationActive={false}
+    />
+  )
 }
 
 function formatHourTickLabel(hour: number | string, explicit?: string): string {
@@ -606,6 +680,13 @@ export function TimelineAreaChart({
   const hasSecondary = plottedData.some(
     (d) => typeof d.secondaryValue === 'number' && Number.isFinite(d.secondaryValue),
   )
+  const areaAxisBounds = resolveSignedAxisBounds(
+    plottedData.flatMap((d) =>
+      typeof d.secondaryValue === 'number' && Number.isFinite(d.secondaryValue)
+        ? [d.value, d.secondaryValue]
+        : [d.value],
+    ),
+  )
 
   const primarySeriesName = valueLabel ?? (isAr ? 'صافي المبيعات' : 'Net Sales')
   const secondarySeriesName = secondaryLabel ?? (isAr ? 'الفترة السابقة' : 'Comparison')
@@ -708,6 +789,7 @@ export function TimelineAreaChart({
               />
               <YAxis
                 orientation={yAxisSide}
+                domain={areaAxisBounds.domain}
                 tick={V35_AXIS_TICK_STYLE}
                 tickFormatter={fmtTick}
                 axisLine={false}
@@ -720,6 +802,7 @@ export function TimelineAreaChart({
                   type="monotone"
                   dataKey="secondaryValue"
                   name={secondarySeriesName}
+                  baseValue={0}
                   stroke={V35_CHART_COLORS.comparison}
                   strokeWidth={1.75}
                   fill={`url(#v35AreaSec-${safeId})`}
@@ -731,6 +814,7 @@ export function TimelineAreaChart({
                 type="monotone"
                 dataKey="value"
                 name={primarySeriesName}
+                baseValue={0}
                 stroke={V35_CHART_COLORS.primary}
                 strokeWidth={2}
                 fill={`url(#v35Area-${safeId})`}
@@ -952,14 +1036,19 @@ export function ComparisonBarChart({
   const hasCustomComparisonColors = plottedData.some((d) => Boolean(d.comparisonColor))
   const ghostBarBackground = showGhostBars ? { fill: GHOST_BAR_FILL, radius: 6 } : undefined
 
-  const maxAxisVal = Math.max(
-    0,
-    ...plottedData.map((d) => {
-      const p = d.value
-      const c = d.comparisonValue ?? 0
-      return stacked ? p + c : Math.max(p, c)
-    }),
-  )
+  const barAxisValues: number[] = []
+  for (const d of plottedData) {
+    const p = d.value
+    const c = d.comparisonValue ?? 0
+    if (stacked) {
+      barAxisValues.push((p > 0 ? p : 0) + (c > 0 ? c : 0), (p < 0 ? p : 0) + (c < 0 ? c : 0))
+    } else {
+      barAxisValues.push(p)
+      if (typeof d.comparisonValue === 'number') barAxisValues.push(c)
+    }
+  }
+  const barAxisBounds = resolveSignedAxisBounds(barAxisValues)
+  const maxAxisVal = barAxisBounds.max
 
   const renderTooltip = (props: RechartsTooltipRenderProps) => {
     if (!props.active || !props.payload || props.payload.length === 0) return null
@@ -1085,6 +1174,7 @@ export function ComparisonBarChart({
               />
               <YAxis
                 orientation={yAxisSide}
+                domain={barAxisBounds.domain}
                 tick={V35_AXIS_TICK_STYLE}
                 tickFormatter={fmtTick}
                 axisLine={false}
@@ -1102,6 +1192,7 @@ export function ComparisonBarChart({
                   stackId={stacked ? 'v35' : undefined}
                   fill={resolvedComparisonColor}
                   radius={stacked ? [0, 0, 0, 0] : [6, 6, 0, 0]}
+                  shape={renderSignedBarShape}
                   maxBarSize={barMaxWidth}
                   background={stacked ? undefined : ghostBarBackground}
                   isAnimationActive={false}
@@ -1118,6 +1209,7 @@ export function ComparisonBarChart({
               ) : null}
               <Bar
                 dataKey="value"
+                shape={renderSignedBarShape}
                 name={primarySeriesName}
                 stackId={stacked ? 'v35' : undefined}
                 fill={resolvedPrimaryColor}
@@ -1251,7 +1343,7 @@ export function V35DonutChart({
 
   const normalizedSlices = slices.map((s, idx) => ({
     ...s,
-    safeVal: safeFinite(s.value),
+    safeVal: safeNonNegative(s.value),
     resolvedColor: resolveV35DonutColor(idx, s.color),
   }))
   const positiveSlices = normalizedSlices.filter((s) => s.safeVal > 0)
@@ -1626,7 +1718,7 @@ export function StackedProgressBar({
 
   const normalized = rawList.map((seg, idx) => ({
     ...seg,
-    safeVal: safeFinite(seg.value),
+    safeVal: safeNonNegative(seg.value),
     resolvedColor: resolveV35DonutColor(idx, seg.color),
   }))
   const total = normalized.reduce((sum, seg) => sum + seg.safeVal, 0)
@@ -2173,6 +2265,8 @@ export function SalesNetComposedChart({
     salesKwd: safeFinite(d.salesKwd),
     netKwd: safeFinite(d.netKwd),
   }))
+  const salesBounds = resolveSignedAxisBounds(plottedData.map((d) => d.salesKwd))
+  const netBounds = resolveSignedAxisBounds(plottedData.map((d) => d.netKwd))
 
   const ghostBarBackground = showGhostBars ? { fill: GHOST_BAR_FILL, radius: 6 } : undefined
 
@@ -2286,6 +2380,7 @@ export function SalesNetComposedChart({
               <YAxis
                 yAxisId="sales"
                 orientation={yAxisSide}
+                domain={salesBounds.domain}
                 tick={V35_AXIS_TICK_STYLE}
                 tickFormatter={(v: number) => formatCompactKwdTick(v, isAr)}
                 axisLine={false}
@@ -2295,6 +2390,7 @@ export function SalesNetComposedChart({
               <YAxis
                 yAxisId="net"
                 orientation={netAxisSide}
+                domain={netBounds.domain}
                 tick={{ ...V35_AXIS_TICK_STYLE, fill: V35_CHART_COLORS.primary }}
                 tickFormatter={(v: number) => formatCompactKwdTick(v, isAr)}
                 axisLine={false}
@@ -2311,6 +2407,7 @@ export function SalesNetComposedChart({
                 name={salesLegend}
                 fill={V35_CHART_COLORS.comparison}
                 radius={[6, 6, 0, 0]}
+                shape={renderSignedBarShape}
                 maxBarSize={20}
                 background={ghostBarBackground}
                 isAnimationActive={false}

@@ -259,6 +259,13 @@ export interface CoresHubSnapshot {
      * fees and items outside the six brands — shown, never silently absorbed.
      */
     brandReconciliation: { brandTotalKwd: number; posNetKwd: number; gapKwd: number } | null
+    /** Per pos.config nets from the live cube. Null when that read did not produce rows. */
+    registerReconciliation: {
+      rows: Array<{ configId: number; configName: string; bucket: string; netKwd: number; orders: number }>
+      includedNetKwd: number
+      companyNetKwd: number
+      gapKwd: number
+    } | null
     branchRanking: SalesPoint[]
     channelRanking: SalesPoint[]
   }
@@ -575,6 +582,7 @@ export function computeCoresHubSnapshot(
         hourly: [],
         brandShare: [],
         brandReconciliation: null,
+        registerReconciliation: null,
         branchRanking: [],
         channelRanking: [],
       },
@@ -1178,6 +1186,10 @@ export function computeCoresHubSnapshot(
               posNetKwd: Math.round(ws.nullableSalesKwd * 1000) / 1000,
               gapKwd: Math.round((ws.nullableSalesKwd - brandTotalKwd) * 1000) / 1000,
             }
+          : null,
+      registerReconciliation:
+        filters.brand === 'all' && filters.branch === 'all' && activeBucket?.registerReconciliation
+          ? activeBucket.registerReconciliation
           : null,
       branchRanking,
       channelRanking,
