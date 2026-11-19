@@ -27,11 +27,13 @@ import {
   kuwaitDateBoundsToOdooUtc,
   kuwaitTodayOr,
   m2oId,
+  m2oName,
   odooCompanyContext,
   parseLineGroups,
   parsePaymentGroups,
   paymentWindowDomain,
   probeFieldNames,
+  publicOdooError,
   r3,
   resolveReadinessScopes,
   standardPriceFieldProbe,
@@ -55,12 +57,18 @@ import {
   type StandardPriceDiagnosis,
 } from '@/lib/odoo/readiness-audit'
 
+export interface OdooCallOptions {
+  timeoutMs?: number
+  timeoutCapMs?: number
+}
+
 export interface OdooReadClient {
   execute<T>(
     model: string,
     method: OdooReadMethod,
     args?: unknown[],
     kwargs?: Record<string, unknown>,
+    options?: OdooCallOptions,
   ): Promise<T>
 }
 
@@ -89,7 +97,13 @@ export async function collectReadinessAudit(
   const remaining = () => budgetMs - (clock() - started)
   const canStart = () => remaining() > minRemainingMs
 
-  async function read<T>(model: string, method: OdooReadMethod, args: unknown[] = [], kwargs: Record<string, unknown> = {}): Promise<T> {
+  async function read<T>(
+    model: string,
+    method: OdooReadMethod,
+    args: unknown[] = [],
+    kwargs: Record<string, unknown> = {},
+    options?: OdooCallOptions,
+  ): Promise<T> {
     if (!isOdooReadMethod(method)) {
       throw new Error(`Refusing Odoo method ${method}`)
     }
@@ -97,7 +111,7 @@ export async function collectReadinessAudit(
       partial = true
       throw new BudgetStop()
     }
-    return client.execute<T>(model, method, args, kwargs)
+    return client.execute<T>(model, method, args, kwargs, options)
   }
 
   const models: Record<string, ModelFact> = {}
@@ -118,6 +132,7 @@ export async function collectReadinessAudit(
     withQurain: emptyLineSales(),
   }
   let cashiersRead = false
+  let cashierError: string | null = null
   let cashierSums: Record<string, unknown>[] = []
   let cashierMins: Record<string, unknown>[] = []
   let cashierMaxes: Record<string, unknown>[] = []
@@ -129,6 +144,7 @@ export async function collectReadinessAudit(
     withoutQurain: null,
     withQurain: null,
   }
+  const scopeWindowError: Record<ScopeName, string | null> = { withoutQurain: null, withQurain: null }
 
   try {
     configs = await readConfigs(read)
@@ -202,17 +218,15 @@ export async function collectReadinessAudit(
           else scopedOrders[scope] = null
         }
         try {
-          scopeWindow[scope] = await readScopeWindow(
-            read,
-            resolvedIds[scope],
-            year.fromUtc,
-            year.toExclusiveUtc,
-            companyContext,
-          )
+          scopeWindow[scope] = await readScopeWindow(read, resolvedIds[scope], year.fromUtc, year.toExclusiveUtc)
+          scopeWindowError[scope] = null
         } catch (error) {
           if (error instanceof BudgetStop) partial = true
           else if (isFatalOdooFailure(error)) throw error
-          else scopeWindow[scope] = null
+          else {
+            scopeWindow[scope] = null
+            scopeWindowError[scope] = publicOdooError(error)
+          }
         }
       }),
     )
@@ -223,15 +237,19 @@ export async function collectReadinessAudit(
   cashierConfigField = 'config_id'
   if (canStart()) {
     try {
-      const grouped = await readCashierGroups(read, year.fromUtc, year.toExclusiveUtc, companyContext)
+      const grouped = await readCashierGroups(read, year.fromUtc, year.toExclusiveUtc)
       cashierSums = grouped.sums
       cashierMins = grouped.mins
       cashierMaxes = grouped.maxes
       cashiersRead = grouped.sums.length > 0 || grouped.mins.length > 0 || grouped.maxes.length > 0 || grouped.read
+      cashierError = null
     } catch (error) {
       if (error instanceof BudgetStop) partial = true
       else if (isFatalOdooFailure(error)) throw error
-      else cashiersRead = false
+      else {
+        cashiersRead = false
+        cashierError = publicOdooError(error)
+      }
     }
   } else {
     partial = true
@@ -344,10 +362,12 @@ export async function collectReadinessAudit(
     lineSalesRead,
     lineSales,
     scopeWindow,
+    scopeWindowError,
     costReadable,
     costAbsentCount,
     standardPrice,
     cashiersRead,
+    cashierError,
     cashierSums,
     cashierMins,
     cashierMaxes,
@@ -369,7 +389,11 @@ type ReadFn = <T>(
   method: OdooReadMethod,
   args?: unknown[],
   kwargs?: Record<string, unknown>,
+  options?: OdooCallOptions,
 ) => Promise<T>
+
+const ORDER_READ_CONTEXT = { active_test: false }
+const ORDER_READ_OPTIONS: OdooCallOptions = { timeoutMs: 20_000, timeoutCapMs: 25_000 }
 
 async function readConfigs(read: ReadFn): Promise<PosConfigRow[]> {
   const rows: PosConfigRow[] = []
@@ -416,6 +440,7 @@ function configRow(id: number, row: Record<string, unknown>): PosConfigRow {
     name: typeof row.name === 'string' ? row.name : `pos.config ${id}`,
     active: row.active !== false,
     companyId: m2oId(row.company_id),
+    companyName: m2oName(row.company_id) || null,
   }
 }
 
@@ -444,60 +469,85 @@ async function probeModel(
   const count = await read<unknown>(spec.model, 'search_count', [[...spec.countDomain]])
   const rowCount = typeof count === 'number' && Number.isFinite(count) ? Math.max(0, Math.round(count)) : null
   const presentKeys = spec.keyFields.filter((field) => fieldSet.has(field))
-  const sampleFields = [
-    ...new Set([...presentKeys, ...spec.extraFields.filter((field) => fieldSet.has(field))]),
-  ]
   let sample: Record<string, unknown>[] = []
   let completenessMeasured = rowCount === 0
   let completenessPct: number | null = null
-  if (rowCount != null && rowCount > 0 && sampleFields.length > 0) {
-    const sampled = await read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
-      fields: spec.model === 'product.product' ? [...new Set([...sampleFields, 'standard_price', 'product_tmpl_id'])] : sampleFields,
-      limit: COMPLETENESS_SAMPLE_SIZE,
-      order: 'id asc',
-      ...(companyContext ? { context: companyContext } : {}),
-    })
-    sample = asRecordList(sampled) ?? []
-    completenessMeasured = sample.length > 0 || presentKeys.length === 0
-    completenessPct = presentKeys.length > 0 ? fieldCompletenessPct(sample, presentKeys) : null
-  } else if (rowCount === 0 || presentKeys.length === 0) {
-    completenessMeasured = true
+  let errorMessage: string | null = null
+  const sampleFields =
+    spec.model === 'product.product'
+      ? ['id', 'name', 'default_code', 'active']
+      : [...new Set([...presentKeys, ...spec.extraFields.filter((field) => fieldSet.has(field))])]
+  try {
+    if (rowCount != null && rowCount > 0 && sampleFields.length > 0) {
+      const sampled = await read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
+        fields: sampleFields,
+        limit: COMPLETENESS_SAMPLE_SIZE,
+        order: 'id asc',
+        ...(companyContext && spec.model !== 'product.product' ? { context: companyContext } : {}),
+      })
+      sample = asRecordList(sampled) ?? []
+      completenessMeasured = sample.length > 0 || presentKeys.length === 0
+      completenessPct = presentKeys.length > 0 ? fieldCompletenessPct(sample, presentKeys) : null
+    } else if (rowCount === 0 || presentKeys.length === 0) {
+      completenessMeasured = true
+    }
+    const dateField = spec.dateField && fieldSet.has(spec.dateField) ? spec.dateField : fieldSet.has('create_date') ? 'create_date' : null
+    let earliest: string | null = null
+    let latest: string | null = null
+    if (dateField && rowCount != null && rowCount > 0) {
+      const [first, last] = await Promise.all([
+        read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
+          fields: [dateField],
+          limit: 1,
+          order: `${dateField} asc`,
+        }),
+        read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
+          fields: [dateField],
+          limit: 1,
+          order: `${dateField} desc`,
+        }),
+      ])
+      earliest = dateOf(asRecordList(first)?.[0], dateField)
+      latest = dateOf(asRecordList(last)?.[0], dateField)
+    }
+    const fact: ModelFact = {
+      model: spec.model,
+      exists: true,
+      readable: rowCount != null,
+      access: rowCount != null ? 'ok' : 'error',
+      rowCount,
+      completenessPct,
+      completenessMeasured,
+      sampleSize: sample.length,
+      keyFields: [...spec.keyFields],
+      missingRequiredFields: [...missingRequiredFields],
+      earliest,
+      latest,
+      emptyRowsAllowed: spec.emptyRowsAllowed,
+      errorMessage,
+    }
+    return { fact, fields, sample }
+  } catch (error) {
+    if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+    if (rowCount == null) throw error
+    const fact: ModelFact = {
+      model: spec.model,
+      exists: true,
+      readable: true,
+      access: 'ok',
+      rowCount,
+      completenessPct,
+      completenessMeasured,
+      sampleSize: sample.length,
+      keyFields: [...spec.keyFields],
+      missingRequiredFields: [...missingRequiredFields],
+      earliest: null,
+      latest: null,
+      emptyRowsAllowed: spec.emptyRowsAllowed,
+      errorMessage: publicOdooError(error),
+    }
+    return { fact, fields, sample }
   }
-  const dateField = spec.dateField && fieldSet.has(spec.dateField) ? spec.dateField : fieldSet.has('create_date') ? 'create_date' : null
-  let earliest: string | null = null
-  let latest: string | null = null
-  if (dateField && rowCount != null && rowCount > 0) {
-    const [first, last] = await Promise.all([
-      read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
-        fields: [dateField],
-        limit: 1,
-        order: `${dateField} asc`,
-      }),
-      read<unknown>(spec.model, 'search_read', [[...spec.countDomain]], {
-        fields: [dateField],
-        limit: 1,
-        order: `${dateField} desc`,
-      }),
-    ])
-    earliest = dateOf(asRecordList(first)?.[0], dateField)
-    latest = dateOf(asRecordList(last)?.[0], dateField)
-  }
-  const fact: ModelFact = {
-    model: spec.model,
-    exists: true,
-    readable: rowCount != null,
-    access: rowCount != null ? 'ok' : 'error',
-    rowCount,
-    completenessPct,
-    completenessMeasured,
-    sampleSize: sample.length,
-    keyFields: [...spec.keyFields],
-    missingRequiredFields: [...missingRequiredFields],
-    earliest,
-    latest,
-    emptyRowsAllowed: spec.emptyRowsAllowed,
-  }
-  return { fact, fields, sample }
 }
 
 function dateOf(row: Record<string, unknown> | undefined, field: string): string | null {
@@ -514,6 +564,7 @@ function failedFact(spec: ModelSpec, error: unknown): ModelFact {
     access,
     exists: access !== 'missing',
     readable: false,
+    errorMessage: publicOdooError(error),
   }
 }
 
@@ -546,66 +597,78 @@ async function readScopeWindow(
   configIds: readonly number[],
   fromUtc: string,
   toExclusiveUtc: string,
-  context: Record<string, unknown>,
 ): Promise<{ orders: number; netKwd: number }> {
   if (configIds.length === 0) return { orders: 0, netKwd: 0 }
-  const domain = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds })
-  const grouped = await read<unknown>(
-    'pos.order',
-    'read_group',
-    [domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id']],
-    { lazy: false, context },
+  const domains = (['config_id', 'session_id.config_id'] as const).map((configField) =>
+    buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds, configField }),
   )
-  return sumPosOrderGroups(asRecordList(grouped) ?? [])
+  let lastError: unknown = null
+  for (const domain of domains) {
+    for (const groupby of [['config_id'], ['session_id.config_id'], []] as const) {
+      try {
+        const grouped = await read<unknown>(
+          'pos.order',
+          'read_group',
+          [domain, ['amount_total:sum', 'amount_tax:sum'], [...groupby]],
+          { lazy: false, context: ORDER_READ_CONTEXT },
+          ORDER_READ_OPTIONS,
+        )
+        const rows = asRecordList(grouped)
+        if (rows && rows.length > 0) return sumPosOrderGroups(rows)
+      } catch (error) {
+        if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        lastError = error
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('pos.order read_group returned no 2026 totals')
 }
 
 async function readCashierGroups(
   read: ReadFn,
   fromUtc: string,
   toExclusiveUtc: string,
-  context: Record<string, unknown>,
 ): Promise<{ sums: Record<string, unknown>[]; mins: Record<string, unknown>[]; maxes: Record<string, unknown>[]; read: boolean }> {
-  const domain = buildAuditPosOrderDomain({
-    fromUtc,
-    toExclusiveUtc,
-    configIds: CASHIER_CONFIG_IDS,
-  })
-  const kwargs = { lazy: false, context }
-  const settled = await Promise.all([
-    read<unknown>('pos.order', 'read_group', [domain, ['amount_total:sum', 'amount_tax:sum'], ['config_id', 'company_id']], kwargs).then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({ ok: false as const, error }),
-    ),
-    read<unknown>('pos.order', 'read_group', [domain, ['date_order:min'], ['config_id']], kwargs).then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({ ok: false as const, error }),
-    ),
-    read<unknown>('pos.order', 'read_group', [domain, ['date_order:max'], ['config_id']], kwargs).then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({ ok: false as const, error }),
-    ),
-  ])
-  for (const result of settled) {
-    if (!result.ok && (result.error instanceof BudgetStop || isFatalOdooFailure(result.error))) throw result.error
+  const fields = ['config_id', 'session_id.config_id'] as const
+  let lastError: unknown = null
+  for (const configField of fields) {
+    const domain = buildAuditPosOrderDomain({
+      fromUtc,
+      toExclusiveUtc,
+      configIds: CASHIER_CONFIG_IDS,
+      configField,
+    })
+    const kwargs = { lazy: false, context: ORDER_READ_CONTEXT }
+    const call = (aggregates: string[]) =>
+      read<unknown>('pos.order', 'read_group', [domain, aggregates, [configField]], kwargs, ORDER_READ_OPTIONS)
+    const settled = await Promise.all([
+      call(['amount_total:sum', 'amount_tax:sum']).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      call(['date_order:min']).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+      call(['date_order:max']).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      ),
+    ])
+    for (const result of settled) {
+      if (!result.ok && (result.error instanceof BudgetStop || isFatalOdooFailure(result.error))) throw result.error
+      if (!result.ok) lastError = result.error
+    }
+    if (settled[0].ok) {
+      return {
+        sums: asRecordList(settled[0].value) ?? [],
+        mins: settled[1].ok ? (asRecordList(settled[1].value) ?? []) : [],
+        maxes: settled[2].ok ? (asRecordList(settled[2].value) ?? []) : [],
+        read: true,
+      }
+    }
   }
-  const sums = settled[0].ok ? (asRecordList(settled[0].value) ?? []) : []
-  const mins = settled[1].ok ? (asRecordList(settled[1].value) ?? []) : []
-  const maxes = settled[2].ok ? (asRecordList(settled[2].value) ?? []) : []
-  if (settled.some((result) => result.ok)) return { sums, mins, maxes, read: true }
-  const perConfig = await Promise.all(
-    CASHIER_CONFIG_IDS.map(async (configId) => {
-      const one = buildAuditPosOrderDomain({ fromUtc, toExclusiveUtc, configIds: [configId] })
-      const grouped = await read<unknown>(
-        'pos.order',
-        'read_group',
-        [one, ['amount_total:sum', 'amount_tax:sum', 'date_order:min', 'date_order:max'], ['config_id', 'company_id']],
-        kwargs,
-      )
-      return asRecordList(grouped) ?? []
-    }),
-  )
-  const rows = perConfig.flat()
-  return { sums: rows, mins: rows, maxes: rows, read: true }
+  throw lastError instanceof Error ? lastError : new Error('pos.order cashier read_group failed')
 }
 
 async function diagnoseStandardPrice(
@@ -619,16 +682,19 @@ async function diagnoseStandardPrice(
   costAbsentCount: number
   diagnosis: StandardPriceDiagnosis
 }> {
+  const errors = { productFieldsGet: null as string | null, templateFieldsGet: null as string | null, read: null as string | null }
   const [productFields, templateFields] = await Promise.all([
     read<unknown>('product.product', 'fields_get', [['standard_price']], { attributes: ['type', 'string', 'groups'] }).catch(
       (error: unknown) => {
         if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        errors.productFieldsGet = publicOdooError(error)
         return null
       },
     ),
     read<unknown>('product.template', 'fields_get', [['standard_price']], { attributes: ['type', 'string', 'groups'] }).catch(
       (error: unknown) => {
         if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        errors.templateFieldsGet = publicOdooError(error)
         return null
       },
     ),
@@ -662,6 +728,7 @@ async function diagnoseStandardPrice(
         return variantKey || templateKey
       } catch (error) {
         if (error instanceof BudgetStop || isFatalOdooFailure(error)) throw error
+        errors.read = publicOdooError(error)
         return false
       }
     }),
@@ -683,6 +750,7 @@ async function diagnoseStandardPrice(
       companiesTried: companies,
       activeProducts,
       observations: [],
+      errors,
     })
     return {
       products: [],
@@ -773,6 +841,7 @@ async function diagnoseStandardPrice(
     companiesTried: companies,
     activeProducts: ids.size,
     observations,
+    errors,
   })
   return {
     products: [...trulyZero.values()],

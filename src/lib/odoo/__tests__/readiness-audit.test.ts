@@ -21,6 +21,7 @@ import {
   isFilledOdooValue,
   isReadinessAuditRole,
   listedProductCost,
+  publicOdooError,
   readinessAuditToCsv,
   resolveAttendanceBranchLink,
   resolveReadinessScopes,
@@ -49,6 +50,7 @@ function okModel(spec: ModelSpec, overrides: Partial<ModelFact> = {}): ModelFact
     earliest: '2024-01-01 00:00:00',
     latest: '2026-06-01 00:00:00',
     emptyRowsAllowed: spec.emptyRowsAllowed,
+    errorMessage: null,
     ...overrides,
   }
 }
@@ -332,6 +334,9 @@ describe('readiness audit pure rules', () => {
       present: true,
       groups: 'product.group_stock_manager',
     })
+    expect(publicOdooError(new Error('Invalid field standard_price at https://secret.example/jsonrpc'))).toBe(
+      'Invalid field standard_price at [REDACTED_URL]',
+    )
     const blocked = classifyStandardPrice({
       productField: { present: false, groups: null },
       templateField: { present: false, groups: null },
@@ -367,10 +372,10 @@ describe('readiness audit pure rules', () => {
   it('reports cashier configs 24, 16, and 35 with signed net and Kuwait dates', () => {
     const rows = buildCashierChecks({
       configs: [
-        { id: 24, name: 'Old register', active: false },
+        { id: 24, name: 'Old register', active: false, companyId: 1, companyName: 'Venture Foods' },
         { id: 16, name: 'E-Mall', active: false },
       ],
-      sums: [{ config_id: [24, 'Old register'], amount_total: 10.5, amount_tax: 0.5, __count: 3 }],
+      sums: [{ config_id: [24, 'Old register'], company_id: [1, 'Venture Foods'], amount_total: 10.5, amount_tax: 0.5, __count: 3 }],
       mins: [{ config_id: [24, 'Old register'], date_order: '2026-01-15 21:00:00' }],
       maxes: [{ config_id: [24, 'Old register'], date_order: '2026-11-01 12:00:00' }],
       configField: 'config_id',
@@ -385,6 +390,7 @@ describe('readiness audit pure rules', () => {
       found: true,
       orders: 3,
       netKwd: 10,
+      companyName: 'Venture Foods',
       firstOrderKuwait: '2026-01-16',
       lastOrderKuwait: '2026-11-01',
     })

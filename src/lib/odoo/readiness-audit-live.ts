@@ -9,11 +9,21 @@ import type { OdooReadClient } from '@/lib/odoo/readiness-audit-collect'
 
 export function createLiveOdooReadClient(): OdooReadClient {
   return {
-    execute<T>(model: string, method: OdooReadMethod, args: unknown[] = [], kwargs: Record<string, unknown> = {}): Promise<T> {
+    execute<T>(
+      model: string,
+      method: OdooReadMethod,
+      args: unknown[] = [],
+      kwargs: Record<string, unknown> = {},
+      options?: { timeoutMs?: number; timeoutCapMs?: number },
+    ): Promise<T> {
       if (!isOdooReadMethod(method)) {
         throw new Error(`Refusing Odoo method ${method}`)
       }
-      return executeOdooKw<T>(model, method, args, kwargs)
+      const aggregate = method === 'read_group'
+      return executeOdooKw<T>(model, method, args, kwargs, {
+        timeoutMs: options?.timeoutMs ?? (aggregate ? 20_000 : undefined),
+        timeoutCapMs: options?.timeoutCapMs ?? (aggregate ? 25_000 : undefined),
+      })
     },
   }
 }

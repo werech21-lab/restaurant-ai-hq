@@ -114,8 +114,8 @@ export const READINESS_MODEL_SPECS: readonly ModelSpec[] = [
   {
     model: 'product.product',
     dateField: 'create_date',
-    keyFields: ['name', 'default_code', 'standard_price'],
-    // standard_price is company-dependent and may be absent from fields_get. The cost scan reads it separately.
+    keyFields: ['name', 'default_code', 'active'],
+    // standard_price is company-dependent and is diagnosed separately. The probe must not request it.
     requiredFields: ['name'],
     countDomain: [['active', '=', true]],
     extraFields: [],
@@ -343,6 +343,7 @@ export interface PosConfigRow {
   name: string
   active: boolean
   companyId?: number | null
+  companyName?: string | null
 }
 
 export interface QurainRegister {
@@ -468,6 +469,11 @@ export interface StandardPriceDiagnosis {
     /** (c) Readable, and every company context that returned the key has cost <= 0. */
     trulyZero: number
   }
+  errors: {
+    productFieldsGet: string | null
+    templateFieldsGet: string | null
+    read: string | null
+  }
 }
 
 export type CompanyCostReading = number | 'absent'
@@ -483,7 +489,9 @@ export function classifyStandardPrice(input: {
   companiesTried: readonly number[]
   activeProducts: number
   observations: readonly { values: readonly CompanyCostReading[] }[]
+  errors?: StandardPriceDiagnosis['errors']
 }): StandardPriceDiagnosis {
+  const errors = input.errors ?? { productFieldsGet: null, templateFieldsGet: null, read: null }
   const fieldReadable = input.productField.present || input.templateField.present || input.readReturnsKey
   const base = {
     readable: fieldReadable,
@@ -497,6 +505,7 @@ export function classifyStandardPrice(input: {
       ...base,
       case: 'not_readable',
       counts: { notReadable: Math.max(0, input.activeProducts), companyContextZero: 0, trulyZero: 0 },
+      errors,
     }
   }
   let notReadable = 0
@@ -516,7 +525,7 @@ export function classifyStandardPrice(input: {
         : notReadable > 0 && trulyZero === 0
           ? 'not_readable'
           : 'truly_zero'
-  return { ...base, case: caseName, counts: { notReadable, companyContextZero, trulyZero } }
+  return { ...base, case: caseName, counts: { notReadable, companyContextZero, trulyZero }, errors }
 }
 
 function costObservationCase(
@@ -552,6 +561,12 @@ export function standardPriceFieldProbe(payload: unknown): StandardPriceFieldPro
   return { present: true, groups: null }
 }
 
+/** Keeps an Odoo fault for the auditor and strips URLs. The route redacts credentials again. */
+export function publicOdooError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+  return message.replace(/https?:\/\/\S+/gi, '[REDACTED_URL]').replace(/\s+/g, ' ').trim().slice(0, 500)
+}
+
 function costNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return r3(value)
   if (value === false || value === null || value === undefined || value === '') return 0
@@ -563,12 +578,13 @@ export function buildAuditPosOrderDomain(input: {
   fromUtc: string
   toExclusiveUtc: string
   configIds: readonly number[]
+  configField?: 'config_id' | 'session_id.config_id'
 }): unknown[][] {
   return [
     ['state', 'in', [...POS_SALE_STATES]],
     ['date_order', '>=', input.fromUtc],
     ['date_order', '<', input.toExclusiveUtc],
-    ['config_id', 'in', [...input.configIds]],
+    [input.configField ?? 'config_id', 'in', [...input.configIds]],
   ]
 }
 
@@ -670,6 +686,7 @@ export interface ModelFact {
   earliest: string | null
   latest: string | null
   emptyRowsAllowed: boolean
+  errorMessage: string | null
 }
 
 export interface ScopedOrders {
@@ -743,6 +760,8 @@ export interface CashierCheck {
   orders: number | null
   netKwd: number | null
   companyId: number | null
+  companyName: string | null
+  readError: string | null
   firstOrderAt: string | null
   lastOrderAt: string | null
   firstOrderKuwait: string | null
@@ -763,6 +782,7 @@ export interface ScopeReport {
   historyDays: number | null
   orders2026: number | null
   netKwd2026: number | null
+  windowError: string | null
 }
 
 export interface ModelReport {
@@ -779,6 +799,7 @@ export interface ModelReport {
   latest: string | null
   earliestKuwait: string | null
   latestKuwait: string | null
+  errorMessage: string | null
 }
 
 export interface BranchLink {
@@ -850,6 +871,7 @@ export interface AuditFacts {
   lineSalesRead: boolean
   lineSales: Record<ScopeName, LineSalesInput>
   scopeWindow?: Record<ScopeName, { orders: number; netKwd: number } | null>
+  scopeWindowError?: Record<ScopeName, string | null>
   costReadable?: boolean
   costAbsentCount?: number
   standardPrice?: StandardPriceDiagnosis | null
@@ -858,6 +880,7 @@ export interface AuditFacts {
   cashierMins: readonly Record<string, unknown>[]
   cashierMaxes: readonly Record<string, unknown>[]
   cashierConfigField: string
+  cashierError?: string | null
   staff: {
     attendanceFields: readonly string[]
     employeeFields: readonly string[]
@@ -881,6 +904,7 @@ export function uncheckedModelFact(spec: ModelSpec): ModelFact {
     earliest: null,
     latest: null,
     emptyRowsAllowed: spec.emptyRowsAllowed,
+    errorMessage: null,
   }
 }
 
@@ -934,6 +958,7 @@ function toModelReport(fact: ModelFact): ModelReport {
     latest: fact.latest,
     earliestKuwait: odooNaiveUtcToKuwaitDate(fact.earliest),
     latestKuwait: odooNaiveUtcToKuwaitDate(fact.latest),
+    errorMessage: fact.errorMessage,
   }
 }
 
@@ -1231,6 +1256,7 @@ export function buildCashierChecks(input: {
   maxes: readonly Record<string, unknown>[]
   configField: string
   read: boolean
+  readError?: string | null
   fromKuwait: string
   toKuwait: string
 }): CashierCheck[] {
@@ -1283,6 +1309,8 @@ export function buildCashierChecks(input: {
         orders: null,
         netKwd: null,
         companyId: config?.companyId ?? null,
+        companyName: config?.companyName ?? null,
+        readError: input.readError ?? null,
         firstOrderAt: null,
         lastOrderAt: null,
         firstOrderKuwait: null,
@@ -1299,6 +1327,8 @@ export function buildCashierChecks(input: {
       orders: bucket?.orders ?? 0,
       netKwd: bucket ? posOrderNet(bucket.total, bucket.tax) : 0,
       companyId: bucket?.companyId ?? config?.companyId ?? null,
+      companyName: config?.companyName ?? null,
+      readError: null,
       firstOrderAt: bucket?.first ?? null,
       lastOrderAt: bucket?.last ?? null,
       firstOrderKuwait: odooNaiveUtcToKuwaitDate(bucket?.first ?? null),
@@ -1313,6 +1343,7 @@ function scopeReport(
   configIds: readonly number[],
   orders: ScopedOrders | null,
   window: { orders: number; netKwd: number } | null,
+  windowError: string | null,
 ): ScopeReport {
   return {
     name,
@@ -1330,6 +1361,7 @@ function scopeReport(
     historyDays: orders?.historyDays ?? null,
     orders2026: window?.orders ?? null,
     netKwd2026: window?.netKwd ?? null,
+    windowError: windowError,
   }
 }
 
@@ -1381,6 +1413,7 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
     maxes: facts.cashierMaxes,
     configField: facts.cashierConfigField,
     read: facts.cashiersRead,
+    readError: facts.cashierError ?? null,
     fromKuwait: CASHIER_FROM_KUWAIT,
     toKuwait: facts.kuwaitToday < CASHIER_FROM_KUWAIT ? CASHIER_FROM_KUWAIT : facts.kuwaitToday,
   })
@@ -1400,12 +1433,14 @@ export function assembleReadinessAudit(facts: AuditFacts): ReadinessReport {
         resolved.withoutQurain,
         facts.scopedOrders.withoutQurain,
         facts.scopeWindow?.withoutQurain ?? null,
+        facts.scopeWindowError?.withoutQurain ?? null,
       ),
       withQurain: scopeReport(
         'withQurain',
         resolved.withQurain,
         facts.scopedOrders.withQurain,
         facts.scopeWindow?.withQurain ?? null,
+        facts.scopeWindowError?.withQurain ?? null,
       ),
     },
     qurainRegisters: resolved.qurain,
