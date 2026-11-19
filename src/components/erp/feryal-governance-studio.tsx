@@ -575,8 +575,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           const replyText =
             visionRes?.reply ||
             (isAr
-              ? 'لا أملك بيانات من Odoo عن هذا'
-              : 'No Odoo data available for this visual check')
+              ? 'هذه الصورة أو هذا الفيديو ليسا قراءة من Odoo. لن أخترع أرقاماً منهما. الصق جدول الأسعار كنص أو Excel، وأي رقم تلصقه هو Proposed / User Input.'
+              : 'This photo or video is not an Odoo read. Paste a price table as text or Excel. Pasted numbers are Proposed / User Input, not Odoo Verified Actuals.')
           const tier: VisionComplianceTier | undefined = visionRes?.complianceTier
 
           const feryalMsg: ChatUiMessage = {

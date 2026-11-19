@@ -34,7 +34,7 @@ export function numericFactsFromStructured(
     entityId: string,
     entityName: string,
     amount: unknown,
-    unit: 'KWD' | 'orders',
+    unit: 'KWD' | 'orders' | 'qty',
   ) => {
     const value = canonicalNumber(amount)
     if (!value || !entityId) return
@@ -72,5 +72,23 @@ export function numericFactsFromStructured(
   if ('companyTotalNetKwd' in record) push('net_sales_kwd', 'company', 'company', 'company', record.companyTotalNetKwd, 'KWD')
   if ('totalOrders' in record) push('orders', 'company', 'company', 'company', record.totalOrders, 'orders')
   if ('companyTotalOrders' in record) push('orders', 'company', 'company', 'company', record.companyTotalOrders, 'orders')
+  const brandId = typeof record.brandId === 'string' ? record.brandId : 'items'
+  const brandName = typeof record.scope === 'string' ? record.scope : brandId
+  if ('itemNetTotalKwd' in record) push('item_net_kwd', 'brand', brandId, brandName, record.itemNetTotalKwd, 'KWD')
+  if ('itemQtyTotal' in record) push('item_qty', 'brand', brandId, brandName, record.itemQtyTotal, 'qty')
+  const itemRows = [
+    ...(Array.isArray(record.itemRows) ? record.itemRows : []),
+    ...(Array.isArray(record.topItems) ? record.topItems : []),
+  ]
+  for (const row of itemRows) {
+    const item = asRecord(row)
+    if (!item) continue
+    const id = item.productId != null ? String(item.productId) : typeof item.name === 'string' ? item.name : ''
+    const name = typeof item.name === 'string' ? item.name : id
+    if (!id) continue
+    push('item_net_kwd', 'product', id, name, item.netKwd ?? item.net1, 'KWD')
+    if (typeof item.qty === 'number') push('item_qty', 'product', id, name, item.qty, 'qty')
+    if (typeof item.unitPriceKwd === 'number') push('item_unit_price_kwd', 'product', id, name, item.unitPriceKwd, 'KWD')
+  }
   return facts
 }
