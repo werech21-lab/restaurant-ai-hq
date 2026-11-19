@@ -96,6 +96,14 @@ export interface OdooReceivableClearingSummary {
   unappliedCreditLinesCount?: number
 }
 
+export interface OdooCommissionAccountRow {
+  code: string
+  name: string
+  amountKwd: number
+  linesCount: number
+  matchedBy: 'code' | 'name_only'
+}
+
 export interface OdooLedgerAccountingSummary {
   available?: boolean
   from?: string
@@ -127,6 +135,7 @@ export interface OdooLedgerAccountingSummary {
     accountType: 'income' | 'income_other'
     amountKwd: number
   }[]
+  commissionAccounts?: OdooCommissionAccountRow[]
 }
 
 export interface OdooUnattributedBranchRow {

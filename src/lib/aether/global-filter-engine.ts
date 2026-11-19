@@ -20,11 +20,14 @@ import type { JourneyPlay } from '@/lib/full-journey-enterprise-brain'
 import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import type {
   OdooBucketSummary,
+  OdooCommissionAccountRow,
   OdooLiveSummary,
   OdooPeriodBucketKey,
   OdooReceivableAccountRow,
   OdooReceivableAgingBucket,
 } from '@/lib/odoo/live-sync-core'
+
+export type { OdooCommissionAccountRow }
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { resolveBrandHeadline } from '@/lib/aether/brand-scope'
 import { formatArReconciliationFormula, toDisplayableAging } from '@/lib/odoo/receivable-aging'
@@ -406,6 +409,38 @@ export function formatPeriodCalendarWindow(
     return { fromIso: clampedCustom.from, toInclusiveIso: clampedCustom.to, ...labels }
   }
 
+  if (period === 'month') {
+    const monthBkt =
+      opts?.liveSummary?.connected === true ? opts.liveSummary.buckets?.month : undefined
+    if (monthBkt?.to) {
+      const shiftedEnd = shiftIsoDateDays(monthBkt.to, -1)
+      const clamped = clampPeriodToKuwaitToday({
+        from: `${shiftedEnd.slice(0, 7)}-01`,
+        to: shiftedEnd,
+      })
+      const fromIso = `${clamped.to.slice(0, 7)}-01`
+      const toInclusiveIso = clamped.to
+      const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
+      return { fromIso, toInclusiveIso, ...labels }
+    }
+    if (opts?.liveSummary?.dateRange?.to) {
+      const rawEnd = opts.liveSummary.dateRange.to
+      const clamped = clampPeriodToKuwaitToday({
+        from: `${rawEnd.slice(0, 7)}-01`,
+        to: rawEnd,
+      })
+      const fromIso = `${clamped.to.slice(0, 7)}-01`
+      const toInclusiveIso = clamped.to
+      const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
+      return { fromIso, toInclusiveIso, ...labels }
+    }
+    const kwCtx = getKuwaitTimeContext()
+    const fromIso = `${kwCtx.todayIso.slice(0, 7)}-01`
+    const toInclusiveIso = kwCtx.todayIso
+    const labels = formatInclusiveIsoRangeLabels(fromIso, toInclusiveIso)
+    return { fromIso, toInclusiveIso, ...labels }
+  }
+
   const bkt = opts?.liveSummary?.connected === true ? opts.liveSummary.buckets?.[period] : undefined
   if (bkt?.from && bkt?.to) {
     const shiftedEnd = shiftIsoDateDays(bkt.to, -1)
@@ -431,9 +466,7 @@ export function formatPeriodCalendarWindow(
       ? anchorIso
       : period === 'week'
         ? shiftIsoDateDays(anchorIso, -6)
-        : period === 'year'
-          ? `${anchorIso.slice(0, 4)}-01-01`
-          : shiftIsoDateDays(anchorIso, -29)
+        : `${anchorIso.slice(0, 4)}-01-01`
   const labels = formatInclusiveIsoRangeLabels(fromIso, anchorIso)
   return { fromIso, toInclusiveIso: anchorIso, ...labels }
 }
@@ -620,6 +653,7 @@ export interface WorkspaceLedgerAccounting {
     accountType: 'income' | 'income_other'
     amountKwd: number
   }[]
+  commissionAccounts?: OdooCommissionAccountRow[]
 }
 
 export interface WorkspaceReceivablesMeta {
@@ -1253,6 +1287,7 @@ export function computeGlobalWorkspace(
       netProfitPct: null,
       unavailableReasonAr: noDataMessageAr,
       unavailableReasonEn: 'No Odoo data for this period',
+      commissionAccounts: [],
     }
 
     const cascadingBrands: FilterOption<GlobalBrand>[] = GLOBAL_BRAND_OPTIONS.map((opt) => ({
@@ -1596,6 +1631,7 @@ export function computeGlobalWorkspace(
         'قيود دفتر الأستاذ العام في أودو غير مقسّمة محاسبياً حسب هذا الفلتر الفرعي — غير متوفر',
       unavailableReasonEn:
         'Odoo General Ledger entries (account.move.line) are not analytically partitioned for this sub-filter — Not available',
+      commissionAccounts: [],
     }
   } else if (!rawGl || rawGl.available === false || rawGlRev <= 0 || glIncompleteFromRaw) {
     const cogsVal = Math.max(0, safeNum(rawGl?.cogs))
@@ -1629,6 +1665,7 @@ export function computeGlobalWorkspace(
       unavailableReasonAr: 'قيود غير مكتملة لهذه الفترة',
       unavailableReasonEn: 'Incomplete GL entries for this period',
       revenueAccounts: rawGl?.revenueAccounts ?? [],
+      commissionAccounts: rawGl?.commissionAccounts ?? [],
       glClosedThroughDate: rawGl?.glClosedThroughDate ?? null,
     }
     // Phase 5 · Item 7: profit is hidden here too; when the window is not inside closed GL months
@@ -1679,6 +1716,7 @@ export function computeGlobalWorkspace(
       unavailableReasonAr: null,
       unavailableReasonEn: null,
       revenueAccounts: rawGl.revenueAccounts ?? [],
+      commissionAccounts: rawGl.commissionAccounts ?? [],
       glClosedThroughDate: rawGl.glClosedThroughDate ?? null,
       netProfitWithheld: false,
     }

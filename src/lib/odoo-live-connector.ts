@@ -1067,12 +1067,26 @@ const DELIVERY_COMMISSION_ACCOUNT_CODES = new Set([
   '41032',
 ])
 
-function isDeliveryCommissionGlAccount(code: string, name: string): boolean {
+export type DeliveryCommissionMatchKind = 'code' | 'name_only'
+
+export function classifyDeliveryCommissionGlAccount(
+  code: string,
+  name: string,
+): DeliveryCommissionMatchKind | null {
   const c = (code || '').trim()
-  if (DELIVERY_COMMISSION_ACCOUNT_CODES.has(c)) return true
-  return /commission|عمول|talabat|طلبات|deliveroo|ديليفرو|keeta|كيتا|كييتا|jahez|جاهز|snoonu|سنونو|cari|كاري|bilbayt|بالبيت|aggregator/i.test(
-    name || '',
-  )
+  if (DELIVERY_COMMISSION_ACCOUNT_CODES.has(c)) return 'code'
+  if (
+    /commission|عمول|talabat|طلبات|deliveroo|ديليفرو|keeta|كيتا|كييتا|jahez|جاهز|snoonu|سنونو|cari|كاري|bilbayt|بالبيت|aggregator/i.test(
+      name || '',
+    )
+  ) {
+    return 'name_only'
+  }
+  return null
+}
+
+export function isDeliveryCommissionGlAccount(code: string, name: string): boolean {
+  return classifyDeliveryCommissionGlAccount(code, name) !== null
 }
 
 function isRentPayrollOrDeprGlAccount(code: string, name: string, accountType: string): boolean {
@@ -1135,6 +1149,7 @@ export function buildLedgerAccountingFromGroups(params: {
   let accrualSignalTotal = 0
   let lineCount = 0
   const revenueAccounts: NonNullable<OdooLedgerAccountingSummary['revenueAccounts']> = []
+  const commissionAccounts: NonNullable<OdooLedgerAccountingSummary['commissionAccounts']> = []
 
   for (const r of rows) {
     const accId = m2oId(r.account_id)
@@ -1160,9 +1175,20 @@ export function buildLedgerAccountingFromGroups(params: {
       cogs += bal
     } else if (acc.account_type === 'expense') {
       expense += bal
-      if (isDeliveryCommissionGlAccount(acc.code, acc.name)) {
+      const commMatch = classifyDeliveryCommissionGlAccount(acc.code, acc.name)
+      if (commMatch !== null) {
         deliveryCommissions += bal
         deliveryCommissionLinesCount += cnt
+        const amountKwd = r3(bal)
+        if (cnt > 0 || Math.abs(amountKwd) >= 0.001) {
+          commissionAccounts.push({
+            code: acc.code,
+            name: acc.name,
+            amountKwd,
+            linesCount: cnt,
+            matchedBy: commMatch,
+          })
+        }
       }
       if (isRentPayrollOrDeprGlAccount(acc.code, acc.name, acc.account_type)) {
         accrualSignalTotal += Math.abs(bal)
@@ -1200,6 +1226,9 @@ export function buildLedgerAccountingFromGroups(params: {
     sourceModel: 'account.move.line',
     lineCount,
     revenueAccounts: revenueAccounts.sort((a, b) => Math.abs(b.amountKwd) - Math.abs(a.amountKwd)),
+    commissionAccounts: commissionAccounts.sort(
+      (a, b) => Math.abs(b.amountKwd) - Math.abs(a.amountKwd),
+    ),
     income: cleanIncome,
     otherIncome: cleanOtherIncome,
     totalRevenue,

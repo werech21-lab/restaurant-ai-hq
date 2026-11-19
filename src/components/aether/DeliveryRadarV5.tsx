@@ -10,15 +10,19 @@ import {
   Wallet,
 } from 'lucide-react'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
+import type { OdooBucketSummary, OdooCommissionAccountRow } from '@/lib/odoo/live-sync-core'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
   APPROVED_BRANCH_IDS,
+  DASHBOARD_BRANCH_CARD_IDS,
+  GLOBAL_BRANCH_OPTIONS,
   formatPeriodCalendarWindow,
-  getBranchLabel,
   getChannelLabel,
+  isExhibitionGroupReported,
   type GlobalBranch,
   type GlobalChannel,
 } from '@/lib/aether/global-filter-engine'
+import { getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import {
   UNATTRIBUTED_BRANCH_LABEL_AR,
   UNATTRIBUTED_BRANCH_LABEL_EN,
@@ -43,7 +47,7 @@ import {
 import { shouldMaskInternalCostsForRole } from '@/lib/auth/role-access-policy'
 import { useLang } from '@/components/aether/ui'
 
-type AggregatorChannelKey =
+export type AggregatorChannelKey =
   | 'talabat-tgo'
   | 'talabat-tmp'
   | 'keeta'
@@ -51,7 +55,7 @@ type AggregatorChannelKey =
   | 'jahez'
   | 'snoonu'
 
-const AGGREGATOR_CHANNELS: readonly {
+export const AGGREGATOR_CHANNELS: readonly {
   key: AggregatorChannelKey
   color: string
 }[] = [
@@ -78,8 +82,16 @@ const GL_INCOMPLETE_EN = 'Incomplete GL entries for this period'
 const safeNum = (v: unknown): number =>
   typeof v === 'number' && Number.isFinite(v) ? v : 0
 
+const roundKwd3 = (v: number): number => {
+  const rounded = Math.round(v * 1000) / 1000
+  return Object.is(rounded, -0) ? 0 : rounded
+}
+
+type RawChannelCell = { netKwd?: number | null; orders?: number | null } | null | undefined
+type RawChannelMap = Record<string, RawChannelCell> | null | undefined
+
 function readChannelCell(
-  cell: { netKwd?: number | null; orders?: number | null } | null | undefined,
+  cell: RawChannelCell,
 ): { salesKwd: number | null; orders: number | null } {
   if (cell === null) {
     return { salesKwd: null, orders: null }
@@ -88,9 +100,46 @@ function readChannelCell(
     return { salesKwd: 0, orders: 0 }
   }
   return {
-    salesKwd: cell.netKwd === null ? null : safeNum(cell.netKwd),
+    salesKwd: cell.netKwd === null ? null : roundKwd3(safeNum(cell.netKwd)),
     orders: cell.orders === null ? null : Math.round(safeNum(cell.orders)),
   }
+}
+
+function hasAggregatorChannelActivity(channels: RawChannelMap): boolean {
+  if (channels === null) return true
+  if (!channels) return false
+  for (const { key } of AGGREGATOR_CHANNELS) {
+    const cell = channels[key]
+    if (cell === null) return true
+    if (!cell) continue
+    if (cell.netKwd === null || cell.orders === null) return true
+    if (typeof cell.netKwd === 'number' && Number.isFinite(cell.netKwd) && cell.netKwd !== 0) {
+      return true
+    }
+    if (typeof cell.orders === 'number' && Number.isFinite(cell.orders) && cell.orders !== 0) {
+      return true
+    }
+  }
+  return false
+}
+
+function resolveMatrixBranchLabels(branchId: string): { labelAr: string; labelEn: string } {
+  if (branchId === 'unattributed') {
+    return {
+      labelAr: UNATTRIBUTED_BRANCH_LABEL_AR,
+      labelEn: UNATTRIBUTED_BRANCH_LABEL_EN,
+    }
+  }
+  const opt = GLOBAL_BRANCH_OPTIONS.find((x) => x.id === branchId && x.id !== 'all')
+  if (opt) {
+    return { labelAr: opt.ar, labelEn: opt.en }
+  }
+  const readable = branchId
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim()
+  const fallback = readable || branchId
+  return { labelAr: fallback, labelEn: fallback }
 }
 
 const f0 = (n: number, locale: FormatLocale = 'en') => formatInt(n, locale)
@@ -104,9 +153,27 @@ function fmtKwd(v: number | null | undefined, isAr: boolean): string {
   return formatKwd(v, { locale: isAr ? 'ar' : 'en', decimals: 3 })
 }
 
-interface BranchChannelMatrixRow {
+export interface AggregatorMatrixBranchEntry {
+  id: string
+  labelAr: string
+  labelEn: string
+  isUnattributed: boolean
+}
+
+export interface AggregatorPlatformSummary {
+  key: AggregatorChannelKey
+  color: string
+  labelAr: string
+  labelEn: string
+  salesKwd: number | null
+  orders: number | null
+  aovKwd: number | null
+  sharePct: number | null
+}
+
+export interface BranchChannelMatrixRow {
   rowId: string
-  branchId: Exclude<GlobalBranch, 'all'> | 'unattributed'
+  branchId: string
   branchLabelAr: string
   branchLabelEn: string
   isUnattributed: boolean
@@ -119,9 +186,401 @@ interface BranchChannelMatrixRow {
   shareOfAggregatorPct: number | null
 }
 
+export interface AggregatorMatrixTotals {
+  salesKwd: number | null
+  orders: number | null
+  avgPerPaymentKwd: number | null
+  shareOfAggregatorPct: number | null
+}
+
+export interface AggregatorRadarViewModel {
+  channelsUnavailable: boolean
+  platformSummaries: AggregatorPlatformSummary[]
+  directSalesSummary: { salesKwd: number | null; orders: number | null }
+  totalAggregatorSalesKwd: number | null
+  totalAggregatorOrders: number | null
+  matrixBranches: AggregatorMatrixBranchEntry[]
+  matrixRows: BranchChannelMatrixRow[]
+  matrixTotals: AggregatorMatrixTotals
+}
+
+export function buildAggregatorMatrixBranchEntries(params: {
+  selectedBranch: GlobalBranch
+  liveCube: OdooPeriodCube | null
+  activeBucket: OdooBucketSummary | null
+}): AggregatorMatrixBranchEntry[] {
+  const { selectedBranch, liveCube, activeBucket } = params
+  if (selectedBranch !== 'all') {
+    const labels = resolveMatrixBranchLabels(selectedBranch)
+    return [
+      {
+        id: selectedBranch,
+        labelAr: labels.labelAr,
+        labelEn: labels.labelEn,
+        isUnattributed: false,
+      },
+    ]
+  }
+
+  const entries: AggregatorMatrixBranchEntry[] = []
+  const seen = new Set<string>()
+  const pushBranch = (id: string) => {
+    if (seen.has(id) || id === 'all' || id === 'unattributed') return
+    seen.add(id)
+    const labels = resolveMatrixBranchLabels(id)
+    entries.push({
+      id,
+      labelAr: labels.labelAr,
+      labelEn: labels.labelEn,
+      isUnattributed: false,
+    })
+  }
+
+  for (const bid of APPROVED_BRANCH_IDS) {
+    pushBranch(bid)
+  }
+
+  const extraCandidates = new Set<string>()
+  for (const bid of DASHBOARD_BRANCH_CARD_IDS) {
+    if (!seen.has(bid)) extraCandidates.add(bid)
+  }
+
+  const cubeBranchMap = liveCube?.byBranch as
+    | Record<string, { channels?: RawChannelMap } | undefined>
+    | undefined
+  if (cubeBranchMap) {
+    for (const key of Object.keys(cubeBranchMap)) {
+      if (!seen.has(key) && key !== 'all' && key !== 'unattributed') {
+        extraCandidates.add(key)
+      }
+    }
+  }
+
+  const bucketLocMap = activeBucket?.byLocation ?? undefined
+  if (bucketLocMap) {
+    for (const key of Object.keys(bucketLocMap)) {
+      if (!seen.has(key) && key !== 'all' && key !== 'unattributed') {
+        extraCandidates.add(key)
+      }
+    }
+  }
+
+  for (const bid of extraCandidates) {
+    const isKnownGroup = bid === 'school-canteens' || bid === 'exhibitions'
+    if (liveCube) {
+      const cubeCell = cubeBranchMap?.[bid]
+      if (!cubeCell) continue
+      if (isKnownGroup || hasAggregatorChannelActivity(cubeCell.channels)) {
+        pushBranch(bid)
+      }
+    } else if (activeBucket) {
+      const locCell = bucketLocMap?.[bid]
+      if (!locCell) continue
+      if (bid === 'exhibitions' && !isExhibitionGroupReported(activeBucket)) continue
+      if (isKnownGroup || hasAggregatorChannelActivity(locCell.uiChannels)) {
+        pushBranch(bid)
+      }
+    }
+  }
+
+  entries.push({
+    id: 'unattributed',
+    labelAr: UNATTRIBUTED_BRANCH_LABEL_AR,
+    labelEn: UNATTRIBUTED_BRANCH_LABEL_EN,
+    isUnattributed: true,
+  })
+
+  return entries
+}
+
+export function computeAggregatorRadarViewModel(params: {
+  odooConnected: boolean
+  noData: boolean
+  selectedBranch: GlobalBranch
+  selectedChannel: GlobalChannel
+  channelFilter: 'all' | AggregatorChannelKey
+  searchQuery: string
+  liveCube: OdooPeriodCube | null
+  activeBucket: OdooBucketSummary | null
+}): AggregatorRadarViewModel {
+  const {
+    odooConnected,
+    noData,
+    selectedBranch,
+    selectedChannel,
+    channelFilter,
+    searchQuery,
+    liveCube,
+    activeBucket,
+  } = params
+
+  const channelsUnavailable = Boolean(
+    !liveCube &&
+      activeBucket &&
+      (activeBucket.uiChannels === null ||
+        activeBucket.totals.restaurantNetKwd === null ||
+        (selectedBranch !== 'all' &&
+          activeBucket.byLocation?.[selectedBranch]?.uiChannels === null)),
+  )
+
+  const cubeBranchMap = liveCube?.byBranch as
+    | Record<string, { channels?: RawChannelMap } | undefined>
+    | undefined
+
+  const platformSummaries: AggregatorPlatformSummary[] = (() => {
+    if (!odooConnected || noData) return []
+
+    const rows = AGGREGATOR_CHANNELS.map(({ key, color }) => {
+      if (channelsUnavailable) {
+        return {
+          key,
+          color,
+          labelAr: getChannelLabel(key, true),
+          labelEn: getChannelLabel(key, false),
+          salesKwd: null as number | null,
+          orders: null as number | null,
+          aovKwd: null as number | null,
+          sharePct: null as number | null,
+        }
+      }
+
+      let salesKwd: number | null = 0
+      let orders: number | null = 0
+
+      if (liveCube) {
+        const cell =
+          selectedBranch !== 'all'
+            ? cubeBranchMap?.[selectedBranch]?.channels?.[key]
+            : liveCube.byChannel?.[key]
+        const parsed = readChannelCell(cell)
+        salesKwd = parsed.salesKwd
+        orders = parsed.orders
+      } else if (activeBucket) {
+        const cell =
+          selectedBranch !== 'all'
+            ? activeBucket.byLocation?.[selectedBranch]?.uiChannels?.[key]
+            : activeBucket.uiChannels?.[key]
+        const parsed = readChannelCell(cell)
+        salesKwd = parsed.salesKwd
+        orders = parsed.orders
+      }
+
+      return {
+        key,
+        color,
+        labelAr: getChannelLabel(key, true),
+        labelEn: getChannelLabel(key, false),
+        salesKwd,
+        orders,
+        aovKwd:
+          salesKwd === null || orders === null
+            ? null
+            : orders > 0
+              ? salesKwd / orders
+              : 0,
+        sharePct: 0 as number | null,
+      }
+    })
+
+    if (channelsUnavailable) return rows
+
+    const hasNullSales = rows.some((r) => r.salesKwd === null)
+    const totalAgg = hasNullSales
+      ? null
+      : roundKwd3(rows.reduce((s, r) => s + (r.salesKwd as number), 0))
+    return rows
+      .map((r) => ({
+        ...r,
+        sharePct:
+          totalAgg === null || r.salesKwd === null
+            ? null
+            : totalAgg > 0
+              ? (r.salesKwd / totalAgg) * 100
+              : 0,
+      }))
+      .sort((a, b) => (b.salesKwd ?? Number.NEGATIVE_INFINITY) - (a.salesKwd ?? Number.NEGATIVE_INFINITY))
+  })()
+
+  const directSalesSummary = ((): { salesKwd: number | null; orders: number | null } => {
+    if (!odooConnected || noData || channelsUnavailable) {
+      return { salesKwd: null, orders: null }
+    }
+    let salesKwd = 0
+    let orders = 0
+    for (const dKey of DIRECT_CHANNELS) {
+      const cell = liveCube
+        ? selectedBranch !== 'all'
+          ? cubeBranchMap?.[selectedBranch]?.channels?.[dKey]
+          : liveCube.byChannel?.[dKey]
+        : activeBucket
+          ? selectedBranch !== 'all'
+            ? activeBucket.byLocation?.[selectedBranch]?.uiChannels?.[dKey]
+            : activeBucket.uiChannels?.[dKey]
+          : undefined
+      const parsed = readChannelCell(cell)
+      if (parsed.salesKwd === null || parsed.orders === null) {
+        return {
+          salesKwd: parsed.salesKwd === null ? null : roundKwd3(salesKwd),
+          orders: parsed.orders === null ? null : orders,
+        }
+      }
+      salesKwd += parsed.salesKwd
+      orders += parsed.orders
+    }
+    return { salesKwd: roundKwd3(salesKwd), orders }
+  })()
+
+  const totalAggregatorSalesKwd =
+    channelsUnavailable ||
+    platformSummaries.length === 0 ||
+    platformSummaries.some((r) => r.salesKwd === null)
+      ? null
+      : roundKwd3(platformSummaries.reduce((s, r) => s + (r.salesKwd as number), 0))
+
+  const totalAggregatorOrders =
+    channelsUnavailable ||
+    platformSummaries.length === 0 ||
+    platformSummaries.some((r) => r.orders === null)
+      ? null
+      : platformSummaries.reduce((s, r) => s + (r.orders as number), 0)
+
+  const matrixBranches =
+    !odooConnected || noData
+      ? []
+      : buildAggregatorMatrixBranchEntries({ selectedBranch, liveCube, activeBucket })
+
+  const matrixRows: BranchChannelMatrixRow[] = (() => {
+    if (!odooConnected || noData) return []
+
+    const out: BranchChannelMatrixRow[] = []
+    for (const br of matrixBranches) {
+      for (const ch of AGGREGATOR_CHANNELS) {
+        if (channelFilter !== 'all' && ch.key !== channelFilter) continue
+        if (
+          selectedChannel !== 'all' &&
+          selectedChannel !== 'dine-in' &&
+          selectedChannel !== 'takeaway-direct' &&
+          ch.key !== selectedChannel
+        ) {
+          continue
+        }
+
+        let salesKwd: number | null = 0
+        let orders: number | null = 0
+        if (channelsUnavailable) {
+          salesKwd = null
+          orders = null
+        } else if (br.isUnattributed) {
+          if (!liveCube) {
+            salesKwd = null
+            orders = null
+          } else {
+            const parsed = readChannelCell(liveCube.unattributed?.channels?.[ch.key])
+            salesKwd = parsed.salesKwd
+            orders = parsed.orders
+          }
+        } else if (liveCube) {
+          const parsed = readChannelCell(cubeBranchMap?.[br.id]?.channels?.[ch.key])
+          salesKwd = parsed.salesKwd
+          orders = parsed.orders
+        } else if (activeBucket) {
+          const locUiChannels = activeBucket.byLocation?.[br.id]?.uiChannels
+          if (locUiChannels === null) {
+            salesKwd = null
+            orders = null
+          } else {
+            const parsed = readChannelCell(locUiChannels?.[ch.key])
+            salesKwd = parsed.salesKwd
+            orders = parsed.orders
+          }
+        }
+
+        out.push({
+          rowId: `${br.id}|${ch.key}`,
+          branchId: br.id,
+          branchLabelAr: br.labelAr,
+          branchLabelEn: br.labelEn,
+          isUnattributed: br.isUnattributed,
+          channelKey: ch.key,
+          channelLabelAr: getChannelLabel(ch.key, true),
+          channelLabelEn: getChannelLabel(ch.key, false),
+          salesKwd,
+          orders,
+          aovKwd:
+            salesKwd === null || orders === null ? null : orders > 0 ? salesKwd / orders : 0,
+          shareOfAggregatorPct:
+            salesKwd === null || totalAggregatorSalesKwd === null
+              ? null
+              : totalAggregatorSalesKwd > 0
+                ? (salesKwd / totalAggregatorSalesKwd) * 100
+                : 0,
+        })
+      }
+    }
+
+    const q = searchQuery.trim().toLowerCase()
+    const filtered = q
+      ? out.filter(
+          (r) =>
+            r.branchLabelAr.toLowerCase().includes(q) ||
+            r.branchLabelEn.toLowerCase().includes(q) ||
+            r.channelLabelAr.toLowerCase().includes(q) ||
+            r.channelLabelEn.toLowerCase().includes(q),
+        )
+      : out
+
+    return channelsUnavailable
+      ? filtered
+      : filtered.sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
+  })()
+
+  const matrixTotals: AggregatorMatrixTotals = (() => {
+    if (channelsUnavailable || matrixRows.length === 0) {
+      return {
+        salesKwd: null,
+        orders: null,
+        avgPerPaymentKwd: null,
+        shareOfAggregatorPct: null,
+      }
+    }
+    const hasNullSales = matrixRows.some((r) => r.salesKwd === null)
+    const hasNullOrders = matrixRows.some((r) => r.orders === null)
+    const salesKwd = hasNullSales
+      ? null
+      : roundKwd3(matrixRows.reduce((s, r) => s + (r.salesKwd as number), 0))
+    const orders = hasNullOrders
+      ? null
+      : matrixRows.reduce((s, r) => s + (r.orders as number), 0)
+    const avgPerPaymentKwd =
+      salesKwd === null || orders === null
+        ? null
+        : orders > 0
+          ? roundKwd3(salesKwd / orders)
+          : null
+    const shareOfAggregatorPct =
+      salesKwd === null || totalAggregatorSalesKwd === null
+        ? null
+        : totalAggregatorSalesKwd > 0
+          ? (salesKwd / totalAggregatorSalesKwd) * 100
+          : 0
+    return { salesKwd, orders, avgPerPaymentKwd, shareOfAggregatorPct }
+  })()
+
+  return {
+    channelsUnavailable,
+    platformSummaries,
+    directSalesSummary,
+    totalAggregatorSalesKwd,
+    totalAggregatorOrders,
+    matrixBranches,
+    matrixRows,
+    matrixTotals,
+  }
+}
+
 /**
  * رادار منصات التوصيل والعمولات (`/erp/aggregator-radar` & `/erp/commissions`)
- * - يقرأ مبيعات وطلبات كل منصة وكل فرع مباشرةً من أودو 17 (`pos.payment` + `pos.order`).
+ * - يقرأ مبيعات ودفعات كل منصة وكل فرع مباشرةً من أودو 17 (`pos.payment` + `pos.order`).
  * - يحذف تماماً أي تقسيم ثابت للعلامات من `ODOO.cube` وأي إيصالات ثابتة من `delivery-receipts-proof.json`.
  * - يعرض «غير مُرحَّل بعد» (لا صفراً!) على عمولات التطبيقات متى كانت غير مرحّلة في `account.move.line`.
  */
@@ -236,15 +695,6 @@ export function DeliveryRadarV5({
     return liveSummary.buckets?.[filters.period] ?? null
   }, [filters.period, liveSummary])
 
-  const gl = workspace.accounting
-  const commissionUnposted = Boolean(
-    workspace.aggregatorCommissionUnposted ||
-      gl.aggregatorCommissionUnposted ||
-      gl.deliveryCommissionsKwd === null ||
-      filters.period === 'today' ||
-      filters.period === 'week',
-  )
-
   const lastSyncIso =
     liveCube?.lastSyncAt ??
     liveSummary?.lastSyncAt ??
@@ -256,257 +706,104 @@ export function DeliveryRadarV5({
     liveCube?.isStale24h || liveSummary?.isStale24h || workspace.isStale24h,
   )
 
-  const channelsUnavailable = Boolean(
-    !liveCube &&
-      activeBucket &&
-      (activeBucket.uiChannels === null ||
-        activeBucket.totals.restaurantNetKwd === null ||
-        (filters.branch !== 'all' && activeBucket.byLocation?.[filters.branch]?.uiChannels === null)),
+  const viewModel = useMemo(
+    () =>
+      computeAggregatorRadarViewModel({
+        odooConnected: workspace.odooConnected,
+        noData: workspace.noData,
+        selectedBranch: filters.branch,
+        selectedChannel: filters.channel,
+        channelFilter,
+        searchQuery,
+        liveCube,
+        activeBucket,
+      }),
+    [
+      activeBucket,
+      channelFilter,
+      filters.branch,
+      filters.channel,
+      liveCube,
+      searchQuery,
+      workspace.noData,
+      workspace.odooConnected,
+    ],
   )
 
-  // Channel Totals (6 Aggregator Platforms + Direct Channels) directly from Odoo pos.payment
-  const platformSummaries = useMemo(() => {
-    if (!workspace.odooConnected || workspace.noData) return []
-
-    const rows = AGGREGATOR_CHANNELS.map(({ key, color }) => {
-      if (channelsUnavailable) {
-        return {
-          key,
-          color,
-          labelAr: getChannelLabel(key, true),
-          labelEn: getChannelLabel(key, false),
-          salesKwd: null as number | null,
-          orders: null as number | null,
-          aovKwd: null as number | null,
-          sharePct: null as number | null,
-        }
-      }
-
-      let salesKwd: number | null = 0
-      let orders: number | null = 0
-
-      if (liveCube) {
-        const cell =
-          filters.branch !== 'all'
-            ? liveCube.byBranch?.[filters.branch]?.channels?.[key]
-            : liveCube.byChannel?.[key]
-        const parsed = readChannelCell(cell)
-        salesKwd = parsed.salesKwd
-        orders = parsed.orders
-      } else if (activeBucket) {
-        const cell =
-          filters.branch !== 'all'
-            ? activeBucket.byLocation?.[filters.branch]?.uiChannels?.[key]
-            : activeBucket.uiChannels?.[key]
-        const parsed = readChannelCell(cell)
-        salesKwd = parsed.salesKwd
-        orders = parsed.orders
-      }
-
-      return {
-        key,
-        color,
-        labelAr: getChannelLabel(key, true),
-        labelEn: getChannelLabel(key, false),
-        salesKwd,
-        orders,
-        aovKwd:
-          salesKwd === null || orders === null
-            ? null
-            : orders > 0
-              ? salesKwd / orders
-              : 0,
-        sharePct: 0 as number | null,
-      }
-    })
-
-    if (channelsUnavailable) return rows
-
-    const hasNullSales = rows.some((r) => r.salesKwd === null)
-    const totalAgg = hasNullSales
-      ? null
-      : rows.reduce((s, r) => s + (r.salesKwd as number), 0)
-    return rows
-      .map((r) => ({
-        ...r,
-        sharePct:
-          totalAgg === null || r.salesKwd === null
-            ? null
-            : totalAgg > 0
-              ? (r.salesKwd / totalAgg) * 100
-              : 0,
-      }))
-      .sort((a, b) => (b.salesKwd ?? Number.NEGATIVE_INFINITY) - (a.salesKwd ?? Number.NEGATIVE_INFINITY))
-  }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
-
-  const directSalesSummary = useMemo((): { salesKwd: number | null; orders: number | null } => {
-    if (!workspace.odooConnected || workspace.noData || channelsUnavailable) {
-      return { salesKwd: null, orders: null }
-    }
-    let salesKwd = 0
-    let orders = 0
-    for (const dKey of DIRECT_CHANNELS) {
-      const cell = liveCube
-        ? filters.branch !== 'all'
-          ? liveCube.byBranch?.[filters.branch]?.channels?.[dKey]
-          : liveCube.byChannel?.[dKey]
-        : activeBucket
-          ? filters.branch !== 'all'
-            ? activeBucket.byLocation?.[filters.branch]?.uiChannels?.[dKey]
-            : activeBucket.uiChannels?.[dKey]
-          : undefined
-      const parsed = readChannelCell(cell)
-      if (parsed.salesKwd === null || parsed.orders === null) {
-        return {
-          salesKwd: parsed.salesKwd === null ? null : salesKwd,
-          orders: parsed.orders === null ? null : orders,
-        }
-      }
-      salesKwd += parsed.salesKwd
-      orders += parsed.orders
-    }
-    return { salesKwd, orders }
-  }, [activeBucket, channelsUnavailable, filters.branch, liveCube, workspace.noData, workspace.odooConnected])
-
-  const totalAggregatorSalesKwd = useMemo<number | null>(() => {
-    if (channelsUnavailable || platformSummaries.length === 0) return null
-    if (platformSummaries.some((r) => r.salesKwd === null)) return null
-    return platformSummaries.reduce((s, r) => s + (r.salesKwd as number), 0)
-  }, [channelsUnavailable, platformSummaries])
-
-  const totalAggregatorOrders = useMemo<number | null>(() => {
-    if (channelsUnavailable || platformSummaries.length === 0) return null
-    if (platformSummaries.some((r) => r.orders === null)) return null
-    return platformSummaries.reduce((s, r) => s + (r.orders as number), 0)
-  }, [channelsUnavailable, platformSummaries])
-
-  // Branch × Channel Matrix (7 Mapped Branches + Explicit 8th «غير منسوب لفرع»)
-  const matrixRows = useMemo<BranchChannelMatrixRow[]>(() => {
-    if (!workspace.odooConnected || workspace.noData) return []
-
-    const branchList: Array<{
-      id: Exclude<GlobalBranch, 'all'> | 'unattributed'
-      labelAr: string
-      labelEn: string
-      isUnattributed: boolean
-    }> =
-      filters.branch !== 'all'
-        ? [
-            {
-              id: filters.branch,
-              labelAr: getBranchLabel(filters.branch, true),
-              labelEn: getBranchLabel(filters.branch, false),
-              isUnattributed: false,
-            },
-          ]
-        : [
-            ...APPROVED_BRANCH_IDS.map((bid) => ({
-              id: bid,
-              labelAr: getBranchLabel(bid, true),
-              labelEn: getBranchLabel(bid, false),
-              isUnattributed: false,
-            })),
-            {
-              id: 'unattributed',
-              labelAr: UNATTRIBUTED_BRANCH_LABEL_AR,
-              labelEn: UNATTRIBUTED_BRANCH_LABEL_EN,
-              isUnattributed: true,
-            },
-          ]
-
-    const out: BranchChannelMatrixRow[] = []
-    for (const br of branchList) {
-      for (const ch of AGGREGATOR_CHANNELS) {
-        if (channelFilter !== 'all' && ch.key !== channelFilter) continue
-        if (
-          filters.channel !== 'all' &&
-          filters.channel !== 'dine-in' &&
-          filters.channel !== 'takeaway-direct' &&
-          ch.key !== filters.channel
-        ) {
-          continue
-        }
-
-        let salesKwd: number | null = 0
-        let orders: number | null = 0
-        if (channelsUnavailable) {
-          salesKwd = null
-          orders = null
-        } else if (br.isUnattributed) {
-          if (!liveCube) {
-            salesKwd = null
-            orders = null
-          } else {
-            const parsed = readChannelCell(liveCube.unattributed?.channels?.[ch.key])
-            salesKwd = parsed.salesKwd
-            orders = parsed.orders
-          }
-        } else if (liveCube) {
-          const parsed = readChannelCell(
-            liveCube.byBranch?.[br.id as Exclude<GlobalBranch, 'all'>]?.channels?.[ch.key],
-          )
-          salesKwd = parsed.salesKwd
-          orders = parsed.orders
-        } else if (activeBucket) {
-          const locUiChannels =
-            activeBucket.byLocation?.[br.id as Exclude<GlobalBranch, 'all'>]?.uiChannels
-          if (locUiChannels === null) {
-            salesKwd = null
-            orders = null
-          } else {
-            const parsed = readChannelCell(locUiChannels?.[ch.key])
-            salesKwd = parsed.salesKwd
-            orders = parsed.orders
-          }
-        }
-
-        out.push({
-          rowId: `${br.id}|${ch.key}`,
-          branchId: br.id,
-          branchLabelAr: br.labelAr,
-          branchLabelEn: br.labelEn,
-          isUnattributed: br.isUnattributed,
-          channelKey: ch.key,
-          channelLabelAr: getChannelLabel(ch.key, true),
-          channelLabelEn: getChannelLabel(ch.key, false),
-          salesKwd,
-          orders,
-          aovKwd:
-            salesKwd === null || orders === null ? null : orders > 0 ? salesKwd / orders : 0,
-          shareOfAggregatorPct:
-            salesKwd === null || totalAggregatorSalesKwd === null
-              ? null
-              : totalAggregatorSalesKwd > 0
-                ? (salesKwd / totalAggregatorSalesKwd) * 100
-                : 0,
-        })
-      }
-    }
-
-    const q = searchQuery.trim().toLowerCase()
-    const filtered = q
-      ? out.filter(
-          (r) =>
-            r.branchLabelAr.toLowerCase().includes(q) ||
-            r.branchLabelEn.toLowerCase().includes(q) ||
-            r.channelLabelAr.toLowerCase().includes(q) ||
-            r.channelLabelEn.toLowerCase().includes(q),
-        )
-      : out
-
-    return channelsUnavailable ? filtered : filtered.sort((a, b) => (b.salesKwd ?? 0) - (a.salesKwd ?? 0))
-  }, [
-    activeBucket,
-    channelFilter,
+  const {
     channelsUnavailable,
-    filters.branch,
-    filters.channel,
-    liveCube,
-    searchQuery,
+    platformSummaries,
+    directSalesSummary,
     totalAggregatorSalesKwd,
-    workspace.noData,
-    workspace.odooConnected,
-  ])
+    totalAggregatorOrders,
+    matrixRows,
+    matrixTotals,
+  } = viewModel
+
+  const gl = workspace.accounting
+  const isFullGroupScope =
+    filters.branch === 'all' &&
+    filters.brand === 'all' &&
+    filters.channel === 'all' &&
+    (filters.kuwaitSlice ?? 'all') === 'all'
+  const cubeGl = isFullGroupScope && liveCube?.accounting ? liveCube.accounting : null
+
+  let commissionUnposted: boolean
+  let effectiveCommKwd: number | null
+  let effectiveGlRevKwd: number | null
+  let effectiveCommissionAccounts: readonly OdooCommissionAccountRow[]
+  let effectiveGlFrom: string
+  let effectiveGlTo: string
+
+  if (cubeGl) {
+    const cubeGlRev = safeNum(
+      cubeGl.totalRevenue ?? safeNum(cubeGl.income) + safeNum(cubeGl.otherIncome),
+    )
+    const cubeCommVal = Math.max(0, safeNum(cubeGl.deliveryCommissions))
+    commissionUnposted = Boolean(
+      cubeGl.available === false ||
+        cubeGl.aggregatorCommissionUnposted === true ||
+        cubeCommVal <= 0 ||
+        filters.period === 'today' ||
+        filters.period === 'week',
+    )
+    effectiveCommKwd = commissionUnposted ? null : roundKwd3(cubeCommVal)
+    effectiveGlRevKwd = cubeGlRev > 0 ? roundKwd3(cubeGlRev) : null
+    effectiveCommissionAccounts = cubeGl.commissionAccounts ?? []
+    effectiveGlFrom = cubeGl.from ?? gl.from
+    effectiveGlTo = cubeGl.to ?? gl.to
+  } else {
+    commissionUnposted = Boolean(
+      workspace.aggregatorCommissionUnposted ||
+        gl.aggregatorCommissionUnposted ||
+        gl.deliveryCommissionsKwd === null ||
+        filters.period === 'today' ||
+        filters.period === 'week',
+    )
+    effectiveCommKwd = commissionUnposted ? null : gl.deliveryCommissionsKwd
+    effectiveGlRevKwd = gl.totalRevenueKwd
+    effectiveCommissionAccounts = gl.commissionAccounts ?? []
+    effectiveGlFrom = gl.from
+    effectiveGlTo = gl.to
+  }
+
+  const commOfAggregatorPct =
+    effectiveCommKwd !== null && totalAggregatorSalesKwd !== null && totalAggregatorSalesKwd > 0
+      ? Math.round((effectiveCommKwd / totalAggregatorSalesKwd) * 1000) / 10
+      : null
+
+  const commOfTotalRevenuePct =
+    effectiveCommKwd !== null && effectiveGlRevKwd !== null && effectiveGlRevKwd > 0
+      ? Math.round((effectiveCommKwd / effectiveGlRevKwd) * 1000) / 10
+      : gl.deliveryCommPct
+
+  const kuwaitYesterdayIso = getKuwaitTimeContext().yesterdayIso
+  const showGlEndDate = Boolean(
+    !maskInternalCosts &&
+      effectiveGlTo &&
+      /^\d{4}-\d{2}-\d{2}$/.test(effectiveGlTo) &&
+      (effectiveGlTo < periodWindow.toInclusiveIso || effectiveGlTo === kuwaitYesterdayIso),
+  )
 
   const donutSlices = useMemo<DonutSliceDatum[]>(() => {
     if (channelsUnavailable) return []
@@ -519,7 +816,7 @@ export function DeliveryRadarV5({
         label: isAr ? p.labelAr : p.labelEn,
         subLabel: isAr
           ? `${f0(p.orders, resolvedLocale)} دفعة`
-          : `${f0(p.orders, resolvedLocale)} payouts / batches`,
+          : `${f0(p.orders, resolvedLocale)} payments`,
         value: p.salesKwd,
         valueFormatted: fmtKwd(p.salesKwd, isAr),
         pctFormatted: f1Pct(p.sharePct, resolvedLocale),
@@ -547,8 +844,8 @@ export function DeliveryRadarV5({
           </div>
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
-              ? `مبيعات ودفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
-              : `Actual aggregator sales & payouts / batches from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
+              ? `مبيعات وعدد دفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
+              : `Actual aggregator sales & payments from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
           </p>
         </div>
 
@@ -632,7 +929,7 @@ export function DeliveryRadarV5({
                   </span>
                 ) : isAr ? (
                   <>
-                    {f0(totalAggregatorOrders, 'ar')} دفعة • متوسط الدفعة{' '}
+                    عدد الدفعات: {f0(totalAggregatorOrders, 'ar')} • متوسط الدفعة{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -644,7 +941,7 @@ export function DeliveryRadarV5({
                   </>
                 ) : (
                   <>
-                    {f0(totalAggregatorOrders, 'en')} payouts / batches • Avg per payout{' '}
+                    {f0(totalAggregatorOrders, 'en')} payments • Avg per payment{' '}
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(
                         totalAggregatorOrders > 0
@@ -687,9 +984,9 @@ export function DeliveryRadarV5({
                     {isAr ? 'غير متاح' : '—'}
                   </span>
                 ) : isAr ? (
-                  `${f0(directSalesSummary.orders, 'ar')} طلب مباشر بدون عمولة تطبيقات`
+                  `${f0(directSalesSummary.orders, 'ar')} دفعة مباشرة بدون عمولة تطبيقات`
                 ) : (
-                  `${f0(directSalesSummary.orders, 'en')} direct orders without aggregator commission`
+                  `${f0(directSalesSummary.orders, 'en')} direct payments without aggregator commission`
                 )}
               </p>
               <KpiProvenanceBadge
@@ -734,23 +1031,97 @@ export function DeliveryRadarV5({
                     dir="ltr"
                     className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-rose-700 dark:text-rose-300"
                   >
-                    {fmtKwd(gl.deliveryCommissionsKwd, isAr)}
+                    {fmtKwd(effectiveCommKwd, isAr)}
                   </div>
-                  <p className="mt-1.5 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {gl.deliveryCommPct !== null
+                  <p
+                    data-commission-ratio="aggregator"
+                    data-unavailable={commOfAggregatorPct === null ? 'true' : undefined}
+                    title={commOfAggregatorPct === null ? unavailableTip : undefined}
+                    className="mt-1.5 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-200"
+                  >
+                    {commOfAggregatorPct !== null
                       ? isAr
-                        ? `${f1Pct(gl.deliveryCommPct, 'ar')} من إجمالي إيراد الدفتر المرحّل`
-                        : `${f1Pct(gl.deliveryCommPct, 'en')} of posted GL revenue`
+                        ? `${f1Pct(commOfAggregatorPct, 'ar')} من مبيعات منصات التوصيل`
+                        : `${f1Pct(commOfAggregatorPct, 'en')} of aggregator sales`
+                      : isAr
+                        ? 'غير متاح'
+                        : '—'}
+                  </p>
+                  <p
+                    data-commission-ratio="total-revenue"
+                    className="mt-0.5 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400"
+                  >
+                    {commOfTotalRevenuePct !== null
+                      ? isAr
+                        ? `${f1Pct(commOfTotalRevenuePct, 'ar')} من إجمالي الإيرادات (الدفتر العام)`
+                        : `${f1Pct(commOfTotalRevenuePct, 'en')} of total revenue (GL)`
                       : isAr
                         ? GL_INCOMPLETE_AR
                         : GL_INCOMPLETE_EN}
                   </p>
+                  {effectiveCommissionAccounts.length > 0 ? (
+                    <details
+                      data-commission-accounts-breakdown="true"
+                      className="mt-2 rounded-xl bg-slate-50/90 px-3 py-2 text-xs ring-1 ring-slate-900/[0.06] dark:bg-white/[0.04] dark:ring-white/10"
+                    >
+                      <summary className="cursor-pointer select-none font-bold text-slate-700 dark:text-slate-200">
+                        {isAr
+                          ? `تفصيل حسابات العمولات (${f0(effectiveCommissionAccounts.length, 'ar')})`
+                          : `Commission accounts (${f0(effectiveCommissionAccounts.length, 'en')})`}
+                      </summary>
+                      <ul className="mt-2 space-y-1.5 border-t border-slate-200/80 pt-2 dark:border-white/10">
+                        {effectiveCommissionAccounts.map((acc) => (
+                          <li
+                            key={`${acc.code}|${acc.name}`}
+                            className="flex items-start justify-between gap-2 text-xs text-slate-700 dark:text-slate-200"
+                          >
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  dir="ltr"
+                                  className="font-mono font-bold text-slate-900 dark:text-white"
+                                >
+                                  {acc.code}
+                                </span>
+                                <span className="font-medium text-slate-700 dark:text-slate-200">
+                                  {acc.name}
+                                </span>
+                              </div>
+                              {acc.matchedBy === 'name_only' ? (
+                                <span
+                                  data-commission-match="name-only"
+                                  className="inline-flex items-center whitespace-nowrap rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                                >
+                                  {isAr ? 'يحتاج تأكيد المحاسب' : 'Needs accountant confirmation'}
+                                </span>
+                              ) : null}
+                            </div>
+                            <span
+                              dir="ltr"
+                              className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white"
+                            >
+                              {fmtKwd(acc.amountKwd, isAr)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null}
                 </>
               )}
 
+              {showGlEndDate ? (
+                <p
+                  data-gl-end-date={effectiveGlTo}
+                  className="mt-1.5 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400"
+                >
+                  {isAr ? `قيود الدفتر حتى ${effectiveGlTo}` : `GL posted through ${effectiveGlTo}`}
+                </p>
+              ) : null}
+
               <KpiProvenanceBadge
                 odooModel="account.move.line"
-                dateRange={{ from: gl.from, to: gl.to }}
+                dateRange={{ from: effectiveGlFrom, to: effectiveGlTo }}
                 lastSyncAt={lastSyncIso}
                 isStale24h={isStale24h}
                 kind="فعلي"
@@ -872,7 +1243,7 @@ export function DeliveryRadarV5({
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
-                    {T('Sales by Delivery Platform', 'مبيعات وطلبات كل منصة توصيل')}
+                    {T('Sales by Delivery Platform', 'مبيعات وعدد دفعات كل منصة توصيل')}
                   </h2>
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     {loadingCube
@@ -942,7 +1313,7 @@ export function DeliveryRadarV5({
                         ) : isAr ? (
                           `${f0(p.orders, 'ar')} دفعة`
                         ) : (
-                          `${f0(p.orders, 'en')} payouts / batches`
+                          `${f0(p.orders, 'en')} payments`
                         )}
                       </span>
                       <span dir="ltr" className="tabular-nums">
@@ -989,7 +1360,7 @@ export function DeliveryRadarV5({
                       ? undefined
                       : isAr
                         ? `${f0(totalAggregatorOrders, 'ar')} دفعة`
-                        : `${f0(totalAggregatorOrders, 'en')} payouts / batches`
+                        : `${f0(totalAggregatorOrders, 'en')} payments`
                   }
                   centerLabel={T('Aggregators', 'منصات التوصيل')}
                   isAr={isAr}
@@ -999,15 +1370,15 @@ export function DeliveryRadarV5({
             </div>
           </div>
 
-          {/* Branch × Platform Real Odoo Table (7 Branches + 8th «غير منسوب لفرع») */}
+          {/* Branch × Platform Real Odoo Table (Branches, Booths, Canteens & Unattributed) */}
           <section className="ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101815] dark:ring-emerald-400/[0.09]">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-base sm:text-lg font-bold text-slate-950 dark:text-white">
                     {T(
-                      'Branch × Platform Actual POS Matrix (7 Branches + Unattributed)',
-                      'مصفوفة الفروع × منصات التوصيل الفعلية (7 فروع + غير منسوب لفرع)',
+                      'Branch × Platform Actual POS Matrix (Branches, Booths, Canteens & Unattributed)',
+                      'مصفوفة الفروع × منصات التوصيل الفعلية (الفروع وبوثات المعارض والمقاصف + غير منسوب لفرع)',
                     )}
                   </h2>
                   <span
@@ -1077,8 +1448,8 @@ export function DeliveryRadarV5({
                       <th className="py-2.5 text-start">{T('Branch', 'الفرع')}</th>
                       <th className="py-2.5 text-start">{T('Platform', 'منصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('POS Sales (KWD)', 'المبيعات (د.ك)')}</th>
-                      <th className="py-2.5 text-end">{T('Payouts / Batches', 'دفعات')}</th>
-                      <th className="py-2.5 text-end">{T('Avg per Payout', 'متوسط الدفعة')}</th>
+                      <th className="py-2.5 text-end">{T('Payments', 'عدد الدفعات')}</th>
+                      <th className="py-2.5 text-end">{T('Avg per Payment', 'متوسط الدفعة')}</th>
                       <th className="py-2.5 text-end">{T('Share of Delivery', 'حصة التوصيل')}</th>
                       <th className="py-2.5 text-end">{T('Posted Commission', 'العمولة المرحّلة')}</th>
                     </tr>
@@ -1161,6 +1532,69 @@ export function DeliveryRadarV5({
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr
+                      data-matrix-totals-row="true"
+                      className="border-t-2 border-slate-200 bg-slate-50/90 text-xs font-extrabold tabular-nums text-slate-950 dark:border-white/15 dark:bg-white/[0.04] dark:text-white"
+                    >
+                      <td colSpan={2} className="py-3 text-start">
+                        {T('Total (Displayed Matrix)', 'الإجمالي (المصفوفة المعروضة)')}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-unavailable={matrixTotals.salesKwd === null ? 'true' : undefined}
+                        title={matrixTotals.salesKwd === null ? unavailableTip : undefined}
+                        className="py-3 text-end tabular-nums"
+                      >
+                        {fmtKwd(matrixTotals.salesKwd, isAr)}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-unavailable={matrixTotals.orders === null ? 'true' : undefined}
+                        title={matrixTotals.orders === null ? unavailableTip : undefined}
+                        className="py-3 text-end tabular-nums"
+                      >
+                        {matrixTotals.orders === null ? '—' : f0(matrixTotals.orders, resolvedLocale)}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-unavailable={
+                          matrixTotals.salesKwd === null || matrixTotals.orders === null
+                            ? 'true'
+                            : undefined
+                        }
+                        title={
+                          matrixTotals.salesKwd === null || matrixTotals.orders === null
+                            ? unavailableTip
+                            : undefined
+                        }
+                        className="py-3 text-end tabular-nums"
+                      >
+                        {matrixTotals.orders !== null &&
+                        matrixTotals.orders > 0 &&
+                        matrixTotals.avgPerPaymentKwd !== null
+                          ? fmtKwd(matrixTotals.avgPerPaymentKwd, isAr)
+                          : '—'}
+                      </td>
+                      <td
+                        dir="ltr"
+                        data-unavailable={
+                          matrixTotals.shareOfAggregatorPct === null ? 'true' : undefined
+                        }
+                        title={
+                          matrixTotals.shareOfAggregatorPct === null ? unavailableTip : undefined
+                        }
+                        className="py-3 text-end tabular-nums"
+                      >
+                        {matrixTotals.shareOfAggregatorPct === null
+                          ? '—'
+                          : f1Pct(matrixTotals.shareOfAggregatorPct, resolvedLocale)}
+                      </td>
+                      <td className="py-3 text-end text-xs font-medium text-slate-500 dark:text-slate-400">
+                        —
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}
