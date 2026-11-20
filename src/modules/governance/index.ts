@@ -65,6 +65,7 @@ export { workedMinutes } from '@/modules/governance/domain/gate'
 export { archiveSchema } from '@/modules/governance/schemas/governance'
 export type * from '@/modules/governance/domain/types'
 export {
+  clearForensicHistory,
   forensicBoard,
   latestForensicSnapshot,
   listForensicHistory,
@@ -73,6 +74,7 @@ export {
   type ForensicBoardQuery,
 } from '@/modules/governance/services/forensic-radar-service'
 export {
+  FORENSIC_MISSING_DATA_REASON,
   FORENSIC_PLATFORMS,
   PENALTY_BPS,
   TALABAT_MP_ACCOUNT,
@@ -98,4 +100,5 @@ export {
   type ForensicRow,
   type ForensicSnapshot,
   type LiveStatus,
+  type VerifiedForensicObservation,
 } from '@/modules/governance/domain/forensic-radar'

@@ -21,6 +21,8 @@ export const GET = protectedRoute(permissions.govAggregatorRead, async ({ reques
   return NextResponse.json({
     data: {
       ...board,
+      dataAvailable: board.snapshot.dataAvailable,
+      unavailableReason: board.snapshot.unavailableReason ?? null,
       exclusiveAlertRecipients: listExclusiveRadarRecipients(),
       smtp,
     },

@@ -70,9 +70,10 @@ import {
   asksMarginOrCogs,
   brandLabel,
   buildItemPricingAnswer,
-  COGS_UNAVAILABLE_REPLY,
+  detectItemPricingLocale,
   fetchItemPricingFromOdoo,
   posRootForBrand,
+  renderCogsUnavailableReply,
   type ItemPricingRead,
 } from '@/lib/feryal/item-pricing'
 import type { ComparableFact } from '@/server/ai/structured-claim'
@@ -1193,9 +1194,10 @@ async function runItemLevelPricingTool(params: {
     brandNameAr: brand?.ar ?? null,
     rows: read.rows,
   })
-  if (asksMarginOrCogs(question) && !built.reply.includes(COGS_UNAVAILABLE_REPLY)) {
-    built.reply = `${built.reply}\n${COGS_UNAVAILABLE_REPLY}`
-    built.toolNumbers.push(225)
+  const localizedCogsReply = renderCogsUnavailableReply(detectItemPricingLocale(question))
+  if (asksMarginOrCogs(question) && !built.reply.includes(localizedCogsReply)) {
+    built.reply = `${built.reply}\n${localizedCogsReply}`
+    if (!built.toolNumbers.includes(225)) built.toolNumbers.push(225)
   }
   return {
     hasData: true,

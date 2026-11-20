@@ -4,7 +4,7 @@ import { toErrorResponse } from '@/lib/api/route'
 import { permissions } from '@/lib/auth/permissions'
 import { authenticate } from '@/lib/auth/context'
 import { dispatchExclusiveOperationalReport, listExclusiveRadarRecipients } from '@/lib/alerts'
-import { buildForensicMatrix, listForensicHistory } from '@/modules/governance'
+import { FORENSIC_MISSING_DATA_REASON, listForensicHistory } from '@/modules/governance'
 import { dispatchServerEmail, getSmtpPublicStatus } from '@/lib/email/server-mail'
 import { logger } from '@/lib/logger'
 import { prisma } from '@/lib/db'
@@ -32,7 +32,8 @@ function isAuthorizedCronBearer(request: NextRequest): boolean {
 }
 
 /**
- * Execute daily operational & forensic report dispatch with strict once-per-day server lock.
+ * Execute daily operational & forensic report dispatch with strict once-per-day server lock
+ * and strict Fail-Closed guard when verified Odoo telemetry is unavailable.
  */
 async function executeDailyForensicDispatch({
   isManual,
@@ -75,10 +76,38 @@ async function executeDailyForensicDispatch({
   }
 
   const history = listForensicHistory()
-  const snapshots = history.length ? history : [buildForensicMatrix()]
-  const result = await dispatchExclusiveOperationalReport(snapshots)
+  const verifiedSnapshots = history.filter((s) => s.dataAvailable && s.rows.length > 0)
+  if (verifiedSnapshots.length === 0) {
+    logger.warn('forensic_report_fail_closed_missing_odoo_data', {
+      reason: FORENSIC_MISSING_DATA_REASON,
+      triggerSource,
+      kuwaitDate,
+      isManual,
+      userId: userId || 'system-cron',
+    })
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      alerted: false,
+      dispatched: false,
+      skippedReason: FORENSIC_MISSING_DATA_REASON,
+      reason: 'Skipped: verified Odoo operational & forensic telemetry is unavailable (fail-closed).',
+    })
+  }
 
-  // Mark date as sent in memory and database
+  const result = await dispatchExclusiveOperationalReport(verifiedSnapshots)
+  if (!result.dispatched) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      alerted: false,
+      dispatched: false,
+      skippedReason: result.skippedReason ?? FORENSIC_MISSING_DATA_REASON,
+      reason: 'Skipped: verified Odoo operational & forensic telemetry is unavailable (fail-closed).',
+    })
+  }
+
+  // Mark date as sent in memory and database only when verified report was actually dispatched
   sentReportDates.add(kuwaitDate)
   try {
     await prisma.systemNotification.create({
@@ -103,6 +132,8 @@ async function executeDailyForensicDispatch({
 
   return NextResponse.json({
     ok: true,
+    alerted: result.alerted,
+    dispatched: result.dispatched,
     data: {
       delivery: result.delivery,
       smtp: result.smtp,
@@ -193,7 +224,21 @@ export async function POST(request: NextRequest) {
   }
 
   if (body?.kind === 'talabat_area_alert') {
-    const text = body.emailText || 'Talabat Go Area Blackout Alert'
+    const text = (body.emailText ?? '').trim()
+    if (!text) {
+      logger.warn('forensic_report_fail_closed_missing_odoo_data', {
+        reason: FORENSIC_MISSING_DATA_REASON,
+        triggerSource: 'TALABAT_AREA_ALERT_EMPTY',
+        userId,
+      })
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        alerted: false,
+        dispatched: false,
+        skippedReason: FORENSIC_MISSING_DATA_REASON,
+      })
+    }
     const subject = `🚨 المناطق السكنية المغلقة أو المشغولة حالياً في توصيل طلبات (Talabat Go Busy & Hidden Areas Report) · ${getKuwaitDateString()}`
     const delivery = await dispatchServerEmail({ subject, text })
 

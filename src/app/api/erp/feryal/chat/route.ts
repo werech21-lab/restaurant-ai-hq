@@ -23,8 +23,15 @@ import {
   type ConfirmedPriceSheet,
 } from '@/lib/feryal/document-intake-types'
 import { UNCONFIRMED_DRAFT_REJECTED_ERROR } from '@/lib/feryal/executive-advisor'
+import {
+  buildFeryalChatDiagnostics,
+  computeFeryalChatFrozenScope,
+  inferBrandIdFromConfirmedSheet,
+  runExecutivePricingChat,
+  shouldRunExecutivePricingChat,
+} from '@/lib/feryal/executive-chat-runner'
 import { logger, errorFields } from '@/lib/logger'
-import { inferBrandIdFromConfirmedSheet, runFeryalCouncil } from '@/server/ai/council'
+import { runFeryalCouncil } from '@/server/ai/council'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -207,24 +214,77 @@ export async function POST(req: NextRequest) {
     (sheetAppliesToTurn ? inferBrandIdFromConfirmedSheet(confirmedPriceSheet) : null)
 
   try {
+    const contextDefaults = {
+      period: validatedDefaults.period,
+      customFrom: validatedDefaults.customFrom,
+      customTo: validatedDefaults.customTo,
+      branch: validatedDefaults.branchId,
+      brand: effectiveBrandId,
+      channel: validatedDefaults.channelId,
+    }
+
+    if (
+      shouldRunExecutivePricingChat(safeQuestion, {
+        confirmedPriceSheet,
+        isFollowUpOnConfirmedSheet,
+      })
+    ) {
+      const execResult = await runExecutivePricingChat({
+        question: safeQuestion,
+        userId: authGuard.session.sub,
+        userRole: authGuard.session.role,
+        userNameAr: authGuard.session.nameAr,
+        periodLabel: requestedPeriodLabel,
+        isFollowUpOnConfirmedSheet,
+        activePriceSheetSummary: activePriceSheetSummaryInput,
+        context: contextDefaults,
+        ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
+      })
+      const execAgreedLabel = execResult.agreed
+        .map((item) => `${item.provider}/${item.modelId}`)
+        .join(' · ')
+      return NextResponse.json(
+        {
+          ok: true,
+          reply: execResult.reply,
+          status: execResult.status,
+          provider: 'odoo-council',
+          model: execAgreedLabel,
+          participants: execResult.participants,
+          agreed: execResult.agreed,
+          executedQueries: execResult.executedQueries,
+          verifier: execResult.verifier,
+          period: execResult.period,
+          frozenScope: execResult.frozenScope,
+          activePriceSheetSummary: execResult.activePriceSheetSummary,
+          diagnostics: execResult.diagnostics,
+          auditEntry: execResult.auditEntry,
+          timestamp: new Date().toISOString(),
+        },
+        { headers: ENTERPRISE_API_SECURITY_HEADERS },
+      )
+    }
+
     const result = await runFeryalCouncil({
       question: safeQuestion,
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
-      periodLabel: requestedPeriodLabel,
-      isFollowUpOnConfirmedSheet,
-      activePriceSheetSummary: activePriceSheetSummaryInput,
-      context: {
-        period: validatedDefaults.period,
-        customFrom: validatedDefaults.customFrom,
-        customTo: validatedDefaults.customTo,
-        branch: validatedDefaults.branchId,
-        brand: effectiveBrandId,
-        channel: validatedDefaults.channelId,
-      },
-      ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
+      context: contextDefaults,
     })
+    const frozenScope = computeFeryalChatFrozenScope({
+      question: safeQuestion,
+      period: result.period,
+      rawPeriodInput: rawPeriod,
+      requestedPeriodLabel,
+      context: contextDefaults,
+    })
+    const diagnostics = buildFeryalChatDiagnostics(
+      'odoo_council',
+      result.participants,
+      result.agreed.length >= 2,
+      result.status === 'answered' && result.agreed.length < 2,
+    )
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
     return NextResponse.json(
       {
@@ -238,9 +298,9 @@ export async function POST(req: NextRequest) {
         executedQueries: result.executedQueries,
         verifier: result.verifier,
         period: result.period,
-        frozenScope: result.frozenScope,
-        activePriceSheetSummary: result.activePriceSheetSummary,
-        diagnostics: result.diagnostics,
+        frozenScope,
+        activePriceSheetSummary: null,
+        diagnostics,
         auditEntry: result.auditEntry,
         timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),
       },

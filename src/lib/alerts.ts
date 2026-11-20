@@ -2,6 +2,7 @@
  * Exclusive Instant Offline / TGO alerts for aggregator radar.
  * HARD LOCK: only EXCLUSIVE_RADAR_RECIPIENTS may receive radar alerts.
  * Email is server-to-inbox only (SMTP / FormSubmit) — never mailto / never popup.
+ * Nightly / Operational Forensic Report enforces strict Fail-Closed when verified Odoo data is missing.
  */
 import { deliverWhatsApp } from '@/services/notification.service'
 import { phoneDigits } from '@/lib/whatsapp'
@@ -10,6 +11,7 @@ import { maskEmailForLog, maskMobileForLog } from '@/lib/pii-mask'
 import { prisma } from '@/lib/db'
 import {
   buildOperationalForensicReport,
+  hasCompleteVerifiedForensicData,
   type BilingualOperationalReport,
 } from '@/lib/reports/operational-forensic-report'
 import {
@@ -25,7 +27,7 @@ import {
   EXCLUSIVE_RADAR_MOBILES,
   EXCLUSIVE_RADAR_RECIPIENTS,
 } from '@/lib/vf-contact-directory'
-import type { ForensicSnapshot } from '@/modules/governance/client'
+import { FORENSIC_MISSING_DATA_REASON, type ForensicSnapshot } from '@/modules/governance/client'
 
 export type RadarAlertKind = 'forced_offline' | 'busy_peak' | 'tgo_forced' | 'test' | 'daily_report'
 
@@ -228,6 +230,9 @@ export function assertRadarDestination(input: { email?: string; mobile?: string 
 }
 
 export type OperationalReportDispatchResult = {
+  dispatched: boolean
+  alerted: boolean
+  skippedReason?: string
   report: BilingualOperationalReport
   channels: RadarAlertChannelResult[]
   telegramBroadcast: boolean
@@ -248,12 +253,49 @@ export type OperationalReportDispatchResult = {
 
 /**
  * Dispatch the full Structured Monospace Daily Operational & Forensic Report
- * to the three exclusive inboxes via server SMTP or FormSubmit (zero popup).
+ * to the three exclusive inboxes via server SMTP (zero popup).
+ * Strictly Fail-Closed: skips all outbound email/WhatsApp/Telegram when verified Odoo data is missing.
  */
 export async function dispatchExclusiveOperationalReport(
   snapshots: ForensicSnapshot[],
   at = new Date(),
 ): Promise<OperationalReportDispatchResult> {
+  const gate = hasCompleteVerifiedForensicData(snapshots)
+  if (!gate.ok) {
+    const skippedReason = gate.reason ?? FORENSIC_MISSING_DATA_REASON
+    logger.warn('forensic_report_fail_closed_missing_odoo_data', {
+      reason: skippedReason,
+      snapshotCount: Array.isArray(snapshots) ? snapshots.length : 0,
+    })
+    const emptyReport = buildOperationalForensicReport([], at)
+    const smtp = await getSmtpPublicStatus()
+    const skipMessage = 'Skipped: verified Odoo forensic data unavailable (fail-closed).'
+    return {
+      dispatched: false,
+      alerted: false,
+      skippedReason,
+      report: emptyReport,
+      channels: [],
+      telegramBroadcast: false,
+      chunksSent: 0,
+      email: {
+        ok: false,
+        engine: 'none',
+        message: skipMessage,
+        error: skippedReason,
+      },
+      smtp,
+      delivery: {
+        ok: false,
+        engine: 'none',
+        subject: '',
+        recipients: [],
+        message: skipMessage,
+        error: skippedReason,
+      },
+    }
+  }
+
   const report = buildOperationalForensicReport(snapshots, at)
   const subject = `${REPORT_SUBJECT} · ${report.sections.kuwaitDate}`
   const header = [
@@ -281,7 +323,6 @@ export async function dispatchExclusiveOperationalReport(
   for (const recipient of EXCLUSIVE_RADAR_RECIPIENTS) {
     const digits = assertExclusiveMobile(recipient.mobileE164)
     assertExclusiveEmail(recipient.email)
-    // WhatsApp remains optional background channel — never opens a browser tab.
     let waOk = false
     let waMode = 'SERVER'
     for (const chunk of waChunks.slice(0, 1)) {
@@ -323,6 +364,8 @@ export async function dispatchExclusiveOperationalReport(
   }
 
   return {
+    dispatched: true,
+    alerted: true,
     report,
     channels,
     telegramBroadcast,

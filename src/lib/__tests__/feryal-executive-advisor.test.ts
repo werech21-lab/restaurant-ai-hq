@@ -13,10 +13,14 @@ import {
 } from '@/lib/feryal/document-intake-types'
 import {
   DETERMINISTIC_SIMULATION_TAG,
+  DETERMINISTIC_SIMULATION_TAG_AR,
+  EXECUTIVE_COGS_BOUNDARY_AR,
   HIGH_ELASTICITY_RISK_TAG,
   ODOO_VERIFIED_ACTUAL_TAG,
+  ODOO_VERIFIED_ACTUAL_TAG_AR,
   UNCONFIRMED_DRAFT_REJECTED_ERROR,
   USER_INPUT_CONFIRMED_TAG,
+  USER_INPUT_CONFIRMED_TAG_AR,
   buildBranchChannelMixContext,
   buildExecutiveContextPack,
   buildExecutiveCouncilPromptPayload,
@@ -629,12 +633,26 @@ describe('Deterministic grounding whitelist & 5-section CFO brief verification',
     const sim = simulateExecutivePricingOptions({ pack, sheet: confirmedSheet })
     const grounded = collectExecutiveGroundedNumbers(pack, sim)
 
-    for (const locale of ['en', 'ar'] as const) {
-      const brief = renderDeterministicExecutiveBrief(pack, sim, locale, true)
-      expect(brief).toContain(ODOO_VERIFIED_ACTUAL_TAG)
-      expect(brief).toContain(USER_INPUT_CONFIRMED_TAG)
-      expect(brief).toContain(DETERMINISTIC_SIMULATION_TAG)
-      expect(brief).toContain(COGS_UNAVAILABLE_REPLY)
+    const enBrief = renderDeterministicExecutiveBrief(pack, sim, 'en', true)
+    expect(enBrief).toContain(ODOO_VERIFIED_ACTUAL_TAG)
+    expect(enBrief).toContain(USER_INPUT_CONFIRMED_TAG)
+    expect(enBrief).toContain(DETERMINISTIC_SIMULATION_TAG)
+    expect(enBrief).toContain(COGS_UNAVAILABLE_REPLY)
+
+    const arBrief = renderDeterministicExecutiveBrief(pack, sim, 'ar', true)
+    expect(arBrief).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+    expect(arBrief).toContain(USER_INPUT_CONFIRMED_TAG_AR)
+    expect(arBrief).toContain(DETERMINISTIC_SIMULATION_TAG_AR)
+    expect(arBrief).toContain(EXECUTIVE_COGS_BOUNDARY_AR)
+    expect(arBrief).not.toContain(ODOO_VERIFIED_ACTUAL_TAG)
+    expect(arBrief).not.toContain(USER_INPUT_CONFIRMED_TAG)
+    expect(arBrief).not.toContain(DETERMINISTIC_SIMULATION_TAG)
+    expect(arBrief).not.toContain('standard_price')
+    expect(arBrief).not.toContain('price_subtotal')
+    expect(arBrief).not.toMatch(/\bCOGS\b/)
+    expect(arBrief).not.toContain('Verdict:')
+
+    for (const brief of [enBrief, arBrief]) {
       expect(brief).toContain('|')
       expect(isExcludedOdooEntity(brief)).toBe(false)
 

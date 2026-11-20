@@ -11,6 +11,7 @@ import {
   categoryIdsForPosRoot,
   chunkInclusiveIsoDates,
   COGS_UNAVAILABLE_REPLY,
+  COGS_UNAVAILABLE_REPLY_AR,
   itemPricingRegisterIds,
   parseProposedPrices,
   readItemPricingLines,
@@ -143,6 +144,31 @@ describe('item pricing math', () => {
     })
     expect(verified.unverifiedNumbers).toEqual([])
     expect(verified.valid).toBe(true)
+
+    const arabicQuestion = [
+      'اعرض أصناف منيو تشاينا جاردن وما هي تكلفة الصنف وهامش الربح لو عدلنا الأسعار؟',
+      'سعر مقترح لـ Spring Roll: 1.250',
+    ].join('\n')
+    const builtAr = buildItemPricingAnswer({
+      question: arabicQuestion,
+      periodLabel: '2026-01-01 إلى 2026-11-19',
+      brandNameAr: 'تشاينا جاردن',
+      rows,
+    })
+    expect(builtAr.reply).toContain('بيانات فعلية موثّقة من أودو')
+    expect(builtAr.reply).toContain('مدخلات المستخدم (مؤكدة)')
+    expect(builtAr.reply).toContain(COGS_UNAVAILABLE_REPLY_AR)
+    expect(builtAr.reply).not.toContain('Odoo Verified Actual')
+    expect(builtAr.reply).not.toContain('Proposed / User Input')
+    expect(builtAr.reply).not.toContain('standard_price')
+    expect(builtAr.reply).not.toContain('price_subtotal')
+    expect(builtAr.reply).not.toMatch(/\bCOGS\b/)
+    const verifiedAr = verifyFeryalReplyNumbers(builtAr.reply, builtAr.toolNumbers, {
+      allowedDateStrings: ['2026-01-01', '2026-11-19'],
+      allowedEntityNames: builtAr.allowedEntityNames,
+    })
+    expect(verifiedAr.unverifiedNumbers).toEqual([])
+    expect(verifiedAr.valid).toBe(true)
   })
 })
 

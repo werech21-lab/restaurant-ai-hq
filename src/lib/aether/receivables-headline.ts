@@ -1,17 +1,36 @@
 /**
- * Pure selectors for the Open Unreconciled Receivables KPI card.
+ * Pure selectors for the Net Open Receivables KPI card.
  *
- * Separates non-negative `openDebitsKwd` (what platforms and customers actually owe)
- * from `unappliedCreditsKwd` (<= 0 unmatched payouts & POS clearing credits) and signed
- * `netKwd` (debits + credits), while preserving `openReceivableKwd` semantics everywhere else.
+ * Resolves verified Odoo net open receivables (`netKwd` = `SUM(amount_residual)` across
+ * posted unreconciled customer/platform receivable accounts, excluding cashier clearing 10552),
+ * alongside optional gross `openDebitsKwd` and `unappliedCreditsKwd` diagnostics.
  */
+
+import { isPosClearingAccount } from '@/lib/odoo/live-sync-core'
+
+export interface ReceivablesHeadlineAccountItem {
+  accountCode?: string
+  accountName?: string
+  labelEn?: string
+  residualKwd: number
+  linesCount?: number
+}
 
 export interface ReceivablesHeadlineInput {
   unavailable?: boolean
   readable?: boolean
+  maturityStatusEn?: string | null
   openDebitsKwd?: number | null
   unappliedCreditsKwd?: number | null
   openReceivableKwd?: number | null
+  platformNetKwd?: number | null
+  platformAndCorporateLinesCount?: number | null
+  byAccount?: readonly ReceivablesHeadlineAccountItem[]
+  figures?: {
+    netKwd?: number | null
+    openDebitsKwd?: number | null
+    unappliedCreditsKwd?: number | null
+  } | null
   unreconciledLineCount?: number | null
   openLinesCount?: number | null
   lines?: number | null
@@ -39,6 +58,10 @@ function round3(n: number): number {
   return normalizeZero(Math.round(n * 1000) / 1000)
 }
 
+function finiteRounded(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? round3(value) : null
+}
+
 function cleanIsoDate(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
@@ -48,7 +71,12 @@ function cleanIsoDate(value: string | null | undefined): string | null {
 export function selectReceivablesHeadline(
   receivables: ReceivablesHeadlineInput | null | undefined,
 ): ReceivablesHeadline {
-  if (!receivables || receivables.unavailable === true || receivables.readable === false) {
+  if (
+    !receivables ||
+    receivables.unavailable === true ||
+    receivables.readable === false ||
+    receivables.maturityStatusEn === 'No Odoo receivable data for this period'
+  ) {
     return {
       openDebitsKwd: null,
       unappliedCreditsKwd: null,
@@ -68,16 +96,43 @@ export function selectReceivablesHeadline(
       ? round3(-Math.abs(receivables.unappliedCreditsKwd))
       : null
 
-  const netKwd =
-    typeof receivables.openReceivableKwd === 'number' &&
-    Number.isFinite(receivables.openReceivableKwd)
-      ? round3(receivables.openReceivableKwd)
-      : openDebitsKwd !== null && unappliedCreditsKwd !== null
+  const accountRows = receivables.byAccount ?? []
+  const hasPosClearing10552 = accountRows.some((row) =>
+    isPosClearingAccount(`${row.accountCode ?? ''} ${row.accountName ?? ''} ${row.labelEn ?? ''}`),
+  )
+
+  let netKwd: number | null
+  if (hasPosClearing10552) {
+    const customerAccountSum = round3(
+      accountRows
+        .filter(
+          (row) =>
+            !isPosClearingAccount(
+              `${row.accountCode ?? ''} ${row.accountName ?? ''} ${row.labelEn ?? ''}`,
+            ),
+        )
+        .reduce((sum, row) => sum + (Number(row.residualKwd) || 0), 0),
+    )
+    netKwd =
+      finiteRounded(receivables.figures?.netKwd) ??
+      finiteRounded(receivables.platformNetKwd) ??
+      customerAccountSum
+  } else {
+    netKwd =
+      finiteRounded(receivables.openReceivableKwd) ??
+      finiteRounded(receivables.figures?.netKwd) ??
+      finiteRounded(receivables.platformNetKwd) ??
+      (openDebitsKwd !== null && unappliedCreditsKwd !== null
         ? round3(openDebitsKwd + unappliedCreditsKwd)
-        : null
+        : null)
+  }
 
   const rawLines =
-    receivables.unreconciledLineCount ?? receivables.openLinesCount ?? receivables.lines
+    hasPosClearing10552 &&
+    typeof receivables.platformAndCorporateLinesCount === 'number' &&
+    receivables.platformAndCorporateLinesCount > 0
+      ? receivables.platformAndCorporateLinesCount
+      : (receivables.unreconciledLineCount ?? receivables.openLinesCount ?? receivables.lines)
   const lines =
     typeof rawLines === 'number' && Number.isFinite(rawLines)
       ? Math.max(0, Math.round(rawLines))

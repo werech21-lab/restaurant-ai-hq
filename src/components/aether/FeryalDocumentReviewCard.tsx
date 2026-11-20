@@ -14,11 +14,14 @@ import {
 import {
   confirmDocumentIntakeDraft,
   EXTRACTED_DRAFT_UNCONFIRMED_LABEL,
+  EXTRACTED_DRAFT_UNCONFIRMED_LABEL_AR,
   ODOO_VERIFIED_ACTUAL_LABEL,
+  ODOO_VERIFIED_ACTUAL_LABEL_AR,
   recomputeDocumentIntakeDraft,
   UNMATCHED_WRONG_VARIANT_LABEL_AR,
   UNMATCHED_WRONG_VARIANT_LABEL_EN,
   USER_INPUT_CONFIRMED_LABEL,
+  USER_INPUT_CONFIRMED_LABEL_AR,
   type ConfirmedPriceSheet,
   type DocumentIntakeDraft,
   type DocumentIntakeRow,
@@ -212,7 +215,9 @@ export function FeryalDocumentReviewCard({
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/70 dark:text-amber-200">
               <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span dir="ltr">{EXTRACTED_DRAFT_UNCONFIRMED_LABEL}</span>
+              <span dir={isAr ? 'rtl' : 'ltr'}>
+                {isAr ? EXTRACTED_DRAFT_UNCONFIRMED_LABEL_AR : EXTRACTED_DRAFT_UNCONFIRMED_LABEL}
+              </span>
             </span>
 
             <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15">
@@ -268,7 +273,7 @@ export function FeryalDocumentReviewCard({
 
           <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
             {isAr
-              ? 'راجع الأصناف والأسعار المستخرجة مقابل أسعار البيع الفعلية في Odoo، وعدّل أي خطأ مطبعي أو استبعد الصفوف غير المطلوبة قبل اعتماد المحاكاة التنفيذية.'
+              ? 'راجع الأصناف والأسعار المستخرجة مقابل أسعار البيع الفعلية في أودو، وعدّل أي خطأ مطبعي أو استبعد الصفوف غير المطلوبة قبل اعتماد المحاكاة التنفيذية.'
               : 'Review extracted items and prices against Odoo realized unit prices, fix any OCR/sheet typos inline or exclude rows, then confirm to run the 3-scenario executive simulation.'}
           </p>
         </div>
@@ -278,7 +283,7 @@ export function FeryalDocumentReviewCard({
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               {isAr
-                ? `مطابق مع Odoo: ${draft.summary.matchedRows}/${activeRows.length}`
+                ? `مطابق مع أودو: ${draft.summary.matchedRows}/${activeRows.length}`
                 : `Odoo Matched: ${draft.summary.matchedRows}/${activeRows.length}`}
             </span>
           </span>
@@ -338,7 +343,7 @@ export function FeryalDocumentReviewCard({
                 {isAr ? 'الصنف المستخرج' : 'Extracted Item'}
               </th>
               <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
-                {isAr ? 'مرجع Odoo الفعلي' : 'Odoo Actual'}
+                {isAr ? 'مرجع أودو الفعلي' : 'Odoo Actual'}
               </th>
               <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold tabular-nums">
                 {isAr ? 'الحالي بالملف (د.ك)' : 'Sheet Current (KWD)'}
@@ -350,8 +355,8 @@ export function FeryalDocumentReviewCard({
                   className="min-w-[136px] whitespace-nowrap px-2.5 py-2 text-start font-bold tabular-nums"
                 >
                   <span className="whitespace-nowrap">{col.label}</span>{' '}
-                  <span dir="ltr" className="whitespace-nowrap text-slate-500 dark:text-slate-400">
-                    (KWD)
+                  <span dir={isAr ? 'rtl' : 'ltr'} className="whitespace-nowrap text-slate-500 dark:text-slate-400">
+                    {isAr ? '(د.ك)' : '(KWD)'}
                   </span>
                 </th>
               ))}
@@ -422,21 +427,23 @@ export function FeryalDocumentReviewCard({
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
-                            dir="ltr"
+                            dir={isAr ? 'rtl' : 'ltr'}
                             className="whitespace-nowrap rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
                           >
-                            {row.odooRealizedUnitPriceKwd} KWD
+                            {isAr
+                              ? `${row.odooRealizedUnitPriceKwd} د.ك`
+                              : `${row.odooRealizedUnitPriceKwd} KWD`}
                           </span>
                           <span
-                            dir="ltr"
+                            dir={isAr ? 'rtl' : 'ltr'}
                             className="whitespace-nowrap text-xs text-emerald-700 dark:text-emerald-300"
                           >
-                            ({ODOO_VERIFIED_ACTUAL_LABEL})
+                            ({isAr ? ODOO_VERIFIED_ACTUAL_LABEL_AR : ODOO_VERIFIED_ACTUAL_LABEL})
                           </span>
                         </div>
                         {row.odooQty ? (
-                          <div dir="ltr" className="whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
-                            Qty: {row.odooQty}
+                          <div dir={isAr ? 'rtl' : 'ltr'} className="whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                            {isAr ? `الكمية: ${row.odooQty}` : `Qty: ${row.odooQty}`}
                           </div>
                         ) : null}
                       </div>
@@ -461,7 +468,7 @@ export function FeryalDocumentReviewCard({
                       </div>
                     ) : (
                       <span className="inline-flex whitespace-nowrap items-center rounded-md bg-amber-100/80 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                        {isAr ? 'غير مطابق في Odoo' : 'Unmatched in Odoo'}
+                        {isAr ? 'غير مطابق في أودو' : 'Unmatched in Odoo'}
                       </span>
                     )}
                   </td>
@@ -590,7 +597,7 @@ export function FeryalDocumentReviewCard({
           ) : (
             <span>
               {isAr
-                ? `عند الضغط على الزر أدناه تتحول الصفوف المفعّلة (${activeRows.length}) إلى «${USER_INPUT_CONFIRMED_LABEL}» لتشغيل المحاكاة.`
+                ? `عند الضغط على الزر أدناه تتحول الصفوف المفعّلة (${activeRows.length}) إلى «${USER_INPUT_CONFIRMED_LABEL_AR}» لتشغيل المحاكاة.`
                 : `Confirming converts ${activeRows.length} active row(s) to "${USER_INPUT_CONFIRMED_LABEL}" and runs the executive simulation.`}
             </span>
           )}

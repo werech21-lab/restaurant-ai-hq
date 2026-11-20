@@ -10,9 +10,13 @@ import {
 import { Decimal } from '@/server/ai/decimal'
 
 export const EXTRACTED_DRAFT_UNCONFIRMED_LABEL = 'Extracted Draft (Unconfirmed)' as const
+export const EXTRACTED_DRAFT_UNCONFIRMED_LABEL_AR = 'مسودة مستخرجة (غير مؤكدة)' as const
 export const USER_INPUT_CONFIRMED_LABEL = 'User Input (Confirmed)' as const
+export const USER_INPUT_CONFIRMED_LABEL_AR = 'مدخلات المستخدم (مؤكدة)' as const
 export const ODOO_VERIFIED_ACTUAL_LABEL = 'Odoo Verified Actual' as const
+export const ODOO_VERIFIED_ACTUAL_LABEL_AR = 'بيانات فعلية موثّقة من أودو' as const
 export const DETERMINISTIC_SIMULATION_LABEL = 'Deterministic Simulation' as const
+export const DETERMINISTIC_SIMULATION_LABEL_AR = 'محاكاة حسابية حتمية' as const
 export const UNMATCHED_WRONG_VARIANT_LABEL_EN = 'Unmatched / Wrong Variant' as const
 export const UNMATCHED_WRONG_VARIANT_LABEL_AR = 'غير مطابق / صنف أو حجم مختلف' as const
 
@@ -21,6 +25,23 @@ export type FeryalGroundingSourceTag =
   | typeof USER_INPUT_CONFIRMED_LABEL
   | typeof ODOO_VERIFIED_ACTUAL_LABEL
   | typeof DETERMINISTIC_SIMULATION_LABEL
+
+export function formatIntakeSourceTag(
+  tag: FeryalGroundingSourceTag,
+  locale: 'ar' | 'en',
+): string {
+  if (locale !== 'ar') return tag
+  switch (tag) {
+    case EXTRACTED_DRAFT_UNCONFIRMED_LABEL:
+      return EXTRACTED_DRAFT_UNCONFIRMED_LABEL_AR
+    case USER_INPUT_CONFIRMED_LABEL:
+      return USER_INPUT_CONFIRMED_LABEL_AR
+    case ODOO_VERIFIED_ACTUAL_LABEL:
+      return ODOO_VERIFIED_ACTUAL_LABEL_AR
+    case DETERMINISTIC_SIMULATION_LABEL:
+      return DETERMINISTIC_SIMULATION_LABEL_AR
+  }
+}
 
 export type DocumentIntakeFileKind = 'xlsx' | 'csv' | 'image'
 

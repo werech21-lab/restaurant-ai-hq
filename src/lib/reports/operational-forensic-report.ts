@@ -1,10 +1,11 @@
 /**
  * Detailed Daily Operational & Forensic Report — Structured Monospace (Growdash-style).
- * Deterministic: same forensic snapshot → same report. No LLM.
+ * Deterministic & Fail-Closed: uses ONLY verified forensic snapshot rows. Never invents or hashes metrics.
  */
 import { EXCLUSIVE_RADAR_RECIPIENTS } from '@/lib/vf-contact-directory'
 import { VENTURE_BRANDS } from '@/lib/venture-hierarchy'
 import {
+  FORENSIC_MISSING_DATA_REASON,
   FORENSIC_PLATFORMS,
   TALABAT_MP_ACCOUNT,
   TALABAT_TGO_ACCOUNT,
@@ -34,17 +35,18 @@ export type OperationalCell = {
   offlineMinutes: number
   penaltyMinor: number
   recordedLostMinor: number
-  unmeasuredExposureMinor: number
-  prepMinutes: number
+  prepMinutes: number | null
   rejectedOrders: number
-  conversionPct: number
-  delayRatePct: number
-  rank: number
+  conversionPct: number | null
+  delayRatePct: number | null
+  rank: number | null
   gmvMinor: number
   feedRecords: number
 }
 
 export type OperationalReportSections = {
+  dataAvailable: boolean
+  unavailableReason?: string
   critical: OperationalCell[]
   watch: OperationalCell[]
   clean: OperationalCell[]
@@ -60,6 +62,8 @@ export type OperationalReportSections = {
 }
 
 export type BilingualOperationalReport = {
+  dataAvailable: boolean
+  unavailableReason?: string
   en: string
   ar: string
   combined: string
@@ -69,13 +73,31 @@ export type BilingualOperationalReport = {
 const RULE = '===================================================================='
 const ROW_RULE = '--------------------------------------------------------------------'
 
-function hash(input: string): number {
-  let h = 2166136261
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i)
-    h = Math.imul(h, 16777619)
+export function hasCompleteVerifiedForensicData(
+  snapshots: readonly ForensicSnapshot[],
+): { ok: boolean; reason?: string } {
+  if (!Array.isArray(snapshots) || snapshots.length === 0) {
+    return { ok: false, reason: FORENSIC_MISSING_DATA_REASON }
   }
-  return h >>> 0
+  const invalidSnapshot = snapshots.some(
+    (s) =>
+      !s ||
+      !s.dataAvailable ||
+      !Array.isArray(s.rows) ||
+      s.rows.length === 0 ||
+      s.rows.some(
+        (r: ForensicRow) =>
+          r.verifiedFromOdoo === false ||
+          !Number.isFinite(r.gmvMinor) ||
+          r.gmvMinor < 0 ||
+          !Number.isFinite(r.offlineMinutes) ||
+          r.offlineMinutes < 0,
+      ),
+  )
+  if (invalidSnapshot) {
+    return { ok: false, reason: FORENSIC_MISSING_DATA_REASON }
+  }
+  return { ok: true }
 }
 
 /** Kuwait peak hours: 12:00–15:00 and 18:00–23:00 Asia/Kuwait. */
@@ -111,52 +133,29 @@ function pct1(bpsOrPct: number, asBps = false): string {
   return value.toFixed(1)
 }
 
-/** Scale a 5-minute cell offline into a daily exposure estimate for the executive report. */
-function dailyOfflineMinutes(row: ForensicRow): number {
-  if (row.status === 'forced_offline') {
-    // Full-service-day style exposure when the live cell is offline (matches Growdash claim language).
-    return Math.max(row.offlineMinutes, 120 + (hash(row.id) % 781))
-  }
-  if (row.status === 'busy_throttled') {
-    return Math.max(row.offlineMinutes, 30 + (hash(row.id) % 91))
-  }
-  return row.offlineMinutes
-}
-
 function enrichRow(row: ForensicRow): OperationalCell {
-  const digest = hash(row.id)
   const areaEn = cleanBranchLabel(row.branchNameEn, row.areaEn)
   const areaAr = row.areaAr
-  const offlineMinutes = dailyOfflineMinutes(row)
-  // Online TMP cells bias toward clean-band prep (< 18); degraded cells bias high.
-  let prepMinutes: number
-  if (row.status === 'online' && row.mode === 'TMP') {
-    prepMinutes = Math.round((11 + (digest % 70) / 10) * 10) / 10 // 11.0–17.9
-  } else if (row.status === 'busy_throttled' || row.mode === 'TGO') {
-    prepMinutes = Math.round((18 + (digest % 140) / 10) * 10) / 10 // 18.0–31.9
-  } else {
-    prepMinutes = Math.round((10 + (digest % 250) / 10) * 10) / 10
-  }
+  const offlineMinutes = Math.max(0, Math.round(row.offlineMinutes))
+  const prepMinutes =
+    typeof row.prepMinutes === 'number' && Number.isFinite(row.prepMinutes) && row.prepMinutes >= 0
+      ? Math.round(row.prepMinutes * 10) / 10
+      : null
   const rejectedOrders =
-    row.status === 'forced_offline'
-      ? 0
-      : row.status === 'online' && row.mode === 'TMP'
-        ? digest % 3 === 0
-          ? 0
-          : digest % 2 // mostly 0–1 so many clean TMP cells
-        : digest % 9
-  const conversionPct =
-    row.status === 'online' && row.mode === 'TMP'
-      ? Math.round((2.1 + (digest % 180) / 100) * 100) / 100
-      : Math.round((1.2 + (digest % 320) / 100) * 100) / 100
-  const delayRatePct = Math.round((prepMinutes > 22 ? 12 + (digest % 18) : 2 + (digest % 10)) * 10) / 10
-  const rank = 5 + (digest % 55)
-  const exposure =
-    row.status === 'forced_offline'
-      ? Math.round(row.gmvMinor * Math.min(1, offlineMinutes / 60))
+    typeof row.rejectedOrders === 'number' && Number.isFinite(row.rejectedOrders) && row.rejectedOrders >= 0
+      ? Math.round(row.rejectedOrders)
       : 0
-  // Platform records 0 lost while offline (no orders can be placed).
-  const recordedLostMinor = row.status === 'forced_offline' ? 0 : row.lostSalesMinor
+  const conversionPct =
+    typeof row.conversionPct === 'number' && Number.isFinite(row.conversionPct) && row.conversionPct >= 0
+      ? Math.round(row.conversionPct * 100) / 100
+      : null
+  const delayRatePct =
+    typeof row.delayRatePct === 'number' && Number.isFinite(row.delayRatePct) && row.delayRatePct >= 0
+      ? Math.round(row.delayRatePct * 10) / 10
+      : null
+  const rank =
+    typeof row.rank === 'number' && Number.isFinite(row.rank) && row.rank >= 1 ? Math.round(row.rank) : null
+  const recordedLostMinor = Math.max(0, Math.round(row.lostSalesMinor))
 
   return {
     key: `${row.branchId}|${row.platform}`,
@@ -172,15 +171,14 @@ function enrichRow(row: ForensicRow): OperationalCell {
     status: row.status,
     mode: row.mode,
     offlineMinutes,
-    penaltyMinor: row.commissionPenaltyMinor,
+    penaltyMinor: Math.max(0, Math.round(row.commissionPenaltyMinor)),
     recordedLostMinor,
-    unmeasuredExposureMinor: exposure,
     prepMinutes,
     rejectedOrders,
     conversionPct,
     delayRatePct,
     rank,
-    gmvMinor: row.gmvMinor,
+    gmvMinor: Math.max(0, Math.round(row.gmvMinor)),
     feedRecords: 1,
   }
 }
@@ -194,18 +192,26 @@ function mergeCells(rows: ForensicRow[]): OperationalCell[] {
       map.set(next.key, next)
       continue
     }
-    prev.offlineMinutes = Math.max(prev.offlineMinutes, next.offlineMinutes)
+    prev.offlineMinutes += next.offlineMinutes
     prev.penaltyMinor += next.penaltyMinor
     prev.recordedLostMinor += next.recordedLostMinor
-    prev.unmeasuredExposureMinor = Math.max(prev.unmeasuredExposureMinor, next.unmeasuredExposureMinor)
-    prev.rejectedOrders = Math.max(prev.rejectedOrders, next.rejectedOrders)
-    prev.prepMinutes = Math.max(prev.prepMinutes, next.prepMinutes)
-    prev.conversionPct = Math.min(prev.conversionPct, next.conversionPct)
-    prev.delayRatePct = Math.max(prev.delayRatePct, next.delayRatePct)
-    prev.rank = Math.max(prev.rank, next.rank)
+    prev.rejectedOrders += next.rejectedOrders
+    if (next.prepMinutes !== null) {
+      prev.prepMinutes = prev.prepMinutes === null ? next.prepMinutes : Math.max(prev.prepMinutes, next.prepMinutes)
+    }
+    if (next.conversionPct !== null) {
+      prev.conversionPct =
+        prev.conversionPct === null ? next.conversionPct : Math.min(prev.conversionPct, next.conversionPct)
+    }
+    if (next.delayRatePct !== null) {
+      prev.delayRatePct =
+        prev.delayRatePct === null ? next.delayRatePct : Math.max(prev.delayRatePct, next.delayRatePct)
+    }
+    if (next.rank !== null) {
+      prev.rank = prev.rank === null ? next.rank : Math.max(prev.rank, next.rank)
+    }
     prev.gmvMinor += next.gmvMinor
     prev.feedRecords += next.feedRecords
-    // Prefer worst live status.
     if (next.status === 'forced_offline' || (next.status === 'busy_throttled' && prev.status === 'online')) {
       prev.status = next.status
       prev.mode = next.mode
@@ -216,10 +222,10 @@ function mergeCells(rows: ForensicRow[]): OperationalCell[] {
 
 function isCritical(cell: OperationalCell, at: Date): boolean {
   if (cell.offlineMinutes > 120) return true
+  if (cell.status === 'forced_offline') return true
   if (cell.rejectedOrders > 5) return true
-  if (cell.delayRatePct > 20) return true
+  if (cell.delayRatePct !== null && cell.delayRatePct > 20) return true
   if (cell.mode === 'TGO' && isKuwaitPeakHours(at) && cell.status !== 'online') return true
-  if (cell.mode === 'TGO' && cell.status === 'forced_offline') return true
   if (cell.mode === 'TGO' && cell.offlineMinutes >= 120) return true
   return false
 }
@@ -227,17 +233,18 @@ function isCritical(cell: OperationalCell, at: Date): boolean {
 function isWatch(cell: OperationalCell): boolean {
   if (cell.offlineMinutes >= 30 && cell.offlineMinutes <= 120) return true
   if (cell.status === 'busy_throttled') return true
-  if (cell.prepMinutes > 22) return true
-  if (cell.conversionPct < 2.0) return true
+  if (cell.prepMinutes !== null && cell.prepMinutes > 22) return true
+  if (cell.conversionPct !== null && cell.conversionPct < 2.0) return true
   return false
 }
 
 function isClean(cell: OperationalCell): boolean {
+  const prepClean = cell.prepMinutes === null || cell.prepMinutes < 18
   return (
     cell.status === 'online' &&
     cell.mode === 'TMP' &&
     cell.rejectedOrders === 0 &&
-    cell.prepMinutes < 18 &&
+    prepClean &&
     cell.offlineMinutes === 0
   )
 }
@@ -257,7 +264,9 @@ function criticalIssue(cell: OperationalCell, locale: ReportLocale): { issue: st
   if (cell.offlineMinutes > 120 || cell.status === 'forced_offline') {
     const money =
       cell.recordedLostMinor === 0
-        ? `0.000 KWD (Unmeasured Exposure: Est. ${kwd(cell.unmeasuredExposureMinor).replace(' KWD', '')} KWD)`
+        ? locale === 'ar'
+          ? '0.000 د.ك (غير مقيس على المنصة أثناء الإغلاق)'
+          : '0.000 KWD (Unmeasured on platform while offline)'
         : kwd(cell.recordedLostMinor)
     return {
       issue: locale === 'ar' ? 'زمن الإغلاق' : 'Offline time',
@@ -283,30 +292,33 @@ function criticalIssue(cell: OperationalCell, locale: ReportLocale): { issue: st
     return {
       issue: locale === 'ar' ? 'طلبات مرفوضة' : 'Rejected orders',
       value: String(cell.rejectedOrders),
-      money: kwd(cell.recordedLostMinor || cell.unmeasuredExposureMinor),
+      money: kwd(cell.recordedLostMinor),
     }
   }
   return {
     issue: locale === 'ar' ? 'تأخير مرتفع' : 'Delay rate',
-    value: `${pct1(cell.delayRatePct)}%`,
+    value: `${pct1(cell.delayRatePct ?? 0)}%`,
     money: kwd(cell.recordedLostMinor),
   }
 }
 
 function watchIssue(cell: OperationalCell, locale: ReportLocale): { issue: string; value: string; action: string } {
   if (cell.status === 'busy_throttled' || (cell.offlineMinutes >= 30 && cell.offlineMinutes <= 120)) {
+    const prepLabel =
+      cell.prepMinutes !== null ? ` (Prep: ${cell.prepMinutes.toFixed(1)} min)` : ''
     return {
       issue: locale === 'ar' ? 'مزدحم، تغطية مقلّصة' : 'Busy, coverage reduced',
-      value: `${cell.offlineMinutes} min (Prep: ${cell.prepMinutes.toFixed(1)} min)`,
+      value: `${cell.offlineMinutes} min${prepLabel}`,
       action:
         locale === 'ar'
           ? `استعادة نصف قطر ${cell.areaAr} وأسطول TMP`
           : `Restore full ${cell.areaEn} radius & TMP fleet`,
     }
   }
-  if (cell.conversionPct < 2.0) {
+  if (cell.conversionPct !== null && cell.conversionPct < 2.0) {
+    const rankSuffix = cell.rank !== null ? ` #${cell.rank}` : ''
     return {
-      issue: locale === 'ar' ? `تراجع الترتيب إلى #${cell.rank}` : `Rank dropped to #${cell.rank}`,
+      issue: locale === 'ar' ? `تراجع التحويل${rankSuffix}` : `Conversion drop${rankSuffix}`,
       value: locale === 'ar' ? `تحويل ${cell.conversionPct.toFixed(2)}%` : `Conversion ${cell.conversionPct.toFixed(2)}%`,
       action:
         locale === 'ar'
@@ -316,7 +328,7 @@ function watchIssue(cell: OperationalCell, locale: ReportLocale): { issue: strin
   }
   return {
     issue: locale === 'ar' ? 'تحذير تأخير التحضير' : 'Prep delay warning',
-    value: `${cell.prepMinutes.toFixed(1)} min`,
+    value: cell.prepMinutes !== null ? `${cell.prepMinutes.toFixed(1)} min` : '—',
     action: locale === 'ar' ? 'تنبيه مشرف الفرع' : 'Alert branch supervisor',
   }
 }
@@ -325,7 +337,28 @@ export function classifyOperationalReport(
   snapshots: ForensicSnapshot[],
   at = new Date(),
 ): OperationalReportSections {
-  const rows = (snapshots.length ? snapshots : []).flatMap((s) => s.rows)
+  const { date, time } = kuwaitParts(at)
+  const gate = hasCompleteVerifiedForensicData(snapshots)
+  if (!gate.ok) {
+    return {
+      dataAvailable: false,
+      unavailableReason: gate.reason ?? FORENSIC_MISSING_DATA_REASON,
+      critical: [],
+      watch: [],
+      clean: [],
+      missingFeeds: [],
+      rejectedEstate: 0,
+      recordedLostMinor: 0,
+      penaltyMinor: 0,
+      tmpSharePct: 0,
+      tgoSharePct: 0,
+      generatedAt: at,
+      kuwaitDate: date,
+      kuwaitTime: time,
+    }
+  }
+
+  const rows = snapshots.flatMap((s) => s.rows)
   const cells = mergeCells(rows)
   const peak = isKuwaitPeakHours(at)
 
@@ -347,7 +380,6 @@ export function classifyOperationalReport(
       used.add(cell.key)
     }
   }
-  // Clean: unique branches (prefer Talabat cell) meeting clean criteria.
   const cleanByBranch = new Map<string, OperationalCell>()
   for (const cell of cells) {
     if (!isClean(cell)) continue
@@ -357,10 +389,12 @@ export function classifyOperationalReport(
   for (const cell of cleanByBranch.values()) cleanCandidates.push(cell)
 
   critical.sort((a, b) => b.offlineMinutes - a.offlineMinutes || b.penaltyMinor - a.penaltyMinor)
-  watch.sort((a, b) => b.offlineMinutes - a.offlineMinutes || b.prepMinutes - a.prepMinutes)
+  watch.sort(
+    (a, b) => b.offlineMinutes - a.offlineMinutes || (b.prepMinutes ?? 0) - (a.prepMinutes ?? 0),
+  )
   cleanCandidates.sort((a, b) => a.labelEn.localeCompare(b.labelEn))
 
-  const gmv = cells.reduce((s, c) => s + c.gmvMinor, 0) || 1
+  const totalGmv = cells.reduce((s, c) => s + c.gmvMinor, 0)
   const tmpGmv = cells.filter((c) => c.mode === 'TMP').reduce((s, c) => s + c.gmvMinor, 0)
   const tgoGmv = cells.filter((c) => c.mode === 'TGO').reduce((s, c) => s + c.gmvMinor, 0)
 
@@ -369,8 +403,8 @@ export function classifyOperationalReport(
     .map((c) => c.labelEn)
   const uniqueMissing = [...new Set(missingFeeds)]
 
-  const { date, time } = kuwaitParts(at)
   return {
+    dataAvailable: true,
     critical: critical.slice(0, 12),
     watch: watch.slice(0, 12),
     clean: cleanCandidates.slice(0, 14),
@@ -378,8 +412,8 @@ export function classifyOperationalReport(
     rejectedEstate: cells.reduce((s, c) => s + c.rejectedOrders, 0),
     recordedLostMinor: cells.reduce((s, c) => s + c.recordedLostMinor, 0),
     penaltyMinor: cells.reduce((s, c) => s + c.penaltyMinor, 0),
-    tmpSharePct: Math.round((tmpGmv * 1000) / gmv) / 10,
-    tgoSharePct: Math.round((tgoGmv * 1000) / gmv) / 10,
+    tmpSharePct: totalGmv > 0 ? Math.round((tmpGmv * 1000) / totalGmv) / 10 : 0,
+    tgoSharePct: totalGmv > 0 ? Math.round((tgoGmv * 1000) / totalGmv) / 10 : 0,
     generatedAt: at,
     kuwaitDate: date,
     kuwaitTime: time,
@@ -460,8 +494,8 @@ export function renderOperationalReportText(sections: OperationalReportSections,
   lines.push(L === 'ar' ? 'ملاحظة التحليل الجنائي:' : 'Forensic Analysis Note:')
   lines.push(
     L === 'ar'
-      ? 'الإغلاق الطويل يعادل فقدان يوم خدمة كامل للفرع. الإيراد الضائع المسجّل على المنصة يظهر 0.000 د.ك لأنه لا يمكن إنشاء طلب أثناء الإغلاق؛ يُعامل كتعرض غير مقيس وليس خسارة صفرية. الفروع التي أُجبرت من TMP (10%) إلى TGO (17%) تتكبد استنزاف عمولة إضافي بنسبة 7%.'
-      : '900 min = 15 hours offline — a full service day lost per branch. Recorded lost revenue shows 0.000 KWD on the platform because no orders can be placed while offline; treat as unmeasured exposure, not zero loss. Additionally, branches forced from TMP (10%) to TGO (17%) incurred an extra 7% commission drain.',
+      ? 'الإيراد الضائع المسجّل على المنصة يظهر 0.000 د.ك أثناء الإغلاق لأنه لا يمكن إنشاء طلب أثناء الإغلاق؛ يُعامل كتعرض غير مقيس وليس خسارة صفرية. الفروع التي أُجبرت من TMP (10%) إلى TGO (17%) تتكبد استنزاف عمولة إضافي بنسبة 7%.'
+      : 'Recorded lost revenue shows 0.000 KWD on the platform while offline because no orders can be placed during closure; treat as unmeasured exposure, not zero loss. Branches forced from TMP (10%) to TGO (17%) incurred an extra 7% commission drain.',
   )
   lines.push('')
   lines.push(RULE)
@@ -529,10 +563,12 @@ export function renderOperationalReportText(sections: OperationalReportSections,
     lines.push(L === 'ar' ? '- (لا فروع ضمن معايير السليم في هذه الدورة)' : '- (No branches met clean criteria this cycle)')
   } else {
     for (const cell of sections.clean) {
+      const prepStrAr = cell.prepMinutes !== null ? `تحضير: ${cell.prepMinutes.toFixed(1)} د` : 'تحضير: غير متاح'
+      const prepStrEn = cell.prepMinutes !== null ? `Prep: ${cell.prepMinutes.toFixed(1)} min` : 'Prep: —'
       lines.push(
         L === 'ar'
-          ? `- ${cell.labelAr} (أونلاين | TMP 10% | تحضير: ${cell.prepMinutes.toFixed(1)} د | 0 مرفوض)`
-          : `- ${cell.labelEn} (Online | TMP 10% | Prep: ${cell.prepMinutes.toFixed(1)} min | 0 Rejected)`,
+          ? `- ${cell.labelAr} (أونلاين | TMP 10% | ${prepStrAr} | 0 مرفوض)`
+          : `- ${cell.labelEn} (Online | TMP 10% | ${prepStrEn} | 0 Rejected)`,
       )
     }
   }
@@ -551,14 +587,24 @@ export function renderOperationalReportText(sections: OperationalReportSections,
   return lines.join('\n')
 }
 
-/** Build bilingual detailed daily operational & forensic report from forensic snapshots. */
+/** Build bilingual detailed daily operational & forensic report from verified forensic snapshots. */
 export function buildOperationalForensicReport(
   snapshots: ForensicSnapshot[],
   at = new Date(),
 ): BilingualOperationalReport {
   const sections = classifyOperationalReport(snapshots, at)
+  if (!sections.dataAvailable) {
+    return {
+      dataAvailable: false,
+      unavailableReason: sections.unavailableReason ?? FORENSIC_MISSING_DATA_REASON,
+      en: '',
+      ar: '',
+      combined: '',
+      sections,
+    }
+  }
   const en = renderOperationalReportText(sections, 'en')
   const ar = renderOperationalReportText(sections, 'ar')
   const combined = `${en}\n\n${RULE}\n\n${ar}`
-  return { en, ar, combined, sections }
+  return { dataAvailable: true, en, ar, combined, sections }
 }

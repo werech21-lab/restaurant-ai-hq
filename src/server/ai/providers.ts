@@ -16,7 +16,6 @@ export interface ProviderCallInput {
   provider: ProviderId
   apiKey: string
   model: string
-  fallbackModel?: string
   system: string
   user: string
   timeoutMs: number
@@ -511,15 +510,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
       return timedOutResult
     }
 
-    const activeModel =
-      attempt > 0 &&
-      input.fallbackModel &&
-      input.fallbackModel.trim().length > 0 &&
-      input.fetchImpl === undefined
-        ? input.fallbackModel.trim()
-        : input.model
-
-    const once = await callProviderOnce({ ...input, model: activeModel }, remaining)
+    const once = await callProviderOnce(input, remaining)
     last = { ...once, requestedModel: input.model }
     const retry =
       input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1

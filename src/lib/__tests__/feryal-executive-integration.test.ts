@@ -124,10 +124,14 @@ import {
   buildExecutiveContextPack,
   collectExecutiveGroundedNumbers,
   DETERMINISTIC_SIMULATION_TAG,
+  DETERMINISTIC_SIMULATION_TAG_AR,
   ODOO_VERIFIED_ACTUAL_TAG,
+  ODOO_VERIFIED_ACTUAL_TAG_AR,
   simulateExecutivePricingOptions,
+  USER_INPUT_CONFIRMED_TAG_AR,
   type ExecutiveContextPack,
 } from '@/lib/feryal/executive-advisor'
+import { runExecutivePricingChat } from '@/lib/feryal/executive-chat-runner'
 import { LanguageProvider } from '@/lib/i18n'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { POST as chatPost } from '@/app/api/erp/feryal/chat/route'
@@ -138,7 +142,7 @@ import {
   updateDraftRowProposedPrice,
 } from '@/components/aether/FeryalDocumentReviewCard'
 import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
-import { runFeryalCouncil } from '@/server/ai/council'
+import { COUNCIL_ANALYSIS_TIMEOUT_MS } from '@/server/ai/council'
 import {
   guardAnswerAgainstFacts,
   hasExplicitGroundingLabel,
@@ -460,8 +464,10 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
       '- COGS and gross/net margins are not estimated because Odoo 17 integration user 225 lacks `standard_price` read access.',
     ].join('\n')
 
+    expect(COUNCIL_ANALYSIS_TIMEOUT_MS).toBe(20_000)
+
     let googleAttempts = 0
-    const result = await runFeryalCouncil(
+    const result = await runExecutivePricingChat(
       {
         question: 'Compare Option CH vs Option AE for China Garden and give the CFO executive playbook. What about gross margin?',
         userId: 'cfo-1',
@@ -672,10 +678,16 @@ describe('Phase 2/3 Integration — Document Intake -> Human Confirmation Gate -
       expect(okPayload.reply).toContain('القرار التنفيذي')
       expect(okPayload.reply).toContain('خطة العمل التنفيذية للأصناف')
       expect(okPayload.reply).toContain('حدود البيانات')
-      expect(okPayload.reply).toContain('standard_price')
-      expect(okPayload.reply).toContain(ODOO_VERIFIED_ACTUAL_TAG)
-      expect(okPayload.reply).toContain(USER_INPUT_CONFIRMED_LABEL)
-      expect(okPayload.reply).toContain(DETERMINISTIC_SIMULATION_TAG)
+      expect(okPayload.reply).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+      expect(okPayload.reply).toContain(USER_INPUT_CONFIRMED_TAG_AR)
+      expect(okPayload.reply).toContain(DETERMINISTIC_SIMULATION_TAG_AR)
+      expect(okPayload.reply).toContain('المستخدم رقم 225')
+      expect(okPayload.reply).not.toContain(ODOO_VERIFIED_ACTUAL_TAG)
+      expect(okPayload.reply).not.toContain(USER_INPUT_CONFIRMED_LABEL)
+      expect(okPayload.reply).not.toContain(DETERMINISTIC_SIMULATION_TAG)
+      expect(okPayload.reply).not.toContain('standard_price')
+      expect(okPayload.reply).not.toContain('price_subtotal')
+      expect(okPayload.reply).not.toMatch(/\bCOGS\b/)
     } finally {
       if (prevKeys.anthropic !== undefined) process.env.ANTHROPIC_API_KEY = prevKeys.anthropic
       if (prevKeys.gemini !== undefined) process.env.GEMINI_API_KEY = prevKeys.gemini
@@ -782,6 +794,8 @@ describe('Phase 2/3 Integration — UI Review & Confirm Table + Client Boundary 
       }),
     )
     expect(arCardHtml).toContain('تأكيد وتشغيل التحليل التنفيذي')
+    expect(arCardHtml).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+    expect(arCardHtml).not.toContain(ODOO_VERIFIED_ACTUAL_TAG)
     expect(arCardHtml).toContain('data-anomaly-badge="critical"')
     expect(arCardHtml).toContain('data-anomaly-badge="warning"')
 

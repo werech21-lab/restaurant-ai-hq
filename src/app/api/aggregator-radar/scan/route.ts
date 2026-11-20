@@ -24,11 +24,17 @@ export const POST = protectedRoute(permissions.govAggregatorManage, async ({ req
       data: {
         recorded: board.recorded ?? 0,
         alerted: Boolean(board.alerted),
+        dispatched: Boolean(board.dispatched),
+        skippedReason: board.skippedReason ?? null,
+        dataAvailable: Boolean(board.snapshot?.dataAvailable),
+        unavailableReason: board.snapshot?.unavailableReason ?? null,
         bucket: board.snapshot?.bucket ?? new Date().toISOString(),
         scannedAt: board.snapshot?.scannedAt ?? new Date().toISOString(),
         snapshot: {
           bucket: board.snapshot?.bucket ?? new Date().toISOString(),
           scannedAt: board.snapshot?.scannedAt ?? new Date().toISOString(),
+          dataAvailable: Boolean(board.snapshot?.dataAvailable),
+          unavailableReason: board.snapshot?.unavailableReason ?? null,
         },
         kpis: board.kpis,
         rows: Array.isArray(board.rows) ? board.rows : [],

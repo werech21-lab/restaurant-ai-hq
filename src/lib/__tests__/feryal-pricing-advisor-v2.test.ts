@@ -162,14 +162,21 @@ import {
   buildExecutiveContextPack,
   collectExecutiveGroundedNumbers,
   DETERMINISTIC_SIMULATION_TAG,
+  DETERMINISTIC_SIMULATION_TAG_AR,
   formatKuwaitFils50,
   KUWAIT_MARKET_STRATEGY_TAG_AR,
   KUWAIT_MARKET_STRATEGY_TAG_EN,
   ODOO_VERIFIED_ACTUAL_TAG,
+  ODOO_VERIFIED_ACTUAL_TAG_AR,
   renderDeterministicExecutiveBrief,
   roundToKuwaitFils50,
   simulateExecutivePricingOptions,
+  translateVerdictBadgeAr,
 } from '@/lib/feryal/executive-advisor'
+import {
+  inferBrandIdFromConfirmedSheet,
+  runExecutivePricingChat,
+} from '@/lib/feryal/executive-chat-runner'
 import type { ItemPricingRow } from '@/lib/feryal/item-pricing'
 import {
   enforceOneToOneSkuMatches,
@@ -181,7 +188,7 @@ import {
 import { LanguageProvider } from '@/lib/i18n'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { Decimal } from '@/server/ai/decimal'
-import { inferBrandIdFromConfirmedSheet, runFeryalCouncil } from '@/server/ai/council'
+import { COUNCIL_ANALYSIS_TIMEOUT_MS } from '@/server/ai/council'
 import { guardAnswerAgainstFacts, reviewGroundedNumbers } from '@/server/ai/number-guard'
 import {
   callProvider,
@@ -818,9 +825,15 @@ describe("Part B.5 — Deterministic Feryal Rec. KWD (0.050 KWD Steps), Executiv
 
     const arBrief = renderDeterministicExecutiveBrief(pack, sim, 'ar', false)
     expect(arBrief.startsWith('## رأي فريال التنفيذي والمبررات الإدارية')).toBe(true)
-    expect(arBrief).toContain('Verdict: Partially Agree (Recommended)')
+    expect(arBrief).toContain(translateVerdictBadgeAr('Partially Agree (Recommended)'))
     expect(arBrief).toContain(KUWAIT_MARKET_STRATEGY_TAG_AR)
+    expect(arBrief).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+    expect(arBrief).toContain(DETERMINISTIC_SIMULATION_TAG_AR)
     expect(arBrief).toContain('سعر فريال الموصى د.ك')
+    expect(arBrief).not.toContain('Odoo Verified Actual')
+    expect(arBrief).not.toContain('Verdict:')
+    expect(arBrief).not.toContain('standard_price')
+    expect(arBrief).not.toMatch(/\bCOGS\b/)
 
     const arGuard = reviewGroundedNumbers(arBrief, executiveFacts, {
       simulationNumbers: grounded.simulationNumbers,
@@ -1138,7 +1151,8 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
         if (prevKeys.xai !== undefined) process.env.XAI_API_KEY = prevKeys.xai
       }
 
-      // 6. Verify runFeryalCouncil also injects FOLLOW-UP EXECUTIVE QUESTION ON CONFIRMED PRICE SHEET into LLM prompts
+      // 6. Verify runExecutivePricingChat injects FOLLOW-UP EXECUTIVE QUESTION ON CONFIRMED PRICE SHEET into LLM prompts while council.ts keeps 20s timeout
+      expect(COUNCIL_ANALYSIS_TIMEOUT_MS).toBe(20_000)
       let capturedUserPrompt = ''
       const pack = buildExecutiveContextPack({
         fromIso: '2026-10-22',
@@ -1153,7 +1167,7 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
       const sim = simulateExecutivePricingOptions({ pack, sheet: confirmedCgSheet })
       const deterministicReply = renderDeterministicExecutiveBrief(pack, sim, 'en', false)
 
-      const councilFollowUp = await runFeryalCouncil(
+      const councilFollowUp = await runExecutivePricingChat(
         {
           question: followUpQuestion,
           userId: 'gm-1',
@@ -1623,6 +1637,7 @@ describe('V2 Static Repo Invariants & Odoo Read-Only Safety Audit', () => {
       'src/lib/feryal/document-intake-types.ts',
       'src/lib/feryal/document-intake.ts',
       'src/lib/feryal/executive-advisor.ts',
+      'src/lib/feryal/executive-chat-runner.ts',
       'src/lib/feryal-multimodal.ts',
       'src/lib/feryal-intent.ts',
       'src/lib/feryal-chat-store.ts',

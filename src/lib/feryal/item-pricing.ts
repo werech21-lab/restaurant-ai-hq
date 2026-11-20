@@ -1,5 +1,10 @@
 import { Decimal } from '@/server/ai/decimal'
-import { ODOO_VERIFIED_ACTUALS_LABEL, PROPOSED_USER_INPUT_LABEL } from '@/server/ai/number-guard'
+import {
+  ODOO_VERIFIED_ACTUAL_LABEL_AR,
+  ODOO_VERIFIED_ACTUALS_LABEL,
+  PROPOSED_USER_INPUT_LABEL,
+  USER_INPUT_CONFIRMED_LABEL_AR,
+} from '@/server/ai/number-guard'
 import { QURAIN_POS_CONFIG_IDS } from '@/lib/odoo/company-pos'
 import { isExcludedOdooEntity, isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
@@ -28,6 +33,21 @@ const READ_ONLY_METHODS = new Set(['search_read', 'read', 'read_group', 'search_
 
 export const COGS_UNAVAILABLE_REPLY =
   'standard_price is not readable for integration user 225. COGS and margin are not estimated.'
+
+export const COGS_UNAVAILABLE_REPLY_AR =
+  'لا يمكن احتساب تكلفة الصنف أو هوامش الربح الإجمالية والصافية نظراً لقيود صلاحية قراءة حقل تكلفة الصنف على حساب الربط في أودو (المستخدم رقم 225)، ولا يتم تقدير التكلفة أو الهامش.' as const
+
+export function detectItemPricingLocale(question: string): 'ar' | 'en' {
+  const arChars = (question.match(/[\u0600-\u06FF]/g) ?? []).length
+  const enChars = (question.match(/[A-Za-z]/g) ?? []).length
+  if (arChars === 0) return 'en'
+  if (arChars >= enChars) return 'ar'
+  return arChars >= 4 ? 'ar' : 'en'
+}
+
+export function renderCogsUnavailableReply(locale: 'ar' | 'en'): string {
+  return locale === 'ar' ? COGS_UNAVAILABLE_REPLY_AR : COGS_UNAVAILABLE_REPLY
+}
 
 export interface ItemPricingRow {
   productId: number
@@ -439,6 +459,11 @@ export function buildItemPricingAnswer(input: {
     }
     allowedEntityNames.push(row.name)
   }
+  const locale = detectItemPricingLocale(input.question)
+  const isArPrompt = locale === 'ar'
+  const verifiedActualLabel = isArPrompt ? ODOO_VERIFIED_ACTUAL_LABEL_AR : ODOO_VERIFIED_ACTUALS_LABEL
+  const userProposedLabel = isArPrompt ? USER_INPUT_CONFIRMED_LABEL_AR : PROPOSED_USER_INPUT_LABEL
+
   const listed = priced.slice(0, 12)
   const scope = input.brandNameAr ? `علامة ${input.brandNameAr}` : 'كل العلامات'
   const itemText = listed
@@ -449,7 +474,7 @@ export function buildItemPricingAnswer(input: {
       const qtyText = formatGrouped(row.qty, null)
       const netText = formatGrouped(row.netKwd, 3)
       const unitText = row.unitPriceKwd ? formatGrouped(row.unitPriceKwd, 3) : '—'
-      return `${row.name} (الكمية ${qtyText} — ${ODOO_VERIFIED_ACTUALS_LABEL} ${netText} د.ك — السعر الحالي ${unitText} د.ك)`
+      return `${row.name} (الكمية ${qtyText} — ${verifiedActualLabel} ${netText} د.ك — السعر الحالي ${unitText} د.ك)`
     })
     .join('، ')
   const proposalLines = listed
@@ -457,7 +482,7 @@ export function buildItemPricingAnswer(input: {
     .map((row) => {
       pushNumber(toolNumbers, row.proposed)
       pushNumber(toolNumbers, row.deltaKwd)
-      return `${row.name}: ${PROPOSED_USER_INPUT_LABEL} ${formatGrouped(row.proposed ?? '0', 3)} د.ك، فرق الإيراد ${formatGrouped(row.deltaKwd ?? '0', 3)} د.ك = الكمية × (المقترح − السعر الحالي)`
+      return `${row.name}: ${userProposedLabel} ${formatGrouped(row.proposed ?? '0', 3)} د.ك، فرق الإيراد ${formatGrouped(row.deltaKwd ?? '0', 3)} د.ك = الكمية × (المقترح − السعر الحالي)`
     })
   pushNumber(toolNumbers, String(priced.length))
   pushNumber(toolNumbers, netSum.canonical())
@@ -468,15 +493,20 @@ export function buildItemPricingAnswer(input: {
   const countText = formatGrouped(String(priced.length), null)
   const deltaClause =
     pricedCount > 0
-      ? ` مجموع فرق الإيراد للأسعار المقترحة ${formatGrouped(deltaSum.roundHalfUp(3).canonical(), 3)} د.ك، محسوب من كميات Odoo فقط.`
+      ? isArPrompt
+        ? ` مجموع فرق الإيراد للأسعار المقترحة ${formatGrouped(deltaSum.roundHalfUp(3).canonical(), 3)} د.ك، محسوب من كميات أودو الفعلية فقط.`
+        : ` مجموع فرق الإيراد للأسعار المقترحة ${formatGrouped(deltaSum.roundHalfUp(3).canonical(), 3)} د.ك، محسوب من كميات Odoo فقط.`
       : ''
   const proposalBlock = proposalLines.length > 0 ? ` ${proposalLines.join(' ')}` : ''
   const cogs = asksMarginOrCogs(input.question)
   if (cogs) toolNumbers.push(225)
-  const cogsLine = cogs ? ` ${COGS_UNAVAILABLE_REPLY}` : ''
+  const cogsLine = cogs ? ` ${renderCogsUnavailableReply(locale)}` : ''
+  const sourceHeader = isArPrompt
+    ? 'وفق سطور طلبات نقاط البيع في أودو (صافي الإيرادات غير شاملة الضريبة)'
+    : 'وفق pos.order.line (price_subtotal بدون الضريبة)'
   const reply = [
-    `• الرقم: وفق pos.order.line (price_subtotal بدون الضريبة) للفترة ${input.periodLabel} (${scope})، ${countText} صنفاً بكمية ${totalQty} وصافي ${totalNet} د.ك. أعلى الأصناف: ${itemText}.${proposalBlock}${deltaClause}`,
-    `• السبب من البيانات: الكميات والصافي من ${ODOO_VERIFIED_ACTUALS_LABEL}. أي سعر كتبه المستخدم موسوم ${PROPOSED_USER_INPUT_LABEL}، وفرق الإيراد = الكمية × (السعر المقترح − السعر الحالي).`,
+    `• الرقم: ${sourceHeader} للفترة ${input.periodLabel} (${scope})، ${countText} صنفاً بكمية ${totalQty} وصافي ${totalNet} د.ك. أعلى الأصناف: ${itemText}.${proposalBlock}${deltaClause}`,
+    `• السبب من البيانات: الكميات والصافي من ${verifiedActualLabel}. أي سعر كتبه المستخدم موسوم بـ «${userProposedLabel}»، وفرق الإيراد = الكمية × (السعر المقترح − السعر الحالي).`,
     `• الإجراء المحدد: يراجع مدير العلامة الأسعار المقترحة مقابل الكميات المرحلة قبل اعتمادها.${cogsLine}`,
     `• الأثر المتوقع (تقدير): تقدير — فرق الإيراد أعلاه هو أثر السعر على الكمية المرحلة، وليس هامش ربح.`,
   ].join('\n')

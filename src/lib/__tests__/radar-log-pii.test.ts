@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dispatchExclusiveOperationalReport, dispatchExclusiveRadarAlert } from '@/lib/alerts'
 import { EXCLUSIVE_RADAR_RECIPIENTS } from '@/lib/vf-contact-directory'
 import { phoneDigits } from '@/lib/whatsapp'
+import { buildForensicMatrix } from '@/modules/governance/domain/forensic-radar'
 
 vi.mock('@/services/notification.service', () => ({
   deliverWhatsApp: vi.fn(async () => ({ ok: false })),
@@ -43,8 +44,31 @@ describe('radar dispatch logs mask staff contacts', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it('operational forensic report: one dispatch log per recipient, contacts masked', async () => {
-    await dispatchExclusiveOperationalReport([])
+  it('operational forensic report: fails closed on empty input without leaking contacts', async () => {
+    const res = await dispatchExclusiveOperationalReport([])
+    expect(res.dispatched).toBe(false)
+    expect(captured.includes('forensic_report_fail_closed_missing_odoo_data')).toBe(true)
+    const leak = containsRawContact(captured)
+    expect(leak.mobile, 'a raw recipient mobile reached the log').toBe(false)
+    expect(leak.email, 'a raw recipient e-mail reached the log').toBe(false)
+  })
+
+  it('operational forensic report: one dispatch log per recipient when verified Odoo snapshot exists, contacts masked', async () => {
+    const verifiedSnap = buildForensicMatrix(new Date('2026-11-02T15:30:00.000Z'), [
+      {
+        verifiedFromOdoo: true,
+        brandId: 'CHINA-GARDEN',
+        branchId: 'CG-ALKOUT',
+        platform: 'Talabat',
+        status: 'online',
+        mode: 'TMP',
+        gmvMinor: 45_000,
+        tmpShareBps: 10_000,
+        tgoShareBps: 0,
+        offlineMinutes: 0,
+      },
+    ])
+    await dispatchExclusiveOperationalReport([verifiedSnap])
     const lines = captured.split('\n').filter((l) => l.includes('operational_forensic_report_dispatched'))
     expect(lines.length).toBe(EXCLUSIVE_RADAR_RECIPIENTS.length)
     const leak = containsRawContact(captured)
