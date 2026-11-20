@@ -25,6 +25,7 @@ yarn-error.log*
 .env.production
 .env*.local
 .env*
+.env.*
 !.env.example
 !.env.staging.example
 
@@ -47,3 +48,9 @@ yarn-error.log*
 
 # Local runtime state (locale preferences, temporary caches)
 /.runtime/
+
+# Audit / credentials / gate output / private keys
+.creds
+.creds*
+gate-out/
+*.key
