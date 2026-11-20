@@ -20,11 +20,14 @@ import {
   PanelLeftOpen,
   Plus,
   RefreshCw,
+  RotateCw,
   Send,
+  SlidersHorizontal,
   Square,
   Trash2,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react'
 import { formatDate } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
@@ -38,6 +41,8 @@ import {
   FeryalMessageAttachmentsGallery,
   FeryalPendingAttachmentsTray,
   FeryalVisionCompliancePill,
+  rotateMediaAttachment90Client,
+  rotateOrNormalizeImageFileClient,
 } from '@/components/aether/FeryalMultimodalBar'
 import { FeryalDocumentReviewCard } from '@/components/aether/FeryalDocumentReviewCard'
 import {
@@ -80,6 +85,9 @@ import {
   getChatIndexSync,
   hydrateFeryalChatStore,
   loadChatThread,
+  saveThreadPriceSheetContext,
+  type ActivePriceSheetThreadContext,
+  type FrozenMessageScope,
   type StoredChatMessage,
 } from '@/lib/feryal-chat-store'
 import {
@@ -97,6 +105,9 @@ import {
   type QuickAuditChipId,
 } from '@/lib/feryal-governance-bridge'
 import {
+  ALL_FERYAL_BRANCHES,
+  APPROVED_FERYAL_BRAND_LIST,
+  APPROVED_FERYAL_CHANNEL_LIST,
   buildFeryalChatRequestPayload,
   buildFeryalConnectionErrorOutcome,
   parseFeryalChatHttpResponse,
@@ -309,6 +320,294 @@ export function shouldSubmitFeryalPromptOnKeyDown(params: {
   }
 }
 
+function matchCanonicalVentureBrand(
+  rawValue: string | null | undefined,
+): { brandId: string; labelEn: string; labelAr: string } | null {
+  const cleaned = (rawValue ?? '').trim().toLowerCase()
+  if (!cleaned || cleaned === 'all' || cleaned === 'all brands' || cleaned === 'كل العلامات التجارية') {
+    return null
+  }
+  for (const b of APPROVED_FERYAL_BRAND_LIST) {
+    if (
+      cleaned === b.id ||
+      cleaned === b.nameEn.toLowerCase() ||
+      cleaned === b.nameAr.toLowerCase() ||
+      b.aliases.some((a) => a.toLowerCase() === cleaned || cleaned.includes(a.toLowerCase()))
+    ) {
+      return { brandId: b.id, labelEn: b.nameEn, labelAr: b.nameAr }
+    }
+  }
+  return null
+}
+
+function questionMentionsDifferentBrand(question: string, currentBrandId: string): boolean {
+  const norm = question.toLowerCase()
+  for (const b of APPROVED_FERYAL_BRAND_LIST) {
+    if (b.id === currentBrandId) continue
+    if (
+      norm.includes(b.id) ||
+      norm.includes(b.nameEn.toLowerCase()) ||
+      norm.includes(b.nameAr.toLowerCase()) ||
+      b.aliases.some((a) => norm.includes(a.toLowerCase()))
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+export function inferSingleBrandFromConfirmedSheet(
+  sheet: ConfirmedPriceSheet | null | undefined,
+  fallbackBrandHint?: string | null,
+): { brandId: string; labelEn: string; labelAr: string } | null {
+  const foundIds = new Map<string, { brandId: string; labelEn: string; labelAr: string }>()
+  if (sheet) {
+    for (const row of sheet.rows) {
+      const m = matchCanonicalVentureBrand(row.brand)
+      if (m) {
+        foundIds.set(m.brandId, m)
+      }
+    }
+  }
+  if (foundIds.size === 1) {
+    return Array.from(foundIds.values())[0] ?? null
+  }
+  if (foundIds.size > 1) {
+    return null
+  }
+  return matchCanonicalVentureBrand(fallbackBrandHint)
+}
+
+export function formatPeriodKeyDisplayLabel(periodKey: string, isAr: boolean): string {
+  switch (periodKey) {
+    case 'today':
+      return isAr ? 'اليوم' : 'Today'
+    case 'week':
+      return isAr ? 'آخر 7 أيام' : 'Last 7 Days'
+    case 'month':
+      return isAr ? 'آخر 30 يوماً' : 'Last 30 Days'
+    case 'year':
+      return isAr ? 'السنة' : 'Year'
+    case 'custom':
+      return isAr ? 'نطاق مخصص' : 'Custom Range'
+    default:
+      return isAr ? 'آخر 30 يوماً' : 'Last 30 Days'
+  }
+}
+
+export function captureRequestStartFrozenScope(params: {
+  periodKey: string
+  dateFrom: string
+  dateTo: string
+  brandId: string
+  branchId: string
+  channelId: string
+  isAr: boolean
+  confirmedSheet?: ConfirmedPriceSheet | null
+  activeSheetContext?: ActivePriceSheetThreadContext | null
+}): FrozenMessageScope {
+  const periodLabel = formatPeriodKeyDisplayLabel(params.periodKey, params.isAr)
+
+  const directBrand = matchCanonicalVentureBrand(params.brandId)
+  const inferredSheetBrand =
+    directBrand ??
+    inferSingleBrandFromConfirmedSheet(
+      params.confirmedSheet ?? params.activeSheetContext?.confirmedPriceSheet ?? null,
+      params.activeSheetContext?.brandScope ?? null,
+    )
+  const brandScope = inferredSheetBrand
+    ? params.isAr
+      ? inferredSheetBrand.labelAr
+      : inferredSheetBrand.labelEn
+    : params.isAr
+      ? 'كل العلامات التجارية'
+      : 'All Brands'
+
+  const branchMeta =
+    params.branchId && params.branchId !== 'all'
+      ? ALL_FERYAL_BRANCHES.find((b) => b.id === params.branchId)
+      : undefined
+  const branchScope = branchMeta
+    ? params.isAr
+      ? branchMeta.nameAr
+      : branchMeta.nameEn
+    : params.isAr
+      ? 'كل الفروع'
+      : 'All Branches'
+
+  const channelMeta =
+    params.channelId && params.channelId !== 'all'
+      ? APPROVED_FERYAL_CHANNEL_LIST.find((c) => c.id === params.channelId)
+      : undefined
+  const channelScope = channelMeta
+    ? params.isAr
+      ? channelMeta.nameAr
+      : channelMeta.nameEn
+    : params.isAr
+      ? 'كل القنوات'
+      : 'All Channels'
+
+  return {
+    periodKey: params.periodKey || 'month',
+    periodLabel,
+    dateFrom: params.dateFrom,
+    dateTo: params.dateTo,
+    brandScope,
+    branchScope,
+    channelScope,
+  }
+}
+
+export function resolveServerOrFallbackFrozenScope(
+  rawResponseJson: unknown,
+  fallbackScope: FrozenMessageScope,
+): FrozenMessageScope {
+  if (!rawResponseJson || typeof rawResponseJson !== 'object' || Array.isArray(rawResponseJson)) {
+    return fallbackScope
+  }
+  const payload = rawResponseJson as {
+    frozenScope?: unknown
+    period?: { from?: unknown; to?: unknown; labelAr?: unknown; labelEn?: unknown }
+  }
+  if (
+    payload.frozenScope &&
+    typeof payload.frozenScope === 'object' &&
+    !Array.isArray(payload.frozenScope)
+  ) {
+    const fs = payload.frozenScope as Record<string, unknown>
+    const periodLabel =
+      typeof fs.periodLabel === 'string' && fs.periodLabel.trim()
+        ? fs.periodLabel.trim()
+        : fallbackScope.periodLabel
+    const dateFrom =
+      typeof fs.dateFrom === 'string' && fs.dateFrom.trim()
+        ? fs.dateFrom.trim()
+        : fallbackScope.dateFrom
+    const dateTo =
+      typeof fs.dateTo === 'string' && fs.dateTo.trim()
+        ? fs.dateTo.trim()
+        : fallbackScope.dateTo
+    const brandScope =
+      typeof fs.brandScope === 'string' && fs.brandScope.trim()
+        ? fs.brandScope.trim()
+        : fallbackScope.brandScope
+    const branchScope =
+      typeof fs.branchScope === 'string' && fs.branchScope.trim()
+        ? fs.branchScope.trim()
+        : fallbackScope.branchScope
+    const channelScope =
+      typeof fs.channelScope === 'string' && fs.channelScope.trim()
+        ? fs.channelScope.trim()
+        : fallbackScope.channelScope
+    const periodKey =
+      typeof fs.periodKey === 'string' && fs.periodKey.trim()
+        ? fs.periodKey.trim()
+        : fallbackScope.periodKey
+
+    return {
+      periodKey,
+      periodLabel,
+      dateFrom,
+      dateTo,
+      brandScope,
+      branchScope,
+      channelScope,
+    }
+  }
+
+  if (payload.period && typeof payload.period === 'object') {
+    const from =
+      typeof payload.period.from === 'string' && payload.period.from.trim()
+        ? payload.period.from.trim()
+        : fallbackScope.dateFrom
+    const to =
+      typeof payload.period.to === 'string' && payload.period.to.trim()
+        ? payload.period.to.trim()
+        : fallbackScope.dateTo
+    return {
+      ...fallbackScope,
+      dateFrom: from,
+      dateTo: to,
+    }
+  }
+
+  return fallbackScope
+}
+
+export function buildFeryalStudioTurnPostBody(params: {
+  question: string
+  filters: {
+    period: string
+    branch: string
+    brand: string
+    channel: string
+    customFrom?: string
+    customTo?: string
+  }
+  urlSearch?: string
+  explicitConfirmedSheet?: ConfirmedPriceSheet | null
+  activePriceSheetContext?: ActivePriceSheetThreadContext | null
+  periodLabel?: string | null
+}): Record<string, unknown> {
+  const isFollowUpOnSheet =
+    !params.explicitConfirmedSheet && Boolean(params.activePriceSheetContext?.confirmedPriceSheet)
+  const effectiveSheet =
+    params.explicitConfirmedSheet ?? params.activePriceSheetContext?.confirmedPriceSheet ?? undefined
+
+  let effectiveBrand = params.filters.brand || 'all'
+  if (effectiveBrand === 'all' && effectiveSheet) {
+    const singleBrand = inferSingleBrandFromConfirmedSheet(
+      effectiveSheet,
+      params.activePriceSheetContext?.brandScope ?? null,
+    )
+    if (singleBrand && !questionMentionsDifferentBrand(params.question, singleBrand.brandId)) {
+      effectiveBrand = singleBrand.brandId
+    }
+  }
+
+  const basePayload = buildFeryalChatRequestPayload(
+    params.question,
+    {
+      ...params.filters,
+      brand: effectiveBrand,
+    },
+    params.urlSearch,
+    effectiveSheet,
+  )
+
+  const resolvedPeriodLabel =
+    params.periodLabel ?? params.activePriceSheetContext?.periodLabel ?? null
+
+  if (isFollowUpOnSheet && params.activePriceSheetContext) {
+    return {
+      ...basePayload,
+      confirmedPriceSheet: params.activePriceSheetContext.confirmedPriceSheet,
+      isFollowUpOnConfirmedSheet: true,
+      activePriceSheetSummary: params.activePriceSheetContext.summaryMarkdown ?? null,
+      periodLabel: resolvedPeriodLabel,
+    }
+  }
+
+  if (params.explicitConfirmedSheet) {
+    return {
+      ...basePayload,
+      ...(resolvedPeriodLabel ? { periodLabel: resolvedPeriodLabel } : {}),
+    }
+  }
+
+  return {
+    ...basePayload,
+    ...(resolvedPeriodLabel ? { periodLabel: resolvedPeriodLabel } : {}),
+  }
+}
+
+export function isTechnicalProviderBadge(badge: string | undefined): boolean {
+  if (!badge) return false
+  return /anthropic|google|xai|openai|claude|gemini|grok|timeout|rate_limit|http_|guard_rejected|connection error|تعذّر الاتصال|analysis failed|تعذّر التحليل|\berror\b|\//i.test(
+    badge,
+  )
+}
+
 export interface FeryalGovernanceStudioProps {
   sessionRole?: string
   initialMainTab?: 'chat' | 'today-notes' | 'alerts' | 'audit'
@@ -320,6 +619,8 @@ export interface FeryalGovernanceStudioProps {
   initialSending?: boolean
   initialPendingDraft?: DocumentIntakeDraft | null
   initialTodaySimulationSheet?: ConfirmedPriceSheet | null
+  initialActivePriceSheetContext?: ActivePriceSheetThreadContext | null
+  initialOpenDiagnosticsIds?: string[]
 }
 
 export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
@@ -334,6 +635,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialSending = false,
     initialPendingDraft = null,
     initialTodaySimulationSheet = null,
+    initialActivePriceSheetContext = null,
+    initialOpenDiagnosticsIds,
   } = props ?? {}
   const { locale } = useI18n()
   const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
@@ -393,7 +696,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [noteTitle, setNoteTitle] = useState('')
   const [noteDetail, setNoteDetail] = useState('')
 
-  // Multimodal attachments & Document Intake Human Confirmation Gate
+  // Multimodal attachments & Document Intake Human Confirmation Gate + Persistent Sheet Context
   const [pendingAttachments, setPendingAttachments] = useState<FeryalMediaAttachment[]>([])
   const [processingMedia, setProcessingMedia] = useState(false)
   const [mediaError, setMediaError] = useState<string | null>(null)
@@ -403,6 +706,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [todaySimulationSheet, setTodaySimulationSheet] = useState<ConfirmedPriceSheet | null>(
     initialTodaySimulationSheet,
   )
+  const [activePriceSheetContext, setActivePriceSheetContext] =
+    useState<ActivePriceSheetThreadContext | null>(initialActivePriceSheetContext)
+  const [intakeRotationDegrees, setIntakeRotationDegrees] = useState<0 | 90 | 180 | 270>(0)
+  const [lastIntakeWasImage, setLastIntakeWasImage] = useState(false)
   const [rematchingLast30Days, setRematchingLast30Days] = useState(false)
   const [uploadingIntake, setUploadingIntake] = useState(false)
   const [intakeError, setIntakeError] = useState<string | null>(null)
@@ -411,7 +718,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const openPickerRef = useRef<(() => void) | null>(null)
   const openCameraRef = useRef<(() => void) | null>(null)
 
-  // Voice & clipboard UI state
+  // Diagnostics disclosure & voice/clipboard UI state
+  const [openDiagnosticsIds, setOpenDiagnosticsIds] = useState<Record<string, boolean>>(() => {
+    if (!initialOpenDiagnosticsIds || initialOpenDiagnosticsIds.length === 0) return {}
+    const initMap: Record<string, boolean> = {}
+    for (const id of initialOpenDiagnosticsIds) initMap[id] = true
+    return initMap
+  })
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [submittedBellIds, setSubmittedBellIds] = useState<Record<string, boolean>>({})
   const [speakingId, setSpeakingId] = useState<string | null>(null)
@@ -487,6 +800,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const mapStoredToUiMessages = useCallback((storedList: readonly StoredChatMessage[]): ChatUiMessage[] => {
     return storedList.map((m) => ({
       ...m,
+      frozenScope: m.frozenScope,
       providerBadge: m.engineLabelAr,
       learnedBadge: m.statusNoteAr,
       complianceTier: m.visionCompliance,
@@ -510,8 +824,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         const latest = idx[0]
         setActiveChatId(latest.id)
         void loadChatThread(latest.id).then((thread) => {
-          if (!userInteractedRef.current && thread && thread.messages.length > 0) {
-            setMessages(mapStoredToUiMessages(thread.messages))
+          if (!userInteractedRef.current && thread) {
+            if (thread.messages.length > 0) {
+              setMessages(mapStoredToUiMessages(thread.messages))
+            }
+            if (thread.activePriceSheetContext !== undefined) {
+              setActivePriceSheetContext(thread.activePriceSheetContext ?? null)
+            }
           }
         })
       }
@@ -595,12 +914,17 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   }, [pendingAttachments])
 
   const persistMessages = useCallback(
-    async (chatId: string, nextMsgs: ChatUiMessage[]) => {
+    async (
+      chatId: string,
+      nextMsgs: ChatUiMessage[],
+      sheetCtxOverride?: ActivePriceSheetThreadContext | null,
+    ) => {
       const stored: StoredChatMessage[] = nextMsgs.map((m) => ({
         id: m.id,
         sender: m.sender,
         text: m.text,
         time: m.time,
+        ...(m.frozenScope ? { frozenScope: m.frozenScope } : {}),
         engineLabelAr: m.providerBadge,
         statusNoteAr: m.learnedBadge,
         visionCompliance: m.complianceTier,
@@ -619,6 +943,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         lang: isAr ? 'ar' : 'en',
         preferredNotebookId: activeNotebookId !== 'all' ? activeNotebookId : undefined,
         filterLabel: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+        ...(sheetCtxOverride !== undefined ? { activePriceSheetContext: sheetCtxOverride } : {}),
       })
     },
     [activeNotebookId, isAr, workspace.subtitleAr, workspace.subtitleEn],
@@ -639,6 +964,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     setInputText('')
     setPendingIntakeDraft(null)
     setTodaySimulationSheet(null)
+    setActivePriceSheetContext(null)
+    setIntakeRotationDegrees(0)
+    setLastIntakeWasImage(false)
+    setOpenDiagnosticsIds({})
     setIntakeError(null)
     lastIntakeFileRef.current = null
     applyFeryalPromptAutoResize(promptTextareaRef.current, '')
@@ -652,18 +981,34 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       setActiveChatId(chatId)
       setPendingIntakeDraft(null)
       setTodaySimulationSheet(null)
+      setIntakeRotationDegrees(0)
+      setLastIntakeWasImage(false)
+      setOpenDiagnosticsIds({})
       setIntakeError(null)
       lastIntakeFileRef.current = null
       setMainTab('chat')
       const thread = await loadChatThread(chatId)
       if (thread) {
         setMessages(mapStoredToUiMessages(thread.messages))
+        setActivePriceSheetContext(thread.activePriceSheetContext ?? null)
       } else {
         setMessages([])
+        setActivePriceSheetContext(null)
       }
     },
     [mapStoredToUiMessages],
   )
+
+  const handleDetachActivePriceSheet = useCallback(() => {
+    setActivePriceSheetContext(null)
+    setTodaySimulationSheet(null)
+    void saveThreadPriceSheetContext({
+      chatId: activeChatId,
+      activePriceSheetContext: null,
+      lang: isAr ? 'ar' : 'en',
+      filterLabel: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+    })
+  }, [activeChatId, isAr, workspace.subtitleAr, workspace.subtitleEn])
 
   const handleFilesSelected = useCallback(
     async (files: File[]) => {
@@ -705,25 +1050,39 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     setMediaError(null)
   }, [])
 
-  const handleIntakeFileSelected = useCallback(
-    async (file: File) => {
+  const handleRotateMediaAttachment = useCallback(async (id: string) => {
+    const target = pendingAttachments.find((a) => a.id === id)
+    if (!target || target.kind !== 'image') return
+    setProcessingMedia(true)
+    try {
+      const rotated = await rotateMediaAttachment90Client(target)
+      setPendingAttachments((prev) => prev.map((a) => (a.id === id ? rotated : a)))
+    } finally {
+      setProcessingMedia(false)
+    }
+  }, [pendingAttachments])
+
+  const submitIntakeFileWithRotation = useCallback(
+    async (rawFile: File, rotationDeg: 0 | 90 | 180 | 270) => {
       if (isAuditor || uploadingIntake || sending) return
-      if (!isSupportedDocumentIntakeFile(file)) {
-        setIntakeError(
-          isAr
-            ? 'الصيغة غير مدعومة — يرجى رفع ملف Excel (.xlsx) أو CSV (.csv) أو صورة قائمة (.jpg / .png / .webp).'
-            : 'Unsupported file format — upload .xlsx, .csv, .jpg, .png, or .webp.',
-        )
-        return
-      }
-      lastIntakeFileRef.current = file
+      const isImageUpload =
+        (rawFile.type || '').toLowerCase().startsWith('image/') ||
+        /\.(jpe?g|png|webp)$/i.test(rawFile.name || '')
+      setLastIntakeWasImage(isImageUpload)
       setUploadingIntake(true)
       setIntakeError(null)
       setMainTab('chat')
       try {
+        const preparedFile = isImageUpload
+          ? await rotateOrNormalizeImageFileClient(rawFile, rotationDeg)
+          : rawFile
+
         const fd = new FormData()
-        fd.append('file', file)
+        fd.append('file', preparedFile)
         fd.append('period', activePeriod || 'month')
+        if (rotationDeg > 0) {
+          fd.append('rotationDegrees', String(rotationDeg))
+        }
         if (workspace.filters.customFrom) {
           fd.append('customFrom', workspace.filters.customFrom)
         }
@@ -747,11 +1106,12 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           error?: string
         } | null
 
+        setIntakeRotationDegrees(rotationDeg)
         if (!res.ok || !data?.ok || !data.draft) {
           setIntakeError(
             isAr
-              ? 'تعذّر استخراج جدول الأسعار من الملف المرفق — تحقق من الأعمدة أو دقة الصورة.'
-              : 'Could not extract price rows from the uploaded file — check column headers or image clarity.',
+              ? 'تعذّر استخراج جدول الأسعار من الملف المرفق — تحقق من الأعمدة أو جرّب تدوير الصورة 90°.'
+              : 'Could not extract price rows from the uploaded file — check column headers or try rotating the image 90°.',
           )
           return
         }
@@ -778,6 +1138,39 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       workspace.filters.customTo,
     ],
   )
+
+  const handleIntakeFileSelected = useCallback(
+    async (file: File) => {
+      if (isAuditor || uploadingIntake || sending) return
+      if (!isSupportedDocumentIntakeFile(file)) {
+        setIntakeError(
+          isAr
+            ? 'الصيغة غير مدعومة — يرجى رفع ملف Excel (.xlsx) أو CSV (.csv) أو صورة قائمة (.jpg / .png / .webp).'
+            : 'Unsupported file format — upload .xlsx, .csv, .jpg, .png, or .webp.',
+        )
+        return
+      }
+      lastIntakeFileRef.current = file
+      setIntakeRotationDegrees(0)
+      await submitIntakeFileWithRotation(file, 0)
+    },
+    [isAr, isAuditor, sending, submitIntakeFileWithRotation, uploadingIntake],
+  )
+
+  const handleRotateIntakeImageAndRescan = useCallback(async () => {
+    if (isAuditor || uploadingIntake || sending || rematchingLast30Days) return
+    const rawFile = lastIntakeFileRef.current
+    if (!rawFile) return
+    const nextDeg = ((intakeRotationDegrees + 90) % 360) as 0 | 90 | 180 | 270
+    await submitIntakeFileWithRotation(rawFile, nextDeg)
+  }, [
+    intakeRotationDegrees,
+    isAuditor,
+    rematchingLast30Days,
+    sending,
+    submitIntakeFileWithRotation,
+    uploadingIntake,
+  ])
 
   const requestLast30DaysIntakeDraft = useCallback(
     async (params: {
@@ -876,7 +1269,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     async (
       overridePrompt?: string,
       confirmedPriceSheet?: ConfirmedPriceSheet,
-      options?: { periodOverride?: 'month' },
+      options?: {
+        periodOverride?: 'month'
+        draftScope?: { brand?: string | null; dateFrom?: string | null; dateTo?: string | null }
+      },
     ) => {
       if (isAuditor || sending) return
       const rawPrompt = (overridePrompt ?? inputText).trim()
@@ -892,6 +1288,53 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         : []
       const attachmentsSnapshot = hasMedia ? [...pendingAttachments] : []
 
+      // Capture immutable scope snapshot at request start (NEVER reactive live filter state!)
+      const effectiveFilters = options?.periodOverride
+        ? { ...workspace.filters, period: options.periodOverride }
+        : { ...workspace.filters }
+      const capturedDateFrom =
+        options?.draftScope?.dateFrom ||
+        (options?.periodOverride === 'month' && liveSummary?.buckets?.month?.from
+          ? liveSummary.buckets.month.from
+          : workspace.dateRange.from)
+      const capturedDateTo = options?.draftScope?.dateTo || workspace.dateRange.to
+      const requestStartFrozenScope = captureRequestStartFrozenScope({
+        periodKey: effectiveFilters.period,
+        dateFrom: capturedDateFrom,
+        dateTo: capturedDateTo,
+        brandId: effectiveFilters.brand,
+        branchId: effectiveFilters.branch,
+        channelId: effectiveFilters.channel,
+        isAr,
+        confirmedSheet: confirmedPriceSheet ?? null,
+        activeSheetContext: activePriceSheetContext,
+      })
+
+      let nextSheetContextForTurn: ActivePriceSheetThreadContext | undefined
+      if (confirmedPriceSheet) {
+        const singleBrand = inferSingleBrandFromConfirmedSheet(
+          confirmedPriceSheet,
+          options?.draftScope?.brand ?? null,
+        )
+        nextSheetContextForTurn = {
+          confirmedPriceSheet,
+          confirmedAtIso: confirmedPriceSheet.confirmedAtIso,
+          fileName: confirmedPriceSheet.fileName,
+          brandScope: singleBrand
+            ? isAr
+              ? singleBrand.labelAr
+              : singleBrand.labelEn
+            : requestStartFrozenScope.brandScope,
+          periodLabel: requestStartFrozenScope.periodLabel,
+          dateFrom: requestStartFrozenScope.dateFrom,
+          dateTo: requestStartFrozenScope.dateTo,
+          matchedSkuCount: confirmedPriceSheet.rows.filter((r) => r.matchedOdooProductId != null)
+            .length,
+          summaryMarkdown: null,
+        }
+        setActivePriceSheetContext(nextSheetContextForTurn)
+      }
+
       const userMsg: ChatUiMessage = {
         id: nextUiId('u'),
         sender: 'user',
@@ -903,7 +1346,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       userInteractedRef.current = true
       const optimisticList = [...messages, userMsg]
       setMessages(optimisticList)
-      void persistMessages(activeChatId, optimisticList)
+      void persistMessages(activeChatId, optimisticList, nextSheetContextForTurn)
       if (!overridePrompt || confirmedPriceSheet) {
         setInputText('')
         applyFeryalPromptAutoResize(promptTextareaRef.current, '')
@@ -920,9 +1363,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             prompt: effectivePrompt,
             lang: isAr ? 'ar' : 'en',
             workspaceContext: isAr ? workspace.subtitleAr : workspace.subtitleEn,
-            brand: workspace.filters.brand !== 'all' ? workspace.filters.brand : undefined,
-            branch: workspace.filters.branch !== 'all' ? workspace.filters.branch : undefined,
-            period: workspace.filters.period,
+            brand: effectiveFilters.brand !== 'all' ? effectiveFilters.brand : undefined,
+            branch: effectiveFilters.branch !== 'all' ? effectiveFilters.branch : undefined,
+            period: effectiveFilters.period,
             attachments: attachmentsSnapshot,
           })
 
@@ -945,6 +1388,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             sender: 'feryal',
             text: replyText,
             time: formatClockNow(),
+            frozenScope: requestStartFrozenScope,
             userPrompt: effectivePrompt,
             providerBadge: badgeLabel,
             complianceTier: tier,
@@ -957,31 +1401,47 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         }
 
         // 2. Exclusive Odoo 17 Tool-Calling & 3-Model Council Engine (`POST /api/erp/feryal/chat`)
-        const effectiveFilters = options?.periodOverride
-          ? { ...workspace.filters, period: options.periodOverride }
-          : workspace.filters
         const urlSearch =
           options?.periodOverride || typeof window === 'undefined'
             ? undefined
             : window.location.search
-        const chatRequestBody = buildFeryalChatRequestPayload(
-          effectivePrompt,
-          effectiveFilters,
+        const chatRequestBody = buildFeryalStudioTurnPostBody({
+          question: effectivePrompt,
+          filters: effectiveFilters,
           urlSearch,
-          confirmedPriceSheet,
-        )
+          explicitConfirmedSheet: confirmedPriceSheet ?? null,
+          activePriceSheetContext,
+          periodLabel: requestStartFrozenScope.periodLabel,
+        })
         const res = await fetch('/api/erp/feryal/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(chatRequestBody),
         })
 
+        let rawResponseJson: unknown = undefined
+        let jsonParseSucceeded = false
+        if (res.ok) {
+          try {
+            rawResponseJson = await res.json()
+            jsonParseSucceeded = true
+          } catch {
+            jsonParseSucceeded = false
+          }
+        }
+
         const parsedOutcome = await parseFeryalChatHttpResponse<
           ExecutedOdooQueryBadge,
           VerifierBadgeState,
           CouncilChip,
           CouncilAgreementChip
-        >(res, isAr)
+        >(
+          {
+            ok: res.ok && jsonParseSucceeded,
+            json: async () => rawResponseJson,
+          },
+          isAr,
+        )
         const {
           replyText,
           modelBadge,
@@ -991,6 +1451,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           council,
           agreedList,
         } = parsedOutcome
+        const finalFrozenScope = resolveServerOrFallbackFrozenScope(
+          rawResponseJson,
+          requestStartFrozenScope,
+        )
+
         if (replyStatus !== 'no_odoo_data' && replyStatus !== 'connection_error') {
           setChatSyncAt(new Date().toISOString())
         }
@@ -1005,6 +1470,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           sender: 'feryal',
           text: replyText,
           time: formatClockNow(),
+          frozenScope: finalFrozenScope,
           userPrompt: effectivePrompt,
           providerBadge: modelBadge,
           learnedBadge: learnRes.learnedFact,
@@ -1015,9 +1481,45 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           agreed: agreedList,
         }
 
+        let persistedSheetContext: ActivePriceSheetThreadContext | undefined =
+          nextSheetContextForTurn
+        if (
+          replyStatus !== 'connection_error' &&
+          (nextSheetContextForTurn || activePriceSheetContext)
+        ) {
+          const baseCtx = nextSheetContextForTurn ?? activePriceSheetContext
+          if (baseCtx) {
+            const rawSummaryMeta =
+              rawResponseJson &&
+              typeof rawResponseJson === 'object' &&
+              !Array.isArray(rawResponseJson)
+                ? (rawResponseJson as { activePriceSheetSummary?: unknown }).activePriceSheetSummary
+                : undefined
+            const serverMatchedRows =
+              rawSummaryMeta &&
+              typeof rawSummaryMeta === 'object' &&
+              !Array.isArray(rawSummaryMeta) &&
+              typeof (rawSummaryMeta as { matchedRows?: unknown }).matchedRows === 'number'
+                ? ((rawSummaryMeta as { matchedRows: number }).matchedRows)
+                : undefined
+            persistedSheetContext = {
+              ...baseCtx,
+              brandScope: finalFrozenScope.brandScope || baseCtx.brandScope,
+              periodLabel: finalFrozenScope.periodLabel || baseCtx.periodLabel,
+              dateFrom: finalFrozenScope.dateFrom || baseCtx.dateFrom,
+              dateTo: finalFrozenScope.dateTo || baseCtx.dateTo,
+              ...(serverMatchedRows !== undefined ? { matchedSkuCount: serverMatchedRows } : {}),
+              summaryMarkdown: nextSheetContextForTurn
+                ? replyText.slice(0, 8000)
+                : baseCtx.summaryMarkdown || replyText.slice(0, 8000),
+            }
+            setActivePriceSheetContext(persistedSheetContext)
+          }
+        }
+
         const updated = [...optimisticList, feryalMsg]
         setMessages(updated)
-        await persistMessages(activeChatId, updated)
+        await persistMessages(activeChatId, updated, persistedSheetContext)
         if (replyStatus !== 'connection_error') {
           void fetchServerAuditLogs()
         }
@@ -1028,13 +1530,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           sender: 'feryal',
           text: connectionError.replyText,
           time: formatClockNow(),
+          frozenScope: requestStartFrozenScope,
           userPrompt: effectivePrompt,
           providerBadge: connectionError.modelBadge,
           replyStatus: connectionError.replyStatus,
         }
         const updated = [...optimisticList, fallbackMsg]
         setMessages(updated)
-        await persistMessages(activeChatId, updated)
+        await persistMessages(activeChatId, updated, nextSheetContextForTurn)
       } finally {
         setSending(false)
         setActiveQuickChipId(null)
@@ -1042,15 +1545,19 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     },
     [
       activeChatId,
+      activePriceSheetContext,
       fetchServerAuditLogs,
       handleClearAllAttachments,
       inputText,
       isAr,
       isAuditor,
+      liveSummary?.buckets?.month?.from,
       messages,
       pendingAttachments,
       persistMessages,
       sending,
+      workspace.dateRange.from,
+      workspace.dateRange.to,
       workspace.filters,
       workspace.subtitleAr,
       workspace.subtitleEn,
@@ -1085,7 +1592,16 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       const prompt30d = isAr
         ? `أعيدي تشغيل محاكاة جدول الأسعار المؤكد (${rematchedSheet.fileName} — ${rematchedSheet.rows.length} صنفاً) على فترة آخر 30 يوماً وقدّمي القرار التنفيذي وخطة الأصناف.`
         : `Re-run the 3-scenario executive pricing simulation on confirmed price sheet (${rematchedSheet.fileName} — ${rematchedSheet.rows.length} SKUs) over Last 30 Days and deliver the executive verdict and SKU playbook.`
-      await sendQuestion(prompt30d, rematchedSheet, { periodOverride: 'month' })
+      await sendQuestion(prompt30d, rematchedSheet, {
+        periodOverride: 'month',
+        draftScope: monthDraft
+          ? {
+              brand: monthDraft.brand,
+              dateFrom: monthDraft.period.from,
+              dateTo: monthDraft.period.to,
+            }
+          : undefined,
+      })
     } catch {
       setRematchingLast30Days(false)
       setIntakeError(
@@ -1771,90 +2287,179 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                       (msg.replyStatus !== 'answered' && nonMissingCouncil.length >= 2 && agreedCount < 2) ||
                       /لا اتفاق|متنازع|disputed/i.test(msg.text))
 
+                  const isDiagnosticsOpen = Boolean(openDiagnosticsIds[msg.id])
+                  const showCleanProviderBadge =
+                    Boolean(msg.providerBadge) && !isTechnicalProviderBadge(msg.providerBadge)
+                  const hasDiagnosticsTelemetry =
+                    councilParticipants.length > 0 ||
+                    Boolean(msg.providerBadge) ||
+                    Boolean(msg.verifier) ||
+                    Boolean(msg.executedQueries && msg.executedQueries.length > 0)
+
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className={`flex min-w-0 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-3xl rounded-2xl px-4 py-3.5 ${
+                        className={`min-w-0 max-w-full lg:max-w-4xl rounded-2xl px-4 py-3.5 ${
                           msg.sender === 'user'
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'w-full bg-[#F8FAF9] text-slate-900 ring-1 ring-slate-900/[0.06] dark:bg-[#141F1B] dark:text-slate-100 dark:ring-white/10'
                         }`}
                       >
                         {msg.sender === 'feryal' && (
-                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
-                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                              <span className="shrink-0 whitespace-nowrap text-xs font-black text-emerald-800 dark:text-emerald-300">
-                                {isAr ? 'فريال' : 'Feryal'}
-                              </span>
-                              {msg.providerBadge && (
-                                <span dir="ltr" className="shrink-0 whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                  {msg.providerBadge}
+                          <>
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <span className="shrink-0 whitespace-nowrap text-xs font-black text-emerald-800 dark:text-emerald-300">
+                                  {isAr ? 'فريال' : 'Feryal'}
                                 </span>
-                              )}
-                              {hasConsensus ? (
-                                <span
-                                  data-feryal-consensus="agreed"
-                                  className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
-                                >
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                  <span>
-                                    {isAr ? 'إجماع المجلس' : '2-of-3 Consensus'}{' '}
-                                    <span dir="ltr" className="tabular-nums">
-                                      ({agreedCount}/{councilTotal})
-                                    </span>
-                                  </span>
-                                </span>
-                              ) : hasContradictionOrDispute ? (
-                                <span
-                                  data-feryal-contradiction="true"
-                                  role="status"
-                                  className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
-                                >
-                                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                  <span>
-                                    {isAr
-                                      ? 'تعارض / عدم إجماع — لم يُعتمد رأي'
-                                      : 'Contradictory / No Consensus — Withheld'}
-                                  </span>
-                                </span>
-                              ) : null}
-                              {msg.council?.map((chip) => (
-                                <span
-                                  key={`${chip.provider}-${chip.modelId}-${chip.status}`}
-                                  dir="ltr"
-                                  className={`[overflow-wrap:anywhere] rounded-md px-2 py-0.5 font-mono text-xs font-bold ${
-                                    chip.status === 'ok'
-                                      ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
-                                      : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
-                                  }`}
-                                >
-                                  {chip.provider}
-                                  {chip.modelId ? `/${chip.modelId}` : ''} · {chip.status}
-                                  {chip.errorCode ? ` · ${chip.errorCode}` : ''}
-                                  {chip.offendingNumbers && chip.offendingNumbers.length > 0
-                                    ? ` · ${isAr ? 'رقم مرفوض خارج الحقائق' : 'Unverified figure'}: ${chip.offendingNumbers.join(' ')}`
-                                    : ''}
-                                </span>
-                              ))}
-                              {msg.complianceTier && (
-                                <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
-                              )}
-                              {msg.verifier?.valid &&
-                                msg.executedQueries &&
-                                msg.executedQueries.length > 0 && (
-                                  <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    <span>{isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}</span>
+                                {showCleanProviderBadge && msg.providerBadge && (
+                                  <span
+                                    dir="ltr"
+                                    className="shrink-0 whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                  >
+                                    {msg.providerBadge}
                                   </span>
                                 )}
+                                {hasConsensus ? (
+                                  <span
+                                    data-feryal-consensus="agreed"
+                                    className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    <span>
+                                      {isAr ? 'إجماع المجلس' : '2-of-3 Consensus'}{' '}
+                                      <span dir="ltr" className="tabular-nums">
+                                        ({agreedCount}/{councilTotal})
+                                      </span>
+                                    </span>
+                                  </span>
+                                ) : hasContradictionOrDispute ? (
+                                  <span
+                                    data-feryal-contradiction="true"
+                                    role="status"
+                                    className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    <span>
+                                      {isAr
+                                        ? 'تعارض / عدم إجماع — لم يُعتمد رأي'
+                                        : 'Contradictory / No Consensus — Withheld'}
+                                    </span>
+                                  </span>
+                                ) : null}
+                                {msg.complianceTier && (
+                                  <FeryalVisionCompliancePill tier={msg.complianceTier} isAr={isAr} />
+                                )}
+                                {msg.verifier?.valid &&
+                                  msg.executedQueries &&
+                                  msg.executedQueries.length > 0 && (
+                                    <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
+                                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                      <span>{isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}</span>
+                                    </span>
+                                  )}
+                              </div>
+
+                              <div className="flex shrink-0 items-center gap-2">
+                                {hasDiagnosticsTelemetry ? (
+                                  <button
+                                    type="button"
+                                    data-feryal-diagnostics-toggle="true"
+                                    aria-expanded={isDiagnosticsOpen}
+                                    onClick={() =>
+                                      setOpenDiagnosticsIds((prev) => ({
+                                        ...prev,
+                                        [msg.id]: !prev[msg.id],
+                                      }))
+                                    }
+                                    className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-lg bg-white/90 px-2 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200/80 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/10 dark:hover:bg-white/10"
+                                  >
+                                    <SlidersHorizontal className="h-3 w-3 shrink-0" aria-hidden />
+                                    <span>{isAr ? 'التشخيص' : 'Diagnostics'}</span>
+                                  </button>
+                                ) : null}
+                                <span
+                                  dir="ltr"
+                                  className="shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400"
+                                >
+                                  {msg.time}
+                                </span>
+                              </div>
                             </div>
-                            <span dir="ltr" className="shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
-                              {msg.time}
-                            </span>
-                          </div>
+
+                            {isDiagnosticsOpen ? (
+                              <div
+                                data-feryal-diagnostics-panel="true"
+                                className="mb-3 space-y-2 rounded-xl border border-slate-200/80 bg-white/90 p-2.5 text-xs text-slate-700 dark:border-slate-700/80 dark:bg-[#090E0C] dark:text-slate-200"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2 font-bold text-slate-800 dark:text-slate-100">
+                                  <span>
+                                    {isAr
+                                      ? 'تشخيص النماذج وفحص الأرقام'
+                                      : 'Provider Telemetry & Verifier Diagnostics'}
+                                  </span>
+                                  {msg.replyStatus ? (
+                                    <span
+                                      dir="ltr"
+                                      className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600 dark:bg-white/10 dark:text-slate-300"
+                                    >
+                                      status: {msg.replyStatus}
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {msg.providerBadge ? (
+                                  <div dir="ltr" className="font-mono text-xs text-slate-600 dark:text-slate-300">
+                                    engine: {msg.providerBadge}
+                                  </div>
+                                ) : null}
+
+                                {councilParticipants.length > 0 ? (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {councilParticipants.map((chip) => (
+                                      <span
+                                        key={`${chip.provider}-${chip.modelId}-${chip.status}`}
+                                        dir="ltr"
+                                        className={`[overflow-wrap:anywhere] rounded-md px-2 py-0.5 font-mono text-xs font-semibold ${
+                                          chip.status === 'ok'
+                                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
+                                            : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
+                                        }`}
+                                      >
+                                        {chip.provider}
+                                        {chip.modelId ? `/${chip.modelId}` : ''} · {chip.status}
+                                        {chip.errorCode ? ` · ${chip.errorCode}` : ''}
+                                        {chip.offendingNumbers && chip.offendingNumbers.length > 0
+                                          ? ` · ${isAr ? 'رقم مرفوض خارج الحقائق' : 'Unverified figure'}: ${chip.offendingNumbers.join(' ')}`
+                                          : ''}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : null}
+
+                                {msg.verifier ? (
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                                    <span>
+                                      {msg.verifier.valid
+                                        ? isAr
+                                          ? 'فحص مطابقة الأرقام: ناجح'
+                                          : 'Numeric Grounding Guard: Passed'
+                                        : isAr
+                                          ? 'فحص مطابقة الأرقام: مرفوض'
+                                          : 'Numeric Grounding Guard: Flagged'}
+                                    </span>
+                                    <span dir="ltr" className="font-mono tabular-nums">
+                                      checked={msg.verifier.extractedNumbers.length} | unverified=
+                                      {msg.verifier.unverifiedNumbers.length}
+                                    </span>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </>
                         )}
 
                         {msg.attachments && msg.attachments.length > 0 && (
@@ -1869,7 +2474,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                             {msg.text}
                           </p>
                         ) : (
-                          <FeryalStudioMessage text={msg.text} />
+                          <FeryalStudioMessage
+                            text={msg.text}
+                            frozenScope={msg.frozenScope}
+                            isAr={isAr}
+                          />
                         )}
 
                         {/* Executed Odoo Queries Provenance Strip */}
@@ -1986,17 +2595,37 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 {intakeError ? (
                   <div
                     role="alert"
-                    className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-rose-500/25 dark:bg-rose-950/60 dark:text-rose-200"
+                    className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 ring-1 ring-rose-500/25 dark:bg-rose-950/60 dark:text-rose-200"
                   >
                     <span>{intakeError}</span>
-                    <button
-                      type="button"
-                      onClick={() => setIntakeError(null)}
-                      aria-label={isAr ? 'إغلاق التنبيه' : 'Dismiss alert'}
-                      className="cursor-pointer rounded px-1.5 py-0.5 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60"
-                    >
-                      ×
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {lastIntakeWasImage && lastIntakeFileRef.current ? (
+                        <button
+                          type="button"
+                          data-feryal-rotate-rescan="true"
+                          disabled={uploadingIntake || sending}
+                          onClick={() => void handleRotateIntakeImageAndRescan()}
+                          className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-800 ring-1 ring-rose-300 transition hover:bg-emerald-50 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-55 dark:bg-[#090E0C] dark:text-slate-100 dark:ring-white/20"
+                        >
+                          {uploadingIntake ? (
+                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                          ) : (
+                            <RotateCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          )}
+                          <span>
+                            {isAr ? 'تدوير 90° وإعادة المسح' : 'Rotate 90° & Re-Scan'}
+                          </span>
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => setIntakeError(null)}
+                        aria-label={isAr ? 'إغلاق التنبيه' : 'Dismiss alert'}
+                        className="cursor-pointer rounded px-1.5 py-0.5 text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/60"
+                      >
+                        ×
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -2044,8 +2673,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     activePeriod={activePeriod}
                     submitting={sending}
                     rematchingLast30Days={rematchingLast30Days}
+                    rescanningRotatedImage={uploadingIntake}
+                    currentRotationDegrees={intakeRotationDegrees}
                     onDraftChange={setPendingIntakeDraft}
                     onSwitchAndRematchLast30Days={() => void handleSwitchAndRematchDraftLast30Days()}
+                    onRotateImageAndRescan={() => void handleRotateIntakeImageAndRescan()}
                     onCancel={() => {
                       setPendingIntakeDraft(null)
                       setIntakeError(null)
@@ -2064,9 +2696,67 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                           : `Run the 3-scenario executive pricing simulation on confirmed price sheet (${confirmedSheet.fileName} — ${confirmedSheet.rows.length} SKUs) and deliver the executive verdict and SKU playbook.`)
                       setPendingIntakeDraft(null)
                       setIntakeError(null)
-                      void sendQuestion(promptForAnalysis, confirmedSheet)
+                      void sendQuestion(promptForAnalysis, confirmedSheet, {
+                        draftScope: {
+                          brand: reviewedDraft.brand,
+                          dateFrom: reviewedDraft.period.from,
+                          dateTo: reviewedDraft.period.to,
+                        },
+                      })
                     }}
                   />
+                ) : null}
+
+                {!pendingIntakeDraft && activePriceSheetContext ? (
+                  <div
+                    data-active-price-sheet-pill="true"
+                    className="mb-2.5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-50/80 px-3 py-2 text-xs text-emerald-950 dark:border-emerald-500/30 dark:bg-emerald-950/45 dark:text-emerald-100"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 font-bold text-emerald-900 dark:text-emerald-200">
+                        <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-emerald-700 dark:text-emerald-300" aria-hidden />
+                        <span>
+                          {isAr ? 'سياق جدول الأسعار النشط:' : 'Active Price Sheet Context:'}
+                        </span>
+                      </span>
+                      <span
+                        className="min-w-0 max-w-[240px] overflow-hidden text-ellipsis whitespace-nowrap rounded-md bg-white px-2 py-0.5 font-semibold text-slate-900 ring-1 ring-emerald-500/20 dark:bg-[#090E0C] dark:text-white"
+                        title={
+                          activePriceSheetContext.fileName ??
+                          activePriceSheetContext.confirmedPriceSheet.fileName
+                        }
+                      >
+                        {activePriceSheetContext.fileName ??
+                          activePriceSheetContext.confirmedPriceSheet.fileName}
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap rounded-md bg-emerald-600/15 px-2 py-0.5 font-bold tabular-nums text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-200">
+                        {isAr
+                          ? `${activePriceSheetContext.confirmedPriceSheet.rows.length} صنف`
+                          : `${activePriceSheetContext.confirmedPriceSheet.rows.length} SKUs`}
+                      </span>
+                      {activePriceSheetContext.brandScope ? (
+                        <span className="shrink-0 whitespace-nowrap rounded-md bg-white/80 px-2 py-0.5 font-semibold text-slate-700 ring-1 ring-slate-200/80 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10">
+                          {activePriceSheetContext.brandScope}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <button
+                      type="button"
+                      data-detach-price-sheet="true"
+                      disabled={sending}
+                      onClick={handleDetachActivePriceSheet}
+                      aria-label={
+                        isAr ? 'إلغاء ربط جدول الأسعار النشط' : 'Detach active price sheet context'
+                      }
+                      title={
+                        isAr ? 'إلغاء ربط جدول الأسعار النشط' : 'Detach active price sheet context'
+                      }
+                      className="inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200/90 transition hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-50 dark:bg-[#090E0C] dark:text-slate-300 dark:ring-white/15"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  </div>
                 ) : null}
 
                 <FeryalPendingAttachmentsTray
@@ -2075,6 +2765,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   processing={processingMedia}
                   errorText={mediaError}
                   onRemove={handleRemoveAttachment}
+                  onRotateAttachment={(id) => void handleRotateMediaAttachment(id)}
                   onClearAll={handleClearAllAttachments}
                   onApplyPresetPrompt={(p) => {
                     setInputText(p)

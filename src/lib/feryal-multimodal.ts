@@ -14,6 +14,13 @@
  */
 
 export type VisionComplianceTier = 'green' | 'yellow' | 'red'
+export type ImageRotationDegrees = 0 | 90 | 180 | 270
+export type ClientExifOrientation = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+
+export interface ProcessFeryalMediaOptions {
+  rotationDegrees?: ImageRotationDegrees
+  maxEdge?: number
+}
 
 export interface FeryalExtractedFrame {
   index: number
@@ -33,6 +40,8 @@ export interface FeryalMediaAttachment {
   width: number
   height: number
   durationSec?: number
+  rotationDegrees?: ImageRotationDegrees
+  exifOrientation?: ClientExifOrientation
   /** Preview Data URL shown in composer & active session */
   previewDataUrl: string
   /** Live object URL for inline `<video controls>` playback inside composer */
@@ -75,6 +84,7 @@ export interface FeryalVisionMediaItemPayload {
   width?: number
   height?: number
   durationSec?: number
+  rotationDegrees?: ImageRotationDegrees
   base64Data?: string
   extractedFrames?: FeryalVisionFramePayload[]
   nativeVideoBase64?: string
@@ -310,18 +320,136 @@ function readFileAsDataUrl(file: Blob): Promise<string> {
   })
 }
 
+function isValidClientExifOrientation(val: number): val is ClientExifOrientation {
+  return Number.isInteger(val) && val >= 1 && val <= 8
+}
+
+function readClientTiffOrientation(
+  bytes: Uint8Array,
+  tiffStart: number,
+  tiffEnd: number,
+): ClientExifOrientation | null {
+  if (tiffStart < 0 || tiffEnd > bytes.length || tiffStart + 8 > tiffEnd) return null
+  const b0 = bytes[tiffStart]
+  const b1 = bytes[tiffStart + 1]
+  let le: boolean
+  if (b0 === 0x49 && b1 === 0x49) le = true
+  else if (b0 === 0x4d && b1 === 0x4d) le = false
+  else return null
+
+  const u16 = (pos: number): number | null => {
+    if (pos < tiffStart || pos + 2 > tiffEnd) return null
+    return le ? bytes[pos]! | (bytes[pos + 1]! << 8) : (bytes[pos]! << 8) | bytes[pos + 1]!
+  }
+  const u32 = (pos: number): number | null => {
+    if (pos < tiffStart || pos + 4 > tiffEnd) return null
+    return le
+      ? (bytes[pos]! |
+          (bytes[pos + 1]! << 8) |
+          (bytes[pos + 2]! << 16) |
+          (bytes[pos + 3]! << 24)) >>>
+          0
+      : ((bytes[pos]! << 24) |
+          (bytes[pos + 1]! << 16) |
+          (bytes[pos + 2]! << 8) |
+          bytes[pos + 3]!) >>>
+          0
+  }
+
+  if (u16(tiffStart + 2) !== 0x002a) return null
+  const ifdOff = u32(tiffStart + 4)
+  if (ifdOff === null) return null
+  const ifdStart = tiffStart + ifdOff
+  const count = u16(ifdStart)
+  if (count === null || count <= 0 || count > 512) return null
+
+  for (let i = 0; i < count; i += 1) {
+    const entry = ifdStart + 2 + i * 12
+    if (entry + 12 > tiffEnd) break
+    if (u16(entry) === 0x0112) {
+      const v = u16(entry + 8)
+      return v !== null && isValidClientExifOrientation(v) ? v : null
+    }
+  }
+  return null
+}
+
+/**
+ * Pure TypeScript client-safe JPEG / TIFF EXIF orientation reader (`1..8`).
+ */
+export function detectClientExifOrientation(bytes: Uint8Array): ClientExifOrientation {
+  if (!bytes || bytes.length < 8) return 1
+  if (
+    (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) ||
+    (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a)
+  ) {
+    return readClientTiffOrientation(bytes, 0, bytes.length) ?? 1
+  }
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2
+    while (offset + 4 <= bytes.length) {
+      if (bytes[offset] !== 0xff) break
+      while (offset < bytes.length && bytes[offset] === 0xff) offset += 1
+      if (offset >= bytes.length) break
+      const marker = bytes[offset]!
+      offset += 1
+      if (marker === 0xd9 || marker === 0xda) break
+      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue
+      if (offset + 2 > bytes.length) break
+      const segLen = (bytes[offset]! << 8) | bytes[offset + 1]!
+      if (segLen < 2 || offset + segLen > bytes.length) break
+      if (
+        marker === 0xe1 &&
+        segLen >= 10 &&
+        bytes[offset + 2] === 0x45 &&
+        bytes[offset + 3] === 0x78 &&
+        bytes[offset + 4] === 0x69 &&
+        bytes[offset + 5] === 0x66 &&
+        bytes[offset + 6] === 0x00 &&
+        bytes[offset + 7] === 0x00
+      ) {
+        const parsed = readClientTiffOrientation(bytes, offset + 8, offset + segLen)
+        if (parsed !== null) return parsed
+      }
+      offset += segLen
+    }
+  }
+  return 1
+}
+
+export function exifOrientationToRotationDegrees(
+  orientation: ClientExifOrientation,
+): ImageRotationDegrees {
+  if (orientation === 3 || orientation === 4) return 180
+  if (orientation === 6 || orientation === 7) return 90
+  if (orientation === 8 || orientation === 5) return 270
+  return 0
+}
+
+export function normalizeRotationDegrees(raw?: number | null): ImageRotationDegrees {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return 0
+  const mod = ((Math.round(raw) % 360) + 360) % 360
+  if (mod === 90 || mod === 180 || mod === 270) return mod
+  return 0
+}
+
 function renderDrawableToJpeg(
   source: CanvasImageSource,
   srcWidth: number,
   srcHeight: number,
   maxEdge: number,
   quality: number,
+  rotationDegrees: ImageRotationDegrees = 0,
 ): { dataUrl: string; base64: string; width: number; height: number } {
   const safeW = Math.max(1, srcWidth || 640)
   const safeH = Math.max(1, srcHeight || 480)
   const scale = Math.min(1, maxEdge / Math.max(safeW, safeH))
-  const outW = Math.max(1, Math.round(safeW * scale))
-  const outH = Math.max(1, Math.round(safeH * scale))
+  const drawW = Math.max(1, Math.round(safeW * scale))
+  const drawH = Math.max(1, Math.round(safeH * scale))
+
+  const swapped = rotationDegrees === 90 || rotationDegrees === 270
+  const outW = swapped ? drawH : drawW
+  const outH = swapped ? drawW : drawH
 
   const canvas = document.createElement('canvas')
   canvas.width = outW
@@ -330,7 +458,23 @@ function renderDrawableToJpeg(
   if (ctx) {
     ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, outW, outH)
-    ctx.drawImage(source, 0, 0, outW, outH)
+    if (rotationDegrees === 0) {
+      ctx.drawImage(source, 0, 0, drawW, drawH)
+    } else {
+      ctx.save()
+      if (rotationDegrees === 90) {
+        ctx.translate(outW, 0)
+        ctx.rotate(Math.PI / 2)
+      } else if (rotationDegrees === 180) {
+        ctx.translate(outW, outH)
+        ctx.rotate(Math.PI)
+      } else if (rotationDegrees === 270) {
+        ctx.translate(0, outH)
+        ctx.rotate((3 * Math.PI) / 2)
+      }
+      ctx.drawImage(source, 0, 0, drawW, drawH)
+      ctx.restore()
+    }
   }
   const dataUrl = canvas.toDataURL('image/jpeg', quality)
   return {
@@ -341,8 +485,74 @@ function renderDrawableToJpeg(
   }
 }
 
-async function processImageFile(file: File, id: string): Promise<FeryalMediaAttachment> {
+async function readExifFromBlobSafe(blob: Blob): Promise<ClientExifOrientation> {
+  if (typeof blob.arrayBuffer !== 'function') return 1
+  try {
+    const slice = typeof blob.slice === 'function' ? blob.slice(0, 65_536) : blob
+    const buf = await slice.arrayBuffer()
+    return detectClientExifOrientation(new Uint8Array(buf))
+  } catch {
+    return 1
+  }
+}
+
+async function processImageFile(
+  file: File,
+  id: string,
+  options?: ProcessFeryalMediaOptions,
+): Promise<FeryalMediaAttachment> {
   const fallbackMime = normalizeImageMime(file.type, file.name)
+  const manualRotation = normalizeRotationDegrees(options?.rotationDegrees)
+  const maxEdge = options?.maxEdge && options.maxEdge > 256 ? options.maxEdge : 1440
+  const exifOrientation = await readExifFromBlobSafe(file)
+
+  // 1. Prefer createImageBitmap with EXIF orientation auto-correction when available
+  if (typeof createImageBitmap === 'function' && typeof document !== 'undefined') {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      try {
+        const full = renderDrawableToJpeg(
+          bitmap,
+          bitmap.width,
+          bitmap.height,
+          maxEdge,
+          0.86,
+          manualRotation,
+        )
+        const thumb = renderDrawableToJpeg(
+          bitmap,
+          bitmap.width,
+          bitmap.height,
+          260,
+          0.72,
+          manualRotation,
+        )
+        if (full.base64.length > 0) {
+          return {
+            id,
+            kind: 'image',
+            name: file.name || 'photo.jpg',
+            mimeType: 'image/jpeg',
+            sizeBytes: file.size,
+            width: full.width,
+            height: full.height,
+            rotationDegrees: manualRotation,
+            exifOrientation,
+            previewDataUrl: full.dataUrl,
+            thumbDataUrl: thumb.dataUrl,
+            base64Data: full.base64,
+          }
+        }
+      } finally {
+        if (typeof bitmap.close === 'function') {
+          bitmap.close()
+        }
+      }
+    } catch {
+      // Fall back to HTMLImageElement below
+    }
+  }
+
   const objectUrl =
     typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
       ? URL.createObjectURL(file)
@@ -356,8 +566,22 @@ async function processImageFile(file: File, id: string): Promise<FeryalMediaAtta
         el.src = objectUrl
       })
 
-      const full = renderDrawableToJpeg(img, img.naturalWidth, img.naturalHeight, 1440, 0.84)
-      const thumb = renderDrawableToJpeg(img, img.naturalWidth, img.naturalHeight, 260, 0.72)
+      const full = renderDrawableToJpeg(
+        img,
+        img.naturalWidth,
+        img.naturalHeight,
+        maxEdge,
+        0.84,
+        manualRotation,
+      )
+      const thumb = renderDrawableToJpeg(
+        img,
+        img.naturalWidth,
+        img.naturalHeight,
+        260,
+        0.72,
+        manualRotation,
+      )
 
       if (full.base64.length > 0) {
         return {
@@ -368,6 +592,8 @@ async function processImageFile(file: File, id: string): Promise<FeryalMediaAtta
           sizeBytes: file.size,
           width: full.width,
           height: full.height,
+          rotationDegrees: manualRotation,
+          exifOrientation,
           previewDataUrl: full.dataUrl,
           thumbDataUrl: thumb.dataUrl,
           base64Data: full.base64,
@@ -399,9 +625,44 @@ async function processImageFile(file: File, id: string): Promise<FeryalMediaAtta
     sizeBytes: file.size,
     width: 1024,
     height: 768,
+    rotationDegrees: manualRotation,
+    exifOrientation,
     previewDataUrl: rawDataUrl,
     thumbDataUrl: rawDataUrl,
     base64Data,
+  }
+}
+
+/**
+ * Client-side helper to normalize EXIF orientation and optionally rotate a price-sheet photo
+ * (`0 | 90 | 180 | 270`) into a crisp high-resolution JPEG `File` prior to `/document-intake` upload.
+ * Gracefully returns the original `file` when `<canvas>` is unavailable (e.g. SSR/test).
+ */
+export async function normalizeIntakeImageForUpload(
+  file: File,
+  options?: { rotationDegrees?: ImageRotationDegrees; maxEdge?: number },
+): Promise<File> {
+  if (!isSupportedIntakeImageFile(file)) return file
+  const rotation = normalizeRotationDegrees(options?.rotationDegrees)
+  const exif = await readExifFromBlobSafe(file)
+  if (exif === 1 && rotation === 0) return file
+  if (typeof document === 'undefined' || typeof File === 'undefined') return file
+
+  try {
+    const processed = await processImageFile(file, 'intake-norm', {
+      rotationDegrees: rotation,
+      maxEdge: options?.maxEdge ?? 2200,
+    })
+    if (!processed.base64Data) return file
+    const binaryStr = atob(processed.base64Data)
+    const outBytes = new Uint8Array(binaryStr.length)
+    for (let i = 0; i < binaryStr.length; i += 1) {
+      outBytes[i] = binaryStr.charCodeAt(i)
+    }
+    const baseName = (file.name || 'price-sheet').replace(/\.[a-z0-9]+$/i, '')
+    return new File([outBytes], `${baseName}.jpg`, { type: 'image/jpeg' })
+  } catch {
+    return file
   }
 }
 
@@ -602,14 +863,17 @@ export function revokeAttachmentObjectUrls(attachments: readonly FeryalMediaAtta
 
 let mediaSeqCounter = 0
 
-export async function processFeryalMediaFile(file: File): Promise<FeryalMediaAttachment> {
+export async function processFeryalMediaFile(
+  file: File,
+  options?: ProcessFeryalMediaOptions,
+): Promise<FeryalMediaAttachment> {
   mediaSeqCounter = (mediaSeqCounter + 1) % 1_000_000
   const id = `media-${Date.now()}-${mediaSeqCounter}`
   const kind = inferMediaKind(file)
   if (kind === 'video') {
     return processVideoFile(file, id)
   }
-  return processImageFile(file, id)
+  return processImageFile(file, id, options)
 }
 
 export function toStoredAttachmentMeta(att: FeryalMediaAttachment): StoredAttachmentMeta {
@@ -726,6 +990,7 @@ export function buildVisionRequestPayload(params: {
         mimeType: normalizeImageMime(att.mimeType, att.name),
         width: att.width,
         height: att.height,
+        ...(att.rotationDegrees ? { rotationDegrees: att.rotationDegrees } : {}),
         base64Data: att.base64Data,
       })
       continue

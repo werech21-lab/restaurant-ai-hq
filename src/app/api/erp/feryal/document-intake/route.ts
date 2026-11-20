@@ -10,6 +10,7 @@ import {
   DocumentIntakeError,
   ingestPricingDocument,
   MAX_DOCUMENT_INTAKE_BYTES,
+  parseIntakeRotationDegrees,
 } from '@/lib/feryal/document-intake'
 import { errorFields, logger } from '@/lib/logger'
 
@@ -88,6 +89,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const bytes = new Uint8Array(await rawFile.arrayBuffer())
+    const rotationDegrees = parseIntakeRotationDegrees(
+      readFormField(formData, 'rotationDegrees') ?? readFormField(formData, 'rotate'),
+    )
     const draft = await ingestPricingDocument({
       fileName: rawFileName,
       mimeType: rawFile.type,
@@ -97,6 +101,7 @@ export async function POST(req: NextRequest) {
       customTo: readFormField(formData, 'customTo'),
       brand: readFormField(formData, 'brand'),
       branch: readFormField(formData, 'branch'),
+      rotationDegrees,
     })
 
     return NextResponse.json(

@@ -1016,6 +1016,33 @@ export function isExecutivePricingOrMenuStrategyQuestion(question: string): bool
   return false
 }
 
+const SHEET_FOLLOW_UP_OVERLAP_RE =
+  /\b(?:price|prices|pricing|increase|increases|hike|hikes|cap|capped|capping|hold|approve|approved|option|options|ch|ae|suggested|proposal|proposals|proposed|sheet|table|menu|sku|skus|item|items|dish|dishes|platter|rice|chicken|beef|shrimp|noodle|noodles|combo|agree|disagree|opinion|recommend|recommended|recommendation|recommendations|feryal|rec|justify|justification|rationale|verdict|why|explain|summarize|summary|board|brief|playbook|scenario|scenarios|base|conservative|stress|elasticity|tier|tiers|abc|pareto|dine[- ]in|takeaway|talabat|deliveroo|keeta|jahez|snoonu|aggregator|aggregators|channel|channels|commission|commissions|kwd|kd|fils|margin|margins|cogs|food\s+cost)\b|(?:سعر|اسعار|الاسعار|تسعير|التسعير|زياده|زيادات|الزياده|الزيادات|رفع|سقف|توافق|توافقين|موافق|موافقه|تتفق|تتفقين|راي|رايج|رايك|الراي|توصيه|توصيات|توصيتك|توصيتج|موصي|الموصي|تنصح|تنصحين|مقترح|مقترحه|المقترح|المقترحه|مبرر|مبررات|المبررات|تبرير|فقره|ملخص|لخص|لخصي|اختصر|اختصري|مجلس|الاداره|ليش|لماذا|شلون|كيف|شنو\s+راي|شو\s+راي|وش\s+راي|خيار|خيارات|الخيار|الخيارات|جدول|الجدول|منيو|المنيو|قائمه|القائمه|صنف|اصناف|الاصناف|طبق|اطباق|صاله|الصاله|سفري|توصيل|طلبات|كيتا|ديليفرو|جاهز|سنونو|منصات|المنصات|عموله|عمولات|مرونه|المرونه|سيناريو|سيناريوهات|ضغط|متحفظ|فريال|دينار|فلس|هامش|تكلفه)/iu
+
+const UNRELATED_OPERATIONAL_DOMAIN_RE =
+  /(?:hr\.employee|عدد الموظفين|اجمالي الموظفين|كم موظف|الموظفين|موظفي|الموظفون|الكادر الوظيفي|القوي العامله|الموارد البشريه|الحضور والانصراف|بصمه الحضور|تاخير البصمه|العمل الاضافي|ساعات العمل|اوفر تايم|مسير الرواتب|مسيرات الرواتب|قسائم الرواتب|انتهاء الاقامات|نهايه الخدمه|\bemployees?\b|\bheadcount\b|\bworkforce\b|\battendance\b|\bovertime\b|\bpayroll\b|\bpayslips?\b|\bbiometric\b|stock\.move|stock\.scrap|stock\.quant|التحويل المخزني|التحويلات المخزنيه|تحويل مخزني|تحويلات المخزن|حركات المخزن|حركه المخزون|سلسله المخزن|جرد المخزن|المخزون الحالي|رصيد المخزن|الهدر بالمخزن|التالف بالمخزن|\bwarehouse\s+transfer\b|\bstock\s+move\b|\bstock\s+on\s+hand\b|\binventory\s+count\b|\bscrap\b|purchase\.order|امر شراء|اوامر الشراء|اوامر شراء|فواتير الموردين|ذمم الموردين|تكاليف الموردين|\bpurchase\s+orders?\b|\bvendor\s+bills?\b|\bsupplier\s+invoices?\b|account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|رصيد البنك|كشف البنك|الذمم المدينه المفتوحه|\bgeneral\s+ledger\b|\bjournal\s+entries\b|\bbank\s+balance\b|\bopen\s+receivables\b)/iu
+
+/**
+ * Determines whether a follow-up prompt in a thread with an active `ConfirmedPriceSheet`
+ * should stay locked onto the Executive Pricing Advisor path.
+ * Returns `true` for ANY question UNLESS the user is clearly asking an unrelated operational
+ * domain query with zero pricing/menu/sheet/opinion overlap (such as pure HR attendance/payroll
+ * or pure warehouse stock/scrap).
+ */
+export function isConfirmedSheetFollowUpQuestion(question: string): boolean {
+  const trimmed = (question ?? '').trim()
+  if (!trimmed) return true
+  const norm = normalizeArabicText(trimmed)
+  if (!norm) return true
+  if (SHEET_FOLLOW_UP_OVERLAP_RE.test(norm) || SHEET_FOLLOW_UP_OVERLAP_RE.test(trimmed)) {
+    return true
+  }
+  if (UNRELATED_OPERATIONAL_DOMAIN_RE.test(norm) || UNRELATED_OPERATIONAL_DOMAIN_RE.test(trimmed)) {
+    return false
+  }
+  return true
+}
+
 /** Detects predominant prompt language ('ar' if Arabic script letters are present, else 'en'). */
 export function detectFeryalPromptLocale(question: string): 'ar' | 'en' {
   const arMatches = question.match(/[\u0600-\u06FF]/g)?.length ?? 0
@@ -1530,6 +1557,108 @@ export const FERYAL_CONNECTION_ERROR_AR = 'تعذّر الاتصال — أعد 
 export const FERYAL_CONNECTION_ERROR_EN =
   'Connection failed — please retry (تعذّر الاتصال — أعد المحاولة)' as const
 
+export interface FeryalFrozenScope {
+  periodKey: string
+  periodLabel: string
+  dateFrom: string
+  dateTo: string
+  brandScope: string
+  branchScope: string
+  channelScope: string
+}
+
+export interface ActivePriceSheetResponseSummary {
+  fileName: string
+  draftId: string
+  matchedRows: number
+  totalRows: number
+  brandScope: string
+  dateFrom: string
+  dateTo: string
+}
+
+export function buildFeryalFrozenScope(input: {
+  dateFrom: string
+  dateTo: string
+  validatedPeriod?: ApprovedFeryalPeriodId | null
+  rawPeriodKey?: string | null
+  requestedPeriodLabel?: string | null
+  hasExplicitPeriod?: boolean
+  brandId?: ApprovedFeryalBrandId | string | null
+  branchId?: ApprovedFeryalBranchId | string | null
+  channelId?: ApprovedFeryalChannelId | string | null
+  referenceNowMs?: number
+}): FeryalFrozenScope {
+  const kwTodayIso = getKuwaitCalendarParts(input.referenceNowMs).iso
+  const dateFrom = input.dateFrom
+  const dateTo = input.dateTo
+  const rangeText = dateFrom === dateTo ? dateFrom : `${dateFrom} -> ${dateTo}`
+
+  let periodKey: string
+  if (input.hasExplicitPeriod) {
+    periodKey = dateFrom === dateTo && dateFrom === kwTodayIso ? 'today' : 'custom'
+  } else if (input.validatedPeriod) {
+    periodKey = input.validatedPeriod
+  } else if (typeof input.rawPeriodKey === 'string' && input.rawPeriodKey.trim()) {
+    periodKey = input.rawPeriodKey.trim()
+  } else {
+    periodKey = '30d'
+  }
+
+  let periodLabel: string
+  const customLabel =
+    !input.hasExplicitPeriod && typeof input.requestedPeriodLabel === 'string'
+      ? input.requestedPeriodLabel.trim()
+      : ''
+  if (customLabel) {
+    periodLabel = customLabel.includes(dateFrom) ? customLabel : `${customLabel} (${rangeText})`
+  } else if (input.hasExplicitPeriod) {
+    periodLabel =
+      dateFrom === dateTo && dateFrom === kwTodayIso ? `Today (${dateFrom})` : rangeText
+  } else {
+    switch (input.validatedPeriod) {
+      case 'today':
+        periodLabel = `Today (${dateFrom})`
+        break
+      case 'week':
+        periodLabel = `Last 7 Days (${rangeText})`
+        break
+      case 'month':
+        periodLabel = `Month to Date (${rangeText})`
+        break
+      case 'year':
+        periodLabel = `Year to Date (${rangeText})`
+        break
+      case 'custom':
+        periodLabel = `Custom Range (${rangeText})`
+        break
+      default:
+        periodLabel = `Last 30 Days (${rangeText})`
+        break
+    }
+  }
+
+  const brandMeta = input.brandId
+    ? APPROVED_FERYAL_BRAND_LIST.find((b) => b.id === input.brandId)
+    : undefined
+  const branchMeta = input.branchId
+    ? ALL_FERYAL_BRANCHES.find((b) => b.id === input.branchId)
+    : undefined
+  const channelMeta = input.channelId
+    ? APPROVED_FERYAL_CHANNEL_LIST.find((c) => c.id === input.channelId)
+    : undefined
+
+  return {
+    periodKey,
+    periodLabel,
+    dateFrom,
+    dateTo,
+    brandScope: brandMeta?.nameEn ?? 'All Brands',
+    branchScope: branchMeta?.nameEn ?? 'All Branches',
+    channelScope: channelMeta?.nameEn ?? 'All Channels',
+  }
+}
+
 export interface FeryalChatRequestPayload {
   question: string
   period: string
@@ -1539,6 +1668,9 @@ export interface FeryalChatRequestPayload {
   customFrom?: string
   customTo?: string
   confirmedPriceSheet?: unknown
+  isFollowUpOnConfirmedSheet?: boolean
+  activePriceSheetSummary?: string | null
+  periodLabel?: string | null
 }
 
 export function buildFeryalChatRequestPayload(
@@ -1553,6 +1685,11 @@ export function buildFeryalChatRequestPayload(
   },
   urlSearch?: string,
   confirmedPriceSheet?: unknown,
+  followUpOptions?: {
+    isFollowUpOnConfirmedSheet?: boolean
+    activePriceSheetSummary?: string | null
+    periodLabel?: string | null
+  },
 ): FeryalChatRequestPayload {
   let period = filters.period || 'month'
   let branch = filters.branch || 'all'
@@ -1589,6 +1726,15 @@ export function buildFeryalChatRequestPayload(
     channel,
     ...(period === 'custom' && customFrom && customTo ? { customFrom, customTo } : {}),
     ...(confirmedPriceSheet !== undefined ? { confirmedPriceSheet } : {}),
+    ...(followUpOptions?.isFollowUpOnConfirmedSheet !== undefined
+      ? { isFollowUpOnConfirmedSheet: followUpOptions.isFollowUpOnConfirmedSheet }
+      : {}),
+    ...(followUpOptions?.activePriceSheetSummary !== undefined
+      ? { activePriceSheetSummary: followUpOptions.activePriceSheetSummary }
+      : {}),
+    ...(followUpOptions?.periodLabel !== undefined
+      ? { periodLabel: followUpOptions.periodLabel }
+      : {}),
   }
 }
 
@@ -1624,6 +1770,9 @@ export interface ParsedFeryalChatTurnOutcome<
   verifier?: TVerifier
   council?: TCouncil[]
   agreedList?: TAgreed[]
+  frozenScope?: FeryalFrozenScope
+  activePriceSheetSummary?: ActivePriceSheetResponseSummary | null
+  diagnostics?: unknown
 }
 
 export async function parseFeryalChatHttpResponse<
@@ -1675,6 +1824,9 @@ export async function parseFeryalChatHttpResponse<
           verifier?: TVerifier
           participants?: TCouncil[]
           agreed?: TAgreed[]
+          frozenScope?: FeryalFrozenScope
+          activePriceSheetSummary?: ActivePriceSheetResponseSummary | null
+          diagnostics?: unknown
         })
       : null
 
@@ -1711,5 +1863,10 @@ export async function parseFeryalChatHttpResponse<
     verifier: payload.verifier,
     council,
     agreedList,
+    ...(payload.frozenScope ? { frozenScope: payload.frozenScope } : {}),
+    ...(payload.activePriceSheetSummary !== undefined
+      ? { activePriceSheetSummary: payload.activePriceSheetSummary }
+      : {}),
+    ...(payload.diagnostics !== undefined ? { diagnostics: payload.diagnostics } : {}),
   }
 }

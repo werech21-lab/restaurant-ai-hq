@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
-import { Camera, FileSpreadsheet, Film, ImagePlus, Loader2, Sparkles, X } from 'lucide-react'
+import { Camera, FileSpreadsheet, Film, ImagePlus, Loader2, RotateCw, Sparkles, X } from 'lucide-react'
 import {
   CAMERA_CAPTURE_ACCEPT,
   DOCUMENT_INTAKE_ACCEPT,
@@ -281,12 +281,271 @@ export function FeryalVisionCompliancePill({
   )
 }
 
+export function readJpegExifOrientationClient(bytes: Uint8Array): number {
+  if (bytes.length < 12 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return 1
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  let offset = 2
+  while (offset + 4 <= bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      break
+    }
+    const marker = bytes[offset + 1]
+    if (marker === 0xff) {
+      offset += 1
+      continue
+    }
+    if (marker === 0xd8 || marker === 0x01) {
+      offset += 2
+      continue
+    }
+    if (marker === 0xd9 || marker === 0xda) {
+      break
+    }
+    const segLength = view.getUint16(offset + 2, false)
+    if (segLength < 2 || offset + 2 + segLength > bytes.length) {
+      break
+    }
+    if (marker === 0xe1 && segLength >= 10) {
+      const exifStart = offset + 4
+      const isExifHeader =
+        bytes[exifStart] === 0x45 &&
+        bytes[exifStart + 1] === 0x78 &&
+        bytes[exifStart + 2] === 0x69 &&
+        bytes[exifStart + 3] === 0x66 &&
+        bytes[exifStart + 4] === 0x00 &&
+        bytes[exifStart + 5] === 0x00
+      if (isExifHeader) {
+        const tiffStart = exifStart + 6
+        if (tiffStart + 8 <= bytes.length) {
+          const byteOrder = view.getUint16(tiffStart, false)
+          const littleEndian =
+            byteOrder === 0x4949 ? true : byteOrder === 0x4d4d ? false : null
+          if (littleEndian !== null && view.getUint16(tiffStart + 2, littleEndian) === 0x002a) {
+            const ifdOffset = view.getUint32(tiffStart + 4, littleEndian)
+            const dirStart = tiffStart + ifdOffset
+            if (dirStart + 2 <= bytes.length) {
+              const entryCount = view.getUint16(dirStart, littleEndian)
+              for (let i = 0; i < entryCount; i++) {
+                const entryPos = dirStart + 2 + i * 12
+                if (entryPos + 12 > bytes.length) break
+                const tag = view.getUint16(entryPos, littleEndian)
+                if (tag === 0x0112) {
+                  const orientation = view.getUint16(entryPos + 8, littleEndian)
+                  if (orientation >= 1 && orientation <= 8) {
+                    return orientation
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    offset += 2 + segLength
+  }
+  return 1
+}
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+  const commaIdx = dataUrl.indexOf(',')
+  const base64 = commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : dataUrl
+  if (typeof atob !== 'function') return new Uint8Array(0)
+  const binary = atob(base64)
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    out[i] = binary.charCodeAt(i)
+  }
+  return out
+}
+
+export async function rotateOrNormalizeImageFileClient(
+  file: File,
+  extraClockwiseDegrees: 0 | 90 | 180 | 270 = 0,
+): Promise<File> {
+  const isImg =
+    (file.type || '').toLowerCase().startsWith('image/') ||
+    /\.(jpe?g|png|webp)$/i.test(file.name || '')
+  if (!isImg || typeof document === 'undefined') {
+    return file
+  }
+
+  let exifOrientation = 1
+  try {
+    const rawBuf = await file.arrayBuffer()
+    exifOrientation = readJpegExifOrientationClient(new Uint8Array(rawBuf))
+  } catch {
+    exifOrientation = 1
+  }
+
+  if (exifOrientation === 1 && extraClockwiseDegrees === 0) {
+    return file
+  }
+
+  const objectUrl =
+    typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+      ? URL.createObjectURL(file)
+      : ''
+
+  try {
+    let drawable: CanvasImageSource | null = null
+    let srcW = 0
+    let srcH = 0
+    let closeBitmap: (() => void) | null = null
+
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' })
+        drawable = bmp
+        srcW = bmp.width
+        srcH = bmp.height
+        closeBitmap = () => bmp.close()
+      } catch {
+        drawable = null
+      }
+    }
+
+    if (!drawable && objectUrl && typeof Image !== 'undefined') {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image()
+        el.onload = () => resolve(el)
+        el.onerror = () => reject(new Error('IMAGE_LOAD_FAILED'))
+        el.src = objectUrl
+      })
+      drawable = img
+      srcW = img.naturalWidth
+      srcH = img.naturalHeight
+    }
+
+    if (!drawable || srcW <= 0 || srcH <= 0) {
+      return file
+    }
+
+    const maxEdge = 2200
+    const scale = Math.min(1, maxEdge / Math.max(srcW, srcH))
+    const drawW = Math.max(1, Math.round(srcW * scale))
+    const drawH = Math.max(1, Math.round(srcH * scale))
+    const swapAxes = extraClockwiseDegrees === 90 || extraClockwiseDegrees === 270
+
+    const canvas = document.createElement('canvas')
+    canvas.width = swapAxes ? drawH : drawW
+    canvas.height = swapAxes ? drawW : drawH
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      closeBitmap?.()
+      return file
+    }
+
+    ctx.fillStyle = '#FFFFFF'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.save()
+    if (extraClockwiseDegrees === 90) {
+      ctx.translate(canvas.width, 0)
+      ctx.rotate(Math.PI / 2)
+    } else if (extraClockwiseDegrees === 180) {
+      ctx.translate(canvas.width, canvas.height)
+      ctx.rotate(Math.PI)
+    } else if (extraClockwiseDegrees === 270) {
+      ctx.translate(0, canvas.height)
+      ctx.rotate((3 * Math.PI) / 2)
+    }
+    ctx.drawImage(drawable, 0, 0, drawW, drawH)
+    ctx.restore()
+    closeBitmap?.()
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+    const jpegBytes = dataUrlToUint8Array(dataUrl)
+    if (jpegBytes.length === 0) {
+      return file
+    }
+    const baseName = (file.name || 'price-sheet').replace(/\.[a-z0-9]+$/i, '')
+    const suffix = extraClockwiseDegrees > 0 ? `-rot${extraClockwiseDegrees}` : ''
+    const safeBytes = new Uint8Array(jpegBytes.byteLength)
+    safeBytes.set(jpegBytes)
+    return new File([safeBytes], `${baseName}${suffix}.jpg`, { type: 'image/jpeg' })
+  } catch {
+    return file
+  } finally {
+    if (objectUrl) {
+      try {
+        URL.revokeObjectURL(objectUrl)
+      } catch {
+        // ignore URL revoke error
+      }
+    }
+  }
+}
+
+export async function rotateMediaAttachment90Client(
+  att: FeryalMediaAttachment,
+): Promise<FeryalMediaAttachment> {
+  if (att.kind !== 'image' || !att.previewDataUrl || typeof document === 'undefined' || typeof Image === 'undefined') {
+    return att
+  }
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('IMAGE_LOAD_FAILED'))
+      el.src = att.previewDataUrl
+    })
+    const srcW = Math.max(1, img.naturalWidth || att.width || 800)
+    const srcH = Math.max(1, img.naturalHeight || att.height || 600)
+
+    const buildRotated = (maxEdge: number, quality: number) => {
+      const scale = Math.min(1, maxEdge / Math.max(srcW, srcH))
+      const drawW = Math.max(1, Math.round(srcW * scale))
+      const drawH = Math.max(1, Math.round(srcH * scale))
+      const canvas = document.createElement('canvas')
+      canvas.width = drawH
+      canvas.height = drawW
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.save()
+        ctx.translate(canvas.width, 0)
+        ctx.rotate(Math.PI / 2)
+        ctx.drawImage(img, 0, 0, drawW, drawH)
+        ctx.restore()
+      }
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      const commaIdx = dataUrl.indexOf(',')
+      return {
+        dataUrl,
+        base64: commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : dataUrl,
+        width: canvas.width,
+        height: canvas.height,
+      }
+    }
+
+    const full = buildRotated(1440, 0.86)
+    const thumb = buildRotated(260, 0.74)
+    if (!full.base64) return att
+
+    return {
+      ...att,
+      mimeType: 'image/jpeg',
+      width: full.width,
+      height: full.height,
+      previewDataUrl: full.dataUrl,
+      thumbDataUrl: thumb.dataUrl,
+      base64Data: full.base64,
+    }
+  } catch {
+    return att
+  }
+}
+
 export function FeryalPendingAttachmentsTray({
   isAr,
   attachments,
   processing,
   errorText,
   onRemove,
+  onRotateAttachment,
   onClearAll,
   onApplyPresetPrompt,
 }: {
@@ -295,6 +554,7 @@ export function FeryalPendingAttachmentsTray({
   processing?: boolean
   errorText?: string | null
   onRemove: (id: string) => void
+  onRotateAttachment?: (id: string) => void
   onClearAll: () => void
   onApplyPresetPrompt?: (prompt: string) => void
 }) {
@@ -385,6 +645,17 @@ export function FeryalPendingAttachmentsTray({
                   <span dir="ltr" className="tabular-nums">
                     {formatFileSizeShort(att.sizeBytes)}
                   </span>
+                  {att.kind === 'image' && onRotateAttachment ? (
+                    <button
+                      type="button"
+                      data-rotate-media-attachment={att.id}
+                      onClick={() => onRotateAttachment(att.id)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-700 transition hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-emerald-950/60"
+                    >
+                      <RotateCw className="h-3 w-3 shrink-0" aria-hidden />
+                      <span>{isAr ? 'تدوير 90°' : 'Rotate 90°'}</span>
+                    </button>
+                  ) : null}
                 </div>
 
                 {att.kind === 'video' && att.extractedFrames && att.extractedFrames.length > 1 ? (

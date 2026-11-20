@@ -9,16 +9,22 @@ export const ANALYSIS_MAX_TOKENS = 800
 export const EXECUTIVE_COUNCIL_MAX_TOKENS = 2_000
 const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
+export const PROVIDER_COOLDOWN_MS = 45_000
+export const REPEATED_TIMEOUT_THRESHOLD = 2
+
 export interface ProviderCallInput {
   provider: ProviderId
   apiKey: string
   model: string
+  fallbackModel?: string
   system: string
   user: string
   timeoutMs: number
   maxTokens?: number
   fetchImpl?: typeof fetch
   sleepImpl?: (ms: number) => Promise<void>
+  enableCooldown?: boolean
+  nowMs?: number
 }
 
 export interface ProviderCallResult {
@@ -38,6 +44,126 @@ export interface ProviderPingResult {
   ready: boolean
   latencyMs: number
   errorCode: string | null
+}
+
+export interface ProviderHealthSnapshot {
+  provider: ProviderId
+  inCooldown: boolean
+  cooldownUntilMs: number | null
+  consecutiveTimeouts: number
+  lastErrorCode: string | null
+  lastStatusAtMs: number | null
+}
+
+interface ProviderCooldownEntry {
+  cooldownUntilMs: number | null
+  consecutiveTimeouts: number
+  lastErrorCode: string | null
+  lastStatusAtMs: number | null
+}
+
+type GlobalWithProviderCooldown = typeof globalThis & {
+  __aetherAiProviderCooldowns?: Partial<Record<ProviderId, ProviderCooldownEntry>>
+}
+
+function cooldownStore(): Partial<Record<ProviderId, ProviderCooldownEntry>> {
+  const g = globalThis as GlobalWithProviderCooldown
+  if (!g.__aetherAiProviderCooldowns) {
+    g.__aetherAiProviderCooldowns = {}
+  }
+  return g.__aetherAiProviderCooldowns
+}
+
+function getOrCreateEntry(provider: ProviderId): ProviderCooldownEntry {
+  const store = cooldownStore()
+  const existing = store[provider]
+  if (existing) return existing
+  const created: ProviderCooldownEntry = {
+    cooldownUntilMs: null,
+    consecutiveTimeouts: 0,
+    lastErrorCode: null,
+    lastStatusAtMs: null,
+  }
+  store[provider] = created
+  return created
+}
+
+export function resetProviderCooldowns(): void {
+  const g = globalThis as GlobalWithProviderCooldown
+  g.__aetherAiProviderCooldowns = {}
+}
+
+export function isProviderInCooldown(provider: ProviderId, nowMs = Date.now()): boolean {
+  const entry = cooldownStore()[provider]
+  if (!entry || entry.cooldownUntilMs === null) return false
+  if (nowMs >= entry.cooldownUntilMs) {
+    entry.cooldownUntilMs = null
+    return false
+  }
+  return true
+}
+
+export function getProviderCooldownSnapshot(
+  nowMs = Date.now(),
+): Record<ProviderId, ProviderHealthSnapshot> {
+  const out = {} as Record<ProviderId, ProviderHealthSnapshot>
+  for (const provider of COUNCIL_PROVIDERS) {
+    const entry = cooldownStore()[provider]
+    const activeCooldown =
+      entry?.cooldownUntilMs != null && nowMs < entry.cooldownUntilMs ? entry.cooldownUntilMs : null
+    out[provider] = {
+      provider,
+      inCooldown: activeCooldown !== null,
+      cooldownUntilMs: activeCooldown,
+      consecutiveTimeouts: entry?.consecutiveTimeouts ?? 0,
+      lastErrorCode: entry?.lastErrorCode ?? null,
+      lastStatusAtMs: entry?.lastStatusAtMs ?? null,
+    }
+  }
+  return out
+}
+
+export function orderProvidersByHealth(
+  providers: readonly ProviderId[] = COUNCIL_PROVIDERS,
+  nowMs = Date.now(),
+): ProviderId[] {
+  return [...providers].sort((left, right) => {
+    const leftCool = isProviderInCooldown(left, nowMs) ? 1 : 0
+    const rightCool = isProviderInCooldown(right, nowMs) ? 1 : 0
+    if (leftCool !== rightCool) return leftCool - rightCool
+    const leftTimeouts = cooldownStore()[left]?.consecutiveTimeouts ?? 0
+    const rightTimeouts = cooldownStore()[right]?.consecutiveTimeouts ?? 0
+    return leftTimeouts - rightTimeouts
+  })
+}
+
+function recordProviderOutcome(
+  provider: ProviderId,
+  status: 'ok' | 'error',
+  errorCode: string | null,
+  nowMs: number,
+  cooldownMs = PROVIDER_COOLDOWN_MS,
+): void {
+  const entry = getOrCreateEntry(provider)
+  entry.lastStatusAtMs = nowMs
+  if (status === 'ok') {
+    entry.consecutiveTimeouts = 0
+    entry.cooldownUntilMs = null
+    entry.lastErrorCode = null
+    return
+  }
+
+  entry.lastErrorCode = errorCode
+  if (errorCode === 'HTTP_RATE_LIMIT') {
+    entry.cooldownUntilMs = nowMs + cooldownMs
+    return
+  }
+  if (errorCode === 'TIMEOUT') {
+    entry.consecutiveTimeouts += 1
+    if (entry.consecutiveTimeouts >= REPEATED_TIMEOUT_THRESHOLD) {
+      entry.cooldownUntilMs = nowMs + cooldownMs
+    }
+  }
 }
 
 interface EstimatedRate {
@@ -66,7 +192,7 @@ function httpErrorCode(status: number): string {
   if (status === 401) return 'HTTP_UNAUTHORIZED'
   if (status === 403) return 'HTTP_FORBIDDEN'
   if (status === 408 || status === 504) return 'TIMEOUT'
-  if (status === 429) return 'HTTP_RATE_LIMIT'
+  if (status === 429 || status === 529) return 'HTTP_RATE_LIMIT'
   if (status >= 500) return 'HTTP_SERVER'
   return 'HTTP_CLIENT'
 }
@@ -291,7 +417,7 @@ function parseProvider(provider: ProviderId, payload: unknown) {
 }
 
 export const GOOGLE_RATE_LIMIT_ATTEMPTS = 3
-const GOOGLE_RATE_LIMIT_BACKOFF_MS = [400, 1_200]
+const GOOGLE_RATE_LIMIT_BACKOFF_MS = [300, 800]
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -304,7 +430,7 @@ function retryAfterMs(response: Response): number | null {
   if (!raw) return null
   const seconds = Number(raw)
   if (!Number.isFinite(seconds) || seconds < 0) return null
-  return Math.min(2_000, Math.round(seconds * 1000))
+  return Math.min(1_500, Math.round(seconds * 1000))
 }
 
 function isAbortError(error: unknown): boolean {
@@ -323,7 +449,7 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
     if (!response.ok) {
       return {
         ...failure(input, Date.now() - started, httpErrorCode(response.status)),
-        retryAfterMs: response.status === 429 ? retryAfterMs(response) : null,
+        retryAfterMs: response.status === 429 || response.status === 529 ? retryAfterMs(response) : null,
       }
     }
     const parsed = parseProvider(input.provider, await readJson(response))
@@ -356,22 +482,107 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
   if (input.apiKey.trim().length < MIN_KEY_LENGTH) {
     return failure(input, 0, 'MISSING_API_KEY')
   }
+
+  // Apply global cooldown automatically on live network calls (`fetchImpl === undefined`) or when
+  // explicitly enabled, while keeping injected `fetchImpl` unit tests isolated and deterministic.
+  const useCooldown = input.enableCooldown ?? (input.fetchImpl === undefined)
+  const checkTimeMs = input.nowMs ?? started
+  if (useCooldown && isProviderInCooldown(input.provider, checkTimeMs)) {
+    const entry = cooldownStore()[input.provider]
+    return failure(input, 0, entry?.lastErrorCode ?? 'PROVIDER_COOLDOWN')
+  }
+
   const deadline = Date.now() + input.timeoutMs
   const attempts = input.provider === 'google' ? GOOGLE_RATE_LIMIT_ATTEMPTS : 1
   let last: ProviderCallResult = failure(input, 0, 'HTTP_RATE_LIMIT')
+
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const remaining = deadline - Date.now()
-    if (remaining < 200) return { ...last, latencyMs: Date.now() - started }
-    const once = await callProviderOnce(input, remaining)
-    last = once
-    const retry = input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1
-    if (!retry) return { ...once, latencyMs: Date.now() - started }
-    const wait = once.retryAfterMs ?? GOOGLE_RATE_LIMIT_BACKOFF_MS[attempt] ?? 1_200
+    if (remaining < 200) {
+      const timedOutResult = { ...last, latencyMs: Date.now() - started }
+      if (useCooldown) {
+        recordProviderOutcome(
+          input.provider,
+          timedOutResult.status,
+          timedOutResult.errorCode,
+          input.nowMs ?? Date.now(),
+        )
+      }
+      return timedOutResult
+    }
+
+    const activeModel =
+      attempt > 0 &&
+      input.fallbackModel &&
+      input.fallbackModel.trim().length > 0 &&
+      input.fetchImpl === undefined
+        ? input.fallbackModel.trim()
+        : input.model
+
+    const once = await callProviderOnce({ ...input, model: activeModel }, remaining)
+    last = { ...once, requestedModel: input.model }
+    const retry =
+      input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1
+    if (!retry) {
+      const finalResult: ProviderCallResult = {
+        provider: once.provider,
+        requestedModel: input.model,
+        modelId: once.modelId,
+        text: once.text,
+        latencyMs: Date.now() - started,
+        tokensIn: once.tokensIn,
+        tokensOut: once.tokensOut,
+        status: once.status,
+        errorCode: once.errorCode,
+      }
+      if (useCooldown) {
+        recordProviderOutcome(
+          input.provider,
+          finalResult.status,
+          finalResult.errorCode,
+          input.nowMs ?? Date.now(),
+        )
+      }
+      return finalResult
+    }
+
+    const wait = once.retryAfterMs ?? GOOGLE_RATE_LIMIT_BACKOFF_MS[attempt] ?? 800
     const room = deadline - Date.now() - 200
-    if (room < wait) return { ...once, latencyMs: Date.now() - started }
+    if (room < wait) {
+      const exhaustedResult: ProviderCallResult = {
+        provider: once.provider,
+        requestedModel: input.model,
+        modelId: once.modelId,
+        text: once.text,
+        latencyMs: Date.now() - started,
+        tokensIn: once.tokensIn,
+        tokensOut: once.tokensOut,
+        status: once.status,
+        errorCode: once.errorCode,
+      }
+      if (useCooldown) {
+        recordProviderOutcome(
+          input.provider,
+          exhaustedResult.status,
+          exhaustedResult.errorCode,
+          input.nowMs ?? Date.now(),
+        )
+      }
+      return exhaustedResult
+    }
     await (input.sleepImpl ?? delay)(wait)
   }
-  return { ...last, latencyMs: Date.now() - started }
+
+  const finalFallback = { ...last, latencyMs: Date.now() - started }
+  if (useCooldown) {
+    recordProviderOutcome(
+      input.provider,
+      finalFallback.status,
+      finalFallback.errorCode,
+      input.nowMs ?? Date.now(),
+    )
+  }
+  return finalFallback
 }
 
 export async function pingProvider(input: {

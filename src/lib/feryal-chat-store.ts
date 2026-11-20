@@ -14,6 +14,7 @@ import {
   hydrateFeryalMemory,
   type FeryalMemoryState,
 } from '@/lib/feryal-learning-engine'
+import type { ConfirmedPriceSheet } from '@/lib/feryal/document-intake-types'
 import type { StoredAttachmentMeta, VisionComplianceTier } from '@/lib/feryal-multimodal'
 import { formatDate } from '@/lib/format'
 
@@ -53,11 +54,34 @@ export interface StoredCouncilAgreementMeta {
   modelId: string
 }
 
+export interface FrozenMessageScope {
+  periodKey?: string
+  periodLabel: string
+  dateFrom: string
+  dateTo: string
+  brandScope: string
+  branchScope?: string
+  channelScope?: string
+}
+
+export interface ActivePriceSheetThreadContext {
+  confirmedPriceSheet: ConfirmedPriceSheet
+  confirmedAtIso: string
+  fileName?: string | null
+  brandScope?: string | null
+  periodLabel?: string | null
+  dateFrom?: string | null
+  dateTo?: string | null
+  matchedSkuCount?: number
+  summaryMarkdown?: string | null
+}
+
 export interface StoredChatMessage {
   id: string
   sender: 'user' | 'feryal'
   text: string
   time: string
+  frozenScope?: FrozenMessageScope
   attachmentsMeta?: StoredAttachmentMeta[]
   visionCompliance?: VisionComplianceTier
   hasVisualEvidence?: boolean
@@ -106,6 +130,7 @@ export interface FeryalChatSummary {
 
 export interface FeryalChatThread extends FeryalChatSummary {
   messages: StoredChatMessage[]
+  activePriceSheetContext?: ActivePriceSheetThreadContext | null
 }
 
 export type ChronologicalGroupId = 'pinned' | 'today' | 'yesterday' | 'this_week' | 'older'
@@ -572,7 +597,7 @@ export function getChatIndexSync(): FeryalChatSummary[] {
 }
 
 function toSummary(thread: FeryalChatThread): FeryalChatSummary {
-  const { messages: _m, ...summary } = thread
+  const { messages: _m, activePriceSheetContext: _ctx, ...summary } = thread
   return summary
 }
 
@@ -715,8 +740,9 @@ export async function syncThreadsFromServer(): Promise<{
         const remoteTs = new Date(remoteThread.updatedAt).getTime()
         const localTs = new Date(local.updatedAt).getTime()
         if (
-          remoteTs >= localTs ||
-          remoteThread.messages.length >= local.messages.length
+          remoteTs > localTs ||
+          remoteThread.messages.length > local.messages.length ||
+          (remoteTs === localTs && remoteThread.messages.length === local.messages.length)
         ) {
           mergedThreadsMap.set(remoteThread.id, remoteThread)
         }
@@ -838,18 +864,70 @@ export async function loadChatThread(chatId: string): Promise<FeryalChatThread |
   return cached ?? fromIdb ?? null
 }
 
+export function getCachedThreadPriceSheetContextSync(
+  chatId: string,
+): ActivePriceSheetThreadContext | null {
+  const cached = threadMemoryCache.get(chatId)
+  if (cached && cached.activePriceSheetContext !== undefined) {
+    return cached.activePriceSheetContext ?? null
+  }
+  const fromStorage = readThreadsMirrorFromStorage().find((t) => t.id === chatId)
+  if (fromStorage && fromStorage.activePriceSheetContext !== undefined) {
+    return fromStorage.activePriceSheetContext ?? null
+  }
+  return null
+}
+
+export async function saveThreadPriceSheetContext({
+  chatId,
+  activePriceSheetContext,
+  lang = 'ar',
+  filterLabel,
+}: {
+  chatId: string
+  activePriceSheetContext: ActivePriceSheetThreadContext | null
+  lang?: 'ar' | 'en'
+  filterLabel?: string
+}): Promise<FeryalChatThread | null> {
+  const existing = (await loadChatThread(chatId)) ?? threadMemoryCache.get(chatId) ?? null
+  const nowIso = new Date().toISOString()
+  if (!existing) {
+    return null
+  }
+  const nextThread: FeryalChatThread = {
+    ...existing,
+    lang: existing.lang || lang,
+    filterLabel: filterLabel || existing.filterLabel,
+    updatedAt: nowIso,
+    activePriceSheetContext,
+  }
+  threadMemoryCache.set(chatId, nextThread)
+  if (nextThread.messages.length > 0) {
+    const summary = toSummary(nextThread)
+    const others = getChatIndexSync().filter((c) => c.id !== chatId)
+    saveIndexMirror([summary, ...others])
+    await Promise.all([idbPutThread(nextThread), pushThreadToServer(nextThread)])
+  } else {
+    saveThreadsMirrorToStorage()
+    await idbPutThread(nextThread)
+  }
+  return nextThread
+}
+
 export async function autoSaveChatThread({
   chatId,
   messages,
   lang,
   filterLabel,
   preferredNotebookId,
+  activePriceSheetContext,
 }: {
   chatId: string
   messages: StoredChatMessage[]
   lang: 'ar' | 'en'
   filterLabel?: string
   preferredNotebookId?: string | null
+  activePriceSheetContext?: ActivePriceSheetThreadContext | null
 }): Promise<FeryalChatSummary | null> {
   const userMessages = messages.filter(
     (m) =>
@@ -880,6 +958,11 @@ export async function autoSaveChatThread({
     .join(' ')
     .slice(0, 6000)
 
+  const resolvedPriceSheetContext =
+    activePriceSheetContext !== undefined
+      ? activePriceSheetContext
+      : existingThread?.activePriceSheetContext
+
   const thread: FeryalChatThread = {
     id: chatId,
     title,
@@ -893,6 +976,9 @@ export async function autoSaveChatThread({
     createdAt: existingSummary?.createdAt || existingThread?.createdAt || nowIso,
     updatedAt: nowIso,
     messages,
+    ...(resolvedPriceSheetContext !== undefined
+      ? { activePriceSheetContext: resolvedPriceSheetContext }
+      : {}),
   }
 
   threadMemoryCache.set(chatId, thread)

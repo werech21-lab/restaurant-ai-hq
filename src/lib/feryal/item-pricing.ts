@@ -7,9 +7,11 @@ import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   areSkuBrandsCompatible,
   brandIdForPosRoot,
+  hasCompatibleFlavorProteinTokens,
   hasCompatibleSizePackTokens,
   hasCrossBrandAmbiguity,
   inferBrandIdFromSkuName,
+  normalizeSkuMenuLabel,
   resolveCanonicalBrandId,
   type CanonicalFeryalBrandId,
 } from '@/lib/feryal/sku-matcher-guard'
@@ -294,6 +296,8 @@ export function parseProposedPrices(question: string): ProposedPrice[] {
 }
 
 function foldName(value: string): string {
+  const normalized = normalizeSkuMenuLabel(value)
+  if (normalized) return normalized
   return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
@@ -330,6 +334,9 @@ export function matchProposedPrice(
       return false
     }
     if (!hasCompatibleSizePackTokens(proposal.label, row.name)) {
+      return false
+    }
+    if (!hasCompatibleFlavorProteinTokens(proposal.label, row.name)) {
       return false
     }
     const name = foldName(stripLeadingCode(row.name))
