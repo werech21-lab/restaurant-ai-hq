@@ -1,4 +1,5 @@
 import { getKuwaitTodayIso } from '../aether/period-delta'
+import { logger } from '../logger'
 import {
   companyPosRegisterIds,
   posOrderNet,
@@ -593,7 +594,8 @@ export const YEAR_CLOSED_READ_TIMEOUT_MS = 45_000
  */
 export const YEAR_CLOSED_TTL_MS = 24 * 60 * 60 * 1000
 export const YEAR_CLOSED_MAX = 128
-const YEAR_CLOSED_L2_IO_TIMEOUT_MS = 1_500
+export const YEAR_CLOSED_L2_IO_TIMEOUT_MS = 5_000
+const MAX_L2_ERROR_REASON_LENGTH = 200
 
 /**
  * Yearly payments stay grouped by session and method so each branch keeps its
@@ -695,17 +697,31 @@ export interface YearClosedCacheEntry<T = unknown> {
   at: number
 }
 
+export type YearClosedAfterScheduler = (task: () => Promise<void>) => void
+
 export interface YearClosedPersistentStore {
   get(key: string): Promise<YearClosedCacheEntry | undefined>
   set(key: string, entry: YearClosedCacheEntry): Promise<void>
   clear?(): Promise<void>
+  scheduleAfter?: YearClosedAfterScheduler
+}
+
+export interface YearClosedL2IoOptions {
+  timeoutMs?: number
+}
+
+interface BoundedL2TimeoutMeta {
+  operation: 'get' | 'set'
+  cacheKey: string
 }
 
 interface YearClosedGlobalState {
   __vfYearClosedRowsCache?: Map<string, YearClosedCacheEntry>
   __vfYearClosedInflight?: Map<string, Promise<unknown[]>>
+  __vfYearClosedInflightWrites?: Map<string, Promise<void>>
   __vfYearClosedPersistentStore?: YearClosedPersistentStore | null
   __vfYearClosedDefaultPersistentStore?: YearClosedPersistentStore | null
+  __vfYearClosedAfterScheduler?: YearClosedAfterScheduler | null
 }
 
 const globalForYearClosed = globalThis as unknown as YearClosedGlobalState
@@ -724,8 +740,66 @@ function getYearClosedInflightMap(): Map<string, Promise<unknown[]>> {
   return globalForYearClosed.__vfYearClosedInflight
 }
 
+function getYearClosedInflightWritesMap(): Map<string, Promise<void>> {
+  if (!globalForYearClosed.__vfYearClosedInflightWrites) {
+    globalForYearClosed.__vfYearClosedInflightWrites = new Map<string, Promise<void>>()
+  }
+  return globalForYearClosed.__vfYearClosedInflightWrites
+}
+
+function extractSafeL2ErrorCode(error: unknown): string | undefined {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    /^[A-Z0-9_]{1,32}$/i.test(error.code)
+  ) {
+    return error.code
+  }
+  return undefined
+}
+
+function sanitizeL2ErrorReason(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : 'l2_store_error'
+  const sanitized = raw
+    .replace(/\bpostgres(?:ql)?:\/\/[^\s'")\],;]+/gi, '[redacted-db-url]')
+    .replace(/\b[A-Za-z0-9._%+-]+:[^\s@'")\],;]+@[^\s'")\],;]+/g, '[redacted-credentials]')
+    .replace(
+      /\b(?:password|passwd|pwd|secret|token|api[_-]?key)\s*[:=]\s*[^\s,;)\]]+/gi,
+      '[redacted-secret]',
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!sanitized) {
+    return 'l2_store_error'
+  }
+  return sanitized.length > MAX_L2_ERROR_REASON_LENGTH
+    ? `${sanitized.slice(0, MAX_L2_ERROR_REASON_LENGTH - 3)}...`
+    : sanitized
+}
+
+function resolveL2TimeoutMs(timeoutOrOptions?: number | YearClosedL2IoOptions): number {
+  const raw =
+    typeof timeoutOrOptions === 'number' ? timeoutOrOptions : timeoutOrOptions?.timeoutMs
+  return typeof raw === 'number' && Number.isFinite(raw) && raw > 0
+    ? raw
+    : YEAR_CLOSED_L2_IO_TIMEOUT_MS
+}
+
 export function registerDefaultYearClosedPersistentStore(store: YearClosedPersistentStore): void {
   globalForYearClosed.__vfYearClosedDefaultPersistentStore = store
+}
+
+export function registerDefaultYearClosedAfterScheduler(
+  scheduler: YearClosedAfterScheduler,
+): void {
+  globalForYearClosed.__vfYearClosedAfterScheduler = scheduler
 }
 
 export function configureYearClosedPersistentStore(
@@ -757,9 +831,30 @@ export function clearYearClosedMemoryCache(): void {
 export function clearYearClosedCache(options?: { memoryOnly?: boolean }): void {
   clearYearClosedMemoryCache()
   if (!options?.memoryOnly) {
+    const inflightWrites = getYearClosedInflightWritesMap()
+    const pendingWrites = [...inflightWrites.values()]
+    inflightWrites.clear()
     const store = getYearClosedPersistentStore()
     if (store?.clear) {
-      void store.clear().catch(() => {})
+      const runClear = () => {
+        const clearStartedAt = Date.now()
+        void (async () => store.clear?.())().catch((error: unknown) => {
+          const durationMs = Math.max(0, Math.round(Date.now() - clearStartedAt))
+          const code = extractSafeL2ErrorCode(error)
+          logger.warn('Closed-year L2 cache operation fell back to L1 memory', {
+            operation: 'clear',
+            durationMs,
+            errorName: error instanceof Error ? error.name : 'StoreError',
+            reason: sanitizeL2ErrorReason(error),
+            ...(code ? { code } : {}),
+          })
+        })
+      }
+      if (pendingWrites.length === 0) {
+        runClear()
+      } else {
+        void Promise.allSettled(pendingWrites).then(runClear)
+      }
     }
   }
 }
@@ -769,6 +864,10 @@ export function getYearClosedCacheStats(): { memorySize: number; inflightSize: n
     memorySize: getYearClosedRowsMap().size,
     inflightSize: getYearClosedInflightMap().size,
   }
+}
+
+export function getYearClosedInflightWriteCount(): number {
+  return getYearClosedInflightWritesMap().size
 }
 
 function readYearClosedCache(key: string, now: number): unknown[] | undefined {
@@ -799,20 +898,57 @@ function writeYearClosedCache(key: string, rows: unknown[], now: number): void {
 }
 
 async function withBoundedL2Timeout<T>(
-  operation: Promise<T>,
+  operationFactory: () => Promise<T>,
   fallback: T,
   timeoutMs = YEAR_CLOSED_L2_IO_TIMEOUT_MS,
+  meta?: BoundedL2TimeoutMeta,
 ): Promise<T> {
+  const startedAt = Date.now()
+  let settled = false
   let timer: ReturnType<typeof setTimeout> | undefined
-  const safeOperation = operation.then(
-    (value) => value,
-    () => fallback,
+
+  const safeOperation = (async () => operationFactory())().then(
+    (value) => {
+      settled = true
+      return value
+    },
+    (error: unknown) => {
+      const timedOutAlready = settled
+      settled = true
+      if (!timedOutAlready && meta) {
+        const durationMs = Math.max(0, Math.round(Date.now() - startedAt))
+        const code = extractSafeL2ErrorCode(error)
+        logger.warn('Closed-year L2 cache operation fell back to L1 memory', {
+          operation: meta.operation,
+          durationMs,
+          errorName: error instanceof Error ? error.name : 'StoreError',
+          reason: sanitizeL2ErrorReason(error),
+          ...(code ? { code } : {}),
+        })
+      }
+      return fallback
+    },
   )
+
   try {
     return await Promise.race([
       safeOperation,
       new Promise<T>((resolve) => {
-        timer = setTimeout(() => resolve(fallback), timeoutMs)
+        timer = setTimeout(() => {
+          if (!settled) {
+            settled = true
+            if (meta) {
+              const durationMs = Math.max(0, Math.round(Date.now() - startedAt))
+              logger.warn('Closed-year L2 cache operation timed out', {
+                operation: meta.operation,
+                reason: 'l2_io_timeout',
+                timeoutMs,
+                durationMs,
+              })
+            }
+          }
+          resolve(fallback)
+        }, timeoutMs)
       }),
     ])
   } finally {
@@ -825,10 +961,21 @@ async function withBoundedL2Timeout<T>(
 export async function readYearClosedPersistentEntry<T = unknown>(
   key: string,
   now = Date.now(),
+  timeoutOrOptions?: number | YearClosedL2IoOptions,
 ): Promise<YearClosedCacheEntry<T> | undefined> {
+  const pendingWrite = getYearClosedInflightWritesMap().get(key)
+  if (pendingWrite) {
+    await pendingWrite.catch(() => {})
+  }
   const store = getYearClosedPersistentStore()
   if (!store) return undefined
-  const persisted = await withBoundedL2Timeout(store.get(key), undefined)
+  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
+  const persisted = await withBoundedL2Timeout(
+    () => store.get(key),
+    undefined,
+    timeoutMs,
+    { operation: 'get', cacheKey: key },
+  )
   if (
     !persisted ||
     !Array.isArray(persisted.rows) ||
@@ -846,10 +993,32 @@ export async function readYearClosedPersistentEntry<T = unknown>(
 export async function writeYearClosedPersistentEntry<T = unknown>(
   key: string,
   entry: YearClosedCacheEntry<T>,
+  timeoutOrOptions?: number | YearClosedL2IoOptions,
 ): Promise<void> {
   const store = getYearClosedPersistentStore()
   if (!store) return
-  await withBoundedL2Timeout(store.set(key, entry), undefined)
+  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
+  const inflightWrites = getYearClosedInflightWritesMap()
+  const previousWrite = inflightWrites.get(key)
+  const trackedWrite = (async () => {
+    if (previousWrite) {
+      await previousWrite.catch(() => {})
+    }
+    const activeStore = getYearClosedPersistentStore()
+    if (!activeStore) return
+    await withBoundedL2Timeout(
+      () => activeStore.set(key, entry),
+      undefined,
+      timeoutMs,
+      { operation: 'set', cacheKey: key },
+    )
+  })().finally(() => {
+    if (inflightWrites.get(key) === trackedWrite) {
+      inflightWrites.delete(key)
+    }
+  })
+  inflightWrites.set(key, trackedWrite)
+  await trackedWrite
 }
 
 /**
@@ -866,6 +1035,8 @@ export async function readClosedYearPlusToday<T>(input: {
   read: (window: UtcWindow) => Promise<T[]>
   merge: (rows: readonly T[]) => T[]
   nowMs?: number
+  l2TimeoutMs?: number
+  scheduleAfter?: (task: () => Promise<void>) => void
 }): Promise<T[]> {
   const now = input.nowMs ?? Date.now()
   let closedRows: T[] = []
@@ -882,7 +1053,11 @@ export async function readClosedYearPlusToday<T>(input: {
           const recheck = readYearClosedCache(input.cacheKey, now)
           if (recheck) return recheck
 
-          const persisted = await readYearClosedPersistentEntry(input.cacheKey, now)
+          const persisted = await readYearClosedPersistentEntry(
+            input.cacheKey,
+            now,
+            input.l2TimeoutMs,
+          )
           if (persisted) {
             writeYearClosedCache(input.cacheKey, persisted.rows, persisted.at)
             return persisted.rows
@@ -890,7 +1065,24 @@ export async function readClosedYearPlusToday<T>(input: {
 
           const fetched = await input.read(closedWindow)
           writeYearClosedCache(input.cacheKey, fetched, now)
-          await writeYearClosedPersistentEntry(input.cacheKey, { rows: fetched, at: now })
+          const persistPromise = writeYearClosedPersistentEntry(
+            input.cacheKey,
+            { rows: fetched, at: now },
+            input.l2TimeoutMs,
+          )
+          const scheduler =
+            input.scheduleAfter ??
+            getYearClosedPersistentStore()?.scheduleAfter ??
+            globalForYearClosed.__vfYearClosedAfterScheduler
+          if (scheduler) {
+            try {
+              scheduler(() => persistPromise)
+            } catch {
+              await persistPromise
+            }
+          } else {
+            await persistPromise
+          }
           return fetched
         })().finally(() => {
           if (inflight.get(input.cacheKey) === pending) {

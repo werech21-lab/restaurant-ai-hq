@@ -8,14 +8,21 @@ import { logger } from '@/lib/logger'
 import {
   CLOSED_YEAR_CACHE_KEY_PREFIX,
   CLOSED_YEAR_CACHE_TABLE,
+  CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS,
+  CLOSED_YEAR_PG_READ_COOLDOWN_MS,
   buildClosedYearStorageKey,
+  createCooldownAwarePostgresYearClosedStore,
   createPostgresYearClosedStore,
   extractSafePgErrorCode,
   getClosedYearRowsFromStore,
+  sanitizeClosedYearErrorReason,
   setClosedYearRowsInStore,
+  type ClosedYearHealthState,
   type ClosedYearSqlQueryable,
+  type ClosedYearStoreFailureEvent,
 } from '@/lib/odoo/closed-year-store'
 import {
+  YEAR_CLOSED_L2_IO_TIMEOUT_MS,
   YEAR_CLOSED_MAX,
   YEAR_CLOSED_READ_TIMEOUT_MS,
   YEAR_CLOSED_TTL_MS,
@@ -23,8 +30,11 @@ import {
   clearYearClosedMemoryCache,
   configureYearClosedPersistentStore,
   getYearClosedCacheStats,
+  getYearClosedInflightWriteCount,
   mergeProductLineGroups,
   readClosedYearPlusToday,
+  readYearClosedPersistentEntry,
+  writeYearClosedPersistentEntry,
   yearClosedWindow,
   yearReadCall,
   type UtcWindow,
@@ -1038,5 +1048,481 @@ describe('year closed-day cache & dedicated vf_odoo_closed_year_cache L2 table (
     expect(closedYearPaymentRpcCount).toBe(20)
     expect(closedYearOrderRpcCount).toBe(2)
     expect(todayLiveSliceRpcCount).toBeGreaterThan(firstTodaySlices)
+  })
+
+  it('Test 5a: L2 Postgres connect timeout and L2 I/O timeout are raised from 1,500ms to 5,000ms while preserving 30,000ms read cooldown and client-safe pos-order-query boundary', async () => {
+    expect(CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS).toBe(5_000)
+    expect(CLOSED_YEAR_PG_READ_COOLDOWN_MS).toBe(30_000)
+    expect(YEAR_CLOSED_L2_IO_TIMEOUT_MS).toBe(5_000)
+
+    const storeSource = await readFile(
+      path.join(process.cwd(), 'src', 'lib', 'odoo', 'closed-year-store.ts'),
+      'utf8',
+    )
+    expect(storeSource).toContain('connectionTimeoutMillis: CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS')
+    expect(storeSource).not.toContain('connectionTimeoutMillis: 1_500')
+    expect(storeSource).toContain("import { after } from 'next/server'")
+    expect(storeSource).toContain('registerDefaultYearClosedAfterScheduler(')
+
+    const posQuerySource = await readFile(
+      path.join(process.cwd(), 'src', 'lib', 'odoo', 'pos-order-query.ts'),
+      'utf8',
+    )
+    expect(posQuerySource).not.toContain('next/server')
+    expect(posQuerySource).not.toContain('server-only')
+  })
+
+  it('Test 5b: Production cold-start bug proof — cold L2 get timeout trips 30s read cooldown, 20s Odoo cold pull completes within cooldown, L2 set STILL writes vf_odoo_closed_year_cache, heals health, and serves next cold start with 0 Odoo closed-year RPCs (plus non-blocking after() persistence)', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    const closedWindow = yearClosedWindow('2026-01-01 00:00:00', '2026-11-19 00:00:00')
+    const todayWindow: UtcWindow = {
+      fromUtc: '2026-11-19 00:00:00',
+      toUtc: '2026-11-20 00:00:00',
+    }
+
+    // --- Scenario A: Queryable connection timeout on cold get trips 30s read cooldown ---
+    const backingPgA = createInMemoryClosedYearCacheTable({ tableAlreadyExists: true })
+    let clockMs = Date.parse('2026-11-20T10:00:00.000Z')
+    const healthStateA: ClosedYearHealthState = {}
+    let resolveQueryableCallsA = 0
+    let failInitialColdSelect = true
+
+    const coldTimeoutQueryableA: ClosedYearSqlQueryable = {
+      async query<R extends Record<string, unknown> = Record<string, unknown>>(
+        text: string,
+        params?: unknown[],
+      ): Promise<{ rows: R[] }> {
+        if (failInitialColdSelect && /^\s*SELECT\b/i.test(text)) {
+          failInitialColdSelect = false
+          clockMs += CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS
+          const err = Object.assign(
+            new Error('Connection terminated due to connection timeout'),
+            { code: 'ETIMEDOUT' },
+          )
+          throw err
+        }
+        return backingPgA.queryable.query<R>(text, params)
+      },
+    }
+
+    const storeA = createCooldownAwarePostgresYearClosedStore(
+      () => {
+        resolveQueryableCallsA += 1
+        return coldTimeoutQueryableA
+      },
+      {
+        now: () => clockMs,
+        state: healthStateA,
+      },
+    )
+    configureYearClosedPersistentStore(storeA)
+
+    const cacheKeyA = 'year.net|1|8,17,24,36|2026-11-20|cold-timeout-a'
+    const storageKeyA = buildClosedYearStorageKey(cacheKeyA)
+    let closedOdooRpcCountA = 0
+    let todayOdooRpcCountA = 0
+    let concurrentGetDuringCooldown: unknown = 'not-run'
+    let resolveCountBeforeCooldownGet = 0
+    let resolveCountAfterCooldownGet = 0
+
+    const readOdooA = async (window: UtcWindow) => {
+      if (window.fromUtc.startsWith('2026-01-01')) {
+        closedOdooRpcCountA += 1
+        // Initial cold get just failed at +5s, marking healthStateA.healthy === false
+        expect(healthStateA.healthy).toBe(false)
+
+        // At +8s (3s into 30s cooldown), another get MUST be skipped immediately without touching pool/queryable
+        clockMs += 3_000
+        resolveCountBeforeCooldownGet = resolveQueryableCallsA
+        concurrentGetDuringCooldown = await storeA.get('year.other|skipped-during-read-cooldown')
+        resolveCountAfterCooldownGet = resolveQueryableCallsA
+
+        // Simulate remaining ~17s of a 20s Odoo cold pull (total elapsed since get failure = 20s < 30s cooldown!)
+        clockMs += 17_000
+        expect(clockMs - (healthStateA.checkedAt ?? 0)).toBe(20_000)
+        expect(clockMs - (healthStateA.checkedAt ?? 0)).toBeLessThan(
+          CLOSED_YEAR_PG_READ_COOLDOWN_MS,
+        )
+
+        return [
+          {
+            product_id: [88, 'Braised Beef Noodle'] as [number, string],
+            price_subtotal: 18_500,
+            qty: 1_850,
+          },
+        ]
+      }
+      todayOdooRpcCountA += 1
+      return [
+        {
+          product_id: [88, 'Braised Beef Noodle'] as [number, string],
+          price_subtotal: 120,
+          qty: 12,
+        },
+      ]
+    }
+
+    const coldResultA = await readClosedYearPlusToday({
+      cacheKey: cacheKeyA,
+      closed: closedWindow,
+      today: todayWindow,
+      read: readOdooA,
+      merge: mergeProductLineGroups,
+      nowMs: clockMs,
+    })
+
+    expect(coldResultA[0]?.price_subtotal).toBe(18_620)
+    expect(closedOdooRpcCountA).toBe(1)
+    expect(todayOdooRpcCountA).toBe(1)
+    // Read during 30s cooldown was skipped without resolving queryable
+    expect(concurrentGetDuringCooldown).toBeUndefined()
+    expect(resolveCountAfterCooldownGet).toBe(resolveCountBeforeCooldownGet)
+    // L2 set at +20s (< 30s cooldown!) bypassed read cooldown, persisted to vf_odoo_closed_year_cache, and healed health!
+    expect(backingPgA.upsertCount()).toBe(1)
+    expect(backingPgA.rowsByCacheKey.has(storageKeyA)).toBe(true)
+    expect(healthStateA.healthy).toBe(true)
+
+    // Brand-new serverless instance cold start 1s later (+21s since initial get failure, STILL inside original 30s window!)
+    clockMs += 1_000
+    clearYearClosedMemoryCache()
+    expect(getYearClosedCacheStats().memorySize).toBe(0)
+
+    const nextColdStartResultA = await readClosedYearPlusToday({
+      cacheKey: cacheKeyA,
+      closed: closedWindow,
+      today: todayWindow,
+      read: readOdooA,
+      merge: mergeProductLineGroups,
+      nowMs: clockMs,
+    })
+    expect(nextColdStartResultA[0]?.price_subtotal).toBe(18_620)
+    expect(closedOdooRpcCountA).toBe(1) // ZERO additional Odoo closed-year RPCs!
+    expect(todayOdooRpcCountA).toBe(2)
+    expect(backingPgA.selectCount()).toBe(1)
+
+    // --- Scenario B: withBoundedL2Timeout timer wins race on cold get AND late queryable rejection trips 30s cooldown ---
+    const backingPgB = createInMemoryClosedYearCacheTable({ tableAlreadyExists: true })
+    let clockMsB = Date.parse('2026-11-20T11:00:00.000Z')
+    const healthStateB: ClosedYearHealthState = {}
+    let rejectHangingColdSelect: ((err: Error) => void) | null = null
+    let hangFirstSelect = true
+
+    const storeB = createCooldownAwarePostgresYearClosedStore(
+      () => ({
+        async query<R extends Record<string, unknown> = Record<string, unknown>>(
+          text: string,
+          params?: unknown[],
+        ): Promise<{ rows: R[] }> {
+          if (hangFirstSelect && /^\s*SELECT\b/i.test(text)) {
+            hangFirstSelect = false
+            return await new Promise<{ rows: R[] }>((_resolve, reject) => {
+              rejectHangingColdSelect = reject
+            })
+          }
+          return backingPgB.queryable.query<R>(text, params)
+        },
+      }),
+      {
+        now: () => clockMsB,
+        state: healthStateB,
+      },
+    )
+    configureYearClosedPersistentStore(storeB)
+    clearYearClosedMemoryCache()
+
+    const cacheKeyB = 'year.net|1|8,17,24,36|2026-11-20|cold-timeout-b'
+    let closedOdooRpcCountB = 0
+
+    const readOdooB = async (window: UtcWindow) => {
+      if (window.fromUtc.startsWith('2026-01-01')) {
+        closedOdooRpcCountB += 1
+        // First confirm withBoundedL2Timeout already logged the 20ms get timeout
+        expect(warnSpy).toHaveBeenCalledWith(
+          'Closed-year L2 cache operation timed out',
+          expect.objectContaining({
+            operation: 'get',
+            reason: 'l2_io_timeout',
+            timeoutMs: 20,
+          }),
+        )
+        // While Odoo 20s cold pull is running, the slow PG cold connect finally rejects and trips 30s read cooldown
+        clockMsB += 5_000
+        rejectHangingColdSelect?.(
+          Object.assign(new Error('SSL handshake timed out'), { code: '08006' }),
+        )
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+        expect(healthStateB.healthy).toBe(false)
+
+        // Advance another 15s (total 20s Odoo pull; 15s < 30s read cooldown!)
+        clockMsB += 15_000
+        return [
+          {
+            product_id: [99, 'Crispy Duck'] as [number, string],
+            price_subtotal: 9_400,
+            qty: 470,
+          },
+        ]
+      }
+      return [
+        {
+          product_id: [99, 'Crispy Duck'] as [number, string],
+          price_subtotal: 100,
+          qty: 5,
+        },
+      ]
+    }
+
+    const firstResultB = await readClosedYearPlusToday({
+      cacheKey: cacheKeyB,
+      closed: closedWindow,
+      today: todayWindow,
+      read: readOdooB,
+      merge: mergeProductLineGroups,
+      nowMs: clockMsB,
+      l2TimeoutMs: 20,
+    })
+    expect(firstResultB[0]?.price_subtotal).toBe(9_500)
+    expect(closedOdooRpcCountB).toBe(1)
+    expect(backingPgB.upsertCount()).toBe(1)
+    expect(healthStateB.healthy).toBe(true)
+
+    // Cold instance hydration immediately afterward: 0 Odoo closed-year RPCs!
+    clearYearClosedMemoryCache()
+    const secondResultB = await readClosedYearPlusToday({
+      cacheKey: cacheKeyB,
+      closed: closedWindow,
+      today: todayWindow,
+      read: readOdooB,
+      merge: mergeProductLineGroups,
+      nowMs: clockMsB + 2_000,
+      l2TimeoutMs: 20,
+    })
+    expect(secondResultB[0]?.price_subtotal).toBe(9_500)
+    expect(closedOdooRpcCountB).toBe(1)
+
+    // --- Scenario C: Next.js after() schedules L2 write non-blockingly AND readYearClosedPersistentEntry awaits in-flight write if L1 clears ---
+    const backingPgC = createInMemoryClosedYearCacheTable({ tableAlreadyExists: true })
+    let releaseSlowSet: () => void = () => {}
+    const slowSetGate = new Promise<void>((resolve) => {
+      releaseSlowSet = resolve
+    })
+    const storeC = createCooldownAwarePostgresYearClosedStore(() => ({
+      async query<R extends Record<string, unknown> = Record<string, unknown>>(
+        text: string,
+        params?: unknown[],
+      ): Promise<{ rows: R[] }> {
+        if (/^\s*INSERT\b/i.test(text)) {
+          await slowSetGate
+        }
+        return backingPgC.queryable.query<R>(text, params)
+      },
+    }))
+    configureYearClosedPersistentStore(storeC)
+    clearYearClosedMemoryCache()
+
+    const scheduledAfterTasks: Array<() => Promise<void>> = []
+    let closedOdooRpcCountC = 0
+    const cacheKeyC = 'year.net|1|8,17,24,36|2026-11-20|nonblocking-after'
+
+    const immediateResponse = await readClosedYearPlusToday({
+      cacheKey: cacheKeyC,
+      closed: closedWindow,
+      today: todayWindow,
+      nowMs: clockMsB,
+      scheduleAfter: (task) => {
+        scheduledAfterTasks.push(task)
+      },
+      read: async (window) => {
+        if (window.fromUtc.startsWith('2026-01-01')) {
+          closedOdooRpcCountC += 1
+          return [{ product_id: [55, 'Dim Sum'] as [number, string], price_subtotal: 3_000, qty: 300 }]
+        }
+        return [{ product_id: [55, 'Dim Sum'] as [number, string], price_subtotal: 50, qty: 5 }]
+      },
+      merge: mergeProductLineGroups,
+    })
+
+    // User response returned IMMEDIATELY before slow L2 INSERT finished!
+    expect(immediateResponse[0]?.price_subtotal).toBe(3_050)
+    expect(scheduledAfterTasks).toHaveLength(1)
+    expect(backingPgC.upsertCount()).toBe(0)
+    expect(getYearClosedInflightWriteCount()).toBe(1)
+
+    // Clear L1 RAM while L2 persistPromise is STILL settling in background, then start a concurrent cold read
+    clearYearClosedMemoryCache()
+    const coldReadWhilePersisting = readClosedYearPlusToday({
+      cacheKey: cacheKeyC,
+      closed: closedWindow,
+      today: todayWindow,
+      nowMs: clockMsB + 500,
+      read: async (window) => {
+        if (window.fromUtc.startsWith('2026-01-01')) {
+          closedOdooRpcCountC += 1
+          return [{ product_id: [55, 'Dim Sum'] as [number, string], price_subtotal: 3_000, qty: 300 }]
+        }
+        return [{ product_id: [55, 'Dim Sum'] as [number, string], price_subtotal: 50, qty: 5 }]
+      },
+      merge: mergeProductLineGroups,
+    })
+
+    releaseSlowSet()
+    await Promise.all(scheduledAfterTasks.map((fn) => fn()))
+    const hydratedAfterInflightWrite = await coldReadWhilePersisting
+
+    expect(hydratedAfterInflightWrite[0]?.price_subtotal).toBe(3_050)
+    expect(backingPgC.upsertCount()).toBe(1)
+    expect(getYearClosedInflightWriteCount()).toBe(0)
+    expect(closedOdooRpcCountC).toBe(1) // Awaited in-flight L2 write and served from L2 with 0 extra Odoo RPCs!
+
+    warnSpy.mockRestore()
+  })
+
+  it('Test 5c: Structured logger.warn diagnostics emit operation, durationMs, sanitized reason, and SQLSTATE/system code on read/write/clear timeouts and connection errors', async () => {
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+
+    // 1) Sanitization strips embedded DB URLs, user:pass@host credentials, newlines, and caps length <= 200 chars
+    const proto = ['post', 'gresql://'].join('')
+    const credSegment = `${['db_admin', 'UltraSecret99!'].join(':')}@`
+    const noisyError = new Error(
+      `connect ETIMEDOUT\n  to ${proto}${credSegment}pooler.example.invalid:6543/app?sslmode=require   ` +
+        'extra_context_'.repeat(20),
+    )
+    const sanitized = sanitizeClosedYearErrorReason(noisyError)
+    expect(sanitized).not.toContain('UltraSecret99')
+    expect(sanitized).not.toContain(proto)
+    expect(sanitized).not.toContain('\n')
+    expect(sanitized).toContain('[redacted-db-url]')
+    expect(sanitized.length).toBeLessThanOrEqual(200)
+
+    // 2) Store read, write, and clear errors emit exact structured fields + invoke onFailure({ operation, durationMs, error })
+    let simulatedClock = 1_000_000
+    const capturedFailures: ClosedYearStoreFailureEvent[] = []
+    let nextFailureOp: 'get' | 'set' | 'clear' = 'get'
+
+    const failingStore = createCooldownAwarePostgresYearClosedStore(
+      () => ({
+        async query() {
+          if (nextFailureOp === 'get') {
+            simulatedClock += 5_000
+            const err = new Error('Connection terminated due to connection timeout') as Error & {
+              code?: string
+            }
+            err.name = 'ConnectionTimeoutError'
+            err.code = 'ETIMEDOUT'
+            throw err
+          }
+          if (nextFailureOp === 'set') {
+            simulatedClock += 1_250
+            const err = new Error(
+              `permission denied for table vf_odoo_closed_year_cache (${proto}${credSegment}db.example.invalid:6543/prod)`,
+            ) as Error & { code?: string }
+            err.name = 'DatabaseError'
+            err.code = '42501'
+            throw err
+          }
+          simulatedClock += 320
+          const err = new Error('terminating connection due to administrator command') as Error & {
+            code?: string
+          }
+          err.name = 'DatabaseError'
+          err.code = '57P01'
+          throw err
+        },
+      }),
+      {
+        now: () => simulatedClock,
+        onFailure: (event) => {
+          capturedFailures.push(event)
+        },
+      },
+    )
+
+    nextFailureOp = 'get'
+    expect(await failingStore.get('diag-key')).toBeUndefined()
+
+    // Advance <30s: set and clear STILL run despite prior get failure and log their own exact structured diagnostics!
+    simulatedClock += 10_000
+    nextFailureOp = 'set'
+    await failingStore.set('diag-key', { rows: [{ ok: 1 }], at: simulatedClock })
+
+    nextFailureOp = 'clear'
+    await failingStore.clear?.()
+
+    expect(capturedFailures.map((f) => ({ op: f.operation, ms: f.durationMs }))).toEqual([
+      { op: 'get', ms: 5_000 },
+      { op: 'set', ms: 1_250 },
+      { op: 'clear', ms: 320 },
+    ])
+
+    expect(warnSpy).toHaveBeenCalledTimes(3)
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      1,
+      'Closed-year L2 cache operation fell back to L1 memory',
+      {
+        operation: 'get',
+        durationMs: 5_000,
+        errorName: 'ConnectionTimeoutError',
+        reason: 'Connection terminated due to connection timeout',
+        code: 'ETIMEDOUT',
+      },
+    )
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      2,
+      'Closed-year L2 cache operation fell back to L1 memory',
+      {
+        operation: 'set',
+        durationMs: 1_250,
+        errorName: 'DatabaseError',
+        reason:
+          'permission denied for table vf_odoo_closed_year_cache ([redacted-db-url])',
+        code: '42501',
+      },
+    )
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      3,
+      'Closed-year L2 cache operation fell back to L1 memory',
+      {
+        operation: 'clear',
+        durationMs: 320,
+        errorName: 'DatabaseError',
+        reason: 'terminating connection due to administrator command',
+        code: '57P01',
+      },
+    )
+
+    // 3) withBoundedL2Timeout emits structured l2_io_timeout warning for both get and set when timer wins race
+    warnSpy.mockClear()
+    const neverSettlingStore: YearClosedPersistentStore = {
+      get: () => new Promise(() => {}),
+      set: () => new Promise(() => {}),
+    }
+    configureYearClosedPersistentStore(neverSettlingStore)
+
+    expect(await readYearClosedPersistentEntry('timeout-get-key', Date.now(), 20)).toBeUndefined()
+    await writeYearClosedPersistentEntry('timeout-set-key', { rows: [], at: Date.now() }, 25)
+
+    expect(warnSpy).toHaveBeenCalledTimes(2)
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      1,
+      'Closed-year L2 cache operation timed out',
+      expect.objectContaining({
+        operation: 'get',
+        reason: 'l2_io_timeout',
+        timeoutMs: 20,
+        durationMs: expect.any(Number),
+      }),
+    )
+    expect(warnSpy).toHaveBeenNthCalledWith(
+      2,
+      'Closed-year L2 cache operation timed out',
+      expect.objectContaining({
+        operation: 'set',
+        reason: 'l2_io_timeout',
+        timeoutMs: 25,
+        durationMs: expect.any(Number),
+      }),
+    )
+
+    warnSpy.mockRestore()
   })
 })
