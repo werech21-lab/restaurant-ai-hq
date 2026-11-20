@@ -430,6 +430,7 @@ const DISH_STOPWORDS = new Set([
   'of',
   'a',
   'an',
+  'why',
   'مع',
   'في',
   'من',
@@ -437,6 +438,23 @@ const DISH_STOPWORDS = new Set([
   'علي',
   'الى',
   'عن',
+  'ليش',
+  'وليش',
+  'لماذا',
+  'ولماذا',
+  'ليه',
+  'وليه',
+  'شو',
+  'وشو',
+  'شنو',
+  'وشنو',
+  'وش',
+  'كيف',
+  'وكيف',
+  'شلون',
+  'وشلون',
+  'هل',
+  'وهل',
 ])
 
 const GENERIC_NON_DISH_TARGETS = new Set([
@@ -551,17 +569,31 @@ export function translateDishToken(rawToken: string): string {
   return norm
 }
 
-function stripTrailingScopeClause(rawPhrase: string): string {
+export function stripDishInterrogativeTail(rawPhrase: string): string {
   return rawPhrase
+    .replace(/[؟?،,!؛"«»]+/g, ' ')
     .replace(
-      /\s+(?:في|لدى|لدي|عند|بفرع|فرع|لعلامه|لعلامة|بعلامه|بعلامة|علامه|علامة|لبراند|براند|خلال|لهذا|هذا|هذه|الشهر|الاسبوع|الأسبوع|السنه|السنة|العام|اليوم|امس|أمس|اخر\s+\d+|آخر\s+\d+|وما|وكم|ومقارن)(?=[\s؟?.,!؛:]|$).*$/iu,
+      /\s+(?:وليش|ليش|ولماذا|لماذا|وليه|ليه|وشنو\s+السبب|شنو\s+السبب|وشو\s+السبب|شو\s+السبب|وما\s+هو\s+السبب|وما\s+السبب|ما\s+السبب|وكيف|وشلون|وهل|علشان\s+ايه|عشان\s+ايه|عشان\s+شنو|عشان\s+شو|بسبب\s+شنو|بسبب\s+شو)(?=\s|$).*$/iu,
       '',
     )
-    .replace(
-      /\s+(?:in|at|for|from|during|this|last)\s+(?:china\s+garden|frank'?s?|tahina|farm\s+brown|the\s+noodle\s+bar|noodle\s+bar|karak\s+cafeteria|rice|360\s+mall|avenues|salmiya|al[- ]?kout|ardiya|promenade|assima|month|week|year|today|yesterday|odoo)\b.*$/i,
-      '',
-    )
+    .replace(/\s+(?:and\s+why|why\s+is\s+that|why)(?=\s|$).*$/i, '')
+    .replace(/\s+/g, ' ')
     .trim()
+}
+
+function stripTrailingScopeClause(rawPhrase: string): string {
+  return stripDishInterrogativeTail(
+    rawPhrase
+      .replace(
+        /\s+(?:في|لدى|لدي|عند|بفرع|فرع|لعلامه|لعلامة|بعلامه|بعلامة|علامه|علامة|لبراند|براند|خلال|لهذا|هذا|هذه|الشهر|الاسبوع|الأسبوع|السنه|السنة|العام|اليوم|امس|أمس|اخر\s+\d+|آخر\s+\d+|وما|وكم|ومقارن|وليش|ليش|ولماذا|لماذا|وليه|ليه)(?=[\s؟?.,!؛:]|$).*$/iu,
+        '',
+      )
+      .replace(
+        /\s+(?:in|at|for|from|during|this|last)\s+(?:china\s+garden|frank'?s?|tahina|farm\s+brown|the\s+noodle\s+bar|noodle\s+bar|karak\s+cafeteria|rice|360\s+mall|avenues|salmiya|al[- ]?kout|ardiya|promenade|assima|month|week|year|today|yesterday|odoo)\b.*$/i,
+        '',
+      )
+      .trim(),
+  )
 }
 
 export function canonicalizeDishLabel(rawLabel: string): { text: string; tokens: string[] } {

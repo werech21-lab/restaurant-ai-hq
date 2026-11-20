@@ -110,6 +110,7 @@ import {
   APPROVED_FERYAL_CHANNEL_LIST,
   buildFeryalChatRequestPayload,
   buildFeryalConnectionErrorOutcome,
+  FERYAL_CONNECTION_ERROR_AR,
   parseFeryalChatHttpResponse,
 } from '@/lib/feryal-intent'
 import {
@@ -1370,18 +1371,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           })
 
           const replyText =
-            visionRes?.reply ||
-            (isAr
-              ? 'تعذّر إتمام الفحص البصري حالياً — يرجى إعادة المحاولة.'
-              : 'Could not complete visual inspection right now — please retry.')
+            visionRes?.reply || FERYAL_CONNECTION_ERROR_AR
           const tier: VisionComplianceTier | undefined = visionRes?.complianceTier
           const badgeLabel = visionRes
             ? isAr
               ? visionRes.engineLabelAr
               : visionRes.engineLabelEn
-            : isAr
-              ? 'فحص الصور والفيديو'
-              : 'Vision Inspector'
+            : 'تعذّر الاتصال'
 
           const feryalMsg: ChatUiMessage = {
             id: nextUiId('f'),

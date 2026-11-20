@@ -115,6 +115,7 @@ import {
 import {
   clearYearClosedMemoryCache,
   configureYearClosedPersistentStore,
+  flushYearClosedInflightWrites,
   readClosedYearPlusToday,
   YEAR_CLOSED_L2_IO_TIMEOUT_MS,
 } from '@/lib/odoo/pos-order-query'
@@ -278,6 +279,7 @@ describe('Cross-Cutting Bundle Gate — L2 Cache Timeout + 7-Point Follow-Up Bun
 
     expect(first).toHaveLength(2)
     expect(closedRpcCalls).toBe(1)
+    await flushYearClosedInflightWrites()
     expect(healthState.healthy).toBe(true)
 
     clearYearClosedMemoryCache()
