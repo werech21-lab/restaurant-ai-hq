@@ -269,7 +269,7 @@ export function AdminPosTerminalMappingPanel({
           ? 'اكتشاف وربط أجهزة نقاط البيع غير المصنّفة'
           : 'Auto-Discovered Unmapped Odoo 17 POS Terminals'
       }
-      className="ae-bento-card space-y-4 rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.12]"
+      className="ae-bento-card relative overflow-visible min-w-0 space-y-4 rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.12]"
     >
       {/* Header Row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -432,7 +432,7 @@ export function AdminPosTerminalMappingPanel({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.06]">
+            <tbody className="divide-y divide-slate-200/70 tabular-nums dark:divide-white/[0.06]">
               {unmappedTerminals.map((term) => {
                 const chosenBranch =
                   selectedBranches[term.terminal_id] ??
@@ -448,11 +448,11 @@ export function AdminPosTerminalMappingPanel({
                   >
                     <td
                       dir="ltr"
-                      className="px-3.5 py-2.5 font-mono text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200"
+                      className="whitespace-nowrap px-3.5 py-2.5 font-mono text-xs font-bold tabular-nums text-slate-700 dark:text-slate-200"
                     >
                       #{term.terminal_id}
                     </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-slate-900 dark:text-white">
+                    <td className="max-w-[240px] truncate px-3.5 py-2.5 font-semibold text-slate-900 dark:text-white">
                       {term.terminal_name}
                     </td>
                     <td

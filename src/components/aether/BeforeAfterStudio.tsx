@@ -621,7 +621,10 @@ export function BeforeAfterStudio() {
                   }
                 >
                   <td className="max-w-[220px] px-4 py-3">
-                    <div className="truncate font-semibold text-slate-900 dark:text-white">
+                    <div
+                      className="truncate font-semibold text-slate-900 dark:text-white"
+                      title={isAr ? r.nameAr : r.nameEn}
+                    >
                       {isAr ? r.nameAr : r.nameEn}
                     </div>
                     <div className="truncate text-xs text-slate-500">
@@ -860,7 +863,10 @@ export function BeforeAfterStudio() {
                     className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5 dark:border-slate-800 dark:bg-slate-900/95"
                   >
                     <div className="flex items-start justify-between gap-1.5">
-                      <span className="min-w-0 truncate text-[12px] font-semibold text-neutral-500 sm:text-[12.5px] dark:text-slate-300">
+                      <span
+                        className="min-w-0 truncate text-[12px] font-semibold text-neutral-500 sm:text-[12.5px] dark:text-slate-300"
+                        title={isAr ? kpi.labelAr : kpi.labelEn}
+                      >
                         {isAr ? kpi.labelAr : kpi.labelEn}
                       </span>
                       {kpi.isFavorable ? (
@@ -924,7 +930,7 @@ export function BeforeAfterStudio() {
                 ? `المنحنى الزمني للمقارنة — ${dateRangeBadge}`
                 : `Before vs After Period Trend — ${dateRangeBadge}`
             }
-            className="ae-bento-card rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95"
+            className="ae-bento-card relative overflow-visible rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95"
           >
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -1095,7 +1101,7 @@ export function BeforeAfterStudio() {
           </section>
 
           {/* 2. Dimensional Before vs. After Variance Table (7 Branches + Unattributed, 6 Brands, Channels) */}
-          <section className="ae-bento-card space-y-5 rounded-2xl border border-slate-200/85 bg-white px-3.5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95">
+          <section className="ae-bento-card relative overflow-visible space-y-5 rounded-2xl border border-slate-200/85 bg-white px-3.5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6 dark:border-slate-800 dark:bg-slate-900/95">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[18px] font-extrabold tracking-tight text-neutral-950 dark:text-white">

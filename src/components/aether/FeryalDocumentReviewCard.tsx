@@ -266,7 +266,7 @@ export function FeryalDocumentReviewCard({
 
       {/* Review & Confirm Table */}
       <div className="max-h-72 overflow-x-auto overflow-y-auto rounded-xl bg-white ring-1 ring-slate-200/90 dark:bg-[#090E0C] dark:ring-white/10">
-        <table className="w-full border-collapse text-xs">
+        <table className="w-full min-w-[680px] border-collapse text-xs tabular-nums">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200">
               <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">

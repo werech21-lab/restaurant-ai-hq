@@ -78,6 +78,8 @@ import {
 } from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
 import { ChartCard, StateBlock } from '@/components/ui'
+import { CompactInfoTooltip } from '@/components/ui/compact-info-tooltip'
+import { DetailsPopover } from '@/components/ui/details-popover'
 import {
   UNAVAILABLE_DASH,
   formatInt,
@@ -87,54 +89,11 @@ import {
 } from '@/lib/format'
 import { describePosOrderQuery } from '@/lib/odoo/pos-order-query'
 
-function resolveDynamicKpiGridClass(count: number): string {
+export function resolveDynamicKpiGridClass(count: number): string {
   if (count <= 1) return 'grid-cols-1'
   if (count === 2) return 'grid-cols-1 md:grid-cols-2'
   if (count === 3 || count === 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-}
-
-function CompactInfoTooltip({
-  text,
-  label,
-  dataAttr,
-}: {
-  text: string
-  label: string
-  dataAttr?: 'net-profit-withheld' | 'ar-aging-hidden'
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <span
-      data-net-profit-withheld={dataAttr === 'net-profit-withheld' ? 'true' : undefined}
-      data-ar-aging-hidden={dataAttr === 'ar-aging-hidden' ? 'true' : undefined}
-      className="group relative inline-flex shrink-0 items-center"
-    >
-      <button
-        type="button"
-        aria-label={label}
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') setOpen(false)
-        }}
-        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-slate-100/90 text-slate-600 ring-1 ring-slate-300/70 transition-colors hover:bg-emerald-50 hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-600/60 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
-      >
-        <Info className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-      <span
-        role="tooltip"
-        className={`pointer-events-none absolute bottom-full end-0 z-40 mb-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200/95 bg-white p-2.5 text-start text-xs font-medium leading-relaxed text-slate-700 shadow-lg backdrop-blur-md transition-opacity duration-150 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
-          open
-            ? 'visible opacity-100'
-            : 'invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100'
-        }`}
-      >
-        {text}
-      </span>
-    </span>
-  )
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 interface EmeraldPillOption<K extends string> {
@@ -353,7 +312,9 @@ export function FullJourney360({
     isUnfilteredCompanyScope &&
     !glIncomplete &&
     gl.available &&
-    (hasPostedOperatingProfit || hasNonZeroPostedGl)
+    ((hasPostedOperatingProfit &&
+      (hasNonZeroPostedGl || Math.abs(gl.operatingProfitKwd ?? 0) > 0.0005)) ||
+      hasNonZeroPostedGl)
   const showAggregatorCommissionsCard =
     isUnfilteredCompanyScope &&
     !glIncomplete &&
@@ -1131,7 +1092,7 @@ export function FullJourney360({
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             {todaySoFarLabel ? (
-              <span data-today-so-far="true" className="ms-1.5 inline-flex shrink-0 whitespace-nowrap items-center rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[12px] font-semibold text-[#1E3A5F] ring-1 ring-blue-200 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-sky-300/20">
+              <span data-today-so-far="true" className="ms-1.5 inline-flex shrink-0 whitespace-nowrap items-center rounded-full bg-[#ECFDF5] px-2 py-0.5 text-xs font-semibold text-[#1E3A5F] ring-1 ring-blue-200 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-sky-300/20">
                 {T('So far today · until ', 'حتى الآن · حتى ')}
                 <span dir="ltr" className="ms-1 tabular-nums">{todaySoFarLabel}</span>
               </span>
@@ -1139,7 +1100,7 @@ export function FullJourney360({
           </p>
         </div>
 
-        <div className="flex flex-wrap sm:flex-nowrap shrink-0 items-center gap-2 xl:justify-end">
+        <div className="flex flex-wrap xl:flex-nowrap shrink-0 items-center gap-2 xl:justify-end">
           {canSyncOdoo ? (
             <button
               type="button"
@@ -1215,7 +1176,7 @@ export function FullJourney360({
           as="section"
           role="status"
           data-odoo-no-data="true"
-          className="ae-bento-card mx-auto my-4 p-8 sm:p-10 text-center ring-1 ring-slate-300/70 dark:ring-slate-600/40"
+          className="ae-bento-card overflow-visible mx-auto my-4 p-8 sm:p-10 text-center ring-1 ring-slate-300/70 dark:ring-slate-600/40"
         >
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100/85 text-slate-700 ring-1 ring-slate-300/70 backdrop-blur-sm dark:bg-slate-800/75 dark:text-slate-200 dark:ring-slate-600/40">
             <Database className="h-7 w-7" aria-hidden />
@@ -1270,7 +1231,7 @@ export function FullJourney360({
               role="status"
               variant="subtle"
               data-admin-unmapped-banner="true"
-              className="ae-bento-card flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-medium text-slate-700 ring-1 ring-slate-900/[0.04] sm:px-5 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/5"
+              className="ae-bento-card overflow-visible flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] font-medium text-slate-700 ring-1 ring-slate-900/[0.04] sm:px-5 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/5"
             >
               <div className="flex items-center gap-2">
                 <Info className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
@@ -1359,7 +1320,10 @@ export function FullJourney360({
                       ) : null}
 
                       <div className="mt-3.5 space-y-2">
-                        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap min-w-0 overflow-hidden">
+                        <div
+                          data-hero-comparison-row="true"
+                          className="flex flex-nowrap items-center gap-2 whitespace-nowrap overflow-x-auto no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0"
+                        >
                           <span
                             data-delta-comparison={heroDelta.hasComparison ? 'real' : 'none'}
                             title={
@@ -1367,7 +1331,7 @@ export function FullJourney360({
                                 ? (heroDelta.titleAr ?? `${heroDelta.badgeLabel} ${heroComparisonSuffix}`)
                                 : (heroDelta.titleEn ?? `${heroDelta.badgeLabel} ${heroComparisonSuffix}`)
                             }
-                            className={`ae-hero-pill inline-flex min-w-0 shrink items-center gap-1 truncate rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
+                            className={`ae-hero-pill inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
                               heroDelta.tone === 'red' || heroDelta.tone === 'neutral'
                                 ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
                                 : 'bg-white/15 text-white'
@@ -1376,9 +1340,9 @@ export function FullJourney360({
                             <span dir="ltr" className="shrink-0 tabular-nums">
                               {heroDelta.badgeLabel}
                             </span>{' '}
-                            <span className="truncate">{heroComparisonSuffix}</span>
+                            <span>{heroComparisonSuffix}</span>
                           </span>
-                          <span className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-white/95">
+                          <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium tabular-nums text-white/95 backdrop-blur-sm">
                             {workspace.nullableAovKwd === null ? (
                               <span
                                 title={unavailableTooltip}
@@ -1390,14 +1354,14 @@ export function FullJourney360({
                             ) : isAr ? (
                               <>
                                 • متوسط{' '}
-                                <span dir="ltr" className="tabular-nums">
+                                <span dir="ltr" className="ms-1 tabular-nums">
                                   {fmtKwdVal(workspace.nullableAovKwd)}
                                 </span>
                               </>
                             ) : (
                               <>
                                 • AOV{' '}
-                                <span dir="ltr" className="tabular-nums">
+                                <span dir="ltr" className="ms-1 tabular-nums">
                                   {fmtKwdVal(workspace.nullableAovKwd)}
                                 </span>
                               </>
@@ -1551,7 +1515,11 @@ export function FullJourney360({
                 },
               ]
 
-              if (workspace.nullableAovKwd !== null && Number.isFinite(workspace.nullableAovKwd)) {
+              if (
+                workspace.nullableAovKwd !== null &&
+                Number.isFinite(workspace.nullableAovKwd) &&
+                workspace.nullableAovKwd > 0.0005
+              ) {
                 executiveKpiCards.push({
                   key: 'average-order-value',
                   node: (
@@ -1617,14 +1585,14 @@ export function FullJourney360({
                       hoverLift
                       className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2 min-w-0">
                         <div className="min-w-0 flex-1">
                           <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
                             {T('Top Performing Branch', 'الفرع الأعلى أداءً')}
                           </p>
                           <p
                             title={topBranchTitle}
-                            className="mt-0.5 truncate text-[13px] font-bold text-[#047857] dark:text-emerald-300"
+                            className="mt-0.5 min-w-0 truncate text-[13px] font-bold text-[#047857] dark:text-emerald-300"
                           >
                             {topBranchTitle}
                           </p>
@@ -1712,12 +1680,12 @@ export function FullJourney360({
                           <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
                           {!maskInternalCosts &&
                           !hasPostedOperatingProfit &&
-                          gl.netProfitWithheld &&
                           glDisclaimerTooltipText ? (
                             <CompactInfoTooltip
                               text={glDisclaimerTooltipText}
                               label={T('Accounting close status', 'حالة إقفال الدفتر المحاسبي')}
-                              dataAttr="net-profit-withheld"
+                              isAr={isAr}
+                              dataNetProfitWithheld={Boolean(gl.netProfitWithheld)}
                             />
                           ) : null}
                           <Link
@@ -1913,18 +1881,32 @@ export function FullJourney360({
                               </span>
                             ) : null}
                             {gl.commissionAccounts.length > 0 ? (
-                              <details className="text-xs">
-                                <summary className="cursor-pointer font-semibold">
-                                  {T('Commission accounts', 'حسابات العمولة')}
-                                </summary>
-                                <ul className="mt-1 space-y-0.5">
-                                  {gl.commissionAccounts.map((account) => (
-                                    <li key={account.code}>
-                                      {account.code} {account.name} {fmtKwdVal(account.amountKwd)}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </details>
+                              <div>
+                                <DetailsPopover
+                                  isAr={isAr}
+                                  triggerLabel={T('Commission accounts', 'حسابات العمولة')}
+                                  heading={T('Commission accounts', 'حسابات العمولة')}
+                                >
+                                  <ul className="space-y-1">
+                                    {gl.commissionAccounts.map((account) => (
+                                      <li
+                                        key={account.code}
+                                        className="flex items-baseline justify-between gap-2"
+                                      >
+                                        <span className="min-w-0 flex-1 truncate text-slate-600 dark:text-slate-300">
+                                          {account.code} {account.name}
+                                        </span>
+                                        <span
+                                          dir="ltr"
+                                          className="shrink-0 whitespace-nowrap font-semibold tabular-nums text-slate-900 dark:text-white"
+                                        >
+                                          {fmtKwdVal(account.amountKwd)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </DetailsPopover>
+                              </div>
                             ) : null}
                             <KpiProvenanceBadge
                               odooModel="account.move.line"
@@ -2029,9 +2011,9 @@ export function FullJourney360({
               {visibleBranchCards.length > 0 ? (
                 <div
                   className={`grid gap-3 ${
-                    visibleBranchCards.length < 4
+                    visibleBranchCards.length < 4 || visibleBranchCards.length === 6
                       ? resolveDynamicKpiGridClass(visibleBranchCards.length)
-                      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
                   }`}
                 >
                   {visibleBranchCards.map((bRow) => {
@@ -2052,8 +2034,8 @@ export function FullJourney360({
                             : ''
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2.5">
-                          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
                             <span
                               className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
                                 bRow.isUnattributed
@@ -2066,12 +2048,12 @@ export function FullJourney360({
                             <div className="min-w-0 flex-1">
                               <h3
                                 title={branchLabel}
-                                className="truncate text-[14px] font-bold leading-snug text-slate-950 dark:text-white"
+                                className="min-w-0 flex-1 truncate text-[14px] font-bold leading-snug text-slate-950 dark:text-white"
                               >
                                 {branchLabel}
                               </h3>
                               {bRow.isUnattributed ? (
-                                <p className="truncate text-xs font-medium leading-snug text-slate-600 dark:text-slate-300">
+                                <p className="min-w-0 truncate text-xs font-medium leading-snug text-slate-600 dark:text-slate-300">
                                   {T('Unmapped POS terminals', 'أجهزة كاشير غير مربوطة بفرع محدد')}
                                 </p>
                               ) : null}
@@ -2319,15 +2301,17 @@ export function FullJourney360({
                       {!maskInternalCosts &&
                       receivablesAmountsVisible &&
                       workspace.receivables.agingHiddenReasonAr ? (
-                        <CompactInfoTooltip
-                          text={
-                            (isAr
-                              ? workspace.receivables.agingHiddenReasonAr
-                              : workspace.receivables.agingHiddenReasonEn) ?? ''
-                          }
-                          label={T('Receivables aging note', 'ملاحظة تقادم الذمم')}
-                          dataAttr="ar-aging-hidden"
-                        />
+                        <span data-ar-aging-hidden="true" className="inline-flex shrink-0 items-center">
+                          <CompactInfoTooltip
+                            text={
+                              (isAr
+                                ? workspace.receivables.agingHiddenReasonAr
+                                : workspace.receivables.agingHiddenReasonEn) ?? ''
+                            }
+                            label={T('Receivables aging note', 'ملاحظة تقادم الذمم')}
+                            isAr={isAr}
+                          />
+                        </span>
                       ) : null}
                     </div>
                   </div>
@@ -2367,7 +2351,7 @@ export function FullJourney360({
                         {receivablesAmountsVisible &&
                         !workspace.receivables.agingLabelsWithheld &&
                         workspace.receivables.agingBuckets.length > 0 ? (
-                          <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
+                          <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                             {workspace.receivables.agingBuckets.map((bkt) => (
                               <div
                                 key={bkt.key}

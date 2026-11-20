@@ -245,12 +245,13 @@ export function computeFeryalPromptResize(
     return { heightStyle: '', overflowScroll: false }
   }
   const safeVh = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 800
-  const maxPx = Math.round(safeVh * FERYAL_PROMPT_MAX_VH_RATIO)
+  const maxPx = Math.floor(safeVh * FERYAL_PROMPT_MAX_VH_RATIO)
   if (!Number.isFinite(scrollHeight) || scrollHeight <= 0) {
     return { heightStyle: 'auto', overflowScroll: false }
   }
+  const nextHeight = Math.min(scrollHeight, maxPx)
   return {
-    heightStyle: `${Math.min(scrollHeight, maxPx)}px`,
+    heightStyle: `${nextHeight}px`,
     overflowScroll: scrollHeight > maxPx,
   }
 }
@@ -271,12 +272,13 @@ export function applyFeryalPromptAutoResize(
   el.style.height = 'auto'
   const maxPx =
     viewportHeight !== undefined && Number.isFinite(viewportHeight) && viewportHeight > 0
-      ? Math.round(viewportHeight * FERYAL_PROMPT_MAX_VH_RATIO)
+      ? Math.floor(viewportHeight * FERYAL_PROMPT_MAX_VH_RATIO)
       : typeof window !== 'undefined' && window.innerHeight > 0
-        ? Math.round(window.innerHeight * 0.4)
-        : Math.round(800 * FERYAL_PROMPT_MAX_VH_RATIO)
+        ? Math.floor(window.innerHeight * FERYAL_PROMPT_MAX_VH_RATIO)
+        : 320
   if (el.scrollHeight > 0) {
-    el.style.height = `${Math.min(el.scrollHeight, maxPx)}px`
+    const nextHeight = Math.min(el.scrollHeight, maxPx)
+    el.style.height = `${nextHeight}px`
     const shouldScroll = el.scrollHeight > maxPx
     if ('overflowY' in el.style) {
       el.style.overflowY = shouldScroll ? 'auto' : 'hidden'
@@ -553,6 +555,19 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialBreaches,
     initialBreachesError,
   ])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isAuditor) return
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const urlPrompt = sp.get('prompt')?.trim()
+      if (urlPrompt) {
+        setInputText((prev) => prev || urlPrompt)
+      }
+    } catch {
+      // ignore URL parse error
+    }
+  }, [isAuditor])
 
   useIsomorphicLayoutEffect(() => {
     const shouldScroll = applyFeryalPromptAutoResize(promptTextareaRef.current, inputText)
@@ -2061,7 +2076,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   errorText={mediaError}
                   onRemove={handleRemoveAttachment}
                   onClearAll={handleClearAllAttachments}
-                  onApplyPresetPrompt={(p) => setInputText(p)}
+                  onApplyPresetPrompt={(p) => {
+                    setInputText(p)
+                    const shouldScroll = applyFeryalPromptAutoResize(promptTextareaRef.current, p)
+                    setPromptOverflowScroll(shouldScroll)
+                  }}
                 />
 
                 <form
@@ -2069,49 +2088,20 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     e.preventDefault()
                     void sendQuestion()
                   }}
-                  className="flex items-end gap-2"
+                  className="flex flex-col rounded-2xl border border-slate-200/90 bg-[#F6F7F8] p-2.5 shadow-2xs transition focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/40 dark:border-white/15 dark:bg-[#090E0C] dark:focus-within:bg-[#0D1512]"
                 >
-                  <FeryalMediaPickerButton
-                    isAr={isAr}
-                    disabled={sending}
-                    processing={processingMedia}
-                    uploadingIntake={uploadingIntake}
-                    attachmentCount={pendingAttachments.length}
-                    onFilesSelected={handleFilesSelected}
-                    onIntakeFileSelected={(file) => void handleIntakeFileSelected(file)}
-                    openPickerRef={openPickerRef}
-                    openCameraRef={openCameraRef}
-                  />
-
-                  <button
-                    type="button"
-                    disabled={sending}
-                    onClick={() => void handleToggleVoiceInput()}
-                    aria-label={
-                      recordingVoice
-                        ? isAr
-                          ? 'إيقاف التسجيل الصوتي'
-                          : 'Stop voice recording'
-                        : isAr
-                          ? 'إدخال صوتي'
-                          : 'Voice input'
-                    }
-                    title={isAr ? 'إدخال صوتي' : 'Voice input'}
-                    className={`inline-flex h-[44px] sm:h-[48px] w-[42px] sm:w-[46px] shrink-0 cursor-pointer items-center justify-center rounded-2xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
-                      recordingVoice
-                        ? 'bg-rose-600 text-white animate-pulse'
-                        : 'bg-[#F6F7F8] text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#090E0C] dark:text-slate-200'
-                    }`}
-                  >
-                    {recordingVoice ? <Square className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
-                  </button>
-
                   <textarea
                     ref={promptTextareaRef}
                     rows={1}
                     data-feryal-chat-input="true"
+                    data-feryal-auto-textarea="true"
                     value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
+                    onChange={(e) => {
+                      const nextVal = e.target.value
+                      setInputText(nextVal)
+                      const shouldScroll = applyFeryalPromptAutoResize(e.currentTarget, nextVal)
+                      setPromptOverflowScroll(shouldScroll)
+                    }}
                     aria-label={isAr ? 'سؤال لفريال عن بيانات Odoo 17' : 'Ask Feryal about Odoo 17 data'}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -2136,19 +2126,65 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                         ? 'اسأل فريال، أو أرفق صورة / فيديو / جدول أسعار...'
                         : 'Ask Ferial, or attach a photo, video, or price sheet...'
                     }
-                    className={`min-h-[44px] sm:min-h-[46px] max-h-[40vh] min-w-0 flex-1 resize-none leading-relaxed ${
+                    style={{ overflowY: promptOverflowScroll ? 'auto' : 'hidden' }}
+                    className={`min-h-[40px] max-h-[40vh] w-full min-w-0 resize-none border-0 bg-transparent px-1.5 py-1 text-[14.5px] leading-relaxed text-slate-900 placeholder:text-slate-400 focus:outline-none dark:text-white ${
                       promptOverflowScroll ? 'overflow-y-auto' : 'overflow-y-hidden'
-                    } rounded-2xl border border-slate-200 bg-[#F6F7F8] px-3.5 py-2.5 text-[14px] text-slate-900 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:border-white/15 dark:bg-[#090E0C] dark:text-white`}
+                    }`}
                   />
 
-                  <button
-                    type="submit"
-                    disabled={sending || (!inputText.trim() && pendingAttachments.length === 0)}
-                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45"
-                  >
-                    <Send className="h-4 w-4 shrink-0" aria-hidden />
-                    <span>{isAr ? 'إرسال' : 'Send'}</span>
-                  </button>
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-2 dark:border-white/10">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <FeryalMediaPickerButton
+                        isAr={isAr}
+                        size="sm"
+                        disabled={sending}
+                        processing={processingMedia}
+                        uploadingIntake={uploadingIntake}
+                        attachmentCount={pendingAttachments.length}
+                        onFilesSelected={handleFilesSelected}
+                        onIntakeFileSelected={(file) => void handleIntakeFileSelected(file)}
+                        openPickerRef={openPickerRef}
+                        openCameraRef={openCameraRef}
+                      />
+
+                      <button
+                        type="button"
+                        disabled={sending}
+                        onClick={() => void handleToggleVoiceInput()}
+                        aria-label={
+                          recordingVoice
+                            ? isAr
+                              ? 'إيقاف التسجيل الصوتي'
+                              : 'Stop voice recording'
+                            : isAr
+                              ? 'إدخال صوتي'
+                              : 'Voice input'
+                        }
+                        title={isAr ? 'إدخال صوتي' : 'Voice input'}
+                        className={`inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-2xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                          recordingVoice
+                            ? 'bg-rose-600 text-white animate-pulse'
+                            : 'bg-white text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-emerald-50 hover:text-emerald-800 dark:bg-[#101815] dark:text-slate-200 dark:ring-white/10'
+                        }`}
+                      >
+                        {recordingVoice ? <Square className="h-4 w-4" aria-hidden /> : <Mic className="h-4 w-4" aria-hidden />}
+                      </button>
+                    </div>
+
+                    <div className="ms-auto flex items-center gap-2.5">
+                      <span className="hidden whitespace-nowrap text-xs text-slate-400 xl:inline dark:text-slate-500">
+                        {isAr ? 'Enter للإرسال • Shift+Enter لسطر جديد' : 'Enter to send • Shift+Enter for newline'}
+                      </span>
+                      <button
+                        type="submit"
+                        disabled={sending || (!inputText.trim() && pendingAttachments.length === 0)}
+                        className="inline-flex h-9 shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45"
+                      >
+                        <Send className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        <span>{isAr ? 'إرسال' : 'Send'}</span>
+                      </button>
+                    </div>
+                  </div>
                 </form>
               </div>
             ) : (
@@ -2179,8 +2215,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             </div>
 
             {/* Live Odoo KPI Strip (strictly nullable — renders "—" + Unavailable when null/disconnected) */}
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+            <div
+              className={`grid gap-3 ${
+                workspace.odooConnected && bestBranch && !worstBranch
+                  ? 'grid-cols-1 sm:grid-cols-3'
+                  : 'grid-cols-2 lg:grid-cols-4'
+              }`}
+            >
+              <article className="relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
                 <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'صافي المبيعات' : 'Net Sales'}
                 </div>
@@ -2209,7 +2251,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
               </article>
 
-              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+              <article className="relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
                 <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'عدد الطلبات' : 'Orders'}
                 </div>
@@ -2225,7 +2267,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
               </article>
 
-              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+              <article className="relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
                 <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'أعلى فرع مبيعاً' : 'Best Branch'}
                 </div>
@@ -2245,25 +2287,27 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
               </article>
 
-              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
-                <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {isAr ? 'أقل فرع مبيعاً' : 'Lowest Branch'}
-                </div>
-                <div className="mt-1 min-w-0 break-words text-sm font-bold text-amber-700 dark:text-amber-300">
-                  {worstBranch ? (isAr ? worstBranch.ar : worstBranch.en) : UNAVAILABLE_DASH}
-                </div>
-                <div
-                  dir="ltr"
-                  data-unavailable={!worstBranch ? 'true' : undefined}
-                  title={!worstBranch ? unavailableTooltip : undefined}
-                  aria-label={!worstBranch ? unavailableTooltip : undefined}
-                  className="mt-0.5 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
-                >
-                  {worstBranch
-                    ? formatKwd(worstBranch.salesKwd, { locale: fmtLocale })
-                    : UNAVAILABLE_DASH}
-                </div>
-              </article>
+              {!(workspace.odooConnected && bestBranch && !worstBranch) ? (
+                <article className="relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                  <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    {isAr ? 'أقل فرع مبيعاً' : 'Lowest Branch'}
+                  </div>
+                  <div className="mt-1 min-w-0 break-words text-sm font-bold text-amber-700 dark:text-amber-300">
+                    {worstBranch ? (isAr ? worstBranch.ar : worstBranch.en) : UNAVAILABLE_DASH}
+                  </div>
+                  <div
+                    dir="ltr"
+                    data-unavailable={!worstBranch ? 'true' : undefined}
+                    title={!worstBranch ? unavailableTooltip : undefined}
+                    aria-label={!worstBranch ? unavailableTooltip : undefined}
+                    className="mt-0.5 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                  >
+                    {worstBranch
+                      ? formatKwd(worstBranch.salesKwd, { locale: fmtLocale })
+                      : UNAVAILABLE_DASH}
+                  </div>
+                </article>
+              ) : null}
             </div>
 
             {/* Live Feryal Notes */}

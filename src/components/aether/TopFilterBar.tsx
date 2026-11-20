@@ -41,7 +41,6 @@ import {
   useOptionalGovernance,
 } from '@/components/erp/GovernanceBellDrawer'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { RAIL_TOGGLE_EVENT } from '@/components/erp-sidebar'
 import { routeTitle } from '@/lib/aether/route-titles'
 import {
@@ -58,24 +57,6 @@ import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 
 export const ERP_SUBTAB_EVENT = 'aether:erp-subtab'
 export type ErpOverviewSubtab = 'summary' | 'plays'
-
-const ROUTES_WITH_OWN_PARTIAL_BANNER = new Set([
-  '/erp',
-  '/erp/cores',
-  '/erp/sales-analysis',
-  '/erp/menu-engineering',
-  '/erp/aggregator-radar',
-  '/erp/commissions',
-  '/erp/sales-scorecard',
-  '/erp/executive-pnl',
-  '/erp/receivables',
-  '/erp/brand-sales-analytics',
-  '/erp/weekday-comparison',
-  '/erp/before-after',
-  '/erp/feryal-ai',
-  '/erp/cost-intelligence',
-  '/erp/warehouse-chain',
-])
 
 const ROUTES_WITH_OWN_H1 = new Set([
   '/erp/alerts',
@@ -565,7 +546,7 @@ function AccountWorkspaceMenuPanel({
             badgeCount > 0
               ? hasBreaches
                 ? 'btn-colored bg-rose-700 text-white'
-                : 'btn-colored bg-emerald-700 text-white dark:bg-[#ECFDF5]0'
+                : 'btn-colored bg-emerald-700 text-white dark:bg-emerald-500'
               : 'bg-[#D1FAE5] text-[#047857] dark:bg-emerald-400/15 dark:text-emerald-200'
           }`}
         >
@@ -1025,7 +1006,7 @@ export function TopFilterBar({
         dir={isAr ? 'rtl' : 'ltr'}
         className="ae-mobile-appbar no-print sticky top-0 z-40 -mx-4 bg-white/85 px-3.5 shadow-[0_1px_0_rgba(148,163,184,0.2)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden dark:bg-[#0D162A]/90 dark:shadow-[0_1px_0_rgba(96,165,250,0.16)]"
       >
-        <div ref={mobileBarRef} className="relative flex h-14 flex-nowrap items-center justify-between gap-2.5 sm:gap-3">
+        <div ref={mobileBarRef} data-topbar-row="mobile" className="relative flex h-14 min-w-0 flex-nowrap items-center justify-between gap-2 sm:gap-2.5">
           {/* Start: VF Brand Badge + Single Concise Active Page Title */}
           <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 overflow-hidden">
             <Link
@@ -1067,10 +1048,9 @@ export function TopFilterBar({
                   >
                     <Calendar className="h-3.5 w-3.5 shrink-0 text-[#047857] dark:text-sky-400" />
                     <span className="whitespace-nowrap sm:hidden">{activePeriodShortLabel}</span>
-                    <span className="hidden whitespace-nowrap sm:inline md:hidden">
+                    <span className="hidden whitespace-nowrap sm:inline">
                       {periodCompactLabel}
                     </span>
-                    <span className="hidden whitespace-nowrap md:inline">{periodDropdownLabel}</span>
                     <ChevronDown
                       className={`h-3 w-3 shrink-0 opacity-75 transition-transform duration-150 ${
                         periodDropdownOpen ? 'rotate-180' : ''
@@ -1121,7 +1101,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-emerald-700 px-1 text-xs font-bold tabular-nums text-white dark:bg-[#ECFDF5]0"
+                      className="btn-colored inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-700 px-1 text-xs font-bold tabular-nums text-white dark:bg-emerald-500"
                     >
                       {mobileActiveFilterCount}
                     </span>
@@ -1169,7 +1149,7 @@ export function TopFilterBar({
                   <span
                     aria-hidden
                     className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                      hasActiveBreaches ? 'bg-rose-600' : 'bg-[#ECFDF5]0 dark:bg-emerald-400'
+                      hasActiveBreaches ? 'bg-rose-600' : 'bg-emerald-500 dark:bg-emerald-400'
                     }`}
                   />
                 ) : null}
@@ -1381,10 +1361,14 @@ export function TopFilterBar({
       >
         <div
           ref={desktopBarRef}
-          className="relative flex flex-nowrap items-center justify-between gap-3 xl:gap-4 rounded-2xl px-3.5 xl:px-4 py-2.5"
+          data-topbar-row="desktop"
+          className="relative flex min-w-0 flex-nowrap items-center justify-between gap-2.5 xl:gap-3 rounded-2xl px-3.5 xl:px-4 py-2.5"
         >
           {/* Start Side: Sidebar Rail Toggle + Compact Pill Search Input (`⌘K`) + Page Title + Optional Auditor Pill */}
-          <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-2.5 xl:gap-3 overflow-hidden py-0.5">
+          <div
+            data-topbar-start="true"
+            className="flex min-w-0 flex-1 flex-nowrap items-center gap-2 xl:gap-2.5 overflow-hidden py-0.5 pe-1"
+          >
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent(RAIL_TOGGLE_EVENT))}
@@ -1395,9 +1379,9 @@ export function TopFilterBar({
               aria-label={isAr ? 'طي أو توسيع القائمة الجانبية' : 'Toggle sidebar rail'}
             >
               {isAr ? (
-                <PanelRight className="h-4 w-4 opacity-80" />
+                <PanelRight className="h-4 w-4 shrink-0 opacity-80" />
               ) : (
-                <PanelLeft className="h-4 w-4 opacity-80" />
+                <PanelLeft className="h-4 w-4 shrink-0 opacity-80" />
               )}
             </button>
 
@@ -1406,7 +1390,7 @@ export function TopFilterBar({
               type="button"
               onClick={openCommandPalette}
               aria-label={isAr ? 'ابحث… (Ctrl+K)' : 'Search… (Ctrl+K)'}
-              className="ae-capsule v35-focus-ring group inline-flex h-9 min-w-0 w-full max-w-[188px] xl:max-w-[236px] 2xl:max-w-[280px] shrink cursor-pointer items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white/70 px-3.5 text-[13px] text-slate-600 backdrop-blur-md ring-1 ring-[#1E3A5F]/15 transition-all duration-150 hover:bg-white/95 hover:text-slate-950 hover:ring-emerald-600/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-emerald-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
+              className="ae-capsule v35-focus-ring group inline-flex h-9 w-[144px] xl:w-[176px] 2xl:w-[208px] shrink-0 cursor-pointer flex-nowrap items-center justify-between gap-2 whitespace-nowrap rounded-full bg-white/70 px-3.5 text-[13px] text-slate-600 backdrop-blur-md ring-1 ring-[#1E3A5F]/15 transition-all duration-150 hover:bg-white/95 hover:text-slate-950 hover:ring-emerald-600/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-emerald-400/20 dark:hover:bg-white/[0.11] dark:hover:text-white dark:hover:ring-sky-400/40 dark:focus-visible:ring-sky-400/60"
             >
               <span className="inline-flex min-w-0 flex-1 items-center gap-2">
                 <Search className="h-3.5 w-3.5 shrink-0 text-[#047857] transition-transform duration-150 group-hover:scale-105 dark:text-sky-400" />
@@ -1424,7 +1408,7 @@ export function TopFilterBar({
 
             {page ? (
               <span
-                className="ae-top-title hidden 2xl:block min-w-0 flex-1 truncate px-1 text-[13.5px] font-semibold tracking-tight text-slate-700 dark:text-slate-200"
+                className="ae-top-title hidden xl:block min-w-0 flex-1 truncate px-1 text-[13.5px] font-semibold tracking-tight text-slate-700 dark:text-slate-200"
                 aria-current="page"
               >
                 {isAr ? page.ar : page.en}
@@ -1441,7 +1425,10 @@ export function TopFilterBar({
 
           {/* End Utility & Filter Cluster:
               [Period • Filters] + [xl+: Bell Circle • Theme Circle] + [Executive Profile Pill -> houses workspace actions & single Language row] */}
-          <div className="relative z-[60] flex shrink-0 flex-nowrap items-center justify-end gap-2 xl:gap-2.5 overflow-visible">
+          <div
+            data-topbar-end="true"
+            className="relative z-[60] flex shrink-0 flex-nowrap items-center justify-end gap-2 xl:gap-2.5 overflow-visible"
+          >
             {showPosFilters ? (
               <>
                 {/* Control (1): Sleek Pill Period Dropdown (`الفترة: الشهر ▾` / `Period: Month ▾`) */}
@@ -1464,8 +1451,8 @@ export function TopFilterBar({
                     }`}
                   >
                     <Calendar className="h-3.5 w-3.5 shrink-0 text-[#047857] dark:text-sky-400" />
-                    <span className="whitespace-nowrap 2xl:hidden">{periodCompactLabel}</span>
-                    <span className="hidden whitespace-nowrap 2xl:inline">{periodDropdownLabel}</span>
+                    <span className="whitespace-nowrap min-[1720px]:hidden">{periodCompactLabel}</span>
+                    <span className="hidden whitespace-nowrap min-[1720px]:inline">{periodDropdownLabel}</span>
                     {filters.period === 'today' && workspace.isTodayFallback ? (
                       <span
                         title={
@@ -1473,7 +1460,7 @@ export function TopFilterBar({
                             ? `تعويض تلقائي لآخر يوم تشغيل مكتمل في نقاط البيع (${workspace.todayFallbackDate ?? ''})`
                             : `Auto-fallback to last completed POS operating day (${workspace.todayFallbackDate ?? ''})`
                         }
-                        className="hidden 2xl:inline-flex shrink-0 whitespace-nowrap rounded-full bg-slate-100/90 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25"
+                        className="hidden min-[1720px]:inline-flex shrink-0 whitespace-nowrap rounded-full bg-slate-100/90 px-2 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25"
                       >
                         {isAr ? 'آخر يوم مكتمل' : 'Last Full Day'}
                       </span>
@@ -1526,7 +1513,7 @@ export function TopFilterBar({
                     <span
                       dir="ltr"
                       style={{ color: '#FFFFFF' }}
-                      className="btn-colored inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-bold tabular-nums text-white dark:bg-[#ECFDF5]0"
+                      className="btn-colored inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-bold tabular-nums text-white dark:bg-emerald-500"
                     >
                       {nonDefaultSliceCount}
                     </span>
@@ -1612,14 +1599,14 @@ export function TopFilterBar({
                   ) : null}
                 </span>
 
-                <span className="hidden xl:block max-w-[205px] 2xl:max-w-[260px] min-w-0 leading-tight">
+                <span className="hidden xl:block max-w-[168px] 2xl:max-w-[240px] min-w-0 leading-tight">
                   <span className="flex min-w-0 flex-nowrap items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold tracking-tight text-slate-900 dark:text-white">
                     <span className="min-w-0 truncate">
                       {isAr ? topRoleProfile.nameAr : topRoleProfile.nameEn}
                     </span>
                     <span
                       data-role-badge={topRoleProfile.role}
-                      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      className={`hidden 2xl:inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${
                         auditorMode
                           ? 'bg-slate-100/90 text-slate-800 ring-1 ring-[#1E3A5F]/15 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-[#1E3A5F]/15'
                           : 'bg-sky-100/90 text-[#1E3A5F] dark:bg-emerald-400/20 dark:text-emerald-200'
@@ -1852,9 +1839,6 @@ export function TopFilterBar({
           ) : null}
         </div>
       </header>
-      {pathname.startsWith('/erp') && !ROUTES_WITH_OWN_PARTIAL_BANNER.has(pathname) ? (
-        <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
-      ) : null}
     </>
   )
 }

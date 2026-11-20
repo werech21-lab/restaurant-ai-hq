@@ -30,7 +30,7 @@ export function StatCard({
     </>
   )
   const surfaceClass = cx(
-    'ds-surface rounded-2xl border border-slate-200/80 bg-white/80 p-5 text-slate-900 shadow-sm backdrop-blur-md transition-colors dark:border-slate-400/20 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-50',
+    'ds-surface relative min-w-0 overflow-visible rounded-2xl border border-slate-200/80 bg-white/80 p-5 text-slate-900 shadow-sm backdrop-blur-md transition-colors dark:border-slate-400/20 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-50',
     className,
   )
   if (!href) {

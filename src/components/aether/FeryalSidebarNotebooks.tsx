@@ -653,38 +653,49 @@ export function FeryalSidebarNotebooks({
               {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             </p>
           </div>
-          {workspace.feryalNotes.map((note) => (
-            <article
-              key={note.id}
-              className="space-y-2 rounded-xl bg-[#F6F7F8] p-3.5 dark:bg-[#0D1614]"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-neutral-950 dark:text-white">
-                  {isAr ? note.titleAr : note.titleEn}
-                </h4>
-                <span className="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                  {isAr ? note.benefitAr : note.benefitEn}
-                </span>
-              </div>
-              <p className="text-xs leading-relaxed text-neutral-600 dark:text-slate-300">
-                {isAr ? note.summaryAr : note.summaryEn}
-              </p>
-              {!isAuditor ? (
-                <button
-                  type="button"
-                  disabled={isCopilotThinking}
-                  onClick={() => onRunNotePrompt(isAr ? note.promptAr : note.promptEn)}
-                  className="w-full cursor-pointer rounded-xl bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30"
-                >
-                  {isAr ? 'اسأل فريال' : 'Ask Feryal'}
-                </button>
-              ) : (
-                <span className="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                  {isAr ? 'ملاحظة من Odoo 17' : 'Odoo 17 Note'}
-                </span>
-              )}
-            </article>
-          ))}
+          {workspace.feryalNotes.length === 0 ? (
+            <div className="rounded-xl bg-[#F6F7F8] px-3 py-4 text-center text-xs font-medium leading-relaxed text-neutral-500 dark:bg-[#0D1614] dark:text-slate-400">
+              {isAr
+                ? 'لا توجد ملاحظات يومية مسجلة لهذه الشريحة حالياً.'
+                : 'No daily notes available for this slice right now.'}
+            </div>
+          ) : (
+            workspace.feryalNotes.map((note) => (
+              <article
+                key={note.id}
+                className="space-y-2 rounded-xl bg-[#F6F7F8] p-3.5 dark:bg-[#0D1614]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h4
+                    className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-neutral-950 dark:text-white"
+                    title={isAr ? note.titleAr : note.titleEn}
+                  >
+                    {isAr ? note.titleAr : note.titleEn}
+                  </h4>
+                  <span className="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                    {isAr ? note.benefitAr : note.benefitEn}
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed text-neutral-600 dark:text-slate-300">
+                  {isAr ? note.summaryAr : note.summaryEn}
+                </p>
+                {!isAuditor ? (
+                  <button
+                    type="button"
+                    disabled={isCopilotThinking}
+                    onClick={() => onRunNotePrompt(isAr ? note.promptAr : note.promptEn)}
+                    className="w-full cursor-pointer rounded-xl bg-emerald-50 px-3.5 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/20 transition-all duration-150 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30"
+                  >
+                    {isAr ? 'اسأل فريال' : 'Ask Feryal'}
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    {isAr ? 'ملاحظة من Odoo 17' : 'Odoo 17 Note'}
+                  </span>
+                )}
+              </article>
+            ))
+          )}
         </div>
       )}
     </div>

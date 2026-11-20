@@ -9,7 +9,7 @@ export default async function CrmPage({ searchParams }: { searchParams: Promise<
   await requirePageUser('/erp/crm')
 
   return (
-    <div className="w-full max-w-none min-w-0 px-3 py-5 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-visible px-4 py-5 sm:px-6">
       <CrmWorkspace initialCustomerId={deepLinkId(query.customer)} />
     </div>
   )

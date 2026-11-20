@@ -207,7 +207,7 @@ export function AdminExecutiveDirectoryCard({
           ? 'دليل الصلاحيات والحسابات التنفيذية — 8 أدوار'
           : 'Executive Access Directory — 8 Active Corporate Roles'
       }
-      className="ae-bento-card ds-surface min-w-0 space-y-4 rounded-2xl p-4 sm:p-6"
+      className="ae-bento-card ds-surface relative overflow-visible min-w-0 space-y-4 rounded-2xl p-4 sm:p-6"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -280,7 +280,7 @@ export function AdminExecutiveDirectoryCard({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--ds-border-hairline)]">
+            <tbody className="divide-y divide-[var(--ds-border-hairline)] tabular-nums">
               {rows.map((row) => (
                 <tr
                   key={row.role}
@@ -320,7 +320,7 @@ export function AdminExecutiveDirectoryCard({
 
                   <td className="px-3.5 py-3 align-top">
                     <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${resolveTierPillStyle(row.accessTier)}`}
+                      className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${resolveTierPillStyle(row.accessTier)}`}
                     >
                       <span>{isAr ? row.badgeAr : row.badgeEn}</span>
                     </span>

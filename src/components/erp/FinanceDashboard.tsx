@@ -1,18 +1,34 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipPayload } from 'recharts'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipPayload,
+} from 'recharts'
 import { ChartFrame, formatAmount, useCompactChart } from '@/components/charts'
 import { apiRequest, errorKey, isAbort } from '@/components/erp/api'
 import { DataScopeSwitcher, scopeToQuery, type DataScopeValue } from '@/components/erp/DataScopeSwitcher'
 import { InvoiceForm } from '@/components/erp/InvoiceForm'
 import { InvoicePanel } from '@/components/erp/InvoicePanel'
 import { StatusBadge } from '@/components/erp/StatusBadge'
-import { errorClass, inputClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
-import { Money, Num } from '@/components/ui'
+import { Num } from '@/components/ui'
+import { StateBlock } from '@/components/ui/state-block'
+import {
+  UNAVAILABLE_DASH,
+  formatInt,
+  formatKwd,
+  getUnavailableTooltip,
+  type FormatLocale,
+} from '@/lib/format'
 import { useI18n, type MessageKey } from '@/lib/i18n'
-import { formatMinor } from '@/lib/money'
 import {
   invoiceSortKeys,
   invoiceStatuses,
@@ -28,6 +44,29 @@ type Phase = 'loading' | 'ready' | 'error'
 type Selection = { kind: 'new' } | { kind: 'invoice'; id: string } | null
 type InvoicePage = { data: Invoice[]; nextCursor: string | null }
 
+const SURFACE_CLS =
+  'ds-surface relative overflow-visible min-w-0 rounded-2xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-surface)] p-4 sm:p-5 text-[var(--ds-text-primary)] shadow-xs'
+const INPUT_CLS =
+  'ds-focus-ring w-full rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-2 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]'
+const PRIMARY_BTN_CLS =
+  'ds-focus-ring inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400'
+const SECONDARY_BTN_CLS =
+  'ds-focus-ring inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50'
+const ERROR_ALERT_CLS =
+  'rounded-xl border border-[var(--ds-negative-border)] bg-[var(--ds-negative-bg)] px-3.5 py-2.5 text-sm font-medium text-[var(--ds-negative)]'
+
+function resolveFinanceKpiGridCols(count: number): string {
+  if (count <= 1) return 'grid-cols-1'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+}
+
+function minorToKwd(minor: number | null | undefined, locale: FormatLocale): string {
+  if (typeof minor !== 'number' || !Number.isFinite(minor)) return UNAVAILABLE_DASH
+  return formatKwd(minor / 1000, locale)
+}
+
 function useDebounced<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value)
   useEffect(() => {
@@ -37,19 +76,29 @@ function useDebounced<T>(value: T, delayMs: number): T {
   return debounced
 }
 
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TooltipPayload; label?: string }) {
+function ChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: TooltipPayload
+  label?: string
+}) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-xl border border-[#30363d] bg-[#161b22] px-3 py-2.5 text-xs shadow-lift">
+    <div className="rounded-xl border border-slate-200/90 bg-white/95 px-3 py-2.5 text-xs text-slate-800 shadow-lg backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100">
       {label ? (
-        <p dir="ltr" className="mb-1.5 font-medium text-[#c9d1d9]">
+        <p dir="ltr" className="mb-1.5 font-semibold text-slate-900 dark:text-white">
           {label}
         </p>
       ) : null}
       {payload.map((item) => (
-        <p key={String(item.name)} className="flex items-center justify-between gap-4 text-[#c9d1d9]">
-          <span style={{ color: item.color || item.payload?.fill }}>{item.name}</span>
-          <span dir="ltr" className="num font-semibold tabular-nums">
+        <p key={String(item.name)} className="flex items-center justify-between gap-4">
+          <span className="min-w-0 truncate" style={{ color: item.color || item.payload?.fill }}>
+            {item.name}
+          </span>
+          <span dir="ltr" className="ds-num shrink-0 whitespace-nowrap font-semibold tabular-nums">
             {formatAmount(item.value)}
           </span>
         </p>
@@ -59,8 +108,15 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 /** initialInvoiceId opens that invoice's panel on arrival, for links from the command center. */
-export default function FinanceDashboard({ initialInvoiceId = null }: { initialInvoiceId?: string | null }) {
-  const { t } = useI18n()
+export default function FinanceDashboard({
+  initialInvoiceId = null,
+}: {
+  initialInvoiceId?: string | null
+}) {
+  const { t, locale } = useI18n()
+  const isAr = locale !== 'en'
+  const fmtLocale: FormatLocale = isAr ? 'ar' : 'en'
+  const unavailableTooltip = getUnavailableTooltip(fmtLocale)
   const compact = useCompactChart()
 
   const [summary, setSummary] = useState<InvoiceSummary | null>(null)
@@ -82,22 +138,31 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
 
   const [reload, setReload] = useState(0)
   const keepRows = useRef(false)
-  const [selection, setSelection] = useState<Selection>(initialInvoiceId ? { kind: 'invoice', id: initialInvoiceId } : null)
+  const [selection, setSelection] = useState<Selection>(
+    initialInvoiceId ? { kind: 'invoice', id: initialInvoiceId } : null,
+  )
 
   const buildQuery = useCallback(
     (after: string | null) => {
-      const params = new URLSearchParams({ limit: String(PAGE_SIZE), sort, direction, ...scopeToQuery(scope) })
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        sort,
+        direction,
+        ...scopeToQuery(scope),
+      })
       if (status) params.set('status', status)
       if (query) params.set('q', query)
       if (after) params.set('cursor', after)
       return `/api/v1/finance/invoices?${params.toString()}`
     },
-    [status, query, sort, direction, scope]
+    [status, query, sort, direction, scope],
   )
 
   useEffect(() => {
     const controller = new AbortController()
-    apiRequest<{ data: InvoiceSummary }>('/api/v1/finance/invoices/summary', { signal: controller.signal })
+    apiRequest<{ data: InvoiceSummary }>('/api/v1/finance/invoices/summary', {
+      signal: controller.signal,
+    })
       .then((result) => {
         setSummary(result.data)
         setSummaryError(null)
@@ -162,101 +227,226 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
   }
 
   const threshold = summary?.approvalThresholdMinor ?? 0
-  const axis = { fill: '#8b949e', fontSize: compact ? 11 : 12 }
-  const chartRows = (summary?.months ?? []).map((month) => ({
-    month: month.month,
-    invoiced: month.invoicedMinor / 1000,
-    collected: month.collectedMinor / 1000,
-  }))
+  const axis = { fill: '#64748b', fontSize: 12 }
+  const chartRows = useMemo(
+    () =>
+      (summary?.months ?? []).map((month) => ({
+        month: month.month,
+        invoiced: month.invoicedMinor / 1000,
+        collected: month.collectedMinor / 1000,
+      })),
+    [summary?.months],
+  )
+
+  const kpiCards = useMemo(() => {
+    const cards: Array<{ key: string; node: React.ReactNode }> = []
+
+    cards.push({
+      key: 'outstanding',
+      node: (
+        <article className={SURFACE_CLS}>
+          <p className="min-w-0 truncate text-xs font-semibold text-[var(--ds-text-secondary)]">
+            {t('erp.stat.outstanding')}
+          </p>
+          <div
+            dir="ltr"
+            data-unavailable={!summary ? 'true' : undefined}
+            title={!summary ? unavailableTooltip : undefined}
+            aria-label={!summary ? unavailableTooltip : undefined}
+            className="ds-num mt-2 text-2xl font-bold tabular-nums text-[var(--ds-text-primary)]"
+          >
+            {summary ? minorToKwd(summary.outstandingMinor, fmtLocale) : UNAVAILABLE_DASH}
+          </div>
+        </article>
+      ),
+    })
+
+    if (!summary || summary.overdueMinor > 0 || summary.overdueCount > 0) {
+      cards.push({
+        key: 'overdue',
+        node: (
+          <article className={SURFACE_CLS}>
+            <p className="min-w-0 truncate text-xs font-semibold text-[var(--ds-text-secondary)]">
+              {t('erp.stat.overdue')}
+            </p>
+            <div
+              dir="ltr"
+              data-unavailable={!summary ? 'true' : undefined}
+              title={!summary ? unavailableTooltip : undefined}
+              aria-label={!summary ? unavailableTooltip : undefined}
+              className="ds-num mt-2 text-2xl font-bold tabular-nums text-rose-700 dark:text-rose-300"
+            >
+              {summary ? minorToKwd(summary.overdueMinor, fmtLocale) : UNAVAILABLE_DASH}
+            </div>
+            {summary && summary.overdueCount > 0 ? (
+              <p className="mt-1 text-xs font-medium text-[var(--ds-text-muted)] tabular-nums">
+                <Num>{formatInt(summary.overdueCount, fmtLocale)}</Num> {t('erp.unit.invoices')}
+              </p>
+            ) : null}
+          </article>
+        ),
+      })
+    }
+
+    if (!summary || summary.countsByStatus.pending_approval > 0) {
+      cards.push({
+        key: 'pending',
+        node: (
+          <article className={SURFACE_CLS}>
+            <p className="min-w-0 truncate text-xs font-semibold text-[var(--ds-text-secondary)]">
+              {t('erp.stat.pending')}
+            </p>
+            <div
+              dir="ltr"
+              data-unavailable={!summary ? 'true' : undefined}
+              title={!summary ? unavailableTooltip : undefined}
+              aria-label={!summary ? unavailableTooltip : undefined}
+              className="ds-num mt-2 text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-300"
+            >
+              {summary
+                ? formatInt(summary.countsByStatus.pending_approval, fmtLocale)
+                : UNAVAILABLE_DASH}
+            </div>
+          </article>
+        ),
+      })
+    }
+
+    if (!summary || summary.countsByStatus.draft > 0) {
+      cards.push({
+        key: 'drafts',
+        node: (
+          <article className={SURFACE_CLS}>
+            <p className="min-w-0 truncate text-xs font-semibold text-[var(--ds-text-secondary)]">
+              {t('erp.stat.drafts')}
+            </p>
+            <div
+              dir="ltr"
+              data-unavailable={!summary ? 'true' : undefined}
+              title={!summary ? unavailableTooltip : undefined}
+              aria-label={!summary ? unavailableTooltip : undefined}
+              className="ds-num mt-2 text-2xl font-bold tabular-nums text-[var(--ds-text-primary)]"
+            >
+              {summary ? formatInt(summary.countsByStatus.draft, fmtLocale) : UNAVAILABLE_DASH}
+            </div>
+          </article>
+        ),
+      })
+    }
+
+    return cards
+  }, [fmtLocale, summary, t, unavailableTooltip])
 
   return (
-    <div>
-      <Link href="/erp" className="mb-6 inline-block text-sm text-blue-400 hover:text-blue-300">
-        {t('erp.back')}
-      </Link>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-mist-100">{t('erp.title')}</h1>
-          <p className="mt-1 text-sm text-gray-400">{t('erp.subtitle')}</p>
+    <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-0 space-y-5">
+      <div>
+        <Link
+          href="/erp"
+          className="ds-focus-ring inline-flex items-center text-sm font-semibold text-[var(--ds-accent)] hover:underline"
+        >
+          {t('erp.back')}
+        </Link>
+      </div>
+
+      <div className={`${SURFACE_CLS} flex flex-wrap items-start justify-between gap-3`}>
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-xl font-bold text-[var(--ds-text-primary)] sm:text-2xl">
+            {t('erp.title')}
+          </h2>
+          <p className="text-sm text-[var(--ds-text-muted)]">{t('erp.subtitle')}</p>
         </div>
-        <button type="button" onClick={() => setSelection({ kind: 'new' })} disabled={!summary} className={primaryButton}>
+        <button
+          type="button"
+          onClick={() => setSelection({ kind: 'new' })}
+          disabled={!summary}
+          className={PRIMARY_BTN_CLS}
+        >
           {t('erp.new')}
         </button>
       </div>
 
       {summaryError ? (
-        <p role="alert" className={`${errorClass} mb-4`}>
+        <p role="alert" className={ERROR_ALERT_CLS}>
           {t(summaryError)}
         </p>
       ) : null}
 
-      <div className="mb-4">
+      <div>
         <DataScopeSwitcher value={scope} onChange={setScope} />
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className={panelClass}>
-          <div className="text-sm text-gray-400">{t('erp.stat.outstanding')}</div>
-          <div className="mt-2 text-2xl font-bold text-mist-100">{summary ? <Money value={formatMinor(summary.outstandingMinor)} /> : <Num>—</Num>}</div>
+      {kpiCards.length > 0 ? (
+        <div className={`grid gap-4 ${resolveFinanceKpiGridCols(kpiCards.length)}`}>
+          {kpiCards.map((card) => (
+            <React.Fragment key={card.key}>{card.node}</React.Fragment>
+          ))}
         </div>
-        <div className={panelClass}>
-          <div className="text-sm text-gray-400">{t('erp.stat.overdue')}</div>
-          <div className="mt-2 text-2xl font-bold text-red-400">{summary ? <Money value={formatMinor(summary.overdueMinor)} /> : <Num>—</Num>}</div>
-          {summary ? (
-            <div className="mt-1 text-sm text-gray-400">
-              <Num>{summary.overdueCount}</Num> {t('erp.unit.invoices')}
-            </div>
-          ) : null}
-        </div>
-        <div className={panelClass}>
-          <div className="text-sm text-gray-400">{t('erp.stat.pending')}</div>
-          <div className="mt-2 text-2xl font-bold text-yellow-300">
-            <Num>{summary ? summary.countsByStatus.pending_approval : '—'}</Num>
-          </div>
-        </div>
-        <div className={panelClass}>
-          <div className="text-sm text-gray-400">{t('erp.stat.drafts')}</div>
-          <div className="mt-2 text-2xl font-bold text-mist-100">
-            <Num>{summary ? summary.countsByStatus.draft : '—'}</Num>
-          </div>
-        </div>
-      </div>
+      ) : null}
 
-      <div className={`${panelClass} mb-4`}>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h3 className="font-semibold text-mist-100">{t('erp.chart.title')}</h3>
-          <p className="text-xs text-gray-400">{t('erp.chart.unit')}</p>
+      {chartRows.length > 0 ? (
+        <div className={SURFACE_CLS}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="text-base font-semibold text-[var(--ds-text-primary)]">
+              {t('erp.chart.title')}
+            </h3>
+            <p className="text-xs text-[var(--ds-text-muted)]">{t('erp.chart.unit')}</p>
+          </div>
+          <ChartFrame className="mt-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartRows}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.25)" />
+                <XAxis dataKey="month" stroke="#64748b" tick={axis} tickLine={false} />
+                <YAxis
+                  stroke="#64748b"
+                  tick={axis}
+                  tickLine={false}
+                  width={compact ? 44 : 58}
+                />
+                <Tooltip
+                  content={(props) => (
+                    <ChartTooltip
+                      active={props.active}
+                      payload={props.payload}
+                      label={typeof props.label === 'string' ? props.label : undefined}
+                    />
+                  )}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar
+                  dataKey="invoiced"
+                  name={t('erp.chart.invoiced')}
+                  fill="#0284c7"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="collected"
+                  name={t('erp.chart.collected')}
+                  fill="#059669"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartFrame>
         </div>
-        <ChartFrame className="mt-4 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartRows}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
-              <XAxis dataKey="month" stroke="#8b949e" tick={axis} tickLine={false} />
-              <YAxis stroke="#8b949e" tick={axis} tickLine={false} width={compact ? 40 : 56} />
-              <Tooltip content={(props) => <ChartTooltip active={props.active} payload={props.payload} label={typeof props.label === 'string' ? props.label : undefined} />} />
-              <Legend wrapperStyle={{ color: '#c9d1d9', fontSize: 12 }} />
-              <Bar dataKey="invoiced" name={t('erp.chart.invoiced')} fill="#58a6ff" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-              <Bar dataKey="collected" name={t('erp.chart.collected')} fill="#3fb950" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartFrame>
-      </div>
+      ) : null}
 
-      <div className={panelClass}>
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={SURFACE_CLS}>
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={t('erp.filter.search')}
             aria-label={t('erp.filter.search')}
-            className={`${inputClass} mt-0 lg:col-span-2`}
+            className={`${INPUT_CLS} lg:col-span-2`}
           />
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value as InvoiceStatus | '')}
             aria-label={t('erp.col.status')}
-            className={`${inputClass} mt-0`}
+            className={INPUT_CLS}
           >
             <option value="">{t('erp.filter.allStatuses')}</option>
             {invoiceStatuses.map((item) => (
@@ -266,7 +456,12 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
             ))}
           </select>
           <div className="flex gap-2">
-            <select value={sort} onChange={(event) => setSort(event.target.value as InvoiceSortKey)} aria-label={t('erp.sortBy')} className={`${inputClass} mt-0`}>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as InvoiceSortKey)}
+              aria-label={t('erp.sortBy')}
+              className={INPUT_CLS}
+            >
               {invoiceSortKeys.map((item) => (
                 <option key={item} value={item}>
                   {t(`erp.sort.${item}`)}
@@ -277,7 +472,7 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
               value={direction}
               onChange={(event) => setDirection(event.target.value as 'asc' | 'desc')}
               aria-label={t('erp.sortBy')}
-              className={`${inputClass} mt-0`}
+              className={INPUT_CLS}
             >
               <option value="desc">{t('erp.sort.desc')}</option>
               <option value="asc">{t('erp.sort.asc')}</option>
@@ -285,65 +480,73 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
           </div>
         </div>
 
-        {phase === 'loading' ? <p className="py-8 text-center text-sm text-gray-400">{t('erp.loading')}</p> : null}
+        {phase === 'loading' ? (
+          <StateBlock state="loading" locale={fmtLocale} skeletonRows={4} title={t('erp.loading')} />
+        ) : null}
 
         {phase === 'error' ? (
-          <div className="space-y-3 py-6 text-center">
-            <p role="alert" className={`${errorClass} inline-block`}>
-              {t(listError)}
-            </p>
-            <div>
-              <button type="button" onClick={refresh} className={secondaryButton}>
-                {t('erp.retry')}
-              </button>
-            </div>
-          </div>
+          <StateBlock
+            state={listError === 'erp.err.forbidden' ? 'forbidden' : 'error'}
+            locale={fmtLocale}
+            title={t(listError)}
+            onRetry={listError === 'erp.err.forbidden' ? undefined : refresh}
+          />
         ) : null}
 
         {phase === 'ready' && rows.length === 0 ? (
-          <div className="py-10 text-center">
-            <p className="text-gray-200">{t('erp.empty')}</p>
-            <p className="mt-1 text-sm text-gray-400">{t('erp.emptyHint')}</p>
-          </div>
+          <StateBlock
+            state="empty"
+            compact
+            locale={fmtLocale}
+            title={t('erp.empty')}
+            description={t('erp.emptyHint')}
+          />
         ) : null}
 
         {phase === 'ready' && rows.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] text-sm">
-              <thead className="text-gray-400">
-                <tr className="border-b border-[#30363d]">
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.number')}</th>
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.customer')}</th>
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.status')}</th>
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.due')}</th>
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.total')}</th>
-                  <th className="px-3 py-2 text-start font-medium">{t('erp.col.paid')}</th>
+          <div className="overflow-x-auto rounded-xl border border-[var(--ds-border-hairline)]">
+            <table className="w-full min-w-[40rem] border-collapse text-sm">
+              <thead className="border-b border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] text-xs font-bold text-[var(--ds-text-secondary)]">
+                <tr>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-start">{t('erp.col.number')}</th>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-start">{t('erp.col.customer')}</th>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-start">{t('erp.col.status')}</th>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-start">{t('erp.col.due')}</th>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-end">{t('erp.col.total')}</th>
+                  <th className="whitespace-nowrap px-3.5 py-2.5 text-end">{t('erp.col.paid')}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-[var(--ds-border-hairline)] tabular-nums">
                 {rows.map((invoice) => (
-                  <tr key={invoice.id} className="border-b border-[#30363d]/60 text-gray-200 hover:bg-white/[0.03]">
-                    <td className="px-3 py-2.5">
+                  <tr
+                    key={invoice.id}
+                    className="transition-colors hover:bg-[var(--ds-bg-hover)]"
+                  >
+                    <td className="whitespace-nowrap px-3.5 py-2.5">
                       <button
                         type="button"
                         onClick={() => setSelection({ kind: 'invoice', id: invoice.id })}
-                        className="font-semibold text-blue-400 hover:text-blue-300"
+                        className="ds-focus-ring cursor-pointer font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                       >
                         <Num>{invoice.number}</Num>
                       </button>
                     </td>
-                    <td className="px-3 py-2.5">{invoice.customerName}</td>
-                    <td className="px-3 py-2.5">
-                      <StatusBadge status={invoice.status} />
+                    <td className="max-w-[240px] truncate px-3.5 py-2.5 font-medium text-[var(--ds-text-primary)]">
+                      {invoice.customerName}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="whitespace-nowrap px-3.5 py-2.5">
+                      <span className="inline-flex shrink-0 whitespace-nowrap">
+                        <StatusBadge status={invoice.status} />
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3.5 py-2.5">
                       <Num>{invoice.dueDate}</Num>
                     </td>
-                    <td className="px-3 py-2.5">
-                      <Money value={formatMinor(invoice.totalMinor)} />
+                    <td dir="ltr" className="whitespace-nowrap px-3.5 py-2.5 text-end font-semibold tabular-nums">
+                      {minorToKwd(invoice.totalMinor, fmtLocale)}
                     </td>
-                    <td className="px-3 py-2.5">
-                      <Money value={formatMinor(invoice.paidMinor)} />
+                    <td dir="ltr" className="whitespace-nowrap px-3.5 py-2.5 text-end tabular-nums">
+                      {minorToKwd(invoice.paidMinor, fmtLocale)}
                     </td>
                   </tr>
                 ))}
@@ -353,13 +556,18 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
         ) : null}
 
         {moreError ? (
-          <p role="alert" className={`${errorClass} mt-3`}>
+          <p role="alert" className={`${ERROR_ALERT_CLS} mt-3`}>
             {t(moreError)}
           </p>
         ) : null}
         {cursor && phase === 'ready' ? (
           <div className="mt-4 text-center">
-            <button type="button" onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={loadingMore}
+              className={SECONDARY_BTN_CLS}
+            >
               {loadingMore ? t('erp.loading') : t('erp.loadMore')}
             </button>
           </div>
@@ -367,17 +575,22 @@ export default function FinanceDashboard({ initialInvoiceId = null }: { initialI
       </div>
 
       {selection ? (
-        <div className="fixed inset-0 z-40 flex justify-end bg-[#09110E]/60" onClick={() => setSelection(null)}>
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-xs"
+          onClick={() => setSelection(null)}
+        >
           <aside
             role="dialog"
             aria-modal="true"
             aria-label={selection.kind === 'new' ? t('erp.new') : t('erp.nav')}
             onClick={(event) => event.stopPropagation()}
-            className="h-full w-full max-w-2xl overflow-y-auto border-s border-[#30363d] bg-[#161b22] p-5"
+            className="h-full w-full max-w-2xl overflow-y-auto border-s border-[var(--ds-border-hairline)] bg-[var(--ds-bg-surface)] p-5 text-[var(--ds-text-primary)] shadow-2xl"
           >
             {selection.kind === 'new' ? (
               <>
-                <h2 className="mb-4 text-lg font-semibold text-gray-100">{t('erp.new')}</h2>
+                <h2 className="mb-4 text-lg font-bold text-[var(--ds-text-primary)]">
+                  {t('erp.new')}
+                </h2>
                 <InvoiceForm
                   approvalThresholdMinor={threshold}
                   onSaved={(created) => {

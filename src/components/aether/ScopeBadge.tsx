@@ -2,9 +2,9 @@ import { SCOPE_LABELS, type ScopeBadgeKind } from '@/lib/aether/brand-scope'
 
 const BADGE_STYLE: Record<ScopeBadgeKind, string> = {
   'company-wide':
-    'inline-flex items-center whitespace-nowrap rounded-full bg-sky-50/85 px-2.5 py-0.5 text-xs font-semibold text-sky-900 backdrop-blur-sm ring-1 ring-sky-400/30 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-300/25',
+    'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-sky-50/85 px-2.5 py-0.5 text-xs font-semibold text-sky-900 backdrop-blur-sm ring-1 ring-sky-400/30 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-300/25',
   'all-brands':
-    'inline-flex items-center whitespace-nowrap rounded-full bg-indigo-50/85 px-2.5 py-0.5 text-xs font-semibold text-indigo-900 backdrop-blur-sm ring-1 ring-indigo-400/30 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-300/25',
+    'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-indigo-50/85 px-2.5 py-0.5 text-xs font-semibold text-indigo-900 backdrop-blur-sm ring-1 ring-indigo-400/30 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-300/25',
 }
 
 const LABEL_OF: Record<ScopeBadgeKind, { ar: string; en: string }> = {

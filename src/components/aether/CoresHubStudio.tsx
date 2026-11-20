@@ -79,11 +79,11 @@ const CARD_CLS =
 const KPI_CARD_CLS =
   'relative overflow-visible flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 
-function resolveDynamicKpiGridClass(count: number): string {
+export function resolveDynamicKpiGridClass(count: number): string {
   if (count <= 1) return 'grid-cols-1'
   if (count === 2) return 'grid-cols-1 md:grid-cols-2'
   if (count === 3 || count === 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 function renderDynamicKpiRows(cards: readonly { key: string; node: React.ReactNode }[]) {
@@ -584,7 +584,7 @@ export function CoresHubStudio({
     liveSummary !== null && (!workspace.odooConnected || workspace.noData || snapshot.noData)
 
   return (
-    <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="min-w-0 space-y-6 pb-24 sm:pb-10" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header & Core Tabs */}
       <div className={`${CARD_CLS} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
         <div className="min-w-0 flex-1">
@@ -701,7 +701,11 @@ export function CoresHubStudio({
               },
             ]
 
-            if (snapshot.sales.headline.aovKwd !== null || snapshot.sales.headline.netSalesKwd === null) {
+            if (
+              (snapshot.sales.headline.aovKwd !== null &&
+                snapshot.sales.headline.aovKwd > 0.0005) ||
+              snapshot.sales.headline.netSalesKwd === null
+            ) {
               salesKpiCards.push({
                 key: 'average-order-value',
                 node: (
@@ -744,7 +748,12 @@ export function CoresHubStudio({
               })
             }
 
-            if (!(snapshot.sales.channelsUnavailable || (!liveCube && workspace.nullableSalesKwd === null))) {
+            if (
+              !snapshot.sales.channelsUnavailable &&
+              !(!liveCube && workspace.nullableSalesKwd === null) &&
+              (snapshot.sales.zeroCommSalesKwd > 0.0005 ||
+                snapshot.sales.aggregatorSalesKwd > 0.0005)
+            ) {
               salesKpiCards.push({
                 key: 'direct-vs-aggregators',
                 node: (
@@ -781,9 +790,9 @@ export function CoresHubStudio({
                 key: 'top-performing-branch',
                 node: (
                   <article className={KPI_CARD_CLS}>
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                    <div className="min-w-0">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {isAr ? 'الفرع الأعلى أداءً' : 'Top Performing Branch'}
                         </div>
                         <span
@@ -795,7 +804,7 @@ export function CoresHubStudio({
                       </div>
                       <div
                         title={topBranchLabel}
-                        className="mt-1 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
+                        className="mt-1 min-w-0 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
                       >
                         {topBranchLabel}
                       </div>
@@ -1022,7 +1031,7 @@ export function CoresHubStudio({
                       return (
                         <div
                           key={b.id}
-                          className={`flex items-center justify-between gap-2.5 py-2.5 text-xs ${
+                          className={`flex items-center justify-between gap-2 min-w-0 py-2.5 text-xs ${
                             isUnattr
                               ? 'rounded-lg px-2 font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
                               : ''
@@ -1041,7 +1050,7 @@ export function CoresHubStudio({
                             <div className="min-w-0 flex-1">
                               <h4
                                 title={branchLabel}
-                                className="truncate font-semibold text-slate-900 dark:text-white"
+                                className="min-w-0 flex-1 truncate font-semibold text-slate-900 dark:text-white"
                               >
                                 {branchLabel}
                               </h4>
@@ -1195,7 +1204,7 @@ export function CoresHubStudio({
                   {snapshot.sales.brandShare.filter((b) => b.salesKwd > 0).map((b) => {
                     const brandTitle = isAr ? b.labelAr : b.labelEn
                     return (
-                      <div key={b.id} className="flex items-center justify-between gap-2 py-2 text-xs">
+                      <div key={b.id} className="flex items-center justify-between gap-2 min-w-0 py-2 text-xs">
                         <span
                           title={brandTitle}
                           className="min-w-0 flex-1 truncate font-medium text-slate-800 dark:text-slate-200"
@@ -1284,7 +1293,7 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'menu' ? (
         <div className="space-y-6">
-          {!snapshot.menu.menuUnavailable
+          {!snapshot.menu.menuUnavailable && snapshot.menu.dishes.length > 0
             ? (() => {
                 const menuKpiCards: { key: string; node: React.ReactNode }[] = [
                   {
@@ -1372,13 +1381,13 @@ export function CoresHubStudio({
                     key: 'top-menu-dish',
                     node: (
                       <article className={KPI_CARD_CLS}>
-                        <div>
+                        <div className="min-w-0">
                           <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                             {isAr ? 'الصنف الأعلى مبيعاً' : 'Top Selling Item'}
                           </div>
                           <div
                             title={topMenuDish.name}
-                            className="mt-1 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
+                            className="mt-1 min-w-0 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
                           >
                             {topMenuDish.name}
                           </div>
@@ -1503,7 +1512,12 @@ export function CoresHubStudio({
                   <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/5">
                     {pagedDishes.map((d) => (
                       <tr key={d.id}>
-                        <td className="py-2.5 pe-3 font-semibold text-slate-900 dark:text-white">{d.name}</td>
+                        <td
+                          title={d.name}
+                          className="max-w-[260px] truncate py-2.5 pe-3 font-semibold text-slate-900 dark:text-white"
+                        >
+                          {d.name}
+                        </td>
                         <td className="whitespace-nowrap py-2.5 pe-3 text-slate-600 dark:text-slate-300">
                           {isAr ? d.brandAr : d.brandEn}
                         </td>
@@ -1560,6 +1574,15 @@ export function CoresHubStudio({
                 </div>
               </div>
             ) : null}
+
+            <KpiProvenanceBadge
+              odooModel="pos.order.line"
+              dateRange={dateRangeLabel}
+              lastSyncAt={lastSyncAt}
+              isStale24h={isStale24h}
+              kind="فعلي"
+              queryOrFormula="pos.order.line grouped by product_id"
+            />
           </div>
         </div>
       ) : null}
@@ -1828,7 +1851,7 @@ export function CoresHubStudio({
                   <label htmlFor="camp-start" className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isAr ? 'تاريخ البداية والنهاية' : 'Start & End Dates'}
                   </label>
-                  <div className="mt-1 flex gap-1.5">
+                  <div className="mt-1 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                     <input
                       id="camp-start"
                       type="date"
@@ -1836,7 +1859,7 @@ export function CoresHubStudio({
                       aria-label={isAr ? 'تاريخ بداية الحملة' : 'Campaign start date'}
                       value={formStartDate}
                       onChange={(e) => setFormStartDate(e.target.value)}
-                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
+                      className="min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                     />
                     <input
                       id="camp-end"
@@ -1845,7 +1868,7 @@ export function CoresHubStudio({
                       aria-label={isAr ? 'تاريخ نهاية الحملة' : 'Campaign end date'}
                       value={formEndDate}
                       onChange={(e) => setFormEndDate(e.target.value)}
-                      className="w-1/2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
+                      className="min-w-0 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                     />
                   </div>
                 </div>

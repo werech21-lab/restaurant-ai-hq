@@ -832,7 +832,10 @@ export function WeekdayComparisonStudio() {
                 return (
                   <div key={kpi.id} className={`${KPI_CLS} min-w-0`}>
                     <div className="flex items-start justify-between gap-1.5">
-                      <span className="min-w-0 truncate text-[12px] font-semibold leading-snug text-slate-600 sm:text-[12.5px] dark:text-slate-300">
+                      <span
+                        className="min-w-0 truncate text-[12px] font-semibold leading-snug text-slate-600 sm:text-[12.5px] dark:text-slate-300"
+                        title={isAr ? kpi.labelAr : kpi.labelEn}
+                      >
                         {isAr ? kpi.labelAr : kpi.labelEn}
                       </span>
                       {kpi.isFavorable ? (
@@ -856,7 +859,7 @@ export function WeekdayComparisonStudio() {
                       )}
                     </div>
 
-                    <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5 tabular-nums">
                       <span
                         dir="ltr"
                         className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
@@ -1237,7 +1240,10 @@ export function WeekdayComparisonStudio() {
                       }`}
                     >
                       <td className="max-w-[220px] py-3 ps-4 pe-3">
-                        <div className="truncate font-semibold text-slate-950 dark:text-white">
+                        <div
+                          className="truncate font-semibold text-slate-950 dark:text-white"
+                          title={isAr ? row.nameAr : row.nameEn}
+                        >
                           {isAr ? row.nameAr : row.nameEn}
                         </div>
                         <div className="truncate text-xs text-slate-500 dark:text-slate-400">
@@ -1296,21 +1302,21 @@ export function WeekdayComparisonStudio() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 bg-slate-50/90 font-semibold text-slate-950 tabular-nums dark:border-slate-800 dark:bg-slate-900/95 dark:text-white">
-                    <td className="py-3 ps-4 pe-3">
+                    <td className="whitespace-nowrap py-3 ps-4 pe-3">
                       {isAr ? 'الإجمالي الفعلي (Odoo 17)' : 'Total (Odoo 17)'}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       <span dir="ltr" className="tabular-nums">
                         {fmtKwd(comparison.selectionA.netSalesKwd, resolvedLocale)} {kwd}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       <span dir="ltr" className="tabular-nums">
                         {fmtKwd(comparison.selectionB.netSalesKwd, resolvedLocale)} {kwd}
                       </span>
                     </td>
                     <td
-                      className={`px-3 py-3 ${
+                      className={`whitespace-nowrap px-3 py-3 ${
                         comparison.kpis.netSales.deltaAbs >= 0
                           ? 'text-emerald-700 dark:text-emerald-300'
                           : 'text-rose-700 dark:text-rose-300'
@@ -1320,18 +1326,18 @@ export function WeekdayComparisonStudio() {
                         {fmtSignedKwd(comparison.kpis.netSales.deltaAbs, resolvedLocale)} {kwd}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       <span dir="ltr" className="tabular-nums">
                         {fmtSignedPct(comparison.kpis.netSales.deltaPct, resolvedLocale)}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="whitespace-nowrap px-3 py-3">
                       <span dir="ltr" className="tabular-nums">
                         {fmt0(comparison.selectionA.completedOrders, resolvedLocale)} /{' '}
                         {fmt0(comparison.selectionB.completedOrders, resolvedLocale)}
                       </span>
                     </td>
-                    <td className="py-3 ps-3 pe-4 text-end font-mono text-xs">
+                    <td className="whitespace-nowrap py-3 ps-3 pe-4 text-end font-mono text-xs">
                       <span dir="ltr" className="tabular-nums">
                         {fmtKwd(comparison.selectionA.aovKwd, resolvedLocale)} /{' '}
                         {fmtKwd(comparison.selectionB.aovKwd, resolvedLocale)} {kwd}

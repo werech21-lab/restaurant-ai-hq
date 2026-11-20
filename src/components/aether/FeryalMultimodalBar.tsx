@@ -39,12 +39,17 @@ export function FeryalMediaPickerButton({
   onIntakeFileSelected?: (file: File) => void
   openPickerRef?: React.MutableRefObject<(() => void) | null>
   openCameraRef?: React.MutableRefObject<(() => void) | null>
-  size?: 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg'
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const intakeInputRef = useRef<HTMLInputElement | null>(null)
   const cameraRef = useRef<HTMLInputElement | null>(null)
-  const hCls = size === 'lg' ? 'h-[48px] sm:h-[50px]' : 'h-[44px] sm:h-[46px]'
+  const hCls =
+    size === 'lg'
+      ? 'h-[48px] sm:h-[50px]'
+      : size === 'sm'
+        ? 'h-9'
+        : 'h-[44px] sm:h-[46px]'
   const busy = Boolean(disabled || processing || uploadingIntake)
 
   useEffect(() => {
@@ -61,7 +66,7 @@ export function FeryalMediaPickerButton({
   }, [openCameraRef, openPickerRef])
 
   return (
-    <div className="inline-flex shrink-0 flex-nowrap items-center gap-1.5">
+    <div className="inline-flex flex-wrap sm:flex-nowrap items-center gap-1.5">
       <input
         ref={inputRef}
         type="file"

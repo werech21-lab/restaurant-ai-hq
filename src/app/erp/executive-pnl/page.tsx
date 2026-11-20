@@ -11,7 +11,7 @@ export const metadata = {
 export default async function ExecutivePnlPage() {
   await requirePageUser('/erp/executive-pnl')
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0 overflow-visible">
       <ExecutivePnlStudio />
     </div>
   )

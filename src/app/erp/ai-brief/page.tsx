@@ -106,9 +106,9 @@ export default async function AiBriefPage() {
       className="mx-auto w-full max-w-5xl min-w-0 overflow-x-clip px-4 py-8"
       dir={isAr ? 'rtl' : 'ltr'}
     >
-      <h1 className="text-xl font-black text-slate-900 dark:text-white">
+      <h2 className="text-xl font-black text-slate-900 dark:text-white">
         {isAr ? 'تحليل أودو اليومي' : 'Daily Odoo AI Brief'}
-      </h1>
+      </h2>
       <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
         {isAr ? (
           <>

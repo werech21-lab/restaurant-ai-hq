@@ -14,7 +14,7 @@ export const metadata = {
 export default async function WarehouseDailyChainPage() {
   await requirePageUser('/erp/warehouse-chain')
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-visible px-4 py-5 sm:px-6">
       <Suspense
         fallback={
           <StateBlock

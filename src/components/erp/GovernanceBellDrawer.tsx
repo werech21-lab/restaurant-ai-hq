@@ -928,10 +928,10 @@ export function GovernanceBellTrigger(props: { showInlinePin?: boolean }) {
   } = useGovernance()
 
   return (
-    <div className="inline-flex items-center gap-1.5">
+    <div className="inline-flex shrink-0 flex-nowrap items-center gap-1.5 whitespace-nowrap">
       {showInlinePin ? (
         session.active ? (
-          <div className="hidden items-center gap-1 rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
+          <div className="hidden shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-emerald-50 px-2.5 py-1 text-[13px] font-semibold text-emerald-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] lg:inline-flex dark:bg-emerald-950/60 dark:text-emerald-200">
             <span>{isAr ? 'وضع المدير نشط 🔓' : 'Manager Active 🔓'}</span>
             <span dir="ltr" className="font-mono text-xs tabular-nums opacity-80">
               {formatCountdown(session.remainingSeconds)}
@@ -940,7 +940,7 @@ export function GovernanceBellTrigger(props: { showInlinePin?: boolean }) {
               type="button"
               onClick={lockSession}
               title={isAr ? 'قفل الصلاحية فوراً' : 'Lock Executive Session'}
-              className="ms-1 cursor-pointer rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
+              className="ms-1 shrink-0 cursor-pointer whitespace-nowrap rounded-lg bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700 dark:bg-[#101C17] dark:text-slate-200"
             >
               {isAr ? 'قفل الصلاحية 🔒' : 'Lock 🔒'}
             </button>
@@ -959,9 +959,9 @@ export function GovernanceBellTrigger(props: { showInlinePin?: boolean }) {
                 ? 'فتح صلاحية المدير بالرمز السري (4 أرقام)'
                 : 'Unlock Manager Session (4-digit PIN)'
             }
-            className="ae-capsule hidden h-9 cursor-pointer items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors duration-150 lg:inline-flex"
+            className="ae-capsule hidden h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap px-3 py-1.5 text-xs font-semibold transition-colors duration-150 lg:inline-flex"
           >
-            <Lock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <Lock className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{isAr ? 'صلاحية المدير' : 'Manager PIN'}</span>
           </button>
         )
@@ -980,7 +980,7 @@ export function GovernanceBellTrigger(props: { showInlinePin?: boolean }) {
             ? `${pendingApprovals.length} طلبات معلقة · ${activeBreaches.length} مخالفات Odoo`
             : `${pendingApprovals.length} Pending Approvals · ${activeBreaches.length} Odoo Breaches`
         }
-        className="ae-capsule relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:inline-flex lg:h-9 lg:gap-1.5 lg:px-3"
+        className="ae-capsule relative inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl px-2.5 text-xs font-semibold transition-all duration-[160ms] active:scale-95 lg:inline-flex lg:h-9 lg:gap-1.5 lg:px-3"
       >
         <Bell
           className={`h-4 w-4 shrink-0 ${
@@ -1521,7 +1521,7 @@ export function GovernanceSlideOverDrawer({
                   <span>{isAr ? t.ar : t.en}</span>
                   <span
                     dir="ltr"
-                    className={`rounded-lg px-1.5 py-0.2 text-xs tabular-nums ${
+                    className={`rounded-lg px-1.5 py-0.5 text-xs tabular-nums ${
                       active
                         ? 'bg-white/20 text-white dark:bg-black/15 dark:text-[#04130D]'
                         : 'bg-white text-neutral-700 dark:bg-white/10 dark:text-slate-200'

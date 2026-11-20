@@ -9,7 +9,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const query = await searchParams
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full min-w-0 max-w-[1920px] overflow-visible px-4 py-5 sm:px-6">
       <ProjectsHub permissions={permissions} initialTab={tab ?? 'project'} />
     </div>
   )

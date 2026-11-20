@@ -108,8 +108,8 @@ export function VentureAccountingHub({
       items.push({
         key: 'net-ar',
         node: (
-          <article className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <article className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <p className="min-w-0 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
               {isAr ? 'صافي الذمم المدينة المفتوحة' : 'Net Open Receivables'}
             </p>
             <p
@@ -139,8 +139,8 @@ export function VentureAccountingHub({
       items.push({
         key: 'open-debits',
         node: (
-          <article className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <article className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <p className="min-w-0 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
               {isAr ? 'إجمالي الأرصدة المدينة الموجبة' : 'Gross Positive Receivables'}
             </p>
             <p
@@ -170,8 +170,8 @@ export function VentureAccountingHub({
       items.push({
         key: 'credit-clearing',
         node: (
-          <article className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <article className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+            <p className="min-w-0 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
               {isAr ? 'مقاصة التسويات الدائنة قيد التصفية' : 'Credit Clearing Offset'}
             </p>
             <p
@@ -211,8 +211,8 @@ export function VentureAccountingHub({
   const HeadingTag = embeddedInErp ? 'h2' : 'h1'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-6">
-      <header className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="min-w-0 space-y-6">
+      <header className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -335,8 +335,8 @@ export function VentureAccountingHub({
                   receivablesKpis.length === 1
                     ? 'grid-cols-1'
                     : receivablesKpis.length === 2
-                      ? 'grid-cols-1 sm:grid-cols-2'
-                      : 'grid-cols-1 sm:grid-cols-3'
+                      ? 'grid-cols-1 md:grid-cols-2'
+                      : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
                 }`}
               >
                 {receivablesKpis.map((item) => (
@@ -347,7 +347,7 @@ export function VentureAccountingHub({
 
             <div
               data-finance-ai-insights="true"
-              className="ds-surface flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-4 dark:border-emerald-400/20 dark:bg-[#0f1d18]"
+              className="ds-surface relative overflow-visible flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-4 dark:border-emerald-400/20 dark:bg-[#0f1d18]"
             >
               <div className="flex items-center gap-2.5">
                 <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-300" aria-hidden />
@@ -367,7 +367,7 @@ export function VentureAccountingHub({
             </div>
 
             {workspace.receivables.agingBuckets.length > 0 ? (
-              <div className="ds-surface rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
                   {isAr ? 'توزيع أعمار الذمم المدينة من Odoo' : 'Odoo Receivable Aging Buckets'}
                 </h2>
@@ -375,24 +375,24 @@ export function VentureAccountingHub({
                   <table className="w-full min-w-[460px] text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                        <th className="px-3 py-2.5 text-start">{isAr ? 'الفئة العمرية' : 'Aging Bucket'}</th>
-                        <th className="px-3 py-2.5 text-center">{isAr ? 'عدد السطور' : 'Lines'}</th>
-                        <th className="px-3 py-2.5 text-end">{isAr ? 'صافي الرصيد' : 'Net Amount'}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-start">{isAr ? 'الفئة العمرية' : 'Aging Bucket'}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-center">{isAr ? 'عدد السطور' : 'Lines'}</th>
+                        <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'صافي الرصيد' : 'Net Amount'}</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="tabular-nums">
                       {workspace.receivables.agingBuckets.map((b) => (
                         <tr
                           key={b.key}
                           className="border-b border-slate-100 last:border-0 dark:border-slate-800/60"
                         >
-                          <td className="px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
+                          <td className="max-w-[220px] truncate px-3 py-2.5 font-semibold text-slate-900 dark:text-white">
                             {isAr ? b.labelAr : b.labelEn}
                           </td>
-                          <td dir="ltr" className="ds-num px-3 py-2.5 text-center tabular-nums">
+                          <td dir="ltr" className="ds-num whitespace-nowrap px-3 py-2.5 text-center tabular-nums">
                             {formatInt(b.linesCount, currentLocale)}
                           </td>
-                          <td dir="ltr" className="ds-num px-3 py-2.5 text-end font-bold tabular-nums">
+                          <td dir="ltr" className="ds-num whitespace-nowrap px-3 py-2.5 text-end font-bold tabular-nums">
                             {formatKwd(b.residualKwd, currentLocale)}
                           </td>
                         </tr>

@@ -198,10 +198,10 @@ export function EnterpriseHrCommandHub({
       key: 'name',
       header: label('الموظف', 'Employee'),
       render: (emp) => (
-        <div className="min-w-0">
-          <p className="font-semibold text-[var(--ds-text-primary)]">{emp.name}</p>
+        <div className="min-w-0 max-w-[240px]">
+          <p className="min-w-0 truncate font-semibold text-[var(--ds-text-primary)]">{emp.name}</p>
           {emp.jobTitle ? (
-            <p className="text-xs text-[var(--ds-text-muted)]">{emp.jobTitle}</p>
+            <p className="min-w-0 truncate text-xs text-[var(--ds-text-muted)]">{emp.jobTitle}</p>
           ) : null}
         </div>
       ),
@@ -211,7 +211,7 @@ export function EnterpriseHrCommandHub({
       header: label('القسم', 'Department'),
       render: (emp) =>
         emp.department ? (
-          <span>{emp.department}</span>
+          <span className="block max-w-[220px] truncate">{emp.department}</span>
         ) : (
           <UnavailableCell tooltip={unavailableTooltip} />
         ),
@@ -241,7 +241,7 @@ export function EnterpriseHrCommandHub({
         const isActive = emp.status === 'ACTIVE'
         return (
           <span
-            className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+            className="inline-flex shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold"
             style={{
               backgroundColor: isActive ? 'var(--ds-positive-bg)' : 'var(--ds-warning-bg)',
               borderColor: isActive ? 'var(--ds-positive-border)' : 'var(--ds-warning-border)',
@@ -288,9 +288,9 @@ export function EnterpriseHrCommandHub({
       key: 'employee',
       header: label('الموظف', 'Employee'),
       render: (r) => (
-        <div>
-          <p className="font-semibold text-[var(--ds-text-primary)]">{r.employeeName}</p>
-          {r.department ? <p className="text-xs text-[var(--ds-text-muted)]">{r.department}</p> : null}
+        <div className="min-w-0 max-w-[240px]">
+          <p className="min-w-0 truncate font-semibold text-[var(--ds-text-primary)]">{r.employeeName}</p>
+          {r.department ? <p className="min-w-0 truncate text-xs text-[var(--ds-text-muted)]">{r.department}</p> : null}
         </div>
       ),
     },
@@ -339,7 +339,7 @@ export function EnterpriseHrCommandHub({
         const paid = r.status === 'PAID'
         return (
           <span
-            className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+            className="inline-flex shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold"
             style={{
               backgroundColor: paid ? 'var(--ds-positive-bg)' : 'var(--ds-warning-bg)',
               borderColor: paid ? 'var(--ds-positive-border)' : 'var(--ds-warning-border)',
@@ -357,7 +357,7 @@ export function EnterpriseHrCommandHub({
       render: (r) => (
         <Link
           href={`/hr/payroll/${r.id}/print`}
-          className="ds-focus-ring inline-flex items-center gap-1 rounded-lg border border-[var(--ds-border-strong)] px-2.5 py-1 text-xs font-semibold text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
+          className="ds-focus-ring inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg border border-[var(--ds-border-strong)] px-2.5 py-1 text-xs font-semibold text-[var(--ds-text-primary)] hover:bg-[var(--ds-bg-hover)]"
         >
           <FileText className="h-3.5 w-3.5" aria-hidden />
           <span>{label('طباعة', 'Print')}</span>
@@ -422,7 +422,7 @@ export function EnterpriseHrCommandHub({
 
   return (
     <div dir={dir} className="mx-auto w-full max-w-7xl min-w-0 space-y-5 py-2">
-      <header className="ds-surface flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4 sm:p-5">
+      <header className="ds-surface relative overflow-visible flex flex-wrap items-center justify-between gap-4 rounded-2xl p-4 sm:p-5">
         <div className="min-w-0 space-y-1">
           <h1 className="ds-page-title break-words">
             {label('الموارد البشرية وشؤون العاملين', 'Human Resources & Workforce')}
@@ -474,7 +474,7 @@ export function EnterpriseHrCommandHub({
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           label={label('إجمالي الموظفين المسجلين', 'Registered Employees')}
           value={safeEmployees.length > 0 ? safeEmployees.length : null}

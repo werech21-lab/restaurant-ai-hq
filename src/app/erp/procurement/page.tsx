@@ -18,7 +18,7 @@ export default async function ProcurementPage({
   const permissions = await readSessionPermissions()
 
   return (
-    <div className="mx-auto w-full max-w-[1920px] min-w-0 px-4 py-5 sm:px-6">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-visible px-4 py-5 sm:px-6">
       <ProcurementWorkspace permissions={permissions} initialTab={tab} />
     </div>
   )

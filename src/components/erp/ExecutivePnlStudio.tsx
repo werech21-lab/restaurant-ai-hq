@@ -36,9 +36,9 @@ const DRILLDOWN_PAGE_SIZE = 12
 
 function resolvePnlKpiGridCols(count: number): string {
   if (count <= 1) return 'grid-cols-1'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
-  if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 function NullableKwdCell({
@@ -358,8 +358,8 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'pos-sales',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'صافي مبيعات نقاط البيع (POS)' : 'POS Net Sales (pos.order)'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
@@ -390,14 +390,14 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'gl-revenue',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'إيرادات الأستاذ العام (GL)' : 'GL Posted Revenue'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-400">
               <NullableKwdCell value={gl.totalRevenueKwd} locale={resolvedLocale} />
             </div>
-            <span className="text-xs text-slate-600 dark:text-slate-400 block">
+            <span className="text-xs text-slate-600 dark:text-slate-400 block tabular-nums">
               {isAr ? `${glLinesFormatted} سطر قيد مرحّل` : `${glLinesFormatted} posted move lines`}
             </span>
             <KpiProvenanceBadge
@@ -415,8 +415,8 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'pos-aov',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'متوسط قيمة الطلب (AOV)' : 'Average Order Value (AOV)'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
@@ -442,8 +442,8 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'gl-cogs',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'تكلفة البضاعة الفعلية (COGS)' : 'Actual GL COGS'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-rose-700 dark:text-rose-400">
@@ -468,11 +468,11 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'top-brand',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'العلامة الأعلى إيراداً' : 'Top Revenue Brand'}
             </span>
-            <div className="truncate text-lg font-black text-slate-950 dark:text-white">
+            <div className="min-w-0 truncate text-lg font-black text-slate-950 dark:text-white">
               {isAr ? activeBrandRows[0].ar : activeBrandRows[0].en}
             </div>
             <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
@@ -495,8 +495,8 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'gl-operating-profit',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'صافي الربح التشغيلي (GL)' : 'GL Operating Profit'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-300">
@@ -521,11 +521,11 @@ export function ExecutivePnlStudio() {
       cards.push({
         key: 'top-branch',
         node: (
-          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+          <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
+            <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
               {isAr ? 'الفرع الأعلى إيراداً' : 'Top Revenue Branch'}
             </span>
-            <div className="truncate text-lg font-black text-slate-950 dark:text-white">
+            <div className="min-w-0 truncate text-lg font-black text-slate-950 dark:text-white">
               {isAr ? activeBranchRows[0].ar : activeBranchRows[0].en}
             </div>
             <div className="text-sm font-bold text-cyan-700 dark:text-cyan-300">
@@ -698,7 +698,7 @@ export function ExecutivePnlStudio() {
           {aiInsights.length > 0 ? (
             <section
               data-finance-ai-insights="true"
-              className="ds-surface rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0d1915] dark:via-[#0b1320] dark:to-[#0d1724]"
+              className="ds-surface relative overflow-visible rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0d1915] dark:via-[#0b1320] dark:to-[#0d1724]"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
@@ -744,7 +744,7 @@ export function ExecutivePnlStudio() {
               }`}
             >
               {activeBrandRows.length > 0 ? (
-                <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
+                <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
                   <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 dark:border-slate-800">
                     <TrendingUp size={16} className="text-emerald-600 dark:text-emerald-400" aria-hidden />
                     <h3 className="text-sm font-black text-slate-950 dark:text-white">
@@ -791,7 +791,7 @@ export function ExecutivePnlStudio() {
               ) : null}
 
               {activeBranchRows.length > 0 ? (
-                <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
+                <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-5 space-y-3 shadow-xs dark:border-slate-800 dark:bg-[#0b1320]">
                   <div className="flex items-center gap-2 border-b border-slate-200 pb-2.5 dark:border-slate-800">
                     <Landmark size={16} className="text-cyan-600 dark:text-cyan-400" aria-hidden />
                     <h3 className="text-sm font-black text-slate-950 dark:text-white">
@@ -840,18 +840,18 @@ export function ExecutivePnlStudio() {
           ) : null}
 
           {/* 4. Income Statement Summary + Collapsible & Paginated GL Account Ledgers */}
-          <div className="ds-surface rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-4 dark:border-slate-800 dark:bg-[#0b1320]">
+          <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-4 dark:border-slate-800 dark:bg-[#0b1320]">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Scale size={18} className="text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <div className="flex min-w-0 items-center gap-2">
+                <Scale size={18} className="shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
                 <h3 className="text-base font-black text-slate-950 dark:text-white">
                   {isAr
                     ? 'جدول قائمة الدخل المحاسبية (فنتشر فودز ذ.م.م.)'
                     : 'General Ledger Income Statement (Venture Foods W.L.L.)'}
                 </h3>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                <CheckCircle2 size={12} aria-hidden />
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <CheckCircle2 size={12} className="shrink-0" aria-hidden />
                 {isAr ? 'حساب ديناميكي من أودو' : 'Dynamic Odoo GL'}
               </span>
             </div>
@@ -867,7 +867,7 @@ export function ExecutivePnlStudio() {
                       <th className="whitespace-nowrap py-3 px-4 text-end font-bold">{isAr ? 'النسبة من الإيراد' : '% of Revenue'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800/70">
+                  <tbody className="divide-y divide-slate-200/80 tabular-nums dark:divide-slate-800/70">
                     {populatedLineItems.map((item) => (
                       <tr key={item.code} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition">
                         <td className="whitespace-nowrap py-3 px-4 font-mono text-slate-600 dark:text-slate-400" dir="ltr">
@@ -914,7 +914,7 @@ export function ExecutivePnlStudio() {
             {drilldownAccounts.length > 0 || accountSearch.trim() !== '' ? (
               <details
                 data-ledger-collapsible="pnl-accounts"
-                className="group rounded-2xl border border-slate-200/85 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/60"
+                className="group relative overflow-visible rounded-2xl border border-slate-200/85 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-900/60"
               >
                 <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
@@ -986,13 +986,13 @@ export function ExecutivePnlStudio() {
                           <th className="whitespace-nowrap px-3 py-2 text-end font-bold">{isAr ? 'المبلغ (د.ك)' : 'Amount (KWD)'}</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-slate-800/60">
                         {pagedDrilldownAccounts.map((acc) => (
                           <tr key={`${acc.groupCode}-${acc.code}`} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03]">
                             <td dir="ltr" className="whitespace-nowrap px-3 py-2 font-mono text-slate-600 dark:text-slate-300">
                               {acc.code}
                             </td>
-                            <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
+                            <td className="max-w-[280px] truncate px-3 py-2 font-medium text-slate-900 dark:text-white">
                               {acc.name}
                             </td>
                             <td dir="ltr" className="whitespace-nowrap px-3 py-2 text-end font-bold tabular-nums text-slate-900 dark:text-white">

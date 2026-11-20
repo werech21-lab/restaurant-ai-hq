@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function SmartDropzonePage() {
   return (
-    <div className="w-full max-w-none min-w-0 px-4 py-6 md:px-6 text-slate-900 dark:text-slate-100">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-visible px-4 py-5 sm:px-6 text-slate-900 dark:text-slate-100">
       <SmartDropzonePortal />
     </div>
   )

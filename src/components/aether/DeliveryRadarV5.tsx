@@ -5,7 +5,6 @@ import {
   Building2,
   Eye,
   EyeOff,
-  FileText,
   Search,
   Truck,
   Wallet,
@@ -106,9 +105,9 @@ function isZeroDeliveryRow(salesKwd: number | null, orders: number | null): bool
 
 function resolveRadarKpiGridCols(count: number): string {
   if (count <= 1) return 'grid-cols-1'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
-  if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 interface BranchChannelMatrixRow {
@@ -610,7 +609,11 @@ export function DeliveryRadarV5({
   const kpiCards = useMemo(() => {
     const cards: { key: string; node: React.ReactNode }[] = []
 
-    if (totalAggregatorSalesKwd !== null) {
+    if (
+      totalAggregatorSalesKwd !== null &&
+      (!isZeroDeliveryRow(totalAggregatorSalesKwd, totalAggregatorOrders) ||
+        (directSalesSummary.salesKwd ?? 0) <= 0.0005)
+    ) {
       cards.push({
         key: 'agg-sales',
         node: (
@@ -752,11 +755,11 @@ export function DeliveryRadarV5({
                 <summary className="cursor-pointer font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'حسابات العمولة' : 'Commission accounts'}
                 </summary>
-                <ul className="mt-1 space-y-0.5">
+                <ul className="mt-1 space-y-0.5 tabular-nums">
                   {gl.commissionAccounts.map((account) => (
-                    <li key={account.code} className="flex justify-between gap-2 tabular-nums">
-                      <span>{account.code} {account.name}</span>
-                      <span dir="ltr">{fmtKwd(account.amountKwd, isAr)}</span>
+                    <li key={account.code} className="flex items-center justify-between gap-2 tabular-nums">
+                      <span className="min-w-0 truncate">{account.code} {account.name}</span>
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap">{fmtKwd(account.amountKwd, isAr)}</span>
                     </li>
                   ))}
                 </ul>
@@ -885,11 +888,11 @@ export function DeliveryRadarV5({
     visiblePlatformSummaries.length <= 1
       ? 'grid-cols-1'
       : visiblePlatformSummaries.length === 2
-        ? 'grid-cols-1 sm:grid-cols-2'
-        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        ? 'grid-cols-1 md:grid-cols-2'
+        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
 
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full space-y-5 pb-16">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full min-w-0 space-y-5 pb-16">
       {/* Header */}
       <div className="ae-bento-card relative overflow-visible flex flex-col gap-3 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] lg:flex-row lg:items-center lg:justify-between dark:bg-[#101815] dark:ring-emerald-400/[0.09]">
         <div className="space-y-1 min-w-0">
@@ -898,7 +901,7 @@ export function DeliveryRadarV5({
               {T('Delivery Platforms & Commissions Radar', 'رادار منصات التوصيل والعمولات')}
             </h2>
             <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300">
-              <Truck className="h-3.5 w-3.5" aria-hidden />
+              <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>pos.payment + account.move.line</span>
             </span>
             {headerNotes ? (
@@ -916,22 +919,6 @@ export function DeliveryRadarV5({
               ? `مبيعات ودفعات تطبيقات التوصيل الفعلية من طرق دفع نقاط البيع في أودو 17 (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) بدون أي تقسيم افتراضي.`
               : `Actual aggregator sales and payments from Odoo 17 POS payment methods (${periodWindow.fromIso} → ${periodWindow.toInclusiveIso}) with zero synthetic splits.`}
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled
-            title={
-              isAr
-                ? 'معطّل حتى تتوفر تنبيهات مبنية فعلياً من استعلامات Odoo مع سقوف يحفظها الأدمن'
-                : 'Disabled until real Odoo alerts with admin-saved server thresholds exist'
-            }
-            className="inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-100 px-4 text-xs font-bold text-slate-400 opacity-65 ring-1 ring-slate-900/10 dark:bg-white/[0.05] dark:text-slate-500 dark:ring-white/10"
-          >
-            <FileText className="h-3.5 w-3.5" aria-hidden />
-            <span>{T('Print / Export Official Circular', 'طباعة / تصدير تعميم رسمي')}</span>
-          </button>
         </div>
       </div>
 

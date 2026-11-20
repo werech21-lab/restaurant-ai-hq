@@ -308,7 +308,9 @@ export function Sidebar({
     (targetEl: HTMLElement | null, label: string) => {
       if (!collapsed || !targetEl || typeof window === 'undefined') return
       const rect = targetEl.getBoundingClientRect()
-      const top = Math.round(rect.top + rect.height / 2)
+      const vh = window.innerHeight || 768
+      const rawTop = Math.round(rect.top + rect.height / 2)
+      const top = Math.max(20, Math.min(vh - 20, rawTop))
       const x = Math.round(isAr ? rect.left - 12 : rect.right + 12)
       setCollapsedTip({ label, top, x })
     },
@@ -608,7 +610,7 @@ export function Sidebar({
         onScroll={hideCollapsedTip}
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
-          collapsed ? 'px-2.5 pt-1 pb-8' : 'px-3 pt-1.5 pb-8'
+          collapsed ? 'px-2.5 pt-1 pb-24' : 'px-3 pt-1.5 pb-24'
         }`}
       >
         <div ref={navListRef} className={`relative ${collapsed ? 'space-y-1' : 'space-y-3.5'}`}>
@@ -704,8 +706,8 @@ export function Sidebar({
       {/* Pinned Non-Overlapping User Profile Footer */}
       <div
         data-sidebar-footer="true"
-        className={`ae-side-divider shrink-0 border-t border-white/10 ${
-          collapsed ? 'px-2.5 py-2.5' : 'px-4 py-3'
+        className={`ae-side-divider relative shrink-0 border-t border-white/10 ${
+          collapsed ? 'px-2.5 py-2.5' : 'px-4 py-2.5'
         }`}
       >
         {collapsed ? (

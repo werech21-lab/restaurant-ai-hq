@@ -14,7 +14,7 @@ export default async function HrPage({
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
     <div
-      className="mx-auto w-full max-w-[1920px] min-w-0 px-4 py-5 sm:px-6"
+      className="mx-auto w-full max-w-[1920px] min-w-0 overflow-visible px-4 py-5 sm:px-6"
       suppressHydrationWarning
     >
       <HrWorkspace permissions={permissions} initialTab={tab ?? 'employees'} />

@@ -13,7 +13,7 @@ export default async function BrandSalesAnalyticsPage() {
   await requirePageUser('/erp/brand-sales-analytics')
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-visible">
       <BrandSalesAnalyticsDashboard />
     </div>
   )

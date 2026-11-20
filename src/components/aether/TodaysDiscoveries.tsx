@@ -60,7 +60,7 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
     <section data-todays-discoveries="true" dir={isAr ? 'rtl' : 'ltr'} className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[15px] font-bold text-slate-900 sm:text-base dark:text-white">{t("Today's Discoveries", 'اكتشافات اليوم')}</h2>
-        <p className="text-[12px] text-slate-500 dark:text-slate-400">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           {t('Advisor council · ranked by impact × novelty · no repeats from the last 7 days · ', 'مجلس المستشارين · مرتبة حسب الأثر × الجِدّة · بلا تكرار من آخر 7 أيام · ')}
           <Link href="/erp/decisions" data-decision-room-link="true" className="font-semibold text-blue-700 underline underline-offset-2 dark:text-blue-300">{t('All proposals in the Decision Room', 'كل المقترحات في غرفة القرار')}</Link>
         </p>
@@ -75,8 +75,8 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
             discoveries.length === 1
               ? 'lg:grid-cols-1'
               : discoveries.length === 2
-                ? 'lg:grid-cols-2'
-                : 'lg:grid-cols-3'
+                ? 'md:grid-cols-2 lg:grid-cols-2'
+                : 'md:grid-cols-2 lg:grid-cols-3'
           }`}
         >
           {discoveries.map((d, i) => {
@@ -85,7 +85,7 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
             const est = p?.expectedImpact ?? f.weeklyImpact
             const ev = f.evidence.slice(0, 2)
             return (
-              <li key={f.fingerprint} data-discovery={f.fingerprint} className="flex min-w-0 flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5">
+              <li key={f.fingerprint} data-discovery={f.fingerprint} className="flex min-w-0 flex-col gap-2.5 overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5">
                 <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                   <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-900 px-2 py-0.5 tabular-nums text-white dark:bg-white dark:text-slate-900">{i + 1}</span>
                   {[f.advisorId, ...d.linkedAdvisors].map((a) => (

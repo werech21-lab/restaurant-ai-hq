@@ -33,9 +33,9 @@ const PAGE_SIZE = 12
 
 function resolveArKpiGridCols(count: number): string {
   if (count <= 1) return 'grid-cols-1'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
-  if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 export function ReceivablesAgingStudio() {
@@ -179,8 +179,8 @@ export function ReceivablesAgingStudio() {
       list.push({
         key: 'open-residual',
         node: (
-          <article className="ae-kpi-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
-            <p className="text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
+          <article className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
+            <p className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
               {T('Platform & corporate open residual', 'المتبقي المفتوح للمنصات والشركات')}
             </p>
             <div
@@ -210,8 +210,8 @@ export function ReceivablesAgingStudio() {
       list.push({
         key: 'gross-debits',
         node: (
-          <article className="ae-kpi-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
-            <p className="text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
+          <article className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
+            <p className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
               {T('Gross open debits (excl. cashier clearing)', 'إجمالي المدين المفتوح (بدون مقاصة الكاشير)')}
             </p>
             <div
@@ -241,8 +241,8 @@ export function ReceivablesAgingStudio() {
       list.push({
         key: 'unapplied-credits',
         node: (
-          <article className="ae-kpi-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
-            <p className="text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
+          <article className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
+            <p className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
               {T('Unapplied credits (excl. cashier clearing)', 'دائن غير مطبّق (بدون مقاصة الكاشير)')}
             </p>
             <div
@@ -272,8 +272,8 @@ export function ReceivablesAgingStudio() {
       list.push({
         key: 'open-lines',
         node: (
-          <article className="ae-kpi-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
-            <p className="text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
+          <article className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
+            <p className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-[#8FA39B]">
               {T('Open platform & corporate lines', 'قيود المنصات والشركات المفتوحة')}
             </p>
             <div
@@ -462,7 +462,7 @@ export function ReceivablesAgingStudio() {
           {aiInsights.length > 0 ? (
             <section
               data-finance-ai-insights="true"
-              className="ae-bento-card rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0f1d18] dark:via-[#101815] dark:to-[#0f1a22]"
+              className="ae-bento-card relative overflow-visible rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0f1d18] dark:via-[#101815] dark:to-[#0f1a22]"
             >
               <div className="mb-3 flex items-center gap-2">
                 <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
@@ -505,7 +505,7 @@ export function ReceivablesAgingStudio() {
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             {amountsVisible && ar.agingBuckets.length > 0 ? (
               <section
-                className={`ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1] ${
+                className={`ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1] ${
                   visualAccountBars.length > 0 ? 'xl:col-span-7' : 'xl:col-span-12'
                 }`}
               >
@@ -543,7 +543,15 @@ export function ReceivablesAgingStudio() {
                   ) : null
                 })()}
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div
+                  className={`grid gap-3 ${
+                    ar.agingBuckets.length === 1
+                      ? 'grid-cols-1'
+                      : ar.agingBuckets.length === 2
+                        ? 'grid-cols-1 md:grid-cols-2'
+                        : 'grid-cols-1 md:grid-cols-3'
+                  }`}
+                >
                   {ar.agingBuckets.map((b) => (
                     <div
                       key={b.key}
@@ -590,7 +598,7 @@ export function ReceivablesAgingStudio() {
 
             {visualAccountBars.length > 0 ? (
               <section
-                className={`ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1] ${
+                className={`ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1] ${
                   amountsVisible && ar.agingBuckets.length > 0 ? 'xl:col-span-5' : 'xl:col-span-12'
                 }`}
               >
@@ -598,8 +606,8 @@ export function ReceivablesAgingStudio() {
                   <h3 className="text-base font-extrabold text-slate-950 dark:text-white">
                     {T('Receivable Concentration by Platform', 'تركّز الذمم حسب المنصة والحساب')}
                   </h3>
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                  <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                     <span>{isAr ? figures?.formulaAr : figures?.formulaEn}</span>
                   </span>
                 </div>
@@ -647,7 +655,7 @@ export function ReceivablesAgingStudio() {
             <details
               open={customerAccounts.length <= PAGE_SIZE}
               data-ledger-collapsible="accounts"
-              className="group ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]"
+              className="group ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]"
             >
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -731,13 +739,13 @@ export function ReceivablesAgingStudio() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200/70 dark:divide-white/10">
+                    <tbody className="divide-y divide-slate-200/70 tabular-nums dark:divide-white/10">
                       {pagedAccounts.map((row) => (
                         <tr key={row.accountId} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03]">
                           <td dir="ltr" className="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-slate-700 dark:text-emerald-300">
                             {row.accountCode}
                           </td>
-                          <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                          <td className="max-w-[260px] truncate px-4 py-3 font-semibold text-slate-900 dark:text-white">
                             {isAr ? row.labelAr : row.labelEn}
                           </td>
                           <td dir="ltr" className="whitespace-nowrap px-4 py-3 text-end font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
@@ -770,7 +778,7 @@ export function ReceivablesAgingStudio() {
             <details
               data-receivable-partners="true"
               data-ledger-collapsible="partners"
-              className="group ae-bento-card rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]"
+              className="group ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-emerald-400/[0.1]"
             >
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2.5">
@@ -844,10 +852,10 @@ export function ReceivablesAgingStudio() {
                         <th className="whitespace-nowrap px-4 py-3 text-end text-xs font-bold">{T('Days open from posting date', 'أيام مفتوح حسب تاريخ القيد')}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200/70 dark:divide-white/10">
+                    <tbody className="divide-y divide-slate-200/70 tabular-nums dark:divide-white/10">
                       {pagedPartners.map((row) => (
                         <tr key={`${row.partnerId}-${row.accountId}`} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03]">
-                          <td className="px-4 py-3 font-semibold">{row.partnerName}</td>
+                          <td className="max-w-[260px] truncate px-4 py-3 font-semibold text-slate-900 dark:text-white">{row.partnerName}</td>
                           <td dir="ltr" className="whitespace-nowrap px-4 py-3 font-mono text-xs">{row.accountCode}</td>
                           <td dir="ltr" className="whitespace-nowrap px-4 py-3 text-end tabular-nums">{formatInt(row.linesCount, resolvedLocale)}</td>
                           <td dir="ltr" className="whitespace-nowrap px-4 py-3 text-end font-bold tabular-nums">{formatKwd(row.residualKwd, { locale: resolvedLocale, signed: true })}</td>
@@ -862,7 +870,7 @@ export function ReceivablesAgingStudio() {
           ) : null}
 
           {(posLines > 0 || (typeof posResidual === 'number' && posResidual !== 0)) ? (
-            <section data-pos-clearing="10552" className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.03] dark:ring-white/10">
+            <section data-pos-clearing="10552" className="relative overflow-visible rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-white/[0.03] dark:ring-white/10">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-extrabold text-slate-900 dark:text-white">{T('Cashier clearing — not customer receivables', 'مقاصة كاشير — ليست ذمم عملاء')}</p>

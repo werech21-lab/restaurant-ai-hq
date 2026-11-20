@@ -12,7 +12,7 @@ export default async function ExecutiveCenterPage() {
   await requirePageUser('/erp')
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-visible">
       <FullJourney360 />
     </div>
   )
