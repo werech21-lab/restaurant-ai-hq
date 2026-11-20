@@ -162,14 +162,21 @@ import {
   buildExecutiveContextPack,
   collectExecutiveGroundedNumbers,
   DETERMINISTIC_SIMULATION_TAG,
+  DETERMINISTIC_SIMULATION_TAG_AR,
   formatKuwaitFils50,
   KUWAIT_MARKET_STRATEGY_TAG_AR,
   KUWAIT_MARKET_STRATEGY_TAG_EN,
   ODOO_VERIFIED_ACTUAL_TAG,
+  ODOO_VERIFIED_ACTUAL_TAG_AR,
   renderDeterministicExecutiveBrief,
   roundToKuwaitFils50,
   simulateExecutivePricingOptions,
+  translateVerdictBadgeAr,
 } from '@/lib/feryal/executive-advisor'
+import {
+  inferBrandIdFromConfirmedSheet,
+  runExecutivePricingChat,
+} from '@/lib/feryal/executive-chat-runner'
 import type { ItemPricingRow } from '@/lib/feryal/item-pricing'
 import {
   enforceOneToOneSkuMatches,
@@ -181,13 +188,12 @@ import {
 import { LanguageProvider } from '@/lib/i18n'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { Decimal } from '@/server/ai/decimal'
-import { inferBrandIdFromConfirmedSheet, runFeryalCouncil } from '@/server/ai/council'
+import { COUNCIL_ANALYSIS_TIMEOUT_MS } from '@/server/ai/council'
 import { guardAnswerAgainstFacts, reviewGroundedNumbers } from '@/server/ai/number-guard'
 import {
   callProvider,
   getProviderCooldownSnapshot,
   isProviderInCooldown,
-  orderProvidersByHealth,
   resetProviderCooldowns,
 } from '@/server/ai/providers'
 
@@ -818,9 +824,15 @@ describe("Part B.5 — Deterministic Feryal Rec. KWD (0.050 KWD Steps), Executiv
 
     const arBrief = renderDeterministicExecutiveBrief(pack, sim, 'ar', false)
     expect(arBrief.startsWith('## رأي فريال التنفيذي والمبررات الإدارية')).toBe(true)
-    expect(arBrief).toContain('Verdict: Partially Agree (Recommended)')
+    expect(arBrief).toContain(translateVerdictBadgeAr('Partially Agree (Recommended)'))
     expect(arBrief).toContain(KUWAIT_MARKET_STRATEGY_TAG_AR)
+    expect(arBrief).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+    expect(arBrief).toContain(DETERMINISTIC_SIMULATION_TAG_AR)
     expect(arBrief).toContain('سعر فريال الموصى د.ك')
+    expect(arBrief).not.toContain('Odoo Verified Actual')
+    expect(arBrief).not.toContain('Verdict:')
+    expect(arBrief).not.toContain('standard_price')
+    expect(arBrief).not.toMatch(/\bCOGS\b/)
 
     const arGuard = reviewGroundedNumbers(arBrief, executiveFacts, {
       simulationNumbers: grounded.simulationNumbers,
@@ -1138,7 +1150,8 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
         if (prevKeys.xai !== undefined) process.env.XAI_API_KEY = prevKeys.xai
       }
 
-      // 6. Verify runFeryalCouncil also injects FOLLOW-UP EXECUTIVE QUESTION ON CONFIRMED PRICE SHEET into LLM prompts
+      // 6. Verify runExecutivePricingChat routes follow-up on confirmed price sheet through unified runFeryalCouncil (20s timeout + structured comparisonSchema consensus)
+      expect(COUNCIL_ANALYSIS_TIMEOUT_MS).toBe(20_000)
       let capturedUserPrompt = ''
       const pack = buildExecutiveContextPack({
         fromIso: '2026-10-22',
@@ -1150,10 +1163,20 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
           { productId: 201, name: '[RICG0201] Nims Chow Mein', qty: '280', netKwd: '700.000', unitPriceKwd: '2.500', categoryId: 11, brandId: 'china-garden' },
         ],
       })
-      const sim = simulateExecutivePricingOptions({ pack, sheet: confirmedCgSheet })
-      const deterministicReply = renderDeterministicExecutiveBrief(pack, sim, 'en', false)
+      const agreedOptionComparisonJson = JSON.stringify({
+        comparison: {
+          subject_id: 'ae_suggested',
+          relation: 'better',
+          object_id: 'ch_suggested',
+          metric: 'stress_test_delta_kwd',
+          cited_fact_ids: [
+            'stress_test_delta_kwd|ae_suggested|2026-10-22..2026-11-20',
+            'stress_test_delta_kwd|ch_suggested|2026-10-22..2026-11-20',
+          ],
+        },
+      })
 
-      const councilFollowUp = await runFeryalCouncil(
+      const councilFollowUp = await runExecutivePricingChat(
         {
           question: followUpQuestion,
           userId: 'gm-1',
@@ -1164,7 +1187,6 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
         {
           executivePack: pack,
           persist: async () => undefined,
-          sleepImpl: async () => undefined,
           keys: {
             anthropic: 'test-anthropic-key-00001',
             google: 'test-google-key-00000001',
@@ -1184,29 +1206,32 @@ describe('Part B.4 — Persistent Confirmed Price-Sheet Context Across Thread DB
               capturedUserPrompt = rawBody.messages?.[0]?.content ?? ''
               return Response.json({
                 model: 'claude-sonnet-4-6-20251101',
-                content: [{ type: 'text', text: deterministicReply }],
-                usage: { input_tokens: 300, output_tokens: 400 },
+                content: [{ type: 'text', text: agreedOptionComparisonJson }],
+                usage: { input_tokens: 300, output_tokens: 60 },
               })
             }
             if (url.includes('generativelanguage.googleapis.com')) {
               return Response.json({
                 modelVersion: 'gemini-3.1-pro-preview-001',
-                candidates: [{ content: { parts: [{ text: deterministicReply }] } }],
-                usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 400 },
+                candidates: [{ content: { parts: [{ text: agreedOptionComparisonJson }] } }],
+                usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 60 },
               })
             }
             return Response.json({
               model: 'grok-4-0709',
-              choices: [{ message: { content: deterministicReply } }],
-              usage: { prompt_tokens: 300, completion_tokens: 400 },
+              choices: [{ message: { content: agreedOptionComparisonJson } }],
+              usage: { prompt_tokens: 300, completion_tokens: 60 },
             })
           },
         },
       )
       expect(capturedUserPrompt).toContain(followUpQuestion)
+      expect(capturedUserPrompt).toContain('stress_test_delta_kwd|ae_suggested|2026-10-22..2026-11-20')
       expect(councilFollowUp.status).toBe('answered')
+      expect(councilFollowUp.agreed).toHaveLength(3)
       expect(councilFollowUp.verifier.valid).toBe(true)
       expect(councilFollowUp.reply).toContain('Feryal Rec. KWD')
+      expect(councilFollowUp.reply).toContain('ae_suggested is better than ch_suggested on stress_test_delta_kwd')
 
       // Clean up test thread in DB
       await threadsDelete(
@@ -1400,7 +1425,7 @@ describe('Part A.2, A.3 & B.6 — Frozen Scope Snapshot, Horizontal Table Scroll
     expect(isProviderInCooldown('google', baseNow + 5_000)).toBe(true)
     expect(isProviderInCooldown('google', baseNow + 60_000)).toBe(false)
 
-    // Re-trigger at baseNow + 10_000 and verify orderProvidersByHealth places cooled-down provider last
+    // Re-trigger at baseNow + 10_000 and verify cooldown snapshot & short-circuit behavior
     await callProvider({
       provider: 'google',
       apiKey: 'test-google-key-00000001',
@@ -1415,8 +1440,8 @@ describe('Part A.2, A.3 & B.6 — Frozen Scope Snapshot, Horizontal Table Scroll
     })
     const snapshot = getProviderCooldownSnapshot(baseNow + 15_000)
     expect(snapshot.google.inCooldown).toBe(true)
-    const ordered = orderProvidersByHealth(['google', 'anthropic', 'xai'], baseNow + 15_000)
-    expect(ordered[ordered.length - 1]).toBe('google')
+    expect(snapshot.anthropic.inCooldown).toBe(false)
+    expect(snapshot.xai.inCooldown).toBe(false)
     resetProviderCooldowns()
   })
 
@@ -1623,6 +1648,7 @@ describe('V2 Static Repo Invariants & Odoo Read-Only Safety Audit', () => {
       'src/lib/feryal/document-intake-types.ts',
       'src/lib/feryal/document-intake.ts',
       'src/lib/feryal/executive-advisor.ts',
+      'src/lib/feryal/executive-chat-runner.ts',
       'src/lib/feryal-multimodal.ts',
       'src/lib/feryal-intent.ts',
       'src/lib/feryal-chat-store.ts',

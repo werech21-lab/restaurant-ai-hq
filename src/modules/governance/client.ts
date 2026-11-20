@@ -20,6 +20,7 @@ export type {
   VentureBrandRow,
 } from '@/modules/governance/domain/types'
 export {
+  FORENSIC_MISSING_DATA_REASON,
   FORENSIC_PLATFORMS,
   PENALTY_BPS,
   TALABAT_MP_ACCOUNT,
@@ -47,4 +48,5 @@ export type {
   ForensicRow,
   ForensicSnapshot,
   LiveStatus,
+  VerifiedForensicObservation,
 } from '@/modules/governance/domain/forensic-radar'

@@ -124,10 +124,18 @@ import {
   buildExecutiveContextPack,
   collectExecutiveGroundedNumbers,
   DETERMINISTIC_SIMULATION_TAG,
+  DETERMINISTIC_SIMULATION_TAG_AR,
   ODOO_VERIFIED_ACTUAL_TAG,
+  ODOO_VERIFIED_ACTUAL_TAG_AR,
   simulateExecutivePricingOptions,
+  USER_INPUT_CONFIRMED_TAG_AR,
   type ExecutiveContextPack,
 } from '@/lib/feryal/executive-advisor'
+import {
+  buildExecutiveComparableFacts,
+  createExecutivePricingAskOdoo,
+  runExecutivePricingChat,
+} from '@/lib/feryal/executive-chat-runner'
 import { LanguageProvider } from '@/lib/i18n'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { POST as chatPost } from '@/app/api/erp/feryal/chat/route'
@@ -138,17 +146,17 @@ import {
   updateDraftRowProposedPrice,
 } from '@/components/aether/FeryalDocumentReviewCard'
 import { FeryalGovernanceStudio } from '@/components/erp/feryal-governance-studio'
-import { runFeryalCouncil } from '@/server/ai/council'
+import {
+  COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE,
+  COUNCIL_ANALYSIS_TIMEOUT_MS,
+  runFeryalCouncil,
+} from '@/server/ai/council'
 import {
   guardAnswerAgainstFacts,
   hasExplicitGroundingLabel,
   reviewGroundedNumbers,
 } from '@/server/ai/number-guard'
-import {
-  ANALYSIS_MAX_TOKENS,
-  callProvider,
-  EXECUTIVE_COUNCIL_MAX_TOKENS,
-} from '@/server/ai/providers'
+import { ANALYSIS_MAX_TOKENS, callProvider } from '@/server/ai/providers'
 
 const LanguageProviderHost = LanguageProvider as unknown as React.ComponentType<{
   initialLocale: 'ar' | 'en'
@@ -395,10 +403,9 @@ describe('Phase 2/3 Integration — Number Guard Whitelisting & Anti-Hallucinati
   })
 })
 
-describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Council (2-of-3 Quorum + Google 429 Retry)', () => {
-  it('preserves default maxTokens=800, forwards higher executive maxTokens, and ignores Gemini thought parts', async () => {
+describe('Phase 2/3 Integration — Unified runFeryalCouncil Executive Pricing Path (2-of-3 Structured Consensus, <2 Fallback & All-Guard-Rejected)', () => {
+  it('preserves default ANALYSIS_MAX_TOKENS=800 and ignores Gemini thought parts', async () => {
     expect(ANALYSIS_MAX_TOKENS).toBe(800)
-    expect(EXECUTIVE_COUNCIL_MAX_TOKENS).toBeGreaterThanOrEqual(1800)
 
     let capturedMaxOutputTokens = 0
     const res = await callProvider({
@@ -408,7 +415,6 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
       system: 'sys',
       user: 'usr',
       timeoutMs: 5_000,
-      maxTokens: EXECUTIVE_COUNCIL_MAX_TOKENS,
       fetchImpl: async (_url, init) => {
         const parsedBody = JSON.parse(String(init?.body ?? '{}')) as {
           generationConfig?: { maxOutputTokens?: number }
@@ -431,37 +437,49 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
       },
     })
 
-    expect(capturedMaxOutputTokens).toBe(EXECUTIVE_COUNCIL_MAX_TOKENS)
+    expect(capturedMaxOutputTokens).toBe(ANALYSIS_MAX_TOKENS)
     expect(res.status).toBe('ok')
     expect(res.text).toBe('Clean executive synthesis 5000 KWD')
     expect(res.text).not.toContain('999999')
   })
 
-  it('completes 3-model Executive Council cleanly when 2 of 3 models succeed (recovering Google 429 retry while rejecting hallucinated 3rd model)', async () => {
+  it('routes executive pricing through unified runFeryalCouncil: verifies 2-of-3 comparisonSchema consensus (with Google 429 retry), <2 fallback note, and all-guard-rejected council_failed', async () => {
     const pack = sampleExecutivePack()
     const sheet = sampleConfirmedSheet()
     const simulation = simulateExecutivePricingOptions({ pack, sheet })
-    const chOpt = simulation.options.find((o) => o.optionKey === 'ch')!
+    const comparableFacts = buildExecutiveComparableFacts(pack, simulation)
+    expect(comparableFacts.some((f) => f.id === 'stress_test_delta_kwd|ch|2026-11-01..2026-11-19')).toBe(true)
+    expect(comparableFacts.some((f) => f.id === 'stress_test_delta_kwd|ae|2026-11-01..2026-11-19')).toBe(true)
 
-    const groundedExecutiveSynthesis = [
-      '### Executive Verdict',
-      `- **Winning Option (${DETERMINISTIC_SIMULATION_TAG} on ${USER_INPUT_CONFIRMED_LABEL}):** Approve **Option CH**, delivering **+${chOpt.baseDeltaKwd} KWD** Base, **+${chOpt.conservativeDeltaKwd} KWD** Conservative, and **+${chOpt.stressTestDeltaKwd} KWD** Stress-Test over **${chOpt.baselineRevenueKwd} KWD** matched China Garden POS sales (${ODOO_VERIFIED_ACTUAL_TAG}).`,
-      '### Critical Anomalies & Risk Flags',
-      '- Option AE triggers **High Elasticity Risk** on **Sweet & Sour Chicken** (+20.00% hike from 2.500 KWD to 3.000 KWD) and **Spring Roll** (+20.00% hike from 1.500 KWD to 1.800 KWD).',
-      '### Actionable SKU / Operational Playbook',
-      '| SKU | Tier | Qty | Current KWD | Proposed CH KWD | Base KWD | Stress-Test KWD | Action |',
-      '| --- | --- | --- | --- | --- | --- | --- | --- |',
-      '| Sweet & Sour Chicken | A | 1,000 | 2.500 | 2.700 | +200.000 | +200.000 | Approve |',
-      '| Spring Roll | A | 1,000 | 1.500 | 1.650 | +150.000 | +150.000 | Approve |',
-      '| Beef Broccoli | B | 250 | 3.200 | 3.450 | +62.500 | +62.500 | Approve |',
-      '### High-Impact Company Recommendations',
-      '- Deploy approved price uplifts on Talabat (**3,250.000 KWD**, **65.00%** channel share) while protecting dine-in (**1,750.000 KWD**, **35.00%**) anchor traffic at **360 Mall** (**3,000.000 KWD**) and **Avenues** (**2,000.000 KWD**).',
-      '### Data Boundaries',
-      '- COGS and gross/net margins are not estimated because Odoo 17 integration user 225 lacks `standard_price` read access.',
-    ].join('\n')
+    const validComparisonJson = JSON.stringify({
+      comparison: {
+        subject_id: 'ch',
+        relation: 'better',
+        object_id: 'ae',
+        metric: 'stress_test_delta_kwd',
+        cited_fact_ids: [
+          'stress_test_delta_kwd|ch|2026-11-01..2026-11-19',
+          'stress_test_delta_kwd|ae|2026-11-01..2026-11-19',
+        ],
+      },
+    })
 
+    expect(COUNCIL_ANALYSIS_TIMEOUT_MS).toBe(20_000)
+
+    const testKeys = {
+      anthropic: 'test-anthropic-key-0001',
+      google: 'test-google-key-00000001',
+      xai: 'test-grok-key-0000000001',
+    }
+    const testModels = {
+      anthropic: 'claude-sonnet-4-6',
+      google: 'gemini-3.1-pro-preview',
+      xai: 'grok-4',
+    }
+
+    // 1) 2-of-3 structured comparison consensus (Anthropic + Google recover 429; xAI guard-rejected)
     let googleAttempts = 0
-    const result = await runFeryalCouncil(
+    const result = await runExecutivePricingChat(
       {
         question: 'Compare Option CH vs Option AE for China Garden and give the CFO executive playbook. What about gross margin?',
         userId: 'cfo-1',
@@ -470,25 +488,16 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
       },
       {
         executivePack: pack,
-        sleepImpl: async () => undefined,
         persist: async () => undefined,
-        keys: {
-          anthropic: 'test-anthropic-key-0001',
-          google: 'test-google-key-00000001',
-          xai: 'test-grok-key-0000000001',
-        },
-        models: {
-          anthropic: 'claude-sonnet-4-6',
-          google: 'gemini-3.1-pro-preview',
-          xai: 'grok-4',
-        },
+        keys: testKeys,
+        models: testModels,
         fetchImpl: async (input) => {
           const url = String(input)
           if (url.includes('api.anthropic.com')) {
             return Response.json({
               model: 'claude-sonnet-4-6-20251101',
-              content: [{ type: 'text', text: groundedExecutiveSynthesis }],
-              usage: { input_tokens: 400, output_tokens: 320 },
+              content: [{ type: 'text', text: validComparisonJson }],
+              usage: { input_tokens: 400, output_tokens: 60 },
             })
           }
           if (url.includes('generativelanguage.googleapis.com')) {
@@ -498,11 +507,11 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
             }
             return Response.json({
               modelVersion: 'gemini-3.1-pro-preview-001',
-              candidates: [{ content: { parts: [{ text: groundedExecutiveSynthesis }] } }],
-              usageMetadata: { promptTokenCount: 410, candidatesTokenCount: 315 },
+              candidates: [{ content: { parts: [{ text: validComparisonJson }] } }],
+              usageMetadata: { promptTokenCount: 410, candidatesTokenCount: 60 },
             })
           }
-          // xAI hallucinates an unverified KWD figure -> must be GUARD_REJECTED without failing the 2-of-3 quorum
+          // xAI hallucinates free-text unverified KWD figure -> GUARD_REJECTED without failing 2-of-3 quorum
           return Response.json({
             model: 'grok-4-0709',
             choices: [{ message: { content: 'Approve Option AE for +9,876.543 KWD net profit!' } }],
@@ -523,10 +532,91 @@ describe('Phase 2/3 Integration — Providers maxTokens & 3-Model Executive Coun
       status: 'guard_rejected',
       errorCode: 'GUARD_REJECTED',
     })
+    expect(result.reply).toContain('حقائق Odoo 17:')
+    expect(result.reply).toContain("## Feryal's Executive Opinion & Justification")
     expect(result.reply).toContain('Executive Verdict')
     expect(result.reply).toContain('Actionable SKU / Operational Playbook')
+    expect(result.reply).toContain('Feryal Rec. KWD')
     expect(result.reply).toContain('standard_price')
+    expect(result.reply).toContain('ch is better than ae on stress_test_delta_kwd')
     expect(result.reply).not.toContain('9,876.543')
+
+    // 2) <2 agreement fallback (1 ok + 2 provider HTTP 500 errors -> odoo.reply + COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE)
+    const fallbackResult = await runFeryalCouncil(
+      {
+        question: 'Compare Option CH vs Option AE for China Garden',
+        userId: 'cfo-1',
+        userRole: 'cfo',
+      },
+      {
+        askOdoo: createExecutivePricingAskOdoo({
+          confirmedPriceSheet: sheet,
+          executivePack: pack,
+        }),
+        persist: async () => undefined,
+        keys: testKeys,
+        models: testModels,
+        fetchImpl: async (input) => {
+          const url = String(input)
+          if (url.includes('api.anthropic.com')) {
+            return Response.json({
+              model: 'claude-sonnet-4-6-20251101',
+              content: [{ type: 'text', text: validComparisonJson }],
+              usage: { input_tokens: 400, output_tokens: 60 },
+            })
+          }
+          return new Response('{}', { status: 503 })
+        },
+      },
+    )
+    expect(fallbackResult.status).toBe('answered')
+    expect(fallbackResult.agreed).toEqual([])
+    expect(fallbackResult.verifier.valid).toBe(true)
+    expect(fallbackResult.reply).toContain("## Feryal's Executive Opinion & Justification")
+    expect(fallbackResult.reply).toContain(COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE)
+
+    // 3) All configured providers guard_rejected -> status: 'council_failed'
+    const allRejectedResult = await runFeryalCouncil(
+      {
+        question: 'Compare Option CH vs Option AE for China Garden',
+        userId: 'cfo-1',
+        userRole: 'cfo',
+      },
+      {
+        askOdoo: createExecutivePricingAskOdoo({
+          confirmedPriceSheet: sheet,
+          executivePack: pack,
+        }),
+        persist: async () => undefined,
+        keys: testKeys,
+        models: testModels,
+        fetchImpl: async (input) => {
+          const url = String(input)
+          if (url.includes('api.anthropic.com')) {
+            return Response.json({
+              model: 'claude-sonnet-4-6-20251101',
+              content: [{ type: 'text', text: 'Free-text prose +999.999 KWD' }],
+              usage: { input_tokens: 100, output_tokens: 20 },
+            })
+          }
+          if (url.includes('generativelanguage.googleapis.com')) {
+            return Response.json({
+              modelVersion: 'gemini-3.1-pro-preview-001',
+              candidates: [{ content: { parts: [{ text: '{"comparison":{"subject_id":"ae","relation":"better","object_id":"ch","metric":"stress_test_delta_kwd","cited_fact_ids":["stress_test_delta_kwd|ae|2026-11-01..2026-11-19","stress_test_delta_kwd|ch|2026-11-01..2026-11-19"]}}' }] } }],
+              usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 20 },
+            })
+          }
+          return Response.json({
+            model: 'grok-4-0709',
+            choices: [{ message: { content: 'Invented margin 68%' } }],
+            usage: { prompt_tokens: 100, completion_tokens: 20 },
+          })
+        },
+      },
+    )
+    expect(allRejectedResult.status).toBe('council_failed')
+    expect(allRejectedResult.agreed).toEqual([])
+    expect(allRejectedResult.participants.every((p) => p.status === 'guard_rejected')).toBe(true)
   })
 })
 
@@ -672,10 +762,16 @@ describe('Phase 2/3 Integration — Document Intake -> Human Confirmation Gate -
       expect(okPayload.reply).toContain('القرار التنفيذي')
       expect(okPayload.reply).toContain('خطة العمل التنفيذية للأصناف')
       expect(okPayload.reply).toContain('حدود البيانات')
-      expect(okPayload.reply).toContain('standard_price')
-      expect(okPayload.reply).toContain(ODOO_VERIFIED_ACTUAL_TAG)
-      expect(okPayload.reply).toContain(USER_INPUT_CONFIRMED_LABEL)
-      expect(okPayload.reply).toContain(DETERMINISTIC_SIMULATION_TAG)
+      expect(okPayload.reply).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+      expect(okPayload.reply).toContain(USER_INPUT_CONFIRMED_TAG_AR)
+      expect(okPayload.reply).toContain(DETERMINISTIC_SIMULATION_TAG_AR)
+      expect(okPayload.reply).toContain('المستخدم رقم 225')
+      expect(okPayload.reply).not.toContain(ODOO_VERIFIED_ACTUAL_TAG)
+      expect(okPayload.reply).not.toContain(USER_INPUT_CONFIRMED_LABEL)
+      expect(okPayload.reply).not.toContain(DETERMINISTIC_SIMULATION_TAG)
+      expect(okPayload.reply).not.toContain('standard_price')
+      expect(okPayload.reply).not.toContain('price_subtotal')
+      expect(okPayload.reply).not.toMatch(/\bCOGS\b/)
     } finally {
       if (prevKeys.anthropic !== undefined) process.env.ANTHROPIC_API_KEY = prevKeys.anthropic
       if (prevKeys.gemini !== undefined) process.env.GEMINI_API_KEY = prevKeys.gemini
@@ -782,6 +878,8 @@ describe('Phase 2/3 Integration — UI Review & Confirm Table + Client Boundary 
       }),
     )
     expect(arCardHtml).toContain('تأكيد وتشغيل التحليل التنفيذي')
+    expect(arCardHtml).toContain(ODOO_VERIFIED_ACTUAL_TAG_AR)
+    expect(arCardHtml).not.toContain(ODOO_VERIFIED_ACTUAL_TAG)
     expect(arCardHtml).toContain('data-anomaly-badge="critical"')
     expect(arCardHtml).toContain('data-anomaly-badge="warning"')
 

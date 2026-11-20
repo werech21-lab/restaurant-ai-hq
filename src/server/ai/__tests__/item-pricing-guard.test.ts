@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { guardAnswerAgainstFacts } from '@/server/ai/number-guard'
+import {
+  DETERMINISTIC_SIMULATION_LABEL_AR,
+  guardAnswerAgainstFacts,
+  hasExplicitGroundingLabel,
+  ODOO_VERIFIED_ACTUAL_LABEL_AR,
+  reviewGroundedNumbers,
+  USER_INPUT_CONFIRMED_LABEL_AR,
+} from '@/server/ai/number-guard'
 import { callProvider } from '@/server/ai/providers'
-import { runFeryalCouncil, type RunCouncilOptions } from '@/server/ai/council'
+import {
+  COUNCIL_ANALYSIS_TIMEOUT_MS,
+  runFeryalCouncil,
+  type RunCouncilOptions,
+} from '@/server/ai/council'
 
 const facts = [
   { value: '10.501', metric: 'item_net_kwd', period: '2026-01-01..2026-11-19' },
@@ -105,8 +116,18 @@ describe('google rate limit', () => {
   })
 })
 
-describe('council grounded explanation', () => {
-  it('does not mark a rounded verified figure as GUARD_REJECTED', async () => {
+describe('council structured comparison gate & Arabic number-guard labels', () => {
+  it('verifies b985f9b 20s council timeout & structured comparison gate while reviewGroundedNumbers accepts rounded verified figures and Arabic labels', async () => {
+    expect(COUNCIL_ANALYSIS_TIMEOUT_MS).toBe(20_000)
+
+    const arGrounded = `${ODOO_VERIFIED_ACTUAL_LABEL_AR}: الصافي 10.50 د.ك والكمية 100. ${USER_INPUT_CONFIRMED_LABEL_AR}: 1.250 د.ك. ${DETERMINISTIC_SIMULATION_LABEL_AR}: فرق الإيراد 25.000 د.ك.`
+    expect(hasExplicitGroundingLabel(arGrounded)).toBe(true)
+    expect(
+      reviewGroundedNumbers(arGrounded, facts, {
+        question: 'سعر مقترح للصنف Spring Roll: 1.250',
+      }),
+    ).toEqual({ ok: true, offending: [] })
+
     const agreed = JSON.stringify({
       comparison: {
         subject_id: 'avenues',
@@ -179,7 +200,6 @@ describe('council grounded explanation', () => {
       {
         askOdoo: askOdoo as unknown as RunCouncilOptions['askOdoo'],
         fetchImpl,
-        sleepImpl: async () => undefined,
         timeoutMs: 1_000,
         keys: { anthropic: 'test-anthropic-key-0001', google: 'test-google-key-00000001', xai: 'test-grok-key-0000000001' },
         models: { anthropic: 'claude-sonnet-4-6', google: 'gemini', xai: 'grok-4.5' },
@@ -187,8 +207,10 @@ describe('council grounded explanation', () => {
       },
     )
     const google = result.participants.find((item) => item.provider === 'google')
-    expect(google?.errorCode).not.toBe('GUARD_REJECTED')
-    expect(google?.status).toBe('ok')
+    expect(google?.status).toBe('guard_rejected')
+    expect(google?.errorCode).toBe('GUARD_REJECTED')
+    expect(result.agreed.map((item) => item.provider).sort()).toEqual(['anthropic', 'xai'])
+    expect(result.status).toBe('answered')
     expect(result.reply).not.toContain('AI analytical explanation is currently unavailable')
   })
 })

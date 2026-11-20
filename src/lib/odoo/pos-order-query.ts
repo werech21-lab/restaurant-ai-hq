@@ -583,13 +583,22 @@ export function mergeSessionPaymentGroups(
 
 export type UtcWindow = { fromUtc: string; toUtc: string }
 
-/** Closed-year reads only. Today stays on the default 8s RPC cap. */
+/** Closed-year Cold Cache fill reads only. Today stays on the default 8s RPC cap. */
 export const YEAR_CLOSED_READ_TIMEOUT_MS = 45_000
+
+/**
+ * Closed-year rows (`Jan 1 .. yesterday`, keyed by Kuwait anchor day + company + register allowlist +
+ * excluded categories) represent closed historical POS days and stay valid for 24 hours across up to
+ * 128 keys with LRU refresh on read.
+ */
+export const YEAR_CLOSED_TTL_MS = 24 * 60 * 60 * 1000
+export const YEAR_CLOSED_MAX = 128
+const YEAR_CLOSED_L2_IO_TIMEOUT_MS = 1_500
 
 /**
  * Yearly payments stay grouped by session and method so each branch keeps its
  * channel split. The closed window is read per register (one config id) under
- * the 45s cap, then cached.
+ * a single bounded 45s cold-fill deadline, then cached.
  */
 export const YEAR_PAYMENT_GROUP_BY = ['session_id', 'payment_method_id'] as const
 
@@ -635,7 +644,19 @@ export function foldYearBranchChannels(input: {
   return { byBranch, unmapped, totalNet }
 }
 
-export function yearReadCall(window: UtcWindow): {
+export interface YearReadCallOptions {
+  /**
+   * Optional wall-clock deadline (`Date.now() + YEAR_CLOSED_READ_TIMEOUT_MS`) shared across
+   * sequential register batches so a multi-wave closed-year cold pull never exceeds 45s total.
+   */
+  deadlineAtMs?: number
+  nowMs?: number
+}
+
+export function yearReadCall(
+  window: UtcWindow,
+  options?: YearReadCallOptions,
+): {
   kwargs: { lazy: false; context?: { year_live_slice: true } }
   timeout?: { timeoutMs: number; timeoutCapMs: number }
 } {
@@ -643,6 +664,20 @@ export function yearReadCall(window: UtcWindow): {
   const toMs = Date.parse(`${window.toUtc.replace(' ', 'T')}Z`)
   const liveSlice = Number.isFinite(fromMs) && Number.isFinite(toMs) && toMs - fromMs <= 2 * 86_400_000
   if (liveSlice) return { kwargs: { lazy: false, context: { year_live_slice: true } } }
+  if (options?.deadlineAtMs !== undefined) {
+    const now = options.nowMs ?? Date.now()
+    const remainingMs = Math.floor(options.deadlineAtMs - now)
+    if (remainingMs <= 0) {
+      throw new Error(
+        `Closed-year Odoo read exceeded ${YEAR_CLOSED_READ_TIMEOUT_MS}ms total deadline budget.`,
+      )
+    }
+    const boundedMs = Math.min(YEAR_CLOSED_READ_TIMEOUT_MS, remainingMs)
+    return {
+      kwargs: { lazy: false },
+      timeout: { timeoutMs: boundedMs, timeoutCapMs: boundedMs },
+    }
+  }
   return {
     kwargs: { lazy: false },
     timeout: { timeoutMs: YEAR_CLOSED_READ_TIMEOUT_MS, timeoutCapMs: YEAR_CLOSED_READ_TIMEOUT_MS },
@@ -655,36 +690,174 @@ export function yearClosedWindow(yearFromUtc: string, todayFromUtc: string): Utc
   return { fromUtc: yearFromUtc, toUtc: todayFromUtc }
 }
 
-const YEAR_CLOSED_TTL_MS = 30 * 60 * 1000
-const YEAR_CLOSED_MAX = 32
-const yearClosedRows = new Map<string, { rows: unknown[]; at: number }>()
+export interface YearClosedCacheEntry<T = unknown> {
+  rows: T[]
+  at: number
+}
 
-export function clearYearClosedCache(): void {
-  yearClosedRows.clear()
+export interface YearClosedPersistentStore {
+  get(key: string): Promise<YearClosedCacheEntry | undefined>
+  set(key: string, entry: YearClosedCacheEntry): Promise<void>
+  clear?(): Promise<void>
+}
+
+interface YearClosedGlobalState {
+  __vfYearClosedRowsCache?: Map<string, YearClosedCacheEntry>
+  __vfYearClosedInflight?: Map<string, Promise<unknown[]>>
+  __vfYearClosedPersistentStore?: YearClosedPersistentStore | null
+  __vfYearClosedDefaultPersistentStore?: YearClosedPersistentStore | null
+}
+
+const globalForYearClosed = globalThis as unknown as YearClosedGlobalState
+
+function getYearClosedRowsMap(): Map<string, YearClosedCacheEntry> {
+  if (!globalForYearClosed.__vfYearClosedRowsCache) {
+    globalForYearClosed.__vfYearClosedRowsCache = new Map<string, YearClosedCacheEntry>()
+  }
+  return globalForYearClosed.__vfYearClosedRowsCache
+}
+
+function getYearClosedInflightMap(): Map<string, Promise<unknown[]>> {
+  if (!globalForYearClosed.__vfYearClosedInflight) {
+    globalForYearClosed.__vfYearClosedInflight = new Map<string, Promise<unknown[]>>()
+  }
+  return globalForYearClosed.__vfYearClosedInflight
+}
+
+export function registerDefaultYearClosedPersistentStore(store: YearClosedPersistentStore): void {
+  globalForYearClosed.__vfYearClosedDefaultPersistentStore = store
+}
+
+export function configureYearClosedPersistentStore(
+  store: YearClosedPersistentStore | null | undefined,
+): void {
+  if (store === undefined) {
+    delete globalForYearClosed.__vfYearClosedPersistentStore
+    return
+  }
+  globalForYearClosed.__vfYearClosedPersistentStore = store
+}
+
+export function getYearClosedPersistentStore(): YearClosedPersistentStore | null {
+  if (
+    '__vfYearClosedPersistentStore' in globalForYearClosed &&
+    globalForYearClosed.__vfYearClosedPersistentStore !== undefined
+  ) {
+    return globalForYearClosed.__vfYearClosedPersistentStore
+  }
+  return globalForYearClosed.__vfYearClosedDefaultPersistentStore ?? null
+}
+
+/** Clears only in-process L1 RAM + inflight maps (e.g., simulating a fresh serverless instance cold start). */
+export function clearYearClosedMemoryCache(): void {
+  getYearClosedRowsMap().clear()
+  getYearClosedInflightMap().clear()
+}
+
+export function clearYearClosedCache(options?: { memoryOnly?: boolean }): void {
+  clearYearClosedMemoryCache()
+  if (!options?.memoryOnly) {
+    const store = getYearClosedPersistentStore()
+    if (store?.clear) {
+      void store.clear().catch(() => {})
+    }
+  }
+}
+
+export function getYearClosedCacheStats(): { memorySize: number; inflightSize: number } {
+  return {
+    memorySize: getYearClosedRowsMap().size,
+    inflightSize: getYearClosedInflightMap().size,
+  }
 }
 
 function readYearClosedCache(key: string, now: number): unknown[] | undefined {
+  const yearClosedRows = getYearClosedRowsMap()
   const hit = yearClosedRows.get(key)
   if (!hit) return undefined
   if (now - hit.at > YEAR_CLOSED_TTL_MS) {
     yearClosedRows.delete(key)
     return undefined
   }
+  // LRU refresh: keep recently served closed-year sections warm in the 128-entry window
+  yearClosedRows.delete(key)
+  yearClosedRows.set(key, hit)
   return hit.rows
 }
 
 function writeYearClosedCache(key: string, rows: unknown[], now: number): void {
+  const yearClosedRows = getYearClosedRowsMap()
+  if (yearClosedRows.has(key)) {
+    yearClosedRows.delete(key)
+  }
   yearClosedRows.set(key, { rows, at: now })
   while (yearClosedRows.size > YEAR_CLOSED_MAX) {
     const oldest = yearClosedRows.keys().next().value
-    if (!oldest) break
+    if (oldest === undefined) break
     yearClosedRows.delete(oldest)
   }
 }
 
+async function withBoundedL2Timeout<T>(
+  operation: Promise<T>,
+  fallback: T,
+  timeoutMs = YEAR_CLOSED_L2_IO_TIMEOUT_MS,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const safeOperation = operation.then(
+    (value) => value,
+    () => fallback,
+  )
+  try {
+    return await Promise.race([
+      safeOperation,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs)
+      }),
+    ])
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer)
+    }
+  }
+}
+
+export async function readYearClosedPersistentEntry<T = unknown>(
+  key: string,
+  now = Date.now(),
+): Promise<YearClosedCacheEntry<T> | undefined> {
+  const store = getYearClosedPersistentStore()
+  if (!store) return undefined
+  const persisted = await withBoundedL2Timeout(store.get(key), undefined)
+  if (
+    !persisted ||
+    !Array.isArray(persisted.rows) ||
+    typeof persisted.at !== 'number' ||
+    !Number.isFinite(persisted.at)
+  ) {
+    return undefined
+  }
+  if (now - persisted.at > YEAR_CLOSED_TTL_MS) {
+    return undefined
+  }
+  return persisted as YearClosedCacheEntry<T>
+}
+
+export async function writeYearClosedPersistentEntry<T = unknown>(
+  key: string,
+  entry: YearClosedCacheEntry<T>,
+): Promise<void> {
+  const store = getYearClosedPersistentStore()
+  if (!store) return
+  await withBoundedL2Timeout(store.set(key, entry), undefined)
+}
+
 /**
- * Closed days of the year are read once and reused for 30 minutes, up to 32 keys.
- * Only today is read on later calls. A failed today read still fails the section.
+ * Closed days of the year (`Jan 1 .. yesterday`) are read once on a Cold Cache miss,
+ * deduplicated across concurrent callers via `globalThis.__vfYearClosedInflight`, cached
+ * for 24 hours across up to 128 keys on `globalThis.__vfYearClosedRowsCache`, and backed
+ * by an optional L2 persistent store across serverless cold starts.
+ * Only `today` is read on warm calls. Failed cold reads are never cached.
  */
 export async function readClosedYearPlusToday<T>(input: {
   cacheKey: string
@@ -692,16 +865,41 @@ export async function readClosedYearPlusToday<T>(input: {
   today: UtcWindow
   read: (window: UtcWindow) => Promise<T[]>
   merge: (rows: readonly T[]) => T[]
+  nowMs?: number
 }): Promise<T[]> {
-  const now = Date.now()
+  const now = input.nowMs ?? Date.now()
   let closedRows: T[] = []
   if (input.closed) {
+    const closedWindow = input.closed
     const hit = readYearClosedCache(input.cacheKey, now) as T[] | undefined
     if (hit) {
       closedRows = hit
     } else {
-      closedRows = await input.read(input.closed)
-      writeYearClosedCache(input.cacheKey, closedRows, now)
+      const inflight = getYearClosedInflightMap()
+      let pending = inflight.get(input.cacheKey)
+      if (!pending) {
+        pending = (async (): Promise<unknown[]> => {
+          const recheck = readYearClosedCache(input.cacheKey, now)
+          if (recheck) return recheck
+
+          const persisted = await readYearClosedPersistentEntry(input.cacheKey, now)
+          if (persisted) {
+            writeYearClosedCache(input.cacheKey, persisted.rows, persisted.at)
+            return persisted.rows
+          }
+
+          const fetched = await input.read(closedWindow)
+          writeYearClosedCache(input.cacheKey, fetched, now)
+          await writeYearClosedPersistentEntry(input.cacheKey, { rows: fetched, at: now })
+          return fetched
+        })().finally(() => {
+          if (inflight.get(input.cacheKey) === pending) {
+            inflight.delete(input.cacheKey)
+          }
+        })
+        inflight.set(input.cacheKey, pending)
+      }
+      closedRows = (await pending) as T[]
     }
   }
   const todayRows = await input.read(input.today)

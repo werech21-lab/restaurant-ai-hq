@@ -23,8 +23,16 @@ import {
   type ConfirmedPriceSheet,
 } from '@/lib/feryal/document-intake-types'
 import { UNCONFIRMED_DRAFT_REJECTED_ERROR } from '@/lib/feryal/executive-advisor'
+import {
+  buildFeryalChatDiagnostics,
+  computeFeryalChatFrozenScope,
+  createExecutivePricingAskOdoo,
+  inferBrandIdFromConfirmedSheet,
+  shouldRunExecutivePricingChat,
+  type ExecutivePricingAskOdooState,
+} from '@/lib/feryal/executive-chat-runner'
 import { logger, errorFields } from '@/lib/logger'
-import { inferBrandIdFromConfirmedSheet, runFeryalCouncil } from '@/server/ai/council'
+import { runFeryalCouncil } from '@/server/ai/council'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -207,24 +215,63 @@ export async function POST(req: NextRequest) {
     (sheetAppliesToTurn ? inferBrandIdFromConfirmedSheet(confirmedPriceSheet) : null)
 
   try {
-    const result = await runFeryalCouncil({
+    const contextDefaults = {
+      period: validatedDefaults.period,
+      customFrom: validatedDefaults.customFrom,
+      customTo: validatedDefaults.customTo,
+      branch: validatedDefaults.branchId,
+      brand: effectiveBrandId,
+      channel: validatedDefaults.channelId,
+    }
+
+    const isExecutivePricing = shouldRunExecutivePricingChat(safeQuestion, {
+      confirmedPriceSheet,
+      isFollowUpOnConfirmedSheet,
+    })
+
+    const pricingState: ExecutivePricingAskOdooState = {
+      frozenScope: null,
+      activePriceSheetSummary: null,
+    }
+
+    const councilInput = {
       question: safeQuestion,
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
-      periodLabel: requestedPeriodLabel,
-      isFollowUpOnConfirmedSheet,
-      activePriceSheetSummary: activePriceSheetSummaryInput,
-      context: {
-        period: validatedDefaults.period,
-        customFrom: validatedDefaults.customFrom,
-        customTo: validatedDefaults.customTo,
-        branch: validatedDefaults.branchId,
-        brand: effectiveBrandId,
-        channel: validatedDefaults.channelId,
-      },
-      ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
-    })
+      context: contextDefaults,
+    }
+
+    const result = await runFeryalCouncil(
+      councilInput,
+      isExecutivePricing
+        ? {
+            askOdoo: createExecutivePricingAskOdoo({
+              confirmedPriceSheet,
+              isFollowUpOnConfirmedSheet,
+              activePriceSheetSummary: activePriceSheetSummaryInput,
+              periodLabel: requestedPeriodLabel,
+              state: pricingState,
+            }),
+          }
+        : undefined,
+    )
+
+    const frozenScope =
+      pricingState.frozenScope ??
+      computeFeryalChatFrozenScope({
+        question: safeQuestion,
+        period: result.period,
+        rawPeriodInput: rawPeriod,
+        requestedPeriodLabel,
+        context: contextDefaults,
+      })
+    const diagnostics = buildFeryalChatDiagnostics(
+      isExecutivePricing ? 'executive_pricing' : 'odoo_council',
+      result.participants,
+      result.agreed.length >= 2,
+      result.status === 'answered' && result.agreed.length < 2,
+    )
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
     return NextResponse.json(
       {
@@ -238,9 +285,9 @@ export async function POST(req: NextRequest) {
         executedQueries: result.executedQueries,
         verifier: result.verifier,
         period: result.period,
-        frozenScope: result.frozenScope,
-        activePriceSheetSummary: result.activePriceSheetSummary,
-        diagnostics: result.diagnostics,
+        frozenScope,
+        activePriceSheetSummary: pricingState.activePriceSheetSummary,
+        diagnostics,
         auditEntry: result.auditEntry,
         timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),
       },

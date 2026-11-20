@@ -6,7 +6,6 @@ export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 
 
 const MIN_KEY_LENGTH = 20
 export const ANALYSIS_MAX_TOKENS = 800
-export const EXECUTIVE_COUNCIL_MAX_TOKENS = 2_000
 const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
 export const PROVIDER_COOLDOWN_MS = 45_000
@@ -16,7 +15,6 @@ export interface ProviderCallInput {
   provider: ProviderId
   apiKey: string
   model: string
-  fallbackModel?: string
   system: string
   user: string
   timeoutMs: number
@@ -121,20 +119,6 @@ export function getProviderCooldownSnapshot(
     }
   }
   return out
-}
-
-export function orderProvidersByHealth(
-  providers: readonly ProviderId[] = COUNCIL_PROVIDERS,
-  nowMs = Date.now(),
-): ProviderId[] {
-  return [...providers].sort((left, right) => {
-    const leftCool = isProviderInCooldown(left, nowMs) ? 1 : 0
-    const rightCool = isProviderInCooldown(right, nowMs) ? 1 : 0
-    if (leftCool !== rightCool) return leftCool - rightCool
-    const leftTimeouts = cooldownStore()[left]?.consecutiveTimeouts ?? 0
-    const rightTimeouts = cooldownStore()[right]?.consecutiveTimeouts ?? 0
-    return leftTimeouts - rightTimeouts
-  })
 }
 
 function recordProviderOutcome(
@@ -511,15 +495,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
       return timedOutResult
     }
 
-    const activeModel =
-      attempt > 0 &&
-      input.fallbackModel &&
-      input.fallbackModel.trim().length > 0 &&
-      input.fetchImpl === undefined
-        ? input.fallbackModel.trim()
-        : input.model
-
-    const once = await callProviderOnce({ ...input, model: activeModel }, remaining)
+    const once = await callProviderOnce(input, remaining)
     last = { ...once, requestedModel: input.model }
     const retry =
       input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1

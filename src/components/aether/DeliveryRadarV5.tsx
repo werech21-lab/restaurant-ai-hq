@@ -172,8 +172,13 @@ export function DeliveryRadarV5({
   const matrixRange = liveCube?.dateRange ?? provenanceRange
 
   const receivablesHeadline = useMemo(
-    () => selectReceivablesHeadline(workspace.receivables),
-    [workspace.receivables],
+    () =>
+      selectReceivablesHeadline(
+        liveSummary?.aggregatorReceivables?.readable === false
+          ? { ...workspace.receivables, readable: false }
+          : workspace.receivables,
+      ),
+    [liveSummary?.aggregatorReceivables?.readable, workspace.receivables],
   )
 
   const receivablesDateRange = useMemo(
@@ -779,55 +784,32 @@ export function DeliveryRadarV5({
       })
     }
 
-    const arHeadlineKwd = receivablesHeadline.openDebitsKwd ?? receivablesHeadline.netKwd
+    const arHeadlineKwd = receivablesHeadline.netKwd
     if (!maskInternalCosts && !workspace.receivables.unavailable && arHeadlineKwd !== null) {
       cards.push({
         key: 'open-receivables',
         node: (
-          <article className="ae-kpi-card relative overflow-visible min-w-0 flex flex-col justify-between rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]">
+          <article
+            data-receivables-kpi-card="true"
+            className="ae-kpi-card relative overflow-visible min-w-0 flex flex-col justify-between rounded-2xl bg-white p-4 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#111A17] dark:ring-emerald-400/[0.09]"
+          >
             <div className="flex items-center justify-between gap-2">
               <p className="min-w-0 truncate text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-                {T('Open Unreconciled Receivables', 'الذمم المدينة المفتوحة للمنصات والمقاصة')}
+                {T('Net Open Receivables', 'صافي الذمم المدينة المفتوحة')}
               </p>
               <Wallet className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
             </div>
             <div
               dir="ltr"
+              data-receivables-headline-kwd="true"
               className="mt-2.5 text-2xl sm:text-3xl font-extrabold tabular-nums text-slate-950 dark:text-white"
             >
               {fmtKwd(arHeadlineKwd, isAr)}
             </div>
-            <p className="mt-1.5 text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-              {isAr ? (
-                <>
-                  دفعات/مقاصة غير مطابقة:{' '}
-                  <span dir="ltr">
-                    {receivablesHeadline.unappliedCreditsKwd === null
-                      ? '—'
-                      : fmtKwd(receivablesHeadline.unappliedCreditsKwd, true)}
-                  </span>
-                  {' · '}الصافي:{' '}
-                  <span dir="ltr">
-                    {receivablesHeadline.netKwd === null
-                      ? '—'
-                      : fmtKwd(receivablesHeadline.netKwd, true)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  Unapplied payments/clearing:{' '}
-                  <span dir="ltr">
-                    {receivablesHeadline.unappliedCreditsKwd === null
-                      ? '—'
-                      : fmtKwd(receivablesHeadline.unappliedCreditsKwd, false)}
-                  </span>
-                  {' · '}Net:{' '}
-                  <span dir="ltr">
-                    {receivablesHeadline.netKwd === null
-                      ? '—'
-                      : fmtKwd(receivablesHeadline.netKwd, false)}
-                  </span>
-                </>
+            <p className="mt-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+              {T(
+                'Net posted unreconciled balance across platform & trade AR accounts',
+                'صافي الرصيد المرحّل غير المسوّى لحسابات المنصات والعملاء',
               )}
             </p>
             {receivablesHeadline.lines !== null ? (
@@ -843,7 +825,7 @@ export function DeliveryRadarV5({
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
-              queryOrFormula="account.move.line(account_type='asset_receivable', parent_state='posted', reconciled=false)"
+              queryOrFormula="SUM(amount_residual) ON account.move.line(account_type='asset_receivable', parent_state='posted', reconciled=false, account_id!=35)"
               compact
             />
           </article>
@@ -872,8 +854,6 @@ export function DeliveryRadarV5({
     receivablesDateRange,
     receivablesHeadline.lines,
     receivablesHeadline.netKwd,
-    receivablesHeadline.openDebitsKwd,
-    receivablesHeadline.unappliedCreditsKwd,
     totalAggregatorOrders,
     totalAggregatorSalesKwd,
     unavailableTip,

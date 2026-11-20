@@ -1,6 +1,6 @@
 /**
  * Deterministic forensic detector for Talabat TMP 10% vs TGO 17% and Forced Offline.
- * Same bucket + branch + platform → same diagnosis (no LLM).
+ * Strict Fail-Closed: builds rows ONLY from verified Odoo / live telemetry observations.
  */
 import { VENTURE_BRANCHES, VENTURE_BRANDS, type VentureBrandId } from '@/lib/venture-hierarchy'
 import { fiveMinuteBucket } from '@/modules/governance/domain/aggregator'
@@ -13,9 +13,30 @@ export const TALABAT_TGO_ACCOUNT = '101512' // Talabat Go — 17%
 export const TMP_BPS = 1_000
 export const TGO_BPS = 1_700
 export const PENALTY_BPS = 700 // +7%
+export const FORENSIC_MISSING_DATA_REASON = 'FAIL_CLOSED_MISSING_VERIFIED_ODOO_DATA' as const
 
 export type LiveStatus = 'online' | 'forced_offline' | 'busy_throttled'
 export type ActiveMode = 'TMP' | 'TGO'
+
+export type VerifiedForensicObservation = {
+  verifiedFromOdoo: true
+  brandId: VentureBrandId
+  branchId: string
+  platform: ForensicPlatform
+  status: LiveStatus
+  mode: ActiveMode
+  gmvMinor: number
+  tmpShareBps: number
+  tgoShareBps: number
+  offlineMinutes: number
+  offlineFromIso?: string | null
+  offlineToIso?: string | null
+  prepMinutes?: number | null
+  rejectedOrders?: number | null
+  conversionPct?: number | null
+  delayRatePct?: number | null
+  rank?: number | null
+}
 
 export type ForensicRow = {
   id: string
@@ -43,12 +64,19 @@ export type ForensicRow = {
   financialImpactMinor: number
   bucket: string
   scannedAt: string
+  verifiedFromOdoo?: boolean
+  prepMinutes?: number | null
+  rejectedOrders?: number | null
+  conversionPct?: number | null
+  delayRatePct?: number | null
+  rank?: number | null
 }
 
 export type ForensicKpis = {
   onlineCount: number
   offlineCount: number
   busyCount: number
+  totalGmvMinor: number
   tmpOrderShareBps: number
   tgoOrderShareBps: number
   totalOfflineMinutes: number
@@ -62,6 +90,8 @@ export type ForensicKpis = {
 export type ForensicSnapshot = {
   bucket: string
   scannedAt: string
+  dataAvailable: boolean
+  unavailableReason?: string
   rows: ForensicRow[]
   kpis: ForensicKpis
 }
@@ -85,24 +115,24 @@ export type ForensicDayBucket = {
 export type ForensicReport = {
   period: ForensicReportPeriod
   generatedAt: string
+  dataAvailable: boolean
+  unavailableReason?: string
   totalOfflineMinutes: number
   tmpGmvMinor: number
   tgoGmvMinor: number
   penaltyMinor: number
   lostSalesMinor: number
   claimMinor: number
-  byBrand: Array<{ brandId: string; brandNameEn: string; brandNameAr: string; offlineMinutes: number; penaltyMinor: number; impactMinor: number }>
+  byBrand: Array<{
+    brandId: string
+    brandNameEn: string
+    brandNameAr: string
+    offlineMinutes: number
+    penaltyMinor: number
+    impactMinor: number
+  }>
   timeline: ForensicHourBucket[]
   weekdays: ForensicDayBucket[]
-}
-
-function hash(input: string): number {
-  let h = 2166136261
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
 }
 
 export function formatKwdMinor(minor: number | null | undefined, locale: 'ar' | 'en' = 'en'): string {
@@ -127,87 +157,138 @@ export function cleanBranchLabel(nameEn: string, areaEn: string): string {
 
 export function commissionPenaltyMinor(gmvMinor: number, mode: ActiveMode): number {
   if (mode !== 'TGO') return 0
-  return Math.round((gmvMinor * PENALTY_BPS) / 10_000)
+  const safeGmv = Number.isFinite(gmvMinor) && gmvMinor > 0 ? gmvMinor : 0
+  return Math.round((safeGmv * PENALTY_BPS) / 10_000)
 }
 
 export function lostSalesFromOffline(gmvMinor: number, offlineMinutes: number): number {
-  if (offlineMinutes <= 0) return 0
-  // Assume offline kills proportional share of the 5-minute GMV window, scaled by duration/60.
+  if (!Number.isFinite(offlineMinutes) || offlineMinutes <= 0) return 0
+  const safeGmv = Number.isFinite(gmvMinor) && gmvMinor > 0 ? gmvMinor : 0
   const factor = Math.min(1, offlineMinutes / 60)
-  return Math.round(gmvMinor * factor)
+  return Math.round(safeGmv * factor)
 }
 
-function diagnose(digest: number): { status: LiveStatus; mode: ActiveMode; offlineMinutes: number } {
-  const roll = digest % 100
-  if (roll < 8) return { status: 'forced_offline', mode: 'TGO', offlineMinutes: 15 + (digest % 45) }
-  if (roll < 22) return { status: 'busy_throttled', mode: 'TGO', offlineMinutes: 5 + (digest % 25) }
-  if (roll < 35) return { status: 'online', mode: 'TGO', offlineMinutes: 0 }
-  return { status: 'online', mode: 'TMP', offlineMinutes: 0 }
+function isValidNonNegativeBps(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value <= 10_000
 }
 
-export function buildForensicMatrix(at = new Date()): ForensicSnapshot {
+function isValidVerifiedObservation(obs: VerifiedForensicObservation): boolean {
+  if (!obs || obs.verifiedFromOdoo !== true) return false
+  if (!FORENSIC_PLATFORMS.includes(obs.platform)) return false
+  if (obs.status !== 'online' && obs.status !== 'forced_offline' && obs.status !== 'busy_throttled') {
+    return false
+  }
+  if (obs.mode !== 'TMP' && obs.mode !== 'TGO') return false
+  if (!Number.isFinite(obs.gmvMinor) || obs.gmvMinor < 0) return false
+  if (!isValidNonNegativeBps(obs.tmpShareBps) || !isValidNonNegativeBps(obs.tgoShareBps)) return false
+  if (!Number.isFinite(obs.offlineMinutes) || obs.offlineMinutes < 0) return false
+
+  const brand = VENTURE_BRANDS.find((b) => b.id === obs.brandId)
+  const branch = VENTURE_BRANCHES.find((b) => b.id === obs.branchId && b.brandId === obs.brandId)
+  return Boolean(brand && branch)
+}
+
+export function buildForensicMatrix(
+  at = new Date(),
+  verifiedInputs?: readonly VerifiedForensicObservation[],
+): ForensicSnapshot {
   const bucket = fiveMinuteBucket(at.getTime())
   const scannedAt = at.toISOString()
-  const rows: ForensicRow[] = []
 
-  for (const brand of VENTURE_BRANDS) {
-    const branches = VENTURE_BRANCHES.filter((b) => b.brandId === brand.id)
-    for (const branch of branches) {
-      for (const platform of FORENSIC_PLATFORMS) {
-        const digest = hash(`${bucket}|${brand.id}|${branch.id}|${platform}`)
-        const diag = diagnose(digest)
-        const gmvMinor = 12_000 + (digest % 85_000) // 12.000–97.000 KWD window sample in fils
-        const mode = diag.mode
-        const commissionBps = mode === 'TMP' ? TMP_BPS : TGO_BPS
-        const accountCode = mode === 'TMP' ? TALABAT_MP_ACCOUNT : TALABAT_TGO_ACCOUNT
-        const offlineMinutes = diag.offlineMinutes
-        const offlineFrom = offlineMinutes
-          ? new Date(at.getTime() - offlineMinutes * 60_000).toISOString()
-          : null
-        const penalty = commissionPenaltyMinor(gmvMinor, mode)
-        const lost = lostSalesFromOffline(gmvMinor, offlineMinutes)
-        const tmpShare = mode === 'TMP' ? 10_000 : Math.max(0, 10_000 - (digest % 4_000))
-        const tgoShare = 10_000 - tmpShare
-
-        rows.push({
-          id: `${brand.id}:${branch.id}:${platform}:${bucket}`,
-          brandId: brand.id,
-          brandNameEn: brand.nameEn,
-          brandNameAr: brand.nameAr,
-          branchId: branch.id,
-          branchNameEn: branch.nameEn,
-          branchNameAr: branch.nameAr,
-          areaEn: branch.areaEn,
-          areaAr: branch.areaAr,
-          platform,
-          status: diag.status,
-          mode,
-          commissionBps,
-          accountCode: platform === 'Talabat' ? accountCode : mode === 'TMP' ? 'MP-10' : 'TGO-17',
-          offlineFromIso: offlineFrom,
-          offlineToIso: offlineMinutes ? scannedAt : null,
-          offlineMinutes,
-          gmvMinor,
-          tmpShareBps: tmpShare,
-          tgoShareBps: tgoShare,
-          commissionPenaltyMinor: penalty,
-          lostSalesMinor: lost,
-          financialImpactMinor: penalty + lost,
-          bucket,
-          scannedAt,
-        })
-      }
+  if (!verifiedInputs || verifiedInputs.length === 0) {
+    return {
+      bucket,
+      scannedAt,
+      dataAvailable: false,
+      unavailableReason: FORENSIC_MISSING_DATA_REASON,
+      rows: [],
+      kpis: summarizeKpis([]),
     }
   }
 
-  return { bucket, scannedAt, rows, kpis: summarizeKpis(rows) }
+  // Fail-closed: if any supplied observation is unverified, incomplete, or malformed, reject the snapshot.
+  if (verifiedInputs.some((obs) => !isValidVerifiedObservation(obs))) {
+    return {
+      bucket,
+      scannedAt,
+      dataAvailable: false,
+      unavailableReason: FORENSIC_MISSING_DATA_REASON,
+      rows: [],
+      kpis: summarizeKpis([]),
+    }
+  }
+
+  const rows: ForensicRow[] = []
+  for (const obs of verifiedInputs) {
+    const brand = VENTURE_BRANDS.find((b) => b.id === obs.brandId)!
+    const branch = VENTURE_BRANCHES.find((b) => b.id === obs.branchId && b.brandId === obs.brandId)!
+    const gmvMinor = Math.round(obs.gmvMinor)
+    const offlineMinutes = Math.round(obs.offlineMinutes)
+    const tmpShareBps = Math.round(obs.tmpShareBps)
+    const tgoShareBps = Math.round(obs.tgoShareBps)
+    const mode = obs.mode
+    const commissionBps = mode === 'TMP' ? TMP_BPS : TGO_BPS
+    const talabatAccount = mode === 'TMP' ? TALABAT_MP_ACCOUNT : TALABAT_TGO_ACCOUNT
+    const offlineFromIso =
+      obs.offlineFromIso !== undefined
+        ? obs.offlineFromIso
+        : offlineMinutes > 0
+          ? new Date(at.getTime() - offlineMinutes * 60_000).toISOString()
+          : null
+    const offlineToIso =
+      obs.offlineToIso !== undefined ? obs.offlineToIso : offlineMinutes > 0 ? scannedAt : null
+    const penalty = commissionPenaltyMinor(gmvMinor, mode)
+    const lost = lostSalesFromOffline(gmvMinor, offlineMinutes)
+
+    rows.push({
+      id: `${brand.id}:${branch.id}:${obs.platform}:${bucket}`,
+      brandId: brand.id,
+      brandNameEn: brand.nameEn,
+      brandNameAr: brand.nameAr,
+      branchId: branch.id,
+      branchNameEn: branch.nameEn,
+      branchNameAr: branch.nameAr,
+      areaEn: branch.areaEn,
+      areaAr: branch.areaAr,
+      platform: obs.platform,
+      status: obs.status,
+      mode,
+      commissionBps,
+      accountCode: obs.platform === 'Talabat' ? talabatAccount : mode === 'TMP' ? 'MP-10' : 'TGO-17',
+      offlineFromIso,
+      offlineToIso,
+      offlineMinutes,
+      gmvMinor,
+      tmpShareBps,
+      tgoShareBps,
+      commissionPenaltyMinor: penalty,
+      lostSalesMinor: lost,
+      financialImpactMinor: penalty + lost,
+      bucket,
+      scannedAt,
+      verifiedFromOdoo: true,
+      prepMinutes: obs.prepMinutes ?? null,
+      rejectedOrders: obs.rejectedOrders ?? null,
+      conversionPct: obs.conversionPct ?? null,
+      delayRatePct: obs.delayRatePct ?? null,
+      rank: obs.rank ?? null,
+    })
+  }
+
+  return {
+    bucket,
+    scannedAt,
+    dataAvailable: true,
+    rows,
+    kpis: summarizeKpis(rows),
+  }
 }
 
 export function summarizeKpis(rows: ForensicRow[]): ForensicKpis {
   const onlineCount = rows.filter((r) => r.status === 'online').length
   const offlineCount = rows.filter((r) => r.status === 'forced_offline').length
   const busyCount = rows.filter((r) => r.status === 'busy_throttled').length
-  const gmv = rows.reduce((sum, r) => sum + r.gmvMinor, 0) || 1
+  const totalGmvMinor = rows.reduce((sum, r) => sum + r.gmvMinor, 0)
   const tmpGmv = rows.filter((r) => r.mode === 'TMP').reduce((sum, r) => sum + r.gmvMinor, 0)
   const tgoGmv = rows.filter((r) => r.mode === 'TGO').reduce((sum, r) => sum + r.gmvMinor, 0)
   const totalOfflineMinutes = rows.reduce((sum, r) => sum + r.offlineMinutes, 0)
@@ -217,8 +298,9 @@ export function summarizeKpis(rows: ForensicRow[]): ForensicKpis {
     onlineCount,
     offlineCount,
     busyCount,
-    tmpOrderShareBps: Math.round((tmpGmv * 10_000) / gmv),
-    tgoOrderShareBps: Math.round((tgoGmv * 10_000) / gmv),
+    totalGmvMinor,
+    tmpOrderShareBps: totalGmvMinor > 0 ? Math.round((tmpGmv * 10_000) / totalGmvMinor) : 0,
+    tgoOrderShareBps: totalGmvMinor > 0 ? Math.round((tgoGmv * 10_000) / totalGmvMinor) : 0,
     totalOfflineMinutes,
     commissionPenaltyMinor,
     lostSalesMinor,
@@ -228,12 +310,36 @@ export function summarizeKpis(rows: ForensicRow[]): ForensicKpis {
   }
 }
 
-export function buildForensicReport(history: ForensicSnapshot[], period: ForensicReportPeriod, at = new Date()): ForensicReport {
+export function buildForensicReport(
+  history: ForensicSnapshot[],
+  period: ForensicReportPeriod,
+  at = new Date(),
+): ForensicReport {
   const ms =
     period === 'daily' ? 24 * 60 * 60_000 : period === 'weekly' ? 7 * 24 * 60 * 60_000 : 30 * 24 * 60 * 60_000
   const since = at.getTime() - ms
   const slices = history.filter((s) => new Date(s.scannedAt).getTime() >= since)
-  const rows = slices.flatMap((s) => s.rows)
+  const verifiedSlices = slices.filter((s) => s.dataAvailable && s.rows.length > 0)
+
+  if (verifiedSlices.length === 0 || verifiedSlices.length !== slices.length) {
+    return {
+      period,
+      generatedAt: at.toISOString(),
+      dataAvailable: false,
+      unavailableReason: FORENSIC_MISSING_DATA_REASON,
+      totalOfflineMinutes: 0,
+      tmpGmvMinor: 0,
+      tgoGmvMinor: 0,
+      penaltyMinor: 0,
+      lostSalesMinor: 0,
+      claimMinor: 0,
+      byBrand: [],
+      timeline: [],
+      weekdays: [],
+    }
+  }
+
+  const rows = verifiedSlices.flatMap((s) => s.rows)
   const tmpGmvMinor = rows.filter((r) => r.mode === 'TMP').reduce((sum, r) => sum + r.gmvMinor, 0)
   const tgoGmvMinor = rows.filter((r) => r.mode === 'TGO').reduce((sum, r) => sum + r.gmvMinor, 0)
   const penaltyMinor = rows.reduce((sum, r) => sum + r.commissionPenaltyMinor, 0)
@@ -289,6 +395,7 @@ export function buildForensicReport(history: ForensicSnapshot[], period: Forensi
   return {
     period,
     generatedAt: at.toISOString(),
+    dataAvailable: true,
     totalOfflineMinutes,
     tmpGmvMinor,
     tgoGmvMinor,

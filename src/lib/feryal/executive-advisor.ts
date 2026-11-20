@@ -2,6 +2,7 @@ import { Decimal } from '@/server/ai/decimal'
 import { ODOO_VERIFIED_ACTUALS_LABEL, PROPOSED_USER_INPUT_LABEL } from '@/server/ai/number-guard'
 import {
   COGS_UNAVAILABLE_REPLY,
+  COGS_UNAVAILABLE_REPLY_AR,
   ITEM_PRICING_CHUNK_DAYS,
   ITEM_PRICING_EXCLUDED_POS_CONFIG_IDS,
   ITEM_PRICING_QURAIN_POS_CONFIG_IDS,
@@ -34,23 +35,44 @@ import posRegistry from '@/lib/odoo/pos-registry.json'
 import { logger } from '@/lib/logger'
 
 export const ODOO_VERIFIED_ACTUAL_TAG = 'Odoo Verified Actual' as const
+export const ODOO_VERIFIED_ACTUAL_TAG_AR = 'بيانات فعلية موثّقة من أودو' as const
 export const USER_INPUT_CONFIRMED_TAG = 'User Input (Confirmed)' as const
+export const USER_INPUT_CONFIRMED_TAG_AR = 'مدخلات المستخدم (مؤكدة)' as const
 export const DETERMINISTIC_SIMULATION_TAG = 'Deterministic Simulation' as const
+export const DETERMINISTIC_SIMULATION_TAG_AR = 'محاكاة حسابية حتمية' as const
 export const KUWAIT_MARKET_STRATEGY_TAG_EN = 'Kuwait Market Pricing Strategy' as const
 export const KUWAIT_MARKET_STRATEGY_TAG_AR = 'استراتيجية التسعير في سوق الكويت' as const
 export const HIGH_ELASTICITY_RISK_TAG = 'High Elasticity Risk' as const
+export const HIGH_ELASTICITY_RISK_TAG_AR = 'مخاطر مرونة سعرية مرتفعة' as const
 export const UNCONFIRMED_DRAFT_REJECTED_ERROR = 'UNCONFIRMED_DRAFT_REJECTED' as const
 
 export const EXECUTIVE_COGS_BOUNDARY_EN =
   'Unit food cost (COGS) and gross or net profit margins cannot be calculated because Odoo integration user 225 lacks read permission on product.product.standard_price. Every impact figure reflects net POS revenue (price_subtotal, excluding tax) with zero fabricated cost assumptions.'
 
 export const EXECUTIVE_COGS_BOUNDARY_AR =
-  'لا يمكن احتساب تكلفة البضاعة المباعة (COGS) أو هوامش الربح الإجمالية والصافية لأن مستخدم الربط في Odoo رقم 225 لا يملك صلاحية قراءة حقل standard_price. تعكس جميع الأرقام صافي إيرادات نقاط البيع (price_subtotal بدون الضريبة) دون أي تقدير للتكلفة.'
+  'لا يمكن احتساب تكلفة الصنف أو هوامش الربح الإجمالية والصافية نظراً لقيود صلاحية قراءة حقل تكلفة الصنف على حساب الربط في أودو (المستخدم رقم 225). تعكس جميع الأرقام صافي إيرادات نقاط البيع (غير شاملة الضريبة) استناداً إلى بيانات فعلية موثّقة من أودو دون أي تقدير للتكلفة.'
 
 export type ExecutiveSourceTag =
   | typeof ODOO_VERIFIED_ACTUAL_TAG
   | typeof USER_INPUT_CONFIRMED_TAG
   | typeof DETERMINISTIC_SIMULATION_TAG
+
+export function formatExecutiveSourceTag(
+  tag: ExecutiveSourceTag | typeof HIGH_ELASTICITY_RISK_TAG,
+  locale: 'ar' | 'en',
+): string {
+  if (locale !== 'ar') return tag
+  switch (tag) {
+    case ODOO_VERIFIED_ACTUAL_TAG:
+      return ODOO_VERIFIED_ACTUAL_TAG_AR
+    case USER_INPUT_CONFIRMED_TAG:
+      return USER_INPUT_CONFIRMED_TAG_AR
+    case DETERMINISTIC_SIMULATION_TAG:
+      return DETERMINISTIC_SIMULATION_TAG_AR
+    case HIGH_ELASTICITY_RISK_TAG:
+      return HIGH_ELASTICITY_RISK_TAG_AR
+  }
+}
 
 export type AbcTier = 'A' | 'B' | 'C'
 
@@ -1413,7 +1435,7 @@ function classifyPlaybookAndRationale(params: {
           rationaleEn:
             'Unmatched / Wrong Variant — candidate Odoo POS SKU is already matched 1-to-1 to a higher-confidence row; excluded from POS volume to prevent double-counting.',
           rationaleAr:
-            'غير مطابق / صنف أو حجم مختلف — صنف Odoo المرشح مرتبط بالفعل 1 إلى 1 بصف آخر أعلى تطابقاً؛ تم عزله لمنع ازدواجية احتساب الكميات.',
+            'غير مطابق / صنف أو حجم مختلف — صنف أودو المرشح مرتبط بالفعل 1 إلى 1 بصف آخر أعلى تطابقاً؛ تم عزله لمنع ازدواجية احتساب الكميات.',
         }
       }
       return {
@@ -1424,7 +1446,7 @@ function classifyPlaybookAndRationale(params: {
         rationaleEn:
           'Unmatched / Wrong Variant — sheet current unit price deviates sharply from the candidate Odoo POS SKU realized price (likely platter vs single portion); verify the exact POS variant before repricing.',
         rationaleAr:
-          'غير مطابق / صنف أو حجم مختلف — يختلف السعر الحالي بالملف جذرياً عن السعر الفعلي للصنف في نقاط بيع Odoo (احتمال اختلاف الحجم أو البلاتر عن الطبق الفردي)؛ يلزم التحقق من الصنف الفعلي أولاً.',
+          'غير مطابق / صنف أو حجم مختلف — يختلف السعر الحالي بالملف جذرياً عن السعر الفعلي للصنف في نقاط بيع أودو (احتمال اختلاف الحجم أو الطبق المشترك عن الطبق الفردي)؛ يلزم التحقق من الصنف الفعلي أولاً.',
       }
     }
     anomalyCodes.push('UNMATCHED_ODOO_SKU')
@@ -1434,7 +1456,7 @@ function classifyPlaybookAndRationale(params: {
       playbookAction: 'Fix Typo First',
       anomalyCodes,
       rationaleEn: 'No matching POS SKU found in Odoo for the selected period/brand; verify SKU name before repricing.',
-      rationaleAr: 'لم يتم العثور على صنف مطابق في نقاط بيع Odoo للفترة والعلامة المحددة؛ يلزم التحقق من اسم الصنف أولاً.',
+      rationaleAr: 'لم يتم العثور على صنف مطابق في نقاط بيع أودو للفترة والعلامة المحددة؛ يلزم التحقق من اسم الصنف أولاً.',
     }
   }
 
@@ -1469,7 +1491,7 @@ function classifyPlaybookAndRationale(params: {
       rationaleEn:
         'Proposed price drops sharply below the Odoo realized unit price and appears to be a decimal/OCR typo; block POS update until corrected.',
       rationaleAr:
-        'ينخفض السعر المقترح بحدة عن السعر الفعلي المحقق في Odoo ويشتبه بكونه خطأ إدخال أو قراءة؛ يُمنع التعديل قبل التصحيح.',
+        'ينخفض السعر المقترح بحدة عن السعر الفعلي المحقق في أودو ويشتبه بكونه خطأ إدخال أو قراءة؛ يُمنع التعديل قبل التصحيح.',
     }
   }
 
@@ -1584,9 +1606,12 @@ function buildExecutiveOpinionJustification(params: {
     ? `Direct dine-in and takeaway represent **${mix.directSharePct}%** (**${formatGrouped(mix.directNetSalesKwd, 3)} KWD**) vs. **${mix.aggregatorSharePct}%** (**${formatGrouped(mix.aggregatorNetSalesKwd, 3)} KWD**) on delivery aggregators${topBranch ? `, led by **${topBranch.labelEn}** (**${formatGrouped(topBranch.netSalesKwd, 3)} KWD**, **${topBranch.sharePct}%**)` : ''} [${ODOO_VERIFIED_ACTUAL_TAG}].`
     : `Active POS sales across **${pack.totals.skuCount}** SKUs total **${totalNetEn} KWD**, with Tier-A heroes driving **${tierAShare}%** (**${tierANet} KWD**) [${ODOO_VERIFIED_ACTUAL_TAG}].`
 
+  const odooTagAr = formatExecutiveSourceTag(ODOO_VERIFIED_ACTUAL_TAG, 'ar')
+  const simTagAr = formatExecutiveSourceTag(DETERMINISTIC_SIMULATION_TAG, 'ar')
+
   const channelClauseAr = hasChannelMix && mix
-    ? `تشكّل القنوات المباشرة (الصالة والسفري) **${mix.directSharePct}%** (**${formatGrouped(mix.directNetSalesKwd, 3)} د.ك**) مقابل **${mix.aggregatorSharePct}%** (**${formatGrouped(mix.aggregatorNetSalesKwd, 3)} د.ك**) لمنصات التوصيل${topBranch ? ` بقيادة فرع **${topBranch.labelAr}** (**${formatGrouped(topBranch.netSalesKwd, 3)} د.ك**، **${topBranch.sharePct}%**)` : ''} [${ODOO_VERIFIED_ACTUAL_TAG}].`
-    : `بلغ صافي مبيعات نقاط البيع عبر **${pack.totals.skuCount}** صنفاً **${totalNetEn} د.ك**، وتستحوذ الفئة A على **${tierAShare}%** (**${tierANet} د.ك**) [${ODOO_VERIFIED_ACTUAL_TAG}].`
+    ? `تشكّل القنوات المباشرة (الصالة والسفري) **${mix.directSharePct}%** (**${formatGrouped(mix.directNetSalesKwd, 3)} د.ك**) مقابل **${mix.aggregatorSharePct}%** (**${formatGrouped(mix.aggregatorNetSalesKwd, 3)} د.ك**) لمنصات التوصيل${topBranch ? ` بقيادة فرع **${topBranch.labelAr}** (**${formatGrouped(topBranch.netSalesKwd, 3)} د.ك**، **${topBranch.sharePct}%**)` : ''} [${odooTagAr}].`
+    : `بلغ صافي مبيعات نقاط البيع عبر **${pack.totals.skuCount}** صنفاً **${totalNetEn} د.ك**، وتستحوذ الفئة A على **${tierAShare}%** (**${tierANet} د.ك**) [${odooTagAr}].`
 
   const multiOptSpreadEn =
     options.length > 1
@@ -1595,26 +1620,26 @@ function buildExecutiveOpinionJustification(params: {
 
   const multiOptSpreadAr =
     options.length > 1
-      ? `وعند مقارنة الخيارات المرفوعة (${options.map((o) => `**${o.label}**`).join(' مقابل ')}), يتصدر **${winner.label}** حماية الإيراد في اختبار الضغط بصافي **${formatGrouped(winner.stressTestDeltaKwd, 3, true)} د.ك** (**${formatGrouped(winner.baseDeltaKwd, 3, true)} د.ك** في الأساسي) عبر **${portfolio.matchedSkuCount}** أصناف مطابقة بخط أساس **${formatGrouped(winner.baselineRevenueKwd, 3)} د.ك** [${DETERMINISTIC_SIMULATION_TAG}].`
-      : `وعبر **${portfolio.matchedSkuCount}** أصناف مطابقة بخط أساس **${formatGrouped(winner.baselineRevenueKwd, 3)} د.ك**، يحقق **${winner.label}** أثراً قدره **${formatGrouped(winner.baseDeltaKwd, 3, true)} د.ك** في الأساسي و**${formatGrouped(winner.stressTestDeltaKwd, 3, true)} د.ك** في اختبار الضغط [${DETERMINISTIC_SIMULATION_TAG}].`
+      ? `وعند مقارنة الخيارات المرفوعة (${options.map((o) => `**${o.label}**`).join(' مقابل ')}), يتصدر **${winner.label}** حماية الإيراد في اختبار الضغط بصافي **${formatGrouped(winner.stressTestDeltaKwd, 3, true)} د.ك** (**${formatGrouped(winner.baseDeltaKwd, 3, true)} د.ك** في الأساسي) عبر **${portfolio.matchedSkuCount}** أصناف مطابقة بخط أساس **${formatGrouped(winner.baselineRevenueKwd, 3)} د.ك** [${simTagAr}].`
+      : `وعبر **${portfolio.matchedSkuCount}** أصناف مطابقة بخط أساس **${formatGrouped(winner.baselineRevenueKwd, 3)} د.ك**، يحقق **${winner.label}** أثراً قدره **${formatGrouped(winner.baseDeltaKwd, 3, true)} د.ك** في الأساسي و**${formatGrouped(winner.stressTestDeltaKwd, 3, true)} د.ك** في اختبار الضغط [${simTagAr}].`
 
   if (verdictBadge === 'Agree') {
     return {
       en: `I agree with deploying **${brandEn}**'s confirmed repricing schedule (**${winner.label}**), which keeps Tier-A anchor adjustments disciplined while capturing **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} KWD** (**${portfolio.feryalRecDeltaPct}%**, projected **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} KWD**) under **Feryal Rec. KWD** [${DETERMINISTIC_SIMULATION_TAG}]. ${channelClauseEn} ${multiOptSpreadEn} Under [${KUWAIT_MARKET_STRATEGY_TAG_EN}], snapping every approved unit price to clean **0.050 KWD** increments and Kuwaiti psychological price endings (**0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD**) preserves mall and family dine-in check frequency while offsetting Talabat, Deliveroo, Jahez, Keeta, and Snoonu platform commission drag.`,
-      ar: `أوافق على اعتماد جدول التسعير المؤكد لعلامة **${brandAr}** (**${winner.label}**)، نظراً لانضباط زيادات أصناف الفئة A وتحقيق أثر صافي موصى به قدره **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك**) وفق **سعر فريال الموصى د.ك** [${DETERMINISTIC_SIMULATION_TAG}]. ${channelClauseAr} ${multiOptSpreadAr} ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، فإن ضبط الأسعار إلى مضاعفات **0.050 د.ك** والعتبات النفسية المعتادة في السوق الكويتي (**0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك**) يحمي تكرار زيارات العائلات والمجمعات ويعوّض عمولات منصات طلبات وديليفرو وجاهز وكيتا وسنونو.`,
+      ar: `أوافق على اعتماد جدول التسعير المؤكد لعلامة **${brandAr}** (**${winner.label}**)، نظراً لانضباط زيادات أصناف الفئة A وتحقيق أثر صافي موصى به قدره **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك**) وفق **سعر فريال الموصى د.ك** [${simTagAr}]. ${channelClauseAr} ${multiOptSpreadAr} ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، فإن ضبط الأسعار إلى مضاعفات **0.050 د.ك** والعتبات النفسية المعتادة في السوق الكويتي (**0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك**) يحمي تكرار زيارات العائلات والمجمعات ويعوّض عمولات منصات طلبات وديليفرو وجاهز وكيتا وسنونو.`,
     }
   }
 
   if (verdictBadge === 'Disagree') {
     return {
       en: `I disagree with deploying the submitted **${brandEn}** price sheet as-is because flagged price anomalies or steep Tier-A hikes expose **${tierAShare}%** (**${tierANet} KWD**) of core brand revenue [${ODOO_VERIFIED_ACTUAL_TAG}] to severe guest attrition. ${channelClauseEn} ${multiOptSpreadEn} Instead, hold flagged rows and adopt the **Feryal Rec. KWD** schedule (**${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} KWD**, **${portfolio.feryalRecDeltaPct}%**, projected **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} KWD** [${DETERMINISTIC_SIMULATION_TAG}]), which locks dine-in anchors to **0.050 KWD** steps and **0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD** psychological tiers while isolating higher pricing to Talabat, Deliveroo, Jahez, Keeta, and Snoonu menus [${KUWAIT_MARKET_STRATEGY_TAG_EN}].`,
-      ar: `لا أوافق على تعميم جدول الأسعار المرفوع لعلامة **${brandAr}** بصيغته الحالية، إذ إن الأخطاء السعرية المرصودة أو القفزات الحادة على أصناف الفئة A تعرّض **${tierAShare}%** (**${tierANet} د.ك**) من إيرادات العلامة الأساسية [${ODOO_VERIFIED_ACTUAL_TAG}] لمخاطر تراجع الطلبات. ${channelClauseAr} ${multiOptSpreadAr} والبديل الآمن هو تثبيت الأصناف المتأثرة وتطبيق عمود **سعر فريال الموصى د.ك** المحقق لأثر **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك** [${DETERMINISTIC_SIMULATION_TAG}])، مع الالتزام بمضاعفات **0.050 د.ك** والنهايات السعرية **0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك** وحصر الزيادات الأعلى في تطبيقات طلبات وديليفرو وجاهز وكيتا وسنونو [${KUWAIT_MARKET_STRATEGY_TAG_AR}].`,
+      ar: `لا أوافق على تعميم جدول الأسعار المرفوع لعلامة **${brandAr}** بصيغته الحالية، إذ إن الأخطاء السعرية المرصودة أو القفزات الحادة على أصناف الفئة A تعرّض **${tierAShare}%** (**${tierANet} د.ك**) من إيرادات العلامة الأساسية [${odooTagAr}] لمخاطر تراجع الطلبات. ${channelClauseAr} ${multiOptSpreadAr} والبديل الآمن هو تثبيت الأصناف المتأثرة وتطبيق عمود **سعر فريال الموصى د.ك** المحقق لأثر **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك** [${simTagAr}])، مع الالتزام بمضاعفات **0.050 د.ك** والنهايات السعرية **0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك** وحصر الزيادات الأعلى في تطبيقات طلبات وديليفرو وجاهز وكيتا وسنونو [${KUWAIT_MARKET_STRATEGY_TAG_AR}].`,
     }
   }
 
   return {
     en: `I partially agree with **${brandEn}**'s proposed price increases: approve the disciplined Tier-B/C uplifts, but cap aggressive Tier-A dine-in hikes using **Feryal Rec. KWD** to secure **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} KWD** (**${portfolio.feryalRecDeltaPct}%**, projected **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} KWD**) without risking restaurant footfall [${DETERMINISTIC_SIMULATION_TAG}]. ${channelClauseEn} ${multiOptSpreadEn} Under [${KUWAIT_MARKET_STRATEGY_TAG_EN}], Kuwait mall and family dine-in guests show high price sensitivity on Tier-A traffic anchors (**${tierAShare}%** revenue share, **${tierANet} KWD** [${ODOO_VERIFIED_ACTUAL_TAG}]), so dine-in menus should hold at **Feryal Rec. KWD** (**0.050 KWD** increments snapped to **0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD** tiers) while deploying full proposed prices on Talabat, Deliveroo, Jahez, Keeta, and Snoonu via channel-split pricing.`,
-    ar: `أوافق جزئياً على الزيادات المقترحة لعلامة **${brandAr}** مع التعديل الموصى به: يُعتمد الرفع المنضبط لأصناف الفئتين B وC، مقابل وضع سقف لزيادات أصناف الفئة A في الصالة وفق عمود **سعر فريال الموصى د.ك** لتحقيق أثر آمن قدره **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك**) دون المساس بحركة الزوار [${DETERMINISTIC_SIMULATION_TAG}]. ${channelClauseAr} ${multiOptSpreadAr} ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، ترتفع حساسية رواد الصالات العائلية والمجمعات في الكويت تجاه أصناف الفئة A القائدة للزيارات (**${tierAShare}%** من الإيرادات، **${tierANet} د.ك** [${ODOO_VERIFIED_ACTUAL_TAG}])؛ لذا يُوصى بتثبيت منيو الصالة عند **سعر فريال الموصى د.ك** بمضاعفات **0.050 د.ك** والعتبات النفسية (**0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك**) مع تطبيق السعر الأعلى على منصات طلبات وديليفرو وجاهز وكيتا وسنونو لتعويض العمولات.`,
+    ar: `أوافق جزئياً على الزيادات المقترحة لعلامة **${brandAr}** مع التعديل الموصى به: يُعتمد الرفع المنضبط لأصناف الفئتين B وC، مقابل وضع سقف لزيادات أصناف الفئة A في الصالة وفق عمود **سعر فريال الموصى د.ك** لتحقيق أثر آمن قدره **${formatGrouped(portfolio.feryalRecDeltaKwd, 3, true)} د.ك** (**${portfolio.feryalRecDeltaPct}%**، بإيراد متوقع **${formatGrouped(portfolio.feryalRecProjectedRevenueKwd, 3)} د.ك**) دون المساس بحركة الزوار [${simTagAr}]. ${channelClauseAr} ${multiOptSpreadAr} ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، ترتفع حساسية رواد الصالات العائلية والمجمعات في الكويت تجاه أصناف الفئة A القائدة للزيارات (**${tierAShare}%** من الإيرادات، **${tierANet} د.ك** [${odooTagAr}])؛ لذا يُوصى بتثبيت منيو الصالة عند **سعر فريال الموصى د.ك** بمضاعفات **0.050 د.ك** والعتبات النفسية (**0.000 / 0.250 / 0.500 / 0.750 / 0.950 د.ك**) مع تطبيق السعر الأعلى على منصات طلبات وديليفرو وجاهز وكيتا وسنونو لتعويض العمولات.`,
   }
 }
 
@@ -1658,9 +1683,9 @@ export function simulateExecutivePricingOptions(
       executiveVerdictBadge: 'Partially Agree (Recommended)',
       feryalRecommendedPortfolio: null,
       executiveOpinionEn: 'No confirmed pricing proposals were supplied; displaying Odoo Pareto/ABC velocity baseline.',
-      executiveOpinionAr: 'لم يتم تقديم أسعار مقترحة مؤكدة؛ يتم عرض تحليل باريتو ABC الفعلي من Odoo.',
+      executiveOpinionAr: 'لم يتم تقديم أسعار مقترحة مؤكدة؛ يتم عرض تحليل باريتو الفعلي استناداً إلى بيانات فعلية موثّقة من أودو.',
       rationaleEn: 'No confirmed pricing proposals were supplied; displaying Odoo Pareto/ABC velocity baseline.',
-      rationaleAr: 'لم يتم تقديم أسعار مقترحة مؤكدة؛ يتم عرض تحليل باريتو ABC الفعلي من Odoo.',
+      rationaleAr: 'لم يتم تقديم أسعار مقترحة مؤكدة؛ يتم عرض تحليل باريتو الفعلي استناداً إلى بيانات فعلية موثّقة من أودو.',
     }
   }
 
@@ -2701,7 +2726,9 @@ export function collectExecutiveGroundedNumbers(
 export function detectExecutiveLocale(question: string): 'ar' | 'en' {
   const arabicChars = (question.match(/[\u0600-\u06FF]/g) ?? []).length
   const latinChars = (question.match(/[A-Za-z]/g) ?? []).length
-  return arabicChars > latinChars ? 'ar' : 'en'
+  if (arabicChars === 0) return 'en'
+  if (arabicChars >= latinChars) return 'ar'
+  return arabicChars >= 4 ? 'ar' : 'en'
 }
 
 export function isExecutiveAdvisorQuestion(question: string): boolean {
@@ -2717,30 +2744,71 @@ function isExecutiveKeywordPresent(text: string): boolean {
   )
 }
 
-function translatePlaybookActionAr(action: SkuPlaybookAction): string {
+export function translatePlaybookActionAr(action: SkuPlaybookAction): string {
   switch (action) {
     case 'Approve':
-      return 'اعتماد (Approve)'
+      return 'اعتماد الزيادة'
     case 'Cap Increase':
-      return 'سقف للزيادة (Cap Increase)'
+      return 'تقييد السقف'
     case 'Hold / Protect Traffic':
-      return 'تثبيت وحماية الزيارات (Hold / Protect Traffic)'
+      return 'تثبيت السعر لحماية الإقبال'
     case 'Bundle / Upsell':
-      return 'دمج كومبو / بيع إضافي (Bundle / Upsell)'
+      return 'باقة / بيع إضافي'
     case 'Fix Typo First':
-      return 'تصحيح الخطأ أولاً (Fix Typo First)'
+      return 'تصحيح خطأ الإدخال أولاً'
   }
 }
 
-function translateVerdictBadgeAr(badge: ExecutiveVerdictBadge): string {
+export function formatPlaybookAction(action: SkuPlaybookAction, locale: 'ar' | 'en'): string {
+  return locale === 'ar' ? translatePlaybookActionAr(action) : action
+}
+
+export function translateVerdictBadgeAr(badge: ExecutiveVerdictBadge): string {
   switch (badge) {
     case 'Agree':
-      return 'الحكم التنفيذي: موافقة (Verdict: Agree)'
+      return 'الحكم التنفيذي: موافقة'
     case 'Partially Agree (Recommended)':
-      return 'الحكم التنفيذي: موافقة جزئية مع التعديل الموصى به (Verdict: Partially Agree (Recommended))'
+      return 'الحكم التنفيذي: موافقة جزئية (التوصية المعتمدة)'
     case 'Disagree':
-      return 'الحكم التنفيذي: عدم موافقة (Verdict: Disagree)'
+      return 'الحكم التنفيذي: عدم موافقة'
   }
+}
+
+export function formatExecutiveVerdictBadge(
+  badge: ExecutiveVerdictBadge,
+  locale: 'ar' | 'en',
+): string {
+  return locale === 'ar' ? translateVerdictBadgeAr(badge) : `Verdict: ${badge}`
+}
+
+/**
+ * Sanitizes any stray English source/strategy/verdict/cost tags inside an Arabic executive reply
+ * so managers reading RTL Arabic never encounter untranslated English metadata tags.
+ */
+export function localizeArabicExecutiveReply(text: string): string {
+  return text
+    .replace(/Odoo Verified Actuals/gi, ODOO_VERIFIED_ACTUAL_TAG_AR)
+    .replace(/Odoo Verified Actual/gi, ODOO_VERIFIED_ACTUAL_TAG_AR)
+    .replace(/User Input\s*\(\s*Confirmed\s*\)/gi, USER_INPUT_CONFIRMED_TAG_AR)
+    .replace(/Proposed\s*\/\s*User Input/gi, USER_INPUT_CONFIRMED_TAG_AR)
+    .replace(/Deterministic Simulation/gi, DETERMINISTIC_SIMULATION_TAG_AR)
+    .replace(/Kuwait Market Pricing Strategy/gi, KUWAIT_MARKET_STRATEGY_TAG_AR)
+    .replace(/High Elasticity Risk/gi, HIGH_ELASTICITY_RISK_TAG_AR)
+    .replace(
+      /Verdict:\s*Partially Agree\s*\(\s*Recommended\s*\)/gi,
+      translateVerdictBadgeAr('Partially Agree (Recommended)'),
+    )
+    .replace(/Verdict:\s*Disagree/gi, translateVerdictBadgeAr('Disagree'))
+    .replace(/Verdict:\s*Agree/gi, translateVerdictBadgeAr('Agree'))
+    .replace(/\[Channel-Split\]/gi, '[فصل القناة]')
+    .replace(
+      /standard_price is not readable for integration user 225\.\s*COGS and margin are not estimated\./gi,
+      COGS_UNAVAILABLE_REPLY_AR,
+    )
+    .replace(/\bproduct\.product\.standard_price\b/gi, 'حقل تكلفة الصنف')
+    .replace(/\bstandard_price\b/gi, 'حقل تكلفة الصنف')
+    .replace(/\bprice_subtotal\b/gi, 'صافي المبيعات غير شاملة الضريبة')
+    .replace(/\bCOGS\b/g, 'تكلفة الصنف')
 }
 
 /**
@@ -2968,6 +3036,11 @@ function renderArabicExecutiveBrief(
   simulation: ScenarioSimulationResult | null,
   asksCogs: boolean,
 ): string {
+  const odooTagAr = formatExecutiveSourceTag(ODOO_VERIFIED_ACTUAL_TAG, 'ar')
+  const userTagAr = formatExecutiveSourceTag(USER_INPUT_CONFIRMED_TAG, 'ar')
+  const simTagAr = formatExecutiveSourceTag(DETERMINISTIC_SIMULATION_TAG, 'ar')
+  const riskTagAr = formatExecutiveSourceTag(HIGH_ELASTICITY_RISK_TAG, 'ar')
+
   const scopeAr = [
     pack.scope.brandLabelAr ?? 'جميع علامات فينتشر فودز المعتمدة',
     pack.scope.branchLabelAr ? `— ${pack.scope.branchLabelAr}` : '',
@@ -2996,7 +3069,7 @@ function renderArabicExecutiveBrief(
     opinionLines.push(`- ${simulation.executiveOpinionAr}`)
   } else {
     opinionLines.push(
-      `- **التقييم التنفيذي لخط الأساس (${ODOO_VERIFIED_ACTUAL_TAG}):** حققت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي **${totalNetText} د.ك** عبر **${totalQtyText}** وحدة و**${skuCountText}** صنفاً نشطاً، حيث تقود **${tierA.skuCount}** أصناف من الفئة A نسبة **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**). ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، يُوصى بحماية أسعار الصالة لأصناف الفئة A وتوجيه أي زيادات سعرية أو وجبات كومبو إلى قوائم منصات التوصيل (طلبات، ديليفرو، جاهز، كيتا، سنونو).`,
+      `- **التقييم التنفيذي لخط الأساس (${odooTagAr}):** حققت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي **${totalNetText} د.ك** عبر **${totalQtyText}** وحدة و**${skuCountText}** صنفاً نشطاً، حيث تقود **${tierA.skuCount}** أصناف من الفئة A نسبة **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**). ووفق [${KUWAIT_MARKET_STRATEGY_TAG_AR}]، يُوصى بحماية أسعار الصالة لأصناف الفئة A وتوجيه أي زيادات سعرية أو وجبات كومبو إلى قوائم منصات التوصيل (طلبات، ديليفرو، جاهز، كيتا، سنونو).`,
     )
   }
 
@@ -3004,33 +3077,33 @@ function renderArabicExecutiveBrief(
   const verdictLines: string[] = ['### القرار التنفيذي والملخص المالي']
   if (winner && simulation) {
     verdictLines.push(
-      `- **نطاق البيانات وخط الأساس (${ODOO_VERIFIED_ACTUAL_TAG} / ${ODOO_VERIFIED_ACTUALS_LABEL}):** سجلت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي مبيعات نقاط بيع **${totalNetText} د.ك** بإجمالي **${totalQtyText}** وحدة عبر **${skuCountText}** صنفاً نشطاً، حيث تبلغ نسبة مساهمة أصناف الفئة A (**${tierA.skuCount}** أصناف) **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**).`,
+      `- **نطاق البيانات وخط الأساس (${odooTagAr}):** سجلت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي مبيعات نقاط بيع **${totalNetText} د.ك** بإجمالي **${totalQtyText}** وحدة عبر **${skuCountText}** صنفاً نشطاً، حيث تبلغ نسبة مساهمة أصناف الفئة A (**${tierA.skuCount}** أصناف) **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**).`,
     )
     verdictLines.push(
-      `- **التوصية التنفيذية (${DETERMINISTIC_SIMULATION_TAG} استناداً إلى ${USER_INPUT_CONFIRMED_TAG} / ${PROPOSED_USER_INPUT_LABEL}):** ${simulation.rationaleAr}`,
+      `- **التوصية التنفيذية (${simTagAr} استناداً إلى ${userTagAr}):** ${simulation.rationaleAr}`,
     )
     if (simulation.feryalRecommendedPortfolio) {
       const p = simulation.feryalRecommendedPortfolio
       verdictLines.push(
-        `- **أثر محفظة سعر فريال الموصى د.ك (${DETERMINISTIC_SIMULATION_TAG}):** صافي أثر **${formatGrouped(p.feryalRecDeltaKwd, 3, true)} د.ك** (**${p.feryalRecDeltaPct}%**) بإجمالي إيراد متوقع **${formatGrouped(p.feryalRecProjectedRevenueKwd, 3)} د.ك** عبر **${p.matchedSkuCount}** أصناف مطابقة (مع توصية فصل تسعير القناة لعدد **${p.channelSplitSkuCount}** صنفاً).`,
+        `- **أثر محفظة سعر فريال الموصى د.ك (${simTagAr}):** صافي أثر **${formatGrouped(p.feryalRecDeltaKwd, 3, true)} د.ك** (**${p.feryalRecDeltaPct}%**) بإجمالي إيراد متوقع **${formatGrouped(p.feryalRecProjectedRevenueKwd, 3)} د.ك** عبر **${p.matchedSkuCount}** أصناف مطابقة (مع توصية فصل تسعير القناة لعدد **${p.channelSplitSkuCount}** صنفاً).`,
       )
     }
     for (const opt of simulation.options) {
       verdictLines.push(
-        `- **أثر الخيار ${opt.label} عبر السيناريوهات الثلاثة (${DETERMINISTIC_SIMULATION_TAG}):** السيناريو الأساسي (**0%** تغير بالكمية) **${formatGrouped(opt.baseDeltaKwd, 3, true)} د.ك** (**${opt.baseCase.deltaPct}%**) | المتحفظ (**-5%** على الأصناف المرتفعة بأكثر من **10%**) **${formatGrouped(opt.conservativeDeltaKwd, 3, true)} د.ك** (**${opt.conservativeCase.deltaPct}%**) | اختبار الضغط (**-10%** على أصناف الفئة A المرتفعة بأكثر من **15%**) **${formatGrouped(opt.stressTestDeltaKwd, 3, true)} د.ك** (**${opt.stressTestCase.deltaPct}%**) مقابل خط أساس مطابق قدره **${formatGrouped(opt.baselineRevenueKwd, 3)} د.ك**.`,
+        `- **أثر الخيار ${opt.label} عبر السيناريوهات الثلاثة (${simTagAr}):** السيناريو الأساسي (**0%** تغير بالكمية) **${formatGrouped(opt.baseDeltaKwd, 3, true)} د.ك** (**${opt.baseCase.deltaPct}%**) | المتحفظ (**-5%** على الأصناف المرتفعة بأكثر من **10%**) **${formatGrouped(opt.conservativeDeltaKwd, 3, true)} د.ك** (**${opt.conservativeCase.deltaPct}%**) | اختبار الضغط (**-10%** على أصناف الفئة A المرتفعة بأكثر من **15%**) **${formatGrouped(opt.stressTestDeltaKwd, 3, true)} د.ك** (**${opt.stressTestCase.deltaPct}%**) مقابل خط أساس مطابق قدره **${formatGrouped(opt.baselineRevenueKwd, 3)} د.ك**.`,
       )
     }
     for (const cmp of simulation.optionComparisons) {
       verdictLines.push(
-        `- **المقارنة المباشرة بين الخيارات (${DETERMINISTIC_SIMULATION_TAG}):** يحقق **${cmp.leftOptionLabel}** مقابل **${cmp.rightOptionLabel}** فارقاً قدره **${formatGrouped(cmp.stressTestDiffKwd, 3, true)} د.ك** في اختبار الضغط (**${formatGrouped(cmp.conservativeDiffKwd, 3, true)} د.ك** متحفظ، **${formatGrouped(cmp.baseDiffKwd, 3, true)} د.ك** أساسي).`,
+        `- **المقارنة المباشرة بين الخيارات (${simTagAr}):** يحقق **${cmp.leftOptionLabel}** مقابل **${cmp.rightOptionLabel}** فارقاً قدره **${formatGrouped(cmp.stressTestDiffKwd, 3, true)} د.ك** في اختبار الضغط (**${formatGrouped(cmp.conservativeDiffKwd, 3, true)} د.ك** متحفظ، **${formatGrouped(cmp.baseDiffKwd, 3, true)} د.ك** أساسي).`,
       )
     }
   } else {
     verdictLines.push(
-      `- **تركز الإيرادات وفق باريتو (${ODOO_VERIFIED_ACTUAL_TAG} / ${ODOO_VERIFIED_ACTUALS_LABEL}):** حققت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي **${totalNetText} د.ك** عبر **${totalQtyText}** وحدة و**${skuCountText}** صنفاً.`,
+      `- **تركز الإيرادات وفق باريتو (${odooTagAr}):** حققت ${scopeAr} (${pack.period.from} إلى ${pack.period.to}) صافي **${totalNetText} د.ك** عبر **${totalQtyText}** وحدة و**${skuCountText}** صنفاً.`,
     )
     verdictLines.push(
-      `- **توزيع الفئات ABC (${ODOO_VERIFIED_ACTUAL_TAG}):** تبلغ نسبة الفئة A (**${tierA.skuCount}** أصناف) **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**، **${formatGrouped(tierA.totalQty, null)}** وحدة)؛ الفئة B (**${tierB.skuCount}** أصناف) تساهم بنسبة **${tierB.revenueSharePct}%** (**${formatGrouped(tierB.netSalesKwd, 3)} د.ك**)؛ الفئة C (**${tierC.skuCount}** أصناف) تشكل **${tierC.revenueSharePct}%** (**${formatGrouped(tierC.netSalesKwd, 3)} د.ك**).`,
+      `- **توزيع الفئات ABC (${odooTagAr}):** تبلغ نسبة الفئة A (**${tierA.skuCount}** أصناف) **${tierA.revenueSharePct}%** (**${formatGrouped(tierA.netSalesKwd, 3)} د.ك**، **${formatGrouped(tierA.totalQty, null)}** وحدة)؛ الفئة B (**${tierB.skuCount}** أصناف) تساهم بنسبة **${tierB.revenueSharePct}%** (**${formatGrouped(tierB.netSalesKwd, 3)} د.ك**)؛ الفئة C (**${tierC.skuCount}** أصناف) تشكل **${tierC.revenueSharePct}%** (**${formatGrouped(tierC.netSalesKwd, 3)} د.ك**).`,
     )
   }
 
@@ -3046,7 +3119,7 @@ function renderArabicExecutiveBrief(
 
     if (typoLines.length === 0 && highRiskLines.length === 0) {
       riskLines.push(
-        `- **سلامة البيانات السعرية (${DETERMINISTIC_SIMULATION_TAG}):** تم رصد **0** أخطاء عشرية حرجة و**0** تجاوزات لمخاطر المرونة العالية (**${HIGH_ELASTICITY_RISK_TAG}**) على أصناف الفئة A.`,
+        `- **سلامة البيانات السعرية (${simTagAr}):** تم رصد **0** أخطاء عشرية حرجة و**0** تجاوزات لـ **${riskTagAr}** على أصناف الفئة A.`,
       )
     } else {
       for (const { opt, line } of typoLines.slice(0, 6)) {
@@ -3054,13 +3127,13 @@ function renderArabicExecutiveBrief(
         const propText = line.proposedPriceKwd ? `${formatGrouped(line.proposedPriceKwd, 3)} د.ك` : 'غير صالح'
         const pctText = line.pctChange ? ` (${line.pctChange}%)` : ''
         riskLines.push(
-          `- **تنبيه خطأ بيانات — ${line.itemName} (${opt.label}):** السعر المقترح **${propText}** (${USER_INPUT_CONFIRMED_TAG}) مقابل **${curText}** (${ODOO_VERIFIED_ACTUAL_TAG})${pctText} — الإجراء: **${translatePlaybookActionAr('Fix Typo First')}** (${line.rationaleAr}).`,
+          `- **تنبيه خطأ بيانات — ${line.itemName} (${opt.label}):** السعر المقترح **${propText}** (${userTagAr}) مقابل **${curText}** (${odooTagAr})${pctText} — الإجراء: **${translatePlaybookActionAr('Fix Typo First')}** (${line.rationaleAr}).`,
         )
       }
       for (const { opt, line } of highRiskLines.slice(0, 6)) {
         const recNote = line.feryalRecKwd ? `؛ يثبت سعر فريال الموصى د.ك للصالة عند **${formatGrouped(line.feryalRecKwd, 3)} د.ك**` : ''
         riskLines.push(
-          `- **مخاطر مرونة عالية (${HIGH_ELASTICITY_RISK_TAG}) — ${line.matchedOdooName ?? line.itemName} (${opt.label}، فئة ${line.abcTier}):** السعر المقترح **${formatGrouped(line.proposedPriceKwd ?? '0', 3)} د.ك** (${USER_INPUT_CONFIRMED_TAG}) مقابل **${formatGrouped(line.baselineUnitPriceKwd ?? '0', 3)} د.ك** (${ODOO_VERIFIED_ACTUAL_TAG}) بارتفاع **+${line.pctChange}%** يقلص الأثر من **${formatGrouped(line.baseDeltaKwd, 3, true)} د.ك** في الأساسي إلى **${formatGrouped(line.stressTestDeltaKwd, 3, true)} د.ك** في اختبار الضغط${recNote} (${DETERMINISTIC_SIMULATION_TAG}).`,
+          `- **${riskTagAr} — ${line.matchedOdooName ?? line.itemName} (${opt.label}، فئة ${line.abcTier}):** السعر المقترح **${formatGrouped(line.proposedPriceKwd ?? '0', 3)} د.ك** (${userTagAr}) مقابل **${formatGrouped(line.baselineUnitPriceKwd ?? '0', 3)} د.ك** (${odooTagAr}) بارتفاع **+${line.pctChange}%** يقلص الأثر من **${formatGrouped(line.baseDeltaKwd, 3, true)} د.ك** في الأساسي إلى **${formatGrouped(line.stressTestDeltaKwd, 3, true)} د.ك** في اختبار الضغط${recNote} (${simTagAr}).`,
         )
       }
     }
@@ -3068,12 +3141,12 @@ function renderArabicExecutiveBrief(
     const topSku = pack.skus[0]
     if (topSku) {
       riskLines.push(
-        `- **تركز الصنف القائد (${ODOO_VERIFIED_ACTUAL_TAG}):** يستحوذ الصنف الأول **${topSku.name}** وحده على **${topSku.revenueSharePct}%** من صافي المبيعات (**${formatGrouped(topSku.netSalesKwd, 3)} د.ك**، **${formatGrouped(topSku.qty, null)}** وحدة بسعر فعلي **${formatGrouped(topSku.avgRealizedPriceKwd ?? '0', 3)} د.ك**)؛ يجب تجنب أي رفع حاد غير محمي على أسعار الصالة لأصناف الفئة A.`,
+        `- **تركز الصنف القائد (${odooTagAr}):** يستحوذ الصنف الأول **${topSku.name}** وحده على **${topSku.revenueSharePct}%** من صافي المبيعات (**${formatGrouped(topSku.netSalesKwd, 3)} د.ك**، **${formatGrouped(topSku.qty, null)}** وحدة بسعر فعلي **${formatGrouped(topSku.avgRealizedPriceKwd ?? '0', 3)} د.ك**)؛ يجب تجنب أي رفع حاد غير محمي على أسعار الصالة لأصناف الفئة A.`,
       )
     }
     if (tierC.skuCount > 0) {
       riskLines.push(
-        `- **تعقيد الذيل الطويل في المنيو (${ODOO_VERIFIED_ACTUAL_TAG}):** يضم المنيو **${tierC.skuCount}** صنفاً ضمن الفئة C لا تتجاوز مساهمتها **${tierC.revenueSharePct}%** (**${formatGrouped(tierC.netSalesKwd, 3)} د.ك**)، مما يستدعي مراجعة الدمج أو التبسيط التشغيلي.`,
+        `- **تعقيد الذيل الطويل في المنيو (${odooTagAr}):** يضم المنيو **${tierC.skuCount}** صنفاً ضمن الفئة C لا تتجاوز مساهمتها **${tierC.revenueSharePct}%** (**${formatGrouped(tierC.netSalesKwd, 3)} د.ك**)، مما يستدعي مراجعة الدمج أو التبسيط التشغيلي.`,
       )
     }
   }
@@ -3083,7 +3156,7 @@ function renderArabicExecutiveBrief(
   if (winner) {
     playbookLines.push(
       `الجدول التنفيذي لخيار **${winner.label}** (` +
-        `الكمية والسعر الحالي: ${ODOO_VERIFIED_ACTUAL_TAG}؛ المقترح: ${USER_INPUT_CONFIRMED_TAG}؛ السيناريوهات وسعر فريال الموصى: ${DETERMINISTIC_SIMULATION_TAG}):`,
+        `الكمية والسعر الحالي: ${odooTagAr}؛ المقترح: ${userTagAr}؛ السيناريوهات وسعر فريال الموصى: ${simTagAr}):`,
     )
     playbookLines.push(
       '| الصنف | الفئة | الكمية | الحالي د.ك | المقترح د.ك | التغير % | الأساسي د.ك | المتحفظ د.ك | اختبار الضغط د.ك | سعر فريال الموصى د.ك | القرار التنفيذي |',
@@ -3097,12 +3170,13 @@ function renderArabicExecutiveBrief(
       const pctText = line.pctChange !== null ? `${line.pctChange}%` : '—'
       const recText = line.feryalRecKwd ? formatGrouped(line.feryalRecKwd, 3) : '—'
       const splitBadge = line.channelSplitRecommended ? ' [فصل القناة]' : ''
+      const riskBadge = line.highElasticityRisk ? ` (${riskTagAr})` : ''
       playbookLines.push(
-        `| ${skuTitle} | ${tierText} | ${formatGrouped(line.qty, null)} | ${curText} | ${propText} | ${pctText} | ${formatGrouped(line.baseDeltaKwd, 3, true)} | ${formatGrouped(line.conservativeDeltaKwd, 3, true)} | ${formatGrouped(line.stressTestDeltaKwd, 3, true)} | ${recText} | ${translatePlaybookActionAr(line.playbookAction)}${splitBadge} |`,
+        `| ${skuTitle} | ${tierText} | ${formatGrouped(line.qty, null)} | ${curText} | ${propText} | ${pctText} | ${formatGrouped(line.baseDeltaKwd, 3, true)} | ${formatGrouped(line.conservativeDeltaKwd, 3, true)} | ${formatGrouped(line.stressTestDeltaKwd, 3, true)} | ${recText} | ${translatePlaybookActionAr(line.playbookAction)}${splitBadge}${riskBadge} |`,
       )
     }
   } else {
-    playbookLines.push(`أعلى الأصناف مساهمة في صافي مبيعات نقاط البيع (${ODOO_VERIFIED_ACTUAL_TAG}):`)
+    playbookLines.push(`أعلى الأصناف مساهمة في صافي مبيعات نقاط البيع (${odooTagAr}):`)
     playbookLines.push(
       '| الترتيب | الصنف | الفئة | الكمية | السعر الفعلي د.ك | صافي المبيعات د.ك | الحصة % | التراكمي % | الدور التشغيلي |',
     )
@@ -3127,7 +3201,7 @@ function renderArabicExecutiveBrief(
     const mix = pack.branchChannelMix
     if (parseDecimal(mix.totalChannelNetSalesKwd)?.sign() === 1) {
       recLines.push(
-        `- **تفريق التسعير بين الصالة ومنصات التوصيل ([${KUWAIT_MARKET_STRATEGY_TAG_AR}] و${ODOO_VERIFIED_ACTUAL_TAG}):** تسجل القنوات المباشرة (الصالة والسفري المباشر) **${formatGrouped(mix.directNetSalesKwd, 3)} د.ك** (**${mix.directSharePct}%**)، مقابل **${formatGrouped(mix.aggregatorNetSalesKwd, 3)} د.ك** (**${mix.aggregatorSharePct}%**) لمنصات التوصيل. يُوصى بحماية أسعار الصالة لأصناف الفئة A عند **سعر فريال الموصى د.ك** للحفاظ على حركة الزوار، وتوجيه الزيادات المعتمدة وعروض الكومبو المخصصة إلى قوائم تطبيقات التوصيل لامتصاص أثر العمولات.`,
+        `- **تفريق التسعير بين الصالة ومنصات التوصيل ([${KUWAIT_MARKET_STRATEGY_TAG_AR}] و${odooTagAr}):** تسجل القنوات المباشرة (الصالة والسفري المباشر) **${formatGrouped(mix.directNetSalesKwd, 3)} د.ك** (**${mix.directSharePct}%**)، مقابل **${formatGrouped(mix.aggregatorNetSalesKwd, 3)} د.ك** (**${mix.aggregatorSharePct}%**) لمنصات التوصيل. يُوصى بحماية أسعار الصالة لأصناف الفئة A عند **سعر فريال الموصى د.ك** للحفاظ على حركة الزوار، وتوجيه الزيادات المعتمدة وعروض الكومبو المخصصة إلى قوائم تطبيقات التوصيل لامتصاص أثر العمولات.`,
       )
     }
     if (mix.topBranches.length > 0) {
@@ -3136,7 +3210,7 @@ function renderArabicExecutiveBrief(
         .map((br) => `**${br.labelAr}** (**${formatGrouped(br.netSalesKwd, 3)} د.ك**، **${br.sharePct}%**)`)
         .join('، ')
       recLines.push(
-        `- **أولوية التنفيذ على الفروع الأعلى حجماً (${ODOO_VERIFIED_ACTUAL_TAG}):** بدء تطبيق هندسة المنيو وتوجيه الكاشير للبيع الإضافي في ${branchSummary} قبل التعميم على بقية الفروع.`,
+        `- **أولوية التنفيذ على الفروع الأعلى حجماً (${odooTagAr}):** بدء تطبيق هندسة المنيو وتوجيه الكاشير للبيع الإضافي في ${branchSummary} قبل التعميم على بقية الفروع.`,
       )
     }
   } else {
@@ -3145,14 +3219,18 @@ function renderArabicExecutiveBrief(
     )
   }
   recLines.push(
-    `- **هندسة الكومبو ورفع متوسط الفاتورة:** ربط **${tierB.skuCount}** صنفاً من الفئة B (**${tierB.revenueSharePct}%**) و**${tierC.skuCount}** صنفاً من الفئة C (**${tierC.revenueSharePct}%**) (${ODOO_VERIFIED_ACTUAL_TAG}) كإضافات وعروض وجبات مع أصناف الفئة A لرفع قيمة السلة دون المساس بحجم الطلبات.`,
+    `- **هندسة الكومبو ورفع متوسط الفاتورة:** ربط **${tierB.skuCount}** صنفاً من الفئة B (**${tierB.revenueSharePct}%**) و**${tierC.skuCount}** صنفاً من الفئة C (**${tierC.revenueSharePct}%**) (${odooTagAr}) كإضافات وعروض وجبات مع أصناف الفئة A لرفع قيمة السلة دون المساس بحجم الطلبات.`,
   )
 
   // Section 5: Data Boundaries
+  const extraCogsClauseAr =
+    asksCogs && !pack.boundary.cogsBoundaryNoteAr.includes('225')
+      ? ` ${COGS_UNAVAILABLE_REPLY_AR}`
+      : ''
   const boundaryLines: string[] = [
     '### حدود البيانات والصلاحيات',
-    `- **نطاق القراءة فقط من Odoo (${ODOO_VERIFIED_ACTUAL_TAG}):** مستخرج حصرياً من سطور \`pos.order.line\` المرحّلة (\`paid\`, \`done\`, \`invoiced\`؛ صافي \`price_subtotal\` بدون الضريبة) عبر نقاط البيع المعتمدة لشركة فينتشر فودز.`,
-    `- **قيود التكلفة والهامش:** ${pack.boundary.cogsBoundaryNoteAr}${asksCogs ? ` ${COGS_UNAVAILABLE_REPLY}` : ''}`,
+    `- **نطاق القراءة فقط من أودو (${odooTagAr}):** مستخرج حصرياً من سطور طلبات نقاط البيع المرحّلة (المدفوعة والمنجزة والمفوترة؛ صافي الإيرادات غير شاملة الضريبة) عبر نقاط البيع المعتمدة لشركة فينتشر فودز.`,
+    `- **قيود التكلفة والهامش:** ${pack.boundary.cogsBoundaryNoteAr}${extraCogsClauseAr}`,
   ]
 
   return [
@@ -3181,40 +3259,48 @@ export function buildExecutiveCouncilPromptPayload(
   grounded: ExecutiveGroundedNumbers
 } {
   const grounded = collectExecutiveGroundedNumbers(pack, simulation)
-  const languageDirective =
-    locale === 'ar'
-      ? 'Respond entirely in crisp, board-ready executive Arabic.'
-      : 'Respond entirely in crisp, board-ready executive English.'
-
-  const topHeading =
-    locale === 'ar'
-      ? '## رأي فريال التنفيذي والمبررات الإدارية'
-      : "## Feryal's Executive Opinion & Justification"
-
   const kuwaitStrategyTag =
     locale === 'ar' ? `[${KUWAIT_MARKET_STRATEGY_TAG_AR}]` : `[${KUWAIT_MARKET_STRATEGY_TAG_EN}]`
 
-  const systemPrompt = [
-    'You are Ferial, Chief Financial Officer (CFO) and Chief Operating Officer (COO) Strategy Advisor for Venture Foods Kuwait (multi-brand restaurant & delivery operator).',
-    languageDirective,
-    'STRICT GROUNDING & GOVERNANCE RULES (ZERO TOLERANCE):',
-    `- Every single number you write MUST come verbatim (or rounded half-up) from the supplied JSON payload and carry its source tag: "${ODOO_VERIFIED_ACTUAL_TAG}", "${USER_INPUT_CONFIRMED_TAG}", or "${DETERMINISTIC_SIMULATION_TAG}". Always write leading zeros on sub-dinar KWD figures (e.g. "0.050", "0.250", "0.500", "0.750", "0.950").`,
-    `- Tag Kuwait F&B market strategy principles explicitly with ${kuwaitStrategyTag} (mall/family dine-in traffic sensitivity on Tier-A anchors, 0.050 KWD rounding & 0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD psychological tiers, and Talabat/Deliveroo/Jahez/Keeta/Snoonu channel-split pricing).`,
-    '- NEVER perform mental math, extrapolate unprovided percentages, or invent unit costs, COGS, gross margins, or net profit margins. Odoo integration user 225 does not have read access to product.product.standard_price.',
-    '- Structure your response starting at the VERY TOP with the Executive Opinion section, followed by the 5 core sections (do NOT prefix headings with ungrounded section numbers; use ## / ### headings directly):',
-    `  ${topHeading} (open with explicit verdict badge: "Verdict: Agree", "Verdict: Partially Agree (Recommended)", or "Verdict: Disagree", plus a crisp manager justification paragraph citing verified Odoo numbers, Feryal Rec. KWD impact, and ${kuwaitStrategyTag})`,
-    '  ### Executive Verdict',
-    '  ### Critical Anomalies & Risk Flags',
-    '  ### Actionable SKU / Operational Playbook (include a compact markdown pipe table with explicit column `Feryal Rec. KWD` / `سعر فريال الموصى د.ك`: `| Item | Tier | Qty | Current KWD | Proposed KWD | Change % | Base KWD | Conservative KWD | Stress-Test KWD | Feryal Rec. KWD | Action |`)',
-    '  ### High-Impact Company Recommendations (tailored to Kuwait dine-in vs delivery aggregators, hero traffic protection, and combo engineering)',
-    '  ### Data Boundaries (explicitly note the Odoo user 225 standard_price restriction)',
-  ].join('\n')
+  const systemPrompt =
+    locale === 'ar'
+      ? [
+          'You are Ferial, Chief Financial Officer (CFO) and Chief Operating Officer (COO) Strategy Advisor for Venture Foods Kuwait (multi-brand restaurant & delivery operator).',
+          'Respond 100% in crisp, board-ready executive Arabic (RTL). Do NOT output English metadata tags, English field names, or English verdict badges anywhere in the Arabic prose or table headers/actions.',
+          'STRICT GROUNDING & GOVERNANCE RULES (ZERO TOLERANCE):',
+          `- Every single number you write MUST come verbatim (or rounded half-up) from the supplied JSON payload and carry its Arabic source tag: "${ODOO_VERIFIED_ACTUAL_TAG_AR}", "${USER_INPUT_CONFIRMED_TAG_AR}", or "${DETERMINISTIC_SIMULATION_TAG_AR}". NEVER write English "${ODOO_VERIFIED_ACTUAL_TAG}", "${USER_INPUT_CONFIRMED_TAG}", or "${DETERMINISTIC_SIMULATION_TAG}" in Arabic output. Always write leading zeros on sub-dinar figures (e.g. "0.050", "0.250", "0.500", "0.750", "0.950").`,
+          `- Tag Kuwait F&B market strategy principles explicitly with ${kuwaitStrategyTag} (mall/family dine-in traffic sensitivity on Tier-A anchors, 0.050 KWD rounding & 0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD psychological tiers, and Talabat/Deliveroo/Jahez/Keeta/Snoonu channel-split pricing).`,
+          '- NEVER perform mental math, extrapolate unprovided percentages, or invent unit costs or profit margins. Explain the item-cost restriction in pure Arabic (حساب الربط في أودو — المستخدم رقم 225 — لا يملك صلاحية قراءة حقل تكلفة الصنف، لذا تعكس الأرقام صافي إيرادات نقاط البيع غير شاملة الضريبة دون أي تقدير للتكلفة) without writing English terms like COGS, standard_price, or price_subtotal.',
+          '- Structure your response starting at the VERY TOP with the Arabic Executive Opinion section, followed by the 5 Arabic sections (do NOT prefix headings with ungrounded section numbers; use ## / ### headings directly):',
+          `  ## رأي فريال التنفيذي والمبررات الإدارية (ابدئي بسطر الحكم الصريح بالعربية: "${translateVerdictBadgeAr('Agree')}" أو "${translateVerdictBadgeAr('Partially Agree (Recommended)')}" أو "${translateVerdictBadgeAr('Disagree')}" متبوعاً بفقرة مبررات تنفيذية تستند إلى "${ODOO_VERIFIED_ACTUAL_TAG_AR}" و"سعر فريال الموصى د.ك" و${kuwaitStrategyTag})`,
+          '  ### القرار التنفيذي والملخص المالي',
+          `  ### التنبيهات الحرجة ومخاطر المرونة السعرية (استخدمي وسم "${HIGH_ELASTICITY_RISK_TAG_AR}" عند وجود مخاطر مرونة على الفئة A)`,
+          '  ### خطة العمل التنفيذية للأصناف (جدول Markdown يتضمن العمود `سعر فريال الموصى د.ك`: `| الصنف | الفئة | الكمية | الحالي د.ك | المقترح د.ك | التغير % | الأساسي د.ك | المتحفظ د.ك | اختبار الضغط د.ك | سعر فريال الموصى د.ك | القرار التنفيذي |`)',
+          '  ### توصيات الشركة عالية الأثر',
+          '  ### حدود البيانات والصلاحيات (اذكري قيد صلاحية قراءة حقل تكلفة الصنف على حساب الربط في أودو للمستخدم رقم 225 بلغة عربية سليمة)',
+        ].join('\n')
+      : [
+          'You are Ferial, Chief Financial Officer (CFO) and Chief Operating Officer (COO) Strategy Advisor for Venture Foods Kuwait (multi-brand restaurant & delivery operator).',
+          'Respond entirely in crisp, board-ready executive English.',
+          'STRICT GROUNDING & GOVERNANCE RULES (ZERO TOLERANCE):',
+          `- Every single number you write MUST come verbatim (or rounded half-up) from the supplied JSON payload and carry its source tag: "${ODOO_VERIFIED_ACTUAL_TAG}", "${USER_INPUT_CONFIRMED_TAG}", or "${DETERMINISTIC_SIMULATION_TAG}". Always write leading zeros on sub-dinar KWD figures (e.g. "0.050", "0.250", "0.500", "0.750", "0.950").`,
+          `- Tag Kuwait F&B market strategy principles explicitly with ${kuwaitStrategyTag} (mall/family dine-in traffic sensitivity on Tier-A anchors, 0.050 KWD rounding & 0.000 / 0.250 / 0.500 / 0.750 / 0.950 KWD psychological tiers, and Talabat/Deliveroo/Jahez/Keeta/Snoonu channel-split pricing).`,
+          '- NEVER perform mental math, extrapolate unprovided percentages, or invent unit costs, COGS, gross margins, or net profit margins. Odoo integration user 225 does not have read access to product.product.standard_price.',
+          '- Structure your response starting at the VERY TOP with the Executive Opinion section, followed by the 5 core sections (do NOT prefix headings with ungrounded section numbers; use ## / ### headings directly):',
+          `  ## Feryal's Executive Opinion & Justification (open with explicit verdict badge: "Verdict: Agree", "Verdict: Partially Agree (Recommended)", or "Verdict: Disagree", plus a crisp manager justification paragraph citing verified Odoo numbers, Feryal Rec. KWD impact, and ${kuwaitStrategyTag})`,
+          '  ### Executive Verdict',
+          '  ### Critical Anomalies & Risk Flags',
+          '  ### Actionable SKU / Operational Playbook (include a compact markdown pipe table with explicit column `Feryal Rec. KWD` / `سعر فريال الموصى د.ك`: `| Item | Tier | Qty | Current KWD | Proposed KWD | Change % | Base KWD | Conservative KWD | Stress-Test KWD | Feryal Rec. KWD | Action |`)',
+          '  ### High-Impact Company Recommendations (tailored to Kuwait dine-in vs delivery aggregators, hero traffic protection, and combo engineering)',
+          '  ### Data Boundaries (explicitly note the Odoo user 225 standard_price restriction)',
+        ].join('\n')
 
   const payloadObject = {
     sourceTags: {
-      odooActual: ODOO_VERIFIED_ACTUAL_TAG,
-      confirmedUserInput: USER_INPUT_CONFIRMED_TAG,
-      deterministicSimulation: DETERMINISTIC_SIMULATION_TAG,
+      odooActual: formatExecutiveSourceTag(ODOO_VERIFIED_ACTUAL_TAG, locale),
+      confirmedUserInput: formatExecutiveSourceTag(USER_INPUT_CONFIRMED_TAG, locale),
+      deterministicSimulation: formatExecutiveSourceTag(DETERMINISTIC_SIMULATION_TAG, locale),
+      highElasticityRisk: formatExecutiveSourceTag(HIGH_ELASTICITY_RISK_TAG, locale),
       kuwaitMarketStrategyEn: KUWAIT_MARKET_STRATEGY_TAG_EN,
       kuwaitMarketStrategyAr: KUWAIT_MARKET_STRATEGY_TAG_AR,
     },

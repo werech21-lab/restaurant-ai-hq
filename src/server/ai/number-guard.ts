@@ -355,10 +355,15 @@ function isExecutiveFactPack(facts: unknown): boolean {
       'stressTestDeltaKwd' in record ||
       'feryalRecKwd' in record ||
       record.source === ODOO_VERIFIED_ACTUAL_LABEL ||
+      record.source === ODOO_VERIFIED_ACTUAL_LABEL_AR ||
       record.source === USER_INPUT_CONFIRMED_LABEL ||
+      record.source === USER_INPUT_CONFIRMED_LABEL_AR ||
       record.source === DETERMINISTIC_SIMULATION_LABEL ||
+      record.source === DETERMINISTIC_SIMULATION_LABEL_AR ||
       record.source === KUWAIT_MARKET_PRICING_STRATEGY_LABEL ||
-      record.sourceTag === USER_INPUT_CONFIRMED_LABEL
+      record.source === KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR ||
+      record.sourceTag === USER_INPUT_CONFIRMED_LABEL ||
+      record.sourceTag === USER_INPUT_CONFIRMED_LABEL_AR
     ) {
       detected = true
       return
@@ -553,15 +558,23 @@ function directionMatches(text: string, facts: unknown, executiveMode: boolean):
 export const PROPOSED_USER_INPUT_LABEL = 'Proposed / User Input'
 export const ODOO_VERIFIED_ACTUALS_LABEL = 'Odoo Verified Actuals'
 export const ODOO_VERIFIED_ACTUAL_LABEL = 'Odoo Verified Actual'
+export const ODOO_VERIFIED_ACTUAL_LABEL_AR = 'بيانات فعلية موثّقة من أودو'
 export const USER_INPUT_CONFIRMED_LABEL = 'User Input (Confirmed)'
+export const USER_INPUT_CONFIRMED_LABEL_AR = 'مدخلات المستخدم (مؤكدة)'
 export const DETERMINISTIC_SIMULATION_LABEL = 'Deterministic Simulation'
+export const DETERMINISTIC_SIMULATION_LABEL_AR = 'محاكاة حسابية حتمية'
 export const KUWAIT_MARKET_PRICING_STRATEGY_LABEL = 'Kuwait Market Pricing Strategy'
 export const KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR = 'استراتيجية التسعير في سوق الكويت'
+export const HIGH_ELASTICITY_RISK_LABEL = 'High Elasticity Risk'
+export const HIGH_ELASTICITY_RISK_LABEL_AR = 'مخاطر مرونة سعرية مرتفعة'
 
 export const EXPLICIT_GROUNDING_LABELS = [
   ODOO_VERIFIED_ACTUAL_LABEL,
+  ODOO_VERIFIED_ACTUAL_LABEL_AR,
   USER_INPUT_CONFIRMED_LABEL,
+  USER_INPUT_CONFIRMED_LABEL_AR,
   DETERMINISTIC_SIMULATION_LABEL,
+  DETERMINISTIC_SIMULATION_LABEL_AR,
   KUWAIT_MARKET_PRICING_STRATEGY_LABEL,
   KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR,
   PROPOSED_USER_INPUT_LABEL,
@@ -618,13 +631,14 @@ export function maskExecutiveStructuralTokens(
       .replace(/(^|[^\d.])(\d+(?:\.\d+)?)\s*%?\s*[-–—]\s*(\d+(?:\.\d+)?\s*%)/gu, '$1$2% to $3')
       // Structural 1-to-1 SKU matching, 80/15/5 Pareto ratio, and 3-scenario notation
       .replace(/\b1\s*(?:-\s*to\s*-|\s+to\s+|:)\s*1\b/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])1\s+إلى\s+1(?=$|[^\p{L}\p{N}])/giu, ' ')
       .replace(/\b80\s*[-/]\s*15\s*[-/]\s*5\b/gu, ' ')
-      .replace(/\b3(?:\s*-\s*|\s+)(?:scenarios?|سيناريوهات|خيارات)\b/giu, ' ')
-      .replace(/\b(?:50|5|0)\s*(?:fils|فلس)\b/giu, ' ')
-      .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
-      .replace(/\b(?:integration\s+user|user|id|مستخدم(?:\s+الربط)?|رقم)\s*#?225\b/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])3(?:\s*-\s*|\s+)(?:scenarios?|سيناريوهات|خيارات)(?=$|[^\p{L}\p{N}])/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:50|5|0)\s*(?:fils|فلس)(?=$|[^\p{L}\p{N}])/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:odoo|أودو|اودو)\s+17(?=$|[^\p{L}\p{N}])/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:integration\s+user|user|id|(?:ال)?مستخدم(?:\s+الربط)?|حساب\s+الربط|رقم)\s*#?225(?=$|[^\p{L}\p{N}])/giu, ' ')
       .replace(/\bpos\.config\s+(?:24|36|25|39|40|43)\b/giu, ' ')
-      .replace(/\b(?:pos_category|category|فئة)\s+150\b/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:pos_category|category|فئة)\s+150(?=$|[^\p{L}\p{N}])/giu, ' ')
   }
   return out
 }
@@ -632,8 +646,11 @@ export function maskExecutiveStructuralTokens(
 export function hasExplicitGroundingLabel(text: string): boolean {
   return (
     text.includes(ODOO_VERIFIED_ACTUAL_LABEL) ||
+    text.includes(ODOO_VERIFIED_ACTUAL_LABEL_AR) ||
     text.includes(USER_INPUT_CONFIRMED_LABEL) ||
+    text.includes(USER_INPUT_CONFIRMED_LABEL_AR) ||
     text.includes(DETERMINISTIC_SIMULATION_LABEL) ||
+    text.includes(DETERMINISTIC_SIMULATION_LABEL_AR) ||
     text.includes(KUWAIT_MARKET_PRICING_STRATEGY_LABEL) ||
     text.includes(KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR) ||
     text.includes(PROPOSED_USER_INPUT_LABEL) ||
@@ -643,6 +660,9 @@ export function hasExplicitGroundingLabel(text: string): boolean {
     /odoo verified actuals?/i.test(text) ||
     /deterministic simulation/i.test(text) ||
     /kuwait market pricing strategy/i.test(text) ||
+    /بيانات\s+فعلية\s+موثّ?قة\s+من\s+(?:أودو|اودو)/u.test(text) ||
+    /مدخلات\s+المستخدم\s*(?:\(\s*مؤكدة\s*\)|المؤكدة)/u.test(text) ||
+    /محاكاة\s+حسابية\s+حتمية/u.test(text) ||
     /استراتيجية\s+التسعير\s+في\s+سوق\s+الكويت/u.test(text)
   )
 }
@@ -651,9 +671,11 @@ function hasProposedLabel(text: string): boolean {
   return (
     text.includes(PROPOSED_USER_INPUT_LABEL) ||
     text.includes(USER_INPUT_CONFIRMED_LABEL) ||
+    text.includes(USER_INPUT_CONFIRMED_LABEL_AR) ||
     /proposed\s*\/\s*user input/i.test(text) ||
     /user input\s*\(\s*confirmed\s*\)/i.test(text) ||
-    /مدخلات\s+المستخدم\s+المؤكدة/u.test(text)
+    /مدخلات\s+المستخدم\s*(?:\(\s*مؤكدة\s*\)|المؤكدة)/u.test(text) ||
+    /السعر\s+المقترح\s+من\s+المستخدم/u.test(text)
   )
 }
 
@@ -810,8 +832,8 @@ function hasInventedPosCogsOrMarginClaim(normalizedText: string): boolean {
     if (COGS_UNAVAILABLE_NEGATION_RE.test(clause)) continue
     const cleaned = clause
       .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/, ' ')
-      .replace(/\b(?:integration\s+user|user|id|مستخدم(?:\s+الربط)?|رقم)\s*#?225\b/giu, ' ')
-      .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:integration\s+user|user|id|(?:ال)?مستخدم(?:\s+الربط)?|حساب\s+الربط|رقم)\s*#?225(?=$|[^\p{L}\p{N}])/giu, ' ')
+      .replace(/(?:^|[^\p{L}\p{N}])(?:odoo|أودو|اودو)\s+17(?=$|[^\p{L}\p{N}])/giu, ' ')
     if (/\d/.test(cleaned)) {
       return true
     }

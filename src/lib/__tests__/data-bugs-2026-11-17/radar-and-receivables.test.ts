@@ -19,6 +19,7 @@ import {
   resolveReceivablesDateRange,
   selectReceivablesHeadline,
 } from '@/lib/aether/receivables-headline'
+import { POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 
 type GlobalFilterContextValue = ReturnType<
   typeof import('@/components/aether/GlobalFilterContext').useGlobalFilter
@@ -356,7 +357,7 @@ describe('Bug B — Aggregator Radar today cube parity, dateRange badge & paymen
   })
 })
 
-describe('Bug C — Open Unreconciled Receivables positive headline, unapplied credits breakdown & honest null fromDate', () => {
+describe('Bug C — Net Open Receivables exact net headline & honest null fromDate', () => {
   beforeEach(() => {
     vi.useFakeTimers({ now: FIXTURE_NOW, toFake: ['Date'] })
     mockGlobalFilterState.current = null
@@ -368,7 +369,7 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
   })
 
-  it('selectReceivablesHeadline: debits 10,000 and credits -87,462.759 -> headline 10,000, credits -87,462.759, net -77,462.759, and headline is never < 0', () => {
+  it('selectReceivablesHeadline & DeliveryRadarV5 render exact netKwd (never inflated openDebitsKwd) and honest date range', () => {
     const res = selectReceivablesHeadline({
       openDebitsKwd: 10000,
       unappliedCreditsKwd: -87462.759,
@@ -384,7 +385,7 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     expect(res.openDebitsKwd).not.toBeNull()
     expect(res.openDebitsKwd!).toBeGreaterThanOrEqual(0)
 
-    // Even if malformed negative openDebitsKwd is passed, headline is clamped >= 0
+    // Malformed negative openDebitsKwd diagnostic is clamped >= 0
     const clamped = selectReceivablesHeadline({
       openDebitsKwd: -50,
       unappliedCreditsKwd: -100,
@@ -392,6 +393,32 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       unreconciledLineCount: 3,
     })
     expect(clamped.openDebitsKwd).toBe(0)
+    expect(clamped.netKwd).toBe(-150)
+
+    // Verified Odoo accountId = 35 (POS_CLEARING_ACCOUNT_ID) is excluded strictly by ID while unverified accountId fails closed
+    const withVerifiedAccountIds = selectReceivablesHeadline({
+      openReceivableKwd: 29318.356,
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+        { accountId: POS_CLEARING_ACCOUNT_ID, accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+      ],
+    })
+    expect(withVerifiedAccountIds.netKwd).toBe(30310.675)
+    expect(withVerifiedAccountIds.lines).toBe(6)
+
+    const failClosedUnverified = selectReceivablesHeadline({
+      openReceivableKwd: 29318.356,
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+        { accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+      ],
+    })
+    expect(failClosedUnverified).toEqual({
+      openDebitsKwd: null,
+      unappliedCreditsKwd: null,
+      netKwd: null,
+      lines: null,
+    })
 
     expect(
       resolveReceivablesDateRange(
@@ -413,17 +440,26 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
     expect(ws.receivables.openReceivableKwd).toBe(-77462.759)
     expect(summary.aggregatorReceivables?.openReceivableKwd).toBe(-77462.759)
 
-    const htmlAr = renderRadar('ar', { period: 'today' }, summary, buildRadarTodayCube())
+    const verifiedSummary = buildRadarSummary({
+      openReceivableKwd: 30310.675,
+      openDebitsKwd: 1077552.125,
+      unappliedCreditsKwd: -1047241.45,
+      openLinesCount: 3804,
+    })
+
+    const htmlAr = renderRadar('ar', { period: 'today' }, verifiedSummary, buildRadarTodayCube())
     const arCard =
-      htmlAr.split('مبيعات ودفعات كل منصة توصيل')[0]?.split('الذمم المدينة المفتوحة للمنصات والمقاصة')[1] ?? ''
-    expect(arCard).toContain('10,000.000')
+      htmlAr.split('مبيعات ودفعات كل منصة توصيل')[0]?.split('صافي الذمم المدينة المفتوحة')[1] ?? ''
+    expect(arCard).toContain('30,310.675')
+    expect(arCard).not.toContain('1,077,552')
     expect(arCard).not.toContain('بانتظار مراجعة المحاسبة')
     expect(arCard).not.toMatch(/overdue|متأخر|مستحق/i)
 
-    const htmlEn = renderRadar('en', { period: 'today' }, summary, buildRadarTodayCube())
+    const htmlEn = renderRadar('en', { period: 'today' }, verifiedSummary, buildRadarTodayCube())
     const enCard =
-      htmlEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
-    expect(enCard).toContain('10,000.000')
+      htmlEn.split('Sales by Delivery Platform')[0]?.split('Net Open Receivables')[1] ?? ''
+    expect(enCard).toContain('30,310.675')
+    expect(enCard).not.toContain('1,077,552')
     expect(enCard).not.toMatch(/overdue/i)
   })
 
@@ -475,7 +511,11 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
         }
         if (model === 'account.move.line' && method === 'read_group') {
           return rpcOk([
-            { account_id: [101, '10552 Account Receivable (PoS)'], amount_residual: -77462.759, __count: 10 },
+            {
+              account_id: [POS_CLEARING_ACCOUNT_ID, '10552 Account Receivable (PoS)'],
+              amount_residual: -77462.759,
+              __count: 10,
+            },
           ])
         }
         if (model === 'account.move.line' && method === 'search_read') {
@@ -502,7 +542,7 @@ describe('Bug C — Open Unreconciled Receivables positive headline, unapplied c
       const summaryNoFrom = buildRadarSummary({ fromDate: null, toDate: '2026-11-14' })
       const htmlEn = renderRadar('en', { period: 'today' }, summaryNoFrom, buildRadarTodayCube())
       const enCard =
-        htmlEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
+        htmlEn.split('Sales by Delivery Platform')[0]?.split('Net Open Receivables')[1] ?? ''
       expect(enCard).not.toContain('2024-12-31')
       expect(enCard).not.toContain(`${TODAY_ISO} → 2026-11-14`)
       expect(enCard).toContain('Date Range: —')
