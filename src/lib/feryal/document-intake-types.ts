@@ -1,6 +1,11 @@
 import {
   checkPriceSanityDeviation,
+  hasCompatibleFlavorProteinTokens,
   hasCompatibleSizePackTokens,
+  inferBrandIdFromSkuName,
+  normalizeSkuMenuLabel,
+  resolveCanonicalBrandId,
+  type CanonicalFeryalBrandId,
 } from '@/lib/feryal/sku-matcher-guard'
 import { Decimal } from '@/server/ai/decimal'
 
@@ -51,6 +56,8 @@ export interface RejectedVariantHint {
   odooName: string
   odooUnitPriceKwd: string
   diffPct: string
+  reason?: 'price_deviation' | 'duplicate_sku_collision'
+  collidedProductId?: number
 }
 
 export interface DocumentIntakeRow {
@@ -84,6 +91,7 @@ export interface DocumentIntakeDraft {
   requiresHumanConfirmation: true
   period: { from: string; to: string }
   brand: string | null
+  brandId?: string | null
   branch: string | null
   rows: DocumentIntakeRow[]
   summary: DocumentIntakeSummary
@@ -103,6 +111,7 @@ export interface ConfirmedPriceSheet {
   fileName: string
   sourceTag: 'User Input (Confirmed)'
   confirmedAtIso: string
+  brandId?: string | null
   rows: ConfirmedPriceSheetRow[]
 }
 
@@ -116,6 +125,55 @@ const MAIN_REFERENCE_THRESHOLD = Decimal.fromParts(750n, 3) // 0.750 KWD
 
 const ADDON_HINT_RE =
   /\b(addon|add[- ]on|extra|sauce|dip|water|napkin|cutlery|bag|packaging)\b|(اضافه|إضافة|صوص|صلصه|صلصة|ماء|مياه)/i
+
+/**
+ * Infers the single canonical Venture Foods brand ID for a draft or confirmed price sheet
+ * when `brandId`/`brand` is explicitly set OR when all active rows with brand qualifiers
+ * point unambiguously to the same brand (e.g. `'china-garden'`).
+ */
+export function inferConfirmedSheetBrandId(
+  sheet:
+    | {
+        brandId?: string | null
+        brand?: string | null
+        rows?: ReadonlyArray<{
+          brand?: string | null
+          itemName?: string
+          excluded?: boolean
+        }>
+      }
+    | null
+    | undefined,
+): CanonicalFeryalBrandId | null {
+  if (!sheet) return null
+  const direct = resolveCanonicalBrandId(sheet.brandId) ?? resolveCanonicalBrandId(sheet.brand)
+  if (direct) return direct
+
+  const rows = Array.isArray(sheet.rows) ? sheet.rows : []
+  const explicitRowBrands = new Set<CanonicalFeryalBrandId>()
+  for (const row of rows) {
+    if (row.excluded) continue
+    const resolved = resolveCanonicalBrandId(row.brand)
+    if (resolved) explicitRowBrands.add(resolved)
+  }
+  if (explicitRowBrands.size === 1) {
+    return [...explicitRowBrands][0] ?? null
+  }
+  if (explicitRowBrands.size > 1) {
+    return null
+  }
+
+  const inferredSkuBrands = new Set<CanonicalFeryalBrandId>()
+  for (const row of rows) {
+    if (row.excluded) continue
+    const inferred = inferBrandIdFromSkuName(row.itemName)
+    if (inferred) inferredSkuBrands.add(inferred)
+  }
+  if (inferredSkuBrands.size === 1) {
+    return [...inferredSkuBrands][0] ?? null
+  }
+  return null
+}
 
 export function normalizePriceInputText(raw: string): string {
   const arabicIndic = '٠١٢٣٤٥٦٧٨٩'
@@ -159,6 +217,8 @@ export function formatKwd3(value: Decimal): string {
 }
 
 export function normalizeIntakeSkuKey(value: string): string {
+  const menuNorm = normalizeSkuMenuLabel(value)
+  if (menuNorm) return menuNorm
   return normalizePriceInputText(value)
     .toLowerCase()
     .replace(/[أإآ]/g, 'ا')
@@ -312,11 +372,12 @@ function evaluatePriceAgainstReference(input: {
 }
 
 export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]): DocumentIntakeRow[] {
-  const sanitizedRows: DocumentIntakeRow[] = rows.map((row) => {
+  const stageOneRows: DocumentIntakeRow[] = rows.map((row) => {
     if (row.matchedOdooProductId != null) {
       if (
         row.matchedOdooProductName &&
-        !hasCompatibleSizePackTokens(row.itemName, row.matchedOdooProductName)
+        (!hasCompatibleSizePackTokens(row.itemName, row.matchedOdooProductName) ||
+          !hasCompatibleFlavorProteinTokens(row.itemName, row.matchedOdooProductName))
       ) {
         return {
           ...row,
@@ -348,26 +409,78 @@ export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]):
           },
         }
       }
-    } else if (row.rejectedVariantHint) {
-      const recheck = checkPriceSanityDeviation(
-        row.sheetCurrentPriceKwd,
-        row.rejectedVariantHint.odooUnitPriceKwd,
-      )
-      if (!recheck.exceedsThreshold) {
-        return {
-          ...row,
-          rejectedVariantHint: null,
-        }
-      }
-      return {
-        ...row,
-        rejectedVariantHint: {
-          ...row.rejectedVariantHint,
-          diffPct: recheck.diffPct ?? row.rejectedVariantHint.diffPct,
-        },
-      }
     }
     return row
+  })
+
+  // Enforce strict 1-to-1 uniqueness on matchedOdooProductId across active rows
+  const claimedProductIds = new Set<number>()
+  const dedupedRows: DocumentIntakeRow[] = stageOneRows.map((row) => {
+    if (row.excluded || row.matchedOdooProductId == null) return row
+    if (!claimedProductIds.has(row.matchedOdooProductId)) {
+      claimedProductIds.add(row.matchedOdooProductId)
+      return row
+    }
+    const collidedId = row.matchedOdooProductId
+    const sanity = checkPriceSanityDeviation(
+      row.sheetCurrentPriceKwd,
+      row.odooRealizedUnitPriceKwd,
+    )
+    const unitParsed = parsePriceCandidate(row.odooRealizedUnitPriceKwd)
+    const shownUnit =
+      sanity.odooPriceKwd ??
+      (unitParsed.decimal && unitParsed.decimal.compare(ZERO) > 0
+        ? formatKwd3(unitParsed.decimal)
+        : '0.000')
+    return {
+      ...row,
+      matchedOdooProductId: null,
+      matchedOdooProductName: null,
+      odooRealizedUnitPriceKwd: null,
+      odooQty: null,
+      odooNetSalesKwd: null,
+      rejectedVariantHint: {
+        odooName: row.matchedOdooProductName ?? row.itemName,
+        odooUnitPriceKwd: shownUnit,
+        diffPct: sanity.diffPct ?? '0',
+        reason: 'duplicate_sku_collision',
+        collidedProductId: collidedId,
+      },
+    }
+  })
+
+  const sanitizedRows: DocumentIntakeRow[] = dedupedRows.map((row) => {
+    if (row.matchedOdooProductId != null || !row.rejectedVariantHint) {
+      return row
+    }
+    if (row.rejectedVariantHint.reason === 'duplicate_sku_collision') {
+      const stillClaimed =
+        row.rejectedVariantHint.collidedProductId != null &&
+        claimedProductIds.has(row.rejectedVariantHint.collidedProductId)
+      if (!stillClaimed) {
+        return { ...row, rejectedVariantHint: null }
+      }
+      return row
+    }
+
+    const recheck = checkPriceSanityDeviation(
+      row.sheetCurrentPriceKwd,
+      row.rejectedVariantHint.odooUnitPriceKwd,
+    )
+    if (!recheck.exceedsThreshold) {
+      return {
+        ...row,
+        rejectedVariantHint: null,
+      }
+    }
+    return {
+      ...row,
+      rejectedVariantHint: {
+        odooName: row.rejectedVariantHint.odooName,
+        odooUnitPriceKwd: row.rejectedVariantHint.odooUnitPriceKwd,
+        diffPct: recheck.diffPct ?? row.rejectedVariantHint.diffPct,
+      },
+    }
   })
 
   const brandNameCounts = new Map<string, number>()
@@ -467,7 +580,17 @@ export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]):
     }
 
     if (row.matchedOdooProductId == null) {
-      if (row.rejectedVariantHint && sheetCurrentDecimal) {
+      if (row.rejectedVariantHint?.reason === 'duplicate_sku_collision') {
+        const hint = row.rejectedVariantHint
+        anomalies.push({
+          code: 'UNMATCHED_WRONG_VARIANT',
+          severity: 'warning',
+          referenceOdooPriceKwd: hint.odooUnitPriceKwd,
+          pctChange: hint.diffPct,
+          messageEn: `${UNMATCHED_WRONG_VARIANT_LABEL_EN} — Odoo SKU "${hint.odooName}" (${hint.odooUnitPriceKwd} KWD) is already matched 1-to-1 to a closer sheet row; held unmatched so POS volume is never double-counted.`,
+          messageAr: `${UNMATCHED_WRONG_VARIANT_LABEL_AR} — صنف Odoo "${hint.odooName}" (${hint.odooUnitPriceKwd} د.ك) مرتبط بالفعل 1 إلى 1 بصف آخر أقرب؛ تم عزله لمنع ازدواجية احتساب الكميات.`,
+        })
+      } else if (row.rejectedVariantHint && sheetCurrentDecimal) {
         const shownCurrent = formatKwd3(sheetCurrentDecimal)
         const hint = row.rejectedVariantHint
         const signedPct = hint.diffPct.startsWith('-') ? hint.diffPct : `+${hint.diffPct}`
@@ -526,8 +649,12 @@ export function summarizeDocumentIntakeRows(
 
 export function recomputeDocumentIntakeDraft(draft: DocumentIntakeDraft): DocumentIntakeDraft {
   const rows = recomputeIntakeRowAnomalies(draft.rows)
+  const inferredBrandId =
+    resolveCanonicalBrandId(draft.brandId ?? draft.brand) ??
+    inferConfirmedSheetBrandId({ rows })
   return {
     ...draft,
+    ...(inferredBrandId ? { brandId: inferredBrandId } : {}),
     sourceTag: EXTRACTED_DRAFT_UNCONFIRMED_LABEL,
     requiresHumanConfirmation: true,
     rows,
@@ -561,12 +688,16 @@ export function confirmDocumentIntakeDraft(
   const activeRows = draft.rows.filter(
     (row) => !row.excluded && row.itemName.trim().length > 0,
   )
+  const inferredBrandId =
+    resolveCanonicalBrandId(draft.brandId ?? draft.brand) ??
+    inferConfirmedSheetBrandId({ rows: activeRows })
 
   return {
     draftId: draft.draftId,
     fileName: draft.fileName,
     sourceTag: USER_INPUT_CONFIRMED_LABEL,
     confirmedAtIso,
+    ...(inferredBrandId ? { brandId: inferredBrandId } : {}),
     rows: activeRows.map((row) => ({
       rowId: row.rowId,
       brand: row.brand && row.brand.trim() ? row.brand.trim() : null,

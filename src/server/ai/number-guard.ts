@@ -109,13 +109,107 @@ const SKIP_KEYS = new Set([
   'cogsBoundaryNoteAr',
   'rationaleEn',
   'rationaleAr',
+  'executiveOpinionEn',
+  'executiveOpinionAr',
+  'justificationEn',
+  'justificationAr',
+  'verdictBadge',
+  'verdictLabelEn',
+  'verdictLabelAr',
+  'feryalVerdict',
 ])
 
-const NUMERIC_ARRAY_KEYS = new Set(['toolNumbers', 'canonicalDecimals', 'allowedDecimals'])
+const NUMERIC_ARRAY_KEYS = new Set([
+  'toolNumbers',
+  'canonicalDecimals',
+  'allowedDecimals',
+  'simulationNumbers',
+  'confirmedUserInputs',
+  'userInputs',
+])
 const PERCENT_ARRAY_KEYS = new Set(['allowedPercents', 'percentDecimals'])
 const NUMERIC_FIELD_KEY_RE =
-  /(?:Kwd|Qty|Count|Orders|Pct|Percent|Delta|Price|Amount|Sales|Rev|Revenue)$/i
-const PERCENT_FIELD_KEY_RE = /(?:Pct|Percent|SharePct)$/i
+  /(?:Kwd|Qty|Count|Orders|Pct|Percent|PctChange|Delta|Price|Amount|Sales|Rev|Revenue)$/i
+const PERCENT_FIELD_KEY_RE = /(?:Pct|Percent|SharePct|PctChange|DeltaPct)$/i
+
+/**
+ * Deterministic policy constants & Kuwait F&B pricing rule thresholds permitted as direct
+ * literals in `executiveMode` ONLY (kept strictly separate from the pairwise derivation pool
+ * so they never combine via `add`/`sub`/`mul` to match hallucinated numbers).
+ */
+const EXECUTIVE_POLICY_DECIMAL_SET: ReadonlySet<string> = new Set([
+  // Kuwait 0.050 KWD rounding increment & psychological KWD price endings (.000/.250/.500/.750/.950)
+  '0',
+  '0.05',
+  '0.25',
+  '0.5',
+  '0.75',
+  '0.95',
+  // Structural scenario & 1-to-1 matching counts
+  '1',
+  '2',
+  '3',
+  // Standard elasticity & Kuwait F&B pricing policy thresholds (%)
+  '5',
+  '-5',
+  '8',
+  '-8',
+  '10',
+  '-10',
+  '12',
+  '-12',
+  '15',
+  '-15',
+  '20',
+  '-20',
+  '25',
+  '-25',
+  '30',
+  '-30',
+  '35',
+  '-35',
+  '50',
+  '60',
+  '80',
+  '95',
+  '100',
+  // Odoo 17, POS register inclusion/exclusion IDs (24, 36, 25, 39, 40, 43, 150), and user 225
+  '17',
+  '24',
+  '25',
+  '36',
+  '39',
+  '40',
+  '43',
+  '150',
+  '225',
+])
+
+const EXECUTIVE_POLICY_PERCENT_LIST: readonly string[] = [
+  '0',
+  '5',
+  '-5',
+  '8',
+  '-8',
+  '10',
+  '-10',
+  '12',
+  '-12',
+  '15',
+  '-15',
+  '20',
+  '-20',
+  '25',
+  '-25',
+  '30',
+  '-30',
+  '35',
+  '-35',
+  '60',
+  '80',
+  '95',
+  '100',
+]
 
 export function extractCanonicalDecimals(text: string): string[] {
   const normalized = normalizeGuardDigits(text)
@@ -174,13 +268,31 @@ export function collectFactValueDecimals(facts: unknown): string[] {
   return [...new Set(found)]
 }
 
-function collectPercentValueDecimals(facts: unknown, options?: GroundingOptions): string[] {
+function collectPercentValueDecimals(
+  facts: unknown,
+  options: GroundingOptions | undefined,
+  executiveMode: boolean,
+): string[] {
   const found: string[] = []
   for (const raw of options?.allowedPercents ?? []) {
     pushCanonical(found, raw)
   }
+  if (executiveMode) {
+    for (const policyPct of EXECUTIVE_POLICY_PERCENT_LIST) {
+      pushCanonical(found, policyPct)
+    }
+    for (const simVal of options?.simulationNumbers ?? []) {
+      pushCanonical(found, simVal)
+    }
+  }
   const walk = (node: unknown, key: string | null) => {
     if (key && PERCENT_ARRAY_KEYS.has(key) && Array.isArray(node)) {
+      for (const value of node) {
+        if (typeof value === 'number' || typeof value === 'string') pushCanonical(found, value)
+      }
+      return
+    }
+    if (executiveMode && key === 'simulationNumbers' && Array.isArray(node)) {
       for (const value of node) {
         if (typeof value === 'number' || typeof value === 'string') pushCanonical(found, value)
       }
@@ -235,14 +347,17 @@ function isExecutiveFactPack(facts: unknown): boolean {
     const record = node as Record<string, unknown>
     if (
       'labeledFacts' in record ||
+      'simulationNumbers' in record ||
       'skuVelocity' in record ||
       'tierSummary' in record ||
       'baseDeltaKwd' in record ||
       'conservativeDeltaKwd' in record ||
       'stressTestDeltaKwd' in record ||
+      'feryalRecKwd' in record ||
       record.source === ODOO_VERIFIED_ACTUAL_LABEL ||
       record.source === USER_INPUT_CONFIRMED_LABEL ||
       record.source === DETERMINISTIC_SIMULATION_LABEL ||
+      record.source === KUWAIT_MARKET_PRICING_STRATEGY_LABEL ||
       record.sourceTag === USER_INPUT_CONFIRMED_LABEL
     ) {
       detected = true
@@ -355,6 +470,9 @@ function hasLossOrDropCue(text: string): boolean {
   )
 }
 
+const EXECUTIVE_CAP_OR_COMPRESS_CUE_RE =
+  /\b(?:cap|caps|capped|capping|trim|trims|trimmed|compress|compresses|compressed|compression|moderate|moderates|moderated|pull\s+back|scale\s+back|reduce|reduces|reduced)\b|(?:سقف|يقلص|تقليص|تخفيف|تعديل|ضبط|كبح|حصر)/iu
+
 interface FactValueRow {
   metric?: string
   scope?: string
@@ -414,6 +532,9 @@ function directionMatches(text: string, facts: unknown, executiveMode: boolean):
     const window = executiveMode
       ? localClauseAround(text, start, end)
       : text.slice(Math.max(0, start - 64), Math.min(text.length, end + 64))
+    if (executiveMode && pairSign <= 0 && EXECUTIVE_CAP_OR_COMPRESS_CUE_RE.test(window)) {
+      continue
+    }
     const word = directionSign(window)
     if (word !== 0 && pairSign !== word) return false
   }
@@ -434,11 +555,15 @@ export const ODOO_VERIFIED_ACTUALS_LABEL = 'Odoo Verified Actuals'
 export const ODOO_VERIFIED_ACTUAL_LABEL = 'Odoo Verified Actual'
 export const USER_INPUT_CONFIRMED_LABEL = 'User Input (Confirmed)'
 export const DETERMINISTIC_SIMULATION_LABEL = 'Deterministic Simulation'
+export const KUWAIT_MARKET_PRICING_STRATEGY_LABEL = 'Kuwait Market Pricing Strategy'
+export const KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR = 'استراتيجية التسعير في سوق الكويت'
 
 export const EXPLICIT_GROUNDING_LABELS = [
   ODOO_VERIFIED_ACTUAL_LABEL,
   USER_INPUT_CONFIRMED_LABEL,
   DETERMINISTIC_SIMULATION_LABEL,
+  KUWAIT_MARKET_PRICING_STRATEGY_LABEL,
+  KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR,
   PROPOSED_USER_INPUT_LABEL,
   ODOO_VERIFIED_ACTUALS_LABEL,
 ] as const
@@ -448,6 +573,8 @@ export interface GroundingOptions {
   question?: string
   /** Extra proposed amounts already parsed from the question or ConfirmedPriceSheet. */
   userInputs?: readonly string[]
+  /** Deterministic simulation numbers (including Feryal Rec. KWD & portfolio deltas). */
+  simulationNumbers?: readonly (string | number)[]
   /** Deterministic whitelist of allowed numeric values (Odoo actuals, confirmed inputs, simulation KWD). */
   allowedDecimals?: readonly (string | number)[]
   /** Deterministic whitelist of allowed percentage values (ABC shares, % changes, elasticity scenarios). */
@@ -468,7 +595,7 @@ function maskIsoDates(text: string): string {
   return text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')
 }
 
-function maskExecutiveStructuralTokens(
+export function maskExecutiveStructuralTokens(
   text: string,
   entityNames: readonly string[],
   executiveMode: boolean,
@@ -485,9 +612,18 @@ function maskExecutiveStructuralTokens(
   if (executiveMode) {
     out = out
       .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/gm, ' ')
+      // Leading-dot psychological KWD endings (.000 / .050 / .250 / .500 / .750 / .950)
+      .replace(/(^|[^\d])\.(?:000|050|250|500|750|950)(?!\d)/gu, '$1 ')
+      // Percentage ranges like "8-10%" or "8%–10%" or "10-15%" so range dashes are not parsed as minus signs
+      .replace(/(^|[^\d.])(\d+(?:\.\d+)?)\s*%?\s*[-–—]\s*(\d+(?:\.\d+)?\s*%)/gu, '$1$2% to $3')
+      // Structural 1-to-1 SKU matching, 80/15/5 Pareto ratio, and 3-scenario notation
+      .replace(/\b1\s*(?:-\s*to\s*-|\s+to\s+|:)\s*1\b/giu, ' ')
+      .replace(/\b80\s*[-/]\s*15\s*[-/]\s*5\b/gu, ' ')
+      .replace(/\b3(?:\s*-\s*|\s+)(?:scenarios?|سيناريوهات|خيارات)\b/giu, ' ')
+      .replace(/\b(?:50|5|0)\s*(?:fils|فلس)\b/giu, ' ')
       .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
-      .replace(/\b(?:integration\s+user|user|مستخدم(?:\s+الربط)?)\s+225\b/giu, ' ')
-      .replace(/\bpos\.config\s+(?:24|36|25|39|40)\b/giu, ' ')
+      .replace(/\b(?:integration\s+user|user|id|مستخدم(?:\s+الربط)?|رقم)\s*#?225\b/giu, ' ')
+      .replace(/\bpos\.config\s+(?:24|36|25|39|40|43)\b/giu, ' ')
       .replace(/\b(?:pos_category|category|فئة)\s+150\b/giu, ' ')
   }
   return out
@@ -498,12 +634,16 @@ export function hasExplicitGroundingLabel(text: string): boolean {
     text.includes(ODOO_VERIFIED_ACTUAL_LABEL) ||
     text.includes(USER_INPUT_CONFIRMED_LABEL) ||
     text.includes(DETERMINISTIC_SIMULATION_LABEL) ||
+    text.includes(KUWAIT_MARKET_PRICING_STRATEGY_LABEL) ||
+    text.includes(KUWAIT_MARKET_PRICING_STRATEGY_LABEL_AR) ||
     text.includes(PROPOSED_USER_INPUT_LABEL) ||
     text.includes(ODOO_VERIFIED_ACTUALS_LABEL) ||
     /proposed\s*\/\s*user input/i.test(text) ||
     /user input\s*\(\s*confirmed\s*\)/i.test(text) ||
     /odoo verified actuals?/i.test(text) ||
-    /deterministic simulation/i.test(text)
+    /deterministic simulation/i.test(text) ||
+    /kuwait market pricing strategy/i.test(text) ||
+    /استراتيجية\s+التسعير\s+في\s+سوق\s+الكويت/u.test(text)
   )
 }
 
@@ -512,7 +652,8 @@ function hasProposedLabel(text: string): boolean {
     text.includes(PROPOSED_USER_INPUT_LABEL) ||
     text.includes(USER_INPUT_CONFIRMED_LABEL) ||
     /proposed\s*\/\s*user input/i.test(text) ||
-    /user input\s*\(\s*confirmed\s*\)/i.test(text)
+    /user input\s*\(\s*confirmed\s*\)/i.test(text) ||
+    /مدخلات\s+المستخدم\s+المؤكدة/u.test(text)
   )
 }
 
@@ -520,12 +661,22 @@ function decimalsIn(text: string): string[] {
   return extractCanonicalDecimals(maskIsoDates(normalizeGuardDigits(text)))
 }
 
-function proposedDecimals(options: GroundingOptions | undefined, labeled: boolean): string[] {
-  if (!labeled) return []
-  const found = new Set<string>(decimalsIn(options?.question ?? ''))
-  for (const raw of options?.userInputs ?? []) {
-    const canonical = canonicalDecimal(raw)
-    if (canonical) found.add(canonical)
+function proposedDecimals(
+  options: GroundingOptions | undefined,
+  labeled: boolean,
+  executiveMode: boolean,
+): string[] {
+  const found = new Set<string>()
+  if (labeled) {
+    for (const qDec of decimalsIn(options?.question ?? '')) {
+      found.add(qDec)
+    }
+  }
+  if (labeled || executiveMode) {
+    for (const raw of options?.userInputs ?? []) {
+      const canonical = canonicalDecimal(raw)
+      if (canonical) found.add(canonical)
+    }
   }
   return [...found]
 }
@@ -648,7 +799,7 @@ const COGS_OR_MARGIN_CLAIM_RE =
   /\b(?:cogs|cost\s+of\s+goods(?:\s+sold)?|food\s+cost|recipe\s+cost|unit\s+cost|item\s+cost|sku\s+cost|gross\s+margin|net\s+margin|profit\s+margin|contribution\s+margin|gross\s+profit)\b|(?:تكلف[ةه]\s*(?:البضاع[ةه]|المبيعات|الصنف|الأصناف|الاصناف|الطبق|الوصف[ةه]|المواد|الوحد[ةه])|هامش\s*(?:الربح|ربح|إجمالي|اجمالي|صافي|المساهم[ةه]|الصنف)|الهامش\s*(?:الإجمالي|الاجمالي|الصافي))/iu
 
 const COGS_UNAVAILABLE_NEGATION_RE =
-  /\b(?:not\s+(?:readable|available|estimated|calculated|computed|provided|accessible|linked|known|shown|included)|unreadable|unavailable|cannot|can't|can\s+not|unable\s+to|lacks?\b|missing|without|no\s+(?:cogs|margin|margins|cost|read|access|permission|standard_price)|do\s+not|does\s+not|never|omit(?:ted)?|excluded|refused|restricted|revenue[- ]only|gross\s+revenue\s+only|not\s+(?:net\s+)?(?:profit|margin|cogs))\b|(?:غير\s*(?:متاح|متاحة|متاحين|متوفر|متوفرة|مقروء|مقروءة|مقدر|مقدرة|محسوب|محسوبة|مربوط)|لا\s*(?:يمكن|تتوفر|يتوفر|يملك|تملك|نملك|يوجد|توجد|تقدر|تُقدر|نقدر|نخمن|يحتسب|تحتسب|يُحتسب|نحتسب)|يتعذر|تعذر|بدون|دون\s+(?:تكلف|هامش|قراءة|صلاحية)|ليست?\s+(?:متاح|متوفر|مقروء)|لا\s+يشمل\s+(?:تكلف|هامش))/iu
+  /\b(?:not\s+(?:readable|available|estimated|calculated|computed|provided|accessible|linked|known|shown|included)|unreadable|unavailable|cannot|can't|can\s+not|unable\s+to|lacks?\b|lacking|lack\s+of|missing|without|no\s+(?:cogs|margin|margins|cost|read|access|permission|standard_price)|zero\s+fabricated\s+cost|do\s+not|does\s+not|never|omit(?:ted)?|excluded|refused|restricted|revenue[- ]only|gross\s+revenue\s+only|not\s+(?:net\s+)?(?:profit|margin|cogs))\b|(?:غير\s*(?:متاح|متاحة|متاحين|متوفر|متوفرة|مقروء|مقروءة|مقدر|مقدرة|محسوب|محسوبة|مربوط)|لا\s*(?:يمكن|تتوفر|يتوفر|يملك|تملك|نملك|يوجد|توجد|تقدر|تُقدر|نقدر|نخمن|يحتسب|تحتسب|يُحتسب|نحتسب)|ل?عدم\s*(?:توفر|إمكانية|امكانية|صلاحية|قدرة|احتساب|تقدير|قراءة)|يتعذر|تعذر|بدون|دون\s+(?:أي\s+|اي\s+)?(?:احتساب|تقدير|افتراض|تكلف|هامش|قراءة|صلاحية)|ليست?\s+(?:متاح|متوفر|مقروء)|لا\s+يشمل\s+(?:تكلف|هامش))/iu
 
 function hasInventedPosCogsOrMarginClaim(normalizedText: string): boolean {
   const clauses = normalizedText.split(/[\n.!?;؛]+/)
@@ -659,7 +810,7 @@ function hasInventedPosCogsOrMarginClaim(normalizedText: string): boolean {
     if (COGS_UNAVAILABLE_NEGATION_RE.test(clause)) continue
     const cleaned = clause
       .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/, ' ')
-      .replace(/\b(?:integration\s+user|user|مستخدم(?:\s+الربط)?)\s+225\b/giu, ' ')
+      .replace(/\b(?:integration\s+user|user|id|مستخدم(?:\s+الربط)?|رقم)\s*#?225\b/giu, ' ')
       .replace(/\b(?:odoo|أودو|اودو)\s+17\b/giu, ' ')
     if (/\d/.test(cleaned)) {
       return true
@@ -715,10 +866,13 @@ export function guardAnswerAgainstFacts(
   )
 
   const labeled = hasProposedLabel(digitsNormalized)
-  const userCanon = proposedDecimals(options, labeled)
+  const userCanon = proposedDecimals(options, labeled, executiveMode)
   const explicitAllowedCanon: string[] = []
   for (const raw of options?.allowedDecimals ?? []) {
     pushCanonical(explicitAllowedCanon, raw)
+  }
+  for (const simRaw of options?.simulationNumbers ?? []) {
+    pushCanonical(explicitAllowedCanon, simRaw)
   }
   const valueCanon = [...new Set([...collectFactValueDecimals(facts), ...explicitAllowedCanon, ...userCanon])]
   const valueSet = new Set(valueCanon)
@@ -727,7 +881,7 @@ export function guardAnswerAgainstFacts(
     return decimal ? [decimal] : []
   })
 
-  const percentCanon = collectPercentValueDecimals(facts, options)
+  const percentCanon = collectPercentValueDecimals(facts, options, executiveMode)
   const percentParsed = percentCanon.flatMap((token) => {
     const decimal = Decimal.parse(token)
     return decimal ? [decimal] : []
@@ -755,6 +909,7 @@ export function guardAnswerAgainstFacts(
         (explainedGrowth && pairMatches(written, scale, parsed, 'growth')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'share'))
       : valueSet.has(canonical) ||
+        (executiveMode && EXECUTIVE_POLICY_DECIMAL_SET.has(canonical)) ||
         matchesDerivation(written, scale, parsed, executiveMode, allowUnsignedLossMagnitude) ||
         (explainedDifference && pairMatches(written, scale, parsed, 'delta')) ||
         (explainedRatio && pairMatches(written, scale, parsed, 'ratio'))

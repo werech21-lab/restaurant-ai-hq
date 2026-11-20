@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   Loader2,
   RefreshCw,
+  RotateCw,
   ShieldAlert,
   X,
 } from 'lucide-react'
@@ -82,10 +83,13 @@ export interface FeryalDocumentReviewCardProps {
   activePeriod?: string | null
   submitting?: boolean
   rematchingLast30Days?: boolean
+  rescanningRotatedImage?: boolean
+  currentRotationDegrees?: number
   onDraftChange: (nextDraft: DocumentIntakeDraft) => void
   onConfirmAndRun: (confirmedSheet: ConfirmedPriceSheet, reviewedDraft: DocumentIntakeDraft) => void
   onCancel: () => void
   onSwitchAndRematchLast30Days?: () => void
+  onRotateImageAndRescan?: () => void
 }
 
 export function FeryalDocumentReviewCard({
@@ -94,13 +98,17 @@ export function FeryalDocumentReviewCard({
   activePeriod,
   submitting = false,
   rematchingLast30Days = false,
+  rescanningRotatedImage = false,
+  currentRotationDegrees = 0,
   onDraftChange,
   onConfirmAndRun,
   onCancel,
   onSwitchAndRematchLast30Days,
+  onRotateImageAndRescan,
 }: FeryalDocumentReviewCardProps) {
   const isTodaySingleDayWindow =
     activePeriod === 'today' || (Boolean(draft.period.from) && draft.period.from === draft.period.to)
+
   const optionColumns = useMemo(() => {
     const map = new Map<string, string>()
     for (const row of draft.rows) {
@@ -121,6 +129,23 @@ export function FeryalDocumentReviewCard({
     [draft.rows],
   )
 
+  const distinctBrands = useMemo(() => {
+    const seen = new Set<string>()
+    const result: string[] = []
+    if (draft.brand && draft.brand.trim() && draft.brand.trim().toLowerCase() !== 'all') {
+      seen.add(draft.brand.trim().toLowerCase())
+      result.push(draft.brand.trim())
+    }
+    for (const row of activeRows) {
+      const b = row.brand?.trim()
+      if (b && !seen.has(b.toLowerCase())) {
+        seen.add(b.toLowerCase())
+        result.push(b)
+      }
+    }
+    return result
+  }, [activeRows, draft.brand])
+
   const hasInvalidActivePrice = useMemo(
     () =>
       activeRows.some((row) =>
@@ -129,8 +154,8 @@ export function FeryalDocumentReviewCard({
     [activeRows],
   )
 
-  const canConfirm =
-    activeRows.length > 0 && !hasInvalidActivePrice && !submitting && !rematchingLast30Days
+  const busy = submitting || rematchingLast30Days || rescanningRotatedImage
+  const canConfirm = activeRows.length > 0 && !hasInvalidActivePrice && !busy
 
   return (
     <section
@@ -162,7 +187,7 @@ export function FeryalDocumentReviewCard({
             <button
               type="button"
               data-rerun-last-30-days="true"
-              disabled={submitting || rematchingLast30Days}
+              disabled={busy}
               onClick={onSwitchAndRematchLast30Days}
               className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-amber-900 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600/60 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
             >
@@ -180,6 +205,7 @@ export function FeryalDocumentReviewCard({
           ) : null}
         </div>
       ) : null}
+
       {/* Gate Header */}
       <div className="flex flex-wrap items-start justify-between gap-2.5 border-b border-amber-200/70 pb-2.5 dark:border-white/10">
         <div className="min-w-0 flex-1 space-y-1">
@@ -191,7 +217,10 @@ export function FeryalDocumentReviewCard({
 
             <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15">
               <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
-              <span className="min-w-0 max-w-[220px] sm:max-w-[320px] truncate" title={draft.fileName}>
+              <span
+                className="min-w-0 max-w-[220px] sm:max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap"
+                title={draft.fileName}
+              >
                 {draft.fileName}
               </span>
               <span dir="ltr" className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">
@@ -199,12 +228,42 @@ export function FeryalDocumentReviewCard({
               </span>
             </span>
 
+            {distinctBrands.map((brandLabel) => (
+              <span
+                key={brandLabel}
+                data-intake-header-brand={brandLabel}
+                className="inline-flex shrink-0 whitespace-nowrap items-center rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
+              >
+                {brandLabel}
+              </span>
+            ))}
+
             <span
               dir="ltr"
               className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
             >
               {draft.period.from} → {draft.period.to}
             </span>
+
+            {draft.fileKind === 'image' ? (
+              <button
+                type="button"
+                data-feryal-rotate-rescan="true"
+                disabled={busy}
+                onClick={() => onRotateImageAndRescan?.()}
+                className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-slate-800 ring-1 ring-slate-300 transition hover:bg-emerald-50 hover:text-emerald-900 hover:ring-emerald-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-[#090E0C] dark:text-slate-100 dark:ring-white/20 dark:hover:bg-emerald-950/60"
+              >
+                {rescanningRotatedImage ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-emerald-600" aria-hidden />
+                ) : (
+                  <RotateCw className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                )}
+                <span>
+                  {isAr ? 'تدوير 90° وإعادة المسح' : 'Rotate 90° & Re-Scan'}
+                  {currentRotationDegrees > 0 ? ` (${currentRotationDegrees}°)` : ''}
+                </span>
+              </button>
+            ) : null}
           </div>
 
           <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
@@ -265,8 +324,11 @@ export function FeryalDocumentReviewCard({
       </div>
 
       {/* Review & Confirm Table */}
-      <div className="max-h-72 overflow-x-auto overflow-y-auto rounded-xl bg-white ring-1 ring-slate-200/90 dark:bg-[#090E0C] dark:ring-white/10">
-        <table className="w-full min-w-[680px] border-collapse text-xs tabular-nums">
+      <div
+        data-feryal-review-table-scroll="true"
+        className="w-full max-h-80 overflow-x-auto overflow-y-auto rounded-xl bg-white ring-1 ring-slate-200/90 dark:bg-[#090E0C] dark:ring-white/10"
+      >
+        <table className="min-w-max w-full border-collapse text-xs tabular-nums">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200">
               <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
@@ -278,13 +340,17 @@ export function FeryalDocumentReviewCard({
               <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'مرجع Odoo الفعلي' : 'Odoo Actual'}
               </th>
-              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold tabular-nums">
                 {isAr ? 'الحالي بالملف (د.ك)' : 'Sheet Current (KWD)'}
               </th>
               {optionColumns.map((col) => (
-                <th key={col.optionKey} className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
-                  <span>{col.label}</span>{' '}
-                  <span dir="ltr" className="text-slate-500 dark:text-slate-400">
+                <th
+                  key={col.optionKey}
+                  data-option-column={col.optionKey}
+                  className="min-w-[136px] whitespace-nowrap px-2.5 py-2 text-start font-bold tabular-nums"
+                >
+                  <span className="whitespace-nowrap">{col.label}</span>{' '}
+                  <span dir="ltr" className="whitespace-nowrap text-slate-500 dark:text-slate-400">
                     (KWD)
                   </span>
                 </th>
@@ -323,7 +389,7 @@ export function FeryalDocumentReviewCard({
                     />
                   </td>
 
-                  <td className="min-w-[170px] px-2.5 py-2 align-top">
+                  <td className="min-w-[200px] px-2.5 py-2 align-top">
                     <input
                       type="text"
                       value={row.itemName}
@@ -337,34 +403,39 @@ export function FeryalDocumentReviewCard({
                       className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-900 focus-visible:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:bg-slate-100 dark:border-white/15 dark:bg-[#101815] dark:text-white"
                     />
                     {row.brand ? (
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {row.brand}
+                      <div className="mt-1">
+                        <span
+                          data-intake-brand-badge="true"
+                          className="inline-flex max-w-full items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
+                        >
+                          {row.brand}
+                        </span>
                       </div>
                     ) : null}
                   </td>
 
-                  <td className="min-w-[165px] px-2.5 py-2 align-top">
+                  <td className="min-w-[175px] px-2.5 py-2 align-top">
                     {row.matchedOdooProductId != null && row.odooRealizedUnitPriceKwd ? (
                       <div className="space-y-0.5">
-                        <div className="font-semibold text-slate-900 dark:text-white">
+                        <div className="whitespace-nowrap font-semibold text-slate-900 dark:text-white">
                           {row.matchedOdooProductName ?? row.itemName}
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             dir="ltr"
-                            className="rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
+                            className="whitespace-nowrap rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-xs font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200"
                           >
                             {row.odooRealizedUnitPriceKwd} KWD
                           </span>
                           <span
                             dir="ltr"
-                            className="text-xs text-emerald-700 dark:text-emerald-300"
+                            className="whitespace-nowrap text-xs text-emerald-700 dark:text-emerald-300"
                           >
                             ({ODOO_VERIFIED_ACTUAL_LABEL})
                           </span>
                         </div>
                         {row.odooQty ? (
-                          <div dir="ltr" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                          <div dir="ltr" className="whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
                             Qty: {row.odooQty}
                           </div>
                         ) : null}
@@ -374,7 +445,7 @@ export function FeryalDocumentReviewCard({
                       <div className="space-y-1">
                         <span
                           data-unmatched-wrong-variant="true"
-                          className="inline-flex items-center rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-900 ring-1 ring-rose-500/30 dark:bg-rose-950/70 dark:text-rose-200"
+                          className="inline-flex whitespace-nowrap items-center rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-900 ring-1 ring-rose-500/30 dark:bg-rose-950/70 dark:text-rose-200"
                         >
                           {isAr
                             ? UNMATCHED_WRONG_VARIANT_LABEL_AR
@@ -389,13 +460,13 @@ export function FeryalDocumentReviewCard({
                         ) : null}
                       </div>
                     ) : (
-                      <span className="inline-flex items-center rounded-md bg-amber-100/80 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+                      <span className="inline-flex whitespace-nowrap items-center rounded-md bg-amber-100/80 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
                         {isAr ? 'غير مطابق في Odoo' : 'Unmatched in Odoo'}
                       </span>
                     )}
                   </td>
 
-                  <td className="min-w-[115px] px-2.5 py-2 align-top">
+                  <td className="min-w-[125px] whitespace-nowrap px-2.5 py-2 align-top tabular-nums">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -413,7 +484,7 @@ export function FeryalDocumentReviewCard({
                           ? `السعر الحالي بالملف للصنف ${row.itemName}`
                           : `Sheet current price for ${row.itemName}`
                       }
-                      className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus-visible:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:bg-slate-100 dark:border-white/15 dark:bg-[#101815] dark:text-white"
+                      className="w-28 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-xs tabular-nums text-slate-900 focus-visible:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:bg-slate-100 dark:border-white/15 dark:bg-[#101815] dark:text-white"
                     />
                   </td>
 
@@ -433,7 +504,10 @@ export function FeryalDocumentReviewCard({
                         : 'border-slate-200 bg-white dark:border-white/15 dark:bg-[#101815]'
 
                     return (
-                      <td key={col.optionKey} className="min-w-[115px] px-2.5 py-2 align-top">
+                      <td
+                        key={col.optionKey}
+                        className="min-w-[136px] whitespace-nowrap px-2.5 py-2 align-top tabular-nums"
+                      >
                         <input
                           type="text"
                           inputMode="decimal"
@@ -455,19 +529,19 @@ export function FeryalDocumentReviewCard({
                               ? `السعر المقترح (${col.label}) للصنف ${row.itemName}`
                               : `Proposed price (${col.label}) for ${row.itemName}`
                           }
-                          className={`w-24 rounded-lg border px-2 py-1 font-mono text-xs font-semibold tabular-nums text-slate-900 focus-visible:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:bg-slate-100 dark:text-white ${borderCls}`}
+                          className={`w-28 rounded-lg border px-2 py-1 font-mono text-xs font-semibold tabular-nums text-slate-900 focus-visible:border-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:bg-slate-100 dark:text-white ${borderCls}`}
                         />
                       </td>
                     )
                   })}
 
-                  <td className="min-w-[220px] px-2.5 py-2 align-top">
+                  <td className="min-w-[230px] px-2.5 py-2 align-top">
                     {row.excluded ? (
-                      <span className="inline-flex rounded-md bg-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-300">
+                      <span className="inline-flex whitespace-nowrap rounded-md bg-slate-200/80 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-300">
                         {isAr ? 'مستبعد من التحليل' : 'Excluded'}
                       </span>
                     ) : row.anomalies.length === 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/90 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200">
+                      <span className="inline-flex whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100/90 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200">
                         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         <span>{isAr ? 'مطابق وجاهز' : 'Verified Ready'}</span>
                       </span>

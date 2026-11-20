@@ -13,6 +13,10 @@ import {
   type FeryalVisionMediaItemPayload,
   type FeryalVisionRequestPayload,
 } from '@/lib/feryal-multimodal'
+import {
+  normalizeIntakeImageOrientation,
+  parseIntakeRotationDegrees,
+} from '@/lib/feryal/document-intake'
 import { errorFields, logger } from '@/lib/logger'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { readCouncilKeys } from '@/server/ai/env'
@@ -87,6 +91,7 @@ function parseMediaItems(
       }
       const b64 = cleanBase64(rec.base64Data ?? rec.data)
       if (!b64) continue
+      const rotationDegrees = parseIntakeRotationDegrees(rec.rotationDegrees ?? body.rotationDegrees)
       items.push({
         id: cleanShortString(rec.id, 80) ?? `img-${idx + 1}`,
         kind: 'image',
@@ -94,6 +99,7 @@ function parseMediaItems(
         mimeType: ALLOWED_IMAGE_MIMES.has(rawMime) ? rawMime : 'image/jpeg',
         width: typeof rec.width === 'number' && Number.isFinite(rec.width) ? rec.width : undefined,
         height: typeof rec.height === 'number' && Number.isFinite(rec.height) ? rec.height : undefined,
+        ...(rotationDegrees !== 0 ? { rotationDegrees } : {}),
         base64Data: b64,
       })
       continue
@@ -240,6 +246,29 @@ export async function POST(request: NextRequest) {
   const locale: 'ar' | 'en' = body.locale === 'en' || body.lang === 'en' ? 'en' : 'ar'
   const rawPrompt = typeof body.prompt === 'string' ? body.prompt.trim().slice(0, 2000) : ''
 
+  const normalizedMediaItems: FeryalVisionMediaItemPayload[] = await Promise.all(
+    mediaParsed.items.map(async (item) => {
+      if (item.kind !== 'image' || !item.base64Data) return item
+      try {
+        const rawBuf = Buffer.from(item.base64Data, 'base64')
+        const bytes = new Uint8Array(rawBuf.buffer, rawBuf.byteOffset, rawBuf.byteLength)
+        const oriented = await normalizeIntakeImageOrientation(
+          bytes,
+          item.mimeType,
+          item.rotationDegrees ?? 0,
+        )
+        if (!oriented.normalizedBySharp) return item
+        return {
+          ...item,
+          mimeType: oriented.mimeType,
+          base64Data: Buffer.from(oriented.bytes).toString('base64'),
+        }
+      } catch {
+        return item
+      }
+    }),
+  )
+
   const visionPayload: FeryalVisionRequestPayload = {
     prompt: rawPrompt,
     locale,
@@ -247,7 +276,7 @@ export async function POST(request: NextRequest) {
     branch: cleanShortString(body.branch, 64),
     period: cleanShortString(body.period, 32),
     workspaceContext: cleanShortString(body.workspaceContext, 240),
-    mediaItems: mediaParsed.items,
+    mediaItems: normalizedMediaItems,
   }
 
   const keys = readCouncilKeys()

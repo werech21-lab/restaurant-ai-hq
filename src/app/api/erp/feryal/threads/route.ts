@@ -8,10 +8,19 @@ import {
 import { prisma } from '@/lib/db'
 import { sslOptions, type SslMode } from '@/lib/db-ssl'
 import type {
+  ActivePriceSheetThreadContext,
   FeryalChatThread,
   FeryalNotebook,
+  FrozenMessageScope,
   StoredChatMessage,
 } from '@/lib/feryal-chat-store'
+import {
+  isConfirmedPriceSheet,
+  USER_INPUT_CONFIRMED_LABEL,
+  type ConfirmedPriceSheet,
+  type ConfirmedPriceSheetRow,
+  type ExtractedProposedOption,
+} from '@/lib/feryal/document-intake-types'
 import type { StoredAttachmentMeta, VisionComplianceTier } from '@/lib/feryal-multimodal'
 
 export const runtime = 'nodejs'
@@ -165,6 +174,167 @@ function sanitizeComplianceTier(value: unknown): VisionComplianceTier | undefine
   return undefined
 }
 
+function sanitizeFrozenScope(raw: unknown): FrozenMessageScope | undefined {
+  const rec = asRecord(raw)
+  if (!rec) return undefined
+  const periodLabel =
+    typeof rec.periodLabel === 'string' ? rec.periodLabel.trim().slice(0, 180) : ''
+  const dateFrom = typeof rec.dateFrom === 'string' ? rec.dateFrom.trim().slice(0, 32) : ''
+  const dateTo = typeof rec.dateTo === 'string' ? rec.dateTo.trim().slice(0, 32) : ''
+  const brandScope =
+    typeof rec.brandScope === 'string' ? rec.brandScope.trim().slice(0, 120) : ''
+  if (!periodLabel && !dateFrom && !brandScope) return undefined
+  return {
+    ...(typeof rec.periodKey === 'string' && rec.periodKey.trim()
+      ? { periodKey: rec.periodKey.trim().slice(0, 48) }
+      : {}),
+    periodLabel,
+    dateFrom,
+    dateTo,
+    brandScope,
+    ...(typeof rec.branchScope === 'string' && rec.branchScope.trim()
+      ? { branchScope: rec.branchScope.trim().slice(0, 120) }
+      : {}),
+    ...(typeof rec.channelScope === 'string' && rec.channelScope.trim()
+      ? { channelScope: rec.channelScope.trim().slice(0, 120) }
+      : {}),
+  }
+}
+
+const MAX_CONFIRMED_SHEET_ROWS = 500
+const MAX_OPTIONS_PER_ROW = 12
+
+function sanitizeConfirmedPriceSheet(raw: unknown): ConfirmedPriceSheet | null {
+  if (!isConfirmedPriceSheet(raw)) return null
+  const draftId = raw.draftId.trim().slice(0, 128)
+  if (!draftId) return null
+  const fileName = raw.fileName.trim().slice(0, 180) || 'price-sheet'
+  const confirmedAtIso =
+    raw.confirmedAtIso.trim().slice(0, 64) || new Date().toISOString()
+
+  const rows: ConfirmedPriceSheetRow[] = []
+  for (let i = 0; i < Math.min(raw.rows.length, MAX_CONFIRMED_SHEET_ROWS); i++) {
+    const rowRec = asRecord(raw.rows[i])
+    if (!rowRec) continue
+    const itemName =
+      typeof rowRec.itemName === 'string' ? rowRec.itemName.trim().slice(0, 240) : ''
+    if (!itemName) continue
+    const rowId =
+      typeof rowRec.rowId === 'string' && rowRec.rowId.trim()
+        ? rowRec.rowId.trim().slice(0, 96)
+        : `row-${i + 1}`
+    const brand =
+      typeof rowRec.brand === 'string' && rowRec.brand.trim()
+        ? rowRec.brand.trim().slice(0, 120)
+        : null
+    const currentPriceKwd =
+      typeof rowRec.currentPriceKwd === 'string' && rowRec.currentPriceKwd.trim()
+        ? rowRec.currentPriceKwd.trim().slice(0, 32)
+        : null
+    const matchedOdooProductId =
+      typeof rowRec.matchedOdooProductId === 'number' &&
+      Number.isFinite(rowRec.matchedOdooProductId)
+        ? Math.trunc(rowRec.matchedOdooProductId)
+        : null
+
+    const rawOpts = Array.isArray(rowRec.proposedOptions) ? rowRec.proposedOptions : []
+    const proposedOptions: ExtractedProposedOption[] = []
+    for (let j = 0; j < Math.min(rawOpts.length, MAX_OPTIONS_PER_ROW); j++) {
+      const optRec = asRecord(rawOpts[j])
+      if (!optRec) continue
+      const proposedPriceKwd =
+        typeof optRec.proposedPriceKwd === 'string'
+          ? optRec.proposedPriceKwd.trim().slice(0, 32)
+          : ''
+      if (!proposedPriceKwd) continue
+      const optionKey =
+        typeof optRec.optionKey === 'string' && optRec.optionKey.trim()
+          ? optRec.optionKey.trim().slice(0, 64)
+          : `opt-${j + 1}`
+      const label =
+        typeof optRec.label === 'string' && optRec.label.trim()
+          ? optRec.label.trim().slice(0, 96)
+          : optionKey
+      proposedOptions.push({ optionKey, label, proposedPriceKwd })
+    }
+
+    rows.push({
+      rowId,
+      brand,
+      itemName,
+      currentPriceKwd,
+      proposedOptions,
+      matchedOdooProductId,
+    })
+  }
+
+  if (rows.length === 0) return null
+
+  return {
+    draftId,
+    fileName,
+    sourceTag: USER_INPUT_CONFIRMED_LABEL,
+    confirmedAtIso,
+    rows,
+  }
+}
+
+function sanitizeActivePriceSheetContext(
+  raw: unknown,
+): ActivePriceSheetThreadContext | null | undefined {
+  if (raw === undefined) return undefined
+  if (raw === null) return null
+  const rec = asRecord(raw)
+  if (!rec) return undefined
+  const confirmedPriceSheet = sanitizeConfirmedPriceSheet(rec.confirmedPriceSheet)
+  if (!confirmedPriceSheet) return undefined
+
+  const confirmedAtIso =
+    typeof rec.confirmedAtIso === 'string' && rec.confirmedAtIso.trim()
+      ? rec.confirmedAtIso.trim().slice(0, 64)
+      : confirmedPriceSheet.confirmedAtIso
+  const fileName =
+    typeof rec.fileName === 'string' && rec.fileName.trim()
+      ? rec.fileName.trim().slice(0, 180)
+      : confirmedPriceSheet.fileName
+  const brandScope =
+    typeof rec.brandScope === 'string' && rec.brandScope.trim()
+      ? rec.brandScope.trim().slice(0, 120)
+      : null
+  const periodLabel =
+    typeof rec.periodLabel === 'string' && rec.periodLabel.trim()
+      ? rec.periodLabel.trim().slice(0, 180)
+      : null
+  const dateFrom =
+    typeof rec.dateFrom === 'string' && rec.dateFrom.trim()
+      ? rec.dateFrom.trim().slice(0, 32)
+      : null
+  const dateTo =
+    typeof rec.dateTo === 'string' && rec.dateTo.trim()
+      ? rec.dateTo.trim().slice(0, 32)
+      : null
+  const matchedSkuCount =
+    typeof rec.matchedSkuCount === 'number' && Number.isFinite(rec.matchedSkuCount)
+      ? Math.max(0, Math.round(rec.matchedSkuCount))
+      : undefined
+  const summaryMarkdown =
+    typeof rec.summaryMarkdown === 'string' && rec.summaryMarkdown.trim()
+      ? rec.summaryMarkdown.slice(0, MAX_MESSAGE_TEXT_CHARS)
+      : null
+
+  return {
+    confirmedPriceSheet,
+    confirmedAtIso,
+    fileName,
+    brandScope,
+    periodLabel,
+    dateFrom,
+    dateTo,
+    ...(matchedSkuCount !== undefined ? { matchedSkuCount } : {}),
+    summaryMarkdown,
+  }
+}
+
 function sanitizeMessage(raw: unknown, idx: number): StoredChatMessage | null {
   const rec = asRecord(raw)
   if (!rec) return null
@@ -187,12 +357,14 @@ function sanitizeMessage(raw: unknown, idx: number): StoredChatMessage | null {
       : `msg-${idx + 1}`
   const time = typeof rec.time === 'string' ? rec.time.slice(0, 32) : ''
   const visionCompliance = sanitizeComplianceTier(rec.visionCompliance ?? rec.complianceTier)
+  const frozenScope = sanitizeFrozenScope(rec.frozenScope)
 
   const msg: StoredChatMessage = {
     id,
     sender,
     text,
     time,
+    ...(frozenScope ? { frozenScope } : {}),
     ...(attachmentsMeta && attachmentsMeta.length > 0 ? { attachmentsMeta } : {}),
     ...(visionCompliance ? { visionCompliance } : {}),
     ...(typeof rec.engineLabelAr === 'string'
@@ -277,6 +449,8 @@ function sanitizeThread(raw: unknown): FeryalChatThread | null {
       ? rec.updatedAt
       : nowIso
 
+  const activePriceSheetContext = sanitizeActivePriceSheetContext(rec.activePriceSheetContext)
+
   return {
     id,
     title,
@@ -295,6 +469,7 @@ function sanitizeThread(raw: unknown): FeryalChatThread | null {
     createdAt,
     updatedAt,
     messages,
+    ...(activePriceSheetContext !== undefined ? { activePriceSheetContext } : {}),
   }
 }
 
@@ -682,8 +857,21 @@ export async function POST(request: NextRequest) {
   for (const existing of current.threads) {
     mergedMap.set(existing.id, existing)
   }
+  const resolvedIncomingThreads: FeryalChatThread[] = []
   for (const incoming of incomingThreads) {
-    mergedMap.set(incoming.id, incoming)
+    const prev = mergedMap.get(incoming.id)
+    const preservedSheetCtx =
+      incoming.activePriceSheetContext !== undefined
+        ? incoming.activePriceSheetContext
+        : prev?.activePriceSheetContext
+    const nextThread: FeryalChatThread = {
+      ...incoming,
+      ...(preservedSheetCtx !== undefined
+        ? { activePriceSheetContext: preservedSheetCtx }
+        : {}),
+    }
+    resolvedIncomingThreads.push(nextThread)
+    mergedMap.set(incoming.id, nextThread)
   }
 
   const mergedThreads = sortAndCapThreads(Array.from(mergedMap.values()))
@@ -699,14 +887,14 @@ export async function POST(request: NextRequest) {
 
   await Promise.all([
     writeUserStoreToPostgres(userKey, mergedThreads, mergedNotebooks),
-    upsertThreadsInPrisma(userKey, incomingThreads, incomingNotebooks),
+    upsertThreadsInPrisma(userKey, resolvedIncomingThreads, incomingNotebooks),
   ])
 
   return NextResponse.json(
     {
       ok: true,
       userKey,
-      thread: incomingThreads[0] ?? null,
+      thread: resolvedIncomingThreads[0] ?? null,
       count: mergedThreads.length,
       timestamp: new Date().toISOString(),
     },

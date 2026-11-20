@@ -1,16 +1,79 @@
 'use client'
 
 import { Fragment, type ReactNode } from 'react'
+import type { FrozenMessageScope } from '@/lib/feryal-chat-store'
 
 /**
  * Structured renderer for Feryal replies in the unified executive studio.
  * Turns markdown-style headings, numbered/bullet lists, **bold** terms and pipe tables into calm
- * sections at readable 15px typography, highlights expected outcomes, and leaves zero raw markdown symbols.
+ * sections at readable 15px typography, wraps wide playbook tables in horizontal scroll containers,
+ * renders immutable frozen scope snapshots, and leaves zero raw markdown symbols.
  */
-const OUTCOME_RE = /النتائج المتوقعة|النتيجة المتوقعة|الفايدة المتوقعة|expected outcome|expected kwd gain/i
+const OUTCOME_RE =
+  /النتائج المتوقعة|النتيجة المتوقعة|الفايدة المتوقعة|رأي فريال التنفيذي|القرار التنفيذي لفريال|expected outcome|expected kwd gain|feryal['’]?s executive opinion/i
+
+const NOWRAP_COLUMN_HEADER_RE =
+  /change|%|kwd|د\.?\s*ك|دينار|base|conservative|stress|feryal\s*rec|rec\.|recommended|current|proposed|suggested|price|increase|delta|revenue|sales|qty|quantity|orders|tier|abc|action|verdict|status|sku|code|السعر|التغيير|أساسي|متحفظ|ضغط|توصية|مقترح|الإيراد|المبيعات|الكمية|الطلبات|الفئة|الإجراء|القرار|الحالة|الكود/i
+
+const NUMERIC_OR_METRIC_CELL_RE =
+  /(?:kwd|kd|د\.?\s*ك|%|^[+-]?[\d,.\s]+$|\btier\s*[abc]\b|\[ri[a-z]{2}\d+\])/i
 
 function clean(text: string) {
   return text.replace(/`+/g, '').replace(/^#+\s*/, '').replace(/__/g, '')
+}
+
+export function shouldNowrapPlaybookCell(headerText: string, cellText: string): boolean {
+  const cleanHeader = clean(headerText).replace(/\*+/g, '').trim()
+  const cleanCell = clean(cellText).replace(/\*+/g, '').trim()
+  if (NOWRAP_COLUMN_HEADER_RE.test(cleanHeader)) return true
+  if (NUMERIC_OR_METRIC_CELL_RE.test(cleanCell)) return true
+  return cleanCell.length > 0 && cleanCell.length <= 48
+}
+
+export function formatFrozenScopeBadgeText(scope: FrozenMessageScope, isAr = false): string {
+  const parts: string[] = []
+  const brand = scope.brandScope?.trim()
+  if (brand) parts.push(brand)
+
+  const branch = scope.branchScope?.trim()
+  if (
+    branch &&
+    branch !== 'All Branches' &&
+    branch !== 'كل الفروع' &&
+    branch.toLowerCase() !== 'all'
+  ) {
+    parts.push(branch)
+  }
+
+  const channel = scope.channelScope?.trim()
+  if (
+    channel &&
+    channel !== 'All Channels' &&
+    channel !== 'كل القنوات' &&
+    channel.toLowerCase() !== 'all'
+  ) {
+    parts.push(channel)
+  }
+
+  const period = scope.periodLabel?.trim()
+  const from = scope.dateFrom?.trim() ?? ''
+  const to = scope.dateTo?.trim() ?? ''
+  const dateWindow =
+    from && to
+      ? from === to
+        ? from
+        : `${from} → ${to}`
+      : from || to
+
+  if (period) {
+    const alreadyHasDates = Boolean(from && period.includes(from))
+    parts.push(dateWindow && !alreadyHasDates ? `${period} (${dateWindow})` : period)
+  } else if (dateWindow) {
+    parts.push(dateWindow)
+  }
+
+  const prefix = isAr ? 'النطاق:' : 'Scope:'
+  return `${prefix} ${parts.join(' · ')}`
 }
 
 function inline(text: string, keyBase: string): ReactNode[] {
@@ -80,15 +143,16 @@ function renderBody(lines: string[], keyBase: string): ReactNode[] {
       blocks.push(
         <div
           key={`${keyBase}-t${k++}`}
-          className="overflow-x-auto rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-200/70 dark:bg-[#111A22] dark:ring-emerald-500/15"
+          data-feryal-table-scroll="true"
+          className="w-full overflow-x-auto rounded-lg border border-slate-200/80 dark:border-slate-700/80 my-3 bg-white dark:bg-[#111A22]"
         >
-          <table className="w-full min-w-max border-collapse text-[14.5px] sm:text-[15px] tabular-nums">
+          <table className="min-w-max w-full border-collapse text-sm tabular-nums">
             <thead>
-              <tr className="bg-[#F7F7F8] dark:bg-[#0D1614]">
+              <tr className="border-b border-slate-200/80 bg-[#F7F7F8] dark:border-slate-700/80 dark:bg-[#0D1614]">
                 {(head ?? []).map((h, hi) => (
                   <th
                     key={hi}
-                    className="whitespace-nowrap px-3.5 py-2.5 text-start font-semibold text-neutral-600 dark:text-slate-300"
+                    className="whitespace-nowrap tabular-nums px-3.5 py-2.5 text-start font-semibold text-neutral-700 dark:text-slate-200"
                   >
                     {inline(h, `${keyBase}-th${hi}`)}
                   </th>
@@ -98,11 +162,19 @@ function renderBody(lines: string[], keyBase: string): ReactNode[] {
             <tbody className="divide-y divide-neutral-100 dark:divide-white/[0.06]">
               {body.map((r, ri) => (
                 <tr key={ri}>
-                  {r.map((c, ci) => (
-                    <td key={ci} className="px-3.5 py-2.5 text-neutral-800 dark:text-slate-200">
-                      {inline(c, `${keyBase}-td${ri}-${ci}`)}
-                    </td>
-                  ))}
+                  {r.map((c, ci) => {
+                    const nowrapCell = shouldNowrapPlaybookCell(head?.[ci] ?? '', c)
+                    return (
+                      <td
+                        key={ci}
+                        className={`px-3.5 py-2.5 text-neutral-800 dark:text-slate-200 ${
+                          nowrapCell ? 'whitespace-nowrap tabular-nums' : 'min-w-[220px]'
+                        }`}
+                      >
+                        {inline(c, `${keyBase}-td${ri}-${ci}`)}
+                      </td>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>
@@ -143,10 +215,30 @@ function renderBody(lines: string[], keyBase: string): ReactNode[] {
   return blocks
 }
 
-export function FeryalStudioMessage({ text }: { text: string }) {
+export function FeryalStudioMessage({
+  text,
+  frozenScope,
+  isAr = false,
+}: {
+  text: string
+  frozenScope?: FrozenMessageScope
+  isAr?: boolean
+}) {
   const sections = splitSections(text)
   return (
     <div className="min-w-0 space-y-4 text-[15px] leading-[1.85] [overflow-wrap:anywhere]">
+      {frozenScope ? (
+        <div
+          data-frozen-scope="true"
+          data-scope-brand={frozenScope.brandScope}
+          data-scope-period={frozenScope.periodLabel}
+          data-scope-from={frozenScope.dateFrom}
+          data-scope-to={frozenScope.dateTo}
+          className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-700 tabular-nums dark:border-slate-700/80 dark:bg-[#0D1614] dark:text-slate-200"
+        >
+          <span>{formatFrozenScopeBadgeText(frozenScope, isAr)}</span>
+        </div>
+      ) : null}
       {sections.map((s, si) => {
         const outcome = !!s.title && OUTCOME_RE.test(s.title)
         const body = renderBody(s.lines, `s${si}`)
@@ -154,17 +246,17 @@ export function FeryalStudioMessage({ text }: { text: string }) {
           return (
             <div
               key={si}
-              className="space-y-2.5 rounded-2xl bg-emerald-50/80 p-4 ring-1 ring-emerald-500/20 dark:bg-emerald-950/40 dark:ring-emerald-500/25"
+              className="min-w-0 space-y-2.5 rounded-2xl bg-emerald-50/80 p-4 ring-1 ring-emerald-500/20 dark:bg-emerald-950/40 dark:ring-emerald-500/25"
             >
               <div className="text-[13.5px] font-semibold tracking-tight text-emerald-800 dark:text-emerald-300">
                 {s.title}
               </div>
-              <div className="space-y-2.5 text-emerald-950 dark:text-emerald-50">{body}</div>
+              <div className="min-w-0 space-y-2.5 text-emerald-950 dark:text-emerald-50">{body}</div>
             </div>
           )
         }
         return (
-          <div key={si} className="space-y-2.5">
+          <div key={si} className="min-w-0 space-y-2.5">
             {s.title && (
               <div className="text-[13.5px] font-semibold tracking-tight text-neutral-500 dark:text-slate-400">
                 {s.title}

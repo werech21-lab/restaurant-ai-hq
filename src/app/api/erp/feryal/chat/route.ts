@@ -9,9 +9,14 @@ import {
   APPROVED_FERYAL_BRANCHES,
   FERYAL_NO_ODOO_DATA_REPLY,
   listFeryalAuditEntries,
+  resolveFeryalQuestionPeriod,
   UNATTRIBUTED_BRANCH_LABEL_AR,
   validateFeryalContextDefaults,
 } from '@/lib/feryal-odoo-agent'
+import {
+  buildFeryalFrozenScope,
+  isConfirmedSheetFollowUpQuestion,
+} from '@/lib/feryal-intent'
 import {
   isConfirmedPriceSheet,
   isUnconfirmedDocumentDraft,
@@ -19,22 +24,25 @@ import {
 } from '@/lib/feryal/document-intake-types'
 import { UNCONFIRMED_DRAFT_REJECTED_ERROR } from '@/lib/feryal/executive-advisor'
 import { logger, errorFields } from '@/lib/logger'
-import { runFeryalCouncil } from '@/server/ai/council'
+import { inferBrandIdFromConfirmedSheet, runFeryalCouncil } from '@/server/ai/council'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-interface FeryalChatPostBody {
+export interface FeryalChatPostBody {
   prompt?: string
   question?: string
   message?: string
   period?: string
+  periodLabel?: string | null
   customFrom?: string
   customTo?: string
   branch?: string
   brand?: string
   channel?: string
   confirmedPriceSheet?: unknown
+  isFollowUpOnConfirmedSheet?: boolean
+  activePriceSheetSummary?: string | null
   priceSheet?: unknown
   draft?: unknown
   intakeDraft?: unknown
@@ -134,6 +142,26 @@ export async function POST(req: NextRequest) {
     confirmedPriceSheet = sheetCandidate
   }
 
+  const rawPeriod = typeof body.period === 'string' ? body.period : null
+  const requestedPeriodLabel =
+    typeof body.periodLabel === 'string' && body.periodLabel.trim()
+      ? body.periodLabel.trim().slice(0, 200)
+      : null
+  const isFollowUpOnConfirmedSheet = body.isFollowUpOnConfirmedSheet === true
+  const activePriceSheetSummaryInput =
+    typeof body.activePriceSheetSummary === 'string' && body.activePriceSheetSummary.trim()
+      ? body.activePriceSheetSummary.trim().slice(0, 4000)
+      : null
+
+  const validatedDefaults = validateFeryalContextDefaults({
+    period: rawPeriod,
+    customFrom: typeof body.customFrom === 'string' ? body.customFrom : null,
+    customTo: typeof body.customTo === 'string' ? body.customTo : null,
+    branch: typeof body.branch === 'string' ? body.branch : null,
+    brand: typeof body.brand === 'string' ? body.brand : null,
+    channel: typeof body.channel === 'string' ? body.channel : null,
+  })
+
   const rawQuestion =
     (typeof body.question === 'string' && body.question.trim()) ||
     (typeof body.prompt === 'string' && body.prompt.trim()) ||
@@ -143,6 +171,18 @@ export async function POST(req: NextRequest) {
       : '')
 
   if (!rawQuestion) {
+    const emptyResolvedPeriod = resolveFeryalQuestionPeriod('', undefined, validatedDefaults)
+    const emptyFrozenScope = buildFeryalFrozenScope({
+      dateFrom: emptyResolvedPeriod.from,
+      dateTo: emptyResolvedPeriod.to,
+      validatedPeriod: validatedDefaults.period,
+      rawPeriodKey: rawPeriod,
+      requestedPeriodLabel,
+      hasExplicitPeriod: false,
+      brandId: validatedDefaults.brandId,
+      branchId: validatedDefaults.branchId,
+      channelId: validatedDefaults.channelId,
+    })
     return NextResponse.json(
       {
         ok: true,
@@ -150,6 +190,8 @@ export async function POST(req: NextRequest) {
         status: 'no_odoo_data',
         executedQueries: [],
         verifier: { valid: true, extractedNumbers: [], unverifiedNumbers: [] },
+        frozenScope: emptyFrozenScope,
+        activePriceSheetSummary: null,
         timestamp: new Date().toISOString(),
       },
       { headers: ENTERPRISE_API_SECURITY_HEADERS },
@@ -157,14 +199,12 @@ export async function POST(req: NextRequest) {
   }
 
   const safeQuestion = rawQuestion.slice(0, 2000)
-  const validatedDefaults = validateFeryalContextDefaults({
-    period: typeof body.period === 'string' ? body.period : null,
-    customFrom: typeof body.customFrom === 'string' ? body.customFrom : null,
-    customTo: typeof body.customTo === 'string' ? body.customTo : null,
-    branch: typeof body.branch === 'string' ? body.branch : null,
-    brand: typeof body.brand === 'string' ? body.brand : null,
-    channel: typeof body.channel === 'string' ? body.channel : null,
-  })
+  const sheetAppliesToTurn =
+    confirmedPriceSheet !== null &&
+    (!isFollowUpOnConfirmedSheet || isConfirmedSheetFollowUpQuestion(safeQuestion))
+  const effectiveBrandId =
+    validatedDefaults.brandId ??
+    (sheetAppliesToTurn ? inferBrandIdFromConfirmedSheet(confirmedPriceSheet) : null)
 
   try {
     const result = await runFeryalCouncil({
@@ -172,12 +212,15 @@ export async function POST(req: NextRequest) {
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
+      periodLabel: requestedPeriodLabel,
+      isFollowUpOnConfirmedSheet,
+      activePriceSheetSummary: activePriceSheetSummaryInput,
       context: {
         period: validatedDefaults.period,
         customFrom: validatedDefaults.customFrom,
         customTo: validatedDefaults.customTo,
         branch: validatedDefaults.branchId,
-        brand: validatedDefaults.brandId,
+        brand: effectiveBrandId,
         channel: validatedDefaults.channelId,
       },
       ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
@@ -195,6 +238,9 @@ export async function POST(req: NextRequest) {
         executedQueries: result.executedQueries,
         verifier: result.verifier,
         period: result.period,
+        frozenScope: result.frozenScope,
+        activePriceSheetSummary: result.activePriceSheetSummary,
+        diagnostics: result.diagnostics,
         auditEntry: result.auditEntry,
         timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),
       },
@@ -205,6 +251,18 @@ export async function POST(req: NextRequest) {
       return unconfirmedDraftRejectedResponse()
     }
     logger.error('feryal council failed', errorFields(error))
+    const fallbackPeriod = resolveFeryalQuestionPeriod(safeQuestion, undefined, validatedDefaults)
+    const fallbackFrozenScope = buildFeryalFrozenScope({
+      dateFrom: fallbackPeriod.from,
+      dateTo: fallbackPeriod.to,
+      validatedPeriod: validatedDefaults.period,
+      rawPeriodKey: rawPeriod,
+      requestedPeriodLabel,
+      hasExplicitPeriod: fallbackPeriod.hasExplicitPeriod,
+      brandId: effectiveBrandId,
+      branchId: validatedDefaults.branchId,
+      channelId: validatedDefaults.channelId,
+    })
     return NextResponse.json(
       {
         ok: false,
@@ -213,6 +271,8 @@ export async function POST(req: NextRequest) {
         status: 'council_failed',
         participants: [],
         agreed: [],
+        frozenScope: fallbackFrozenScope,
+        activePriceSheetSummary: null,
       },
       { status: 500, headers: ENTERPRISE_API_SECURITY_HEADERS },
     )
