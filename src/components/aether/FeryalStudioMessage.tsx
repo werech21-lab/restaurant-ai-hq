@@ -82,13 +82,13 @@ function renderBody(lines: string[], keyBase: string): ReactNode[] {
           key={`${keyBase}-t${k++}`}
           className="overflow-x-auto rounded-2xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-neutral-200/70 dark:bg-[#111A22] dark:ring-emerald-500/15"
         >
-          <table className="w-full text-[14.5px] sm:text-[15px]">
+          <table className="w-full min-w-max border-collapse text-[14.5px] sm:text-[15px] tabular-nums">
             <thead>
               <tr className="bg-[#F7F7F8] dark:bg-[#0D1614]">
                 {(head ?? []).map((h, hi) => (
                   <th
                     key={hi}
-                    className="px-3.5 py-2.5 text-start font-semibold text-neutral-600 dark:text-slate-300"
+                    className="whitespace-nowrap px-3.5 py-2.5 text-start font-semibold text-neutral-600 dark:text-slate-300"
                   >
                     {inline(h, `${keyBase}-th${hi}`)}
                   </th>
@@ -146,7 +146,7 @@ function renderBody(lines: string[], keyBase: string): ReactNode[] {
 export function FeryalStudioMessage({ text }: { text: string }) {
   const sections = splitSections(text)
   return (
-    <div className="space-y-4 text-[15px] leading-[1.85]">
+    <div className="min-w-0 space-y-4 text-[15px] leading-[1.85] [overflow-wrap:anywhere]">
       {sections.map((s, si) => {
         const outcome = !!s.title && OUTCOME_RE.test(s.title)
         const body = renderBody(s.lines, `s${si}`)

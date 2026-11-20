@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Bell,
   Brain,
+  Camera,
   Check,
   CheckCircle2,
   ClipboardCopy,
@@ -12,6 +13,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   History,
+  ImagePlus,
   Loader2,
   Mic,
   PanelLeftClose,
@@ -19,7 +21,6 @@ import {
   Plus,
   RefreshCw,
   Send,
-  ShieldCheck,
   Square,
   Trash2,
   Volume2,
@@ -228,6 +229,81 @@ const LIVE_ODOO_STARTER_QUESTIONS: ReadonlyArray<{
   },
 ]
 
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
+export const FERYAL_PROMPT_MAX_VH_RATIO = 0.4
+
+export function computeFeryalPromptResize(
+  value: string,
+  scrollHeight: number,
+  viewportHeight: number,
+): { heightStyle: string; overflowScroll: boolean } {
+  if (!value) {
+    return { heightStyle: '', overflowScroll: false }
+  }
+  const safeVh = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 800
+  const maxPx = Math.round(safeVh * FERYAL_PROMPT_MAX_VH_RATIO)
+  if (!Number.isFinite(scrollHeight) || scrollHeight <= 0) {
+    return { heightStyle: 'auto', overflowScroll: false }
+  }
+  return {
+    heightStyle: `${Math.min(scrollHeight, maxPx)}px`,
+    overflowScroll: scrollHeight > maxPx,
+  }
+}
+
+export function applyFeryalPromptAutoResize(
+  el: (Pick<HTMLTextAreaElement, 'scrollHeight'> & { style: { height: string; overflowY?: string } }) | null,
+  value: string,
+  viewportHeight?: number,
+): boolean {
+  if (!el) return false
+  if (!value) {
+    el.style.height = ''
+    if ('overflowY' in el.style) {
+      el.style.overflowY = 'hidden'
+    }
+    return false
+  }
+  el.style.height = 'auto'
+  const maxPx =
+    viewportHeight !== undefined && Number.isFinite(viewportHeight) && viewportHeight > 0
+      ? Math.round(viewportHeight * FERYAL_PROMPT_MAX_VH_RATIO)
+      : typeof window !== 'undefined' && window.innerHeight > 0
+        ? Math.round(window.innerHeight * 0.4)
+        : Math.round(800 * FERYAL_PROMPT_MAX_VH_RATIO)
+  if (el.scrollHeight > 0) {
+    el.style.height = `${Math.min(el.scrollHeight, maxPx)}px`
+    const shouldScroll = el.scrollHeight > maxPx
+    if ('overflowY' in el.style) {
+      el.style.overflowY = shouldScroll ? 'auto' : 'hidden'
+    }
+    return shouldScroll
+  }
+  if ('overflowY' in el.style) {
+    el.style.overflowY = 'hidden'
+  }
+  return false
+}
+
+export function shouldSubmitFeryalPromptOnKeyDown(params: {
+  key: string
+  shiftKey: boolean
+  isComposing: boolean
+  sending: boolean
+  inputText: string
+  attachmentCount: number
+}): { preventDefault: boolean; shouldSend: boolean } {
+  if (params.key !== 'Enter' || params.shiftKey || params.isComposing) {
+    return { preventDefault: false, shouldSend: false }
+  }
+  const hasContent = params.inputText.trim().length > 0 || params.attachmentCount > 0
+  return {
+    preventDefault: true,
+    shouldSend: hasContent && !params.sending,
+  }
+}
+
 export interface FeryalGovernanceStudioProps {
   sessionRole?: string
   initialMainTab?: 'chat' | 'today-notes' | 'alerts' | 'audit'
@@ -326,9 +402,12 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [submittedBellIds, setSubmittedBellIds] = useState<Record<string, boolean>>({})
   const [speakingId, setSpeakingId] = useState<string | null>(null)
   const [recordingVoice, setRecordingVoice] = useState(false)
+  const [promptOverflowScroll, setPromptOverflowScroll] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const userInteractedRef = useRef(Boolean(initialMessages && initialMessages.length > 0))
 
   const fetchServerGovernanceBreaches = useCallback(async () => {
     setLoadingBreaches(true)
@@ -391,20 +470,39 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     return () => window.removeEventListener(FERYAL_MEMORY_UPDATED_EVENT, onMem)
   }, [])
 
+  const mapStoredToUiMessages = useCallback((storedList: readonly StoredChatMessage[]): ChatUiMessage[] => {
+    return storedList.map((m) => ({
+      ...m,
+      providerBadge: m.engineLabelAr,
+      learnedBadge: m.statusNoteAr,
+      complianceTier: m.visionCompliance,
+      attachments: m.attachmentsMeta,
+      userPrompt: m.userPrompt,
+      executedQueries: m.executedQueries,
+      verifier: m.verifier,
+      replyStatus: m.replyStatus,
+      council: m.council,
+      agreed: m.agreed,
+      contradictoryActions: m.contradictoryActions,
+    }))
+  }, [])
+
   useEffect(() => {
-    void hydrateFeryalChatStore().then(() => {
-      const idx = getChatIndexSync()
+    if (initialMessages && initialMessages.length > 0) return
+    void hydrateFeryalChatStore().then(({ chats }) => {
+      if (userInteractedRef.current) return
+      const idx = chats.length > 0 ? chats : getChatIndexSync()
       if (idx.length > 0) {
         const latest = idx[0]
         setActiveChatId(latest.id)
         void loadChatThread(latest.id).then((thread) => {
-          if (thread && thread.messages.length > 0) {
-            setMessages(thread.messages)
+          if (!userInteractedRef.current && thread && thread.messages.length > 0) {
+            setMessages(mapStoredToUiMessages(thread.messages))
           }
         })
       }
     })
-  }, [])
+  }, [initialMessages, mapStoredToUiMessages])
 
   useEffect(() => {
     try {
@@ -444,6 +542,21 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialBreachesError,
   ])
 
+  useIsomorphicLayoutEffect(() => {
+    const shouldScroll = applyFeryalPromptAutoResize(promptTextareaRef.current, inputText)
+    setPromptOverflowScroll(shouldScroll)
+  }, [inputText, mainTab, isAuditor])
+
+  useEffect(() => {
+    if (!inputText) return
+    const onResize = () => {
+      const shouldScroll = applyFeryalPromptAutoResize(promptTextareaRef.current, inputText)
+      setPromptOverflowScroll(shouldScroll)
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [inputText])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
@@ -465,6 +578,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         statusNoteAr: m.learnedBadge,
         visionCompliance: m.complianceTier,
         attachmentsMeta: m.attachments,
+        userPrompt: m.userPrompt,
+        executedQueries: m.executedQueries,
+        verifier: m.verifier,
+        replyStatus: m.replyStatus,
+        council: m.council,
+        agreed: m.agreed,
+        contradictoryActions: m.contradictoryActions,
       }))
       await autoSaveChatThread({
         chatId,
@@ -478,31 +598,34 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   )
 
   const handleStartNewChat = useCallback(() => {
+    userInteractedRef.current = true
     const freshId = nextUiId('chat')
     setActiveChatId(freshId)
     setMessages([])
     setInputText('')
+    setPendingIntakeDraft(null)
+    setIntakeError(null)
+    applyFeryalPromptAutoResize(promptTextareaRef.current, '')
+    setPromptOverflowScroll(false)
     setMainTab('chat')
   }, [])
 
-  const handleSelectChat = useCallback(async (chatId: string) => {
-    setActiveChatId(chatId)
-    setMainTab('chat')
-    const thread = await loadChatThread(chatId)
-    if (thread) {
-      setMessages(
-        thread.messages.map((m) => ({
-          ...m,
-          providerBadge: m.engineLabelAr,
-          learnedBadge: m.statusNoteAr,
-          complianceTier: m.visionCompliance,
-          attachments: m.attachmentsMeta,
-        })),
-      )
-    } else {
-      setMessages([])
-    }
-  }, [])
+  const handleSelectChat = useCallback(
+    async (chatId: string) => {
+      userInteractedRef.current = true
+      setActiveChatId(chatId)
+      setPendingIntakeDraft(null)
+      setIntakeError(null)
+      setMainTab('chat')
+      const thread = await loadChatThread(chatId)
+      if (thread) {
+        setMessages(mapStoredToUiMessages(thread.messages))
+      } else {
+        setMessages([])
+      }
+    },
+    [mapStoredToUiMessages],
+  )
 
   const handleFilesSelected = useCallback(
     async (files: File[]) => {
@@ -641,29 +764,45 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         ...(attachmentMetas.length > 0 ? { attachments: attachmentMetas } : {}),
       }
 
+      userInteractedRef.current = true
       const optimisticList = [...messages, userMsg]
       setMessages(optimisticList)
-      if (!overridePrompt || confirmedPriceSheet) setInputText('')
+      void persistMessages(activeChatId, optimisticList)
+      if (!overridePrompt || confirmedPriceSheet) {
+        setInputText('')
+        applyFeryalPromptAutoResize(promptTextareaRef.current, '')
+        setPromptOverflowScroll(false)
+      }
       if (hasMedia) handleClearAllAttachments()
       setSending(true)
       setMainTab('chat')
 
       try {
-        // 1. Visual attachment inspection ONLY when non-intake media (e.g. video) is attached
+        // 1. Authenticated Multimodal Vision Inspector (`POST /api/erp/feryal/vision`)
         if (attachmentsSnapshot.length > 0) {
           const visionRes = await callFeryalVisionInspector({
             prompt: effectivePrompt,
             lang: isAr ? 'ar' : 'en',
             workspaceContext: isAr ? workspace.subtitleAr : workspace.subtitleEn,
+            brand: workspace.filters.brand !== 'all' ? workspace.filters.brand : undefined,
+            branch: workspace.filters.branch !== 'all' ? workspace.filters.branch : undefined,
+            period: workspace.filters.period,
             attachments: attachmentsSnapshot,
           })
 
           const replyText =
             visionRes?.reply ||
             (isAr
-              ? 'هذه الصورة أو هذا الفيديو ليسا قراءة من Odoo. لن أخترع أرقاماً منهما. الصق جدول الأسعار كنص أو Excel، وأي رقم تلصقه هو Proposed / User Input.'
-              : 'This photo or video is not an Odoo read. Paste a price table as text or Excel. Pasted numbers are Proposed / User Input, not Odoo Verified Actuals.')
+              ? 'تعذّر إتمام الفحص البصري حالياً — يرجى إعادة المحاولة.'
+              : 'Could not complete visual inspection right now — please retry.')
           const tier: VisionComplianceTier | undefined = visionRes?.complianceTier
+          const badgeLabel = visionRes
+            ? isAr
+              ? visionRes.engineLabelAr
+              : visionRes.engineLabelEn
+            : isAr
+              ? 'فحص الصور والفيديو'
+              : 'Vision Inspector'
 
           const feryalMsg: ChatUiMessage = {
             id: nextUiId('f'),
@@ -671,8 +810,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             text: replyText,
             time: formatClockNow(),
             userPrompt: effectivePrompt,
-            providerBadge: isAr ? 'فحص الصور والفيديو' : 'Vision Inspector',
+            providerBadge: badgeLabel,
             complianceTier: tier,
+            replyStatus: visionRes?.ok ? 'vision_analyzed' : 'connection_error',
           }
           const updated = [...optimisticList, feryalMsg]
           setMessages(updated)
@@ -1042,11 +1182,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="flex min-h-[calc(100vh-120px)] w-full min-w-0 flex-col lg:flex-row gap-4 rounded-3xl bg-[#F6F7F8] p-3 sm:p-4 dark:bg-[#090E0C]"
+      className="flex min-h-[560px] lg:h-[calc(100vh-108px)] lg:max-h-[calc(100vh-108px)] w-full min-w-0 flex-col lg:flex-row gap-3 rounded-3xl bg-[#F6F7F8] p-2.5 sm:p-3 dark:bg-[#090E0C]"
     >
-      {/* Sidebar: Saved Chats & User-Only Field Notes (Zero Static Cards) */}
+      {/* Left / Side Chat History Rail */}
       {sidebarOpen && (
-        <aside className="w-full lg:w-[300px] xl:w-[320px] shrink-0 flex flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
+        <aside className="w-full max-h-[360px] lg:max-h-none lg:h-full lg:w-[280px] xl:w-[300px] shrink-0 flex min-h-0 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
           {sidebarTab === 'chats' ? (
             <FeryalSidebarNotebooks
               isAr={isAr}
@@ -1173,62 +1313,56 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       )}
 
       {/* Main Studio Area */}
-      <div className="flex min-w-0 flex-1 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl bg-white shadow-xs ring-1 ring-slate-900/[0.05] dark:bg-[#101815] dark:ring-white/10 overflow-hidden">
         {/* Partial Data Warning */}
         {liveSummary?.partial ? (
-          <div className="px-4 pt-3">
-            <PartialWarningBanner summary={liveSummary} isAr={isAr} />
-          </div>
+          <PartialWarningBanner summary={liveSummary} isAr={isAr} className="mx-3.5 mt-2.5 shrink-0" />
         ) : null}
 
-        {/* Top Bar */}
-        <header className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-200/80 px-4 py-3 dark:border-white/10">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+        {/* Crisp Executive Top Bar */}
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-3.5 py-2.5 dark:border-white/10">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label={isAr ? 'إظهار/إخفاء القائمة الجانبية' : 'Toggle sidebar'}
               title={isAr ? 'إظهار/إخفاء القائمة الجانبية' : 'Toggle sidebar'}
-              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-200"
+              className="inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-100 px-2.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-white/[0.06] dark:text-slate-200"
             >
               {sidebarOpen ? (
-                <PanelLeftClose className="h-4 w-4" aria-hidden />
+                <PanelLeftClose className="h-4 w-4 shrink-0" aria-hidden />
               ) : (
-                <PanelLeftOpen className="h-4 w-4" aria-hidden />
+                <>
+                  <PanelLeftOpen className="h-4 w-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">{isAr ? 'السجل' : 'History'}</span>
+                </>
               )}
             </button>
 
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[15.5px] sm:text-[17px] font-black text-slate-900 dark:text-white">
-                  {isAr ? 'اسأل فريال — محرك بيانات Odoo 17' : 'Ask Feryal — Odoo 17 Data Engine'}
-                </h2>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
-                  <Database className="h-3 w-3 shrink-0" aria-hidden />
-                  <span>{modeBadgeLabel}</span>
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {isAr
-                  ? '6 علامات تجارية • 7 فروع مربوطة + بند غير منسوب لفرع • استعلام من Odoo 17 وفحص برمجي لكل رقم'
-                  : '6 Brands • 7 Mapped Branches + Unattributed Bucket • Odoo 17 Queries & Strict Numeric Verifier'}
-              </p>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="min-w-0 break-words text-[15px] sm:text-[16px] font-black text-slate-900 dark:text-white">
+                {isAr ? 'فريال — الذكاء التنفيذي' : 'Ferial — Executive AI'}
+              </h2>
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200">
+                <Database className="h-3 w-3 shrink-0" aria-hidden />
+                <span>{modeBadgeLabel}</span>
+              </span>
             </div>
           </div>
 
           {/* View Switcher: Chat | Today's Notes | Odoo Governance Alerts | Odoo Query Log */}
-          <div className="flex max-w-full flex-wrap items-center gap-1.5">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             <div
               role="tablist"
               aria-label={isAr ? 'أقسام استوديو فريال' : 'Feryal Studio Views'}
-              className="flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]"
+              className="flex max-w-full flex-nowrap items-center gap-1 overflow-x-auto no-scrollbar rounded-xl bg-slate-100 p-1 dark:bg-white/[0.06]"
             >
               <button
                 type="button"
                 role="tab"
                 aria-selected={mainTab === 'chat'}
                 onClick={() => setMainTab('chat')}
-                className={`shrink-0 cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                className={`shrink-0 whitespace-nowrap cursor-pointer rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'chat'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
@@ -1243,7 +1377,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 data-studio-tab="today-notes"
                 aria-selected={mainTab === 'today-notes'}
                 onClick={() => setMainTab('today-notes')}
-                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                className={`inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'today-notes'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
@@ -1253,7 +1387,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 {workspace.feryalNotes.length > 0 ? (
                   <span
                     dir="ltr"
-                    className="rounded-md bg-white/20 px-1.5 py-0.5 text-xs font-bold tabular-nums"
+                    className="shrink-0 rounded-md bg-white/20 px-1.5 py-0.5 text-xs font-bold tabular-nums"
                   >
                     {workspace.feryalNotes.length}
                   </span>
@@ -1268,7 +1402,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   setMainTab('alerts')
                   void fetchServerGovernanceBreaches()
                 }}
-                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                className={`inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'alerts'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
@@ -1277,7 +1411,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{isAr ? 'تنبيهات الحوكمة الفعلية' : 'Odoo Governance Alerts'}</span>
                 {liveBreaches.length > 0 && (
-                  <span dir="ltr" className="rounded-full bg-rose-600 px-1.5 py-0.5 text-xs font-black tabular-nums text-white">
+                  <span dir="ltr" className="shrink-0 rounded-full bg-rose-600 px-1.5 py-0.5 text-xs font-black tabular-nums text-white">
                     {liveBreaches.length}
                   </span>
                 )}
@@ -1291,7 +1425,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   setMainTab('audit')
                   void fetchServerAuditLogs()
                 }}
-                className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+                className={`inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                   mainTab === 'audit'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900 dark:text-slate-300'
@@ -1309,9 +1443,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
             <button
               type="button"
               onClick={() => setMemoryDrawerOpen(true)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
+              className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
             >
-              <Brain className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
+              <Brain className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
               <span>
                 {isAr
                   ? savedNotesCount > 0
@@ -1330,7 +1464,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
           <div className="flex min-h-0 flex-1 flex-col">
             {/* Quick Odoo Query Chips */}
             {!isAuditor && (
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-100 px-4 py-2.5 dark:border-white/[0.05]">
+              <div className="flex shrink-0 flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-100 px-3.5 py-2 dark:border-white/[0.05]">
                 {FERYAL_EXECUTIVE_AUDIT_CHIPS.map((chip) => {
                   const isActiveChip = sending && activeQuickChipId === chip.id
                   return (
@@ -1339,13 +1473,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                       type="button"
                       disabled={sending}
                       onClick={() => handleQuickAuditChip(chip.id)}
-                      className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
+                      className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-slate-50/90 px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:border-emerald-400 hover:bg-emerald-50/70 hover:text-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-wait disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-emerald-950/50"
                     >
                       {isActiveChip ? (
                         <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" aria-hidden />
                       ) : null}
                       <span>{isAr ? chip.labelAr : chip.labelEn}</span>
-                      <span dir="ltr" className="rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
+                      <span dir="ltr" className="shrink-0 rounded-md bg-emerald-600/10 px-1.5 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
                         {isAr ? chip.badgeAr : chip.badgeEn}
                       </span>
                     </button>
@@ -1356,54 +1490,72 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     data-feryal-inflight-spinner="true"
                     role="status"
                     aria-live="polite"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
+                    className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
                   >
                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                    <span>{isAr ? 'جارٍ الاستعلام...' : 'Querying...'}</span>
+                    <span>{isAr ? 'جارٍ المعالجة...' : 'Working...'}</span>
                   </span>
                 ) : null}
               </div>
             )}
 
             {/* Conversation Stream */}
-            <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3.5 space-y-3.5">
               {messages.length === 0 ? (
-                <div className="mx-auto max-w-3xl py-6 space-y-5">
-                  <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-                    <div className="flex items-center gap-2.5 text-emerald-900 dark:text-emerald-200">
-                      <ShieldCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                      <h3 className="text-[15px] font-black">
-                        {isAr
-                          ? 'فريال مربوطة حصرياً باستعلامات Odoo 17 الفعلية'
-                          : 'Feryal Connected Exclusively to Odoo 17 Queries'}
-                      </h3>
-                    </div>
-                    <p className="mt-2 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
+                <div className="mx-auto flex h-full max-w-2xl flex-col justify-center py-2 space-y-3.5">
+                  <div className="space-y-1 text-center">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                      {isAr ? 'كيف يمكنني مساعدتك اليوم؟' : 'How can I help you today?'}
+                    </h3>
+                    <p className="text-xs sm:text-[13px] text-slate-500 dark:text-slate-400">
                       {isAr
-                        ? 'كل سؤال يُترجم إلى استعلام فعلي على موديلات Odoo 17 (pos.order، pos.order.line، account.move.line، purchase.order، stock.move / stock.scrap، hr.employee) عبر الفروع السبعة المعتمدة وبند «غير منسوب لفرع»، ثم تُفحص جميع الأرقام برمجياً قبل عرض الإجابة.'
-                        : 'Every question executes a direct query against Odoo 17 models across the 7 approved branches + Unattributed bucket, followed by strict programmatic number checking.'}
+                        ? 'استعلامات Odoo 17 المباشرة • محاكاة جداول الأسعار • فحص بصري للصور والفيديو'
+                        : 'Odoo 17 analytics • Price sheet simulations • Camera, photo & video inspection'}
                     </p>
                   </div>
 
                   {!isAuditor && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {LIVE_ODOO_STARTER_QUESTIONS.map((q) => (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {LIVE_ODOO_STARTER_QUESTIONS.map((q) => (
+                          <button
+                            key={q.id}
+                            type="button"
+                            disabled={sending}
+                            onClick={() => void sendQuestion(isAr ? q.ar : q.en)}
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-[#F8FAF9] px-3 py-2.5 text-start transition hover:border-emerald-400 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#141F1B] dark:hover:border-emerald-500/40"
+                          >
+                            <span className="min-w-0 break-words text-[13px] font-bold text-slate-900 dark:text-white">
+                              {isAr ? q.ar : q.en}
+                            </span>
+                            <span dir="ltr" className="shrink-0 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 font-mono text-xs font-semibold text-emerald-700 ring-1 ring-slate-200/70 dark:bg-white/[0.06] dark:text-emerald-300 dark:ring-white/10">
+                              {q.modelBadge}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-0.5">
                         <button
-                          key={q.id}
                           type="button"
                           disabled={sending}
-                          onClick={() => void sendQuestion(isAr ? q.ar : q.en)}
-                          className="flex cursor-pointer flex-col items-start gap-1.5 rounded-2xl border border-slate-200/80 bg-white p-3.5 text-start transition hover:border-emerald-400 hover:bg-emerald-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#141F1B] dark:hover:border-emerald-500/40"
+                          onClick={() => openCameraRef.current?.()}
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:text-emerald-800 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
                         >
-                          <span dir="ltr" className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-emerald-700 dark:bg-white/[0.06] dark:text-emerald-300">
-                            {q.modelBadge}
-                          </span>
-                          <span className="text-[13.5px] font-bold text-slate-900 dark:text-white">
-                            {isAr ? q.ar : q.en}
-                          </span>
+                          <Camera className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                          <span>{isAr ? 'التقاط بالكاميرا' : 'Camera Capture'}</span>
                         </button>
-                      ))}
-                    </div>
+                        <button
+                          type="button"
+                          disabled={sending}
+                          onClick={() => openPickerRef.current?.()}
+                          className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-emerald-400 hover:text-emerald-800 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
+                        >
+                          <ImagePlus className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                          <span>{isAr ? 'رفع صورة أو فيديو' : 'Upload Photo / Video'}</span>
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               ) : (
@@ -1422,10 +1574,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     (item) => item.errorCode !== 'MISSING_API_KEY',
                   )
                   const hasContradictionOrDispute =
-                    Boolean(msg.contradictoryActions) ||
-                    msg.replyStatus === 'council_failed' ||
-                    (msg.replyStatus !== 'answered' && nonMissingCouncil.length >= 2 && agreedCount < 2) ||
-                    /لا اتفاق|متنازع|disputed/i.test(msg.text)
+                    msg.replyStatus !== 'vision_analyzed' &&
+                    (Boolean(msg.contradictoryActions) ||
+                      msg.replyStatus === 'council_failed' ||
+                      (msg.replyStatus !== 'answered' && nonMissingCouncil.length >= 2 && agreedCount < 2) ||
+                      /لا اتفاق|متنازع|disputed/i.test(msg.text))
 
                   return (
                     <div
@@ -1441,19 +1594,19 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                       >
                         {msg.sender === 'feryal' && (
                           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2 dark:border-white/[0.07]">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="text-xs font-black text-emerald-800 dark:text-emerald-300">
+                            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                              <span className="shrink-0 whitespace-nowrap text-xs font-black text-emerald-800 dark:text-emerald-300">
                                 {isAr ? 'فريال' : 'Feryal'}
                               </span>
                               {msg.providerBadge && (
-                                <span dir="ltr" className="rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                <span dir="ltr" className="shrink-0 whitespace-nowrap rounded-md bg-emerald-50 px-2 py-0.5 font-mono text-xs font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                                   {msg.providerBadge}
                                 </span>
                               )}
                               {hasConsensus ? (
                                 <span
                                   data-feryal-consensus="agreed"
-                                  className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
+                                  className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-900/60 dark:text-emerald-100"
                                 >
                                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                   <span>
@@ -1467,7 +1620,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                                 <span
                                   data-feryal-contradiction="true"
                                   role="status"
-                                  className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
+                                  className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
                                 >
                                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                   <span>
@@ -1481,7 +1634,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                                 <span
                                   key={`${chip.provider}-${chip.modelId}-${chip.status}`}
                                   dir="ltr"
-                                  className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${
+                                  className={`[overflow-wrap:anywhere] rounded-md px-2 py-0.5 font-mono text-xs font-bold ${
                                     chip.status === 'ok'
                                       ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-100'
                                       : 'bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
@@ -1501,13 +1654,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                               {msg.verifier?.valid &&
                                 msg.executedQueries &&
                                 msg.executedQueries.length > 0 && (
-                                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
+                                  <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-bold text-emerald-900 dark:bg-emerald-900/50 dark:text-emerald-200">
                                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                     <span>{isAr ? 'أرقام مطابقة لـ Odoo' : 'Odoo-Matched Numbers'}</span>
                                   </span>
                                 )}
                             </div>
-                            <span dir="ltr" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                            <span dir="ltr" className="shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
                               {msg.time}
                             </span>
                           </div>
@@ -1636,9 +1789,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Composer */}
+            {/* Composer — Pinned Visible at Bottom */}
             {!isAuditor ? (
-              <div className="border-t border-slate-200/80 bg-white p-3.5 dark:border-white/10 dark:bg-[#101815]">
+              <div className="shrink-0 border-t border-slate-200/80 bg-white p-2.5 sm:p-3 dark:border-white/10 dark:bg-[#101815]">
                 {intakeError ? (
                   <div
                     role="alert"
@@ -1733,30 +1886,46 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   </button>
 
                   <textarea
+                    ref={promptTextareaRef}
                     rows={1}
+                    data-feryal-chat-input="true"
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     aria-label={isAr ? 'سؤال لفريال عن بيانات Odoo 17' : 'Ask Feryal about Odoo 17 data'}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        void sendQuestion()
+                      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                        const decision = shouldSubmitFeryalPromptOnKeyDown({
+                          key: e.key,
+                          shiftKey: e.shiftKey,
+                          isComposing: Boolean(e.nativeEvent.isComposing),
+                          sending,
+                          inputText,
+                          attachmentCount: pendingAttachments.length,
+                        })
+                        if (decision.preventDefault) {
+                          e.preventDefault()
+                        }
+                        if (decision.shouldSend) {
+                          void sendQuestion()
+                        }
                       }
                     }}
                     placeholder={
                       isAr
-                        ? 'اسأل فريال عن مبيعات الفروع، الأصناف، أوامر الشراء، المخزن، أو القيود في Odoo...'
-                        : 'Ask Feryal about branch POS sales, items, purchase orders, stock moves, or GL entries...'
+                        ? 'اسأل فريال، أو أرفق صورة / فيديو / جدول أسعار...'
+                        : 'Ask Ferial, or attach a photo, video, or price sheet...'
                     }
-                    className="min-h-[44px] sm:min-h-[48px] max-h-36 flex-1 resize-none rounded-2xl border border-slate-200 bg-[#F6F7F8] px-4 py-3 text-[14px] text-slate-900 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:border-white/15 dark:bg-[#090E0C] dark:text-white"
+                    className={`min-h-[44px] sm:min-h-[46px] max-h-[40vh] min-w-0 flex-1 resize-none leading-relaxed ${
+                      promptOverflowScroll ? 'overflow-y-auto' : 'overflow-y-hidden'
+                    } rounded-2xl border border-slate-200 bg-[#F6F7F8] px-3.5 py-2.5 text-[14px] text-slate-900 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 dark:border-white/15 dark:bg-[#090E0C] dark:text-white`}
                   />
 
                   <button
                     type="submit"
                     disabled={sending || (!inputText.trim() && pendingAttachments.length === 0)}
-                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45"
+                    className="inline-flex h-[44px] sm:h-[48px] shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-2xl bg-emerald-600 px-4 sm:px-5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-45"
                   >
-                    <Send className="h-4 w-4" aria-hidden />
+                    <Send className="h-4 w-4 shrink-0" aria-hidden />
                     <span>{isAr ? 'إرسال' : 'Send'}</span>
                   </button>
                 </form>
@@ -1775,23 +1944,23 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         {mainTab === 'today-notes' && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h3 className="min-w-0 break-words text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr ? 'ملخص اليوم وآخر التنبيهات' : "Today's Executive Summary & Latest Alerts"}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {isAr ? workspace.subtitleAr : workspace.subtitleEn}
                 </p>
               </div>
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+              <span className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                 {isAr ? workspace.periodCalendarWindowAr : workspace.periodCalendarWindowEn}
               </span>
             </div>
 
             {/* Live Odoo KPI Strip (strictly nullable — renders "—" + Unavailable when null/disconnected) */}
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'صافي المبيعات' : 'Net Sales'}
                 </div>
                 <div
@@ -1811,7 +1980,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                       ? unavailableTooltip
                       : undefined
                   }
-                  className="mt-1.5 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
+                  className="mt-1.5 whitespace-nowrap text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
                 >
                   {workspace.odooConnected
                     ? formatKwd(workspace.nullableSalesKwd, { locale: fmtLocale })
@@ -1819,8 +1988,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'عدد الطلبات' : 'Orders'}
                 </div>
                 <div
@@ -1829,17 +1998,17 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   data-unavailable={ordersUnknown ? 'true' : undefined}
                   title={ordersUnknown ? unavailableTooltip : undefined}
                   aria-label={ordersUnknown ? unavailableTooltip : undefined}
-                  className="mt-1.5 text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
+                  className="mt-1.5 whitespace-nowrap text-lg font-extrabold tabular-nums text-slate-900 dark:text-white"
                 >
                   {ordersUnknown ? UNAVAILABLE_DASH : formatInt(workspace.nullableOrders, { locale: fmtLocale })}
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'أعلى فرع مبيعاً' : 'Best Branch'}
                 </div>
-                <div className="mt-1 text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                <div className="mt-1 min-w-0 break-words text-sm font-bold text-emerald-700 dark:text-emerald-300">
                   {bestBranch ? (isAr ? bestBranch.ar : bestBranch.en) : UNAVAILABLE_DASH}
                 </div>
                 <div
@@ -1847,7 +2016,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   data-unavailable={!bestBranch ? 'true' : undefined}
                   title={!bestBranch ? unavailableTooltip : undefined}
                   aria-label={!bestBranch ? unavailableTooltip : undefined}
-                  className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                  className="mt-0.5 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
                 >
                   {bestBranch
                     ? formatKwd(bestBranch.salesKwd, { locale: fmtLocale })
@@ -1855,11 +2024,11 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <article className="min-w-0 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-3.5 dark:border-white/10 dark:bg-[#141F1B]">
+                <div className="min-w-0 break-words text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? 'أقل فرع مبيعاً' : 'Lowest Branch'}
                 </div>
-                <div className="mt-1 text-sm font-bold text-amber-700 dark:text-amber-300">
+                <div className="mt-1 min-w-0 break-words text-sm font-bold text-amber-700 dark:text-amber-300">
                   {worstBranch ? (isAr ? worstBranch.ar : worstBranch.en) : UNAVAILABLE_DASH}
                 </div>
                 <div
@@ -1867,7 +2036,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   data-unavailable={!worstBranch ? 'true' : undefined}
                   title={!worstBranch ? unavailableTooltip : undefined}
                   aria-label={!worstBranch ? unavailableTooltip : undefined}
-                  className="mt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
+                  className="mt-0.5 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300"
                 >
                   {worstBranch
                     ? formatKwd(worstBranch.salesKwd, { locale: fmtLocale })
@@ -1898,20 +2067,24 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div
+                className={`grid grid-cols-1 gap-3 ${
+                  workspace.feryalNotes.length === 1 ? 'md:grid-cols-1' : 'md:grid-cols-2'
+                }`}
+              >
                 {workspace.feryalNotes.map((note) => (
                   <article
                     key={note.id}
-                    className="flex flex-col justify-between space-y-2.5 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-4 dark:border-white/10 dark:bg-[#141F1B]"
+                    className="flex min-w-0 flex-col justify-between space-y-2.5 rounded-2xl border border-slate-200/80 bg-[#F8FAF9] p-4 dark:border-white/10 dark:bg-[#141F1B]"
                   >
                     <div className="space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h4 className="text-[14px] font-bold text-slate-900 dark:text-white">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="min-w-0 flex-1 break-words text-[14px] font-bold text-slate-900 dark:text-white">
                           {isAr ? note.titleAr : note.titleEn}
                         </h4>
                         <span
                           dir="ltr"
-                          className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                          className="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                         >
                           {isAr ? note.benefitAr : note.benefitEn}
                         </span>
@@ -1941,8 +2114,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         {mainTab === 'alerts' && (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h3 className="min-w-0 break-words text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
                     ? 'تنبيهات الحوكمة الفعلية من Odoo 17'
                     : 'Odoo 17 Governance Alerts'}
@@ -1956,9 +2129,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
               <button
                 type="button"
                 onClick={() => void fetchServerGovernanceBreaches()}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
+                className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingBreaches ? 'animate-spin' : ''}`} aria-hidden />
+                <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${loadingBreaches ? 'animate-spin' : ''}`} aria-hidden />
                 <span>{isAr ? 'تحديث من Odoo' : 'Refresh'}</span>
               </button>
             </div>
@@ -1997,13 +2170,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 {liveBreaches.map((b) => (
                   <div
                     key={b.id}
-                    className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-2 dark:border-rose-900/50 dark:bg-rose-950/20"
+                    className="min-w-0 rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-2 dark:border-rose-900/50 dark:bg-rose-950/20"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span dir="ltr" className="rounded-md bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white">
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap rounded-md bg-rose-600 px-2 py-0.5 font-mono text-xs font-bold text-white">
                         {b.odooModel}
                       </span>
-                      <span dir="ltr" className="text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                         {b.period.from} → {b.period.to}
                       </span>
                     </div>
@@ -2022,10 +2195,10 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                           href={b.odooRecordUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 rounded font-bold text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-300"
+                          className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded font-bold text-emerald-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-emerald-300"
                         >
                           <span>{isAr ? 'فتح السجل في Odoo' : 'Open in Odoo'}</span>
-                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         </a>
                       )}
                     </div>
@@ -2040,8 +2213,8 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         {mainTab === 'audit' && (
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <h3 className="text-[15px] font-black text-slate-900 dark:text-white">
+              <div className="min-w-0 flex-1">
+                <h3 className="min-w-0 break-words text-[15px] font-black text-slate-900 dark:text-white">
                   {isAr
                     ? 'سجل الأسئلة والاستعلامات لفريال'
                     : 'Feryal Odoo Query Log'}
@@ -2055,9 +2228,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
               <button
                 type="button"
                 onClick={() => void fetchServerAuditLogs()}
-                className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
+                className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-200"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loadingAudit ? 'animate-spin' : ''}`} aria-hidden />
+                <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${loadingAudit ? 'animate-spin' : ''}`} aria-hidden />
                 <span>{isAr ? 'تحديث السجل' : 'Refresh Log'}</span>
               </button>
             </div>
@@ -2096,20 +2269,20 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 {auditLogs.map((entry) => (
                   <div
                     key={entry.id}
-                    className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 dark:border-white/10 dark:bg-[#141F1B]"
+                    className="min-w-0 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 space-y-2.5 dark:border-white/10 dark:bg-[#141F1B]"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="rounded-md bg-slate-200/80 px-2 py-0.5 font-bold text-slate-800 dark:bg-white/10 dark:text-slate-200">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <span className="shrink-0 whitespace-nowrap rounded-md bg-slate-200/80 px-2 py-0.5 font-bold text-slate-800 dark:bg-white/10 dark:text-slate-200">
                           {entry.userRole}
                         </span>
                         {!isAuditor && (
-                          <span dir="ltr" className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                          <span dir="ltr" className="min-w-0 [overflow-wrap:anywhere] font-mono text-xs text-slate-500 dark:text-slate-400">
                             {entry.userSub}
                           </span>
                         )}
                         <span
-                          className={`rounded-md px-2 py-0.5 text-xs font-bold ${
+                          className={`shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-bold ${
                             entry.verifier?.valid
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
@@ -2124,7 +2297,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                               : 'Verifier: Rejected'}
                         </span>
                       </div>
-                      <span dir="ltr" className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
                         {formatDateTime(entry.timestampIso, { locale: fmtLocale, showZone: true })}
                       </span>
                     </div>
@@ -2137,14 +2310,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                     {entry.executedQueries.length > 0 && (
                       <div className="space-y-1 overflow-x-auto rounded-xl bg-white p-2.5 text-xs ring-1 ring-slate-200/70 dark:bg-[#090E0C] dark:ring-white/10">
                         {entry.executedQueries.map((q, qi) => (
-                          <div key={`${entry.id}-q-${qi}`} dir="ltr" className="font-mono text-slate-700 dark:text-slate-300">
+                          <div key={`${entry.id}-q-${qi}`} dir="ltr" className="whitespace-nowrap font-mono text-slate-700 dark:text-slate-300">
                             model={q.model} | groupby={JSON.stringify(q.groupby)} | period={q.period.from}..{q.period.to} | domain={JSON.stringify(q.domain)}
                           </div>
                         ))}
                       </div>
                     )}
 
-                    <div className="whitespace-pre-wrap rounded-xl bg-white/80 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-200/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/10">
+                    <div className="whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl bg-white/80 p-3 text-xs leading-relaxed text-slate-700 ring-1 ring-slate-200/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/10">
                       {entry.finalReply}
                     </div>
                   </div>

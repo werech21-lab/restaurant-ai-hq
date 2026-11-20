@@ -20,18 +20,18 @@ import type {
 
 export const aiPanelClass = 'ds-surface w-full min-w-0 rounded-2xl p-4 sm:p-5'
 export const aiCardClass =
-  'rounded-2xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-surface)] p-4 shadow-xs'
+  'min-w-0 rounded-2xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-surface)] p-4 shadow-xs'
 export const aiSubcardClass =
-  'rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] p-3'
+  'min-w-0 rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] p-3'
 export const aiInputClass =
   'ds-focus-ring mt-1.5 w-full rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-2.5 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)] disabled:cursor-not-allowed disabled:opacity-60'
 export const aiLabelClass = 'block text-sm font-medium text-[var(--ds-text-secondary)]'
 export const aiPrimaryBtn =
-  'ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400'
+  'ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400'
 export const aiSecondaryBtn =
-  'ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50'
+  'ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50'
 export const aiDangerBtn =
-  'ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-[var(--ds-negative-border)] bg-[var(--ds-negative-bg)] px-4 py-2 text-sm font-semibold text-[var(--ds-negative)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
+  'ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center rounded-xl border border-[var(--ds-negative-border)] bg-[var(--ds-negative-bg)] px-4 py-2 text-sm font-semibold text-[var(--ds-negative)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50'
 export const aiErrorClass =
   'rounded-xl border border-[var(--ds-negative-border)] bg-[var(--ds-negative-bg)] px-3.5 py-2.5 text-sm font-medium text-[var(--ds-negative)]'
 export const aiNoticeClass =
@@ -55,7 +55,7 @@ const PILL_TONES: Record<PillTone, string> = {
 export function AiPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: PillTone }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${PILL_TONES[tone]}`}
+      className={`inline-flex shrink-0 whitespace-nowrap items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${PILL_TONES[tone]}`}
     >
       {children}
     </span>

@@ -154,15 +154,40 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(enOrdersCard!.text).not.toContain('دفتر الأستاذ بلا بند مصروف')
   })
 
-  it('lists posted GL lines on an open month and withholds operating profit', async () => {
-    const source = loadLiveTodaySummary().buckets!.today!.accounting!
+  it('hides unposted GL card when glIncomplete=true and lists posted GL lines with compact info tooltip on an open month when GL is posted', async () => {
+    // 1. When glIncomplete=true (as in raw Today fixture where expenses/commissions are unposted), card is hidden cleanly
+    const rawTodayAr = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
+    expect(
+      findCardByTag(rawTodayAr, 'article', (h) => h.includes('قيود دفتر الأستاذ المرحّلة')),
+    ).toBeNull()
+
+    // 2. When open-month GL has posted revenue, COGS & expenses (glIncomplete=false, glClosedThroughDate=null),
+    //    Posted general ledger entries card renders the 3 posted lines, withholds operating profit, and places
+    //    the close/month-end disclaimer inside the compact info tooltip.
+    const postedOpenSummary = loadLiveTodaySummary()
+    const source = postedOpenSummary.buckets!.today!.accounting!
+    Object.assign(source, {
+      available: true,
+      glIncomplete: false,
+      completeAccrualPosted: true,
+      aggregatorCommissionUnposted: false,
+      expense: 24.5,
+      otherOpexAndDepreciation: 24.5,
+      depreciation: 4.5,
+      deliveryCommissions: 12.25,
+      deliveryCommissionLinesCount: 2,
+      glClosedThroughDate: null,
+    })
+    delete (source as { glWarningAr?: string }).glWarningAr
+
     const revenue = source.totalRevenue ?? 0
     const cogs = source.cogs ?? 0
-    const expense = source.expense ?? 0
+    const expense = source.otherOpexAndDepreciation ?? source.expense ?? 0
     const kwd = (n: number) =>
       n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
     const gross = Math.round((revenue - cogs) * 1000) / 1000
-    const arHtml = await renderDashboard('ar', loadLiveTodaySummary(), todayFilters('all'))
+
+    const arHtml = await renderDashboard('ar', postedOpenSummary, todayFilters('all'))
     const arOpCard = findCardByTag(arHtml, 'article', (h) =>
       h.includes('قيود دفتر الأستاذ المرحّلة'),
     )
@@ -177,20 +202,17 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(arOpCard!.outerHtml).toContain(kwd(revenue))
     expect(arOpCard!.outerHtml).toContain(kwd(cogs))
     expect(arOpCard!.outerHtml).toContain(kwd(expense))
-    expect(
-      countOccurrences(arOpCard!.text, 'لا قراءة من دفتر الأستاذ لهذه الخانة') +
-        countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar),
-    ).toBe(1)
     expect(arOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')
+    expect(arOpCard!.outerHtml).toContain('role="tooltip"')
     expect(countOccurrences(arOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.ar)).toBe(1)
     expect(arOpCard!.text).toContain('العمولات والاستهلاك تُرحَّل نهاية الشهر')
     expect(arOpCard!.outerHtml).not.toContain('data-kpi="operating-net"')
     expect(arOpCard!.outerHtml).not.toContain('amber-')
     expect(arOpCard!.outerHtml).not.toContain('rose-')
     expect(arOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(arOpCard!.outerHtml).not.toContain('<circle')
+    expect(arOpCard!.outerHtml).not.toContain('stroke-dasharray')
 
-    const enHtml = await renderDashboard('en', loadLiveTodaySummary(), todayFilters('all'))
+    const enHtml = await renderDashboard('en', postedOpenSummary, todayFilters('all'))
     const enOpCard = findCardByTag(enHtml, 'article', (h) =>
       h.includes('Posted general ledger entries'),
     )
@@ -201,15 +223,14 @@ describe('V35 Polish — Calm Unavailable States, Provenance Popover & Terminal 
     expect(enOpCard!.text).toContain('Posted expenses')
     expect(enOpCard!.text).not.toContain('Operating Net Profit')
     expect(enOpCard!.text).not.toContain(kwd(gross))
-    expect(
-      countOccurrences(enOpCard!.text, 'Not available yet — GL entries not posted') +
-        countOccurrences(enOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.en),
-    ).toBe(1)
+    expect(enOpCard!.outerHtml).toContain('data-net-profit-withheld="true"')
+    expect(enOpCard!.outerHtml).toContain('role="tooltip"')
+    expect(countOccurrences(enOpCard!.text, PROFIT_AFTER_CLOSE_NOTE.en)).toBe(1)
     expect(enOpCard!.text).toContain('Not posted yet')
     expect(enOpCard!.outerHtml).not.toContain('amber-')
     expect(enOpCard!.outerHtml).not.toContain('rose-')
     expect(enOpCard!.outerHtml).not.toContain('data-ring-mode="unavailable"')
-    expect(enOpCard!.outerHtml).not.toContain('<circle')
+    expect(enOpCard!.outerHtml).not.toContain('stroke-dasharray')
   })
 
   it('renders GL Distribution and Aggregator Commissions cards calmly without amber/rose classes or hollow rings when GL is incomplete / commissions unposted', async () => {

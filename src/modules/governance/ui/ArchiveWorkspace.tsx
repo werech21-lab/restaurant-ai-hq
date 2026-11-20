@@ -369,20 +369,20 @@ function Workspace() {
                 {localRows.map((row) => (
                   <tr key={row.id} className="hover:bg-[var(--ds-bg-hover)]">
                     <td className="px-3.5 py-2.5 font-medium text-[var(--ds-text-primary)]">
-                      <div>{row.fileName}</div>
+                      <div className="max-w-[260px] truncate">{row.fileName}</div>
                       {row.source === 'local_direct_db' ? (
-                        <span className="mt-1 inline-flex rounded-md border border-[var(--ds-positive-border)] bg-[var(--ds-positive-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--ds-positive)]">
+                        <span className="mt-1 inline-flex shrink-0 whitespace-nowrap rounded-md border border-[var(--ds-positive-border)] bg-[var(--ds-positive-bg)] px-2 py-0.5 text-xs font-semibold text-[var(--ds-positive)]">
                           {isAr ? 'معالجة وإدراج محلي مباشر' : 'Direct Local Ingest'}
                         </span>
                       ) : null}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[var(--ds-text-secondary)]">
+                    <td className="whitespace-nowrap px-3.5 py-2.5 text-[var(--ds-text-secondary)]">
                       {isAr ? row.departmentLabelAr : row.departmentLabelEn}
                     </td>
                     <td className="px-3.5 py-2.5 text-[var(--ds-text-secondary)]">
                       {row.entityLabel || <UnavailableCell tooltip={unavailableTooltip} />}
                     </td>
-                    <td className="px-3.5 py-2.5 text-end">
+                    <td className="whitespace-nowrap px-3.5 py-2.5 text-end">
                       {typeof row.amountKwd === 'number' && Number.isFinite(row.amountKwd) ? (
                         <span
                           dir="ltr"
@@ -394,7 +394,7 @@ function Workspace() {
                         <UnavailableCell tooltip={unavailableTooltip} />
                       )}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[var(--ds-text-primary)]">
+                    <td className="whitespace-nowrap px-3.5 py-2.5 text-[var(--ds-text-primary)]">
                       {statusLabel(row.status, isAr)}
                     </td>
                     <td className="px-3.5 py-2.5 text-xs">

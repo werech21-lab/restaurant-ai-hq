@@ -256,7 +256,7 @@ export function KpiCard({
             dir="ltr"
             data-kpi-delta-tone={deltaMeta.tone}
             style={DELTA_TONE_STYLE[deltaMeta.tone]}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums"
           >
             {deltaMeta.direction === 'up' ? (
               <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -319,7 +319,7 @@ export function KpiCard({
   )
 
   const baseClass = cx(
-    'ds-kpi-card ds-surface ds-motion flex h-full w-full flex-col justify-between rounded-2xl p-4 text-start sm:p-5',
+    'ds-kpi-card ds-surface ds-motion relative overflow-visible flex h-full w-full flex-col justify-between rounded-2xl p-4 text-start sm:p-5',
     (href || onClick) && 'ds-focus-ring cursor-pointer',
     className,
   )

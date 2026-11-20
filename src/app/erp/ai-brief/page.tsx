@@ -48,7 +48,7 @@ function StoredReport({
   return (
     <article
       id={`report-${brief.id}`}
-      className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-[#101815] dark:ring-white/10"
+      className="min-w-0 rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200 dark:bg-[#101815] dark:ring-white/10"
     >
       <p className="text-xs text-slate-500 dark:text-slate-400">
         <a
@@ -103,7 +103,7 @@ export default async function AiBriefPage() {
 
   return (
     <div
-      className="mx-auto w-full max-w-5xl min-w-0 overflow-x-hidden px-4 py-8"
+      className="mx-auto w-full max-w-5xl min-w-0 overflow-x-clip px-4 py-8"
       dir={isAr ? 'rtl' : 'ltr'}
     >
       <h1 className="text-xl font-black text-slate-900 dark:text-white">

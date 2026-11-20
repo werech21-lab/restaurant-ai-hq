@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   ArrowLeftRight,
   BarChart3,
@@ -236,6 +237,20 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
 
 export const SIDEBAR_ITEMS: NavItem[] = SIDEBAR_SECTIONS.flatMap((section) => [...section.items])
 
+export const CORE_EXECUTIVE_PREFETCH_ROUTES = [
+  '/erp',
+  '/erp/cores',
+  '/erp/weekday-comparison',
+  '/erp/before-after',
+  '/erp/warehouse-chain',
+  '/erp/finance',
+  '/erp/receivables',
+  '/erp/executive-pnl',
+  '/erp/decisions',
+  '/erp/planning',
+  '/erp/feryal-ai',
+] as const
+
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
@@ -263,6 +278,7 @@ export function Sidebar({
   isAuditor?: boolean
   sessionRole?: ExecSessionRole
 }) {
+  const router = useRouter()
   const pathname = usePathname() ?? ''
   const { t, locale } = useI18n()
   const isAr = locale === 'ar'
@@ -277,10 +293,31 @@ export function Sidebar({
   )
 
   const [collapsed, setCollapsed] = useState(false)
+  const navScrollRef = useRef<HTMLElement>(null)
   const navListRef = useRef<HTMLDivElement>(null)
   const linkRefs = useRef<Map<string, HTMLAnchorElement>>(new Map())
   const [indicator, setIndicator] = useState<{ top: number; height: number } | null>(null)
   const [animateIndicator, setAnimateIndicator] = useState(false)
+  const [collapsedTip, setCollapsedTip] = useState<{
+    label: string
+    top: number
+    x: number
+  } | null>(null)
+
+  const showCollapsedTip = useCallback(
+    (targetEl: HTMLElement | null, label: string) => {
+      if (!collapsed || !targetEl || typeof window === 'undefined') return
+      const rect = targetEl.getBoundingClientRect()
+      const top = Math.round(rect.top + rect.height / 2)
+      const x = Math.round(isAr ? rect.left - 12 : rect.right + 12)
+      setCollapsedTip({ label, top, x })
+    },
+    [collapsed, isAr],
+  )
+
+  const hideCollapsedTip = useCallback(() => {
+    setCollapsedTip(null)
+  }, [])
 
   const syncDomCollapsed = useCallback((next: boolean) => {
     if (typeof document !== 'undefined') {
@@ -344,6 +381,60 @@ export function Sidebar({
     [roleProfile.role, user],
   )
 
+  const prefetchRoute = useCallback(
+    (href: string) => {
+      if (!href || !router || typeof router.prefetch !== 'function') return
+      try {
+        router.prefetch(href)
+      } catch {
+        // ignore prefetch errors in isolated test harnesses
+      }
+    },
+    [router],
+  )
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const routeSet = new Set<string>()
+    for (const route of CORE_EXECUTIVE_PREFETCH_ROUTES) {
+      if (route !== pathname && isErpRouteAllowedForRole(roleProfile.role, route)) {
+        routeSet.add(route)
+      }
+    }
+    for (const section of visibleSections) {
+      for (const item of section.items) {
+        if (item.href !== pathname) {
+          routeSet.add(item.href)
+        }
+      }
+    }
+    const routesToPrefetch = [...routeSet]
+    if (routesToPrefetch.length === 0) return undefined
+
+    const runIdlePrefetch = () => {
+      for (const route of routesToPrefetch) {
+        prefetchRoute(route)
+      }
+    }
+
+    type IdleWindow = Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    const win = window as IdleWindow
+    if (typeof win.requestIdleCallback === 'function') {
+      const idleHandle = win.requestIdleCallback(runIdlePrefetch, { timeout: 1200 })
+      return () => {
+        if (typeof win.cancelIdleCallback === 'function') {
+          win.cancelIdleCallback(idleHandle)
+        }
+      }
+    }
+
+    const timer = window.setTimeout(runIdlePrefetch, 150)
+    return () => window.clearTimeout(timer)
+  }, [pathname, prefetchRoute, roleProfile.role, visibleSections])
+
   const activeKey = useMemo(() => {
     for (const section of visibleSections) {
       for (const item of section.items) {
@@ -375,6 +466,13 @@ export function Sidebar({
   }, [activeKey])
 
   useIsomorphicLayoutEffect(() => {
+    setCollapsedTip(null)
+    if (activeKey && navScrollRef.current) {
+      const activeEl = linkRefs.current.get(activeKey)
+      if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+        activeEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
     measureIndicator()
     const prefersReduced =
       typeof window !== 'undefined' &&
@@ -395,7 +493,7 @@ export function Sidebar({
 
     raf = window.requestAnimationFrame(step)
     return () => window.cancelAnimationFrame(raf)
-  }, [measureIndicator, pathname, collapsed, locale])
+  }, [activeKey, measureIndicator, pathname, collapsed, locale])
 
   const CollapseIcon = isAr
     ? collapsed
@@ -417,8 +515,8 @@ export function Sidebar({
     <aside
       id="ae-sidebar"
       data-collapsed={collapsed}
-      className={`no-print sticky top-0 z-[41] hidden h-screen shrink-0 flex-col rounded-[28px] bg-[#0D162A] transition-[width,box-shadow] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
-        collapsed ? 'w-[76px] overflow-visible' : 'w-[272px] overflow-y-auto'
+      className={`no-print sticky top-0 z-[41] hidden h-dvh max-h-dvh shrink-0 flex-col overflow-hidden rounded-[28px] bg-[#0D162A] transition-[width,box-shadow] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none lg:flex ${
+        collapsed ? 'w-[76px]' : 'w-[272px]'
       }`}
       dir={isAr ? 'rtl' : 'ltr'}
     >
@@ -434,7 +532,10 @@ export function Sidebar({
           className={`flex items-center ${collapsed ? 'flex-col gap-2.5' : 'justify-between gap-2'}`}
         >
           <Link
+            prefetch={true}
             href={resolveRoleDefaultHome(roleProfile.role)}
+            onMouseEnter={() => prefetchRoute(resolveRoleDefaultHome(roleProfile.role))}
+            onFocus={() => prefetchRoute(resolveRoleDefaultHome(roleProfile.role))}
             className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
             aria-label={isAr ? 'العودة إلى ملخص الشركة' : 'Back to Company Summary'}
           >
@@ -458,20 +559,26 @@ export function Sidebar({
             <button
               type="button"
               onClick={toggleRail}
+              onMouseEnter={(e) =>
+                showCollapsedTip(
+                  e.currentTarget,
+                  isAr ? 'توسيع القائمة (Ctrl+B)' : 'Expand Rail (Ctrl+B)',
+                )
+              }
+              onMouseLeave={hideCollapsedTip}
+              onFocus={(e) =>
+                showCollapsedTip(
+                  e.currentTarget,
+                  isAr ? 'توسيع القائمة (Ctrl+B)' : 'Expand Rail (Ctrl+B)',
+                )
+              }
+              onBlur={hideCollapsedTip}
               aria-label={toggleTitle}
               title={toggleTitle}
               className="ae-side-toggle flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/[0.06] transition-all duration-150 hover:bg-white/[0.12] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
             >
               <CollapseIcon size={16} />
             </button>
-            {collapsed ? (
-              <span
-                role="tooltip"
-                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
-              >
-                {isAr ? 'توسيع القائمة (Ctrl+B)' : 'Expand Rail (Ctrl+B)'}
-              </span>
-            ) : null}
           </div>
         </div>
 
@@ -495,13 +602,13 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Categorized Executive Navigation Sections with Smooth Sliding Cobalt/Sky Active Pill */}
+      {/* Categorized Executive Navigation Sections — Scrollable flex-1 list above pinned footer */}
       <nav
+        ref={navScrollRef}
+        onScroll={hideCollapsedTip}
         aria-label={isAr ? 'القائمة الرئيسية' : 'Main Navigation'}
-        className={`flex-1 transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
-          collapsed
-            ? 'overflow-visible px-2.5 pt-1 pb-2.5'
-            : 'no-scrollbar min-h-0 overflow-y-auto overflow-x-hidden px-3 pt-1.5 pb-5'
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain transition-[padding] duration-[520ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${
+          collapsed ? 'px-2.5 pt-1 pb-8' : 'px-3 pt-1.5 pb-8'
         }`}
       >
         <div ref={navListRef} className={`relative ${collapsed ? 'space-y-1' : 'space-y-3.5'}`}>
@@ -525,7 +632,7 @@ export function Sidebar({
           {visibleSections.map((section, sectionIndex) => {
             const sectionLabel = isAr ? section.labelAr : section.labelEn
             return (
-              <div key={section.id} className="space-y-0.5">
+              <div key={section.id} data-sidebar-section={section.id} className="space-y-0.5">
                 {collapsed && sectionIndex > 0 ? (
                   <div aria-hidden className="mx-2 my-0.5 h-px bg-white/[0.09]" />
                 ) : null}
@@ -551,10 +658,21 @@ export function Sidebar({
                           if (el) linkRefs.current.set(item.key, el)
                           else linkRefs.current.delete(item.key)
                         }}
+                        prefetch={true}
                         href={item.href}
                         data-active={active}
                         aria-current={active ? 'page' : undefined}
                         aria-label={collapsed ? label : undefined}
+                        onMouseEnter={(e) => {
+                          prefetchRoute(item.href)
+                          showCollapsedTip(e.currentTarget, label)
+                        }}
+                        onMouseLeave={hideCollapsedTip}
+                        onFocus={(e) => {
+                          prefetchRoute(item.href)
+                          showCollapsedTip(e.currentTarget, label)
+                        }}
+                        onBlur={hideCollapsedTip}
                         className={`ae-side-link relative z-10 flex items-center rounded-2xl text-[13.5px] font-medium transition-[padding,gap,color] duration-[480ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75 ${
                           active
                             ? 'bg-gradient-to-r rtl:bg-gradient-to-l from-blue-600/90 via-blue-500/85 to-sky-500/80 text-white shadow-sm ring-1 ring-sky-200/20'
@@ -574,15 +692,6 @@ export function Sidebar({
                           {label}
                         </span>
                       </Link>
-
-                      {collapsed ? (
-                        <span
-                          role="tooltip"
-                          className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
-                        >
-                          {label}
-                        </span>
-                      ) : null}
                     </div>
                   )
                 })}
@@ -592,8 +701,13 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* User Footer */}
-      <div className={`ae-side-divider shrink-0 ${collapsed ? 'px-2.5 py-2.5' : 'px-4 py-3'}`}>
+      {/* Pinned Non-Overlapping User Profile Footer */}
+      <div
+        data-sidebar-footer="true"
+        className={`ae-side-divider shrink-0 border-t border-white/10 ${
+          collapsed ? 'px-2.5 py-2.5' : 'px-4 py-3'
+        }`}
+      >
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div
@@ -618,16 +732,14 @@ export function Sidebar({
               <button
                 type="submit"
                 aria-label={t('nav.logout')}
+                onMouseEnter={(e) => showCollapsedTip(e.currentTarget, t('nav.logout'))}
+                onMouseLeave={hideCollapsedTip}
+                onFocus={(e) => showCollapsedTip(e.currentTarget, t('nav.logout'))}
+                onBlur={hideCollapsedTip}
                 className="ae-side-logout flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl bg-white/[0.06] transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
               >
                 <LogOut size={14} />
               </button>
-              <span
-                role="tooltip"
-                className="pointer-events-none invisible absolute start-full top-1/2 z-50 ms-3 -translate-y-1/2 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 opacity-0 shadow-lg ring-1 ring-sky-200/70 transition-all duration-150 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100"
-              >
-                {t('nav.logout')}
-              </span>
             </form>
           </div>
         ) : (
@@ -662,10 +774,10 @@ export function Sidebar({
                     {(isAr ? roleProfile.nameAr : roleProfile.nameEn).slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="ae-side-strong break-words text-xs font-semibold leading-snug">
+                    <p className="ae-side-strong truncate text-xs font-semibold leading-snug">
                       {isAr ? roleProfile.accountLabelAr : roleProfile.accountLabelEn}
                     </p>
-                    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-300/25">
+                    <span className="mt-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-sky-400/15 px-2 py-0.5 text-xs font-semibold text-sky-200 ring-1 ring-sky-300/25">
                       <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
                       <span>{isAr ? roleProfile.titleAr : roleProfile.titleEn}</span>
                     </span>
@@ -674,7 +786,7 @@ export function Sidebar({
                 {user.email ? (
                   <p
                     dir="ltr"
-                    className="ae-side-muted break-all whitespace-normal font-mono text-xs leading-snug"
+                    className="ae-side-muted truncate font-mono text-xs leading-snug"
                   >
                     {user.email}
                   </p>
@@ -684,7 +796,7 @@ export function Sidebar({
             <form action={logout} className="mt-2">
               <button
                 type="submit"
-                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-white/[0.06] px-3 py-1.5 text-xs font-semibold transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
+                className="ae-side-logout flex w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full bg-white/[0.06] px-3 py-1.5 text-xs font-semibold transition-all hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/75"
               >
                 <LogOut size={13} />
                 <span>{t('nav.logout')}</span>
@@ -693,6 +805,25 @@ export function Sidebar({
           </div>
         )}
       </div>
+
+      {collapsed && collapsedTip && typeof document !== 'undefined' && document.body
+        ? createPortal(
+            <span
+              role="tooltip"
+              dir={isAr ? 'rtl' : 'ltr'}
+              style={{
+                top: `${collapsedTip.top}px`,
+                left: `${collapsedTip.x}px`,
+                transform: isAr ? 'translate(-100%, -50%)' : 'translate(0, -50%)',
+                zIndex: 9999,
+              }}
+              className="pointer-events-none fixed z-50 whitespace-nowrap rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-900 shadow-lg ring-1 ring-sky-200/70"
+            >
+              {collapsedTip.label}
+            </span>,
+            document.body,
+          )
+        : null}
     </aside>
   )
 }

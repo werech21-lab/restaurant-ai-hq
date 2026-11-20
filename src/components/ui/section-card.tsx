@@ -116,7 +116,7 @@ export function SectionCard({
       dir={dir}
       aria-label={ariaLabel}
       className={cx(
-        'ds-section-card ds-surface w-full min-w-0 rounded-2xl',
+        'ds-section-card ds-surface relative overflow-visible w-full min-w-0 rounded-2xl',
         className,
       )}
     >
@@ -166,7 +166,7 @@ export function SectionCard({
 
       <div
         className={cx(
-          'min-w-0',
+          'min-w-0 overflow-visible',
           padded
             ? hasHeader
               ? 'px-4 pb-5 pt-1 sm:px-6 sm:pb-6'

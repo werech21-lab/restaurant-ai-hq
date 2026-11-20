@@ -8,21 +8,21 @@ export const dynamic = 'force-dynamic'
 export const metadata = {
   title: 'المستشارة فريال | فنتشر فودز',
   description:
-    'الاستوديو التنفيذي الموحد للمستشارة فريال (6 علامات تجارية • 7 فروع • 8 قنوات): دقيق (تحليل دقيق)، سريع (إجابة سريعة)، إرفاق صورة / فيديو، ابتكار الحلول الكبرى 🚀، ذاكرة وتطور فريال 🧠، وأرقام أودو 17 وجرس الاعتماد.',
+    'مساحة المحادثة التنفيذية للمستشارة فريال: استعلامات Odoo 17 المباشرة، محاكاة جداول الأسعار، والفحص البصري للصور والفيديو.',
 }
 
 export default async function FeryalAiCommandPage() {
   await requirePageUser('/erp/feryal-ai')
   const sessionRole = await resolveServerExecSessionRole()
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-x-hidden pt-0">
-      <div className="w-full max-w-full min-w-0 overflow-x-hidden">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-clip pt-0">
+      <div className="w-full max-w-full min-w-0 overflow-x-clip">
         <Suspense
           fallback={
             <StateBlock
               state="loading"
               locale="ar"
-              skeletonRows={5}
+              skeletonRows={4}
               minHeightClass="min-h-[320px]"
             />
           }

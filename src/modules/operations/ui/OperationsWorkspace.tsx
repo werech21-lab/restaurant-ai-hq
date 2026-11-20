@@ -192,7 +192,7 @@ function Workspace({
         <div
           role="tablist"
           aria-label={t('ops.title')}
-          className="mb-5 flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+          className="mb-5 flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
         >
           {tabs.map((item) => (
             <button
@@ -203,7 +203,7 @@ function Workspace({
               aria-selected={tab === item}
               aria-controls={`ops-panel-${item}`}
               onClick={() => setTab(item)}
-              className={tab === item ? primaryBtnCls : secondaryBtnCls}
+              className={`shrink-0 whitespace-nowrap ${tab === item ? primaryBtnCls : secondaryBtnCls}`}
             >
               {t(`ops.tab.${item}` as MessageKey)}
             </button>
@@ -295,12 +295,14 @@ function Workspace({
                         return (
                           <tr key={contract.id}>
                             <td className="px-3 py-2.5 font-medium text-slate-900 dark:text-slate-100">
-                              {contract.title}
-                              {contract.renewalDue ? (
-                                <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                                  {t('ops.renewal')}
-                                </span>
-                              ) : null}
+                              <div className="flex items-center gap-2">
+                                <span className="min-w-0 truncate">{contract.title}</span>
+                                {contract.renewalDue ? (
+                                  <span className="shrink-0 whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
+                                    {t('ops.renewal')}
+                                  </span>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="px-3 py-2.5 text-slate-700 dark:text-slate-300">
                               {contract.counterparty}
@@ -310,13 +312,13 @@ function Workspace({
                               title={
                                 formattedValue === UNAVAILABLE_DASH ? unavailableTooltip : undefined
                               }
-                              className="ds-num px-3 py-2.5 text-end font-semibold text-slate-900 dark:text-slate-100"
+                              className="ds-num whitespace-nowrap px-3 py-2.5 text-end font-semibold text-slate-900 dark:text-slate-100"
                             >
                               {formattedValue}
                             </td>
                             <td
                               dir="ltr"
-                              className="ds-num px-3 py-2.5 text-slate-600 dark:text-slate-300"
+                              className="ds-num whitespace-nowrap px-3 py-2.5 text-slate-600 dark:text-slate-300"
                             >
                               {formatDate(contract.endDate, fmtLocale)}
                             </td>

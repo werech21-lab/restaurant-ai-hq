@@ -16,7 +16,6 @@ import {
   formatInt,
   formatKwd,
   formatPct,
-  getUnavailableTooltip,
   UNAVAILABLE_DASH,
   type FormatLocale,
 } from '@/lib/format'
@@ -25,8 +24,7 @@ import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { resolveBestBranchBadge } from '@/lib/aether/period-delta'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
-import { StateBlock, UnavailableState, formatChartKwdTooltip } from '@/components/ui'
+import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import {
   ComparisonBarChart,
   TimelineAreaChart,
@@ -54,9 +52,9 @@ import {
 } from '@/lib/erp-comparison-engine'
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] dark:border-slate-800 dark:bg-slate-900/95'
+  'ae-bento-card relative overflow-visible rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] dark:border-slate-800 dark:bg-slate-900/95'
 const KPI_CLS =
-  'ae-kpi-card rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] transition-all duration-150 dark:border-slate-800 dark:bg-slate-900/95'
+  'ae-kpi-card relative overflow-visible rounded-2xl border border-[#1E3A5F]/[0.08] bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] transition-all duration-150 dark:border-slate-800 dark:bg-slate-900/95'
 const SEGMENT_TRACK_CLS =
   'flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl border border-[#1E3A5F]/[0.08] bg-[#EDF2F0]/90 p-1 dark:border-slate-800 dark:bg-slate-900/80'
 const SEGMENT_BTN_CLS =
@@ -140,7 +138,6 @@ export function WeekdayComparisonStudio() {
   const { locale } = useI18n()
   const resolvedLocale: FormatLocale = locale !== 'en' ? 'ar' : 'en'
   const isAr = resolvedLocale !== 'en'
-  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const kwd = isAr ? 'د.ك' : 'KWD'
   const { filters, liveSummary } = useGlobalFilter()
 
@@ -356,9 +353,16 @@ export function WeekdayComparisonStudio() {
           ? comparison.byChannel
           : comparison.byBranch
 
-    // Keep standalone 8th unattributed row pinned at bottom of branch breakdown when sorting
+    // Keep standalone 8th unattributed row pinned at bottom of branch breakdown when non-zero; hide genuinely empty 0.000 KWD / 0 orders unattributed row
     const mapped = src.filter((r) => !r.isUnattributed)
-    const unattr = src.filter((r) => r.isUnattributed)
+    const unattr = src.filter(
+      (r) =>
+        r.isUnattributed &&
+        (Math.abs(r.valueA) > 0.0005 ||
+          Math.abs(r.valueB) > 0.0005 ||
+          (r.ordersA ?? 0) > 0 ||
+          (r.ordersB ?? 0) > 0),
+    )
 
     mapped.sort((a, b) => {
       const diff = a[sortCol] - b[sortCol]
@@ -367,6 +371,33 @@ export function WeekdayComparisonStudio() {
 
     return [...mapped, ...unattr]
   }, [comparison.byBranch, comparison.byBrand, comparison.byChannel, sortCol, sortDir, tableTab])
+
+  const visibleKpis = useMemo(
+    () =>
+      comparison.kpiList.filter((kpi) => {
+        const isGlKpi =
+          kpi.id === 'foodAndAggregatorCost' ||
+          kpi.id === 'netPocketCash' ||
+          kpi.id === 'netPocketMargin'
+        const isUnavailable =
+          kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
+        return !isUnavailable
+      }),
+    [comparison.accountingAvailable, comparison.kpiList],
+  )
+
+  const kpiGridColsCls =
+    visibleKpis.length <= 1
+      ? 'grid-cols-1'
+      : visibleKpis.length === 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : visibleKpis.length === 3
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+          : visibleKpis.length === 4
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            : visibleKpis.length === 5
+              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'
 
   const toggleSort = useCallback(
     (col: SortColumnKey) => {
@@ -670,8 +701,6 @@ export function WeekdayComparisonStudio() {
         }
       />
 
-      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
-
       {loading ? (
         <StateBlock
           state="loading"
@@ -786,106 +815,83 @@ export function WeekdayComparisonStudio() {
           </section>
 
           {/* 3. KPI Delta Cards */}
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            {comparison.kpiList.map((kpi) => {
-              const isGlKpi =
-                kpi.id === 'foodAndAggregatorCost' ||
-                kpi.id === 'netPocketCash' ||
-                kpi.id === 'netPocketMargin'
-              const isUnavailable =
-                kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
-              const unavailableReason = isAr
-                ? kpi.unavailableReasonAr ?? 'غير متاح'
-                : kpi.unavailableReasonEn ?? 'Unavailable'
-              const badgeTone =
-                kpi.trend === 'flat'
-                  ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
-                  : kpi.isFavorable
-                    ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
-                    : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
+          {visibleKpis.length > 0 ? (
+            <section className={`grid gap-3 sm:gap-4 ${kpiGridColsCls}`}>
+              {visibleKpis.map((kpi) => {
+                const isGlKpi =
+                  kpi.id === 'foodAndAggregatorCost' ||
+                  kpi.id === 'netPocketCash' ||
+                  kpi.id === 'netPocketMargin'
+                const badgeTone =
+                  kpi.trend === 'flat'
+                    ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                    : kpi.isFavorable
+                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
+                      : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
 
-              if (isGlKpi && isUnavailable) return null
-              return (
-                <div key={kpi.id} className={KPI_CLS}>
-                  <div className="flex items-start justify-between gap-1.5">
-                    <span className="text-[12px] font-semibold leading-snug text-slate-600 sm:text-[12.5px] dark:text-slate-300">
-                      {isAr ? kpi.labelAr : kpi.labelEn}
-                    </span>
-                    {isUnavailable ? null : kpi.isFavorable ? (
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
-                    )}
-                  </div>
+                return (
+                  <div key={kpi.id} className={`${KPI_CLS} min-w-0`}>
+                    <div className="flex items-start justify-between gap-1.5">
+                      <span className="min-w-0 truncate text-[12px] font-semibold leading-snug text-slate-600 sm:text-[12.5px] dark:text-slate-300">
+                        {isAr ? kpi.labelAr : kpi.labelEn}
+                      </span>
+                      {kpi.isFavorable ? (
+                        <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
+                      )}
+                    </div>
 
-                  {isUnavailable ? (
-                    <>
-                      <div
+                    <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                      <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
+                        {formatKpiPrimaryValue(kpi, resolvedLocale)}
+                      </span>
+                      {kpi.unit === 'KWD' && (
+                        <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
+                      )}
+                      {kpi.unit === 'orders' && (
+                        <span className="text-[13px] font-semibold text-slate-500">
+                          {isAr ? 'طلب' : 'ord'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
+                      <span
                         dir="ltr"
-                        data-unavailable="true"
-                        title={unavailableTip}
-                        aria-label={unavailableTip}
-                        className="mt-2 text-xl font-semibold tabular-nums text-slate-400"
+                        className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
                       >
-                        {UNAVAILABLE_DASH}
-                      </div>
-                      <div className="mt-2">
-                        <UnavailableState compact isAr={isAr} reason={unavailableReason} />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
-                        <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
-                          {formatKpiPrimaryValue(kpi, resolvedLocale)}
-                        </span>
-                        {kpi.unit === 'KWD' && (
-                          <span className="text-[13px] font-semibold text-slate-500">{kwd}</span>
-                        )}
-                        {kpi.unit === 'orders' && (
-                          <span className="text-[13px] font-semibold text-slate-500">
-                            {isAr ? 'طلب' : 'ord'}
-                          </span>
-                        )}
-                      </div>
+                        {formatKpiDeltaBadge(kpi)}
+                      </span>
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
+                        {kpi.unit === 'pct'
+                          ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
+                          : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, resolvedLocale)} ${
+                              kpi.unit === 'KWD' ? kwd : ''
+                            }`}
+                      </span>
+                    </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-1.5 tabular-nums">
-                        <span
-                          dir="ltr"
-                          className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
-                        >
-                          {formatKpiDeltaBadge(kpi)}
-                        </span>
-                        <span dir="ltr" className="text-xs font-medium tabular-nums text-slate-500 dark:text-slate-400">
-                          {kpi.unit === 'pct'
-                            ? `${kpi.deltaBps && kpi.deltaBps > 0 ? '+' : ''}${kpi.deltaBps ?? 0} bps`
-                            : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, resolvedLocale)} ${
-                                kpi.unit === 'KWD' ? kwd : ''
-                              }`}
-                        </span>
-                      </div>
+                    <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
+                      {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
+                      <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
+                        {formatKpiSecondaryValue(kpi, resolvedLocale)}
+                        {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
+                      </span>
+                    </p>
 
-                      <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] leading-snug text-slate-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
-                        {isAr ? 'مقارنة بـ:' : 'vs B:'}{' '}
-                        <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
-                          {formatKpiSecondaryValue(kpi, resolvedLocale)}
-                          {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
-                        </span>
-                      </p>
-                    </>
-                  )}
-
-                  <KpiProvenanceBadge
-                    odooModel={isGlKpi ? 'account.move.line' : 'pos.order.line'}
-                    dateRange={dateRangeBadge}
-                    lastSyncAt={apiLastSyncAt}
-                    isStale24h={apiIsStale24h}
-                    kind={kpi.id === 'averageCheck' || kpi.unit === 'pct' ? 'محسوب بمعادلة' : 'فعلي'}
-                  />
-                </div>
-              )
-            })}
-          </section>
+                    <KpiProvenanceBadge
+                      odooModel={isGlKpi ? 'account.move.line' : 'pos.order.line'}
+                      dateRange={dateRangeBadge}
+                      lastSyncAt={apiLastSyncAt}
+                      isStale24h={apiIsStale24h}
+                      kind={kpi.id === 'averageCheck' || kpi.unit === 'pct' ? 'محسوب بمعادلة' : 'فعلي'}
+                    />
+                  </div>
+                )
+              })}
+            </section>
+          ) : null}
 
           {/* 4. Hourly / Daily Comparison Chart */}
           <section
@@ -899,7 +905,7 @@ export function WeekdayComparisonStudio() {
                   ? `المقارنة اليومية — ${dateRangeBadge}`
                   : `Daily Comparison — ${dateRangeBadge}`
             }
-            className={`${CARD_CLS} min-h-[340px] w-full`}
+            className={`${CARD_CLS} w-full`}
           >
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -1230,29 +1236,29 @@ export function WeekdayComparisonStudio() {
                             : ''
                       }`}
                     >
-                      <td className="py-3 ps-4 pe-3">
-                        <div className="font-semibold text-slate-950 dark:text-white">
+                      <td className="max-w-[220px] py-3 ps-4 pe-3">
+                        <div className="truncate font-semibold text-slate-950 dark:text-white">
                           {isAr ? row.nameAr : row.nameEn}
                         </div>
-                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                        <div className="truncate text-xs text-slate-500 dark:text-slate-400">
                           {isAr ? row.subMetaAr : row.subMetaEn} •{' '}
                           <span dir="ltr" className="tabular-nums">
                             {formatPct(row.shareOfTotalAPct, { locale: resolvedLocale })}
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-3 font-semibold text-slate-950 dark:text-white">
+                      <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-950 dark:text-white">
                         <span dir="ltr" className="tabular-nums">
                           {fmtKwd(row.valueA, resolvedLocale)} {kwd}
                         </span>
                       </td>
-                      <td className="px-3 py-3 font-medium text-slate-600 dark:text-slate-300">
+                      <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-600 dark:text-slate-300">
                         <span dir="ltr" className="tabular-nums">
                           {fmtKwd(row.valueB, resolvedLocale)} {kwd}
                         </span>
                       </td>
                       <td
-                        className={`px-3 py-3 font-semibold ${
+                        className={`whitespace-nowrap px-3 py-3 font-semibold ${
                           row.deltaKwd >= 0
                             ? 'text-emerald-700 dark:text-emerald-300'
                             : 'text-rose-700 dark:text-rose-300'
@@ -1262,16 +1268,16 @@ export function WeekdayComparisonStudio() {
                           {fmtSignedKwd(row.deltaKwd, resolvedLocale)} {kwd}
                         </span>
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="whitespace-nowrap px-3 py-3">
                         <span
                           dir="ltr"
-                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px] font-semibold tabular-nums ${tierBadgeCls(row.tier)}`}
+                          className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[13px] font-semibold tabular-nums ${tierBadgeCls(row.tier)}`}
                         >
                           <span className={`h-2 w-2 shrink-0 rounded-full ${tierDotCls(row.tier)}`} aria-hidden />
                           <span>{fmtSignedPct(row.deltaPct, resolvedLocale)}</span>
                         </span>
                       </td>
-                      <td className="px-3 py-3 text-slate-700 dark:text-slate-300">
+                      <td className="whitespace-nowrap px-3 py-3 text-slate-700 dark:text-slate-300">
                         <span dir="ltr" className="tabular-nums">
                           {fmt0(row.ordersA, resolvedLocale)}{' '}
                           <span className="text-[13px] text-slate-400">
@@ -1279,7 +1285,7 @@ export function WeekdayComparisonStudio() {
                           </span>
                         </span>
                       </td>
-                      <td className="py-3 ps-3 pe-4 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
+                      <td className="whitespace-nowrap py-3 ps-3 pe-4 text-end font-mono text-xs text-slate-600 dark:text-slate-300">
                         <span dir="ltr" className="tabular-nums">
                           {fmtKwd(row.aovA, resolvedLocale)} / {fmtKwd(row.aovB, resolvedLocale)}{' '}
                           {kwd}

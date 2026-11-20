@@ -14,7 +14,7 @@ export default async function InventoryPage({
   const permissions = await readSessionPermissions()
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden px-4 py-5 sm:px-6">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 px-4 py-5 sm:px-6">
       <InventoryHub
         permissions={permissions}
         initialTab={tab ?? 'stock'}

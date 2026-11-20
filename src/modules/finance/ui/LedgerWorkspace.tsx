@@ -96,20 +96,20 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
   const closeDialog = useCallback(() => setDialog(null), [])
 
   const accountPath = useMemo(() => {
-    const query = new URLSearchParams({ limit: '25', status: accountStatus })
+    const query = new URLSearchParams({ limit: '12', status: accountStatus })
     if (accountType !== 'all') query.set('type', accountType)
     return `/api/v1/finance/accounts?${query.toString()}`
   }, [accountType, accountStatus])
 
   // The list endpoint takes whole dates only, so a half-typed date is left out instead of sent.
   const entryPath = useMemo(() => {
-    const query = new URLSearchParams({ limit: '25', status: entryStatus })
+    const query = new URLSearchParams({ limit: '12', status: entryStatus })
     if (/^\d{4}-\d{2}-\d{2}$/.test(entryFrom)) query.set('from', entryFrom)
     if (/^\d{4}-\d{2}-\d{2}$/.test(entryTo)) query.set('to', entryTo)
     return `/api/v1/finance/journal-entries?${query.toString()}`
   }, [entryStatus, entryFrom, entryTo])
 
-  const periodPath = useMemo(() => `/api/v1/finance/periods?limit=25&status=${periodStatus}`, [periodStatus])
+  const periodPath = useMemo(() => `/api/v1/finance/periods?limit=12&status=${periodStatus}`, [periodStatus])
 
   const title = (() => {
     switch (dialog?.kind) {
@@ -125,36 +125,38 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
   })()
 
   return (
-    <div dir={resolvedLocale === 'ar' ? 'rtl' : 'ltr'} className="min-w-0">
-      <Link href="/erp" className="ds-focus-ring mb-6 inline-block rounded-lg text-sm text-blue-400 hover:text-blue-300">
-        {t('erp.back')}
-      </Link>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-mist-100">{t('led.title')}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-300">{t('led.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canManageAccounts ? (
-            <button type="button" onClick={() => setDialog({ kind: 'account' })} className={`${secondaryButton} ds-focus-ring`}>
-              {t('led.acc.new')}
-            </button>
-          ) : null}
-          {canManagePeriods ? (
-            <button type="button" onClick={() => setDialog({ kind: 'period' })} className={`${secondaryButton} ds-focus-ring`}>
-              {t('led.per.new')}
-            </button>
-          ) : null}
-          {canCreateEntry ? (
-            <button type="button" onClick={() => setDialog({ kind: 'entry' })} className={`${primaryButton} ds-focus-ring`}>
-              {t('led.je.new')}
-            </button>
-          ) : null}
+    <div dir={resolvedLocale === 'ar' ? 'rtl' : 'ltr'} className="min-w-0 space-y-5">
+      <div className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <Link href="/erp/finance" className="ds-focus-ring mb-3 inline-block rounded-lg text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-300">
+          {t('erp.back')}
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{t('led.title')}</h1>
+            <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{t('led.subtitle')}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {canManageAccounts ? (
+              <button type="button" onClick={() => setDialog({ kind: 'account' })} className={`${secondaryButton} ds-focus-ring shrink-0 whitespace-nowrap`}>
+                {t('led.acc.new')}
+              </button>
+            ) : null}
+            {canManagePeriods ? (
+              <button type="button" onClick={() => setDialog({ kind: 'period' })} className={`${secondaryButton} ds-focus-ring shrink-0 whitespace-nowrap`}>
+                {t('led.per.new')}
+              </button>
+            ) : null}
+            {canCreateEntry ? (
+              <button type="button" onClick={() => setDialog({ kind: 'entry' })} className={`${primaryButton} ds-focus-ring shrink-0 whitespace-nowrap`}>
+                {t('led.je.new')}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
       {notice ? (
-        <p role="status" className={`${noticeClass} mb-4`}>
+        <p role="status" className={noticeClass}>
           {t(notice)}
         </p>
       ) : null}
@@ -166,7 +168,7 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
           <div
             role="tablist"
             aria-label={t('led.title')}
-            className="no-scrollbar mb-4 flex gap-1 overflow-x-auto border-b border-[#30363d]"
+            className="no-scrollbar flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-[#30363d]"
           >
             {visibleTabs.map((value) => (
               <button
@@ -177,8 +179,10 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                 aria-selected={tab === value}
                 aria-controls={`led-panel-${value}`}
                 onClick={() => setTab(value)}
-                className={`ds-focus-ring -mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm transition ${
-                  tab === value ? 'border-blue-500 font-semibold text-blue-300' : 'border-transparent text-gray-300 hover:text-gray-100'
+                className={`ds-focus-ring -mb-px shrink-0 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition ${
+                  tab === value
+                    ? 'border-emerald-600 font-semibold text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
                 }`}
               >
                 {t(`led.tab.${value}`)}
@@ -212,7 +216,7 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                   </>
                 }
                 columns={[
-                  { header: 'led.acc.code', cell: (row) => <Num className="font-semibold text-blue-300">{row.code}</Num> },
+                  { header: 'led.acc.code', cell: (row) => <Num className="font-semibold text-emerald-700 dark:text-emerald-300">{row.code}</Num> },
                   { header: 'led.acc.name', cell: (row) => row.name },
                   { header: 'led.acc.type', cell: (row) => t(accountTypeLabels[row.type]) },
                   { header: 'led.acc.postable', cell: (row) => t(row.isPostable ? 'led.acc.postableYes' : 'led.acc.header') },
@@ -238,18 +242,18 @@ function Workspace({ initialEntryId, initialTab }: { initialEntryId: string | nu
                         </option>
                       ))}
                     </select>
-                    <label className="text-xs text-gray-400">
+                    <label className="text-xs text-slate-600 dark:text-slate-300">
                       {t('led.je.from')}
                       <input type="date" value={entryFrom} onChange={(event) => setEntryFrom(event.target.value)} dir="ltr" className={`${inputClass} mt-0 w-auto`} />
                     </label>
-                    <label className="text-xs text-gray-400">
+                    <label className="text-xs text-slate-600 dark:text-slate-300">
                       {t('led.je.to')}
                       <input type="date" value={entryTo} onChange={(event) => setEntryTo(event.target.value)} dir="ltr" className={`${inputClass} mt-0 w-auto`} />
                     </label>
                   </>
                 }
                 columns={[
-                  { header: 'led.je.number', cell: (row) => <Num className="font-semibold text-blue-300">JE-{row.number}</Num> },
+                  { header: 'led.je.number', cell: (row) => <Num className="font-semibold text-emerald-700 dark:text-emerald-300">JE-{row.number}</Num> },
                   { header: 'led.je.date', cell: (row) => <Num>{row.entryDate}</Num> },
                   { header: 'led.je.memo', cell: (row) => (row.memo === '' ? '—' : row.memo) },
                   { header: 'led.je.source', cell: (row) => t(sourceTypeLabels[row.sourceType]) },

@@ -1,8 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { cx } from '@/components/ui/cx'
-import { DetailsPopover } from '@/components/ui/details-popover'
 import { formatKuwaitDateTime } from '@/lib/format'
 import { useI18n } from '@/lib/i18n'
 
@@ -23,12 +30,34 @@ export interface KpiProvenanceBadgeProps {
   isStale24h?: boolean
   /** Classification of the KPI number: `فعلي` | `محسوب بمعادلة` | `تقدير` */
   kind: KpiMetricKindInput
-  /** Actual Odoo JSON-RPC domain/read_group query or explicit mathematical formula shown on hover/title */
+  /** Actual Odoo JSON-RPC domain/read_group query or explicit mathematical formula */
   queryOrFormula?: string
   isAr?: boolean
   compact?: boolean
+  /** Optional controlled open state */
+  open?: boolean
+  /** Optional initial open state for uncontrolled usage */
+  defaultOpen?: boolean
+  /** Callback fired whenever open state changes */
+  onOpenChange?: (open: boolean) => void
   className?: string
 }
+
+interface PopoverCoords {
+  top: number
+  left: number
+  placement: 'bottom' | 'top'
+}
+
+const VIEWPORT_MARGIN = 12
+const TRIGGER_GAP = 8
+const FALLBACK_POPOVER_WIDTH = 288
+const FALLBACK_POPOVER_HEIGHT = 176
+
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' && typeof document !== 'undefined'
+    ? useLayoutEffect
+    : useEffect
 
 function useSafeIsAr(explicitIsAr?: boolean): boolean {
   try {
@@ -98,15 +127,82 @@ function formatSyncShort(lastSyncAt?: string | null): {
   }
 }
 
+export function computeCollisionAwarePopoverCoords(params: {
+  triggerRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>
+  popoverWidth: number
+  popoverHeight: number
+  viewportWidth: number
+  viewportHeight: number
+  isRtl: boolean
+}): PopoverCoords {
+  const {
+    triggerRect,
+    popoverWidth,
+    popoverHeight,
+    viewportWidth,
+    viewportHeight,
+    isRtl,
+  } = params
+
+  const vw = Math.max(320, viewportWidth)
+  const vh = Math.max(240, viewportHeight)
+  const clampedWidth = Math.min(
+    popoverWidth > 0 ? popoverWidth : FALLBACK_POPOVER_WIDTH,
+    Math.max(200, vw - VIEWPORT_MARGIN * 2),
+  )
+  const clampedHeight = popoverHeight > 0 ? popoverHeight : FALLBACK_POPOVER_HEIGHT
+
+  const lacksSpaceBelow =
+    triggerRect.bottom + clampedHeight + VIEWPORT_MARGIN > vh
+  const hasMoreSpaceAbove = triggerRect.top > vh - triggerRect.bottom
+  const shouldFlipUp =
+    lacksSpaceBelow &&
+    (triggerRect.top - clampedHeight - TRIGGER_GAP >= VIEWPORT_MARGIN ||
+      hasMoreSpaceAbove)
+
+  const rawTop = shouldFlipUp
+    ? triggerRect.top - clampedHeight - TRIGGER_GAP
+    : triggerRect.bottom + TRIGGER_GAP
+  const maxTop = Math.max(VIEWPORT_MARGIN, vh - clampedHeight - VIEWPORT_MARGIN)
+  const top = Math.round(Math.min(Math.max(VIEWPORT_MARGIN, rawTop), maxTop))
+
+  let rawLeft = isRtl
+    ? triggerRect.right - clampedWidth
+    : triggerRect.left
+
+  if (
+    isRtl &&
+    rawLeft < VIEWPORT_MARGIN &&
+    triggerRect.left + clampedWidth <= vw - VIEWPORT_MARGIN
+  ) {
+    rawLeft = triggerRect.left
+  } else if (
+    !isRtl &&
+    rawLeft + clampedWidth > vw - VIEWPORT_MARGIN &&
+    triggerRect.right - clampedWidth >= VIEWPORT_MARGIN
+  ) {
+    rawLeft = triggerRect.right - clampedWidth
+  }
+
+  const maxLeft = Math.max(VIEWPORT_MARGIN, vw - clampedWidth - VIEWPORT_MARGIN)
+  const left = Math.round(Math.min(Math.max(VIEWPORT_MARGIN, rawLeft), maxLeft))
+
+  return {
+    top,
+    left,
+    placement: shouldFlipUp ? 'top' : 'bottom',
+  }
+}
+
 /**
  * Mandatory KPI Provenance Badge (`src/components/erp/KpiProvenanceBadge.tsx`).
- * Displays for every KPI:
+ * Displays for every KPI via a portal-rendered, collision-aware floating popover:
  *   1. Odoo model (`pos.order`, `account.move.line`, `stock.move`, ...)
  *   2. Date range (`from .. to`)
  *   3. Last sync timestamp (`Asia/Kuwait`)
  *   4. Metric type (`فعلي` | `محسوب بمعادلة` | `تقدير`)
  *   5. `قديمة` badge whenever data is older than 24 hours
- *   6. Exact Odoo query or mathematical formula, opened below the badge
+ *   6. Exact Odoo query or mathematical formula
  */
 export function KpiProvenanceBadge({
   odooModel: rawOdooModel,
@@ -118,9 +214,13 @@ export function KpiProvenanceBadge({
   queryOrFormula: rawQueryOrFormula,
   isAr: explicitIsAr,
   compact = false,
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
   className = '',
 }: KpiProvenanceBadgeProps) {
   const isAr = useSafeIsAr(explicitIsAr)
+  const resolvedDir = isAr ? 'rtl' : 'ltr'
   const suppliedModel = (rawOdooModel || model || '').trim()
   const odooModel = suppliedModel || (isAr ? 'غير محدد' : 'unspecified')
   const kindMeta = normalizeKind(kind)
@@ -130,8 +230,7 @@ export function KpiProvenanceBadge({
       : dateRange.from === dateRange.to
         ? dateRange.from
         : `${dateRange.from} → ${dateRange.to}`
-  const queryOrFormula =
-    rawQueryOrFormula || `${odooModel} [${rangeStr}]`
+  const queryOrFormula = rawQueryOrFormula || `${odooModel} [${rangeStr}]`
 
   const syncInfo = formatSyncShort(lastSyncAt)
   const stale = Boolean(isStale24h || syncInfo.computedStale24h)
@@ -152,15 +251,113 @@ export function KpiProvenanceBadge({
         `Query / Formula: ${queryOrFormula}`,
       ].join(' | ')
 
-  return (
-    <DetailsPopover
-      isAr={isAr}
-      accessibleSummary={accessibleSummary}
-      data-kpi-provenance={kindMeta.ar}
-      data-odoo-model={odooModel}
-      data-kpi-stale={stale ? 'true' : 'false'}
-      data-compact={compact ? 'true' : 'false'}
-      className={cx('mt-2 tabular-nums', className)}
+  const [internalOpen, setInternalOpen] = useState<boolean>(defaultOpen)
+  const [coords, setCoords] = useState<PopoverCoords>({
+    top: VIEWPORT_MARGIN,
+    left: VIEWPORT_MARGIN,
+    placement: 'bottom',
+  })
+
+  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelId = useId()
+
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (!isControlled) {
+        setInternalOpen(next)
+      }
+      onOpenChange?.(next)
+    },
+    [isControlled, onOpenChange],
+  )
+
+  const updatePosition = useCallback(() => {
+    if (typeof window === 'undefined' || !triggerRef.current) return
+    const triggerRect = triggerRef.current.getBoundingClientRect()
+    const popRect = panelRef.current?.getBoundingClientRect()
+    const next = computeCollisionAwarePopoverCoords({
+      triggerRect,
+      popoverWidth: popRect?.width ?? FALLBACK_POPOVER_WIDTH,
+      popoverHeight: popRect?.height ?? FALLBACK_POPOVER_HEIGHT,
+      viewportWidth:
+        window.innerWidth || document.documentElement?.clientWidth || 1024,
+      viewportHeight:
+        window.innerHeight || document.documentElement?.clientHeight || 768,
+      isRtl: isAr,
+    })
+    setCoords((prev) =>
+      prev.top === next.top &&
+      prev.left === next.left &&
+      prev.placement === next.placement
+        ? prev
+        : next,
+    )
+  }, [isAr])
+
+  useIsomorphicLayoutEffect(() => {
+    if (!open || typeof window === 'undefined' || typeof document === 'undefined') {
+      return
+    }
+    updatePosition()
+    const handleReposition = () => updatePosition()
+    window.addEventListener('scroll', handleReposition, {
+      capture: true,
+      passive: true,
+    })
+    window.addEventListener('resize', handleReposition, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleReposition, { capture: true })
+      window.removeEventListener('resize', handleReposition)
+    }
+  }, [open, updatePosition])
+
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') return
+    const onOutsidePointer = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (triggerRef.current?.contains(target)) return
+      if (rootRef.current?.contains(target)) return
+      if (panelRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        triggerRef.current?.focus()
+      }
+    }
+    document.addEventListener('mousedown', onOutsidePointer)
+    document.addEventListener('touchstart', onOutsidePointer, { passive: true })
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onOutsidePointer)
+      document.removeEventListener('touchstart', onOutsidePointer)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open, setOpen])
+
+  const triggerText = isAr ? 'التفاصيل' : 'Details'
+
+  const popoverPanel = open ? (
+    <div
+      ref={panelRef}
+      id={panelId}
+      role="tooltip"
+      dir={resolvedDir}
+      data-kpi-provenance-portal="true"
+      data-placement={coords.placement}
+      style={{
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        zIndex: 9999,
+      }}
+      className="fixed z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl border border-slate-200/90 bg-white/98 p-3.5 text-xs text-slate-700 tabular-nums shadow-[0_20px_48px_-12px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:border-white/15 dark:bg-[#0F1A30]/98 dark:text-slate-200 dark:shadow-[0_22px_50px_-12px_rgba(2,6,23,0.82)]"
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <span
@@ -208,7 +405,43 @@ export function KpiProvenanceBadge({
       >
         {queryOrFormula}
       </div>
-    </DetailsPopover>
+    </div>
+  ) : null
+
+  return (
+    <div
+      ref={rootRef}
+      dir={resolvedDir}
+      data-details-popover="true"
+      data-kpi-provenance={kindMeta.ar}
+      data-odoo-model={odooModel}
+      data-kpi-stale={stale ? 'true' : 'false'}
+      data-compact={compact ? 'true' : 'false'}
+      className={cx(
+        'relative inline-flex items-center text-xs leading-tight mt-2 tabular-nums',
+        className,
+      )}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        data-details-trigger="true"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={accessibleSummary}
+        onClick={() => setOpen(!open)}
+        className="inline-flex shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-slate-300/65 bg-white/75 px-2.5 py-1 text-xs font-semibold text-slate-600 backdrop-blur-sm transition-colors hover:border-slate-400/75 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 dark:border-white/15 dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.12] dark:hover:text-white"
+      >
+        <span aria-hidden="true">ⓘ</span>
+        <span>{triggerText}</span>
+      </button>
+
+      {popoverPanel
+        ? typeof document !== 'undefined' && document.body
+          ? createPortal(popoverPanel, document.body)
+          : popoverPanel
+        : null}
+    </div>
   )
 }
 

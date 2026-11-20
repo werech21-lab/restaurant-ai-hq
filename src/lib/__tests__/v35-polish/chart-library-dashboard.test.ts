@@ -461,8 +461,8 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
       expect(ordersCard).not.toBeNull()
       for (const card of [salesCard!, ordersCard!]) {
         expect(card.outerHtml).not.toContain('data-sparkline="true"')
-        expect(card.outerHtml).toContain('data-sparkline-unavailable="true"')
-        expect(card.text).toContain(note)
+        expect(card.outerHtml).not.toContain('data-sparkline-unavailable="true"')
+        expect(card.text).not.toContain(note)
         expect(card.outerHtml).not.toMatch(/amber-|rose-/)
       }
     }
@@ -526,7 +526,8 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
     expect(arLedger!.text).toContain('18.350')
     expect(arLedger!.text).toContain('الكوت')
     expect(arLedger!.text).toContain('5.450')
-    expect(arLedger!.text).toContain('غير منسوب لفرع')
+    // Zero-value unattributed row (0.000 KWD / 0 orders) is hidden cleanly
+    expect(arLedger!.text).not.toContain('غير منسوب لفرع')
     const arTable = findCardByTag(arLedger!.outerHtml, 'table', () => true)
     expect(arTable).not.toBeNull()
     expect(arTable!.outerHtml).not.toContain('data-branch-card')
@@ -546,7 +547,7 @@ describe('V35 Polish — FullJourney360 Live Fixture Sparklines, Channel Mix & S
     expect(enLedger!.text).toContain('18.350')
     expect(enLedger!.text).toContain('Al-Kout')
     expect(enLedger!.text).toContain('5.450')
-    expect(enLedger!.text).toContain('Unattributed to Branch')
+    expect(enLedger!.text).not.toContain('Unattributed to Branch')
     const enTable = findCardByTag(enLedger!.outerHtml, 'table', () => true)
     expect(enTable).not.toBeNull()
     expect(enTable!.outerHtml).not.toContain('data-branch-card')

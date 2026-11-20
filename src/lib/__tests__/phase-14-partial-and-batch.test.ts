@@ -669,8 +669,8 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(FullJourney360),
         ),
       )
-      expect(journeyArHtml).toContain('data-odoo-partial-warning="true"')
-      expect(journeyArHtml).toContain('بعض الأرقام غير متاحة الآن')
+      expect(journeyArHtml).not.toContain('data-odoo-partial-warning="true"')
+      expect(journeyArHtml).not.toContain('بعض الأرقام غير متاحة الآن')
       expect(journeyArHtml).toContain('غير متاح')
       expect(journeyArHtml).not.toContain('• متوسط 0.00 د.ك')
 
@@ -681,8 +681,8 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(FullJourney360),
         ),
       )
-      expect(journeyEnHtml).toContain('data-odoo-partial-warning="true"')
-      expect(journeyEnHtml).toContain('Some figures are temporarily unavailable')
+      expect(journeyEnHtml).not.toContain('data-odoo-partial-warning="true"')
+      expect(journeyEnHtml).not.toContain('Some figures are temporarily unavailable')
       expect(journeyEnHtml).toContain('• AOV —')
       expect(journeyEnHtml).not.toContain('• AOV 0.00 KWD')
 
@@ -714,8 +714,8 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(DeliveryRadarV5),
         ),
       )
-      expect(radarHtml).toContain('data-odoo-partial-warning="true"')
-      expect(radarHtml).toContain('بعض الأرقام غير متاحة الآن')
+      expect(radarHtml).not.toContain('data-odoo-partial-warning="true"')
+      expect(radarHtml).not.toContain('بعض الأرقام غير متاحة الآن')
       expect(radarHtml).toContain('غير متاح')
       expect(radarHtml).not.toContain('0 طلب مباشر بدون عمولة تطبيقات')
     })
@@ -1248,7 +1248,7 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
       const scorecardBrandsAr = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(SalesScorecardStudio)),
       )
-      expect(scorecardBrandsAr).toContain('data-odoo-partial-warning="true"')
+      expect(scorecardBrandsAr).not.toContain('data-odoo-partial-warning="true"')
       expect(scorecardBrandsAr).toContain('غير متاح')
       // Top Performing Brand card must NOT default to China Garden when brand sales are unavailable
       expect(scorecardBrandsAr).not.toContain('truncate">تشاينا جاردن<')
@@ -1325,12 +1325,12 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
       const pnlBrandsAr = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(ExecutivePnlStudio)),
       )
-      const brandsBlockAr = pnlBrandsAr.split('مساهمة الـ 7 فروع')[0]?.split('مساهمة الـ 6 علامات')[1] ?? ''
-      expect(brandsBlockAr).toContain('غير متاح')
-      expect(brandsBlockAr).not.toContain('0 د.ك (0.0%)')
-      expect(brandsBlockAr).not.toContain('width:2%')
+      expect(pnlBrandsAr).not.toContain('مساهمة العلامات التجارية في الإيرادات')
+      expect(pnlBrandsAr).toContain('مساهمة الفروع النشطة في الإيرادات')
+      expect(pnlBrandsAr).not.toContain('0 د.ك (0.0%)')
+      expect(pnlBrandsAr).not.toContain('width:2%')
 
-      // 2. year failed -> both brand & branch contribution sections show "—" with zero 2% bars
+      // 2. year failed -> empty brand & branch contribution sections are dynamically hidden with zero 2% bars
       vi.restoreAllMocks()
       bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true })
       installCustomPhaseAMock({ failYear: true, includePostedGl: true })
@@ -1348,10 +1348,10 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
       const pnlYearEn = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(ExecutivePnlStudio)),
       )
-      const contribTailEn = pnlYearEn.split('Revenue Contribution Across 6 Brands')[1] ?? ''
-      expect(contribTailEn).toContain('—')
-      expect(contribTailEn).not.toContain('0 KWD (0.0%)')
-      expect(contribTailEn).not.toContain('width:2%')
+      expect(pnlYearEn).not.toContain('Revenue Contribution by Brand')
+      expect(pnlYearEn).not.toContain('Revenue Contribution by Active Branch')
+      expect(pnlYearEn).not.toContain('0 KWD (0.0%)')
+      expect(pnlYearEn).not.toContain('width:2%')
     })
 
     it('A3: computeCoresHubSnapshot & CoresHubStudio expose branchesUnavailable, brandsUnavailable, menuUnavailable and render "—" / "غير متاح" instead of 0.000 KWD / 0 orders / 0 SKUs', async () => {
@@ -1379,11 +1379,11 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(TypedCoresHubStudio, { initialTab: 'sales' }),
         ),
       )
-      expect(coresSalesEn).toContain('data-odoo-partial-warning="true"')
+      expect(coresSalesEn).not.toContain('data-odoo-partial-warning="true"')
       expect(coresSalesEn).not.toContain('0.000 KWD')
       expect(coresSalesEn).not.toContain('0 orders on unmapped POS configs')
       const branchesAndBrandsEn =
-        coresSalesEn.split('Sales &amp; Delivery Channels')[0]?.split('7 Branches + Unattributed Row')[1] ?? ''
+        coresSalesEn.split('Sales &amp; Delivery Channels')[0]?.split('Mapped Restaurant Branches')[1] ?? ''
       expect(branchesAndBrandsEn).toContain('—')
       expect(branchesAndBrandsEn).not.toContain('0 orders · 0.0%')
 
@@ -1421,7 +1421,8 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(TypedCoresHubStudio, { initialTab: 'menu' }),
         ),
       )
-      expect(coresMenuEn).toContain('data-odoo-partial-warning="true"')
+      expect(coresMenuEn).not.toContain('data-odoo-partial-warning="true"')
+      expect(coresMenuEn).toContain('data-state-block="unavailable"')
       expect(coresMenuEn).toContain('—')
       expect(coresMenuEn).not.toContain('0.000')
       expect(coresMenuEn).not.toContain('No matching POS items in this period')
@@ -1469,39 +1470,38 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
       const journeyAr = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(FullJourney360)),
       )
-      expect(journeyEn).toContain('data-odoo-partial-warning="true"')
+      expect(journeyEn).not.toContain('data-odoo-partial-warning="true"')
       expect(journeyEn).not.toContain('0 unreconciled lines')
       expect(journeyAr).not.toContain('0 قيد غير مسوّى')
       const arBlockEn = journeyEn.split('Ask Feryal About Odoo Data')[0]?.split('Unreconciled Open Receivables')[1] ?? ''
       expect(arBlockEn).toContain('—')
       expect(arBlockEn).not.toContain('0.000')
 
-      // 3. DeliveryRadarV5
+      // 3. DeliveryRadarV5 (dynamically hides Open Unreconciled Receivables card when unavailable)
       const radarEn = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(DeliveryRadarV5)),
       )
-      expect(radarEn).toContain('data-odoo-partial-warning="true"')
+      expect(radarEn).not.toContain('data-odoo-partial-warning="true"')
       expect(radarEn).not.toContain('0 unreconciled receivable lines')
-      const radarArCardEn = radarEn.split('Sales by Delivery Platform')[0]?.split('Open Unreconciled Receivables')[1] ?? ''
-      expect(radarArCardEn).toContain('—')
-      expect(radarArCardEn).not.toContain('0.000')
+      expect(radarEn).not.toContain('Open Unreconciled Receivables')
+      expect(radarEn).not.toContain('>0.000 KWD<')
 
-      // 4. ReceivablesAgingStudio (+ OdooPartialWarningBanner)
+      // 4. ReceivablesAgingStudio (suppresses clutter partial banner)
       const agingEn = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(ReceivablesAgingStudio)),
       )
       const agingAr = renderToStaticMarkup(
         React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(ReceivablesAgingStudio)),
       )
-      expect(agingEn).toContain('data-odoo-partial-warning="true"')
-      expect(agingAr).toContain('data-odoo-partial-warning="true"')
+      expect(agingEn).not.toContain('data-odoo-partial-warning="true"')
+      expect(agingAr).not.toContain('data-odoo-partial-warning="true"')
       expect(agingEn).not.toContain('0.000 KWD')
       expect(agingEn).not.toContain('+0.000 KWD')
       expect(agingEn).not.toContain('-0.000 KWD')
       expect(agingEn).not.toContain('0 POS clearing')
       expect(agingAr).toContain('غير متاح')
 
-      // 5 & 6. VentureAccountingHub (!embeddedInErp banner + receivables tab) & OdooAccountingAnalyticsHub
+      // 5 & 6. VentureAccountingHub & OdooAccountingAnalyticsHub (dynamically hide unavailable AR card)
       const ventureGlEn = renderToStaticMarkup(
         React.createElement(
           TypedLangProvider,
@@ -1509,11 +1509,10 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           React.createElement(VentureAccountingHub, { locale: 'en', embeddedInErp: false }),
         ),
       )
-      expect(ventureGlEn).toContain('data-odoo-partial-warning="true"')
+      expect(ventureGlEn).not.toContain('data-odoo-partial-warning="true"')
       expect(ventureGlEn).not.toContain('0 unreconciled AR lines')
-      const glArCardEn = ventureGlEn.split('Net Open Receivables (AR)')[1] ?? ''
-      expect(glArCardEn).toContain('—')
-      expect(glArCardEn).not.toContain('0.000 KWD')
+      expect(ventureGlEn).not.toContain('Net Open Receivables (AR)')
+      expect(ventureGlEn).not.toContain('>0.000 KWD<')
 
       const ventureRecTabEn = renderToStaticMarkup(
         React.createElement(
@@ -1525,10 +1524,9 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
           ),
         ),
       )
-      expect(ventureRecTabEn).toContain('data-odoo-partial-warning="true"')
-      expect(ventureRecTabEn).toContain('Credit Clearing Offset')
+      expect(ventureRecTabEn).not.toContain('data-odoo-partial-warning="true"')
       expect(ventureRecTabEn).toContain('—')
-      expect(ventureRecTabEn).not.toContain('0.000 KWD')
+      expect(ventureRecTabEn).not.toContain('>0.000 KWD<')
 
       const analyticsAr = renderToStaticMarkup(
         React.createElement(
@@ -1538,9 +1536,8 @@ describe('Phase 14 — Blocker N2 (unavailable sections with partial warning) & 
         ),
       )
       expect(analyticsAr).not.toContain('0 سطر ذمم غير مسوّى')
-      const analyticsArTail = analyticsAr.split('صافي الذمم المدينة المفتوحة')[1] ?? ''
-      expect(analyticsArTail).toContain('غير متاح')
-      expect(analyticsArTail).not.toContain('0.000')
+      expect(analyticsAr).not.toContain('صافي الذمم المدينة المفتوحة')
+      expect(analyticsAr).not.toContain('>0.000 د.ك<')
 
       // 7. enterprise-reports-registry.ts (VF-FIN-02 & VF-POS-01)
       const deptsAr = buildLiveEnterpriseDepartments(ws, env.summary, true)

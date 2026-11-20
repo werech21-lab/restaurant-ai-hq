@@ -3,10 +3,14 @@
 /**
  * «اكتشافات اليوم / Today's Discoveries» — the top 3 cross-advisor findings (impact × novelty,
  * nothing repeated from the last 7 days). Every figure shown is an Odoo evidence value or a labelled
- * Estimate with its formula; with no stored council run the card shows the unavailable state.
+ * Estimate with its formula; with no stored council run the card shows nothing (no empty card).
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import {
+  fetchDecisionSwr,
+  peekDecisionSwrCache,
+} from '@/lib/aether/live-decision-generator'
 import type { AdvisorId, CouncilDiscovery, CouncilEstimate, CouncilEvidence } from '@/lib/council/types'
 
 export const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
@@ -21,8 +25,8 @@ export const ADVISOR_LABEL: Record<AdvisorId, { ar: string; en: string }> = {
   forecast: { ar: 'التوقع', en: 'Forecast' },
 }
 
-function fmt(n: number, locale: 'ar' | 'en', digits: number): string {
-  return n.toLocaleString(locale === 'ar' ? 'en-US' : 'en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+function fmt(n: number, _locale: 'ar' | 'en', digits: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
 export function evidenceValue(e: CouncilEvidence, locale: 'ar' | 'en'): string {
@@ -66,7 +70,15 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
           {t('Loading the advisor reports…', 'جاري تحميل تقارير المستشارين…')}
         </div>
       ) : !discoveries ? null : (
-        <ol className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <ol
+          className={`grid grid-cols-1 gap-3 ${
+            discoveries.length === 1
+              ? 'lg:grid-cols-1'
+              : discoveries.length === 2
+                ? 'lg:grid-cols-2'
+                : 'lg:grid-cols-3'
+          }`}
+        >
           {discoveries.map((d, i) => {
             const f = d.finding
             const p = f.proposals[0]
@@ -74,24 +86,27 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
             const ev = f.evidence.slice(0, 2)
             return (
               <li key={f.fingerprint} data-discovery={f.fingerprint} className="flex min-w-0 flex-col gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5">
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
-                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-white dark:bg-white dark:text-slate-900">{i + 1}</span>
+                <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                  <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-900 px-2 py-0.5 tabular-nums text-white dark:bg-white dark:text-slate-900">{i + 1}</span>
                   {[f.advisorId, ...d.linkedAdvisors].map((a) => (
-                    <span key={a} className="rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-200 dark:ring-blue-400/20">
+                    <span key={a} className="shrink-0 whitespace-nowrap rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:text-blue-200 dark:ring-blue-400/20">
                       {isAr ? ADVISOR_LABEL[a].ar : ADVISOR_LABEL[a].en}
                     </span>
                   ))}
+                  <span className="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-400/20">
+                    {t('Odoo Verified Actual', 'فعلي موثّق من أودو')}
+                  </span>
                 </div>
                 <h3 className="text-[14px] font-bold leading-snug text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</h3>
                 <dl className="space-y-1 text-[12.5px] text-slate-700 dark:text-slate-300">
                   {ev.map((e) => (
-                    <div key={`${e.labelEn}-${e.period.from}`} className="flex flex-wrap justify-between gap-x-2">
-                      <dt className="text-slate-500 dark:text-slate-400">{isAr ? e.labelAr : e.labelEn}</dt>
-                      <dd className="font-semibold tabular-nums" dir="ltr">{evidenceValue(e, locale)}</dd>
+                    <div key={`${e.labelEn}-${e.period.from}`} className="flex min-w-0 items-baseline justify-between gap-x-2">
+                      <dt className="min-w-0 truncate text-slate-500 dark:text-slate-400" title={isAr ? e.labelAr : e.labelEn}>{isAr ? e.labelAr : e.labelEn}</dt>
+                      <dd className="shrink-0 whitespace-nowrap font-semibold tabular-nums" dir="ltr">{evidenceValue(e, locale)}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className="text-[11.5px] text-slate-500 dark:text-slate-400" dir="ltr">
+                <p className="text-xs [overflow-wrap:anywhere] text-slate-500 dark:text-slate-400" dir="ltr">
                   {`Odoo · ${ev[0]?.odooModel} · ${ev[0]?.period.from} → ${ev[0]?.period.to} · ${t('sync', 'مزامنة')} ${syncLabel(ev[0]?.syncAt ?? null, locale)}`}
                 </p>
                 <p className="text-[12.5px] leading-relaxed text-slate-700 dark:text-slate-300">
@@ -105,7 +120,7 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
                   </p>
                 ) : null}
                 {est ? (
-                  <p data-estimate="true" className="mt-auto rounded-xl bg-amber-50/70 px-3 py-2 text-[11.5px] text-amber-900 ring-1 ring-amber-200/70 dark:bg-amber-400/10 dark:text-amber-100 dark:ring-amber-300/20">
+                  <p data-estimate="true" className="mt-auto rounded-xl bg-sky-50/70 px-3 py-2 text-xs [overflow-wrap:anywhere] text-sky-950 ring-1 ring-sky-200/70 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20">
                     <span className="font-bold">{t('Estimate', 'تقدير')}</span>
                     {`: ${estimateValue(est, locale)} = ${est.formula}`}
                   </p>
@@ -119,24 +134,43 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
   )
 }
 
-/** Fetches the latest stored council snapshot. */
+/** Fetches the latest council / live Odoo discoveries with warm SWR read caching. */
 export function TodaysDiscoveries({ locale }: { locale: 'ar' | 'en' }) {
-  const [state, setState] = useState<{ loading: boolean; discoveries: CouncilDiscovery[] | null }>({ loading: true, discoveries: null })
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/erp/council/discoveries', { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body: { discoveries?: CouncilDiscovery[] } | null) => {
-        if (!cancelled) setState({ loading: false, discoveries: body?.discoveries ?? null })
+  const [state, setState] = useState<{ loading: boolean; discoveries: CouncilDiscovery[] | null }>(() => {
+    const cached = peekDecisionSwrCache<CouncilDiscovery[]>('discoveries')
+    return cached ? { loading: false, discoveries: cached.data } : { loading: true, discoveries: null }
+  })
+
+  const revalidate = useCallback(() => {
+    void fetchDecisionSwr<CouncilDiscovery[]>('discoveries', async () => {
+      const r = await fetch('/api/erp/council/discoveries', { credentials: 'same-origin' })
+      if (!r.ok) return null
+      const body = (await r.json()) as { discoveries?: CouncilDiscovery[] } | null
+      return body?.discoveries ?? []
+    })
+      .then((discoveries) => {
+        setState({ loading: false, discoveries: discoveries ?? null })
       })
       .catch(() => {
-        if (!cancelled) setState({ loading: false, discoveries: null })
+        setState((cur) => ({ loading: false, discoveries: cur.discoveries }))
       })
-    return () => {
-      cancelled = true
-    }
   }, [])
-  // Nothing while loading or when no snapshot is stored: the Home shows the section only with content.
+
+  useEffect(() => {
+    const cached = peekDecisionSwrCache<CouncilDiscovery[]>('discoveries')
+    if (cached) {
+      setState({ loading: false, discoveries: cached.data })
+      if (!cached.isFresh) revalidate()
+    } else {
+      revalidate()
+    }
+    const onSync = () => revalidate()
+    window.addEventListener('aether:odoo-sync', onSync)
+    return () => {
+      window.removeEventListener('aether:odoo-sync', onSync)
+    }
+  }, [revalidate])
+
   if (state.loading) return null
   return <TodaysDiscoveriesView locale={locale} discoveries={state.discoveries} />
 }

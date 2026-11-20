@@ -153,7 +153,7 @@ export default function InventoryWorkspace({
           <div
             role="tablist"
             aria-label={t('inv.title')}
-            className="mb-4 flex flex-wrap gap-1 border-b border-[var(--ds-border-hairline)]"
+            className="mb-4 flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)]"
           >
             {tabs.map((value) => (
               <button
@@ -164,7 +164,7 @@ export default function InventoryWorkspace({
                 aria-selected={tab === value}
                 aria-controls={`inv-panel-${value}`}
                 onClick={() => setTab(value)}
-                className={`ds-focus-ring -mb-px cursor-pointer border-b-2 px-4 py-2.5 text-sm transition ${
+                className={`ds-focus-ring -mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition ${
                   tab === value
                     ? 'border-emerald-600 font-bold text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
                     : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'

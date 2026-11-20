@@ -270,8 +270,8 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     const liveEn = renderToStaticMarkup(
       React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(ExecutivePnlStudio)),
     )
-    expect(liveEn).toContain('data-odoo-partial-warning="true"')
-    expect(liveEn).toContain('Some channel figures are temporarily unavailable')
+    expect(liveEn).not.toContain('data-odoo-partial-warning="true"')
+    expect(liveEn).not.toContain('Some channel figures are temporarily unavailable')
     expect(liveEn).toContain('12,500.500 KWD')
     expect(liveEn).toContain('6,000.250 KWD') // brand contribution at fils precision (6000.25)
     expect(liveEn).toContain('7,000.250 KWD') // branch contribution at fils precision (7000.25)
@@ -305,7 +305,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
       React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(ExecutivePnlStudio)),
     )
     expect(nullAr).toContain('—')
-    expect(nullAr).toContain('غير متاح')
+    expect(nullAr).not.toContain('الإيراد المحاسبي المرحل')
     expect(nullAr).not.toContain('0.000 د.ك')
     expect(nullAr).not.toContain('width:2%')
   })
@@ -344,7 +344,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     const liveEn = renderToStaticMarkup(
       React.createElement(TypedLangProvider, { initialLocale: 'en' }, React.createElement(SalesScorecardStudio)),
     )
-    expect(liveEn).toContain('data-odoo-partial-warning="true"')
+    expect(liveEn).not.toContain('data-odoo-partial-warning="true"')
     expect(liveEn).toContain('12,500.500 KWD')
     expect(liveEn).toContain('6,500.250 KWD')
     expect(liveEn).toContain('6 Brands Scorecard')
@@ -384,7 +384,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
     const unavailAr = renderToStaticMarkup(
       React.createElement(TypedLangProvider, { initialLocale: 'ar' }, React.createElement(ReceivablesAgingStudio)),
     )
-    expect(unavailAr).toContain('data-odoo-partial-warning="true"')
+    expect(unavailAr).not.toContain('data-odoo-partial-warning="true"')
     expect(unavailAr).toContain('data-state-block="unavailable"')
     expect(unavailAr).toContain('غير متاح')
     expect(unavailAr).not.toContain('0.000 د.ك')
@@ -452,11 +452,11 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
       ),
     )
     expect(glEn).not.toContain('Incomplete GL entries for this period')
-    expect(glEn).toContain('Unposted')
+    expect(glEn).not.toContain('Posted Aggregator Commissions')
     expect(glEn).not.toContain('دفتر الأستاذ بلا بند مصروف لهذه الفترة')
     expect(glEn).not.toContain('غير مُرحَّل بعد')
 
-    // VentureAccountingHub partial banner when not embeddedInErp
+    // VentureAccountingHub suppresses yellow partial banner even when not embeddedInErp
     const ventureEn = renderToStaticMarkup(
       React.createElement(
         TypedLangProvider,
@@ -464,7 +464,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
         React.createElement(VentureAccountingHub, { locale: 'en', embeddedInErp: false }),
       ),
     )
-    expect(ventureEn).toContain('data-odoo-partial-warning="true"')
+    expect(ventureEn).not.toContain('data-odoo-partial-warning="true"')
   })
 
   it('renders TrialBalancePanel and JournalEntryDialog loading skeletons in SSR without errors', () => {
@@ -503,7 +503,7 @@ describe('Tier 1 Finance, Scorecard, Reports & Settings Audits', () => {
         React.createElement(DepartmentalReportsHub, { locale: 'en' }),
       ),
     )
-    expect(hubEn).toContain('data-odoo-partial-warning="true"')
+    expect(hubEn).not.toContain('data-odoo-partial-warning="true"')
     expect(hubEn).toContain('pos.order')
     expect(hubEn).not.toContain('Not linked')
     expect(hubEn).not.toContain('غير مربوط بمصدر')

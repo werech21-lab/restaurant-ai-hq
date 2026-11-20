@@ -128,7 +128,9 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     const idleLine = /data-idle-booths="true"[^>]*>([\s\S]*?)<\/p>/.exec(html)
     expect(idleLine).not.toBeNull()
     const idleCount = idleLine![1].replace(/<[^>]+>/g, '').split(':').slice(1).join(':').split('،').filter((n) => n.trim()).length
-    expect(cards.length + idleCount).toBe(DASHBOARD_BRANCH_CARD_IDS.length)
+    expect(cards.length + idleCount).toBe(
+      DASHBOARD_BRANCH_CARD_IDS.filter((id) => id !== 'exhibitions').length,
+    )
     expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)
@@ -221,7 +223,9 @@ describe('V35 Executive Dashboard render parity (FullJourney360 + V35GlassCard +
     const idleLine = /data-idle-booths="true"[^>]*>([\s\S]*?)<\/p>/.exec(html)
     expect(idleLine).not.toBeNull()
     const idleCount = idleLine![1].replace(/<[^>]+>/g, '').split(':').slice(1).join(':').split('،').filter((n) => n.trim()).length
-    expect(cards.length + idleCount).toBe(DASHBOARD_BRANCH_CARD_IDS.length)
+    expect(cards.length + idleCount).toBe(
+      DASHBOARD_BRANCH_CARD_IDS.filter((id) => id !== 'exhibitions').length,
+    )
     expect(cards.some((c) => c.id === 'exhibitions')).toBe(false)
     const sumKwd = cards.reduce((sum, c) => sum + c.salesKwd, 0)
     const sumOrders = cards.reduce((sum, c) => sum + c.orders, 0)

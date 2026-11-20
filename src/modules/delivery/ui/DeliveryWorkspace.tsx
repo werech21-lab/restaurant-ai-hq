@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { apiRequest, errorKey, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
 import { SectionCard } from '@/components/ui/section-card'
@@ -51,6 +52,7 @@ function Workspace() {
   const [notice, setNotice] = useState<string | null>(null)
   const [partners, setPartners] = useState<DeliveryPartner[]>([])
   const [orders, setOrders] = useState<DeliveryOrder[]>([])
+  const [showZeroRows, setShowZeroRows] = useState(false)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [partnerId, setPartnerId] = useState('')
@@ -95,6 +97,22 @@ function Workspace() {
       })
     return () => controller.abort()
   }, [reloadTick])
+
+  const visibleOrders = useMemo(
+    () =>
+      showZeroRows
+        ? orders
+        : orders.filter(
+            (order) =>
+              !(
+                Number.isSafeInteger(order.grossMinor) &&
+                order.grossMinor === 0 &&
+                Number.isSafeInteger(order.commissionMinor) &&
+                order.commissionMinor === 0
+              ),
+          ),
+    [orders, showZeroRows],
+  )
 
   async function savePartner(event: FormEvent) {
     event.preventDefault()
@@ -200,7 +218,7 @@ function Workspace() {
         locale={fmtLocale}
         actions={
           <Link
-            className="ds-focus-ring inline-flex items-center text-sm font-semibold text-[var(--ds-accent)] underline"
+            className="ds-focus-ring inline-flex shrink-0 items-center whitespace-nowrap text-sm font-semibold text-[var(--ds-accent)] underline"
             href="/erp/aggregator-radar"
           >
             {t('agg.open')}
@@ -323,13 +341,26 @@ function Workspace() {
               dir="ltr"
               className="ds-num rounded-full border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] px-2.5 py-0.5 text-xs font-bold tabular-nums"
             >
-              {formatInt(orders.length, fmtLocale)}
+              {formatInt(visibleOrders.length, fmtLocale)}
             </span>
           </span>
         }
+        actions={
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showZeroRows}
+            data-show-zero-rows-toggle="true"
+            onClick={() => setShowZeroRows((prev) => !prev)}
+            className="ds-focus-ring inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl border border-[var(--ds-border-hairline)] bg-[var(--ds-bg-subtle)] px-3 text-xs font-semibold text-[var(--ds-text-secondary)] transition hover:text-[var(--ds-text-primary)]"
+          >
+            {showZeroRows ? <Eye className="h-3.5 w-3.5" aria-hidden /> : <EyeOff className="h-3.5 w-3.5" aria-hidden />}
+            <span>{isAr ? 'إظهار الصفوف الصفرية' : 'Show zero rows'}</span>
+          </button>
+        }
         locale={fmtLocale}
       >
-        {orders.length === 0 ? (
+        {visibleOrders.length === 0 ? (
           <StateBlock state="empty" locale={fmtLocale} title={t('dwork.empty')} />
         ) : (
           <div className="w-full overflow-x-auto rounded-xl border border-[var(--ds-border-hairline)]">
@@ -346,7 +377,7 @@ function Workspace() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--ds-border-hairline)]">
-                {orders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-[var(--ds-bg-hover)]">
                     <td className="px-3.5 py-2.5 font-medium text-[var(--ds-text-primary)]">
                       {order.partnerName || UNAVAILABLE_DASH}
@@ -398,13 +429,13 @@ function Workspace() {
                     </td>
                     <td className="px-3.5 py-2.5 text-end">
                       {order.settled ? (
-                        <span className="inline-flex rounded-full border border-[var(--ds-positive-border)] bg-[var(--ds-positive-bg)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ds-positive)]">
+                        <span className="inline-flex shrink-0 whitespace-nowrap rounded-full border border-[var(--ds-positive-border)] bg-[var(--ds-positive-bg)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ds-positive)]">
                           {t('dwork.settled')}
                         </span>
                       ) : (
                         <button
                           type="button"
-                          className={primaryBtnClass}
+                          className={`shrink-0 whitespace-nowrap ${primaryBtnClass}`}
                           disabled={!canSettle || busy}
                           onClick={() => void settle(order)}
                         >

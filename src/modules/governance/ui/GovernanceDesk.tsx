@@ -49,9 +49,9 @@ const inputCls =
   'ds-focus-ring mt-1.5 w-full rounded-xl border border-slate-300/90 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 dark:border-white/15 dark:bg-[#0D1512] dark:text-slate-100 dark:placeholder:text-slate-500'
 const labelCls = 'block text-sm font-medium text-slate-700 dark:text-slate-300'
 const primaryBtnCls =
-  'ds-motion ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50'
+  'ds-motion ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50'
 const secondaryBtnCls =
-  'ds-motion ds-focus-ring inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-slate-300/90 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100 dark:hover:bg-white/[0.06]'
+  'ds-motion ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center justify-center rounded-xl border border-slate-300/90 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100 dark:hover:bg-white/[0.06]'
 const noticeCls =
   'rounded-xl border border-emerald-500/30 bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-200'
 
@@ -711,13 +711,21 @@ function Workspace({
               {devices.length === 0 ? (
                 <StateBlock state="empty" compact locale={fmtLocale} title={t('gov.empty')} />
               ) : (
-                <div className="grid gap-3 sm:grid-cols-3">
+                <div
+                  className={`grid gap-3 ${
+                    devices.length === 1
+                      ? 'sm:grid-cols-1'
+                      : devices.length === 2
+                        ? 'sm:grid-cols-2'
+                        : 'sm:grid-cols-3'
+                  }`}
+                >
                   {devices.map((device) => (
                     <div
                       key={device.id}
-                      className="ds-surface-subtle rounded-xl p-3 text-sm text-slate-900 dark:text-slate-100"
+                      className="ds-surface-subtle min-w-0 rounded-xl p-3 text-sm text-slate-900 dark:text-slate-100"
                     >
-                      <p className="font-semibold">{device.deviceName}</p>
+                      <p className="truncate font-semibold">{device.deviceName}</p>
                       <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
                         {t(`desk.device.${device.deviceType}` as MessageKey)} —{' '}
                         {device.status === 'online' ? t('desk.online') : t('desk.offline')}

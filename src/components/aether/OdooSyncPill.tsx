@@ -9,6 +9,7 @@ import {
   inclusiveIsoDayCount,
 } from '@/lib/aether/global-filter-engine'
 import { formatInt, formatKwd, getUnavailableTooltip } from '@/lib/format'
+import { bustErpReadCache } from '@/lib/erp-read-cache'
 
 type SyncState = {
   status: 'idle' | 'syncing' | 'done' | 'error' | 'unauthorized'
@@ -33,7 +34,13 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       return silent ? prev : { ...prev, status: 'syncing' }
     })
     try {
-      const res = await fetch('/api/erp/odoo-sync', {
+      if (!silent) {
+        bustErpReadCache()
+      }
+      const endpoint = silent
+        ? '/api/erp/odoo-sync'
+        : '/api/erp/odoo-sync?force=1&forceRefresh=true'
+      const res = await fetch(endpoint, {
         cache: 'no-store',
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
@@ -140,9 +147,6 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
         isAr
           ? `صافي المبيعات: ${netSalesLabel} · ${ordersLabel}`
           : `Net sales: ${netSalesLabel} · ${ordersLabel}`,
-        ...(s.partial
-          ? [isAr ? s.warningAr || 'بعض الأرقام غير متاحة الآن' : s.warningEn || 'Some figures are temporarily unavailable']
-          : []),
       ].join('\n')
     : isAr
       ? 'مزامنة Odoo 17 — اضغط لتحديث الأرقام الآن'
@@ -156,12 +160,12 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
       aria-label={label}
       aria-live="polite"
       aria-busy={state.status === 'syncing'}
-      className="ae-top-live ms-1 hidden shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 sm:inline-flex"
+      className="ae-top-live ms-1 hidden shrink-0 cursor-pointer flex-nowrap items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold tabular-nums transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 sm:inline-flex"
     >
       {state.status === 'syncing' ? (
-        <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+        <RefreshCw className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
       ) : (
-        <span className="relative flex h-2 w-2">
+        <span className="relative flex h-2 w-2 shrink-0">
           <span
             className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60"
             style={{
@@ -184,8 +188,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
           />
         </span>
       )}
-      <span className="hidden xl:inline">{label}</span>
-      <span className="xl:hidden">{shortLabel}</span>
+      <span className="hidden whitespace-nowrap 2xl:inline">{label}</span>
+      <span className="whitespace-nowrap 2xl:hidden">{shortLabel}</span>
     </button>
   )
 }

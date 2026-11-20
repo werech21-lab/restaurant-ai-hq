@@ -99,14 +99,31 @@ describe('neutral slate badges', () => {
     }
   })
 
-  it('Cores "Unattributed to Branch" card is neutral slate, not amber (AR + EN)', async () => {
+  it('Cores "Unattributed to Branch" card is hidden when 0.000 KWD / 0 orders and neutral slate (not amber) when > 0 (AR + EN)', async () => {
     setContext(todayFilters('all'), false)
     const { CoresHubStudio } = await import('@/components/aether/CoresHubStudio')
     const Studio = CoresHubStudio as unknown as React.ComponentType<{ initialTab?: string }>
     for (const locale of ['ar', 'en'] as const) {
+      const zeroHtml = await render(locale, React.createElement(Studio, { initialTab: 'sales' }))
+      expect(zeroHtml).not.toContain('data-unattributed-card="true"')
+    }
+
+    const withUnattr = loadLiveTodaySummary()
+    withUnattr.unattributedSalesKwd = 42.5
+    withUnattr.unattributedOrders = 5
+    if (withUnattr.buckets?.today) {
+      withUnattr.buckets.today.unattributedSalesKwd = 42.5
+      withUnattr.buckets.today.unattributedOrders = 5
+    }
+    ctx.value = {
+      ...(ctx.value as Record<string, unknown>),
+      workspace: computeGlobalWorkspace(todayFilters('all'), withUnattr, '/erp'),
+      liveSummary: withUnattr,
+    }
+    for (const locale of ['ar', 'en'] as const) {
       const html = await render(locale, React.createElement(Studio, { initialTab: 'sales' }))
       const i = html.indexOf('data-unattributed-card="true"')
-      expect(i, 'unattributed card rendered').toBeGreaterThan(0)
+      expect(i, 'unattributed card rendered when > 0').toBeGreaterThan(0)
       const card = html.slice(html.lastIndexOf('<', i), html.indexOf('data-kpi-provenance', i) > 0 ? html.indexOf('data-kpi-provenance', i) : i + 2000)
       expect(card).toContain(locale === 'ar' ? 'غير منسوب لفرع' : 'Unattributed to Branch')
       expect(card).not.toMatch(/amber-|rose-/)

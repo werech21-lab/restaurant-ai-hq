@@ -12,8 +12,7 @@ import {
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatSignedDelta } from '@/lib/aether/global-filter-engine'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
-import { StateBlock, UnavailableState, formatChartKwdTooltip } from '@/components/ui'
+import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import {
   ComparisonBarChart,
   TimelineAreaChart,
@@ -27,7 +26,6 @@ import {
   formatInt,
   formatKwd,
   formatPct,
-  getUnavailableTooltip,
   UNAVAILABLE_DASH,
   type FormatLocale,
 } from '@/lib/format'
@@ -149,7 +147,6 @@ function formatKpiVal(kpi: ExecutiveKpiDelta, slot: 'after' | 'before', locale: 
 export function BeforeAfterStudio() {
   const { isAr, T } = useLang()
   const resolvedLocale: FormatLocale = isAr ? 'ar' : 'en'
-  const unavailableTip = getUnavailableTooltip(resolvedLocale)
   const kwd = isAr ? 'د.ك' : 'KWD'
   const { filters, liveSummary } = useGlobalFilter()
 
@@ -547,15 +544,49 @@ export function BeforeAfterStudio() {
     </div>
   )
 
+  const visibleKpis = useMemo(
+    () =>
+      comparison.kpiList.filter((kpi) => {
+        const isGlKpi =
+          kpi.id === 'foodAndAggregatorCost' ||
+          kpi.id === 'netPocketCash' ||
+          kpi.id === 'netPocketMargin'
+        const isUnavailable =
+          kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
+        return !isUnavailable
+      }),
+    [comparison.accountingAvailable, comparison.kpiList],
+  )
+
+  const kpiGridColsCls =
+    visibleKpis.length <= 1
+      ? 'grid-cols-1'
+      : visibleKpis.length === 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : visibleKpis.length === 3
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+          : visibleKpis.length === 4
+            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+            : visibleKpis.length === 5
+              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6'
+
   const renderSectionTable = (
     key: string,
     titleAr: string,
     titleEn: string,
     rows: EntityVarianceRow[],
   ) => {
-    // Largest movers first (by absolute change); the unattributed reconciliation row stays last.
+    // Largest movers first (by absolute change); the unattributed reconciliation row stays last when non-zero.
     const mapped = rows.filter((r) => !r.isUnattributed).sort((a, b) => Math.abs(b.deltaKwd) - Math.abs(a.deltaKwd))
-    const unattr = rows.filter((r) => r.isUnattributed)
+    const unattr = rows.filter(
+      (r) =>
+        r.isUnattributed &&
+        (Math.abs(r.valueA) > 0.0005 ||
+          Math.abs(r.valueB) > 0.0005 ||
+          (r.ordersA ?? 0) > 0 ||
+          (r.ordersB ?? 0) > 0),
+    )
     const orderedRows = [...mapped, ...unattr]
 
     return (
@@ -567,12 +598,12 @@ export function BeforeAfterStudio() {
           <table className="w-full min-w-[760px] border-collapse rounded-xl bg-white text-[13.5px] dark:bg-slate-900/95">
             <thead className="sticky top-0 z-10 border-b border-slate-200/85 bg-slate-50/95 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
               <tr>
-                <th className="px-4 py-2.5 text-start">{isAr ? 'البند' : 'Entity'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'قبل (ب)' : 'Before (B)'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'بعد (أ)' : 'After (A)'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'الفارق' : 'Delta'}</th>
-                <th className="px-3 py-2.5 text-end">{isAr ? 'التغير %' : 'Delta %'}</th>
-                <th className="px-4 py-2.5 text-end">
+                <th className="whitespace-nowrap px-4 py-2.5 text-start">{isAr ? 'البند' : 'Entity'}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'قبل (ب)' : 'Before (B)'}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'بعد (أ)' : 'After (A)'}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'الفارق' : 'Delta'}</th>
+                <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'التغير %' : 'Delta %'}</th>
+                <th className="whitespace-nowrap px-4 py-2.5 text-end">
                   {isAr ? 'الطلبات (قبل ← بعد)' : 'Orders (Before → After)'}
                 </th>
               </tr>
@@ -589,26 +620,26 @@ export function BeforeAfterStudio() {
                         : 'even:bg-slate-50/60 hover:bg-[#ECFDF5]/70 dark:even:bg-white/[0.02] dark:hover:bg-white/[0.04]'
                   }
                 >
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-slate-900 dark:text-white">
+                  <td className="max-w-[220px] px-4 py-3">
+                    <div className="truncate font-semibold text-slate-900 dark:text-white">
                       {isAr ? r.nameAr : r.nameEn}
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="truncate text-xs text-slate-500">
                       {isAr ? r.subMetaAr : r.subMetaEn}
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-end font-mono text-slate-600 dark:text-slate-300">
+                  <td className="whitespace-nowrap px-3 py-3 text-end font-mono text-slate-600 dark:text-slate-300">
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(r.valueB, isAr)}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-end font-mono font-semibold text-slate-900 dark:text-white">
+                  <td className="whitespace-nowrap px-3 py-3 text-end font-mono font-semibold text-slate-900 dark:text-white">
                     <span dir="ltr" className="tabular-nums">
                       {fmtKwd(r.valueA, isAr)}
                     </span>
                   </td>
                   <td
-                    className={`px-3 py-3 text-end font-mono font-semibold ${
+                    className={`whitespace-nowrap px-3 py-3 text-end font-mono font-semibold ${
                       r.deltaKwd >= 0
                         ? 'text-emerald-700 dark:text-emerald-300'
                         : 'text-rose-700 dark:text-rose-300'
@@ -618,12 +649,12 @@ export function BeforeAfterStudio() {
                       {fmtSignedKwd(r.deltaKwd, isAr)}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-end font-mono">
+                  <td className="whitespace-nowrap px-3 py-3 text-end font-mono">
                     <span dir="ltr" className="tabular-nums">
                       {fmtSignedPct(r.deltaPct, resolvedLocale)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-end font-mono text-slate-700 dark:text-slate-300">
+                  <td className="whitespace-nowrap px-4 py-3 text-end font-mono text-slate-700 dark:text-slate-300">
                     <span dir="ltr" className="tabular-nums">
                       {f0(r.ordersB, resolvedLocale)} → {f0(r.ordersA, resolvedLocale)}
                     </span>
@@ -688,8 +719,6 @@ export function BeforeAfterStudio() {
           }
         />
       </div>
-
-      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
 
       {loading ? (
         <StateBlock
@@ -810,109 +839,82 @@ export function BeforeAfterStudio() {
           </section>
 
           {/* 1C. KPI Delta Cards */}
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            {comparison.kpiList.map((kpi) => {
-              const isGlKpi =
-                kpi.id === 'foodAndAggregatorCost' ||
-                kpi.id === 'netPocketCash' ||
-                kpi.id === 'netPocketMargin'
-              // GL KPIs follow the accounting state; order KPIs are unavailable when counts are unknown.
-              const isUnavailable =
-                kpi.available === false || (isGlKpi && !comparison.accountingAvailable)
-              const unavailableNoteAr = kpi.unavailableReasonAr ?? 'غير متاح'
-              const unavailableNoteEn = kpi.unavailableReasonEn ?? 'Unavailable'
-              const signed = formatSignedDelta(kpi.deltaPct)
-              const badgeTone =
-                kpi.trend === 'flat' || signed.sign === 'flat'
-                  ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
-                  : kpi.isFavorable
-                    ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
-                    : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
+          {visibleKpis.length > 0 ? (
+            <section className={`grid gap-3 sm:gap-4 ${kpiGridColsCls}`}>
+              {visibleKpis.map((kpi) => {
+                const isGlKpi =
+                  kpi.id === 'foodAndAggregatorCost' ||
+                  kpi.id === 'netPocketCash' ||
+                  kpi.id === 'netPocketMargin'
+                const signed = formatSignedDelta(kpi.deltaPct)
+                const badgeTone =
+                  kpi.trend === 'flat' || signed.sign === 'flat'
+                    ? 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300'
+                    : kpi.isFavorable
+                      ? 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-200'
+                      : 'bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 dark:bg-rose-500/20 dark:text-rose-200'
 
-              if (isGlKpi && isUnavailable) return null
-              return (
-                <article
-                  key={kpi.id}
-                  className="ae-kpi-card rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5 dark:border-slate-800 dark:bg-slate-900/95"
-                >
-                  <div className="flex items-start justify-between gap-1.5">
-                    <span className="text-[12px] font-semibold text-neutral-500 sm:text-[12.5px] dark:text-slate-300">
-                      {isAr ? kpi.labelAr : kpi.labelEn}
-                    </span>
-                    {isUnavailable ? null : kpi.isFavorable ? (
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                    ) : (
-                      <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
-                    )}
-                  </div>
+                return (
+                  <article
+                    key={kpi.id}
+                    className="ae-kpi-card relative overflow-visible min-w-0 rounded-2xl border border-slate-200/85 bg-white p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5 dark:border-slate-800 dark:bg-slate-900/95"
+                  >
+                    <div className="flex items-start justify-between gap-1.5">
+                      <span className="min-w-0 truncate text-[12px] font-semibold text-neutral-500 sm:text-[12.5px] dark:text-slate-300">
+                        {isAr ? kpi.labelAr : kpi.labelEn}
+                      </span>
+                      {kpi.isFavorable ? (
+                        <ArrowUpRight className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" aria-hidden />
+                      )}
+                    </div>
 
-                  {isUnavailable ? (
-                    <>
-                      <div
+                    {/* The value AFTER is the headline; the change is a labelled badge — a signed
+                        change is never shown as if it were the sales figure itself. */}
+                    <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
+                      <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
+                        {formatKpiVal(kpi, 'after', resolvedLocale)}
+                      </span>
+                      {kpi.unit === 'KWD' ? <span className="text-[13px] font-semibold text-slate-500">{kwd}</span> : null}
+                      {kpi.unit === 'orders' ? <span className="text-[13px] font-semibold text-slate-500">{isAr ? 'طلب' : 'ord'}</span> : null}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 tabular-nums">
+                      <span className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">{isAr ? 'التغيّر' : 'Change'}</span>
+                      <span
                         dir="ltr"
-                        data-unavailable="true"
-                        title={unavailableTip}
-                        aria-label={unavailableTip}
-                        className="mt-2 text-xl font-semibold tabular-nums text-slate-400"
+                        data-kpi-change="true"
+                        className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
                       >
-                        {UNAVAILABLE_DASH}
-                      </div>
-                      <div className="mt-2">
-                        <UnavailableState
-                          compact
-                          isAr={isAr}
-                          reason={isAr ? unavailableNoteAr : unavailableNoteEn}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* The value AFTER is the headline; the change is a labelled badge — a signed
-                          change is never shown as if it were the sales figure itself. */}
-                      <div dir="ltr" className="mt-2 flex flex-wrap items-baseline gap-1.5 tabular-nums">
-                        <span className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl dark:text-white">
-                          {formatKpiVal(kpi, 'after', resolvedLocale)}
-                        </span>
-                        {kpi.unit === 'KWD' ? <span className="text-[13px] font-semibold text-slate-500">{kwd}</span> : null}
-                        {kpi.unit === 'orders' ? <span className="text-[13px] font-semibold text-slate-500">{isAr ? 'طلب' : 'ord'}</span> : null}
-                      </div>
+                        {kpi.unit === 'pct'
+                          ? Number.isFinite(kpi.deltaPct)
+                            ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
+                            : UNAVAILABLE_DASH
+                          : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, isAr)} · ${signed.text}`}
+                      </span>
+                    </div>
 
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5 tabular-nums">
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{isAr ? 'التغيّر' : 'Change'}</span>
-                        <span
-                          dir="ltr"
-                          data-kpi-change="true"
-                          className={`rounded-lg px-2 py-0.5 text-xs font-semibold tabular-nums ${badgeTone}`}
-                        >
-                          {kpi.unit === 'pct'
-                            ? Number.isFinite(kpi.deltaPct)
-                              ? `${signed.arrow} ${fmtSignedPp(kpi.deltaPct)}`
-                              : UNAVAILABLE_DASH
-                            : `${kpi.unit === 'orders' ? formatInt(kpi.deltaAbs, { locale: resolvedLocale, signed: true }) : fmtSignedKwd(kpi.deltaAbs, isAr)} · ${signed.text}`}
-                        </span>
-                      </div>
+                    <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
+                      {isAr ? 'قبل:' : 'Before:'}{' '}
+                      <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
+                        {formatKpiVal(kpi, 'before', resolvedLocale)}
+                        {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
+                      </span>
+                    </p>
 
-                      <p className="mt-2 border-t border-slate-100 pt-1.5 text-[13px] text-neutral-500 tabular-nums dark:border-white/[0.06] dark:text-slate-400">
-                        {isAr ? 'قبل:' : 'Before:'}{' '}
-                        <span dir="ltr" className="font-semibold text-slate-700 dark:text-slate-200">
-                          {formatKpiVal(kpi, 'before', resolvedLocale)}
-                          {kpi.unit === 'KWD' ? ` ${kwd}` : ''}
-                        </span>
-                      </p>
-                    </>
-                  )}
-
-                  <KpiProvenanceBadge
-                    odooModel={isGlKpi ? 'account.move.line' : 'pos.order.line'}
-                    dateRange={dateRangeBadge}
-                    lastSyncAt={apiLastSyncAt}
-                    isStale24h={apiIsStale24h}
-                    kind={kpi.id === 'averageCheck' || kpi.unit === 'pct' ? 'محسوب بمعادلة' : 'فعلي'}
-                  />
-                </article>
-              )
-            })}
-          </section>
+                    <KpiProvenanceBadge
+                      odooModel={isGlKpi ? 'account.move.line' : 'pos.order.line'}
+                      dateRange={dateRangeBadge}
+                      lastSyncAt={apiLastSyncAt}
+                      isStale24h={apiIsStale24h}
+                      kind={kpi.id === 'averageCheck' || kpi.unit === 'pct' ? 'محسوب بمعادلة' : 'فعلي'}
+                    />
+                  </article>
+                )
+              })}
+            </section>
+          ) : null}
 
           {/* 1D. Visual Before-vs-After Trend Chart */}
           <section

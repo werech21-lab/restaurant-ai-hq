@@ -2,11 +2,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { stripExcludedOdooTree } from '@/lib/odoo/excluded-entities'
 import { isSameSiteRequest } from '@/lib/odoo/live-sync-core'
 import {
+  bustOdooLiveCache,
   fetchLiveOdooWarehouseChain,
-  redactOdooSecrets,
   sanitizeOdooPublicPayload,
+  type OdooLiveWarehouseChainPayload,
 } from '@/lib/odoo-live-connector'
 import {
+  buildOdooReadResponseHeaders,
+  createServerGetInflightMap,
+  deduplicateServerGet,
+  isForceRefreshSearchParams,
   odooSyncResponseHeaders,
   resolveVerifiedSyncCaller,
 } from '@/app/api/odoo-sync/route'
@@ -16,6 +21,8 @@ import { sanitizeIsoDate } from '@/lib/erp-comparison-engine'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+const warehouseGetInflight = createServerGetInflightMap<OdooLiveWarehouseChainPayload>()
 
 /**
  * GET `/api/erp/warehouse-chain`:
@@ -50,13 +57,24 @@ export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams
   const rawFrom = sp.get('from') ?? sp.get('dateFrom')
   const rawTo = sp.get('to') ?? sp.get('dateTo')
+  const forceRefresh = isForceRefreshSearchParams(sp)
+  const responseHeaders = buildOdooReadResponseHeaders(forceRefresh)
 
   const defaultFrom = `${ctx.todayIso.slice(0, 8)}01`
   const fromIso = sanitizeIsoDate(rawFrom, defaultFrom)
   const toIso = sanitizeIsoDate(rawTo, ctx.todayIso)
 
+  if (forceRefresh && !caller.isAuditor) {
+    bustOdooLiveCache()
+  }
+
   try {
-    const payload = await fetchLiveOdooWarehouseChain(fromIso, toIso)
+    const payload = await deduplicateServerGet(
+      warehouseGetInflight,
+      `${fromIso}:${toIso}`,
+      forceRefresh,
+      () => fetchLiveOdooWarehouseChain(fromIso, toIso),
+    )
     if (payload.fetchStatus === 'timeout' || payload.fetchStatus === 'error') {
       return NextResponse.json(
         sanitizeOdooPublicPayload({
@@ -102,7 +120,7 @@ export async function GET(request: NextRequest) {
           database: null,
           warehouseChain: null,
         }),
-        { status: 200, headers: odooSyncResponseHeaders },
+        { status: 200, headers: responseHeaders },
       )
     }
 
@@ -117,10 +135,9 @@ export async function GET(request: NextRequest) {
         database: null,
         warehouseChain: visible,
       }),
-      { status: 200, headers: odooSyncResponseHeaders },
+      { status: 200, headers: responseHeaders },
     )
-  } catch (err) {
-    console.error('[warehouse-chain] route', redactOdooSecrets(err instanceof Error ? err.message : 'warehouse route failed'))
+  } catch {
     return NextResponse.json(
       sanitizeOdooPublicPayload({
         ok: false,

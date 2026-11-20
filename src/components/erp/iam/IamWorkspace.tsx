@@ -175,7 +175,7 @@ function Workspace({ userId }: { userId: string }) {
           <div
             role="tablist"
             aria-label={t('iam.title')}
-            className="flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+            className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
           >
             {visibleTabs.map((value) => {
               const active = tab === value
@@ -188,7 +188,7 @@ function Workspace({ userId }: { userId: string }) {
                   aria-selected={active}
                   aria-controls={`iam-panel-${value}`}
                   onClick={() => setTab(value)}
-                  className={active ? iamPrimaryBtn : iamSecondaryBtn}
+                  className={`shrink-0 whitespace-nowrap ${active ? iamPrimaryBtn : iamSecondaryBtn}`}
                 >
                   {t(`iam.tab.${value}`)}
                 </button>

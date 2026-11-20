@@ -390,7 +390,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <div
           role="tablist"
           aria-label={t('adm.title')}
-          className="flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+          className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
         >
           {tabs.map((item) => {
             const active = tab === item.id
@@ -403,7 +403,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                 aria-selected={active}
                 aria-controls={`admin-panel-${item.id}`}
                 onClick={() => setTab(item.id)}
-                className={active ? primaryBtnClass : secondaryBtnClass}
+                className={`shrink-0 whitespace-nowrap ${active ? primaryBtnClass : secondaryBtnClass}`}
               >
                 {t(item.label)}
               </button>
@@ -517,7 +517,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                         </td>
                         <td className="px-3.5 py-3">
                           <span
-                            className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeTone(account.status)}`}
+                            className={`inline-flex shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadgeTone(account.status)}`}
                           >
                             {t(statusKey(account.status))}
                           </span>

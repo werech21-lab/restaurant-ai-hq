@@ -3,16 +3,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Calculator,
   Check,
   Compass,
   Copy,
   FileText,
+  Info,
   Megaphone,
   MessageCircle,
   Plus,
   RefreshCw,
   ShieldAlert,
+  Sliders,
   Sparkles,
   Trash2,
 } from 'lucide-react'
@@ -22,8 +23,6 @@ import {
   formatInt,
   formatKwd,
   formatPct,
-  getUnavailableTooltip,
-  UNAVAILABLE_DASH,
 } from '@/lib/format'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
@@ -34,18 +33,27 @@ import {
   FORECAST_HORIZON_OPTIONS,
   INITIAL_STRATEGIC_PHASES,
   localizeArabicPlanningCopy,
-  resolveStrategicBriefing,
   sanitizeStrategicPhases,
   STRATEGIC_ROADMAP_STORAGE_KEY,
   type ForecastHorizonId,
   type ScenarioTierId,
   type StrategicRoadmapPhase,
 } from '@/lib/aether/planning-engine'
+import {
+  buildStrategicAdvisorFallback,
+  computeWhatIfStrategicSimulation,
+  extractOdooVerifiedPlanningActuals,
+  LABEL_DETERMINISTIC_SIM,
+  LABEL_MANUAL_WHAT_IF,
+  LABEL_ODOO_ACTUAL,
+  type PlanningAdvisorRecommendation,
+  type PlanningAdvisorResponsePayload,
+} from '@/lib/aether/strategic-planning-engine'
 
 const CARD_CLS =
-  'ae-bento-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card relative overflow-visible min-w-0 rounded-2xl bg-white p-3.5 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const KPI_CARD_CLS =
-  'ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-kpi-card relative overflow-visible min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const SUBCARD_CLS =
   'ae-bento-subcard min-w-0 rounded-2xl bg-[#F6F7F8] p-3.5 ring-1 ring-slate-900/[0.03] dark:bg-[#0B1410] dark:ring-emerald-500/[0.08]'
 const SEGMENT_TRACK_CLS =
@@ -61,7 +69,14 @@ const INPUT_CLS =
 const PRIMARY_SOFT_BTN_CLS =
   'inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
 const HEADER_ACTION_BTN_CLS =
-  'inline-flex min-h-[36px] sm:h-10 min-w-0 cursor-pointer items-center gap-2 whitespace-normal sm:whitespace-nowrap rounded-xl bg-emerald-50 px-3.5 sm:px-4 py-1.5 sm:py-0 text-[13px] font-semibold text-emerald-900 ring-1 ring-emerald-500/25 transition-all duration-150 hover:bg-emerald-100/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-950/65 dark:text-emerald-200 dark:ring-emerald-400/25 dark:hover:bg-emerald-900/60'
+  'inline-flex min-h-[36px] sm:h-10 min-w-0 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 sm:px-4 py-1.5 sm:py-0 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400'
+
+const BADGE_ACTUAL_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-400/25'
+const BADGE_MANUAL_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-500/25 dark:bg-indigo-950/70 dark:text-indigo-200 dark:ring-indigo-400/25'
+const BADGE_SIM_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-900 ring-1 ring-sky-500/25 dark:bg-sky-950/70 dark:text-sky-200 dark:ring-sky-400/25'
 
 const normalizeUniqueTitle = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
@@ -80,13 +95,38 @@ function dedupeStrategicPhases(list: StrategicRoadmapPhase[]): StrategicRoadmapP
   return out
 }
 
+function CompactBoundaryTooltip({ text, label }: { text: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="group relative inline-flex shrink-0 items-center">
+      <button
+        type="button"
+        title={text}
+        aria-label={label}
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setOpen(false)}
+        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute bottom-full end-0 z-40 mb-2 w-72 rounded-xl bg-slate-900 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg ring-1 ring-white/10 transition-opacity dark:bg-slate-800 ${
+          open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+        }`}
+      >
+        {text}
+      </span>
+    </span>
+  )
+}
+
 export function StrategicPlanningStudio() {
   const { locale } = useI18n()
   const isAr = locale === 'ar'
   const fmtLocale = isAr ? 'ar' : 'en'
   const kwd = isAr ? 'د.ك' : 'KWD'
-  const unavailableTip = getUnavailableTooltip(fmtLocale)
-  const { workspace, liveSummary } = useGlobalFilter()
+  const { workspace, liveSummary, isAuditor } = useGlobalFilter()
 
   const [horizon, setHorizon] = useState<ForecastHorizonId>('90d')
   const [customFrom, setCustomFrom] = useState('2026-11-15')
@@ -96,6 +136,11 @@ export function StrategicPlanningStudio() {
   const [formOpen, setFormOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
 
+  // Interactive Manual What-If Simulator Controls
+  const [targetGrowthPct, setTargetGrowthPct] = useState<number>(9.5)
+  const [directChannelShiftPct, setDirectChannelShiftPct] = useState<number>(5)
+  const [costEfficiencyPct, setCostEfficiencyPct] = useState<number>(3.4)
+
   const [newTitle, setNewTitle] = useState('')
   const [newStart, setNewStart] = useState('2026-11-20')
   const [newEnd, setNewEnd] = useState('2027-01-20')
@@ -104,10 +149,10 @@ export function StrategicPlanningStudio() {
   const [newMonthlyGain, setNewMonthlyGain] = useState('1200')
   const [newKpi, setNewKpi] = useState('')
 
-  const [aiForecastLoading, setAiForecastLoading] = useState(false)
-  const [aiForecastText, setAiForecastText] = useState<string | null>(null)
-  const [aiForecastModel, setAiForecastModel] = useState<string | null>(null)
-  const [aiForecastUpdatedAt, setAiForecastUpdatedAt] = useState<string | null>(null)
+  const [advisorLoading, setAdvisorLoading] = useState(false)
+  const [advisorRecs, setAdvisorRecs] = useState<PlanningAdvisorRecommendation[] | null>(null)
+  const [advisorModelLabel, setAdvisorModelLabel] = useState<string | null>(null)
+  const [advisorUpdatedAt, setAdvisorUpdatedAt] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -131,6 +176,49 @@ export function StrategicPlanningStudio() {
     [workspace, phases, horizon, customFrom, customTo, liveSummary],
   )
 
+  const actuals = useMemo(
+    () => extractOdooVerifiedPlanningActuals(liveSummary, workspace),
+    [liveSummary, workspace],
+  )
+
+  const totalCostCap = useMemo(
+    () => phases.reduce((s, p) => s + p.costCapKwd, 0),
+    [phases],
+  )
+  const totalMonthlyUpside = useMemo(
+    () => phases.reduce((s, p) => s + p.expectedMonthlyGainKwd, 0),
+    [phases],
+  )
+
+  const whatIfInputs = useMemo(
+    () => ({
+      targetGrowthPct,
+      directChannelShiftPct,
+      costEfficiencyPct,
+      horizonDays: snap.horizonDays,
+      roadmapCostCapKwd: totalCostCap,
+      roadmapMonthlyGainKwd: totalMonthlyUpside,
+    }),
+    [
+      costEfficiencyPct,
+      directChannelShiftPct,
+      snap.horizonDays,
+      targetGrowthPct,
+      totalCostCap,
+      totalMonthlyUpside,
+    ],
+  )
+
+  const whatIfSim = useMemo(
+    () => computeWhatIfStrategicSimulation(snap, whatIfInputs),
+    [snap, whatIfInputs],
+  )
+
+  const defaultAdvisorRecs = useMemo(
+    () => buildStrategicAdvisorFallback({ actuals, whatIf: whatIfInputs, sim: whatIfSim }),
+    [actuals, whatIfInputs, whatIfSim],
+  )
+
   const activeScenario = useMemo(
     () => snap.scenarios.find((s) => s.id === activeScenarioId) ?? snap.scenarios[1] ?? snap.scenarios[0],
     [snap.scenarios, activeScenarioId],
@@ -141,22 +229,57 @@ export function StrategicPlanningStudio() {
     [workspace.subtitleAr],
   )
 
-  useEffect(() => {
-    setAiForecastText(null)
-  }, [horizon, activeScenarioId, customFrom, customTo, workspace.subtitleEn])
+  const runStrategicAdvisor = useCallback(async () => {
+    if (snap.noData || !snap.odooConnected || isAuditor) return
+    setAdvisorLoading(true)
+    try {
+      const res = await fetch('/api/erp/planning-advisor', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'strategic-planning',
+          horizonId: horizon,
+          customFrom,
+          customTo,
+          whatIfInputs,
+        }),
+      })
+      if (res.ok) {
+        const payload = (await res.json()) as PlanningAdvisorResponsePayload
+        if (Array.isArray(payload.recommendations) && payload.recommendations.length > 0) {
+          setAdvisorRecs(payload.recommendations)
+          setAdvisorModelLabel(isAr ? payload.modelLabelAr : payload.modelLabelEn)
+          setAdvisorUpdatedAt(
+            formatDateTime(new Date(payload.updatedAtIso), { locale: fmtLocale, showZone: true }),
+          )
+        }
+      }
+    } catch {
+      // Fallback recommendations remain displayed seamlessly.
+    } finally {
+      setAdvisorLoading(false)
+    }
+  }, [customFrom, customTo, fmtLocale, horizon, isAr, isAuditor, snap.noData, snap.odooConnected, whatIfInputs])
 
-  const briefing = useMemo(
-    () =>
-      resolveStrategicBriefing(
-        aiForecastText,
-        snap,
-        activeScenario,
-        cleanSubtitleAr,
-        workspace.subtitleEn,
-        isAr,
-      ),
-    [aiForecastText, snap, activeScenario, cleanSubtitleAr, workspace.subtitleEn, isAr],
-  )
+  useEffect(() => {
+    if (snap.noData || !snap.odooConnected || isAuditor) return
+    const timer = window.setTimeout(() => {
+      void runStrategicAdvisor()
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [
+    horizon,
+    targetGrowthPct,
+    directChannelShiftPct,
+    costEfficiencyPct,
+    totalCostCap,
+    totalMonthlyUpside,
+    isAuditor,
+    runStrategicAdvisor,
+    snap.noData,
+    snap.odooConnected,
+  ])
 
   const copyToClipboard = useCallback((key: string, text: string) => {
     try {
@@ -212,33 +335,6 @@ export function StrategicPlanningStudio() {
     [persistPhases, phases],
   )
 
-  const handleRunStrategicAiForecast = useCallback(async () => {
-    if (!activeScenario || snap.noData || !snap.odooConnected) return
-    setAiForecastLoading(true)
-    const deterministicBaseline = resolveStrategicBriefing(
-      null,
-      snap,
-      activeScenario,
-      cleanSubtitleAr,
-      workspace.subtitleEn,
-      isAr,
-    )
-
-    setAiForecastText(deterministicBaseline.fullPlainText)
-    setAiForecastModel(isAr ? 'قراءة تقديرية بالمعادلة • أودو 17' : 'Formula-Based Estimate • Odoo 17')
-    setAiForecastUpdatedAt(formatDateTime(new Date(), { locale: fmtLocale, showZone: true }))
-    setAiForecastLoading(false)
-  }, [activeScenario, cleanSubtitleAr, fmtLocale, isAr, snap, workspace.subtitleEn])
-
-  const totalCostCap = useMemo(
-    () => phases.reduce((s, p) => s + p.costCapKwd, 0),
-    [phases],
-  )
-  const totalMonthlyUpside = useMemo(
-    () => phases.reduce((s, p) => s + p.expectedMonthlyGainKwd, 0),
-    [phases],
-  )
-
   const provenanceRange = useMemo(
     () => ({
       from: snap.periodFromIso || workspace.dateRange.from,
@@ -247,12 +343,14 @@ export function StrategicPlanningStudio() {
     [snap.periodFromIso, snap.periodToIso, workspace.dateRange.from, workspace.dateRange.to],
   )
 
+  const displayedAdvisorRecs = advisorRecs ?? defaultAdvisorRecs
+
   // Strict Zero-Fallback Disconnect / Empty Truth: never fall back to static baselines or numbers
   if (!workspace.odooConnected || workspace.noData || snap.noData || !snap.odooConnected) {
     return (
       <div
         dir={isAr ? 'rtl' : 'ltr'}
-        className="w-full max-w-[1920px] min-w-0 overflow-x-hidden mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
+        className="w-full max-w-[1920px] min-w-0 mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
       >
         <StateBlock
           state="empty"
@@ -268,26 +366,29 @@ export function StrategicPlanningStudio() {
     )
   }
 
+  const boundaryNote = isAr
+    ? `الأرقام الموسومة بـ «${LABEL_ODOO_ACTUAL.ar}» مستخرجة مباشرة للقراءة فقط من أودو 17، بينما معاملات «${LABEL_MANUAL_WHAT_IF.ar}» ومخرجات «${LABEL_DETERMINISTIC_SIM.ar}» هي محاكاة رياضية استشرافية دون افتراض أي تكلفة معيارية غير مقروءة.`
+    : `Metrics badged "${LABEL_ODOO_ACTUAL.en}" come directly read-only from Odoo 17; "${LABEL_MANUAL_WHAT_IF.en}" controls and "${LABEL_DETERMINISTIC_SIM.en}" projections are mathematical models with zero fabricated cost assumptions.`
+
+  // Dynamic Actuals Strip count
+  const hasYtdActual = actuals.ytdNetSalesKwd !== null && actuals.ytdNetSalesKwd > 0
+  const hasBranchActual = actuals.topBranch !== null
+  const hasExbOrBrandActual = actuals.exhibitionsActuals.available || actuals.topBrand !== null
+  const actualCardsCount =
+    1 + 1 + Number(hasYtdActual) + Number(hasBranchActual || hasExbOrBrandActual)
+  const actualGridCols =
+    actualCardsCount >= 4
+      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+      : actualCardsCount === 3
+        ? 'grid-cols-1 sm:grid-cols-3'
+        : 'grid-cols-1 sm:grid-cols-2'
+
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
-      className="w-full max-w-[1920px] min-w-0 overflow-x-hidden mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
+      className="w-full max-w-[1920px] min-w-0 mx-auto space-y-6 pb-12 text-[14.5px] leading-relaxed text-slate-800 dark:text-slate-100"
     >
-      {/* Prominent Estimation Disclaimer Banner */}
-      <div className="rounded-2xl bg-amber-50/90 px-4 py-3 text-[13.5px] font-medium text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/45 dark:text-amber-100 dark:ring-amber-400/25">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Calculator className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
-            <span className="font-bold">
-              {isAr
-                ? 'تنبيه منهجي: جميع أرقام التخطيط والسيناريوهات أدناه هي «تقدير» محسوب بمعادلات ظاهرة فوق خط الأساس الفعلي من Odoo وليست قيوداً محققة.'
-                : 'Methodological Notice: Every figure below is a mathematical Estimate projected over the Odoo reference period, not realized accounting actuals.'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ───────────── 1. Contextual Bar + Horizon Picker + On-Demand Strategic AI Button ───────────── */}
+      {/* ───────────── 1. Contextual Bar + Subtle Boundary (i) Tooltip + Horizon Picker + AI Advisor CTA ───────────── */}
       <div className={`${CARD_CLS} !p-3.5 sm:!p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between`}>
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="ae-icon-badge shrink-0">
@@ -295,9 +396,13 @@ export function StrategicPlanningStudio() {
           </span>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium leading-relaxed text-slate-600 dark:text-slate-300">
             {isAr
-              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • الفترة المرجعية: ${snap.periodFromIso} إلى ${snap.periodToIso} • المصدر: Odoo 17 (pos.order / account.move.line)`
+              ? `${snap.horizonLabelAr} • ${cleanSubtitleAr} • الفترة المرجعية: ${snap.periodFromIso} إلى ${snap.periodToIso} • المصدر: Odoo 17`
               : `${snap.horizonLabelEn} • ${workspace.subtitleEn} • Reference window: ${snap.periodFromIso} → ${snap.periodToIso} • Source: Odoo 17`}
           </p>
+          <CompactBoundaryTooltip
+            text={boundaryNote}
+            label={isAr ? 'توضيح منهجية البيانات والمحاكاة' : 'Methodology & data boundary info'}
+          />
         </div>
 
         <div className="flex max-w-full flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
@@ -325,35 +430,41 @@ export function StrategicPlanningStudio() {
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={() => void handleRunStrategicAiForecast()}
-            disabled={aiForecastLoading}
-            className={HEADER_ACTION_BTN_CLS}
-          >
-            {aiForecastLoading ? (
-              <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-emerald-700 dark:text-emerald-300" />
-            ) : (
-              <Sparkles className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
-            )}
-            <span className="min-w-0 break-words">
-              {aiForecastLoading
-                ? isAr
-                  ? 'جارٍ تحديث القراءة التقديرية...'
-                  : 'Synthesizing Estimate...'
-                : isAr
-                  ? 'تحديث القراءة التقديرية ✨'
-                  : 'Refresh Estimate Readout ✨'}
-            </span>
-          </button>
+          {!isAuditor ? (
+            <button
+              type="button"
+              data-run-planning-advisor="true"
+              onClick={() => void runStrategicAdvisor()}
+              disabled={advisorLoading}
+              className={HEADER_ACTION_BTN_CLS}
+            >
+              {advisorLoading ? (
+                <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 shrink-0" />
+              )}
+              <span>
+                {advisorLoading
+                  ? isAr
+                    ? 'جارٍ استشارة الذكاء الاستراتيجي...'
+                    : 'Running AI Advisor...'
+                  : isAr
+                    ? 'تحديث توصيات الذكاء الاصطناعي ✨'
+                    : 'Run AI Strategic Advisor ✨'}
+              </span>
+            </button>
+          ) : null}
         </div>
       </div>
 
       {/* Custom Horizon Inline Date Inputs */}
       {horizon === 'custom' ? (
         <div className="ae-bento-card flex flex-wrap items-center gap-3 px-5 py-3.5">
+          <span className={BADGE_MANUAL_CLS}>
+            {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+          </span>
           <span className="text-[14px] font-semibold text-slate-700 dark:text-slate-200">
-            {isAr ? 'نطاق التقدير المخصص:' : 'Custom Estimate Window:'}
+            {isAr ? 'نطاق المحاكاة المخصص:' : 'Custom Simulation Window:'}
           </span>
           <label className="inline-flex items-center gap-2 text-[13.5px] text-slate-500 dark:text-slate-300">
             <span>{isAr ? 'من تاريخ' : 'Start Date'}</span>
@@ -375,66 +486,319 @@ export function StrategicPlanningStudio() {
               className="ae-input h-9 px-3.5 text-[13.5px] font-semibold tabular-nums"
             />
           </label>
-          <span
-            dir={isAr ? 'rtl' : 'ltr'}
-            className="rounded-full bg-amber-100/80 px-3 py-1 text-[13px] font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/25 dark:bg-amber-950/60 dark:text-amber-200"
-          >
+          <span dir={isAr ? 'rtl' : 'ltr'} className={BADGE_SIM_CLS}>
             {isAr ? (
               <>
-                تقدير • <span dir="ltr">{formatInt(snap.horizonDays, 'ar')}</span> يوم
+                {LABEL_DETERMINISTIC_SIM.ar} • <span dir="ltr">{formatInt(snap.horizonDays, 'ar')}</span> يوم
               </>
             ) : (
-              `Estimate • ${formatInt(snap.horizonDays, 'en')} days`
+              `${LABEL_DETERMINISTIC_SIM.en} • ${formatInt(snap.horizonDays, 'en')} days`
             )}
           </span>
         </div>
       ) : null}
 
-      {/* ───────────── 1B. Executive Strategic Estimate Readout Box ───────────── */}
-      {briefing.sections.length > 0 ? (
-        <section className={`${CARD_CLS} ae-glow-emerald space-y-3.5`}>
+      {/* ───────────── 1B. Odoo Verified Actuals Strip (Strictly Separated from Simulator Inputs) ───────────── */}
+      <section data-odoo-verified-actuals-strip="true" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[16px] font-semibold text-slate-900 dark:text-white">
+              {isAr
+                ? 'خط الأساس الفعلي من أودو 17 (للمعايرة المرجعية)'
+                : 'Odoo 17 Baseline Telemetry (Reference Actuals)'}
+            </h2>
+            <span data-badge-kind="odoo-verified-actual" className={BADGE_ACTUAL_CLS}>
+              {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+            </span>
+          </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">
+            {`pos.order · ${actuals.periodFrom || snap.periodFromIso} → ${actuals.periodTo || snap.periodToIso}`}
+          </span>
+        </div>
+
+        <div className={`grid gap-3 sm:gap-4 ${actualGridCols}`}>
+          <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                {isAr ? 'صافي مبيعات 30 يوم الفعلية' : '30d Net Sales'}
+              </span>
+              <span className={BADGE_ACTUAL_CLS}>
+                {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+              </span>
+            </div>
+            <div dir="ltr" className="text-lg sm:text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
+              {formatKwd(actuals.month30dNetSalesKwd, fmtLocale)}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {isAr
+                ? `${formatInt(actuals.month30dOrders, 'ar')} طلب مسجل في نقاط البيع`
+                : `${formatInt(actuals.month30dOrders, 'en')} posted POS orders`}
+            </p>
+          </article>
+
+          <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                {isAr ? 'المعدل اليومي ومتوسط الفاتورة' : 'Daily Run-Rate & AOV'}
+              </span>
+              <span className={BADGE_ACTUAL_CLS}>
+                {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+              </span>
+            </div>
+            <div dir="ltr" className="text-lg sm:text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
+              {formatKwd(actuals.month30dDailyRunRateKwd, fmtLocale)}/{isAr ? 'يوم' : 'd'}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {actuals.month30dAovKwd !== null
+                ? isAr
+                  ? `متوسط الطلب الفعلي: ${formatKwd(actuals.month30dAovKwd, 'ar')}`
+                  : `Observed AOV: ${formatKwd(actuals.month30dAovKwd, 'en')}`
+                : isAr
+                  ? `حصة القنوات المباشرة: ${formatPct(actuals.directSharePct, { locale: 'ar', decimals: 1 })}`
+                  : `Direct share: ${formatPct(actuals.directSharePct, { locale: 'en', decimals: 1 })}`}
+            </p>
+          </article>
+
+          {hasYtdActual && actuals.ytdNetSalesKwd !== null ? (
+            <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                  {isAr ? 'صافي مبيعات السنة حتى تاريخه' : 'YTD Net Sales'}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div dir="ltr" className="text-lg sm:text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                {formatKwd(actuals.ytdNetSalesKwd, fmtLocale)}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {actuals.ytdOrders !== null
+                  ? isAr
+                    ? `${formatInt(actuals.ytdOrders, 'ar')} طلب سنوي موثّق`
+                    : `${formatInt(actuals.ytdOrders, 'en')} YTD orders`
+                  : isAr
+                    ? 'إجمالي تراكمي من pos.order'
+                    : 'Cumulative YTD from pos.order'}
+              </p>
+            </article>
+          ) : null}
+
+          {hasBranchActual && actuals.topBranch ? (
+            <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                  {isAr ? 'مرجع الفروع والمعارض' : 'Branch & Exhibitions Benchmark'}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div className="truncate text-base sm:text-xl font-semibold text-slate-900 dark:text-white">
+                {isAr ? actuals.topBranch.labelAr : actuals.topBranch.labelEn}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {isAr
+                  ? `${formatKwd(actuals.topBranch.netKwd, 'ar')} (${formatPct(actuals.topBranch.sharePct, { locale: 'ar', decimals: 1 })})${actuals.exhibitionsActuals.available ? ` • المعارض المتنقلة: ${formatKwd(actuals.exhibitionsActuals.netKwd, 'ar')}` : ''}`
+                  : `${formatKwd(actuals.topBranch.netKwd, 'en')} (${formatPct(actuals.topBranch.sharePct, { locale: 'en', decimals: 1 })})${actuals.exhibitionsActuals.available ? ` • Exhibitions EXB: ${formatKwd(actuals.exhibitionsActuals.netKwd, 'en')}` : ''}`}
+              </p>
+            </article>
+          ) : hasExbOrBrandActual && actuals.topBrand ? (
+            <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                  {isAr ? 'العلامة القيادية الفعلية' : 'Top Brand Benchmark'}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div className="truncate text-base sm:text-xl font-semibold text-slate-900 dark:text-white">
+                {isAr ? actuals.topBrand.labelAr : actuals.topBrand.labelEn}
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">
+                {formatKwd(actuals.topBrand.netKwd, fmtLocale)}
+              </p>
+            </article>
+          ) : null}
+        </div>
+      </section>
+
+      {/* ───────────── 1C. Interactive Manual What-If Simulator Controls + Deterministic Simulation Output ───────────── */}
+      <section data-manual-what-if-panel="true" className={`${CARD_CLS} space-y-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-3 dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-2">
+            <Sliders className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
+            <h2 className="text-[16px] font-semibold text-slate-900 dark:text-white">
+              {isAr ? 'مختبر المحاكاة التفاعلي (ماذا لو)' : 'Interactive What-If Strategy Simulator'}
+            </h2>
+            <span data-badge-kind="manual-what-if-input" className={BADGE_MANUAL_CLS}>
+              {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+            </span>
+          </div>
+          <span data-badge-kind="deterministic-simulation" className={BADGE_SIM_CLS}>
+            {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3 lg:col-span-7">
+            <label className={`${SUBCARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                  {isAr ? 'نسبة النمو المستهدفة %' : 'Target Growth %'}
+                </span>
+                <span className={BADGE_MANUAL_CLS}>
+                  {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+                </span>
+              </div>
+              <div dir="ltr" className="text-lg font-bold tabular-nums text-indigo-700 dark:text-indigo-300">
+                {targetGrowthPct >= 0 ? `+${targetGrowthPct.toFixed(1)}%` : `${targetGrowthPct.toFixed(1)}%`}
+              </div>
+              <input
+                type="range"
+                min={-15}
+                max={40}
+                step={0.5}
+                value={targetGrowthPct}
+                onChange={(e) => setTargetGrowthPct(Number(e.target.value))}
+                className="w-full cursor-pointer accent-indigo-600"
+              />
+            </label>
+
+            <label className={`${SUBCARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                  {isAr ? 'تحويل للقنوات المباشرة %' : 'Direct Channel Shift %'}
+                </span>
+                <span className={BADGE_MANUAL_CLS}>
+                  {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+                </span>
+              </div>
+              <div dir="ltr" className="text-lg font-bold tabular-nums text-indigo-700 dark:text-indigo-300">
+                +{directChannelShiftPct.toFixed(1)}%
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={25}
+                step={0.5}
+                value={directChannelShiftPct}
+                onChange={(e) => setDirectChannelShiftPct(Number(e.target.value))}
+                className="w-full cursor-pointer accent-indigo-600"
+              />
+            </label>
+
+            <label className={`${SUBCARD_CLS} flex flex-col justify-between gap-2`}>
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                  {isAr ? 'كفاءة ضبط التكاليف %' : 'Cost Efficiency %'}
+                </span>
+                <span className={BADGE_MANUAL_CLS}>
+                  {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+                </span>
+              </div>
+              <div dir="ltr" className="text-lg font-bold tabular-nums text-indigo-700 dark:text-indigo-300">
+                +{costEfficiencyPct.toFixed(1)}%
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={0.2}
+                value={costEfficiencyPct}
+                onChange={(e) => setCostEfficiencyPct(Number(e.target.value))}
+                className="w-full cursor-pointer accent-indigo-600"
+              />
+            </label>
+          </div>
+
+          <div className="rounded-2xl bg-sky-50/70 p-4 ring-1 ring-sky-200/80 lg:col-span-5 dark:bg-sky-950/30 dark:ring-sky-400/20">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                {isAr ? 'مخرجات المحاكاة المخصصة' : 'Custom What-If Output'}
+              </span>
+              <span className={BADGE_SIM_CLS}>
+                {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+              </span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAr ? 'المبيعات المحاكاة' : 'Simulated Sales'}
+                </div>
+                <div dir="ltr" className="text-lg font-bold tabular-nums text-slate-900 dark:text-white">
+                  {formatKwd(whatIfSim.projectedSalesKwd, fmtLocale)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500 dark:text-slate-400">
+                  {whatIfSim.projectedNetCashKwd !== null
+                    ? isAr
+                      ? 'صافي التدفق المحاكى'
+                      : 'Simulated Net Cash'
+                    : isAr
+                      ? 'حجم التحويل المحمي'
+                      : 'Protected Direct Volume'}
+                </div>
+                <div dir="ltr" className="text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                  {whatIfSim.projectedNetCashKwd !== null
+                    ? formatKwd(whatIfSim.projectedNetCashKwd, { locale: fmtLocale, signed: true })
+                    : formatKwd(whatIfSim.directCommissionProtectedVolumeKwd, fmtLocale)}
+                </div>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+              {isAr ? whatIfSim.formulaAr : whatIfSim.formulaEn}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ───────────── 1D. Real AI Strategic Advisor Recommendations (`POST /api/erp/planning-advisor`) ───────────── */}
+      {displayedAdvisorRecs.length > 0 ? (
+        <section data-planning-ai-advisor="true" className={`${CARD_CLS} ae-glow-emerald space-y-3.5`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <h2 className="text-[15.5px] font-semibold text-slate-900 dark:text-white">
                 {isAr
-                  ? 'قراءة التقدير الاستراتيجي بالمعادلات (تقدير)'
-                  : 'Formula-Based Strategic Estimate Readout'}
+                  ? 'التوصيات الاستراتيجية الذكية المعايرة بفعليات أودو'
+                  : 'AI Strategic Recommendations (Odoo-Calibrated)'}
               </h2>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-              <span className="rounded-xl bg-amber-100/90 px-3 py-0.5 text-[12px] font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
-                {aiForecastModel ??
-                  (isAr ? 'تقدير محسوب بمعادلة • Odoo 17' : 'Formula Estimate • Odoo 17')}
+              <span className="rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200">
+                {advisorModelLabel ??
+                  (isAr
+                    ? 'مستشار مالي رقمي حتمي • موثّق من أودو 17'
+                    : 'CFO Deterministic Advisor • Odoo 17 Grounded')}
               </span>
-              {aiForecastUpdatedAt ? (
+              {advisorUpdatedAt ? (
                 <span dir="ltr" className="tabular-nums">
-                  {aiForecastUpdatedAt}
+                  {advisorUpdatedAt}
                 </span>
               ) : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
-            {briefing.sections.map((section) => (
+            {displayedAdvisorRecs.map((rec) => (
               <article
-                key={section.id}
+                key={rec.id}
                 className={`${SUBCARD_CLS} flex flex-col justify-between gap-2.5`}
               >
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h3 className="text-[14px] font-semibold leading-snug text-slate-900 dark:text-white">
-                      {isAr ? section.titleAr : section.titleEn}
+                      {isAr ? rec.titleAr : rec.titleEn}
                     </h3>
-                    <span
-                      dir={isAr ? 'rtl' : 'ltr'}
-                      className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
-                    >
-                      {isAr ? section.metricBadgeAr : section.metricBadgeEn}
+                    <span dir="ltr" className={BADGE_SIM_CLS}>
+                      {isAr ? rec.badgeAr : rec.badgeEn}
                     </span>
                   </div>
                   <p className="whitespace-normal text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200">
-                    {isAr ? section.bodyAr : section.bodyEn}
+                    {isAr ? rec.bodyAr : rec.bodyEn}
                   </p>
                 </div>
               </article>
@@ -443,13 +807,22 @@ export function StrategicPlanningStudio() {
         </section>
       ) : null}
 
-      {/* ───────────── 2. 4 Normalized Baseline Estimate KPI Cards — Every Number Badged «تقدير» + Visible Formula ───────────── */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* ───────────── 2. Normalized Baseline Projection Cards — Dynamic Grid Columns + Visible Formula ───────────── */}
+      <section
+        className={`grid gap-3 sm:gap-4 ${
+          snap.accountingAvailable
+            ? 'grid-cols-2 lg:grid-cols-4'
+            : 'grid-cols-1 sm:grid-cols-3'
+        }`}
+      >
         <article className={`${KPI_CARD_CLS} ae-glow-emerald flex flex-col justify-between gap-2.5`}>
           <div>
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
+              <span className="min-w-0 truncate text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
                 {isAr ? 'خط الأساس التقديري — طول الشهر التقويمي' : 'Calendar-month baseline estimate'}
+              </span>
+              <span className={BADGE_SIM_CLS}>
+                {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
               </span>
             </div>
             <div
@@ -493,7 +866,7 @@ export function StrategicPlanningStudio() {
               )}
             </p>
             <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
-              <span className="font-bold text-amber-800 dark:text-amber-300">
+              <span className="font-bold text-slate-800 dark:text-slate-200">
                 {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
               </span>
               {isAr ? snap.baselineFormulaAr : snap.baselineFormulaEn}
@@ -512,11 +885,16 @@ export function StrategicPlanningStudio() {
         </article>
 
         {snap.accountingAvailable ? (
-        <article className={`${KPI_CARD_CLS} ae-glow-amber flex flex-col justify-between gap-2.5`}>
-          <div>
-            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-              {isAr ? 'معاملات التكلفة والعمولات للتقدير' : 'Estimated COGS & Commission Inputs'}
-            </div>
+          <article className={`${KPI_CARD_CLS} flex flex-col justify-between gap-2.5`}>
+            <div>
+              <div className="flex items-start justify-between gap-2">
+                <span className="min-w-0 truncate text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
+                  {isAr ? 'معاملات التكلفة والعمولات الفعلية' : 'Posted COGS & Commission Ratios'}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
               <div
                 dir="ltr"
                 data-kpi-val
@@ -532,35 +910,40 @@ export function StrategicPlanningStudio() {
                     : formatPct(snap.deliveryFeePct, { locale: fmtLocale, decimals: 1 })}
                 </span>
               </div>
-            <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
-              {isAr
-                ? `حصة الصالة والسفري المباشر (0% عمولة): ${formatPct(snap.directChannelSharePct, { locale: 'ar', decimals: 1 })}`
-                : `Zero-commission Dine-In & Direct share: ${formatPct(snap.directChannelSharePct, { locale: 'en', decimals: 1 })}`}
-            </p>
-            <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
-              <span className="font-bold text-amber-800 dark:text-amber-300">
-                {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
-              </span>
-              {isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
+              <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
+                {isAr
+                  ? `حصة الصالة والسفري المباشر (0% عمولة): ${formatPct(snap.directChannelSharePct, { locale: 'ar', decimals: 1 })}`
+                  : `Zero-commission Dine-In & Direct share: ${formatPct(snap.directChannelSharePct, { locale: 'en', decimals: 1 })}`}
+              </p>
+              <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
+                </span>
+                {isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
+              </div>
             </div>
-          </div>
-          <KpiProvenanceBadge
-            odooModel="account.move.line + pos.order"
-            dateRange={provenanceRange}
-            lastSyncAt={snap.lastSyncedAt}
-            isStale24h={snap.isStale24h}
-            kind="تقدير"
-            queryOrFormula={isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
-            isAr={isAr}
-            compact
-          />
-        </article>
+            <KpiProvenanceBadge
+              odooModel="account.move.line + pos.order"
+              dateRange={provenanceRange}
+              lastSyncAt={snap.lastSyncedAt}
+              isStale24h={snap.isStale24h}
+              kind="فعلي"
+              queryOrFormula={isAr ? snap.costShareFormulaAr : snap.costShareFormulaEn}
+              isAr={isAr}
+              compact
+            />
+          </article>
         ) : null}
 
         <article className={`${KPI_CARD_CLS} ae-glow-sky flex flex-col justify-between gap-2.5`}>
           <div>
-            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-              {isAr ? 'التغير الدوري المرجعي للتقدير' : 'Reference Period Momentum Input'}
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 truncate text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
+                {isAr ? 'التغير الدوري الفعلي للفترة المرجعية' : 'Observed Period Momentum'}
+              </span>
+              <span className={BADGE_ACTUAL_CLS}>
+                {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+              </span>
             </div>
             <div
               dir="ltr"
@@ -575,7 +958,7 @@ export function StrategicPlanningStudio() {
                 : `Reference window (${snap.periodFromIso} → ${snap.periodToIso}) vs prior window`}
             </p>
             <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
-              <span className="font-bold text-amber-800 dark:text-amber-300">
+              <span className="font-bold text-slate-800 dark:text-slate-200">
                 {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
               </span>
               {isAr ? snap.momentumFormulaAr : snap.momentumFormulaEn}
@@ -586,7 +969,7 @@ export function StrategicPlanningStudio() {
             dateRange={provenanceRange}
             lastSyncAt={snap.lastSyncedAt}
             isStale24h={snap.isStale24h}
-            kind="تقدير"
+            kind="فعلي"
             queryOrFormula={isAr ? snap.momentumFormulaAr : snap.momentumFormulaEn}
             isAr={isAr}
             compact
@@ -595,8 +978,13 @@ export function StrategicPlanningStudio() {
 
         <article className={`${KPI_CARD_CLS} ae-glow-emerald flex flex-col justify-between gap-2.5`}>
           <div>
-            <div className="text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-              {isAr ? 'العائد التقديري للمراحل المضافة يدوياً' : 'User-Entered Roadmap Upside Estimate'}
+            <div className="flex items-start justify-between gap-2">
+              <span className="min-w-0 truncate text-[12.5px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
+                {isAr ? 'العائد للمراحل المضافة يدوياً' : 'User Roadmap Upside'}
+              </span>
+              <span className={BADGE_MANUAL_CLS}>
+                {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+              </span>
             </div>
             <div
               dir="ltr"
@@ -610,11 +998,11 @@ export function StrategicPlanningStudio() {
             </div>
             <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300">
               {isAr
-                ? `عدد المراحل المضافة: ${formatInt(phases.length, 'ar')} • إجمالي سقف التكلفة التقديري: ${formatKwd(totalCostCap, 'ar')}`
-                : `User phases: ${formatInt(phases.length, 'en')} • Total estimated cost cap: ${formatKwd(totalCostCap, 'en')}`}
+                ? `عدد المراحل المضافة: ${formatInt(phases.length, 'ar')} • إجمالي سقف التكلفة: ${formatKwd(totalCostCap, 'ar')}`
+                : `User phases: ${formatInt(phases.length, 'en')} • Total cost cap: ${formatKwd(totalCostCap, 'en')}`}
             </p>
             <div className="mt-2 rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
-              <span className="font-bold text-amber-800 dark:text-amber-300">
+              <span className="font-bold text-slate-800 dark:text-slate-200">
                 {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
               </span>
               {isAr
@@ -623,7 +1011,7 @@ export function StrategicPlanningStudio() {
             </div>
           </div>
           <KpiProvenanceBadge
-            odooModel={isAr ? 'مدخلات تخطيط يدوية + pos.order' : 'Manual planning inputs + pos.order'}
+            odooModel="pos.order"
             dateRange={provenanceRange}
             lastSyncAt={snap.lastSyncedAt}
             isStale24h={snap.isStale24h}
@@ -639,24 +1027,29 @@ export function StrategicPlanningStudio() {
         </article>
       </section>
 
-      {/* ───────────── 3. 3-Scenario Forecast Cards — Every Scenario Number Badged «تقدير» + Visible Formula ───────────── */}
+      {/* ───────────── 3. 3-Scenario Forecast Cards — Badged Deterministic Simulation + Estimate ───────────── */}
       <section className="space-y-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-white">
               {isAr
-                ? 'سيناريوهات التقدير المالي الثلاثة (تقدير بالمعادلات)'
-                : 'Three Formula-Based Financial Estimate Scenarios'}
+                ? 'سيناريوهات المحاكاة المالية القياسية الثلاثة'
+                : 'Three Reference Financial Simulation Scenarios'}
             </h2>
             <p className="text-[14px] text-slate-600 dark:text-slate-300">
               {isAr
-                ? 'كل رقم أدناه موسوم بـ «تقدير» ومشفوع بمعادلته الحسابية الظاهرة فوق خط الأساس الفعلي'
-                : 'Every figure below is badged as Estimate with its explicit mathematical formula'}
+                ? 'محسوبة بمعادلات رقمية حتمية فوق خط الأساس الموثّق من أودو'
+                : 'Computed deterministically with explicit formulas over the Odoo baseline'}
             </p>
           </div>
-          <span className="rounded-full bg-amber-100/90 px-3.5 py-1 text-[13px] font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
-            {isAr ? `تقدير • ${snap.horizonLabelAr}` : `Estimate • ${snap.horizonLabelEn}`}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={BADGE_SIM_CLS}>
+              {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+            </span>
+            <span className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-200">
+              {isAr ? 'تقدير' : 'Estimate'}
+            </span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -683,9 +1076,9 @@ export function StrategicPlanningStudio() {
               >
                 <div className="space-y-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-semibold ${
+                        className={`inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-[13px] font-semibold ${
                           sc.id === 'realistic'
                             ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-200'
                             : sc.id === 'ambitious'
@@ -700,13 +1093,17 @@ export function StrategicPlanningStudio() {
                       </p>
                     </div>
 
-                    <span className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-1 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
-                      {isAr ? 'تقدير' : 'Estimate'}
+                    <span className={BADGE_SIM_CLS}>
+                      {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
                     </span>
                   </div>
 
-                  {/* 3 Core Estimated Numbers */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5">
+                  {/* Core Simulated Numbers */}
+                  <div
+                    className={`grid ${
+                      snap.accountingAvailable ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'
+                    } gap-2 sm:gap-2.5`}
+                  >
                     <div className="ae-bento-subcard p-2.5 sm:p-3">
                       <div className="flex items-center justify-between gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
                         <span>{isAr ? 'المبيعات المقدّرة' : 'Est. Sales'}</span>
@@ -717,57 +1114,57 @@ export function StrategicPlanningStudio() {
                       >
                         {formatKwd(sc.projectedSalesKwd, { locale: fmtLocale, showUnit: false })}
                       </div>
-                      <div className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      <div className="text-xs font-semibold text-sky-800 dark:text-sky-300">
                         {kwd} • {isAr ? 'تقدير' : 'Est.'}
                       </div>
                     </div>
 
                     {snap.accountingAvailable ? (
-                    <div className="ae-bento-subcard p-2.5 sm:p-3">
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                        {isAr ? 'التكاليف المقدّرة' : 'Est. Costs'}
+                      <div className="ae-bento-subcard p-2.5 sm:p-3">
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                          {isAr ? 'التكاليف المقدّرة' : 'Est. Costs'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1 text-sm sm:text-base font-semibold tracking-tight tabular-nums break-words text-slate-800 dark:text-slate-200"
+                        >
+                          {formatKwd(sc.projectedCostsKwd, { locale: fmtLocale, showUnit: false })}
+                        </div>
+                        <div className="text-xs font-semibold text-sky-800 dark:text-sky-300">
+                          {kwd} • {isAr ? 'تقدير' : 'Est.'}
+                        </div>
                       </div>
-                      <div
-                        dir="ltr"
-                        className="mt-1 text-sm sm:text-base font-semibold tracking-tight tabular-nums break-words text-amber-700 dark:text-amber-300"
-                      >
-                        {formatKwd(sc.projectedCostsKwd, { locale: fmtLocale, showUnit: false })}
-                      </div>
-                      <div className="text-xs font-semibold text-amber-800 dark:text-amber-300">
-                        {kwd} • {isAr ? 'تقدير' : 'Est.'}
-                      </div>
-                    </div>
                     ) : null}
 
                     {snap.accountingAvailable ? (
-                    <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
-                      <div className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
-                        {isAr ? 'صافي الكاش المقدّر' : 'Est. Net Cash'}
+                      <div className="rounded-2xl bg-emerald-50/80 p-2.5 sm:p-3 ring-1 ring-emerald-500/15 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
+                        <div className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                          {isAr ? 'صافي الكاش المقدّر' : 'Est. Net Cash'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1 text-sm sm:text-base font-semibold tracking-tight tabular-nums break-words text-emerald-700 dark:text-emerald-300"
+                        >
+                          {formatKwd(sc.projectedNetCashKwd, {
+                            locale: fmtLocale,
+                            showUnit: false,
+                            signed: true,
+                          })}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="text-xs font-semibold tabular-nums text-emerald-800 dark:text-emerald-300"
+                        >
+                          {formatPct(sc.netMarginPct, { locale: fmtLocale, decimals: 1 })} •{' '}
+                          {isAr ? 'تقدير' : 'Est.'}
+                        </div>
                       </div>
-                      <div
-                        dir="ltr"
-                        className="mt-1 text-sm sm:text-base font-semibold tracking-tight tabular-nums break-words text-emerald-700 dark:text-emerald-300"
-                      >
-                        {formatKwd(sc.projectedNetCashKwd, {
-                          locale: fmtLocale,
-                          showUnit: false,
-                          signed: true,
-                        })}
-                      </div>
-                      <div
-                        dir="ltr"
-                        className="text-xs font-semibold tabular-nums text-emerald-800 dark:text-emerald-300"
-                      >
-                        {formatPct(sc.netMarginPct, { locale: fmtLocale, decimals: 1 })} •{' '}
-                        {isAr ? 'تقدير' : 'Est.'}
-                      </div>
-                    </div>
                     ) : null}
                   </div>
 
                   {/* Explicit Visible Mathematical Formulas */}
                   <div className="space-y-1.5 rounded-xl bg-slate-50 p-3 text-[12px] leading-relaxed text-slate-700 ring-1 ring-slate-200/80 dark:bg-white/[0.04] dark:text-slate-200 dark:ring-white/10">
-                    <div className="font-bold text-amber-900 dark:text-amber-300">
+                    <div className="font-bold text-slate-900 dark:text-white">
                       {isAr ? 'المعادلات الظاهرة لهذا السيناريو:' : 'Visible Scenario Formulas:'}
                     </div>
                     <div>• {isAr ? sc.salesFormulaAr : sc.salesFormulaEn}</div>
@@ -801,29 +1198,24 @@ export function StrategicPlanningStudio() {
         </div>
       </section>
 
-      {/* ───────────── 4. Observed Odoo Reference Inputs Strip ───────────── */}
-      <section className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+      {/* ───────────── 4. Observed Odoo Reference Signals Strip ───────────── */}
+      <section className={`grid grid-cols-1 gap-5 ${snap.signals.length === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
         {snap.signals.map((sig) => (
           <article key={sig.id} className={`${CARD_CLS} flex flex-col justify-between gap-3`}>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white">
+                <h3 className="min-w-0 truncate text-[15px] font-semibold text-slate-900 dark:text-white">
                   {isAr ? sig.titleAr : sig.titleEn}
                 </h3>
-                {(isAr ? sig.impactBadgeAr : sig.impactBadgeEn).trim().length > 0 ? (
-                <span
-                  dir="ltr"
-                  className="shrink-0 rounded-full bg-amber-100/90 px-2.5 py-0.5 text-[12px] font-semibold tabular-nums text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200"
-                >
-                  {isAr ? `تقدير • ${sig.impactBadgeAr}` : `Est • ${sig.impactBadgeEn}`}
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
                 </span>
-                ) : null}
               </div>
               <p className="text-[13.5px] leading-relaxed text-slate-600 dark:text-slate-300">
                 {isAr ? sig.detailAr : sig.detailEn}
               </p>
               <div className="rounded-xl bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600 ring-1 ring-slate-200/70 dark:bg-white/[0.04] dark:text-slate-300 dark:ring-white/10">
-                <span className="font-bold text-amber-800 dark:text-amber-300">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   {isAr ? 'المعادلة الظاهرة: ' : 'Formula: '}
                 </span>
                 {isAr ? sig.formulaAr : sig.formulaEn}
@@ -834,7 +1226,7 @@ export function StrategicPlanningStudio() {
               dateRange={provenanceRange}
               lastSyncAt={snap.lastSyncedAt}
               isStale24h={snap.isStale24h}
-              kind="تقدير"
+              kind="فعلي"
               queryOrFormula={isAr ? sig.formulaAr : sig.formulaEn}
               isAr={isAr}
               compact
@@ -843,19 +1235,24 @@ export function StrategicPlanningStudio() {
         ))}
       </section>
 
-      {/* ───────────── 5. User-Defined Execution Roadmap (Zero Pre-Seeded Phases; Official Circulars Disabled) ───────────── */}
+      {/* ───────────── 5. User-Defined Execution Roadmap (`Manual What-If Input`) ───────────── */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-white">
-              {isAr
-                ? 'مراحل التخطيط المخصصة (مدخلات تقديرية يدوية)'
-                : 'Custom Planning Phases (User-Entered Estimates)'}
-            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-[18px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                {isAr
+                  ? 'مراحل خارطة الطريق المخصصة'
+                  : 'Custom Execution Roadmap Phases'}
+              </h2>
+              <span className={BADGE_MANUAL_CLS}>
+                {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
+              </span>
+            </div>
             <p className="text-[14px] text-slate-500 dark:text-slate-400">
               {isAr
-                ? 'أضف مراحل خطتك يدوياً لحساب أثرها التقديري. التعميم الرسمي وأوامر الإيقاف معطّلة حتى ربط سقوف الأدمن بمخالفات فعلية في Odoo.'
-                : 'Add custom phases manually to model their estimated impact. Official circulars and freeze actions remain disabled pending server-side Odoo threshold rules.'}
+                ? 'أضف مراحل خطتك يدوياً لحساب أثرها التقديري ضمن السيناريوهات.'
+                : 'Add custom phases manually to simulate their capex and monthly return impact.'}
             </p>
           </div>
 
@@ -871,8 +1268,8 @@ export function StrategicPlanningStudio() {
                   ? 'إغلاق النموذج ✕'
                   : 'Close ✕'
                 : isAr
-                  ? '+ إضافة مرحلة تقديرية'
-                  : '+ Add Estimate Phase'}
+                  ? '+ إضافة مرحلة محاكاة'
+                  : '+ Add What-If Phase'}
             </span>
           </button>
         </div>
@@ -940,7 +1337,7 @@ export function StrategicPlanningStudio() {
 
               <div>
                 <label className="mb-1.5 block text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? 'سقف التكلفة التقديري (د.ك)' : 'Est. Cost Cap (KWD)'}
+                  {isAr ? 'سقف التكلفة (د.ك)' : 'Cost Cap (KWD)'}
                 </label>
                 <input
                   type="number"
@@ -975,7 +1372,7 @@ export function StrategicPlanningStudio() {
 
               <div>
                 <label className="mb-1.5 block text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
-                  {isAr ? 'العائد الشهري التقديري (د.ك)' : 'Est. Monthly Return (KWD)'}
+                  {isAr ? 'العائد الشهري المتوقع (د.ك)' : 'Expected Monthly Gain (KWD)'}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -997,19 +1394,7 @@ export function StrategicPlanningStudio() {
           </form>
         ) : null}
 
-        {phases.length === 0 ? (
-          <StateBlock
-            state="empty"
-            compact
-            locale={fmtLocale}
-            title={isAr ? 'لا توجد مراحل مضافة بعد' : 'No custom planning phases added yet'}
-            description={
-              isAr
-                ? 'اضغط «+ إضافة مرحلة تقديرية» لإدخال مرحلة تخطيط يدوية.'
-                : 'Click "+ Add Estimate Phase" to model a manual phase.'
-            }
-          />
-        ) : (
+        {phases.length === 0 ? null : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {phases.map((phase) => {
               const activeCircularText = buildPlanCircularText(phase, activeScenario, isAr)
@@ -1037,15 +1422,15 @@ export function StrategicPlanningStudio() {
                         <span className="ae-bento-subcard rounded-full px-3 py-0.5 text-[12.5px] font-medium text-slate-600 dark:text-slate-300">
                           {isAr ? phase.ownerAr : phase.ownerEn}
                         </span>
-                        <span className="rounded-full bg-amber-100/90 px-2.5 py-0.5 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/60 dark:text-amber-200">
-                          {isAr ? 'تقدير يدوي' : 'User Estimate'}
+                        <span className={BADGE_MANUAL_CLS}>
+                          {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
                         </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="ae-bento-subcard px-3.5 py-1.5 text-end">
                           <div className="text-[12px] text-slate-600 dark:text-slate-300">
-                            {isAr ? 'سقف التكلفة (تقدير)' : 'Est. Cost Cap'}
+                            {isAr ? 'سقف التكلفة' : 'Cost Cap'}
                           </div>
                           <div
                             dir="ltr"
@@ -1057,7 +1442,7 @@ export function StrategicPlanningStudio() {
 
                         <div className="rounded-2xl bg-emerald-50/80 px-3.5 py-1.5 text-end ring-1 ring-emerald-500/15 dark:bg-emerald-950/40 dark:ring-emerald-400/20">
                           <div className="text-[12px] text-emerald-800 dark:text-emerald-300">
-                            {isAr ? 'العائد الشهري (تقدير)' : 'Est. Monthly Gain'}
+                            {isAr ? 'العائد الشهري' : 'Monthly Gain'}
                           </div>
                           <div
                             dir="ltr"
@@ -1100,7 +1485,7 @@ export function StrategicPlanningStudio() {
                       >
                         <FileText className="h-4 w-4" aria-hidden />
                         <span>
-                          {isAr ? 'طباعة / تصدير تعميم رسمي (معطّل)' : 'Print Official Circular (Disabled)'}
+                          {isAr ? 'طباعة تعميم (معطّل)' : 'Print Circular (Disabled)'}
                         </span>
                       </button>
 
@@ -1115,7 +1500,7 @@ export function StrategicPlanningStudio() {
                         className={PRIMARY_SOFT_BTN_CLS}
                       >
                         <Megaphone className="h-4 w-4" aria-hidden />
-                        <span>{isAr ? 'تعميم رسمي (معطّل)' : 'Broadcast Circular (Disabled)'}</span>
+                        <span>{isAr ? 'تعميم (معطّل)' : 'Broadcast (Disabled)'}</span>
                       </button>
 
                       <button
@@ -1129,7 +1514,7 @@ export function StrategicPlanningStudio() {
                         className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-50 px-3 text-[12.5px] font-semibold text-rose-700 opacity-50 cursor-not-allowed dark:bg-rose-950/40 dark:text-rose-300"
                       >
                         <ShieldAlert className="h-4 w-4" aria-hidden />
-                        <span>{isAr ? 'إيقاف فوري (معطّل)' : 'Freeze Action (Disabled)'}</span>
+                        <span>{isAr ? 'إيقاف (معطّل)' : 'Freeze (Disabled)'}</span>
                       </button>
                     </div>
 

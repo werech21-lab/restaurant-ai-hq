@@ -35,27 +35,27 @@ export default async function FinancePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/erp/executive-pnl"
-            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 transition dark:text-emerald-300"
+            className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-500/20 transition dark:text-emerald-300"
           >
-            <FileSpreadsheet size={14} aria-hidden />
+            <FileSpreadsheet size={14} className="shrink-0" aria-hidden />
             <span>{isAr ? 'قائمة الدخل التنفيذية (P&L)' : 'Executive P&L'}</span>
-            <ArrowUpRight size={13} aria-hidden />
+            <ArrowUpRight size={13} className="shrink-0" aria-hidden />
           </Link>
           <Link
             href="/erp/receivables"
-            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-800 hover:bg-cyan-500/20 transition dark:text-cyan-300"
+            className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-800 hover:bg-cyan-500/20 transition dark:text-cyan-300"
           >
-            <Receipt size={14} aria-hidden />
+            <Receipt size={14} className="shrink-0" aria-hidden />
             <span>{isAr ? 'الذمم المدينة المفتوحة' : 'Open receivables'}</span>
-            <ArrowUpRight size={13} aria-hidden />
+            <ArrowUpRight size={13} className="shrink-0" aria-hidden />
           </Link>
           <Link
             href="/erp/cost-intelligence"
-            className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-500/20 transition dark:text-amber-300"
+            className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 hover:bg-amber-500/20 transition dark:text-amber-300"
           >
-            <Gauge size={14} aria-hidden />
+            <Gauge size={14} className="shrink-0" aria-hidden />
             <span>{isAr ? 'ذكاء التكلفة وأسعار الموردين' : 'Cost & Supplier Intelligence'}</span>
-            <ArrowUpRight size={13} aria-hidden />
+            <ArrowUpRight size={13} className="shrink-0" aria-hidden />
           </Link>
         </div>
       </div>

@@ -1,12 +1,11 @@
 /**
- * Gemini-Style Persistent Chat History & Topic Notebooks Store
+ * Persistent DB-Backed Chat History & Topic Notebooks Store
  * (`src/lib/feryal-chat-store.ts`)
  *
- * - Unlimited full chat threads stored in IndexedDB (`aether_feryal_chats_v2`)
- * - Instant synchronous `localStorage` index mirror (`aether_feryal_chats_index_v2`)
- * - Automatic migration of legacy saved chats from localStorage
- * - Zero-click real-time auto-save + smart 4-to-6 word plain-Arabic auto-titling (ZERO `Untitled`)
- * - Editable Topic Notebooks (`دفاتر المواضيع 📁`) + chronological grouping + full-text search + JSON backup/restore
+ * - Authenticated server-side DB persistence via `/api/erp/feryal/threads` (scoped strictly per user)
+ * - Instant synchronous `localStorage` index & recent-threads mirror (`aether_feryal_chats_index_v2`)
+ * - Full client IndexedDB mirror (`aether_feryal_chats_v2`)
+ * - Smart 4-to-6 word auto-titling (ZERO `Untitled`) + chronological Asia/Kuwait grouping
  */
 
 import {
@@ -20,9 +19,39 @@ import { formatDate } from '@/lib/format'
 
 export const FERYAL_CHATS_DB_NAME = 'aether_feryal_chats_v2'
 export const FERYAL_CHATS_INDEX_KEY = 'aether_feryal_chats_index_v2'
+export const FERYAL_THREADS_MIRROR_KEY = 'aether_feryal_threads_mirror_v2'
+export const FERYAL_ACTIVE_USER_KEY = 'aether_feryal_active_user_v2'
 export const FERYAL_NOTEBOOKS_KEY = 'aether_feryal_notebooks_v2'
 export const FERYAL_CHATS_MIGRATED_KEY = 'aether_feryal_chats_migrated_v2'
 export const FERYAL_CHATS_UPDATED_EVENT = 'aether-feryal-chats-updated'
+
+export interface StoredExecutedQueryMeta {
+  model: string
+  method: string
+  domain: unknown[]
+  groupby: string[]
+  period: { from: string; to: string }
+}
+
+export interface StoredVerifierMeta {
+  valid: boolean
+  extractedNumbers: number[]
+  unverifiedNumbers: number[]
+  reason?: string
+}
+
+export interface StoredCouncilChipMeta {
+  provider: string
+  modelId: string
+  status: string
+  errorCode?: string | null
+  offendingNumbers?: string[]
+}
+
+export interface StoredCouncilAgreementMeta {
+  provider: string
+  modelId: string
+}
 
 export interface StoredChatMessage {
   id: string
@@ -43,6 +72,13 @@ export interface StoredChatMessage {
   grokModel?: string
   statusNoteAr?: string
   statusNoteEn?: string
+  userPrompt?: string
+  replyStatus?: string
+  contradictoryActions?: boolean
+  executedQueries?: StoredExecutedQueryMeta[]
+  verifier?: StoredVerifierMeta
+  council?: StoredCouncilChipMeta[]
+  agreed?: StoredCouncilAgreementMeta[]
 }
 
 export interface FeryalNotebook {
@@ -116,9 +152,6 @@ export const DEFAULT_NOTEBOOKS: readonly FeryalNotebook[] = [
   },
 ] as const
 
-// ============================================================================
-// Smart 4-to-6 Word Plain-Arabic Auto-Titling (ZERO `Untitled`)
-// ============================================================================
 const ARABIC_LEAD_FILLERS = new Set([
   'السلام',
   'عليكم',
@@ -158,6 +191,7 @@ const EN_LEAD_FILLERS = new Set([
   'hello',
   'hey',
   'feryal',
+  'ferial',
   'please',
   'can',
   'could',
@@ -211,7 +245,9 @@ export function generateSmartChatTitle(
   }
   const enCore = enTokens.slice(0, 6)
   if (enCore.length >= 4) return enCore.join(' ')
-  if (enCore.length > 0) return `${enCore.join(' ')} Across Active Branches`.split(/\s+/).slice(0, 6).join(' ')
+  if (enCore.length > 0) {
+    return `${enCore.join(' ')} Across Active Branches`.split(/\s+/).slice(0, 6).join(' ')
+  }
   return 'Venture Foods Branch Profit Review'
 }
 
@@ -241,9 +277,6 @@ export function inferNotebookId(text: string): string {
   return 'nb-branches-pricing'
 }
 
-// ============================================================================
-// IndexedDB (`aether_feryal_chats_v2`) + Fast `localStorage` Mirror
-// ============================================================================
 let indexMemoryCache: FeryalChatSummary[] | null = null
 let notebooksMemoryCache: FeryalNotebook[] | null = null
 const threadMemoryCache = new Map<string, FeryalChatThread>()
@@ -252,7 +285,9 @@ function emitUpdate(): void {
   if (typeof window === 'undefined') return
   try {
     window.dispatchEvent(new CustomEvent(FERYAL_CHATS_UPDATED_EVENT))
-  } catch {}
+  } catch {
+    // ignore dispatch error
+  }
 }
 
 function openChatsIdb(): Promise<IDBDatabase | null> {
@@ -309,6 +344,21 @@ async function idbDeleteThread(chatId: string): Promise<void> {
   })
 }
 
+async function idbClearAllThreads(): Promise<void> {
+  const db = await openChatsIdb()
+  if (!db) return
+  await new Promise<void>((resolve) => {
+    try {
+      const tx = db.transaction('threads', 'readwrite')
+      tx.objectStore('threads').clear()
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => resolve()
+    } catch {
+      resolve()
+    }
+  })
+}
+
 async function idbGetThread(chatId: string): Promise<FeryalChatThread | null> {
   const db = await openChatsIdb()
   if (!db) return null
@@ -339,6 +389,56 @@ async function idbGetAllThreads(): Promise<FeryalChatThread[]> {
   })
 }
 
+function readThreadsMirrorFromStorage(): FeryalChatThread[] {
+  if (typeof window === 'undefined' || !window.localStorage) return []
+  try {
+    const raw = window.localStorage.getItem(FERYAL_THREADS_MIRROR_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (item): item is FeryalChatThread =>
+        typeof item === 'object' &&
+        item !== null &&
+        typeof (item as FeryalChatThread).id === 'string' &&
+        Array.isArray((item as FeryalChatThread).messages),
+    )
+  } catch {
+    return []
+  }
+}
+
+function saveThreadsMirrorToStorage(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return
+  try {
+    const sorted = Array.from(threadMemoryCache.values())
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .slice(0, 30)
+    window.localStorage.setItem(FERYAL_THREADS_MIRROR_KEY, JSON.stringify(sorted))
+  } catch {
+    // If localStorage quota is tight due to thumbnails, persist without large data URLs
+    try {
+      const compact = Array.from(threadMemoryCache.values())
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 20)
+        .map((t) => ({
+          ...t,
+          messages: t.messages.map((m) => ({
+            ...m,
+            attachmentsMeta: m.attachmentsMeta?.map((att) => ({
+              ...att,
+              thumbDataUrl: '',
+              frameThumbs: undefined,
+            })),
+          })),
+        }))
+      window.localStorage.setItem(FERYAL_THREADS_MIRROR_KEY, JSON.stringify(compact))
+    } catch {
+      // IndexedDB and server DB still hold the full thread
+    }
+  }
+}
+
 function saveIndexMirror(list: FeryalChatSummary[]): void {
   const sorted = [...list].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -347,17 +447,66 @@ function saveIndexMirror(list: FeryalChatSummary[]): void {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       window.localStorage.setItem(FERYAL_CHATS_INDEX_KEY, JSON.stringify(sorted))
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }
+  saveThreadsMirrorToStorage()
   emitUpdate()
 }
 
-function saveNotebooksMirror(list: FeryalNotebook[]): void {
+async function pushThreadToServer(
+  thread: FeryalChatThread,
+  notebooks?: FeryalNotebook[],
+): Promise<boolean> {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return false
+  try {
+    const res = await fetch('/api/erp/feryal/threads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        thread,
+        ...(notebooks ? { notebooks } : {}),
+      }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function pushNotebooksToServer(notebooks: FeryalNotebook[]): Promise<void> {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return
+  try {
+    await fetch('/api/erp/feryal/threads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notebooks }),
+    })
+  } catch {
+    // ignore offline sync error
+  }
+}
+
+async function deleteThreadFromServer(chatId: string): Promise<void> {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return
+  try {
+    await fetch(`/api/erp/feryal/threads?id=${encodeURIComponent(chatId)}`, {
+      method: 'DELETE',
+    })
+  } catch {
+    // ignore offline delete error
+  }
+}
+
+function saveNotebooksMirror(list: FeryalNotebook[], syncRemote = true): void {
   notebooksMemoryCache = list
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
       window.localStorage.setItem(FERYAL_NOTEBOOKS_KEY, JSON.stringify(list))
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }
   void (async () => {
     const db = await openChatsIdb()
@@ -367,8 +516,13 @@ function saveNotebooksMirror(list: FeryalNotebook[]): void {
       const store = tx.objectStore('notebooks')
       store.clear()
       for (const nb of list) store.put(nb)
-    } catch {}
+    } catch {
+      // ignore idb error
+    }
   })()
+  if (syncRemote) {
+    void pushNotebooksToServer(list)
+  }
   emitUpdate()
 }
 
@@ -380,12 +534,13 @@ export function getNotebooksSync(): FeryalNotebook[] {
       if (raw) {
         const parsed = JSON.parse(raw) as FeryalNotebook[]
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Ensure the 4 default notebooks exist unless explicitly deleted by user
           notebooksMemoryCache = parsed
           return parsed
         }
       }
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }
   notebooksMemoryCache = [...DEFAULT_NOTEBOOKS]
   return notebooksMemoryCache
@@ -394,6 +549,11 @@ export function getNotebooksSync(): FeryalNotebook[] {
 export function getChatIndexSync(): FeryalChatSummary[] {
   if (indexMemoryCache) return indexMemoryCache
   if (typeof window !== 'undefined' && window.localStorage) {
+    for (const t of readThreadsMirrorFromStorage()) {
+      if (!threadMemoryCache.has(t.id)) {
+        threadMemoryCache.set(t.id, t)
+      }
+    }
     try {
       const raw = window.localStorage.getItem(FERYAL_CHATS_INDEX_KEY)
       if (raw) {
@@ -403,7 +563,9 @@ export function getChatIndexSync(): FeryalChatSummary[] {
           return parsed
         }
       }
-    } catch {}
+    } catch {
+      // ignore storage error
+    }
   }
   indexMemoryCache = []
   return indexMemoryCache
@@ -414,9 +576,6 @@ function toSummary(thread: FeryalChatThread): FeryalChatSummary {
   return summary
 }
 
-// ============================================================================
-// Legacy Chat Migration + IndexedDB Hydration
-// ============================================================================
 async function migrateLegacySavedChats(): Promise<void> {
   if (typeof window === 'undefined' || !window.localStorage) return
   if (window.localStorage.getItem(FERYAL_CHATS_MIGRATED_KEY) === '1') return
@@ -433,27 +592,31 @@ async function migrateLegacySavedChats(): Promise<void> {
     try {
       const raw = window.localStorage.getItem(key)
       if (!raw) continue
-      const parsed = JSON.parse(raw)
+      const parsed: unknown = JSON.parse(raw)
       if (!Array.isArray(parsed)) continue
-      for (const item of parsed) {
-        if (!item || !Array.isArray(item.messages) || item.messages.length === 0) continue
-        const firstUser = item.messages.find(
-          (m: { sender?: string; role?: string }) => m.sender === 'user' || m.role === 'user',
-        )
+      for (const rawItem of parsed) {
+        if (!rawItem || typeof rawItem !== 'object') continue
+        const item = rawItem as Record<string, unknown>
+        if (!Array.isArray(item.messages) || item.messages.length === 0) continue
+        const firstUser = item.messages.find((m) => {
+          if (!m || typeof m !== 'object') return false
+          const rec = m as { sender?: string; role?: string }
+          return rec.sender === 'user' || rec.role === 'user'
+        }) as { text?: string; content?: string } | undefined
         const rawTitle = String(item.title || '').trim()
         const validTitle =
           rawTitle && !/untitled|بدون عنوان/i.test(rawTitle)
             ? rawTitle
             : generateSmartChatTitle(firstUser?.text || firstUser?.content || '', 'ar')
 
-        const normalizedMsgs: StoredChatMessage[] = item.messages.map(
-          (m: Record<string, unknown>, idx: number) => ({
+        const normalizedMsgs: StoredChatMessage[] = item.messages
+          .filter((m): m is Record<string, unknown> => Boolean(m && typeof m === 'object'))
+          .map((m, idx) => ({
             id: String(m.id || `migrated-${idx}`),
             sender: m.sender === 'user' || m.role === 'user' ? 'user' : 'feryal',
             text: String(m.text || m.content || ''),
             time: String(m.time || ''),
-          }),
-        )
+          }))
 
         const corpus = normalizedMsgs
           .map((m) => m.text)
@@ -476,12 +639,128 @@ async function migrateLegacySavedChats(): Promise<void> {
         threadMemoryCache.set(id, thread)
         await idbPutThread(thread)
       }
-    } catch {}
+    } catch {
+      // skip invalid legacy payload
+    }
   }
 
   try {
     window.localStorage.setItem(FERYAL_CHATS_MIGRATED_KEY, '1')
-  } catch {}
+  } catch {
+    // ignore storage error
+  }
+}
+
+export async function syncThreadsFromServer(): Promise<{
+  chats: FeryalChatSummary[]
+  notebooks: FeryalNotebook[]
+}> {
+  if (typeof window === 'undefined' || typeof fetch !== 'function') {
+    return { chats: getChatIndexSync(), notebooks: getNotebooksSync() }
+  }
+
+  try {
+    const res = await fetch('/api/erp/feryal/threads', {
+      method: 'GET',
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      return { chats: getChatIndexSync(), notebooks: getNotebooksSync() }
+    }
+    const data = (await res.json()) as {
+      ok?: boolean
+      userKey?: string
+      threads?: FeryalChatThread[]
+      notebooks?: FeryalNotebook[]
+    }
+    if (!data?.ok || !Array.isArray(data.threads)) {
+      return { chats: getChatIndexSync(), notebooks: getNotebooksSync() }
+    }
+
+    const previousUserKey = window.localStorage?.getItem(FERYAL_ACTIVE_USER_KEY) ?? null
+    const activeUserKey = typeof data.userKey === 'string' ? data.userKey : null
+    const switchedUser = Boolean(
+      activeUserKey && previousUserKey && previousUserKey !== activeUserKey,
+    )
+
+    if (activeUserKey && window.localStorage) {
+      try {
+        window.localStorage.setItem(FERYAL_ACTIVE_USER_KEY, activeUserKey)
+      } catch {
+        // ignore storage error
+      }
+    }
+
+    if (switchedUser) {
+      threadMemoryCache.clear()
+      indexMemoryCache = []
+      await idbClearAllThreads()
+    }
+
+    const mergedThreadsMap = new Map<string, FeryalChatThread>()
+    if (!switchedUser) {
+      for (const localThread of threadMemoryCache.values()) {
+        mergedThreadsMap.set(localThread.id, localThread)
+      }
+    }
+
+    const serverIds = new Set<string>()
+    for (const remoteThread of data.threads) {
+      if (!remoteThread?.id || !Array.isArray(remoteThread.messages)) continue
+      serverIds.add(remoteThread.id)
+      const local = mergedThreadsMap.get(remoteThread.id)
+      if (!local) {
+        mergedThreadsMap.set(remoteThread.id, remoteThread)
+      } else {
+        const remoteTs = new Date(remoteThread.updatedAt).getTime()
+        const localTs = new Date(local.updatedAt).getTime()
+        if (
+          remoteTs >= localTs ||
+          remoteThread.messages.length >= local.messages.length
+        ) {
+          mergedThreadsMap.set(remoteThread.id, remoteThread)
+        }
+      }
+    }
+
+    const summaries: FeryalChatSummary[] = []
+    const unsyncedLocal: FeryalChatThread[] = []
+    for (const thread of mergedThreadsMap.values()) {
+      if (!thread.title || /untitled|بدون عنوان/i.test(thread.title)) {
+        const firstUser = thread.messages.find((m) => m.sender === 'user')
+        thread.title = generateSmartChatTitle(firstUser?.text || '', thread.lang)
+      }
+      threadMemoryCache.set(thread.id, thread)
+      summaries.push(toSummary(thread))
+      void idbPutThread(thread)
+      if (!switchedUser && !serverIds.has(thread.id)) {
+        unsyncedLocal.push(thread)
+      }
+    }
+
+    if (Array.isArray(data.notebooks) && data.notebooks.length > 0) {
+      const nbMap = new Map<string, FeryalNotebook>()
+      for (const def of DEFAULT_NOTEBOOKS) nbMap.set(def.id, def)
+      for (const nb of data.notebooks) {
+        if (nb?.id && nb?.nameAr) nbMap.set(nb.id, nb)
+      }
+      saveNotebooksMirror(Array.from(nbMap.values()), false)
+    }
+
+    saveIndexMirror(summaries)
+
+    if (unsyncedLocal.length > 0) {
+      void fetch('/api/erp/feryal/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threads: unsyncedLocal.slice(0, 25) }),
+      }).catch(() => undefined)
+    }
+  } catch {
+    // Offline or test environment without server route mounted
+  }
+
+  return { chats: getChatIndexSync(), notebooks: getNotebooksSync() }
 }
 
 export async function hydrateFeryalChatStore(): Promise<{
@@ -489,38 +768,74 @@ export async function hydrateFeryalChatStore(): Promise<{
   notebooks: FeryalNotebook[]
 }> {
   await migrateLegacySavedChats()
+
+  for (const mirrored of readThreadsMirrorFromStorage()) {
+    threadMemoryCache.set(mirrored.id, mirrored)
+  }
+
   const allThreads = await idbGetAllThreads()
   if (allThreads.length > 0) {
-    const summaries: FeryalChatSummary[] = []
     for (const t of allThreads) {
-      // Fix any historical Untitled if ever present
       if (!t.title || /untitled|بدون عنوان/i.test(t.title)) {
         const firstUser = t.messages?.find((m) => m.sender === 'user')
         t.title = generateSmartChatTitle(firstUser?.text || '', t.lang)
       }
-      threadMemoryCache.set(t.id, t)
-      summaries.push(toSummary(t))
+      const existing = threadMemoryCache.get(t.id)
+      if (
+        !existing ||
+        new Date(t.updatedAt).getTime() >= new Date(existing.updatedAt).getTime()
+      ) {
+        threadMemoryCache.set(t.id, t)
+      }
     }
-    saveIndexMirror(summaries)
+  }
+
+  if (threadMemoryCache.size > 0) {
+    saveIndexMirror(Array.from(threadMemoryCache.values()).map(toSummary))
   } else {
     getChatIndexSync()
   }
-  const notebooks = getNotebooksSync()
-  return { chats: getChatIndexSync(), notebooks }
+
+  return syncThreadsFromServer()
 }
 
-// ============================================================================
-// Real-Time Zero-Click Auto-Save & CRUD Operations
-// ============================================================================
 export async function loadChatThread(chatId: string): Promise<FeryalChatThread | null> {
   const cached = threadMemoryCache.get(chatId)
-  if (cached) return cached
+  if (cached && cached.messages.length > 0) return cached
+
+  const fromStorage = readThreadsMirrorFromStorage().find((t) => t.id === chatId)
+  if (fromStorage && fromStorage.messages.length > 0) {
+    threadMemoryCache.set(chatId, fromStorage)
+    return fromStorage
+  }
+
   const fromIdb = await idbGetThread(chatId)
-  if (fromIdb) {
+  if (fromIdb && fromIdb.messages.length > 0) {
     threadMemoryCache.set(chatId, fromIdb)
     return fromIdb
   }
-  return null
+
+  if (typeof window !== 'undefined' && typeof fetch === 'function') {
+    try {
+      const res = await fetch(`/api/erp/feryal/threads?id=${encodeURIComponent(chatId)}`, {
+        method: 'GET',
+        cache: 'no-store',
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { ok?: boolean; thread?: FeryalChatThread | null }
+        if (data?.ok && data.thread && Array.isArray(data.thread.messages)) {
+          threadMemoryCache.set(chatId, data.thread)
+          void idbPutThread(data.thread)
+          saveThreadsMirrorToStorage()
+          return data.thread
+        }
+      }
+    } catch {
+      // ignore network error
+    }
+  }
+
+  return cached ?? fromIdb ?? null
 }
 
 export async function autoSaveChatThread({
@@ -536,8 +851,11 @@ export async function autoSaveChatThread({
   filterLabel?: string
   preferredNotebookId?: string | null
 }): Promise<FeryalChatSummary | null> {
-  // Only persist once at least 1 real user message exists
-  const userMessages = messages.filter((m) => m.sender === 'user' && m.text.trim().length > 0)
+  const userMessages = messages.filter(
+    (m) =>
+      m.sender === 'user' &&
+      (m.text.trim().length > 0 || (m.attachmentsMeta && m.attachmentsMeta.length > 0)),
+  )
   if (userMessages.length === 0) return null
 
   const existingSummary = getChatIndexSync().find((c) => c.id === chatId)
@@ -581,7 +899,7 @@ export async function autoSaveChatThread({
   const summary = toSummary(thread)
   const others = getChatIndexSync().filter((c) => c.id !== chatId)
   saveIndexMirror([summary, ...others])
-  await idbPutThread(thread)
+  await Promise.all([idbPutThread(thread), pushThreadToServer(thread)])
   return summary
 }
 
@@ -589,16 +907,16 @@ export async function togglePinChat(chatId: string): Promise<void> {
   const list = getChatIndexSync()
   const idx = list.findIndex((c) => c.id === chatId)
   if (idx === -1) return
-  const updated = { ...list[idx], pinned: !list[idx].pinned }
+  const updated = { ...list[idx], pinned: !list[idx].pinned, updatedAt: new Date().toISOString() }
   const next = [...list]
   next[idx] = updated
   saveIndexMirror(next)
 
   const thread = await loadChatThread(chatId)
   if (thread) {
-    const nextThread = { ...thread, pinned: updated.pinned }
+    const nextThread = { ...thread, pinned: updated.pinned, updatedAt: updated.updatedAt }
     threadMemoryCache.set(chatId, nextThread)
-    await idbPutThread(nextThread)
+    await Promise.all([idbPutThread(nextThread), pushThreadToServer(nextThread)])
   }
 }
 
@@ -608,16 +926,16 @@ export async function renameChat(chatId: string, newTitle: string): Promise<void
   const list = getChatIndexSync()
   const idx = list.findIndex((c) => c.id === chatId)
   if (idx === -1) return
-  const updated = { ...list[idx], title: clean }
+  const updated = { ...list[idx], title: clean, updatedAt: new Date().toISOString() }
   const next = [...list]
   next[idx] = updated
   saveIndexMirror(next)
 
   const thread = await loadChatThread(chatId)
   if (thread) {
-    const nextThread = { ...thread, title: clean }
+    const nextThread = { ...thread, title: clean, updatedAt: updated.updatedAt }
     threadMemoryCache.set(chatId, nextThread)
-    await idbPutThread(nextThread)
+    await Promise.all([idbPutThread(nextThread), pushThreadToServer(nextThread)])
   }
 }
 
@@ -625,16 +943,16 @@ export async function moveChatToNotebook(chatId: string, notebookId: string): Pr
   const list = getChatIndexSync()
   const idx = list.findIndex((c) => c.id === chatId)
   if (idx === -1) return
-  const updated = { ...list[idx], notebookId }
+  const updated = { ...list[idx], notebookId, updatedAt: new Date().toISOString() }
   const next = [...list]
   next[idx] = updated
   saveIndexMirror(next)
 
   const thread = await loadChatThread(chatId)
   if (thread) {
-    const nextThread = { ...thread, notebookId }
+    const nextThread = { ...thread, notebookId, updatedAt: updated.updatedAt }
     threadMemoryCache.set(chatId, nextThread)
-    await idbPutThread(nextThread)
+    await Promise.all([idbPutThread(nextThread), pushThreadToServer(nextThread)])
   }
 }
 
@@ -642,12 +960,9 @@ export async function deleteChat(chatId: string): Promise<void> {
   threadMemoryCache.delete(chatId)
   const next = getChatIndexSync().filter((c) => c.id !== chatId)
   saveIndexMirror(next)
-  await idbDeleteThread(chatId)
+  await Promise.all([idbDeleteThread(chatId), deleteThreadFromServer(chatId)])
 }
 
-// ============================================================================
-// Editable Topic Notebooks (`دفاتر المواضيع 📁`)
-// ============================================================================
 export function createNotebook(nameAr: string, nameEn?: string, icon = '📁'): FeryalNotebook | null {
   const cleanAr = nameAr.trim()
   if (!cleanAr) return null
@@ -678,7 +993,6 @@ export function deleteNotebook(notebookId: string): void {
   const fallbackId = remaining[0]?.id || 'nb-branches-pricing'
   saveNotebooksMirror(remaining.length > 0 ? remaining : [...DEFAULT_NOTEBOOKS])
 
-  // Reassign chats cleanly so zero conversations are lost
   const chats = getChatIndexSync()
   let touched = false
   const updatedChats = chats.map((c) => {
@@ -691,9 +1005,6 @@ export function deleteNotebook(notebookId: string): void {
   if (touched) saveIndexMirror(updatedChats)
 }
 
-// ============================================================================
-// Search & Chronological Grouping (`المثبّتة 📌`, `اليوم`, `أمس`, `هذا الأسبوع`, `السابق`)
-// ============================================================================
 export function filterAndGroupChats({
   chats,
   notebooks,
@@ -702,7 +1013,7 @@ export function filterAndGroupChats({
 }: {
   chats: FeryalChatSummary[]
   notebooks: FeryalNotebook[]
-  activeNotebookId: string // 'all' or notebook.id
+  activeNotebookId: string
   searchQuery: string
 }): ChronologicalChatGroup[] {
   const q = searchQuery.trim().toLowerCase()
@@ -766,9 +1077,6 @@ export function filterAndGroupChats({
     .filter((g) => g.chats.length > 0)
 }
 
-// ============================================================================
-// 1-Click JSON Backup & Restore (Chats + Notebooks + Feryal Evolving Memory)
-// ============================================================================
 export interface FeryalBackupBundle {
   schema: 'aether_feryal_backup_v2'
   exportedAt: string
@@ -779,7 +1087,6 @@ export interface FeryalBackupBundle {
 
 export async function exportFeryalWorkspaceJson(): Promise<string> {
   const threads = await idbGetAllThreads()
-  // Include any memory-cached threads if IDB was unavailable
   const byId = new Map<string, FeryalChatThread>()
   for (const t of threads) byId.set(t.id, t)
   for (const [id, t] of threadMemoryCache.entries()) {
@@ -820,6 +1127,7 @@ export async function importFeryalWorkspaceJson(rawJson: string): Promise<{
   if (Array.isArray(parsed.threads)) {
     const summariesMap = new Map<string, FeryalChatSummary>()
     for (const s of getChatIndexSync()) summariesMap.set(s.id, s)
+    const syncedBatch: FeryalChatThread[] = []
 
     for (const t of parsed.threads) {
       if (!t?.id || !Array.isArray(t.messages)) continue
@@ -837,17 +1145,28 @@ export async function importFeryalWorkspaceJson(rawJson: string): Promise<{
       }
       threadMemoryCache.set(normalized.id, normalized)
       summariesMap.set(normalized.id, toSummary(normalized))
+      syncedBatch.push(normalized)
       await idbPutThread(normalized)
       restoredChats++
     }
     saveIndexMirror(Array.from(summariesMap.values()))
+
+    if (syncedBatch.length > 0 && typeof window !== 'undefined' && typeof fetch === 'function') {
+      void fetch('/api/erp/feryal/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threads: syncedBatch.slice(0, 50) }),
+      }).catch(() => undefined)
+    }
   }
 
   if (parsed.memory && Array.isArray(parsed.memory.rules) && typeof window !== 'undefined') {
     try {
       window.localStorage.setItem(FERYAL_LEARNING_MIRROR_KEY, JSON.stringify(parsed.memory))
       await hydrateFeryalMemory()
-    } catch {}
+    } catch {
+      // ignore memory import error
+    }
   }
 
   return { restoredChats, restoredNotebooks }

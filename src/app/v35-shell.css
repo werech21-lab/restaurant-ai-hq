@@ -129,7 +129,7 @@ html[data-theme='dark'] #ae-root .ae-ambient span {
   html:not([data-rail-collapsed='false']) #ae-root #ae-sidebar,
   html:not([data-rail-collapsed='false']) #ae-sidebar {
     width: 76px !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] [data-rail-expanded-only] {
@@ -146,8 +146,10 @@ html[data-theme='dark'] #ae-root .ae-ambient span {
   }
 
   html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] nav {
-    overflow: visible !important;
-    padding: 0.25rem 0.625rem 0.625rem !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    padding: 0.25rem 0.625rem 2rem !important;
   }
 
   html:not([data-rail-collapsed='false']) #ae-sidebar[data-collapsed='false'] .ae-side-link {
@@ -162,12 +164,16 @@ html[data-theme='dark'] #ae-root .ae-ambient span {
   }
 
   #ae-root #ae-sidebar {
+    display: flex;
+    flex-direction: column;
     position: sticky;
     top: var(--v35-rail-inset);
     height: calc(100dvh - (var(--v35-rail-inset) * 2));
+    max-height: calc(100dvh - (var(--v35-rail-inset) * 2));
     margin-block: var(--v35-rail-inset);
     margin-inline-start: var(--v35-rail-inset);
     width: var(--ae-rail-w) !important;
+    overflow: hidden !important;
     border-radius: var(--v35-radius-rail) !important;
     clip-path: none !important;
     transition:
@@ -175,18 +181,32 @@ html[data-theme='dark'] #ae-root .ae-ambient span {
       box-shadow var(--v35-dur-base) var(--v35-ease-out);
   }
 
-  #ae-root #ae-sidebar:not([data-collapsed='true']) {
-    overflow-y: auto;
-    overflow-x: hidden;
+  /* Scrollable nav list inside flex-column sidebar so bottom user footer never overlaps items */
+  #ae-root #ae-sidebar nav {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
   }
 
-  /* Keep collapsed flyout tooltips completely unclipped in LTR & RTL */
-  #ae-root #ae-sidebar[data-collapsed='true'],
-  #ae-root #ae-sidebar[data-collapsed='true'] nav {
-    overflow: visible !important;
-    clip-path: none !important;
+  #ae-root #ae-sidebar nav::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  #ae-root #ae-sidebar nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #ae-root #ae-sidebar nav::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.28);
+    border-radius: 9999px;
+  }
+
+  #ae-root #ae-sidebar [data-sidebar-footer='true'] {
+    flex-shrink: 0;
   }
 
   #ae-root .ae-content-col {
@@ -508,6 +528,7 @@ html:not(.dark) #ae-root .ae-kpi-card,
 html.dark #ae-root .ae-kpi-card,
 html[data-theme='dark'] #ae-root .ae-kpi-card {
   position: relative;
+  overflow: visible;
   background-color: var(--v35-glass-bg) !important;
   -webkit-backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
   backdrop-filter: blur(var(--v35-blur-glass)) saturate(165%);
@@ -1079,6 +1100,8 @@ html:not(.dark) .ae-bottom-sheet {
   background-color: #FFFFFF !important;
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
+  overscroll-behavior: contain;
+  scroll-padding-bottom: 2rem;
   border: none !important;
   border-top-left-radius: var(--v35-radius-rail);
   border-top-right-radius: var(--v35-radius-rail);

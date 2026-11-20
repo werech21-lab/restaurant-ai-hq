@@ -26,7 +26,6 @@ import { V35KpiRing } from '@/components/aether/v35/V35KpiRing'
 import { AdminExecutiveDirectoryCard } from '@/components/erp/AdminExecutiveDirectoryCard'
 import { AdminPosTerminalMappingPanel } from '@/components/erp/AdminPosTerminalMappingPanel'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import {
   canTriggerManualOdooSync,
   isErpRouteAllowedForRole,
@@ -78,7 +77,7 @@ import {
   getKuwaitTimeContext,
 } from '@/lib/aether/period-delta'
 import { useLang } from '@/components/aether/ui'
-import { ChartCard, StateBlock, UnavailableState } from '@/components/ui'
+import { ChartCard, StateBlock } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
   formatInt,
@@ -87,6 +86,56 @@ import {
   getUnavailableTooltip,
 } from '@/lib/format'
 import { describePosOrderQuery } from '@/lib/odoo/pos-order-query'
+
+function resolveDynamicKpiGridClass(count: number): string {
+  if (count <= 1) return 'grid-cols-1'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3 || count === 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+}
+
+function CompactInfoTooltip({
+  text,
+  label,
+  dataAttr,
+}: {
+  text: string
+  label: string
+  dataAttr?: 'net-profit-withheld' | 'ar-aging-hidden'
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span
+      data-net-profit-withheld={dataAttr === 'net-profit-withheld' ? 'true' : undefined}
+      data-ar-aging-hidden={dataAttr === 'ar-aging-hidden' ? 'true' : undefined}
+      className="group relative inline-flex shrink-0 items-center"
+    >
+      <button
+        type="button"
+        aria-label={label}
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false)
+        }}
+        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-slate-100/90 text-slate-600 ring-1 ring-slate-300/70 transition-colors hover:bg-emerald-50 hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-600/60 dark:hover:bg-emerald-500/15 dark:hover:text-emerald-300"
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute bottom-full end-0 z-40 mb-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-slate-200/95 bg-white p-2.5 text-start text-xs font-medium leading-relaxed text-slate-700 shadow-lg backdrop-blur-md transition-opacity duration-150 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 ${
+          open
+            ? 'visible opacity-100'
+            : 'invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100'
+        }`}
+      >
+        {text}
+      </span>
+    </span>
+  )
+}
 
 interface EmeraldPillOption<K extends string> {
   id: K
@@ -117,7 +166,7 @@ function EmeraldPillTabs<K extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-2xl border border-slate-200/85 bg-slate-100/85 p-1 backdrop-blur-md select-none dark:border-slate-800 dark:bg-slate-900/85"
+      className="flex flex-nowrap shrink-0 max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-2xl border border-slate-200/85 bg-slate-100/85 p-1 backdrop-blur-md select-none dark:border-slate-800 dark:bg-slate-900/85"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -138,7 +187,7 @@ function EmeraldPillTabs<K extends string>({
             <span>{opt.label}</span>
             {opt.badge !== undefined ? (
               <span
-                className={`rounded-lg px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-1.5 py-0.5 text-xs font-bold tabular-nums ${
                   active
                     ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                     : 'bg-white/90 text-slate-700 dark:bg-white/10 dark:text-slate-300'
@@ -173,12 +222,15 @@ interface BranchCardRow {
   sharePct: number | null
 }
 
+const isZeroBranchRow = (row: BranchCardRow): boolean =>
+  row.salesKwd !== null && Math.abs(row.salesKwd) <= 0.0005 && (row.orders ?? 0) === 0
+
 /**
- * A branch, the booth group or the unattributed line with a recorded zero (0 KWD, 0 orders) — e.g.
- * branches not open yet early on «Today». Listed by name on one quiet line instead of full 0.000 cards.
+ * A branch, the booth group or the unattributed line with a recorded zero (<= 0.0005 KWD, 0 orders) — e.g.
+ * branches not open yet early on «Today» or zero unattributed POS buckets. Hidden from full cards.
  * Unknown values (null) are not zero and keep their card («غير متاح»).
  */
-const isIdleBoothCard = (row: BranchCardRow): boolean => row.salesKwd === 0 && row.orders === 0
+const isIdleBoothCard = (row: BranchCardRow): boolean => isZeroBranchRow(row)
 
 const shiftIsoDay = (iso: string, days: number): string => {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -187,8 +239,6 @@ const shiftIsoDay = (iso: string, days: number): string => {
 }
 
 /** ملخص الشركة — لوحة القيادة التنفيذية المربوطة مباشرةً ببيانات Odoo 17 */
-const SPARKLINE_UNAVAILABLE_EN = 'Trend not available — no hourly data for this period'
-const SPARKLINE_UNAVAILABLE_AR = 'الاتجاه غير متاح — لا توجد بيانات ساعية لهذه الفترة'
 
 export function FullJourney360({
   initialLiveCube = null,
@@ -291,7 +341,25 @@ export function FullJourney360({
       },
     ] as const
   ).filter((line) => typeof line.value === 'number')
-  const showOperatingCard = hasPostedOperatingProfit || postedLedgerLines.length > 0
+  const hasNonZeroPostedGl = postedLedgerLines.some(
+    (line) => typeof line.value === 'number' && Math.abs(line.value) > 0.0005,
+  )
+  const isUnfilteredCompanyScope =
+    filters.brand === 'all' &&
+    filters.branch === 'all' &&
+    filters.channel === 'all' &&
+    filters.kuwaitSlice === 'all'
+  const showOperatingCard =
+    isUnfilteredCompanyScope &&
+    !glIncomplete &&
+    gl.available &&
+    (hasPostedOperatingProfit || hasNonZeroPostedGl)
+  const showAggregatorCommissionsCard =
+    isUnfilteredCompanyScope &&
+    !glIncomplete &&
+    !commissionUnposted &&
+    typeof gl.deliveryCommissionsKwd === 'number' &&
+    gl.deliveryCommissionsKwd > 0.0005
   const monthEndNote = gl.to
     ? isAr
       ? `غير مُرحَّل بعد — القيود المرحّلة حتى ${gl.to}؛ العمولات والاستهلاك تُرحَّل نهاية الشهر`
@@ -299,6 +367,10 @@ export function FullJourney360({
     : isAr
       ? 'غير مُرحَّل بعد — العمولات والاستهلاك تُرحَّل نهاية الشهر'
       : 'Not posted yet — commissions and depreciation post at month end'
+  const withheldReasonText = isAr ? gl.netProfitWithheldReasonAr : gl.netProfitWithheldReasonEn
+  const glDisclaimerTooltipText = [withheldReasonText, postedLedgerLines.length > 0 ? monthEndNote : '']
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .join(' — ')
 
   const aggregatorPosSalesKwd = useMemo(() => {
     const period = filters.period === 'custom' ? null : filters.period
@@ -925,13 +997,6 @@ export function FullJourney360({
     workspace.sectionUnavailable,
   ])
 
-  // No real hourly/daily series for the selected period → calm note instead of a sparkline.
-  const sparklineUnavailableShown =
-    workspace.odooConnected &&
-    !workspace.noData &&
-    !workspace.sectionUnavailable &&
-    workspace.nullableSalesKwd !== null
-
   const ordersSparkline = useMemo<number[]>(() => {
     if (
       !workspace.odooConnected ||
@@ -962,6 +1027,22 @@ export function FullJourney360({
     workspace.odooConnected,
     workspace.sectionUnavailable,
   ])
+
+  const visibleBranchCards = useMemo(
+    () => branchCards.filter((bRow) => !isIdleBoothCard(bRow)),
+    [branchCards],
+  )
+  const hasVisibleUnattributedBranch = useMemo(
+    () => visibleBranchCards.some((bRow) => bRow.isUnattributed),
+    [visibleBranchCards],
+  )
+  const topPerformingBranch = useMemo(
+    () =>
+      branchCards.find(
+        (row) => !row.isUnattributed && typeof row.salesKwd === 'number' && row.salesKwd > 0.0005,
+      ) ?? null,
+    [branchCards],
+  )
 
   const channelMixAvailable =
     filters.brand === 'all' &&
@@ -1002,15 +1083,16 @@ export function FullJourney360({
 
   const ledgerRows = useMemo(() => {
     if (brandBranchScopeUnavailable || branchCards.length === 0) return []
+    const nonZeroScoped = branchCards.filter((r) => !(r.isUnattributed && isZeroBranchRow(r)))
     const q = ledgerSearch.trim().toLowerCase()
     const filtered = q
-      ? branchCards.filter(
+      ? nonZeroScoped.filter(
           (r) =>
             r.labelAr.toLowerCase().includes(q) ||
             r.labelEn.toLowerCase().includes(q) ||
             r.id.toLowerCase().includes(q),
         )
-      : [...branchCards]
+      : [...nonZeroScoped]
 
     const compareNullableNum = (a: number | null, b: number | null) => {
       if (a === null && b === null) return 0
@@ -1036,20 +1118,20 @@ export function FullJourney360({
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] mx-auto space-y-4 sm:space-y-5 pb-28 sm:pb-12">
       {/* Executive Header Row */}
-      <V35GlassCard className="ae-bento-card flex flex-col gap-3.5 px-4 py-4 sm:px-6 sm:py-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0 space-y-1.5">
+      <V35GlassCard className="ae-bento-card overflow-visible flex flex-col gap-3.5 px-4 py-4 sm:px-6 sm:py-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-xl sm:text-[24px] font-semibold tracking-tight text-slate-950 dark:text-white">
               {T('Executive Dashboard', 'لوحة القيادة التنفيذية')}
             </h2>
-            <span className="inline-flex items-center rounded-full bg-[#ECFDF5] px-3 py-0.5 text-[13px] font-semibold text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
+            <span className="inline-flex shrink-0 whitespace-nowrap items-center rounded-full bg-[#ECFDF5] px-3 py-0.5 text-[13px] font-semibold text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
               {T('Company Summary', 'ملخص الشركة')}
             </span>
           </div>
           <p className="min-w-0 whitespace-normal text-[13px] sm:text-[13.5px] font-medium text-slate-600 dark:text-slate-300">
             {isAr ? workspace.subtitleAr : workspace.subtitleEn}
             {todaySoFarLabel ? (
-              <span data-today-so-far="true" className="ms-1.5 inline-flex items-center rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[12px] font-semibold text-[#1E3A5F] ring-1 ring-blue-200 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-sky-300/20">
+              <span data-today-so-far="true" className="ms-1.5 inline-flex shrink-0 whitespace-nowrap items-center rounded-full bg-[#ECFDF5] px-2 py-0.5 text-[12px] font-semibold text-[#1E3A5F] ring-1 ring-blue-200 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-sky-300/20">
                 {T('So far today · until ', 'حتى الآن · حتى ')}
                 <span dir="ltr" className="ms-1 tabular-nums">{todaySoFarLabel}</span>
               </span>
@@ -1057,7 +1139,7 @@ export function FullJourney360({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <div className="flex flex-wrap sm:flex-nowrap shrink-0 items-center gap-2 xl:justify-end">
           {canSyncOdoo ? (
             <button
               type="button"
@@ -1065,7 +1147,7 @@ export function FullJourney360({
               disabled={syncing}
               aria-label={T('Sync Odoo', 'مزامنة أودو')}
               title={T('Sync Odoo 17 Data', 'مزامنة بيانات أودو 17')}
-              className="ae-emerald-cta-pill inline-flex min-h-[38px] cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white transition-all duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:opacity-60"
+              className="ae-emerald-cta-pill inline-flex min-h-[38px] shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-full px-4 py-1.5 text-[13px] font-semibold text-white transition-all duration-150 hover:scale-[1.01] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 disabled:opacity-60"
             >
               <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${syncing ? 'animate-spin' : ''}`} />
               <span>{T('+ Sync Odoo', '+ مزامنة أودو')}</span>
@@ -1074,7 +1156,7 @@ export function FullJourney360({
 
           <Link
             href="/erp/weekday-comparison"
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
+            className="inline-flex min-h-[38px] shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
           >
             <CalendarRange className="h-3.5 w-3.5 shrink-0 text-[#047857] dark:text-sky-400" />
             <span>{T('Compare Dates', 'مقارنة التواريخ')}</span>
@@ -1082,7 +1164,7 @@ export function FullJourney360({
 
           <Link
             href="/erp/before-after"
-            className="inline-flex min-h-[38px] items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
+            className="inline-flex min-h-[38px] shrink-0 whitespace-nowrap items-center gap-1.5 rounded-full bg-white/75 px-3.5 py-1.5 text-[13px] font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 backdrop-blur-md transition-colors duration-150 hover:bg-white hover:text-[#047857] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-emerald-400/20 dark:hover:bg-white/[0.12] dark:hover:text-emerald-200"
           >
             <span>{T('Before & After Comparison ↗', 'مقارنة الفترات (قبل وبعد) ↗')}</span>
           </Link>
@@ -1104,12 +1186,6 @@ export function FullJourney360({
           className="rounded-[24px] backdrop-blur-xl ring-1 ring-slate-300/60 shadow-[0_10px_28px_-12px_rgba(15,23,42,0.12)] dark:ring-white/10"
         />
       ) : null}
-
-      <OdooPartialWarningBanner
-        summary={liveSummary}
-        isAr={isAr}
-        className="!rounded-[24px] sm:px-5 sm:py-3.5"
-      />
 
       {/* Initial Sync Loading Skeleton (Zero Layout Shift) */}
       {isInitialLoading ? (
@@ -1221,522 +1297,707 @@ export function FullJourney360({
           {/* Today's Discoveries — top 3 cross-advisor findings (council, read-only Odoo) */}
           <TodaysDiscoveries locale={activeLocale} />
 
-          {/* 4-Column Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Static Estimates) */}
+          {/* Dynamic Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Empty Cards or Gaps) */}
           <section className="space-y-4 sm:space-y-5">
-            <div className="ae-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-              {/* Card 1: Net Sales KWD */}
-              <V35GlassCard
-                as="article"
-                variant="hero"
-                hoverLift
-                className="ae-hero-emerald-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5 text-white"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-white/95">
-                    {T('Net Sales (KWD)', 'صافي المبيعات (د.ك)')}
-                  </p>
-                  <Link
-                    href="/erp/cores"
-                    aria-label={T('Sales Core Details', 'تفاصيل محور المبيعات')}
-                    className="ae-hero-circle-btn inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
+            {(() => {
+              const heroComparisonSuffix = heroDelta.hasComparison
+                ? todaySameHours
+                  ? T(
+                      `vs yesterday by ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`,
+                      `مقارنة بأمس حتى ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`,
+                    )
+                  : filters.period === 'month'
+                    ? T('last 30 days vs previous 30', 'آخر 30 يوماً مقابل 30 السابقة')
+                    : T('vs prior period', 'مقارنة بالفترة السابقة')
+                : T(SCOPE_LABELS.noComparison.en, SCOPE_LABELS.noComparison.ar)
 
-                <div className="mt-3">
-                  <V35KpiRing
-                    tone="hero"
-                    size="lg"
-                    dataKpi="net-sales"
-                    value={workspace.nullableSalesKwd}
-                    display={fmtKwdVal(workspace.nullableSalesKwd ?? 0)}
-                    unavailableTooltip={unavailableTooltip}
-                    ringCenter={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
-                    valueClassName="whitespace-nowrap text-[clamp(1.05rem,11.5cqi,1.9rem)]"
-                  />
-                </div>
-
-                {salesSparkline.length >= 2 ? (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5">
-                    <span className="text-xs font-medium text-white/90">
-                      {coresSnap.sales.timeline.length >= 2
-                        ? T('Period trend', 'اتجاه الفترة')
-                        : T('Hourly trend', 'اتجاه اليوم')}
-                    </span>
-                    <V35Sparkline values={salesSparkline} color="#E0F2FE" width={92} height={26} />
-                  </div>
-                ) : sparklineUnavailableShown ? (
-                  <div
-                    role="status"
-                    data-sparkline-unavailable="true"
-                    className="mt-2.5 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5 text-xs font-medium text-white/85"
-                  >
-                    {T(SPARKLINE_UNAVAILABLE_EN, SPARKLINE_UNAVAILABLE_AR)}
-                  </div>
-                ) : null}
-
-                <div className="mt-3.5 space-y-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      data-delta-comparison={heroDelta.hasComparison ? 'real' : 'none'}
-                      title={isAr ? (heroDelta.titleAr ?? undefined) : (heroDelta.titleEn ?? undefined)}
-                      className={`ae-hero-pill inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
-                        heroDelta.tone === 'red'
-                          ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
-                          : heroDelta.tone === 'neutral'
-                            ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
-                            : 'bg-white/15 text-white'
-                      }`}
+              const executiveKpiCards: { key: string; node: ReactNode }[] = [
+                {
+                  key: 'net-sales',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      variant="hero"
+                      hoverLift
+                      className="ae-hero-emerald-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5 text-white"
                     >
-                      <span dir="ltr" className="tabular-nums">
-                        {heroDelta.badgeLabel}
-                      </span>{' '}
-                      <span>
-                        {heroDelta.hasComparison
-                          ? todaySameHours
-                            ? T(`vs yesterday by ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`, `مقارنة بأمس حتى ${String(todaySameHours.cutoffHour).padStart(2, '0')}:00`)
-                            : filters.period === 'month'
-                              ? T('last 30 days vs previous 30', 'آخر 30 يوماً مقابل 30 السابقة')
-                              : T('vs prior period', 'مقارنة بالفترة السابقة')
-                          : T(SCOPE_LABELS.noComparison.en, SCOPE_LABELS.noComparison.ar)}
-                      </span>
-                    </span>
-                    <span className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
-                      {workspace.nullableAovKwd === null ? (
-                        <span
-                          title={unavailableTooltip}
-                          aria-label={unavailableTooltip}
-                          data-unavailable="true"
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-white/95">
+                          {T('Net Sales (KWD)', 'صافي المبيعات (د.ك)')}
+                        </p>
+                        <Link
+                          href="/erp/cores"
+                          aria-label={T('Sales Core Details', 'تفاصيل محور المبيعات')}
+                          className="ae-hero-circle-btn inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-900 shadow-sm transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                         >
-                          {isAr ? '• متوسط —' : '• AOV —'}
-                        </span>
-                      ) : isAr ? (
-                        <>
-                          • متوسط{' '}
-                          <span dir="ltr" className="tabular-nums">
-                            {fmtKwdVal(workspace.nullableAovKwd)}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          • AOV{' '}
-                          <span dir="ltr" className="tabular-nums">
-                            {fmtKwdVal(workspace.nullableAovKwd)}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  {workspace.nullableSalesKwd !== null && workspace.brandBasis === 'product-lines' ? (
-                    <p
-                      data-brand-basis="product-lines"
-                      className="whitespace-normal text-xs font-medium tabular-nums text-white/90"
-                    >
-                      {T(SCOPE_LABELS.productLinesBasis.en, SCOPE_LABELS.productLinesBasis.ar)}
-                      {workspace.brandBasisGapKwd !== null ? (
-                        <>
-                          {' • '}
-                          {T(SCOPE_LABELS.allBrandsBasisGap.en, SCOPE_LABELS.allBrandsBasisGap.ar)}{' '}
-                          <span dir="ltr" className="tabular-nums">
-                            {fmtKwdVal(workspace.brandBasisGapKwd)}
-                          </span>
-                        </>
-                      ) : null}
-                    </p>
-                  ) : null}
-                  {workspace.nullableSalesKwd !== null &&
-                  workspace.unattributedSalesKwd > 0 &&
-                  filters.brand === 'all' &&
-                  filters.branch === 'all' ? (
-                    <p className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
-                      {isAr ? (
-                        <>
-                          منها {UNATTRIBUTED_BRANCH_LABEL_AR}:{' '}
-                          <span dir="ltr" className="tabular-nums">
-                            {fmtKwdVal(workspace.unattributedSalesKwd)}
-                          </span>{' '}
-                          ({formatInt(workspace.unattributedOrders)} طلب)
-                        </>
-                      ) : (
-                        <>
-                          Includes {UNATTRIBUTED_BRANCH_LABEL_EN}:{' '}
-                          <span dir="ltr" className="tabular-nums">
-                            {fmtKwdVal(workspace.unattributedSalesKwd)}
-                          </span>{' '}
-                          ({formatInt(workspace.unattributedOrders)} orders)
-                        </>
-                      )}
-                    </p>
-                  ) : null}
-                  <div className="rounded-2xl bg-white/[0.12] px-2.5 py-2 ring-1 ring-white/20 backdrop-blur-md">
-                    <KpiProvenanceBadge
-                      odooModel="pos.order"
-                      dateRange={provenanceRange}
-                      lastSyncAt={lastSyncIso}
-                      isStale24h={isStale24h}
-                      kind="فعلي"
-                      queryOrFormula={posSalesQuery}
-                      compact
-                      className="!mt-0"
-                    />
-                  </div>
-                </div>
-              </V35GlassCard>
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                      </div>
 
-              {/* Card 2: order count. Before-rent money stays in its own pill. */}
-              <V35GlassCard
-                as="article"
-                hoverLift
-                className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {T('Total Orders', 'إجمالي الطلبات')}
-                  </p>
-                  <Link
-                    href="/erp/cores"
-                    aria-label={T('Orders Details', 'تفاصيل الطلبات')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
-
-                <div className="mt-3">
-                  <V35KpiRing
-                    tone="blue"
-                    size="md"
-                    dataKpi="total-orders"
-                    value={workspace.nullableOrders}
-                    display={formatInt(workspace.nullableOrders ?? 0)}
-                    unavailableTooltip={unavailableTooltip}
-                    valueTooltip={
-                      filters.brand !== 'all'
-                        ? T(SCOPE_LABELS.multiBrandOrders.en, SCOPE_LABELS.multiBrandOrders.ar)
-                        : undefined
-                    }
-                    ringCenter={<ShoppingBag className="h-4 w-4" aria-hidden="true" />}
-                    valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                  />
-                </div>
-
-                {ordersSparkline.length >= 2 ? (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-800/50">
-                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                      {coresSnap.sales.timeline.length >= 2
-                        ? T('Order trend', 'اتجاه الطلبات')
-                        : T('Hourly orders', 'الطلبات بالساعة')}
-                    </span>
-                    <V35Sparkline values={ordersSparkline} color="#059669" width={92} height={26} />
-                  </div>
-                ) : sparklineUnavailableShown && filters.brand === 'all' ? (
-                  <div
-                    role="status"
-                    data-sparkline-unavailable="true"
-                    className="mt-2.5 rounded-xl border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 text-xs font-medium text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400"
-                  >
-                    {T(SPARKLINE_UNAVAILABLE_EN, SPARKLINE_UNAVAILABLE_AR)}
-                  </div>
-                ) : null}
-
-                <div className="mt-3.5 space-y-1.5">
-                  {maskInternalCosts ? (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        data-cost-mask="restricted-finance-gm"
-                        className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
-                      >
-                        {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                      </span>
-                    </div>
-                  ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null && !glIncomplete ? (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        dir="ltr"
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
-                          beforeRentRatio < 0
-                            ? 'bg-slate-100/90 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
-                            : 'bg-[#ECFDF5] text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
-                        }`}
-                      >
-                        {formatStaticMarginPill(gl.beforeRentPct)} • {fmtKwdVal(gl.beforeRentKwd)}
-                      </span>
-                    </div>
-                  ) : null}
-                  <KpiProvenanceBadge
-                    odooModel="pos.order"
-                    dateRange={provenanceRange}
-                    lastSyncAt={lastSyncIso}
-                    isStale24h={isStale24h}
-                    kind="فعلي"
-                    queryOrFormula={posOrdersQuery}
-                    compact
-                  />
-                </div>
-              </V35GlassCard>
-
-              {/* Card 3: posted GL profit. Hidden when the period has no GL lines. */}
-              {showOperatingCard ? (
-              <V35GlassCard
-                as="article"
-                hoverLift
-                className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {hasPostedOperatingProfit
-                      ? T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')
-                      : T('Posted general ledger entries', 'قيود دفتر الأستاذ المرحّلة')}
-                  </p>
-                  <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
-                  <Link
-                    href="/erp/executive-pnl"
-                    aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
-
-                {maskInternalCosts ? (
-                  <>
-                    <div
-                      data-cost-mask="restricted-finance-gm"
-                      className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
-                    >
-                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                    </div>
-                    <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
-                        {T(
-                          'Rent, payroll & supplier figures masked',
-                          'بيانات الإيجار والرواتب والموردين محجوبة',
-                        )}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-3">
-                      {hasPostedOperatingProfit ? (
+                      <div className="mt-3">
                         <V35KpiRing
-                          tone="indigo"
+                          tone="hero"
+                          size="lg"
+                          dataKpi="net-sales"
+                          value={workspace.nullableSalesKwd}
+                          display={fmtKwdVal(workspace.nullableSalesKwd ?? 0)}
+                          unavailableTooltip={unavailableTooltip}
+                          ringCenter={<TrendingUp className="h-4 w-4" aria-hidden="true" />}
+                          valueClassName="whitespace-nowrap text-[clamp(1.05rem,11.5cqi,1.9rem)]"
+                        />
+                      </div>
+
+                      {salesSparkline.length >= 2 ? (
+                        <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.08] px-2.5 py-1.5">
+                          <span className="text-xs font-medium text-white/90">
+                            {coresSnap.sales.timeline.length >= 2
+                              ? T('Period trend', 'اتجاه الفترة')
+                              : T('Hourly trend', 'اتجاه اليوم')}
+                          </span>
+                          <V35Sparkline values={salesSparkline} color="#E0F2FE" width={92} height={26} />
+                        </div>
+                      ) : null}
+
+                      <div className="mt-3.5 space-y-2">
+                        <div className="flex flex-nowrap items-center gap-2 whitespace-nowrap min-w-0 overflow-hidden">
+                          <span
+                            data-delta-comparison={heroDelta.hasComparison ? 'real' : 'none'}
+                            title={
+                              isAr
+                                ? (heroDelta.titleAr ?? `${heroDelta.badgeLabel} ${heroComparisonSuffix}`)
+                                : (heroDelta.titleEn ?? `${heroDelta.badgeLabel} ${heroComparisonSuffix}`)
+                            }
+                            className={`ae-hero-pill inline-flex min-w-0 shrink items-center gap-1 truncate rounded-full px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm ${
+                              heroDelta.tone === 'red' || heroDelta.tone === 'neutral'
+                                ? 'bg-slate-900/25 text-white/90 ring-1 ring-white/20'
+                                : 'bg-white/15 text-white'
+                            }`}
+                          >
+                            <span dir="ltr" className="shrink-0 tabular-nums">
+                              {heroDelta.badgeLabel}
+                            </span>{' '}
+                            <span className="truncate">{heroComparisonSuffix}</span>
+                          </span>
+                          <span className="shrink-0 whitespace-nowrap text-xs font-medium tabular-nums text-white/95">
+                            {workspace.nullableAovKwd === null ? (
+                              <span
+                                title={unavailableTooltip}
+                                aria-label={unavailableTooltip}
+                                data-unavailable="true"
+                              >
+                                {isAr ? '• متوسط —' : '• AOV —'}
+                              </span>
+                            ) : isAr ? (
+                              <>
+                                • متوسط{' '}
+                                <span dir="ltr" className="tabular-nums">
+                                  {fmtKwdVal(workspace.nullableAovKwd)}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                • AOV{' '}
+                                <span dir="ltr" className="tabular-nums">
+                                  {fmtKwdVal(workspace.nullableAovKwd)}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        {workspace.nullableSalesKwd !== null && workspace.brandBasis === 'product-lines' ? (
+                          <p
+                            data-brand-basis="product-lines"
+                            className="whitespace-normal text-xs font-medium tabular-nums text-white/90"
+                          >
+                            {T(SCOPE_LABELS.productLinesBasis.en, SCOPE_LABELS.productLinesBasis.ar)}
+                            {workspace.brandBasisGapKwd !== null ? (
+                              <>
+                                {' • '}
+                                {T(SCOPE_LABELS.allBrandsBasisGap.en, SCOPE_LABELS.allBrandsBasisGap.ar)}{' '}
+                                <span dir="ltr" className="tabular-nums">
+                                  {fmtKwdVal(workspace.brandBasisGapKwd)}
+                                </span>
+                              </>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        {workspace.nullableSalesKwd !== null &&
+                        typeof workspace.unattributedSalesKwd === 'number' &&
+                        workspace.unattributedSalesKwd > 0.0005 &&
+                        filters.brand === 'all' &&
+                        filters.branch === 'all' ? (
+                          <p className="whitespace-normal text-xs font-medium tabular-nums text-white/90">
+                            {isAr ? (
+                              <>
+                                منها {UNATTRIBUTED_BRANCH_LABEL_AR}:{' '}
+                                <span dir="ltr" className="tabular-nums">
+                                  {fmtKwdVal(workspace.unattributedSalesKwd)}
+                                </span>{' '}
+                                ({formatInt(workspace.unattributedOrders)} طلب)
+                              </>
+                            ) : (
+                              <>
+                                Includes {UNATTRIBUTED_BRANCH_LABEL_EN}:{' '}
+                                <span dir="ltr" className="tabular-nums">
+                                  {fmtKwdVal(workspace.unattributedSalesKwd)}
+                                </span>{' '}
+                                ({formatInt(workspace.unattributedOrders)} orders)
+                              </>
+                            )}
+                          </p>
+                        ) : null}
+                        <div className="rounded-2xl bg-white/[0.12] px-2.5 py-2 ring-1 ring-white/20 backdrop-blur-md">
+                          <KpiProvenanceBadge
+                            odooModel="pos.order"
+                            dateRange={provenanceRange}
+                            lastSyncAt={lastSyncIso}
+                            isStale24h={isStale24h}
+                            kind="فعلي"
+                            queryOrFormula={posSalesQuery}
+                            compact
+                            className="!mt-0"
+                          />
+                        </div>
+                      </div>
+                    </V35GlassCard>
+                  ),
+                },
+                {
+                  key: 'total-orders',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      hoverLift
+                      className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                          {T('Total Orders', 'إجمالي الطلبات')}
+                        </p>
+                        <Link
+                          href="/erp/cores"
+                          aria-label={T('Orders Details', 'تفاصيل الطلبات')}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+
+                      <div className="mt-3">
+                        <V35KpiRing
+                          tone="blue"
                           size="md"
-                          dataKpi="operating-net"
-                          value={netPocketKwd}
-                          isUnavailable={false}
-                          percent={netPocketPct}
-                          display={fmtKwdVal(netPocketKwd)}
+                          dataKpi="total-orders"
+                          value={workspace.nullableOrders}
+                          display={formatInt(workspace.nullableOrders ?? 0)}
+                          unavailableTooltip={unavailableTooltip}
+                          valueTooltip={
+                            filters.brand !== 'all'
+                              ? T(SCOPE_LABELS.multiBrandOrders.en, SCOPE_LABELS.multiBrandOrders.ar)
+                              : undefined
+                          }
+                          ringCenter={<ShoppingBag className="h-4 w-4" aria-hidden="true" />}
+                          valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                        />
+                      </div>
+
+                      {ordersSparkline.length >= 2 ? (
+                        <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 dark:border-slate-800 dark:bg-slate-800/50">
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                            {coresSnap.sales.timeline.length >= 2
+                              ? T('Order trend', 'اتجاه الطلبات')
+                              : T('Hourly orders', 'الطلبات بالساعة')}
+                          </span>
+                          <V35Sparkline values={ordersSparkline} color="#059669" width={92} height={26} />
+                        </div>
+                      ) : null}
+
+                      <div className="mt-3.5 space-y-1.5">
+                        {maskInternalCosts ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              data-cost-mask="restricted-finance-gm"
+                              className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15"
+                            >
+                              {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                            </span>
+                          </div>
+                        ) : gl.beforeRentKwd !== null && gl.beforeRentPct !== null && !glIncomplete ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              dir="ltr"
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+                                beforeRentRatio < 0
+                                  ? 'bg-slate-100/90 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
+                                  : 'bg-[#ECFDF5] text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
+                              }`}
+                            >
+                              {formatStaticMarginPill(gl.beforeRentPct)} • {fmtKwdVal(gl.beforeRentKwd)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <KpiProvenanceBadge
+                          odooModel="pos.order"
+                          dateRange={provenanceRange}
+                          lastSyncAt={lastSyncIso}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula={posOrdersQuery}
+                          compact
+                        />
+                      </div>
+                    </V35GlassCard>
+                  ),
+                },
+              ]
+
+              if (workspace.nullableAovKwd !== null && Number.isFinite(workspace.nullableAovKwd)) {
+                executiveKpiCards.push({
+                  key: 'average-order-value',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      hoverLift
+                      className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                          {T('Average Order Value', 'متوسط قيمة الطلب')}
+                        </p>
+                        <Link
+                          href="/erp/cores"
+                          aria-label={T('Average Order Value Details', 'تفاصيل متوسط قيمة الطلب')}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+
+                      <div className="mt-3">
+                        <V35KpiRing
+                          tone="sky"
+                          size="md"
+                          dataKpi="average-order-value"
+                          value={workspace.nullableAovKwd}
+                          display={fmtKwdVal(workspace.nullableAovKwd)}
+                          unavailableTooltip={unavailableTooltip}
+                          ringCenter={<Wallet className="h-4 w-4" aria-hidden="true" />}
+                          valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                        />
+                      </div>
+
+                      <div className="mt-3.5 space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-xs font-semibold text-[#047857] ring-1 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
+                            {T('Net sales ÷ POS orders', 'صافي المبيعات ÷ الطلبات')}
+                          </span>
+                        </div>
+                        <KpiProvenanceBadge
+                          odooModel="pos.order"
+                          dateRange={provenanceRange}
+                          lastSyncAt={lastSyncIso}
+                          isStale24h={isStale24h}
+                          kind="محسوب بمعادلة"
+                          queryOrFormula="netSalesKwd / orders"
+                          compact
+                        />
+                      </div>
+                    </V35GlassCard>
+                  ),
+                })
+              }
+
+              if (topPerformingBranch !== null) {
+                const topBranchTitle = isAr ? topPerformingBranch.labelAr : topPerformingBranch.labelEn
+                executiveKpiCards.push({
+                  key: 'top-performing-branch',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      hoverLift
+                      className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                            {T('Top Performing Branch', 'الفرع الأعلى أداءً')}
+                          </p>
+                          <p
+                            title={topBranchTitle}
+                            className="mt-0.5 truncate text-[13px] font-bold text-[#047857] dark:text-emerald-300"
+                          >
+                            {topBranchTitle}
+                          </p>
+                        </div>
+                        <Link
+                          href="/erp/cores"
+                          aria-label={T('Top Branch Details', 'تفاصيل الفرع الأعلى أداءً')}
+                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+
+                      <div className="mt-3">
+                        <V35KpiRing
+                          tone="positive"
+                          size="md"
+                          dataKpi="top-performing-branch"
+                          value={topPerformingBranch.salesKwd}
+                          percent={topPerformingBranch.sharePct}
+                          display={fmtKwdVal(topPerformingBranch.salesKwd)}
                           unavailableTooltip={unavailableTooltip}
                           ringCenter={
-                            <span dir="ltr" className="tabular-nums">
-                              {`${netPocketPct.toFixed(1)}%`}
-                            </span>
+                            topPerformingBranch.sharePct !== null ? (
+                              <span dir="ltr" className="tabular-nums">
+                                {formatPct(topPerformingBranch.sharePct, activeLocale)}
+                              </span>
+                            ) : (
+                              <Building2 className="h-4 w-4" aria-hidden="true" />
+                            )
                           }
                           valueClassName="text-xl sm:text-2xl xl:text-[26px]"
                         />
-                      ) : postedLedgerLines.length > 0 ? (
-                        <ul className="space-y-1.5" data-posted-gl-lines="true">
-                          {postedLedgerLines.map((line) => (
-                            <li key={line.key} className="flex items-baseline justify-between gap-3">
-                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                                {isAr ? line.labelAr : line.labelEn}
-                              </span>
-                              <span
-                                dir="ltr"
-                                data-posted-gl={line.key}
-                                className="text-sm font-semibold tabular-nums text-slate-900 dark:text-white"
-                              >
-                                {fmtKwdVal(line.value)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                          {isAr ? gl.unavailableReasonAr : gl.unavailableReasonEn}
-                        </p>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="mt-3.5 space-y-1.5">
-                      {!hasPostedOperatingProfit && gl.netProfitWithheld ? (
-                        <div data-net-profit-withheld="true">
-                          <UnavailableState
-                            isAr={isAr}
-                            compact
-                            reason={
-                              isAr ? gl.netProfitWithheldReasonAr : gl.netProfitWithheldReasonEn
-                            }
-                          />
-                          {postedLedgerLines.length > 0 ? (
-                            <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">
-                              {monthEndNote}
-                            </p>
+                      <div className="mt-3.5 space-y-1.5">
+                        <div className="flex flex-nowrap items-center gap-1.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                          {topPerformingBranch.orders !== null ? (
+                            <span className="shrink-0 whitespace-nowrap">
+                              {isAr
+                                ? `${formatInt(topPerformingBranch.orders)} طلب`
+                                : `${formatInt(topPerformingBranch.orders)} orders`}
+                            </span>
+                          ) : null}
+                          {topPerformingBranch.sharePct !== null ? (
+                            <span
+                              dir="ltr"
+                              className="shrink-0 whitespace-nowrap rounded-full bg-[#D1FAE5] px-2 py-0.5 text-xs font-bold text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25"
+                            >
+                              {formatPct(topPerformingBranch.sharePct, activeLocale)}
+                            </span>
                           ) : null}
                         </div>
-                      ) : hasPostedOperatingProfit ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
-                          <span dir="ltr" className="tabular-nums">
-                            {formatStaticMarginPill(netPocketPct)}
-                          </span>{' '}
-                          <span>{T('GL net share', 'نسبة الصافي المحاسبي')}</span>
-                        </span>
-                      ) : null}
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="محسوب بمعادلة"
-                        queryOrFormula={
-                          hasPostedOperatingProfit
-                            ? "account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
-                            : "account.move.line(parent_state='posted'): income, expense_direct_cost, expense"
-                        }
-                        compact
-                      />
-                    </div>
-                  </>
-                )}
-              </V35GlassCard>
-              ) : null}
+                        <KpiProvenanceBadge
+                          odooModel="pos.order"
+                          dateRange={provenanceRange}
+                          lastSyncAt={lastSyncIso}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula="max(pos.order net sales by mapped branch)"
+                          compact
+                        />
+                      </div>
+                    </V35GlassCard>
+                  ),
+                })
+              }
 
-              {/* Card 4: posted platform commission only. Omitted when nothing is posted. */}
-              {typeof gl.deliveryCommissionsKwd === 'number' && !commissionUnposted ? (
-              <V35GlassCard
-                as="article"
-                hoverLift
-                className="ae-kpi-card flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                    {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
-                  </p>
-                  <ScopeBadge kind={companyWideScope} target="aggregator-commissions" isAr={isAr} />
-                  <Link
-                    href={isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar') ? '/erp/aggregator-radar' : '/erp/cores'}
-                    aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </Link>
-                </div>
-
-                {maskInternalCosts ? (
-                  <>
-                    <div
-                      data-cost-mask="restricted-finance-gm"
-                      className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+              if (showOperatingCard) {
+                executiveKpiCards.push({
+                  key: 'operating-gl',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      hoverLift
+                      className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
                     >
-                      {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
-                    </div>
-                    <div className="mt-3.5">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
-                        {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-3">
-                      <V35KpiRing
-                        tone="sky"
-                        size="md"
-                        dataKpi="aggregator-commissions"
-                        value={gl.deliveryCommissionsKwd}
-                        display={fmtKwdVal(gl.deliveryCommissionsKwd)}
-                        percent={typeof gl.deliveryCommPct === 'number' ? gl.deliveryCommPct : null}
-                        unavailableTooltip={unavailableTooltip}
-                        ringCenter={
-                          typeof gl.deliveryCommPct === 'number' ? (
-                            <span dir="ltr" className="tabular-nums">
-                              {`${gl.deliveryCommPct.toFixed(1)}%`}
-                            </span>
-                          ) : (
-                            <Percent className="h-4 w-4" aria-hidden="true" />
-                          )
-                        }
-                        valueClassName="text-xl sm:text-2xl xl:text-[26px]"
-                      />
-                    </div>
-                    <div className="mt-3.5 space-y-1.5">
-                      {typeof gl.platformSubscriptionKwd === 'number' ? (
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                          {T('Platform subscription', 'اشتراك المنصات')}: {fmtKwdVal(gl.platformSubscriptionKwd)}
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                          {hasPostedOperatingProfit
+                            ? T('Operating Net Profit (GL)', 'صافي الربح التشغيلي (دفتر الأستاذ)')
+                            : T('Posted general ledger entries', 'قيود دفتر الأستاذ المرحّلة')}
                         </p>
-                      ) : null}
-                      {typeof gl.thirdPartyDeliveryKwd === 'number' ? (
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                          {T('Third-party delivery', 'توصيل طرف ثالث')}: {fmtKwdVal(gl.thirdPartyDeliveryKwd)}
-                        </p>
-                      ) : null}
-                      {commissionOfAggregatorPct !== null ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
-                          <span dir="ltr" className="tabular-nums">
-                            {formatPct(commissionOfAggregatorPct, activeLocale)}
-                          </span>{' '}
-                          <span>{T('of aggregator POS sales', 'من مبيعات تطبيقات التوصيل')}</span>
-                        </span>
-                      ) : null}
-                      {gl.deliveryCommPct !== null ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
-                          <span dir="ltr" className="tabular-nums">
-                            {formatPct(gl.deliveryCommPct, activeLocale)}
-                          </span>{' '}
-                          <span>{T('of GL revenue', 'من إيراد دفتر الأستاذ')}</span>
-                        </span>
-                      ) : null}
-                      {gl.commissionAccounts.length > 0 ? (
-                        <details className="text-xs">
-                          <summary className="cursor-pointer font-semibold">
-                            {T('Commission accounts', 'حسابات العمولة')}
-                          </summary>
-                          <ul className="mt-1 space-y-0.5">
-                            {gl.commissionAccounts.map((account) => (
-                              <li key={account.code}>
-                                {account.code} {account.name} {fmtKwdVal(account.amountKwd)}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      ) : null}
-                      <KpiProvenanceBadge
-                        odooModel="account.move.line"
-                        dateRange={{ from: gl.from, to: gl.to }}
-                        lastSyncAt={lastSyncIso}
-                        isStale24h={isStale24h}
-                        kind="فعلي"
-                        queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
-                        compact
-                      />
-                    </div>
-                  </>
-                )}
-              </V35GlassCard>
-              ) : null}
-            </div>
+                        <div className="flex flex-nowrap shrink-0 items-center gap-1.5">
+                          <ScopeBadge kind={companyWideScope} target="gl-operating-net" isAr={isAr} />
+                          {!maskInternalCosts &&
+                          !hasPostedOperatingProfit &&
+                          gl.netProfitWithheld &&
+                          glDisclaimerTooltipText ? (
+                            <CompactInfoTooltip
+                              text={glDisclaimerTooltipText}
+                              label={T('Accounting close status', 'حالة إقفال الدفتر المحاسبي')}
+                              dataAttr="net-profit-withheld"
+                            />
+                          ) : null}
+                          <Link
+                            href="/erp/executive-pnl"
+                            aria-label={T('Inspect Profit & Loss', 'تفاصيل قائمة الدخل')}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
+                          >
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Link>
+                        </div>
+                      </div>
 
-            {/* 7 Mapped Branches + Explicit 8th Card «غير منسوب لفرع» */}
+                      {maskInternalCosts ? (
+                        <>
+                          <div
+                            data-cost-mask="restricted-finance-gm"
+                            className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+                          >
+                            {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                          </div>
+                          <div className="mt-3.5">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                              {T(
+                                'Rent, payroll & supplier figures masked',
+                                'بيانات الإيجار والرواتب والموردين محجوبة',
+                              )}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mt-3">
+                            {hasPostedOperatingProfit ? (
+                              <V35KpiRing
+                                tone="indigo"
+                                size="md"
+                                dataKpi="operating-net"
+                                value={netPocketKwd}
+                                isUnavailable={false}
+                                percent={netPocketPct}
+                                display={fmtKwdVal(netPocketKwd)}
+                                unavailableTooltip={unavailableTooltip}
+                                ringCenter={
+                                  <span dir="ltr" className="tabular-nums">
+                                    {`${netPocketPct.toFixed(1)}%`}
+                                  </span>
+                                }
+                                valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                              />
+                            ) : (
+                              <ul className="space-y-1.5" data-posted-gl-lines="true">
+                                {postedLedgerLines.map((line) => (
+                                  <li key={line.key} className="flex items-baseline justify-between gap-3">
+                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                      {isAr ? line.labelAr : line.labelEn}
+                                    </span>
+                                    <span
+                                      dir="ltr"
+                                      data-posted-gl={line.key}
+                                      className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900 dark:text-white"
+                                    >
+                                      {fmtKwdVal(line.value)}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+
+                          <div className="mt-3.5 space-y-1.5">
+                            {hasPostedOperatingProfit ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50/90 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 ring-1 ring-indigo-500/20 dark:bg-indigo-400/15 dark:text-indigo-200 dark:ring-indigo-400/25">
+                                <span dir="ltr" className="tabular-nums">
+                                  {formatStaticMarginPill(netPocketPct)}
+                                </span>{' '}
+                                <span>{T('GL net share', 'نسبة الصافي المحاسبي')}</span>
+                              </span>
+                            ) : null}
+                            <KpiProvenanceBadge
+                              odooModel="account.move.line"
+                              dateRange={{ from: gl.from, to: gl.to }}
+                              lastSyncAt={lastSyncIso}
+                              isStale24h={isStale24h}
+                              kind="محسوب بمعادلة"
+                              queryOrFormula={
+                                hasPostedOperatingProfit
+                                  ? "account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
+                                  : "account.move.line(parent_state='posted'): income, expense_direct_cost, expense"
+                              }
+                              compact
+                            />
+                          </div>
+                        </>
+                      )}
+                    </V35GlassCard>
+                  ),
+                })
+              }
+
+              if (showAggregatorCommissionsCard) {
+                executiveKpiCards.push({
+                  key: 'aggregator-commissions',
+                  node: (
+                    <V35GlassCard
+                      as="article"
+                      hoverLift
+                      className="ae-kpi-card overflow-visible flex min-w-0 flex-col justify-between p-3.5 sm:p-5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 flex-1 whitespace-normal text-[13px] sm:text-[14px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                          {T('Aggregator Commissions', 'عمولات تطبيقات التوصيل')}
+                        </p>
+                        <div className="flex flex-nowrap shrink-0 items-center gap-1.5">
+                          <ScopeBadge kind={companyWideScope} target="aggregator-commissions" isAr={isAr} />
+                          <Link
+                            href={
+                              isErpRouteAllowedForRole(sessionRole, '/erp/aggregator-radar')
+                                ? '/erp/aggregator-radar'
+                                : '/erp/cores'
+                            }
+                            aria-label={T('Aggregator Radar', 'رادار تطبيقات التوصيل')}
+                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ECFDF5] text-[#047857] ring-1 ring-[#1E3A5F]/15 transition-transform duration-150 hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:bg-white/[0.08] dark:text-emerald-300 dark:ring-emerald-400/20"
+                          >
+                            <ArrowUpRight className="h-4 w-4" />
+                          </Link>
+                        </div>
+                      </div>
+
+                      {maskInternalCosts ? (
+                        <>
+                          <div
+                            data-cost-mask="restricted-finance-gm"
+                            className="mt-3 text-[16px] sm:text-[18px] font-semibold leading-snug tracking-tight text-slate-700 dark:text-slate-200"
+                          >
+                            {T('Restricted to Finance/GM', 'محصور بالمالية والمدير العام')}
+                          </div>
+                          <div className="mt-3.5">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-[#1E3A5F]/15 dark:bg-white/[0.06] dark:text-slate-300 dark:ring-white/15">
+                              {T('Commission ledger restricted', 'قيود العمولات محصورة بالمالية')}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="mt-3">
+                            <V35KpiRing
+                              tone="sky"
+                              size="md"
+                              dataKpi="aggregator-commissions"
+                              value={gl.deliveryCommissionsKwd}
+                              display={fmtKwdVal(gl.deliveryCommissionsKwd)}
+                              percent={typeof gl.deliveryCommPct === 'number' ? gl.deliveryCommPct : null}
+                              unavailableTooltip={unavailableTooltip}
+                              ringCenter={
+                                typeof gl.deliveryCommPct === 'number' ? (
+                                  <span dir="ltr" className="tabular-nums">
+                                    {`${gl.deliveryCommPct.toFixed(1)}%`}
+                                  </span>
+                                ) : (
+                                  <Percent className="h-4 w-4" aria-hidden="true" />
+                                )
+                              }
+                              valueClassName="text-xl sm:text-2xl xl:text-[26px]"
+                            />
+                          </div>
+                          <div className="mt-3.5 space-y-1.5">
+                            {typeof gl.platformSubscriptionKwd === 'number' ? (
+                              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                {T('Platform subscription', 'اشتراك المنصات')}:{' '}
+                                {fmtKwdVal(gl.platformSubscriptionKwd)}
+                              </p>
+                            ) : null}
+                            {typeof gl.thirdPartyDeliveryKwd === 'number' ? (
+                              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                {T('Third-party delivery', 'توصيل طرف ثالث')}:{' '}
+                                {fmtKwdVal(gl.thirdPartyDeliveryKwd)}
+                              </p>
+                            ) : null}
+                            {commissionOfAggregatorPct !== null ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
+                                <span dir="ltr" className="tabular-nums">
+                                  {formatPct(commissionOfAggregatorPct, activeLocale)}
+                                </span>{' '}
+                                <span>{T('of aggregator POS sales', 'من مبيعات تطبيقات التوصيل')}</span>
+                              </span>
+                            ) : null}
+                            {gl.deliveryCommPct !== null ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#CCFBF1]/80 px-2.5 py-0.5 text-xs font-semibold text-[#0F766E] ring-1 ring-teal-600/20 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25">
+                                <span dir="ltr" className="tabular-nums">
+                                  {formatPct(gl.deliveryCommPct, activeLocale)}
+                                </span>{' '}
+                                <span>{T('of GL revenue', 'من إيراد دفتر الأستاذ')}</span>
+                              </span>
+                            ) : null}
+                            {gl.commissionAccounts.length > 0 ? (
+                              <details className="text-xs">
+                                <summary className="cursor-pointer font-semibold">
+                                  {T('Commission accounts', 'حسابات العمولة')}
+                                </summary>
+                                <ul className="mt-1 space-y-0.5">
+                                  {gl.commissionAccounts.map((account) => (
+                                    <li key={account.code}>
+                                      {account.code} {account.name} {fmtKwdVal(account.amountKwd)}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </details>
+                            ) : null}
+                            <KpiProvenanceBadge
+                              odooModel="account.move.line"
+                              dateRange={{ from: gl.from, to: gl.to }}
+                              lastSyncAt={lastSyncIso}
+                              isStale24h={isStale24h}
+                              kind="فعلي"
+                              queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
+                              compact
+                            />
+                          </div>
+                        </>
+                      )}
+                    </V35GlassCard>
+                  ),
+                })
+              }
+
+              if (executiveKpiCards.length === 5) {
+                return (
+                  <div className="space-y-3.5 sm:space-y-4">
+                    <div className={`ae-stagger grid ${resolveDynamicKpiGridClass(3)} gap-3.5 sm:gap-4`}>
+                      {executiveKpiCards.slice(0, 3).map((item) => (
+                        <div key={item.key} className="contents">
+                          {item.node}
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`ae-stagger grid ${resolveDynamicKpiGridClass(2)} gap-3.5 sm:gap-4`}>
+                      {executiveKpiCards.slice(3).map((item) => (
+                        <div key={item.key} className="contents">
+                          {item.node}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div
+                  className={`ae-stagger grid ${resolveDynamicKpiGridClass(executiveKpiCards.length)} gap-3.5 sm:gap-4`}
+                >
+                  {executiveKpiCards.map((item) => (
+                    <div key={item.key} className="contents">
+                      {item.node}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {/* Mapped Branches (+ Unattributed POS Sales only when > 0) */}
             {branchCards.length > 0 ? (
             <V35GlassCard
               as="section"
               aria-label={T('Branches & Unattributed POS Sales', 'أداء الفروع السبعة والمبيعات غير المنسوبة لفرع')}
-              className="ae-bento-card p-4 sm:p-6"
+              className="ae-bento-card overflow-visible p-4 sm:p-6"
             >
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <div>
+              <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <h2 className="text-[16px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
-                    {T(
-                      '7 Mapped Restaurant Branches + Unattributed POS Sales',
-                      'كروت الفروع السبعة + سطر المبيعات غير المنسوبة لفرع',
-                    )}
+                    {hasVisibleUnattributedBranch
+                      ? T(
+                          '7 Mapped Restaurant Branches + Unattributed POS Sales',
+                          'كروت الفروع السبعة + سطر المبيعات غير المنسوبة لفرع',
+                        )
+                      : T('Mapped Restaurant Branches', 'أداء فروع المطاعم المربوطة')}
                   </h2>
                   <p className="mt-0.5 text-[13px] font-medium text-slate-600 dark:text-slate-300">
                     {isAr ? (
                       <>
-                        مبيعات وطلبات كل فرع من إيصالات نقاط البيع في أودو 17 (
+                        فروع مربوطة في نقاط بيع أودو 17 — صافي المبيعات والطلبات (
                         <span dir="ltr" className="tabular-nums">
                           {periodWindow.fromIso} → {periodWindow.toInclusiveIso}
                         </span>
@@ -1744,7 +2005,7 @@ export function FullJourney360({
                       </>
                     ) : (
                       <>
-                        Branch POS net sales & orders directly from Odoo 17 (
+                        Mapped Odoo 17 POS locations — branch net sales &amp; orders (
                         <span dir="ltr" className="tabular-nums">
                           {periodWindow.fromIso} → {periodWindow.toInclusiveIso}
                         </span>
@@ -1753,142 +2014,159 @@ export function FullJourney360({
                     )}
                   </p>
                 </div>
-                <KpiProvenanceBadge
-                  odooModel="pos.order"
-                  dateRange={provenanceRange}
-                  lastSyncAt={lastSyncIso}
-                  isStale24h={isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="pos.order.read_group(groupby=['config_id']) mapped via pos-registry.json + unattributed bucket"
-                />
+                <div className="shrink-0">
+                  <KpiProvenanceBadge
+                    odooModel="pos.order"
+                    dateRange={provenanceRange}
+                    lastSyncAt={lastSyncIso}
+                    isStale24h={isStale24h}
+                    kind="فعلي"
+                    queryOrFormula="pos.order.read_group(groupby=['config_id']) mapped via pos-registry.json + unattributed bucket"
+                  />
+                </div>
               </div>
 
-              {branchCards.length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {branchCards.filter((bRow) => !isIdleBoothCard(bRow)).map((bRow) => (
-                    <V35GlassCard
-                      key={bRow.id}
-                      variant="nested"
-                      hoverLift
-                      data-branch-card={bRow.id}
-                      className={`flex flex-col justify-between rounded-[20px] p-4 ${
-                        bRow.isUnattributed
-                          ? 'border !border-dashed border-slate-300/90 bg-slate-50/75 dark:border-slate-700/80 dark:bg-slate-900/40'
-                          : ''
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <span
-                            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                              bRow.isUnattributed
-                                ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300'
-                                : 'bg-emerald-600/15 text-[#047857] dark:bg-emerald-400/15 dark:text-emerald-300'
-                            }`}
-                          >
-                            <Building2 className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0">
-                            <h3 className="text-[14px] font-bold leading-snug text-slate-950 dark:text-white">
-                              {bRow.isUnattributed
-                                ? T(UNATTRIBUTED_BRANCH_LABEL_EN, UNATTRIBUTED_BRANCH_LABEL_AR)
-                                : isAr
-                                  ? bRow.labelAr
-                                  : bRow.labelEn}
-                            </h3>
-                            <p className="text-xs font-medium leading-snug text-slate-600 dark:text-slate-300">
-                              {bRow.isUnattributed
-                                ? T('Unmapped POS terminals', 'أجهزة كاشير غير مربوطة بفرع محدد')
-                                : T('Mapped Odoo POS location', 'فرع مربوط في نقاط بيع أودو')}
-                            </p>
+              {visibleBranchCards.length > 0 ? (
+                <div
+                  className={`grid gap-3 ${
+                    visibleBranchCards.length < 4
+                      ? resolveDynamicKpiGridClass(visibleBranchCards.length)
+                      : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                  }`}
+                >
+                  {visibleBranchCards.map((bRow) => {
+                    const branchLabel = bRow.isUnattributed
+                      ? T(UNATTRIBUTED_BRANCH_LABEL_EN, UNATTRIBUTED_BRANCH_LABEL_AR)
+                      : isAr
+                        ? bRow.labelAr
+                        : bRow.labelEn
+                    return (
+                      <V35GlassCard
+                        key={bRow.id}
+                        variant="nested"
+                        hoverLift
+                        data-branch-card={bRow.id}
+                        className={`overflow-visible flex flex-col justify-between rounded-[20px] p-4 ${
+                          bRow.isUnattributed
+                            ? 'border !border-dashed border-slate-300/90 bg-slate-50/75 dark:border-slate-700/80 dark:bg-slate-900/40'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2.5">
+                          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                            <span
+                              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                                bRow.isUnattributed
+                                  ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300'
+                                  : 'bg-emerald-600/15 text-[#047857] dark:bg-emerald-400/15 dark:text-emerald-300'
+                              }`}
+                            >
+                              <Building2 className="h-4 w-4" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h3
+                                title={branchLabel}
+                                className="truncate text-[14px] font-bold leading-snug text-slate-950 dark:text-white"
+                              >
+                                {branchLabel}
+                              </h3>
+                              {bRow.isUnattributed ? (
+                                <p className="truncate text-xs font-medium leading-snug text-slate-600 dark:text-slate-300">
+                                  {T('Unmapped POS terminals', 'أجهزة كاشير غير مربوطة بفرع محدد')}
+                                </p>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                        <span
-                          dir="ltr"
-                          title={bRow.sharePct === null ? unavailableTooltip : undefined}
-                          data-unavailable={bRow.sharePct === null ? 'true' : undefined}
-                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
-                            bRow.isUnattributed
-                              ? 'bg-slate-200/80 text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-600/50'
-                              : 'bg-[#D1FAE5] text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
-                          }`}
-                        >
-                          {formatPct(bRow.sharePct, activeLocale)}
-                        </span>
-                      </div>
-
-                      <div className="mt-3.5 space-y-2.5">
-                        {bRow.sharePct !== null && bRow.salesKwd !== null ? (
-                          <V35KpiRing
-                            size="sm"
-                            tone={bRow.isUnattributed ? 'neutral' : 'blue'}
-                            value={bRow.salesKwd}
-                            display={fmtKwdVal(bRow.salesKwd)}
-                            percent={bRow.sharePct}
-                            unavailableTooltip={unavailableTooltip}
-                            ringCenter={
-                              bRow.isUnattributed ? (
-                                <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                              ) : (
-                                <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
-                              )
-                            }
-                            valueClassName="text-lg sm:text-[19px] font-extrabold leading-tight"
-                          />
-                        ) : (
                           <span
                             dir="ltr"
-                            title={bRow.salesKwd === null ? unavailableTooltip : undefined}
-                            data-unavailable={bRow.salesKwd === null ? 'true' : undefined}
-                            className="block text-xl font-extrabold tabular-nums text-slate-950 dark:text-white"
+                            title={bRow.sharePct === null ? unavailableTooltip : undefined}
+                            data-unavailable={bRow.sharePct === null ? 'true' : undefined}
+                            className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
+                              bRow.isUnattributed
+                                ? 'bg-slate-200/80 text-slate-700 ring-1 ring-slate-300/70 dark:bg-slate-800/80 dark:text-slate-200 dark:ring-slate-600/50'
+                                : 'bg-[#D1FAE5] text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
+                            }`}
                           >
-                            {fmtKwdVal(bRow.salesKwd)}
+                            {formatPct(bRow.sharePct, activeLocale)}
                           </span>
-                        )}
-                        <span className="block pt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
-                          {bRow.orders === null ? (
-                            <span title={unavailableTooltip} data-unavailable="true">
-                              {UNAVAILABLE_DASH}
-                            </span>
-                          ) : isAr ? (
-                            `${formatInt(bRow.orders)} طلب`
+                        </div>
+
+                        <div className="mt-3.5 space-y-2.5">
+                          {bRow.sharePct !== null && bRow.salesKwd !== null ? (
+                            <V35KpiRing
+                              size="sm"
+                              tone={bRow.isUnattributed ? 'neutral' : 'blue'}
+                              value={bRow.salesKwd}
+                              display={fmtKwdVal(bRow.salesKwd)}
+                              percent={bRow.sharePct}
+                              unavailableTooltip={unavailableTooltip}
+                              ringCenter={
+                                bRow.isUnattributed ? (
+                                  <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                                ) : (
+                                  <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+                                )
+                              }
+                              valueClassName="text-lg sm:text-[19px] font-extrabold leading-tight"
+                            />
                           ) : (
-                            `${formatInt(bRow.orders)} orders`
+                            <span
+                              dir="ltr"
+                              title={bRow.salesKwd === null ? unavailableTooltip : undefined}
+                              data-unavailable={bRow.salesKwd === null ? 'true' : undefined}
+                              className="block text-xl font-extrabold tabular-nums text-slate-950 dark:text-white"
+                            >
+                              {fmtKwdVal(bRow.salesKwd)}
+                            </span>
                           )}
-                          {bRow.orders !== null && bRow.orders > 0 ? (
-                            bRow.aovKwd === null ? (
+                          <span className="block pt-0.5 text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+                            {bRow.orders === null ? (
                               <span title={unavailableTooltip} data-unavailable="true">
-                                {isAr ? ' • متوسط —' : ' • AOV —'}
+                                {UNAVAILABLE_DASH}
                               </span>
                             ) : isAr ? (
-                              <>
-                                {' • متوسط '}
-                                <span dir="ltr" className="tabular-nums">
-                                  {fmtKwdVal(bRow.aovKwd)}
-                                </span>
-                              </>
+                              `${formatInt(bRow.orders)} طلب`
                             ) : (
-                              <>
-                                {' • AOV '}
-                                <span dir="ltr" className="tabular-nums">
-                                  {fmtKwdVal(bRow.aovKwd)}
+                              `${formatInt(bRow.orders)} orders`
+                            )}
+                            {bRow.orders !== null && bRow.orders > 0 ? (
+                              bRow.aovKwd === null ? (
+                                <span title={unavailableTooltip} data-unavailable="true">
+                                  {isAr ? ' • متوسط —' : ' • AOV —'}
                                 </span>
-                              </>
-                            )
-                          ) : null}
-                        </span>
-                      </div>
-                    </V35GlassCard>
-                  ))}
+                              ) : isAr ? (
+                                <>
+                                  {' • متوسط '}
+                                  <span dir="ltr" className="tabular-nums">
+                                    {fmtKwdVal(bRow.aovKwd)}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {' • AOV '}
+                                  <span dir="ltr" className="tabular-nums">
+                                    {fmtKwdVal(bRow.aovKwd)}
+                                  </span>
+                                </>
+                              )
+                            ) : null}
+                          </span>
+                        </div>
+                      </V35GlassCard>
+                    )
+                  })}
                 </div>
               ) : null}
-              {branchCards.some(isIdleBoothCard) ? (
+              {branchCards.some((r) => !r.isUnattributed && isIdleBoothCard(r)) ? (
                 <p data-idle-booths="true" className="mt-2.5 text-xs text-slate-500 dark:text-slate-400">
                   {filters.period === 'today'
                     ? T('No sales so far today: ', 'بلا مبيعات حتى الآن اليوم: ')
                     : T('No sales in this period: ', 'بلا مبيعات في هذه الفترة: ')}
                   <span className="font-semibold text-slate-600 dark:text-slate-300">
-                    {branchCards.filter(isIdleBoothCard).map((r) => (isAr ? r.labelAr : r.labelEn)).join(isAr ? '، ' : ', ')}
+                    {branchCards
+                      .filter((r) => !r.isUnattributed && isIdleBoothCard(r))
+                      .map((r) => (isAr ? r.labelAr : r.labelEn))
+                      .join(isAr ? '، ' : ', ')}
                   </span>
                 </p>
               ) : null}
@@ -1899,9 +2177,9 @@ export function FullJourney360({
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
               {/* Left (`lg:col-span-7`): Weekly Performance Analytics */}
               {weeklyPills.length > 0 ? (
-              <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 lg:col-span-7 dark:border-slate-800">
-                <div className="flex flex-wrap items-start justify-between gap-2.5">
-                  <div className="min-w-0">
+              <V35GlassCard className="ae-bento-card overflow-visible flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 lg:col-span-7 dark:border-slate-800">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Daily POS Sales Pulse (Last 7 Days)', 'نبض مبيعات نقاط البيع اليومي (آخر 7 أيام)')}
                     </h2>
@@ -1917,7 +2195,7 @@ export function FullJourney360({
                   </div>
 
                   {activeWeeklyDay ? (
-                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/85 bg-[#ECFDF5] px-3.5 py-1 text-xs font-semibold tabular-nums text-slate-800 backdrop-blur-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
+                    <div className="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-full border border-slate-200/85 bg-[#ECFDF5] px-3.5 py-1 text-xs font-semibold tabular-nums text-slate-800 backdrop-blur-sm dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-100">
                       <span>{isAr ? activeWeeklyDay.dayNameAr : activeWeeklyDay.dayNameEn}</span>
                       <span aria-hidden className="text-slate-300 dark:text-white/20">
                         •
@@ -2019,22 +2297,39 @@ export function FullJourney360({
               </V35GlassCard>
               ) : null}
 
-              {/* Right (`lg:col-span-5`): Cumulative Open Receivables & Accounting Status */}
+              {/* Right (`lg:col-span-5` or `lg:col-span-12`): Cumulative Open Receivables & Accounting Status */}
               <V35GlassCard
                 as="section"
                 aria-label={T('Open Receivables & Ledger Status', 'الذمم المدينة المفتوحة وحالة القيود')}
-                className="ae-bento-card flex flex-col justify-between p-4 sm:p-6 lg:col-span-5"
+                className={`ae-bento-card overflow-visible flex flex-col justify-between p-4 sm:p-6 ${
+                  weeklyPills.length > 0 ? 'lg:col-span-5' : 'lg:col-span-12'
+                }`}
               >
                 <div className="space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
+                    <h2 className="min-w-0 flex-1 text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Open Receivables & Ledger Status', 'الذمم المدينة المفتوحة وحالة الدفتر')}
                     </h2>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-300/80 bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:border-slate-600/60 dark:bg-slate-800/70 dark:text-slate-200">
-                      <Wallet className="h-3.5 w-3.5" />
-                      <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
-                    </span>
-                    <ScopeBadge kind={companyWideScope} target="ledger-ar" isAr={isAr} />
+                    <div className="flex flex-nowrap shrink-0 items-center gap-1.5">
+                      <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full border border-slate-300/80 bg-slate-100/90 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:border-slate-600/60 dark:bg-slate-800/70 dark:text-slate-200">
+                        <Wallet className="h-3.5 w-3.5 shrink-0" />
+                        <span>{T('Ledger AR', 'ذمم دفتر الأستاذ')}</span>
+                      </span>
+                      <ScopeBadge kind={companyWideScope} target="ledger-ar" isAr={isAr} />
+                      {!maskInternalCosts &&
+                      receivablesAmountsVisible &&
+                      workspace.receivables.agingHiddenReasonAr ? (
+                        <CompactInfoTooltip
+                          text={
+                            (isAr
+                              ? workspace.receivables.agingHiddenReasonAr
+                              : workspace.receivables.agingHiddenReasonEn) ?? ''
+                          }
+                          label={T('Receivables aging note', 'ملاحظة تقادم الذمم')}
+                          dataAttr="ar-aging-hidden"
+                        />
+                      ) : null}
+                    </div>
                   </div>
 
                   {maskInternalCosts ? (
@@ -2051,7 +2346,7 @@ export function FullJourney360({
                         className="block rounded-[20px] border border-slate-300/80 bg-slate-50/75 p-4 backdrop-blur-sm transition-colors hover:bg-slate-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/60 dark:border-slate-700/75 dark:bg-slate-900/45 dark:hover:bg-slate-800/60"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          <span className="min-w-0 flex-1 text-sm font-bold text-slate-900 dark:text-slate-100">
                             {T('Unreconciled Open Receivables', 'إجمالي الذمم المدينة غير المسوّاة')}
                           </span>
                           <span
@@ -2059,7 +2354,7 @@ export function FullJourney360({
                             title={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             aria-label={workspace.receivables.unavailable ? unavailableTooltip : undefined}
                             data-unavailable={workspace.receivables.unavailable ? 'true' : undefined}
-                            className="text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
+                            className="shrink-0 whitespace-nowrap text-lg font-extrabold tabular-nums text-slate-950 dark:text-white"
                           >
                             {workspace.receivables.unavailable || receivableFigures?.netKwd == null ? (
                               UNAVAILABLE_DASH
@@ -2099,15 +2394,15 @@ export function FullJourney360({
                           >
                             <div className="flex items-center justify-between gap-2">
                               <dt>{T('Gross open debits', 'إجمالي المدين المفتوح')}</dt>
-                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openDebitsKwd)}</dd>
+                              <dd dir="ltr" className="shrink-0 whitespace-nowrap font-bold tabular-nums">{fmtKwdVal(arTieOut.openDebitsKwd)}</dd>
                             </div>
                             <div data-ar-unapplied-credits="true" className="flex items-center justify-between gap-2">
                               <dt>{T('Unapplied credits & clearing', 'دفعات ومقاصات غير مطابقة')}</dt>
-                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.unappliedCreditsKwd)}</dd>
+                              <dd dir="ltr" className="shrink-0 whitespace-nowrap font-bold tabular-nums">{fmtKwdVal(arTieOut.unappliedCreditsKwd)}</dd>
                             </div>
                             <div className="flex items-center justify-between gap-2 border-t border-slate-200/80 pt-1 dark:border-slate-700/60">
                               <dt>{T('= Open receivables', '= صافي الذمم المفتوحة')}</dt>
-                              <dd dir="ltr" className="font-bold tabular-nums">{fmtKwdVal(arTieOut.openReceivableKwd)}</dd>
+                              <dd dir="ltr" className="shrink-0 whitespace-nowrap font-bold tabular-nums">{fmtKwdVal(arTieOut.openReceivableKwd)}</dd>
                             </div>
                             {arTieOut.ties ? null : (
                               <p className="text-slate-600 dark:text-slate-300">
@@ -2116,11 +2411,6 @@ export function FullJourney360({
                               </p>
                             )}
                           </dl>
-                        ) : null}
-                        {receivablesAmountsVisible && workspace.receivables.agingHiddenReasonAr ? (
-                          <p data-ar-aging-hidden="true" className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
-                            {isAr ? workspace.receivables.agingHiddenReasonAr : workspace.receivables.agingHiddenReasonEn}
-                          </p>
                         ) : null}
 
                         <p className="mt-2 text-xs font-medium text-slate-600 dark:text-slate-300">
@@ -2171,10 +2461,12 @@ export function FullJourney360({
               {comboData.length > 0 ? (
               <V35GlassCard
                 id="cash-flow-chart-card"
-                className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-7 dark:border-slate-800"
+                className={`ae-bento-card overflow-visible flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 dark:border-slate-800 ${
+                  maskInternalCosts || tenKwdDonutSlices.length > 0 ? 'xl:col-span-7' : 'xl:col-span-12'
+                }`}
               >
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('POS Sales & Posted Operating Net', 'مبيعات نقاط البيع وصافي التشغيل المرحّل')}
                     </h2>
@@ -2226,7 +2518,11 @@ export function FullJourney360({
               ) : null}
 
               {(maskInternalCosts || tenKwdDonutSlices.length > 0) ? (
-              <V35GlassCard className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 xl:col-span-5 dark:border-slate-800">
+              <V35GlassCard
+                className={`ae-bento-card overflow-visible flex flex-col justify-between border border-slate-200/85 p-4 sm:p-6 dark:border-slate-800 ${
+                  comboData.length > 0 ? 'xl:col-span-5' : 'xl:col-span-12'
+                }`}
+              >
                 <div className="mb-4">
                   <h2 className="text-[17px] sm:text-[18px] font-semibold tracking-tight text-slate-950 dark:text-white">
                     {T(
@@ -2284,7 +2580,7 @@ export function FullJourney360({
             {channelMixSegments.length > 0 || (branchCards.length > 0 && !brandBranchScopeUnavailable) ? (
             <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-12">
               {channelMixSegments.length > 0 ? (
-              <div className="xl:col-span-5">
+              <div className={branchCards.length > 0 && !brandBranchScopeUnavailable ? 'xl:col-span-5' : 'xl:col-span-12'}>
                 <ChartCard
                   title={T('Sales Mix by Channel', 'توزيع المبيعات حسب القناة')}
                   subtitle={T('Share of active POS channels', 'حصة كل قناة نشطة من صافي المبيعات')}
@@ -2334,10 +2630,12 @@ export function FullJourney360({
                 as="section"
                 data-ledger-table="true"
                 aria-label={T('Operational Ledger Summary', 'ملخص سجل العمليات حسب الفرع')}
-                className="ae-bento-card flex flex-col justify-between border border-slate-200/85 p-4 sm:p-5 xl:col-span-7 dark:border-slate-800"
+                className={`ae-bento-card overflow-visible flex flex-col justify-between border border-slate-200/85 p-4 sm:p-5 dark:border-slate-800 ${
+                  channelMixSegments.length > 0 ? 'xl:col-span-7' : 'xl:col-span-12'
+                }`}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-[16px] sm:text-[17.5px] font-semibold tracking-tight text-slate-950 dark:text-white">
                       {T('Operational Branch Ledger', 'ملخص سجل الفروع التشغيلي')}
                     </h2>

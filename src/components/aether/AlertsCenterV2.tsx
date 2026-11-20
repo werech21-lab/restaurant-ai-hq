@@ -141,9 +141,9 @@ function AlertsCenterV2Body({
       onClick={() => void fetchAlerts()}
       disabled={refreshing}
       aria-label={isAr ? 'تحديث التنبيهات من Odoo' : 'Refresh alerts from Odoo'}
-      className="ds-motion ds-focus-ring inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-slate-300/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100 dark:hover:bg-white/[0.06]"
+      className="ds-motion ds-focus-ring inline-flex min-h-10 shrink-0 whitespace-nowrap cursor-pointer items-center gap-2 rounded-xl border border-slate-300/90 bg-white px-3.5 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100 dark:hover:bg-white/[0.06]"
     >
-      <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+      <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
       <span>{isAr ? 'تحديث التنبيهات' : 'Refresh Alerts'}</span>
     </button>
   )
@@ -164,7 +164,7 @@ function AlertsCenterV2Body({
             <span
               dir="ltr"
               title={!updatedAtIso ? unavailableTooltip : undefined}
-              className="ds-num inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
+              className="ds-num inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
             >
               <span>{formattedSync}</span>
             </span>
@@ -272,18 +272,18 @@ function AlertsCenterV2Body({
               {breaches.map((breach) => (
                 <article
                   key={breach.id}
-                  className="ds-surface-subtle space-y-3 rounded-2xl p-4 sm:p-5"
+                  className="ds-surface-subtle min-w-0 space-y-3 rounded-2xl p-4 sm:p-5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <span
                         dir="ltr"
-                        className="rounded-lg bg-rose-600 px-2.5 py-0.5 font-mono text-xs font-bold text-white"
+                        className="shrink-0 whitespace-nowrap rounded-lg bg-rose-600 px-2.5 py-0.5 font-mono text-xs font-bold text-white"
                       >
                         {breach.odooModel}
                       </span>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold ${
                           breach.severity === 'critical'
                             ? 'bg-rose-100 text-rose-900 dark:bg-rose-950/70 dark:text-rose-200'
                             : 'bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200'
@@ -298,8 +298,8 @@ function AlertsCenterV2Body({
                             : 'High'}
                       </span>
                       {breach.frozen ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-900 dark:bg-sky-950/70 dark:text-sky-200">
-                          <Snowflake className="h-3 w-3" aria-hidden />
+                        <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-bold text-sky-900 dark:bg-sky-950/70 dark:text-sky-200">
+                          <Snowflake className="h-3 w-3 shrink-0" aria-hidden />
                           <span>{isAr ? 'مجمّد' : 'Frozen'}</span>
                         </span>
                       ) : null}
@@ -308,14 +308,14 @@ function AlertsCenterV2Body({
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span
                         dir="ltr"
-                        className="ds-num font-semibold text-slate-600 dark:text-slate-300"
+                        className="ds-num shrink-0 whitespace-nowrap font-semibold text-slate-600 dark:text-slate-300"
                       >
                         {formatDate(breach.period.from, locale)} →{' '}
                         {formatDate(breach.period.to, locale)}
                       </span>
                       <span
                         dir="ltr"
-                        className="ds-num rounded-lg bg-rose-100 px-2.5 py-1 font-bold text-rose-900 dark:bg-rose-950/60 dark:text-rose-200"
+                        className="ds-num shrink-0 whitespace-nowrap rounded-lg bg-rose-100 px-2.5 py-1 font-bold text-rose-900 dark:bg-rose-950/60 dark:text-rose-200"
                       >
                         {formatKwd(breach.monthlyLeakKwd, { locale })}
                       </span>

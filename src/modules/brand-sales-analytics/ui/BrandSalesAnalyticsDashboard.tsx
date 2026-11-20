@@ -244,13 +244,13 @@ export function BrandSalesAnalyticsDashboard({ locale: explicitLocale }: Props =
         header: isAr ? 'العلامة التجارية' : 'Brand',
         align: 'start',
         render: (row) => (
-          <span className="inline-flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+          <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-slate-900 dark:text-white">
             <span
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: row.color }}
               aria-hidden
             />
-            <span>{isAr ? row.nameAr : row.nameEn}</span>
+            <span className="truncate">{isAr ? row.nameAr : row.nameEn}</span>
           </span>
         ),
       },
@@ -303,7 +303,7 @@ export function BrandSalesAnalyticsDashboard({ locale: explicitLocale }: Props =
 
         <Link
           href="/erp/cores"
-          className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
+          className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-700"
         >
           <span>{isAr ? 'فتح نواة المبيعات والمينيو' : 'Open Sales & Menu Core'}</span>
           <ArrowUpRight className="h-3.5 w-3.5 shrink-0" aria-hidden />

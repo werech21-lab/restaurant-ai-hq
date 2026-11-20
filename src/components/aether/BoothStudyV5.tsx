@@ -1,16 +1,19 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
-  Calculator,
   Calendar,
   CheckCircle2,
   FileText,
   FileUp,
+  Info,
   Loader2,
+  RefreshCw,
   Scale,
   ShieldCheck,
+  Sliders,
+  Sparkles,
   XCircle,
 } from 'lucide-react'
 import {
@@ -18,6 +21,7 @@ import {
   type ContractDeepAuditResult,
 } from '@/lib/feryal-gemini-brain'
 import { GLOBAL_BRAND_OPTIONS } from '@/lib/aether/global-filter-engine'
+import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import {
   InteractiveDonutChart,
   InteractiveHoverBarChart,
@@ -28,11 +32,22 @@ import { useLang } from '@/components/aether/ui'
 import { StateBlock } from '@/components/ui'
 import {
   UNAVAILABLE_DASH,
+  formatDateTime,
   formatInt,
   formatKwd,
   formatPct,
   getUnavailableTooltip,
 } from '@/lib/format'
+import {
+  buildBoothAdvisorFallback,
+  extractBrandOdooActual,
+  extractOdooVerifiedPlanningActuals,
+  LABEL_DETERMINISTIC_SIM,
+  LABEL_MANUAL_WHAT_IF,
+  LABEL_ODOO_ACTUAL,
+  type PlanningAdvisorRecommendation,
+  type PlanningAdvisorResponsePayload,
+} from '@/lib/aether/strategic-planning-engine'
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -75,12 +90,45 @@ function EmeraldPillTabs<K extends string>({
   )
 }
 
+function CompactBoothInfoTooltip({ text, label }: { text: string; label: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="group relative inline-flex shrink-0 items-center">
+      <button
+        type="button"
+        title={text}
+        aria-label={label}
+        onClick={() => setOpen((v) => !v)}
+        onBlur={() => setOpen(false)}
+        className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+      >
+        <Info className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      <span
+        role="tooltip"
+        className={`pointer-events-none absolute bottom-full end-0 z-40 mb-2 w-72 rounded-xl bg-slate-900 px-3 py-2 text-xs font-normal leading-relaxed text-white shadow-lg ring-1 ring-white/10 transition-opacity dark:bg-slate-800 ${
+          open ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+        }`}
+      >
+        {text}
+      </span>
+    </span>
+  )
+}
+
 type BoothPreset = 'month30' | 'weekend4' | 'season90' | 'custom'
 
 const card =
-  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
+  'ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10'
 const input =
   'ae-bento-subcard w-full rounded-xl px-3.5 py-2.5 text-[14px] font-semibold text-slate-900 transition duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:text-white'
+
+const BADGE_ACTUAL_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/70 dark:text-emerald-200 dark:ring-emerald-400/25'
+const BADGE_MANUAL_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-indigo-500/25 dark:bg-indigo-950/70 dark:text-indigo-200 dark:ring-indigo-400/25'
+const BADGE_SIM_CLS =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-900 ring-1 ring-sky-500/25 dark:bg-sky-950/70 dark:text-sky-200 dark:ring-sky-400/25'
 
 const BOOTH_BRAND_OPTIONS = GLOBAL_BRAND_OPTIONS.filter((b) => b.id !== 'all')
 
@@ -112,13 +160,16 @@ const diffInclusiveDays = (startIso: string, endIso: string): number => {
 }
 
 /**
- * Hypothetical Booth What-If Calculator (`/erp/booth-feasibility` & `/erp/events-intelligence`).
- * Strictly labeled `«أداة افتراضية — ليست بيانات»` with zero static `ODOO.exhibitions[0]` calibration.
+ * Booth Feasibility & Exhibition What-If Studio (`/erp/booth-feasibility` & `/erp/events-intelligence`).
+ * Strictly separates `Odoo Verified Actual` reference telemetry from `Manual What-If Input` controls
+ * and `Deterministic Simulation` outputs, with AI strategic advisor recommendations.
  */
 export function BoothStudyV5() {
   const { isAr, T } = useLang()
   const locale = isAr ? 'ar' : 'en'
   const unavailableTip = getUnavailableTooltip(locale)
+  const { liveSummary, workspace, isAuditor } = useGlobalFilter()
+
   const [preset, setPreset] = useState<BoothPreset>('month30')
   const [eventName, setEventName] = useState('')
   const [startDate, setStartDate] = useState('2026-11-20')
@@ -126,6 +177,7 @@ export function BoothStudyV5() {
   const [days, setDays] = useState(30)
   const [rent, setRent] = useState(3000)
   const [setup, setSetup] = useState(800)
+  const [staffCount, setStaffCount] = useState(0)
   const [staff, setStaff] = useState(0)
   const [avgTicketKwd, setAvgTicketKwd] = useState<number>(3.5)
   const [foodCostPct, setFoodCostPct] = useState<number>(28)
@@ -137,6 +189,11 @@ export function BoothStudyV5() {
   const [contractReview, setContractReview] = useState<ContractDeepAuditResult | null>(null)
   const [contractError, setContractError] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  const [advisorLoading, setAdvisorLoading] = useState(false)
+  const [advisorRecs, setAdvisorRecs] = useState<PlanningAdvisorRecommendation[] | null>(null)
+  const [advisorModelLabel, setAdvisorModelLabel] = useState<string | null>(null)
+  const [advisorUpdatedAt, setAdvisorUpdatedAt] = useState<string | null>(null)
 
   const applyPreset = (next: BoothPreset) => {
     setPreset(next)
@@ -192,15 +249,25 @@ export function BoothStudyV5() {
   const brandOpt = BOOTH_BRAND_OPTIONS.find((b) => b.id === brandId) ?? BOOTH_BRAND_OPTIONS[0]
   const basket = Math.max(0.25, avgTicketKwd)
 
+  const actuals = useMemo(
+    () => extractOdooVerifiedPlanningActuals(liveSummary, workspace),
+    [liveSummary, workspace],
+  )
+
+  const brandActual = useMemo(
+    () => extractBrandOdooActual(liveSummary, brandId),
+    [brandId, liveSummary],
+  )
+
   const model = useMemo(() => {
     const variablePct = Math.min(0.92, Math.max(0.05, foodCostPct / 100))
     const gpPerOrder = basket * (1 - variablePct)
     const fixed = rent + setup + staff
     const breakEven = days > 0 && gpPerOrder > 0 ? fixed / days / gpPerOrder : Infinity
     const scenarios = [
-      { id: 'low', en: 'Conservative (60%)', ar: 'افتراضي تحفظي (60%)', factor: 0.6 },
-      { id: 'base', en: 'Base (100%)', ar: 'افتراضي أساسي (100%)', factor: 1 },
-      { id: 'high', en: 'Upside (130%)', ar: 'افتراضي متفائل (130%)', factor: 1.3 },
+      { id: 'low', en: 'Conservative (60%)', ar: 'سيناريو تحفظي (60%)', factor: 0.6 },
+      { id: 'base', en: 'Base (100%)', ar: 'سيناريو أساسي (100%)', factor: 1 },
+      { id: 'high', en: 'Upside (130%)', ar: 'سيناريو متفائل (130%)', factor: 1.3 },
     ].map((s) => {
       const orders = dailyOrders * s.factor * days
       const revenue = orders * basket
@@ -216,6 +283,103 @@ export function BoothStudyV5() {
     const rentShare = base.revenue > 0 ? (rent / base.revenue) * 100 : 0
     return { gpPerOrder, fixed, breakEven, scenarios, verdict, rentCeiling, rentShare }
   }, [basket, dailyOrders, days, foodCostPct, rent, setup, staff])
+
+  const base = model.scenarios[1]
+  const low = model.scenarios[0]
+  const high = model.scenarios[2]
+  const be = Number.isFinite(model.breakEven) && model.breakEven > 0 ? model.breakEven : null
+  const beCoveragePct = be ? Math.min(100, Math.round((dailyOrders / be) * 100)) : 100
+  const totalBoothBudgetKwd = Math.max(0, model.fixed + base.revenue * (foodCostPct / 100))
+  const dailyCostCapKwd = Math.max(0, totalBoothBudgetKwd / Math.max(1, days))
+
+  const boothInputsPayload = useMemo(
+    () => ({
+      brandId,
+      brandLabelEn: brandOpt.en,
+      brandLabelAr: brandOpt.ar,
+      days,
+      rentKwd: rent,
+      setupKwd: setup,
+      staffCount,
+      staffCostKwd: staff,
+      avgTicketKwd: basket,
+      foodCostPct,
+      expectedDailyOrders: dailyOrders,
+    }),
+    [basket, brandId, brandOpt.ar, brandOpt.en, dailyOrders, days, foodCostPct, rent, setup, staff, staffCount],
+  )
+
+  const defaultAdvisorRecs = useMemo(
+    () =>
+      buildBoothAdvisorFallback({
+        actuals,
+        brandActual,
+        boothInputs: boothInputsPayload,
+        sim: {
+          fixedCostKwd: model.fixed,
+          gpPerOrderKwd: model.gpPerOrder,
+          breakEvenDailyOrders: be !== null ? Math.round(be) : null,
+          baseRevenueKwd: base.revenue,
+          baseProfitKwd: base.profit,
+          conservativeProfitKwd: low.profit,
+          upsideProfitKwd: high.profit,
+          rentCeilingKwd: model.rentCeiling,
+          rentSharePct: model.rentShare,
+          verdict: model.verdict,
+        },
+      }),
+    [actuals, base.profit, base.revenue, be, boothInputsPayload, brandActual, high.profit, low.profit, model],
+  )
+
+  const runBoothAdvisor = useCallback(async () => {
+    if (isAuditor) return
+    setAdvisorLoading(true)
+    try {
+      const res = await fetch('/api/erp/planning-advisor', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'booth-feasibility',
+          boothInputs: boothInputsPayload,
+        }),
+      })
+      if (res.ok) {
+        const payload = (await res.json()) as PlanningAdvisorResponsePayload
+        if (Array.isArray(payload.recommendations) && payload.recommendations.length > 0) {
+          setAdvisorRecs(payload.recommendations)
+          setAdvisorModelLabel(isAr ? payload.modelLabelAr : payload.modelLabelEn)
+          setAdvisorUpdatedAt(
+            formatDateTime(new Date(payload.updatedAtIso), { locale, showZone: true }),
+          )
+        }
+      }
+    } catch {
+      // Deterministic recommendations remain displayed seamlessly.
+    } finally {
+      setAdvisorLoading(false)
+    }
+  }, [boothInputsPayload, isAr, isAuditor, locale])
+
+  useEffect(() => {
+    if (!actuals.available || isAuditor) return
+    const timer = window.setTimeout(() => {
+      void runBoothAdvisor()
+    }, 400)
+    return () => window.clearTimeout(timer)
+  }, [
+    actuals.available,
+    brandId,
+    days,
+    rent,
+    setup,
+    staff,
+    basket,
+    foodCostPct,
+    dailyOrders,
+    isAuditor,
+    runBoothAdvisor,
+  ])
 
   const handleCheckContract = async () => {
     setBusy(true)
@@ -244,31 +408,23 @@ export function BoothStudyV5() {
   const verdictUi = {
     go: {
       icon: <CheckCircle2 className="h-6 w-6" />,
-      en: 'Hypothetical: Profitable',
+      en: 'Simulation Verdict: Profitable',
       ar: 'نتيجة المحاكاة: مربح افتراضياً',
       cls: 'bg-emerald-50 text-emerald-900 ring-emerald-500/25 dark:bg-emerald-950/40 dark:text-emerald-100',
     },
     conditional: {
       icon: <Scale className="h-6 w-6" />,
-      en: 'Hypothetical: Negotiate Rent',
+      en: 'Simulation Verdict: Negotiate Rent',
       ar: 'نتيجة المحاكاة: فاوض الإيجار',
-      cls: 'bg-amber-50 text-amber-900 ring-amber-500/25 dark:bg-amber-950/40 dark:text-amber-100',
+      cls: 'bg-sky-50 text-sky-950 ring-sky-500/25 dark:bg-sky-950/40 dark:text-sky-100',
     },
     walk: {
       icon: <XCircle className="h-6 w-6" />,
-      en: 'Hypothetical: Loss',
+      en: 'Simulation Verdict: Loss',
       ar: 'نتيجة المحاكاة: خاسر افتراضياً',
       cls: 'bg-rose-50 text-rose-900 ring-rose-500/25 dark:bg-rose-950/40 dark:text-rose-100',
     },
   }[model.verdict]
-
-  const base = model.scenarios[1]
-  const low = model.scenarios[0]
-  const high = model.scenarios[2]
-  const be = Number.isFinite(model.breakEven) && model.breakEven > 0 ? model.breakEven : null
-  const beCoveragePct = be ? Math.min(100, Math.round((dailyOrders / be) * 100)) : 100
-  const totalBoothBudgetKwd = Math.max(0, model.fixed + base.revenue * (foodCostPct / 100))
-  const dailyCostCapKwd = Math.max(0, totalBoothBudgetKwd / Math.max(1, days))
 
   const scenarioChartData: MultiSeriesBarDatum[] = useMemo(
     () =>
@@ -281,11 +437,11 @@ export function BoothStudyV5() {
         badgeText: pctFmt(s.roi, true),
         badgeTone: s.profit > 0 ? 'emerald' : s.profit === 0 ? 'amber' : 'rose',
         lines: [
-          { label: T('Hypothetical Orders', 'الطلبات الافتراضية'), value: intFmt(s.orders), tone: 'neutral' },
-          { label: T('Hypothetical Sales', 'المبيعات الافتراضية'), value: kwd(s.revenue), tone: 'neutral', bold: true },
+          { label: T('Simulated Orders', 'الطلبات المحاكاة'), value: intFmt(s.orders), tone: 'neutral' },
+          { label: T('Simulated Sales', 'المبيعات المحاكاة'), value: kwd(s.revenue), tone: 'neutral', bold: true },
           { label: T('Fixed Cost Input', 'التكاليف الثابتة المدخلة'), value: kwd(model.fixed), tone: 'slate' },
           {
-            label: T('Hypothetical Net', 'الصافي الافتراضي'),
+            label: T('Simulated Net', 'الصافي المحاكى'),
             value: formatKwd(s.profit, { locale, signed: true }),
             tone: s.profit >= 0 ? 'emerald' : 'rose',
             bold: true,
@@ -306,7 +462,7 @@ export function BoothStudyV5() {
     return [
       {
         id: 'net',
-        label: T('Hypothetical Net', 'الصافي الافتراضي'),
+        label: T('Simulated Net', 'الصافي المحاكى'),
         value: netVal,
         valueFormatted: kwd(netVal),
         pctFormatted: pct(netVal),
@@ -326,7 +482,7 @@ export function BoothStudyV5() {
         value: rentVal,
         valueFormatted: kwd(rentVal),
         pctFormatted: pct(rentVal),
-        color: '#F59E0B',
+        color: '#6366F1',
       },
       {
         id: 'setup',
@@ -349,13 +505,13 @@ export function BoothStudyV5() {
     model.rentShare > 0 &&
       model.rentShare <= 20 &&
       T(
-        `Entered rent represents ${pctFmt(model.rentShare)} of hypothetical sales.`,
-        `الإيجار المدخل يمثل ${pctFmt(model.rentShare)} من المبيعات الافتراضية.`,
+        `Entered rent represents ${pctFmt(model.rentShare)} of simulated sales.`,
+        `الإيجار المدخل يمثل ${pctFmt(model.rentShare)} من المبيعات المحاكاة.`,
       ),
     base.profit > 0 &&
       T(
-        `Hypothetical base net result is ${kwd(base.profit)}.`,
-        `الصافي الافتراضي للحالة الأساسية ${kwd(base.profit)}.`,
+        `Simulated base net result is ${kwd(base.profit)}.`,
+        `الصافي المحاكى للحالة الأساسية ${kwd(base.profit)}.`,
       ),
   ].filter(Boolean) as string[]
 
@@ -368,50 +524,26 @@ export function BoothStudyV5() {
       ),
     low.profit < 0 &&
       T(
-        `At 60% traffic, hypothetical loss is ${kwd(-low.profit)}.`,
-        `عند إقبال 60% تكون الخسارة الافتراضية ${kwd(-low.profit)}.`,
+        `At 60% traffic, simulated loss is ${kwd(-low.profit)}.`,
+        `عند إقبال 60% تكون الخسارة المحاكاة ${kwd(-low.profit)}.`,
       ),
     model.rentShare > 25 &&
       T(
-        `Rent consumes ${pctFmt(model.rentShare)} of hypothetical sales.`,
-        `الإيجار يستهلك ${pctFmt(model.rentShare)} من المبيعات الافتراضية.`,
+        `Rent consumes ${pctFmt(model.rentShare)} of simulated sales.`,
+        `الإيجار يستهلك ${pctFmt(model.rentShare)} من المبيعات المحاكاة.`,
       ),
   ].filter(Boolean) as string[]
 
-  return (
-    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] min-w-0 mx-auto space-y-4 pb-10">
-      {/* Prominent Mandatory Disclaimer Banner: «أداة افتراضية — ليست بيانات» */}
-      <div className="rounded-2xl bg-amber-100/95 px-4 py-3.5 text-amber-950 ring-2 ring-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100 dark:ring-amber-400/35">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-200/90 text-amber-950 dark:bg-amber-900/80 dark:text-amber-100">
-              <Calculator className="h-5 w-5" aria-hidden />
-            </span>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-amber-950 px-3 py-0.5 text-xs font-extrabold text-amber-100 dark:bg-amber-300 dark:text-amber-950">
-                  {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}
-                </span>
-                <span className="text-[14px] font-bold">
-                  {T(
-                    'Pure What-If Booth Calculator (Zero Odoo Exhibition Calibration)',
-                    'حاسبة محاكاة افتراضية بالكامل (غير مربوطة بأرقام معارض فعلية من Odoo)',
-                  )}
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs sm:text-[13px] text-amber-900/90 dark:text-amber-200/90">
-                {T(
-                  'All figures below are computed strictly from the manual inputs you enter on this screen and do not represent realized sales or expenses.',
-                  'جميع المخرجات أدناه ناتجة حصراً عن الأرقام اليدوية التي تدخلها في الحاسبة ولا تمثل مبيعات أو مصروفات فعلية مسجلة في النظام.',
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+  const displayedAdvisorRecs = advisorRecs ?? defaultAdvisorRecs
+  const infoText = T(
+    'Hypothetical Tool — Not Actual Data: simulator outputs are calculated deterministically from your Manual What-If Inputs alongside read-only Odoo Verified Actual benchmarks.',
+    'أداة افتراضية — ليست بيانات: مخرجات الحاسبة تُحسب بمعادلات حتمية من مدخلات المحاكاة اليدوية جنباً إلى جنب مع المرجعيات الفعلية الموثّقة من أودو.',
+  )
 
-      {/* Slim Preset & Context Bar */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+  return (
+    <div dir={isAr ? 'rtl' : 'ltr'} className="w-full max-w-[1920px] min-w-0 mx-auto space-y-5 pb-10">
+      {/* Slim Executive Preset, Provenance Legend & Compact (i) Info Bar */}
+      <div className={`${card} !p-3.5 sm:!p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between`}>
         <EmeraldPillTabs<BoothPreset>
           value={preset}
           onChange={applyPreset}
@@ -425,32 +557,190 @@ export function BoothStudyV5() {
           ]}
         />
 
-        <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/50 dark:text-amber-200">
-          <Calculator className="h-3.5 w-3.5" aria-hidden />
-          <span>{isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}</span>
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-200 dark:ring-white/15">
+            <span>{isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}</span>
+          </span>
+          <CompactBoothInfoTooltip
+            text={infoText}
+            label={T('Simulator methodology boundary', 'توضيح حدود أداة المحاكاة')}
+          />
+          {!isAuditor ? (
+            <button
+              type="button"
+              data-run-booth-advisor="true"
+              onClick={() => void runBoothAdvisor()}
+              disabled={advisorLoading}
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60 dark:bg-emerald-500 dark:text-[#04130D] dark:hover:bg-emerald-400"
+            >
+              {advisorLoading ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span>
+                {advisorLoading
+                  ? T('Analyzing…', 'جارٍ التحليل...')
+                  : T('Run AI Booth Advisor ✨', 'استشارة الذكاء للمعرض ✨')}
+              </span>
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      {/* 4 Top Hypothetical Summary Cards */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Odoo Verified Actuals Reference Strip (When Connected) */}
+      {actuals.available ? (
+        <section data-booth-odoo-actuals="true" className="space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">
+                {T('Odoo 17 Reference Benchmarks (For Calibration)', 'مرجعيات أودو 17 الفعلية (للمعايرة قبل التعاقد)')}
+              </h2>
+              <span data-badge-kind="odoo-verified-actual" className={BADGE_ACTUAL_CLS}>
+                {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+              </span>
+            </div>
+            <span className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">
+              {`pos.order · ${actuals.periodFrom} → ${actuals.periodTo}`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {T('30d Company Daily Run-Rate', 'المعدل اليومي للشركة (30 يوم)')}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div dir="ltr" className="mt-1.5 text-lg sm:text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                {kwd(actuals.month30dDailyRunRateKwd)}/{isAr ? 'يوم' : 'd'}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {T(
+                  `30d Net Sales: ${kwd(actuals.month30dNetSalesKwd)}`,
+                  `صافي 30 يوم: ${kwd(actuals.month30dNetSalesKwd)}`,
+                )}
+              </p>
+            </div>
+
+            <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {T('Observed POS AOV', 'متوسط قيمة الطلب الفعلي')}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                <span dir="ltr" className="text-lg sm:text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                  {actuals.month30dAovKwd !== null ? kwd(actuals.month30dAovKwd) : UNAVAILABLE_DASH}
+                </span>
+                {actuals.month30dAovKwd !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreset('custom')
+                      setAvgTicketKwd(actuals.month30dAovKwd!)
+                    }}
+                    className="shrink-0 cursor-pointer text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800 dark:text-emerald-300"
+                  >
+                    {T('Apply AOV', 'تطبيق بالمحاكي')}
+                  </button>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {T(
+                  `${intFmt(actuals.month30dOrders)} posted 30d orders`,
+                  `عبر ${intFmt(actuals.month30dOrders)} طلب فعلي`,
+                )}
+              </p>
+            </div>
+
+            <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {isAr ? `مبيعات ${brandOpt.ar} (30 يوم)` : `${brandOpt.en} 30d Actual`}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div dir="ltr" className="mt-1.5 text-lg sm:text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                {brandActual.available ? kwd(brandActual.netKwd) : kwd(actuals.month30dNetSalesKwd)}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {brandActual.available && brandActual.orders !== null
+                  ? T(
+                      `${intFmt(brandActual.orders)} orders · AOV ${kwd(brandActual.aovKwd)}`,
+                      `${intFmt(brandActual.orders)} طلب · متوسط ${kwd(brandActual.aovKwd)}`,
+                    )
+                  : T('Selected brand POS baseline', 'مرجع العلامة المختارة في أودو')}
+              </p>
+            </div>
+
+            <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="min-w-0 truncate text-xs font-medium text-slate-600 dark:text-slate-300">
+                  {actuals.exhibitionsActuals.available
+                    ? T('Exhibitions EXB Actuals', 'فعليات بوثات المعارض المتنقلة')
+                    : T('Branch Median Benchmark', 'وسيط الفرع النشط يومياً')}
+                </span>
+                <span className={BADGE_ACTUAL_CLS}>
+                  {isAr ? LABEL_ODOO_ACTUAL.ar : LABEL_ODOO_ACTUAL.en}
+                </span>
+              </div>
+              <div dir="ltr" className="mt-1.5 text-lg sm:text-xl font-semibold tabular-nums text-slate-900 dark:text-white">
+                {actuals.exhibitionsActuals.available
+                  ? kwd(actuals.exhibitionsActuals.netKwd)
+                  : actuals.branchDailyMedianKwd !== null
+                    ? `${kwd(actuals.branchDailyMedianKwd)}/${isAr ? 'يوم' : 'd'}`
+                    : kwd(actuals.month30dDailyRunRateKwd)}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {actuals.exhibitionsActuals.available
+                  ? T(
+                      `${intFmt(actuals.exhibitionsActuals.orders)} exhibition POS orders`,
+                      `${intFmt(actuals.exhibitionsActuals.orders)} طلب مسجل في نقاط بيع المعارض`,
+                    )
+                  : actuals.branchDailyMedianOrders !== null
+                    ? T(
+                        `Peer median: ${intFmt(actuals.branchDailyMedianOrders)} orders/d`,
+                        `وسيط الطلبات: ${intFmt(actuals.branchDailyMedianOrders)} طلب/يوم`,
+                      )
+                    : T('Odoo active POS benchmark', 'مرجع نقاط البيع النشطة')}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* 4 Top Deterministic Simulation Summary Cards */}
+      <section data-booth-simulation-output="true" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-            <span>{T('Simulator Verdict', 'نتيجة المحاكاة')}</span>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
-              {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical'}
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+            <span className="min-w-0 truncate">{T('Simulator Verdict', 'نتيجة المحاكاة')}</span>
+            <span data-badge-kind="deterministic-simulation" className={BADGE_SIM_CLS}>
+              {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
             </span>
           </div>
           <div className="mt-1.5 sm:mt-2 text-base sm:text-xl font-semibold tracking-tight text-slate-950 dark:text-white">
             {isAr ? verdictUi.ar : verdictUi.en}
           </div>
           <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
-            {isAr ? `${brandOpt.ar} • ${intFmt(days)} يوم (مدخل يدوي)` : `${brandOpt.en} • ${intFmt(days)}d manual input`}
+            {isAr ? `${brandOpt.ar} • ${intFmt(days)} يوم` : `${brandOpt.en} • ${intFmt(days)}d window`}
           </p>
         </div>
 
         <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-            {T('Hypothetical Net (100%)', 'الصافي الافتراضي (100%)')}
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+            <span className="min-w-0 truncate">{T('Simulated Net (100%)', 'الصافي المحاكى (100%)')}</span>
+            <span className={BADGE_SIM_CLS}>
+              {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+            </span>
           </div>
           <div
             dir="ltr"
@@ -461,13 +751,16 @@ export function BoothStudyV5() {
             {formatKwd(base.profit, { locale, signed: true })}
           </div>
           <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
-            {T(`Hypothetical sales ${kwd(base.revenue)}`, `من مبيعات افتراضية ${kwd(base.revenue)}`)}
+            {T(`Simulated sales ${kwd(base.revenue)}`, `من مبيعات محاكاة ${kwd(base.revenue)}`)}
           </p>
         </div>
 
         <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-            {T('Break-Even Orders', 'نقطة التعادل الافتراضية')}
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+            <span className="min-w-0 truncate">{T('Break-Even Orders', 'نقطة التعادل اليومية')}</span>
+            <span className={BADGE_SIM_CLS}>
+              {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+            </span>
           </div>
           <div
             dir="ltr"
@@ -479,14 +772,17 @@ export function BoothStudyV5() {
           <p className="mt-1 text-[12.5px] leading-snug text-slate-600 dark:text-slate-300">
             {T(
               `Gross margin/order ${kwd(model.gpPerOrder)}`,
-              `هامش الطلب الافتراضي ${kwd(model.gpPerOrder)}`,
+              `هامش الطلب المحاكى ${kwd(model.gpPerOrder)}`,
             )}
           </p>
         </div>
 
         <div className="ae-kpi-card min-w-0 rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_1px_2px_rgba(15,23,42,0.02)] ring-1 ring-slate-900/[0.04] dark:bg-[#101C17] dark:ring-emerald-500/10">
-          <div className="text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
-            {T('Max Break-Even Rent (60%)', 'سقف الإيجار الافتراضي الآمن')}
+          <div className="flex items-center justify-between gap-1.5 text-xs sm:text-[13px] font-semibold text-slate-600 dark:text-slate-300">
+            <span className="min-w-0 truncate">{T('Max Break-Even Rent (60%)', 'سقف الإيجار الآمن (60%)')}</span>
+            <span className={BADGE_SIM_CLS}>
+              {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+            </span>
           </div>
           <div
             dir="ltr"
@@ -502,25 +798,84 @@ export function BoothStudyV5() {
         </div>
       </section>
 
+      {/* AI Booth & Exhibition Strategic Advisor (`POST /api/erp/planning-advisor`) */}
+      {displayedAdvisorRecs.length > 0 ? (
+        <section data-booth-ai-advisor="true" className={`${card} ae-glow-emerald space-y-3.5`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+              <h2 className="text-[15.5px] font-semibold text-slate-950 dark:text-white">
+                {T(
+                  'AI Booth & Exhibition Strategic Recommendations',
+                  'التوصيات الاستراتيجية الذكية لجدوى المعرض والتفاوض',
+                )}
+              </h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+              <span className="rounded-full bg-emerald-50 px-3 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200">
+                {advisorModelLabel ??
+                  T(
+                    'CFO Deterministic Advisor • Odoo 17 Grounded',
+                    'مستشار مالي رقمي حتمي • موثّق من أودو 17',
+                  )}
+              </span>
+              {advisorUpdatedAt ? (
+                <span dir="ltr" className="tabular-nums">
+                  {advisorUpdatedAt}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+            {displayedAdvisorRecs.map((rec) => (
+              <article
+                key={rec.id}
+                className="ae-bento-subcard flex min-w-0 flex-col justify-between gap-2 rounded-2xl p-3.5"
+              >
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="text-[14px] font-semibold leading-snug text-slate-900 dark:text-white">
+                      {isAr ? rec.titleAr : rec.titleEn}
+                    </h3>
+                    <span dir="ltr" className={BADGE_SIM_CLS}>
+                      {isAr ? rec.badgeAr : rec.badgeEn}
+                    </span>
+                  </div>
+                  <p className="text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200">
+                    {isAr ? rec.bodyAr : rec.bodyEn}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* Scenarios Bar Chart + Allocation Donut */}
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className={`${card} min-w-0 space-y-4 xl:col-span-8`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
-                {T('Hypothetical Traffic Scenarios', 'مقارنة حالات الإقبال الافتراضية')}
-              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
+                  {T('Traffic Sensitivity Scenarios', 'مقارنة حساسية الإقبال')}
+                </h2>
+                <span className={BADGE_SIM_CLS}>
+                  {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+                </span>
+              </div>
               <p className="text-xs text-slate-600 dark:text-slate-300">
                 {T(
-                  `${startDate} -> ${endDate} · What-If Simulator Output`,
-                  `${startDate} ← ${endDate} · مخرجات محاكاة افتراضية بحتة`,
+                  `${startDate} -> ${endDate} · Formula-based scenario curve`,
+                  `${startDate} ← ${endDate} · منحنى الحساسية الرقمي`,
                 )}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold tabular-nums">
               <span
                 dir="ltr"
-                className={`rounded-lg px-2.5 py-1 ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 ${
                   low.profit >= 0
                     ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-200'
@@ -530,7 +885,7 @@ export function BoothStudyV5() {
               </span>
               <span
                 dir="ltr"
-                className={`rounded-lg px-2.5 py-1 ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 ${
                   base.profit >= 0
                     ? 'bg-emerald-50 text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-200'
                     : 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200'
@@ -540,7 +895,7 @@ export function BoothStudyV5() {
               </span>
               <span
                 dir="ltr"
-                className="rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200"
+                className="shrink-0 whitespace-nowrap rounded-lg bg-sky-50 px-2.5 py-1 text-sky-900 dark:bg-sky-950/50 dark:text-sky-200"
               >
                 130%: {formatKwd(high.profit, { locale, signed: true })}
               </span>
@@ -550,8 +905,8 @@ export function BoothStudyV5() {
           <InteractiveHoverBarChart
             data={scenarioChartData}
             isAr={isAr}
-            primaryLegend={T('Hypothetical Sales', 'المبيعات الافتراضية')}
-            secondaryLegend={T('Hypothetical Net', 'الصافي الافتراضي')}
+            primaryLegend={T('Simulated Sales', 'المبيعات المحاكاة')}
+            secondaryLegend={T('Simulated Net', 'الصافي المحاكى')}
             primaryColor="#334155"
             secondaryColor="#10B981"
             heightClass="h-56"
@@ -565,10 +920,10 @@ export function BoothStudyV5() {
                   `تعادل المحاكاة: ${intFmt(dailyOrders)} طلب مدخل مقابل ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} طلب تعادل/يوم`,
                 )}
               </span>
-              <span dir="ltr" className="font-extrabold tabular-nums text-amber-800 dark:text-amber-300">
+              <span dir="ltr" className="font-extrabold tabular-nums text-slate-800 dark:text-slate-200">
                 {T(
-                  `Hypothetical Daily Cost: ${kwd(dailyCostCapKwd)}/day`,
-                  `متوسط التكلفة الافتراضية: ${kwd(dailyCostCapKwd)}/يوم`,
+                  `Simulated Daily Cost: ${kwd(dailyCostCapKwd)}/day`,
+                  `متوسط التكلفة المحاكاة: ${kwd(dailyCostCapKwd)}/يوم`,
                 )}
               </span>
             </div>
@@ -576,7 +931,7 @@ export function BoothStudyV5() {
               <div
                 style={{ width: `${Math.max(6, beCoveragePct)}%` }}
                 className={`h-full rounded-full transition-all duration-150 ${
-                  be !== null && dailyOrders >= be ? 'bg-emerald-500' : 'bg-amber-500'
+                  be !== null && dailyOrders >= be ? 'bg-emerald-500' : 'bg-rose-500'
                 }`}
               />
             </div>
@@ -585,11 +940,16 @@ export function BoothStudyV5() {
 
         <div className={`${card} min-w-0 flex flex-col justify-between xl:col-span-4`}>
           <div className="mb-3">
-            <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
-              {T('Hypothetical Revenue Split', 'توزيع المبيعات الافتراضية')}
-            </h2>
-            <p className="text-xs text-slate-600 dark:text-slate-300">
-              {T('Based strictly on manual simulator inputs', 'مبني حصراً على المدخلات اليدوية')}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
+                {T('Simulated Revenue Split', 'توزيع المبيعات المحاكاة')}
+              </h2>
+              <span className={BADGE_SIM_CLS}>
+                {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+              {T('Computed from manual what-if inputs', 'محسوب من مدخلات المحاكاة اليدوية')}
             </p>
           </div>
           <InteractiveDonutChart
@@ -603,7 +963,7 @@ export function BoothStudyV5() {
                 tone: 'neutral',
               },
               {
-                label: T('Hypothetical Net', 'الصافي الافتراضي'),
+                label: T('Simulated Net', 'الصافي المحاكى'),
                 value: formatKwd(base.profit, { locale, signed: true }),
                 tone: base.profit >= 0 ? 'emerald' : 'rose',
               },
@@ -614,20 +974,26 @@ export function BoothStudyV5() {
       </section>
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
-        {/* Left: User Simulator Inputs */}
-        <section className={`${card} min-w-0 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:sticky xl:top-24 xl:col-span-5`}>
-          <div className="sm:col-span-2 flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/10">
-            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">
-              {T('Manual Simulator Inputs', 'مدخلات المحاكاة اليدوية')}
-            </h3>
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-950 dark:bg-amber-950/70 dark:text-amber-200">
-              {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical'}
+        {/* Left: User Manual What-If Simulator Inputs */}
+        <section
+          data-booth-manual-inputs="true"
+          className={`${card} min-w-0 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:sticky xl:top-24 xl:col-span-5`}
+        >
+          <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/70 pb-2.5 dark:border-white/10">
+            <div className="flex items-center gap-2">
+              <Sliders className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" aria-hidden />
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">
+                {T('Manual Simulator Parameters', 'معاملات المحاكاة اليدوية')}
+              </h3>
+            </div>
+            <span data-badge-kind="manual-what-if-input" className={BADGE_MANUAL_CLS}>
+              {isAr ? LABEL_MANUAL_WHAT_IF.ar : LABEL_MANUAL_WHAT_IF.en}
             </span>
           </div>
 
           <label className="space-y-1.5">
             <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
-              {T('Event Name', 'اسم المعرض الافتراضي')}
+              {T('Event Name', 'اسم المعرض')}
             </span>
             <input
               className={input}
@@ -687,8 +1053,8 @@ export function BoothStudyV5() {
                   setDays(safeDays)
                   setEndDate(addDaysIso(startDate, safeDays - 1))
                 },
-                en: 'Days',
-                ar: 'عدد الأيام',
+                en: 'Event Days',
+                ar: 'عدد أيام المعرض',
               },
               {
                 v: avgTicketKwd,
@@ -696,9 +1062,19 @@ export function BoothStudyV5() {
                 en: 'Avg Ticket (KWD)',
                 ar: 'متوسط الفاتورة (د.ك)',
               },
-              { v: rent, set: setRent, en: 'Rent (KWD)', ar: 'قيمة الإيجار (د.ك)' },
-              { v: setup, set: setSetup, en: 'Setup (KWD)', ar: 'تكلفة التجهيز (د.ك)' },
-              { v: staff, set: setStaff, en: 'Staff (KWD)', ar: 'رواتب الطاقم (د.ك)' },
+              { v: rent, set: setRent, en: 'Booth Rent (KWD)', ar: 'إيجار البوث (د.ك)' },
+              { v: setup, set: setSetup, en: 'Setup Cost (KWD)', ar: 'تكلفة التجهيز (د.ك)' },
+              {
+                v: staffCount,
+                set: (n: number) => {
+                  const cnt = Math.max(0, Math.round(n))
+                  setStaffCount(cnt)
+                  setStaff(cnt * 15 * days)
+                },
+                en: 'Staff Count',
+                ar: 'عدد أفراد الطاقم',
+              },
+              { v: staff, set: setStaff, en: 'Staff Cost (KWD)', ar: 'إجمالي أجور الطاقم (د.ك)' },
               {
                 v: foodCostPct,
                 set: (n: number) => setFoodCostPct(Math.min(85, Math.max(5, n))),
@@ -708,8 +1084,8 @@ export function BoothStudyV5() {
               {
                 v: dailyOrders,
                 set: setDailyOrders,
-                en: 'Daily Orders',
-                ar: 'الطلبات اليومية الافتراضية',
+                en: 'Expected Daily Orders',
+                ar: 'الطلبات اليومية المتوقعة',
               },
             ].map((f) => (
               <label key={f.en} className="min-w-0 space-y-1.5">
@@ -813,10 +1189,10 @@ export function BoothStudyV5() {
           <section className={`rounded-2xl p-6 ring-1 ${verdictUi.cls}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[12px] font-bold opacity-85">
-                {T('Simulator Output', 'مخرجات المحاكاة الافتراضية')}
+                {T('Simulator Output', 'مخرجات المحاكاة الرقمية')}
               </span>
-              <span className="rounded-full bg-amber-950/10 px-2.5 py-0.5 text-xs font-extrabold dark:bg-white/10 dark:text-amber-200">
-                {isAr ? 'أداة افتراضية — ليست بيانات' : 'Hypothetical Tool — Not Actual Data'}
+              <span className={BADGE_SIM_CLS}>
+                {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
               </span>
             </div>
             <div className="mt-1.5 flex items-center gap-3">
@@ -827,8 +1203,8 @@ export function BoothStudyV5() {
             </div>
             <p className="mt-2 text-[14px] font-medium leading-relaxed">
               {T(
-                `Hypothetical ${base.profit >= 0 ? 'net' : 'loss'}: ${kwd(Math.abs(base.profit))} · Break-even: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} orders/day.`,
-                `${base.profit >= 0 ? 'الصافي الافتراضي' : 'الخسارة الافتراضية'}: ${kwd(Math.abs(base.profit))} · نقطة التعادل الافتراضية: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} طلب/يوم.`,
+                `Simulated ${base.profit >= 0 ? 'net' : 'loss'}: ${kwd(Math.abs(base.profit))} · Break-even: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} orders/day.`,
+                `${base.profit >= 0 ? 'الصافي المحاكى' : 'الخسارة المحاكاة'}: ${kwd(Math.abs(base.profit))} · نقطة التعادل: ${be !== null ? intFmt(be) : UNAVAILABLE_DASH} طلب/يوم.`,
               )}
             </p>
             {contractReview ? (
@@ -838,17 +1214,22 @@ export function BoothStudyV5() {
             ) : null}
           </section>
 
-          {/* 1B. Hypothetical Budget Summary (Official Circular Disabled) */}
+          {/* 1B. Simulated Budget Envelope */}
           <section className={`${card} space-y-4`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
-                  {T('Hypothetical Budget Envelope', 'ملخص الميزانية الافتراضية للمحاكاة')}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-[16px] font-semibold tracking-tight text-slate-950 dark:text-white">
+                    {T('Simulated Budget Envelope', 'ملخص الميزانية المحاكاة')}
+                  </h2>
+                  <span className={BADGE_SIM_CLS}>
+                    {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300">
                   {T(
-                    'Calculated strictly from Fixed Costs + (Hypothetical Sales × Food Cost %). Official circulars are disabled for simulator estimates.',
-                    'المعادلة الظاهرة: التكاليف الثابتة المدخلة + (المبيعات الافتراضية × نسبة المواد المدخلة). التعميم الرسمي معطّل لأن الأرقام افتراضية.',
+                    'Calculated strictly from Fixed Costs + (Simulated Sales × Food Cost %).',
+                    'المعادلة الظاهرة: التكاليف الثابتة المدخلة + (المبيعات المحاكاة × نسبة المواد المدخلة).',
                   )}
                 </p>
               </div>
@@ -857,8 +1238,8 @@ export function BoothStudyV5() {
                 disabled
                 title={
                   isAr
-                    ? 'معطّل — هذه أداة افتراضية وليست بيانات فعلية من Odoo'
-                    : 'Disabled — hypothetical simulator tool, not actual Odoo data'
+                    ? 'معطّل — هذه أداة محاكاة وليست بيانات فعلية من Odoo'
+                    : 'Disabled — simulator output, not realized Odoo GL actuals'
                 }
                 className="ae-bento-subcard inline-flex h-9 shrink-0 cursor-not-allowed items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 text-xs font-bold text-slate-600 opacity-65 dark:text-slate-300"
               >
@@ -875,7 +1256,7 @@ export function BoothStudyV5() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="ae-bento-subcard rounded-2xl p-3">
                 <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {T('Hypothetical Total Spend', 'إجمالي التكلفة الافتراضية (ثابت + مواد)')}
+                  {T('Simulated Total Spend', 'إجمالي التكلفة المحاكاة (ثابت + مواد)')}
                 </div>
                 <div
                   dir="ltr"
@@ -884,13 +1265,13 @@ export function BoothStudyV5() {
                   {kwd(totalBoothBudgetKwd)}
                 </div>
                 <div className="mt-0.5 text-xs font-medium text-slate-600 dark:text-slate-400">
-                  {T('Fixed + Variable Food Input', 'التكاليف الثابتة + تكلفة المواد الافتراضية')}
+                  {T('Fixed + Variable Food Input', 'التكاليف الثابتة + تكلفة المواد المدخلة')}
                 </div>
               </div>
 
               <div className="ae-bento-subcard rounded-2xl p-3">
                 <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                  {T('Hypothetical Daily Spend', 'المتوسط اليومي الافتراضي للتكلفة')}
+                  {T('Simulated Daily Spend', 'المتوسط اليومي للتكلفة المحاكاة')}
                 </div>
                 <div
                   dir="ltr"
@@ -914,7 +1295,7 @@ export function BoothStudyV5() {
 
               <div className="space-y-1.5">
                 <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                  {T('Strengths (What-If)', 'نقاط القوة الافتراضية')}
+                  {T('Strengths (What-If)', 'نقاط القوة المحاكاة')}
                 </div>
                 {pros.length ? (
                   pros.map((s) => (
@@ -934,7 +1315,7 @@ export function BoothStudyV5() {
 
               <div className="space-y-1.5">
                 <div className="text-xs font-bold text-rose-700 dark:text-rose-400">
-                  {T('Risks (What-If)', 'المخاطر الافتراضية')}
+                  {T('Risks (What-If)', 'المخاطر المحاكاة')}
                 </div>
                 {risks.length ? (
                   risks.map((s) => (
@@ -953,7 +1334,7 @@ export function BoothStudyV5() {
               </div>
 
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                   {T('Contract Notes', 'ملاحظات العقد')}
                 </div>
@@ -974,11 +1355,16 @@ export function BoothStudyV5() {
               </div>
             </section>
 
-            {/* 3. Hypothetical Scenario Math */}
+            {/* 3. Deterministic Scenario Formula Table */}
             <section className={`${card} space-y-4`}>
-              <h2 className="text-[16px] font-extrabold text-slate-950 dark:text-white">
-                {T('Simulator Formula Table', 'جدول معادلات المحاكاة الافتراضية')}
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-[16px] font-extrabold text-slate-950 dark:text-white">
+                  {T('Simulator Formula Table', 'جدول معادلات المحاكاة')}
+                </h2>
+                <span className={BADGE_SIM_CLS}>
+                  {isAr ? LABEL_DETERMINISTIC_SIM.ar : LABEL_DETERMINISTIC_SIM.en}
+                </span>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-center">
                 <div className="ae-bento-subcard rounded-xl p-3">
@@ -991,7 +1377,7 @@ export function BoothStudyV5() {
                 </div>
                 <div className="ae-bento-subcard rounded-xl p-3">
                   <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    {T('Margin / Order', 'هامش الطلب الافتراضي')}
+                    {T('Margin / Order', 'هامش الطلب المحاكى')}
                   </div>
                   <div dir="ltr" className="mt-0.5 text-[15px] font-extrabold tabular-nums text-slate-950 dark:text-white">
                     {kwd(model.gpPerOrder)}
@@ -1017,7 +1403,7 @@ export function BoothStudyV5() {
                     <thead className="bg-[#F4F6F9] text-slate-700 dark:bg-[#09110E] dark:text-slate-300">
                       <tr>
                         <th className="whitespace-nowrap px-3 py-2.5 text-start font-bold">
-                          {T('Case', 'الحالة الافتراضية')}
+                          {T('Case', 'الحالة')}
                         </th>
                         <th className="whitespace-nowrap px-3 py-2.5 text-end font-bold">
                           {T('Orders', 'الطلبات')}
@@ -1065,7 +1451,7 @@ export function BoothStudyV5() {
           <section className={`${card} grid grid-cols-1 gap-5 lg:grid-cols-2`}>
             <div className="space-y-1.5">
               <div className="text-[13px] font-bold text-slate-700 dark:text-slate-300">
-                {T('Rent Negotiation Ceiling', 'سقف التفاوض الافتراضي على الإيجار')}
+                {T('Rent Negotiation Ceiling', 'سقف التفاوض على الإيجار')}
               </div>
               <p className="text-[13.5px] leading-relaxed text-slate-800 dark:text-slate-100">
                 •{' '}

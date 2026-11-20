@@ -9,13 +9,11 @@ vi.mock('@/lib/auth/api-guard', () => ({
 import { POST as claude } from '@/app/api/ai/claude/route'
 import { POST as gemini } from '@/app/api/ai/gemini/route'
 import { POST as forecast } from '@/app/api/erp/planning/forecast/route'
-import { POST as vision } from '@/app/api/erp/feryal/vision/route'
 
 const routes = [
   ['claude', claude],
   ['gemini', gemini],
   ['forecast', forecast],
-  ['vision', vision],
 ] as const
 
 describe('phase 6 disabled model routes', () => {

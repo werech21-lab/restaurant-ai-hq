@@ -222,8 +222,7 @@ describe('Wave 2 Design System Foundation', () => {
           el('div', null, 'Partial rows'),
         ),
       )
-      expect(partialHtml).toContain('data-odoo-partial-warning="true"')
-      expect(partialHtml).toContain('Some branch figures are delayed')
+      expect(partialHtml).not.toContain('data-odoo-partial-warning="true"')
       expect(partialHtml).toContain('Partial rows')
     })
   })
@@ -287,8 +286,7 @@ describe('Wave 2 Design System Foundation', () => {
       expect(chartHtml).toContain('المبيعات (د.ك)')
       expect(chartHtml).toContain('data-chart-legend="true"')
       expect(chartHtml).toContain('dir="rtl"')
-      expect(chartHtml).toContain('data-odoo-partial-warning="true"')
-      expect(chartHtml).toContain('بعض القراءات الساعية غير متوفرة حالياً')
+      expect(chartHtml).not.toContain('data-odoo-partial-warning="true"')
 
       const unavailableChart = renderToStaticMarkup(
         el(ChartCard, {
@@ -468,8 +466,7 @@ describe('Wave 2 Design System Foundation', () => {
         }),
       )
       expect(partialEn).toContain('data-state-block="partial"')
-      expect(partialEn).toContain('data-odoo-partial-warning="true"')
-      expect(partialEn).toContain('Hourly slice unavailable')
+      expect(partialEn).not.toContain('data-odoo-partial-warning="true"')
 
       const unavailableAr = renderToStaticMarkup(
         el(StateBlock, { state: 'unavailable', locale: 'ar' }),
@@ -487,7 +484,7 @@ describe('Wave 2 Design System Foundation', () => {
   })
 
   describe('PartialWarningBanner', () => {
-    it('renders warningAr/warningEn with data-odoo-partial-warning="true" and role="alert"', () => {
+    it('suppresses loud partial warning banners globally across executive workspaces', () => {
       const arHtml = renderToStaticMarkup(
         el(PartialWarningBanner, {
           warningAr: 'تحذير مخصص: بعض الأرقام جزئية',
@@ -495,9 +492,7 @@ describe('Wave 2 Design System Foundation', () => {
           locale: 'ar',
         }),
       )
-      expect(arHtml).toContain('role="alert"')
-      expect(arHtml).toContain('data-odoo-partial-warning="true"')
-      expect(arHtml).toContain('تحذير مخصص: بعض الأرقام جزئية')
+      expect(arHtml).toBe('')
 
       const enHtml = renderToStaticMarkup(
         el(PartialWarningBanner, {
@@ -510,9 +505,7 @@ describe('Wave 2 Design System Foundation', () => {
           locale: 'en',
         }),
       )
-      expect(enHtml).toContain('role="alert"')
-      expect(enHtml).toContain('data-odoo-partial-warning="true"')
-      expect(enHtml).toContain('Receivables temporarily unavailable')
+      expect(enHtml).toBe('')
 
       const hiddenHtml = renderToStaticMarkup(
         el(PartialWarningBanner, {

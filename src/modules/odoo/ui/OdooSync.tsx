@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiRequest, errorKey, isAbort, newIdempotencyKey } from '@/components/erp/api'
 import { PermissionProvider, useCan } from '@/components/erp/permissions'
-import { dangerButton, inputClass, labelClass, noticeClass, panelClass, primaryButton, secondaryButton } from '@/components/erp/styles'
+import { dangerButton, inputClass, labelClass, noticeClass, panelClass, primaryButton } from '@/components/erp/styles'
 import { StateBlock } from '@/components/ui'
 import { permissions } from '@/lib/auth/permissions'
 import { formatInt, formatKuwaitDateTime } from '@/lib/format'
@@ -171,7 +171,7 @@ function Workspace() {
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              className={`${mode === 'password' ? primaryButton : secondaryButton} ds-focus-ring`}
+              className={`shrink-0 whitespace-nowrap ${mode === 'password' ? primaryButton : 'rounded-lg border border-[#30363d] px-4 py-2 text-sm text-gray-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50'} ds-focus-ring`}
               aria-pressed={mode === 'password'}
               type="button"
               onClick={() => setMode('password')}
@@ -179,7 +179,7 @@ function Workspace() {
               {t('odoo.modePassword')}
             </button>
             <button
-              className={`${mode === 'session' ? primaryButton : secondaryButton} ds-focus-ring`}
+              className={`shrink-0 whitespace-nowrap ${mode === 'session' ? primaryButton : 'rounded-lg border border-[#30363d] px-4 py-2 text-sm text-gray-200 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50'} ds-focus-ring`}
               aria-pressed={mode === 'session'}
               type="button"
               onClick={() => setMode('session')}
@@ -251,10 +251,10 @@ function Workspace() {
               <tbody>
                 {board.jobs.slice(0, 5).map((job) => (
                   <tr key={job.id} className="border-t border-white/10">
-                    <td dir="ltr" className="px-2 py-2 tabular-nums">{formatKuwaitDateTime(job.createdAt, resolvedLocale)}</td>
-                    <td dir="ltr" className="px-2 py-2 text-end tabular-nums">{formatInt(job.recordsPulled, resolvedLocale)}</td>
-                    <td dir="ltr" className="px-2 py-2 text-end tabular-nums">{formatInt(job.recordsApplied, resolvedLocale)}</td>
-                    <td className="px-2 py-2">{job.status}</td>
+                    <td dir="ltr" className="whitespace-nowrap px-2 py-2 tabular-nums">{formatKuwaitDateTime(job.createdAt, resolvedLocale)}</td>
+                    <td dir="ltr" className="whitespace-nowrap px-2 py-2 text-end tabular-nums">{formatInt(job.recordsPulled, resolvedLocale)}</td>
+                    <td dir="ltr" className="whitespace-nowrap px-2 py-2 text-end tabular-nums">{formatInt(job.recordsApplied, resolvedLocale)}</td>
+                    <td className="whitespace-nowrap px-2 py-2">{job.status}</td>
                   </tr>
                 ))}
               </tbody>

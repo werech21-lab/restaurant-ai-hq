@@ -577,7 +577,7 @@ export default function SmartDropzonePortal() {
             key={card.key}
             className="ds-surface min-w-0 rounded-2xl p-3.5 sm:p-4"
           >
-            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <p className="truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
               {card.icon} {en ? card.en : card.ar}
             </p>
             <p

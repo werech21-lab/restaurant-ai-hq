@@ -231,16 +231,16 @@ function OdooGapPill({
   const resolved = odooGap === undefined ? gapFromLiveSummary(liveSummary) : odooGap
   if (resolved === null) {
     return (
-      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
-        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+      <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-slate-400" aria-hidden />
         <span>{isAr ? 'جارٍ مطابقة أودو' : 'Checking the Odoo gap'}</span>
       </div>
     )
   }
   if (!resolved.connected || resolved.gapKwd === null) {
     return (
-      <div className="flex items-center gap-2 text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
-        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+      <div className="flex shrink-0 items-center gap-2 whitespace-nowrap text-[13px] font-medium text-slate-500 tabular-nums dark:text-slate-400">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-slate-400" aria-hidden />
         <span>{isAr ? 'غير متصل' : 'Disconnected'}</span>
       </div>
     )
@@ -248,12 +248,12 @@ function OdooGapPill({
   const mismatch = resolved.gapKwd !== 0
   return (
     <div
-      className={`flex items-center gap-2 text-[13px] font-medium tabular-nums ${
+      className={`flex shrink-0 items-center gap-2 whitespace-nowrap text-[13px] font-medium tabular-nums ${
         mismatch ? 'text-amber-700 dark:text-amber-300' : 'text-slate-500 dark:text-slate-400'
       }`}
     >
       <span
-        className={`h-2 w-2 rounded-full ${mismatch ? 'bg-amber-500' : 'bg-emerald-500'}`}
+        className={`h-2 w-2 shrink-0 rounded-full ${mismatch ? 'bg-amber-500' : 'bg-emerald-500'}`}
         aria-hidden
       />
       <span>
@@ -662,15 +662,15 @@ export function ExecutiveComparisonControlBar({
     : labelBEn ?? (query.mode === 'entity-vs-entity' ? 'Compare With Entity (B)' : 'Compare With Custom Date (B)')
 
   const renderDateCardA = () => (
-    <div className="flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-emerald-600/15 transition-all duration-150 dark:bg-[#0B1511] dark:ring-emerald-500/25">
+    <div className="min-w-0 flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-emerald-600/15 transition-all duration-150 dark:bg-[#0B1511] dark:ring-emerald-500/25">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
-          <span className="text-[12px] font-semibold tracking-tight text-emerald-900 dark:text-emerald-300">
+          <span className="truncate text-[12px] font-semibold tracking-tight text-emerald-900 dark:text-emerald-300">
             {resolvedTitleA}
           </span>
         </div>
-        <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold tracking-tight text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
+        <span className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold tracking-tight text-emerald-800 tabular-nums dark:bg-emerald-500/20 dark:text-emerald-200">
           {query.granularity === 'single'
             ? badgeA.full
             : isAr
@@ -738,15 +738,15 @@ export function ExecutiveComparisonControlBar({
   )
 
   const renderDateCardB = () => (
-    <div className="flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-[#0B1511] dark:ring-white/10">
+    <div className="min-w-0 flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] transition-all duration-150 dark:bg-[#0B1511] dark:ring-white/10">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-slate-400 dark:bg-slate-500" />
-          <span className="text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
+          <span className="truncate text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
             {resolvedTitleB}
           </span>
         </div>
-        <span className="rounded-lg bg-slate-200/70 px-2 py-0.5 text-xs font-semibold tracking-tight text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-300">
+        <span className="shrink-0 whitespace-nowrap rounded-lg bg-slate-200/70 px-2 py-0.5 text-xs font-semibold tracking-tight text-slate-700 tabular-nums dark:bg-white/10 dark:text-slate-300">
           {query.granularity === 'single'
             ? badgeB.full
             : isAr
@@ -865,19 +865,19 @@ export function ExecutiveComparisonControlBar({
         : getBranchLabel(currentId as BranchEntityId, isAr)
 
     return (
-      <div className="relative flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] dark:bg-[#0B1511] dark:ring-emerald-500/20">
+      <div className="relative min-w-0 flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] dark:bg-[#0B1511] dark:ring-emerald-500/20">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             <span
               className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                 isSlotA ? 'bg-emerald-500' : 'bg-sky-500'
               }`}
             />
-            <span className="text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
+            <span className="truncate text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
               {isSlotA ? resolvedTitleA : resolvedTitleB}
             </span>
           </div>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span className="shrink-0 whitespace-nowrap text-xs font-medium text-slate-500 dark:text-slate-400">
             {entityDim === 'brand'
               ? isAr
                 ? 'مطعم معتمد'
@@ -1019,7 +1019,7 @@ export function ExecutiveComparisonControlBar({
             type="button"
             onClick={handleSwap}
             title={isAr ? 'تبديل طرفي المقارنة' : 'Swap Selection A and Selection B'}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15 dark:hover:bg-emerald-500/15"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-emerald-50 hover:text-emerald-900 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15 dark:hover:bg-emerald-500/15"
           >
             <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
             <span>{isAr ? 'تبديل أ ⇄ ب' : 'Swap A ⇄ B'}</span>
@@ -1028,7 +1028,7 @@ export function ExecutiveComparisonControlBar({
           <button
             type="button"
             onClick={handleResetAll}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
           >
             <RotateCcw className="h-3.5 w-3.5 shrink-0" />
             <span>{isAr ? 'إعادة ضبط' : 'Reset'}</span>
@@ -1037,7 +1037,7 @@ export function ExecutiveComparisonControlBar({
           <button
             type="button"
             onClick={handleCopyDeepLink}
-            className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
+            className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#F6F7F8] px-3 text-[12.5px] font-semibold text-slate-700 ring-1 ring-slate-900/[0.06] transition-all duration-150 hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15"
           >
             {copiedLink ? (
               <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
@@ -1051,7 +1051,7 @@ export function ExecutiveComparisonControlBar({
             <button
               type="button"
               onClick={onExportCsv}
-              className="inline-flex h-9 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700"
+              className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 text-[12.5px] font-semibold text-white shadow-sm transition-all duration-150 hover:bg-emerald-700"
             >
               <Download className="h-3.5 w-3.5 shrink-0" />
               <span>{isAr ? 'تصدير CSV' : 'Export CSV'}</span>
@@ -1165,12 +1165,12 @@ export function ExecutiveComparisonControlBar({
             {renderEntitySelectorCard('B')}
 
             {/* Shared Evaluation Date / Custom Range */}
-            <div className="flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] dark:bg-[#0B1511] dark:ring-white/10">
+            <div className="min-w-0 flex-1 rounded-2xl bg-[#F7F8F9] p-3.5 ring-1 ring-slate-900/[0.06] dark:bg-[#0B1511] dark:ring-white/10">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
+                <span className="min-w-0 truncate text-[12px] font-semibold tracking-tight text-slate-700 dark:text-slate-200">
                   {isAr ? 'فترة التقييم' : 'Evaluation Date / Range'}
                 </span>
-                <span className="text-xs font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
+                <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-emerald-700 tabular-nums dark:text-emerald-300">
                   {query.granularity === 'single'
                     ? badgeA.full
                     : isAr
@@ -1230,7 +1230,7 @@ export function ExecutiveComparisonControlBar({
       {/* ───────────── BOTTOM ROW: Synchronized Scope Filters (Brands + Branches + Channels) ───────────── */}
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3 dark:border-white/[0.07]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+          <span className="shrink-0 whitespace-nowrap text-[12px] font-semibold text-slate-500 dark:text-slate-400">
             {isAr ? 'نطاق التصفية:' : 'Filter Scope:'}
           </span>
 
@@ -1241,14 +1241,14 @@ export function ExecutiveComparisonControlBar({
               aria-expanded={openMenu === 'brand'}
               aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'brand' ? null : 'brand'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              className={`inline-flex h-9 max-w-[240px] cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.brandIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
               <Store className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-              <span>{brandPillLabel}</span>
+              <span className="truncate">{brandPillLabel}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 
@@ -1319,14 +1319,14 @@ export function ExecutiveComparisonControlBar({
               aria-expanded={openMenu === 'branch'}
               aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'branch' ? null : 'branch'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              className={`inline-flex h-9 max-w-[240px] cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.branchIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
               <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-              <span>{branchPillLabel}</span>
+              <span className="truncate">{branchPillLabel}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 
@@ -1397,14 +1397,14 @@ export function ExecutiveComparisonControlBar({
               aria-expanded={openMenu === 'channel'}
               aria-haspopup="listbox"
               onClick={() => setOpenMenu((m) => (m === 'channel' ? null : 'channel'))}
-              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+              className={`inline-flex h-9 max-w-[240px] cursor-pointer items-center gap-2 rounded-xl px-3 text-[12.5px] font-semibold transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
                 query.channelIds !== 'all'
                   ? 'bg-emerald-50 text-emerald-900 ring-1 ring-emerald-600/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
                   : 'bg-[#F6F7F8] text-slate-700 ring-1 ring-slate-900/[0.06] hover:bg-slate-200/70 dark:bg-[#0B1410] dark:text-slate-200 dark:ring-emerald-500/15'
               }`}
             >
               <Truck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-              <span>{channelPillLabel}</span>
+              <span className="truncate">{channelPillLabel}</span>
               <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
             </button>
 

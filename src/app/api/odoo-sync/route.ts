@@ -32,6 +32,67 @@ export const odooSyncResponseHeaders: Record<string, string> = {
   'x-content-type-options': 'nosniff',
 }
 
+export const odooSyncSwrGetHeaders: Record<string, string> = {
+  ...ENTERPRISE_API_SECURITY_HEADERS,
+  'cache-control': 'private, max-age=30, stale-while-revalidate=300',
+  vary: 'Cookie, Authorization',
+  'x-content-type-options': 'nosniff',
+}
+
+export function isForceRefreshSearchParams(sp: URLSearchParams): boolean {
+  const force = (sp.get('force') ?? '').trim().toLowerCase()
+  const forceRefresh = (sp.get('forceRefresh') ?? '').trim().toLowerCase()
+  return (
+    force === '1' ||
+    force === 'true' ||
+    forceRefresh === '1' ||
+    forceRefresh === 'true'
+  )
+}
+
+export function buildOdooReadResponseHeaders(forceRefresh: boolean): Record<string, string> {
+  return forceRefresh ? odooSyncResponseHeaders : odooSyncSwrGetHeaders
+}
+
+const serverReadInflightMaps = new Set<Map<string, Promise<unknown>>>()
+
+export function createServerGetInflightMap<T>(): Map<string, Promise<T>> {
+  const map = new Map<string, Promise<T>>()
+  serverReadInflightMaps.add(map as Map<string, Promise<unknown>>)
+  return map
+}
+
+export function clearAllServerOdooReadInflight(): void {
+  for (const map of serverReadInflightMaps) {
+    map.clear()
+  }
+}
+
+export function deduplicateServerGet<T>(
+  inflightMap: Map<string, Promise<T>>,
+  key: string,
+  forceRefresh: boolean,
+  task: () => Promise<T>,
+): Promise<T> {
+  if (forceRefresh) {
+    inflightMap.delete(key)
+    return task()
+  }
+  const existing = inflightMap.get(key)
+  if (existing) {
+    return existing
+  }
+  const pending = task().finally(() => {
+    if (inflightMap.get(key) === pending) {
+      inflightMap.delete(key)
+    }
+  })
+  inflightMap.set(key, pending)
+  return pending
+}
+
+const odooSyncGetInflight = createServerGetInflightMap<Record<string, unknown>>()
+
 export interface VerifiedSyncCaller {
   userId: string
   role: ExecSessionRole | 'cron'
@@ -130,94 +191,114 @@ export async function handleOdooSyncGetRequest(request: NextRequest) {
     )
   }
 
-  const periodParam = request.nextUrl.searchParams.get('period')
-  const fromParam = request.nextUrl.searchParams.get('from')
-  const toParam = request.nextUrl.searchParams.get('to')
+  const sp = request.nextUrl.searchParams
+  const periodParam = sp.get('period')
+  const fromParam = sp.get('from')
+  const toParam = sp.get('to')
+  const forceRefresh = caller.isCron || isForceRefreshSearchParams(sp)
+  const responseHeaders = buildOdooReadResponseHeaders(forceRefresh)
 
   if (caller.isAuditor) {
-    const nowMs = Date.now()
-    const baseRoPayload = canAuditorFetchColdLiveOdoo(nowMs)
-      ? await fetchLiveOdooSnapshot({
-          period: periodParam,
-          customFrom: fromParam,
-          customTo: toParam,
-          forceRefresh: false,
-          readOnly: true,
-          referenceNowMs: nowMs,
-        })
-      : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
-    const customBkt =
-      baseRoPayload.connected &&
-      periodParam === 'custom' &&
-      fromParam &&
-      toParam &&
-      !baseRoPayload.customBucket
-        ? await fetchLiveOdooCustomBucket(fromParam, toParam, nowMs)
-        : undefined
-    const roPayload = customBkt ? { ...baseRoPayload, customBucket: customBkt } : baseRoPayload
-    const {
-      diagnosticCode: _omitAuditorDiag,
-      envConfigured: _omitAuditorEnv,
-      unmappedTerminals: _omitAuditorTerms,
-      ...cleanRoPayload
-    } = roPayload
-    void _omitAuditorDiag
-    void _omitAuditorEnv
-    void _omitAuditorTerms
-    return NextResponse.json(
-      sanitizeOdooPublicPayload(stripExcludedOdooTree({
-        ...cleanRoPayload,
-        ok: true,
-        readOnly: true,
-        role: 'auditor',
-      })),
-      { status: 200, headers: odooSyncResponseHeaders },
+    const auditorKey = `auditor:${periodParam ?? 'month'}:${fromParam ?? ''}:${toParam ?? ''}`
+    const auditorPayload = await deduplicateServerGet(
+      odooSyncGetInflight,
+      auditorKey,
+      forceRefresh,
+      async () => {
+        const nowMs = Date.now()
+        const baseRoPayload = canAuditorFetchColdLiveOdoo(nowMs)
+          ? await fetchLiveOdooSnapshot({
+              period: periodParam,
+              customFrom: fromParam,
+              customTo: toParam,
+              forceRefresh: false,
+              readOnly: true,
+              referenceNowMs: nowMs,
+            })
+          : getReadOnlyOdooSnapshotStatus(periodParam, nowMs)
+        const customBkt =
+          baseRoPayload.connected &&
+          periodParam === 'custom' &&
+          fromParam &&
+          toParam &&
+          !baseRoPayload.customBucket
+            ? await fetchLiveOdooCustomBucket(fromParam, toParam, nowMs)
+            : undefined
+        const roPayload = customBkt ? { ...baseRoPayload, customBucket: customBkt } : baseRoPayload
+        const {
+          diagnosticCode: _omitAuditorDiag,
+          envConfigured: _omitAuditorEnv,
+          unmappedTerminals: _omitAuditorTerms,
+          ...cleanRoPayload
+        } = roPayload
+        void _omitAuditorDiag
+        void _omitAuditorEnv
+        void _omitAuditorTerms
+        return sanitizeOdooPublicPayload(
+          stripExcludedOdooTree({
+            ...cleanRoPayload,
+            ok: true,
+            readOnly: true,
+            role: 'auditor',
+          }),
+        ) as Record<string, unknown>
+      },
     )
+    return NextResponse.json(auditorPayload, { status: 200, headers: responseHeaders })
   }
 
-  const payload = await fetchLiveOdooSnapshot({
-    period: periodParam,
-    customFrom: fromParam,
-    customTo: toParam,
-    forceRefresh: caller.isCron,
-    readOnly: false,
-    referenceNowMs: Date.now(),
-  })
-
-  const staleTelemetry = payload.connected
-    ? await dispatchAdminStalenessAlertIfNeeded({
-        hoursSinceLatestRecord: payload.hoursSinceLatestRecord,
-        isStaleOver24h: payload.isStaleOver24h,
-        latestRecordAt: payload.latestRecordAt,
-        kuwaitTimestamp: payload.kuwaitSyncedAt,
+  const execKey = `${caller.role}:${periodParam ?? 'month'}:${fromParam ?? ''}:${toParam ?? ''}`
+  const execPayload = await deduplicateServerGet(
+    odooSyncGetInflight,
+    execKey,
+    forceRefresh,
+    async () => {
+      const payload = await fetchLiveOdooSnapshot({
+        period: periodParam,
+        customFrom: fromParam,
+        customTo: toParam,
+        forceRefresh,
+        readOnly: false,
+        referenceNowMs: Date.now(),
       })
-    : { adminAlertDispatched: false, channels: [] as string[] }
 
-  const isAdminCaller = caller.role === 'admin'
-  const { diagnosticCode, envConfigured, unmappedTerminals, ...restPayload } = payload
+      const staleTelemetry = payload.connected
+        ? await dispatchAdminStalenessAlertIfNeeded({
+            hoursSinceLatestRecord: payload.hoursSinceLatestRecord,
+            isStaleOver24h: payload.isStaleOver24h,
+            latestRecordAt: payload.latestRecordAt,
+            kuwaitTimestamp: payload.kuwaitSyncedAt,
+          })
+        : { adminAlertDispatched: false, channels: [] as string[] }
 
-  return NextResponse.json(
-    sanitizeOdooPublicPayload(stripExcludedOdooTree({
-      ...restPayload,
-      ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
-      ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
-      ...(isAdminCaller
-        ? {
-            reconciliationReport: computeTerminalMappingLedgerSnapshot().reconciliationReport,
-            adminAlertDispatched: staleTelemetry.adminAlertDispatched,
-            alertChannels: staleTelemetry.channels,
-            stalenessAlert: {
-              adminAlertDispatched: staleTelemetry.adminAlertDispatched,
-              channels: staleTelemetry.channels,
-            },
-          }
-        : {}),
-      ok: true,
-      readOnly: false,
-      role: caller.role,
-    })),
-    { status: 200, headers: odooSyncResponseHeaders },
+      const isAdminCaller = caller.role === 'admin'
+      const { diagnosticCode, envConfigured, unmappedTerminals, ...restPayload } = payload
+
+      return sanitizeOdooPublicPayload(
+        stripExcludedOdooTree({
+          ...restPayload,
+          ...(isAdminCaller || caller.isCron ? { diagnosticCode, envConfigured } : {}),
+          ...(isAdminCaller && unmappedTerminals ? { unmappedTerminals } : {}),
+          ...(isAdminCaller
+            ? {
+                reconciliationReport: computeTerminalMappingLedgerSnapshot().reconciliationReport,
+                adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+                alertChannels: staleTelemetry.channels,
+                stalenessAlert: {
+                  adminAlertDispatched: staleTelemetry.adminAlertDispatched,
+                  channels: staleTelemetry.channels,
+                },
+              }
+            : {}),
+          ok: true,
+          readOnly: false,
+          role: caller.role,
+        }),
+      ) as Record<string, unknown>
+    },
   )
+
+  return NextResponse.json(execPayload, { status: 200, headers: responseHeaders })
 }
 
 /**
@@ -274,6 +355,8 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
     )
   }
 
+  clearAllServerOdooReadInflight()
+
   const periodParam = request.nextUrl.searchParams.get('period')
   const fromParam = request.nextUrl.searchParams.get('from')
   const toParam = request.nextUrl.searchParams.get('to')
@@ -284,6 +367,8 @@ export async function handleOdooSyncPostRequest(request: NextRequest) {
     isCron: caller.isCron,
     referenceNowMs: Date.now(),
   })
+
+  clearAllServerOdooReadInflight()
 
   const staleTelemetry = syncedPayload.connected
     ? await dispatchAdminStalenessAlertIfNeeded({
