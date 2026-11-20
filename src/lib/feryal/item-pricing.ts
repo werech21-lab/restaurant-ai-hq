@@ -4,6 +4,15 @@ import { QURAIN_POS_CONFIG_IDS } from '@/lib/odoo/company-pos'
 import { isExcludedOdooEntity, isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import { kuwaitDateBoundsToOdooUtc } from '@/lib/odoo/pos-order-query'
 import posRegistry from '@/lib/odoo/pos-registry.json'
+import {
+  areSkuBrandsCompatible,
+  brandIdForPosRoot,
+  hasCompatibleSizePackTokens,
+  hasCrossBrandAmbiguity,
+  inferBrandIdFromSkuName,
+  resolveCanonicalBrandId,
+  type CanonicalFeryalBrandId,
+} from '@/lib/feryal/sku-matcher-guard'
 import { logger } from '@/lib/logger'
 
 /** Same ids as the company exclusion list: Jahra 25 and 39, inactive 40. */
@@ -25,6 +34,7 @@ export interface ItemPricingRow {
   netKwd: string
   unitPriceKwd: string | null
   categoryId: number | null
+  brandId?: string | null
 }
 
 export interface ItemPricingRead {
@@ -136,6 +146,40 @@ export function nonExcludedCategoryIds(categories: readonly PosCategoryRecord[])
     .filter((category) => !isExcludedOdooEntity(category.name))
     .map((category) => category.id)
     .sort((a, b) => a - b)
+}
+
+export function categoryBrandByIdMap(
+  categories: readonly PosCategoryRecord[],
+): Map<number, CanonicalFeryalBrandId> {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  const excluded = (category: PosCategoryRecord | undefined): boolean => {
+    if (!category) return false
+    if (category.id === EXCLUDED_POS_CATEGORY_ID) return true
+    if (isExcludedRecordId('pos_category', category.id)) return true
+    return isExcludedOdooEntity(category.name)
+  }
+  const rootOf = (id: number): PosCategoryRecord | null => {
+    let current = byId.get(id)
+    let guard = 0
+    while (current?.parentId != null && guard < 12) {
+      const parent = byId.get(current.parentId)
+      if (!parent) break
+      current = parent
+      guard += 1
+    }
+    return current ?? null
+  }
+  const result = new Map<number, CanonicalFeryalBrandId>()
+  for (const category of categories) {
+    if (excluded(category)) continue
+    const root = rootOf(category.id)
+    if (!root || excluded(root)) continue
+    const resolved = brandIdForPosRoot(root.name) ?? resolveCanonicalBrandId(root.name)
+    if (resolved) {
+      result.set(category.id, resolved)
+    }
+  }
+  return result
 }
 
 function shiftIso(iso: string, days: number): string {
@@ -253,16 +297,45 @@ function foldName(value: string): string {
   return value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
+function stripLeadingCode(value: string): string {
+  return value.replace(/^\s*\[[^\]]+\]\s*/, '').trim()
+}
+
 export function matchProposedPrice(
   proposal: ProposedPrice,
   rows: readonly ItemPricingRow[],
+  options?: {
+    rowBrand?: string | null
+    contextBrand?: string | null
+  },
 ): ItemPricingRow | null {
-  const wanted = foldName(proposal.label)
+  const wanted = foldName(stripLeadingCode(proposal.label))
   if (wanted.length < 3) return null
+  const rowBrandId =
+    resolveCanonicalBrandId(options?.rowBrand) ??
+    inferBrandIdFromSkuName(proposal.label) ??
+    resolveCanonicalBrandId(options?.contextBrand)
+
   const hits = rows.filter((row) => {
-    const name = foldName(row.name)
-    return name.includes(wanted) || wanted.includes(name)
+    if (!row.name || isExcludedOdooEntity(row.name)) return false
+    if (
+      !areSkuBrandsCompatible({
+        rowBrand: options?.rowBrand,
+        sheetItemName: proposal.label,
+        candidateBrand: row.brandId,
+        candidateSkuName: row.name,
+        contextBrand: options?.contextBrand,
+      })
+    ) {
+      return false
+    }
+    if (!hasCompatibleSizePackTokens(proposal.label, row.name)) {
+      return false
+    }
+    const name = foldName(stripLeadingCode(row.name))
+    return name.length >= 3 && (name.includes(wanted) || wanted.includes(name))
   })
+  if (hasCrossBrandAmbiguity(hits, rowBrandId)) return null
   return hits.length === 1 ? hits[0] ?? null : null
 }
 
@@ -586,6 +659,56 @@ export async function readItemPricingLines(input: {
       merged.set(productId, prev)
     }
   }
+  const scopedBrandId = input.posRoot ? brandIdForPosRoot(input.posRoot) : null
+  const productCategoryById = new Map<number, number>()
+  const productBrandById = new Map<number, CanonicalFeryalBrandId>()
+
+  if (!input.posRoot && merged.size > 0) {
+    const catBrandMap = categoryBrandByIdMap(categories)
+    const productIds = [...merged.keys()]
+    try {
+      const prodPayload = await executeReadOnly(input.execute, {
+        model: 'product.product',
+        method: 'search_read',
+        args: [[['id', 'in', productIds]]],
+        kwargs: { fields: ['id', 'pos_categ_id'], limit: productIds.length },
+        timeoutMs: ITEM_PRICING_RPC_TIMEOUT_MS,
+      })
+      if (Array.isArray(prodPayload)) {
+        for (const entry of prodPayload) {
+          if (!entry || typeof entry !== 'object') continue
+          const rec = entry as { id?: unknown; pos_categ_id?: unknown }
+          if (typeof rec.id !== 'number') continue
+          let catId: number | null = null
+          let catName = ''
+          if (Array.isArray(rec.pos_categ_id) && typeof rec.pos_categ_id[0] === 'number') {
+            catId = rec.pos_categ_id[0]
+            catName = typeof rec.pos_categ_id[1] === 'string' ? rec.pos_categ_id[1] : ''
+          } else if (typeof rec.pos_categ_id === 'number') {
+            catId = rec.pos_categ_id
+          }
+          if (catId == null) continue
+          if (
+            catId === EXCLUDED_POS_CATEGORY_ID ||
+            isExcludedRecordId('pos_category', catId) ||
+            (catName && isExcludedOdooEntity(catName))
+          ) {
+            merged.delete(rec.id)
+            continue
+          }
+          productCategoryById.set(rec.id, catId)
+          const resolvedBrand =
+            catBrandMap.get(catId) ?? (catName ? resolveCanonicalBrandId(catName) : null)
+          if (resolvedBrand) {
+            productBrandById.set(rec.id, resolvedBrand)
+          }
+        }
+      }
+    } catch {
+      logger.warn('feryal.item_pricing', { code: 'product_category_lookup_skipped' })
+    }
+  }
+
   const bounds = kuwaitDateBoundsToOdooUtc(input.fromIso, input.toIso)
   const rows: ItemPricingRow[] = [...merged.entries()]
     .map(([productId, row]) => ({
@@ -594,7 +717,12 @@ export async function readItemPricingLines(input: {
       qty: row.qty,
       netKwd: row.net,
       unitPriceKwd: unitPriceKwd(row.net, row.qty),
-      categoryId: null,
+      categoryId: productCategoryById.get(productId) ?? null,
+      brandId:
+        scopedBrandId ??
+        productBrandById.get(productId) ??
+        inferBrandIdFromSkuName(row.name) ??
+        null,
     }))
     .sort((a, b) => {
       const left = Decimal.parse(b.netKwd)

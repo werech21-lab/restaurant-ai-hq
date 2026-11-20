@@ -40,9 +40,12 @@ import {
   FeryalVisionCompliancePill,
 } from '@/components/aether/FeryalMultimodalBar'
 import { FeryalDocumentReviewCard } from '@/components/aether/FeryalDocumentReviewCard'
-import type {
-  ConfirmedPriceSheet,
-  DocumentIntakeDraft,
+import {
+  confirmDocumentIntakeDraft,
+  recomputeDocumentIntakeDraft,
+  serializePricingRowsToCsv,
+  type ConfirmedPriceSheet,
+  type DocumentIntakeDraft,
 } from '@/lib/feryal/document-intake-types'
 import { PartialWarningBanner } from '@/components/ui/partial-warning-banner'
 import { StateBlock } from '@/components/ui/state-block'
@@ -314,6 +317,7 @@ export interface FeryalGovernanceStudioProps {
   initialAuditError?: boolean
   initialSending?: boolean
   initialPendingDraft?: DocumentIntakeDraft | null
+  initialTodaySimulationSheet?: ConfirmedPriceSheet | null
 }
 
 export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
@@ -327,12 +331,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     initialAuditError = false,
     initialSending = false,
     initialPendingDraft = null,
+    initialTodaySimulationSheet = null,
   } = props ?? {}
   const { locale } = useI18n()
   const fmtLocale: FormatLocale = locale === 'en' ? 'en' : 'ar'
   const isAr = fmtLocale === 'ar'
   const isAuditor = sessionRole === 'auditor'
-  const { workspace, liveSummary } = useGlobalFilter()
+  const { workspace, liveSummary, filters: contextFilters, setPeriod } = useGlobalFilter()
+  const activePeriod = contextFilters?.period ?? workspace.filters.period
   // A brand order count Odoo could not supply is unknown (—), never 0.
   const ordersUnknown = !workspace.odooConnected || workspace.nullableOrders === null
   const [chatSyncAt, setChatSyncAt] = useState<string | null>(null)
@@ -392,8 +398,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
   const [pendingIntakeDraft, setPendingIntakeDraft] = useState<DocumentIntakeDraft | null>(
     initialPendingDraft,
   )
+  const [todaySimulationSheet, setTodaySimulationSheet] = useState<ConfirmedPriceSheet | null>(
+    initialTodaySimulationSheet,
+  )
+  const [rematchingLast30Days, setRematchingLast30Days] = useState(false)
   const [uploadingIntake, setUploadingIntake] = useState(false)
   const [intakeError, setIntakeError] = useState<string | null>(null)
+  const lastIntakeFileRef = useRef<File | null>(null)
+  const prevPeriodRef = useRef<string>(activePeriod)
   const openPickerRef = useRef<(() => void) | null>(null)
   const openCameraRef = useRef<(() => void) | null>(null)
 
@@ -597,6 +609,13 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     [activeNotebookId, isAr, workspace.subtitleAr, workspace.subtitleEn],
   )
 
+  useEffect(() => {
+    if (prevPeriodRef.current === 'today' && activePeriod !== 'today') {
+      setTodaySimulationSheet(null)
+    }
+    prevPeriodRef.current = activePeriod
+  }, [activePeriod])
+
   const handleStartNewChat = useCallback(() => {
     userInteractedRef.current = true
     const freshId = nextUiId('chat')
@@ -604,7 +623,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     setMessages([])
     setInputText('')
     setPendingIntakeDraft(null)
+    setTodaySimulationSheet(null)
     setIntakeError(null)
+    lastIntakeFileRef.current = null
     applyFeryalPromptAutoResize(promptTextareaRef.current, '')
     setPromptOverflowScroll(false)
     setMainTab('chat')
@@ -615,7 +636,9 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       userInteractedRef.current = true
       setActiveChatId(chatId)
       setPendingIntakeDraft(null)
+      setTodaySimulationSheet(null)
       setIntakeError(null)
+      lastIntakeFileRef.current = null
       setMainTab('chat')
       const thread = await loadChatThread(chatId)
       if (thread) {
@@ -678,13 +701,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         )
         return
       }
+      lastIntakeFileRef.current = file
       setUploadingIntake(true)
       setIntakeError(null)
       setMainTab('chat')
       try {
         const fd = new FormData()
         fd.append('file', file)
-        fd.append('period', workspace.filters.period || 'month')
+        fd.append('period', activePeriod || 'month')
         if (workspace.filters.customFrom) {
           fd.append('customFrom', workspace.filters.customFrom)
         }
@@ -728,6 +752,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       }
     },
     [
+      activePeriod,
       isAr,
       isAuditor,
       sending,
@@ -736,12 +761,108 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       workspace.filters.brand,
       workspace.filters.customFrom,
       workspace.filters.customTo,
-      workspace.filters.period,
     ],
   )
 
+  const requestLast30DaysIntakeDraft = useCallback(
+    async (params: {
+      csvFileName: string
+      rowsForCsv: ReadonlyArray<{
+        brand?: string | null
+        itemName: string
+        currentPriceKwd?: string | null
+        sheetCurrentPriceKwd?: string | null
+        proposedOptions: DocumentIntakeDraft['rows'][number]['proposedOptions']
+        excluded?: boolean
+      }>
+      fallbackFile?: File | null
+    }): Promise<DocumentIntakeDraft | null> => {
+      const csvText = serializePricingRowsToCsv(params.rowsForCsv)
+      const hasActiveCsvRows = params.rowsForCsv.some(
+        (r) => !r.excluded && r.itemName.trim().length > 0,
+      )
+      const safeCsvName = params.csvFileName.replace(/\.[a-z0-9]+$/i, '') + '-30d.csv'
+      const fileToSend = hasActiveCsvRows
+        ? new File([csvText], safeCsvName, { type: 'text/csv' })
+        : params.fallbackFile ?? null
+      if (!fileToSend) return null
+
+      const fd = new FormData()
+      fd.append('file', fileToSend)
+      fd.append('period', 'month')
+      if (workspace.filters.brand && workspace.filters.brand !== 'all') {
+        fd.append('brand', workspace.filters.brand)
+      }
+      if (workspace.filters.branch && workspace.filters.branch !== 'all') {
+        fd.append('branch', workspace.filters.branch)
+      }
+
+      const res = await fetch('/api/erp/feryal/document-intake', {
+        method: 'POST',
+        body: fd,
+      })
+      const data = (await res.json().catch(() => null)) as {
+        ok?: boolean
+        draft?: DocumentIntakeDraft
+      } | null
+      return res.ok && data?.ok && data.draft ? data.draft : null
+    },
+    [workspace.filters.branch, workspace.filters.brand],
+  )
+
+  const handleSwitchAndRematchDraftLast30Days = useCallback(async () => {
+    if (isAuditor || sending || uploadingIntake || rematchingLast30Days || !pendingIntakeDraft) {
+      return
+    }
+    setRematchingLast30Days(true)
+    setIntakeError(null)
+    if (typeof setPeriod === 'function') {
+      setPeriod('month')
+    }
+    try {
+      const activeSourceRows = pendingIntakeDraft.rows.filter(
+        (row) => !row.excluded && row.itemName.trim().length > 0,
+      )
+      const monthDraft = await requestLast30DaysIntakeDraft({
+        csvFileName: pendingIntakeDraft.fileName,
+        rowsForCsv: activeSourceRows,
+        fallbackFile: lastIntakeFileRef.current,
+      })
+      if (!monthDraft) {
+        setIntakeError(
+          isAr
+            ? 'تعذّر إعادة مطابقة الأصناف على آخر 30 يوماً — يرجى المحاولة مرة أخرى.'
+            : 'Could not re-match items on Last 30 Days — please retry.',
+        )
+        return
+      }
+      setPendingIntakeDraft(recomputeDocumentIntakeDraft(monthDraft))
+    } catch {
+      setIntakeError(
+        isAr
+          ? 'تعذّر الاتصال لإعادة المطابقة على آخر 30 يوماً — أعد المحاولة.'
+          : 'Connection failed while re-matching on Last 30 Days — please retry.',
+      )
+    } finally {
+      setRematchingLast30Days(false)
+    }
+  }, [
+    isAr,
+    isAuditor,
+    pendingIntakeDraft,
+    rematchingLast30Days,
+    requestLast30DaysIntakeDraft,
+    sending,
+    setPeriod,
+    uploadingIntake,
+  ])
+
   const sendQuestion = useCallback(
-    async (overridePrompt?: string, confirmedPriceSheet?: ConfirmedPriceSheet) => {
+    async (
+      overridePrompt?: string,
+      confirmedPriceSheet?: ConfirmedPriceSheet,
+      options?: { periodOverride?: 'month' },
+    ) => {
       if (isAuditor || sending) return
       const rawPrompt = (overridePrompt ?? inputText).trim()
       const hasMedia = !confirmedPriceSheet && pendingAttachments.length > 0
@@ -821,10 +942,16 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         }
 
         // 2. Exclusive Odoo 17 Tool-Calling & 3-Model Council Engine (`POST /api/erp/feryal/chat`)
-        const urlSearch = typeof window !== 'undefined' ? window.location.search : undefined
+        const effectiveFilters = options?.periodOverride
+          ? { ...workspace.filters, period: options.periodOverride }
+          : workspace.filters
+        const urlSearch =
+          options?.periodOverride || typeof window === 'undefined'
+            ? undefined
+            : window.location.search
         const chatRequestBody = buildFeryalChatRequestPayload(
           effectivePrompt,
-          workspace.filters,
+          effectiveFilters,
           urlSearch,
           confirmedPriceSheet,
         )
@@ -914,6 +1041,55 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       workspace.subtitleEn,
     ],
   )
+
+  const handleRerunSimulationLast30Days = useCallback(async () => {
+    if (isAuditor || sending || uploadingIntake || rematchingLast30Days || !todaySimulationSheet) {
+      return
+    }
+    const sourceSheet = todaySimulationSheet
+    setRematchingLast30Days(true)
+    setIntakeError(null)
+    if (typeof setPeriod === 'function') {
+      setPeriod('month')
+    }
+    try {
+      const monthDraft = await requestLast30DaysIntakeDraft({
+        csvFileName: sourceSheet.fileName,
+        rowsForCsv: sourceSheet.rows,
+        fallbackFile: lastIntakeFileRef.current,
+      })
+      const rematchedSheet: ConfirmedPriceSheet = monthDraft
+        ? confirmDocumentIntakeDraft(monthDraft)
+        : {
+            ...sourceSheet,
+            confirmedAtIso: new Date().toISOString(),
+            rows: sourceSheet.rows.map((row) => ({ ...row, matchedOdooProductId: null })),
+          }
+      setTodaySimulationSheet(null)
+      setRematchingLast30Days(false)
+      const prompt30d = isAr
+        ? `أعيدي تشغيل محاكاة جدول الأسعار المؤكد (${rematchedSheet.fileName} — ${rematchedSheet.rows.length} صنفاً) على فترة آخر 30 يوماً وقدّمي القرار التنفيذي وخطة الأصناف.`
+        : `Re-run the 3-scenario executive pricing simulation on confirmed price sheet (${rematchedSheet.fileName} — ${rematchedSheet.rows.length} SKUs) over Last 30 Days and deliver the executive verdict and SKU playbook.`
+      await sendQuestion(prompt30d, rematchedSheet, { periodOverride: 'month' })
+    } catch {
+      setRematchingLast30Days(false)
+      setIntakeError(
+        isAr
+          ? 'تعذّر إعادة التشغيل على آخر 30 يوماً — يرجى المحاولة مرة أخرى.'
+          : 'Could not re-run simulation on Last 30 Days — please retry.',
+      )
+    }
+  }, [
+    isAr,
+    isAuditor,
+    rematchingLast30Days,
+    requestLast30DaysIntakeDraft,
+    sendQuestion,
+    sending,
+    setPeriod,
+    todaySimulationSheet,
+    uploadingIntake,
+  ])
 
   const handleQuickAuditChip = useCallback(
     (chipId: QuickAuditChipId) => {
@@ -1809,17 +1985,62 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                   </div>
                 ) : null}
 
+                {!pendingIntakeDraft && todaySimulationSheet ? (
+                  <div
+                    role="status"
+                    data-feryal-today-period-warning="true"
+                    data-feryal-simulation-period-guard="true"
+                    className="mb-3 flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-amber-400/80 bg-amber-50/90 px-3.5 py-2.5 text-xs text-amber-950 shadow-2xs dark:border-amber-500/35 dark:bg-amber-950/60 dark:text-amber-100"
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-2">
+                      <AlertTriangle
+                        className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300"
+                        aria-hidden
+                      />
+                      <p className="min-w-0 break-words font-semibold leading-relaxed">
+                        {isAr
+                          ? `تم تشغيل محاكاة الأسعار (${todaySimulationSheet.fileName}) على فترة «اليوم» ذات المبيعات الجزئية ليوم واحد — نوصي بإعادة التشغيل على «آخر 30 يوماً» للحصول على كميات ومطابقة شاملة.`
+                          : `Price-sheet simulation (${todaySimulationSheet.fileName}) ran on "Today" (partial single-day POS volume). We recommend re-running on "Last 30 Days" for complete SKU velocity and KWD impact.`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      data-rerun-simulation-30d="true"
+                      disabled={sending || uploadingIntake || rematchingLast30Days}
+                      onClick={() => void handleRerunSimulationLast30Days()}
+                      className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-amber-900 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600/60 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+                    >
+                      {rematchingLast30Days || sending ? (
+                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      )}
+                      <span>
+                        {isAr ? 'إعادة التشغيل على آخر 30 يوماً' : 'Re-run on Last 30 Days'}
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+
                 {pendingIntakeDraft ? (
                   <FeryalDocumentReviewCard
                     draft={pendingIntakeDraft}
                     isAr={isAr}
+                    activePeriod={activePeriod}
                     submitting={sending}
+                    rematchingLast30Days={rematchingLast30Days}
                     onDraftChange={setPendingIntakeDraft}
+                    onSwitchAndRematchLast30Days={() => void handleSwitchAndRematchDraftLast30Days()}
                     onCancel={() => {
                       setPendingIntakeDraft(null)
                       setIntakeError(null)
                     }}
-                    onConfirmAndRun={(confirmedSheet) => {
+                    onConfirmAndRun={(confirmedSheet, reviewedDraft) => {
+                      const ranOnSingleDay =
+                        activePeriod === 'today' ||
+                        (Boolean(reviewedDraft.period.from) &&
+                          reviewedDraft.period.from === reviewedDraft.period.to)
+                      setTodaySimulationSheet(ranOnSingleDay ? confirmedSheet : null)
                       const typed = inputText.trim()
                       const promptForAnalysis =
                         typed ||

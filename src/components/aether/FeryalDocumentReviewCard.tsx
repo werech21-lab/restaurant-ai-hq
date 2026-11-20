@@ -1,12 +1,22 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Loader2, ShieldAlert, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileSpreadsheet,
+  Loader2,
+  RefreshCw,
+  ShieldAlert,
+  X,
+} from 'lucide-react'
 import {
   confirmDocumentIntakeDraft,
   EXTRACTED_DRAFT_UNCONFIRMED_LABEL,
   ODOO_VERIFIED_ACTUAL_LABEL,
   recomputeDocumentIntakeDraft,
+  UNMATCHED_WRONG_VARIANT_LABEL_AR,
+  UNMATCHED_WRONG_VARIANT_LABEL_EN,
   USER_INPUT_CONFIRMED_LABEL,
   type ConfirmedPriceSheet,
   type DocumentIntakeDraft,
@@ -69,20 +79,28 @@ export function toggleDraftRowExcluded(
 export interface FeryalDocumentReviewCardProps {
   draft: DocumentIntakeDraft
   isAr: boolean
+  activePeriod?: string | null
   submitting?: boolean
+  rematchingLast30Days?: boolean
   onDraftChange: (nextDraft: DocumentIntakeDraft) => void
   onConfirmAndRun: (confirmedSheet: ConfirmedPriceSheet, reviewedDraft: DocumentIntakeDraft) => void
   onCancel: () => void
+  onSwitchAndRematchLast30Days?: () => void
 }
 
 export function FeryalDocumentReviewCard({
   draft,
   isAr,
+  activePeriod,
   submitting = false,
+  rematchingLast30Days = false,
   onDraftChange,
   onConfirmAndRun,
   onCancel,
+  onSwitchAndRematchLast30Days,
 }: FeryalDocumentReviewCardProps) {
+  const isTodaySingleDayWindow =
+    activePeriod === 'today' || (Boolean(draft.period.from) && draft.period.from === draft.period.to)
   const optionColumns = useMemo(() => {
     const map = new Map<string, string>()
     for (const row of draft.rows) {
@@ -111,7 +129,8 @@ export function FeryalDocumentReviewCard({
     [activeRows],
   )
 
-  const canConfirm = activeRows.length > 0 && !hasInvalidActivePrice && !submitting
+  const canConfirm =
+    activeRows.length > 0 && !hasInvalidActivePrice && !submitting && !rematchingLast30Days
 
   return (
     <section
@@ -124,6 +143,43 @@ export function FeryalDocumentReviewCard({
       }
       className="mb-3 min-w-0 space-y-3 rounded-2xl border border-amber-300/80 bg-amber-50/40 p-3.5 shadow-xs dark:border-amber-500/30 dark:bg-[#121C18]"
     >
+      {/* Default Period Guard: Today single-day partial volume warning */}
+      {isTodaySingleDayWindow ? (
+        <div
+          role="status"
+          data-feryal-today-period-warning="true"
+          className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-amber-400/80 bg-amber-100/85 px-3 py-2.5 text-xs text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/65 dark:text-amber-100"
+        >
+          <div className="flex min-w-0 flex-1 items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
+            <p className="min-w-0 break-words font-semibold leading-relaxed">
+              {isAr
+                ? 'تنبيه الفترة الزمنية: الفلتر الحالي مضبوط على «اليوم» (حجم مبيعات جزئي ليوم واحد)، مما قد يترك بعض الأصناف غير مطابقة أو يقلل الأثر المالي. نوصي بالتبديل إلى «آخر 30 يوماً» قبل تشغيل المحاكاة.'
+                : 'Period Guard: Top filter is set to "Today" (partial single-day POS volume), which can under-count quantities or leave valid menu SKUs unmatched. Switch to "Last 30 Days" for representative POS velocity.'}
+            </p>
+          </div>
+          {onSwitchAndRematchLast30Days ? (
+            <button
+              type="button"
+              data-rerun-last-30-days="true"
+              disabled={submitting || rematchingLast30Days}
+              onClick={onSwitchAndRematchLast30Days}
+              className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-amber-900 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600/60 disabled:cursor-not-allowed disabled:opacity-55 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400"
+            >
+              {rematchingLast30Days ? (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              )}
+              <span>
+                {isAr
+                  ? 'التبديل وإعادة المطابقة على آخر 30 يوماً'
+                  : 'Switch & Re-Match on Last 30 Days'}
+              </span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {/* Gate Header */}
       <div className="flex flex-wrap items-start justify-between gap-2.5 border-b border-amber-200/70 pb-2.5 dark:border-white/10">
         <div className="min-w-0 flex-1 space-y-1">
@@ -310,6 +366,25 @@ export function FeryalDocumentReviewCard({
                         {row.odooQty ? (
                           <div dir="ltr" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
                             Qty: {row.odooQty}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : row.anomalies.some((a) => a.code === 'UNMATCHED_WRONG_VARIANT') ||
+                      row.rejectedVariantHint ? (
+                      <div className="space-y-1">
+                        <span
+                          data-unmatched-wrong-variant="true"
+                          className="inline-flex items-center rounded-md bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-900 ring-1 ring-rose-500/30 dark:bg-rose-950/70 dark:text-rose-200"
+                        >
+                          {isAr
+                            ? UNMATCHED_WRONG_VARIANT_LABEL_AR
+                            : UNMATCHED_WRONG_VARIANT_LABEL_EN}
+                        </span>
+                        {row.rejectedVariantHint ? (
+                          <div className="text-xs text-slate-500 dark:text-slate-400">
+                            {isAr
+                              ? `استُبعدت مطابقة "${row.rejectedVariantHint.odooName}" (${row.rejectedVariantHint.odooUnitPriceKwd} د.ك)`
+                              : `Rejected "${row.rejectedVariantHint.odooName}" (${row.rejectedVariantHint.odooUnitPriceKwd} KWD)`}
                           </div>
                         ) : null}
                       </div>

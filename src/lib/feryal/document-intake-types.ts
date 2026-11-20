@@ -1,9 +1,15 @@
+import {
+  checkPriceSanityDeviation,
+  hasCompatibleSizePackTokens,
+} from '@/lib/feryal/sku-matcher-guard'
 import { Decimal } from '@/server/ai/decimal'
 
 export const EXTRACTED_DRAFT_UNCONFIRMED_LABEL = 'Extracted Draft (Unconfirmed)' as const
 export const USER_INPUT_CONFIRMED_LABEL = 'User Input (Confirmed)' as const
 export const ODOO_VERIFIED_ACTUAL_LABEL = 'Odoo Verified Actual' as const
 export const DETERMINISTIC_SIMULATION_LABEL = 'Deterministic Simulation' as const
+export const UNMATCHED_WRONG_VARIANT_LABEL_EN = 'Unmatched / Wrong Variant' as const
+export const UNMATCHED_WRONG_VARIANT_LABEL_AR = 'غير مطابق / صنف أو حجم مختلف' as const
 
 export type FeryalGroundingSourceTag =
   | typeof EXTRACTED_DRAFT_UNCONFIRMED_LABEL
@@ -26,6 +32,7 @@ export type IntakeAnomalyCode =
   | 'NON_STANDARD_KWD_FILS'
   | 'DUPLICATE_SKU'
   | 'UNMATCHED_ODOO_SKU'
+  | 'UNMATCHED_WRONG_VARIANT'
   | 'MISSING_OR_INVALID_PRICE'
 
 export type IntakeAnomalySeverity = 'warning' | 'critical'
@@ -40,6 +47,12 @@ export interface IntakeAnomalyFlag {
   pctChange?: string | null
 }
 
+export interface RejectedVariantHint {
+  odooName: string
+  odooUnitPriceKwd: string
+  diffPct: string
+}
+
 export interface DocumentIntakeRow {
   rowId: string
   brand: string | null
@@ -51,6 +64,7 @@ export interface DocumentIntakeRow {
   odooRealizedUnitPriceKwd: string | null
   odooQty: string | null
   odooNetSalesKwd: string | null
+  rejectedVariantHint?: RejectedVariantHint | null
   excluded: boolean
   anomalies: IntakeAnomalyFlag[]
 }
@@ -298,10 +312,68 @@ function evaluatePriceAgainstReference(input: {
 }
 
 export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]): DocumentIntakeRow[] {
+  const sanitizedRows: DocumentIntakeRow[] = rows.map((row) => {
+    if (row.matchedOdooProductId != null) {
+      if (
+        row.matchedOdooProductName &&
+        !hasCompatibleSizePackTokens(row.itemName, row.matchedOdooProductName)
+      ) {
+        return {
+          ...row,
+          matchedOdooProductId: null,
+          matchedOdooProductName: null,
+          odooRealizedUnitPriceKwd: null,
+          odooQty: null,
+          odooNetSalesKwd: null,
+          rejectedVariantHint: null,
+        }
+      }
+
+      const sanity = checkPriceSanityDeviation(
+        row.sheetCurrentPriceKwd,
+        row.odooRealizedUnitPriceKwd,
+      )
+      if (sanity.exceedsThreshold && sanity.odooPriceKwd) {
+        return {
+          ...row,
+          matchedOdooProductId: null,
+          matchedOdooProductName: null,
+          odooRealizedUnitPriceKwd: null,
+          odooQty: null,
+          odooNetSalesKwd: null,
+          rejectedVariantHint: {
+            odooName: row.matchedOdooProductName ?? row.itemName,
+            odooUnitPriceKwd: sanity.odooPriceKwd,
+            diffPct: sanity.diffPct ?? '35',
+          },
+        }
+      }
+    } else if (row.rejectedVariantHint) {
+      const recheck = checkPriceSanityDeviation(
+        row.sheetCurrentPriceKwd,
+        row.rejectedVariantHint.odooUnitPriceKwd,
+      )
+      if (!recheck.exceedsThreshold) {
+        return {
+          ...row,
+          rejectedVariantHint: null,
+        }
+      }
+      return {
+        ...row,
+        rejectedVariantHint: {
+          ...row.rejectedVariantHint,
+          diffPct: recheck.diffPct ?? row.rejectedVariantHint.diffPct,
+        },
+      }
+    }
+    return row
+  })
+
   const brandNameCounts = new Map<string, number>()
   const productIdCounts = new Map<number, number>()
 
-  for (const row of rows) {
+  for (const row of sanitizedRows) {
     if (row.excluded) continue
     const normName = normalizeIntakeSkuKey(row.itemName)
     const normBrand = normalizeIntakeSkuKey(row.brand ?? '')
@@ -317,7 +389,7 @@ export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]):
     }
   }
 
-  return rows.map((row) => {
+  return sanitizedRows.map((row) => {
     const anomalies: IntakeAnomalyFlag[] = []
     const odooPriceParsed = parsePriceCandidate(row.odooRealizedUnitPriceKwd)
     const odooPrice =
@@ -395,14 +467,28 @@ export function recomputeIntakeRowAnomalies(rows: readonly DocumentIntakeRow[]):
     }
 
     if (row.matchedOdooProductId == null) {
-      anomalies.push({
-        code: 'UNMATCHED_ODOO_SKU',
-        severity: 'warning',
-        referenceOdooPriceKwd: null,
-        pctChange: null,
-        messageEn: `No matching Odoo POS SKU found for "${row.itemName.trim()}" in the selected scope.`,
-        messageAr: `لم يتم العثور على صنف مطابق في نقاط بيع Odoo لـ "${row.itemName.trim()}" ضمن النطاق المحدد.`,
-      })
+      if (row.rejectedVariantHint && sheetCurrentDecimal) {
+        const shownCurrent = formatKwd3(sheetCurrentDecimal)
+        const hint = row.rejectedVariantHint
+        const signedPct = hint.diffPct.startsWith('-') ? hint.diffPct : `+${hint.diffPct}`
+        anomalies.push({
+          code: 'UNMATCHED_WRONG_VARIANT',
+          severity: 'warning',
+          referenceOdooPriceKwd: hint.odooUnitPriceKwd,
+          pctChange: hint.diffPct,
+          messageEn: `${UNMATCHED_WRONG_VARIANT_LABEL_EN} — sheet current price (${shownCurrent} KWD) deviates ${signedPct}% (>35%) from Odoo SKU "${hint.odooName}" (${hint.odooUnitPriceKwd} KWD).`,
+          messageAr: `${UNMATCHED_WRONG_VARIANT_LABEL_AR} — السعر الحالي بالملف (${shownCurrent} د.ك) يختلف بنسبة ${signedPct}% (>35%) عن صنف Odoo "${hint.odooName}" (${hint.odooUnitPriceKwd} د.ك).`,
+        })
+      } else {
+        anomalies.push({
+          code: 'UNMATCHED_ODOO_SKU',
+          severity: 'warning',
+          referenceOdooPriceKwd: null,
+          pctChange: null,
+          messageEn: `No matching Odoo POS SKU found for "${row.itemName.trim()}" in the selected scope.`,
+          messageAr: `لم يتم العثور على صنف مطابق في نقاط بيع Odoo لـ "${row.itemName.trim()}" ضمن النطاق المحدد.`,
+        })
+      }
     }
 
     return {
@@ -516,4 +602,54 @@ export function isUnconfirmedDocumentDraft(value: unknown): boolean {
   if (record.sourceTag === EXTRACTED_DRAFT_UNCONFIRMED_LABEL) return true
   if ('sourceTag' in record && record.sourceTag !== USER_INPUT_CONFIRMED_LABEL) return true
   return false
+}
+
+function escapeCsvCell(value: string): string {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`
+  }
+  return value
+}
+
+export function serializePricingRowsToCsv(
+  rows: ReadonlyArray<{
+    brand?: string | null
+    itemName: string
+    currentPriceKwd?: string | null
+    sheetCurrentPriceKwd?: string | null
+    proposedOptions: readonly ExtractedProposedOption[]
+    excluded?: boolean
+  }>,
+): string {
+  const active = rows.filter((row) => !row.excluded && row.itemName.trim().length > 0)
+  const optionColumns = new Map<string, string>()
+  for (const row of active) {
+    for (const opt of row.proposedOptions) {
+      if (!optionColumns.has(opt.optionKey)) {
+        optionColumns.set(opt.optionKey, opt.label || opt.optionKey)
+      }
+    }
+  }
+  if (optionColumns.size === 0) {
+    optionColumns.set('proposed', 'Proposed')
+  }
+  const orderedCols = [...optionColumns.entries()]
+  const header = ['Brand', 'Item Name', 'Current Price', ...orderedCols.map(([, label]) => label)]
+  const csvLines = [header.map(escapeCsvCell).join(',')]
+
+  for (const row of active) {
+    const currentVal = (row.currentPriceKwd ?? row.sheetCurrentPriceKwd ?? '').trim()
+    const cells = [
+      (row.brand ?? '').trim(),
+      row.itemName.trim(),
+      currentVal,
+      ...orderedCols.map(([optKey]) => {
+        const found = row.proposedOptions.find((opt) => opt.optionKey === optKey)
+        return (found?.proposedPriceKwd ?? '').trim()
+      }),
+    ]
+    csvLines.push(cells.map(escapeCsvCell).join(','))
+  }
+
+  return csvLines.join('\n')
 }

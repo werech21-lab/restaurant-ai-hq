@@ -23,6 +23,7 @@ import {
   type DocumentIntakeFileKind,
   type DocumentIntakeRow,
   type ExtractedProposedOption,
+  type RejectedVariantHint,
 } from '@/lib/feryal/document-intake-types'
 import {
   fetchItemPricingFromOdoo,
@@ -31,6 +32,14 @@ import {
   unitPriceKwd,
   type ItemPricingRow,
 } from '@/lib/feryal/item-pricing'
+import {
+  areSkuBrandsCompatible,
+  checkPriceSanityDeviation,
+  hasCompatibleSizePackTokens,
+  hasCrossBrandAmbiguity,
+  inferBrandIdFromSkuName,
+  resolveCanonicalBrandId,
+} from '@/lib/feryal/sku-matcher-guard'
 import { logger } from '@/lib/logger'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import { Decimal } from '@/server/ai/decimal'
@@ -810,15 +819,63 @@ function stripOdooCodePrefix(name: string): string {
   return name.replace(/^\s*\[[^\]]+\]\s*/, '').trim()
 }
 
-export function matchIntakeItemToOdooRow(
+export interface MatchIntakeItemOptions {
+  rowBrand?: string | null
+  contextBrand?: string | null
+  sheetCurrentPriceKwd?: string | null
+}
+
+export interface IntakeMatchEvaluation {
+  matchedRow: ItemPricingRow | null
+  rejectedVariantHint: RejectedVariantHint | null
+}
+
+export function matchIntakeItemWithDiagnostics(
   itemName: string,
   odooRows: readonly ItemPricingRow[],
-): ItemPricingRow | null {
-  const safeRows = odooRows.filter((row) => row.name && !isExcludedOdooEntity(row.name))
-  if (safeRows.length === 0) return null
+  options?: MatchIntakeItemOptions,
+): IntakeMatchEvaluation {
+  const contextBrandId =
+    resolveIntakeBrandId(options?.contextBrand) ?? resolveCanonicalBrandId(options?.contextBrand)
+  const explicitRowBrandId =
+    resolveIntakeBrandId(options?.rowBrand) ??
+    resolveCanonicalBrandId(options?.rowBrand) ??
+    inferBrandIdFromSkuName(itemName)
+
+  if (contextBrandId && explicitRowBrandId && explicitRowBrandId !== contextBrandId) {
+    return { matchedRow: null, rejectedVariantHint: null }
+  }
+
+  const effectiveRowBrandId = explicitRowBrandId ?? contextBrandId
+
+  const safeRows = odooRows.filter((row) => {
+    if (!row.name || isExcludedOdooEntity(row.name)) return false
+    if (
+      !areSkuBrandsCompatible({
+        rowBrand: explicitRowBrandId ?? options?.rowBrand,
+        sheetItemName: itemName,
+        candidateBrand: row.brandId,
+        candidateSkuName: row.name,
+        contextBrand: contextBrandId,
+      })
+    ) {
+      return false
+    }
+    if (!hasCompatibleSizePackTokens(itemName, row.name)) {
+      return false
+    }
+    return true
+  })
+  if (safeRows.length === 0) {
+    return { matchedRow: null, rejectedVariantHint: null }
+  }
 
   const wantedKey = normalizeIntakeSkuKey(stripOdooCodePrefix(itemName))
-  if (!wantedKey) return null
+  if (!wantedKey) {
+    return { matchedRow: null, rejectedVariantHint: null }
+  }
+
+  let candidate: ItemPricingRow | null = null
 
   const exactMatches = safeRows.filter((row) => {
     const fullKey = normalizeIntakeSkuKey(row.name)
@@ -827,32 +884,80 @@ export function matchIntakeItemToOdooRow(
   })
 
   if (exactMatches.length === 1) {
-    return exactMatches[0] ?? null
-  }
-  if (exactMatches.length > 1) {
-    return (
-      exactMatches.slice().sort((a, b) => {
+    candidate = exactMatches[0] ?? null
+  } else if (exactMatches.length > 1) {
+    if (hasCrossBrandAmbiguity(exactMatches, effectiveRowBrandId)) {
+      return { matchedRow: null, rejectedVariantHint: null }
+    }
+    const sanityPassing = options?.sheetCurrentPriceKwd
+      ? exactMatches.filter(
+          (row) =>
+            !checkPriceSanityDeviation(
+              options.sheetCurrentPriceKwd,
+              formatOdooUnitPriceOrNull(row),
+            ).exceedsThreshold,
+        )
+      : exactMatches
+    const pool = sanityPassing.length > 0 ? sanityPassing : exactMatches
+    candidate =
+      pool.slice().sort((a, b) => {
         const left = Decimal.parse(b.netKwd)
         const right = Decimal.parse(a.netKwd)
         if (!left || !right) return a.productId - b.productId
         const cmp = left.compare(right)
         return cmp !== 0 ? cmp : a.productId - b.productId
       })[0] ?? null
-    )
   }
 
-  const byItemPricingMatcher = matchProposedPrice({ label: itemName, amount: '1' }, safeRows)
-  if (byItemPricingMatcher) {
-    return byItemPricingMatcher
+  if (!candidate) {
+    candidate = matchProposedPrice({ label: itemName, amount: '1' }, safeRows, {
+      rowBrand: explicitRowBrandId ?? options?.rowBrand,
+      contextBrand: contextBrandId,
+    })
   }
 
-  if (wantedKey.length < 3) return null
-  const normalizedSubstringHits = safeRows.filter((row) => {
-    const candidate = normalizeIntakeSkuKey(stripOdooCodePrefix(row.name))
-    return candidate.length >= 3 && (candidate.includes(wantedKey) || wantedKey.includes(candidate))
-  })
+  if (!candidate && wantedKey.length >= 3) {
+    const normalizedSubstringHits = safeRows.filter((row) => {
+      const candidateKey = normalizeIntakeSkuKey(stripOdooCodePrefix(row.name))
+      return (
+        candidateKey.length >= 3 &&
+        (candidateKey.includes(wantedKey) || wantedKey.includes(candidateKey))
+      )
+    })
+    if (
+      normalizedSubstringHits.length === 1 &&
+      !hasCrossBrandAmbiguity(normalizedSubstringHits, effectiveRowBrandId)
+    ) {
+      candidate = normalizedSubstringHits[0] ?? null
+    }
+  }
 
-  return normalizedSubstringHits.length === 1 ? (normalizedSubstringHits[0] ?? null) : null
+  if (!candidate) {
+    return { matchedRow: null, rejectedVariantHint: null }
+  }
+
+  const candidateUnitPrice = formatOdooUnitPriceOrNull(candidate)
+  const sanity = checkPriceSanityDeviation(options?.sheetCurrentPriceKwd, candidateUnitPrice)
+  if (sanity.exceedsThreshold && candidateUnitPrice) {
+    return {
+      matchedRow: null,
+      rejectedVariantHint: {
+        odooName: candidate.name,
+        odooUnitPriceKwd: candidateUnitPrice,
+        diffPct: sanity.diffPct ?? '35',
+      },
+    }
+  }
+
+  return { matchedRow: candidate, rejectedVariantHint: null }
+}
+
+export function matchIntakeItemToOdooRow(
+  itemName: string,
+  odooRows: readonly ItemPricingRow[],
+  options?: MatchIntakeItemOptions,
+): ItemPricingRow | null {
+  return matchIntakeItemWithDiagnostics(itemName, odooRows, options).matchedRow
 }
 
 function formatOdooUnitPriceOrNull(row: ItemPricingRow): string | null {
@@ -923,9 +1028,16 @@ export function buildDocumentIntakeDraftFromExtractedRows(input: {
   odooRows: readonly ItemPricingRow[]
 }): DocumentIntakeDraft {
   const draftId = input.draftId ?? `draft_${randomUUID()}`
+  const draftBrandId = resolveIntakeBrandId(input.brand)
 
   const initialRows: DocumentIntakeRow[] = input.extractedRows.map((extracted, idx) => {
-    const matched = matchIntakeItemToOdooRow(extracted.itemName, input.odooRows)
+    const rowBrandId = resolveIntakeBrandId(extracted.brand) ?? draftBrandId
+    const evaluation = matchIntakeItemWithDiagnostics(extracted.itemName, input.odooRows, {
+      rowBrand: extracted.brand ?? rowBrandId,
+      contextBrand: draftBrandId,
+      sheetCurrentPriceKwd: extracted.sheetCurrentPriceKwd,
+    })
+    const matched = evaluation.matchedRow
     return {
       rowId: `row_${idx + 1}`,
       brand: extracted.brand ?? input.brand,
@@ -937,6 +1049,7 @@ export function buildDocumentIntakeDraftFromExtractedRows(input: {
       odooRealizedUnitPriceKwd: matched ? formatOdooUnitPriceOrNull(matched) : null,
       odooQty: matched ? matched.qty : null,
       odooNetSalesKwd: matched ? formatOdooNetKwd(matched.netKwd) : null,
+      rejectedVariantHint: evaluation.rejectedVariantHint,
       excluded: false,
       anomalies: [],
     }
