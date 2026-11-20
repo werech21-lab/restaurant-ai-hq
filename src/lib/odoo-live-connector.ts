@@ -94,6 +94,7 @@ import {
   buildPosOrderUtcDomain,
   posRegisterScopeClauses,
   buildPosPaymentUtcDomain,
+  clearYearClosedCache,
   kuwaitDateBoundsToOdooUtc,
   mergeDaySessionPricelistGroups,
   mergeHourGroups,
@@ -102,6 +103,12 @@ import {
   mergeSessionGroups,
   mergeSessionPaymentGroups,
   readClosedYearPlusToday,
+  readYearClosedPersistentEntry,
+  registerDefaultYearClosedPersistentStore,
+  writeYearClosedPersistentEntry,
+  YEAR_CLOSED_MAX,
+  YEAR_CLOSED_READ_TIMEOUT_MS,
+  YEAR_CLOSED_TTL_MS,
   YEAR_PAYMENT_GROUP_BY,
   YEAR_REGISTER_READ_CONCURRENCY,
   foldYearBranchChannels,
@@ -109,6 +116,7 @@ import {
   yearReadCall,
   type HourGroupRow,
 } from '@/lib/odoo/pos-order-query'
+import { getDefaultPostgresYearClosedStore } from '@/lib/odoo/closed-year-store'
 import {
   clampPeriodToKuwaitToday,
   getKuwaitTodayIso,
@@ -602,9 +610,28 @@ export interface OdooLiveHrSummary {
   byWorkLocation: OdooLiveHrLocationRow[]
 }
 
+interface CachedPeriodCubeEntry {
+  fetchedAtMs: number
+  cachedAtMs: number
+  cube: OdooPeriodCube
+  closedHistorical: boolean
+}
+
+const globalForOdooLiveCaches = globalThis as unknown as {
+  __vfOdooPeriodCubeCache?: Map<string, CachedPeriodCubeEntry>
+  __vfOdooPeriodCubeInflight?: Map<string, Promise<OdooPeriodCube>>
+}
+
+registerDefaultYearClosedPersistentStore(getDefaultPostgresYearClosedStore())
+
 const comparisonRangeCache = new Map<string, CachedComparisonRangeEntry>()
 const customBucketCache = new Map<string, { fetchedAtMs: number; bucket: OdooBucketSummary }>()
-const periodCubeCache = new Map<string, { fetchedAtMs: number; cube: OdooPeriodCube }>()
+const periodCubeCache =
+  globalForOdooLiveCaches.__vfOdooPeriodCubeCache ??
+  (globalForOdooLiveCaches.__vfOdooPeriodCubeCache = new Map<string, CachedPeriodCubeEntry>())
+const periodCubeInflight =
+  globalForOdooLiveCaches.__vfOdooPeriodCubeInflight ??
+  (globalForOdooLiveCaches.__vfOdooPeriodCubeInflight = new Map<string, Promise<OdooPeriodCube>>())
 const warehouseChainCache = new Map<string, { fetchedAtMs: number; payload: OdooLiveWarehouseChainPayload }>()
 const purchaseOrdersCache = new Map<string, { fetchedAtMs: number; summary: OdooLivePurchaseSummary }>()
 let hrSummaryCache: { fetchedAtMs: number; summary: OdooLiveHrSummary } | null = null
@@ -936,13 +963,36 @@ export async function executeOdooKw<T = unknown>(
   }
 }
 
-/** Busts the 60-second server-side Odoo live snapshot cache immediately. */
-export function bustOdooLiveCache(options?: { resetCooldown?: boolean; clearLastKnownGood?: boolean }): void {
+function clearOpenPeriodCubesOnly(): void {
+  for (const [key, entry] of periodCubeCache.entries()) {
+    if (!entry.closedHistorical) {
+      periodCubeCache.delete(key)
+    }
+  }
+}
+
+/**
+ * Busts the 60-second server-side Odoo live snapshot cache immediately.
+ * Closed-year entries (`Jan 1 .. yesterday` and closed historical cubes `toIso < todayKwIso`)
+ * stay warm unless `clearClosedYear: true` or `clearLastKnownGood: true` is passed.
+ */
+export function bustOdooLiveCache(options?: {
+  resetCooldown?: boolean
+  clearLastKnownGood?: boolean
+  clearClosedYear?: boolean
+  memoryOnly?: boolean
+}): void {
   coreSnapshotCache = null
   inflightCorePull = null
   comparisonRangeCache.clear()
   customBucketCache.clear()
-  periodCubeCache.clear()
+  if (options?.clearClosedYear || options?.clearLastKnownGood) {
+    periodCubeCache.clear()
+    periodCubeInflight.clear()
+    clearYearClosedCache({ memoryOnly: options?.memoryOnly })
+  } else {
+    clearOpenPeriodCubesOnly()
+  }
   warehouseChainCache.clear()
   purchaseOrdersCache.clear()
   hrSummaryCache = null
@@ -2086,11 +2136,19 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
     const ids = [...companyConfigList]
     const rows: { session_id: M2O; payment_method_id: M2O; amount?: number; __count?: number }[] = []
     if (ids.length === 0) return rows
+    const initialCall = yearReadCall(window)
+    const closedDeadlineAtMs = initialCall.timeout
+      ? Date.now() + YEAR_CLOSED_READ_TIMEOUT_MS
+      : undefined
     let cursor = 0
     const workers = Array.from({ length: Math.min(YEAR_REGISTER_READ_CONCURRENCY, ids.length) }, async () => {
       while (cursor < ids.length) {
         const cfgId = ids[cursor]
         cursor += 1
+        const batchCall = yearReadCall(
+          window,
+          closedDeadlineAtMs !== undefined ? { deadlineAtMs: closedDeadlineAtMs } : undefined,
+        )
         const page = await executeOdooKw<typeof rows>(
           'pos.payment',
           'read_group',
@@ -2105,8 +2163,8 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             ['amount:sum'],
             [...YEAR_PAYMENT_GROUP_BY],
           ],
-          yearKwargs(window),
-          yearTimeout(window),
+          batchCall.kwargs,
+          batchCall.timeout,
         )
         rows.push(...page)
       }
@@ -4163,7 +4221,7 @@ export async function fetchLiveOdooSnapshot(options?: {
     coreSnapshotCache = null
     inflightCorePull = null
     customBucketCache.clear()
-    periodCubeCache.clear()
+    clearOpenPeriodCubesOnly()
     warehouseChainCache.clear()
     purchaseOrdersCache.clear()
     hrSummaryCache = null
@@ -4719,19 +4777,65 @@ export async function fetchLiveOdooPeriodCube(
   )
   const dateRange = { from: clamped.from, to: clamped.to }
 
-  if (!isOdooLiveEnvConfigured()) {
+  const cfg = readServerOdooConfig()
+  if (!cfg) {
     return buildDisconnectedPeriodCube(dateRange)
   }
 
-  const cacheKey = `${dateRange.from}..${dateRange.to}`
+  const isClosedHistorical = dateRange.to < fallbackToday
+  const cubeTtlMs = isClosedHistorical ? YEAR_CLOSED_TTL_MS : 5 * 60_000
+  const cacheKey = `${configFingerprint(cfg)}|${dateRange.from}..${dateRange.to}`
+  const l2CubeKey = `period_cube|${cacheKey}`
   const cached = periodCubeCache.get(cacheKey)
-  if (cached && referenceNowMs - cached.fetchedAtMs < 5 * 60_000) {
+  if (cached && referenceNowMs - cached.cachedAtMs <= cubeTtlMs) {
+    periodCubeCache.delete(cacheKey)
+    periodCubeCache.set(cacheKey, cached)
     return cached.cube
   }
+
+  const existingInflight = periodCubeInflight.get(cacheKey)
+  if (existingInflight) {
+    return existingInflight
+  }
+
+  const pendingCube = (async (): Promise<OdooPeriodCube> => {
+    if (isClosedHistorical) {
+      const persistedCubeEntry = await readYearClosedPersistentEntry<OdooPeriodCube>(
+        l2CubeKey,
+        referenceNowMs,
+      )
+      const persistedCube = persistedCubeEntry?.rows?.[0]
+      if (persistedCube && persistedCube.connected) {
+        if (periodCubeCache.has(cacheKey)) {
+          periodCubeCache.delete(cacheKey)
+        }
+        periodCubeCache.set(cacheKey, {
+          fetchedAtMs: Date.now(),
+          cachedAtMs: persistedCubeEntry.at,
+          cube: persistedCube,
+          closedHistorical: true,
+        })
+        while (periodCubeCache.size > YEAR_CLOSED_MAX) {
+          const oldest = periodCubeCache.keys().next().value
+          if (oldest === undefined) break
+          periodCubeCache.delete(oldest)
+        }
+        return persistedCube
+      }
+    }
 
   try {
     const uid = await authenticateOdoo()
     const bounds = kuwaitDateBoundsToOdooUtc(dateRange.from, dateRange.to)
+    const cubeUtcWindow = { fromUtc: bounds.fromUtc, toUtc: bounds.toExclusiveUtc }
+    const closedCubeDeadlineAtMs =
+      isClosedHistorical && yearReadCall(cubeUtcWindow).timeout
+        ? Date.now() + YEAR_CLOSED_READ_TIMEOUT_MS
+        : undefined
+    const closedCubeTimeout = () =>
+      closedCubeDeadlineAtMs !== undefined
+        ? yearReadCall(cubeUtcWindow, { deadlineAtMs: closedCubeDeadlineAtMs }).timeout
+        : undefined
     const days = Math.max(
       1,
       Math.round(
@@ -4925,6 +5029,7 @@ export async function fetchLiveOdooPeriodCube(
           ['session_id', 'pricelist_id', 'date_order:day'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        closedCubeTimeout(),
       ),
       executeOdooKw<
         {
@@ -4942,6 +5047,7 @@ export async function fetchLiveOdooPeriodCube(
           ['session_id', 'pricelist_id', 'date_order:day'],
         ],
         { lazy: false, context: { tz: 'Asia/Kuwait' } },
+        closedCubeTimeout(),
       ),
       executeOdooKw<
         {
@@ -4959,6 +5065,7 @@ export async function fetchLiveOdooPeriodCube(
           ['session_id', 'payment_method_id'],
         ],
         { lazy: false },
+        closedCubeTimeout(),
       ),
       executeOdooKw<
         {
@@ -4975,6 +5082,7 @@ export async function fetchLiveOdooPeriodCube(
           ['session_id', 'payment_method_id'],
         ],
         { lazy: false },
+        closedCubeTimeout(),
       ),
       executeOdooKw<LineGroupRow[]>(
         'pos.order.line',
@@ -4990,6 +5098,7 @@ export async function fetchLiveOdooPeriodCube(
           ['product_id'],
         ],
         { lazy: false },
+        closedCubeTimeout(),
       ),
       safeSubQuery(
         () =>
@@ -5008,6 +5117,7 @@ export async function fetchLiveOdooPeriodCube(
               ['product_id'],
             ],
             { lazy: false },
+            closedCubeTimeout(),
           ),
         [],
       ),
@@ -5029,6 +5139,7 @@ export async function fetchLiveOdooPeriodCube(
                   [],
                 ],
                 { lazy: false },
+                closedCubeTimeout(),
               ),
             [],
           )
@@ -5051,6 +5162,7 @@ export async function fetchLiveOdooPeriodCube(
                   ['account_id'],
                 ],
                 { lazy: false },
+                closedCubeTimeout(),
               ),
             [],
           )
@@ -5100,6 +5212,7 @@ export async function fetchLiveOdooPeriodCube(
                   ['product_id'],
                 ],
                 { lazy: false },
+                closedCubeTimeout(),
               ),
             [],
           ),
@@ -5602,15 +5715,38 @@ export async function fetchLiveOdooPeriodCube(
       },
     }
 
-    if (periodCubeCache.size >= 32) {
-      const oldest = periodCubeCache.keys().next().value
-      if (oldest) periodCubeCache.delete(oldest)
+    if (periodCubeCache.has(cacheKey)) {
+      periodCubeCache.delete(cacheKey)
     }
-    periodCubeCache.set(cacheKey, { fetchedAtMs, cube })
+    periodCubeCache.set(cacheKey, {
+      fetchedAtMs,
+      cachedAtMs: referenceNowMs,
+      cube,
+      closedHistorical: isClosedHistorical,
+    })
+    while (periodCubeCache.size > YEAR_CLOSED_MAX) {
+      const oldest = periodCubeCache.keys().next().value
+      if (oldest === undefined) break
+      periodCubeCache.delete(oldest)
+    }
+    if (isClosedHistorical) {
+      await writeYearClosedPersistentEntry(l2CubeKey, {
+        rows: [cube],
+        at: referenceNowMs,
+      })
+    }
     return cube
   } catch {
     return buildDisconnectedPeriodCube(dateRange)
   }
+  })().finally(() => {
+    if (periodCubeInflight.get(cacheKey) === pendingCube) {
+      periodCubeInflight.delete(cacheKey)
+    }
+  })
+
+  periodCubeInflight.set(cacheKey, pendingCube)
+  return pendingCube
 }
 
 const RESTAURANT_STOCK_BRANCHES = new Set<StockLocationBranchId>([

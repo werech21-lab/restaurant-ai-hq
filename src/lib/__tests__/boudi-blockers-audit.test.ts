@@ -41,6 +41,13 @@ import {
 } from '@/lib/feryal/item-pricing'
 import { LanguageProvider } from '@/lib/i18n'
 import { logger } from '@/lib/logger'
+import {
+  YEAR_CLOSED_MAX,
+  YEAR_CLOSED_READ_TIMEOUT_MS,
+  YEAR_CLOSED_TTL_MS,
+  yearClosedWindow,
+  yearReadCall,
+} from '@/lib/odoo/pos-order-query'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { buildOperationalForensicReport } from '@/lib/reports/operational-forensic-report'
@@ -165,6 +172,8 @@ const PRODUCTION_FILES_UNDER_AUDIT = [
   'src/app/api/aggregator-radar/alert/route.ts',
   'src/app/api/aggregator-radar/route.ts',
   'src/app/api/aggregator-radar/scan/route.ts',
+  'src/lib/odoo/pos-order-query.ts',
+  'src/lib/odoo/closed-year-store.ts',
 ] as const
 
 function buildRadarFixtureSummary(
@@ -622,19 +631,50 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
     expect(arPricing.reply).not.toMatch(/\bCOGS\b/)
   })
 
-  it('Enforces static repository invariants across all touched production files, odoo-live-connector.ts, prisma/, and feryal-governance-studio.tsx', () => {
-    const connectorStatus = execFileSync(
+  it('Blocker #5: Closed-year 45s cap is strictly Cold-Cache closed-window only, bounded by shared deadline, with 24h TTL and 128 LRU capacity', () => {
+    expect(YEAR_CLOSED_READ_TIMEOUT_MS).toBe(45_000)
+    expect(YEAR_CLOSED_TTL_MS).toBe(24 * 60 * 60 * 1000)
+    expect(YEAR_CLOSED_MAX).toBe(128)
+
+    const closedWindow = yearClosedWindow('2026-01-01 00:00:00', '2026-11-19 00:00:00')
+    expect(closedWindow).not.toBeNull()
+    const closedCall = yearReadCall(closedWindow!, {
+      deadlineAtMs: 1_045_000,
+      nowMs: 1_020_000,
+    })
+    expect(closedCall).toEqual({
+      kwargs: { lazy: false },
+      timeout: { timeoutMs: 25_000, timeoutCapMs: 25_000 },
+    })
+
+    const todayCall = yearReadCall(
+      { fromUtc: '2026-11-19 00:00:00', toUtc: '2026-11-20 00:00:00' },
+      { deadlineAtMs: 1_045_000, nowMs: 1_020_000 },
+    )
+    expect(todayCall).toEqual({
+      kwargs: { lazy: false, context: { year_live_slice: true } },
+    })
+  })
+
+  it('Enforces static repository invariants across all touched production files, odoo-live-connector.ts, pos-registry.json, prisma/, and feryal-governance-studio.tsx', () => {
+    const posRegistryStatus = execFileSync(
       'git',
-      ['status', '--porcelain', '--', 'src/lib/odoo-live-connector.ts'],
+      ['status', '--porcelain', '--', 'src/lib/odoo/pos-registry.json'],
       { cwd: REPO_ROOT, encoding: 'utf8' },
     )
-    expect(connectorStatus.trim()).toBe('')
+    expect(posRegistryStatus.trim()).toBe('')
 
     const prismaStatus = execFileSync('git', ['status', '--porcelain', '--', 'prisma/'], {
       cwd: REPO_ROOT,
       encoding: 'utf8',
     })
     expect(prismaStatus.trim()).toBe('')
+
+    const prismaDiffVsMain = execFileSync('git', ['diff', '097bc9e', '--', 'prisma/'], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    })
+    expect(prismaDiffVsMain.trim()).toBe('')
 
     const studioContent = fs.readFileSync(
       path.join(REPO_ROOT, 'src/components/erp/feryal-governance-studio.tsx'),
@@ -647,6 +687,25 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
     const tsIgnorePattern = new RegExp('@ts-' + 'ignore|@ts-' + 'expect-error')
     const sub12PxPattern = /text-\[(?:[0-9]|1[01])px\]/
     const syntheticIdPattern = new RegExp('\\b(' + 'mo' + 'ck[A-Za-z0-9_]*|' + 'se' + 'ed[A-Za-z0-9_]*)\\b', 'i')
+
+    const connectorBytes = fs.readFileSync(path.join(REPO_ROOT, 'src/lib/odoo-live-connector.ts'))
+    expect(connectorBytes.includes(0)).toBe(false)
+    const connectorContent = connectorBytes.toString('utf8')
+    expect(connectorContent).not.toMatch(explicitAnyPattern)
+    expect(connectorContent).not.toMatch(tsIgnorePattern)
+    expect(connectorContent).not.toMatch(sub12PxPattern)
+    expect(connectorContent).not.toMatch(syntheticIdPattern)
+
+    const connectorDiff = execFileSync(
+      'git',
+      ['diff', '097bc9e', '--', 'src/lib/odoo-live-connector.ts'],
+      { cwd: REPO_ROOT, encoding: 'utf8' },
+    )
+    const addedConnectorLines = connectorDiff
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+      .join('\n')
+    expect(addedConnectorLines).not.toMatch(consolePattern)
 
     for (const relPath of PRODUCTION_FILES_UNDER_AUDIT) {
       const absPath = path.join(REPO_ROOT, relPath)
