@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   CLOSED_YEAR_CACHE_KEY_PREFIX,
+  CLOSED_YEAR_CACHE_TABLE,
   buildClosedYearStorageKey,
   createPostgresYearClosedStore,
   type ClosedYearSqlQueryable,
@@ -30,60 +34,123 @@ import {
 
 const ODOO_ENV_KEYS = ['ODOO_URL', 'ODOO_DB', 'ODOO_USERNAME', 'ODOO_LOGIN', 'ODOO_API_KEY'] as const
 
-function createInMemoryGovernanceTable(): {
-  rowsById: Map<string, { payload: string; pinHash: string }>
+interface StoredClosedYearRow {
+  rawKey: string
+  rowsJson: string
+  cachedAtMs: string
+}
+
+function createInMemoryClosedYearCacheTable(options?: {
+  rejectAlterRls?: boolean
+  failFirstCreateTable?: boolean
+}): {
+  rowsByCacheKey: Map<string, StoredClosedYearRow>
   queryable: ClosedYearSqlQueryable
+  executedSql: string[]
+  createTableCount: () => number
+  alterRlsCount: () => number
   selectCount: () => number
   upsertCount: () => number
+  deleteCount: () => number
 } {
-  const rowsById = new Map<string, { payload: string; pinHash: string }>()
+  const rowsByCacheKey = new Map<string, StoredClosedYearRow>()
+  const executedSql: string[] = []
+  let createTables = 0
+  let alterRls = 0
   let selects = 0
   let upserts = 0
+  let deletes = 0
+  let remainingCreateFailures = options?.failFirstCreateTable ? 1 : 0
 
   const queryable: ClosedYearSqlQueryable = {
     async query<R extends Record<string, unknown> = Record<string, unknown>>(
       text: string,
       params: unknown[] = [],
     ): Promise<{ rows: R[] }> {
-      const normalized = text.replace(/\s+/g, ' ').trim().toUpperCase()
-      if (normalized.startsWith('SELECT PAYLOAD FROM PUBLIC.VF_EXECUTIVE_GOVERNANCE_SYNC')) {
-        selects += 1
-        const id = String(params[0] ?? '')
-        const hit = rowsById.get(id)
-        if (!hit) return { rows: [] }
-        return { rows: [{ payload: hit.payload } as unknown as R] }
+      const normalized = text.replace(/\s+/g, ' ').trim()
+      executedSql.push(normalized)
+      const upper = normalized.toUpperCase()
+
+      if (upper.includes('VF_EXECUTIVE_GOVERNANCE_SYNC') || upper.includes('PIN_HASH')) {
+        throw new Error(`Forbidden governance table access in closed-year cache query: ${normalized}`)
       }
-      if (normalized.startsWith('INSERT INTO PUBLIC.VF_EXECUTIVE_GOVERNANCE_SYNC')) {
-        upserts += 1
-        const id = String(params[0] ?? '')
-        const payload = String(params[1] ?? '{}')
-        const pinHash = String(params[2] ?? '')
-        rowsById.set(id, { payload, pinHash })
+
+      if (upper.startsWith('CREATE TABLE IF NOT EXISTS PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+        createTables += 1
+        if (remainingCreateFailures > 0) {
+          remainingCreateFailures -= 1
+          throw new Error('simulated_transient_ddl_failure')
+        }
         return { rows: [] }
       }
-      if (normalized.startsWith('DELETE FROM PUBLIC.VF_EXECUTIVE_GOVERNANCE_SYNC')) {
+
+      if (upper === 'ALTER TABLE PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE ENABLE ROW LEVEL SECURITY') {
+        alterRls += 1
+        if (options?.rejectAlterRls) {
+          throw new Error('permission denied: must be owner of table vf_odoo_closed_year_cache')
+        }
+        return { rows: [] }
+      }
+
+      if (
+        upper.startsWith(
+          'SELECT RAW_KEY, ROWS_JSON, CACHED_AT_MS FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY = $1',
+        )
+      ) {
+        selects += 1
+        const cacheKey = String(params[0] ?? '')
+        const hit = rowsByCacheKey.get(cacheKey)
+        if (!hit) return { rows: [] }
+        return {
+          rows: [
+            {
+              raw_key: hit.rawKey,
+              rows_json: JSON.parse(hit.rowsJson),
+              cached_at_ms: hit.cachedAtMs,
+            } as unknown as R,
+          ],
+        }
+      }
+
+      if (upper.startsWith('INSERT INTO PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+        upserts += 1
+        const cacheKey = String(params[0] ?? '')
+        const rawKey = String(params[1] ?? '')
+        const rowsJson = String(params[2] ?? '[]')
+        const cachedAtMs = String(Math.trunc(Number(params[3] ?? 0)))
+        rowsByCacheKey.set(cacheKey, { rawKey, rowsJson, cachedAtMs })
+        return { rows: [] }
+      }
+
+      if (upper.startsWith('DELETE FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY LIKE $1')) {
+        deletes += 1
         const likePattern = String(params[0] ?? '')
         const prefix = likePattern.endsWith('%') ? likePattern.slice(0, -1) : likePattern
-        for (const key of [...rowsById.keys()]) {
+        for (const key of [...rowsByCacheKey.keys()]) {
           if (key.startsWith(prefix)) {
-            rowsById.delete(key)
+            rowsByCacheKey.delete(key)
           }
         }
         return { rows: [] }
       }
-      return { rows: [] }
+
+      throw new Error(`Unexpected SQL in closed-year cache store: ${normalized}`)
     },
   }
 
   return {
-    rowsById,
+    rowsByCacheKey,
     queryable,
+    executedSql,
+    createTableCount: () => createTables,
+    alterRlsCount: () => alterRls,
     selectCount: () => selects,
     upsertCount: () => upserts,
+    deleteCount: () => deletes,
   }
 }
 
-describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
+describe('year closed-day cache & dedicated vf_odoo_closed_year_cache L2 table (Boudi QA Item #5 + Arch #1)', () => {
   const savedEnv: Partial<Record<(typeof ODOO_ENV_KEYS)[number], string | undefined>> = {}
 
   beforeEach(() => {
@@ -104,6 +171,138 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
       else process.env[key] = savedEnv[key]
     }
     bustOdooLiveCache({ resetCooldown: true, clearLastKnownGood: true, clearClosedYear: true })
+  })
+
+  it('Test 0: Dedicated public.vf_odoo_closed_year_cache table — initializes idempotently once per db, survives restricted ALTER TABLE roles & transient DDL failures, verifies raw_key collisions, and executes ZERO vf_executive_governance_sync queries', async () => {
+    expect(CLOSED_YEAR_CACHE_TABLE).toBe('public.vf_odoo_closed_year_cache')
+
+    // 1) Restricted DB role where ALTER TABLE ENABLE ROW LEVEL SECURITY throws: still initializes once & succeeds
+    const restrictedPg = createInMemoryClosedYearCacheTable({ rejectAlterRls: true })
+    const store = createPostgresYearClosedStore(() => restrictedPg.queryable)
+
+    const rawKey = 'year.net|1|8,17,24,36|2026-11-20|150,151'
+    const storageKey = buildClosedYearStorageKey(rawKey)
+
+    // Concurrent initial calls deduplicate runtime CREATE TABLE IF NOT EXISTS to strictly 1 execution
+    const [missA, missB] = await Promise.all([store.get(rawKey), store.get(`${rawKey}|other`)])
+    expect(missA).toBeUndefined()
+    expect(missB).toBeUndefined()
+    expect(restrictedPg.createTableCount()).toBe(1)
+    expect(restrictedPg.alterRlsCount()).toBe(1)
+
+    // Write, read, overwrite, and clear operate strictly on public.vf_odoo_closed_year_cache
+    await store.set(rawKey, {
+      rows: [{ session_id: [501, 'POS/501'], amount_total: 4_250 }],
+      at: 1_763_625_600_789.9,
+    })
+    expect(restrictedPg.createTableCount()).toBe(1)
+    expect(restrictedPg.upsertCount()).toBe(1)
+
+    const loaded = await store.get(rawKey)
+    expect(loaded).toEqual({
+      rows: [{ session_id: [501, 'POS/501'], amount_total: 4_250 }],
+      at: 1_763_625_600_789,
+    })
+
+    // Hash collision protection: if raw_key does not match requested cacheKey, get() returns undefined
+    restrictedPg.rowsByCacheKey.set(storageKey, {
+      rawKey: 'different-raw-key-collision',
+      rowsJson: JSON.stringify([{ amount_total: 999 }]),
+      cachedAtMs: '1763625600789',
+    })
+    expect(await store.get(rawKey)).toBeUndefined()
+
+    // Clear removes prefixed entries from public.vf_odoo_closed_year_cache without re-running DDL
+    await store.clear?.()
+    expect(restrictedPg.deleteCount()).toBe(1)
+    expect(restrictedPg.createTableCount()).toBe(1)
+    expect(restrictedPg.rowsByCacheKey.size).toBe(0)
+
+    // ZERO SQL queries ever reference vf_executive_governance_sync or pin_hash
+    expect(restrictedPg.executedSql.length).toBeGreaterThan(0)
+    for (const sql of restrictedPg.executedSql) {
+      expect(sql.toLowerCase()).not.toContain('vf_executive_governance_sync')
+      expect(sql.toLowerCase()).not.toContain('pin_hash')
+      expect(sql.toLowerCase()).toContain('vf_odoo_closed_year_cache')
+    }
+
+    // 2) Transient first CREATE TABLE failure resets initialization flag cleanly so next call succeeds
+    const flakyPg = createInMemoryClosedYearCacheTable({ failFirstCreateTable: true })
+    let failureCalls = 0
+    let successCalls = 0
+    const resilientStore = createPostgresYearClosedStore(() => flakyPg.queryable, {
+      onFailure: () => {
+        failureCalls += 1
+      },
+      onSuccess: () => {
+        successCalls += 1
+      },
+    })
+
+    expect(await resilientStore.get(rawKey)).toBeUndefined()
+    expect(failureCalls).toBe(1)
+    expect(flakyPg.createTableCount()).toBe(1)
+
+    await resilientStore.set(rawKey, { rows: [{ ok: true }], at: 1_763_625_700_000 })
+    expect(flakyPg.createTableCount()).toBe(2)
+    expect(successCalls).toBe(1)
+    expect(await resilientStore.get(rawKey)).toEqual({
+      rows: [{ ok: true }],
+      at: 1_763_625_700_000,
+    })
+    expect(flakyPg.createTableCount()).toBe(2)
+  })
+
+  it('Test 0b: Real PostgreSQL (PGlite) proof — runtime initialization works before migration 0054 runs AND stays idempotent when 0054_odoo_closed_year_cache.sql is applied afterward', async () => {
+    const pglite = new PGlite()
+    try {
+      await pglite.exec('CREATE ROLE anon; CREATE ROLE authenticated;')
+      const queryable: ClosedYearSqlQueryable = {
+        async query<R extends Record<string, unknown> = Record<string, unknown>>(
+          text: string,
+          params?: unknown[],
+        ): Promise<{ rows: R[] }> {
+          const res = await pglite.query<R>(text, params)
+          return { rows: res.rows }
+        },
+      }
+
+      // Before migration 0054 runs: store self-initializes public.vf_odoo_closed_year_cache safely
+      const store = createPostgresYearClosedStore(() => queryable)
+      const cacheKey = 'pglite.year.net|1|8,17,24,36|2026-11-20'
+      await store.set(cacheKey, {
+        rows: [{ product_id: [101, 'Sweet & Sour Chicken'], price_subtotal: 3_125.5, qty: 250 }],
+        at: 1_763_630_000_000,
+      })
+
+      const preMigrationHit = await store.get(cacheKey)
+      expect(preMigrationHit).toEqual({
+        rows: [{ product_id: [101, 'Sweet & Sour Chicken'], price_subtotal: 3_125.5, qty: 250 }],
+        at: 1_763_630_000_000,
+      })
+
+      // Apply 0054_odoo_closed_year_cache.sql over existing data: zero data loss, RLS forced, anon/authenticated revoked
+      const migrationSql = await readFile(
+        path.join(process.cwd(), 'database', 'migrations', '0054_odoo_closed_year_cache.sql'),
+        'utf8',
+      )
+      await pglite.exec(migrationSql)
+
+      const postMigrationHit = await store.get(cacheKey)
+      expect(postMigrationHit).toEqual(preMigrationHit)
+
+      const rlsCheck = await pglite.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(
+        `SELECT c.relrowsecurity, c.relforcerowsecurity
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relname = 'vf_odoo_closed_year_cache'`,
+      )
+      expect(rlsCheck.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true })
+
+      await store.clear?.()
+      expect(await store.get(cacheKey)).toBeUndefined()
+    } finally {
+      await pglite.close()
+    }
   })
 
   it('Test 1: Cold Cache vs Warm Cache — reads closed window once under 45s cap, keeps today on fast slice, and serves warm reads in <5ms even 2h later within 24h TTL', async () => {
@@ -214,7 +413,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     expect(callLog.filter((c) => c.window.startsWith('2026-11-19'))).toHaveLength(3)
     expect(callLog.filter((c) => c.window.startsWith('2026-11-19')).every((c) => c.timeoutMs === undefined)).toBe(true)
 
-    //Note: at >24h from initial write (24h + 1ms), TTL expires and refreshes cleanly
+    // At >24h from initial write (24h + 1ms), TTL expires and refreshes cleanly
     await readClosedYearPlusToday({
       cacheKey: 'brands.year|cold-vs-warm',
       closed: closedWindow,
@@ -278,8 +477,8 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     }
   })
 
-  it('Test 3: Cross-instance L2 durable cache hydration — clearing L1 RAM hydrates closed-year rows from L2 with 0 45s Odoo RPC calls', async () => {
-    const fakePg = createInMemoryGovernanceTable()
+  it('Test 3: Cross-instance L2 durable cache hydration on public.vf_odoo_closed_year_cache — clearing L1 RAM hydrates closed-year rows from L2 with 0 45s Odoo RPC calls and 0 governance table writes', async () => {
+    const fakePg = createInMemoryClosedYearCacheTable()
     const l2Store = createPostgresYearClosedStore(() => fakePg.queryable)
     configureYearClosedPersistentStore(l2Store)
 
@@ -317,7 +516,8 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     expect(warmResult1[0]?.price_subtotal).toBe(2_430)
     expect(closedOdooCalls).toBe(1)
     expect(todayOdooCalls).toBe(1)
-    expect(fakePg.rowsById.has(expectedStorageKey)).toBe(true)
+    expect(fakePg.rowsByCacheKey.has(expectedStorageKey)).toBe(true)
+    expect(fakePg.createTableCount()).toBe(1)
     expect(fakePg.upsertCount()).toBe(1)
 
     // Simulate a brand-new Vercel Serverless Lambda cold start (empty L1 RAM)
@@ -340,10 +540,15 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
 
     expect(closedOdooCalls).toBe(1)
     expect(todayOdooCalls).toBe(4)
+    expect(fakePg.createTableCount()).toBe(1)
+    expect(fakePg.selectCount()).toBe(2) // 1 initial miss + 1 deduplicated cold-instance hydration
     expect(getYearClosedCacheStats().memorySize).toBe(1)
     for (const res of coldInstanceResults) {
       expect(res[0]?.price_subtotal).toBe(2_430)
     }
+    expect(
+      fakePg.executedSql.every((sql) => !sql.toLowerCase().includes('vf_executive_governance_sync')),
+    ).toBe(true)
 
     // Also verify L2 failure fails open silently to L1/Odoo without throwing
     const brokenStore: YearClosedPersistentStore = {
@@ -370,7 +575,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
   })
 
   it('Test 4: Failed or timed-out cold read is NOT cached — next request retries cleanly and caches once successful', async () => {
-    const fakePg = createInMemoryGovernanceTable()
+    const fakePg = createInMemoryClosedYearCacheTable()
     configureYearClosedPersistentStore(createPostgresYearClosedStore(() => fakePg.queryable))
 
     const closedWindow = yearClosedWindow('2026-01-01 00:00:00', '2026-11-19 00:00:00')
@@ -405,7 +610,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     // Nothing cached in L1, nothing persisted in L2, and inflight map cleaned up
     expect(closedAttempts).toBe(1)
     expect(getYearClosedCacheStats()).toEqual({ memorySize: 0, inflightSize: 0 })
-    expect(fakePg.rowsById.size).toBe(0)
+    expect(fakePg.rowsByCacheKey.size).toBe(0)
 
     // Next request retries cleanly and succeeds
     shouldFailClosed = false
@@ -419,7 +624,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     expect(closedAttempts).toBe(2)
     expect(recovered[0]?.price_subtotal).toBe(750)
     expect(getYearClosedCacheStats().memorySize).toBe(1)
-    expect(fakePg.rowsById.size).toBe(1)
+    expect(fakePg.rowsByCacheKey.size).toBe(1)
 
     // Subsequent warm request does NOT call closed read again
     const subsequent = await readClosedYearPlusToday({
@@ -499,7 +704,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     process.env.ODOO_USERNAME = 'bi@venturefoodskw.com'
     process.env.ODOO_API_KEY = 'test-cube'
 
-    const fakePg = createInMemoryGovernanceTable()
+    const fakePg = createInMemoryClosedYearCacheTable()
     configureYearClosedPersistentStore(createPostgresYearClosedStore(() => fakePg.queryable))
 
     const refNowMs = Date.parse('2026-11-20T09:00:00.000Z')
@@ -559,7 +764,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     expect(coldCube.connected).toBe(true)
     expect(coldCube.totals.netSalesKwd).toBe(12_500)
     expect(posOrderReadGroups).toBe(2) // net + non-refund count pair
-    expect(fakePg.rowsById.size).toBe(1)
+    expect(fakePg.rowsByCacheKey.size).toBe(1)
 
     // 2. Routine bustOdooLiveCache() (no clearClosedYear) + 6 hours later -> STILL WARM in L1 (0 Odoo RPCs!)
     bustOdooLiveCache()
@@ -591,6 +796,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
     )
     expect(refetchedCube.totals.netSalesKwd).toBe(12_500)
     expect(posOrderReadGroups).toBe(4)
+    expect(fakePg.deleteCount()).toBeGreaterThanOrEqual(1)
   })
 
   it('bounds multi-wave readYearPayments within a single 45s cold budget and serves subsequent year snapshots with 0 closed-window RPCs', async () => {
@@ -648,7 +854,7 @@ describe('year closed-day cache & 45s cold-fill cap (Boudi QA Item #5)', () => {
       }
       if (model === 'pos.payment' && method === 'read_group') {
         const callArgs = Array.isArray(args[5]) ? (args[5] as unknown[]) : []
-        const domain = Array.isArray(callArgs[0]) ? (callArgs[0] as unknown[]) : []
+        const domain = Array.isArray(callArgs[0]) ? (args[5] as unknown[][])[0] : []
         const gte = domain.find(
           (clause): clause is [string, string, string] =>
             Array.isArray(clause) && clause[0] === 'pos_order_id.date_order' && clause[1] === '>=',

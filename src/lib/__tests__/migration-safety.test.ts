@@ -333,13 +333,14 @@ describe('upgrading a database that already holds data', () => {
 
   it('applies from an empty database to the latest schema without error', async () => {
     const { db, remaining } = await databaseAt('0001')
-    expect(remaining).toHaveLength(52)
+    expect(remaining).toHaveLength(53)
     await apply(db, remaining)
     expect(await n(db, 'tenants')).toBe(0)
     expect(await n(db, 'invoices')).toBe(0)
     expect(await n(db, 'items')).toBe(0)
     expect(await n(db, 'journal_entries')).toBe(0)
     expect(await n(db, 'stock_movements')).toBe(0)
+    expect(await n(db, 'vf_odoo_closed_year_cache')).toBe(0)
     const tables = await db.query<{ n: number }>(`select count(*)::int as n from pg_tables where schemaname = 'public'`)
     expect(tables.rows[0].n).toBeGreaterThan(20)
 
@@ -353,10 +354,17 @@ describe('upgrading a database that already holds data', () => {
     const guarded = await db.query<{ name: string; enabled: boolean }>(
       `select c.relname as name, c.relrowsecurity as enabled
        from pg_class c join pg_namespace n on n.oid = c.relnamespace
-       where n.nspname = 'public' and c.relname in ('tenants', 'invoices', 'items', 'journal_entries', 'stock_movements')
+       where n.nspname = 'public' and c.relname in ('tenants', 'invoices', 'items', 'journal_entries', 'stock_movements', 'vf_odoo_closed_year_cache')
        order by c.relname`
     )
-    expect(guarded.rows.map((row) => row.name)).toEqual(['invoices', 'items', 'journal_entries', 'stock_movements', 'tenants'])
+    expect(guarded.rows.map((row) => row.name)).toEqual([
+      'invoices',
+      'items',
+      'journal_entries',
+      'stock_movements',
+      'tenants',
+      'vf_odoo_closed_year_cache',
+    ])
     expect(guarded.rows.every((row) => row.enabled === true)).toBe(true)
   })
 })

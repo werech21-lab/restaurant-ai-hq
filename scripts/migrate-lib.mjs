@@ -82,6 +82,7 @@ export const baselineSentinels = {
   '0051_pos_terminal_branch_map.sql': ['public.pos_terminal_branch_map', 'fn:erp_pos_terminal_branch_map_rls_marker()'],
   '0052_council_reports_and_seasons.sql': ['public.council_reports', 'public.season_events', 'fn:erp_council_reports_seasons_marker()'],
   '0053_council_decisions.sql': ['public.council_decisions', 'fn:erp_council_decisions_marker()'],
+  '0054_odoo_closed_year_cache.sql': ['public.vf_odoo_closed_year_cache', 'fn:erp_odoo_closed_year_cache_marker()'],
 }
 
 /**

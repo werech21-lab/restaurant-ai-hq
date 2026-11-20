@@ -46,12 +46,20 @@ import {
 import { LanguageProvider } from '@/lib/i18n'
 import { logger } from '@/lib/logger'
 import {
+  CLOSED_YEAR_CACHE_KEY_PREFIX,
+  CLOSED_YEAR_CACHE_TABLE,
+  buildClosedYearStorageKey,
+  createPostgresYearClosedStore,
+  type ClosedYearSqlQueryable,
+} from '@/lib/odoo/closed-year-store'
+import {
   YEAR_CLOSED_MAX,
   YEAR_CLOSED_READ_TIMEOUT_MS,
   YEAR_CLOSED_TTL_MS,
   yearClosedWindow,
   yearReadCall,
 } from '@/lib/odoo/pos-order-query'
+import { POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import type { OdooPeriodCube } from '@/lib/odoo-live-connector'
 import { buildOperationalForensicReport } from '@/lib/reports/operational-forensic-report'
@@ -177,8 +185,10 @@ const PRODUCTION_FILES_UNDER_AUDIT = [
   'src/app/api/aggregator-radar/alert/route.ts',
   'src/app/api/aggregator-radar/route.ts',
   'src/app/api/aggregator-radar/scan/route.ts',
+  'src/lib/logger.ts',
   'src/lib/odoo/pos-order-query.ts',
   'src/lib/odoo/closed-year-store.ts',
+  'src/lib/odoo/receivable-domain.ts',
 ] as const
 
 function buildRadarFixtureSummary(
@@ -871,6 +881,241 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
     expect(todayCall).toEqual({
       kwargs: { lazy: false, context: { year_live_slice: true } },
     })
+  })
+
+  it('Arch Item #1: Closed-year L2 cache uses dedicated public.vf_odoo_closed_year_cache table + 0054 migration with RLS and ZERO governance-table usage in src/lib/odoo/**', async () => {
+    expect(CLOSED_YEAR_CACHE_TABLE).toBe('public.vf_odoo_closed_year_cache')
+    expect(CLOSED_YEAR_CACHE_KEY_PREFIX).toBe('odoo_closed_year_cache_v1:')
+
+    // Scan every file in src/lib/odoo/** for zero governance table / pin_hash coupling
+    const odooDir = path.join(REPO_ROOT, 'src/lib/odoo')
+    const walkFiles = (dir: string): string[] => {
+      const collected: string[] = []
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) collected.push(...walkFiles(full))
+        else if (/\.(ts|tsx|json)$/.test(entry.name)) collected.push(full)
+      }
+      return collected
+    }
+    const odooFiles = walkFiles(odooDir)
+    expect(odooFiles.length).toBeGreaterThan(0)
+    for (const filePath of odooFiles) {
+      const src = fs.readFileSync(filePath, 'utf8')
+      expect(src, `${filePath} must not reference vf_executive_governance_sync`).not.toContain(
+        'vf_executive_governance_sync',
+      )
+      expect(src, `${filePath} must not reference pin_hash`).not.toContain('pin_hash')
+      expect(src, `${filePath} must not reference PG_PIN_MARKER`).not.toContain('PG_PIN_MARKER')
+    }
+
+    // Verify 0054_odoo_closed_year_cache.sql additive migration, RLS + REVOKE, and 0 destructive SQL
+    const migrationSql = fs.readFileSync(
+      path.join(REPO_ROOT, 'database/migrations/0054_odoo_closed_year_cache.sql'),
+      'utf8',
+    )
+    const strippedSql = migrationSql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(strippedSql).toMatch(/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+public\.vf_odoo_closed_year_cache/i)
+    expect(strippedSql).toMatch(
+      /ALTER\s+TABLE\s+public\.vf_odoo_closed_year_cache\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY/i,
+    )
+    expect(strippedSql).toMatch(
+      /ALTER\s+TABLE\s+public\.vf_odoo_closed_year_cache\s+FORCE\s+ROW\s+LEVEL\s+SECURITY/i,
+    )
+    expect(strippedSql).toMatch(
+      /REVOKE\s+ALL\s+ON\s+TABLE\s+public\.vf_odoo_closed_year_cache\s+FROM\s+PUBLIC,\s*anon,\s*authenticated/i,
+    )
+    expect(strippedSql).not.toMatch(/\b(drop\s+|truncate\b|delete\s+from\b)/i)
+
+    // Functional verification of runtime idempotent DDL + get/set/clear against dedicated table
+    const storageRows = new Map<string, { rawKey: string; rowsJson: string; cachedAtMs: string }>()
+    const executedSql: string[] = []
+    let createCount = 0
+    const queryable: ClosedYearSqlQueryable = {
+      async query<R extends Record<string, unknown> = Record<string, unknown>>(
+        text: string,
+        params: unknown[] = [],
+      ): Promise<{ rows: R[] }> {
+        const normalized = text.replace(/\s+/g, ' ').trim()
+        executedSql.push(normalized)
+        const upper = normalized.toUpperCase()
+        if (upper.startsWith('CREATE TABLE IF NOT EXISTS PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+          createCount += 1
+          return { rows: [] }
+        }
+        if (upper === 'ALTER TABLE PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE ENABLE ROW LEVEL SECURITY') {
+          throw new Error('restricted role: must be table owner')
+        }
+        if (
+          upper.startsWith(
+            'SELECT RAW_KEY, ROWS_JSON, CACHED_AT_MS FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY = $1',
+          )
+        ) {
+          const hit = storageRows.get(String(params[0] ?? ''))
+          if (!hit) return { rows: [] }
+          return {
+            rows: [
+              {
+                raw_key: hit.rawKey,
+                rows_json: JSON.parse(hit.rowsJson),
+                cached_at_ms: hit.cachedAtMs,
+              } as unknown as R,
+            ],
+          }
+        }
+        if (upper.startsWith('INSERT INTO PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+          storageRows.set(String(params[0] ?? ''), {
+            rawKey: String(params[1] ?? ''),
+            rowsJson: String(params[2] ?? '[]'),
+            cachedAtMs: String(Math.trunc(Number(params[3] ?? 0))),
+          })
+          return { rows: [] }
+        }
+        if (upper.startsWith('DELETE FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY LIKE $1')) {
+          const prefix = String(params[0] ?? '').replace(/%$/, '')
+          for (const k of [...storageRows.keys()]) {
+            if (k.startsWith(prefix)) storageRows.delete(k)
+          }
+          return { rows: [] }
+        }
+        throw new Error(`Unexpected SQL: ${normalized}`)
+      },
+    }
+
+    const store = createPostgresYearClosedStore(() => queryable)
+    const rawKey = 'year.net|1|8,17,24,36|2026-11-20'
+    await Promise.all([store.get(rawKey), store.get(`${rawKey}|2`)])
+    expect(createCount).toBe(1)
+
+    await store.set(rawKey, { rows: [{ amount_total: 1250.5 }], at: 1_763_625_600_123.7 })
+    expect(await store.get(rawKey)).toEqual({
+      rows: [{ amount_total: 1250.5 }],
+      at: 1_763_625_600_123,
+    })
+
+    // Collision guard: mismatched raw_key returns undefined
+    storageRows.set(buildClosedYearStorageKey(rawKey), {
+      rawKey: 'other-key',
+      rowsJson: '[{"amount_total":999}]',
+      cachedAtMs: '1763625600123',
+    })
+    expect(await store.get(rawKey)).toBeUndefined()
+
+    await store.clear?.()
+    expect(storageRows.size).toBe(0)
+    expect(createCount).toBe(1)
+    for (const sql of executedSql) {
+      expect(sql.toLowerCase()).toContain('vf_odoo_closed_year_cache')
+      expect(sql.toLowerCase()).not.toContain('vf_executive_governance_sync')
+    }
+  })
+
+  it('Arch Item #2: receivables-headline.ts pins POS clearing strictly to explicit POS_CLEARING_ACCOUNT_ID = 35 with zero account-code fallback and enforces Fail-Closed + logger.warn on unverified accountId', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-17T11:30:00.000Z'), toFake: ['Date'] })
+    expect(POS_CLEARING_ACCOUNT_ID).toBe(35)
+
+    const headlineSource = fs.readFileSync(
+      path.join(REPO_ROOT, 'src/lib/aether/receivables-headline.ts'),
+      'utf8',
+    )
+    const executableHeadline = headlineSource
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '')
+    expect(executableHeadline).toContain('POS_CLEARING_ACCOUNT_ID')
+    expect(executableHeadline).not.toContain('isPosClearingAccount')
+    expect(executableHeadline).not.toContain('10552')
+    expect(executableHeadline).toContain('receivables_headline_fail_closed_unverified_account_id')
+
+    // 1) Explicit accountId === 35 is excluded even when accountCode/accountName differ
+    const byExplicitId = selectReceivablesHeadline({
+      openReceivableKwd: 29318.356,
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 3804 },
+        {
+          accountId: POS_CLEARING_ACCOUNT_ID,
+          accountCode: '99999',
+          accountName: 'Renamed Suspense',
+          residualKwd: -992.319,
+          linesCount: 62766,
+        },
+      ],
+    })
+    expect(byExplicitId.netKwd).toBe(30310.675)
+    expect(byExplicitId.lines).toBe(3804)
+
+    // 2) accountCode '10552' with accountId 777 (not 35) is NOT guessed/excluded as POS clearing
+    const non35Row = selectReceivablesHeadline({
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+        { accountId: 777, accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+      ],
+    })
+    expect(non35Row.netKwd).toBe(29318.356)
+    expect(non35Row.lines).toBe(10)
+
+    // 3) Unverified accountId in byAccount fails closed with structured logger.warn and hides KPI card
+    const warnSpy = vi.spyOn(logger, 'warn')
+    for (const invalidId of [undefined, null, 0, -35, 35.5, Number.NaN]) {
+      warnSpy.mockClear()
+      const closed = selectReceivablesHeadline({
+        openDebitsKwd: 1077552.125,
+        unappliedCreditsKwd: -1047241.45,
+        openReceivableKwd: 29318.356,
+        platformNetKwd: 30310.675,
+        byAccount: [
+          { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+          { accountId: invalidId, accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+        ],
+      })
+      expect(closed).toEqual({
+        openDebitsKwd: null,
+        unappliedCreditsKwd: null,
+        netKwd: null,
+        lines: null,
+      })
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+      expect(warnSpy).toHaveBeenCalledWith(
+        'receivables_headline_fail_closed_unverified_account_id',
+        { totalAccountRows: 2, unverifiedRowCount: 1 },
+      )
+    }
+
+    const unverifiedRadarHtml = renderDeliveryRadarMarkup(
+      'en',
+      buildRadarFixtureSummary({
+        readable: true,
+        openReceivableKwd: 29318.356,
+        openDebitsKwd: 1077552.125,
+        unappliedCreditsKwd: -1047241.45,
+        openLinesCount: 10,
+        fromDate: '2025-01-01',
+        toDate: '2026-11-17',
+        sourceModel: 'account.move.line',
+        byAccount: [
+          {
+            accountId: 121,
+            accountCode: '10501',
+            accountName: 'Talabat',
+            labelAr: 'طلبات',
+            labelEn: 'Talabat',
+            residualKwd: 30310.675,
+            linesCount: 6,
+          },
+          {
+            accountId: null as unknown as number,
+            accountCode: '10552',
+            accountName: 'POS Clearing',
+            labelAr: 'مقاصة نقاط البيع',
+            labelEn: 'POS Clearing',
+            residualKwd: -992.319,
+            linesCount: 4,
+          },
+        ],
+      }),
+    )
+    expect(unverifiedRadarHtml).not.toContain('data-receivables-kpi-card="true"')
+    expect(unverifiedRadarHtml).not.toContain('30,310.675')
+    expect(unverifiedRadarHtml).not.toContain('29,318.356')
   })
 
   it('Enforces static repository invariants across all touched production files, odoo-live-connector.ts, pos-registry.json, prisma/, and feryal-governance-studio.tsx', () => {

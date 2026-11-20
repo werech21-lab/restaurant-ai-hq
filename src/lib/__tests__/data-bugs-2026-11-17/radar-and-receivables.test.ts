@@ -19,6 +19,7 @@ import {
   resolveReceivablesDateRange,
   selectReceivablesHeadline,
 } from '@/lib/aether/receivables-headline'
+import { POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 
 type GlobalFilterContextValue = ReturnType<
   typeof import('@/components/aether/GlobalFilterContext').useGlobalFilter
@@ -394,6 +395,31 @@ describe('Bug C — Net Open Receivables exact net headline & honest null fromDa
     expect(clamped.openDebitsKwd).toBe(0)
     expect(clamped.netKwd).toBe(-150)
 
+    // Verified Odoo accountId = 35 (POS_CLEARING_ACCOUNT_ID) is excluded strictly by ID while unverified accountId fails closed
+    const withVerifiedAccountIds = selectReceivablesHeadline({
+      openReceivableKwd: 29318.356,
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+        { accountId: POS_CLEARING_ACCOUNT_ID, accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+      ],
+    })
+    expect(withVerifiedAccountIds.netKwd).toBe(30310.675)
+    expect(withVerifiedAccountIds.lines).toBe(6)
+
+    const failClosedUnverified = selectReceivablesHeadline({
+      openReceivableKwd: 29318.356,
+      byAccount: [
+        { accountId: 121, accountCode: '10501', accountName: 'Talabat', residualKwd: 30310.675, linesCount: 6 },
+        { accountCode: '10552', accountName: 'POS Clearing', residualKwd: -992.319, linesCount: 4 },
+      ],
+    })
+    expect(failClosedUnverified).toEqual({
+      openDebitsKwd: null,
+      unappliedCreditsKwd: null,
+      netKwd: null,
+      lines: null,
+    })
+
     expect(
       resolveReceivablesDateRange(
         { fromDate: TODAY_ISO, toDate: '2026-11-14' },
@@ -485,7 +511,11 @@ describe('Bug C — Net Open Receivables exact net headline & honest null fromDa
         }
         if (model === 'account.move.line' && method === 'read_group') {
           return rpcOk([
-            { account_id: [101, '10552 Account Receivable (PoS)'], amount_residual: -77462.759, __count: 10 },
+            {
+              account_id: [POS_CLEARING_ACCOUNT_ID, '10552 Account Receivable (PoS)'],
+              amount_residual: -77462.759,
+              __count: 10,
+            },
           ])
         }
         if (model === 'account.move.line' && method === 'search_read') {
