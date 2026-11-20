@@ -374,11 +374,19 @@ function BalanceSheetTable({
           </span>
           {view.balanced ? (
             <span
-              dir="ltr"
+              dir={isAr ? 'rtl' : 'ltr'}
               data-balance-check="ok"
               className="rounded-full bg-emerald-50 px-2.5 py-0.5 font-bold text-emerald-800 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-300"
             >
-              {`A ${money(view.totals.assets, isAr)} = L+E`}
+              {isAr ? (
+                <>
+                  {'الأصول '}
+                  <bdi dir="ltr">{money(view.totals.assets, true)}</bdi>
+                  {' = الالتزامات + حقوق الملكية'}
+                </>
+              ) : (
+                `A ${money(view.totals.assets, false)} = L+E`
+              )}
             </span>
           ) : (
             <CompactInfoTooltip

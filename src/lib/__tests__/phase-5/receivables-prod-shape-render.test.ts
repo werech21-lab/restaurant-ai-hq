@@ -10,6 +10,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computeGlobalWorkspace } from '@/lib/aether/global-filter-engine'
+import { POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { loadLiveTodaySummary } from '../support/dashboard-fixture'
 import { dashboardContext, renderAr, setDashboardContext, todayFilters } from '../support/render-dashboard'
@@ -35,7 +36,7 @@ function withProductionReceivables(summary: OdooLiveSummary): OdooLiveSummary {
   ar.openLinesExplanationEn = 'Balance = 3,822,787.227 − 3,900,249.986 = -77,462.759 KWD'
   ar.byAccount = [
     {
-      accountId: 10552,
+      accountId: POS_CLEARING_ACCOUNT_ID,
       accountCode: '10552',
       accountName: 'POS Clearing',
       labelAr: 'مقاصة نقاط البيع',

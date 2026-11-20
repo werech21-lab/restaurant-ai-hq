@@ -25,7 +25,6 @@ import {
   buildReceivablePartnerRows,
   channelOfPaymentMethod,
   computeOdooFreshnessStatus,
-  isPosClearingAccount,
   receivablesCustomerSplit,
   normalizeOdooDateOrderToIso,
   parseBucketKey,
@@ -66,8 +65,12 @@ import {
 import { isNonCompanyCatalogItem } from '@/lib/odoo/non-company-products'
 import { buildRegisterReconciliation } from '@/lib/odoo/register-reconciliation'
 import type { BrandAllocationResult } from '@/lib/odoo/brand-order-allocation'
-import { buildArAgingDomains, summarizeArAging } from '@/lib/odoo/receivable-aging'
-import { buildOpenReceivableClauses } from '@/lib/odoo/receivable-domain'
+import { computeUnifiedReceivableAging, UnverifiedReceivableAccountError } from '@/lib/odoo/receivable-aging'
+import {
+  buildOpenReceivableClauses,
+  isVerifiedReceivableAccountId,
+  POS_CLEARING_ACCOUNT_ID,
+} from '@/lib/odoo/receivable-domain'
 import {
   branchIdForStockLocation,
   isCentralKitchenStockLocation,
@@ -1358,7 +1361,7 @@ function formatReceivableAccountRow(
   } else if (accountCode === '10509') {
     labelAr = 'ذمم روابط الدفع المباشر (10509)'
     labelEn = 'Hesabe Payment Link Receivable (10509)'
-  } else if (accountCode === '10552') {
+  } else if (accountId === POS_CLEARING_ACCOUNT_ID) {
     labelAr = 'تسويات نقاط البيع قيد المقاصة (10552)'
     labelEn = 'POS Clearing Receivable (10552)'
   } else if (accountCode === '121000') {
@@ -2629,8 +2632,11 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
         ...companyDomain,
         ...buildOpenReceivableClauses(),
       ]
-      const agingDomains = buildArAgingDomains(arDomain, todayKwIso)
-      const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, agingDebitRows, agingCreditRows] = await Promise.all([
+      const partnerDomain: unknown[][] = [
+        ...arDomain,
+        ['date', '!=', false],
+      ]
+      const [byAccRows, minDateRows, maxDateRows, maxMaturityRows, partnerGroups] = await Promise.all([
         executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
           'account.move.line',
           'read_group',
@@ -2667,23 +2673,48 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
             ),
           [],
         ),
-        Promise.all(
-          agingDomains.debitDomains.map((d) =>
-            executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
-              'account.move.line',
-              'read_group',
-              [d.domain, ['amount_residual:sum'], ['account_id']],
-              { lazy: false },
-            ),
-          ),
-        ),
-        executeOdooKw<{ account_id: M2O; amount_residual?: number; __count?: number }[]>(
+        executeOdooKw<
+          {
+            partner_id?: M2O
+            account_id?: M2O
+            amount_residual?: number
+            __count?: number
+            date?: string | false
+            date_min?: string | false
+            date_maturity?: string | false
+            date_maturity_min?: string | false
+          }[]
+        >(
           'account.move.line',
           'read_group',
-          [agingDomains.creditDomain, ['amount_residual:sum'], ['account_id']],
+          [partnerDomain, ['amount_residual:sum', 'date:min', 'date_maturity:min'], ['partner_id', 'account_id']],
           { lazy: false },
         ),
       ])
+
+      const unverifiedAccCount = byAccRows.filter(
+        (r) => !isVerifiedReceivableAccountId(m2oId(r.account_id)),
+      ).length
+      if (unverifiedAccCount > 0) {
+        logger.error('odoo_receivables_fail_closed_unverified_account_id', {
+          stage: 'byAccount',
+          totalRows: byAccRows.length,
+          unverifiedCount: unverifiedAccCount,
+        })
+        throw new UnverifiedReceivableAccountError('byAccount', unverifiedAccCount)
+      }
+
+      const unverifiedPartnerAccCount = partnerGroups.filter(
+        (g) => !isVerifiedReceivableAccountId(m2oId(g.account_id)),
+      ).length
+      if (unverifiedPartnerAccCount > 0) {
+        logger.error('odoo_receivables_fail_closed_unverified_account_id', {
+          stage: 'partnerGroups',
+          totalRows: partnerGroups.length,
+          unverifiedCount: unverifiedPartnerAccCount,
+        })
+        throw new UnverifiedReceivableAccountError('partnerGroups', unverifiedPartnerAccCount)
+      }
 
       const byAccount: OdooReceivableAccountRow[] = []
       let netSum = 0
@@ -2694,14 +2725,14 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       let posClearingNetKwd = 0
 
       for (const r of byAccRows) {
-        const accId = m2oId(r.account_id)
+        const accId = m2oId(r.account_id) as number
         const accName = m2oName(r.account_id) ?? ''
-        if (accId === null || isDecommissionedWarehouseRecord(accName)) continue
+        if (isDecommissionedWarehouseRecord(accName)) continue
         const resVal = Number(r.amount_residual) || 0
         const cnt = Math.max(0, Number(r.__count) || 0)
         netSum += resVal
         totalLines += cnt
-        if (isPosClearingAccount(accName)) {
+        if (accId === POS_CLEARING_ACCOUNT_ID) {
           posClearingLinesCount += cnt
           posClearingNetKwd += resVal
         }
@@ -2711,52 +2742,34 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
       }
       byAccount.sort((a, b) => b.residualKwd - a.residualKwd)
 
-      const posAccountIds = byAccount
-        .filter((row) => isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`))
-        .map((row) => row.accountId)
-      const partnerDomain: unknown[][] = [
-        ...arDomain,
-        ...(posAccountIds.length > 0 ? [['account_id', 'not in', posAccountIds]] : []),
-      ]
-      const partnerGroups = await safeSubQuery(
-        () =>
-          executeOdooKw<
-            {
-              partner_id: M2O
-              account_id: M2O
-              amount_residual?: number
-              __count?: number
-              date?: string | false
-              date_min?: string | false
-            }[]
-          >(
-            'account.move.line',
-            'read_group',
-            [partnerDomain, ['amount_residual:sum', 'date:min'], ['partner_id', 'account_id']],
-            { lazy: false },
-          ),
-        [],
-      )
       const postingDay = (raw: string | false | undefined): string | null =>
         typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : null
-      const partnerResiduals = buildReceivablePartnerRows(
-        partnerGroups
-          .map((g) => ({
-            partnerId: m2oId(g.partner_id),
-            partnerName: m2oName(g.partner_id) ?? '',
-            accountId: m2oId(g.account_id),
-            accountLabel: m2oName(g.account_id) ?? '',
-            residualKwd: Number(g.amount_residual) || 0,
-            linesCount: Math.max(0, Number(g.__count) || 0),
-            oldestPostingDate: postingDay(g.date_min) ?? postingDay(g.date),
-          }))
-          .filter(
-            (g) =>
-              !isDecommissionedWarehouseRecord(g.accountLabel) &&
-              !isDecommissionedWarehouseRecord(g.partnerName),
-          ),
-      )
+      const scopedPartnerGroups = partnerGroups
+        .map((g) => ({
+          partnerId: m2oId(g.partner_id),
+          partnerName: m2oName(g.partner_id) ?? '',
+          accountId: m2oId(g.account_id) as number,
+          accountLabel: m2oName(g.account_id) ?? '',
+          residualKwd: Number(g.amount_residual) || 0,
+          linesCount: Math.max(0, Number(g.__count) || 0),
+          oldestPostingDate: postingDay(g.date_min) ?? postingDay(g.date),
+          oldestDueDate:
+            postingDay(g.date_maturity_min) ??
+            postingDay(g.date_maturity) ??
+            postingDay(g.date_min) ??
+            postingDay(g.date),
+        }))
+        .filter(
+          (g) =>
+            !isDecommissionedWarehouseRecord(g.accountLabel) &&
+            !isDecommissionedWarehouseRecord(g.partnerName),
+        )
+
+      const partnerResiduals = buildReceivablePartnerRows(scopedPartnerGroups)
       const customerSplit = receivablesCustomerSplit(byAccount, partnerResiduals)
+      if (customerSplit.failClosed) {
+        throw new UnverifiedReceivableAccountError('customerSplit', 1)
+      }
       const platformAndCorporateLinesCount = customerSplit.platformLineCount
       const platformNetKwd = customerSplit.platformNetKwd
       const byPartner = partnerResiduals
@@ -2766,25 +2779,138 @@ async function pullFreshCoreSnapshotFromOdoo(): Promise<CachedCoreSnapshot> {
           .filter((day): day is string => Boolean(day))
           .sort()[0] ?? null
 
-      // Same account scope as the headline: decommissioned-warehouse accounts are left out.
-      const groupTotal = (rows: { account_id: M2O; amount_residual?: number; __count?: number }[]) =>
-        rows
-          .filter((r) => m2oId(r.account_id) !== null && !isDecommissionedWarehouseRecord(m2oName(r.account_id) ?? ''))
-          .reduce(
-            (acc, r) => ({
-              residualKwd: acc.residualKwd + (Number(r.amount_residual) || 0),
-              linesCount: acc.linesCount + Math.max(0, Number(r.__count) || 0),
-            }),
-            { residualKwd: 0, linesCount: 0 },
+      const agingPartnerGroups =
+        scopedPartnerGroups.length > 0
+          ? scopedPartnerGroups
+          : customerSplit.customerAccounts.map((acc) => ({
+              partnerId: 0,
+              accountId: acc.accountId,
+              residualKwd: acc.residualKwd,
+              linesCount: acc.linesCount,
+              oldestPostingDate: todayKwIso,
+              oldestDueDate: todayKwIso,
+            }))
+
+      const netPositiveDebtorGroups = agingPartnerGroups.filter(
+        (g) => g.accountId !== POS_CLEARING_ACCOUNT_ID && Math.round(g.residualKwd * 1000) > 0,
+      )
+
+      const openDebtorLines: {
+        id?: number | null
+        partnerId: number | null
+        accountId: number | null
+        residualKwd: number
+        dateMaturity: string | null
+        date: string
+      }[] = []
+
+      if (netPositiveDebtorGroups.length > 0) {
+        const positiveAccountIds = [...new Set(netPositiveDebtorGroups.map((g) => g.accountId))]
+        const positivePartnerIds = [
+          ...new Set(
+            netPositiveDebtorGroups
+              .map((g) => g.partnerId)
+              .filter((id): id is number => typeof id === 'number' && id > 0),
+          ),
+        ]
+        const hasPartnerlessDebtor = netPositiveDebtorGroups.some(
+          (g) => g.partnerId === null || g.partnerId === 0,
+        )
+        const partnerClause: unknown[] =
+          hasPartnerlessDebtor && positivePartnerIds.length > 0
+            ? ['|', ['partner_id', '=', false], ['partner_id', 'in', positivePartnerIds]]
+            : hasPartnerlessDebtor
+              ? [['partner_id', '=', false]]
+              : [['partner_id', 'in', positivePartnerIds]]
+        const debtorLinesDomain: unknown[] = [
+          ...arDomain,
+          ['account_id', 'in', positiveAccountIds],
+          ...partnerClause,
+        ]
+        const netPositiveKeys = new Set(
+          netPositiveDebtorGroups.map((g) => `${g.partnerId ?? 0}:${g.accountId}`),
+        )
+        const AR_LINE_PAGE_SIZE = 500
+        const AR_LINE_MAX_PAGES = 20
+        for (let page = 0; page < AR_LINE_MAX_PAGES; page++) {
+          const batch = await safeSubQuery(
+            () =>
+              executeOdooKw<
+                {
+                  id?: number
+                  partner_id?: M2O
+                  account_id?: M2O
+                  amount_residual?: number
+                  date_maturity?: string | false
+                  date?: string | false
+                }[]
+              >(
+                'account.move.line',
+                'search_read',
+                [debtorLinesDomain],
+                {
+                  fields: ['id', 'partner_id', 'account_id', 'amount_residual', 'date_maturity', 'date'],
+                  order: 'date asc, id asc',
+                  limit: AR_LINE_PAGE_SIZE,
+                  offset: page * AR_LINE_PAGE_SIZE,
+                },
+              ),
+            [],
           )
-      const aging = summarizeArAging({
-        debitsByBucket: Object.fromEntries(
-          agingDomains.debitDomains.map((d, i) => [d.key, groupTotal(agingDebitRows[i])]),
-        ),
-        credits: groupTotal(agingCreditRows),
+          if (!Array.isArray(batch) || batch.length === 0) break
+          // Date-only projection rows without residual or account fields carry no line balances.
+          const carriesLineBalances = batch.some(
+            (row) =>
+              row !== null &&
+              typeof row === 'object' &&
+              ('amount_residual' in row || 'account_id' in row),
+          )
+          if (!carriesLineBalances) break
+          const unverifiedLineCount = batch.filter(
+            (row) => !isVerifiedReceivableAccountId(m2oId(row.account_id)),
+          ).length
+          if (unverifiedLineCount > 0) {
+            logger.error('odoo_receivables_fail_closed_unverified_account_id', {
+              stage: 'debtorLines',
+              totalRows: batch.length,
+              unverifiedCount: unverifiedLineCount,
+            })
+            throw new UnverifiedReceivableAccountError('debtorLines', unverifiedLineCount)
+          }
+          for (const row of batch) {
+            const lineAccId = m2oId(row.account_id) as number
+            const lineAccName = m2oName(row.account_id) ?? ''
+            const linePartnerName = m2oName(row.partner_id) ?? ''
+            if (
+              lineAccId === POS_CLEARING_ACCOUNT_ID ||
+              isDecommissionedWarehouseRecord(lineAccName) ||
+              isDecommissionedWarehouseRecord(linePartnerName)
+            ) {
+              continue
+            }
+            const linePartnerId = m2oId(row.partner_id)
+            if (!netPositiveKeys.has(`${linePartnerId ?? 0}:${lineAccId}`)) continue
+            openDebtorLines.push({
+              id: typeof row.id === 'number' ? row.id : null,
+              partnerId: linePartnerId,
+              accountId: lineAccId,
+              residualKwd: Number(row.amount_residual) || 0,
+              dateMaturity: postingDay(row.date_maturity),
+              date: postingDay(row.date) ?? todayKwIso,
+            })
+          }
+          if (batch.length < AR_LINE_PAGE_SIZE) break
+        }
+      }
+
+      const aging = computeUnifiedReceivableAging({
+        todayIso: todayKwIso,
+        partnerGroups: agingPartnerGroups,
+        lines: openDebtorLines,
+        fallbackDateIso: todayKwIso,
+        throwOnUnverifiedAccountId: true,
       })
       const computedAging = aging.buckets
-      const hasLiveAging = computedAging.some((b) => b.linesCount > 0)
 
       const fromDate =
         typeof minDateRows?.[0]?.date === 'string' && minDateRows[0].date.trim()

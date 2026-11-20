@@ -105,7 +105,7 @@ export function OdooAccountingAnalyticsHub({
     if (!isAuditor) {
       notes.push(
         isAr
-          ? 'تُقرأ الأرقام حصراً من قيود account.move.line المرحلة في Odoo دون أي تقديرات اصطناعية.'
+          ? 'تُقرأ الأرقام حصراً من قيود دفتر الأستاذ العام المرحّلة في أودو دون أي تقديرات اصطناعية.'
           : 'Evaluated strictly from posted Odoo account.move.line entries with zero synthetic estimates.',
       )
     }
@@ -152,7 +152,7 @@ export function OdooAccountingAnalyticsHub({
     const costDrivers = [
       {
         id: 'cogs',
-        labelAr: 'تكلفة البضاعة والمواد (COGS)',
+        labelAr: 'تكلفة البضاعة المباعة والمواد',
         labelEn: 'Food & Packaging COGS',
         val: acc.cogsKwd,
         pct: acc.cogsPct,
@@ -245,7 +245,7 @@ export function OdooAccountingAnalyticsHub({
               <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400">
                 {isAr ? (
                   <>
-                    صافي POS <GlKwdValue value={workspace.nullableSalesKwd} locale="ar" /> · الفرق{' '}
+                    صافي نقاط البيع <GlKwdValue value={workspace.nullableSalesKwd} locale="ar" /> · الفرق{' '}
                     <GlKwdValue value={acc.totalRevenueKwd - workspace.nullableSalesKwd} locale="ar" />
                   </>
                 ) : (
@@ -264,6 +264,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="SUM(credit - debit) ON income accounts WHERE parent_state = 'posted'"
+                queryOrFormulaAr="مجموع (الدائن − المدين) على حسابات الإيرادات للقيود المرحّلة"
                 isAr={isAr}
                 compact
               />
@@ -298,6 +299,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="pos.order net sales across mapped Venture Foods branches"
+                queryOrFormulaAr="صافي مبيعات نقاط البيع عبر فروع فنتشر فودز المربوطة"
                 isAr={isAr}
                 compact
               />
@@ -313,7 +315,7 @@ export function OdooAccountingAnalyticsHub({
         node: (
           <article className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-              <span className="min-w-0 truncate">{isAr ? 'متوسط قيمة الطلب (AOV)' : 'Average Order Value (AOV)'}</span>
+              <span className="min-w-0 truncate">{isAr ? 'متوسط قيمة الطلب' : 'Average Order Value (AOV)'}</span>
               <ShoppingBag className="h-4 w-4 shrink-0 text-sky-600" aria-hidden />
             </div>
             <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -330,6 +332,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="محسوب بمعادلة"
                 queryOrFormula="netSalesKwd / orders"
+                queryOrFormulaAr="صافي المبيعات ÷ عدد الطلبات المقبوضة"
                 isAr={isAr}
                 compact
               />
@@ -345,7 +348,7 @@ export function OdooAccountingAnalyticsHub({
         node: (
           <article className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
-              <span className="min-w-0 truncate">{isAr ? 'تكلفة البضاعة المباعة المرحلة (COGS)' : 'Posted GL COGS'}</span>
+              <span className="min-w-0 truncate">{isAr ? 'تكلفة البضاعة المباعة المرحّلة' : 'Posted GL COGS'}</span>
               <Receipt className="h-4 w-4 shrink-0 text-rose-600" aria-hidden />
             </div>
             <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -367,6 +370,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="SUM(debit - credit) ON direct_cost accounts WHERE parent_state = 'posted'"
+                queryOrFormulaAr="مجموع (المدين − الدائن) على حسابات تكلفة البضاعة المباعة للقيود المرحّلة"
                 isAr={isAr}
                 compact
               />
@@ -404,6 +408,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="account.move.line aggregator commission expense accounts (parent_state='posted')"
+                queryOrFormulaAr="قيود الأستاذ العام المرحّلة لحسابات مصروف عمولات منصات التوصيل"
                 isAr={isAr}
                 compact
               />
@@ -441,6 +446,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="SUM(debit - credit) ON expense + expense_depreciation accounts WHERE parent_state = 'posted'"
+                queryOrFormulaAr="مجموع (المدين − الدائن) على حسابات المصروفات التشغيلية والإهلاك المرحّلة"
                 isAr={isAr}
                 compact
               />
@@ -477,7 +483,8 @@ export function OdooAccountingAnalyticsHub({
                 lastSyncAt={workspace.lastSyncAt}
                 isStale24h={workspace.isStale24h}
                 kind="محسوب بمعادلة"
-                queryOrFormula="الإيراد المرحل − تكلفة البضاعة − عمولات التوصيل − المصاريف والإهلاك المرحلة"
+                queryOrFormula="Posted Revenue - COGS - Aggregator Commissions - Posted OPEX & Depreciation"
+                queryOrFormulaAr="الإيراد المرحّل − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات والإهلاك المرحّلة"
                 isAr={isAr}
                 compact
               />
@@ -518,6 +525,7 @@ export function OdooAccountingAnalyticsHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="SUM(amount_residual) WHERE account_type = 'asset_receivable' AND reconciled = false"
+                queryOrFormulaAr="مجموع الرصيد المتبقي على حسابات الذمم المدينة غير المسوّاة"
                 isAr={isAr}
                 compact
               />
@@ -639,7 +647,7 @@ export function OdooAccountingAnalyticsHub({
             </span>
             <h3 className="text-sm font-extrabold text-slate-950 dark:text-white">
               {isAr
-                ? 'الرؤى المالية والتوصيات التنفيذية من دفتر الأستاذ (Odoo 17)'
+                ? 'الرؤى المالية والتوصيات التنفيذية من دفتر الأستاذ (أودو 17)'
                 : 'Executive General Ledger Intelligence & Recommendations (Odoo 17)'}
             </h3>
           </div>
@@ -679,7 +687,7 @@ export function OdooAccountingAnalyticsHub({
             {[
               {
                 key: 'cogs',
-                label: isAr ? 'تكلفة البضاعة (COGS)' : 'Food & Packaging COGS',
+                label: isAr ? 'تكلفة البضاعة المباعة' : 'Food & Packaging COGS',
                 val: acc.cogsKwd,
                 pct: acc.cogsPct,
                 barCls: 'bg-rose-500',

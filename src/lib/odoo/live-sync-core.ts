@@ -8,7 +8,9 @@
  * Scope is a POSITIVE whitelist (./pos-registry.json): only the listed pos.config registers and
  * the approved Venture Foods brands are ever queried or returned.
  */
+import { logger } from '../logger'
 import { formatArReconciliationFormula } from './receivable-aging'
+import { isVerifiedReceivableAccountId, POS_CLEARING_ACCOUNT_ID } from './receivable-domain'
 import {
   companyPosConfigAllowed,
   companyPosSearchDomain,
@@ -62,7 +64,7 @@ export interface OdooReceivableAccountRow {
 }
 
 export interface OdooReceivableAgingBucket {
-  key: '0_30' | '31_60' | 'over_60'
+  key: '0_7' | '8_30' | '0_30' | '31_60' | 'over_60'
   labelAr: string
   labelEn: string
   residualKwd: number
@@ -84,20 +86,24 @@ export interface OdooReceivablePartnerRow {
   linesCount: number
   /** Oldest posting date in the group (`account.move.line.date`), not a due date. */
   oldestPostingDate: string | null
+  /** Oldest due date (`date_maturity`, falling back to `date`) when read from Odoo. */
+  oldestDueDate?: string | null
 }
 
 export interface ReceivablePartnerGroupInput {
   partnerId: number | null
   partnerName: string
-  accountId: number | null
+  accountId: number | null | undefined
   accountLabel: string
   residualKwd: number
   linesCount: number
   oldestPostingDate: string | null
+  oldestDueDate?: string | null
 }
 
 export interface ReceivableCustomerSplit {
   splitKnown: boolean
+  failClosed?: boolean
   platformNetKwd: number
   platformOpenDebitsKwd: number
   platformUnappliedCreditsKwd: number
@@ -189,19 +195,88 @@ export function splitOpenResiduals(
 }
 
 /**
- * Splits open receivable accounts into platform/trade versus cashier clearing 10552.
- * Debit and credit totals come from partner/line residuals when those rows are passed.
- * The net stays the sum of non-10552 account residuals.
+ * Splits open receivable accounts into platform/trade versus cashier clearing strictly by
+ * verified Odoo `POS_CLEARING_ACCOUNT_ID = 35`. Fails closed with structured `logger.error`
+ * whenever any account or partner row lacks a verified positive integer `accountId`.
  */
 export function receivablesCustomerSplit(
-  accounts: readonly OdooReceivableAccountRow[],
-  partnerRows?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[],
+  accounts: readonly {
+    accountId?: number | null
+    accountCode: string
+    accountName: string
+    labelAr: string
+    labelEn: string
+    residualKwd: number
+    linesCount: number
+  }[],
+  partnerRows?: readonly {
+    accountId?: number | null
+    residualKwd: number
+    linesCount?: number
+    accountCode?: string
+    accountName?: string
+  }[],
 ): ReceivableCustomerSplit {
+  const unverifiedAccountCount = accounts.filter(
+    (row) => !isVerifiedReceivableAccountId(row.accountId),
+  ).length
+  if (unverifiedAccountCount > 0) {
+    logger.error('receivables_customer_split_fail_closed_unverified_account_id', {
+      stage: 'accounts',
+      totalRows: accounts.length,
+      unverifiedRowCount: unverifiedAccountCount,
+    })
+    return {
+      splitKnown: false,
+      failClosed: true,
+      platformNetKwd: 0,
+      platformOpenDebitsKwd: 0,
+      platformUnappliedCreditsKwd: 0,
+      platformLineCount: 0,
+      posClearingResidualKwd: 0,
+      posClearingLineCount: 0,
+      customerAccounts: [],
+      posAccounts: [],
+    }
+  }
+  const incomingPartnerRows = partnerRows ?? []
+  const unverifiedPartnerCount = incomingPartnerRows.filter(
+    (row) => !isVerifiedReceivableAccountId(row.accountId),
+  ).length
+  if (unverifiedPartnerCount > 0) {
+    logger.error('receivables_customer_split_fail_closed_unverified_account_id', {
+      stage: 'partnerRows',
+      totalRows: incomingPartnerRows.length,
+      unverifiedRowCount: unverifiedPartnerCount,
+    })
+    return {
+      splitKnown: false,
+      failClosed: true,
+      platformNetKwd: 0,
+      platformOpenDebitsKwd: 0,
+      platformUnappliedCreditsKwd: 0,
+      platformLineCount: 0,
+      posClearingResidualKwd: 0,
+      posClearingLineCount: 0,
+      customerAccounts: [],
+      posAccounts: [],
+    }
+  }
+
   const customerAccounts: OdooReceivableAccountRow[] = []
   const posAccounts: OdooReceivableAccountRow[] = []
   for (const row of accounts) {
-    if (isPosClearingAccount(`${row.accountCode} ${row.accountName} ${row.labelEn}`)) posAccounts.push(row)
-    else customerAccounts.push(row)
+    const normalizedRow: OdooReceivableAccountRow = {
+      accountId: row.accountId as number,
+      accountCode: row.accountCode,
+      accountName: row.accountName,
+      labelAr: row.labelAr,
+      labelEn: row.labelEn,
+      residualKwd: row.residualKwd,
+      linesCount: row.linesCount,
+    }
+    if (normalizedRow.accountId === POS_CLEARING_ACCOUNT_ID) posAccounts.push(normalizedRow)
+    else customerAccounts.push(normalizedRow)
   }
   let platformNetKwd = 0
   let accountDebits = 0
@@ -213,8 +288,8 @@ export function receivablesCustomerSplit(
     if (row.residualKwd > 0) accountDebits += row.residualKwd
     else if (row.residualKwd < 0) accountCredits += row.residualKwd
   }
-  const customerPartners = (partnerRows ?? []).filter(
-    (row) => !isPosClearingAccount(`${row.accountCode ?? ''} ${row.accountName ?? ''}`),
+  const customerPartners = incomingPartnerRows.filter(
+    (row) => row.accountId !== POS_CLEARING_ACCOUNT_ID,
   )
   const lineSplit = customerPartners.length > 0 ? splitOpenResiduals(customerPartners) : null
   let posClearingResidualKwd = 0
@@ -225,6 +300,7 @@ export function receivablesCustomerSplit(
   }
   return {
     splitKnown: accounts.length > 0 || customerPartners.length > 0,
+    failClosed: false,
     platformNetKwd: roundReceivableKwd(platformNetKwd),
     platformOpenDebitsKwd: lineSplit ? lineSplit.openDebitsKwd : roundReceivableKwd(accountDebits),
     platformUnappliedCreditsKwd: lineSplit ? lineSplit.unappliedCreditsKwd : roundReceivableKwd(accountCredits),
@@ -237,8 +313,8 @@ export function receivablesCustomerSplit(
 }
 
 /**
- * One 10552-free open residual for every page, the brief, and Feryal.
- * Falls back to the account split, then to the mixed ledger net only when no account rows exist.
+ * One POS-clearing-free open residual for every page, the brief, and Feryal.
+ * Fails closed (`null`) if account/partner rows carry unverified `accountId`s.
  */
 export function customerReceivableNetKwd(
   input:
@@ -246,18 +322,23 @@ export function customerReceivableNetKwd(
         unavailable?: boolean
         platformNetKwd?: number | null
         byAccount?: readonly OdooReceivableAccountRow[]
-        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
+        byPartner?: readonly { accountId?: number | null; residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
         openReceivableKwd?: number | null
       }
     | null
     | undefined,
 ): number | null {
   if (!input || input.unavailable) return null
+  if (input.byAccount && input.byAccount.length > 0) {
+    const split = receivablesCustomerSplit(input.byAccount, input.byPartner)
+    if (split.failClosed) return null
+    if (typeof input.platformNetKwd === 'number' && Number.isFinite(input.platformNetKwd)) {
+      return roundReceivableKwd(input.platformNetKwd)
+    }
+    return split.platformNetKwd
+  }
   if (typeof input.platformNetKwd === 'number' && Number.isFinite(input.platformNetKwd)) {
     return roundReceivableKwd(input.platformNetKwd)
-  }
-  if (input.byAccount && input.byAccount.length > 0) {
-    return receivablesCustomerSplit(input.byAccount, input.byPartner).platformNetKwd
   }
   if (typeof input.openReceivableKwd === 'number' && Number.isFinite(input.openReceivableKwd)) {
     return roundReceivableKwd(input.openReceivableKwd)
@@ -289,7 +370,7 @@ export function customerReceivableFigures(
         openDebitsKwd?: number | null
         unappliedCreditsKwd?: number | null
         byAccount?: readonly OdooReceivableAccountRow[]
-        byPartner?: readonly { residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
+        byPartner?: readonly { accountId?: number | null; residualKwd: number; linesCount?: number; accountCode?: string; accountName?: string }[]
         openReceivableKwd?: number | null
       }
     | null
@@ -299,6 +380,15 @@ export function customerReceivableFigures(
     input?.byAccount && input.byAccount.length > 0
       ? receivablesCustomerSplit(input.byAccount, input.byPartner)
       : null
+  if (accountSplit?.failClosed) {
+    return {
+      netKwd: null,
+      openDebitsKwd: null,
+      unappliedCreditsKwd: null,
+      formulaAr: 'رصيد متبقٍ غير مسوّى',
+      formulaEn: 'Open residual',
+    }
+  }
   const netKwd = accountSplit ? accountSplit.platformNetKwd : customerReceivableNetKwd(input)
   const openDebitsKwd = accountSplit
     ? accountSplit.platformOpenDebitsKwd
@@ -333,27 +423,43 @@ export function customerReceivableFigures(
 
 /**
  * Partner × account residuals for posted, unreconciled receivable lines.
- * Cashier clearing 10552 is dropped here so it cannot land in the customer table.
+ * Cashier clearing (`accountId === POS_CLEARING_ACCOUNT_ID = 35`) is dropped strictly by ID,
+ * and unverified `accountId` values fail closed with structured `logger.error`.
  */
 export function buildReceivablePartnerRows(groups: readonly ReceivablePartnerGroupInput[]): OdooReceivablePartnerRow[] {
+  const unverifiedCount = groups.filter(
+    (group) => !isVerifiedReceivableAccountId(group.accountId),
+  ).length
+  if (unverifiedCount > 0) {
+    logger.error('receivable_partner_rows_fail_closed_unverified_account_id', {
+      totalRows: groups.length,
+      unverifiedRowCount: unverifiedCount,
+    })
+    return []
+  }
+
   const rows: OdooReceivablePartnerRow[] = []
   for (const group of groups) {
-    if (group.accountId === null) continue
-    const accountCode = receivableAccountCode(group.accountLabel, group.accountId)
-    const accountName = group.accountLabel.trim() || `Account #${group.accountId}`
-    if (isPosClearingAccount(`${accountCode} ${accountName}`)) continue
+    const accountId = group.accountId as number
+    if (accountId === POS_CLEARING_ACCOUNT_ID) continue
+    const accountCode = receivableAccountCode(group.accountLabel, accountId)
+    const accountName = group.accountLabel.trim() || `Account #${accountId}`
     const posting = group.oldestPostingDate && /^\d{4}-\d{2}-\d{2}/.test(group.oldestPostingDate)
       ? group.oldestPostingDate.slice(0, 10)
+      : null
+    const due = group.oldestDueDate && /^\d{4}-\d{2}-\d{2}/.test(group.oldestDueDate)
+      ? group.oldestDueDate.slice(0, 10)
       : null
     rows.push({
       partnerId: group.partnerId ?? 0,
       partnerName: group.partnerName.trim() || (group.partnerId === null ? 'بدون شريك' : `Partner #${group.partnerId}`),
-      accountId: group.accountId,
+      accountId,
       accountCode,
       accountName,
       residualKwd: roundReceivableKwd(group.residualKwd),
       linesCount: Math.max(0, Math.round(group.linesCount)),
       oldestPostingDate: posting,
+      ...(due ? { oldestDueDate: due } : {}),
     })
   }
   rows.sort((a, b) => Math.abs(b.residualKwd) - Math.abs(a.residualKwd) || a.partnerName.localeCompare(b.partnerName))

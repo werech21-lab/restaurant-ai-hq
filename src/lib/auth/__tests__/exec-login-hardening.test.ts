@@ -1,6 +1,21 @@
 import bcrypt from 'bcryptjs'
 import { NextRequest } from 'next/server'
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/login',
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+}))
 
 const { findUnique } = vi.hoisted(() => ({ findUnique: vi.fn() }))
 vi.mock('@/lib/db', () => ({
@@ -8,12 +23,14 @@ vi.mock('@/lib/db', () => ({
 }))
 
 import { POST } from '@/app/api/auth/login/route'
+import { LoginForm } from '@/app/login/login-form'
 import {
   loginAccountFailureLimiter,
   loginIpAttemptLimiter,
   loginIpFailureLimiter,
 } from '@/lib/auth/api-guard'
 import { EXEC_SESSION_COOKIE, verifyExecSessionToken } from '@/lib/auth/exec-session'
+import { LanguageProvider } from '@/lib/i18n'
 import { middleware } from '@/middleware'
 import { SIDEBAR_SECTIONS } from '@/components/erp-sidebar'
 
@@ -236,5 +253,130 @@ describe('login rate-limit and DB-path hardening', () => {
     })
     const wrong = await POST(loginRequest('warehouse@venturefoodskw.com', `${DB_PASSWORD}x`, '198.51.100.74'))
     expect(wrong.status).toBe(401)
+  })
+})
+
+const TypedLangProvider = LanguageProvider as React.ComponentType<{
+  initialLocale: 'ar' | 'en'
+  children?: React.ReactNode
+}>
+
+function renderLoginFormMarkup(locale: 'ar' | 'en', nextPath?: string): string {
+  return renderToStaticMarkup(
+    React.createElement(
+      TypedLangProvider,
+      { initialLocale: locale },
+      React.createElement(LoginForm, nextPath ? { nextPath } : {}),
+    ),
+  )
+}
+
+describe('LoginForm explicit POST hardening and pre-hydration form submission', () => {
+  beforeEach(() => {
+    for (const key of ENV_KEYS) vi.stubEnv(key, key.endsWith('_PASSWORD') ? TEMP_PASSWORD : '')
+    loginIpFailureLimiter.clearAll()
+    loginIpAttemptLimiter.clearAll()
+    loginAccountFailureLimiter.clearAll()
+    findUnique.mockReset()
+    findUnique.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('renders <form method="post" action="/api/auth/login"> in SSR markup and never submits password via GET', () => {
+    for (const locale of ['ar', 'en'] as const) {
+      const html = renderLoginFormMarkup(locale, '/erp/finance')
+      const formTagMatch = /<form\b[^>]*>/i.exec(html)
+      expect(formTagMatch, `missing <form> in ${locale}`).not.toBeNull()
+
+      const formTag = formTagMatch![0]
+      expect(formTag).toMatch(/\bmethod="post"/i)
+      expect(formTag).not.toMatch(/\bmethod="get"/i)
+      expect(formTag).toMatch(/\baction="\/api\/auth\/login"/i)
+
+      // Ensure password input exists inside the POST form (regardless of React attribute order) and no control overrides formMethod="get"
+      const formInnerMatch = /<form\b[^>]*>([\s\S]*?)<\/form>/i.exec(html)
+      expect(formInnerMatch, `missing </form> in ${locale}`).not.toBeNull()
+      const formInner = formInnerMatch![1]
+      const passwordInputMatch = /<input\b[^>]*\bname="password"[^>]*>/i.exec(formInner)
+      expect(passwordInputMatch, `missing password input inside <form> in ${locale}`).not.toBeNull()
+      expect(passwordInputMatch![0]).toMatch(/\btype="password"/i)
+      expect(html).not.toMatch(/\bformmethod="get"/i)
+      expect(formInner).toContain('name="next"')
+      expect(formInner).toContain('value="/erp/finance"')
+    }
+  })
+
+  it('authenticates a pre-hydration native HTML form POST with 303 redirect and never leaks credentials in Location URL', async () => {
+    const body = new URLSearchParams({
+      email: 'cfo@venturefoodskw.com',
+      password: TEMP_PASSWORD,
+      next: '/erp/finance',
+    }).toString()
+
+    const req = new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'text/html,application/xhtml+xml',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        origin: 'https://aetherbi.com',
+        'x-forwarded-for': '198.51.100.120',
+      },
+      body,
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(303)
+    const location = res.headers.get('location') ?? ''
+    expect(location).toBe('https://aetherbi.com/erp/finance')
+    expect(location).not.toContain('password')
+    expect(location).not.toContain(TEMP_PASSWORD)
+    expect(location).not.toContain('cfo@venturefoodskw.com')
+    expect(await sessionRole(res)).toBe('cfo')
+  })
+
+  it('redirects failed pre-hydration native HTML form POST with 303 to /login?reason=invalid_credentials without leaking credentials', async () => {
+    const wrongPass = 'wrong-secret-pass-999'
+    const body = new URLSearchParams({
+      email: 'cfo@venturefoodskw.com',
+      password: wrongPass,
+      next: '/erp/finance',
+    }).toString()
+
+    const req = new NextRequest('https://aetherbi.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'text/html,application/xhtml+xml',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'same-origin',
+        origin: 'https://aetherbi.com',
+        'x-forwarded-for': '198.51.100.121',
+      },
+      body,
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(303)
+    const location = res.headers.get('location') ?? ''
+    expect(location).toBe('https://aetherbi.com/login?reason=invalid_credentials&next=%2Ferp%2Ffinance')
+    expect(location).not.toContain('password')
+    expect(location).not.toContain(wrongPass)
+    expect(location).not.toContain('cfo@venturefoodskw.com')
+    expect(await sessionRole(res)).toBeNull()
+  })
+
+  it('keeps JSON POST responses 100% unchanged alongside URL-encoded form support', async () => {
+    const jsonRes = await POST(loginRequest('cfo@venturefoodskw.com', TEMP_PASSWORD, '198.51.100.122'))
+    expect(jsonRes.status).toBe(200)
+    const payload = (await jsonRes.json()) as { ok: boolean; role: string; redirectTo: string }
+    expect(payload.ok).toBe(true)
+    expect(payload.role).toBe('cfo')
+    expect(payload.redirectTo).toBeTruthy()
+    expect(await sessionRole(jsonRes)).toBe('cfo')
   })
 })

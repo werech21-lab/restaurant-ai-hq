@@ -12,7 +12,7 @@ import { loadLiveTodaySummary } from './support/dashboard-fixture'
 const TODAY = '2026-11-17'
 
 describe('M6 — AR aging ages open debits by due date; credits are a separate line', () => {
-  it('M6: +100 invoice 45 days old and −100 unmatched payment 5 days old', () => {
+  it('M6: +100 invoice 45 days old and −100 unmatched payment 5 days old across standalone lines', () => {
     const aging = ageOpenReceivableLines(
       [
         { residualKwd: 100, dateMaturity: null, date: '2026-10-03' },
@@ -21,32 +21,36 @@ describe('M6 — AR aging ages open debits by due date; credits are a separate l
       TODAY,
     )
     const byKey = Object.fromEntries(aging.buckets.map((b) => [b.key, b.residualKwd]))
-    expect(byKey).toEqual({ '0_30': 0, '31_60': 100, over_60: 0 })
+    expect(byKey).toEqual({ '0_7': 0, '8_30': 0, '31_60': 100, over_60: 0 })
     expect(aging.unappliedCreditsKwd).toBe(-100)
     expect(aging.openReceivableKwd).toBe(0)
     expect(aging.buckets.every((b) => b.residualKwd >= 0)).toBe(true)
   })
 
-  it('ages by date_maturity first and falls back to the posting date', () => {
-    expect(classifyAgingBucket('2026-11-17', TODAY)).toBe('0_30')
-    expect(classifyAgingBucket('2026-12-30', TODAY)).toBe('0_30')
-    expect(classifyAgingBucket('2026-10-18', TODAY)).toBe('0_30')
+  it('ages by date_maturity first and falls back to the posting date across 0_7, 8_30, 31_60, over_60', () => {
+    expect(classifyAgingBucket('2026-11-17', TODAY)).toBe('0_7')
+    expect(classifyAgingBucket('2026-12-30', TODAY)).toBe('0_7')
+    expect(classifyAgingBucket('2026-11-10', TODAY)).toBe('0_7')
+    expect(classifyAgingBucket('2026-11-09', TODAY)).toBe('8_30')
+    expect(classifyAgingBucket('2026-10-18', TODAY)).toBe('8_30')
     expect(classifyAgingBucket('2026-10-17', TODAY)).toBe('31_60')
     expect(classifyAgingBucket('2026-09-18', TODAY)).toBe('31_60')
     expect(classifyAgingBucket('2026-09-17', TODAY)).toBe('over_60')
     const aging = ageOpenReceivableLines([{ residualKwd: 50, dateMaturity: '2026-11-10', date: '2026-08-01' }], TODAY)
-    expect(aging.buckets.find((b) => b.key === '0_30')?.residualKwd).toBe(50)
+    expect(aging.buckets.find((b) => b.key === '0_7')?.residualKwd).toBe(50)
   })
 
   it('server domains: positive residual per bucket with maturity-or-date windows, one negative credit domain', () => {
     const { debitDomains, creditDomain } = buildArAgingDomains([['reconciled', '=', false]], TODAY)
     const json = (x: unknown) => JSON.stringify(x)
-    expect(debitDomains.map((d) => d.key)).toEqual(['0_30', '31_60', 'over_60'])
+    expect(debitDomains.map((d) => d.key)).toEqual(['0_7', '8_30', '31_60', 'over_60'])
     for (const d of debitDomains) expect(json(d.domain)).toContain('["amount_residual",">",0]')
-    expect(json(debitDomains[0].domain)).toContain('["date_maturity",">=","2026-10-18"]')
-    expect(json(debitDomains[1].domain)).toContain('["date_maturity","<","2026-10-18"]')
-    expect(json(debitDomains[1].domain)).toContain('["date",">=","2026-09-18"]')
-    expect(json(debitDomains[2].domain)).toContain('["date","<","2026-09-18"]')
+    expect(json(debitDomains[0].domain)).toContain('["date_maturity",">=","2026-11-10"]')
+    expect(json(debitDomains[1].domain)).toContain('["date_maturity","<","2026-11-10"]')
+    expect(json(debitDomains[1].domain)).toContain('["date_maturity",">=","2026-10-18"]')
+    expect(json(debitDomains[2].domain)).toContain('["date_maturity","<","2026-10-18"]')
+    expect(json(debitDomains[2].domain)).toContain('["date",">=","2026-09-18"]')
+    expect(json(debitDomains[3].domain)).toContain('["date","<","2026-09-18"]')
     expect(json(creditDomain)).toContain('["amount_residual","<",0]')
     const summarized = summarizeArAging({
       debitsByBucket: { '31_60': { residualKwd: 100, linesCount: 1 } },

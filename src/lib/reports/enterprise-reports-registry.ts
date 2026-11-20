@@ -274,7 +274,7 @@ export function buildLiveEnterpriseDepartments(
             status: isAr ? 'مرحّل' : 'Posted',
           },
           {
-            lineItem: isAr ? 'تكلفة البضاعة المباعة المرحلة (COGS)' : 'Posted GL COGS',
+            lineItem: isAr ? 'تكلفة البضاعة المباعة المرحلة' : 'Posted GL COGS',
             model: 'account.move.line',
             amount: formatKwd(acc.cogsKwd, { showUnit: false }),
             pctOfRev: formatPct(acc.cogsPct),

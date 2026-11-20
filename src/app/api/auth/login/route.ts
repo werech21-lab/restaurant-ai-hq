@@ -56,6 +56,42 @@ async function parseJsonCredentials(request: Request): Promise<{
   }
 }
 
+type FormLoginFailureReason = 'invalid_credentials' | 'no_access' | 'rate_limited'
+
+function isFormNavigationRequest(request: Request): boolean {
+  const contentType = (request.headers.get('content-type') || '').toLowerCase()
+  const isFormBody =
+    contentType.includes('application/x-www-form-urlencoded') ||
+    contentType.includes('multipart/form-data')
+  if (!isFormBody) return false
+
+  const secFetchMode = (request.headers.get('sec-fetch-mode') || '').toLowerCase()
+  const accept = (request.headers.get('accept') || '').toLowerCase()
+  return secFetchMode === 'navigate' || accept.includes('text/html')
+}
+
+function buildLoginFormFailureRedirect(
+  request: NextRequest,
+  reason: FormLoginFailureReason,
+  rawNext: string,
+  retryAfterSeconds?: number,
+): NextResponse {
+  const loginUrl = new URL('/login', request.url)
+  loginUrl.searchParams.set('reason', reason)
+  const cleanNext = rawNext ? sanitizeExecNextPath(rawNext, '') : ''
+  if (cleanNext) {
+    loginUrl.searchParams.set('next', cleanNext)
+  }
+  const headers = new Headers(ENTERPRISE_API_SECURITY_HEADERS)
+  if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+    headers.set('Retry-After', String(Math.max(1, Math.ceil(retryAfterSeconds))))
+  }
+  return NextResponse.redirect(loginUrl, {
+    status: 303,
+    headers,
+  })
+}
+
 async function parseLoginCredentials(request: Request): Promise<{
   email: string
   password: string
@@ -63,10 +99,20 @@ async function parseLoginCredentials(request: Request): Promise<{
 }> {
   const contentType = (request.headers.get('content-type') || '').toLowerCase()
 
-  if (
-    contentType.includes('multipart/form-data') ||
-    contentType.includes('application/x-www-form-urlencoded')
-  ) {
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    try {
+      const params = new URLSearchParams(await request.text())
+      return {
+        email: String(params.get('email') ?? '').trim().toLowerCase().slice(0, 160),
+        password: String(params.get('password') ?? '').trim().slice(0, 256),
+        next: String(params.get('next') ?? '').trim().slice(0, 256),
+      }
+    } catch {
+      return { email: '', password: '', next: '' }
+    }
+  }
+
+  if (contentType.includes('multipart/form-data')) {
     try {
       const formData = await request.formData()
       return {
@@ -100,10 +146,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const isFormNavigation = isFormNavigationRequest(request)
   const clientIp = extractClientIp(request)
   const ipKey = `ip:${clientIp}`
   const ipBlocked = loginIpFailureLimiter.peekBlocked(ipKey)
   if (ipBlocked.blocked) {
+    if (isFormNavigation) {
+      return buildLoginFormFailureRedirect(
+        request,
+        'rate_limited',
+        '',
+        ipBlocked.retryAfterSeconds,
+      )
+    }
     return buildRateLimitedJsonResponse(ipBlocked.retryAfterSeconds)
   }
 
@@ -111,6 +166,14 @@ export async function POST(request: NextRequest) {
   const accountKey = `acct:${clientIp}:${email || 'anonymous'}`
   const blockedCheck = loginAccountFailureLimiter.peekBlocked(accountKey)
   if (blockedCheck.blocked) {
+    if (isFormNavigation) {
+      return buildLoginFormFailureRedirect(
+        request,
+        'rate_limited',
+        next,
+        blockedCheck.retryAfterSeconds,
+      )
+    }
     return buildRateLimitedJsonResponse(blockedCheck.retryAfterSeconds)
   }
 
@@ -166,6 +229,9 @@ export async function POST(request: NextRequest) {
 
   if (passwordMatchedWithoutRole && !authenticatedRole) {
     logger.warn('access_role_missing', { email: maskEmail(passwordMatchedWithoutRole) })
+    if (isFormNavigation) {
+      return buildLoginFormFailureRedirect(request, 'no_access', next)
+    }
     return NextResponse.json(
       {
         ok: false,
@@ -181,7 +247,18 @@ export async function POST(request: NextRequest) {
     loginIpFailureLimiter.check(ipKey)
     const failDecision = loginAccountFailureLimiter.check(accountKey)
     if (!failDecision.allowed) {
+      if (isFormNavigation) {
+        return buildLoginFormFailureRedirect(
+          request,
+          'rate_limited',
+          next,
+          failDecision.retryAfterSeconds,
+        )
+      }
       return buildRateLimitedJsonResponse(failDecision.retryAfterSeconds)
+    }
+    if (isFormNavigation) {
+      return buildLoginFormFailureRedirect(request, 'invalid_credentials', next)
     }
     return NextResponse.json(
       {
@@ -222,21 +299,26 @@ export async function POST(request: NextRequest) {
     }
     throw err
   }
-  const response = NextResponse.json(
-    {
-      ok: true,
-      role: authenticatedRole,
-      nameAr: profile.nameAr,
-      nameEn: profile.nameEn,
-      titleAr: profile.titleAr,
-      titleEn: profile.titleEn,
-      redirectTo: roleScopedRedirect,
-    },
-    {
-      status: 200,
-      headers: ENTERPRISE_API_SECURITY_HEADERS,
-    },
-  )
+  const response = isFormNavigation
+    ? NextResponse.redirect(new URL(roleScopedRedirect, request.url), {
+        status: 303,
+        headers: ENTERPRISE_API_SECURITY_HEADERS,
+      })
+    : NextResponse.json(
+        {
+          ok: true,
+          role: authenticatedRole,
+          nameAr: profile.nameAr,
+          nameEn: profile.nameEn,
+          titleAr: profile.titleAr,
+          titleEn: profile.titleEn,
+          redirectTo: roleScopedRedirect,
+        },
+        {
+          status: 200,
+          headers: ENTERPRISE_API_SECURITY_HEADERS,
+        },
+      )
 
   response.cookies.set(EXEC_SESSION_COOKIE, execToken, execCookieOptions(isProduction))
 

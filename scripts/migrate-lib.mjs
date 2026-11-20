@@ -83,6 +83,7 @@ export const baselineSentinels = {
   '0052_council_reports_and_seasons.sql': ['public.council_reports', 'public.season_events', 'fn:erp_council_reports_seasons_marker()'],
   '0053_council_decisions.sql': ['public.council_decisions', 'fn:erp_council_decisions_marker()'],
   '0054_odoo_closed_year_cache.sql': ['public.vf_odoo_closed_year_cache', 'fn:erp_odoo_closed_year_cache_marker()'],
+  '0055_live_gate_server_rls_and_ai_briefs.sql': ['fn:erp_live_gate_rls_ai_briefs_marker()'],
 }
 
 /**

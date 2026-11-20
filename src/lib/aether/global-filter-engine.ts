@@ -1977,10 +1977,10 @@ export function computeGlobalWorkspace(
   let rootCauseAr = ''
   let rootCauseEn = ''
   if (salesKwd <= 0) {
-    rootCauseAr = 'لا توجد بيانات من Odoo لهذه الفترة أو لهذا التقاطع.'
+    rootCauseAr = 'لا توجد بيانات من أودو لهذه الفترة أو لهذا التقاطع.'
     rootCauseEn = 'No Odoo POS sales recorded for this period or slice.'
   } else if (accounting.netProfitPct !== null && !accounting.glIncomplete) {
-    rootCauseAr = `قيود دفتر الأستاذ العام (account.move.line): تكلفة البضاعة ${accounting.cogsPct?.toFixed(1)}% • عمولات مرحّلة ${accounting.deliveryCommPct?.toFixed(1)}% • مصاريف وإيجارات وإهلاك ${accounting.opexRentDeprPct?.toFixed(1)}% • صافي التشغيل ${accounting.netProfitPct.toFixed(1)}%.`
+    rootCauseAr = `قيود دفتر الأستاذ العام المرحّلة: تكلفة البضاعة المباعة ${accounting.cogsPct?.toFixed(1)}% • عمولات التوصيل المرحّلة ${accounting.deliveryCommPct?.toFixed(1)}% • المصروفات والإيجار والإهلاك ${accounting.opexRentDeprPct?.toFixed(1)}% • صافي الربح التشغيلي ${accounting.netProfitPct.toFixed(1)}%.`
     rootCauseEn = `Odoo GL (account.move.line): COGS ${accounting.cogsPct?.toFixed(1)}% • Posted Commissions ${accounting.deliveryCommPct?.toFixed(1)}% • Rent/Opex/Depr ${accounting.opexRentDeprPct?.toFixed(1)}% • Operating Net ${accounting.netProfitPct.toFixed(1)}%.`
   } else {
     const commNoteAr = aggregatorCommissionUnposted ? ' • عمولات المنصات: غير مُرحَّل بعد' : ''

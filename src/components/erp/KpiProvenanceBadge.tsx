@@ -32,6 +32,8 @@ export interface KpiProvenanceBadgeProps {
   kind: KpiMetricKindInput
   /** Actual Odoo JSON-RPC domain/read_group query or explicit mathematical formula */
   queryOrFormula?: string
+  /** Optional explicit Arabic localization for `queryOrFormula` when `isAr` is true */
+  queryOrFormulaAr?: string
   isAr?: boolean
   compact?: boolean
   /** Optional controlled open state */
@@ -128,6 +130,191 @@ function formatSyncShort(lastSyncAt?: string | null): {
   }
 }
 
+const ODOO_MODEL_AR_MAP: Record<string, string> = {
+  'pos.order + account.move.line': 'طلبات نقاط البيع + قيود الأستاذ العام',
+  'pos.payment + pos.order': 'مدفوعات وطلبات نقاط البيع',
+  'pos.order': 'طلبات نقاط البيع',
+  'pos.order.line': 'بنود طلبات نقاط البيع',
+  'pos.payment': 'مدفوعات نقاط البيع',
+  'pos.config': 'أجهزة نقاط البيع',
+  'pos.session': 'جلسات نقاط البيع',
+  'account.move.line': 'قيود دفتر الأستاذ العام',
+  'account.move': 'فواتير وقيود المحاسبة',
+  'stock.move': 'حركات المخزون',
+  'stock.quant': 'أرصدة المخزون',
+  'purchase.order': 'أوامر الشراء',
+  'purchase.order.line': 'بنود أوامر الشراء',
+  'hr.attendance': 'سجلات الحضور والانصراف',
+  'hr.employee': 'سجلات الموظفين',
+}
+
+export function localizeOdooModelAr(rawModel?: string | null): string {
+  const trimmed = (rawModel ?? '').trim()
+  if (!trimmed || trimmed === 'unspecified' || trimmed === 'غير محدد' || trimmed === '—') {
+    return 'غير محدد'
+  }
+  const exact = ODOO_MODEL_AR_MAP[trimmed.toLowerCase()]
+  if (exact) return exact
+  return trimmed
+    .replace(/\bpos\.order\.line\b/gi, 'بنود طلبات نقاط البيع')
+    .replace(/\bpos\.order\b/gi, 'طلبات نقاط البيع')
+    .replace(/\bpos\.payment\b/gi, 'مدفوعات نقاط البيع')
+    .replace(/\bpos\.config\b/gi, 'أجهزة نقاط البيع')
+    .replace(/\bpos\.session\b/gi, 'جلسات نقاط البيع')
+    .replace(/\baccount\.move\.line\b/gi, 'قيود دفتر الأستاذ العام')
+    .replace(/\baccount\.move\b/gi, 'فواتير وقيود المحاسبة')
+    .replace(/\bpurchase\.order\.line\b/gi, 'بنود أوامر الشراء')
+    .replace(/\bpurchase\.order\b/gi, 'أوامر الشراء')
+    .replace(/\bstock\.move\b/gi, 'حركات المخزون')
+    .replace(/\bstock\.quant\b/gi, 'أرصدة المخزون')
+    .replace(/\bhr\.attendance\b/gi, 'سجلات الحضور والانصراف')
+    .replace(/\bhr\.employee\b/gi, 'سجلات الموظفين')
+}
+
+const EXACT_FORMULA_AR_MAP: Record<string, string> = {
+  'netsaleskwd / orders': 'صافي المبيعات بالدينار ÷ عدد الطلبات المقبوضة',
+  'max(pos.order net sales by mapped branch)':
+    'أعلى فرع مربوط من حيث صافي مبيعات نقاط البيع خلال الفترة',
+  "account.move.line(parent_state='posted'): income - cogs - deliverycommissions - opex - depreciation":
+    'قيود الأستاذ العام المرحّلة: الإيرادات − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات التشغيلية − الإهلاك',
+  "account.move.line(parent_state='posted'): income, expense_direct_cost, expense":
+    'قيود الأستاذ العام المرحّلة: الإيرادات وتكلفة البضاعة المباعة والمصروفات التشغيلية',
+  "account.move.line(parent_state='posted', delivery commission expense accounts)":
+    'قيود الأستاذ العام المرحّلة لحسابات مصروف عمولات منصات التوصيل',
+  "account.move.line aggregator commission expense accounts (parent_state='posted')":
+    'قيود الأستاذ العام المرحّلة لحسابات مصروف عمولات منصات التوصيل',
+  "pos.order.read_group(groupby=['config_id']) mapped via pos-registry.json + unattributed bucket":
+    'تجميع طلبات نقاط البيع حسب جهاز الكاشير وربطها بسجل الفروع المعتمد مع فصل غير المنسوب',
+  'pos.order daily series grouped by asia/kuwait calendar day':
+    'السلسلة اليومية لطلبات نقاط البيع مجمّعة حسب اليوم التقويمي بتوقيت الكويت',
+  "account.move.line(account_type='asset_receivable', parent_state='posted', reconciled=false) -> sum(amount_residual)":
+    'مجموع الرصيد المتبقي على حسابات الذمم المدينة المرحّلة غير المسوّاة',
+  "sum(amount_residual) where account_type = 'asset_receivable' and reconciled = false":
+    'مجموع الرصيد المتبقي على حسابات الذمم المدينة غير المسوّاة',
+  'pos.order net sales per day/branch + account.move.line posted operating profit ratio':
+    'صافي مبيعات نقاط البيع لكل يوم أو فرع مع نسبة صافي الربح التشغيلي المرحّل في الأستاذ العام',
+  '(cogs + deliverycommissions + opexrentdepr + operatingprofit) / revenue * 10 kwd':
+    '(تكلفة البضاعة المباعة + عمولات التوصيل + المصروفات والإيجار والإهلاك + الربح التشغيلي) ÷ الإيرادات × 10 د.ك',
+  "sum(credit - debit) on income accounts where parent_state = 'posted'":
+    'مجموع (الدائن − المدين) على حسابات الإيرادات للقيود المرحّلة',
+  'pos.order net sales across mapped venture foods branches':
+    'صافي مبيعات نقاط البيع عبر فروع فنتشر فودز المربوطة',
+  "sum(debit - credit) on direct_cost accounts where parent_state = 'posted'":
+    'مجموع (المدين − الدائن) على حسابات تكلفة البضاعة المباعة للقيود المرحّلة',
+  "sum(debit - credit) on expense + expense_depreciation accounts where parent_state = 'posted'":
+    'مجموع (المدين − الدائن) على حسابات المصروفات التشغيلية والإهلاك المرحّلة',
+  'sum(amount_residual > 0) on asset_receivable':
+    'مجموع الأرصدة المتبقية الموجبة على حسابات الذمم المدينة',
+  'abs(sum(amount_residual < 0)) on asset_receivable':
+    'القيمة المطلقة لمجموع الأرصدة الدائنة غير المطبّقة على حسابات الذمم المدينة',
+  'pos.order.read_group':
+    'تجميع صافي مبيعات طلبات نقاط البيع لفروع الشركة المعتمدة',
+  'posted revenue - cogs - aggregator commissions - posted opex & depreciation':
+    'الإيراد المرحّل − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات والإهلاك المرحّلة',
+  'revenue - cogs - deliverycommissions - opex - depreciation':
+    'الإيرادات المرحّلة − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات التشغيلية − الإهلاك',
+  'open residual': 'رصيد متبقٍ غير مسوّى',
+}
+
+export function localizeQueryOrFormulaAr(
+  rawQueryOrFormula: string | undefined,
+  suppliedModel = '',
+  rangeStr = '',
+): string {
+  const trimmed = (rawQueryOrFormula ?? '').trim()
+  const modelAr = localizeOdooModelAr(suppliedModel)
+  if (!trimmed) {
+    return rangeStr ? `${modelAr} [${rangeStr}]` : modelAr
+  }
+
+  const normalizedKey = trimmed.replace(/\s+/g, ' ').toLowerCase()
+  const exact = EXACT_FORMULA_AR_MAP[normalizedKey]
+  if (exact) return exact
+
+  if (/^pos\.order\.read_group\(/i.test(trimmed)) {
+    if (/config_id/i.test(trimmed) && /groupby/i.test(trimmed)) {
+      return 'تجميع طلبات نقاط البيع حسب جهاز الكاشير وربطها بسجل الفروع المعتمد مع فصل غير المنسوب'
+    }
+    return 'مجموع (إجمالي الطلب − الضريبة) لطلبات نقاط البيع المدفوعة والمرحّلة لفروع الشركة المعتمدة'
+  }
+  if (/^pos\.order\.search_count\(/i.test(trimmed)) {
+    return 'عدد طلبات نقاط البيع المدفوعة غير المستردة لفروع الشركة المعتمدة'
+  }
+
+  // If already pure Arabic with zero Latin characters, normalize any stray COGS mention and return
+  if (/[\u0600-\u06FF]/.test(trimmed) && !/[A-Za-z]/.test(trimmed)) {
+    return trimmed
+  }
+
+  return trimmed
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\(COGS\)/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bcost of goods sold\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bgross margin\b/gi, 'هامش مجمل الربح')
+    .replace(/\bgross profit\b/gi, 'مجمل الربح')
+    .replace(/\boperating\s*profit\b/gi, 'الربح التشغيلي')
+    .replace(/\bdelivery\s*commissions\b/gi, 'عمولات التوصيل')
+    .replace(/\baggregator\s*commissions\b/gi, 'عمولات منصات التوصيل')
+    .replace(/\bopexrentdepr\b/gi, 'المصروفات والإيجار والإهلاك')
+    .replace(/\bposted\s*revenue\b/gi, 'الإيراد المرحّل')
+    .replace(/\brevenue\b/gi, 'الإيرادات')
+    .replace(/\bincome\s*accounts?\b/gi, 'حسابات الإيرادات')
+    .replace(/\bdirect_cost\s*accounts?\b/gi, 'حسابات التكلفة المباشرة')
+    .replace(/\bexpense_direct_cost\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bexpense_depreciation\b/gi, 'مصروف الإهلاك')
+    .replace(/\basset_receivable\b/gi, 'حسابات الذمم المدينة')
+    .replace(/\bcogs\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bopex\b/gi, 'المصروفات التشغيلية')
+    .replace(/\bdepreciation\b/gi, 'الإهلاك')
+    .replace(/\bincome\b/gi, 'الإيرادات')
+    .replace(/\bexpense\s*accounts?\b/gi, 'حسابات المصروفات')
+    .replace(/\bexpense\b/gi, 'المصروفات')
+    .replace(/\bpos\.order\.line\b/gi, 'بنود طلبات نقاط البيع')
+    .replace(/\bpos\.order\.read_group\b/gi, 'تجميع طلبات نقاط البيع')
+    .replace(/\bpos\.order\.search_count\b/gi, 'عدد طلبات نقاط البيع')
+    .replace(/\bpos\.order\b/gi, 'طلبات نقاط البيع')
+    .replace(/\bpos\.payment\b/gi, 'مدفوعات نقاط البيع')
+    .replace(/\bpos\.config\b/gi, 'أجهزة نقاط البيع')
+    .replace(/\baccount\.move\.line\b/gi, 'قيود دفتر الأستاذ العام')
+    .replace(/\baccount\.move\b/gi, 'قيود المحاسبة')
+    .replace(/\bpurchase\.order\.line\b/gi, 'بنود أوامر الشراء')
+    .replace(/\bpurchase\.order\b/gi, 'أوامر الشراء')
+    .replace(/\bstock\.move\b/gi, 'حركات المخزون')
+    .replace(/\bprice_subtotal_incl\b/gi, 'الإجمالي شامل الضريبة')
+    .replace(/\bprice_subtotal\b/gi, 'صافي قيمة البند')
+    .replace(/\bamount_residual\b/gi, 'الرصيد المتبقي')
+    .replace(/\bamount_total\b/gi, 'إجمالي الطلب')
+    .replace(/\bamount_tax\b/gi, 'الضريبة')
+    .replace(/\bstandard_price\b/gi, 'التكلفة المعيارية')
+    .replace(/\bnetsaleskwd\b/gi, 'صافي المبيعات')
+    .replace(/\bnet\s*sales\b/gi, 'صافي المبيعات')
+    .replace(/\bsettled\s*orders\b/gi, 'الطلبات المقبوضة')
+    .replace(/\borders\b/gi, 'الطلبات')
+    .replace(/\bparent_state\s*=\s*['"]?posted['"]?/gi, 'الحالة = مرحّل')
+    .replace(/\breconciled\s*=\s*false\b/gi, 'غير مسوّى')
+    .replace(/\bposted\b/gi, 'المرحّلة')
+    .replace(/\bcredit\b/gi, 'الدائن')
+    .replace(/\bdebit\b/gi, 'المدين')
+    .replace(/\baccounts?\b/gi, 'الحسابات')
+    .replace(/\babs\s*\(/gi, 'القيمة المطلقة(')
+    .replace(/\bsum\s*\(/gi, 'مجموع(')
+    .replace(/\bavg\s*\(/gi, 'متوسط(')
+    .replace(/\bmax\s*\(/gi, 'أعلى(')
+    .replace(/\bmin\s*\(/gi, 'أدنى(')
+    .replace(/\bcount\s*\(/gi, 'عدد(')
+    .replace(/\bwhere\b/gi, 'حيث')
+    .replace(/\band\b/gi, 'و')
+    .replace(/\bor\b/gi, 'أو')
+    .replace(/\bon\b/gi, 'على')
+    .replace(/\bkwd\b/gi, 'د.ك')
+    .replace(/->/g, '←')
+    .replace(/\s*\*\s*/g, ' × ')
+    .replace(/\s*\/\s*/g, ' ÷ ')
+    .replace(/\s*-\s*/g, ' − ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function computeCollisionAwarePopoverCoords(params: {
   triggerRect: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right'>
   popoverWidth: number
@@ -222,6 +409,7 @@ export function KpiProvenanceBadge({
   isStale24h,
   kind,
   queryOrFormula: rawQueryOrFormula,
+  queryOrFormulaAr: rawQueryOrFormulaAr,
   isAr: explicitIsAr,
   compact = false,
   open: controlledOpen,
@@ -233,6 +421,7 @@ export function KpiProvenanceBadge({
   const resolvedDir = isAr ? 'rtl' : 'ltr'
   const suppliedModel = (rawOdooModel || model || '').trim()
   const odooModel = suppliedModel || (isAr ? 'غير محدد' : 'unspecified')
+  const displayModel = isAr ? localizeOdooModelAr(suppliedModel) : odooModel
   const kindMeta = normalizeKind(kind)
   const rangeStr =
     typeof dateRange === 'string'
@@ -241,6 +430,11 @@ export function KpiProvenanceBadge({
         ? dateRange.from
         : `${dateRange.from} → ${dateRange.to}`
   const queryOrFormula = rawQueryOrFormula || `${odooModel} [${rangeStr}]`
+  const displayQueryOrFormula = isAr
+    ? rawQueryOrFormulaAr?.trim()
+      ? rawQueryOrFormulaAr.trim()
+      : localizeQueryOrFormulaAr(rawQueryOrFormula, suppliedModel, rangeStr)
+    : queryOrFormula
 
   const syncInfo = formatSyncShort(lastSyncAt)
   const stale = Boolean(isStale24h || syncInfo.computedStale24h)
@@ -248,10 +442,10 @@ export function KpiProvenanceBadge({
   const accessibleSummary = isAr
     ? [
         `النوع: ${kindMeta.ar}`,
-        `موديل Odoo: ${odooModel}`,
+        `المصدر في أودو: ${displayModel}`,
         `نطاق التاريخ: ${rangeStr}`,
         `آخر مزامنة: ${syncInfo.labelAr}${stale ? ' (قديمة > 24 ساعة)' : ''}`,
-        `الاستعلام / المعادلة: ${queryOrFormula}`,
+        `المعادلة: ${displayQueryOrFormula}`,
       ].join(' | ')
     : [
         `Type: ${kindMeta.en}`,
@@ -385,10 +579,13 @@ export function KpiProvenanceBadge({
         </span>
 
         <span
-          dir="ltr"
-          className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10"
+          dir={isAr ? 'rtl' : 'ltr'}
+          className={cx(
+            'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10',
+            !isAr && 'font-mono',
+          )}
         >
-          {odooModel}
+          {displayModel}
         </span>
 
         {stale ? (
@@ -415,10 +612,14 @@ export function KpiProvenanceBadge({
       </div>
 
       <div
-        dir="ltr"
-        className="mt-2 break-words rounded-xl bg-slate-100 p-2 font-mono text-xs text-slate-800 ring-1 ring-slate-900/[0.06]"
+        dir={isAr ? 'rtl' : 'ltr'}
+        data-kpi-formula="true"
+        className={cx(
+          'mt-2 break-words rounded-xl bg-slate-100 p-2 text-xs text-slate-800 ring-1 ring-slate-900/[0.06]',
+          !isAr && 'font-mono',
+        )}
       >
-        {queryOrFormula}
+        {displayQueryOrFormula}
       </div>
     </div>
   ) : null
