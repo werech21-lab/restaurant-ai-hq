@@ -11,7 +11,7 @@ export const metadata = {
 export default async function SalesAnalysisPage() {
   await requirePageUser('/erp/sales-analysis')
   return (
-    <div className="w-full max-w-[1920px] mx-auto min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-visible">
       <CoresHubStudio initialTab="sales" />
     </div>
   )

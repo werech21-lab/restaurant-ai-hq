@@ -252,12 +252,12 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             aria-modal="true"
             aria-label={isAr ? 'جميع أقسام النظام التنفيذي (13 شاشة)' : 'All 13 Executive ERP Modules'}
             dir={isAr ? 'rtl' : 'ltr'}
-            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-[28px] bg-white/95 p-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] backdrop-blur-xl shadow-[0_-14px_44px_-10px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 sm:p-5 sm:pb-[calc(1.25rem+env(safe-area-inset-bottom))] lg:hidden dark:bg-[#0F1A30]/95 dark:shadow-[0_-14px_44px_-10px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
+            className="ae-bottom-sheet no-print fixed inset-x-0 bottom-0 z-50 flex max-h-[88dvh] flex-col overflow-hidden rounded-t-[28px] bg-white/95 p-4 pb-0 backdrop-blur-xl shadow-[0_-14px_44px_-10px_rgba(15,23,42,0.16)] ring-1 ring-slate-400/25 sm:p-5 sm:pb-0 lg:hidden dark:bg-[#0F1A30]/95 dark:shadow-[0_-14px_44px_-10px_rgba(2,6,23,0.72)] dark:ring-sky-400/20"
           >
-            <div className="mx-auto mb-3 h-1.5 w-11 rounded-full bg-slate-300/80 dark:bg-sky-300/20" />
+            <div className="mx-auto mb-3 h-1.5 w-11 shrink-0 rounded-full bg-slate-300/80 dark:bg-sky-300/20" />
 
             {/* Sheet Header + ThemeToggle + AR/EN */}
-            <div className="flex items-center justify-between gap-1.5 pb-3">
+            <div className="flex shrink-0 items-center justify-between gap-1.5 pb-3">
               <div className="min-w-0">
                 <h2 className="whitespace-nowrap text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
                   {isAr ? 'فنتشر فودز' : 'Venture Foods'}
@@ -282,7 +282,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </div>
 
             {/* Manager PIN Session / Auditor Read-Only Status & Bell Bar */}
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-blue-50/75 px-3.5 py-2.5 backdrop-blur-sm ring-1 ring-slate-400/20 dark:bg-[#13203B]/80 dark:ring-sky-400/20">
+            <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-blue-50/75 px-3.5 py-2.5 backdrop-blur-sm ring-1 ring-slate-400/20 dark:bg-[#13203B]/80 dark:ring-sky-400/20">
               {isAuditor ? (
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-slate-600 dark:text-slate-300" />
@@ -347,7 +347,10 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
             </div>
 
             {/* Scoped ERP Pages Grouped Under Executive Categories */}
-            <div className="space-y-4">
+            <nav
+              aria-label={isAr ? 'جميع الأقسام التنفيذية' : 'All Executive Modules'}
+              className="flex-1 min-h-0 space-y-4 overflow-y-auto overscroll-contain pb-24"
+            >
               {visibleMobileSections.map((section) => (
                 <div key={section.id} className="space-y-1.5">
                   <div className="px-1 text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
@@ -390,7 +393,7 @@ export function MobileBottomNav({ isAuditor: isAuditorProp }: { isAuditor?: bool
                   </div>
                 </div>
               ))}
-            </div>
+            </nav>
           </div>
         </>
       ) : null}

@@ -18,7 +18,7 @@ import type { Invitation } from '@/lib/iam/types'
 
 const MAX_CATALOG_PAGES = 20
 
-export const iamPanelClass = 'ds-surface w-full min-w-0 rounded-2xl p-4 sm:p-5'
+export const iamPanelClass = 'ds-surface relative overflow-visible w-full min-w-0 rounded-2xl p-4 sm:p-5'
 export const iamInputClass =
   'ds-focus-ring mt-1.5 w-full rounded-xl border border-[var(--ds-border-strong)] bg-[var(--ds-bg-subtle)] px-3 py-2.5 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]'
 export const iamLabelClass = 'block text-sm font-medium text-[var(--ds-text-secondary)]'
@@ -53,7 +53,7 @@ const PILL_TONES: Record<PillTone, string> = {
 export function IamPill({ children, tone = 'neutral' }: { children: ReactNode; tone?: PillTone }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${PILL_TONES[tone]}`}
+      className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${PILL_TONES[tone]}`}
     >
       {children}
     </span>
@@ -221,7 +221,7 @@ export function IamPagedTable<T extends { id: string }>({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--ds-border-hairline)] text-[var(--ds-text-primary)]">
+            <tbody className="divide-y divide-[var(--ds-border-hairline)] tabular-nums text-[var(--ds-text-primary)]">
               {list.rows.map((row) => (
                 <tr
                   key={row.id}

@@ -122,13 +122,13 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
         className="relative flex h-full w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-slate-900 border-s border-slate-200 dark:border-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 px-5 py-4 bg-gradient-to-l from-emerald-50/70 via-white to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 px-5 py-4 bg-emerald-50/40 dark:bg-emerald-950/25">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
               <Brain className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-[16px] font-black text-slate-900 dark:text-white">
+              <h2 className="min-w-0 break-words text-[16px] font-black text-slate-900 dark:text-white">
                 {isAr ? 'سجل الملاحظات والقرارات المسجلة' : 'Recorded Executive Notes & Decisions'}
               </h2>
               <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
@@ -141,8 +141,8 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-xl p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
-            aria-label="Close"
+            className="shrink-0 cursor-pointer rounded-xl p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+            aria-label={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="h-5 w-5" />
           </button>

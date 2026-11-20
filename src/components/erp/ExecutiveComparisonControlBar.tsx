@@ -938,7 +938,7 @@ export function ExecutiveComparisonControlBar({
     <section
       ref={rootRef}
       aria-label={isAr ? 'شريط التحكم بالمقارنة المخصصة' : 'Executive Custom Comparison Control Bar'}
-      className="ae-bento-card rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12"
+      className="ae-bento-card relative z-20 overflow-visible rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/[0.05] dark:bg-[#101C17] dark:ring-emerald-500/12"
     >
       {/* ───────────── TOP ROW: Mode & Granularity Segmented Toggles + Actions ───────────── */}
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
@@ -1191,7 +1191,7 @@ export function ExecutiveComparisonControlBar({
                   className={DATE_INPUT_CLS}
                 />
               ) : (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input
                     type="date"
                     dir="ltr"
@@ -1287,8 +1287,8 @@ export function ExecutiveComparisonControlBar({
                             : 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-200 dark:hover:bg-white/[0.06]'
                         } ${!activeInSelectedBranches ? 'opacity-50' : ''}`}
                       >
-                        <div className="flex flex-col">
-                          <span>{isAr ? b.ar : b.en}</span>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate">{isAr ? b.ar : b.en}</span>
                           {!activeInSelectedBranches && (
                             <span className="text-xs text-amber-600 dark:text-amber-400">
                               {isAr ? 'خارج الفرع المحدد' : 'Not in selected branch'}
@@ -1365,8 +1365,8 @@ export function ExecutiveComparisonControlBar({
                             : 'text-slate-700 hover:bg-slate-100/80 dark:text-slate-200 dark:hover:bg-white/[0.06]'
                         } ${!compatibleWithBrand ? 'opacity-50' : ''}`}
                       >
-                        <div className="flex flex-col">
-                          <span>{isAr ? br.ar : br.en}</span>
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate">{isAr ? br.ar : br.en}</span>
                           {!compatibleWithBrand && (
                             <span className="text-xs text-amber-600 dark:text-amber-400">
                               {isAr ? 'لا يشغّل المطعم المحدد' : 'Brand inactive in this branch'}

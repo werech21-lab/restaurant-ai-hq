@@ -5,8 +5,8 @@ import { Building2, Package, Receipt, RefreshCw, ShoppingCart } from 'lucide-rea
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { formatPeriodCalendarWindow } from '@/lib/aether/global-filter-engine'
 import KpiProvenanceBadge from '@/components/erp/KpiProvenanceBadge'
+import { CompactInfoTooltip } from '@/components/ui/compact-info-tooltip'
 import { KpiCard } from '@/components/ui/kpi-card'
-import { PartialWarningBanner } from '@/components/ui/partial-warning-banner'
 import { StateBlock } from '@/components/ui/state-block'
 import {
   UNAVAILABLE_DASH,
@@ -160,21 +160,161 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
   const unavailableTooltip = getUnavailableTooltip(fmtLocale)
   const qtyFormatter = (n: number) => formatQty(n)
 
+  const kpiCards = useMemo(() => {
+    if (!purchaseSummary || noData) return []
+    const items: Array<{ key: string; node: React.ReactNode }> = []
+
+    if (
+      typeof purchaseSummary.totals.totalAmountKwd === 'number' &&
+      Number.isFinite(purchaseSummary.totals.totalAmountKwd) &&
+      purchaseSummary.totals.totalAmountKwd > 0
+    ) {
+      items.push({
+        key: 'total-amount',
+        node: (
+          <KpiCard
+            label={isAr ? 'إجمالي أوامر الشراء المعتمدة' : 'Confirmed Purchase Total'}
+            value={purchaseSummary.totals.totalAmountKwd}
+            format="kwd"
+            locale={fmtLocale}
+            icon={<ShoppingCart className="h-4 w-4" />}
+            provenance={
+              <KpiProvenanceBadge
+                model="purchase.order"
+                dateRange={purchaseSummary.dateRange}
+                lastSyncAt={purchaseSummary.lastSyncAt}
+                isStale24h={purchaseSummary.isStale24h}
+                kind="فعلي"
+                queryOrFormula="SUM(purchase.order.amount_total) WHERE state IN ('purchase','done')"
+                isAr={isAr}
+              />
+            }
+          />
+        ),
+      })
+    }
+
+    if (purchaseSummary.totals.ordersCount > 0) {
+      items.push({
+        key: 'orders-count',
+        node: (
+          <KpiCard
+            label={isAr ? 'عدد أوامر الشراء' : 'Purchase Orders Count'}
+            value={purchaseSummary.totals.ordersCount}
+            format="int"
+            locale={fmtLocale}
+            icon={<Receipt className="h-4 w-4" />}
+            subtitle={
+              <span dir="ltr" className="tabular-nums">
+                {formatInt(purchaseSummary.totals.linesCount, { locale: fmtLocale })}{' '}
+                {isAr ? 'سطر شراء' : 'order lines'}
+              </span>
+            }
+            provenance={
+              <KpiProvenanceBadge
+                model="purchase.order"
+                dateRange={purchaseSummary.dateRange}
+                lastSyncAt={purchaseSummary.lastSyncAt}
+                isStale24h={purchaseSummary.isStale24h}
+                kind="فعلي"
+                queryOrFormula="COUNT(purchase.order) WHERE state IN ('purchase','done')"
+                isAr={isAr}
+              />
+            }
+          />
+        ),
+      })
+    }
+
+    if (purchaseSummary.totals.vendorsCount > 0) {
+      items.push({
+        key: 'vendors-count',
+        node: (
+          <KpiCard
+            label={isAr ? 'الموردون الفعليون في الفترة' : 'Active Vendors'}
+            value={purchaseSummary.totals.vendorsCount}
+            format="int"
+            locale={fmtLocale}
+            icon={<Building2 className="h-4 w-4" />}
+            provenance={
+              <KpiProvenanceBadge
+                model="purchase.order"
+                dateRange={purchaseSummary.dateRange}
+                lastSyncAt={purchaseSummary.lastSyncAt}
+                isStale24h={purchaseSummary.isStale24h}
+                kind="فعلي"
+                queryOrFormula="COUNT(DISTINCT purchase.order.partner_id) WHERE state IN ('purchase','done')"
+                isAr={isAr}
+              />
+            }
+          />
+        ),
+      })
+    }
+
+    if (purchaseSummary.totals.productsCount > 0) {
+      items.push({
+        key: 'products-count',
+        node: (
+          <KpiCard
+            label={isAr ? 'الأصناف المشتراة' : 'Purchased Products'}
+            value={purchaseSummary.totals.productsCount}
+            format="int"
+            locale={fmtLocale}
+            icon={<Package className="h-4 w-4" />}
+            provenance={
+              <KpiProvenanceBadge
+                model="purchase.order.line"
+                dateRange={purchaseSummary.dateRange}
+                lastSyncAt={purchaseSummary.lastSyncAt}
+                isStale24h={purchaseSummary.isStale24h}
+                kind="فعلي"
+                queryOrFormula="COUNT(DISTINCT purchase.order.line.product_id) WHERE order_id.state IN ('purchase','done')"
+                isAr={isAr}
+              />
+            }
+          />
+        ),
+      })
+    }
+
+    return items
+  }, [fmtLocale, isAr, noData, purchaseSummary])
+
+  const kpiGridCols =
+    kpiCards.length <= 1
+      ? 'grid-cols-1'
+      : kpiCards.length === 2
+        ? 'grid-cols-1 md:grid-cols-2'
+        : kpiCards.length === 3
+          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
+
   return (
     <div className="space-y-6 min-w-0" dir={isAr ? 'rtl' : 'ltr'}>
-      <PartialWarningBanner summary={liveSummary} isAr={isAr} />
-
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
+      <section className="relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-1.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-white/[0.06] dark:text-slate-300">
-              <Receipt className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span>
-                {isAr
-                  ? 'أوامر الشراء وأسعار الموردين من Odoo (purchase.order)'
-                  : 'Odoo Purchase Orders & Vendor Unit Costs (purchase.order)'}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-white/[0.06] dark:text-slate-300">
+                <Receipt className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>
+                  {isAr
+                    ? 'أوامر الشراء وأسعار الموردين من Odoo (purchase.order)'
+                    : 'Odoo Purchase Orders & Vendor Unit Costs (purchase.order)'}
+                </span>
               </span>
-            </span>
+              <CompactInfoTooltip
+                text={
+                  isAr
+                    ? 'تُقرأ الأرقام حصراً من أوامر الشراء المعتمدة في أودو 17 (state in purchase, done) مع استبعاد الأصناف غير التابعة للشركة.'
+                    : 'Evaluated strictly from confirmed Odoo 17 purchase orders (state in purchase, done) excluding non-company items.'
+                }
+                label={isAr ? 'نطاق بيانات المشتريات' : 'Procurement Data Scope'}
+                isAr={isAr}
+                dataScopeNote
+              />
+            </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
               {isAr ? 'ذكاء التكلفة والمشتريات' : 'Cost & Procurement Intelligence'}
             </h2>
@@ -252,91 +392,15 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
         />
       ) : (
         <>
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <KpiCard
-              label={isAr ? 'إجمالي أوامر الشراء المعتمدة' : 'Confirmed Purchase Total'}
-              value={purchaseSummary.totals.totalAmountKwd}
-              format="kwd"
-              locale={fmtLocale}
-              icon={<ShoppingCart className="h-4 w-4" />}
-              provenance={
-                <KpiProvenanceBadge
-                  model="purchase.order"
-                  dateRange={purchaseSummary.dateRange}
-                  lastSyncAt={purchaseSummary.lastSyncAt}
-                  isStale24h={purchaseSummary.isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="SUM(purchase.order.amount_total) WHERE state IN ('purchase','done')"
-                  isAr={isAr}
-                />
-              }
-            />
+          {kpiCards.length > 0 ? (
+            <section className={`grid gap-4 ${kpiGridCols}`}>
+              {kpiCards.map((item) => (
+                <React.Fragment key={item.key}>{item.node}</React.Fragment>
+              ))}
+            </section>
+          ) : null}
 
-            <KpiCard
-              label={isAr ? 'عدد أوامر الشراء' : 'Purchase Orders Count'}
-              value={purchaseSummary.totals.ordersCount}
-              format="int"
-              locale={fmtLocale}
-              icon={<Receipt className="h-4 w-4" />}
-              subtitle={
-                <span dir="ltr" className="tabular-nums">
-                  {formatInt(purchaseSummary.totals.linesCount, { locale: fmtLocale })}{' '}
-                  {isAr ? 'سطر شراء' : 'order lines'}
-                </span>
-              }
-              provenance={
-                <KpiProvenanceBadge
-                  model="purchase.order"
-                  dateRange={purchaseSummary.dateRange}
-                  lastSyncAt={purchaseSummary.lastSyncAt}
-                  isStale24h={purchaseSummary.isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="COUNT(purchase.order) WHERE state IN ('purchase','done')"
-                  isAr={isAr}
-                />
-              }
-            />
-
-            <KpiCard
-              label={isAr ? 'الموردون الفعليون في الفترة' : 'Active Vendors'}
-              value={purchaseSummary.totals.vendorsCount}
-              format="int"
-              locale={fmtLocale}
-              icon={<Building2 className="h-4 w-4" />}
-              provenance={
-                <KpiProvenanceBadge
-                  model="purchase.order"
-                  dateRange={purchaseSummary.dateRange}
-                  lastSyncAt={purchaseSummary.lastSyncAt}
-                  isStale24h={purchaseSummary.isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="COUNT(DISTINCT purchase.order.partner_id) WHERE state IN ('purchase','done')"
-                  isAr={isAr}
-                />
-              }
-            />
-
-            <KpiCard
-              label={isAr ? 'الأصناف المشتراة' : 'Purchased Products'}
-              value={purchaseSummary.totals.productsCount}
-              format="int"
-              locale={fmtLocale}
-              icon={<Package className="h-4 w-4" />}
-              provenance={
-                <KpiProvenanceBadge
-                  model="purchase.order.line"
-                  dateRange={purchaseSummary.dateRange}
-                  lastSyncAt={purchaseSummary.lastSyncAt}
-                  isStale24h={purchaseSummary.isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="COUNT(DISTINCT purchase.order.line.product_id) WHERE order_id.state IN ('purchase','done')"
-                  isAr={isAr}
-                />
-              }
-            />
-          </section>
-
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
+          <section className="relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
             <h3 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
               {isAr ? 'مشتريات الموردين المعتمدة في Odoo' : 'Confirmed Odoo Vendor Spend'}
             </h3>
@@ -365,7 +429,7 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
                       <th className="whitespace-nowrap px-3 py-2.5 text-center">{isAr ? 'آخر أمر شراء' : 'Latest Order'}</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="tabular-nums">
                     {filteredVendors.map((v) => {
                       const latestDate = formatDate(v.latestOrderDate, { locale: fmtLocale })
                       const dateUnavailable = latestDate === UNAVAILABLE_DASH
@@ -425,7 +489,7 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
             )}
           </section>
 
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
+          <section className="relative overflow-visible rounded-2xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs dark:border-white/10 dark:bg-[#101815]">
             <h3 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
               {isAr
                 ? 'الأصناف المشتراة وتذبذب سعر الوحدة الفعلي (purchase.order.line)'
@@ -457,7 +521,7 @@ export function CostIntelligenceV2(props: CostIntelligenceV2Props) {
                       <th className="whitespace-nowrap px-3 py-2.5 text-end">{isAr ? 'إجمالي التكلفة' : 'Total Spend'}</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="tabular-nums">
                     {filteredProducts.map((p) => {
                       const minStr = formatKwd(p.minUnitPriceKwd, {
                         locale: fmtLocale,

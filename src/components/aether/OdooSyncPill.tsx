@@ -188,8 +188,8 @@ export function OdooSyncPill({ isAr }: { isAr: boolean }) {
           />
         </span>
       )}
-      <span className="hidden whitespace-nowrap 2xl:inline">{label}</span>
-      <span className="whitespace-nowrap 2xl:hidden">{shortLabel}</span>
+      <span className="hidden whitespace-nowrap min-[1720px]:inline">{label}</span>
+      <span className="whitespace-nowrap min-[1720px]:hidden">{shortLabel}</span>
     </button>
   )
 }

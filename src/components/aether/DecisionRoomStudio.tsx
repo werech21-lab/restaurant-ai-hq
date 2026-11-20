@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { ADVISOR_LABEL, estimateValue, evidenceValue, syncLabel } from '@/components/aether/TodaysDiscoveries'
 import { useLang } from '@/components/aether/ui'
+import { StateBlock } from '@/components/ui/state-block'
 import {
   buildLiveDecisionSnapshotFromSummary,
   fetchDecisionSwr,
@@ -62,7 +63,7 @@ const PENDING_STATUS_CLS =
   'bg-indigo-50 text-indigo-800 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-200 dark:ring-indigo-400/20'
 
 const CARD =
-  'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5'
+  'relative overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5'
 const fmt = (n: number, d = 3) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 const signed = (n: number, d = 1) => `${n > 0 ? '+' : ''}${n.toFixed(d)}`
 
@@ -132,7 +133,7 @@ function FindingCard({
         )}
       </div>
 
-      <h3 className="text-[15px] font-bold leading-snug text-slate-900 dark:text-white">
+      <h3 className="min-w-0 break-words text-[15px] font-bold leading-snug text-slate-900 dark:text-white">
         {isAr ? f.titleAr : f.titleEn}
       </h3>
 
@@ -210,7 +211,7 @@ function FindingCard({
           className="rounded-xl bg-sky-50/70 px-3 py-2 text-xs text-sky-950 ring-1 ring-sky-200/70 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20"
         >
           <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 font-semibold">
-            <span>{`${t('Estimate', 'تقدير')}: ${estimateValue(est, locale)}`}</span>
+            <span className="min-w-0 break-words">{`${t('Estimate', 'تقدير')}: ${estimateValue(est, locale)}`}</span>
             <span
               data-provenance-tag="deterministic-simulation"
               className="shrink-0 whitespace-nowrap rounded-full bg-white/80 px-2 py-0.5 text-xs font-semibold text-sky-900 ring-1 ring-sky-300/60 dark:bg-white/10 dark:text-sky-100 dark:ring-sky-400/30"
@@ -277,10 +278,14 @@ function DriversView({ summary, locale }: { summary: OdooLiveSummary | null; loc
         <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">{t('Why did sales move? Contribution by branch', 'لماذا تغيّرت المبيعات؟ مساهمة كل فرع')}</h3>
         <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`pos.order · ${w.a.from} → ${w.a.to} vs ${w.b.from} → ${w.b.to}`}</p>
       </header>
-      <div className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-3">
-        <p className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block text-xs text-slate-500">{t('Company change', 'تغيّر الشركة')}</span><b className="tabular-nums" dir="ltr">{`${signed(total / 1000, 3)} ${t('KWD', 'د.ك')}`}</b></p>
-        <p className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block text-xs text-slate-500">{t('Orders effect', 'أثر عدد الطلبات')}</span><b className="tabular-nums" dir="ltr">{split ? `${signed(split.ordersEffectFils / 1000, 3)} ${t('KWD', 'د.ك')}` : '—'}</b></p>
-        <p className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block text-xs text-slate-500">{t('Basket effect', 'أثر متوسط الفاتورة')}</span><b className="tabular-nums" dir="ltr">{split ? `${signed(split.basketEffectFils / 1000, 3)} ${t('KWD', 'د.ك')}` : '—'}</b></p>
+      <div className={`grid grid-cols-1 gap-2 text-[13px] ${split ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
+        <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block truncate text-xs text-slate-500">{t('Company change', 'تغيّر الشركة')}</span><b className="tabular-nums" dir="ltr">{`${signed(total / 1000, 3)} ${t('KWD', 'د.ك')}`}</b></p>
+        {split ? (
+          <>
+            <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block truncate text-xs text-slate-500">{t('Orders effect', 'أثر عدد الطلبات')}</span><b className="tabular-nums" dir="ltr">{`${signed(split.ordersEffectFils / 1000, 3)} ${t('KWD', 'د.ك')}`}</b></p>
+            <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block truncate text-xs text-slate-500">{t('Basket effect', 'أثر متوسط الفاتورة')}</span><b className="tabular-nums" dir="ltr">{`${signed(split.basketEffectFils / 1000, 3)} ${t('KWD', 'د.ك')}`}</b></p>
+          </>
+        ) : null}
       </div>
       <ul className="space-y-1.5" aria-label={t('Contribution by branch', 'المساهمة حسب الفرع')}>
         {rows.map((r) => {
@@ -289,12 +294,12 @@ function DriversView({ summary, locale }: { summary: OdooLiveSummary | null; loc
           const neg = r.deltaFils < 0
           return (
             <li key={r.id} data-driver-row={r.id} className="grid grid-cols-[7.5rem_1fr_6.5rem] items-center gap-2 text-[13px] sm:grid-cols-[9rem_1fr_8rem]">
-              <span className="truncate font-semibold text-slate-800 dark:text-slate-200">{isAr ? lbl.ar : lbl.en}</span>
+              <span className="min-w-0 truncate font-semibold text-slate-800 dark:text-slate-200" title={isAr ? lbl.ar : lbl.en}>{isAr ? lbl.ar : lbl.en}</span>
               <span className="relative h-4 rounded bg-slate-100 dark:bg-white/[0.06]" dir="ltr" aria-hidden="true">
                 <span className="absolute inset-y-0 left-1/2 w-px bg-slate-400/60" />
                 <span className={`absolute inset-y-0 rounded ${neg ? 'right-1/2 bg-red-500/80' : 'left-1/2 bg-emerald-600/80'}`} style={{ width: `${pct}%` }} />
               </span>
-              <span className={`text-end font-semibold tabular-nums ${neg ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300'}`} dir="ltr">{signed(r.deltaFils / 1000, 3)}</span>
+              <span className={`whitespace-nowrap text-end font-semibold tabular-nums ${neg ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300'}`} dir="ltr">{signed(r.deltaFils / 1000, 3)}</span>
             </li>
           )
         })}
@@ -400,21 +405,23 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
           <p className="text-[13px] text-slate-700 dark:text-slate-300">
             {t('Expected', 'المتوقع')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.totalKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('same days last week', 'نفس الأيام الأسبوع الماضي')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.lastWeekActualKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('model error in backtest (MAPE)', 'خطأ النموذج في الاختبار الرجعي (MAPE)')} <b className="tabular-nums" dir="ltr">{`${fc.backtest.mapePct.toFixed(1)}%`}</b>
           </p>
-          <ol className="grid grid-cols-7 items-end gap-1.5" data-forecast-bars="true" aria-label={t('Forecast by day', 'التوقع حسب اليوم')}>
-            {fc.next7.map((p) => {
-              const wd = new Date(`${p.day}T00:00:00Z`).getUTCDay()
-              return (
-                <li key={p.day} className="flex min-w-0 flex-col items-center gap-1">
-                  <span className="max-w-full truncate text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300" dir="ltr">{fmt(p.forecastKwd / 1000, 1)}{t('k', ' ألف')}</span>
-                  <span className="relative w-full rounded-md bg-slate-100 dark:bg-white/[0.06]" style={{ height: '7rem' }} title={`${fmt(p.lowKwd)} – ${fmt(p.highKwd)}`}>
-                    <span className="absolute inset-x-0 bottom-0 rounded-md bg-sky-200/70 dark:bg-sky-400/20" style={{ height: `${(p.highKwd / max) * 100}%` }} />
-                    <span className="absolute inset-x-1 bottom-0 rounded-md bg-sky-600/85" style={{ height: `${(p.forecastKwd / max) * 100}%` }} />
-                  </span>
-                  <span className="max-w-full truncate text-xs text-slate-500 dark:text-slate-400">{isAr ? WEEKDAY_AR[wd] : WEEKDAY_EN[wd].slice(0, 3)}</span>
-                </li>
-              )
-            })}
-          </ol>
+          <div className="overflow-x-auto pb-1">
+            <ol className="grid min-w-[320px] grid-cols-7 items-end gap-1.5" data-forecast-bars="true" aria-label={t('Forecast by day', 'التوقع حسب اليوم')}>
+              {fc.next7.map((p) => {
+                const wd = new Date(`${p.day}T00:00:00Z`).getUTCDay()
+                return (
+                  <li key={p.day} className="flex min-w-0 flex-col items-center gap-1">
+                    <span className="max-w-full truncate text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300" dir="ltr">{fmt(p.forecastKwd / 1000, 1)}{t('k', ' ألف')}</span>
+                    <span className="relative w-full rounded-md bg-slate-100 dark:bg-white/[0.06]" style={{ height: '7rem' }} title={`${fmt(p.lowKwd)} – ${fmt(p.highKwd)}`}>
+                      <span className="absolute inset-x-0 bottom-0 rounded-md bg-sky-200/70 dark:bg-sky-400/20" style={{ height: `${(p.highKwd / max) * 100}%` }} />
+                      <span className="absolute inset-x-1 bottom-0 rounded-md bg-sky-600/85" style={{ height: `${(p.forecastKwd / max) * 100}%` }} />
+                    </span>
+                    <span className="max-w-full truncate text-xs text-slate-500 dark:text-slate-400">{isAr ? WEEKDAY_AR[wd] : WEEKDAY_EN[wd].slice(0, 3)}</span>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">{t('Thousands of KWD. Dark bar: forecast. Light band: upper end of the range (± the backtest error). The model does not know upcoming offers or events.', 'بآلاف الدنانير. العمود الداكن: التوقع. الشريط الفاتح: الحد الأعلى للمدى (± خطأ الاختبار الرجعي). النموذج لا يعرف العروض أو المناسبات القادمة.')}</p>
         </div>
       ) : null}
@@ -662,15 +669,102 @@ export function DemandForecastPanel() {
   const { isAr } = useLang()
   const { liveSummary } = useGlobalFilter()
   const locale = isAr ? 'ar' : 'en'
-  const available = useMemo(() => analysisAvailability(liveSummary).forecast, [liveSummary])
-  if (!available) return null
+  const [roomSummary, setRoomSummary] = useState<OdooLiveSummary | null>(() => {
+    return peekDecisionSwrCache<RoomApiBody>('room')?.data?.liveSummary ?? null
+  })
+  const [loadingRoom, setLoadingRoom] = useState<boolean>(() => {
+    const cached = peekDecisionSwrCache<RoomApiBody>('room')
+    return !cached && !analysisAvailability(liveSummary).forecast
+  })
+
+  useEffect(() => {
+    if (analysisAvailability(liveSummary).forecast) {
+      setLoadingRoom(false)
+      return
+    }
+    const cached = peekDecisionSwrCache<RoomApiBody>('room')
+    if (cached?.isFresh && cached.data?.liveSummary) {
+      setRoomSummary(cached.data.liveSummary)
+      setLoadingRoom(false)
+      return
+    }
+    let active = true
+    setLoadingRoom(true)
+    void fetchDecisionSwr<RoomApiBody>('room', async () => {
+      const r = await fetch('/api/erp/council/room', { credentials: 'same-origin' })
+      if (!r.ok) return null
+      return (await r.json()) as RoomApiBody
+    })
+      .then((b) => {
+        if (!active) return
+        if (b?.liveSummary) setRoomSummary(b.liveSummary)
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingRoom(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [liveSummary])
+
+  const effectiveSummary = useMemo(
+    () => (analysisAvailability(liveSummary).forecast ? liveSummary : (roomSummary ?? liveSummary)),
+    [liveSummary, roomSummary],
+  )
+  const available = useMemo(
+    () => analysisAvailability(effectiveSummary).forecast,
+    [effectiveSummary],
+  )
+
   return (
-    <div dir={isAr ? 'rtl' : 'ltr'} data-demand-forecast-panel="true" className="space-y-3">
-      <ForecastView summary={liveSummary} locale={locale} />
-      <p className="text-xs text-slate-500 dark:text-slate-400">
-        {isAr ? 'القرارات المبنية على هذا التوقع تُتخذ في ' : 'Decisions based on this forecast are taken in the '}
-        <Link href="/erp/decisions" className="font-semibold underline underline-offset-2">{isAr ? 'غرفة القرار' : 'Decision Room'}</Link>.
-      </p>
+    <div dir={isAr ? 'rtl' : 'ltr'} data-demand-forecast-panel="true" className="min-w-0 space-y-4">
+      <header className="space-y-1">
+        <h2 className="text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
+          {isAr ? 'توقع الطلب والأيام غير المعتادة' : 'Demand Forecast & Unusual Days'}
+        </h2>
+        <p className="max-w-3xl text-[13px] text-slate-600 dark:text-slate-400">
+          {isAr
+            ? 'توقع مبيعات الأيام السبعة القادمة لكل الفروع من مبيعات أودو اليومية المكتملة، مع خطأ الاختبار الرجعي والأيام غير المعتادة.'
+            : '7-day sales projection built directly from completed Odoo daily branch receipts, including backtest MAPE error and anomaly detection.'}
+        </p>
+      </header>
+
+      {loadingRoom && !available ? (
+        <StateBlock
+          state="loading"
+          locale={locale}
+          skeletonRows={3}
+          title={
+            isAr
+              ? 'جارٍ استخراج السلسلة اليومية المكتملة من أودو 17...'
+              : 'Loading completed daily POS series from Odoo 17...'
+          }
+        />
+      ) : available ? (
+        <>
+          <ForecastView summary={effectiveSummary} locale={locale} />
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {isAr ? 'القرارات المبنية على هذا التوقع تُتخذ في ' : 'Decisions based on this forecast are taken in the '}
+            <Link href="/erp/decisions" className="font-semibold underline underline-offset-2">{isAr ? 'غرفة القرار' : 'Decision Room'}</Link>.
+          </p>
+        </>
+      ) : (
+        <StateBlock
+          state="empty"
+          locale={locale}
+          title={
+            isAr
+              ? 'لا تتوفر سلسلة أيام مكتملة كافية في أودو لحساب التوقع حالياً'
+              : 'Insufficient completed daily POS history in Odoo for this forecast window'
+          }
+          description={
+            isAr
+              ? 'يتطلب نموذج التوقع وجود سلسلة مبيعات يومية مكتملة من نقاط البيع في أودو 17.'
+              : 'The 7-day forecast requires completed daily POS series from Odoo 17.'
+          }
+        />
+      )}
     </div>
   )
 }

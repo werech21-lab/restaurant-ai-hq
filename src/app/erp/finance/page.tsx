@@ -22,10 +22,10 @@ export default async function FinancePage() {
   const isAuditor = sessionRole === 'auditor'
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 space-y-5 min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 space-y-5 min-w-0 overflow-visible">
       <div
         dir={isAr ? 'rtl' : 'ltr'}
-        className="ds-surface flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs dark:border-emerald-500/20 dark:bg-[#0b1320]"
+        className="ds-surface relative overflow-visible flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-xs dark:border-emerald-500/20 dark:bg-[#0b1320]"
       >
         <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
           {isAr

@@ -47,6 +47,7 @@ interface PopoverCoords {
   top: number
   left: number
   placement: 'bottom' | 'top'
+  horizontalAlign: 'start' | 'end'
 }
 
 const VIEWPORT_MARGIN = 12
@@ -78,7 +79,7 @@ function normalizeKind(kind: KpiMetricKindInput): {
       ar: 'فعلي',
       en: 'Actual',
       toneClass:
-        'bg-emerald-50/90 text-emerald-800 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/25',
+        'bg-emerald-50 text-emerald-800 ring-emerald-500/25',
     }
   }
   if (kind === 'محسوب بمعادلة' || kind === 'formula') {
@@ -86,14 +87,14 @@ function normalizeKind(kind: KpiMetricKindInput): {
       ar: 'محسوب بمعادلة',
       en: 'Formula',
       toneClass:
-        'bg-sky-50/90 text-sky-800 ring-sky-500/25 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/25',
+        'bg-sky-50 text-sky-800 ring-sky-500/25',
     }
   }
   return {
     ar: 'تقدير',
     en: 'Estimate',
     toneClass:
-      'bg-slate-100/90 text-slate-700 ring-slate-400/30 dark:bg-white/[0.08] dark:text-slate-200 dark:ring-white/15',
+      'bg-slate-100 text-slate-700 ring-slate-400/30',
   }
 }
 
@@ -134,6 +135,7 @@ export function computeCollisionAwarePopoverCoords(params: {
   viewportWidth: number
   viewportHeight: number
   isRtl: boolean
+  align?: 'start' | 'end'
 }): PopoverCoords {
   const {
     triggerRect,
@@ -142,6 +144,7 @@ export function computeCollisionAwarePopoverCoords(params: {
     viewportWidth,
     viewportHeight,
     isRtl,
+    align = 'start',
   } = params
 
   const vw = Math.max(320, viewportWidth)
@@ -153,7 +156,7 @@ export function computeCollisionAwarePopoverCoords(params: {
   const clampedHeight = popoverHeight > 0 ? popoverHeight : FALLBACK_POPOVER_HEIGHT
 
   const lacksSpaceBelow =
-    triggerRect.bottom + clampedHeight + VIEWPORT_MARGIN > vh
+    triggerRect.bottom + TRIGGER_GAP + clampedHeight + VIEWPORT_MARGIN > vh
   const hasMoreSpaceAbove = triggerRect.top > vh - triggerRect.bottom
   const shouldFlipUp =
     lacksSpaceBelow &&
@@ -166,22 +169,28 @@ export function computeCollisionAwarePopoverCoords(params: {
   const maxTop = Math.max(VIEWPORT_MARGIN, vh - clampedHeight - VIEWPORT_MARGIN)
   const top = Math.round(Math.min(Math.max(VIEWPORT_MARGIN, rawTop), maxTop))
 
-  let rawLeft = isRtl
+  const prefersRightEdge = isRtl ? align === 'start' : align === 'end'
+  let resolvedAlign: 'start' | 'end' = align
+  let rawLeft = prefersRightEdge
     ? triggerRect.right - clampedWidth
     : triggerRect.left
 
-  if (
-    isRtl &&
-    rawLeft < VIEWPORT_MARGIN &&
-    triggerRect.left + clampedWidth <= vw - VIEWPORT_MARGIN
-  ) {
-    rawLeft = triggerRect.left
-  } else if (
-    !isRtl &&
-    rawLeft + clampedWidth > vw - VIEWPORT_MARGIN &&
-    triggerRect.right - clampedWidth >= VIEWPORT_MARGIN
-  ) {
-    rawLeft = triggerRect.right - clampedWidth
+  if (prefersRightEdge && rawLeft < VIEWPORT_MARGIN) {
+    if (
+      triggerRect.left + clampedWidth <= vw - VIEWPORT_MARGIN ||
+      vw - triggerRect.left > triggerRect.right
+    ) {
+      rawLeft = triggerRect.left
+      resolvedAlign = align === 'start' ? 'end' : 'start'
+    }
+  } else if (!prefersRightEdge && rawLeft + clampedWidth > vw - VIEWPORT_MARGIN) {
+    if (
+      triggerRect.right - clampedWidth >= VIEWPORT_MARGIN ||
+      triggerRect.right > vw - triggerRect.left
+    ) {
+      rawLeft = triggerRect.right - clampedWidth
+      resolvedAlign = align === 'start' ? 'end' : 'start'
+    }
   }
 
   const maxLeft = Math.max(VIEWPORT_MARGIN, vw - clampedWidth - VIEWPORT_MARGIN)
@@ -191,6 +200,7 @@ export function computeCollisionAwarePopoverCoords(params: {
     top,
     left,
     placement: shouldFlipUp ? 'top' : 'bottom',
+    horizontalAlign: resolvedAlign,
   }
 }
 
@@ -256,6 +266,7 @@ export function KpiProvenanceBadge({
     top: VIEWPORT_MARGIN,
     left: VIEWPORT_MARGIN,
     placement: 'bottom',
+    horizontalAlign: 'start',
   })
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -293,7 +304,8 @@ export function KpiProvenanceBadge({
     setCoords((prev) =>
       prev.top === next.top &&
       prev.left === next.left &&
-      prev.placement === next.placement
+      prev.placement === next.placement &&
+      prev.horizontalAlign === next.horizontalAlign
         ? prev
         : next,
     )
@@ -304,6 +316,7 @@ export function KpiProvenanceBadge({
       return
     }
     updatePosition()
+    const raf = window.requestAnimationFrame(() => updatePosition())
     const handleReposition = () => updatePosition()
     window.addEventListener('scroll', handleReposition, {
       capture: true,
@@ -311,6 +324,7 @@ export function KpiProvenanceBadge({
     })
     window.addEventListener('resize', handleReposition, { passive: true })
     return () => {
+      window.cancelAnimationFrame(raf)
       window.removeEventListener('scroll', handleReposition, { capture: true })
       window.removeEventListener('resize', handleReposition)
     }
@@ -352,17 +366,18 @@ export function KpiProvenanceBadge({
       dir={resolvedDir}
       data-kpi-provenance-portal="true"
       data-placement={coords.placement}
+      data-horizontal-align={coords.horizontalAlign}
       style={{
         top: `${coords.top}px`,
         left: `${coords.left}px`,
         zIndex: 9999,
       }}
-      className="fixed z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl border border-slate-200/90 bg-white/98 p-3.5 text-xs text-slate-700 tabular-nums shadow-[0_20px_48px_-12px_rgba(15,23,42,0.24)] backdrop-blur-xl dark:border-white/15 dark:bg-[#0F1A30]/98 dark:text-slate-200 dark:shadow-[0_22px_50px_-12px_rgba(2,6,23,0.82)]"
+      className="fixed z-50 w-72 max-w-[calc(100vw-24px)] rounded-2xl border border-slate-200/90 bg-white/98 p-3.5 text-start text-xs text-slate-700 tabular-nums shadow-[0_20px_48px_-12px_rgba(15,23,42,0.24)] backdrop-blur-xl ring-1 ring-slate-900/[0.05]"
     >
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className={cx(
-            'inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold ring-1',
+            'inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-1.5 py-0.5 text-xs font-bold ring-1',
             kindMeta.toneClass,
           )}
         >
@@ -371,28 +386,28 @@ export function KpiProvenanceBadge({
 
         <span
           dir="ltr"
-          className="inline-flex items-center rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/10"
+          className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-semibold text-slate-700 ring-1 ring-slate-900/10"
         >
           {odooModel}
         </span>
 
         {stale ? (
-          <span className="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-bold bg-yellow-100 text-yellow-900 ring-1 ring-yellow-500/35 dark:bg-yellow-400/20 dark:text-yellow-200 dark:ring-yellow-400/35">
+          <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-yellow-100 px-1.5 py-0.5 text-xs font-bold text-yellow-900 ring-1 ring-yellow-500/35">
             {isAr ? 'قديمة' : 'Stale'}
           </span>
         ) : null}
       </div>
 
-      <div className="mt-2 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+      <div className="mt-2 space-y-1 text-xs text-slate-600">
         <div>
           {isAr ? 'النطاق: ' : 'Range: '}
-          <span dir="ltr" className="font-mono font-medium tabular-nums">
+          <span dir="ltr" className="font-mono font-medium tabular-nums text-slate-800">
             {rangeStr}
           </span>
         </div>
         <div>
           {isAr ? 'آخر مزامنة: ' : 'Last sync: '}
-          <span dir="ltr" className="font-mono font-medium tabular-nums">
+          <span dir="ltr" className="font-mono font-medium tabular-nums text-slate-800">
             {isAr ? syncInfo.labelAr : syncInfo.labelEn}
           </span>
           {stale ? (isAr ? ' • قديمة (>24 ساعة)' : ' • Stale (>24h)') : ''}
@@ -401,7 +416,7 @@ export function KpiProvenanceBadge({
 
       <div
         dir="ltr"
-        className="mt-2 break-words rounded-xl bg-slate-100/90 p-2 font-mono text-xs text-slate-800 dark:bg-white/[0.06] dark:text-sky-200"
+        className="mt-2 break-words rounded-xl bg-slate-100 p-2 font-mono text-xs text-slate-800 ring-1 ring-slate-900/[0.06]"
       >
         {queryOrFormula}
       </div>

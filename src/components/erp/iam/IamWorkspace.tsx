@@ -211,8 +211,8 @@ function Workspace({ userId }: { userId: string }) {
                 {
                   header: 'iam.member.name',
                   cell: (row) => (
-                    <span className="inline-flex items-center gap-2">
-                      <span>
+                    <span className="inline-flex min-w-0 max-w-[260px] items-center gap-2">
+                      <span className="min-w-0 truncate">
                         {row.displayName || <IamUnavailableDash locale={fmtLocale} />}
                       </span>
                       {row.userId === userId ? (
@@ -322,7 +322,10 @@ function Workspace({ userId }: { userId: string }) {
               emptyTitle="iam.role.empty"
               emptyHint="iam.role.emptyHint"
               columns={[
-                { header: 'iam.role.name', cell: (row) => row.name },
+                {
+                  header: 'iam.role.name',
+                  cell: (row) => <span className="block max-w-[240px] truncate font-medium">{row.name}</span>,
+                },
                 {
                   header: 'iam.role.kind',
                   cell: (row) => (

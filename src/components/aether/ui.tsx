@@ -44,7 +44,7 @@ export const TONE_BADGE: Record<Tone, string> = {
 
 export function Badge({ tone = 'slate', children, className = '' }: { tone?: Tone; children: ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${TONE_BADGE[tone]} ${className}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${TONE_BADGE[tone]} ${className}`}>
       {children}
     </span>
   )
@@ -147,11 +147,11 @@ export function StatsCardV2({
     <Wrapper
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className="ae-tile ae-lift flex h-full w-full flex-col justify-between gap-3 p-5 text-start"
+      className="ae-tile ae-lift relative flex h-full w-full min-w-0 flex-col justify-between gap-3 overflow-visible p-5 text-start"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="ae-icon-badge">{icon}</span>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span className="ae-icon-badge shrink-0">{icon}</span>
           <span className="min-w-0 text-xs font-semibold leading-snug text-slate-500 dark:text-slate-400">{label}</span>
         </div>
         {delta ? (

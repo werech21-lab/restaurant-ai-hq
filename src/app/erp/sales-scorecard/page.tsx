@@ -11,7 +11,7 @@ export const metadata = {
 export default async function SalesScorecardPage() {
   await requirePageUser('/erp/sales-scorecard')
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0">
+    <div className="w-full max-w-[1920px] mx-auto min-w-0 overflow-visible">
       <SalesScorecardStudio />
     </div>
   )

@@ -153,7 +153,7 @@ function TrialBalanceTable({
   return (
     <details
       data-ledger-collapsible="trial-balance"
-      className="group rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900/90"
+      className="group relative overflow-visible rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900/90"
     >
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -253,11 +253,11 @@ function TrialBalanceTable({
                 <th className="whitespace-nowrap px-3 py-2 text-end font-bold">{isAr ? 'الرصيد' : 'Balance'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-slate-800/60">
               {pagedLines.map((line) => (
                 <tr key={line.code} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03]">
-                  <td className="px-3 py-2 pe-2">
-                    <span className="font-mono font-semibold text-slate-600 dark:text-slate-300" dir="ltr">
+                  <td className="max-w-[280px] truncate px-3 py-2 pe-2">
+                    <span className="shrink-0 whitespace-nowrap font-mono font-semibold text-slate-600 dark:text-slate-300" dir="ltr">
                       {line.code}
                     </span>{' '}
                     <span className="font-medium text-slate-900 dark:text-white">{line.name}</span>
@@ -334,11 +334,24 @@ function BalanceSheetTable({
   const safePage = Math.min(page, totalPages)
   const pagedRows = flatRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
+  const activeSummaryGroups = view.groups.filter(
+    (g) => g.key !== 'excluded' && Math.abs(g.total) > 0.0005,
+  )
+  const summaryCardCount = activeSummaryGroups.length + 1
+  const summaryGridCols =
+    summaryCardCount <= 1
+      ? 'grid-cols-1'
+      : summaryCardCount === 2
+        ? 'grid-cols-1 md:grid-cols-2'
+        : summaryCardCount === 3
+          ? 'grid-cols-1 md:grid-cols-3'
+          : 'grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
+
   return (
     <details
       data-balance-sheet="true"
       data-ledger-collapsible="balance-sheet"
-      className="group rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900/90"
+      className="group relative overflow-visible rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900/90"
     >
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -386,15 +399,13 @@ function BalanceSheetTable({
 
       <div className="mt-4 space-y-3">
         {/* Group Summary Strip */}
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-          {view.groups
-            .filter((g) => g.key !== 'excluded' && Math.abs(g.total) > 0.0005)
-            .map((g) => (
+        <div className={`grid gap-2.5 ${summaryGridCols}`}>
+          {activeSummaryGroups.map((g) => (
               <div
                 key={g.key}
-                className="rounded-xl border border-slate-200/80 bg-slate-50/75 p-2.5 dark:border-slate-800 dark:bg-white/[0.03]"
+                className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/75 p-2.5 dark:border-slate-800 dark:bg-white/[0.03]"
               >
-                <p className="truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <p className="min-w-0 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
                   {isAr ? g.labelAr : g.labelEn}
                 </p>
                 <p dir="ltr" className="mt-1 font-mono text-xs font-extrabold tabular-nums text-slate-900 dark:text-white">
@@ -402,8 +413,8 @@ function BalanceSheetTable({
                 </p>
               </div>
             ))}
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50/75 p-2.5 dark:border-slate-800 dark:bg-white/[0.03]">
-            <p className="truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
+          <div className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/75 p-2.5 dark:border-slate-800 dark:bg-white/[0.03]">
+            <p className="min-w-0 truncate text-xs font-semibold text-slate-600 dark:text-slate-300">
               {isAr ? view.currentEarningsLabelAr : view.currentEarningsLabelEn}
             </p>
             <p dir="ltr" className="mt-1 font-mono text-xs font-extrabold tabular-nums text-emerald-700 dark:text-emerald-300">
@@ -464,11 +475,11 @@ function BalanceSheetTable({
                 <th className="whitespace-nowrap px-3 py-2 text-end font-bold">{isAr ? 'الرصيد' : 'Balance'}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-slate-800/60">
               {pagedRows.map((row) => (
                 <tr key={row.code} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.03]">
-                  <td className="px-3 py-2">
-                    <span dir="ltr" className="font-mono font-semibold text-slate-600 dark:text-slate-300">
+                  <td className="max-w-[280px] truncate px-3 py-2">
+                    <span dir="ltr" className="shrink-0 whitespace-nowrap font-mono font-semibold text-slate-600 dark:text-slate-300">
                       {row.code}
                     </span>{' '}
                     <span className="font-medium text-slate-900 dark:text-white">{row.name}</span>

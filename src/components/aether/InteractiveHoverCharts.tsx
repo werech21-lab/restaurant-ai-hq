@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, type ReactNode } from 'react'
+import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ComparisonBarChart,
   SalesNetComposedChart,
@@ -486,10 +487,52 @@ export function InteractiveHorizontalRankList({
   unitLabel?: string
 } & V35ChartHeaderExtraProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [tooltipCoords, setTooltipCoords] = useState<{ top: number; left: number; width: number }>({
+    top: 12,
+    left: 12,
+    width: 280,
+  })
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const tooltipRef = useRef<HTMLDivElement | null>(null)
+
+  const updateTooltipCoords = useCallback((id: string | null) => {
+    if (!id || typeof window === 'undefined') return
+    const rowEl = rowRefs.current[id]
+    if (!rowEl) return
+    const rect = rowEl.getBoundingClientRect()
+    const vw = Math.max(320, window.innerWidth || 1024)
+    const vh = Math.max(240, window.innerHeight || 768)
+    const margin = 12
+    const gap = 8
+    const width = Math.min(Math.max(240, rect.width - 16), vw - margin * 2)
+    const tipHeight = tooltipRef.current?.getBoundingClientRect().height || 104
+    const placeAbove = rect.top - tipHeight - gap >= margin || rect.bottom + tipHeight + gap > vh
+    const rawTop = placeAbove ? rect.top - tipHeight - gap : rect.bottom + gap
+    const top = Math.round(Math.max(margin, Math.min(vh - tipHeight - margin, rawTop)))
+    const rawLeft = rect.left + (rect.width - width) / 2
+    const left = Math.round(Math.max(margin, Math.min(vw - width - margin, rawLeft)))
+    setTooltipCoords({ top, left, width })
+  }, [])
+
+  useEffect(() => {
+    if (!hoveredId || typeof window === 'undefined') return undefined
+    updateTooltipCoords(hoveredId)
+    const onViewport = () => updateTooltipCoords(hoveredId)
+    window.addEventListener('scroll', onViewport, { capture: true, passive: true })
+    window.addEventListener('resize', onViewport, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onViewport, true)
+      window.removeEventListener('resize', onViewport)
+    }
+  }, [hoveredId, updateTooltipCoords])
+
   const maxVal = Math.max(
     1,
     ...items.map((x) => (Number.isFinite(x.value) ? Math.max(0, x.value) : 0)),
   )
+
+  const hoveredItem = hoveredId ? (items.find((x) => x.id === hoveredId) ?? null) : null
+  const canPortal = typeof document !== 'undefined' && Boolean(document.body)
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} className="space-y-2.5">
@@ -510,12 +553,14 @@ export function InteractiveHorizontalRankList({
       {items.map((item) => {
         const safeVal = Number.isFinite(item.value) ? Math.max(0, item.value) : 0
         const widthPct = safeVal > 0 ? Math.max(3, Math.min(100, (safeVal / maxVal) * 100)) : 0
-        const isHovered = hoveredId === item.id
         const isInteractive = typeof onSelect === 'function'
 
         return (
           <div
             key={item.id}
+            ref={(node) => {
+              rowRefs.current[item.id] = node
+            }}
             role={isInteractive ? 'button' : undefined}
             aria-pressed={isInteractive ? Boolean(item.active) : undefined}
             tabIndex={0}
@@ -530,11 +575,17 @@ export function InteractiveHorizontalRankList({
                 onSelect(item.id)
               }
             }}
-            onMouseEnter={() => setHoveredId(item.id)}
+            onMouseEnter={() => {
+              setHoveredId(item.id)
+              updateTooltipCoords(item.id)
+            }}
             onMouseLeave={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
-            onFocus={() => setHoveredId(item.id)}
+            onFocus={() => {
+              setHoveredId(item.id)
+              updateTooltipCoords(item.id)
+            }}
             onBlur={() => setHoveredId((cur) => (cur === item.id ? null : cur))}
-            className={`relative rounded-xl border p-3 transition-colors duration-[180ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
+            className={`relative overflow-visible rounded-xl border p-3 transition-colors duration-[180ms] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60 ${
               isInteractive ? 'cursor-pointer' : ''
             } ${
               item.active
@@ -542,9 +593,9 @@ export function InteractiveHorizontalRankList({
                 : 'border-slate-200/85 bg-white hover:border-slate-300 hover:bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/75 dark:hover:border-slate-700 dark:hover:bg-slate-800/70'
             }`}
           >
-            <div className="flex items-start justify-between gap-2 text-[13px]">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
+            <div className="flex items-start justify-between gap-2 min-w-0 text-[13px]">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
                   {item.dotClassName ? (
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.dotClassName}`} />
                   ) : item.color ? (
@@ -553,11 +604,14 @@ export function InteractiveHorizontalRankList({
                       style={{ backgroundColor: item.color }}
                     />
                   ) : null}
-                  <span className="whitespace-normal break-words font-semibold tracking-tight text-slate-950 dark:text-white">
+                  <span
+                    title={item.label}
+                    className="min-w-0 flex-1 truncate font-semibold tracking-tight text-slate-950 dark:text-white"
+                  >
                     {item.label}
                   </span>
                   {item.active ? (
-                    <span className="shrink-0 rounded-full bg-blue-500/15 px-1.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-sky-300">
+                    <span className="shrink-0 whitespace-nowrap rounded-full bg-blue-500/15 px-1.5 py-0.5 text-xs font-semibold text-blue-700 dark:text-sky-300">
                       {isAr ? 'مفعل' : 'Active'}
                     </span>
                   ) : null}
@@ -573,18 +627,18 @@ export function InteractiveHorizontalRankList({
                   </p>
                 ) : null}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
                 {item.badgeText ? (
                   <span
                     dir="ltr"
-                    className="rounded-full border border-slate-200/80 bg-slate-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    className="shrink-0 whitespace-nowrap rounded-full border border-slate-200/80 bg-slate-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                   >
                     {item.badgeText}
                   </span>
                 ) : null}
                 <span
                   dir="ltr"
-                  className="font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white"
+                  className="shrink-0 whitespace-nowrap font-semibold tracking-tight tabular-nums text-slate-950 dark:text-white"
                 >
                   {item.valueFormatted}
                 </span>
@@ -604,33 +658,47 @@ export function InteractiveHorizontalRankList({
                 }`}
               />
             </div>
-
-            {isHovered ? (
-              <div
-                role="tooltip"
-                className={`pointer-events-none absolute inset-x-3 bottom-full z-30 mb-1.5 ${V35_GLASS_TOOLTIP_CLASS}`}
-              >
-                <div className="mb-1.5 font-semibold text-slate-950">{item.label}</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {item.lines.map((line) => (
-                    <div key={line.label} className="flex items-center justify-between gap-2">
-                      <span className="text-slate-500">{line.label}</span>
-                      <span
-                        dir="ltr"
-                        className={`tabular-nums ${line.bold ? 'font-bold' : 'font-medium'} ${
-                          V35_TOOLTIP_TONE_CLASS[line.tone ?? 'neutral']
-                        }`}
-                      >
-                        {line.value}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
           </div>
         )
       })}
+      {hoveredItem && canPortal
+        ? createPortal(
+            <div
+              ref={tooltipRef}
+              role="tooltip"
+              dir={isAr ? 'rtl' : 'ltr'}
+              style={{
+                top: `${tooltipCoords.top}px`,
+                left: `${tooltipCoords.left}px`,
+                width: `${tooltipCoords.width}px`,
+                zIndex: 9999,
+              }}
+              className={`pointer-events-none fixed z-50 ${V35_GLASS_TOOLTIP_CLASS}`}
+            >
+              <div className="mb-1.5 font-semibold text-slate-950 dark:text-white">
+                {hoveredItem.label}
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {hoveredItem.lines.map((line) => (
+                  <div key={line.label} className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-slate-500 dark:text-slate-300">
+                      {line.label}
+                    </span>
+                    <span
+                      dir="ltr"
+                      className={`shrink-0 whitespace-nowrap tabular-nums ${line.bold ? 'font-bold' : 'font-medium'} ${
+                        V35_TOOLTIP_TONE_CLASS[line.tone ?? 'neutral']
+                      }`}
+                    >
+                      {line.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

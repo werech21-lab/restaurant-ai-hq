@@ -18,7 +18,6 @@ import {
   formatDateTime,
   formatInt,
   formatKwd,
-  getUnavailableTooltip,
   type FormatLocale,
 } from '@/lib/format'
 import {
@@ -62,7 +61,6 @@ function AlertsCenterV2Body({
 }: Omit<AlertsCenterV2Props, 'locale'> & { locale: FormatLocale }) {
   const isAr = locale !== 'en'
   const dir = isAr ? 'rtl' : 'ltr'
-  const unavailableTooltip = getUnavailableTooltip(locale)
   const gov = useOptionalGovernance()
 
   const [phase, setPhase] = useState<AlertsCenterPhase>(() => {
@@ -161,13 +159,14 @@ function AlertsCenterV2Body({
         }
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
-            <span
-              dir="ltr"
-              title={!updatedAtIso ? unavailableTooltip : undefined}
-              className="ds-num inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
-            >
-              <span>{formattedSync}</span>
-            </span>
+            {updatedAtIso ? (
+              <span
+                dir="ltr"
+                className="ds-num inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200"
+              >
+                <span>{formattedSync}</span>
+              </span>
+            ) : null}
             {refreshButton}
           </div>
         }
@@ -243,36 +242,53 @@ function AlertsCenterV2Body({
 
         {phase === 'ready' ? (
           <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <KpiCard
-                locale={locale}
-                label={isAr ? 'التنبيهات النشطة' : 'Active Alerts'}
-                value={breaches.length}
-                format="int"
-                icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
-              />
-              <KpiCard
-                locale={locale}
-                label={isAr ? 'الأثر المالي الشهري المقدر' : 'Estimated Monthly Impact'}
-                value={totalImpactKwd}
-                format="kwd"
-                higherIsBetter={false}
-                icon={<ShieldAlert className="h-4 w-4" aria-hidden />}
-              />
-              <KpiCard
-                locale={locale}
-                label={isAr ? 'بنود الصرف المجمّدة' : 'Frozen Spend Orders'}
-                value={frozenCount}
-                format="int"
-                icon={<Snowflake className="h-4 w-4" aria-hidden />}
-              />
-            </div>
+            {(() => {
+              const showImpactCard = totalImpactKwd > 0
+              const showFrozenCard = frozenCount > 0
+              const visibleAlertKpiCount = 1 + Number(showImpactCard) + Number(showFrozenCard)
+              const alertKpiGridCols =
+                visibleAlertKpiCount === 1
+                  ? 'sm:grid-cols-1'
+                  : visibleAlertKpiCount === 2
+                    ? 'sm:grid-cols-2'
+                    : 'sm:grid-cols-3'
+              return (
+                <div className={`grid grid-cols-1 gap-3 ${alertKpiGridCols}`}>
+                  <KpiCard
+                    locale={locale}
+                    label={isAr ? 'التنبيهات النشطة' : 'Active Alerts'}
+                    value={breaches.length}
+                    format="int"
+                    icon={<AlertTriangle className="h-4 w-4" aria-hidden />}
+                  />
+                  {showImpactCard ? (
+                    <KpiCard
+                      locale={locale}
+                      label={isAr ? 'الأثر المالي الشهري المقدر' : 'Estimated Monthly Impact'}
+                      value={totalImpactKwd}
+                      format="kwd"
+                      higherIsBetter={false}
+                      icon={<ShieldAlert className="h-4 w-4" aria-hidden />}
+                    />
+                  ) : null}
+                  {showFrozenCard ? (
+                    <KpiCard
+                      locale={locale}
+                      label={isAr ? 'بنود الصرف المجمّدة' : 'Frozen Spend Orders'}
+                      value={frozenCount}
+                      format="int"
+                      icon={<Snowflake className="h-4 w-4" aria-hidden />}
+                    />
+                  ) : null}
+                </div>
+              )
+            })()}
 
             <div className="space-y-3">
               {breaches.map((breach) => (
                 <article
                   key={breach.id}
-                  className="ds-surface-subtle min-w-0 space-y-3 rounded-2xl p-4 sm:p-5"
+                  className="ds-surface-subtle relative overflow-visible min-w-0 space-y-3 rounded-2xl p-4 sm:p-5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -322,7 +338,7 @@ function AlertsCenterV2Body({
                     </div>
                   </div>
 
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-50">
+                  <h3 className="min-w-0 break-words text-base font-bold text-slate-900 dark:text-slate-50">
                     {isAr ? breach.breachHeadlineAr : breach.breachHeadlineEn}
                   </h3>
 
@@ -331,7 +347,7 @@ function AlertsCenterV2Body({
                   </p>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 text-xs dark:border-white/10">
-                    <span className="font-semibold text-rose-800 dark:text-rose-300">
+                    <span className="min-w-0 break-words font-semibold text-rose-800 dark:text-rose-300">
                       {isAr ? breach.approvedRuleLimitAr : breach.approvedRuleLimitEn}
                     </span>
 
@@ -339,7 +355,7 @@ function AlertsCenterV2Body({
                       {breach.frozenAtIso ? (
                         <span
                           dir="ltr"
-                          className="ds-num text-slate-600 dark:text-slate-300"
+                          className="ds-num shrink-0 whitespace-nowrap text-slate-600 dark:text-slate-300"
                         >
                           {formatDateTime(breach.frozenAtIso, { locale, showZone: true })}
                         </span>
@@ -348,7 +364,7 @@ function AlertsCenterV2Body({
                       {breach.href ? (
                         <Link
                           href={breach.href}
-                          className="ds-focus-ring inline-flex items-center gap-1 rounded-lg border border-slate-300/80 bg-white px-2.5 py-1.5 font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
+                          className="ds-focus-ring inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg border border-slate-300/80 bg-white px-2.5 py-1.5 font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
                         >
                           <span>{isAr ? 'فتح التحليل' : 'Open Analysis'}</span>
                         </Link>
@@ -359,10 +375,10 @@ function AlertsCenterV2Body({
                           href={breach.odooRecordUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="ds-focus-ring inline-flex items-center gap-1 rounded-lg border border-emerald-600/30 bg-emerald-50 px-2.5 py-1.5 font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-400/30 dark:bg-emerald-950/50 dark:text-emerald-200"
+                          className="ds-focus-ring inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg border border-emerald-600/30 bg-emerald-50 px-2.5 py-1.5 font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-400/30 dark:bg-emerald-950/50 dark:text-emerald-200"
                         >
                           <span>{isAr ? 'سجل Odoo' : 'Odoo Record'}</span>
-                          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
                         </a>
                       ) : null}
 
@@ -370,9 +386,9 @@ function AlertsCenterV2Body({
                         <button
                           type="button"
                           onClick={() => gov.freezeBreachWithPin(breach, false)}
-                          className="ds-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 font-semibold text-white hover:bg-rose-700"
+                          className="ds-focus-ring inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1.5 font-semibold text-white hover:bg-rose-700"
                         >
-                          <Snowflake className="h-3.5 w-3.5" aria-hidden />
+                          <Snowflake className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           <span>{isAr ? 'تجميد الصرف' : 'Freeze Spend'}</span>
                         </button>
                       ) : null}
@@ -381,9 +397,9 @@ function AlertsCenterV2Body({
                         <button
                           type="button"
                           onClick={() => gov.openBreachStopCircularPrint(breach)}
-                          className="ds-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-300/80 bg-white px-2.5 py-1.5 font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
+                          className="ds-focus-ring inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1 rounded-lg border border-slate-300/80 bg-white px-2.5 py-1.5 font-semibold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
                         >
-                          <FileText className="h-3.5 w-3.5" aria-hidden />
+                          <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
                           <span>{isAr ? 'تعميم الإيقاف' : 'Stop Circular'}</span>
                         </button>
                       ) : null}

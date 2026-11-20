@@ -160,6 +160,42 @@ export async function ErpShell({ children }: { children: React.ReactNode }) {
                   }}
                 />
               </div>
+              <style>{`
+                @media (min-width: 1024px) {
+                  #ae-root #ae-sidebar {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    overflow: hidden !important;
+                  }
+                  #ae-root #ae-sidebar > nav {
+                    flex: 1 1 0% !important;
+                    min-height: 0 !important;
+                    overflow-y: auto !important;
+                    overflow-x: hidden !important;
+                    overscroll-behavior: contain !important;
+                    padding-bottom: 6rem !important;
+                  }
+                  #ae-root #ae-sidebar > [data-sidebar-footer='true'] {
+                    position: static !important;
+                    flex-shrink: 0 !important;
+                  }
+                }
+                @media (max-height: 820px) and (min-width: 1024px) {
+                  #ae-root #ae-sidebar [data-rail-header] {
+                    padding-top: 0.875rem;
+                    padding-bottom: 0.5rem;
+                  }
+                  #ae-root #ae-sidebar [data-rail-header] .ae-side-card {
+                    margin-top: 0.5rem;
+                    padding-top: 0.375rem;
+                    padding-bottom: 0.375rem;
+                  }
+                  #ae-root #ae-sidebar > [data-sidebar-footer='true'] {
+                    padding-top: 0.5rem;
+                    padding-bottom: 0.5rem;
+                  }
+                }
+              `}</style>
               <Sidebar
                 user={user}
                 enabledKeys={visibleKeys}

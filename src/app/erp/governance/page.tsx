@@ -21,7 +21,7 @@ export default async function GovernancePage({ searchParams }: { searchParams: P
   const query = await searchParams
   const tab = Array.isArray(query.tab) ? query.tab[0] : query.tab
   return (
-    <div className="w-full max-w-none min-w-0 overflow-x-clip px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-visible px-4 py-5 sm:px-6">
       <GovernanceDesk permissions={permissions} initialTab={tab ?? 'violations'} />
     </div>
   )

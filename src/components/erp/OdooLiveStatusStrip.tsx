@@ -70,9 +70,7 @@ export function OdooLiveStatusStrip({
   const stripToneClasses =
     stripTone === 'connected'
       ? 'bg-emerald-50/85 text-emerald-950 ring-emerald-500/25 dark:bg-emerald-950/35 dark:text-emerald-100 dark:ring-emerald-500/30'
-      : stripTone === 'stale'
-        ? 'bg-amber-50/90 text-amber-950 ring-amber-500/30 dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-500/30'
-        : 'bg-slate-100/90 text-slate-800 ring-slate-900/10 dark:bg-[#101C17] dark:text-slate-200 dark:ring-white/10'
+      : 'bg-slate-100/90 text-slate-800 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
 
   const statusText = !isConnected
     ? isAr
@@ -95,7 +93,7 @@ export function OdooLiveStatusStrip({
       role="status"
       dir={isAr ? 'rtl' : 'ltr'}
       data-odoo-status-strip={stripTone}
-      className={`no-print flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-[12px] font-semibold tabular-nums shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 transition-colors duration-150 ${stripToneClasses}`}
+      className={`no-print flex flex-wrap items-center justify-between gap-2 rounded-2xl px-3.5 py-2 text-xs font-semibold tabular-nums shadow-[0_1px_2px_rgba(15,23,42,0.03)] ring-1 transition-colors duration-150 ${stripToneClasses}`}
     >
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
         <span className="min-w-0 whitespace-normal break-words leading-snug">{statusText}</span>
@@ -128,7 +126,7 @@ export function OdooLiveStatusStrip({
           disabled={syncingOdoo || syncCooldownSec > 0}
           aria-label={isAr ? 'تحديث ربط أودو الآن' : 'Sync Odoo Now'}
           title={isAr ? 'تحديث ربط أودو الآن' : 'Sync Odoo Now'}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1 text-[13px] font-bold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-60 dark:bg-[#101C17] dark:text-emerald-200"
+          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-xl bg-white px-3 py-1 text-[13px] font-bold text-slate-800 ring-1 ring-slate-900/10 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 disabled:opacity-60 dark:bg-[#101C17] dark:text-emerald-200"
         >
           <RefreshCw className={`h-3 w-3 shrink-0 ${syncingOdoo ? 'animate-spin' : ''}`} />
           <span>

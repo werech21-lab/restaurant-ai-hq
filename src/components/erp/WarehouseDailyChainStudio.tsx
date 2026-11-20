@@ -63,10 +63,10 @@ const f1Nullable = (n: number | null | undefined) =>
 
 function resolveDynamicWarehouseGridClass(count: number): string {
   if (count <= 1) return 'grid-cols-1'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
-  if (count === 3) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-  if (count === 4) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
+  if (count === 2) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2'
+  if (count === 3) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3'
+  if (count === 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4'
+  return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5'
 }
 
 function ValueCell({
@@ -983,10 +983,10 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                       <th className="whitespace-nowrap px-2.5 py-2.5 text-end">{T('Status', 'الحالة')}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+                  <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/[0.06]">
                     {visibleBranches.map((b) => (
                       <tr key={b.branchId} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
-                        <td className="whitespace-nowrap px-2.5 py-2.5 font-bold text-slate-900 dark:text-white">
+                        <td className="max-w-[220px] truncate whitespace-nowrap px-2.5 py-2.5 font-bold text-slate-900 dark:text-white">
                           {isAr ? b.branchNameAr : b.branchNameEn}
                         </td>
                         {branchCols.transfers ? (
@@ -1131,7 +1131,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                       ) : null}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+                  <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/[0.06]">
                     {pagedDays.map((d) => (
                       <tr key={d.dateIso} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
                         <td className="whitespace-nowrap px-2.5 py-2.5 font-semibold text-slate-900 dark:text-white">
@@ -1299,7 +1299,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                         ) : null}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+                    <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/[0.06]">
                       {pagedSkus.map((sku) => (
                         <tr key={`${sku.code}-${sku.nameEn}`} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
                           <td className="whitespace-nowrap px-2.5 py-2 pe-3 font-mono text-xs text-slate-600 dark:text-slate-400">
@@ -1308,7 +1308,7 @@ export function WarehouseDailyChainStudio(props: WarehouseDailyChainStudioProps)
                           <td className="max-w-[240px] truncate px-2.5 py-2 font-semibold text-slate-900 dark:text-white">
                             {isAr ? sku.nameAr : sku.nameEn}
                           </td>
-                          <td className="whitespace-nowrap px-2.5 py-2 text-xs text-slate-600 dark:text-slate-300">
+                          <td className="shrink-0 whitespace-nowrap px-2.5 py-2 text-xs text-slate-600 dark:text-slate-300">
                             {isAr ? sku.categoryLabelAr : sku.categoryLabelEn}
                           </td>
                           {skuCols.unitCost ? (

@@ -33,9 +33,9 @@ export interface OdooAccountingAnalyticsHubProps {
 
 function resolveHubKpiGridCols(count: number): string {
   if (count <= 1) return 'grid-cols-1'
-  if (count === 2) return 'grid-cols-1 sm:grid-cols-2'
-  if (count === 3 || count === 6) return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'
-  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3 || count === 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'
 }
 
 function GlKwdValue({
@@ -608,12 +608,12 @@ export function OdooAccountingAnalyticsHub({
       {/* 1. Dynamic Executive KPI Grid */}
       {kpiCards.length === 5 ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {kpiCards.slice(0, 3).map((item) => (
               <React.Fragment key={item.key}>{item.node}</React.Fragment>
             ))}
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {kpiCards.slice(3).map((item) => (
               <React.Fragment key={item.key}>{item.node}</React.Fragment>
             ))}
@@ -631,7 +631,7 @@ export function OdooAccountingAnalyticsHub({
       {aiInsights.length > 0 ? (
         <section
           data-finance-ai-insights="true"
-          className="ds-surface rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0f1d18] dark:via-slate-900 dark:to-[#0f1a24]"
+          className="ds-surface relative overflow-visible rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-emerald-50/70 via-white to-sky-50/50 p-4 sm:p-5 shadow-xs dark:border-emerald-400/20 dark:from-[#0f1d18] dark:via-slate-900 dark:to-[#0f1a24]"
         >
           <div className="mb-3 flex items-center gap-2">
             <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
@@ -671,7 +671,7 @@ export function OdooAccountingAnalyticsHub({
 
       {/* 3. Visual Financial Allocation Bar (Posted GL Cost Split or Live AR Aging Split) */}
       {acc.available && acc.totalRevenueKwd !== null && acc.totalRevenueKwd > 0 ? (
-        <section className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <section className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <h4 className="mb-3 text-sm font-extrabold text-slate-900 dark:text-white">
             {isAr ? 'توزيع الإيرادات المرحلة على بنود التكلفة والصافي' : 'Posted GL Revenue Allocation Breakdown'}
           </h4>
@@ -712,8 +712,8 @@ export function OdooAccountingAnalyticsHub({
                 return (
                   <div key={row.key} className="space-y-1">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-semibold text-slate-700 dark:text-slate-200">{row.label}</span>
-                      <span dir="ltr" className="font-mono font-bold tabular-nums text-slate-900 dark:text-white">
+                      <span className="min-w-0 truncate font-semibold text-slate-700 dark:text-slate-200">{row.label}</span>
+                      <span dir="ltr" className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums text-slate-900 dark:text-white">
                         {formatKwd(row.val, resolvedLocale)}
                         {row.pct !== null ? ` (${formatPct(row.pct, resolvedLocale)})` : ''}
                       </span>
@@ -727,30 +727,38 @@ export function OdooAccountingAnalyticsHub({
           </div>
         </section>
       ) : !rec.unavailable && rec.agingBuckets.length > 0 ? (
-        <section className="ds-surface rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+        <section className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
               {isAr ? 'ملخص أعمار الذمم المدينة المفتوحة (أودو 17)' : 'Open Receivables Aging Snapshot (Odoo 17)'}
             </h4>
             <Link
               href="/erp/receivables"
-              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-300"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-300"
             >
               <span>{isAr ? 'تفاصيل الذمم والتسويات' : 'Open AR Aging Studio'}</span>
               <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div
+            className={`grid gap-3 ${
+              rec.agingBuckets.length === 1
+                ? 'grid-cols-1'
+                : rec.agingBuckets.length === 2
+                  ? 'grid-cols-1 md:grid-cols-2'
+                  : 'grid-cols-1 md:grid-cols-3'
+            }`}
+          >
             {rec.agingBuckets.map((b) => (
               <div
                 key={b.key}
-                className="rounded-xl border border-slate-200/80 bg-slate-50/75 p-3.5 dark:border-slate-800 dark:bg-white/[0.03]"
+                className="min-w-0 rounded-xl border border-slate-200/80 bg-slate-50/75 p-3.5 dark:border-slate-800 dark:bg-white/[0.03]"
               >
                 <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                  <span className="min-w-0 truncate font-bold text-slate-700 dark:text-slate-200">
                     {isAr ? b.labelAr : b.labelEn}
                   </span>
-                  <span dir="ltr" className="tabular-nums text-slate-500">
+                  <span dir="ltr" className="shrink-0 whitespace-nowrap tabular-nums text-slate-500">
                     {formatInt(b.linesCount, resolvedLocale)}
                   </span>
                 </div>
@@ -767,32 +775,32 @@ export function OdooAccountingAnalyticsHub({
       {(acc.revenueAccounts ?? []).length > 0 ? (
         <details
           data-ledger-collapsible="revenue-accounts"
-          className="group rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+          className="group relative overflow-visible rounded-2xl border border-slate-200/85 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
         >
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden />
-              <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+            <div className="flex min-w-0 items-center gap-2">
+              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500 transition-transform group-open:rotate-180" aria-hidden />
+              <span className="min-w-0 truncate text-xs font-extrabold text-slate-900 dark:text-white">
                 {isAr ? 'حسابات الإيرادات المرحلة في دفتر الأستاذ' : 'Posted GL Revenue Accounts'}
               </span>
-              <span dir="ltr" className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200">
+              <span dir="ltr" className="shrink-0 whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200">
                 {formatInt(acc.revenueAccounts?.length ?? 0, resolvedLocale)}
               </span>
             </div>
-            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               {isAr ? 'عرض / طي' : 'Expand / Collapse'}
             </span>
           </summary>
-          <ul className="mt-3 divide-y divide-slate-100 text-xs text-slate-700 dark:divide-slate-800 dark:text-slate-200">
+          <ul className="mt-3 divide-y divide-slate-100 text-xs tabular-nums text-slate-700 dark:divide-slate-800 dark:text-slate-200">
             {acc.revenueAccounts?.map((account) => (
               <li key={`${account.code}-${account.name}`} className="flex items-center justify-between gap-2 py-2">
-                <span>
+                <span className="min-w-0 truncate">
                   <span dir="ltr" className="font-mono font-semibold text-slate-500">
                     {account.code}
                   </span>{' '}
                   {account.name}
                 </span>
-                <GlKwdValue value={account.amountKwd} locale={resolvedLocale} className="font-bold" />
+                <GlKwdValue value={account.amountKwd} locale={resolvedLocale} className="shrink-0 whitespace-nowrap font-bold" />
               </li>
             ))}
           </ul>
