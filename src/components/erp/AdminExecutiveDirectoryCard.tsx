@@ -39,6 +39,17 @@ interface RoleDirectoryApiResponse {
   roles: DirectoryRoleRow[]
 }
 
+const ROLE_CODE_AR: Record<ExecSessionRole, string> = {
+  admin: 'مسؤول النظام',
+  gm: 'المدير العام',
+  dgm: 'نائب م. العام',
+  ops: 'العمليات',
+  cfo: 'المالية',
+  marketing: 'التسويق',
+  supply: 'الإمداد',
+  auditor: 'المراجع',
+}
+
 function resolveTierPillStyle(tier: DirectoryRoleRow['accessTier']): string {
   switch (tier) {
     case 'full_admin':
@@ -163,10 +174,10 @@ export function AdminExecutiveDirectoryCard({
                     {isAr ? r.badgeAr : r.badgeEn}
                   </span>
                   <span
-                    dir="ltr"
-                    className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    dir={isAr ? 'rtl' : 'ltr'}
+                    className={`rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200 ${isAr ? '' : 'font-mono'}`}
                   >
-                    {r.role}
+                    {isAr ? ROLE_CODE_AR[r.role] : r.role}
                   </span>
                 </div>
                 {r.email ? (
@@ -325,10 +336,19 @@ export function AdminExecutiveDirectoryCard({
                       <span>{isAr ? row.badgeAr : row.badgeEn}</span>
                     </span>
                     <div
-                      dir="ltr"
-                      className="mt-1 font-mono text-xs text-[var(--ds-text-muted)]"
+                      dir={isAr ? 'rtl' : 'ltr'}
+                      className={`mt-1 text-xs text-[var(--ds-text-muted)] ${isAr ? '' : 'font-mono'}`}
                     >
-                      role: {row.role} • home: {row.defaultHome || UNAVAILABLE_DASH}
+                      {isAr ? (
+                        <>
+                          {'المسار الافتراضي: '}
+                          <bdi dir="ltr" className="font-mono">
+                            {row.defaultHome || UNAVAILABLE_DASH}
+                          </bdi>
+                        </>
+                      ) : (
+                        `role: ${row.role} • home: ${row.defaultHome || UNAVAILABLE_DASH}`
+                      )}
                     </div>
                   </td>
 

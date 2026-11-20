@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
+import { prisma } from '@/lib/db'
 import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { runBackgroundAnalysis, type BriefSources } from '@/server/ai/brief'
 import { assembleBriefReport, parseStoredBrief, reviewModelText } from '@/server/ai/consensus'
@@ -12,14 +13,21 @@ import { buildBriefFactPack, kuwaitBriefDays, type BriefCubeInput } from '@/serv
 import { latestManualAtMs, manualRetryAt, MANUAL_RUN_COOLDOWN_MS } from '@/server/ai/manual-run'
 import type { CouncilModels } from '@/server/ai/models'
 import {
+  AI_PG_CONNECT_TIMEOUT_MS,
+  COUNCIL_DECISION_BRIEF_TAG,
   configureAiPersistQueryable,
   ensureAiTables,
+  isPostgresOnlyAiStore,
+  listCouncilDecisionMirrorBriefs,
   listDailyBriefs,
   listLatestDailyBrief,
   persistAiRuns,
   persistDailyBrief,
+  releaseManualRunLock,
   safeListAiRuns,
   safeListDailyBriefs,
+  tryAcquireManualRunLock,
+  upsertCouncilDecisionMirrorBrief,
   type AiDailyBriefDraft,
   type AiRunDraft,
   type AiSqlQueryable,
@@ -685,6 +693,165 @@ describe('background Odoo brief', () => {
 
         await pglite.exec('RESET ROLE;')
       } finally {
+        await pglite.close()
+      }
+    })
+
+    it('uses 5000ms PG connect timeout, never invokes prisma.aiDailyBrief SQLite in Postgres/production, and never suppresses writes after a transient read failure', async () => {
+      expect(AI_PG_CONNECT_TIMEOUT_MS).toBe(5_000)
+      expect(
+        isPostgresOnlyAiStore({
+          nodeEnv: 'production',
+          sqliteUrl: 'file:/tmp/aetherbi-erp.db',
+        }),
+      ).toBe(true)
+      expect(
+        isPostgresOnlyAiStore({
+          nodeEnv: 'development',
+          databaseUrl: 'postgresql://db-host.internal:5432/erp',
+        }),
+      ).toBe(true)
+      expect(
+        isPostgresOnlyAiStore({
+          nodeEnv: 'development',
+          databaseUrl: 'file:./dev.db',
+        }),
+      ).toBe(false)
+
+      const decisionsRouteSrc = readFileSync(
+        path.join(process.cwd(), 'src/app/api/erp/council/decisions/route.ts'),
+        'utf8',
+      )
+      expect(decisionsRouteSrc).not.toContain("from '@/lib/db'")
+      expect(decisionsRouteSrc).not.toContain('prisma.aiDailyBrief')
+
+      const findManySpy = vi.spyOn(prisma.aiDailyBrief, 'findMany')
+      const findFirstSpy = vi.spyOn(prisma.aiDailyBrief, 'findFirst')
+      const createBriefSpy = vi.spyOn(prisma.aiDailyBrief, 'create')
+      const deleteManySpy = vi.spyOn(prisma.aiDailyBrief, 'deleteMany')
+      const createRunsSpy = vi.spyOn(prisma.aiRun, 'createMany')
+      const findRunsSpy = vi.spyOn(prisma.aiRun, 'findMany')
+      const rawSqliteSpy = vi.spyOn(prisma, '$executeRawUnsafe')
+
+      const pglite = new PGlite()
+      try {
+        await pglite.exec('CREATE ROLE anon; CREATE ROLE authenticated;')
+
+        // 1) Production mode with unavailable PG pool: fails closed/gracefully with ZERO SQLite calls
+        vi.stubEnv('NODE_ENV', 'production')
+        configureAiPersistQueryable(null)
+
+        await ensureAiTables()
+        await persistDailyBrief({
+          id: 'prod-no-pool-brief',
+          questionHash: 'qh-no-pool',
+          status: 'reported',
+          reply: '{}',
+          agreedModels: '[]',
+        })
+        await persistAiRuns([
+          {
+            id: 'prod-no-pool-run',
+            userId: 'system:daily-brief',
+            questionHash: 'qh-no-pool',
+            provider: 'anthropic',
+            modelId: RETURNED.anthropic,
+            latencyMs: 100,
+            tokensIn: 10,
+            tokensOut: 5,
+            estCostMicroUsd: 100,
+            status: 'ok',
+            errorCode: null,
+          },
+        ])
+        expect(await safeListDailyBriefs(10)).toEqual({ briefs: [], error: true })
+        expect(await safeListAiRuns(10)).toEqual({
+          runs: [],
+          brief: null,
+          error: true,
+          source: 'postgres',
+        })
+        expect(await listCouncilDecisionMirrorBriefs(10)).toEqual([])
+        expect(
+          await upsertCouncilDecisionMirrorBrief({
+            questionHash: 'decision-room:fp-1',
+            status: 'accepted',
+            reply: '{"fingerprint":"fp-1","status":"accepted"}',
+          }),
+        ).toBe(false)
+        expect(await tryAcquireManualRunLock('holder-prod')).toBe('unavailable')
+        await releaseManualRunLock('holder-prod')
+
+        // 2) Transient PG read failure followed immediately by PG writes (zero 30s write suppression & zero SQLite calls)
+        let failNextRead = true
+        const flakyPgAdapter: AiSqlQueryable = {
+          async query<R extends Record<string, unknown> = Record<string, unknown>>(
+            text: string,
+            params?: unknown[],
+          ): Promise<{ rows: R[]; rowCount?: number | null }> {
+            if (failNextRead && /^\s*SELECT\b/i.test(text) && !/to_regclass/i.test(text)) {
+              failNextRead = false
+              const timeoutErr = Object.assign(new Error('connection timeout'), {
+                code: 'ETIMEDOUT',
+              })
+              throw timeoutErr
+            }
+            const res = await pglite.query<R>(text, params)
+            return { rows: res.rows, rowCount: res.affectedRows ?? res.rows.length }
+          },
+        }
+        configureAiPersistQueryable(flakyPgAdapter)
+
+        const failedRead = await safeListDailyBriefs(10)
+        expect(failedRead).toEqual({ briefs: [], error: true })
+
+        // Immediate write right after transient read error must execute on Postgres without 30s suppression
+        await persistDailyBrief({
+          id: 'brief-after-transient-read-err',
+          questionHash: 'qh-recovered',
+          status: 'reported',
+          reply: '{"trigger":"manual"}',
+          agreedModels: '["anthropic","google"]',
+        })
+        const mirrorSaved = await upsertCouncilDecisionMirrorBrief({
+          questionHash: 'decision-room:cfo:margin:avenues',
+          status: 'accepted',
+          reply: JSON.stringify({
+            id: 'dec-1',
+            fingerprint: 'cfo:margin:avenues',
+            status: 'accepted',
+            decidedAt: '2026-11-18T10:00:00.000Z',
+          }),
+        })
+        expect(mirrorSaved).toBe(true)
+
+        // Daily brief readers return only real daily briefs, excluding council-decision mirror rows
+        const recoveredBriefs = await safeListDailyBriefs(10)
+        expect(recoveredBriefs.error).toBe(false)
+        expect(recoveredBriefs.briefs).toHaveLength(1)
+        expect(recoveredBriefs.briefs[0]?.id).toBe('brief-after-transient-read-err')
+        expect(
+          recoveredBriefs.briefs.every((b) => b.agreedModels !== COUNCIL_DECISION_BRIEF_TAG),
+        ).toBe(true)
+
+        // Decision mirror reader returns only council-decision rows from Postgres
+        const mirroredRows = await listCouncilDecisionMirrorBriefs(10)
+        expect(mirroredRows).toHaveLength(1)
+        expect(mirroredRows[0]?.agreedModels).toBe(COUNCIL_DECISION_BRIEF_TAG)
+        expect(mirroredRows[0]?.questionHash).toBe('decision-room:cfo:margin:avenues')
+
+        // ZERO Prisma SQLite calls across the entire production/Postgres lifecycle
+        expect(findManySpy).not.toHaveBeenCalled()
+        expect(findFirstSpy).not.toHaveBeenCalled()
+        expect(createBriefSpy).not.toHaveBeenCalled()
+        expect(deleteManySpy).not.toHaveBeenCalled()
+        expect(createRunsSpy).not.toHaveBeenCalled()
+        expect(findRunsSpy).not.toHaveBeenCalled()
+        expect(rawSqliteSpy).not.toHaveBeenCalled()
+      } finally {
+        vi.unstubAllEnvs()
+        vi.restoreAllMocks()
+        configureAiPersistQueryable(undefined)
         await pglite.close()
       }
     })

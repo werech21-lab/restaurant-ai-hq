@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
+import type { CouncilDiscovery } from '@/lib/council/types'
 import type { OdooPeriodCube, OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
   Info,
@@ -199,12 +200,17 @@ const shiftIsoDay = (iso: string, days: number): string => {
 
 /** ملخص الشركة — لوحة القيادة التنفيذية المربوطة مباشرةً ببيانات Odoo 17 */
 
-export function FullJourney360({
-  initialLiveCube = null,
-}: {
+export interface FullJourney360Props {
   /** Selected-period cube (tests / SSR); otherwise fetched from /api/erp/live-comparison. */
   initialLiveCube?: OdooPeriodCube | null
-} = {}) {
+  /** Optional council discoveries for deterministic SSR tests; otherwise fetched client-side. */
+  initialDiscoveries?: CouncilDiscovery[] | null
+}
+
+export function FullJourney360({
+  initialLiveCube = null,
+  initialDiscoveries,
+}: FullJourney360Props) {
   const { isAr, T } = useLang()
   const activeLocale = isAr ? 'ar' : 'en'
   const unavailableTooltip = getUnavailableTooltip(activeLocale)
@@ -1256,7 +1262,7 @@ export function FullJourney360({
           ) : null}
 
           {/* Today's Discoveries — top 3 cross-advisor findings (council, read-only Odoo) */}
-          <TodaysDiscoveries locale={activeLocale} />
+          <TodaysDiscoveries locale={activeLocale} initialDiscoveries={initialDiscoveries} />
 
           {/* Dynamic Executive KPI Row (Strictly Actual / Ledger Metrics — Zero Empty Cards or Gaps) */}
           <section className="space-y-4 sm:space-y-5">

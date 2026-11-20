@@ -44,7 +44,7 @@ import {
   type ScenarioSimulationResult,
   type SkuVelocityRow,
 } from '@/lib/feryal/executive-advisor'
-import { asksMarginOrCogs } from '@/lib/feryal/item-pricing'
+import { asksMarginOrCogs, isSpecificItemPricingQuestion } from '@/lib/feryal/item-pricing'
 import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import {
@@ -253,6 +253,9 @@ export function shouldRunExecutivePricingChat(
     return true
   }
   if (asksAboutCompetitor(question)) {
+    return false
+  }
+  if (isSpecificItemPricingQuestion(question)) {
     return false
   }
   return isExecutivePricingOrMenuStrategyQuestion(question) || isExecutiveAdvisorQuestion(question)

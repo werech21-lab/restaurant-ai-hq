@@ -15,6 +15,7 @@ import {
 } from '@/lib/feryal-odoo-agent'
 import {
   buildFeryalFrozenScope,
+  detectFeryalPromptLocale,
   isConfirmedSheetFollowUpQuestion,
 } from '@/lib/feryal-intent'
 import {
@@ -32,7 +33,26 @@ import {
   type ExecutivePricingAskOdooState,
 } from '@/lib/feryal/executive-chat-runner'
 import { logger, errorFields } from '@/lib/logger'
-import { runFeryalCouncil } from '@/server/ai/council'
+import {
+  COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE,
+  runFeryalCouncil,
+} from '@/server/ai/council'
+
+const ARABIC_COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE =
+  'ملاحظة: الشرح التحليلي الإضافي من النماذج غير متاح حالياً — الأرقام أعلاه موثّقة مباشرة من أودو.' as const
+
+function localizeCouncilReplyFallbackNote(reply: string, promptLocale: 'ar' | 'en'): string {
+  if (promptLocale !== 'ar') return reply
+  return reply
+    .replaceAll(
+      COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE,
+      ARABIC_COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE,
+    )
+    .replace(
+      /\s*\|\s*Note:\s*AI analytical explanation is currently unavailable\s*[—–-]\s*the figures above are verified directly from Odoo\.?/gi,
+      '',
+    )
+}
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -273,10 +293,14 @@ export async function POST(req: NextRequest) {
       result.status === 'answered' && result.agreed.length < 2,
     )
     const agreedLabel = result.agreed.map((item) => `${item.provider}/${item.modelId}`).join(' · ')
+    const localizedReply = localizeCouncilReplyFallbackNote(
+      result.reply,
+      detectFeryalPromptLocale(safeQuestion),
+    )
     return NextResponse.json(
       {
         ok: true,
-        reply: result.reply,
+        reply: localizedReply,
         status: result.status,
         provider: 'odoo-council',
         model: agreedLabel,

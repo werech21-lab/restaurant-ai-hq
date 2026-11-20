@@ -1000,14 +1000,14 @@ export function isExecutivePricingOrMenuStrategyQuestion(question: string): bool
   const norm = normalizeArabicText(question)
   if (!norm) return false
   if (
-    /\b(?:pareto|abc\s+(?:tier|tiers|analysis|classification|matrix|velocity|menu)|menu\s+(?:engineering|velocity|strategy|optimization|pricing|simulation|playbook)|price\s+(?:simulation|scenarios?|elasticity|sheet|proposal|options?|playbook)|pricing\s+(?:strategy|scenarios?|playbook|options?|simulation|impact|review)|executive\s+(?:pricing|menu|sku))\b/i.test(
+    /\b(?:pareto|abc\s+(?:tier|tiers|analysis|classification|matrix|velocity|menu)|menu\s+(?:engineering|velocity|strategy|optimization|pricing|simulation|playbook)|price\s+(?:simulation|scenarios?|elasticity|sheet|proposal|options?|playbook)|pricing\s+(?:strategy|scenarios?|playbook|options?|simulation|impact|review)|(?:suggested|recommended)\s+prices?|executive\s+(?:pricing|menu|sku))\b/i.test(
       norm,
     )
   ) {
     return true
   }
   if (
-    /(?:باريتو|تصنيف\s*abc|تحليل\s*abc|فئات\s*abc|هندسه\s*(?:المنيو|القائمه|الاصناف)|مرونه\s*(?:السعر|الاسعار)|محاكاه\s*(?:الاسعار|التسعير)|سيناريوهات\s*(?:التسعير|الاسعار)|جدول\s*(?:الاسعار|تسعير)|اسعار\s*مقترحه|خيارات\s*التسعير|استراتيجيه\s*التسعير|خطه\s*تسعير|رفع\s*اسعار\s*(?:المنيو|الاصناف|القائمه)|تعديل\s*اسعار\s*(?:المنيو|الاصناف))/.test(
+    /(?:باريتو|تصنيف\s*abc|تحليل\s*abc|فئات\s*abc|هندسه\s*(?:المنيو|القائمه|الاصناف)|مرونه\s*(?:السعر|الاسعار)|محاكاه\s*(?:الاسعار|التسعير)|سيناريوهات\s*(?:التسعير|الاسعار)|جدول\s*(?:الاسعار|تسعير)|(?:ال)?اسعار\s*(?:ال)?مقترحه|(?:ال)?سعر\s*(?:ال)?مقترح|خيارات\s*التسعير|استراتيجيه\s*التسعير|خطه\s*تسعير|رفع\s*اسعار\s*(?:المنيو|الاصناف|القائمه)|تعديل\s*اسعار\s*(?:المنيو|الاصناف))/.test(
       norm,
     )
   ) {
@@ -1059,13 +1059,17 @@ export function isItemLevelPosQuestion(question: string): boolean {
   }
   const norm = normalizeArabicText(question)
   if (
-    /(menu items|item-level|item level|per[- ]sku|\bskus?\b|pricing impact|proposed price|price impact|quantities sold|price_subtotal|pos\.order\.line|top selling menu)/i.test(
+    /(menu items|item-level|item level|per[- ]sku|\bskus?\b|pricing impact|proposed price|suggested price|recommended price|price impact|quantities sold|price_subtotal|pos\.order\.line|top selling menu)/i.test(
       norm,
     )
   ) {
     return true
   }
-  if (/(سعر مقترح|اسعار الاصناف|تسعير الصنف|اثر السعر|تاثير السعر|لو صار السعر|لو رفعنا السعر)/.test(norm)) {
+  if (
+    /(?:(?:ال)?سعر\s+(?:ال)?مقترح|(?:ال)?اسعار\s+(?:ال)?مقترحه|(?:ال)?اسعار\s+(?:ال)?اصناف|تسعير\s+(?:ال)?صنف|تسعير\s+(?:ال)?طبق|سعر\s+(?:ال)?صنف|سعر\s+(?:ال)?طبق|اثر\s+(?:ال)?سعر|تاثير\s+(?:ال)?سعر|لو\s+صار\s+(?:ال)?سعر|لو\s+رفعنا\s+(?:ال)?سعر)/.test(
+      norm,
+    )
+  ) {
     return true
   }
   return /what[- ]if/i.test(norm) && /\d/.test(norm) && /(price|سعر|kwd)/i.test(norm)
@@ -1508,9 +1512,11 @@ export function detectOdooToolKind(
 
   // 3. General Ledger / accounting / receivables (`account.move.line`)
   if (
-    /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|صافي الربح|الارباح والخسائر|المصروفات|المصاريف|تكلفه البضاعه|\bledger\b|\breceivables\b|\bnet profit\b|\bexpenses\b)/i.test(
+    /(account\.move\.line|دفتر الاستاذ|القيود المحاسبيه|قيود اليوميه|الذمم المدينه|ذمم المنصات|مستحقات المنصات|الارباح والخسائر|المصروفات|المصاريف|\bledger\b|\breceivables\b|\bexpenses\b)/i.test(
       normAr,
-    )
+    ) ||
+    (!isItemLevelPosQuestion(question) &&
+      /(صافي الربح|تكلفه البضاعه|\bnet profit\b)/i.test(normAr))
   ) {
     return 'account_move_lines'
   }

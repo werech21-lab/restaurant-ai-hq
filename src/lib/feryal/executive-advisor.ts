@@ -2739,7 +2739,7 @@ export function isExecutiveAdvisorQuestion(question: string): boolean {
 }
 
 function isExecutiveKeywordPresent(text: string): boolean {
-  return /(pareto|abc\b|tier[- ]?a\b|elasticity|stress[- ]?test|scenario|simulator|repricing|price\s+increase|price\s+change|price\s+sheet|menu\s+engineering|what[- ]if|proposed\s+price|feryal\s+rec|bundle|upsell|cfo|باريتو|تصنيف\s*abc|مرونة|سيناريو|محاكاة|تسعير|رفع\s+الأسعار|تعديل\s+الأسعار|سعر\s+مقترح|سعر\s+فريال|جدول\s+الأسعار|هندسة\s+المنيو)/iu.test(
+  return /(pareto|abc\b|tier[- ]?a\b|elasticity|stress[- ]?test|scenario|simulator|repricing|price\s+increase|price\s+change|price\s+sheet|menu\s+engineering|what[- ]if|proposed\s+price|suggested\s+price|recommended\s+price|feryal\s+rec|bundle|upsell|cfo|باريتو|تصنيف\s*abc|مرونة|سيناريو|محاكاة|تسعير|رفع\s+الأسعار|تعديل\s+الأسعار|(?:ال)?سعر\s+(?:ال)?مقترح|(?:ال)?أسعار\s+(?:ال)?مقترحة|(?:ال)?اسعار\s+(?:ال)?مقترحه|(?:ال)?[أإآا]سعار\s+(?:ال)?مقترح[ةه]|سعر\s+فريال|جدول\s+الأسعار|هندسة\s+المنيو)/iu.test(
     text,
   )
 }

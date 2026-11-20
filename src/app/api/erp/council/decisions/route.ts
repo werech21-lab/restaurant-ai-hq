@@ -14,12 +14,12 @@ import {
 import { kuwaitDayOf } from '@/lib/council/helpers'
 import { completedDailyByBranch } from '@/lib/council/series'
 import type { AdvisorId, CouncilFinding } from '@/lib/council/types'
-import { prisma } from '@/lib/db'
 import { fetchExecutiveContextPackFromOdoo } from '@/lib/feryal/executive-advisor'
 import { errorFields, logger } from '@/lib/logger'
 import { fetchLiveOdooSnapshot } from '@/lib/odoo-live-connector'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
+import * as aiPersist from '@/server/ai/persist'
 import { latestCouncilSnapshot } from '@/server/council/service'
 import { listDecisions, saveDecision } from '@/server/council/store'
 
@@ -27,8 +27,7 @@ export const dynamic = 'force-dynamic'
 
 /** Executives who may decide on a council proposal (auditors and other roles read only). */
 const DECISION_ROLES = ['admin', 'gm', 'dgm'] as const
-const PRISMA_DECISION_TAG = 'council-decision'
-const PRISMA_HASH_PREFIX = 'decision-room:'
+const DECISION_HASH_PREFIX = 'decision-room:'
 
 const VALID_ADVISOR_IDS: ReadonlySet<AdvisorId> = new Set<AdvisorId>([
   'cfo',
@@ -60,11 +59,7 @@ function fallbackMap(): Map<string, DecisionRecord> {
 
 async function readPrismaMirrorDecisions(): Promise<DecisionRecord[]> {
   try {
-    const rows = await prisma.aiDailyBrief.findMany({
-      where: { agreedModels: PRISMA_DECISION_TAG },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    })
+    const rows = await aiPersist.listCouncilDecisionMirrorBriefs(200)
     const out: DecisionRecord[] = []
     for (const row of rows) {
       try {
@@ -84,19 +79,12 @@ async function readPrismaMirrorDecisions(): Promise<DecisionRecord[]> {
 
 async function writePrismaMirrorDecision(record: DecisionRecord): Promise<boolean> {
   try {
-    const hash = `${PRISMA_HASH_PREFIX}${record.fingerprint}`
-    await prisma.aiDailyBrief.deleteMany({
-      where: { questionHash: hash, agreedModels: PRISMA_DECISION_TAG },
+    const hash = `${DECISION_HASH_PREFIX}${record.fingerprint}`
+    return await aiPersist.upsertCouncilDecisionMirrorBrief({
+      questionHash: hash,
+      status: record.status,
+      reply: JSON.stringify(record),
     })
-    await prisma.aiDailyBrief.create({
-      data: {
-        questionHash: hash,
-        status: record.status,
-        reply: JSON.stringify(record),
-        agreedModels: PRISMA_DECISION_TAG,
-      },
-    })
-    return true
   } catch {
     return false
   }
@@ -308,7 +296,7 @@ export async function POST(req: NextRequest) {
     await saveDecision(record)
     persistedPrimary = true
   } catch (error) {
-    logger.warn('council primary store unavailable, using Prisma fallback', errorFields(error))
+    logger.warn('council primary store unavailable, using ai_daily_briefs mirror fallback', errorFields(error))
   }
 
   const persistedMirror = await writePrismaMirrorDecision(record)

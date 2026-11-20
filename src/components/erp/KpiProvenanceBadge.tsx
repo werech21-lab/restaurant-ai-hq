@@ -133,6 +133,8 @@ function formatSyncShort(lastSyncAt?: string | null): {
 const ODOO_MODEL_AR_MAP: Record<string, string> = {
   'pos.order + account.move.line': 'طلبات نقاط البيع + قيود الأستاذ العام',
   'pos.payment + pos.order': 'مدفوعات وطلبات نقاط البيع',
+  'pos.order.line / pos.payment': 'بنود ومدفوعات نقاط البيع',
+  'pos.payment / pos.order.line': 'مدفوعات وبنود نقاط البيع',
   'pos.order': 'طلبات نقاط البيع',
   'pos.order.line': 'بنود طلبات نقاط البيع',
   'pos.payment': 'مدفوعات نقاط البيع',
@@ -141,11 +143,24 @@ const ODOO_MODEL_AR_MAP: Record<string, string> = {
   'account.move.line': 'قيود دفتر الأستاذ العام',
   'account.move': 'فواتير وقيود المحاسبة',
   'stock.move': 'حركات المخزون',
+  'stock.move (scrap)': 'حركات المخزون (الإتلاف)',
+  'stock.move (consumption)': 'حركات المخزون (الاستهلاك)',
+  'stock.move / stock.scrap': 'حركات المخزون وقيود الإتلاف',
+  'stock.scrap': 'قيود الإتلاف',
   'stock.quant': 'أرصدة المخزون',
   'purchase.order': 'أوامر الشراء',
   'purchase.order.line': 'بنود أوامر الشراء',
+  'product.product': 'بطاقات الأصناف',
+  'product.product (standard_price)': 'بطاقات الأصناف (التكلفة المعيارية)',
+  'product.template': 'قوالب الأصناف',
+  'mrp.bom': 'قوائم المكونات',
+  'mrp.bom / mrp.bom.line': 'قوائم المكونات وبنودها',
   'hr.attendance': 'سجلات الحضور والانصراف',
+  'hr.attendance.overtime / resource.calendar': 'سجل العمل الإضافي وجداول الورديات',
   'hr.employee': 'سجلات الموظفين',
+  'hr.employee (work_location_id)': 'سجلات الموظفين (موقع العمل)',
+  'res.company': 'إعدادات الشركة',
+  'res.company (period_lock_date)': 'إعدادات الشركة (تاريخ قفل الفترة)',
 }
 
 export function localizeOdooModelAr(rawModel?: string | null): string {
@@ -165,10 +180,23 @@ export function localizeOdooModelAr(rawModel?: string | null): string {
     .replace(/\baccount\.move\b/gi, 'فواتير وقيود المحاسبة')
     .replace(/\bpurchase\.order\.line\b/gi, 'بنود أوامر الشراء')
     .replace(/\bpurchase\.order\b/gi, 'أوامر الشراء')
+    .replace(/\bproduct\.product\b/gi, 'بطاقات الأصناف')
+    .replace(/\bproduct\.template\b/gi, 'قوالب الأصناف')
+    .replace(/\bmrp\.bom\.line\b/gi, 'بنود قوائم المكونات')
+    .replace(/\bmrp\.bom\b/gi, 'قوائم المكونات')
+    .replace(/\bstock\.scrap\b/gi, 'قيود الإتلاف')
     .replace(/\bstock\.move\b/gi, 'حركات المخزون')
     .replace(/\bstock\.quant\b/gi, 'أرصدة المخزون')
+    .replace(/\bhr\.attendance\.overtime\b/gi, 'سجل العمل الإضافي')
     .replace(/\bhr\.attendance\b/gi, 'سجلات الحضور والانصراف')
     .replace(/\bhr\.employee\b/gi, 'سجلات الموظفين')
+    .replace(/\bresource\.calendar\b/gi, 'جداول الورديات')
+    .replace(/\bres\.company\b/gi, 'إعدادات الشركة')
+    .replace(/\(scrap\)/gi, '(الإتلاف)')
+    .replace(/\(consumption\)/gi, '(الاستهلاك)')
+    .replace(/\(standard_price\)/gi, '(التكلفة المعيارية)')
+    .replace(/\(period_lock_date\)/gi, '(تاريخ قفل الفترة)')
+    .replace(/\(work_location_id\)/gi, '(موقع العمل)')
 }
 
 const EXACT_FORMULA_AR_MAP: Record<string, string> = {
@@ -311,6 +339,282 @@ export function localizeQueryOrFormulaAr(
     .replace(/\s*\*\s*/g, ' × ')
     .replace(/\s*\/\s*/g, ' ÷ ')
     .replace(/\s*-\s*/g, ' − ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const ESTIMATE_INPUT_KEY_AR: Record<string, string> = {
+  top_branch_kwd: 'أعلى فرع (د.ك)',
+  lowest_branch_kwd: 'أقل فرع نشط (د.ك)',
+  peer_median_kwd: 'وسيط الفروع (د.ك)',
+  gap_kwd: 'الفجوة (د.ك)',
+  period_days: 'أيام الفترة',
+  aggregator_kwd: 'مبيعات المنصات (د.ك)',
+  direct_kwd: 'المبيعات المباشرة (د.ك)',
+  posted_commissions_kwd: 'العمولات المرحّلة (د.ك)',
+  quiet_hours_kwd: 'مبيعات الساعات الهادئة (د.ك)',
+  total_hourly_kwd: 'إجمالي السلاسل الساعية (د.ك)',
+  afternoon_30d_pool_kwd: 'وعاء فترة ما بعد الظهر (د.ك)',
+  open_debits_kwd: 'الذمم المدينة المفتوحة (د.ك)',
+  overdue_over_30d_kwd: 'الذمم المتأخرة فوق 30 يوماً (د.ك)',
+  unapplied_credits_abs_kwd: 'الأرصدة الدائنة غير المطبّقة (د.ك)',
+  tier_a_kwd: 'مبيعات الفئة أ (د.ك)',
+  tier_c_kwd: 'مبيعات الفئة ج (د.ك)',
+  tier_a_skus: 'عدد أصناف الفئة أ',
+  tier_c_skus: 'عدد أصناف الفئة ج',
+  unattributed_kwd: 'المبيعات غير المنسوبة (د.ك)',
+  peerMedianTicketKwd: 'وسيط فاتورة الفروع (د.ك)',
+  branchTicketKwd: 'متوسط فاتورة الفرع (د.ك)',
+  weeklyOrders: 'الطلبات الأسبوعية',
+  closeShare: 'نسبة تقليص الفجوة',
+  priorWeekNetKwd: 'صافي الأسبوع الأسبق (د.ك)',
+  lastWeekNetKwd: 'صافي الأسبوع الماضي (د.ك)',
+  recoveryShare: 'نسبة الاسترداد',
+  ordersLast28: 'طلبات آخر 28 يوماً',
+  priorAovKwd: 'متوسط الفاتورة السابق (د.ك)',
+  currentAovKwd: 'متوسط الفاتورة الحالي (د.ك)',
+  ticketDropKwd: 'تراجع الفاتورة (د.ك)',
+  siblingIndexPct: 'مؤشر الفروع الأخرى (%)',
+  branchIndexPct: 'مؤشر الفرع (%)',
+  branchAverageDayKwd: 'متوسط يوم الفرع (د.ك)',
+  branchDaySharePct: 'حصة يوم الفرع (%)',
+  companyHourKwd: 'صافي ساعة الشركة (د.ك)',
+  branchHourKwd: 'صافي ساعة الفرع (د.ك)',
+  days: 'عدد الأيام',
+  priorNetKwd: 'الصافي السابق (د.ك)',
+  currentNetKwd: 'الصافي الحالي (د.ك)',
+  pauseHours: 'ساعات التوقف',
+  lostKwd: 'المبيعات المفقودة (د.ك)',
+  weeks: 'عدد الأسابيع',
+  historyWeeks: 'أسابيع المقارنة',
+  weeklyLostKwd: 'الفاقد الأسبوعي (د.ك)',
+  weeklyDropKwd: 'التراجع الأسبوعي (د.ك)',
+  segmentDeltaKwd: 'تغيّر القسم (د.ك)',
+  windowDays: 'أيام الفترة',
+  normalKwd: 'المعتاد (د.ك)',
+  actualKwd: 'الفعلي (د.ك)',
+  lastWeekActualKwd: 'فعلي الأسبوع الماضي (د.ك)',
+  mapePct: 'متوسط نسبة خطأ الاختبار (%)',
+  wapePct: 'الخطأ المرجّح (%)',
+  overtimeHours: 'ساعات العمل الإضافي',
+  standardShiftHours: 'ساعات الوردية المعيارية',
+  weeklyOvertimeHours: 'الإضافي الأسبوعي (ساعة)',
+  reductionShare: 'نسبة الخفض',
+  weeklyQty: 'الكمية الأسبوعية',
+  avgPriceKwd: 'متوسط السعر (د.ك)',
+  priceStepKwd: 'خطوة السعر (د.ك)',
+  elasticity: 'معامل المرونة',
+  thresholdSharePct: 'حصة العتبة (%)',
+  dishSharePct: 'حصة الصنف (%)',
+  totalQty: 'إجمالي الكمية',
+  weeklyDiscountKwd: 'الخصم الأسبوعي (د.ك)',
+  retainedShare: 'نسبة الاحتفاظ',
+  windowPerDayKwd: 'صافي اليوم بالمناسبة (د.ك)',
+  baselinePerDayKwd: 'صافي اليوم المرجعي (د.ك)',
+  eventDays: 'أيام المناسبة',
+}
+
+export function localizeEstimateInputKeyAr(key: string): string {
+  const exact = ESTIMATE_INPUT_KEY_AR[key]
+  if (exact) return exact
+  return key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\bkwd\b/gi, 'د.ك')
+    .replace(/\bpct\b/gi, '%')
+    .replace(/\bweekly\b/gi, 'أسبوعي')
+    .replace(/\bnet\b/gi, 'صافي')
+    .replace(/\borders?\b/gi, 'الطلبات')
+    .replace(/\bdays?\b/gi, 'أيام')
+    .replace(/\bhours?\b/gi, 'ساعات')
+    .replace(/\bbranch\b/gi, 'الفرع')
+    .replace(/\bshare\b/gi, 'الحصة')
+    .trim()
+}
+
+export function localizeEstimateFormulaAr(formula: string): string {
+  const trimmed = formula.trim()
+  if (!trimmed) return ''
+  if (/[\u0600-\u06FF]/.test(trimmed) && !/[A-Za-z]/.test(trimmed)) {
+    return trimmed
+  }
+
+  return trimmed
+    .replace(/peer_median_([\d.,+-]+)/gi, 'وسيط الفروع $1')
+    .replace(/branch_gap_([\d.,+-]+)/gi, 'فجوة الفروع $1')
+    .replace(/posted_commissions_([\d.,+-]+)/gi, 'العمولات المرحّلة $1')
+    .replace(/aggregator_sales_([\d.,+-]+)/gi, 'مبيعات المنصات $1')
+    .replace(/afternoon_30d_pool_([\d.,+-]+)/gi, 'مبيعات فترة ما بعد الظهر $1')
+    .replace(/overdue_30d_([\d.,+-]+)/gi, 'الذمم المتأخرة فوق 30 يوماً $1')
+    .replace(/open_debits_([\d.,+-]+)/gi, 'الذمم المدينة المفتوحة $1')
+    .replace(/abs\(unapplied_credits_([\d.,+-]+)\)/gi, 'القيمة المطلقة للأرصدة الدائنة ($1)')
+    .replace(/tier_a_([\d.,+-]+)/gi, 'مبيعات الفئة أ $1')
+    .replace(/tier_c_([\d.,+-]+)/gi, 'مبيعات الفئة ج $1')
+    .replace(/unattributed_sales_([\d.,+-]+)/gi, 'المبيعات غير المنسوبة $1')
+    .replace(/\b(?:360-mall)_([\d.,+-]+)/gi, 'مول 360 ($1)')
+    .replace(/\b(?:al-kout)_([\d.,+-]+)/gi, 'الكوت ($1)')
+    .replace(/\bavenues_([\d.,+-]+)/gi, 'الأفنيوز ($1)')
+    .replace(/\bassima_([\d.,+-]+)/gi, 'العاصمة ($1)')
+    .replace(/\bpromenade_([\d.,+-]+)/gi, 'بروميناد ($1)')
+    .replace(/\bsalmiya_([\d.,+-]+)/gi, 'السالمية ($1)')
+    .replace(/\bardiya_([\d.,+-]+)/gi, 'العارضية ($1)')
+    .replace(/(\d+)\s*d\b/gi, '$1 يوم')
+    .replace(/\bdirect shift volume\b/gi, 'حجم التحويل للقنوات المباشرة')
+    .replace(/\bweekly clearing pace\b/gi, 'وتيرة التسوية الأسبوعية')
+    .replace(/\bnet revenue simulation\b/gi, 'محاكاة صافي الإيرادات')
+    .replace(/\battributed to branch p&l\b/gi, 'منسوبة لقائمة دخل الفروع')
+    .replace(/\bpeer median ticket\b/gi, 'وسيط فاتورة الفروع')
+    .replace(/\bbranch ticket\b/gi, 'متوسط فاتورة الفرع')
+    .replace(/\bweekly orders\b/gi, 'الطلبات الأسبوعية')
+    .replace(/\bprior-week net\b/gi, 'صافي الأسبوع الأسبق')
+    .replace(/\blast-week net\b/gi, 'صافي الأسبوع الماضي')
+    .replace(/\borders last (\d+) days\b/gi, 'طلبات آخر $1 يوماً')
+    .replace(/\bprior average ticket\b/gi, 'متوسط الفاتورة السابق')
+    .replace(/\bcurrent average ticket\b/gi, 'متوسط الفاتورة الحالي')
+    .replace(/\bticket drop per order\b/gi, 'تراجع الفاتورة لكل طلب')
+    .replace(/\bsiblings weekday index\b/gi, 'مؤشر يوم الأسبوع للفروع الأخرى')
+    .replace(/\bbranch weekday index\b/gi, 'مؤشر يوم الأسبوع للفرع')
+    .replace(/\bsiblings index\b/gi, 'مؤشر الفروع الأخرى')
+    .replace(/\bbranch index\b/gi, 'مؤشر الفرع')
+    .replace(/\bbranch average day\b/gi, 'متوسط يوم الفرع')
+    .replace(/\bbranch day share\b/gi, 'حصة يوم الفرع')
+    .replace(/\bcompany hour net\b/gi, 'صافي ساعة الشركة')
+    .replace(/\bbranch hour net\b/gi, 'صافي ساعة الفرع')
+    .replace(/\bprior net\b/gi, 'الصافي السابق')
+    .replace(/\bcurrent net\b/gi, 'الصافي الحالي')
+    .replace(
+      /Σ over pause hours of median\(same weekday-hour net, last N weeks\)\s*÷\s*weeks in window/gi,
+      'مجموع ساعات التوقف لوسيط (صافي نفس اليوم والساعة للأسابيع السابقة) ÷ عدد الأسابيع',
+    )
+    .replace(/\bweekly lost-sales estimate\b/gi, 'تقدير المبيعات الأسبوعية المفقودة')
+    .replace(/\bweekly drop of the segment\b/gi, 'التراجع الأسبوعي للقسم')
+    .replace(/\|segment Δ\|/gi, '|تغيّر القسم|')
+    .replace(/\bwindow days\b/gi, 'أيام الفترة')
+    .replace(/\bnormal\b/gi, 'المعتاد')
+    .replace(/\bactual\b/gi, 'الفعلي')
+    .replace(/\(one day,\s*flagged branches\)/gi, '(يوم واحد للفروع المتأثرة)')
+    .replace(/\(one day\)/gi, '(يوم واحد)')
+    .replace(/next-7-day forecast/gi, 'توقع الأيام السبعة القادمة')
+    .replace(
+      /Σ max\(0,\s*shift hours\s*−\s*(\d+)\)\s*over shifts\s*≤\s*(\d+)\s*h/gi,
+      'مجموع الساعات الإضافية فوق $1 ساعات للورديات ≤ $2 ساعة',
+    )
+    .replace(/\bweekly overtime hours\b/gi, 'ساعات العمل الإضافي الأسبوعية')
+    .replace(/\bweekly qty\b/gi, 'الكمية الأسبوعية')
+    .replace(/\btotal qty\b/gi, 'إجمالي الكمية')
+    .replace(/\bstep%/gi, 'نسبة الزيادة')
+    .replace(/\belasticity\b/gi, 'المرونة')
+    .replace(/\bthreshold share\b/gi, 'حصة العتبة')
+    .replace(/\bdish share\b/gi, 'حصة الصنف')
+    .replace(/\bweekly discount on the dish\b/gi, 'الخصم الأسبوعي على الصنف')
+    .replace(/\bwindow per-day net\b/gi, 'صافي اليوم بالمناسبة')
+    .replace(/\bbaseline per-day net\b/gi, 'صافي اليوم المرجعي')
+    .replace(/\bwindow per-day\b/gi, 'صافي اليوم بالمناسبة')
+    .replace(/\bbaseline per-day\b/gi, 'صافي اليوم المرجعي')
+    .replace(
+      /event days \(max (\d+)\),\s*previous occurrence/gi,
+      'أيام المناسبة (بحد أقصى $1)، حسب المرة السابقة',
+    )
+    .replace(/event days \(max (\d+)\)/gi, 'أيام المناسبة (بحد أقصى $1)')
+    .replace(/,\s*previous occurrence\b/gi, '، حسب المرة السابقة')
+    .replace(/\bprevious occurrence\b/gi, 'المرة السابقة')
+    .replace(/\bevent days\b/gi, 'أيام المناسبة')
+    .replace(/\(max (\d+)\)/gi, '(بحد أقصى $1)')
+    .replace(/\bprice\b/gi, 'السعر')
+    .replace(/\bdays\b/gi, 'أيام')
+    .replace(/\bcogs\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\brevenue\b/gi, 'الإيرادات')
+    .replace(/Σ/g, 'مجموع')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function localizeDecisionProseAr(text: string): string {
+  if (!text) return text
+  return text
+    .replace(/\s*\(COGS\)/gi, '')
+    .replace(/\s*\(MAPE\)/gi, '')
+    .replace(/\s*\(AOV\)/gi, '')
+    .replace(/\s*\(POS\)/gi, '')
+    .replace(/\s*\(GL\)/gi, '')
+    .replace(/\s*\(BoM\)/gi, '')
+    .replace(/\s*\(Cost\)/gi, '')
+    .replace(/\s*\(TGO\/TMP\)/gi, '')
+    .replace(/\s*\(check-in\s*\/\s*check-out\)/gi, '')
+    .replace(/\s*\(pos\.order\.line\)/gi, '')
+    .replace(/\s*\(pos\.order\)/gi, '')
+    .replace(/\s*\(pos\.config\)/gi, '')
+    .replace(/\s*\(stock\.quant\)/gi, '')
+    .replace(/\s*\(mrp\.bom\)/gi, '')
+    .replace(/\s*\(account\.move\.line\)/gi, '')
+    .replace(/\s*\(work_location_id\)/gi, '')
+    .replace(/\s*\(period_lock_date\)/gi, '')
+    .replace(/لـ\s*pos\.payment/gi, 'لمدفوعات نقاط البيع')
+    .replace(/لـ\s*stock\.quant/gi, 'لأرصدة المخزون')
+    .replace(/كـ\s*stock\.scrap/gi, 'كقيد إتلاف في المخزون')
+    .replace(/\bpos\.order\.line\b/gi, 'بنود طلبات نقاط البيع')
+    .replace(/\bpos\.order\b/gi, 'طلبات نقاط البيع')
+    .replace(/\bpos\.payment\b/gi, 'مدفوعات نقاط البيع')
+    .replace(/\bpos\.config\b/gi, 'أجهزة نقاط البيع')
+    .replace(/\bpos\.session\b/gi, 'جلسات نقاط البيع')
+    .replace(/\baccount\.move\.line\b/gi, 'قيود دفتر الأستاذ العام')
+    .replace(/\baccount\.move\b/gi, 'قيود المحاسبة')
+    .replace(/\bstock\.quant\b/gi, 'أرصدة المخزون')
+    .replace(/\bstock\.scrap\b/gi, 'قيود الإتلاف')
+    .replace(/\bstock\.move\b/gi, 'حركات المخزون')
+    .replace(/\bmrp\.bom\.line\b/gi, 'بنود قوائم المكونات')
+    .replace(/\bmrp\.bom\b/gi, 'قوائم المكونات')
+    .replace(/\bhr\.attendance\.overtime\b/gi, 'سجل العمل الإضافي')
+    .replace(/\bhr\.attendance\b/gi, 'سجل الحضور والانصراف')
+    .replace(/\bhr\.employee\b/gi, 'سجل الموظفين')
+    .replace(/\bresource\.calendar\b/gi, 'جداول الورديات')
+    .replace(/\bres\.company\b/gi, 'إعدادات الشركة')
+    .replace(/\bstandard_price\b/gi, 'التكلفة المعيارية')
+    .replace(/\(KOUT\)/g, '(الكوت)')
+    .replace(/\bKOUT\b/g, 'الكوت')
+    .replace(/\bPRM\b/g, 'بروميناد')
+    .replace(/\bASM\b/g, 'العاصمة')
+    .replace(/\bAVN\b/g, 'الأفنيوز')
+    .replace(/\bSLM\b/g, 'السالمية')
+    .replace(/\bARD\b/g, 'العارضية')
+    .replace(/\bQRN\b/g, 'القرين')
+    .replace(/\bCOGS\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bOdoo\b/gi, 'أودو')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+export function localizeEstimateFormulaEn(formula: string): string {
+  const trimmed = formula.trim()
+  if (!trimmed || !/[\u0600-\u06FF]/.test(trimmed)) return trimmed
+  return trimmed
+    .replace(/صافي اليوم بالمناسبة/g, 'window per-day net')
+    .replace(/صافي اليوم المرجعي/g, 'baseline per-day net')
+    .replace(/أيام المناسبة \(بحد أقصى (\d+)\)،\s*حسب المرة السابقة/g, 'event days (max $1), previous occurrence')
+    .replace(/أيام المناسبة \(بحد أقصى (\d+)\)/g, 'event days (max $1)')
+    .replace(/وسيط الفروع/g, 'peer median')
+    .replace(/فجوة الفروع/g, 'branch gap')
+    .replace(/العمولات المرحّلة/g, 'posted commissions')
+    .replace(/مبيعات المنصات/g, 'aggregator sales')
+    .replace(/حجم التحويل للقنوات المباشرة/g, 'direct shift volume')
+    .replace(/مبيعات فترة ما بعد الظهر/g, 'afternoon 30d pool')
+    .replace(/الذمم المتأخرة فوق 30 يوماً/g, 'overdue >30d')
+    .replace(/الذمم المدينة المفتوحة/g, 'open debits')
+    .replace(/القيمة المطلقة للأرصدة الدائنة/g, 'abs(unapplied credits)')
+    .replace(/وتيرة التسوية الأسبوعية/g, 'weekly clearing pace')
+    .replace(/مبيعات الفئة أ/g, 'Tier-A sales')
+    .replace(/مبيعات الفئة ج/g, 'Tier-C sales')
+    .replace(/محاكاة صافي الإيرادات/g, 'net revenue simulation')
+    .replace(/المبيعات غير المنسوبة/g, 'unattributed sales')
+    .replace(/منسوبة لقائمة دخل الفروع/g, 'attributed to branch P&L')
+    .replace(/الأفنيوز/g, 'Avenues')
+    .replace(/مول 360/g, '360 Mall')
+    .replace(/العاصمة/g, 'Assima')
+    .replace(/بروميناد/g, 'Promenade')
+    .replace(/السالمية/g, 'Salmiya')
+    .replace(/الكوت/g, 'Al Kout')
+    .replace(/العارضية/g, 'Ardiya')
+    .replace(/(\d+)\s*يوم/g, '$1d')
     .replace(/\s+/g, ' ')
     .trim()
 }

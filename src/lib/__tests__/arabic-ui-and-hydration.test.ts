@@ -38,6 +38,7 @@ import {
   localizeEstimateInputKeyAr,
 } from '@/components/aether/DecisionRoomStudio'
 import { FullJourney360 } from '@/components/aether/FullJourney360'
+import { TodaysDiscoveriesView } from '@/components/aether/TodaysDiscoveries'
 import { ExecutivePnlStudio } from '@/components/erp/ExecutivePnlStudio'
 import FinanceDashboard from '@/components/erp/FinanceDashboard'
 import {
@@ -45,6 +46,12 @@ import {
   localizeOdooModelAr,
   localizeQueryOrFormulaAr,
 } from '@/components/erp/KpiProvenanceBadge'
+import { SeasonsStudioView } from '@/components/erp/SeasonsStudio'
+import {
+  SUGGESTED_SEASON_EVENTS,
+  seasonsAdvisor,
+  type SeasonEvent,
+} from '@/lib/council/advisors/seasons'
 import { OdooAccountingAnalyticsHub } from '@/components/accounting/OdooAccountingAnalyticsHub'
 import { VentureAccountingHub } from '@/components/accounting/VentureAccountingHub'
 import { loadLiveTodaySummary } from './support/dashboard-fixture'
@@ -377,13 +384,39 @@ describe('Item 5 — Demand Forecast Hydration Safety & Full Arabic Formula/COGS
       expect(arText).not.toContain('(MAPE)')
     })
 
-    it('forbids synchronous SWR cache reads inside useState initializers in DecisionRoomStudio.tsx', () => {
-      const src = readFileSync(
-        path.resolve(process.cwd(), 'src/components/aether/DecisionRoomStudio.tsx'),
-        'utf8',
-      )
-      expect(src).not.toMatch(/useState\s*(?:<[^>]+>)?\s*\(\s*\(\)\s*=>[\s\S]{0,160}?peekDecisionSwrCache/)
-      expect(src).not.toMatch(/useState\s*(?:<[^>]+>)?\s*\(\s*\(\)\s*=>[\s\S]{0,160}?peekErpReadCache/)
+    it('forbids synchronous SWR cache reads inside useState initializers in DecisionRoomStudio.tsx & TodaysDiscoveries.tsx', () => {
+      for (const rel of [
+        'src/components/aether/DecisionRoomStudio.tsx',
+        'src/components/aether/TodaysDiscoveries.tsx',
+      ]) {
+        const src = readFileSync(path.resolve(process.cwd(), rel), 'utf8')
+        expect(src).not.toMatch(/useState\s*(?:<[^>]+>)?\s*\(\s*\(\)\s*=>[\s\S]{0,160}?peekDecisionSwrCache/)
+        expect(src).not.toMatch(/useState\s*(?:<[^>]+>)?\s*\(\s*\(\)\s*=>[\s\S]{0,160}?peekErpReadCache/)
+      }
+    })
+
+    it('renders identical SSR and client pass-1 HTML on Main `/erp` (`FullJourney360`) even when discoveries SWR cache is warm', () => {
+      const closedSummary = buildClosedGlSummary()
+      configureContext(closedSummary, {
+        period: 'custom',
+        customFrom: '2026-10-01',
+        customTo: '2026-10-31',
+      })
+
+      bustDecisionSwrCache()
+      const ssrAr = renderSsrString('ar', createElement(FullJourney360))
+
+      const councilSnap = runCouncil({
+        cfo: { summary: closedSummary },
+        seasons: { summary: closedSummary, events: SUGGESTED_SEASON_EVENTS },
+        drivers: { summary: closedSummary },
+        benchmark: { summary: closedSummary },
+        forecast: { summary: closedSummary },
+      })
+      writeDecisionSwrCache('discoveries', councilSnap.discoveries)
+
+      const clientPass1Ar = renderSsrString('ar', createElement(FullJourney360))
+      expect(clientPass1Ar).toBe(ssrAr)
     })
   })
 
@@ -512,23 +545,169 @@ describe('Item 5 — Demand Forecast Hydration Safety & Full Arabic Formula/COGS
       expect(glPanelSrc).toContain('= الالتزامات + حقوق الملكية')
     })
 
-    it('removes all `(COGS)` tags and raw ORM identifiers from Main `/erp` (`FullJourney360`) in Arabic mode', () => {
+    it('removes all `(COGS)` tags, English formulas, and raw ORM identifiers from Main `/erp` (`FullJourney360` + `TodaysDiscoveries` + `KpiProvenanceBadge` + Admin panels) in Arabic mode', () => {
       const closedSummary = buildClosedGlSummary()
+      const councilSnap = runCouncil({
+        cfo: { summary: closedSummary },
+        seasons: { summary: closedSummary, events: SUGGESTED_SEASON_EVENTS },
+        drivers: { summary: closedSummary },
+        benchmark: { summary: closedSummary },
+        forecast: { summary: closedSummary },
+      })
+      expect(councilSnap.discoveries.length).toBeGreaterThan(0)
+
       configureContext(closedSummary, {
         period: 'custom',
         customFrom: '2026-10-01',
         customTo: '2026-10-31',
       })
 
-      const homeArHtml = renderWithLang('ar', createElement(FullJourney360))
+      const homeArHtml = renderWithLang(
+        'ar',
+        createElement(FullJourney360, { initialDiscoveries: councilSnap.discoveries }),
+      )
       const homeArText = stripTagsToVisibleText(homeArHtml)
 
+      expect(homeArHtml).toContain('data-todays-discoveries="true"')
+      expect(homeArText).toContain('اكتشافات اليوم')
+      expect(homeArText).toContain('أودو · طلبات نقاط البيع')
       expect(homeArText).toContain('تكلفة البضاعة المباعة والمواد')
+
       expect(homeArText).not.toContain('(COGS)')
       expect(homeArText).not.toMatch(/\bCOGS\b/i)
+      expect(homeArText).not.toContain('(MAPE)')
+      expect(homeArText).not.toContain('(AOV)')
+      expect(homeArText).not.toContain('(POS)')
+      expect(homeArText).not.toContain('(GL)')
+      expect(homeArText).not.toMatch(/\bOdoo\b/i)
       expect(homeArText).not.toContain('pos.order')
+      expect(homeArText).not.toContain('pos.config')
       expect(homeArText).not.toContain('account.move.line')
       expect(homeArText).not.toContain('pos.payment')
+      expect(homeArText).not.toContain('window per-day')
+      expect(homeArText).not.toContain('baseline per-day')
+      expect(homeArText).not.toContain('event days')
+      expect(homeArText).not.toContain('peer median ticket')
+      expect(homeArText).not.toContain('orders last')
+
+      const homeEstimates = [...homeArHtml.matchAll(/data-estimate="true"[^>]*>([\s\S]*?)<\/p>/g)]
+      expect(homeEstimates.length).toBeGreaterThan(0)
+      for (const match of homeEstimates) {
+        const plainEstimate = stripTagsToVisibleText(match[1])
+        expect(plainEstimate, `Home discovery estimate leaked Latin chars: ${plainEstimate}`).not.toMatch(
+          /[A-Za-z]/,
+        )
+      }
+
+      // Also verify TodaysDiscoveriesView in English keeps English provenance & formulas intact
+      const discoveriesEnHtml = renderToStaticMarkup(
+        createElement(TodaysDiscoveriesView, {
+          locale: 'en',
+          discoveries: councilSnap.discoveries,
+        }),
+      )
+      expect(discoveriesEnHtml).toContain('Odoo · pos.order')
+    })
+
+    it('renders `SeasonsStudioView` (`/erp/seasons` «المواسم») in `locale="ar"` with 100% pure Arabic formulas, lifts, and RTL date isolation', () => {
+      const liveSummary = loadLiveTodaySummary()
+      const customComparableEvent: SeasonEvent = {
+        id: 'nov-promo-window',
+        kind: 'custom',
+        nameAr: 'موسم نوفمبر التجريبي',
+        nameEn: 'November Promo Window',
+        startsOn: '2026-11-22',
+        endsOn: '2026-11-24',
+        previousStartsOn: '2026-10-18',
+        previousEndsOn: '2026-10-20',
+        recurrence: 'yearly',
+        approximate: true,
+      }
+      const events: SeasonEvent[] = [...SUGGESTED_SEASON_EVENTS, customComparableEvent]
+      const seasonsReport = seasonsAdvisor.run({
+        summary: liveSummary,
+        events,
+        horizonWeeks: 16,
+      })
+      expect(seasonsReport.findings.length).toBeGreaterThan(0)
+      expect(
+        seasonsReport.findings.some((f) =>
+          f.proposals.some((p) => Boolean(p.expectedImpact?.formula)),
+        ),
+      ).toBe(true)
+
+      const seasonsArHtml = renderToStaticMarkup(
+        createElement(SeasonsStudioView, {
+          locale: 'ar',
+          events,
+          suggested: true,
+          report: seasonsReport,
+          liveSummary,
+          canEdit: true,
+        }),
+      )
+      const seasonsArText = stripTagsToVisibleText(seasonsArHtml)
+
+      expect(seasonsArHtml).toContain('data-seasons-studio="true"')
+      expect(seasonsArHtml).toContain('data-season-lift="salary-days"')
+      expect(seasonsArHtml).toContain('data-season-estimate="true"')
+      expect(seasonsArText).toContain('يقارن مستشار المواسم المرة السابقة في أودو')
+      expect(seasonsArText).toContain('د.ك خلال أسبوع الموسم')
+      expect(seasonsArText).toContain('صافي اليوم بالمناسبة')
+      expect(seasonsArText).toContain('صافي اليوم المرجعي')
+      expect(seasonsArText).toContain('أيام المناسبة (بحد أقصى 7)')
+
+      expect(seasonsArText).not.toMatch(/\bOdoo\b/i)
+      expect(seasonsArText).not.toContain('window per-day')
+      expect(seasonsArText).not.toContain('baseline per-day')
+      expect(seasonsArText).not.toContain('event days')
+      expect(seasonsArText).not.toContain('previous occurrence')
+      expect(seasonsArText).not.toContain('pos.order')
+      expect(seasonsArText).not.toMatch(/\bCOGS\b/i)
+
+      const seasonEstimates = [
+        ...seasonsArHtml.matchAll(/data-season-estimate="true"[^>]*>([\s\S]*?)<\/span>/g),
+      ]
+      expect(seasonEstimates.length).toBeGreaterThan(0)
+      for (const match of seasonEstimates) {
+        const plainFormula = stripTagsToVisibleText(match[1])
+        expect(plainFormula, `Season formula leaked Latin chars: ${plainFormula}`).not.toMatch(
+          /[A-Za-z]/,
+        )
+      }
+
+      // Verify downward-season formula variant also localizes with zero Latin characters
+      expect(
+        localizeEstimateFormulaAr(
+          '(baseline per-day net − window per-day net) × event days (max 7), previous occurrence',
+        ),
+      ).not.toMatch(/[A-Za-z]/)
+      expect(
+        localizeEstimateFormulaAr('|window per-day − baseline per-day| × event days (max 7)'),
+      ).not.toMatch(/[A-Za-z]/)
+
+      // Verify seasons page metadata has pure Arabic ('أودو', zero 'Odoo')
+      const seasonsPageSrc = readFileSync(
+        path.resolve(process.cwd(), 'src/app/erp/seasons/page.tsx'),
+        'utf8',
+      )
+      expect(seasonsPageSrc).toContain('من أودو')
+      expect(seasonsPageSrc).not.toMatch(/\bOdoo\b/)
+
+      // Verify English mode stays intact
+      const seasonsEnHtml = renderToStaticMarkup(
+        createElement(SeasonsStudioView, {
+          locale: 'en',
+          events,
+          suggested: true,
+          report: seasonsReport,
+          liveSummary,
+          canEdit: true,
+        }),
+      )
+      const seasonsEnText = stripTagsToVisibleText(seasonsEnHtml)
+      expect(seasonsEnText).toContain('previous occurrence in Odoo')
+      expect(seasonsEnText).toContain('event days (max 7)')
     })
 
     it('localizes all Decision Room (`DecisionRoomView` & `live-decision-generator`) formulas and inputs into 100% Arabic', () => {
@@ -599,10 +778,16 @@ describe('Item 5 — Demand Forecast Hydration Safety & Full Arabic Formula/COGS
   describe('Part C — Repo Static Invariants Across Owned Item-5 Files', () => {
     it('enforces zero console.*, zero explicit any, zero sub-12px classes, and zero forbidden identifiers', () => {
       const ownedRelPaths = [
+        'src/app/erp/page.tsx',
+        'src/app/erp/seasons/page.tsx',
         'src/app/erp/demand-forecast/page.tsx',
         'src/components/aether/DecisionRoomStudio.tsx',
+        'src/components/aether/TodaysDiscoveries.tsx',
         'src/lib/aether/live-decision-generator.ts',
         'src/components/aether/FullJourney360.tsx',
+        'src/components/erp/SeasonsStudio.tsx',
+        'src/components/erp/AdminPosTerminalMappingPanel.tsx',
+        'src/components/erp/AdminExecutiveDirectoryCard.tsx',
         'src/components/erp/ExecutivePnlStudio.tsx',
         'src/components/erp/FinanceDashboard.tsx',
         'src/components/erp/KpiProvenanceBadge.tsx',

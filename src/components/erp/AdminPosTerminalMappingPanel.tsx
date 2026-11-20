@@ -290,7 +290,7 @@ export function AdminPosTerminalMappingPanel({
           </div>
           <p className="text-[13px] font-medium text-slate-600 dark:text-[#8FA39B]">
             {isAr
-              ? 'اربط أي جهاز كاشير (pos.config) بأحد الفروع السبعة النشطة لتحويل مبيعاته وطلباته فوراً من «غير مصنّف — أجهزة غير مربوطة» مع بقاء إجمالي الشركة مطابقاً 100%.'
+              ? 'اربط أي جهاز كاشير بأحد الفروع السبعة النشطة لتحويل مبيعاته وطلباته فوراً من «غير مصنّف — أجهزة غير مربوطة» مع بقاء إجمالي الشركة مطابقاً 100%.'
               : 'Assign any auto-discovered Odoo pos.config terminal to one of the 7 active Venture Foods branches with 1 click while preserving exact company sales reconciliation.'}
           </p>
         </div>
@@ -361,7 +361,7 @@ export function AdminPosTerminalMappingPanel({
               dir="ltr"
               className="block text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
             >
-              {fmtKwd(totals.mappedBranchesNetKwd, resolvedLocale)} KWD ({fmtInt(totals.mappedBranchesOrders, resolvedLocale)}{' '}
+              {fmtKwd(totals.mappedBranchesNetKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'} ({fmtInt(totals.mappedBranchesOrders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -386,7 +386,7 @@ export function AdminPosTerminalMappingPanel({
                   : 'text-slate-800 dark:text-slate-100'
               }`}
             >
-              {fmtKwd(totals.unmappedTerminalsNetKwd, resolvedLocale)} KWD ({fmtInt(totals.unmappedTerminalsOrders, resolvedLocale)}{' '}
+              {fmtKwd(totals.unmappedTerminalsNetKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'} ({fmtInt(totals.unmappedTerminalsOrders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -399,7 +399,7 @@ export function AdminPosTerminalMappingPanel({
               dir="ltr"
               className="block text-[15px] font-semibold tabular-nums text-slate-950 dark:text-white"
             >
-              {fmtKwd(totals.netSalesKwd, resolvedLocale)} KWD ({fmtInt(totals.orders, resolvedLocale)}{' '}
+              {fmtKwd(totals.netSalesKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'} ({fmtInt(totals.orders, resolvedLocale)}{' '}
               {isAr ? 'طلب' : 'orders'})
             </span>
           </div>
@@ -416,7 +416,7 @@ export function AdminPosTerminalMappingPanel({
                   {isAr ? 'معرّف الجهاز' : 'Terminal ID'}
                 </th>
                 <th className="px-3.5 py-2.5 text-start">
-                  {isAr ? 'اسم الكاشير (pos.config)' : 'POS Terminal Name'}
+                  {isAr ? 'اسم جهاز الكاشير' : 'POS Terminal Name'}
                 </th>
                 <th className="px-3.5 py-2.5 text-end">
                   {isAr ? 'عدد الطلبات' : 'Orders'}
@@ -485,9 +485,7 @@ export function AdminPosTerminalMappingPanel({
                       >
                         {branchOptions.map((opt) => (
                           <option key={opt.id} value={opt.id}>
-                            {isAr
-                              ? `${opt.labelAr} (${opt.labelEn})`
-                              : `${opt.labelEn} (${opt.labelAr})`}
+                            {isAr ? opt.labelAr : `${opt.labelEn} (${opt.labelAr})`}
                           </option>
                         ))}
                       </select>
@@ -563,7 +561,7 @@ export function AdminPosTerminalMappingPanel({
                     : item.assigned_branch_label_en}
                 </span>
                 <span dir="ltr" className="font-mono tabular-nums">
-                  ({fmtKwd(item.net_sales_kwd, resolvedLocale)} KWD)
+                  ({fmtKwd(item.net_sales_kwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'})
                 </span>
                 <button
                   type="button"
@@ -594,7 +592,7 @@ export function AdminPosTerminalMappingPanel({
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
               <span>
                 {isAr
-                  ? 'تقرير المطابقة المحاسبية وجدول ربط الأجهزة (terminal_id -> branch_id)'
+                  ? 'تقرير المطابقة المحاسبية وجدول ربط الأجهزة بالفروع'
                   : 'Reconciliation Bridge & Complete terminal_id -> branch_id Mapping Table'}
               </span>
               <span
@@ -603,7 +601,7 @@ export function AdminPosTerminalMappingPanel({
               >
                 {fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} −{' '}
                 {fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} ={' '}
-                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD ({data.reconciliationReport.periodFrom} → {data.reconciliationReport.periodTo})
+                {fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'} ({data.reconciliationReport.periodFrom} → {data.reconciliationReport.periodTo})
               </span>
             </div>
             <ChevronDown
@@ -626,7 +624,7 @@ export function AdminPosTerminalMappingPanel({
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
                     {fmtKwd(data.reconciliationReport.grossPreExclusionKwd, resolvedLocale)} −{' '}
                     {fmtKwd(data.reconciliationReport.excludedEntitiesKwd, resolvedLocale)} ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD</strong> (Δ{' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'}</strong> ({isAr ? 'الفرق' : 'Δ'}{' '}
                     {fmtKwd(data.reconciliationReport.exclusionGapKwd, resolvedLocale)})
                   </div>
                 </div>
@@ -639,7 +637,7 @@ export function AdminPosTerminalMappingPanel({
                   <div dir="ltr" className="mt-1 font-mono tabular-nums text-[12.5px]">
                     {fmtKwd(data.reconciliationReport.mappedBranchesNetKwd, resolvedLocale)} +{' '}
                     {fmtKwd(data.reconciliationReport.unmappedTerminalsNetKwd, resolvedLocale)} ={' '}
-                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} KWD</strong> (Δ{' '}
+                    <strong>{fmtKwd(data.reconciliationReport.activeCompanyNetSalesKwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'}</strong> ({isAr ? 'الفرق' : 'Δ'}{' '}
                     {fmtKwd(data.reconciliationReport.allocationGapKwd, resolvedLocale)})
                   </div>
                 </div>
@@ -690,7 +688,7 @@ export function AdminPosTerminalMappingPanel({
                           dir="ltr"
                           className="px-3 py-2 text-end font-mono font-bold tabular-nums text-slate-700 dark:text-slate-200"
                         >
-                          -{fmtKwd(ex.net_sales_kwd, resolvedLocale)} KWD
+                          -{fmtKwd(ex.net_sales_kwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                       </tr>
                     ))}
@@ -703,11 +701,11 @@ export function AdminPosTerminalMappingPanel({
                 <table className="min-w-full divide-y divide-slate-200/80 text-start text-xs dark:divide-white/10">
                   <thead className="bg-[#F6F7F8] font-semibold text-slate-700 dark:bg-[#141F1B] dark:text-slate-200">
                     <tr>
-                      <th className="px-3 py-2 text-start">terminal_id</th>
+                      <th className="px-3 py-2 text-start">{isAr ? 'معرّف الجهاز' : 'terminal_id'}</th>
                       <th className="px-3 py-2 text-start">
-                        {isAr ? 'اسم جهاز نقطة البيع (Odoo)' : 'POS Terminal Name'}
+                        {isAr ? 'اسم جهاز نقطة البيع في أودو' : 'POS Terminal Name'}
                       </th>
-                      <th className="px-3 py-2 text-start">branch_id</th>
+                      <th className="px-3 py-2 text-start">{isAr ? 'رمز الفرع' : 'branch_id'}</th>
                       <th className="px-3 py-2 text-start">
                         {isAr ? 'الفرع / التصنيف' : 'Mapped Branch / Bucket'}
                       </th>
@@ -726,8 +724,14 @@ export function AdminPosTerminalMappingPanel({
                         <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">
                           {row.terminal_name}
                         </td>
-                        <td dir="ltr" className="px-3 py-2 font-mono text-slate-700 dark:text-emerald-300">
-                          {row.branch_id ?? 'unmapped'}
+                        <td dir={isAr ? 'rtl' : 'ltr'} className={`px-3 py-2 text-slate-700 dark:text-emerald-300 ${isAr ? '' : 'font-mono'}`}>
+                          {row.branch_id
+                            ? isAr
+                              ? row.branch_label_ar
+                              : row.branch_id
+                            : isAr
+                              ? 'غير مربوط'
+                              : 'unmapped'}
                         </td>
                         <td className="px-3 py-2 text-slate-700 dark:text-slate-200">
                           {isAr ? row.branch_label_ar : row.branch_label_en}
@@ -739,7 +743,7 @@ export function AdminPosTerminalMappingPanel({
                           dir="ltr"
                           className="px-3 py-2 text-end font-mono font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
                         >
-                          {fmtKwd(row.net_sales_kwd, resolvedLocale)} KWD
+                          {fmtKwd(row.net_sales_kwd, resolvedLocale)} {isAr ? 'د.ك' : 'KWD'}
                         </td>
                       </tr>
                     ))}

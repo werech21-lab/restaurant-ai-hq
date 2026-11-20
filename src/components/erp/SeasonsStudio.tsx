@@ -6,6 +6,11 @@
  * window is not in Odoo shows the data gap instead of a number.
  */
 import { useCallback, useEffect, useState } from 'react'
+import {
+  localizeDecisionProseAr,
+  localizeEstimateFormulaAr,
+  localizeEstimateFormulaEn,
+} from '@/components/erp/KpiProvenanceBadge'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { useLang } from '@/components/aether/ui'
 import { StateBlock, UnavailableState } from '@/components/ui'
@@ -56,7 +61,7 @@ export function SeasonsStudioView({ locale, loading = false, events, suggested, 
         <div className="min-w-0 space-y-1">
           <h2 className="text-lg font-bold text-slate-900 sm:text-xl dark:text-white">{t('Seasons & Occasions', 'المواسم والمناسبات')}</h2>
           <p className="text-[13px] text-slate-600 dark:text-slate-400">
-            {t('Owner-editable calendar. For each upcoming season the Seasons advisor compares the previous occurrence in Odoo with normal days and proposes a prep plan.', 'تقويم يعدّله المالك. لكل موسم قادم يقارن مستشار المواسم المرة السابقة في Odoo بالأيام العادية ويقترح خطة تحضير.')}
+            {t('Owner-editable calendar. For each upcoming season the Seasons advisor compares the previous occurrence in Odoo with normal days and proposes a prep plan.', 'تقويم يعدّله المالك. لكل موسم قادم يقارن مستشار المواسم المرة السابقة في أودو بالأيام العادية ويقترح خطة تحضير.')}
           </p>
         </div>
         {suggested ? (
@@ -97,13 +102,18 @@ export function SeasonsStudioView({ locale, loading = false, events, suggested, 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-bold text-slate-900 dark:text-white" title={isAr ? ev.nameAr : ev.nameEn}>{isAr ? ev.nameAr : ev.nameEn}</p>
-                    <p className="text-[12px] tabular-nums text-slate-500 dark:text-slate-400" dir="ltr">
-                      {ev.kind === 'salary-days'
-                        ? t(
-                            `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} of each month, Kuwait time`,
-                            `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} من كل شهر، بتوقيت الكويت`,
-                          )
-                        : `${ev.startsOn} → ${ev.endsOn} · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
+                    <p className="text-[12px] tabular-nums text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+                      {ev.kind === 'salary-days' ? (
+                        t(
+                          `Days ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} of each month, Kuwait time`,
+                          `أيام ${SALARY_WINDOW_DAYS.start}–${SALARY_WINDOW_DAYS.end} من كل شهر، بتوقيت الكويت`,
+                        )
+                      ) : (
+                        <>
+                          <bdi dir="ltr">{`${ev.startsOn} → ${ev.endsOn}`}</bdi>
+                          {` · ${isAr ? KIND_LABEL[ev.kind].ar : KIND_LABEL[ev.kind].en}${ev.approximate ? ` · ${t('approximate', 'تقريبي')}` : ''}`}
+                        </>
+                      )}
                     </p>
                   </div>
                   {canEdit ? (
@@ -139,15 +149,47 @@ export function SeasonsStudioView({ locale, loading = false, events, suggested, 
                 ) : null}
                 {f ? (
                   <div className="space-y-1.5 text-[12.5px] text-slate-700 dark:text-slate-300">
-                    <p className="min-w-0 break-words font-semibold text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</p>
-                    <p className="text-xs tabular-nums text-slate-500" dir="ltr">{f.evidence.filter((e) => e.unit === 'KWD').map((e) => `${isAr ? e.labelAr : e.labelEn}: ${e.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD', 'د.ك')} (${e.period.from} → ${e.period.to})`).join(' · ')}</p>
+                    <p className="min-w-0 break-words font-semibold text-slate-900 dark:text-white">{isAr ? localizeDecisionProseAr(f.titleAr) : f.titleEn}</p>
+                    <p className="text-xs tabular-nums text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+                      {f.evidence
+                        .filter((e) => e.unit === 'KWD')
+                        .map((e, idx) => (
+                          <span key={`${e.labelEn}-${e.period.from}-${idx}`}>
+                            {idx > 0 ? ' · ' : ''}
+                            {isAr ? localizeDecisionProseAr(e.labelAr) : e.labelEn}
+                            {': '}
+                            <bdi dir="ltr">
+                              {e.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                            </bdi>
+                            {` ${t('KWD', 'د.ك')} `}
+                            <bdi dir="ltr">{`(${e.period.from} → ${e.period.to})`}</bdi>
+                          </span>
+                        ))}
+                    </p>
                     <p className="font-semibold">{t('Prep plan', 'خطة التحضير')}</p>
                     <ul className="list-disc space-y-1 ps-5">
                       {f.proposals.map((p, i) => (
                         <li key={i}>
-                          {isAr ? `${p.who.ar}: ${p.what.ar} — ${p.when.ar}` : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
+                          {isAr ? `${localizeDecisionProseAr(p.who.ar)}: ${localizeDecisionProseAr(p.what.ar)} — ${localizeDecisionProseAr(p.when.ar)}` : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
                           {p.expectedImpact ? (
-                            <span className="block text-xs tabular-nums text-sky-800 dark:text-sky-200">{`${t('Estimate', 'تقدير')}: ${p.expectedImpact.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${p.expectedImpact.formula}`}</span>
+                            <span
+                              data-season-estimate="true"
+                              dir={isAr ? 'rtl' : 'ltr'}
+                              className="block text-xs tabular-nums text-sky-800 dark:text-sky-200"
+                            >
+                              {`${t('Estimate', 'تقدير')}: `}
+                              <bdi dir="ltr">
+                                {p.expectedImpact.value.toLocaleString('en-US', {
+                                  minimumFractionDigits: 3,
+                                  maximumFractionDigits: 3,
+                                })}
+                              </bdi>
+                              {` ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${
+                                isAr
+                                  ? localizeEstimateFormulaAr(p.expectedImpact.formula)
+                                  : localizeEstimateFormulaEn(p.expectedImpact.formula)
+                              }`}
+                            </span>
                           ) : null}
                         </li>
                       ))}

@@ -1,10 +1,24 @@
 import 'server-only'
+import { createHash } from 'node:crypto'
 import { Pool } from 'pg'
 import { prisma } from '@/lib/db'
 import { sslOptions, type SslMode } from '@/lib/db-ssl'
 import { logger, errorFields } from '@/lib/logger'
+import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
+import { extractCanonicalDecimals } from './number-guard'
+import { getProviderAttemptTelemetry } from './providers'
+import {
+  comparisonMatchesFacts,
+  comparisonSchema,
+  type ComparableFact,
+} from './structured-claim'
+
+export const AI_PG_CONNECT_TIMEOUT_MS = 5_000
+export const COUNCIL_DECISION_BRIEF_TAG = 'council-decision'
+export const COUNCIL_DECISION_HASH_PREFIX = 'decision-room:'
 
 export type AiRunStatus = 'ok' | 'error' | 'guard_rejected'
+export type GuardRejectionReason = 'PARSE_FAIL' | 'SCHEMA_FAIL' | 'FACT_MISMATCH'
 
 export interface AiRunDraft {
   id: string
@@ -12,6 +26,10 @@ export interface AiRunDraft {
   questionHash: string
   provider: string
   modelId: string
+  requestedModel?: string
+  rawResponseText?: string
+  factsJson?: string | null
+  facts?: readonly ComparableFact[]
   latencyMs: number
   tokensIn: number | null
   tokensOut: number | null
@@ -28,12 +46,37 @@ export interface AiDailyBriefDraft {
   agreedModels: string
 }
 
-export interface ListedAiRun extends AiRunDraft {
+export interface ListedAiRun {
+  id: string
   createdAt: Date
+  userId: string
+  questionHash: string
+  provider: string
+  modelId: string
+  latencyMs: number
+  tokensIn: number | null
+  tokensOut: number | null
+  estCostMicroUsd: number | null
+  status: AiRunStatus
+  errorCode: string | null
 }
 
 export interface ListedDailyBrief extends AiDailyBriefDraft {
   createdAt: Date
+}
+
+export interface DiagnoseGuardRejectedInput {
+  text: string
+  factsJson?: string | null
+  facts?: readonly ComparableFact[]
+  requestedModel?: string
+}
+
+export interface GuardRejectionDiagnosis {
+  reason: GuardRejectionReason
+  requestedModel: string
+  offendingNumbers: string[]
+  errorCode: string
 }
 
 export interface AiSqlClient {
@@ -127,6 +170,36 @@ export function isPostgresUrl(rawUrl = process.env.DATABASE_URL): boolean {
   return dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://')
 }
 
+/**
+ * Returns true whenever PostgreSQL is configured or running in production.
+ * In Postgres/production mode, SQLite (`prisma.aiDailyBrief.*`, `prisma.aiRun.*`, `ensureAiTablesSqlite()`)
+ * is strictly forbidden so `main.ai_daily_briefs` is never queried.
+ */
+export function isPostgresOnlyAiStore(envOverride?: {
+  nodeEnv?: string
+  vercelEnv?: string
+  databaseUrl?: string
+  sqliteUrl?: string
+}): boolean {
+  const nodeEnv = (envOverride?.nodeEnv ?? process.env.NODE_ENV ?? '').trim()
+  const vercelEnv = (envOverride?.vercelEnv ?? process.env.VERCEL_ENV ?? '').trim()
+  if (nodeEnv === 'production' || vercelEnv === 'production') {
+    return true
+  }
+  const dbUrl = (envOverride?.databaseUrl ?? process.env.DATABASE_URL ?? '').trim()
+  if (isPostgresUrl(dbUrl)) {
+    return true
+  }
+  if (customAiQueryable !== undefined) {
+    return true
+  }
+  if (dbUrl.length > 0) {
+    return !dbUrl.startsWith('file:')
+  }
+  const sqliteUrl = (envOverride?.sqliteUrl ?? process.env.SQLITE_URL ?? '').trim()
+  return !sqliteUrl.startsWith('file:')
+}
+
 export function configureAiPersistQueryable(
   queryable: AiSqlQueryable | null | undefined,
 ): void {
@@ -150,18 +223,24 @@ function postgresPool(): AiSqlQueryable | null {
     connectionString: dbUrl,
     ssl: sslOptions(sslMode, process.env.DATABASE_SSL_CA),
     max: 2,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: AI_PG_CONNECT_TIMEOUT_MS,
     idleTimeoutMillis: 10_000,
   })
   pgPoolUrl = dbUrl
-  pgPool.on('error', () => {
-    logger.error('ai run postgres pool failed', { errorCode: 'AI_RUN_POOL' })
+  pgPool.on('error', (error) => {
+    logger.error('ai run postgres pool failed', { errorCode: pgErrorCode(error) })
   })
   return pgPool as unknown as AiSqlQueryable
 }
 
 function pgErrorCode(error: unknown): string {
-  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    /^[A-Z0-9_]{1,32}$/i.test(error.code)
+  ) {
     return error.code
   }
   return 'AI_RUN_PERSIST'
@@ -207,7 +286,7 @@ export async function ensureAiTablesPostgres(
       hasRuns = Boolean(row?.runs_reg)
       hasBriefs = Boolean(row?.briefs_reg)
     } catch {
-      // Minimal queryable test doubles may not support to_regclass; proceed with CREATE TABLE IF NOT EXISTS.
+      // Minimal queryable doubles may not support to_regclass; proceed with CREATE TABLE IF NOT EXISTS.
     }
 
     if (!hasRuns) {
@@ -215,6 +294,7 @@ export async function ensureAiTablesPostgres(
       await db.query(CREATE_RUNS_INDEX_POSTGRES)
       try {
         await db.query(`ALTER TABLE public.ai_runs ENABLE ROW LEVEL SECURITY`)
+        await db.query(`ALTER TABLE public.ai_runs NO FORCE ROW LEVEL SECURITY`)
       } catch {
         // Best-effort RLS enablement when running under restricted non-owner roles.
       }
@@ -230,6 +310,7 @@ export async function ensureAiTablesPostgres(
       await db.query(CREATE_BRIEFS_INDEX_POSTGRES)
       try {
         await db.query(`ALTER TABLE public.ai_daily_briefs ENABLE ROW LEVEL SECURITY`)
+        await db.query(`ALTER TABLE public.ai_daily_briefs NO FORCE ROW LEVEL SECURITY`)
       } catch {
         // Best-effort RLS enablement when running under restricted non-owner roles.
       }
@@ -270,17 +351,19 @@ async function runWithLazyAiTablesPostgres<T>(
 
 const LOCK_STALE_SECONDS = 90
 
-export async function tryAcquireManualRunLock(holder: string): Promise<'acquired' | 'busy' | 'unavailable'> {
+export async function tryAcquireManualRunLock(
+  holder: string,
+): Promise<'acquired' | 'busy' | 'unavailable'> {
   const pool = postgresPool()
   if (pool) {
     const attemptLock = async (): Promise<'acquired' | 'busy'> => {
       await pool.query(
-        `INSERT INTO ai_manual_run_lock (id, status, holder, acquired_at)
+        `INSERT INTO public.ai_manual_run_lock (id, status, holder, acquired_at)
          VALUES ('manual', 'idle', '', NOW())
          ON CONFLICT (id) DO NOTHING`,
       )
       const updated = await pool.query(
-        `UPDATE ai_manual_run_lock
+        `UPDATE public.ai_manual_run_lock
          SET status = 'running', holder = $1, acquired_at = NOW()
          WHERE id = 'manual'
            AND (status <> 'running' OR acquired_at < NOW() - ($2::int * INTERVAL '1 second'))
@@ -298,7 +381,7 @@ export async function tryAcquireManualRunLock(holder: string): Promise<'acquired
           throw error
         }
         await pool.query(`
-          CREATE TABLE IF NOT EXISTS ai_manual_run_lock (
+          CREATE TABLE IF NOT EXISTS public.ai_manual_run_lock (
             id TEXT PRIMARY KEY,
             status TEXT NOT NULL,
             holder TEXT NOT NULL,
@@ -306,21 +389,33 @@ export async function tryAcquireManualRunLock(holder: string): Promise<'acquired
           )
         `)
         try {
-          await pool.query(`ALTER TABLE ai_manual_run_lock ENABLE ROW LEVEL SECURITY`)
+          await pool.query(`ALTER TABLE public.ai_manual_run_lock ENABLE ROW LEVEL SECURITY`)
+          await pool.query(`ALTER TABLE public.ai_manual_run_lock NO FORCE ROW LEVEL SECURITY`)
         } catch {
           // Best-effort RLS enablement.
         }
         try {
-          await pool.query(`REVOKE ALL ON TABLE ai_manual_run_lock FROM PUBLIC, anon, authenticated`)
+          await pool.query(
+            `REVOKE ALL ON TABLE public.ai_manual_run_lock FROM PUBLIC, anon, authenticated`,
+          )
         } catch {
           // Best-effort privilege revocation.
         }
         return await attemptLock()
       }
     } catch (error) {
-      logger.error('manual run lock failed', { ...errorFields(error), errorCode: 'MANUAL_RUN_LOCK' })
+      logger.error('manual run lock failed', {
+        ...errorFields(error),
+        errorCode: 'MANUAL_RUN_LOCK',
+      })
       return 'unavailable'
     }
+  }
+  if (isPostgresOnlyAiStore()) {
+    logger.error('manual run lock postgres unavailable', {
+      errorCode: 'MANUAL_RUN_LOCK_PG_UNAVAILABLE',
+    })
+    return 'unavailable'
   }
   try {
     await prisma.$executeRawUnsafe(`
@@ -352,16 +447,22 @@ export async function releaseManualRunLock(holder: string): Promise<void> {
   try {
     if (pool) {
       await pool.query(
-        `UPDATE ai_manual_run_lock SET status = 'idle', holder = '' WHERE id = 'manual' AND holder = $1`,
+        `UPDATE public.ai_manual_run_lock SET status = 'idle', holder = '' WHERE id = 'manual' AND holder = $1`,
         [holder],
       )
+      return
+    }
+    if (isPostgresOnlyAiStore()) {
       return
     }
     await prisma.$executeRaw`
       UPDATE ai_manual_run_lock SET status = 'idle', holder = '' WHERE id = 'manual' AND holder = ${holder}
     `
   } catch (error) {
-    logger.error('manual run unlock failed', { ...errorFields(error), errorCode: 'MANUAL_RUN_LOCK' })
+    logger.error('manual run unlock failed', {
+      ...errorFields(error),
+      errorCode: 'MANUAL_RUN_LOCK',
+    })
   }
 }
 
@@ -380,12 +481,185 @@ function ensureAiTablesSqlite(): Promise<void> {
   return sqliteTablesReady
 }
 
-export function ensureAiTables(): Promise<void> {
+export async function ensureAiTables(): Promise<void> {
   const pgDb = postgresPool()
   if (pgDb) {
-    return ensureAiTablesPostgres(pgDb)
+    await ensureAiTablesPostgres(pgDb)
+    return
   }
-  return ensureAiTablesSqlite()
+  if (isPostgresOnlyAiStore()) {
+    logger.error('ai tables postgres pool unavailable', { errorCode: 'AI_PG_UNAVAILABLE' })
+    return
+  }
+  await ensureAiTablesSqlite()
+}
+
+function resolveComparableFacts(
+  facts?: readonly ComparableFact[],
+  factsJson?: string | null,
+): readonly ComparableFact[] {
+  if (facts) return facts
+  if (typeof factsJson !== 'string' || factsJson.trim().length === 0) return []
+  try {
+    const parsed: unknown = JSON.parse(factsJson)
+    return Array.isArray(parsed) ? (parsed as ComparableFact[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function formatGuardRejectionErrorCode(input: {
+  reason: GuardRejectionReason
+  requestedModel: string
+  offendingNumbers: readonly string[]
+}): string {
+  const modelPart = input.requestedModel.trim() || 'unknown'
+  const numbersPart = input.offendingNumbers.slice(0, 25).join(',')
+  return `${input.reason};requestedModel=${modelPart};offendingNumbers=[${numbersPart}]`
+}
+
+export function diagnoseGuardRejectedAnswer(
+  input: DiagnoseGuardRejectedInput,
+): GuardRejectionDiagnosis {
+  const requestedModel = input.requestedModel?.trim() ?? ''
+  const offendingNumbers = extractCanonicalDecimals(input.text)
+  const trimmed = input.text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+
+  let parsedJson: unknown
+  try {
+    parsedJson = JSON.parse(trimmed)
+  } catch {
+    return {
+      reason: 'PARSE_FAIL',
+      requestedModel,
+      offendingNumbers,
+      errorCode: formatGuardRejectionErrorCode({
+        reason: 'PARSE_FAIL',
+        requestedModel,
+        offendingNumbers,
+      }),
+    }
+  }
+
+  if (!parsedJson || typeof parsedJson !== 'object') {
+    return {
+      reason: 'PARSE_FAIL',
+      requestedModel,
+      offendingNumbers,
+      errorCode: formatGuardRejectionErrorCode({
+        reason: 'PARSE_FAIL',
+        requestedModel,
+        offendingNumbers,
+      }),
+    }
+  }
+
+  const record = !Array.isArray(parsedJson)
+    ? (parsedJson as { comparison?: unknown })
+    : null
+  const candidate = record && 'comparison' in record ? record.comparison : parsedJson
+  const schemaResult = comparisonSchema.safeParse(candidate)
+  if (!schemaResult.success) {
+    return {
+      reason: 'SCHEMA_FAIL',
+      requestedModel,
+      offendingNumbers,
+      errorCode: formatGuardRejectionErrorCode({
+        reason: 'SCHEMA_FAIL',
+        requestedModel,
+        offendingNumbers,
+      }),
+    }
+  }
+
+  const facts = resolveComparableFacts(input.facts, input.factsJson)
+  if (
+    !comparisonMatchesFacts(schemaResult.data, facts, {
+      activeBranchIds: ACTIVE_VENTURE_BRANCH_IDS,
+    })
+  ) {
+    return {
+      reason: 'FACT_MISMATCH',
+      requestedModel,
+      offendingNumbers,
+      errorCode: formatGuardRejectionErrorCode({
+        reason: 'FACT_MISMATCH',
+        requestedModel,
+        offendingNumbers,
+      }),
+    }
+  }
+
+  return {
+    reason: 'FACT_MISMATCH',
+    requestedModel,
+    offendingNumbers,
+    errorCode: formatGuardRejectionErrorCode({
+      reason: 'FACT_MISMATCH',
+      requestedModel,
+      offendingNumbers,
+    }),
+  }
+}
+
+function enrichAiRunDraft(row: AiRunDraft): AiRunDraft {
+  const telemetry = getProviderAttemptTelemetry(row.questionHash, row.provider)
+  const requestedModel =
+    row.requestedModel?.trim() ||
+    telemetry?.requestedModel.trim() ||
+    row.modelId.trim() ||
+    ''
+  const effectiveModelId = row.modelId.trim() || requestedModel
+
+  const shouldDiagnoseGuardRejection =
+    row.status === 'guard_rejected' &&
+    (row.errorCode === 'GUARD_REJECTED' || !row.errorCode)
+
+  if (!shouldDiagnoseGuardRejection) {
+    return {
+      ...row,
+      modelId: effectiveModelId,
+    }
+  }
+
+  const hasExplicitDiagnosisInput =
+    row.rawResponseText !== undefined ||
+    row.factsJson !== undefined ||
+    row.facts !== undefined
+  const hasCouncilTelemetry =
+    telemetry !== null && telemetry.factsJson !== null && telemetry.status === 'ok'
+
+  if (!hasExplicitDiagnosisInput && !hasCouncilTelemetry) {
+    return {
+      ...row,
+      modelId: effectiveModelId,
+    }
+  }
+
+  const diagnosis = diagnoseGuardRejectedAnswer({
+    text: row.rawResponseText ?? telemetry?.text ?? '',
+    factsJson: row.factsJson !== undefined ? row.factsJson : telemetry?.factsJson,
+    facts: row.facts,
+    requestedModel,
+  })
+
+  logger.warn('ai_run_guard_rejected', {
+    questionHash: row.questionHash,
+    provider: row.provider,
+    requestedModel: diagnosis.requestedModel,
+    modelId: effectiveModelId,
+    reason: diagnosis.reason,
+    offendingNumbers: diagnosis.offendingNumbers,
+  })
+
+  return {
+    ...row,
+    modelId: effectiveModelId,
+    errorCode: diagnosis.errorCode,
+  }
 }
 
 async function executeInsertRunsBatch(
@@ -476,8 +750,18 @@ async function insertRunsSqlite(rows: readonly AiRunDraft[]): Promise<void> {
 
 export async function persistAiRuns(rows: readonly AiRunDraft[]): Promise<void> {
   if (rows.length === 0) return
-  if (await insertRunsPostgres(rows)) return
-  await insertRunsSqlite(rows)
+  const enrichedRows = rows.map((row) => enrichAiRunDraft(row))
+  if (isPostgresOnlyAiStore()) {
+    const pool = postgresPool()
+    if (!pool) {
+      logger.error('ai run postgres pool unavailable', { errorCode: 'AI_PG_UNAVAILABLE' })
+      return
+    }
+    await insertRunsPostgres(enrichedRows)
+    return
+  }
+  if (await insertRunsPostgres(enrichedRows)) return
+  await insertRunsSqlite(enrichedRows)
 }
 
 async function insertBriefPostgres(brief: AiDailyBriefDraft): Promise<boolean> {
@@ -505,6 +789,15 @@ async function insertBriefPostgres(brief: AiDailyBriefDraft): Promise<boolean> {
 }
 
 export async function persistDailyBrief(brief: AiDailyBriefDraft): Promise<void> {
+  if (isPostgresOnlyAiStore()) {
+    const pool = postgresPool()
+    if (!pool) {
+      logger.error('ai brief postgres pool unavailable', { errorCode: 'AI_PG_UNAVAILABLE' })
+      return
+    }
+    await insertBriefPostgres(brief)
+    return
+  }
   if (await insertBriefPostgres(brief)) return
   await ensureAiTablesSqlite()
   await prisma.aiDailyBrief.create({
@@ -516,6 +809,121 @@ export async function persistDailyBrief(brief: AiDailyBriefDraft): Promise<void>
       agreedModels: brief.agreedModels,
     },
   })
+}
+
+function decisionMirrorId(questionHash: string): string {
+  const digest = createHash('sha256').update(questionHash).digest('hex').slice(0, 32)
+  return `council-decision:${digest}`
+}
+
+export async function listCouncilDecisionMirrorBriefs(
+  limit = 200,
+): Promise<ListedDailyBrief[]> {
+  const safeLimit = Math.max(1, Math.min(500, limit))
+  const pool = postgresPool()
+  if (pool) {
+    try {
+      const result = await runWithLazyAiTablesPostgres(pool, () =>
+        pool.query<{
+          id: string
+          createdAt: Date
+          questionHash: string
+          status: string
+          reply: string
+          agreedModels: string
+        }>(
+          `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
+           FROM public.ai_daily_briefs
+           WHERE "agreedModels" = $1
+           ORDER BY "createdAt" DESC
+           LIMIT $2`,
+          [COUNCIL_DECISION_BRIEF_TAG, safeLimit],
+        ),
+      )
+      return result.rows.map((row) => ({ ...row, createdAt: asDate(row.createdAt) }))
+    } catch (error) {
+      logger.error('ai decision mirror postgres list failed', {
+        errorCode: pgErrorCode(error),
+      })
+      return []
+    }
+  }
+  if (isPostgresOnlyAiStore()) {
+    logger.error('ai decision mirror postgres pool unavailable', {
+      errorCode: 'AI_PG_UNAVAILABLE',
+    })
+    return []
+  }
+  await ensureAiTablesSqlite()
+  return prisma.aiDailyBrief.findMany({
+    where: { agreedModels: COUNCIL_DECISION_BRIEF_TAG },
+    orderBy: { createdAt: 'desc' },
+    take: safeLimit,
+  })
+}
+
+export async function upsertCouncilDecisionMirrorBrief(input: {
+  id?: string
+  questionHash: string
+  status: string
+  reply: string
+}): Promise<boolean> {
+  const briefId = input.id?.trim() || decisionMirrorId(input.questionHash)
+  const pool = postgresPool()
+  if (pool) {
+    try {
+      await runWithLazyAiTablesPostgres(pool, async () => {
+        await pool.query(
+          `DELETE FROM public.ai_daily_briefs
+           WHERE "questionHash" = $1 AND "agreedModels" = $2 AND id <> $3`,
+          [input.questionHash, COUNCIL_DECISION_BRIEF_TAG, briefId],
+        )
+        await pool.query(
+          `INSERT INTO public.ai_daily_briefs
+            (id, "createdAt", "questionHash", status, reply, "agreedModels")
+           VALUES ($1, NOW(), $2, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET
+             "createdAt" = NOW(),
+             "questionHash" = EXCLUDED."questionHash",
+             status = EXCLUDED.status,
+             reply = EXCLUDED.reply,
+             "agreedModels" = EXCLUDED."agreedModels"`,
+          [briefId, input.questionHash, input.status, input.reply, COUNCIL_DECISION_BRIEF_TAG],
+        )
+      })
+      return true
+    } catch (error) {
+      logger.error('ai decision mirror postgres upsert failed', {
+        errorCode: pgErrorCode(error),
+      })
+      return false
+    }
+  }
+  if (isPostgresOnlyAiStore()) {
+    logger.error('ai decision mirror postgres pool unavailable', {
+      errorCode: 'AI_PG_UNAVAILABLE',
+    })
+    return false
+  }
+  try {
+    await ensureAiTablesSqlite()
+    await prisma.aiDailyBrief.deleteMany({
+      where: { questionHash: input.questionHash, agreedModels: COUNCIL_DECISION_BRIEF_TAG },
+    })
+    await prisma.aiDailyBrief.create({
+      data: {
+        id: briefId,
+        questionHash: input.questionHash,
+        status: input.status,
+        reply: input.reply,
+        agreedModels: COUNCIL_DECISION_BRIEF_TAG,
+      },
+    })
+    return true
+  } catch (error) {
+    logger.error('ai decision mirror sqlite upsert failed', errorFields(error))
+    return false
+  }
 }
 
 function asRunStatus(value: unknown): AiRunStatus {
@@ -564,71 +972,100 @@ function mapRun(row: {
   }
 }
 
-async function listRunsPostgres(limit: number): Promise<ListedAiRun[] | null> {
-  const pool = postgresPool()
-  if (!pool) return null
-  try {
-    const result = await runWithLazyAiTablesPostgres(pool, () =>
-      pool.query<{
-        id: string
-        createdAt: Date
-        userId: string
-        questionHash: string
-        provider: string
-        modelId: string
-        latencyMs: number
-        tokensIn: number | null
-        tokensOut: number | null
-        estCostMicroUsd: number | null
-        status: string
-        errorCode: string | null
-      }>(
-        `SELECT id, "createdAt", "userId", "questionHash", provider, "modelId", "latencyMs", "tokensIn", "tokensOut", "estCostMicroUsd", status, "errorCode"
-         FROM public.ai_runs
-         ORDER BY "createdAt" DESC
-         LIMIT $1`,
-        [limit],
-      ),
-    )
-    return result.rows.map((row) => mapRun(row))
-  } catch (error) {
-    logger.error('ai run postgres list failed', { errorCode: pgErrorCode(error) })
-    return null
-  }
+async function queryRunsPostgres(db: AiSqlQueryable, limit: number): Promise<ListedAiRun[]> {
+  const result = await runWithLazyAiTablesPostgres(db, () =>
+    db.query<{
+      id: string
+      createdAt: Date
+      userId: string
+      questionHash: string
+      provider: string
+      modelId: string
+      latencyMs: number
+      tokensIn: number | null
+      tokensOut: number | null
+      estCostMicroUsd: number | null
+      status: string
+      errorCode: string | null
+    }>(
+      `SELECT id, "createdAt", "userId", "questionHash", provider, "modelId", "latencyMs", "tokensIn", "tokensOut", "estCostMicroUsd", status, "errorCode"
+       FROM public.ai_runs
+       ORDER BY "createdAt" DESC
+       LIMIT $1`,
+      [limit],
+    ),
+  )
+  return result.rows.map((row) => mapRun(row))
 }
 
-async function listBriefPostgres(): Promise<ListedDailyBrief | null | undefined> {
-  const pool = postgresPool()
-  if (!pool) return undefined
-  try {
-    const result = await runWithLazyAiTablesPostgres(pool, () =>
-      pool.query<{
-        id: string
-        createdAt: Date
-        questionHash: string
-        status: string
-        reply: string
-        agreedModels: string
-      }>(
-        `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
-         FROM public.ai_daily_briefs
-         ORDER BY "createdAt" DESC
-         LIMIT 1`,
-      ),
-    )
-    const row = result.rows[0]
-    if (!row) return null
-    return { ...row, createdAt: asDate(row.createdAt) }
-  } catch (error) {
-    logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
-    return undefined
-  }
+async function queryLatestBriefPostgres(db: AiSqlQueryable): Promise<ListedDailyBrief | null> {
+  const result = await runWithLazyAiTablesPostgres(db, () =>
+    db.query<{
+      id: string
+      createdAt: Date
+      questionHash: string
+      status: string
+      reply: string
+      agreedModels: string
+    }>(
+      `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
+       FROM public.ai_daily_briefs
+       WHERE "agreedModels" <> $1
+       ORDER BY "createdAt" DESC
+       LIMIT 1`,
+      [COUNCIL_DECISION_BRIEF_TAG],
+    ),
+  )
+  const row = result.rows[0]
+  if (!row) return null
+  return { ...row, createdAt: asDate(row.createdAt) }
+}
+
+async function queryBriefsPostgres(
+  db: AiSqlQueryable,
+  limit: number,
+): Promise<ListedDailyBrief[]> {
+  const result = await runWithLazyAiTablesPostgres(db, () =>
+    db.query<{
+      id: string
+      createdAt: Date
+      questionHash: string
+      status: string
+      reply: string
+      agreedModels: string
+    }>(
+      `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
+       FROM public.ai_daily_briefs
+       WHERE "agreedModels" <> $1
+       ORDER BY "createdAt" DESC
+       LIMIT $2`,
+      [COUNCIL_DECISION_BRIEF_TAG, limit],
+    ),
+  )
+  return result.rows.map((row) => ({ ...row, createdAt: asDate(row.createdAt) }))
 }
 
 export async function listAiRuns(limit: number): Promise<ListedAiRun[]> {
   const safeLimit = Math.max(1, Math.min(200, limit))
-  const fromPostgres = await listRunsPostgres(safeLimit)
-  if (fromPostgres) return fromPostgres
+  const pool = postgresPool()
+  if (isPostgresOnlyAiStore()) {
+    if (!pool) {
+      throw new Error('PostgreSQL pool unavailable for ai_runs')
+    }
+    try {
+      return await queryRunsPostgres(pool, safeLimit)
+    } catch (error) {
+      logger.error('ai run postgres list failed', { errorCode: pgErrorCode(error) })
+      throw error
+    }
+  }
+  if (pool) {
+    try {
+      return await queryRunsPostgres(pool, safeLimit)
+    } catch (error) {
+      logger.error('ai run postgres list failed', { errorCode: pgErrorCode(error) })
+    }
+  }
   await ensureAiTablesSqlite()
   const rows = await prisma.aiRun.findMany({
     orderBy: { createdAt: 'desc' },
@@ -638,53 +1075,66 @@ export async function listAiRuns(limit: number): Promise<ListedAiRun[]> {
 }
 
 export async function listLatestDailyBrief(): Promise<ListedDailyBrief | null> {
-  const fromPostgres = await listBriefPostgres()
-  if (fromPostgres !== undefined) return fromPostgres
+  const pool = postgresPool()
+  if (isPostgresOnlyAiStore()) {
+    if (!pool) {
+      throw new Error('PostgreSQL pool unavailable for ai_daily_briefs')
+    }
+    try {
+      return await queryLatestBriefPostgres(pool)
+    } catch (error) {
+      logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
+      throw error
+    }
+  }
+  if (pool) {
+    try {
+      return await queryLatestBriefPostgres(pool)
+    } catch (error) {
+      logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
+    }
+  }
   await ensureAiTablesSqlite()
-  const row = await prisma.aiDailyBrief.findFirst({ orderBy: { createdAt: 'desc' } })
+  const row = await prisma.aiDailyBrief.findFirst({
+    where: { agreedModels: { not: COUNCIL_DECISION_BRIEF_TAG } },
+    orderBy: { createdAt: 'desc' },
+  })
   if (!row) return null
   return row
 }
 
-async function listBriefsPostgres(limit: number): Promise<ListedDailyBrief[] | null> {
-  const pool = postgresPool()
-  if (!pool) return null
-  try {
-    const result = await runWithLazyAiTablesPostgres(pool, () =>
-      pool.query<{
-        id: string
-        createdAt: Date
-        questionHash: string
-        status: string
-        reply: string
-        agreedModels: string
-      }>(
-        `SELECT id, "createdAt", "questionHash", status, reply, "agreedModels"
-         FROM public.ai_daily_briefs
-         ORDER BY "createdAt" DESC
-         LIMIT $1`,
-        [limit],
-      ),
-    )
-    return result.rows.map((row) => ({ ...row, createdAt: asDate(row.createdAt) }))
-  } catch (error) {
-    logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
-    return null
-  }
-}
-
 export async function listDailyBriefs(limit: number): Promise<ListedDailyBrief[]> {
   const safeLimit = Math.max(1, Math.min(30, limit))
-  const fromPostgres = await listBriefsPostgres(safeLimit)
-  if (fromPostgres !== null) return fromPostgres
+  const pool = postgresPool()
+  if (isPostgresOnlyAiStore()) {
+    if (!pool) {
+      throw new Error('PostgreSQL pool unavailable for ai_daily_briefs')
+    }
+    try {
+      return await queryBriefsPostgres(pool, safeLimit)
+    } catch (error) {
+      logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
+      throw error
+    }
+  }
+  if (pool) {
+    try {
+      return await queryBriefsPostgres(pool, safeLimit)
+    } catch (error) {
+      logger.error('ai brief postgres list failed', { errorCode: pgErrorCode(error) })
+    }
+  }
   await ensureAiTablesSqlite()
   return prisma.aiDailyBrief.findMany({
+    where: { agreedModels: { not: COUNCIL_DECISION_BRIEF_TAG } },
     orderBy: { createdAt: 'desc' },
     take: safeLimit,
   })
 }
 
-export async function safeListDailyBriefs(limit: number): Promise<{ briefs: ListedDailyBrief[]; error: boolean }> {
+export async function safeListDailyBriefs(
+  limit: number,
+): Promise<{ briefs: ListedDailyBrief[]; error: boolean }> {
   try {
     return { briefs: await listDailyBriefs(limit), error: false }
   } catch (error) {
@@ -701,16 +1151,31 @@ export async function safeListAiRuns(limit: number): Promise<{
   error: boolean
   source: AiRunStore | null
 }> {
+  const safeLimit = Math.max(1, Math.min(200, limit))
+  const postgresOnly = isPostgresOnlyAiStore()
   try {
-    const postgresRuns = await listRunsPostgres(Math.max(1, Math.min(200, limit)))
-    if (postgresRuns) {
-      const brief = await listBriefPostgres()
-      return { runs: postgresRuns, brief: brief ?? null, error: false, source: 'postgres' }
+    const pool = postgresPool()
+    if (postgresOnly) {
+      if (!pool) {
+        throw new Error('PostgreSQL pool unavailable for ai_runs')
+      }
+      const [runs, brief] = await Promise.all([
+        queryRunsPostgres(pool, safeLimit),
+        queryLatestBriefPostgres(pool),
+      ])
+      return { runs, brief, error: false, source: 'postgres' }
     }
-    const [runs, brief] = await Promise.all([listAiRuns(limit), listLatestDailyBrief()])
+    if (pool) {
+      const [runs, brief] = await Promise.all([
+        queryRunsPostgres(pool, safeLimit),
+        queryLatestBriefPostgres(pool),
+      ])
+      return { runs, brief, error: false, source: 'postgres' }
+    }
+    const [runs, brief] = await Promise.all([listAiRuns(safeLimit), listLatestDailyBrief()])
     return { runs, brief, error: false, source: 'panel' }
   } catch (error) {
     logger.error('ai run list failed', errorFields(error))
-    return { runs: [], brief: null, error: true, source: null }
+    return { runs: [], brief: null, error: true, source: postgresOnly ? 'postgres' : null }
   }
 }

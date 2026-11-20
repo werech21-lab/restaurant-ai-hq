@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 export const metadata = {
   title: 'المواسم والمناسبات | فنتشر فودز',
-  description: 'تقويم المواسم القابل للتعديل من المالك، مع مقارنة السنة الماضية من Odoo وخطة تحضير قبل كل موسم.',
+  description: 'تقويم المواسم القابل للتعديل من المالك، مع مقارنة السنة الماضية من أودو وخطة تحضير قبل كل موسم.',
 }
 
 export default async function SeasonsPage() {
