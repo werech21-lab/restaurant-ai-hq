@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { ADVISOR_LABEL, estimateValue, evidenceValue, syncLabel } from '@/components/aether/TodaysDiscoveries'
 import { useLang } from '@/components/aether/ui'
+import { localizeOdooModelAr } from '@/components/erp/KpiProvenanceBadge'
 import { StateBlock } from '@/components/ui/state-block'
 import {
   buildLiveDecisionSnapshotFromSummary,
@@ -66,6 +67,245 @@ const CARD =
   'relative overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-900/[0.03] dark:border-white/10 dark:bg-white/[0.04] dark:ring-white/5'
 const fmt = (n: number, d = 3) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
 const signed = (n: number, d = 1) => `${n > 0 ? '+' : ''}${n.toFixed(d)}`
+
+const ESTIMATE_INPUT_KEY_AR: Record<string, string> = {
+  top_branch_kwd: 'أعلى فرع (د.ك)',
+  lowest_branch_kwd: 'أقل فرع نشط (د.ك)',
+  peer_median_kwd: 'وسيط الفروع (د.ك)',
+  gap_kwd: 'الفجوة (د.ك)',
+  period_days: 'أيام الفترة',
+  aggregator_kwd: 'مبيعات المنصات (د.ك)',
+  direct_kwd: 'المبيعات المباشرة (د.ك)',
+  posted_commissions_kwd: 'العمولات المرحّلة (د.ك)',
+  quiet_hours_kwd: 'مبيعات الساعات الهادئة (د.ك)',
+  total_hourly_kwd: 'إجمالي السلاسل الساعية (د.ك)',
+  afternoon_30d_pool_kwd: 'وعاء فترة ما بعد الظهر (د.ك)',
+  open_debits_kwd: 'الذمم المدينة المفتوحة (د.ك)',
+  overdue_over_30d_kwd: 'الذمم المتأخرة فوق 30 يوماً (د.ك)',
+  unapplied_credits_abs_kwd: 'الأرصدة الدائنة غير المطبّقة (د.ك)',
+  tier_a_kwd: 'مبيعات الفئة أ (د.ك)',
+  tier_c_kwd: 'مبيعات الفئة ج (د.ك)',
+  tier_a_skus: 'عدد أصناف الفئة أ',
+  tier_c_skus: 'عدد أصناف الفئة ج',
+  unattributed_kwd: 'المبيعات غير المنسوبة (د.ك)',
+  peerMedianTicketKwd: 'وسيط فاتورة الفروع (د.ك)',
+  branchTicketKwd: 'متوسط فاتورة الفرع (د.ك)',
+  weeklyOrders: 'الطلبات الأسبوعية',
+  closeShare: 'نسبة تقليص الفجوة',
+  priorWeekNetKwd: 'صافي الأسبوع الأسبق (د.ك)',
+  lastWeekNetKwd: 'صافي الأسبوع الماضي (د.ك)',
+  recoveryShare: 'نسبة الاسترداد',
+  ordersLast28: 'طلبات آخر 28 يوماً',
+  priorAovKwd: 'متوسط الفاتورة السابق (د.ك)',
+  currentAovKwd: 'متوسط الفاتورة الحالي (د.ك)',
+  ticketDropKwd: 'تراجع الفاتورة (د.ك)',
+  siblingIndexPct: 'مؤشر الفروع الأخرى (%)',
+  branchIndexPct: 'مؤشر الفرع (%)',
+  branchAverageDayKwd: 'متوسط يوم الفرع (د.ك)',
+  branchDaySharePct: 'حصة يوم الفرع (%)',
+  companyHourKwd: 'صافي ساعة الشركة (د.ك)',
+  branchHourKwd: 'صافي ساعة الفرع (د.ك)',
+  days: 'عدد الأيام',
+  priorNetKwd: 'الصافي السابق (د.ك)',
+  currentNetKwd: 'الصافي الحالي (د.ك)',
+  pauseHours: 'ساعات التوقف',
+  lostKwd: 'المبيعات المفقودة (د.ك)',
+  weeks: 'عدد الأسابيع',
+  historyWeeks: 'أسابيع المقارنة',
+  weeklyLostKwd: 'الفاقد الأسبوعي (د.ك)',
+  weeklyDropKwd: 'التراجع الأسبوعي (د.ك)',
+  segmentDeltaKwd: 'تغيّر القسم (د.ك)',
+  windowDays: 'أيام الفترة',
+  normalKwd: 'المعتاد (د.ك)',
+  actualKwd: 'الفعلي (د.ك)',
+  lastWeekActualKwd: 'فعلي الأسبوع الماضي (د.ك)',
+  mapePct: 'متوسط نسبة خطأ الاختبار (%)',
+  wapePct: 'الخطأ المرجّح (%)',
+  overtimeHours: 'ساعات العمل الإضافي',
+  standardShiftHours: 'ساعات الوردية المعيارية',
+  weeklyOvertimeHours: 'الإضافي الأسبوعي (ساعة)',
+  reductionShare: 'نسبة الخفض',
+  weeklyQty: 'الكمية الأسبوعية',
+  avgPriceKwd: 'متوسط السعر (د.ك)',
+  priceStepKwd: 'خطوة السعر (د.ك)',
+  elasticity: 'معامل المرونة',
+  thresholdSharePct: 'حصة العتبة (%)',
+  dishSharePct: 'حصة الصنف (%)',
+  totalQty: 'إجمالي الكمية',
+  weeklyDiscountKwd: 'الخصم الأسبوعي (د.ك)',
+  retainedShare: 'نسبة الاحتفاظ',
+  windowPerDayKwd: 'صافي اليوم بالمناسبة (د.ك)',
+  baselinePerDayKwd: 'صافي اليوم المرجعي (د.ك)',
+  eventDays: 'أيام المناسبة',
+}
+
+export function localizeEstimateInputKeyAr(key: string): string {
+  const exact = ESTIMATE_INPUT_KEY_AR[key]
+  if (exact) return exact
+  return key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/\bkwd\b/gi, 'د.ك')
+    .replace(/\bpct\b/gi, '%')
+    .replace(/\bweekly\b/gi, 'أسبوعي')
+    .replace(/\bnet\b/gi, 'صافي')
+    .replace(/\borders?\b/gi, 'الطلبات')
+    .replace(/\bdays?\b/gi, 'أيام')
+    .replace(/\bhours?\b/gi, 'ساعات')
+    .replace(/\bbranch\b/gi, 'الفرع')
+    .replace(/\bshare\b/gi, 'الحصة')
+    .trim()
+}
+
+export function localizeEstimateFormulaAr(formula: string): string {
+  const trimmed = formula.trim()
+  if (!trimmed) return ''
+  if (/[\u0600-\u06FF]/.test(trimmed) && !/[A-Za-z]/.test(trimmed)) {
+    return trimmed
+  }
+
+  return trimmed
+    .replace(/peer_median_([\d.,+-]+)/gi, 'وسيط الفروع $1')
+    .replace(/branch_gap_([\d.,+-]+)/gi, 'فجوة الفروع $1')
+    .replace(/posted_commissions_([\d.,+-]+)/gi, 'العمولات المرحّلة $1')
+    .replace(/aggregator_sales_([\d.,+-]+)/gi, 'مبيعات المنصات $1')
+    .replace(/afternoon_30d_pool_([\d.,+-]+)/gi, 'مبيعات فترة ما بعد الظهر $1')
+    .replace(/overdue_30d_([\d.,+-]+)/gi, 'الذمم المتأخرة فوق 30 يوماً $1')
+    .replace(/open_debits_([\d.,+-]+)/gi, 'الذمم المدينة المفتوحة $1')
+    .replace(/abs\(unapplied_credits_([\d.,+-]+)\)/gi, 'القيمة المطلقة للأرصدة الدائنة ($1)')
+    .replace(/tier_a_([\d.,+-]+)/gi, 'مبيعات الفئة أ $1')
+    .replace(/tier_c_([\d.,+-]+)/gi, 'مبيعات الفئة ج $1')
+    .replace(/unattributed_sales_([\d.,+-]+)/gi, 'المبيعات غير المنسوبة $1')
+    .replace(/\b(?:360-mall)_([\d.,+-]+)/gi, 'مول 360 ($1)')
+    .replace(/\b(?:al-kout)_([\d.,+-]+)/gi, 'الكوت ($1)')
+    .replace(/\bavenues_([\d.,+-]+)/gi, 'الأفنيوز ($1)')
+    .replace(/\bassima_([\d.,+-]+)/gi, 'العاصمة ($1)')
+    .replace(/\bpromenade_([\d.,+-]+)/gi, 'بروميناد ($1)')
+    .replace(/\bsalmiya_([\d.,+-]+)/gi, 'السالمية ($1)')
+    .replace(/\bardiya_([\d.,+-]+)/gi, 'العارضية ($1)')
+    .replace(/(\d+)\s*d\b/gi, '$1 يوم')
+    .replace(/\bdirect shift volume\b/gi, 'حجم التحويل للقنوات المباشرة')
+    .replace(/\bweekly clearing pace\b/gi, 'وتيرة التسوية الأسبوعية')
+    .replace(/\bnet revenue simulation\b/gi, 'محاكاة صافي الإيرادات')
+    .replace(/\battributed to branch p&l\b/gi, 'منسوبة لقائمة دخل الفروع')
+    .replace(/\bpeer median ticket\b/gi, 'وسيط فاتورة الفروع')
+    .replace(/\bbranch ticket\b/gi, 'متوسط فاتورة الفرع')
+    .replace(/\bweekly orders\b/gi, 'الطلبات الأسبوعية')
+    .replace(/\bprior-week net\b/gi, 'صافي الأسبوع الأسبق')
+    .replace(/\blast-week net\b/gi, 'صافي الأسبوع الماضي')
+    .replace(/\borders last (\d+) days\b/gi, 'طلبات آخر $1 يوماً')
+    .replace(/\bprior average ticket\b/gi, 'متوسط الفاتورة السابق')
+    .replace(/\bcurrent average ticket\b/gi, 'متوسط الفاتورة الحالي')
+    .replace(/\bticket drop per order\b/gi, 'تراجع الفاتورة لكل طلب')
+    .replace(/\bsiblings weekday index\b/gi, 'مؤشر يوم الأسبوع للفروع الأخرى')
+    .replace(/\bbranch weekday index\b/gi, 'مؤشر يوم الأسبوع للفرع')
+    .replace(/\bsiblings index\b/gi, 'مؤشر الفروع الأخرى')
+    .replace(/\bbranch index\b/gi, 'مؤشر الفرع')
+    .replace(/\bbranch average day\b/gi, 'متوسط يوم الفرع')
+    .replace(/\bbranch day share\b/gi, 'حصة يوم الفرع')
+    .replace(/\bcompany hour net\b/gi, 'صافي ساعة الشركة')
+    .replace(/\bbranch hour net\b/gi, 'صافي ساعة الفرع')
+    .replace(/\bprior net\b/gi, 'الصافي السابق')
+    .replace(/\bcurrent net\b/gi, 'الصافي الحالي')
+    .replace(
+      /Σ over pause hours of median\(same weekday-hour net, last N weeks\)\s*÷\s*weeks in window/gi,
+      'مجموع ساعات التوقف لوسيط (صافي نفس اليوم والساعة للأسابيع السابقة) ÷ عدد الأسابيع',
+    )
+    .replace(/\bweekly lost-sales estimate\b/gi, 'تقدير المبيعات الأسبوعية المفقودة')
+    .replace(/\bweekly drop of the segment\b/gi, 'التراجع الأسبوعي للقسم')
+    .replace(/\|segment Δ\|/gi, '|تغيّر القسم|')
+    .replace(/\bwindow days\b/gi, 'أيام الفترة')
+    .replace(/\bnormal\b/gi, 'المعتاد')
+    .replace(/\bactual\b/gi, 'الفعلي')
+    .replace(/\(one day,\s*flagged branches\)/gi, '(يوم واحد للفروع المتأثرة)')
+    .replace(/\(one day\)/gi, '(يوم واحد)')
+    .replace(/next-7-day forecast/gi, 'توقع الأيام السبعة القادمة')
+    .replace(
+      /Σ max\(0,\s*shift hours\s*−\s*(\d+)\)\s*over shifts\s*≤\s*(\d+)\s*h/gi,
+      'مجموع الساعات الإضافية فوق $1 ساعات للورديات ≤ $2 ساعة',
+    )
+    .replace(/\bweekly overtime hours\b/gi, 'ساعات العمل الإضافي الأسبوعية')
+    .replace(/\bweekly qty\b/gi, 'الكمية الأسبوعية')
+    .replace(/\btotal qty\b/gi, 'إجمالي الكمية')
+    .replace(/\bstep%/gi, 'نسبة الزيادة')
+    .replace(/\belasticity\b/gi, 'المرونة')
+    .replace(/\bthreshold share\b/gi, 'حصة العتبة')
+    .replace(/\bdish share\b/gi, 'حصة الصنف')
+    .replace(/\bweekly discount on the dish\b/gi, 'الخصم الأسبوعي على الصنف')
+    .replace(/\bwindow per-day net\b/gi, 'صافي اليوم بالمناسبة')
+    .replace(/\bbaseline per-day net\b/gi, 'صافي اليوم المرجعي')
+    .replace(/\bwindow per-day\b/gi, 'صافي اليوم بالمناسبة')
+    .replace(/\bbaseline per-day\b/gi, 'صافي اليوم المرجعي')
+    .replace(/event days \(max 7\)(?:,\s*previous occurrence)?/gi, 'أيام المناسبة (بحد أقصى 7)')
+    .replace(/\bprice\b/gi, 'السعر')
+    .replace(/\bdays\b/gi, 'أيام')
+    .replace(/\bcogs\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\brevenue\b/gi, 'الإيرادات')
+    .replace(/Σ/g, 'مجموع')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function localizeDecisionProseAr(text: string): string {
+  if (!text) return text
+  return text
+    .replace(/\s*\(COGS\)/gi, '')
+    .replace(/\s*\(MAPE\)/gi, '')
+    .replace(/\s*\(BoM\)/gi, '')
+    .replace(/\s*\(check-in\s*\/\s*check-out\)/gi, '')
+    .replace(/\s*\(pos\.order\.line\)/gi, '')
+    .replace(/\s*\(stock\.quant\)/gi, '')
+    .replace(/\s*\(mrp\.bom\)/gi, '')
+    .replace(/\s*\(account\.move\.line\)/gi, '')
+    .replace(/لـ\s*pos\.payment/gi, 'لمدفوعات نقاط البيع')
+    .replace(/كـ\s*stock\.scrap/gi, 'كقيد إتلاف في المخزون')
+    .replace(/\bpos\.order\.line\b/gi, 'بنود طلبات نقاط البيع')
+    .replace(/\bpos\.order\b/gi, 'طلبات نقاط البيع')
+    .replace(/\bpos\.payment\b/gi, 'مدفوعات نقاط البيع')
+    .replace(/\baccount\.move\.line\b/gi, 'قيود دفتر الأستاذ العام')
+    .replace(/\baccount\.move\b/gi, 'قيود المحاسبة')
+    .replace(/\bstock\.quant\b/gi, 'أرصدة المخزون')
+    .replace(/\bstock\.scrap\b/gi, 'قيود الإتلاف')
+    .replace(/\bstock\.move\b/gi, 'حركات المخزون')
+    .replace(/\bmrp\.bom\b/gi, 'قوائم المكونات')
+    .replace(/\bhr\.attendance\b/gi, 'سجل الحضور والانصراف')
+    .replace(/\bstandard_price\b/gi, 'التكلفة المعيارية')
+    .replace(/\bCOGS\b/gi, 'تكلفة البضاعة المباعة')
+    .replace(/\bOdoo\b/gi, 'أودو')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+export function localizeEstimateFormulaEn(formula: string): string {
+  const trimmed = formula.trim()
+  if (!trimmed || !/[\u0600-\u06FF]/.test(trimmed)) return trimmed
+  return trimmed
+    .replace(/وسيط الفروع/g, 'peer median')
+    .replace(/فجوة الفروع/g, 'branch gap')
+    .replace(/العمولات المرحّلة/g, 'posted commissions')
+    .replace(/مبيعات المنصات/g, 'aggregator sales')
+    .replace(/حجم التحويل للقنوات المباشرة/g, 'direct shift volume')
+    .replace(/مبيعات فترة ما بعد الظهر/g, 'afternoon 30d pool')
+    .replace(/الذمم المتأخرة فوق 30 يوماً/g, 'overdue >30d')
+    .replace(/الذمم المدينة المفتوحة/g, 'open debits')
+    .replace(/القيمة المطلقة للأرصدة الدائنة/g, 'abs(unapplied credits)')
+    .replace(/وتيرة التسوية الأسبوعية/g, 'weekly clearing pace')
+    .replace(/مبيعات الفئة أ/g, 'Tier-A sales')
+    .replace(/مبيعات الفئة ج/g, 'Tier-C sales')
+    .replace(/محاكاة صافي الإيرادات/g, 'net revenue simulation')
+    .replace(/المبيعات غير المنسوبة/g, 'unattributed sales')
+    .replace(/منسوبة لقائمة دخل الفروع/g, 'attributed to branch P&L')
+    .replace(/الأفنيوز/g, 'Avenues')
+    .replace(/مول 360/g, '360 Mall')
+    .replace(/العاصمة/g, 'Assima')
+    .replace(/بروميناد/g, 'Promenade')
+    .replace(/السالمية/g, 'Salmiya')
+    .replace(/الكوت/g, 'Al Kout')
+    .replace(/العارضية/g, 'Ardiya')
+    .replace(/(\d+)\s*يوم/g, '$1d')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 export interface DecisionRoomViewProps {
   locale: 'ar' | 'en'
@@ -134,7 +374,7 @@ function FindingCard({
       </div>
 
       <h3 className="min-w-0 break-words text-[15px] font-bold leading-snug text-slate-900 dark:text-white">
-        {isAr ? f.titleAr : f.titleEn}
+        {isAr ? localizeDecisionProseAr(f.titleAr) : f.titleEn}
       </h3>
 
       <div className="rounded-xl bg-slate-50/80 p-3 ring-1 ring-slate-200/70 dark:bg-white/[0.03] dark:ring-white/10">
@@ -157,9 +397,9 @@ function FindingCard({
             >
               <dt
                 className="min-w-0 truncate text-slate-500 dark:text-slate-400"
-                title={isAr ? e.labelAr : e.labelEn}
+                title={isAr ? localizeDecisionProseAr(e.labelAr) : e.labelEn}
               >
-                {isAr ? e.labelAr : e.labelEn}
+                {isAr ? localizeDecisionProseAr(e.labelAr) : e.labelEn}
               </dt>
               <dd className="shrink-0 whitespace-nowrap font-semibold tabular-nums" dir="ltr">
                 {evidenceValue(e, locale)}
@@ -167,14 +407,28 @@ function FindingCard({
             </div>
           ))}
         </dl>
-        <p className="mt-1.5 text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400" dir="ltr">
-          {`Odoo · ${f.evidence[0]?.odooModel ?? '—'} · ${f.evidence[0]?.period.from ?? ''} → ${f.evidence[0]?.period.to ?? ''} · ${t('sync', 'مزامنة')} ${syncLabel(f.evidence[0]?.syncAt ?? null, locale)}`}
+        <p
+          className="mt-1.5 text-xs text-slate-500 [overflow-wrap:anywhere] dark:text-slate-400"
+          dir={isAr ? 'rtl' : 'ltr'}
+        >
+          {isAr ? (
+            <>
+              {'أودو · '}
+              {localizeOdooModelAr(f.evidence[0]?.odooModel)}
+              {' · '}
+              <bdi dir="ltr">{`${f.evidence[0]?.period.from ?? ''} → ${f.evidence[0]?.period.to ?? ''}`}</bdi>
+              {' · مزامنة '}
+              <bdi dir="ltr">{syncLabel(f.evidence[0]?.syncAt ?? null, locale)}</bdi>
+            </>
+          ) : (
+            `Odoo · ${f.evidence[0]?.odooModel ?? '—'} · ${f.evidence[0]?.period.from ?? ''} → ${f.evidence[0]?.period.to ?? ''} · sync ${syncLabel(f.evidence[0]?.syncAt ?? null, locale)}`
+          )}
         </p>
       </div>
 
       <p className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
         <span className="font-semibold">{t('Why: ', 'لماذا: ')}</span>
-        {isAr ? f.rootCause.ar : f.rootCause.en}
+        {isAr ? localizeDecisionProseAr(f.rootCause.ar) : f.rootCause.en}
       </p>
 
       {f.proposals.length > 0 ? (
@@ -192,10 +446,10 @@ function FindingCard({
                   {i + 1}
                 </span>
                 <span className="min-w-0">
-                  <span className="font-semibold">{isAr ? p.who.ar : p.who.en}</span>
-                  {`: ${isAr ? p.what.ar : p.what.en} — `}
+                  <span className="font-semibold">{isAr ? localizeDecisionProseAr(p.who.ar) : p.who.en}</span>
+                  {`: ${isAr ? localizeDecisionProseAr(p.what.ar) : p.what.en} — `}
                   <span className="font-medium text-slate-600 dark:text-slate-400">
-                    {isAr ? p.when.ar : p.when.en}
+                    {isAr ? localizeDecisionProseAr(p.when.ar) : p.when.en}
                   </span>
                 </span>
               </li>
@@ -219,12 +473,14 @@ function FindingCard({
               {t('Deterministic Simulation', 'محاكاة رقمية حتمية')}
             </span>
           </summary>
-          <p className="mt-1 [overflow-wrap:anywhere]" dir="ltr">
-            {est.formula}
+          <p className="mt-1 [overflow-wrap:anywhere]" dir={isAr ? 'rtl' : 'ltr'}>
+            {isAr ? localizeEstimateFormulaAr(est.formula) : localizeEstimateFormulaEn(est.formula)}
           </p>
-          <p className="mt-1 [overflow-wrap:anywhere] tabular-nums" dir="ltr">
+          <p className="mt-1 [overflow-wrap:anywhere] tabular-nums" dir={isAr ? 'rtl' : 'ltr'}>
             {Object.entries(est.inputs)
-              .map(([k, v]) => `${k} = ${v}`)
+              .map(([k, v]) =>
+                isAr ? `${localizeEstimateInputKeyAr(k)} = ${v}` : `${k} = ${v}`,
+              )
               .join(' · ')}
           </p>
         </details>
@@ -276,7 +532,18 @@ function DriversView({ summary, locale }: { summary: OdooLiveSummary | null; loc
     <section data-room-view="drivers" className={`${CARD} space-y-3`}>
       <header>
         <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">{t('Why did sales move? Contribution by branch', 'لماذا تغيّرت المبيعات؟ مساهمة كل فرع')}</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`pos.order · ${w.a.from} → ${w.a.to} vs ${w.b.from} → ${w.b.to}`}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+          {isAr ? (
+            <>
+              {'طلبات نقاط البيع · '}
+              <bdi dir="ltr">{`${w.a.from} → ${w.a.to}`}</bdi>
+              {' مقابل '}
+              <bdi dir="ltr">{`${w.b.from} → ${w.b.to}`}</bdi>
+            </>
+          ) : (
+            `pos.order · ${w.a.from} → ${w.a.to} vs ${w.b.from} → ${w.b.to}`
+          )}
+        </p>
       </header>
       <div className={`grid grid-cols-1 gap-2 text-[13px] ${split ? 'sm:grid-cols-3' : 'sm:grid-cols-1'}`}>
         <p className="min-w-0 rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/[0.03]"><span className="block truncate text-xs text-slate-500">{t('Company change', 'تغيّر الشركة')}</span><b className="tabular-nums" dir="ltr">{`${signed(total / 1000, 3)} ${t('KWD', 'د.ك')}`}</b></p>
@@ -321,7 +588,17 @@ function BenchmarkView({ summary, locale }: { summary: OdooLiveSummary | null; l
     <section data-room-view="benchmark" className={`${CARD} space-y-4`}>
       <header>
         <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">{t('Branches against their peers', 'الفروع مقابل بعضها')}</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`pos.order · ${k.from} → ${k.to} · ${t('peer = median of the other branches', 'المقارنة = وسيط باقي الفروع')}`}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+          {isAr ? (
+            <>
+              {'طلبات نقاط البيع · '}
+              <bdi dir="ltr">{`${k.from} → ${k.to}`}</bdi>
+              {' · المقارنة = وسيط باقي الفروع'}
+            </>
+          ) : (
+            `pos.order · ${k.from} → ${k.to} · peer = median of the other branches`
+          )}
+        </p>
       </header>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-[13px]">
@@ -398,12 +675,22 @@ function ForecastView({ summary, locale }: { summary: OdooLiveSummary | null; lo
     <section data-room-view="forecast" className={`${CARD} space-y-4`}>
       <header>
         <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">{t('Next 7 days and unusual days', 'الأيام السبعة القادمة والأيام غير المعتادة')}</h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400" dir="ltr">{`pos.order · ${d.days[0]} → ${d.days[d.days.length - 1]} · ${t('completed days only', 'أيام مكتملة فقط')}`}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+          {isAr ? (
+            <>
+              {'طلبات نقاط البيع · '}
+              <bdi dir="ltr">{`${d.days[0]} → ${d.days[d.days.length - 1]}`}</bdi>
+              {' · أيام مكتملة فقط'}
+            </>
+          ) : (
+            `pos.order · ${d.days[0]} → ${d.days[d.days.length - 1]} · completed days only`
+          )}
+        </p>
       </header>
       {fc ? (
         <div className="space-y-2">
           <p className="text-[13px] text-slate-700 dark:text-slate-300">
-            {t('Expected', 'المتوقع')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.totalKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('same days last week', 'نفس الأيام الأسبوع الماضي')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.lastWeekActualKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('model error in backtest (MAPE)', 'خطأ النموذج في الاختبار الرجعي (MAPE)')} <b className="tabular-nums" dir="ltr">{`${fc.backtest.mapePct.toFixed(1)}%`}</b>
+            {t('Expected', 'المتوقع')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.totalKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('same days last week', 'نفس الأيام الأسبوع الماضي')} <b className="tabular-nums" dir="ltr">{`${fmt(fc.lastWeekActualKwd)} ${t('KWD', 'د.ك')}`}</b> · {t('model error in backtest (MAPE)', 'متوسط نسبة خطأ النموذج في الاختبار الرجعي')} <b className="tabular-nums" dir="ltr">{`${fc.backtest.mapePct.toFixed(1)}%`}</b>
           </p>
           <div className="overflow-x-auto pb-1">
             <ol className="grid min-w-[320px] grid-cols-7 items-end gap-1.5" data-forecast-bars="true" aria-label={t('Forecast by day', 'التوقع حسب اليوم')}>
@@ -641,10 +928,10 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
 
           {showCouncil && tab !== 'log' && gaps.length > 0 ? (
             <section data-room-gaps="true" className="space-y-1.5 text-[13px] text-slate-600 dark:text-slate-400">
-              <h2 className="font-semibold text-slate-800 dark:text-slate-200">{t('What Odoo does not record yet (and what to record)', 'ما لا يسجله Odoo بعد (وما يجب تسجيله)')}</h2>
+              <h2 className="font-semibold text-slate-800 dark:text-slate-200">{t('What Odoo does not record yet (and what to record)', 'ما لا يسجله أودو بعد (وما يجب تسجيله)')}</h2>
               <ul className="list-disc space-y-1 ps-5">
                 {gaps.map(({ advisorId, g }, i) => (
-                  <li key={i}><span className="font-semibold">{isAr ? ADVISOR_LABEL[advisorId].ar : ADVISOR_LABEL[advisorId].en}:</span> {isAr ? `${g.missingAr} ← ${g.recordAr}` : `${g.missingEn} → ${g.recordEn}`}</li>
+                  <li key={i}><span className="font-semibold">{isAr ? ADVISOR_LABEL[advisorId].ar : ADVISOR_LABEL[advisorId].en}:</span> {isAr ? `${localizeDecisionProseAr(g.missingAr)} ← ${localizeDecisionProseAr(g.recordAr)}` : `${g.missingEn} → ${g.recordEn}`}</li>
                 ))}
               </ul>
             </section>
@@ -665,31 +952,40 @@ export function DecisionRoomView(props: DecisionRoomViewProps) {
 /* ------------------------------------------------------------------ demand forecast page */
 
 /** /erp/demand-forecast: the forecast & unusual-days view on its own (same engine as the Decision Room). */
-export function DemandForecastPanel() {
+export interface DemandForecastPanelProps {
+  initialSummary?: OdooLiveSummary | null
+}
+
+export function DemandForecastPanel({
+  initialSummary = null,
+}: DemandForecastPanelProps) {
   const { isAr } = useLang()
   const { liveSummary } = useGlobalFilter()
   const locale = isAr ? 'ar' : 'en'
-  const [roomSummary, setRoomSummary] = useState<OdooLiveSummary | null>(() => {
-    return peekDecisionSwrCache<RoomApiBody>('room')?.data?.liveSummary ?? null
-  })
-  const [loadingRoom, setLoadingRoom] = useState<boolean>(() => {
-    const cached = peekDecisionSwrCache<RoomApiBody>('room')
-    return !cached && !analysisAvailability(liveSummary).forecast
-  })
+  const [hydrated, setHydrated] = useState(false)
+  const [roomSummary, setRoomSummary] = useState<OdooLiveSummary | null>(initialSummary)
+  const [loadingRoom, setLoadingRoom] = useState<boolean>(
+    () => !analysisAvailability(initialSummary).forecast,
+  )
 
   useEffect(() => {
+    setHydrated(true)
     if (analysisAvailability(liveSummary).forecast) {
       setLoadingRoom(false)
       return
     }
     const cached = peekDecisionSwrCache<RoomApiBody>('room')
-    if (cached?.isFresh && cached.data?.liveSummary) {
+    if (cached?.data?.liveSummary) {
       setRoomSummary(cached.data.liveSummary)
-      setLoadingRoom(false)
-      return
+      if (cached.isFresh || analysisAvailability(cached.data.liveSummary).forecast) {
+        setLoadingRoom(false)
+        if (cached.isFresh) return
+      }
     }
     let active = true
-    setLoadingRoom(true)
+    if (!cached?.data?.liveSummary) {
+      setLoadingRoom(true)
+    }
     void fetchDecisionSwr<RoomApiBody>('room', async () => {
       const r = await fetch('/api/erp/council/room', { credentials: 'same-origin' })
       if (!r.ok) return null
@@ -708,14 +1004,21 @@ export function DemandForecastPanel() {
     }
   }, [liveSummary])
 
+  const activeLiveSummary = hydrated ? liveSummary : initialSummary
+  const activeRoomSummary = hydrated ? roomSummary : initialSummary
+
   const effectiveSummary = useMemo(
-    () => (analysisAvailability(liveSummary).forecast ? liveSummary : (roomSummary ?? liveSummary)),
-    [liveSummary, roomSummary],
+    () =>
+      analysisAvailability(activeLiveSummary).forecast
+        ? activeLiveSummary
+        : (activeRoomSummary ?? activeLiveSummary),
+    [activeLiveSummary, activeRoomSummary],
   )
   const available = useMemo(
     () => analysisAvailability(effectiveSummary).forecast,
     [effectiveSummary],
   )
+  const showLoading = (!hydrated && initialSummary === null) || (loadingRoom && !available)
 
   return (
     <div dir={isAr ? 'rtl' : 'ltr'} data-demand-forecast-panel="true" className="min-w-0 space-y-4">
@@ -730,7 +1033,7 @@ export function DemandForecastPanel() {
         </p>
       </header>
 
-      {loadingRoom && !available ? (
+      {showLoading ? (
         <StateBlock
           state="loading"
           locale={locale}
@@ -783,6 +1086,7 @@ export function DecisionRoomStudio({ initialTab }: { initialTab?: DecisionRoomTa
   const { isAr } = useLang()
   const { liveSummary, sessionRole } = useGlobalFilter()
   const roleCanDecide = sessionRole === 'admin' || sessionRole === 'gm' || sessionRole === 'dgm'
+  const [hydrated, setHydrated] = useState(false)
 
   const [room, setRoom] = useState<{
     loading: boolean
@@ -791,31 +1095,16 @@ export function DecisionRoomStudio({ initialTab }: { initialTab?: DecisionRoomTa
     summary: ExecutiveSummary | null
     serverLiveSummary: OdooLiveSummary | null
     canDecide: boolean
-  }>(() => {
-    const cached = peekDecisionSwrCache<RoomApiBody>('room')
-    if (cached?.data && Array.isArray(cached.data.reports) && cached.data.reports.length > 0) {
-      return {
-        loading: false,
-        generatedAt: cached.data.generatedAt ?? null,
-        reports: cached.data.reports,
-        summary: cached.data.summary ?? null,
-        serverLiveSummary: cached.data.liveSummary ?? null,
-        canDecide: cached.data.canDecide ?? roleCanDecide,
-      }
-    }
-    return {
-      loading: true,
-      generatedAt: null,
-      reports: [],
-      summary: null,
-      serverLiveSummary: null,
-      canDecide: roleCanDecide,
-    }
+  }>({
+    loading: true,
+    generatedAt: null,
+    reports: [],
+    summary: null,
+    serverLiveSummary: null,
+    canDecide: roleCanDecide,
   })
 
-  const [decisions, setDecisions] = useState<DecisionRecord[]>(() => {
-    return peekDecisionSwrCache<DecisionRecord[]>('decisions')?.data ?? []
-  })
+  const [decisions, setDecisions] = useState<DecisionRecord[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -861,14 +1150,30 @@ export function DecisionRoomStudio({ initialTab }: { initialTab?: DecisionRoomTa
   )
 
   useEffect(() => {
+    setHydrated(true)
     const cachedRoom = peekDecisionSwrCache<RoomApiBody>('room')
-    if (!cachedRoom || !cachedRoom.isFresh) {
-      loadRoom(false)
+    if (cachedRoom?.data && Array.isArray(cachedRoom.data.reports) && cachedRoom.data.reports.length > 0) {
+      setRoom({
+        loading: false,
+        generatedAt: cachedRoom.data.generatedAt ?? null,
+        reports: cachedRoom.data.reports,
+        summary: cachedRoom.data.summary ?? null,
+        serverLiveSummary: cachedRoom.data.liveSummary ?? null,
+        canDecide: cachedRoom.data.canDecide ?? roleCanDecide,
+      })
+      if (!cachedRoom.isFresh) {
+        loadRoom(false)
+      }
     } else {
-      setRoom((s) => ({ ...s, loading: false }))
+      loadRoom(false)
     }
     const cachedDec = peekDecisionSwrCache<DecisionRecord[]>('decisions')
-    if (!cachedDec || !cachedDec.isFresh) {
+    if (cachedDec?.data) {
+      setDecisions(cachedDec.data)
+      if (!cachedDec.isFresh) {
+        loadDecisions()
+      }
+    } else {
       loadDecisions()
     }
     const onSync = () => {
@@ -879,9 +1184,9 @@ export function DecisionRoomStudio({ initialTab }: { initialTab?: DecisionRoomTa
     return () => {
       window.removeEventListener('aether:odoo-sync', onSync)
     }
-  }, [loadDecisions, loadRoom])
+  }, [loadDecisions, loadRoom, roleCanDecide])
 
-  const effectiveLiveSummary = room.serverLiveSummary ?? liveSummary
+  const effectiveLiveSummary = hydrated ? (room.serverLiveSummary ?? liveSummary) : null
 
   const clientFallback = useMemo(() => {
     if (room.reports.length > 0) return null

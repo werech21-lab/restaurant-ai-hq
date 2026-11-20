@@ -4,11 +4,15 @@ import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import posRegistry from '@/lib/odoo/pos-registry.json'
+import { logger } from '@/lib/logger'
 import {
   CLOSED_YEAR_CACHE_KEY_PREFIX,
   CLOSED_YEAR_CACHE_TABLE,
   buildClosedYearStorageKey,
   createPostgresYearClosedStore,
+  extractSafePgErrorCode,
+  getClosedYearRowsFromStore,
+  setClosedYearRowsInStore,
   type ClosedYearSqlQueryable,
 } from '@/lib/odoo/closed-year-store'
 import {
@@ -43,6 +47,8 @@ interface StoredClosedYearRow {
 function createInMemoryClosedYearCacheTable(options?: {
   rejectAlterRls?: boolean
   failFirstCreateTable?: boolean
+  tableAlreadyExists?: boolean
+  rejectCreateTable?: boolean
 }): {
   rowsByCacheKey: Map<string, StoredClosedYearRow>
   queryable: ClosedYearSqlQueryable
@@ -55,12 +61,21 @@ function createInMemoryClosedYearCacheTable(options?: {
 } {
   const rowsByCacheKey = new Map<string, StoredClosedYearRow>()
   const executedSql: string[] = []
+  let tableExists = options?.tableAlreadyExists ?? false
   let createTables = 0
   let alterRls = 0
   let selects = 0
   let upserts = 0
   let deletes = 0
   let remainingCreateFailures = options?.failFirstCreateTable ? 1 : 0
+
+  const makeUndefinedTableError = (): Error & { code?: string } => {
+    const err = new Error('relation "public.vf_odoo_closed_year_cache" does not exist') as Error & {
+      code?: string
+    }
+    err.code = '42P01'
+    return err
+  }
 
   const queryable: ClosedYearSqlQueryable = {
     async query<R extends Record<string, unknown> = Record<string, unknown>>(
@@ -77,10 +92,16 @@ function createInMemoryClosedYearCacheTable(options?: {
 
       if (upper.startsWith('CREATE TABLE IF NOT EXISTS PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
         createTables += 1
+        if (options?.rejectCreateTable) {
+          const denied = new Error('permission denied for schema public') as Error & { code?: string }
+          denied.code = '42501'
+          throw denied
+        }
         if (remainingCreateFailures > 0) {
           remainingCreateFailures -= 1
           throw new Error('simulated_transient_ddl_failure')
         }
+        tableExists = true
         return { rows: [] }
       }
 
@@ -93,10 +114,20 @@ function createInMemoryClosedYearCacheTable(options?: {
       }
 
       if (
+        upper ===
+        'REVOKE ALL ON TABLE PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE FROM PUBLIC, ANON, AUTHENTICATED'
+      ) {
+        return { rows: [] }
+      }
+
+      if (
         upper.startsWith(
           'SELECT RAW_KEY, ROWS_JSON, CACHED_AT_MS FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY = $1',
         )
       ) {
+        if (!tableExists) {
+          throw makeUndefinedTableError()
+        }
         selects += 1
         const cacheKey = String(params[0] ?? '')
         const hit = rowsByCacheKey.get(cacheKey)
@@ -113,6 +144,9 @@ function createInMemoryClosedYearCacheTable(options?: {
       }
 
       if (upper.startsWith('INSERT INTO PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+        if (!tableExists) {
+          throw makeUndefinedTableError()
+        }
         upserts += 1
         const cacheKey = String(params[0] ?? '')
         const rawKey = String(params[1] ?? '')
@@ -123,6 +157,9 @@ function createInMemoryClosedYearCacheTable(options?: {
       }
 
       if (upper.startsWith('DELETE FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY LIKE $1')) {
+        if (!tableExists) {
+          throw makeUndefinedTableError()
+        }
         deletes += 1
         const likePattern = String(params[0] ?? '')
         const prefix = likePattern.endsWith('%') ? likePattern.slice(0, -1) : likePattern
@@ -298,11 +335,87 @@ describe('year closed-day cache & dedicated vf_odoo_closed_year_cache L2 table (
       )
       expect(rlsCheck.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true })
 
-      await store.clear?.()
-      expect(await store.get(cacheKey)).toBeUndefined()
+      // Apply 0055_live_gate_server_rls_and_ai_briefs.sql: enables RLS with NO FORCE so non-superuser table owner succeeds
+      const migration0055Sql = await readFile(
+        path.join(
+          process.cwd(),
+          'database',
+          'migrations',
+          '0055_live_gate_server_rls_and_ai_briefs.sql',
+        ),
+        'utf8',
+      )
+      await pglite.exec(migration0055Sql)
+
+      const rlsPost0055 = await pglite.query<{ relrowsecurity: boolean; relforcerowsecurity: boolean }>(
+        `SELECT c.relrowsecurity, c.relforcerowsecurity
+         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public' AND c.relname = 'vf_odoo_closed_year_cache'`,
+      )
+      expect(rlsPost0055.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: false })
+
+      await pglite.exec(`
+        CREATE ROLE app_pooler_owner NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+        REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+        GRANT USAGE ON SCHEMA public TO app_pooler_owner;
+        ALTER TABLE public.vf_odoo_closed_year_cache OWNER TO app_pooler_owner;
+        SET ROLE app_pooler_owner;
+      `)
+
+      const ownerStore = createPostgresYearClosedStore(() => ({
+        query: queryable.query.bind(queryable),
+      }))
+      expect(await ownerStore.get(cacheKey)).toEqual(preMigrationHit)
+      await ownerStore.set(cacheKey, {
+        rows: [{ product_id: [101, 'Sweet & Sour Chicken'], price_subtotal: 4_500.25, qty: 360 }],
+        at: 1_763_630_500_000,
+      })
+      expect(await ownerStore.get(cacheKey)).toEqual({
+        rows: [{ product_id: [101, 'Sweet & Sour Chicken'], price_subtotal: 4_500.25, qty: 360 }],
+        at: 1_763_630_500_000,
+      })
+
+      await ownerStore.clear?.()
+      expect(await ownerStore.get(cacheKey)).toBeUndefined()
+      await pglite.exec('RESET ROLE;')
     } finally {
       await pglite.close()
     }
+  })
+
+  it('Test 0c: Restricted pooler role without CREATE privilege runs SELECT and UPSERT directly with 0 DDL queries when table exists, and extracts safe SQLSTATE error codes', async () => {
+    const existingNoCreatePg = createInMemoryClosedYearCacheTable({
+      tableAlreadyExists: true,
+      rejectCreateTable: true,
+    })
+
+    const key = 'year.net|steady-state-no-create|2026-11-20'
+    expect(await getClosedYearRowsFromStore(existingNoCreatePg.queryable, key)).toBeUndefined()
+    expect(existingNoCreatePg.createTableCount()).toBe(0)
+    expect(existingNoCreatePg.selectCount()).toBe(1)
+
+    await setClosedYearRowsInStore(existingNoCreatePg.queryable, key, {
+      rows: [{ session_id: [701, 'POS/701'], amount_total: 9_875.125 }],
+      at: 1_763_640_000_000,
+    })
+    expect(existingNoCreatePg.createTableCount()).toBe(0)
+    expect(existingNoCreatePg.upsertCount()).toBe(1)
+    expect(await getClosedYearRowsFromStore(existingNoCreatePg.queryable, key)).toEqual({
+      rows: [{ session_id: [701, 'POS/701'], amount_total: 9_875.125 }],
+      at: 1_763_640_000_000,
+    })
+    expect(
+      existingNoCreatePg.executedSql.every((sql) => !sql.toUpperCase().startsWith('CREATE TABLE')),
+    ).toBe(true)
+
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    const pgRlsErr = Object.assign(new Error('new row violates row-level security policy'), {
+      code: '42501',
+    })
+    expect(extractSafePgErrorCode(pgRlsErr)).toBe('42501')
+    expect(extractSafePgErrorCode(new Error('plain error'))).toBeUndefined()
+    expect(extractSafePgErrorCode({ code: 'unsafe string with spaces' })).toBeUndefined()
+    warnSpy.mockRestore()
   })
 
   it('Test 1: Cold Cache vs Warm Cache — reads closed window once under 45s cap, keeps today on fast slice, and serves warm reads in <5ms even 2h later within 24h TTL', async () => {

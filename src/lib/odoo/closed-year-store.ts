@@ -11,6 +11,7 @@ import type {
 export const CLOSED_YEAR_CACHE_KEY_PREFIX = 'odoo_closed_year_cache_v1:'
 export const CLOSED_YEAR_CACHE_TABLE = 'public.vf_odoo_closed_year_cache'
 const PG_HEALTH_COOLDOWN_MS = 30_000
+const PG_UNDEFINED_TABLE_CODE = '42P01'
 
 export interface ClosedYearSqlQueryable {
   query<R extends Record<string, unknown> = Record<string, unknown>>(
@@ -33,6 +34,31 @@ const initializingQueryables = new WeakMap<ClosedYearSqlQueryable, Promise<void>
 export function buildClosedYearStorageKey(cacheKey: string): string {
   const digest = createHash('sha256').update(cacheKey).digest('hex')
   return `${CLOSED_YEAR_CACHE_KEY_PREFIX}${digest}`
+}
+
+export function extractSafePgErrorCode(error: unknown): string | undefined {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    /^[A-Z0-9_]{1,32}$/i.test(error.code)
+  ) {
+    return error.code
+  }
+  return undefined
+}
+
+function isUndefinedTableError(error: unknown): boolean {
+  if (extractSafePgErrorCode(error) === PG_UNDEFINED_TABLE_CODE) {
+    return true
+  }
+  if (error instanceof Error) {
+    return /\b42P01\b|relation\s+["']?(?:public\.)?vf_odoo_closed_year_cache["']?\s+does\s+not\s+exist/i.test(
+      error.message,
+    )
+  }
+  return false
 }
 
 async function ensureClosedYearTableInitialized(
@@ -63,6 +89,13 @@ async function ensureClosedYearTableInitialized(
     } catch {
       // Best-effort RLS enablement for restricted runtime DB roles or minimal queryable doubles.
     }
+    try {
+      await db.query(
+        `REVOKE ALL ON TABLE ${CLOSED_YEAR_CACHE_TABLE} FROM PUBLIC, anon, authenticated`,
+      )
+    } catch {
+      // Best-effort privilege revocation when Supabase client roles exist.
+    }
     initializedQueryables.add(db)
   })()
   initializingQueryables.set(db, initPromise)
@@ -71,6 +104,71 @@ async function ensureClosedYearTableInitialized(
   } finally {
     initializingQueryables.delete(db)
   }
+}
+
+async function executeWithLazyClosedYearTable<T>(
+  db: ClosedYearSqlQueryable,
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation()
+  } catch (error) {
+    if (!isUndefinedTableError(error)) {
+      throw error
+    }
+    await ensureClosedYearTableInitialized(db)
+    return await operation()
+  }
+}
+
+export async function getClosedYearRowsFromStore(
+  db: ClosedYearSqlQueryable,
+  cacheKey: string,
+): Promise<YearClosedCacheEntry | undefined> {
+  const storageKey = buildClosedYearStorageKey(cacheKey)
+  const res = await executeWithLazyClosedYearTable(db, () =>
+    db.query<{
+      raw_key: unknown
+      rows_json: unknown
+      cached_at_ms: unknown
+    }>(
+      `SELECT raw_key, rows_json, cached_at_ms FROM ${CLOSED_YEAR_CACHE_TABLE} WHERE cache_key = $1`,
+      [storageKey],
+    ),
+  )
+  if (res.rows.length === 0) return undefined
+  const row = res.rows[0]
+  if (!row || row.raw_key !== cacheKey) return undefined
+  const rawCachedAt = row.cached_at_ms
+  if (
+    (typeof rawCachedAt !== 'number' && typeof rawCachedAt !== 'string') ||
+    (typeof rawCachedAt === 'string' && rawCachedAt.trim() === '')
+  ) {
+    return undefined
+  }
+  const cachedAtMs = Number(rawCachedAt)
+  if (!Number.isFinite(cachedAtMs)) return undefined
+  const rawRows = row.rows_json
+  const parsedRows: unknown =
+    typeof rawRows === 'string' ? JSON.parse(rawRows) : rawRows
+  if (!Array.isArray(parsedRows)) return undefined
+  return { rows: parsedRows, at: cachedAtMs }
+}
+
+export async function setClosedYearRowsInStore(
+  db: ClosedYearSqlQueryable,
+  cacheKey: string,
+  entry: YearClosedCacheEntry,
+): Promise<void> {
+  const storageKey = buildClosedYearStorageKey(cacheKey)
+  const serializedRows = JSON.stringify(entry.rows)
+  const cachedAtMs = Math.trunc(entry.at)
+  await executeWithLazyClosedYearTable(db, () =>
+    db.query(
+      `INSERT INTO ${CLOSED_YEAR_CACHE_TABLE} (cache_key, raw_key, rows_json, cached_at_ms, updated_at) VALUES ($1, $2, $3::jsonb, $4, NOW()) ON CONFLICT (cache_key) DO UPDATE SET raw_key = EXCLUDED.raw_key, rows_json = EXCLUDED.rows_json, cached_at_ms = EXCLUDED.cached_at_ms, updated_at = NOW()`,
+      [storageKey, cacheKey, serializedRows, cachedAtMs],
+    ),
+  )
 }
 
 export function createPostgresYearClosedStore(
@@ -85,34 +183,9 @@ export function createPostgresYearClosedStore(
       const db = resolveQueryable()
       if (!db) return undefined
       try {
-        await ensureClosedYearTableInitialized(db)
-        const storageKey = buildClosedYearStorageKey(cacheKey)
-        const res = await db.query<{
-          raw_key: unknown
-          rows_json: unknown
-          cached_at_ms: unknown
-        }>(
-          `SELECT raw_key, rows_json, cached_at_ms FROM ${CLOSED_YEAR_CACHE_TABLE} WHERE cache_key = $1`,
-          [storageKey],
-        )
+        const entry = await getClosedYearRowsFromStore(db, cacheKey)
         hooks?.onSuccess?.()
-        if (res.rows.length === 0) return undefined
-        const row = res.rows[0]
-        if (!row || row.raw_key !== cacheKey) return undefined
-        const rawCachedAt = row.cached_at_ms
-        if (
-          (typeof rawCachedAt !== 'number' && typeof rawCachedAt !== 'string') ||
-          (typeof rawCachedAt === 'string' && rawCachedAt.trim() === '')
-        ) {
-          return undefined
-        }
-        const cachedAtMs = Number(rawCachedAt)
-        if (!Number.isFinite(cachedAtMs)) return undefined
-        const rawRows = row.rows_json
-        const parsedRows: unknown =
-          typeof rawRows === 'string' ? JSON.parse(rawRows) : rawRows
-        if (!Array.isArray(parsedRows)) return undefined
-        return { rows: parsedRows, at: cachedAtMs }
+        return entry
       } catch (error) {
         hooks?.onFailure?.(error)
         return undefined
@@ -124,14 +197,7 @@ export function createPostgresYearClosedStore(
       if (!db) return
       if (!Number.isFinite(entry.at) || !Array.isArray(entry.rows)) return
       try {
-        await ensureClosedYearTableInitialized(db)
-        const storageKey = buildClosedYearStorageKey(cacheKey)
-        const serializedRows = JSON.stringify(entry.rows)
-        const cachedAtMs = Math.trunc(entry.at)
-        await db.query(
-          `INSERT INTO ${CLOSED_YEAR_CACHE_TABLE} (cache_key, raw_key, rows_json, cached_at_ms, updated_at) VALUES ($1, $2, $3::jsonb, $4, NOW()) ON CONFLICT (cache_key) DO UPDATE SET raw_key = EXCLUDED.raw_key, rows_json = EXCLUDED.rows_json, cached_at_ms = EXCLUDED.cached_at_ms, updated_at = NOW()`,
-          [storageKey, cacheKey, serializedRows, cachedAtMs],
-        )
+        await setClosedYearRowsInStore(db, cacheKey, entry)
         hooks?.onSuccess?.()
       } catch (error) {
         hooks?.onFailure?.(error)
@@ -142,10 +208,11 @@ export function createPostgresYearClosedStore(
       const db = resolveQueryable()
       if (!db) return
       try {
-        await ensureClosedYearTableInitialized(db)
-        await db.query(
-          `DELETE FROM ${CLOSED_YEAR_CACHE_TABLE} WHERE cache_key LIKE $1`,
-          [`${CLOSED_YEAR_CACHE_KEY_PREFIX}%`],
+        await executeWithLazyClosedYearTable(db, () =>
+          db.query(
+            `DELETE FROM ${CLOSED_YEAR_CACHE_TABLE} WHERE cache_key LIKE $1`,
+            [`${CLOSED_YEAR_CACHE_KEY_PREFIX}%`],
+          ),
         )
         hooks?.onSuccess?.()
       } catch (error) {
@@ -187,8 +254,10 @@ function getClosedYearPgPool(): Pool | null {
     pool.on('error', (error) => {
       globalForClosedYearPg.__vfClosedYearCachePgHealthy = false
       globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
+      const code = extractSafePgErrorCode(error)
       logger.warn('Closed-year L2 Postgres pool error', {
         errorName: error instanceof Error ? error.name : 'PoolError',
+        ...(code ? { code } : {}),
       })
     })
     globalForClosedYearPg.__vfClosedYearCachePgPool = pool
@@ -196,8 +265,10 @@ function getClosedYearPgPool(): Pool | null {
   } catch (error) {
     globalForClosedYearPg.__vfClosedYearCachePgHealthy = false
     globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
+    const code = extractSafePgErrorCode(error)
     logger.warn('Closed-year L2 Postgres pool initialization skipped', {
       errorName: error instanceof Error ? error.name : 'InitError',
+      ...(code ? { code } : {}),
     })
     return null
   }
@@ -215,8 +286,10 @@ export function getDefaultPostgresYearClosedStore(): YearClosedPersistentStore {
         onFailure: (error) => {
           globalForClosedYearPg.__vfClosedYearCachePgHealthy = false
           globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
+          const code = extractSafePgErrorCode(error)
           logger.warn('Closed-year L2 cache operation fell back to L1 memory', {
             errorName: error instanceof Error ? error.name : 'QueryError',
+            ...(code ? { code } : {}),
           })
         },
       },

@@ -927,10 +927,18 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
     )
     expect(strippedSql).not.toMatch(/\b(drop\s+|truncate\b|delete\s+from\b)/i)
 
-    // Functional verification of runtime idempotent DDL + get/set/clear against dedicated table
+    // Functional verification of steady-state zero-DDL reads/writes + lazy 42P01 DDL fallback against dedicated table
     const storageRows = new Map<string, { rawKey: string; rowsJson: string; cachedAtMs: string }>()
     const executedSql: string[] = []
     let createCount = 0
+    let tableExists = false
+    const makeUndefinedTableError = () => {
+      const err = new Error('relation "public.vf_odoo_closed_year_cache" does not exist') as Error & {
+        code?: string
+      }
+      err.code = '42P01'
+      return err
+    }
     const queryable: ClosedYearSqlQueryable = {
       async query<R extends Record<string, unknown> = Record<string, unknown>>(
         text: string,
@@ -941,16 +949,24 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
         const upper = normalized.toUpperCase()
         if (upper.startsWith('CREATE TABLE IF NOT EXISTS PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
           createCount += 1
+          tableExists = true
           return { rows: [] }
         }
         if (upper === 'ALTER TABLE PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE ENABLE ROW LEVEL SECURITY') {
           throw new Error('restricted role: must be table owner')
         }
         if (
+          upper ===
+          'REVOKE ALL ON TABLE PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE FROM PUBLIC, ANON, AUTHENTICATED'
+        ) {
+          return { rows: [] }
+        }
+        if (
           upper.startsWith(
             'SELECT RAW_KEY, ROWS_JSON, CACHED_AT_MS FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY = $1',
           )
         ) {
+          if (!tableExists) throw makeUndefinedTableError()
           const hit = storageRows.get(String(params[0] ?? ''))
           if (!hit) return { rows: [] }
           return {
@@ -964,6 +980,7 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
           }
         }
         if (upper.startsWith('INSERT INTO PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE')) {
+          if (!tableExists) throw makeUndefinedTableError()
           storageRows.set(String(params[0] ?? ''), {
             rawKey: String(params[1] ?? ''),
             rowsJson: String(params[2] ?? '[]'),
@@ -972,6 +989,7 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
           return { rows: [] }
         }
         if (upper.startsWith('DELETE FROM PUBLIC.VF_ODOO_CLOSED_YEAR_CACHE WHERE CACHE_KEY LIKE $1')) {
+          if (!tableExists) throw makeUndefinedTableError()
           const prefix = String(params[0] ?? '').replace(/%$/, '')
           for (const k of [...storageRows.keys()]) {
             if (k.startsWith(prefix)) storageRows.delete(k)
@@ -982,8 +1000,18 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
       },
     }
 
-    const store = createPostgresYearClosedStore(() => queryable)
+    // 1) Steady-state when table already exists (e.g. migration 0054/0055 applied, role lacks CREATE): 0 DDL queries
+    tableExists = true
+    const steadyStore = createPostgresYearClosedStore(() => ({
+      query: queryable.query.bind(queryable),
+    }))
     const rawKey = 'year.net|1|8,17,24,36|2026-11-20'
+    expect(await steadyStore.get(rawKey)).toBeUndefined()
+    expect(createCount).toBe(0)
+
+    // 2) Cold schema (42P01 undefined_table): concurrent gets deduplicate lazy CREATE TABLE IF NOT EXISTS to 1 execution
+    tableExists = false
+    const store = createPostgresYearClosedStore(() => queryable)
     await Promise.all([store.get(rawKey), store.get(`${rawKey}|2`)])
     expect(createCount).toBe(1)
 

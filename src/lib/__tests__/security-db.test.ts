@@ -13,6 +13,7 @@ import { runScan } from '@/modules/ai'
 import { createCustomer, createLead, createQuotation } from '@/modules/crm'
 import { createInvoice, submitInvoice } from '@/modules/finance'
 import { createItem, createWarehouse, recordMovement } from '@/modules/inventory'
+import { createPostgresYearClosedStore, type ClosedYearSqlQueryable } from '@/lib/odoo/closed-year-store'
 
 /**
  * Row level security and privileges, exercised as the real Supabase roles. The test support stub grants every new
@@ -391,5 +392,170 @@ describe('row level security behaviour', () => {
       const other = await pg().query<{ ok: boolean }>(`select auth_has_permission($1, 'finance.invoice.approve') as ok`, [tenantB.auth.tenantId])
       expect([own.rows[0].ok, other.rows[0].ok]).toEqual([true, false])
     })
+  })
+
+  it('allows a NOSUPERUSER NOBYPASSRLS table owner to upsert and select vf_odoo_closed_year_cache and ai_daily_briefs under active RLS while blocking anon and authenticated', async () => {
+    const rlsFlags = await pg().query<{ name: string; enabled: boolean; forced: boolean }>(
+      `select c.relname as name, c.relrowsecurity as enabled, c.relforcerowsecurity as forced
+       from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relname in (
+           'vf_odoo_closed_year_cache',
+           'ai_daily_briefs',
+           'ai_runs',
+           'council_reports',
+           'council_decisions',
+           'vf_executive_governance_sync',
+           'pos_terminal_branch_map',
+           'season_events'
+         )
+       order by c.relname`,
+    )
+    expect(rlsFlags.rows).toHaveLength(8)
+    for (const row of rlsFlags.rows) {
+      expect(row.enabled, `${row.name} relrowsecurity`).toBe(true)
+      expect(row.forced, `${row.name} relforcerowsecurity`).toBe(false)
+    }
+
+    const originalCacheOwner = (
+      await pg().query<{ owner: string }>(
+        `select pg_get_userbyid(c.relowner) as owner
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public' and c.relname = 'vf_odoo_closed_year_cache'`,
+      )
+    ).rows[0].owner
+    const originalBriefOwner = (
+      await pg().query<{ owner: string }>(
+        `select pg_get_userbyid(c.relowner) as owner
+         from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = 'public' and c.relname = 'ai_daily_briefs'`,
+      )
+    ).rows[0].owner
+
+    await pg().exec(`
+      do $$
+      begin
+        if not exists (select 1 from pg_roles where rolname = 'app_table_owner') then
+          create role app_table_owner nosuperuser nobypassrls nocreatedb nocreaterole;
+        end if;
+      end
+      $$;
+      revoke create on schema public from public;
+      grant usage on schema public to app_table_owner;
+      alter table public.vf_odoo_closed_year_cache owner to app_table_owner;
+      alter table public.ai_daily_briefs owner to app_table_owner;
+      revoke all on table public.vf_odoo_closed_year_cache from public, anon, authenticated;
+      revoke all on table public.ai_daily_briefs from public, anon, authenticated;
+    `)
+
+    const cacheKey = `live-gate-rls-owner|${randomUUID()}`
+    const briefId = `brief-rls-${randomUUID()}`
+
+    try {
+      const roleInfo = (
+        await pg().query<{ rolsuper: boolean; rolbypassrls: boolean; can_create: boolean }>(
+          `select r.rolsuper,
+                  r.rolbypassrls,
+                  has_schema_privilege('app_table_owner', 'public', 'CREATE') as can_create
+           from pg_roles r where r.rolname = 'app_table_owner'`,
+        )
+      ).rows[0]
+      expect(roleInfo).toEqual({ rolsuper: false, rolbypassrls: false, can_create: false })
+
+      const queryable: ClosedYearSqlQueryable = {
+        async query<R extends Record<string, unknown> = Record<string, unknown>>(
+          text: string,
+          params?: unknown[],
+        ): Promise<{ rows: R[] }> {
+          const res = await pg().query<R>(text, params)
+          return { rows: res.rows }
+        },
+      }
+      const store = createPostgresYearClosedStore(() => queryable)
+
+      await pg().exec('set role app_table_owner')
+      try {
+        await store.set(cacheKey, {
+          rows: [{ session_id: [501, 'POS/501'], amount_total: 4_250.5 }],
+          at: 1_763_625_600_000,
+        })
+        await store.set(cacheKey, {
+          rows: [{ session_id: [501, 'POS/501'], amount_total: 5_125.75 }],
+          at: 1_763_625_700_000,
+        })
+        const cached = await store.get(cacheKey)
+        expect(cached).toEqual({
+          rows: [{ session_id: [501, 'POS/501'], amount_total: 5_125.75 }],
+          at: 1_763_625_700_000,
+        })
+
+        await pg().query(
+          `insert into public.ai_daily_briefs (id, "createdAt", "questionHash", status, reply, "agreedModels")
+           values ($1, now(), 'hash-v1', 'reported', '{"v":1}', '[]')
+           on conflict (id) do update set status = excluded.status, reply = excluded.reply`,
+          [briefId],
+        )
+        await pg().query(
+          `insert into public.ai_daily_briefs (id, "createdAt", "questionHash", status, reply, "agreedModels")
+           values ($1, now(), 'hash-v1', 'reported', '{"v":2}', '["anthropic","google"]')
+           on conflict (id) do update set status = excluded.status, reply = excluded.reply, "agreedModels" = excluded."agreedModels"`,
+          [briefId],
+        )
+        const briefRes = await pg().query<{ id: string; reply: string; agreedModels: string }>(
+          `select id, reply, "agreedModels" from public.ai_daily_briefs where id = $1`,
+          [briefId],
+        )
+        expect(briefRes.rows).toEqual([
+          { id: briefId, reply: '{"v":2}', agreedModels: '["anthropic","google"]' },
+        ])
+      } finally {
+        await pg().exec('reset role')
+      }
+
+      await asRole('anon', null, async () => {
+        await expect(pg().query('select * from public.vf_odoo_closed_year_cache')).rejects.toThrow(/permission denied/i)
+        await expect(
+          pg().query(
+            `insert into public.vf_odoo_closed_year_cache (cache_key, raw_key, rows_json, cached_at_ms)
+             values ('anon-key', 'anon-raw', '[]'::jsonb, 1)`,
+          ),
+        ).rejects.toThrow(/permission denied/i)
+        await expect(pg().query('select * from public.ai_daily_briefs')).rejects.toThrow(/permission denied/i)
+        await expect(
+          pg().query(
+            `insert into public.ai_daily_briefs (id, "questionHash", status, reply, "agreedModels")
+             values ('anon-brief', 'h', 'reported', '{}', '[]')`,
+          ),
+        ).rejects.toThrow(/permission denied/i)
+      })
+
+      await asRole('authenticated', tenantA.auth.userId, async () => {
+        await expect(pg().query('select * from public.vf_odoo_closed_year_cache')).rejects.toThrow(/permission denied/i)
+        await expect(
+          pg().query(
+            `insert into public.vf_odoo_closed_year_cache (cache_key, raw_key, rows_json, cached_at_ms)
+             values ('auth-key', 'auth-raw', '[]'::jsonb, 1)`,
+          ),
+        ).rejects.toThrow(/permission denied/i)
+        await expect(pg().query('select * from public.ai_daily_briefs')).rejects.toThrow(/permission denied/i)
+        await expect(
+          pg().query(
+            `insert into public.ai_daily_briefs (id, "questionHash", status, reply, "agreedModels")
+             values ('auth-brief', 'h', 'reported', '{}', '[]')`,
+          ),
+        ).rejects.toThrow(/permission denied/i)
+      })
+    } finally {
+      await pg().exec('reset role')
+      await pg().query('delete from public.vf_odoo_closed_year_cache where raw_key = $1', [cacheKey])
+      await pg().query('delete from public.ai_daily_briefs where id = $1', [briefId])
+      await pg().exec(`
+        alter table public.vf_odoo_closed_year_cache owner to "${originalCacheOwner.replace(/"/g, '""')}";
+        alter table public.ai_daily_briefs owner to "${originalBriefOwner.replace(/"/g, '""')}";
+        revoke all on table public.vf_odoo_closed_year_cache from public, anon, authenticated;
+        revoke all on table public.ai_daily_briefs from public, anon, authenticated;
+        revoke usage on schema public from app_table_owner;
+      `)
+    }
   })
 })

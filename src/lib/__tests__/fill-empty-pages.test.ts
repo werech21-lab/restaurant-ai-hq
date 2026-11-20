@@ -6,6 +6,7 @@ import { PER_CUSTOMER_DUE_DATE_AGING_VERIFIED } from '@/lib/aether/receivables-s
 import { isSalaryWindowDay, SALARY_WINDOW_DAYS } from '@/lib/aether/salary-window'
 import { seasonLiftsFromDaily } from '@/lib/council/advisors/seasons'
 import { buildReceivablePartnerRows, customerReceivableNetKwd, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
+import { POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 import { warehouseChainErrorPayload } from '@/lib/odoo-live-connector'
 import { defaultWarehouseQueryWindow } from '@/lib/warehouse-prep-engine'
 import { loadLiveTodaySummary } from './support/dashboard-fixture'
@@ -65,7 +66,7 @@ describe('receivables policy keeps residuals', () => {
         linesCount: 3,
       },
       {
-        accountId: 2,
+        accountId: POS_CLEARING_ACCOUNT_ID,
         accountCode: '10552',
         accountName: 'POS',
         labelAr: 'كاشير',
@@ -108,7 +109,7 @@ describe('receivable debit and credit split', () => {
       linesCount: 10,
     },
     {
-      accountId: 52,
+      accountId: POS_CLEARING_ACCOUNT_ID,
       accountCode: '10552',
       accountName: 'POS',
       labelAr: 'كاشير',
@@ -118,8 +119,8 @@ describe('receivable debit and credit split', () => {
     },
   ]
   const partners = [
-    { residualKwd: 31612.547, linesCount: 8, accountCode: '10509', accountName: 'Hesabe' },
-    { residualKwd: -1301.872, linesCount: 2, accountCode: '10509', accountName: 'Hesabe' },
+    { accountId: 9, residualKwd: 31612.547, linesCount: 8, accountCode: '10509', accountName: 'Hesabe' },
+    { accountId: 9, residualKwd: -1301.872, linesCount: 2, accountCode: '10509', accountName: 'Hesabe' },
   ]
 
   it('uses partner residuals for debits and credits, and one 10552-free net', () => {
@@ -169,7 +170,7 @@ describe('partner grouping excludes cashier clearing', () => {
       {
         partnerId: 3,
         partnerName: 'Cashier',
-        accountId: 52,
+        accountId: POS_CLEARING_ACCOUNT_ID,
         accountLabel: '10552 Account Receivable (PoS)',
         residualKwd: -40,
         linesCount: 9,

@@ -3,7 +3,11 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/app/login/login-form'
 import { LoginHero } from '@/app/login/login-hero'
-import { messageForLoginReason } from '@/app/login/login-error-message'
+import {
+  messageForLoginReason,
+  resolveLoginErrorMessage,
+  type LoginErrorMessage,
+} from '@/app/login/login-error-message'
 import {
   EXEC_SESSION_COOKIE,
   sanitizeExecNextPath,
@@ -34,6 +38,16 @@ type LoginPageProps = {
   searchParams?: Promise<{ next?: string | string[]; reason?: string | string[] }>
 }
 
+function resolveInitialLoginError(reason: string | undefined): LoginErrorMessage | null {
+  if (reason === 'invalid_credentials') {
+    return resolveLoginErrorMessage(401, {})
+  }
+  if (reason === 'rate_limited') {
+    return resolveLoginErrorMessage(429, {})
+  }
+  return messageForLoginReason(reason)
+}
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedParams = searchParams ? await searchParams : undefined
   const rawNext = Array.isArray(resolvedParams?.next)
@@ -43,7 +57,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     ? resolvedParams?.reason[0]
     : resolvedParams?.reason
   const explicitNext = rawNext ? sanitizeExecNextPath(rawNext, '') : ''
-  let accessDenied = messageForLoginReason(rawReason)
+  let accessDenied = resolveInitialLoginError(rawReason)
 
   try {
     const jar = await cookies()

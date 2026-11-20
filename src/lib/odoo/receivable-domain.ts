@@ -1,10 +1,17 @@
-import { POS_CLEARING_ACCOUNT_CODE } from '@/lib/odoo/live-sync-core'
-
 /**
- * Odoo account.account id of cashier clearing 10552 (dump account id 35).
+ * Odoo account.account id of cashier clearing (dump account id 35).
  * Every other posted asset_receivable account stays in the open balance.
+ * Isolation is strictly by verified positive integer Odoo accountId (zero account-code fallback).
  */
 export const POS_CLEARING_ACCOUNT_ID = 35
+
+export function isVerifiedReceivableAccountId(accountId: unknown): accountId is number {
+  return typeof accountId === 'number' && Number.isInteger(accountId) && accountId > 0
+}
+
+export function isExplicitPosClearingAccountId(accountId: number): boolean {
+  return accountId === POS_CLEARING_ACCOUNT_ID
+}
 
 export function buildOpenReceivableClauses(): unknown[][] {
   return [
@@ -16,7 +23,7 @@ export function buildOpenReceivableClauses(): unknown[][] {
 }
 
 export function openReceivableLineIncluded(line: {
-  accountCode: string
+  accountCode?: string
   accountId?: number | null
   accountType: string
   moveType: string
@@ -24,9 +31,10 @@ export function openReceivableLineIncluded(line: {
   reconciled: boolean
 }): boolean {
   void line.moveType
+  void line.accountCode
   if (line.parentState !== 'posted' || line.reconciled) return false
   if (line.accountType !== 'asset_receivable') return false
+  if (line.accountId !== undefined && !isVerifiedReceivableAccountId(line.accountId)) return false
   if (line.accountId === POS_CLEARING_ACCOUNT_ID) return false
-  if (line.accountCode === POS_CLEARING_ACCOUNT_CODE) return false
   return true
 }

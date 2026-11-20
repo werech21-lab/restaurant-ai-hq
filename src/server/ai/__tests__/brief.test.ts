@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { PGlite } from '@electric-sql/pglite'
+import { afterEach, describe, expect, it } from 'vitest'
 import { canTriggerManualOdooSync } from '@/lib/auth/role-access-policy'
 import { claimResponse, structuredClaim } from '@/server/ai/__tests__/claim-fixture'
 import { runBackgroundAnalysis, type BriefSources } from '@/server/ai/brief'
@@ -9,7 +11,19 @@ import type { CouncilKeys } from '@/server/ai/env'
 import { buildBriefFactPack, kuwaitBriefDays, type BriefCubeInput } from '@/server/ai/facts'
 import { latestManualAtMs, manualRetryAt, MANUAL_RUN_COOLDOWN_MS } from '@/server/ai/manual-run'
 import type { CouncilModels } from '@/server/ai/models'
-import type { AiDailyBriefDraft, AiRunDraft } from '@/server/ai/persist'
+import {
+  configureAiPersistQueryable,
+  ensureAiTables,
+  listDailyBriefs,
+  listLatestDailyBrief,
+  persistAiRuns,
+  persistDailyBrief,
+  safeListAiRuns,
+  safeListDailyBriefs,
+  type AiDailyBriefDraft,
+  type AiRunDraft,
+  type AiSqlQueryable,
+} from '@/server/ai/persist'
 
 const NOW = Date.parse('2026-11-16T03:00:00.000Z')
 const KEYS: CouncilKeys = {
@@ -490,5 +504,189 @@ describe('background Odoo brief', () => {
     expect(manualRetryAt(last, now)).toBe(new Date(now - 60_000 + MANUAL_RUN_COOLDOWN_MS).toISOString())
     expect(manualRetryAt(last, now - 60_000 + MANUAL_RUN_COOLDOWN_MS)).toBeNull()
     expect(manualRetryAt(latestManualAtMs([{ createdAtMs: now, trigger: 'schedule' }]), now)).toBeNull()
+  })
+
+  describe('PostgreSQL ai_daily_briefs & ai_runs persistence (Item 4 + Migration 0055)', () => {
+    afterEach(() => {
+      configureAiPersistQueryable(undefined)
+    })
+
+    it('auto-creates public.ai_daily_briefs and public.ai_runs with TIMESTAMPTZ DDL on 42P01 cold Postgres schema and persists nightly briefs end-to-end', async () => {
+      const pglite = new PGlite()
+      try {
+        await pglite.exec('CREATE ROLE anon; CREATE ROLE authenticated;')
+        const executedSql: string[] = []
+        const pgAdapter: AiSqlQueryable = {
+          async query<R extends Record<string, unknown> = Record<string, unknown>>(
+            text: string,
+            params?: unknown[],
+          ): Promise<{ rows: R[]; rowCount?: number | null }> {
+            executedSql.push(text.replace(/\s+/g, ' ').trim())
+            const res = await pglite.query<R>(text, params)
+            return { rows: res.rows, rowCount: res.affectedRows ?? res.rows.length }
+          },
+        }
+        configureAiPersistQueryable(pgAdapter)
+
+        // Cold schema read before tables exist: catches 42P01, runs Postgres TIMESTAMPTZ DDL (never SQLite DATETIME), returns empty
+        const emptyBeforeRun = await safeListDailyBriefs(14)
+        expect(emptyBeforeRun).toEqual({ briefs: [], error: false })
+        expect(await listLatestDailyBrief()).toBeNull()
+        expect(executedSql.some((sql) => /TIMESTAMPTZ\s+NOT\s+NULL\s+DEFAULT\s+NOW\(\)/i.test(sql))).toBe(true)
+        expect(executedSql.every((sql) => !/\bDATETIME\b/i.test(sql))).toBe(true)
+
+        // Fresh cold PGlite where first operation is scheduled nightly runBackgroundAnalysis write (42P01 on INSERT)
+        const coldWritePglite = new PGlite()
+        try {
+          await coldWritePglite.exec('CREATE ROLE anon; CREATE ROLE authenticated;')
+          const coldAdapter: AiSqlQueryable = {
+            async query<R extends Record<string, unknown> = Record<string, unknown>>(
+              text: string,
+              params?: unknown[],
+            ): Promise<{ rows: R[]; rowCount?: number | null }> {
+              const res = await coldWritePglite.query<R>(text, params)
+              return { rows: res.rows, rowCount: res.affectedRows ?? res.rows.length }
+            },
+          }
+          configureAiPersistQueryable(coldAdapter)
+
+          const days = kuwaitBriefDays(NOW)
+          const pack = packFor()
+          const fact = pack.facts.find(
+            (item) => item.scope === 'avenues' && item.period === days.yesterday && item.metric === 'net_sales_kwd',
+          )!
+          const claimText = claim([fact])
+
+          const result = await runBackgroundAnalysis(
+            { trigger: 'schedule', userId: 'system:daily-brief', referenceNowMs: NOW },
+            {
+              keys: KEYS,
+              models: MODELS,
+              sources: {
+                fetchCube: async (from) =>
+                  cube(from, from === days.yesterday ? 10.5 : 8.25, {
+                    available: false,
+                    glIncomplete: true,
+                    aggregatorCommissionUnposted: true,
+                  }),
+                fetchPurchases: async () => ({ connected: true, noData: false, totals: { totalAmountKwd: 6.75 } }),
+                fetchReceivables: async () => ({ readable: true, openReceivableKwd: 2.5 }),
+              },
+              fetchImpl: async (input) => {
+                const provider = providerOf(String(input))
+                if (!provider) throw new Error('unknown provider')
+                return analysisBody(provider, claimText)
+              },
+            },
+          )
+
+          expect(result.status).toBe('reported')
+
+          const storedList = await safeListDailyBriefs(14)
+          expect(storedList.error).toBe(false)
+          expect(storedList.briefs).toHaveLength(1)
+          expect(storedList.briefs[0]?.status).toBe('reported')
+          expect(parseStoredBrief(storedList.briefs[0]!.reply)?.recommendations).toHaveLength(1)
+
+          const adminSnapshot = await safeListAiRuns(50)
+          expect(adminSnapshot.error).toBe(false)
+          expect(adminSnapshot.source).toBe('postgres')
+          expect(adminSnapshot.runs).toHaveLength(3)
+          expect(adminSnapshot.brief?.id).toBe(storedList.briefs[0]?.id)
+
+          const rlsState = await coldWritePglite.query<{ relname: string; relrowsecurity: boolean; relforcerowsecurity: boolean }>(
+            `SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity
+             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+             WHERE n.nspname = 'public' AND c.relname IN ('ai_daily_briefs', 'ai_runs')
+             ORDER BY c.relname`,
+          )
+          expect(rlsState.rows).toEqual([
+            { relname: 'ai_daily_briefs', relrowsecurity: true, relforcerowsecurity: false },
+            { relname: 'ai_runs', relrowsecurity: true, relforcerowsecurity: false },
+          ])
+        } finally {
+          await coldWritePglite.close()
+        }
+      } finally {
+        await pglite.close()
+      }
+    })
+
+    it('persists and reads ai_daily_briefs and ai_runs under migration 0055 as a NOSUPERUSER NOBYPASSRLS table owner', async () => {
+      const pglite = new PGlite()
+      try {
+        await pglite.exec('CREATE ROLE anon; CREATE ROLE authenticated;')
+        const migration0055 = await readFile(
+          path.join(process.cwd(), 'database', 'migrations', '0055_live_gate_server_rls_and_ai_briefs.sql'),
+          'utf8',
+        )
+        await pglite.exec(migration0055)
+
+        await pglite.exec(`
+          CREATE ROLE brief_table_owner NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          GRANT USAGE ON SCHEMA public TO brief_table_owner;
+          ALTER TABLE public.ai_daily_briefs OWNER TO brief_table_owner;
+          ALTER TABLE public.ai_runs OWNER TO brief_table_owner;
+          SET ROLE brief_table_owner;
+        `)
+
+        const adapter: AiSqlQueryable = {
+          async query<R extends Record<string, unknown> = Record<string, unknown>>(
+            text: string,
+            params?: unknown[],
+          ): Promise<{ rows: R[]; rowCount?: number | null }> {
+            const res = await pglite.query<R>(text, params)
+            return { rows: res.rows, rowCount: res.affectedRows ?? res.rows.length }
+          },
+        }
+        configureAiPersistQueryable(adapter)
+
+        await ensureAiTables()
+        await persistDailyBrief({
+          id: 'brief-0055-1',
+          questionHash: 'qhash-0055',
+          status: 'reported',
+          reply: '{"trigger":"schedule"}',
+          agreedModels: '["anthropic","google"]',
+        })
+        await persistDailyBrief({
+          id: 'brief-0055-1',
+          questionHash: 'qhash-0055',
+          status: 'reported',
+          reply: '{"trigger":"schedule","updated":true}',
+          agreedModels: '["anthropic","google","xai"]',
+        })
+        await persistAiRuns([
+          {
+            id: 'run-0055-1',
+            userId: 'system:daily-brief',
+            questionHash: 'qhash-0055',
+            provider: 'anthropic',
+            modelId: RETURNED.anthropic,
+            latencyMs: 850,
+            tokensIn: 120,
+            tokensOut: 45,
+            estCostMicroUsd: 900,
+            status: 'ok',
+            errorCode: null,
+          },
+        ])
+
+        const briefs = await listDailyBriefs(10)
+        expect(briefs).toHaveLength(1)
+        expect(briefs[0]?.reply).toBe('{"trigger":"schedule","updated":true}')
+
+        const runsSnapshot = await safeListAiRuns(10)
+        expect(runsSnapshot.error).toBe(false)
+        expect(runsSnapshot.source).toBe('postgres')
+        expect(runsSnapshot.runs).toHaveLength(1)
+        expect(runsSnapshot.runs[0]?.id).toBe('run-0055-1')
+
+        await pglite.exec('RESET ROLE;')
+      } finally {
+        await pglite.close()
+      }
+    })
   })
 })

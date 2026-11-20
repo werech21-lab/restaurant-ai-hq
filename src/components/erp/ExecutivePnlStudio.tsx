@@ -143,7 +143,8 @@ export function ExecutivePnlStudio() {
     () => [
       {
         code: 'income',
-        labelAr: 'إجمالي الإيرادات المرحلة بدفتر الأستاذ العام (account.move.line)',
+        codeAr: 'إيرادات',
+        labelAr: 'إجمالي الإيرادات المرحّلة بدفتر الأستاذ العام',
         labelEn: 'Posted General Ledger Revenue (account.move.line)',
         amountKwd: gl.totalRevenueKwd,
         pctOfRev: gl.totalRevenueKwd !== null && gl.totalRevenueKwd > 0 ? 100 : null,
@@ -151,7 +152,8 @@ export function ExecutivePnlStudio() {
       },
       {
         code: 'expense_direct_cost',
-        labelAr: 'تكلفة البضاعة والمواد الغذائية والتعبئة الفعلية (COGS)',
+        codeAr: 'تكلفة مباشرة',
+        labelAr: 'تكلفة البضاعة المباعة والمواد الغذائية والتعبئة الفعلية',
         labelEn: 'Posted Cost of Goods Sold & Packaging (COGS)',
         amountKwd: gl.cogsKwd !== null ? -gl.cogsKwd : null,
         pctOfRev: gl.cogsPct,
@@ -159,6 +161,7 @@ export function ExecutivePnlStudio() {
       },
       {
         code: 'GP',
+        codeAr: 'مجمل الربح',
         labelAr: 'مجمل الربح التشغيلي (بعد تكلفة المواد الخام)',
         labelEn: 'Gross Profit (After Food & Packaging Cost)',
         amountKwd: glGrossProfitKwd,
@@ -167,6 +170,7 @@ export function ExecutivePnlStudio() {
       },
       {
         code: 'platform_commission',
+        codeAr: 'عمولات التوصيل',
         labelAr: 'عمولات منصات التوصيل المرحلة (طلبات، كيتا، ديليفرو، جاهز)',
         labelEn: 'Posted Aggregator Delivery Commissions',
         amountKwd: gl.deliveryCommissionsKwd !== null ? -gl.deliveryCommissionsKwd : null,
@@ -175,6 +179,7 @@ export function ExecutivePnlStudio() {
       },
       {
         code: 'expense',
+        codeAr: 'مصروفات تشغيلية',
         labelAr: 'المصروفات التشغيلية والإيجارات والرواتب والإهلاك المرحلة',
         labelEn: 'Posted Operating Expenses, Rent, Payroll & Depreciation',
         amountKwd:
@@ -184,6 +189,7 @@ export function ExecutivePnlStudio() {
       },
       {
         code: 'OP-NET',
+        codeAr: 'صافي التشغيل',
         labelAr: 'صافي الربح التشغيلي الفعلي (مطابق لقيود الأستاذ العام)',
         labelEn: 'Actual Operating Profit (Reconciled to Odoo General Ledger)',
         amountKwd: gl.netProfitWithheld ? null : gl.operatingProfitKwd,
@@ -280,7 +286,7 @@ export function ExecutivePnlStudio() {
     } else if (workspace.nullableSalesKwd !== null) {
       insights.push({
         id: 'pos-live-status',
-        title: isAr ? 'حالة الإقفال المحاسبي ومبيعات POS' : 'POS Live Revenue & GL Accrual Status',
+        title: isAr ? 'حالة الإقفال المحاسبي ومبيعات نقاط البيع' : 'POS Live Revenue & GL Accrual Status',
         body: isAr
           ? `صافي مبيعات نقاط البيع الفعلي يبلغ ${formatKwd(workspace.nullableSalesKwd, 'ar')}${workspace.nullableOrders !== null ? ` عبر ${formatInt(workspace.nullableOrders, 'ar')} طلب` : ''}. قيود الاستحقاق الشهرية تُقفل بنهاية الشهر${closedMonth ? ` (آخر شهر مقفل: ${closedMonth.from} → ${closedMonth.to})` : ''}.`
           : `Live POS net revenue stands at ${formatKwd(workspace.nullableSalesKwd, 'en')}${workspace.nullableOrders !== null ? ` across ${formatInt(workspace.nullableOrders, 'en')} settled orders` : ''}. Month-end GL accruals post at period close${closedMonth ? ` (last closed month: ${closedMonth.from} → ${closedMonth.to})` : ''}.`,
@@ -317,7 +323,7 @@ export function ExecutivePnlStudio() {
         id: 'gl-cost-ratio',
         title: isAr ? 'هيكل التكاليف المرحلة والهامش' : 'Posted Cost Structure & Margin',
         body: isAr
-          ? `تكلفة المواد (COGS) تمثل ${formatPct(gl.cogsPct, 'ar')} من الإيراد المرحل${gl.deliveryCommPct !== null ? `، وعمولات التوصيل ${formatPct(gl.deliveryCommPct, 'ar')}` : ''}${!gl.netProfitWithheld && gl.netProfitPct !== null ? `، بصافي هامش تشغيلي ${formatPct(gl.netProfitPct, 'ar')}` : ''}.`
+          ? `تكلفة البضاعة المباعة تمثل ${formatPct(gl.cogsPct, 'ar')} من الإيراد المرحل${gl.deliveryCommPct !== null ? `، وعمولات التوصيل ${formatPct(gl.deliveryCommPct, 'ar')}` : ''}${!gl.netProfitWithheld && gl.netProfitPct !== null ? `، بصافي هامش تشغيلي ${formatPct(gl.netProfitPct, 'ar')}` : ''}.`
           : `Posted COGS represents ${formatPct(gl.cogsPct, 'en')} of GL revenue${gl.deliveryCommPct !== null ? `, aggregator commissions ${formatPct(gl.deliveryCommPct, 'en')}` : ''}${!gl.netProfitWithheld && gl.netProfitPct !== null ? `, yielding ${formatPct(gl.netProfitPct, 'en')} operating margin` : ''}.`,
       })
     } else if (totalChSales > 0.0005) {
@@ -360,7 +366,7 @@ export function ExecutivePnlStudio() {
         node: (
           <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
             <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
-              {isAr ? 'صافي مبيعات نقاط البيع (POS)' : 'POS Net Sales (pos.order)'}
+              {isAr ? 'صافي مبيعات نقاط البيع' : 'POS Net Sales (pos.order)'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
               <NullableKwdCell value={workspace.nullableSalesKwd} locale={resolvedLocale} />
@@ -379,6 +385,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
+              queryOrFormula="SUM(amount_total - amount_tax) ON settled pos.order"
+              queryOrFormulaAr="مجموع (إجمالي الطلب − الضريبة) لإيصالات نقاط البيع المقبوضة"
+              isAr={isAr}
               compact
             />
           </div>
@@ -392,7 +401,7 @@ export function ExecutivePnlStudio() {
         node: (
           <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
             <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
-              {isAr ? 'إيرادات الأستاذ العام (GL)' : 'GL Posted Revenue'}
+              {isAr ? 'إيرادات الأستاذ العام المرحّلة' : 'GL Posted Revenue'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-400">
               <NullableKwdCell value={gl.totalRevenueKwd} locale={resolvedLocale} />
@@ -406,6 +415,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
+              queryOrFormula="SUM(credit - debit) ON income accounts WHERE parent_state = 'posted'"
+              queryOrFormulaAr="مجموع (الدائن − المدين) لحسابات الإيرادات المرحّلة في الأستاذ العام"
+              isAr={isAr}
               compact
             />
           </div>
@@ -417,7 +429,7 @@ export function ExecutivePnlStudio() {
         node: (
           <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
             <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
-              {isAr ? 'متوسط قيمة الطلب (AOV)' : 'Average Order Value (AOV)'}
+              {isAr ? 'متوسط قيمة الطلب' : 'Average Order Value (AOV)'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-slate-950 dark:text-white">
               <NullableKwdCell value={workspace.nullableAovKwd} locale={resolvedLocale} />
@@ -431,6 +443,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="محسوب بمعادلة"
+              queryOrFormula="netSalesKwd / orders"
+              queryOrFormulaAr="صافي المبيعات ÷ عدد الطلبات المقبوضة"
+              isAr={isAr}
               compact
             />
           </div>
@@ -444,7 +459,7 @@ export function ExecutivePnlStudio() {
         node: (
           <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
             <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
-              {isAr ? 'تكلفة البضاعة الفعلية (COGS)' : 'Actual GL COGS'}
+              {isAr ? 'تكلفة البضاعة المباعة الفعلية' : 'Actual GL COGS'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-rose-700 dark:text-rose-400">
               <NullableKwdCell value={gl.cogsKwd} locale={resolvedLocale} />
@@ -459,6 +474,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
+              queryOrFormula="SUM(debit - credit) ON direct_cost accounts WHERE parent_state = 'posted'"
+              queryOrFormulaAr="مجموع (المدين − الدائن) لحسابات تكلفة البضاعة المباعة المرحّلة"
+              isAr={isAr}
               compact
             />
           </div>
@@ -484,6 +502,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
+              queryOrFormula="MAX(SUM(price_subtotal)) grouped by brand"
+              queryOrFormulaAr="أعلى علامة تجارية في مجموع صافي مبيعات الأصناف"
+              isAr={isAr}
               compact
             />
           </div>
@@ -497,7 +518,7 @@ export function ExecutivePnlStudio() {
         node: (
           <div className="ds-surface relative overflow-visible min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-1 shadow-xs dark:border-slate-800 dark:bg-[#0d1524]">
             <span className="block min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">
-              {isAr ? 'صافي الربح التشغيلي (GL)' : 'GL Operating Profit'}
+              {isAr ? 'صافي الربح التشغيلي بالدفتر العام' : 'GL Operating Profit'}
             </span>
             <div className="text-xl sm:text-2xl font-black text-emerald-700 dark:text-emerald-300">
               <NullableKwdCell value={gl.operatingProfitKwd} locale={resolvedLocale} />
@@ -512,6 +533,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="محسوب بمعادلة"
+              queryOrFormula="Revenue - COGS - DeliveryCommissions - Opex - Depreciation"
+              queryOrFormulaAr="الإيرادات المرحّلة − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات التشغيلية − الإهلاك"
+              isAr={isAr}
               compact
             />
           </div>
@@ -537,6 +561,9 @@ export function ExecutivePnlStudio() {
               lastSyncAt={lastSyncIso}
               isStale24h={isStale24h}
               kind="فعلي"
+              queryOrFormula="max(pos.order net sales by mapped branch)"
+              queryOrFormulaAr="أعلى فرع نشط في صافي مبيعات نقاط البيع"
+              isAr={isAr}
               compact
             />
           </div>
@@ -675,7 +702,7 @@ export function ExecutivePnlStudio() {
           title={
             !workspace.odooConnected
               ? isAr
-                ? 'الاتصال المباشر مع Odoo غير متاح حالياً'
+                ? 'الاتصال المباشر مع أودو غير متاح حالياً'
                 : 'Odoo live connection is unavailable'
               : isAr
                 ? 'لا توجد قيود مالية في هذه الفترة'
@@ -706,7 +733,7 @@ export function ExecutivePnlStudio() {
                 </span>
                 <h3 className="text-sm font-black text-slate-950 dark:text-white">
                   {isAr
-                    ? 'تحليلات وتوصيات قائمة الدخل ومطابقة POS مع الأستاذ العام (أودو 17)'
+                    ? 'تحليلات وتوصيات قائمة الدخل ومطابقة نقاط البيع مع الأستاذ العام (أودو 17)'
                     : 'Executive P&L & POS-to-GL Intelligence (Odoo 17)'}
                 </h3>
               </div>
@@ -870,8 +897,13 @@ export function ExecutivePnlStudio() {
                   <tbody className="divide-y divide-slate-200/80 tabular-nums dark:divide-slate-800/70">
                     {populatedLineItems.map((item) => (
                       <tr key={item.code} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/40 transition">
-                        <td className="whitespace-nowrap py-3 px-4 font-mono text-slate-600 dark:text-slate-400" dir="ltr">
-                          {item.code}
+                        <td
+                          className={`whitespace-nowrap py-3 px-4 text-slate-600 dark:text-slate-400 ${
+                            isAr ? 'font-semibold' : 'font-mono'
+                          }`}
+                          dir={isAr ? 'rtl' : 'ltr'}
+                        >
+                          {isAr ? item.codeAr : item.code}
                         </td>
                         <td className="py-3 px-4 font-semibold text-slate-900 dark:text-slate-100">
                           {isAr ? item.labelAr : item.labelEn}
@@ -895,7 +927,7 @@ export function ExecutivePnlStudio() {
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-slate-50/75 px-4 py-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
                 <span>
                   {isAr
-                    ? 'قيود قائمة الدخل الشهرية تُرحَّل عند إقفال الشهر المحاسبي؛ راجع مبيعات POS ومساهمة العلامات أعلاه.'
+                    ? 'قيود قائمة الدخل الشهرية تُرحَّل عند إقفال الشهر المحاسبي؛ راجع مبيعات نقاط البيع ومساهمة العلامات أعلاه.'
                     : 'Month-end GL P&L accrual lines post at monthly close; live POS revenue and brand/branch shares are shown above.'}
                 </span>
                 {closedMonth ? (

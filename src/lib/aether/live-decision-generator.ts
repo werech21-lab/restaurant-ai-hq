@@ -321,8 +321,8 @@ function buildBranchPerformanceFinding(
   const impact = buildValidEstimate(
     weeklyLiftVal,
     medianGapKwd > 1
-      ? `20% × (peer_median_${fmtKwdText(peerMedianKwd)} − ${low.id}_${fmtKwdText(low.netKwd)}) × (7 ÷ ${days}d)`
-      : `10% × branch_gap_${fmtKwdText(gapKwd)} × (7 ÷ ${days}d)`,
+      ? `20% × (وسيط الفروع ${fmtKwdText(peerMedianKwd)} − ${low.labelAr} ${fmtKwdText(low.netKwd)}) × (7 ÷ ${days} يوم)`
+      : `10% × فجوة الفروع ${fmtKwdText(gapKwd)} × (7 ÷ ${days} يوم)`,
     {
       top_branch_kwd: top.netKwd,
       lowest_branch_kwd: low.netKwd,
@@ -533,8 +533,8 @@ function buildChannelMixFinding(
   const impact = buildValidEstimate(
     weeklyImpactVal,
     postedCommKwd !== null
-      ? `10% × posted_commissions_${fmtKwdText(postedCommKwd)} × (7 ÷ ${days}d)`
-      : `5% × aggregator_sales_${fmtKwdText(aggKwd)} × (7 ÷ ${days}d) direct shift volume`,
+      ? `10% × العمولات المرحّلة ${fmtKwdText(postedCommKwd)} × (7 ÷ ${days} يوم)`
+      : `5% × مبيعات المنصات ${fmtKwdText(aggKwd)} × (7 ÷ ${days} يوم) حجم التحويل للقنوات المباشرة`,
     {
       aggregator_kwd: aggKwd,
       direct_kwd: directKwd,
@@ -681,7 +681,7 @@ function buildQuietHoursFinding(
 
   const impact = buildValidEstimate(
     weeklyLiftVal,
-    `20% × afternoon_30d_pool_${fmtKwdText(projectedQuietWindowKwd)} × (7 ÷ ${days}d)`,
+    `20% × مبيعات فترة ما بعد الظهر ${fmtKwdText(projectedQuietWindowKwd)} × (7 ÷ ${days} يوم)`,
     {
       quiet_hours_kwd: quietKwd,
       total_hourly_kwd: totalHourlyKwd,
@@ -835,7 +835,7 @@ function buildReceivablesClearingFinding(
   const weeklyClearingVal = r3(targetCollectionPool * 0.25 + absCreditsKwd * 0.25)
   const impact = buildValidEstimate(
     weeklyClearingVal,
-    `25% × (${overdueOver30Kwd > 0.001 ? `overdue_30d_${fmtKwdText(overdueOver30Kwd)}` : `open_debits_${fmtKwdText(openDebitsKwd)}`}${absCreditsKwd > 0.001 ? ` + abs(unapplied_credits_${fmtKwdText(unappliedCreditsKwd)})` : ''}) weekly clearing pace`,
+    `25% × (${overdueOver30Kwd > 0.001 ? `الذمم المتأخرة فوق 30 يوماً ${fmtKwdText(overdueOver30Kwd)}` : `الذمم المدينة المفتوحة ${fmtKwdText(openDebitsKwd)}`}${absCreditsKwd > 0.001 ? ` + القيمة المطلقة للأرصدة الدائنة ${fmtKwdText(absCreditsKwd)}` : ''}) وتيرة التسوية الأسبوعية`,
     {
       open_debits_kwd: openDebitsKwd,
       ...(overdueOver30Kwd > 0.001 ? { overdue_over_30d_kwd: overdueOver30Kwd } : {}),
@@ -852,7 +852,7 @@ function buildReceivablesClearingFinding(
     titleEn: `Collect open AR (${fmtKwdText(openDebitsKwd)} KWD)${absCreditsKwd > 0.001 ? ` & clear unapplied credits (${fmtKwdText(unappliedCreditsKwd)} KWD)` : ''}`,
     evidence,
     rootCause: {
-      ar: `يُظهر حساب الذمم في أودو (account.move.line باستثناء مقاصة الكاشير 10552) ذمماً مدينة مفتوحة بقيمة ${fmtKwdText(openDebitsKwd)} د.ك${overdueOver30Kwd > 0.001 ? ` منها ${fmtKwdText(overdueOver30Kwd)} د.ك متأخرة فوق 30 يوماً` : ''}${absCreditsKwd > 0.001 ? ` مقابل أرصدة دائنة غير مطبّقة بقيمة ${fmtKwdText(unappliedCreditsKwd)} د.ك تحتاج مقاصة محاسبية` : ''}${topPartner ? ` (أكبر رصيد مفتوح: ${topPartner.partnerName} بواقع ${fmtKwdText(topPartner.residualKwd)} د.ك)` : ''}.`,
+      ar: `يُظهر حساب الذمم في أودو (قيود الأستاذ العام باستثناء مقاصة الكاشير 10552) ذمماً مدينة مفتوحة بقيمة ${fmtKwdText(openDebitsKwd)} د.ك${overdueOver30Kwd > 0.001 ? ` منها ${fmtKwdText(overdueOver30Kwd)} د.ك متأخرة فوق 30 يوماً` : ''}${absCreditsKwd > 0.001 ? ` مقابل أرصدة دائنة غير مطبّقة بقيمة ${fmtKwdText(unappliedCreditsKwd)} د.ك تحتاج مقاصة محاسبية` : ''}${topPartner ? ` (أكبر رصيد مفتوح: ${topPartner.partnerName} بواقع ${fmtKwdText(topPartner.residualKwd)} د.ك)` : ''}.`,
       en: `Live Odoo account.move.line receivables (excluding POS clearing 10552) carry ${fmtKwdText(openDebitsKwd)} KWD in open debits${overdueOver30Kwd > 0.001 ? ` including ${fmtKwdText(overdueOver30Kwd)} KWD aged over 30 days` : ''}${absCreditsKwd > 0.001 ? ` alongside ${fmtKwdText(unappliedCreditsKwd)} KWD in unapplied credit lines awaiting invoice matching` : ''}${topPartner ? ` (largest open partner: ${topPartner.partnerName} at ${fmtKwdText(topPartner.residualKwd)} KWD)` : ''}.`,
     },
     severity: overdueOver30Kwd > 1000 || absCreditsKwd > 500 ? 'high' : 'medium',
@@ -930,7 +930,7 @@ function buildMenuParetoFinding(
     value: tierANetKwd,
     unit: 'KWD',
     syncAt,
-    labelAr: `مبيعات أصناف الفئة A القيادية (${tierA.skuCount} صنف · ${fmtPctText(tierASharePct)}%)`,
+    labelAr: `مبيعات أصناف الفئة أ القيادية (${tierA.skuCount} صنف · ${fmtPctText(tierASharePct)}%)`,
     labelEn: `Tier-A core SKU sales (${tierA.skuCount} SKUs · ${fmtPctText(tierASharePct)}%)`,
   })
   pushValidEvidence(evidence, {
@@ -940,7 +940,7 @@ function buildMenuParetoFinding(
     value: tierA.skuCount,
     unit: 'count',
     syncAt,
-    labelAr: 'عدد أصناف الفئة A عالية الدوران',
+    labelAr: 'عدد أصناف الفئة أ عالية الدوران',
     labelEn: 'Tier-A core driver SKU count',
   })
   if (tierC.skuCount > 0) {
@@ -951,7 +951,7 @@ function buildMenuParetoFinding(
       value: tierC.skuCount,
       unit: 'count',
       syncAt,
-      labelAr: `عدد أصناف الذيل الطويل الفئة C (${fmtPctText(tierCSharePct)}%)`,
+      labelAr: `عدد أصناف الذيل الطويل الفئة ج (${fmtPctText(tierCSharePct)}%)`,
       labelEn: `Tier-C long-tail SKU count (${fmtPctText(tierCSharePct)}% share)`,
     })
   }
@@ -963,7 +963,7 @@ function buildMenuParetoFinding(
       value: tierCNetKwd,
       unit: 'KWD',
       syncAt,
-      labelAr: 'مبيعات أصناف الفئة C منخفضة الدوران',
+      labelAr: 'مبيعات أصناف الفئة ج منخفضة الدوران',
       labelEn: 'Tier-C long-tail net POS sales',
     })
   }
@@ -983,7 +983,7 @@ function buildMenuParetoFinding(
   const weeklyLiftVal = r3(((tierANetKwd * 0.02 + tierCNetKwd * 0.15) / days) * 7)
   const impact = buildValidEstimate(
     weeklyLiftVal,
-    `(2% × tier_a_${fmtKwdText(tierANetKwd)} + 15% × tier_c_${fmtKwdText(tierCNetKwd)}) × (7 ÷ ${days}d) net revenue simulation`,
+    `(2% × مبيعات الفئة أ ${fmtKwdText(tierANetKwd)} + 15% × مبيعات الفئة ج ${fmtKwdText(tierCNetKwd)}) × (7 ÷ ${days} يوم) محاكاة صافي الإيرادات`,
     {
       tier_a_kwd: tierANetKwd,
       tier_c_kwd: tierCNetKwd,
@@ -998,11 +998,11 @@ function buildMenuParetoFinding(
     advisorId: 'menu',
     kind: 'menu-pareto-rationalization',
     entities: { brandId: 'company' },
-    titleAr: `حماية ${tierA.skuCount} صنف قيادي (الفئة A · ${fmtPctText(tierASharePct)}%) وترشيد ${tierC.skuCount} صنف في الذيل الطويل (الفئة C)`,
+    titleAr: `حماية ${tierA.skuCount} صنف قيادي (الفئة أ · ${fmtPctText(tierASharePct)}%) وترشيد ${tierC.skuCount} صنف في الذيل الطويل (الفئة ج)`,
     titleEn: `Protect ${tierA.skuCount} Tier-A drivers (${fmtPctText(tierASharePct)}% sales) & rationalize ${tierC.skuCount} Tier-C tail SKUs`,
     evidence,
     rootCause: {
-      ar: `تتركز ${fmtPctText(tierASharePct)}% من صافي مبيعات الأصناف (${fmtKwdText(tierANetKwd)} د.ك) في ${tierA.skuCount} صنف فقط من الفئة A${topCleanSku ? ` يتصدرها «${topCleanSku.name}»` : ''}، بينما يتوزع ${tierC.skuCount} صنف في الفئة C على حصة ${fmtPctText(tierCSharePct)}% فقط (${fmtKwdText(tierCNetKwd)} د.ك) — علماً أن الأرقام تمثل صافي إيراد pos.order.line دون تقدير تكلفة المواد لأن حقل standard_price مقيّد لمستخدم التكامل 225.`,
+      ar: `تتركز ${fmtPctText(tierASharePct)}% من صافي مبيعات الأصناف (${fmtKwdText(tierANetKwd)} د.ك) في ${tierA.skuCount} صنف فقط من الفئة أ${topCleanSku ? ` يتصدرها «${topCleanSku.name}»` : ''}، بينما يتوزع ${tierC.skuCount} صنف في الفئة ج على حصة ${fmtPctText(tierCSharePct)}% فقط (${fmtKwdText(tierCNetKwd)} د.ك) — علماً أن الأرقام تمثل صافي إيراد بنود نقاط البيع دون تقدير تكلفة البضاعة المباعة لأن حقل التكلفة المعيارية مقيّد لمستخدم التكامل 225.`,
       en: `${tierA.skuCount} Tier-A SKUs generate ${fmtPctText(tierASharePct)}% of POS item revenue (${fmtKwdText(tierANetKwd)} KWD)${topCleanSku ? ` led by "${topCleanSku.name}"` : ''}, while ${tierC.skuCount} Tier-C SKUs contribute only ${fmtPctText(tierCSharePct)}% (${fmtKwdText(tierCNetKwd)} KWD) — measured strictly on net pos.order.line revenue without fabricating COGS (standard_price is restricted for Odoo user 225).`,
     },
     severity: tierC.skuCount > tierA.skuCount ? 'high' : 'medium',
@@ -1012,7 +1012,7 @@ function buildMenuParetoFinding(
       {
         who: { ar: 'هندسة المنيو ومديرو العلامات', en: 'Menu Engineering & Brand Leads' },
         what: {
-          ar: `تثبيت تنافسية أصناف الفئة A (${tierA.skuCount} صنف) ضد أي زيادة تتجاوز 10%، ودمج بطيئات الدوران من الفئة C (${tierC.skuCount} صنف) كإضافات وجبات لرفع متوسط الفاتورة أو تقليص تعقيد التحضير`,
+          ar: `تثبيت تنافسية أصناف الفئة أ (${tierA.skuCount} صنف) ضد أي زيادة تتجاوز 10%، ودمج بطيئات الدوران من الفئة ج (${tierC.skuCount} صنف) كإضافات وجبات لرفع متوسط الفاتورة أو تقليص تعقيد التحضير`,
           en: `Cap price increases on ${tierA.skuCount} Tier-A traffic drivers below 10% and bundle slow-moving Tier-C items (${tierC.skuCount} SKUs) into meal combos or prune low-velocity prep lines`,
         },
         when: { ar: 'قبل تحديث المنيو القادم', en: 'Before next menu cycle' },
@@ -1021,7 +1021,7 @@ function buildMenuParetoFinding(
       {
         who: { ar: 'الإدارة التنفيذية عبر فريال', en: 'Executive Pricing via Ferial AI' },
         what: {
-          ar: 'رفع أي جدول أسعار مقترح في استوديو فريال (/erp/feryal-ai) لاختبار مرونة الطلب على مستوى الصنف قبل تعديل قوائم الأسعار في أودو',
+          ar: 'رفع أي جدول أسعار مقترح في استوديو فريال للذكاء التنفيذي لاختبار مرونة الطلب على مستوى الصنف قبل تعديل قوائم الأسعار في أودو',
           en: 'Run proposed price-sheet uploads through Ferial AI (/erp/feryal-ai) for SKU-level elasticity stress-testing prior to updating Odoo POS pricelists',
         },
         when: { ar: 'عند أي مراجعة تسعير', en: 'Prior to any pricelist update' },
@@ -1108,7 +1108,7 @@ function buildUnattributedPosFinding(
   const weeklyReconciledKwd = r3((unattrKwd / days) * 7)
   const impact = buildValidEstimate(
     weeklyReconciledKwd,
-    `unattributed_sales_${fmtKwdText(unattrKwd)} × (7 ÷ ${days}d) attributed to branch P&L`,
+    `المبيعات غير المنسوبة ${fmtKwdText(unattrKwd)} × (7 ÷ ${days} يوم) منسوبة لقائمة دخل الفروع`,
     {
       unattributed_kwd: unattrKwd,
       period_days: days,
@@ -1134,7 +1134,7 @@ function buildUnattributedPosFinding(
       {
         who: { ar: 'مسؤول النظام وإدارة التشغيل', en: 'System Admin & Operations' },
         what: {
-          ar: `اعتماد ربط معرفات أجهزة pos.config بالفرع الفعلي في لوحة الإدارة (/erp/admin) لضمان مطابقة 100% من مبيعات الفروع`,
+          ar: 'اعتماد ربط معرفات أجهزة نقاط البيع بالفرع الفعلي في لوحة الإدارة لضمان مطابقة 100% من مبيعات الفروع',
           en: `Assign unmapped pos.config terminal IDs to their physical branch in Admin (/erp/admin) so 100% of POS revenue reconciles to branch scorecards`,
         },
         when: { ar: 'اليوم', en: 'Today' },

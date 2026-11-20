@@ -73,7 +73,7 @@ export function VentureAccountingHub({
   }> = [
     {
       id: 'glSummary',
-      labelAr: 'ملخص دفتر الأستاذ (Odoo GL)',
+      labelAr: 'ملخص دفتر الأستاذ العام',
       labelEn: 'Odoo General Ledger',
       icon: <BookOpen className="h-4 w-4" aria-hidden />,
     },
@@ -125,7 +125,8 @@ export function VentureAccountingHub({
                 lastSyncAt={workspace.lastSyncAt}
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
-                queryOrFormula={rec.figures.formulaAr ?? ''}
+                queryOrFormula={rec.figures.formulaEn ?? 'Open residual'}
+                queryOrFormulaAr={rec.figures.formulaAr ?? 'رصيد متبقٍ غير مسوّى'}
                 isAr={isAr}
                 compact
               />
@@ -157,6 +158,7 @@ export function VentureAccountingHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="SUM(amount_residual > 0) ON asset_receivable"
+                queryOrFormulaAr="مجموع الأرصدة المتبقية الموجبة على حسابات الذمم المدينة"
                 isAr={isAr}
                 compact
               />
@@ -188,6 +190,7 @@ export function VentureAccountingHub({
                 isStale24h={workspace.isStale24h}
                 kind="فعلي"
                 queryOrFormula="ABS(SUM(amount_residual < 0)) ON asset_receivable"
+                queryOrFormulaAr="القيمة المطلقة لمجموع الأرصدة الدائنة غير المطبّقة على حسابات الذمم المدينة"
                 isAr={isAr}
                 compact
               />
@@ -218,7 +221,7 @@ export function VentureAccountingHub({
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
                 <Landmark className="h-3.5 w-3.5" aria-hidden />
-                {isAr ? 'الإدارة المالية ومحاسبة Odoo 17' : 'Financial Accounting & Odoo 17 GL'}
+                {isAr ? 'الإدارة المالية ومحاسبة أودو 17' : 'Financial Accounting & Odoo 17 GL'}
               </span>
 
               {effectiveAuditor ? (
@@ -369,7 +372,7 @@ export function VentureAccountingHub({
             {workspace.receivables.agingBuckets.length > 0 ? (
               <div className="ds-surface relative overflow-visible rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="mb-4 text-base font-bold text-slate-900 dark:text-white">
-                  {isAr ? 'توزيع أعمار الذمم المدينة من Odoo' : 'Odoo Receivable Aging Buckets'}
+                  {isAr ? 'توزيع أعمار الذمم المدينة من أودو' : 'Odoo Receivable Aging Buckets'}
                 </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[460px] text-sm">

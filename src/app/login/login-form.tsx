@@ -35,7 +35,7 @@ export function LoginForm({ nextPath = '', initialError = null }: LoginFormProps
     const email = String(formData.get('email') || '').trim().toLowerCase()
     const password = String(formData.get('password') || '').trim()
 
-    let next = nextPath || ''
+    let next = nextPath || String(formData.get('next') || '').trim()
     if (typeof window !== 'undefined') {
       const fromQuery = new URLSearchParams(window.location.search).get('next')
       if (fromQuery && fromQuery.startsWith('/') && !fromQuery.startsWith('//')) {
@@ -118,7 +118,14 @@ export function LoginForm({ nextPath = '', initialError = null }: LoginFormProps
         {t('login.lead')}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate={false}>
+      <form
+        method="post"
+        action="/api/auth/login"
+        onSubmit={handleSubmit}
+        className="mt-6 space-y-4"
+        noValidate={false}
+      >
+        {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
         {errorMsg ? (
           <div
             id="login-error-alert"

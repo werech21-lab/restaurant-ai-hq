@@ -661,7 +661,7 @@ export function FullJourney360({
             ]
           : canPlotPointMargin
             ? [
-                { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
+                { label: isAr ? 'صافي المبيعات (نقاط البيع):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
                 {
                   label: isAr ? 'المواد والعمولات المرحّلة:' : 'Posted COGS & Commissions:',
                   value: fmtKwdVal(foodAndDelivery),
@@ -680,7 +680,7 @@ export function FullJourney360({
                 },
               ]
             : [
-                { label: isAr ? 'المبيعات (pos.order):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
+                { label: isAr ? 'صافي المبيعات (نقاط البيع):' : 'Sales (pos.order):', value: fmtKwdVal(sales), bold: true },
                 {
                   label: isAr ? 'حالة قيود الربح:' : 'GL Profit Status:',
                   value: glProfitStatusText,
@@ -732,7 +732,7 @@ export function FullJourney360({
     return [
       {
         id: 'food',
-        label: isAr ? 'تكلفة البضاعة والمواد (COGS)' : 'Cost of Goods & Packaging (COGS)',
+        label: isAr ? 'تكلفة البضاعة المباعة والمواد' : 'Cost of Goods & Packaging (COGS)',
         subLabel: isAr
           ? `من كل 10 د.ك • قيود أودو ${fmtKwdVal(foodTotal)}`
           : `per 10 KWD • Odoo GL ${fmtKwdVal(foodTotal)}`,
@@ -1418,6 +1418,8 @@ export function FullJourney360({
                             isStale24h={isStale24h}
                             kind="فعلي"
                             queryOrFormula={posSalesQuery}
+                            queryOrFormulaAr="مجموع (إجمالي الطلب − الضريبة) لطلبات نقاط البيع المدفوعة والمرحّلة لفروع الشركة المعتمدة"
+                            isAr={isAr}
                             compact
                             className="!mt-0"
                           />
@@ -1507,6 +1509,8 @@ export function FullJourney360({
                           isStale24h={isStale24h}
                           kind="فعلي"
                           queryOrFormula={posOrdersQuery}
+                          queryOrFormulaAr="عدد طلبات نقاط البيع المدفوعة غير المستردة لفروع الشركة المعتمدة"
+                          isAr={isAr}
                           compact
                         />
                       </div>
@@ -1567,6 +1571,8 @@ export function FullJourney360({
                           isStale24h={isStale24h}
                           kind="محسوب بمعادلة"
                           queryOrFormula="netSalesKwd / orders"
+                          queryOrFormulaAr="صافي المبيعات بالدينار ÷ عدد الطلبات المقبوضة"
+                          isAr={isAr}
                           compact
                         />
                       </div>
@@ -1653,6 +1659,8 @@ export function FullJourney360({
                           isStale24h={isStale24h}
                           kind="فعلي"
                           queryOrFormula="max(pos.order net sales by mapped branch)"
+                          queryOrFormulaAr="أعلى فرع مربوط من حيث صافي مبيعات نقاط البيع خلال الفترة"
+                          isAr={isAr}
                           compact
                         />
                       </div>
@@ -1775,6 +1783,12 @@ export function FullJourney360({
                                   ? "account.move.line(parent_state='posted'): Income - COGS - DeliveryCommissions - Opex - Depreciation"
                                   : "account.move.line(parent_state='posted'): income, expense_direct_cost, expense"
                               }
+                              queryOrFormulaAr={
+                                hasPostedOperatingProfit
+                                  ? 'قيود الأستاذ العام المرحّلة: الإيرادات − تكلفة البضاعة المباعة − عمولات التوصيل − المصروفات التشغيلية − الإهلاك'
+                                  : 'قيود الأستاذ العام المرحّلة: الإيرادات وتكلفة البضاعة المباعة والمصروفات التشغيلية'
+                              }
+                              isAr={isAr}
                               compact
                             />
                           </div>
@@ -1915,6 +1929,8 @@ export function FullJourney360({
                               isStale24h={isStale24h}
                               kind="فعلي"
                               queryOrFormula="account.move.line(parent_state='posted', delivery commission expense accounts)"
+                              queryOrFormulaAr="قيود الأستاذ العام المرحّلة لحسابات مصروف عمولات منصات التوصيل"
+                              isAr={isAr}
                               compact
                             />
                           </div>
@@ -2004,6 +2020,8 @@ export function FullJourney360({
                     isStale24h={isStale24h}
                     kind="فعلي"
                     queryOrFormula="pos.order.read_group(groupby=['config_id']) mapped via pos-registry.json + unattributed bucket"
+                    queryOrFormulaAr="تجميع طلبات نقاط البيع حسب جهاز الكاشير وربطها بسجل الفروع المعتمد مع فصل غير المنسوب"
+                    isAr={isAr}
                   />
                 </div>
               </div>
@@ -2275,6 +2293,8 @@ export function FullJourney360({
                   isStale24h={isStale24h}
                   kind="فعلي"
                   queryOrFormula="pos.order daily series grouped by Asia/Kuwait calendar day"
+                  queryOrFormulaAr="السلسلة اليومية لطلبات نقاط البيع مجمّعة حسب اليوم التقويمي بتوقيت الكويت"
+                  isAr={isAr}
                 />
               </V35GlassCard>
               ) : null}
@@ -2424,6 +2444,8 @@ export function FullJourney360({
                         isStale24h={isStale24h}
                         kind="فعلي"
                         queryOrFormula="account.move.line(account_type='asset_receivable', parent_state='posted', reconciled=false) -> sum(amount_residual)"
+                        queryOrFormulaAr="مجموع الرصيد المتبقي على حسابات الذمم المدينة المرحّلة غير المسوّاة"
+                        isAr={isAr}
                       />
                     </div>
                   )}
@@ -2479,13 +2501,13 @@ export function FullJourney360({
                     data={comboData}
                     hourlyFallback={comboHourlyFallback}
                     isAr={isAr}
-                    salesLegend={T('Sales (pos.order)', 'المبيعات (pos.order)')}
+                    salesLegend={T('Sales (pos.order)', 'صافي المبيعات (نقاط البيع)')}
                     netLegend={
                       hasPostedOperatingProfit && !glIncomplete
                         ? comboPlotsCompanyMargin
                           ? T('GL Operating Profit', 'صافي التشغيل (دفتر الأستاذ)')
                           : T(COMPANY_MARGIN_NOT_APPLIED_EN, COMPANY_MARGIN_NOT_APPLIED_AR)
-                        : T('Sales (pos.order)', 'المبيعات (pos.order)')
+                        : T('Sales (pos.order)', 'صافي المبيعات (نقاط البيع)')
                     }
                     heightClass="h-60 sm:h-64"
                   />
@@ -2497,6 +2519,8 @@ export function FullJourney360({
                   isStale24h={isStale24h}
                   kind={hasPostedOperatingProfit && !glIncomplete ? 'محسوب بمعادلة' : 'فعلي'}
                   queryOrFormula="pos.order net sales per day/branch + account.move.line posted operating profit ratio"
+                  queryOrFormulaAr="صافي مبيعات نقاط البيع لكل يوم أو فرع مع نسبة صافي الربح التشغيلي المرحّل في الأستاذ العام"
+                  isAr={isAr}
                 />
               </V35GlassCard>
               ) : null}
@@ -2518,7 +2542,7 @@ export function FullJourney360({
                   <p className="whitespace-normal text-[13px] sm:text-[14px] font-medium text-slate-600 dark:text-slate-300">
                     {T(
                       'Computed strictly from Odoo 17 General Ledger (account.move.line)',
-                      'محسوب حصراً من قيود دفتر الأستاذ العام في أودو 17 (account.move.line)',
+                      'محسوب حصراً من قيود دفتر الأستاذ العام المرحّلة في أودو 17',
                     )}
                   </p>
                 </div>
@@ -2552,6 +2576,8 @@ export function FullJourney360({
                       isStale24h={isStale24h}
                       kind="محسوب بمعادلة"
                       queryOrFormula="(COGS + DeliveryCommissions + OpexRentDepr + OperatingProfit) / Revenue * 10 KWD"
+                      queryOrFormulaAr="(تكلفة البضاعة المباعة + عمولات التوصيل + المصروفات والإيجار والإهلاك + الربح التشغيلي) ÷ الإيرادات × 10 د.ك"
+                      isAr={isAr}
                     />
                   </div>
                 )}
@@ -2578,7 +2604,7 @@ export function FullJourney360({
                       <p className="font-semibold">
                         {T(
                           'Computed directly from Odoo 17 POS payment and order channels (pos.payment + pos.order).',
-                          'محسوب مباشرة من قنوات الدفع والطلبات الفعلية في أودو 17 (pos.payment + pos.order).',
+                          'محسوب مباشرة من قنوات الدفع وطلبات نقاط البيع الفعلية في أودو 17.',
                         )}
                       </p>
                       <p className="text-slate-600 dark:text-slate-300">
