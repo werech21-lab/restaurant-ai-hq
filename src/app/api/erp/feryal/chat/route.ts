@@ -26,9 +26,10 @@ import { UNCONFIRMED_DRAFT_REJECTED_ERROR } from '@/lib/feryal/executive-advisor
 import {
   buildFeryalChatDiagnostics,
   computeFeryalChatFrozenScope,
+  createExecutivePricingAskOdoo,
   inferBrandIdFromConfirmedSheet,
-  runExecutivePricingChat,
   shouldRunExecutivePricingChat,
+  type ExecutivePricingAskOdooState,
 } from '@/lib/feryal/executive-chat-runner'
 import { logger, errorFields } from '@/lib/logger'
 import { runFeryalCouncil } from '@/server/ai/council'
@@ -223,64 +224,50 @@ export async function POST(req: NextRequest) {
       channel: validatedDefaults.channelId,
     }
 
-    if (
-      shouldRunExecutivePricingChat(safeQuestion, {
-        confirmedPriceSheet,
-        isFollowUpOnConfirmedSheet,
-      })
-    ) {
-      const execResult = await runExecutivePricingChat({
-        question: safeQuestion,
-        userId: authGuard.session.sub,
-        userRole: authGuard.session.role,
-        userNameAr: authGuard.session.nameAr,
-        periodLabel: requestedPeriodLabel,
-        isFollowUpOnConfirmedSheet,
-        activePriceSheetSummary: activePriceSheetSummaryInput,
-        context: contextDefaults,
-        ...(confirmedPriceSheet ? { confirmedPriceSheet } : {}),
-      })
-      const execAgreedLabel = execResult.agreed
-        .map((item) => `${item.provider}/${item.modelId}`)
-        .join(' · ')
-      return NextResponse.json(
-        {
-          ok: true,
-          reply: execResult.reply,
-          status: execResult.status,
-          provider: 'odoo-council',
-          model: execAgreedLabel,
-          participants: execResult.participants,
-          agreed: execResult.agreed,
-          executedQueries: execResult.executedQueries,
-          verifier: execResult.verifier,
-          period: execResult.period,
-          frozenScope: execResult.frozenScope,
-          activePriceSheetSummary: execResult.activePriceSheetSummary,
-          diagnostics: execResult.diagnostics,
-          auditEntry: execResult.auditEntry,
-          timestamp: new Date().toISOString(),
-        },
-        { headers: ENTERPRISE_API_SECURITY_HEADERS },
-      )
+    const isExecutivePricing = shouldRunExecutivePricingChat(safeQuestion, {
+      confirmedPriceSheet,
+      isFollowUpOnConfirmedSheet,
+    })
+
+    const pricingState: ExecutivePricingAskOdooState = {
+      frozenScope: null,
+      activePriceSheetSummary: null,
     }
 
-    const result = await runFeryalCouncil({
+    const councilInput = {
       question: safeQuestion,
       userId: authGuard.session.sub,
       userRole: authGuard.session.role,
       userNameAr: authGuard.session.nameAr,
       context: contextDefaults,
-    })
-    const frozenScope = computeFeryalChatFrozenScope({
-      question: safeQuestion,
-      period: result.period,
-      rawPeriodInput: rawPeriod,
-      requestedPeriodLabel,
-      context: contextDefaults,
-    })
+    }
+
+    const result = await runFeryalCouncil(
+      councilInput,
+      isExecutivePricing
+        ? {
+            askOdoo: createExecutivePricingAskOdoo({
+              confirmedPriceSheet,
+              isFollowUpOnConfirmedSheet,
+              activePriceSheetSummary: activePriceSheetSummaryInput,
+              periodLabel: requestedPeriodLabel,
+              state: pricingState,
+            }),
+          }
+        : undefined,
+    )
+
+    const frozenScope =
+      pricingState.frozenScope ??
+      computeFeryalChatFrozenScope({
+        question: safeQuestion,
+        period: result.period,
+        rawPeriodInput: rawPeriod,
+        requestedPeriodLabel,
+        context: contextDefaults,
+      })
     const diagnostics = buildFeryalChatDiagnostics(
-      'odoo_council',
+      isExecutivePricing ? 'executive_pricing' : 'odoo_council',
       result.participants,
       result.agreed.length >= 2,
       result.status === 'answered' && result.agreed.length < 2,
@@ -299,7 +286,7 @@ export async function POST(req: NextRequest) {
         verifier: result.verifier,
         period: result.period,
         frozenScope,
-        activePriceSheetSummary: null,
+        activePriceSheetSummary: pricingState.activePriceSheetSummary,
         diagnostics,
         auditEntry: result.auditEntry,
         timestamp: result.auditEntry?.timestampIso ?? new Date().toISOString(),

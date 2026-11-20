@@ -6,7 +6,6 @@ export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 
 
 const MIN_KEY_LENGTH = 20
 export const ANALYSIS_MAX_TOKENS = 800
-export const EXECUTIVE_COUNCIL_MAX_TOKENS = 2_000
 const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
 export const PROVIDER_COOLDOWN_MS = 45_000
@@ -120,20 +119,6 @@ export function getProviderCooldownSnapshot(
     }
   }
   return out
-}
-
-export function orderProvidersByHealth(
-  providers: readonly ProviderId[] = COUNCIL_PROVIDERS,
-  nowMs = Date.now(),
-): ProviderId[] {
-  return [...providers].sort((left, right) => {
-    const leftCool = isProviderInCooldown(left, nowMs) ? 1 : 0
-    const rightCool = isProviderInCooldown(right, nowMs) ? 1 : 0
-    if (leftCool !== rightCool) return leftCool - rightCool
-    const leftTimeouts = cooldownStore()[left]?.consecutiveTimeouts ?? 0
-    const rightTimeouts = cooldownStore()[right]?.consecutiveTimeouts ?? 0
-    return leftTimeouts - rightTimeouts
-  })
 }
 
 function recordProviderOutcome(

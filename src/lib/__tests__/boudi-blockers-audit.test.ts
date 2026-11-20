@@ -34,6 +34,10 @@ import {
   simulateExecutivePricingOptions,
 } from '@/lib/feryal/executive-advisor'
 import {
+  createExecutivePricingAskOdoo,
+  runExecutivePricingChat,
+} from '@/lib/feryal/executive-chat-runner'
+import {
   COGS_UNAVAILABLE_REPLY_AR,
   buildItemPricingAnswer,
   renderCogsUnavailableReply,
@@ -61,6 +65,7 @@ import {
   runForensicScan,
 } from '@/modules/governance/services/forensic-radar-service'
 import {
+  COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE,
   COUNCIL_ANALYSIS_TIMEOUT_MS,
   composeCouncilReply,
   runFeryalCouncil,
@@ -388,6 +393,218 @@ describe('Boudi QA Blockers Audit Suite (Blockers #1, #2, #3, #4 + Static Repo I
     expect(councilResult.status).toBe('answered')
     expect(councilResult.agreed).toEqual([])
     expect(councilResult.reply).toContain('الأفنيوز: 4,200.000 د.ك')
+  })
+
+  it('Blocker #1 Round 2: executive-chat-runner.ts has 0 separate LLM/scoring code and chat/route.ts routes ALL pricing questions through unified runFeryalCouncil', async () => {
+    const councilDiffBuf = execFileSync('git', ['diff', 'b985f9b', '--', '**/council.ts'], {
+      cwd: REPO_ROOT,
+    })
+    expect(councilDiffBuf.byteLength).toBe(0)
+
+    const runnerSource = fs.readFileSync(
+      path.join(REPO_ROOT, 'src/lib/feryal/executive-chat-runner.ts'),
+      'utf8',
+    )
+    expect(runnerSource).not.toContain('callProvider')
+    expect(runnerSource).not.toContain('COUNCIL_PROVIDERS')
+    expect(runnerSource).not.toContain('persistAiRuns')
+    expect(runnerSource).not.toContain('scoreExecutiveSynthesis')
+    expect(runnerSource).not.toContain('readCouncilKeys')
+    expect(runnerSource).not.toContain('resolveCouncilModels')
+    expect(runnerSource).not.toContain('orderProvidersByHealth')
+    expect(runnerSource).not.toContain('rankedPassed')
+    expect(runnerSource).not.toContain('EXECUTIVE_COUNCIL_MAX_TOKENS')
+
+    const routeSource = fs.readFileSync(
+      path.join(REPO_ROOT, 'src/app/api/erp/feryal/chat/route.ts'),
+      'utf8',
+    )
+    expect(routeSource).toContain('runFeryalCouncil(')
+    expect(routeSource).toContain('createExecutivePricingAskOdoo(')
+    expect(routeSource).not.toContain('runExecutivePricingChat')
+    const councilCallMatches = routeSource.match(/\brunFeryalCouncil\s*\(/g) ?? []
+    expect(councilCallMatches).toHaveLength(1)
+
+    const pack = buildExecutiveContextPack({
+      fromIso: '2026-11-01',
+      toIso: '2026-11-19',
+      brandId: 'china-garden',
+      rows: [
+        {
+          productId: 101,
+          name: 'Sweet & Sour Chicken',
+          qty: '1000',
+          netKwd: '2500.000',
+          unitPriceKwd: '2.500',
+          categoryId: 10,
+        },
+        {
+          productId: 102,
+          name: 'Spring Roll',
+          qty: '600',
+          netKwd: '900.000',
+          unitPriceKwd: '1.500',
+          categoryId: 10,
+        },
+      ],
+    })
+
+    const intakeDraft: DocumentIntakeDraft = {
+      draftId: 'draft-round2-unified',
+      fileName: 'cg-round2.xlsx',
+      fileKind: 'xlsx',
+      sourceTag: 'Extracted Draft (Unconfirmed)',
+      requiresHumanConfirmation: true,
+      period: { from: '2026-11-01', to: '2026-11-19' },
+      brand: 'china-garden',
+      branch: null,
+      rows: [
+        {
+          rowId: 'r1',
+          brand: 'China Garden',
+          itemName: 'Sweet & Sour Chicken',
+          sheetCurrentPriceKwd: '2.500',
+          proposedOptions: [
+            { optionKey: 'ch', label: 'CH', proposedPriceKwd: '2.700' },
+            { optionKey: 'ae', label: 'AE', proposedPriceKwd: '3.050' },
+          ],
+          matchedOdooProductId: 101,
+          matchedOdooProductName: 'Sweet & Sour Chicken',
+          odooRealizedUnitPriceKwd: '2.500',
+          odooQty: '1000',
+          odooNetSalesKwd: '2500.000',
+          excluded: false,
+          anomalies: [],
+        },
+      ],
+      summary: { totalRows: 1, matchedRows: 1, criticalCount: 0, warningCount: 0 },
+    }
+    const confirmedSheet = confirmDocumentIntakeDraft(intakeDraft, '2026-11-19T12:00:00Z')
+
+    const validComparison = JSON.stringify({
+      comparison: {
+        subject_id: '101',
+        relation: 'better',
+        object_id: '102',
+        metric: 'item_net_kwd',
+        cited_fact_ids: [
+          'item_net_kwd|101|2026-11-01..2026-11-19',
+          'item_net_kwd|102|2026-11-01..2026-11-19',
+        ],
+      },
+    })
+
+    const keys = {
+      anthropic: 'test-anthropic-key-0001',
+      google: 'test-google-key-00000001',
+      xai: 'test-xai-grok-key-000001',
+    }
+    const models = {
+      anthropic: 'claude-sonnet-4-6',
+      google: 'gemini-3.1-pro-preview',
+      xai: 'grok-4',
+    }
+
+    // 1) 2-of-3 consensus on unified runFeryalCouncil
+    const consensusRes = await runExecutivePricingChat(
+      {
+        question: 'Compare CH vs AE on Sweet & Sour Chicken for China Garden',
+        userId: 'u-round2',
+        confirmedPriceSheet: confirmedSheet,
+      },
+      {
+        executivePack: pack,
+        keys,
+        models,
+        persist: async () => undefined,
+        fetchImpl: async (input) => {
+          const url = String(input)
+          if (url.includes('api.anthropic.com')) {
+            return Response.json({
+              model: 'claude-sonnet-4-6-20251101',
+              content: [{ type: 'text', text: validComparison }],
+              usage: { input_tokens: 100, output_tokens: 40 },
+            })
+          }
+          if (url.includes('generativelanguage.googleapis.com')) {
+            return Response.json({
+              modelVersion: 'gemini-3.1-pro-preview-001',
+              candidates: [{ content: { parts: [{ text: validComparison }] } }],
+              usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 40 },
+            })
+          }
+          return new Response('{}', { status: 503 })
+        },
+      },
+    )
+    expect(consensusRes.status).toBe('answered')
+    expect(consensusRes.agreed.map((a) => a.provider).sort()).toEqual(['anthropic', 'google'])
+    expect(consensusRes.reply).toContain("## Feryal's Executive Opinion & Justification")
+    expect(consensusRes.reply).toContain('101 is better than 102 on item_net_kwd')
+
+    // 2) <2 agreement fallback -> [odoo.reply, COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE]
+    const askOdoo = createExecutivePricingAskOdoo({
+      confirmedPriceSheet: confirmedSheet,
+      executivePack: pack,
+    })
+    const odooDirect = await askOdoo({
+      question: 'Compare CH vs AE on Sweet & Sour Chicken for China Garden',
+      userSub: 'u-round2',
+    })
+    const fallbackRes = await runFeryalCouncil(
+      {
+        question: 'Compare CH vs AE on Sweet & Sour Chicken for China Garden',
+        userId: 'u-round2',
+      },
+      {
+        askOdoo,
+        keys: { anthropic: '', google: '', xai: '' },
+        persist: async () => undefined,
+      },
+    )
+    expect(fallbackRes.status).toBe('answered')
+    expect(fallbackRes.agreed).toEqual([])
+    expect(fallbackRes.reply).toBe(
+      [odooDirect.reply, COUNCIL_AI_EXPLANATION_UNAVAILABLE_NOTE].join('\n\n'),
+    )
+
+    // 3) All configured providers guard_rejected -> council_failed
+    const guardFailedRes = await runFeryalCouncil(
+      {
+        question: 'Compare CH vs AE on Sweet & Sour Chicken for China Garden',
+        userId: 'u-round2',
+      },
+      {
+        askOdoo,
+        keys,
+        models,
+        persist: async () => undefined,
+        fetchImpl: async (input) => {
+          const url = String(input)
+          if (url.includes('api.anthropic.com')) {
+            return Response.json({
+              model: 'claude-sonnet-4-6-20251101',
+              content: [{ type: 'text', text: 'unverified prose 999.111 KWD' }],
+              usage: { input_tokens: 50, output_tokens: 20 },
+            })
+          }
+          if (url.includes('generativelanguage.googleapis.com')) {
+            return Response.json({
+              modelVersion: 'gemini-3.1-pro-preview-001',
+              candidates: [{ content: { parts: [{ text: 'unverified prose 888.222 KWD' }] } }],
+              usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 20 },
+            })
+          }
+          return Response.json({
+            model: 'grok-4-0709',
+            choices: [{ message: { content: 'unverified prose 777.333 KWD' } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20 },
+          })
+        },
+      },
+    )
+    expect(guardFailedRes.status).toBe('council_failed')
+    expect(guardFailedRes.agreed).toEqual([])
   })
 
   it('Blocker #2: DeliveryRadarV5 displays exact Odoo Net Open Receivables (30,310.675 KWD) and never inflated ~1,077,552', () => {

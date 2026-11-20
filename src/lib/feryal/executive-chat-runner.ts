@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomUUID } from 'node:crypto'
 import {
+  askFeryalOdooAgent,
   buildFeryalNoOdooDataSuggestion,
   detectTargetBranchFromQuestion,
   detectTargetBrandFromQuestion,
@@ -8,6 +9,9 @@ import {
   resolveFeryalQuestionPeriod,
   validateFeryalContextDefaults,
   verifyFeryalReplyNumbers,
+  type AskFeryalOdooAgentInput,
+  type AskFeryalOdooAgentResult,
+  type FeryalAuditLogEntry,
   type FeryalContextDefaults,
   type FeryalExecutedOdooQuery,
   type FeryalNumericVerificationResult,
@@ -27,52 +31,36 @@ import {
 } from '@/lib/feryal/document-intake-types'
 import { resolveCanonicalBrandId } from '@/lib/feryal/sku-matcher-guard'
 import {
-  buildExecutiveCouncilPromptPayload,
+  collectExecutiveGroundedNumbers,
   detectExecutiveLocale,
-  DETERMINISTIC_SIMULATION_TAG,
-  DETERMINISTIC_SIMULATION_TAG_AR,
   fetchExecutiveContextPackFromOdoo,
   isExecutiveAdvisorQuestion,
-  KUWAIT_MARKET_STRATEGY_TAG_AR,
-  KUWAIT_MARKET_STRATEGY_TAG_EN,
-  localizeArabicExecutiveReply,
-  ODOO_VERIFIED_ACTUAL_TAG,
-  ODOO_VERIFIED_ACTUAL_TAG_AR,
   renderDeterministicExecutiveBrief,
   simulateExecutivePricingOptions,
   UNCONFIRMED_DRAFT_REJECTED_ERROR,
-  USER_INPUT_CONFIRMED_TAG,
-  USER_INPUT_CONFIRMED_TAG_AR,
   type ExecutiveContextPack,
   type ExecutiveGroundedNumbers,
   type FetchExecutiveContextPackInput,
   type ScenarioSimulationResult,
+  type SkuVelocityRow,
 } from '@/lib/feryal/executive-advisor'
-import { asksMarginOrCogs, renderCogsUnavailableReply } from '@/lib/feryal/item-pricing'
+import { asksMarginOrCogs } from '@/lib/feryal/item-pricing'
+import { ACTIVE_VENTURE_BRANCH_IDS } from '@/lib/odoo-terminal-mappings'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
-import { logger, errorFields } from '@/lib/logger'
 import {
-  COUNCIL_ANALYSIS_TIMEOUT_MS,
-  hashQuestion,
-  type CouncilAgreement,
+  runFeryalCouncil,
   type CouncilParticipant,
-  type CouncilStatus,
+  type CouncilResult,
+  type RunCouncilOptions,
 } from '@/server/ai/council'
-import { readCouncilKeys, type CouncilKeys } from '@/server/ai/env'
-import { resolveCouncilModels, type CouncilModels } from '@/server/ai/models'
-import { reviewGroundedNumbers } from '@/server/ai/number-guard'
-import { persistAiRuns, type AiRunDraft } from '@/server/ai/persist'
+import { Decimal } from '@/server/ai/decimal'
+import { extractCanonicalDecimals, reviewGroundedNumbers } from '@/server/ai/number-guard'
 import {
-  callProvider,
-  COUNCIL_PROVIDERS,
-  estimateCostMicroUsd,
-  EXECUTIVE_COUNCIL_MAX_TOKENS,
   getProviderCooldownSnapshot,
-  orderProvidersByHealth,
-  type ProviderCallResult,
   type ProviderHealthSnapshot,
   type ProviderId,
 } from '@/server/ai/providers'
+import type { ComparableFact } from '@/server/ai/structured-claim'
 
 export interface FeryalChatDiagnostics {
   mode: 'executive_pricing' | 'odoo_council'
@@ -87,16 +75,22 @@ export interface FeryalChatDiagnostics {
   cooldowns: Record<ProviderId, ProviderHealthSnapshot>
 }
 
-export interface ExecutivePricingChatResult {
-  reply: string
-  status: CouncilStatus
-  participants: CouncilParticipant[]
-  agreed: CouncilAgreement[]
-  executedQueries: FeryalExecutedOdooQuery[]
-  verifier: FeryalNumericVerificationResult
-  period: { from: string; to: string } | null
-  questionHash: string
-  auditEntry: null
+export interface ExecutivePricingAskOdooState {
+  frozenScope: FeryalFrozenScope | null
+  activePriceSheetSummary: ActivePriceSheetResponseSummary | null
+}
+
+export interface CreateExecutivePricingAskOdooOptions {
+  confirmedPriceSheet?: ConfirmedPriceSheet | null
+  isFollowUpOnConfirmedSheet?: boolean
+  activePriceSheetSummary?: string | null
+  periodLabel?: string | null
+  executivePack?: ExecutiveContextPack | null
+  fetchExecutivePack?: (input: FetchExecutiveContextPackInput) => Promise<ExecutiveContextPack | null>
+  state?: ExecutivePricingAskOdooState
+}
+
+export interface ExecutivePricingChatResult extends CouncilResult {
   frozenScope: FeryalFrozenScope
   activePriceSheetSummary: ActivePriceSheetResponseSummary | null
   diagnostics: FeryalChatDiagnostics
@@ -121,24 +115,9 @@ export interface RunExecutivePricingChatInput {
   activePriceSheetSummary?: string | null
 }
 
-export interface RunExecutivePricingChatOptions {
+export interface RunExecutivePricingChatOptions extends Omit<RunCouncilOptions, 'askOdoo'> {
   fetchExecutivePack?: (input: FetchExecutiveContextPackInput) => Promise<ExecutiveContextPack | null>
   executivePack?: ExecutiveContextPack | null
-  fetchImpl?: typeof fetch
-  timeoutMs?: number
-  maxTokens?: number
-  keys?: CouncilKeys
-  models?: CouncilModels
-  persist?: (rows: readonly AiRunDraft[]) => Promise<void>
-  sleepImpl?: (ms: number) => Promise<void>
-}
-
-function attribution(provider: string, modelId: string): string {
-  return modelId ? `${provider}/${modelId}` : provider
-}
-
-function emptyVerifier(): FeryalNumericVerificationResult {
-  return { valid: false, extractedNumbers: [], unverifiedNumbers: [], reason: 'ODOO_READ_FAILED' }
 }
 
 /**
@@ -250,11 +229,12 @@ function asksAboutCompetitor(question: string): boolean {
   return /(منافس|منافسين|المنافس|المنافسين|منافسينا|\bcompetitors?\b|\brivals?\b)/iu.test(question)
 }
 
-function isTargetedSheetOpinionOrFollowUp(question: string, isFollowUpFlag?: boolean): boolean {
-  if (isFollowUpFlag) return true
-  return /\b(?:do you agree|agree|disagree|opinion|recommend(?:ed|ation)?|feryal\s*rec|justif(?:y|ication)|why\b|rationale|verdict|summarize|board)\b|(?:توافق|توافقين|موافق|راي|رايج|رايك|توصي|توصيت|موصي|مقترح|مبرر|تبرير|فقره|ليش|لماذا|شنو\s+راي|شو\s+راي|وش\s+راي)/iu.test(
-    question,
-  )
+function assertValidConfirmedPriceSheet(sheet: unknown): asserts sheet is ConfirmedPriceSheet | null | undefined {
+  if (sheet !== undefined && sheet !== null) {
+    if (isUnconfirmedDocumentDraft(sheet) || !isConfirmedPriceSheet(sheet)) {
+      throw new Error(UNCONFIRMED_DRAFT_REJECTED_ERROR)
+    }
+  }
 }
 
 export function shouldRunExecutivePricingChat(
@@ -262,13 +242,8 @@ export function shouldRunExecutivePricingChat(
   input: Pick<RunExecutivePricingChatInput, 'confirmedPriceSheet' | 'isFollowUpOnConfirmedSheet'>,
   options?: Pick<RunExecutivePricingChatOptions, 'executivePack' | 'fetchExecutivePack'>,
 ): boolean {
+  assertValidConfirmedPriceSheet(input.confirmedPriceSheet)
   if (input.confirmedPriceSheet !== undefined && input.confirmedPriceSheet !== null) {
-    if (
-      isUnconfirmedDocumentDraft(input.confirmedPriceSheet) ||
-      !isConfirmedPriceSheet(input.confirmedPriceSheet)
-    ) {
-      throw new Error(UNCONFIRMED_DRAFT_REJECTED_ERROR)
-    }
     if (!input.isFollowUpOnConfirmedSheet || isConfirmedSheetFollowUpQuestion(question)) {
       return true
     }
@@ -301,17 +276,90 @@ function extractSimulationNumbers(grounded: ExecutiveGroundedNumbers): readonly 
   return Array.isArray(grounded.simulationNumbers) ? grounded.simulationNumbers : []
 }
 
-function reviewExecutiveAnswer(
-  text: string,
-  grounded: ExecutiveGroundedNumbers,
+function verifyExecutiveBrief(
+  reply: string,
   question: string,
+  grounded: ExecutiveGroundedNumbers,
   confirmedUserInputs: readonly string[],
+  allowedDateStrings: readonly string[],
   extraEntityNames: readonly string[],
-): { status: 'ok' | 'guard_rejected'; errorCode: string | null; offending: string[] } {
-  if (isExcludedOdooEntity(text)) {
-    return { status: 'guard_rejected', errorCode: 'EXCLUDED_ENTITY', offending: [] }
-  }
+): FeryalNumericVerificationResult {
+  const sanitizedForNumericScan = reply
+    .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/gm, ' ')
+    .replace(/(^|[^\d])\.(?:000|050|250|500|750|950)(?!\d)/gu, '$1 ')
+    .replace(/(^|[^\d.])(\d+(?:\.\d+)?)\s*%?\s*[-–—]\s*(\d+(?:\.\d+)?\s*%)/gu, '$1$2% to $3')
+    .replace(/\b1\s*(?:-\s*to\s*-|\s+to\s+|:)\s*1\b/giu, ' ')
+    .replace(/(?:^|[^\p{L}\p{N}])1\s+إلى\s+1(?=$|[^\p{L}\p{N}])/giu, ' ')
+    .replace(/\b80\s*[-/]\s*15\s*[-/]\s*5\b/gu, ' ')
+    .replace(/(?:^|[^\p{L}\p{N}])3(?:\s*-\s*|\s+)(?:scenarios?|سيناريوهات|خيارات)(?=$|[^\p{L}\p{N}])/giu, ' ')
+    .replace(/(?:^|[^\p{L}\p{N}])(?:50|5|0)\s*(?:fils|فلس)(?=$|[^\p{L}\p{N}])/giu, ' ')
+    .replace(/(?:^|[^\p{L}\p{N}])(?:odoo|أودو|اودو)\s+17(?=$|[^\p{L}\p{N}])/giu, ' ')
+    .replace(
+      /(?:^|[^\p{L}\p{N}])(?:integration\s+user|user|id|(?:ال)?مستخدم(?:\s+الربط)?|حساب\s+الربط|رقم)\s*#?225(?=$|[^\p{L}\p{N}])/giu,
+      ' ',
+    )
+    .replace(/\bpos\.config\s+(?:24|36|25|39|40|43)\b/giu, ' ')
+    .replace(/(?:^|[^\p{L}\p{N}])(?:pos_category|category|فئة)\s+150(?=$|[^\p{L}\p{N}])/giu, ' ')
+
   const simulationNumbers = extractSimulationNumbers(grounded)
+  const parsedSimulationNums = simulationNumbers
+    .map((v) => (typeof v === 'number' ? v : Number(String(v).replace(/,/g, '').trim())))
+    .filter((n) => Number.isFinite(n))
+  const parsedUserNums = confirmedUserInputs
+    .map((v) => Number(String(v).replace(/,/g, '').trim()))
+    .filter((n) => Number.isFinite(n))
+
+  const augmentedToolNumbers = [
+    ...grounded.toolNumbers,
+    ...parsedSimulationNums,
+    ...parsedUserNums,
+    0,
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    0.95,
+    1,
+    2,
+    3,
+    5,
+    -5,
+    8,
+    -8,
+    10,
+    -10,
+    12,
+    -12,
+    15,
+    -15,
+    17,
+    20,
+    -20,
+    24,
+    25,
+    -25,
+    30,
+    -30,
+    35,
+    -35,
+    36,
+    39,
+    40,
+    43,
+    50,
+    60,
+    80,
+    95,
+    100,
+    150,
+    225,
+  ]
+
+  const numericVerifier = verifyFeryalReplyNumbers(sanitizedForNumericScan, augmentedToolNumbers, {
+    allowedDateStrings,
+    allowedEntityNames: [...grounded.allowedEntityNames, ...extraEntityNames],
+  })
+
   const allowedPercents: Array<string | number> = [
     ...grounded.labeledFacts
       .filter((fact) => fact.label.includes('(%)') || /_pct(?:_|$)|_share/i.test(fact.id))
@@ -341,163 +389,43 @@ function reviewExecutiveAnswer(
     '95',
     '100',
   ]
-  const executiveFacts = {
-    toolNumbers: grounded.toolNumbers,
-    canonicalDecimals: grounded.canonicalDecimals,
-    simulationNumbers,
-    labeledFacts: grounded.labeledFacts,
-    cogsReadable: false,
-  }
-  const check = reviewGroundedNumbers(text, executiveFacts, {
-    question,
-    userInputs: confirmedUserInputs,
-    simulationNumbers,
-    allowedDecimals: [...grounded.canonicalDecimals, ...simulationNumbers, ...confirmedUserInputs],
-    allowedPercents,
-    allowedEntityNames: [...grounded.allowedEntityNames, ...extraEntityNames],
-    forbidPosCogsMarginClaims: true,
-    executiveBriefMode: true,
-  })
-  if (!check.ok) {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: check.offending }
-  }
-  if (!/\d/.test(text)) {
-    return { status: 'guard_rejected', errorCode: 'GUARD_REJECTED', offending: [] }
-  }
-  return { status: 'ok', errorCode: null, offending: [] }
-}
 
-function participantFrom(
-  call: ProviderCallResult,
-  review: ReturnType<typeof reviewExecutiveAnswer> | null,
-): CouncilParticipant {
-  if (call.status !== 'ok' || !review) {
+  const groundCheck = reviewGroundedNumbers(
+    reply,
+    {
+      toolNumbers: grounded.toolNumbers,
+      canonicalDecimals: grounded.canonicalDecimals,
+      simulationNumbers,
+      labeledFacts: grounded.labeledFacts,
+      cogsReadable: false,
+    },
+    {
+      question,
+      userInputs: confirmedUserInputs,
+      simulationNumbers,
+      allowedDecimals: [
+        ...grounded.canonicalDecimals,
+        ...simulationNumbers,
+        ...confirmedUserInputs,
+        ...extractCanonicalDecimals(allowedDateStrings.join(' ')),
+      ],
+      allowedPercents,
+      allowedEntityNames: [...grounded.allowedEntityNames, ...extraEntityNames],
+      forbidPosCogsMarginClaims: true,
+      executiveBriefMode: true,
+    },
+  )
+
+  if (!groundCheck.ok) {
     return {
-      provider: call.provider,
-      modelId: call.modelId,
-      status: 'error',
-      errorCode: call.errorCode,
-      latencyMs: call.latencyMs,
-      offendingNumbers: [],
+      valid: false,
+      extractedNumbers: numericVerifier.extractedNumbers,
+      unverifiedNumbers: numericVerifier.unverifiedNumbers,
+      reason: 'GUARD_REJECTED',
     }
   }
-  return {
-    provider: call.provider,
-    modelId: call.modelId,
-    status: review.status,
-    errorCode: review.errorCode,
-    latencyMs: call.latencyMs,
-    offendingNumbers: review.offending,
-  }
-}
 
-function scoreExecutiveSynthesis(text: string): number {
-  let score = 0
-  if (/\|.*\|/.test(text)) score += 3
-  if (
-    text.includes(ODOO_VERIFIED_ACTUAL_TAG) ||
-    text.includes(ODOO_VERIFIED_ACTUAL_TAG_AR) ||
-    text.includes(USER_INPUT_CONFIRMED_TAG) ||
-    text.includes(USER_INPUT_CONFIRMED_TAG_AR) ||
-    text.includes(DETERMINISTIC_SIMULATION_TAG) ||
-    text.includes(DETERMINISTIC_SIMULATION_TAG_AR)
-  ) {
-    score += 3
-  }
-  if (
-    text.includes(KUWAIT_MARKET_STRATEGY_TAG_EN) ||
-    text.includes(KUWAIT_MARKET_STRATEGY_TAG_AR) ||
-    /Feryal['’]?s Executive Opinion|رأي فريال التنفيذي|Feryal Rec\.|سعر فريال الموصى/iu.test(text)
-  ) {
-    score += 2
-  }
-  if (/standard_price|225/.test(text)) score += 2
-  const headingCount = (text.match(/^\s*#{1,4}\s+/gm) ?? []).length
-  if (headingCount >= 4) score += 2
-  return score
-}
-
-function verifyExecutiveFinalReply(
-  reply: string,
-  grounded: ExecutiveGroundedNumbers,
-  confirmedUserInputs: readonly string[],
-  allowedDateStrings: readonly string[],
-  modelTokens: readonly string[],
-): FeryalNumericVerificationResult {
-  const sanitizedForNumericScan = reply
-    .replace(/^\s*(?:#{1,6}\s*)?\d{1,2}[.)]\s+/gm, ' ')
-    .replace(/(^|[^\d])\.(?:000|050|250|500|750|950)(?!\d)/gu, '$1 ')
-    .replace(/(^|[^\d.])(\d+(?:\.\d+)?)\s*%?\s*[-–—]\s*(\d+(?:\.\d+)?\s*%)/gu, '$1$2% to $3')
-    .replace(/\b1\s*(?:-\s*to\s*-|\s+to\s+|:)\s*1\b/giu, ' ')
-    .replace(/(?:^|[^\p{L}\p{N}])1\s+إلى\s+1(?=$|[^\p{L}\p{N}])/giu, ' ')
-    .replace(/\b80\s*[-/]\s*15\s*[-/]\s*5\b/gu, ' ')
-    .replace(/(?:^|[^\p{L}\p{N}])3(?:\s*-\s*|\s+)(?:scenarios?|سيناريوهات|خيارات)(?=$|[^\p{L}\p{N}])/giu, ' ')
-    .replace(/(?:^|[^\p{L}\p{N}])(?:50|5|0)\s*(?:fils|فلس)(?=$|[^\p{L}\p{N}])/giu, ' ')
-    .replace(/(?:^|[^\p{L}\p{N}])(?:odoo|أودو|اودو)\s+17(?=$|[^\p{L}\p{N}])/giu, ' ')
-    .replace(
-      /(?:^|[^\p{L}\p{N}])(?:integration\s+user|user|id|(?:ال)?مستخدم(?:\s+الربط)?|حساب\s+الربط|رقم)\s*#?225(?=$|[^\p{L}\p{N}])/giu,
-      ' ',
-    )
-    .replace(/\bpos\.config\s+(?:24|36|25|39|40|43)\b/giu, ' ')
-    .replace(/(?:^|[^\p{L}\p{N}])(?:pos_category|category|فئة)\s+150(?=$|[^\p{L}\p{N}])/giu, ' ')
-
-  const parsedSimulationNums = extractSimulationNumbers(grounded)
-    .map((v) => (typeof v === 'number' ? v : Number(String(v).replace(/,/g, '').trim())))
-    .filter((n) => Number.isFinite(n))
-  const parsedUserNums = confirmedUserInputs
-    .map((v) => Number(String(v).replace(/,/g, '').trim()))
-    .filter((n) => Number.isFinite(n))
-
-  const augmentedToolNumbers = [
-    ...grounded.toolNumbers,
-    ...parsedSimulationNums,
-    ...parsedUserNums,
-    0,
-    0.05,
-    0.25,
-    0.5,
-    0.75,
-    0.95,
-    1,
-    2,
-    3,
-    5,
-    -5,
-    8,
-    -8,
-    10,
-    '-10',
-    12,
-    -12,
-    15,
-    -15,
-    17,
-    20,
-    -20,
-    24,
-    25,
-    -25,
-    30,
-    -30,
-    35,
-    -35,
-    36,
-    39,
-    40,
-    43,
-    50,
-    60,
-    80,
-    95,
-    100,
-    150,
-    225,
-  ].map((n) => Number(n))
-
-  return verifyFeryalReplyNumbers(sanitizedForNumericScan, augmentedToolNumbers, {
-    allowedDateStrings,
-    allowedEntityNames: [...grounded.allowedEntityNames, ...modelTokens],
-  })
+  return numericVerifier
 }
 
 function buildActivePriceSheetSummary(
@@ -524,103 +452,254 @@ function buildActivePriceSheetSummary(
   }
 }
 
-export async function runExecutivePricingChat(
-  input: RunExecutivePricingChatInput,
-  options: RunExecutivePricingChatOptions = {},
-): Promise<ExecutivePricingChatResult> {
-  const question = input.question.trim()
-  const questionHash = hashQuestion(question)
+/**
+ * Builds deterministic `ComparableFact[]` for the unified `runFeryalCouncil` comparison gate.
+ * Every emitted fact uses canonical Decimal values and real Odoo / confirmed-sheet entity IDs.
+ */
+export function buildExecutiveComparableFacts(
+  pack: ExecutiveContextPack,
+  simulation: ScenarioSimulationResult,
+): ComparableFact[] {
+  const from = pack.period.from
+  const to = pack.period.to
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return []
+  }
 
-  if (input.confirmedPriceSheet !== undefined && input.confirmedPriceSheet !== null) {
-    if (
-      isUnconfirmedDocumentDraft(input.confirmedPriceSheet) ||
-      !isConfirmedPriceSheet(input.confirmedPriceSheet)
-    ) {
-      throw new Error(UNCONFIRMED_DRAFT_REJECTED_ERROR)
+  const periodKey = from === to ? from : `${from}..${to}`
+  const facts: ComparableFact[] = []
+  const seen = new Set<string>()
+
+  const pushFact = (
+    metric: string,
+    entityType: string,
+    entityId: string,
+    entityName: string,
+    rawAmount: string | number | null | undefined,
+    unit: 'KWD' | 'qty' | 'orders',
+  ): void => {
+    if (rawAmount === null || rawAmount === undefined) return
+    const parsed = Decimal.parse(String(rawAmount).trim())
+    if (!parsed) return
+    const cleanId = entityId.trim()
+    const cleanName = entityName.trim() || cleanId
+    if (!cleanId || isExcludedOdooEntity(cleanId) || isExcludedOdooEntity(cleanName)) return
+    const id = `${metric}|${cleanId}|${periodKey}`
+    if (seen.has(id)) return
+    seen.add(id)
+    facts.push({
+      id,
+      metric,
+      period: periodKey,
+      date: periodKey,
+      unit,
+      value: parsed.canonical(),
+      entityType,
+      entityId: cleanId,
+      entityName: cleanName,
+    })
+  }
+
+  for (const opt of simulation.options) {
+    pushFact(
+      'stress_test_delta_kwd',
+      'pricing_option',
+      opt.optionKey,
+      opt.label,
+      opt.stressTestDeltaKwd,
+      'KWD',
+    )
+    pushFact(
+      'conservative_delta_kwd',
+      'pricing_option',
+      opt.optionKey,
+      opt.label,
+      opt.conservativeDeltaKwd,
+      'KWD',
+    )
+    pushFact('base_delta_kwd', 'pricing_option', opt.optionKey, opt.label, opt.baseDeltaKwd, 'KWD')
+    pushFact(
+      'stress_test_projected_revenue_kwd',
+      'pricing_option',
+      opt.optionKey,
+      opt.label,
+      opt.stressTestCase.projectedRevenueKwd,
+      'KWD',
+    )
+  }
+
+  const selectedSkuIds = new Set<number>()
+  const selectedSkus: SkuVelocityRow[] = []
+  const addSku = (sku: SkuVelocityRow | undefined): void => {
+    if (!sku || selectedSkuIds.has(sku.productId)) return
+    selectedSkuIds.add(sku.productId)
+    selectedSkus.push(sku)
+  }
+
+  for (const sku of pack.skus.slice(0, 30)) {
+    addSku(sku)
+  }
+  const skuById = new Map<number, SkuVelocityRow>(pack.skus.map((sku) => [sku.productId, sku]))
+  for (const opt of simulation.options) {
+    for (const line of opt.lines) {
+      if (line.matched && line.productId !== null) {
+        addSku(skuById.get(line.productId))
+      }
+    }
+  }
+  if (pack.skus.length > 0) {
+    addSku(pack.skus[pack.skus.length - 1])
+  }
+
+  for (const sku of selectedSkus) {
+    const skuEntityId = String(sku.productId)
+    pushFact('item_net_kwd', 'product', skuEntityId, sku.name, sku.netSalesKwd, 'KWD')
+    pushFact('item_qty', 'product', skuEntityId, sku.name, sku.qty, 'qty')
+    if (sku.avgRealizedPriceKwd !== null) {
+      pushFact(
+        'item_unit_price_kwd',
+        'product',
+        skuEntityId,
+        sku.name,
+        sku.avgRealizedPriceKwd,
+        'KWD',
+      )
     }
   }
 
-  const activeSheet = input.confirmedPriceSheet ?? null
-  const rawPeriodInput = input.context?.period ?? input.period ?? null
-  const validatedDefaults = validateFeryalContextDefaults({
-    period: rawPeriodInput,
-    customFrom: input.context?.customFrom ?? input.customFrom,
-    customTo: input.context?.customTo ?? input.customTo,
-    branch: input.context?.branch ?? input.branch,
-    brand: input.context?.brand ?? input.brand,
-    channel: input.context?.channel ?? input.channel,
-  })
+  const primaryOption =
+    simulation.options.find((opt) => opt.optionKey === simulation.recommendedOptionKey) ??
+    simulation.options[0] ??
+    null
+  if (primaryOption) {
+    for (const line of primaryOption.lines) {
+      if (line.matched && line.productId !== null && line.feryalRecKwd !== null) {
+        pushFact(
+          'feryal_rec_price_kwd',
+          'product',
+          String(line.productId),
+          line.matchedOdooName ?? line.itemName,
+          line.feryalRecKwd,
+          'KWD',
+        )
+      }
+    }
+  }
 
-  const branchDetection = detectTargetBranchFromQuestion(question)
-  const brandDetection = detectTargetBrandFromQuestion(question)
-  const channelDetection = detectTargetChannelFromQuestion(question)
-  const inferredSheetBrandId = inferBrandIdFromConfirmedSheet(activeSheet)
-
-  const effectiveBranchId = branchDetection.branchId ?? validatedDefaults.branchId
-  const effectiveBrandId =
-    brandDetection.brandId ?? validatedDefaults.brandId ?? inferredSheetBrandId
-  const effectiveChannelId = channelDetection.channelId ?? validatedDefaults.channelId
-  const resolvedPeriod = resolveFeryalQuestionPeriod(
-    question,
-    input.referenceNowMs,
-    validatedDefaults,
+  const brandEntityId = pack.scope.brandId ?? 'venture-foods'
+  const brandEntityName = pack.scope.brandLabelEn ?? 'Venture Foods'
+  pushFact(
+    'brand_net_sales_kwd',
+    'brand',
+    brandEntityId,
+    brandEntityName,
+    pack.totals.totalNetSalesKwd,
+    'KWD',
   )
+  pushFact('brand_qty', 'brand', brandEntityId, brandEntityName, pack.totals.totalQty, 'qty')
 
-  const initialFrozenScope = buildFeryalFrozenScope({
-    dateFrom: resolvedPeriod.from,
-    dateTo: resolvedPeriod.to,
-    validatedPeriod: validatedDefaults.period,
-    rawPeriodKey: rawPeriodInput,
-    requestedPeriodLabel: input.periodLabel,
-    hasExplicitPeriod: resolvedPeriod.hasExplicitPeriod,
-    brandId: effectiveBrandId,
-    branchId: effectiveBranchId,
-    channelId: effectiveChannelId,
-    referenceNowMs: input.referenceNowMs,
-  })
-
-  let pack: ExecutiveContextPack | null = null
-  try {
-    if (options.executivePack !== undefined) {
-      pack = options.executivePack
-    } else {
-      const fetchPack = options.fetchExecutivePack ?? fetchExecutiveContextPackFromOdoo
-      pack = await fetchPack({
-        fromIso: resolvedPeriod.from,
-        toIso: resolvedPeriod.to,
-        periodKey: validatedDefaults.period ?? 'custom',
-        periodLabelAr: resolvedPeriod.periodLabelAr,
-        brandId: effectiveBrandId,
-        branchId: effectiveBranchId,
-        referenceNowMs: input.referenceNowMs,
-      })
+  if (pack.branchChannelMix?.available) {
+    for (const ch of pack.branchChannelMix.channels) {
+      pushFact(
+        'channel_net_sales_kwd',
+        'channel',
+        ch.channelKey,
+        ch.channelKey,
+        ch.netSalesKwd,
+        'KWD',
+      )
     }
-  } catch (error) {
-    logger.error('feryal executive odoo read failed', errorFields(error))
-    return {
-      reply: 'تعذّر قراءة بيانات أودو لهذا التحليل التنفيذي.',
-      status: 'council_failed',
-      participants: [],
-      agreed: [],
-      executedQueries: [],
-      verifier: emptyVerifier(),
-      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
-      questionHash,
-      auditEntry: null,
-      frozenScope: initialFrozenScope,
-      activePriceSheetSummary: buildActivePriceSheetSummary(activeSheet, null, initialFrozenScope),
-      diagnostics: buildFeryalChatDiagnostics('executive_pricing', [], false, false),
+    const activeBranchSet = new Set<string>(ACTIVE_VENTURE_BRANCH_IDS)
+    for (const br of pack.branchChannelMix.topBranches) {
+      if (!activeBranchSet.has(br.branchId)) continue
+      pushFact('net_sales_kwd', 'branch', br.branchId, br.labelEn, br.netSalesKwd, 'KWD')
+      pushFact('orders', 'branch', br.branchId, br.labelEn, br.orders, 'orders')
     }
   }
 
-  if (!pack || (pack.skus.length === 0 && !activeSheet)) {
-    const noDataReply = buildFeryalNoOdooDataSuggestion('pos_no_data')
-    return {
-      reply: noDataReply,
-      status: 'no_odoo_data',
-      participants: [],
-      agreed: [],
-      executedQueries: pack
+  return facts
+}
+
+/**
+ * Pure deterministic `askOdoo` adapter for `runFeryalCouncil` on executive pricing and
+ * confirmed price-sheet questions. Performs zero LLM calls; `runFeryalCouncil` executes
+ * the single unified 3-model Council and structured comparison consensus gate.
+ */
+export function createExecutivePricingAskOdoo(
+  config: CreateExecutivePricingAskOdooOptions = {},
+): typeof askFeryalOdooAgent {
+  assertValidConfirmedPriceSheet(config.confirmedPriceSheet)
+  const activeSheet = config.confirmedPriceSheet ?? null
+
+  return async function executivePricingAskOdoo(
+    agentInput: AskFeryalOdooAgentInput,
+  ): Promise<AskFeryalOdooAgentResult> {
+    const question = agentInput.question.trim()
+    const rawPeriodInput = agentInput.context?.period ?? agentInput.period ?? null
+    const validatedDefaults = validateFeryalContextDefaults({
+      period: rawPeriodInput,
+      customFrom: agentInput.context?.customFrom ?? agentInput.customFrom,
+      customTo: agentInput.context?.customTo ?? agentInput.customTo,
+      branch: agentInput.context?.branch ?? agentInput.branch,
+      brand: agentInput.context?.brand ?? agentInput.brand,
+      channel: agentInput.context?.channel ?? agentInput.channel,
+    })
+
+    const branchDetection = detectTargetBranchFromQuestion(question)
+    const brandDetection = detectTargetBrandFromQuestion(question)
+    const channelDetection = detectTargetChannelFromQuestion(question)
+    const inferredSheetBrandId = inferBrandIdFromConfirmedSheet(activeSheet)
+
+    const effectiveBranchId = branchDetection.branchId ?? validatedDefaults.branchId
+    const effectiveBrandId =
+      brandDetection.brandId ?? validatedDefaults.brandId ?? inferredSheetBrandId
+    const effectiveChannelId = channelDetection.channelId ?? validatedDefaults.channelId
+    const resolvedPeriod = resolveFeryalQuestionPeriod(
+      question,
+      agentInput.referenceNowMs,
+      validatedDefaults,
+    )
+
+    const initialFrozenScope = buildFeryalFrozenScope({
+      dateFrom: resolvedPeriod.from,
+      dateTo: resolvedPeriod.to,
+      validatedPeriod: validatedDefaults.period,
+      rawPeriodKey: rawPeriodInput,
+      requestedPeriodLabel: config.periodLabel,
+      hasExplicitPeriod: resolvedPeriod.hasExplicitPeriod,
+      brandId: effectiveBrandId,
+      branchId: effectiveBranchId,
+      channelId: effectiveChannelId,
+      referenceNowMs: agentInput.referenceNowMs,
+    })
+
+    if (config.state) {
+      config.state.frozenScope = initialFrozenScope
+      config.state.activePriceSheetSummary = buildActivePriceSheetSummary(
+        activeSheet,
+        null,
+        initialFrozenScope,
+      )
+    }
+
+    const pack =
+      config.executivePack !== undefined
+        ? config.executivePack
+        : await (config.fetchExecutivePack ?? fetchExecutiveContextPackFromOdoo)({
+            fromIso: resolvedPeriod.from,
+            toIso: resolvedPeriod.to,
+            periodKey: validatedDefaults.period ?? 'custom',
+            periodLabelAr: resolvedPeriod.periodLabelAr,
+            brandId: effectiveBrandId,
+            branchId: effectiveBranchId,
+            referenceNowMs: agentInput.referenceNowMs,
+          })
+
+    const timestampIso = new Date(agentInput.referenceNowMs ?? Date.now()).toISOString()
+
+    if (!pack || (pack.skus.length === 0 && !activeSheet)) {
+      const noDataReply = buildFeryalNoOdooDataSuggestion('pos_no_data')
+      const noDataQueries: FeryalExecutedOdooQuery[] = pack
         ? [
             {
               model: pack.odooQueryMeta.model,
@@ -630,251 +709,202 @@ export async function runExecutivePricingChat(
               period: { from: pack.period.from, to: pack.period.to },
             },
           ]
-        : [],
-      verifier: verifyFeryalReplyNumbers(noDataReply, []),
-      period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
-      questionHash,
-      auditEntry: null,
-      frozenScope: initialFrozenScope,
-      activePriceSheetSummary: buildActivePriceSheetSummary(activeSheet, null, initialFrozenScope),
-      diagnostics: buildFeryalChatDiagnostics('executive_pricing', [], false, false),
-    }
-  }
-
-  const finalFrozenScope = buildFeryalFrozenScope({
-    dateFrom: pack.period.from,
-    dateTo: pack.period.to,
-    validatedPeriod: validatedDefaults.period,
-    rawPeriodKey: rawPeriodInput,
-    requestedPeriodLabel: input.periodLabel,
-    hasExplicitPeriod: resolvedPeriod.hasExplicitPeriod,
-    brandId: pack.scope.brandId ?? effectiveBrandId,
-    branchId: pack.scope.branchId ?? effectiveBranchId,
-    channelId: effectiveChannelId,
-    referenceNowMs: input.referenceNowMs,
-  })
-
-  const simulation: ScenarioSimulationResult = simulateExecutivePricingOptions({
-    pack,
-    sheet: activeSheet,
-    prompt: question,
-  })
-  const activePriceSheetSummary = buildActivePriceSheetSummary(
-    activeSheet,
-    simulation,
-    finalFrozenScope,
-  )
-
-  const locale = detectExecutiveLocale(question)
-  const asksCogs = asksMarginOrCogs(question)
-  const promptPayload = buildExecutiveCouncilPromptPayload(pack, simulation, locale, asksCogs)
-  const grounded = promptPayload.grounded
-  const deterministicBrief = renderDeterministicExecutiveBrief(pack, simulation, locale, asksCogs)
-  const confirmedUserInputs = collectConfirmedSheetInputs(activeSheet)
-  const extraEntityNames = activeSheet?.fileName ? [activeSheet.fileName] : []
-
-  const executedQueries: FeryalExecutedOdooQuery[] = [
-    {
-      model: pack.odooQueryMeta.model,
-      method: pack.odooQueryMeta.method,
-      domain: pack.odooQueryMeta.domain,
-      groupby: [...pack.odooQueryMeta.groupby],
-      period: { from: pack.period.from, to: pack.period.to },
-    },
-  ]
-
-  const isSheetFollowUp =
-    activeSheet !== null &&
-    isTargetedSheetOpinionOrFollowUp(question, input.isFollowUpOnConfirmedSheet)
-
-  const actionLabelsRule =
-    locale === 'ar'
-      ? 'استخدمي حصراً تسميات القرار التنفيذي العربية في جدول الأصناف: "اعتماد الزيادة"، "تقييد السقف"، "تثبيت السعر لحماية الإقبال"، "باقة / بيع إضافي"، "تصحيح خطأ الإدخال أولاً".'
-      : 'Use the exact SKU Playbook action labels where applicable: "Approve", "Cap Increase", "Hold / Protect Traffic", "Bundle / Upsell", "Fix Typo First".'
-
-  const followUpRule =
-    locale === 'ar'
-      ? 'سؤال متابعة على جدول الأسعار المؤكد: أجيبي مباشرة وبحسم في أعلى التقرير تحت عنوان "## رأي فريال التنفيذي والمبررات الإدارية"، مع ذكر الحكم التنفيذي بالعربية، والاستشهاد بعمود "سعر فريال الموصى د.ك" والمحاكاة عبر السيناريوهات الثلاثة و[استراتيجية التسعير في سوق الكويت] دون العودة لملخص باريتو عام منفصل عن الجدول.'
-      : 'FOLLOW-UP EXECUTIVE QUESTION ON CONFIRMED PRICE SHEET: Directly and decisively answer the user\'s specific follow-up question right at the top under "## Feryal\'s Executive Opinion & Justification", stating your explicit Verdict (Agree / Partially Agree (Recommended) / Disagree), citing the "Feryal Rec. KWD" column, the 3-scenario simulation, and [Kuwait Market Pricing Strategy]. NEVER ignore the confirmed price sheet or fall back to a generic sheet-less Pareto/ABC summary.'
-
-  const executiveSystemPrompt = [
-    promptPayload.systemPrompt,
-    actionLabelsRule,
-    'Write like a board-ready F&B CFO & COO advisor — zero robotic filler, concrete KWD impact ranges across Base, Conservative, and Stress-Test scenarios, and explicit Kuwait dine-in vs delivery aggregator execution guidance.',
-    ...(isSheetFollowUp ? [followUpRule] : []),
-  ].join('\n')
-
-  const userMessage = [
-    ...(isSheetFollowUp && activeSheet
-      ? [
-          '=== FOLLOW-UP EXECUTIVE QUESTION ON CONFIRMED PRICE SHEET ===',
-          `Active Confirmed Price Sheet: ${activeSheet.fileName} (draftId: ${activeSheet.draftId}, active rows: ${activeSheet.rows.length})`,
-          ...(typeof input.activePriceSheetSummary === 'string' &&
-          input.activePriceSheetSummary.trim().length > 0
-            ? ['Prior Sheet Analysis Context:', input.activePriceSheetSummary.trim()]
-            : []),
-          '',
-        ]
-      : []),
-    `Executive Question (${locale.toUpperCase()}):`,
-    question,
-    '',
-    'Deterministic Executive Facts & 3-Scenario Financial Simulation JSON:',
-    promptPayload.userFactsPayload,
-  ].join('\n')
-
-  const keys = options.keys ?? readCouncilKeys()
-  const models = options.models ?? resolveCouncilModels()
-  const orderedProviders = orderProvidersByHealth(COUNCIL_PROVIDERS)
-
-  const callsByProvider = new Map<ProviderId, ProviderCallResult>()
-  const rawCalls = await Promise.all(
-    orderedProviders.map((provider) =>
-      callProvider({
-        provider,
-        apiKey: keys[provider],
-        model: models[provider],
-        system: executiveSystemPrompt,
-        user: userMessage,
-        timeoutMs: options.timeoutMs ?? COUNCIL_ANALYSIS_TIMEOUT_MS,
-        maxTokens: options.maxTokens ?? EXECUTIVE_COUNCIL_MAX_TOKENS,
-        fetchImpl: options.fetchImpl,
-        sleepImpl: options.sleepImpl,
-      }),
-    ),
-  )
-  for (const call of rawCalls) {
-    callsByProvider.set(call.provider, call)
-  }
-
-  const passed: Array<{ provider: ProviderId; modelId: string; text: string }> = []
-  const participants: CouncilParticipant[] = []
-  const drafts: AiRunDraft[] = []
-
-  for (const provider of COUNCIL_PROVIDERS) {
-    const call = callsByProvider.get(provider)
-    if (!call) continue
-    const candidateText =
-      call.status === 'ok' && locale === 'ar'
-        ? localizeArabicExecutiveReply(call.text.trim())
-        : call.text.trim()
-    const review =
-      call.status === 'ok'
-        ? reviewExecutiveAnswer(
-            candidateText,
-            grounded,
-            question,
-            confirmedUserInputs,
-            extraEntityNames,
-          )
-        : null
-    const participant = participantFrom(call, review)
-    participants.push(participant)
-    if (participant.status === 'ok') {
-      passed.push({ provider: call.provider, modelId: call.modelId, text: candidateText })
-    }
-    drafts.push({
-      id: randomUUID(),
-      userId: input.userId || 'anonymous',
-      questionHash,
-      provider: call.provider,
-      modelId: call.modelId,
-      latencyMs: call.latencyMs,
-      tokensIn: call.tokensIn,
-      tokensOut: call.tokensOut,
-      estCostMicroUsd: estimateCostMicroUsd(call.provider, call.tokensIn, call.tokensOut),
-      status: participant.status,
-      errorCode: participant.errorCode,
-    })
-  }
-
-  const persist = options.persist ?? persistAiRuns
-  try {
-    await persist(drafts)
-  } catch (error) {
-    logger.error('ai run persist failed', errorFields(error))
-  }
-
-  const modelTokens: string[] = [...extraEntityNames]
-  for (const p of participants) {
-    if (p.modelId) {
-      modelTokens.push(p.modelId)
-      modelTokens.push(attribution(p.provider, p.modelId))
-    }
-  }
-
-  const allowedDates = [
-    ...new Set([...resolvedPeriod.allowedDateStrings, pack.period.from, pack.period.to]),
-  ]
-
-  if (passed.length >= 2) {
-    const agreed: CouncilAgreement[] = passed.map((item) => ({
-      provider: item.provider,
-      modelId: item.modelId,
-    }))
-    const rankedPassed = [...passed].sort(
-      (a, b) => scoreExecutiveSynthesis(b.text) - scoreExecutiveSynthesis(a.text),
-    )
-    let winningBody = rankedPassed[0]?.text ?? deterministicBrief
-    if (asksCogs) {
-      const hasCogsBoundary =
-        locale === 'ar'
-          ? /225|حقل\s+تكلفة\s+الصنف/u.test(winningBody)
-          : winningBody.includes('standard_price')
-      if (!hasCogsBoundary) {
-        winningBody = `${winningBody}\n\n${renderCogsUnavailableReply(locale)}`
+        : []
+      const noDataVerifier = verifyFeryalReplyNumbers(noDataReply, [])
+      const noDataAudit: FeryalAuditLogEntry = {
+        id: randomUUID(),
+        timestampIso,
+        userSub: agentInput.userSub ?? 'anonymous',
+        userRole: agentInput.userRole ?? 'executive',
+        ...(agentInput.userNameAr ? { userNameAr: agentInput.userNameAr } : {}),
+        question,
+        status: 'no_odoo_data',
+        executedQueries: noDataQueries,
+        verifier: noDataVerifier,
+        finalReply: noDataReply,
+      }
+      return {
+        reply: noDataReply,
+        status: 'no_odoo_data',
+        executedQueries: noDataQueries,
+        verifier: noDataVerifier,
+        toolNumbers: [],
+        period: { from: resolvedPeriod.from, to: resolvedPeriod.to },
+        facts: [],
+        source: null,
+        auditEntry: noDataAudit,
       }
     }
-    const consensusLine =
-      locale === 'ar'
-        ? `اجتازت الفحص ومجلس النماذج: ${agreed.map((item) => attribution(item.provider, item.modelId)).join(' · ')}`
-        : `Verified by Feryal Council: ${agreed.map((item) => attribution(item.provider, item.modelId)).join(' · ')}`
-    const candidateReply = [winningBody, consensusLine].join('\n\n')
-    const candidateVerifier = verifyExecutiveFinalReply(
-      candidateReply,
+
+    const finalFrozenScope = buildFeryalFrozenScope({
+      dateFrom: pack.period.from,
+      dateTo: pack.period.to,
+      validatedPeriod: validatedDefaults.period,
+      rawPeriodKey: rawPeriodInput,
+      requestedPeriodLabel: config.periodLabel,
+      hasExplicitPeriod: resolvedPeriod.hasExplicitPeriod,
+      brandId: pack.scope.brandId ?? effectiveBrandId,
+      branchId: pack.scope.branchId ?? effectiveBranchId,
+      channelId: effectiveChannelId,
+      referenceNowMs: agentInput.referenceNowMs,
+    })
+
+    const simulation: ScenarioSimulationResult = simulateExecutivePricingOptions({
+      pack,
+      sheet: activeSheet,
+      prompt: question,
+    })
+
+    if (config.state) {
+      config.state.frozenScope = finalFrozenScope
+      config.state.activePriceSheetSummary = buildActivePriceSheetSummary(
+        activeSheet,
+        simulation,
+        finalFrozenScope,
+      )
+    }
+
+    const locale = detectExecutiveLocale(question)
+    const asksCogs = asksMarginOrCogs(question)
+    const grounded = collectExecutiveGroundedNumbers(pack, simulation)
+    const deterministicBrief = renderDeterministicExecutiveBrief(
+      pack,
+      simulation,
+      locale,
+      asksCogs,
+    )
+    const confirmedUserInputs = collectConfirmedSheetInputs(activeSheet)
+    const extraEntityNames = activeSheet?.fileName ? [activeSheet.fileName] : []
+    const allowedDates = [
+      ...new Set([...resolvedPeriod.allowedDateStrings, pack.period.from, pack.period.to]),
+    ]
+
+    const verifier = verifyExecutiveBrief(
+      deterministicBrief,
+      question,
       grounded,
       confirmedUserInputs,
       allowedDates,
-      modelTokens,
+      extraEntityNames,
     )
-    if (candidateVerifier.valid) {
-      return {
-        reply: candidateReply,
-        status: 'answered',
-        participants,
-        agreed,
-        executedQueries,
-        verifier: candidateVerifier,
+
+    const executedQueries: FeryalExecutedOdooQuery[] = [
+      {
+        model: pack.odooQueryMeta.model,
+        method: pack.odooQueryMeta.method,
+        domain: pack.odooQueryMeta.domain,
+        groupby: [...pack.odooQueryMeta.groupby],
         period: { from: pack.period.from, to: pack.period.to },
-        questionHash,
-        auditEntry: null,
-        frozenScope: finalFrozenScope,
-        activePriceSheetSummary,
-        diagnostics: buildFeryalChatDiagnostics('executive_pricing', participants, true, false),
-      }
+      },
+    ]
+
+    const status = verifier.valid ? 'answered' : 'verifier_rejected'
+    const facts = verifier.valid ? buildExecutiveComparableFacts(pack, simulation) : []
+    const auditEntry: FeryalAuditLogEntry = {
+      id: randomUUID(),
+      timestampIso,
+      userSub: agentInput.userSub ?? 'anonymous',
+      userRole: agentInput.userRole ?? 'executive',
+      ...(agentInput.userNameAr ? { userNameAr: agentInput.userNameAr } : {}),
+      question,
+      status,
+      executedQueries,
+      verifier,
+      finalReply: deterministicBrief,
+    }
+
+    return {
+      reply: deterministicBrief,
+      status,
+      executedQueries,
+      verifier,
+      toolNumbers: [...grounded.toolNumbers],
+      period: { from: pack.period.from, to: pack.period.to },
+      facts,
+      source: {
+        system: 'Odoo 17',
+        model: pack.odooQueryMeta.model,
+        period: { from: pack.period.from, to: pack.period.to },
+        lastSyncAt: null,
+      },
+      auditEntry,
     }
   }
+}
 
-  const fallbackVerifier = verifyExecutiveFinalReply(
-    deterministicBrief,
-    grounded,
-    confirmedUserInputs,
-    allowedDates,
-    modelTokens,
+/**
+ * Thin unified wrapper that routes executive pricing & confirmed price-sheet questions
+ * through `runFeryalCouncil` (`src/server/ai/council.ts`) using `createExecutivePricingAskOdoo`.
+ */
+export async function runExecutivePricingChat(
+  input: RunExecutivePricingChatInput,
+  options: RunExecutivePricingChatOptions = {},
+): Promise<ExecutivePricingChatResult> {
+  assertValidConfirmedPriceSheet(input.confirmedPriceSheet)
+
+  const state: ExecutivePricingAskOdooState = {
+    frozenScope: null,
+    activePriceSheetSummary: null,
+  }
+
+  const askOdoo = createExecutivePricingAskOdoo({
+    confirmedPriceSheet: input.confirmedPriceSheet,
+    isFollowUpOnConfirmedSheet: input.isFollowUpOnConfirmedSheet,
+    activePriceSheetSummary: input.activePriceSheetSummary,
+    periodLabel: input.periodLabel,
+    executivePack: options.executivePack,
+    fetchExecutivePack: options.fetchExecutivePack,
+    state,
+  })
+
+  const councilResult = await runFeryalCouncil(
+    {
+      question: input.question,
+      userId: input.userId,
+      userRole: input.userRole,
+      userNameAr: input.userNameAr,
+      referenceNowMs: input.referenceNowMs,
+      context: input.context,
+      period: input.period,
+      customFrom: input.customFrom,
+      customTo: input.customTo,
+      branch: input.branch,
+      brand: input.brand,
+      channel: input.channel,
+    },
+    {
+      askOdoo,
+      fetchImpl: options.fetchImpl,
+      timeoutMs: options.timeoutMs,
+      keys: options.keys,
+      models: options.models,
+      persist: options.persist,
+    },
+  )
+
+  const rawPeriodInput = input.context?.period ?? input.period ?? null
+  const frozenScope =
+    state.frozenScope ??
+    computeFeryalChatFrozenScope({
+      question: input.question,
+      period: councilResult.period,
+      rawPeriodInput,
+      requestedPeriodLabel: input.periodLabel ?? null,
+      context: input.context,
+      referenceNowMs: input.referenceNowMs,
+    })
+
+  const diagnostics = buildFeryalChatDiagnostics(
+    'executive_pricing',
+    councilResult.participants,
+    councilResult.agreed.length >= 2,
+    councilResult.status === 'answered' && councilResult.agreed.length < 2,
   )
 
   return {
-    reply: deterministicBrief,
-    status: 'answered',
-    participants,
-    agreed: [],
-    executedQueries,
-    verifier: fallbackVerifier,
-    period: { from: pack.period.from, to: pack.period.to },
-    questionHash,
-    auditEntry: null,
-    frozenScope: finalFrozenScope,
-    activePriceSheetSummary,
-    diagnostics: buildFeryalChatDiagnostics('executive_pricing', participants, false, true),
+    ...councilResult,
+    frozenScope,
+    activePriceSheetSummary: state.activePriceSheetSummary,
+    diagnostics,
   }
 }
