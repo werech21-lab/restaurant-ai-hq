@@ -8,6 +8,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
+  localizeDecisionProseAr,
+  localizeEstimateFormulaAr,
+  localizeEstimateFormulaEn,
+  localizeOdooModelAr,
+} from '@/components/erp/KpiProvenanceBadge'
+import {
   fetchDecisionSwr,
   peekDecisionSwrCache,
 } from '@/lib/aether/live-decision-generator'
@@ -97,32 +103,54 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
                     {t('Odoo Verified Actual', 'فعلي موثّق من أودو')}
                   </span>
                 </div>
-                <h3 className="text-[14px] font-bold leading-snug text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</h3>
+                <h3 className="text-[14px] font-bold leading-snug text-slate-900 dark:text-white">{isAr ? localizeDecisionProseAr(f.titleAr) : f.titleEn}</h3>
                 <dl className="space-y-1 text-[12.5px] text-slate-700 dark:text-slate-300">
                   {ev.map((e) => (
                     <div key={`${e.labelEn}-${e.period.from}`} className="flex min-w-0 items-baseline justify-between gap-x-2">
-                      <dt className="min-w-0 truncate text-slate-500 dark:text-slate-400" title={isAr ? e.labelAr : e.labelEn}>{isAr ? e.labelAr : e.labelEn}</dt>
+                      <dt
+                        className="min-w-0 truncate text-slate-500 dark:text-slate-400"
+                        title={isAr ? localizeDecisionProseAr(e.labelAr) : e.labelEn}
+                      >
+                        {isAr ? localizeDecisionProseAr(e.labelAr) : e.labelEn}
+                      </dt>
                       <dd className="shrink-0 whitespace-nowrap font-semibold tabular-nums" dir="ltr">{evidenceValue(e, locale)}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className="text-xs [overflow-wrap:anywhere] text-slate-500 dark:text-slate-400" dir="ltr">
-                  {`Odoo · ${ev[0]?.odooModel} · ${ev[0]?.period.from} → ${ev[0]?.period.to} · ${t('sync', 'مزامنة')} ${syncLabel(ev[0]?.syncAt ?? null, locale)}`}
+                <p className="text-xs [overflow-wrap:anywhere] text-slate-500 dark:text-slate-400" dir={isAr ? 'rtl' : 'ltr'}>
+                  {isAr ? (
+                    <>
+                      {`أودو · ${localizeOdooModelAr(ev[0]?.odooModel)} · `}
+                      <bdi dir="ltr">{`${ev[0]?.period.from ?? ''} → ${ev[0]?.period.to ?? ''}`}</bdi>
+                      {' · مزامنة '}
+                      <bdi dir="ltr">{syncLabel(ev[0]?.syncAt ?? null, locale)}</bdi>
+                    </>
+                  ) : (
+                    `Odoo · ${ev[0]?.odooModel} · ${ev[0]?.period.from} → ${ev[0]?.period.to} · sync ${syncLabel(ev[0]?.syncAt ?? null, locale)}`
+                  )}
                 </p>
                 <p className="text-[12.5px] leading-relaxed text-slate-700 dark:text-slate-300">
                   <span className="font-semibold">{t('Why: ', 'لماذا: ')}</span>
-                  {isAr ? f.rootCause.ar : f.rootCause.en}
+                  {isAr ? localizeDecisionProseAr(f.rootCause.ar) : f.rootCause.en}
                 </p>
                 {p ? (
                   <p className="text-[12.5px] leading-relaxed text-slate-800 dark:text-slate-200">
                     <span className="font-semibold">{t('Do: ', 'المقترح: ')}</span>
-                    {isAr ? `${p.who.ar}: ${p.what.ar} — ${p.when.ar}` : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
+                    {isAr
+                      ? `${localizeDecisionProseAr(p.who.ar)}: ${localizeDecisionProseAr(p.what.ar)} — ${localizeDecisionProseAr(p.when.ar)}`
+                      : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
                   </p>
                 ) : null}
                 {est ? (
-                  <p data-estimate="true" className="mt-auto rounded-xl bg-sky-50/70 px-3 py-2 text-xs [overflow-wrap:anywhere] text-sky-950 ring-1 ring-sky-200/70 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20">
+                  <p
+                    data-estimate="true"
+                    dir={isAr ? 'rtl' : 'ltr'}
+                    className="mt-auto rounded-xl bg-sky-50/70 px-3 py-2 text-xs [overflow-wrap:anywhere] text-sky-950 ring-1 ring-sky-200/70 dark:bg-sky-400/10 dark:text-sky-100 dark:ring-sky-300/20"
+                  >
                     <span className="font-bold">{t('Estimate', 'تقدير')}</span>
-                    {`: ${estimateValue(est, locale)} = ${est.formula}`}
+                    {`: ${estimateValue(est, locale)} = ${
+                      isAr ? localizeEstimateFormulaAr(est.formula) : localizeEstimateFormulaEn(est.formula)
+                    }`}
                   </p>
                 ) : null}
               </li>
@@ -134,11 +162,17 @@ export function TodaysDiscoveriesView({ locale, discoveries, loading = false }: 
   )
 }
 
-/** Fetches the latest council / live Odoo discoveries with warm SWR read caching. */
-export function TodaysDiscoveries({ locale }: { locale: 'ar' | 'en' }) {
-  const [state, setState] = useState<{ loading: boolean; discoveries: CouncilDiscovery[] | null }>(() => {
-    const cached = peekDecisionSwrCache<CouncilDiscovery[]>('discoveries')
-    return cached ? { loading: false, discoveries: cached.data } : { loading: true, discoveries: null }
+/** Fetches the latest council / live Odoo discoveries with warm SWR read caching (SSR-hydration-safe). */
+export function TodaysDiscoveries({
+  locale,
+  initialDiscoveries,
+}: {
+  locale: 'ar' | 'en'
+  initialDiscoveries?: CouncilDiscovery[] | null
+}) {
+  const [state, setState] = useState<{ loading: boolean; discoveries: CouncilDiscovery[] | null }>({
+    loading: initialDiscoveries === undefined,
+    discoveries: initialDiscoveries ?? null,
   })
 
   const revalidate = useCallback(() => {
@@ -161,7 +195,7 @@ export function TodaysDiscoveries({ locale }: { locale: 'ar' | 'en' }) {
     if (cached) {
       setState({ loading: false, discoveries: cached.data })
       if (!cached.isFresh) revalidate()
-    } else {
+    } else if (initialDiscoveries === undefined) {
       revalidate()
     }
     const onSync = () => revalidate()
@@ -169,7 +203,7 @@ export function TodaysDiscoveries({ locale }: { locale: 'ar' | 'en' }) {
     return () => {
       window.removeEventListener('aether:odoo-sync', onSync)
     }
-  }, [revalidate])
+  }, [initialDiscoveries, revalidate])
 
   if (state.loading) return null
   return <TodaysDiscoveriesView locale={locale} discoveries={state.discoveries} />

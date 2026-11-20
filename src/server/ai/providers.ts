@@ -1,10 +1,20 @@
 import 'server-only'
+import { createHash } from 'node:crypto'
+import { logger } from '@/lib/logger'
+import {
+  DEFAULT_ANTHROPIC_MODEL,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_XAI_MODEL,
+} from './models'
 
 export type ProviderId = 'anthropic' | 'google' | 'xai'
 
 export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 'xai']
+export const MAX_PROVIDER_TELEMETRY_ENTRIES = 128
 
 const MIN_KEY_LENGTH = 20
+const COUNCIL_QUESTION_PREFIX = 'Question:\n'
+const COUNCIL_FACTS_DELIMITER = '\n\nOdoo facts JSON:\n'
 export const ANALYSIS_MAX_TOKENS = 800
 const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
@@ -53,6 +63,19 @@ export interface ProviderHealthSnapshot {
   lastStatusAtMs: number | null
 }
 
+export interface ProviderAttemptTelemetry {
+  provider: ProviderId
+  requestedModel: string
+  modelId: string
+  text: string
+  factsJson: string | null
+  questionHash: string | null
+  status: 'ok' | 'error'
+  errorCode: string | null
+  latencyMs: number
+  recordedAtMs: number
+}
+
 interface ProviderCooldownEntry {
   cooldownUntilMs: number | null
   consecutiveTimeouts: number
@@ -62,6 +85,134 @@ interface ProviderCooldownEntry {
 
 type GlobalWithProviderCooldown = typeof globalThis & {
   __aetherAiProviderCooldowns?: Partial<Record<ProviderId, ProviderCooldownEntry>>
+  __aetherAiProviderTelemetry?: ProviderAttemptTelemetry[]
+}
+
+function telemetryStore(): ProviderAttemptTelemetry[] {
+  const g = globalThis as GlobalWithProviderCooldown
+  if (!g.__aetherAiProviderTelemetry) {
+    g.__aetherAiProviderTelemetry = []
+  }
+  return g.__aetherAiProviderTelemetry
+}
+
+export function resetProviderTelemetry(): void {
+  const g = globalThis as GlobalWithProviderCooldown
+  g.__aetherAiProviderTelemetry = []
+}
+
+export function listProviderAttemptTelemetry(): readonly ProviderAttemptTelemetry[] {
+  return [...telemetryStore()]
+}
+
+export function getProviderAttemptTelemetry(
+  questionHash: string,
+  provider: string,
+): ProviderAttemptTelemetry | null {
+  const targetHash = questionHash.trim()
+  const targetProvider = provider.trim()
+  if (!targetHash || !targetProvider) return null
+  const store = telemetryStore()
+  for (let index = store.length - 1; index >= 0; index -= 1) {
+    const entry = store[index]
+    if (entry && entry.questionHash === targetHash && entry.provider === targetProvider) {
+      return entry
+    }
+  }
+  return null
+}
+
+function resolveRequestedModel(provider: ProviderId, model: string): string {
+  const trimmed = model.trim()
+  if (trimmed.length > 0) return trimmed
+  if (provider === 'anthropic') return DEFAULT_ANTHROPIC_MODEL
+  if (provider === 'google') return DEFAULT_GEMINI_MODEL
+  return DEFAULT_XAI_MODEL
+}
+
+function extractPromptTelemetryMetadata(userPrompt: string): {
+  questionHash: string | null
+  factsJson: string | null
+} {
+  if (userPrompt.startsWith(COUNCIL_QUESTION_PREFIX)) {
+    const delimiterIdx = userPrompt.lastIndexOf(COUNCIL_FACTS_DELIMITER)
+    if (delimiterIdx >= COUNCIL_QUESTION_PREFIX.length) {
+      const question = userPrompt.slice(COUNCIL_QUESTION_PREFIX.length, delimiterIdx).trim()
+      const factsRaw = userPrompt.slice(delimiterIdx + COUNCIL_FACTS_DELIMITER.length).trim()
+      const questionHash = createHash('sha256').update(question).digest('hex')
+      return {
+        questionHash,
+        factsJson: factsRaw,
+      }
+    }
+  }
+  if (userPrompt.startsWith('{"periods":')) {
+    try {
+      const parsed = JSON.parse(userPrompt) as {
+        periods?: { yesterday?: unknown; prior?: unknown }
+      }
+      const yesterday =
+        typeof parsed.periods?.yesterday === 'string' ? parsed.periods.yesterday : ''
+      const prior = typeof parsed.periods?.prior === 'string' ? parsed.periods.prior : ''
+      if (yesterday && prior) {
+        const questionHash = createHash('sha256')
+          .update(`background:${yesterday}:${prior}`)
+          .digest('hex')
+        return { questionHash, factsJson: null }
+      }
+    } catch {
+      return { questionHash: null, factsJson: null }
+    }
+  }
+  return { questionHash: null, factsJson: null }
+}
+
+function logProviderAttempt(input: ProviderCallInput, result: ProviderCallResult): void {
+  const requestedModel = resolveRequestedModel(input.provider, input.model)
+  const effectiveModelId = result.modelId.trim() || requestedModel
+  const fields = {
+    provider: input.provider,
+    requestedModel,
+    modelId: effectiveModelId,
+    status: result.status,
+    errorCode: result.errorCode,
+    latencyMs: result.latencyMs,
+  }
+  if (result.status === 'ok') {
+    logger.info('ai_provider_attempt', fields)
+    return
+  }
+  logger.warn('ai_provider_attempt', fields)
+}
+
+function recordProviderTelemetry(input: ProviderCallInput, result: ProviderCallResult): void {
+  const requestedModel = resolveRequestedModel(input.provider, input.model)
+  const { questionHash, factsJson } = extractPromptTelemetryMetadata(input.user)
+  const store = telemetryStore()
+  store.push({
+    provider: input.provider,
+    requestedModel,
+    modelId: result.modelId,
+    text: result.text,
+    factsJson,
+    questionHash,
+    status: result.status,
+    errorCode: result.errorCode,
+    latencyMs: result.latencyMs,
+    recordedAtMs: input.nowMs ?? Date.now(),
+  })
+  if (store.length > MAX_PROVIDER_TELEMETRY_ENTRIES) {
+    store.splice(0, store.length - MAX_PROVIDER_TELEMETRY_ENTRIES)
+  }
+}
+
+function finalizeProviderCall(
+  input: ProviderCallInput,
+  result: ProviderCallResult,
+): ProviderCallResult {
+  logProviderAttempt(input, result)
+  recordProviderTelemetry(input, result)
+  return result
 }
 
 function cooldownStore(): Partial<Record<ProviderId, ProviderCooldownEntry>> {
@@ -198,7 +349,7 @@ function failure(
 ): ProviderCallResult {
   return {
     provider: input.provider,
-    requestedModel: input.model,
+    requestedModel: resolveRequestedModel(input.provider, input.model),
     modelId: '',
     text: '',
     latencyMs,
@@ -441,7 +592,7 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
     if (!parsed.text) return { ...failure(input, Date.now() - started, 'EMPTY_ANSWER'), retryAfterMs: null }
     return {
       provider: input.provider,
-      requestedModel: input.model,
+      requestedModel: resolveRequestedModel(input.provider, input.model),
       modelId: parsed.modelId,
       text: parsed.text,
       latencyMs: Date.now() - started,
@@ -463,8 +614,9 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
 
 export async function callProvider(input: ProviderCallInput): Promise<ProviderCallResult> {
   const started = Date.now()
+  const requestedModel = resolveRequestedModel(input.provider, input.model)
   if (input.apiKey.trim().length < MIN_KEY_LENGTH) {
-    return failure(input, 0, 'MISSING_API_KEY')
+    return finalizeProviderCall(input, failure(input, 0, 'MISSING_API_KEY'))
   }
 
   // Apply global cooldown automatically on live network calls (`fetchImpl === undefined`) or when
@@ -473,17 +625,22 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
   const checkTimeMs = input.nowMs ?? started
   if (useCooldown && isProviderInCooldown(input.provider, checkTimeMs)) {
     const entry = cooldownStore()[input.provider]
-    return failure(input, 0, entry?.lastErrorCode ?? 'PROVIDER_COOLDOWN')
+    return finalizeProviderCall(
+      input,
+      failure(input, 0, entry?.lastErrorCode ?? 'PROVIDER_COOLDOWN'),
+    )
   }
 
   const deadline = Date.now() + input.timeoutMs
   const attempts = input.provider === 'google' ? GOOGLE_RATE_LIMIT_ATTEMPTS : 1
-  let last: ProviderCallResult = failure(input, 0, 'HTTP_RATE_LIMIT')
+  let last: ProviderCallResult | null = null
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const remaining = deadline - Date.now()
     if (remaining < 200) {
-      const timedOutResult = { ...last, latencyMs: Date.now() - started }
+      const timedOutResult = last
+        ? { ...last, latencyMs: Date.now() - started }
+        : failure(input, Date.now() - started, 'TIMEOUT')
       if (useCooldown) {
         recordProviderOutcome(
           input.provider,
@@ -492,17 +649,17 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
           input.nowMs ?? Date.now(),
         )
       }
-      return timedOutResult
+      return finalizeProviderCall(input, timedOutResult)
     }
 
     const once = await callProviderOnce(input, remaining)
-    last = { ...once, requestedModel: input.model }
+    last = { ...once, requestedModel }
     const retry =
       input.provider === 'google' && once.errorCode === 'HTTP_RATE_LIMIT' && attempt < attempts - 1
     if (!retry) {
       const finalResult: ProviderCallResult = {
         provider: once.provider,
-        requestedModel: input.model,
+        requestedModel,
         modelId: once.modelId,
         text: once.text,
         latencyMs: Date.now() - started,
@@ -519,7 +676,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
           input.nowMs ?? Date.now(),
         )
       }
-      return finalResult
+      return finalizeProviderCall(input, finalResult)
     }
 
     const wait = once.retryAfterMs ?? GOOGLE_RATE_LIMIT_BACKOFF_MS[attempt] ?? 800
@@ -527,7 +684,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
     if (room < wait) {
       const exhaustedResult: ProviderCallResult = {
         provider: once.provider,
-        requestedModel: input.model,
+        requestedModel,
         modelId: once.modelId,
         text: once.text,
         latencyMs: Date.now() - started,
@@ -544,12 +701,15 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
           input.nowMs ?? Date.now(),
         )
       }
-      return exhaustedResult
+      return finalizeProviderCall(input, exhaustedResult)
     }
+    logProviderAttempt(input, once)
     await (input.sleepImpl ?? delay)(wait)
   }
 
-  const finalFallback = { ...last, latencyMs: Date.now() - started }
+  const finalFallback = last
+    ? { ...last, latencyMs: Date.now() - started }
+    : failure(input, Date.now() - started, 'HTTP_RATE_LIMIT')
   if (useCooldown) {
     recordProviderOutcome(
       input.provider,
@@ -558,7 +718,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
       input.nowMs ?? Date.now(),
     )
   }
-  return finalFallback
+  return finalizeProviderCall(input, finalFallback)
 }
 
 export async function pingProvider(input: {

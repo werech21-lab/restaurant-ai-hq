@@ -1,5 +1,7 @@
 import { Decimal } from '@/server/ai/decimal'
 import {
+  DETERMINISTIC_SIMULATION_LABEL,
+  DETERMINISTIC_SIMULATION_LABEL_AR,
   ODOO_VERIFIED_ACTUAL_LABEL_AR,
   ODOO_VERIFIED_ACTUALS_LABEL,
   PROPOSED_USER_INPUT_LABEL,
@@ -12,7 +14,8 @@ import posRegistry from '@/lib/odoo/pos-registry.json'
 import {
   areSkuBrandsCompatible,
   brandIdForPosRoot,
-  hasCompatibleFlavorProteinTokens,
+  extractExplicitSkuCode,
+  extractFlavorProteinQualifiers,
   hasCompatibleSizePackTokens,
   hasCrossBrandAmbiguity,
   inferBrandIdFromSkuName,
@@ -37,6 +40,9 @@ export const COGS_UNAVAILABLE_REPLY =
 export const COGS_UNAVAILABLE_REPLY_AR =
   'لا يمكن احتساب تكلفة الصنف أو هوامش الربح الإجمالية والصافية نظراً لقيود صلاحية قراءة حقل تكلفة الصنف على حساب الربط في أودو (المستخدم رقم 225)، ولا يتم تقدير التكلفة أو الهامش.' as const
 
+export const MISSING_COST_SUGGESTED_PRICE_PHRASE_AR =
+  'ما بقدر أحسب سعر مقترح بلا تكلفة' as const
+
 export function detectItemPricingLocale(question: string): 'ar' | 'en' {
   const arChars = (question.match(/[\u0600-\u06FF]/g) ?? []).length
   const enChars = (question.match(/[A-Za-z]/g) ?? []).length
@@ -55,6 +61,7 @@ export interface ItemPricingRow {
   qty: string
   netKwd: string
   unitPriceKwd: string | null
+  unitCostKwd?: string | null
   categoryId: number | null
   brandId?: string | null
 }
@@ -282,13 +289,441 @@ export interface ProposedPrice {
   amount: string
 }
 
+const ARABIC_DISH_TOKEN_DICTIONARY: Readonly<Record<string, string>> = {
+  // Noodles / Pasta
+  نودلز: 'noodles',
+  نودل: 'noodles',
+  معكرونه: 'noodles',
+  مكرونه: 'noodles',
+  // Chicken
+  دجاج: 'chicken',
+  دياي: 'chicken',
+  جكن: 'chicken',
+  تشيكن: 'chicken',
+  تشكن: 'chicken',
+  فراخ: 'chicken',
+  // Beef
+  لحم: 'beef',
+  لحمه: 'beef',
+  بقري: 'beef',
+  بيف: 'beef',
+  // Shrimp
+  روبيان: 'shrimp',
+  ربيان: 'shrimp',
+  شرمب: 'shrimp',
+  شريمب: 'shrimp',
+  جمبري: 'shrimp',
+  // Fish / Fillet
+  سمك: 'fish',
+  فيليه: 'fish',
+  // Rice
+  رز: 'rice',
+  ارز: 'rice',
+  عيش: 'rice',
+  رايس: 'rice',
+  // Burger / Wrap / Fries
+  برجر: 'burger',
+  بيرجر: 'burger',
+  برغر: 'burger',
+  بيرغر: 'burger',
+  ساندوتش: 'wrap',
+  ساندويش: 'wrap',
+  ساندويتش: 'wrap',
+  راب: 'wrap',
+  بطاط: 'fries',
+  بطاطس: 'fries',
+  فرايز: 'fries',
+  // Cheese / Flavor / Cooking prep
+  جبن: 'cheese',
+  جبنه: 'cheese',
+  تشيز: 'cheese',
+  حار: 'spicy',
+  حاره: 'spicy',
+  سبايسي: 'spicy',
+  مشوي: 'grilled',
+  مشويه: 'grilled',
+  كرسبي: 'crispy',
+  مقرمش: 'crispy',
+  مقرمشه: 'crispy',
+  مقلي: 'fried',
+  مقليه: 'fried',
+  // Karak / Chapati / Combo / Sizes
+  كرك: 'karak',
+  شباتي: 'chapati',
+  جباتي: 'chapati',
+  وجبه: 'combo',
+  وجبات: 'combo',
+  كومبو: 'combo',
+  عائلي: 'family',
+  عائليه: 'family',
+  صغير: 'small',
+  صغيره: 'small',
+  وسط: 'medium',
+  كبير: 'large',
+  كبيره: 'large',
+  // Common Venture Foods menu items
+  سبرينج: 'spring',
+  سبرنج: 'spring',
+  رول: 'roll',
+  شاورما: 'shawarma',
+  خضار: 'veg',
+  خضروات: 'veg',
+  نباتي: 'veg',
+  مشروم: 'mushroom',
+  فطر: 'mushroom',
+  دمبلنغ: 'dumplings',
+  دامبلنج: 'dumplings',
+  داينامايت: 'dynamite',
+  ديناميت: 'dynamite',
+}
+
+const ENGLISH_DISH_SYNONYM_MAP: Readonly<Record<string, string>> = {
+  noodle: 'noodles',
+  noodles: 'noodles',
+  chicken: 'chicken',
+  chickens: 'chicken',
+  chk: 'chicken',
+  beef: 'beef',
+  beefs: 'beef',
+  shrimp: 'shrimp',
+  shrimps: 'shrimp',
+  prawn: 'shrimp',
+  prawns: 'shrimp',
+  fish: 'fish',
+  fishes: 'fish',
+  rice: 'rice',
+  burger: 'burger',
+  burgers: 'burger',
+  wrap: 'wrap',
+  wraps: 'wrap',
+  sandwich: 'wrap',
+  sandwiches: 'wrap',
+  fries: 'fries',
+  cheese: 'cheese',
+  spicy: 'spicy',
+  grilled: 'grilled',
+  grill: 'grilled',
+  crispy: 'crispy',
+  crisp: 'crispy',
+  karak: 'karak',
+  chapati: 'chapati',
+  chapatis: 'chapati',
+  combo: 'combo',
+  combos: 'combo',
+  family: 'family',
+  small: 'small',
+  medium: 'medium',
+  large: 'large',
+  vegetable: 'veg',
+  vegetables: 'veg',
+  veggie: 'veg',
+  veggies: 'veg',
+  vegetarian: 'veg',
+  vege: 'veg',
+}
+
+const DISH_STOPWORDS = new Set([
+  'and',
+  'with',
+  'in',
+  'the',
+  'of',
+  'a',
+  'an',
+  'مع',
+  'في',
+  'من',
+  'على',
+  'علي',
+  'الى',
+  'عن',
+])
+
+const GENERIC_NON_DISH_TARGETS = new Set([
+  'منيو',
+  'المنيو',
+  'قائمه',
+  'القائمه',
+  'اصناف',
+  'الاصناف',
+  'اطباق',
+  'الاطباق',
+  'منتجات',
+  'المنتجات',
+  'كل',
+  'جميع',
+  'كل الاصناف',
+  'جميع الاصناف',
+  'اصناف المنيو',
+  'العلامه',
+  'علامه',
+  'الشركه',
+  'الفرع',
+  'فرع',
+  'تشاينا جاردن',
+  'تشاينا غاردن',
+  'شينا جاردن',
+  'فرانكس',
+  'طحينه',
+  'شاورما طحينه',
+  'فارم براون',
+  'ذا نودل بار',
+  'نودل بار',
+  'كافيتيريا كرك',
+  'كرك كافيتيريا',
+  'كرك كافتيريا',
+  'menu',
+  'items',
+  'menu items',
+  'all items',
+  'all skus',
+  'skus',
+  'products',
+  'china garden',
+  'franks',
+  'tahina',
+  'farm brown',
+  'the noodle bar',
+  'noodle bar',
+  'karak cafeteria',
+])
+
+const PORTFOLIO_STRATEGY_RE =
+  /\b(?:pareto|abc\b|tier[- ]?a\b|elasticity|stress[- ]?test|scenarios?|simulator|simulation|price\s+sheet|menu\s+engineering|playbook|cfo)\b|(?:باريتو|تصنيف\s*abc|تحليل\s*abc|فئات\s*abc|هندسه\s*(?:المنيو|القائمه|الاصناف)|هندسة\s*(?:المنيو|القائمة|الأصناف)|مرونه|مرونة|سيناريو|سيناريوهات|محاكاه|محاكاة|جدول\s*(?:الاسعار|الأسعار|تسعير)|استراتيجيه\s*التسعير|استراتيجية\s*التسعير|خطه\s*تسعير|خطة\s*تسعير|رفع\s*(?:اسعار|أسعار)\s*(?:المنيو|الاصناف|الأصناف|القائمه|القائمة)|تعديل\s*(?:اسعار|أسعار))/iu
+
+function normalizeArabicDishText(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function translateDishToken(rawToken: string): string {
+  const norm = normalizeArabicDishText(rawToken).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+  if (!norm) return ''
+
+  const enMapped = ENGLISH_DISH_SYNONYM_MAP[norm]
+  if (enMapped) return enMapped
+
+  const directAr = ARABIC_DISH_TOKEN_DICTIONARY[norm]
+  if (directAr) return directAr
+
+  if (norm.startsWith('ال') && norm.length > 3) {
+    const bare = norm.slice(2)
+    return ARABIC_DISH_TOKEN_DICTIONARY[bare] ?? bare
+  }
+
+  for (const longClitic of ['بال', 'وال', 'فال', 'كال']) {
+    if (norm.startsWith(longClitic) && norm.length > longClitic.length + 1) {
+      const bare = norm.slice(longClitic.length)
+      return ARABIC_DISH_TOKEN_DICTIONARY[bare] ?? bare
+    }
+  }
+
+  if (norm.startsWith('لل') && norm.length > 3) {
+    const keepSecondLam = norm.slice(1)
+    if (ARABIC_DISH_TOKEN_DICTIONARY[keepSecondLam]) {
+      return ARABIC_DISH_TOKEN_DICTIONARY[keepSecondLam]
+    }
+    const dropBothLams = norm.slice(2)
+    return ARABIC_DISH_TOKEN_DICTIONARY[dropBothLams] ?? dropBothLams
+  }
+
+  for (const shortClitic of ['ل', 'ب', 'و']) {
+    if (norm.startsWith(shortClitic) && norm.length > 3) {
+      const bare = norm.slice(1)
+      if (ARABIC_DISH_TOKEN_DICTIONARY[bare]) {
+        return ARABIC_DISH_TOKEN_DICTIONARY[bare]
+      }
+      if (bare.startsWith('ال') && bare.length > 3) {
+        const bareNoAl = bare.slice(2)
+        if (ARABIC_DISH_TOKEN_DICTIONARY[bareNoAl]) {
+          return ARABIC_DISH_TOKEN_DICTIONARY[bareNoAl]
+        }
+      }
+    }
+  }
+
+  return norm
+}
+
+function stripTrailingScopeClause(rawPhrase: string): string {
+  return rawPhrase
+    .replace(
+      /\s+(?:في|لدى|لدي|عند|بفرع|فرع|لعلامه|لعلامة|بعلامه|بعلامة|علامه|علامة|لبراند|براند|خلال|لهذا|هذا|هذه|الشهر|الاسبوع|الأسبوع|السنه|السنة|العام|اليوم|امس|أمس|اخر\s+\d+|آخر\s+\d+|وما|وكم|ومقارن)(?=[\s؟?.,!؛:]|$).*$/iu,
+      '',
+    )
+    .replace(
+      /\s+(?:in|at|for|from|during|this|last)\s+(?:china\s+garden|frank'?s?|tahina|farm\s+brown|the\s+noodle\s+bar|noodle\s+bar|karak\s+cafeteria|rice|360\s+mall|avenues|salmiya|al[- ]?kout|ardiya|promenade|assima|month|week|year|today|yesterday|odoo)\b.*$/i,
+      '',
+    )
+    .trim()
+}
+
+export function canonicalizeDishLabel(rawLabel: string): { text: string; tokens: string[] } {
+  const stripped = stripTrailingScopeClause(stripLeadingCode(rawLabel))
+  const normalized = normalizeSkuMenuLabel(stripped)
+  const fallback =
+    normalized ||
+    normalizeArabicDishText(stripped)
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  if (!fallback) return { text: '', tokens: [] }
+
+  const rawWords = fallback.split(/\s+/).filter(Boolean)
+  const translated: string[] = []
+  const seen = new Set<string>()
+  for (const word of rawWords) {
+    if (DISH_STOPWORDS.has(word)) continue
+    const mapped = translateDishToken(word)
+    if (!mapped || DISH_STOPWORDS.has(mapped) || seen.has(mapped)) continue
+    seen.add(mapped)
+    translated.push(mapped)
+  }
+  return {
+    text: translated.join(' '),
+    tokens: translated,
+  }
+}
+
+function extractInlineSkuCodeFromText(raw: string): string | null {
+  const direct = extractExplicitSkuCode(raw)
+  if (direct) return direct
+  const inlineBracket = raw.match(
+    /\[([A-Za-z0-9._\s-]*\d[A-Za-z0-9._\s-]*|(?:RI)?(?:CG|KC|FR|TH|FB|TNB)[A-Za-z0-9._-]*)\]/i,
+  )
+  if (inlineBracket?.[1]) {
+    const cleaned = inlineBracket[1].replace(/[^A-Za-z0-9]+/g, '').toUpperCase()
+    if (cleaned.length >= 2) return cleaned
+  }
+  const bareSkuToken = raw.match(/\b(RI[A-Za-z]*\d[A-Za-z0-9_-]*)\b/i)
+  if (bareSkuToken?.[1]) {
+    return bareSkuToken[1].replace(/[^A-Za-z0-9]+/g, '').toUpperCase()
+  }
+  return null
+}
+
+function looksLikeNaturalPricingQuestion(text: string): boolean {
+  const norm = normalizeArabicDishText(text)
+  return /(?:(?:ال)?سعر\s+(?:ال)?مقترح|(?:ال)?اسعار\s+(?:ال)?مقترحه|تسعير|كم\s+سعر|ما\s+سعر|ما\s+هو\s+سعر|شنو\s+سعر|شو\s+سعر|وش\s+سعر|لصنف|لطبق|لوجبه|\b(?:suggested|recommended|proposed)\s+prices?\b|\bwhat\s+is\s+the\s+(?:suggested\s+|recommended\s+)?price\b|\bwhat[- ]if\b|[؟?])/iu.test(
+    norm,
+  )
+}
+
+export function extractTargetDishFromQuestion(question: string): string | null {
+  const trimmed = (question ?? '').trim()
+  if (!trimmed) return null
+  if (parseProposedPrices(trimmed).length > 0) return null
+
+  const inlineCode = extractInlineSkuCodeFromText(trimmed)
+  const cleanedPunct = trimmed
+    .replace(/[؟?،,!؛"«»]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const norm = normalizeArabicDishText(cleanedPunct)
+
+  let candidate: string | null = null
+  let precededByExplicitItemNoun = false
+
+  const arItemNounMatch = norm.match(
+    /(?:^|\s)(?:ل|ب)?(?:ال)?(?:صنف|طبق|ايتم|منتج)\s+(.+)$/u,
+  )
+  if (arItemNounMatch?.[1]) {
+    candidate = arItemNounMatch[1].trim()
+    precededByExplicitItemNoun = true
+  }
+
+  if (!candidate) {
+    const arPriceIntroMatch = norm.match(
+      /(?:(?:ال)?سعر\s+(?:ال)?مقترح|(?:ال)?اسعار\s+(?:ال)?مقترحه|تسعير|كم\s+سعر|ما\s+سعر|ما\s+هو\s+سعر|شنو\s+سعر|شو\s+سعر|وش\s+سعر)\s+(?:(?:لـ|للـ|عشان|حق|على|علي)\s*)?(.+)$/u,
+    )
+    if (arPriceIntroMatch?.[1]) {
+      candidate = arPriceIntroMatch[1]
+        .replace(/^(?:(?:ل|ب)?(?:ال)?(?:صنف|طبق|ايتم|منتج)\s+)/u, () => {
+          precededByExplicitItemNoun = true
+          return ''
+        })
+        .trim()
+    }
+  }
+
+  if (!candidate) {
+    const enMatch = cleanedPunct.match(
+      /\b(?:(?:suggested|recommended|proposed)\s+prices?|pricing|what\s+is\s+the\s+price)\s+(?:for|of|on)\s+(?:(?:item|dish|sku|product)\s+)?(.+)$/i,
+    )
+    if (enMatch?.[1]) {
+      candidate = enMatch[1].trim()
+      if (/\b(?:item|dish|sku)\b/i.test(cleanedPunct)) {
+        precededByExplicitItemNoun = true
+      }
+    }
+  }
+
+  if (!candidate && inlineCode) {
+    return `[${inlineCode}]`
+  }
+
+  if (!candidate) return null
+
+  const strippedScope = stripTrailingScopeClause(candidate)
+    .replace(/^[لـ\s]+(?=\[|[A-Za-z])/u, '')
+    .replace(/\.+$/, '')
+    .trim()
+
+  if (!strippedScope || strippedScope.length < 2) {
+    return inlineCode ? `[${inlineCode}]` : null
+  }
+
+  const checkKey = normalizeArabicDishText(stripLeadingCode(strippedScope))
+  if (!precededByExplicitItemNoun && GENERIC_NON_DISH_TARGETS.has(checkKey)) {
+    return inlineCode ? `[${inlineCode}]` : null
+  }
+  if (
+    precededByExplicitItemNoun &&
+    (checkKey === 'ما' || checkKey === 'معين' || checkKey === 'محدد' || checkKey === 'منيو' || checkKey === 'المنيو')
+  ) {
+    return null
+  }
+
+  if (inlineCode && !strippedScope.toUpperCase().includes(inlineCode)) {
+    return `[${inlineCode}] ${strippedScope}`
+  }
+  return strippedScope
+}
+
+export function asksSuggestedPriceQuestion(question: string): boolean {
+  if (!question || parseProposedPrices(question).length > 0) return false
+  const norm = normalizeArabicDishText(question)
+  return /(?:(?:ال)?سعر\s*(?:ال)?مقترح|(?:ال)?اسعار\s*(?:ال)?مقترحه|اقترح(?:ي)?\s+سعر|كم\s+نقترح\s+سعر|\b(?:suggested|recommended)\s+prices?\b)/iu.test(
+    norm,
+  )
+}
+
+export function isSpecificItemPricingQuestion(question: string): boolean {
+  const trimmed = (question ?? '').trim()
+  if (!trimmed) return false
+  if (parseProposedPrices(trimmed).length > 0) return true
+  if (extractInlineSkuCodeFromText(trimmed) !== null) return true
+  const hasPortfolioStrategy = PORTFOLIO_STRATEGY_RE.test(trimmed)
+  if (hasPortfolioStrategy) return false
+  if (extractTargetDishFromQuestion(trimmed) !== null) return true
+  const norm = normalizeArabicDishText(trimmed)
+  return /(?:^|\s)(?:ال)?سعر\s*(?:ال)?مقترح(?=$|[\s؟?.,!؛:])/u.test(norm) || /\b(?:suggested|recommended)\s+price\b/i.test(norm)
+}
+
 export function parseProposedPrices(question: string): ProposedPrice[] {
   const found: ProposedPrice[] = []
   const seen = new Set<string>()
   const push = (label: string, raw: string) => {
     const amount = canonicalAmount(raw)
-    const name = label.replace(/\s+/g, ' ').trim()
+    const name = stripTrailingScopeClause(label.replace(/\s+/g, ' ').trim())
     if (!amount || name.length < 2) return
+    if (/\[[^\]]*$/.test(name)) return
     const key = `${name.toLowerCase()}|${amount}`
     if (seen.has(key)) return
     seen.add(key)
@@ -297,7 +732,8 @@ export function parseProposedPrices(question: string): ProposedPrice[] {
   const patterns = [
     /proposed price for\s+([^:\n]+?)\s*[:=]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi,
     /what[- ]if\s+([^0-9\n]+?)\s+(?:is|at|becomes|to)\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi,
-    /سعر مقترح(?:\s+ل)?\s*([^0-9\n]+?)\s*[:=]?\s*([0-9][0-9,]*(?:\.[0-9]+)?)/gi,
+    /(?:ال)?سعر\s+(?:ال)?مقترح(?:\s+(?:لـ?\s*(?:صنف|الصنف|طبق|الطبق)|لل(?:صنف|طبق)|لـ?|للـ?))?\s*([^:\n]+?)\s*[:=]\s*([0-9][0-9,]*(?:\.[0-9]+)?)/giu,
+    /(?:ال)?سعر\s+(?:ال)?مقترح(?:\s+(?:لـ?\s*(?:صنف|الصنف|طبق|الطبق)|لل(?:صنف|طبق)|لـ?|للـ?))?\s*([^0-9:\n]+?)\s+([0-9][0-9,]*(?:\.[0-9]+)?)\s*(?:د\.?\s*ك|دينار|kwd|kd)\b/giu,
   ]
   for (const pattern of patterns) {
     for (const match of question.matchAll(pattern)) {
@@ -325,6 +761,123 @@ function stripLeadingCode(value: string): string {
   return value.replace(/^\s*\[[^\]]+\]\s*/, '').trim()
 }
 
+export interface FindMatchingMenuItemsOptions {
+  rowBrand?: string | null
+  contextBrand?: string | null
+  strictSingleVariant?: boolean
+}
+
+export function findMatchingMenuItems(
+  questionOrLabel: string,
+  rows: readonly ItemPricingRow[],
+  options?: FindMatchingMenuItemsOptions,
+): ItemPricingRow[] {
+  const rawInput = (questionOrLabel ?? '').trim()
+  if (!rawInput) return []
+
+  const explicitCode = extractInlineSkuCodeFromText(rawInput)
+  if (explicitCode) {
+    const codeHits = rows.filter((row) => {
+      if (!row.name || isExcludedOdooEntity(row.name)) return false
+      if (
+        !areSkuBrandsCompatible({
+          rowBrand: options?.rowBrand,
+          sheetItemName: rawInput,
+          candidateBrand: row.brandId,
+          candidateSkuName: row.name,
+          contextBrand: options?.contextBrand,
+        })
+      ) {
+        return false
+      }
+      return extractExplicitSkuCode(row.name) === explicitCode
+    })
+    if (codeHits.length > 0) return codeHits
+  }
+
+  const dishLabel = looksLikeNaturalPricingQuestion(rawInput)
+    ? (extractTargetDishFromQuestion(rawInput) ?? '')
+    : stripTrailingScopeClause(stripLeadingCode(rawInput))
+  if (!dishLabel) return []
+
+  const wantedCanonical = canonicalizeDishLabel(dishLabel)
+  const wantedFolded = foldName(stripLeadingCode(dishLabel))
+  if (wantedCanonical.tokens.length === 0 && wantedFolded.length < 3) {
+    return []
+  }
+
+  const leftFp = extractFlavorProteinQualifiers(wantedCanonical.text || dishLabel)
+  const strictSingle = options?.strictSingleVariant === true
+
+  const candidateHits = rows.filter((row) => {
+    if (!row.name || isExcludedOdooEntity(row.name)) return false
+    if (
+      !areSkuBrandsCompatible({
+        rowBrand: options?.rowBrand,
+        sheetItemName: dishLabel,
+        candidateBrand: row.brandId,
+        candidateSkuName: row.name,
+        contextBrand: options?.contextBrand,
+      })
+    ) {
+      return false
+    }
+    if (!hasCompatibleSizePackTokens(dishLabel, row.name)) {
+      const mealTranslatedToCombo =
+        !strictSingle &&
+        /(?:^|\s)(?:ال)?وجب[ةه](?=$|\s)/u.test(dishLabel) &&
+        /\bcombos?\b/i.test(row.name) &&
+        hasCompatibleSizePackTokens(wantedCanonical.text, row.name)
+      if (!mealTranslatedToCombo) {
+        return false
+      }
+    }
+
+    const rowCanonical = canonicalizeDishLabel(row.name)
+    const rightFp = extractFlavorProteinQualifiers(rowCanonical.text || row.name)
+    if (leftFp.proteins.length !== rightFp.proteins.length) return false
+    for (let i = 0; i < leftFp.proteins.length; i += 1) {
+      if (leftFp.proteins[i] !== rightFp.proteins[i]) return false
+    }
+    if (strictSingle && leftFp.spicy !== rightFp.spicy) {
+      return false
+    }
+    if (!strictSingle && leftFp.spicy && !rightFp.spicy) {
+      return false
+    }
+
+    const rowTokenSet = new Set(rowCanonical.tokens)
+    const allWantedTokensPresent =
+      wantedCanonical.tokens.length > 0 &&
+      wantedCanonical.tokens.every((tok) => rowTokenSet.has(tok))
+    if (allWantedTokensPresent) {
+      return true
+    }
+
+    const nameFolded = foldName(stripLeadingCode(row.name))
+    const canonicalSubstrMatch =
+      wantedCanonical.text.length >= 3 &&
+      rowCanonical.text.length >= 3 &&
+      (rowCanonical.text.includes(wantedCanonical.text) ||
+        wantedCanonical.text.includes(rowCanonical.text))
+    const rawSubstrMatch =
+      wantedFolded.length >= 3 &&
+      nameFolded.length >= 3 &&
+      (nameFolded.includes(wantedFolded) || wantedFolded.includes(nameFolded))
+    return canonicalSubstrMatch || rawSubstrMatch
+  })
+
+  if (!strictSingle && candidateHits.length === 1 && !leftFp.spicy) {
+    const sole = candidateHits[0]
+    if (sole) {
+      const soleFp = extractFlavorProteinQualifiers(canonicalizeDishLabel(sole.name).text || sole.name)
+      if (soleFp.spicy) return []
+    }
+  }
+
+  return candidateHits
+}
+
 export function matchProposedPrice(
   proposal: ProposedPrice,
   rows: readonly ItemPricingRow[],
@@ -333,34 +886,15 @@ export function matchProposedPrice(
     contextBrand?: string | null
   },
 ): ItemPricingRow | null {
-  const wanted = foldName(stripLeadingCode(proposal.label))
-  if (wanted.length < 3) return null
   const rowBrandId =
     resolveCanonicalBrandId(options?.rowBrand) ??
     inferBrandIdFromSkuName(proposal.label) ??
     resolveCanonicalBrandId(options?.contextBrand)
 
-  const hits = rows.filter((row) => {
-    if (!row.name || isExcludedOdooEntity(row.name)) return false
-    if (
-      !areSkuBrandsCompatible({
-        rowBrand: options?.rowBrand,
-        sheetItemName: proposal.label,
-        candidateBrand: row.brandId,
-        candidateSkuName: row.name,
-        contextBrand: options?.contextBrand,
-      })
-    ) {
-      return false
-    }
-    if (!hasCompatibleSizePackTokens(proposal.label, row.name)) {
-      return false
-    }
-    if (!hasCompatibleFlavorProteinTokens(proposal.label, row.name)) {
-      return false
-    }
-    const name = foldName(stripLeadingCode(row.name))
-    return name.length >= 3 && (name.includes(wanted) || wanted.includes(name))
+  const hits = findMatchingMenuItems(proposal.label, rows, {
+    rowBrand: options?.rowBrand,
+    contextBrand: options?.contextBrand,
+    strictSingleVariant: true,
   })
   if (hasCrossBrandAmbiguity(hits, rowBrandId)) return null
   return hits.length === 1 ? hits[0] ?? null : null
@@ -535,6 +1069,236 @@ export function buildItemPricingAnswer(input: {
           name: row.name,
           amount: row.proposed,
         })),
+    },
+  }
+}
+
+const TWENTY_DEC = Decimal.fromParts(20n, 0)
+const HUNDRED_DEC = Decimal.fromParts(100n, 0)
+const THIRTY_DEC = Decimal.fromParts(30n, 0)
+const ONE_POINT_ZERO_FIVE_DEC = Decimal.parse('1.05') ?? Decimal.fromParts(105n, 2)
+const ZERO_POINT_ZERO_FIVE_DEC = Decimal.parse('0.050') ?? Decimal.fromParts(50n, 3)
+
+function roundDecimalToKuwaitFils50(amount: Decimal): Decimal {
+  const steps = amount.mul(TWENTY_DEC).roundHalfUp(0)
+  return (steps.div(TWENTY_DEC, 3) ?? amount).roundHalfUp(3)
+}
+
+export interface DeterministicSuggestedPriceCalculation {
+  suggestedPriceKwd: string
+  currentUnitPriceKwd: string | null
+  unitCostKwd: string
+  unitMarginKwd: string
+  revenueDeltaKwd: string | null
+}
+
+export function computeDeterministicSuggestedPrice(
+  row: Pick<ItemPricingRow, 'qty' | 'netKwd' | 'unitPriceKwd' | 'unitCostKwd'>,
+): DeterministicSuggestedPriceCalculation | null {
+  if (!row.unitCostKwd) return null
+  const costDec = Decimal.parse(row.unitCostKwd)
+  if (!costDec || costDec.sign() <= 0) return null
+
+  const derivedCurrent = row.unitPriceKwd ?? unitPriceKwd(row.netKwd, row.qty)
+  const currentDec = derivedCurrent ? Decimal.parse(derivedCurrent) : null
+  const qtyDec = Decimal.parse(row.qty)
+
+  const rawBenchmark = costDec.mul(HUNDRED_DEC).div(THIRTY_DEC, 6) ?? costDec
+  let suggestedDec = roundDecimalToKuwaitFils50(rawBenchmark)
+  if (suggestedDec.compare(costDec) <= 0) {
+    suggestedDec = roundDecimalToKuwaitFils50(costDec.add(ZERO_POINT_ZERO_FIVE_DEC))
+  }
+  if (currentDec && currentDec.sign() > 0 && suggestedDec.compare(currentDec) <= 0) {
+    const step5Pct = roundDecimalToKuwaitFils50(currentDec.mul(ONE_POINT_ZERO_FIVE_DEC))
+    suggestedDec =
+      step5Pct.compare(currentDec) > 0
+        ? step5Pct
+        : roundDecimalToKuwaitFils50(currentDec.add(ZERO_POINT_ZERO_FIVE_DEC))
+  }
+
+  const unitMarginDec = suggestedDec.sub(costDec).roundHalfUp(3)
+  const revenueDeltaDec =
+    currentDec && qtyDec && qtyDec.sign() > 0
+      ? qtyDec.mul(suggestedDec.sub(currentDec)).roundHalfUp(3)
+      : null
+
+  return {
+    suggestedPriceKwd: suggestedDec.canonical(),
+    currentUnitPriceKwd: currentDec && currentDec.sign() > 0 ? currentDec.canonical() : null,
+    unitCostKwd: costDec.canonical(),
+    unitMarginKwd: unitMarginDec.canonical(),
+    revenueDeltaKwd: revenueDeltaDec ? revenueDeltaDec.canonical() : null,
+  }
+}
+
+export function buildMultiMatchClarificationAnswer(input: {
+  matches: readonly ItemPricingRow[]
+  brandNameAr: string | null
+}): {
+  reply: string
+  toolNumbers: number[]
+  allowedEntityNames: string[]
+  structuredFacts: Record<string, unknown>
+  skipFourPartRequirement: true
+} {
+  const capped = input.matches.slice(0, 8)
+  const allowedEntityNames: string[] = []
+  if (input.brandNameAr) allowedEntityNames.push(input.brandNameAr)
+  for (const row of capped) {
+    allowedEntityNames.push(row.name)
+  }
+  const namesList = capped.map((row) => row.name).join('، ')
+  const reply = `يرجى تحديد الصنف المطلوب بدقة من أصناف أودو المطابقة التالية قبل احتساب التسعير: ${namesList}.`
+
+  return {
+    reply,
+    toolNumbers: [],
+    allowedEntityNames,
+    skipFourPartRequirement: true,
+    structuredFacts: {
+      model: 'pos.order.line',
+      clarificationRequired: true,
+      itemRows: capped.map((row) => ({
+        productId: row.productId,
+        name: row.name,
+        qty: Number(row.qty),
+        netKwd: Number(row.netKwd),
+        unitPriceKwd: row.unitPriceKwd ? Number(row.unitPriceKwd) : null,
+      })),
+    },
+  }
+}
+
+export function buildSuggestedItemPricingAnswer(input: {
+  question: string
+  periodLabel: string
+  brandNameAr: string | null
+  matchedRow: ItemPricingRow | null
+  allRows: readonly ItemPricingRow[]
+}): {
+  reply: string
+  toolNumbers: number[]
+  allowedEntityNames: string[]
+  structuredFacts: Record<string, unknown>
+  skipFourPartRequirement: boolean
+} {
+  const locale = detectItemPricingLocale(input.question)
+  const isArPrompt = locale === 'ar'
+  const verifiedActualLabel = isArPrompt ? ODOO_VERIFIED_ACTUAL_LABEL_AR : ODOO_VERIFIED_ACTUALS_LABEL
+  const simLabel = isArPrompt ? DETERMINISTIC_SIMULATION_LABEL_AR : DETERMINISTIC_SIMULATION_LABEL
+  const scope = input.brandNameAr ? `علامة ${input.brandNameAr}` : 'كل العلامات'
+
+  const allowedEntityNames: string[] = []
+  if (input.brandNameAr) allowedEntityNames.push(input.brandNameAr)
+  for (const r of input.allRows.slice(0, 40)) {
+    allowedEntityNames.push(r.name)
+  }
+
+  const fallbackItemRows = input.allRows.slice(0, 40).map((row) => ({
+    productId: row.productId,
+    name: row.name,
+    qty: Number(row.qty),
+    netKwd: Number(row.netKwd),
+    unitPriceKwd: row.unitPriceKwd ? Number(row.unitPriceKwd) : null,
+  }))
+
+  if (!input.matchedRow) {
+    return {
+      reply: `لم يتم تحديد صنف مطابق بتكلفة موثّقة للفترة ${input.periodLabel} (${scope}). ${MISSING_COST_SUGGESTED_PRICE_PHRASE_AR} لأن تكلفة الصنف غير متاحة في أودو.`,
+      toolNumbers: [],
+      allowedEntityNames,
+      skipFourPartRequirement: true,
+      structuredFacts: {
+        model: 'pos.order.line',
+        scope,
+        cogsReadable: false,
+        itemRows: fallbackItemRows,
+      },
+    }
+  }
+
+  const matched = input.matchedRow
+  if (!allowedEntityNames.includes(matched.name)) {
+    allowedEntityNames.push(matched.name)
+  }
+
+  const calc = computeDeterministicSuggestedPrice(matched)
+  if (!calc) {
+    const toolNumbers: number[] = []
+    pushNumber(toolNumbers, matched.qty)
+    pushNumber(toolNumbers, matched.netKwd)
+    pushNumber(toolNumbers, matched.unitPriceKwd)
+    const qtyText = formatGrouped(matched.qty, null)
+    const netText = formatGrouped(matched.netKwd, 3)
+    const currentText = matched.unitPriceKwd ? formatGrouped(matched.unitPriceKwd, 3) : null
+    const actualSentence = currentText
+      ? `السعر الفعلي الحالي للصنف ${matched.name} هو ${currentText} د.ك (${ODOO_VERIFIED_ACTUAL_LABEL_AR}: الكمية ${qtyText} بصافي ${netText} د.ك).`
+      : `الصنف ${matched.name} مسجل بكمية ${qtyText} وصافي ${netText} د.ك (${ODOO_VERIFIED_ACTUAL_LABEL_AR}).`
+    const reply = `${actualSentence} ${MISSING_COST_SUGGESTED_PRICE_PHRASE_AR} لأن تكلفة الصنف غير متاحة في أودو.`
+
+    return {
+      reply,
+      toolNumbers,
+      allowedEntityNames,
+      skipFourPartRequirement: true,
+      structuredFacts: {
+        model: 'pos.order.line',
+        scope,
+        cogsReadable: false,
+        itemRows: fallbackItemRows,
+      },
+    }
+  }
+
+  const toolNumbers: number[] = []
+  pushNumber(toolNumbers, matched.qty)
+  pushNumber(toolNumbers, matched.netKwd)
+  pushNumber(toolNumbers, calc.currentUnitPriceKwd)
+  pushNumber(toolNumbers, calc.unitCostKwd)
+  pushNumber(toolNumbers, calc.suggestedPriceKwd)
+  pushNumber(toolNumbers, calc.unitMarginKwd)
+  pushNumber(toolNumbers, calc.revenueDeltaKwd)
+
+  const qtyText = formatGrouped(matched.qty, null)
+  const netText = formatGrouped(matched.netKwd, 3)
+  const suggestedText = formatGrouped(calc.suggestedPriceKwd, 3)
+  const costText = formatGrouped(calc.unitCostKwd, 3)
+  const marginText = formatGrouped(calc.unitMarginKwd, 3)
+  const currentClause = calc.currentUnitPriceKwd
+    ? ` مقابل السعر الفعلي الحالي ${formatGrouped(calc.currentUnitPriceKwd, 3)} د.ك`
+    : ''
+  const deltaSentence = calc.revenueDeltaKwd
+    ? `عند ثبات الكمية الفعلية البالغة ${qtyText}، يبلغ فرق الإيراد المحسوب ${formatGrouped(calc.revenueDeltaKwd, 3)} د.ك (${simLabel}: الكمية × (السعر المقترح − السعر الحالي)).`
+    : `يعتمد احتساب فرق الإيراد الكلي على الكمية الفعلية المسجلة للصنف ${matched.name} البالغة ${qtyText}.`
+
+  const reply = [
+    `• الرقم: السعر المقترح المحسوب برمجياً للصنف ${matched.name} للفترة ${input.periodLabel} (${scope}) هو ${suggestedText} د.ك (${simLabel})${currentClause} استناداً إلى التكلفة الموثّقة ${costText} د.ك (${verifiedActualLabel}: الكمية ${qtyText} بصافي ${netText} د.ك).`,
+    `• السبب من البيانات: بناءً على التكلفة الموثّقة ${costText} د.ك (${verifiedActualLabel})، يحقق السعر المقترح ${suggestedText} د.ك فائضاً فوق التكلفة للوحدة قدره ${marginText} د.ك.`,
+    `• الإجراء المحدد: يراجع مدير العلامة اعتماد السعر المقترح ${suggestedText} د.ك للصنف ${matched.name} على شاشات نقاط البيع مع متابعة استقرار الكمية المباعة البالغة ${qtyText}.`,
+    `• الأثر المتوقع (تقدير): تقدير — ${deltaSentence}`,
+  ].join('\n')
+
+  return {
+    reply,
+    toolNumbers,
+    allowedEntityNames,
+    skipFourPartRequirement: false,
+    structuredFacts: {
+      model: 'pos.order.line',
+      scope,
+      cogsReadable: true,
+      itemRows: fallbackItemRows,
+      suggestedItemPricing: {
+        productId: matched.productId,
+        name: matched.name,
+        qty: Number(matched.qty),
+        netKwd: Number(matched.netKwd),
+        currentUnitPriceKwd: calc.currentUnitPriceKwd ? Number(calc.currentUnitPriceKwd) : null,
+        unitCostKwd: Number(calc.unitCostKwd),
+        suggestedPriceKwd: Number(calc.suggestedPriceKwd),
+        unitMarginKwd: Number(calc.unitMarginKwd),
+        revenueDeltaKwd: calc.revenueDeltaKwd ? Number(calc.revenueDeltaKwd) : null,
+      },
     },
   }
 }

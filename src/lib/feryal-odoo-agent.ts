@@ -68,14 +68,21 @@ import {
 } from '@/lib/feryal-intent'
 import {
   asksMarginOrCogs,
+  asksSuggestedPriceQuestion,
   brandLabel,
   buildItemPricingAnswer,
+  buildMultiMatchClarificationAnswer,
+  buildSuggestedItemPricingAnswer,
   detectItemPricingLocale,
+  extractTargetDishFromQuestion,
   fetchItemPricingFromOdoo,
+  findMatchingMenuItems,
+  parseProposedPrices,
   posRootForBrand,
   renderCogsUnavailableReply,
   type ItemPricingRead,
 } from '@/lib/feryal/item-pricing'
+import { Decimal } from '@/server/ai/decimal'
 import type { ComparableFact } from '@/server/ai/structured-claim'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 
@@ -882,6 +889,7 @@ interface ToolExecutionOutput {
   deterministicReply: string
   structuredFacts: Record<string, unknown>
   requireGlIncompleteWarning?: boolean
+  skipFourPartRequirement?: boolean
 }
 
 async function runPosOrdersTool(params: {
@@ -1188,6 +1196,109 @@ async function runItemLevelPricingTool(params: {
       structuredFacts: {},
     }
   }
+
+  const proposals = parseProposedPrices(question)
+  if (proposals.length > 0) {
+    for (const proposal of proposals) {
+      const proposalHits = findMatchingMenuItems(proposal.label, read.rows, {
+        contextBrand: targetBrandId,
+      })
+      if (proposalHits.length > 1) {
+        const clarification = buildMultiMatchClarificationAnswer({
+          matches: proposalHits,
+          brandNameAr: brand?.ar ?? null,
+        })
+        return {
+          hasData: true,
+          primaryModel: 'pos.order.line',
+          executedQueries,
+          toolNumbers: clarification.toolNumbers,
+          allowedEntityNames: clarification.allowedEntityNames,
+          deterministicReply: clarification.reply,
+          skipFourPartRequirement: clarification.skipFourPartRequirement,
+          structuredFacts: {
+            ...clarification.structuredFacts,
+            period: { from: period.from, to: period.to },
+            brandId: targetBrandId,
+          },
+        }
+      }
+    }
+  } else {
+    const targetDish = extractTargetDishFromQuestion(question)
+    const asksSuggested = asksSuggestedPriceQuestion(question)
+    if (targetDish) {
+      const dishHits = findMatchingMenuItems(targetDish, read.rows, {
+        contextBrand: targetBrandId,
+      })
+      if (dishHits.length > 1) {
+        const clarification = buildMultiMatchClarificationAnswer({
+          matches: dishHits,
+          brandNameAr: brand?.ar ?? null,
+        })
+        return {
+          hasData: true,
+          primaryModel: 'pos.order.line',
+          executedQueries,
+          toolNumbers: clarification.toolNumbers,
+          allowedEntityNames: clarification.allowedEntityNames,
+          deterministicReply: clarification.reply,
+          skipFourPartRequirement: clarification.skipFourPartRequirement,
+          structuredFacts: {
+            ...clarification.structuredFacts,
+            period: { from: period.from, to: period.to },
+            brandId: targetBrandId,
+          },
+        }
+      }
+      if (asksSuggested) {
+        const suggestedOut = buildSuggestedItemPricingAnswer({
+          question,
+          periodLabel: period.periodLabelAr,
+          brandNameAr: brand?.ar ?? null,
+          matchedRow: dishHits[0] ?? null,
+          allRows: read.rows,
+        })
+        return {
+          hasData: true,
+          primaryModel: 'pos.order.line',
+          executedQueries,
+          toolNumbers: suggestedOut.toolNumbers,
+          allowedEntityNames: suggestedOut.allowedEntityNames,
+          deterministicReply: suggestedOut.reply,
+          skipFourPartRequirement: suggestedOut.skipFourPartRequirement,
+          structuredFacts: {
+            ...suggestedOut.structuredFacts,
+            period: { from: period.from, to: period.to },
+            brandId: targetBrandId,
+          },
+        }
+      }
+    } else if (asksSuggested) {
+      const suggestedOut = buildSuggestedItemPricingAnswer({
+        question,
+        periodLabel: period.periodLabelAr,
+        brandNameAr: brand?.ar ?? null,
+        matchedRow: null,
+        allRows: read.rows,
+      })
+      return {
+        hasData: true,
+        primaryModel: 'pos.order.line',
+        executedQueries,
+        toolNumbers: suggestedOut.toolNumbers,
+        allowedEntityNames: suggestedOut.allowedEntityNames,
+        deterministicReply: suggestedOut.reply,
+        skipFourPartRequirement: suggestedOut.skipFourPartRequirement,
+        structuredFacts: {
+          ...suggestedOut.structuredFacts,
+          period: { from: period.from, to: period.to },
+          brandId: targetBrandId,
+        },
+      }
+    }
+  }
+
   const built = buildItemPricingAnswer({
     question,
     periodLabel: period.periodLabelAr,
@@ -2630,6 +2741,134 @@ export function resetFeryalAuditCache(): void {
 // MAIN ENTRYPOINT: `askFeryalOdooAgent`
 // ============================================================================
 
+function mergeSuggestedItemPricingFacts(
+  baseFacts: ComparableFact[],
+  structured: Record<string, unknown> | null,
+  period: { from: string; to: string } | null,
+): ComparableFact[] {
+  if (!structured || typeof structured !== 'object') return baseFacts
+  const rawSuggested = structured.suggestedItemPricing
+  if (!rawSuggested || typeof rawSuggested !== 'object' || Array.isArray(rawSuggested)) {
+    return baseFacts
+  }
+  const item = rawSuggested as {
+    productId?: unknown
+    name?: unknown
+    currentUnitPriceKwd?: unknown
+    unitCostKwd?: unknown
+    suggestedPriceKwd?: unknown
+    unitMarginKwd?: unknown
+    revenueDeltaKwd?: unknown
+  }
+  const nestedPeriod =
+    structured.period && typeof structured.period === 'object' && !Array.isArray(structured.period)
+      ? (structured.period as { from?: unknown; to?: unknown })
+      : null
+  const from = typeof nestedPeriod?.from === 'string' ? nestedPeriod.from : (period?.from ?? '')
+  const to = typeof nestedPeriod?.to === 'string' ? nestedPeriod.to : (period?.to ?? from)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return baseFacts
+  }
+  const periodKey = from === to ? from : `${from}..${to}`
+  const productIdStr =
+    typeof item.productId === 'number' || typeof item.productId === 'string'
+      ? String(item.productId).trim()
+      : ''
+  const baseName =
+    typeof item.name === 'string' && item.name.trim() ? item.name.trim() : productIdStr
+  if (!productIdStr) return baseFacts
+
+  const toCanonicalNumber = (val: unknown): string | null => {
+    if (typeof val !== 'number' || !Number.isFinite(val)) return null
+    const parsed = Decimal.parse(Object.is(val, -0) ? '0' : String(val))
+    return parsed ? parsed.canonical() : null
+  }
+
+  const extra: ComparableFact[] = []
+  const suggestedVal = toCanonicalNumber(item.suggestedPriceKwd)
+  const currentVal = toCanonicalNumber(item.currentUnitPriceKwd)
+  const costVal = toCanonicalNumber(item.unitCostKwd)
+  const marginVal = toCanonicalNumber(item.unitMarginKwd)
+  const deltaVal = toCanonicalNumber(item.revenueDeltaKwd)
+
+  if (suggestedVal) {
+    extra.push({
+      id: `item_suggested_price_${productIdStr}`,
+      metric: 'unit_price_kwd',
+      period: periodKey,
+      date: periodKey,
+      unit: 'KWD',
+      value: suggestedVal,
+      entityType: 'product',
+      entityId: `suggested_price_${productIdStr}`,
+      entityName: `${baseName} (السعر المقترح)`,
+    })
+  }
+  if (currentVal) {
+    extra.push({
+      id: `item_current_price_${productIdStr}`,
+      metric: 'unit_price_kwd',
+      period: periodKey,
+      date: periodKey,
+      unit: 'KWD',
+      value: currentVal,
+      entityType: 'product',
+      entityId: `current_price_${productIdStr}`,
+      entityName: `${baseName} (السعر الحالي)`,
+    })
+  }
+  if (costVal) {
+    extra.push({
+      id: `item_unit_cost_${productIdStr}`,
+      metric: 'item_unit_cost_kwd',
+      period: periodKey,
+      date: periodKey,
+      unit: 'KWD',
+      value: costVal,
+      entityType: 'product',
+      entityId: productIdStr,
+      entityName: baseName,
+    })
+  }
+  if (marginVal) {
+    extra.push({
+      id: `item_suggested_margin_${productIdStr}`,
+      metric: 'item_unit_margin_kwd',
+      period: periodKey,
+      date: periodKey,
+      unit: 'KWD',
+      value: marginVal,
+      entityType: 'product',
+      entityId: productIdStr,
+      entityName: baseName,
+    })
+  }
+  if (deltaVal) {
+    extra.push({
+      id: `item_suggested_revenue_delta_${productIdStr}`,
+      metric: 'item_revenue_delta_kwd',
+      period: periodKey,
+      date: periodKey,
+      unit: 'KWD',
+      value: deltaVal,
+      entityType: 'product',
+      entityId: productIdStr,
+      entityName: baseName,
+    })
+  }
+
+  if (extra.length === 0) return baseFacts
+  const seenIds = new Set(baseFacts.map((fact) => fact.id))
+  const merged = [...baseFacts]
+  for (const fact of extra) {
+    if (!seenIds.has(fact.id)) {
+      seenIds.add(fact.id)
+      merged.push(fact)
+    }
+  }
+  return merged
+}
+
 export async function askFeryalOdooAgent(
   input: AskFeryalOdooAgentInput,
 ): Promise<AskFeryalOdooAgentResult> {
@@ -2707,7 +2946,11 @@ export async function askFeryalOdooAgent(
       verifier: params.verifier,
       toolNumbers: params.toolNumbers,
       period: params.period,
-      facts: numericFactsFromStructured(params.structuredFacts ?? null, params.period),
+      facts: mergeSuggestedItemPricingFacts(
+        numericFactsFromStructured(params.structuredFacts ?? null, params.period),
+        params.structuredFacts ?? null,
+        params.period,
+      ),
       source,
       auditEntry,
       ...(advisory ? { advisory } : {}),
@@ -3026,7 +3269,7 @@ export async function askFeryalOdooAgent(
   const verifierOptions = {
     allowedDateStrings: activeAllowedDateStrings,
     allowedEntityNames: toolOutput.allowedEntityNames,
-    requireFourPartStructure: true,
+    requireFourPartStructure: !toolOutput.skipFourPartRequirement,
     requireGlIncompleteWarning: toolOutput.requireGlIncompleteWarning,
   }
 

@@ -6,6 +6,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { TodaysDiscoveriesView } from '@/components/aether/TodaysDiscoveries'
+import { localizeDecisionProseAr } from '@/components/erp/KpiProvenanceBadge'
 import { SeasonsStudioView } from '@/components/erp/SeasonsStudio'
 import { SUGGESTED_SEASON_EVENTS } from '@/lib/council/advisors/seasons'
 import { runCouncil } from '@/lib/council/runner'
@@ -19,8 +20,24 @@ describe("Today's Discoveries", () => {
     const html = renderToStaticMarkup(createElement(TodaysDiscoveriesView, { locale, discoveries: snap.discoveries }))
     expect(html).toContain(locale === 'ar' ? 'اكتشافات اليوم' : "Today&#x27;s Discoveries")
     expect(html.match(/data-discovery=/g)).toHaveLength(3)
-    for (const d of snap.discoveries) expect(html).toContain(locale === 'ar' ? d.finding.titleAr.replace(/"/g, '&quot;') : d.finding.titleEn.replace(/"/g, '&quot;').replace(/'/g, '&#x27;'))
-    expect(html).toContain('Odoo · pos.order')
+    for (const d of snap.discoveries) {
+      expect(html).toContain(
+        locale === 'ar'
+          ? localizeDecisionProseAr(d.finding.titleAr).replace(/"/g, '&quot;')
+          : d.finding.titleEn.replace(/"/g, '&quot;').replace(/'/g, '&#x27;'),
+      )
+    }
+    if (locale === 'ar') {
+      expect(html).toContain('أودو · طلبات نقاط البيع')
+      expect(html).not.toContain('Odoo · pos.order')
+      expect(html).not.toContain('Odoo')
+      for (const m of html.matchAll(/data-estimate="true"[^>]*>([\s\S]*?)<\/p>/g)) {
+        const plain = m[1].replace(/<[^>]+>/g, '').trim()
+        expect(plain).not.toMatch(/[A-Za-z]/)
+      }
+    } else {
+      expect(html).toContain('Odoo · pos.order')
+    }
     expect(html).toMatch(/data-estimate="true"[^>]*>.*(?:Estimate|تقدير).* = /)
     expect(html).not.toMatch(/(?:^|[^\d.,])0\.000(?!\d)/)
   })
@@ -44,6 +61,19 @@ describe('/erp/seasons', () => {
     expect(html).not.toContain('data-season-gap')
     expect(html).not.toContain('لا يوجد تشغيل')
     expect(html).not.toMatch(/(?:^|[^\d.,])0\.000(?!\d)/)
+    if (locale === 'ar') {
+      expect(html).not.toContain('Odoo')
+      expect(html).not.toContain('window per-day')
+      expect(html).not.toContain('baseline per-day')
+      expect(html).not.toContain('event days')
+      for (const m of html.matchAll(/data-season-estimate="true"[^>]*>([\s\S]*?)<\/span>/g)) {
+        const plain = m[1].replace(/<[^>]+>/g, '').trim()
+        expect(plain).not.toMatch(/[A-Za-z]/)
+      }
+    } else {
+      expect(html).toContain('window per-day net')
+      expect(html).toContain('event days (max 7)')
+    }
   })
 
   it('calendar unreadable → unavailable state', () => {

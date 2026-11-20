@@ -1,17 +1,46 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
+import { after } from 'next/server'
 import { Pool } from 'pg'
 import { sslOptions, type SslMode } from '@/lib/db-ssl'
 import { logger } from '@/lib/logger'
-import type {
-  YearClosedCacheEntry,
-  YearClosedPersistentStore,
+import {
+  registerDefaultYearClosedAfterScheduler,
+  type YearClosedAfterScheduler,
+  type YearClosedCacheEntry,
+  type YearClosedPersistentStore,
 } from '@/lib/odoo/pos-order-query'
+
+const scheduleAfterInServerScope: YearClosedAfterScheduler = (task) => {
+  after(task)
+}
+
+registerDefaultYearClosedAfterScheduler(scheduleAfterInServerScope)
 
 export const CLOSED_YEAR_CACHE_KEY_PREFIX = 'odoo_closed_year_cache_v1:'
 export const CLOSED_YEAR_CACHE_TABLE = 'public.vf_odoo_closed_year_cache'
-const PG_HEALTH_COOLDOWN_MS = 30_000
+export const CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS = 5_000
+export const CLOSED_YEAR_PG_READ_COOLDOWN_MS = 30_000
 const PG_UNDEFINED_TABLE_CODE = '42P01'
+const MAX_REASON_LENGTH = 200
+
+export type ClosedYearStoreOperation = 'get' | 'set' | 'clear'
+
+export interface ClosedYearStoreFailureEvent {
+  operation: ClosedYearStoreOperation
+  durationMs: number
+  error: unknown
+}
+
+export interface ClosedYearStoreSuccessEvent {
+  operation: ClosedYearStoreOperation
+  durationMs: number
+}
+
+export interface ClosedYearHealthState {
+  healthy?: boolean
+  checkedAt?: number
+}
 
 export interface ClosedYearSqlQueryable {
   query<R extends Record<string, unknown> = Record<string, unknown>>(
@@ -47,6 +76,30 @@ export function extractSafePgErrorCode(error: unknown): string | undefined {
     return error.code
   }
   return undefined
+}
+
+export function sanitizeClosedYearErrorReason(error: unknown): string {
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : 'l2_store_error'
+  const sanitized = raw
+    .replace(/\bpostgres(?:ql)?:\/\/[^\s'")\],;]+/gi, '[redacted-db-url]')
+    .replace(/\b[A-Za-z0-9._%+-]+:[^\s@'")\],;]+@[^\s'")\],;]+/g, '[redacted-credentials]')
+    .replace(
+      /\b(?:password|passwd|pwd|secret|token|api[_-]?key)\s*[:=]\s*[^\s,;)\]]+/gi,
+      '[redacted-secret]',
+    )
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!sanitized) {
+    return 'l2_store_error'
+  }
+  return sanitized.length > MAX_REASON_LENGTH
+    ? `${sanitized.slice(0, MAX_REASON_LENGTH - 3)}...`
+    : sanitized
 }
 
 function isUndefinedTableError(error: unknown): boolean {
@@ -171,54 +224,146 @@ export async function setClosedYearRowsInStore(
   )
 }
 
+export interface PostgresYearClosedStoreHooks {
+  now?: () => number
+  logFailures?: boolean
+  onSuccess?: (event: ClosedYearStoreSuccessEvent) => void
+  onFailure?: (event: ClosedYearStoreFailureEvent) => void
+}
+
+export interface CooldownAwarePostgresYearClosedStoreOptions
+  extends PostgresYearClosedStoreHooks {
+  readCooldownMs?: number
+  state?: ClosedYearHealthState
+}
+
 export function createPostgresYearClosedStore(
   resolveQueryable: () => ClosedYearSqlQueryable | null,
-  hooks?: {
-    onSuccess?: () => void
-    onFailure?: (error: unknown) => void
-  },
+  hooks?: PostgresYearClosedStoreHooks,
 ): YearClosedPersistentStore {
+  const now = hooks?.now ?? Date.now
+
+  const reportSuccess = (operation: ClosedYearStoreOperation, startedAt: number): void => {
+    const durationMs = Math.max(0, Math.round(now() - startedAt))
+    hooks?.onSuccess?.({ operation, durationMs })
+  }
+
+  const reportFailure = (
+    operation: ClosedYearStoreOperation,
+    startedAt: number,
+    error: unknown,
+  ): void => {
+    const durationMs = Math.max(0, Math.round(now() - startedAt))
+    const event: ClosedYearStoreFailureEvent = { operation, durationMs, error }
+    if (hooks?.logFailures !== false) {
+      const code = extractSafePgErrorCode(error)
+      logger.warn('Closed-year L2 cache operation fell back to L1 memory', {
+        operation,
+        durationMs,
+        errorName: error instanceof Error ? error.name : 'QueryError',
+        reason: sanitizeClosedYearErrorReason(error),
+        ...(code ? { code } : {}),
+      })
+    }
+    hooks?.onFailure?.(event)
+  }
+
   return {
     async get(cacheKey: string): Promise<YearClosedCacheEntry | undefined> {
-      const db = resolveQueryable()
-      if (!db) return undefined
+      const startedAt = now()
       try {
+        const db = resolveQueryable()
+        if (!db) return undefined
         const entry = await getClosedYearRowsFromStore(db, cacheKey)
-        hooks?.onSuccess?.()
+        reportSuccess('get', startedAt)
         return entry
       } catch (error) {
-        hooks?.onFailure?.(error)
+        reportFailure('get', startedAt, error)
         return undefined
       }
     },
 
     async set(cacheKey: string, entry: YearClosedCacheEntry): Promise<void> {
-      const db = resolveQueryable()
-      if (!db) return
       if (!Number.isFinite(entry.at) || !Array.isArray(entry.rows)) return
+      const startedAt = now()
       try {
+        const db = resolveQueryable()
+        if (!db) return
         await setClosedYearRowsInStore(db, cacheKey, entry)
-        hooks?.onSuccess?.()
+        reportSuccess('set', startedAt)
       } catch (error) {
-        hooks?.onFailure?.(error)
+        reportFailure('set', startedAt, error)
       }
     },
 
     async clear(): Promise<void> {
-      const db = resolveQueryable()
-      if (!db) return
+      const startedAt = now()
       try {
+        const db = resolveQueryable()
+        if (!db) return
         await executeWithLazyClosedYearTable(db, () =>
           db.query(
             `DELETE FROM ${CLOSED_YEAR_CACHE_TABLE} WHERE cache_key LIKE $1`,
             [`${CLOSED_YEAR_CACHE_KEY_PREFIX}%`],
           ),
         )
-        hooks?.onSuccess?.()
+        reportSuccess('clear', startedAt)
       } catch (error) {
-        hooks?.onFailure?.(error)
+        reportFailure('clear', startedAt, error)
       }
     },
+
+    scheduleAfter: scheduleAfterInServerScope,
+  }
+}
+
+export function createCooldownAwarePostgresYearClosedStore(
+  resolveQueryable: () => ClosedYearSqlQueryable | null,
+  options?: CooldownAwarePostgresYearClosedStoreOptions,
+): YearClosedPersistentStore {
+  const readCooldownMs = options?.readCooldownMs ?? CLOSED_YEAR_PG_READ_COOLDOWN_MS
+  const now = options?.now ?? Date.now
+  const state: ClosedYearHealthState = options?.state ?? {}
+
+  const baseStore = createPostgresYearClosedStore(resolveQueryable, {
+    now,
+    logFailures: options?.logFailures,
+    onSuccess: (event) => {
+      state.healthy = true
+      state.checkedAt = now()
+      options?.onSuccess?.(event)
+    },
+    onFailure: (event) => {
+      state.healthy = false
+      state.checkedAt = now()
+      options?.onFailure?.(event)
+    },
+  })
+
+  return {
+    async get(cacheKey: string): Promise<YearClosedCacheEntry | undefined> {
+      const currentNow = now()
+      if (
+        state.healthy === false &&
+        typeof state.checkedAt === 'number' &&
+        currentNow - state.checkedAt < readCooldownMs
+      ) {
+        return undefined
+      }
+      return baseStore.get(cacheKey)
+    },
+
+    async set(cacheKey: string, entry: YearClosedCacheEntry): Promise<void> {
+      await baseStore.set(cacheKey, entry)
+    },
+
+    async clear(): Promise<void> {
+      if (baseStore.clear) {
+        await baseStore.clear()
+      }
+    },
+
+    scheduleAfter: baseStore.scheduleAfter,
   }
 }
 
@@ -228,13 +373,6 @@ function getClosedYearPgPool(): Pool | null {
   }
   const dbUrl = (process.env.DATABASE_URL ?? '').trim()
   if (!dbUrl.startsWith('postgres://') && !dbUrl.startsWith('postgresql://')) {
-    return null
-  }
-  if (
-    globalForClosedYearPg.__vfClosedYearCachePgHealthy === false &&
-    globalForClosedYearPg.__vfClosedYearCachePgCheckedAt &&
-    Date.now() - globalForClosedYearPg.__vfClosedYearCachePgCheckedAt < PG_HEALTH_COOLDOWN_MS
-  ) {
     return null
   }
   if (globalForClosedYearPg.__vfClosedYearCachePgPool) {
@@ -248,7 +386,7 @@ function getClosedYearPgPool(): Pool | null {
       connectionString: dbUrl,
       ssl: sslOptions(sslMode, process.env.DATABASE_SSL_CA),
       max: 2,
-      connectionTimeoutMillis: 1_500,
+      connectionTimeoutMillis: CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS,
       idleTimeoutMillis: 10_000,
     })
     pool.on('error', (error) => {
@@ -256,7 +394,9 @@ function getClosedYearPgPool(): Pool | null {
       globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
       const code = extractSafePgErrorCode(error)
       logger.warn('Closed-year L2 Postgres pool error', {
+        operation: 'pool',
         errorName: error instanceof Error ? error.name : 'PoolError',
+        reason: sanitizeClosedYearErrorReason(error),
         ...(code ? { code } : {}),
       })
     })
@@ -267,33 +407,36 @@ function getClosedYearPgPool(): Pool | null {
     globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
     const code = extractSafePgErrorCode(error)
     logger.warn('Closed-year L2 Postgres pool initialization skipped', {
+      operation: 'init',
       errorName: error instanceof Error ? error.name : 'InitError',
+      reason: sanitizeClosedYearErrorReason(error),
       ...(code ? { code } : {}),
     })
     return null
   }
 }
 
+const defaultGlobalHealthState: ClosedYearHealthState = {
+  get healthy() {
+    return globalForClosedYearPg.__vfClosedYearCachePgHealthy
+  },
+  set healthy(value: boolean | undefined) {
+    globalForClosedYearPg.__vfClosedYearCachePgHealthy = value
+  },
+  get checkedAt() {
+    return globalForClosedYearPg.__vfClosedYearCachePgCheckedAt
+  },
+  set checkedAt(value: number | undefined) {
+    globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = value
+  },
+}
+
 export function getDefaultPostgresYearClosedStore(): YearClosedPersistentStore {
   if (!globalForClosedYearPg.__vfClosedYearDefaultStore) {
-    globalForClosedYearPg.__vfClosedYearDefaultStore = createPostgresYearClosedStore(
-      () => getClosedYearPgPool(),
-      {
-        onSuccess: () => {
-          globalForClosedYearPg.__vfClosedYearCachePgHealthy = true
-          globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
-        },
-        onFailure: (error) => {
-          globalForClosedYearPg.__vfClosedYearCachePgHealthy = false
-          globalForClosedYearPg.__vfClosedYearCachePgCheckedAt = Date.now()
-          const code = extractSafePgErrorCode(error)
-          logger.warn('Closed-year L2 cache operation fell back to L1 memory', {
-            errorName: error instanceof Error ? error.name : 'QueryError',
-            ...(code ? { code } : {}),
-          })
-        },
-      },
-    )
+    globalForClosedYearPg.__vfClosedYearDefaultStore =
+      createCooldownAwarePostgresYearClosedStore(() => getClosedYearPgPool(), {
+        state: defaultGlobalHealthState,
+      })
   }
   return globalForClosedYearPg.__vfClosedYearDefaultStore
 }
