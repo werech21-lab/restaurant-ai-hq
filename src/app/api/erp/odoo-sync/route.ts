@@ -4,7 +4,7 @@ import {
   handleOdooSyncPostRequest,
 } from '@/app/api/odoo-sync/route'
 
-export const revalidate = 900
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 120
 

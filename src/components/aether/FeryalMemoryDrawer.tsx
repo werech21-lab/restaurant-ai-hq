@@ -123,15 +123,15 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 dark:border-slate-800 px-5 py-4 bg-gradient-to-l from-emerald-50/70 via-white to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900">
-          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm">
               <Brain className="h-5 w-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-[16px] font-black text-slate-900 dark:text-white">
                 {isAr ? 'سجل الملاحظات والقرارات المسجلة' : 'Recorded Executive Notes & Decisions'}
               </h2>
-              <p className="mt-0.5 text-[12px] text-slate-600 dark:text-slate-400">
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
                 {isAr
                   ? 'يعرض فقط القواعد والقرارات التي يدخلها المستخدم فعلياً دون أي ذاكرة مسبقة أو أرقام مفترضة.'
                   : 'Displays only user-entered notes and decisions with zero pre-loaded rules or synthetic figures.'}
@@ -141,14 +141,14 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+            className="shrink-0 rounded-xl p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5 border-b border-slate-200/80 dark:border-slate-800 px-5 py-2.5 bg-slate-50/80 dark:bg-slate-950/40">
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-slate-200/80 dark:border-slate-800 px-5 py-2.5 bg-slate-50/80 dark:bg-slate-950/40">
           {(
             [
               {
@@ -167,7 +167,7 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
-              className={`rounded-xl px-3 py-1.5 text-[12px] font-bold transition ${
+              className={`shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                 tab === t.id
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-200/60 dark:text-slate-300 dark:hover:bg-slate-800'
@@ -199,7 +199,7 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
                     <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value as LearnedRuleCategory)}
-                      className="rounded-lg border border-emerald-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 py-1 text-[11.5px] font-semibold text-slate-700 dark:text-slate-200"
+                      className="shrink-0 rounded-lg border border-emerald-300 bg-white dark:bg-slate-900 dark:border-slate-700 px-2 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
                     >
                       {(Object.keys(CATEGORY_LABELS) as LearnedRuleCategory[]).map((cat) => (
                         <option key={cat} value={cat}>
@@ -244,12 +244,12 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
                       key={r.id}
                       className="group flex items-start justify-between gap-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-3 shadow-2xs"
                     >
-                      <div className="space-y-1">
+                      <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10.5px] font-bold text-slate-700 dark:text-slate-300">
+                          <span className="shrink-0 whitespace-nowrap rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-bold text-slate-700 dark:text-slate-300">
                             {isAr ? CATEGORY_LABELS[r.category].ar : CATEGORY_LABELS[r.category].en}
                           </span>
-                          <span className="text-[10.5px] text-slate-400">{r.createdAt}</span>
+                          <span dir="ltr" className="text-xs tabular-nums text-slate-400">{r.createdAt}</span>
                         </div>
                         <p className="text-[13px] leading-relaxed font-medium text-slate-800 dark:text-slate-100">
                           {isAr ? r.textAr : r.textEn}
@@ -329,7 +329,7 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+                          className={`inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
                             o.status === 'approved'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
                               : 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300'
@@ -343,12 +343,12 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
                               ? 'مرفوض'
                               : 'Rejected'}
                         </span>
-                        <span className="text-[11px] text-slate-400">{o.recordedAt}</span>
+                        <span dir="ltr" className="shrink-0 whitespace-nowrap text-xs tabular-nums text-slate-400">{o.recordedAt}</span>
                       </div>
                       <div className="text-[13px] font-bold text-slate-900 dark:text-white">
                         {isAr ? o.decisionTitleAr : o.decisionTitleEn}
                       </div>
-                      <div className="text-[12px] text-slate-600 dark:text-slate-300">
+                      <div className="text-xs text-slate-600 dark:text-slate-300">
                         {isAr ? o.lessonAr : o.lessonEn}
                       </div>
                     </div>
@@ -359,8 +359,8 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
           )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200/80 dark:border-slate-800 px-5 py-3 bg-slate-50/70 dark:bg-slate-950/50">
-          <div className="text-[11.5px] text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between gap-2 border-t border-slate-200/80 dark:border-slate-800 px-5 py-3 bg-slate-50/70 dark:bg-slate-950/50">
+          <div className="min-w-0 truncate text-xs text-slate-500 dark:text-slate-400">
             {isAr
               ? `إجمالي المحادثات: ${mem.totalInteractions}`
               : `Total Interactions: ${mem.totalInteractions}`}
@@ -369,9 +369,9 @@ export function FeryalMemoryDrawer({ open, onClose, isAr, isAuditor = false }: F
             <button
               type="button"
               onClick={handleReset}
-              className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11.5px] font-semibold text-slate-500 hover:bg-slate-200/70 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-200/70 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5 shrink-0" />
               {isAr ? 'مسح السجل' : 'Clear Log'}
             </button>
           )}

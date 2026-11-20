@@ -25,7 +25,7 @@ export default async function ArchivePage() {
   await requirePageUser('/erp/archive')
   const permissions = await readSessionPermissions()
   return (
-    <div className="w-full max-w-none min-w-0 overflow-x-hidden px-3 py-6 sm:px-6 sm:py-8">
+    <div className="w-full max-w-none min-w-0 px-3 py-6 sm:px-6 sm:py-8">
       <ArchiveWorkspace permissions={permissions} />
     </div>
   )

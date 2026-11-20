@@ -7,7 +7,7 @@ export default async function ContractsPage() {
   await requirePageUser('/erp/contracts')
   const permissions = await readSessionPermissions()
   return (
-    <div className="mx-auto w-full max-w-[1920px] min-w-0 overflow-x-hidden px-4 py-5 sm:px-6">
+    <div className="mx-auto w-full max-w-[1920px] min-w-0 px-4 py-5 sm:px-6">
       <ContractsAdvisor permissions={permissions} />
     </div>
   )

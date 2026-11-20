@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { BRAND_SHARE_BASIS, sumShares } from '@/lib/aether/share-normalization'
 import {
+  Building2,
   Edit3,
   Megaphone,
   Plus,
@@ -22,7 +23,6 @@ import {
 } from '@/lib/format'
 import { useGlobalFilter } from '@/components/aether/GlobalFilterContext'
 import { KpiProvenanceBadge } from '@/components/erp/KpiProvenanceBadge'
-import { OdooPartialWarningBanner } from '@/components/erp/OdooPartialWarningBanner'
 import { StateBlock, formatChartKwdTooltip } from '@/components/ui'
 import type { OdooPeriodCube, OdooPeriodHourly } from '@/lib/odoo-live-connector'
 import {
@@ -75,9 +75,43 @@ const f3 = (n: number | null | undefined, locale: FormatLocale = 'en') =>
   formatKwd(n, { locale, showUnit: false, decimals: 3 })
 
 const CARD_CLS =
-  'ae-bento-card rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
+  'ae-bento-card relative overflow-visible rounded-2xl bg-white p-4 sm:p-6 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
 const KPI_CARD_CLS =
-  'rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
+  'relative overflow-visible flex min-w-0 flex-col justify-between rounded-2xl bg-white p-3.5 sm:p-5 shadow-[0_2px_6px_rgba(30,58,95,0.03)] ring-1 ring-[#1E3A5F]/[0.08] dark:bg-[#0F172A] dark:ring-slate-400/15'
+
+function resolveDynamicKpiGridClass(count: number): string {
+  if (count <= 1) return 'grid-cols-1'
+  if (count === 2) return 'grid-cols-1 md:grid-cols-2'
+  if (count === 3 || count === 6) return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+  return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+}
+
+function renderDynamicKpiRows(cards: readonly { key: string; node: React.ReactNode }[]) {
+  if (cards.length === 0) return null
+  if (cards.length === 5) {
+    return (
+      <div className="space-y-4">
+        <div className={`grid gap-4 ${resolveDynamicKpiGridClass(3)}`}>
+          {cards.slice(0, 3).map((item) => (
+            <React.Fragment key={item.key}>{item.node}</React.Fragment>
+          ))}
+        </div>
+        <div className={`grid gap-4 ${resolveDynamicKpiGridClass(2)}`}>
+          {cards.slice(3).map((item) => (
+            <React.Fragment key={item.key}>{item.node}</React.Fragment>
+          ))}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className={`grid gap-4 ${resolveDynamicKpiGridClass(cards.length)}`}>
+      {cards.map((item) => (
+        <React.Fragment key={item.key}>{item.node}</React.Fragment>
+      ))}
+    </div>
+  )
+}
 
 function EmeraldPillTabs<K extends string>({
   options,
@@ -94,7 +128,7 @@ function EmeraldPillTabs<K extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
+      className="flex flex-nowrap shrink-0 max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-neutral-100/90 p-1 ring-1 ring-slate-900/[0.04] select-none dark:bg-white/[0.06] dark:ring-emerald-500/10"
     >
       {options.map((opt) => {
         const active = opt.id === value
@@ -472,9 +506,51 @@ export function CoresHubStudio({
     [snapshot.sales.brandShare, isAr, resolvedLocale],
   )
 
-  // Zero-sale channels / brands are listed by name in one line, not as rows of 0.000.
+  // Zero-sale channels / brands / branches are listed calmly in one line, never as 0.000 rows or cards.
   const idleChannels = snapshot.sales.channelRanking.filter((c) => !(c.salesKwd > 0))
   const idleBrands = snapshot.sales.brandShare.filter((b) => !(b.salesKwd > 0))
+  const visibleCoreBranches = useMemo(
+    () =>
+      snapshot.sales.branchRanking.filter((b) => {
+        const isZero = Math.abs(b.salesKwd) <= 0.0005 && (b.orders ?? 0) === 0
+        return !isZero
+      }),
+    [snapshot.sales.branchRanking],
+  )
+  const idleCoreBranches = useMemo(
+    () =>
+      snapshot.sales.branchRanking.filter(
+        (b) => b.id !== 'unattributed' && Math.abs(b.salesKwd) <= 0.0005 && (b.orders ?? 0) === 0,
+      ),
+    [snapshot.sales.branchRanking],
+  )
+  const hasVisibleCoreUnattributed = useMemo(
+    () =>
+      !snapshot.sales.branchesUnavailable &&
+      (Math.abs(snapshot.sales.unattributedSalesKwd ?? 0) > 0.0005 ||
+        (snapshot.sales.unattributedOrders ?? 0) > 0),
+    [
+      snapshot.sales.branchesUnavailable,
+      snapshot.sales.unattributedOrders,
+      snapshot.sales.unattributedSalesKwd,
+    ],
+  )
+  const topCoreBranch = useMemo(
+    () =>
+      snapshot.sales.branchesUnavailable
+        ? null
+        : (snapshot.sales.branchRanking.find(
+            (b) => b.id !== 'unattributed' && b.salesKwd > 0.0005,
+          ) ?? null),
+    [snapshot.sales.branchRanking, snapshot.sales.branchesUnavailable],
+  )
+  const topMenuDish = useMemo(
+    () =>
+      snapshot.menu.menuUnavailable
+        ? null
+        : (snapshot.menu.dishes.find((d) => d.salesKwd > 0.0005) ?? null),
+    [snapshot.menu.dishes, snapshot.menu.menuUnavailable],
+  )
   const channelRanks: HorizontalRankDatum[] = useMemo(
     () =>
       snapshot.sales.channelRanking.filter((c) => c.salesKwd > 0).map((c) => ({
@@ -510,8 +586,8 @@ export function CoresHubStudio({
   return (
     <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header & Core Tabs */}
-      <div className={`${CARD_CLS} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
-        <div>
+      <div className={`${CARD_CLS} flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between`}>
+        <div className="min-w-0 flex-1">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
             {isAr
               ? 'نواة المبيعات والقنوات والمينيو والتسويق'
@@ -524,31 +600,31 @@ export function CoresHubStudio({
           </p>
         </div>
 
-        <EmeraldPillTabs<CoreTabId>
-          ariaLabel={isAr ? 'أقسام النواة' : 'Core sections'}
-          value={activeTab}
-          onChange={setActiveTab}
-          options={[
-            {
-              id: 'sales',
-              label: isAr ? 'المبيعات والقنوات' : 'Sales & Channels',
-              icon: <TrendingUp className="h-4 w-4" />,
-            },
-            {
-              id: 'menu',
-              label: isAr ? 'مبيعات الأصناف (POS)' : 'POS Menu Items',
-              icon: <UtensilsCrossed className="h-4 w-4" />,
-            },
-            {
-              id: 'marketing',
-              label: isAr ? 'التسويق والخصومات' : 'Marketing & Discounts',
-              icon: <Megaphone className="h-4 w-4" />,
-            },
-          ]}
-        />
+        <div className="shrink-0 max-w-full">
+          <EmeraldPillTabs<CoreTabId>
+            ariaLabel={isAr ? 'أقسام النواة' : 'Core sections'}
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              {
+                id: 'sales',
+                label: isAr ? 'المبيعات والقنوات' : 'Sales & Channels',
+                icon: <TrendingUp className="h-4 w-4" />,
+              },
+              {
+                id: 'menu',
+                label: isAr ? 'مبيعات الأصناف (POS)' : 'POS Menu Items',
+                icon: <UtensilsCrossed className="h-4 w-4" />,
+              },
+              {
+                id: 'marketing',
+                label: isAr ? 'التسويق والخصومات' : 'Marketing & Discounts',
+                icon: <Megaphone className="h-4 w-4" />,
+              },
+            ]}
+          />
+        </div>
       </div>
-
-      <OdooPartialWarningBanner summary={liveSummary} isAr={isAr} />
 
       {/* Initial loading skeleton before liveSummary resolves */}
       {isInitialLoading ? (
@@ -575,162 +651,224 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'sales' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'إجمالي صافي المبيعات' : 'Total Net Sales'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-              >
-                {snapshot.sales.headline.netSalesKwd === null ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  <>
-                    {f3(snapshot.sales.headline.netSalesKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal text-slate-500">
-                      {isAr ? 'د.ك' : 'KWD'}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="mt-1 text-xs text-slate-500 tabular-nums">
-                {snapshot.sales.headline.orders === null ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  `${f0(snapshot.sales.headline.orders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
-                )}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="sum(pos.order.line.price_subtotal)"
-              />
-            </div>
+          {(() => {
+            const salesKpiCards: { key: string; node: React.ReactNode }[] = [
+              {
+                key: 'total-net-sales',
+                node: (
+                  <article className={KPI_CARD_CLS}>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {isAr ? 'إجمالي صافي المبيعات' : 'Total Net Sales'}
+                      </div>
+                      <div
+                        dir="ltr"
+                        className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {snapshot.sales.headline.netSalesKwd === null ? (
+                          <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                            {isAr ? 'غير متاح' : '—'}
+                          </span>
+                        ) : (
+                          <>
+                            {f3(snapshot.sales.headline.netSalesKwd, resolvedLocale)}{' '}
+                            <span className="text-xs font-normal text-slate-500">
+                              {isAr ? 'د.ك' : 'KWD'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 tabular-nums">
+                        {snapshot.sales.headline.orders === null ? (
+                          <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                            {isAr ? 'غير متاح' : '—'}
+                          </span>
+                        ) : (
+                          `${f0(snapshot.sales.headline.orders, resolvedLocale)} ${isAr ? 'طلب مسجّل' : 'POS orders'}`
+                        )}
+                      </div>
+                    </div>
+                    <KpiProvenanceBadge
+                      odooModel="pos.order.line"
+                      dateRange={dateRangeLabel}
+                      lastSyncAt={lastSyncAt}
+                      isStale24h={isStale24h}
+                      kind="فعلي"
+                      queryOrFormula="sum(pos.order.line.price_subtotal)"
+                    />
+                  </article>
+                ),
+              },
+            ]
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'متوسط الفاتورة (AOV)' : 'Average Order Value'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-              >
-                {snapshot.sales.headline.aovKwd === null ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  <>
-                    {f3(snapshot.sales.headline.aovKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal text-slate-500">
-                      {isAr ? 'د.ك' : 'KWD'}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="mt-1 text-xs text-slate-500">
-                {isAr ? 'صافي المبيعات ÷ عدد الطلبات' : 'Net sales ÷ orders'}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line + pos.order"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="محسوب بمعادلة"
-                queryOrFormula="netSalesKwd / orders"
-              />
-            </div>
+            if (snapshot.sales.headline.aovKwd !== null || snapshot.sales.headline.netSalesKwd === null) {
+              salesKpiCards.push({
+                key: 'average-order-value',
+                node: (
+                  <article className={KPI_CARD_CLS}>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {isAr ? 'متوسط قيمة الطلب' : 'Average Order Value'}
+                      </div>
+                      <div
+                        dir="ltr"
+                        className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {snapshot.sales.headline.aovKwd === null ? (
+                          <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
+                            {isAr ? 'غير متاح' : '—'}
+                          </span>
+                        ) : (
+                          <>
+                            {f3(snapshot.sales.headline.aovKwd, resolvedLocale)}{' '}
+                            <span className="text-xs font-normal text-slate-500">
+                              {isAr ? 'د.ك' : 'KWD'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {isAr ? 'صافي المبيعات ÷ عدد الطلبات' : 'Net sales ÷ orders'}
+                      </div>
+                    </div>
+                    <KpiProvenanceBadge
+                      odooModel="pos.order.line + pos.order"
+                      dateRange={dateRangeLabel}
+                      lastSyncAt={lastSyncAt}
+                      isStale24h={isStale24h}
+                      kind="محسوب بمعادلة"
+                      queryOrFormula="netSalesKwd / orders"
+                    />
+                  </article>
+                ),
+              })
+            }
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'القنوات المباشرة مقابل التطبيقات' : 'Direct vs Aggregators'}
-              </div>
-              {snapshot.sales.channelsUnavailable || (!liveCube && workspace.nullableSalesKwd === null) ? (
-                <div
-                  data-unavailable="true"
-                  title={unavailableTip}
-                  aria-label={unavailableTip}
-                  className="mt-1.5 font-mono text-lg font-bold text-slate-700 dark:text-slate-200"
-                >
-                  {isAr ? 'غير متاح' : '—'}
-                </div>
-              ) : (
-                <>
-                  <div className="mt-1.5 font-mono text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                    <span dir="ltr">{formatKwd(snapshot.sales.zeroCommSalesKwd, { locale: resolvedLocale })}</span>{' '}
-                    {isAr ? 'مباشر' : 'direct'} ({f1Pct(snapshot.sales.zeroCommSharePct, resolvedLocale)})
-                  </div>
-                  <div className="mt-0.5 font-mono text-xs tabular-nums text-[#0F766E] dark:text-emerald-300">
-                    <span dir="ltr">{formatKwd(snapshot.sales.aggregatorSalesKwd, { locale: resolvedLocale })}</span>{' '}
-                    {isAr ? 'تطبيقات' : 'apps'} ({f1Pct(snapshot.sales.aggregatorSharePct, resolvedLocale)})
-                  </div>
-                </>
-              )}
-              <KpiProvenanceBadge
-                odooModel="pos.order.line + pos.payment"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="Classified by pos.payment_method_id & pos.config_id"
-              />
-            </div>
+            if (!(snapshot.sales.channelsUnavailable || (!liveCube && workspace.nullableSalesKwd === null))) {
+              salesKpiCards.push({
+                key: 'direct-vs-aggregators',
+                node: (
+                  <article className={KPI_CARD_CLS}>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        {isAr ? 'القنوات المباشرة مقابل التطبيقات' : 'Direct vs Aggregators'}
+                      </div>
+                      <div className="mt-1.5 font-mono text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                        <span dir="ltr">{formatKwd(snapshot.sales.zeroCommSalesKwd, { locale: resolvedLocale })}</span>{' '}
+                        {isAr ? 'مباشر' : 'direct'} ({f1Pct(snapshot.sales.zeroCommSharePct, resolvedLocale)})
+                      </div>
+                      <div className="mt-0.5 font-mono text-xs tabular-nums text-[#0F766E] dark:text-emerald-300">
+                        <span dir="ltr">{formatKwd(snapshot.sales.aggregatorSalesKwd, { locale: resolvedLocale })}</span>{' '}
+                        {isAr ? 'تطبيقات' : 'apps'} ({f1Pct(snapshot.sales.aggregatorSharePct, resolvedLocale)})
+                      </div>
+                    </div>
+                    <KpiProvenanceBadge
+                      odooModel="pos.order.line + pos.payment"
+                      dateRange={dateRangeLabel}
+                      lastSyncAt={lastSyncAt}
+                      isStale24h={isStale24h}
+                      kind="فعلي"
+                      queryOrFormula="Classified by pos.payment_method_id & pos.config_id"
+                    />
+                  </article>
+                ),
+              })
+            }
 
-            <div data-unattributed-card="true" className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                {isAr ? UNATTRIBUTED_BRANCH_LABEL_AR : UNATTRIBUTED_BRANCH_LABEL_EN}
-              </div>
-              {snapshot.sales.branchesUnavailable ? (
-                <div
-                  data-unavailable="true"
-                  title={unavailableTip}
-                  aria-label={unavailableTip}
-                  className="mt-1.5 font-mono text-2xl font-bold text-slate-500 dark:text-slate-400"
-                >
-                  {isAr ? 'غير متاح' : '—'}
-                </div>
-              ) : (
-                <>
-                  <div
-                    dir="ltr"
-                    className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-                  >
-                    {f3(snapshot.sales.unattributedSalesKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600 tabular-nums dark:text-slate-300">
-                    {f0(snapshot.sales.unattributedOrders, resolvedLocale)}{' '}
-                    {isAr
-                      ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
-                      : 'orders on unmapped POS configs'}
-                  </div>
-                </>
-              )}
-              <KpiProvenanceBadge
-                odooModel="pos.order + pos.config"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="POS orders where config_id has no unambiguous branch mapping"
-              />
-            </div>
-          </div>
+            if (topCoreBranch !== null) {
+              const topBranchLabel = isAr ? topCoreBranch.labelAr : topCoreBranch.labelEn
+              salesKpiCards.push({
+                key: 'top-performing-branch',
+                node: (
+                  <article className={KPI_CARD_CLS}>
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {isAr ? 'الفرع الأعلى أداءً' : 'Top Performing Branch'}
+                        </div>
+                        <span
+                          dir="ltr"
+                          className="shrink-0 whitespace-nowrap rounded-full bg-[#D1FAE5] px-2 py-0.5 text-xs font-bold tabular-nums text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25"
+                        >
+                          {f1Pct(topCoreBranch.sharePct, resolvedLocale)}
+                        </span>
+                      </div>
+                      <div
+                        title={topBranchLabel}
+                        className="mt-1 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
+                      >
+                        {topBranchLabel}
+                      </div>
+                      <div
+                        dir="ltr"
+                        className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {f3(topCoreBranch.salesKwd, resolvedLocale)}{' '}
+                        <span className="text-xs font-normal text-slate-500">
+                          {isAr ? 'د.ك' : 'KWD'}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500 tabular-nums">
+                        {f0(topCoreBranch.orders, resolvedLocale)} {isAr ? 'طلب' : 'orders'}
+                      </div>
+                    </div>
+                    <KpiProvenanceBadge
+                      odooModel="pos.order.line + pos.config"
+                      dateRange={dateRangeLabel}
+                      lastSyncAt={lastSyncAt}
+                      isStale24h={isStale24h}
+                      kind="فعلي"
+                      queryOrFormula="max(pos.order net sales by mapped branch)"
+                    />
+                  </article>
+                ),
+              })
+            }
+
+            if (hasVisibleCoreUnattributed) {
+              salesKpiCards.push({
+                key: 'unattributed-branch',
+                node: (
+                  <article data-unattributed-card="true" className={KPI_CARD_CLS}>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        {isAr ? UNATTRIBUTED_BRANCH_LABEL_AR : UNATTRIBUTED_BRANCH_LABEL_EN}
+                      </div>
+                      <div
+                        dir="ltr"
+                        className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                      >
+                        {f3(snapshot.sales.unattributedSalesKwd, resolvedLocale)}{' '}
+                        <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600 tabular-nums dark:text-slate-300">
+                        {f0(snapshot.sales.unattributedOrders, resolvedLocale)}{' '}
+                        {isAr
+                          ? 'طلب على نقاط بيع عامة غير مربوطة بفرع'
+                          : 'orders on unmapped POS configs'}
+                      </div>
+                    </div>
+                    <KpiProvenanceBadge
+                      odooModel="pos.order + pos.config"
+                      dateRange={dateRangeLabel}
+                      lastSyncAt={lastSyncAt}
+                      isStale24h={isStale24h}
+                      kind="فعلي"
+                      queryOrFormula="POS orders where config_id has no unambiguous branch mapping"
+                    />
+                  </article>
+                ),
+              })
+            }
+
+            return renderDynamicKpiRows(salesKpiCards)
+          })()}
 
           {/* Daily Sales Timeline (hidden on 1-day windows so Hourly Profile takes its slot) */}
           {!snapshot.isSingleDayWindow ? (
             <div className={CARD_CLS}>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div>
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
                   <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                     {isAr ? 'المسار اليومي لصافي المبيعات' : 'Daily Net Sales Timeline'}
                   </h2>
@@ -740,13 +878,15 @@ export function CoresHubStudio({
                       : `Strongest day in window: ${snapshot.sales.strongestDayLabelEn} · ${dateRangeLabel} · KWD`}
                   </p>
                 </div>
-                <KpiProvenanceBadge
-                  odooModel="pos.order.line"
-                  dateRange={dateRangeLabel}
-                  lastSyncAt={lastSyncAt}
-                  isStale24h={isStale24h}
-                  kind="فعلي"
-                />
+                <div className="shrink-0">
+                  <KpiProvenanceBadge
+                    odooModel="pos.order.line"
+                    dateRange={dateRangeLabel}
+                    lastSyncAt={lastSyncAt}
+                    isStale24h={isStale24h}
+                    kind="فعلي"
+                  />
+                </div>
               </div>
               {timelineBars.length > 0 ? (
                 <InteractiveHoverBarChart
@@ -770,8 +910,8 @@ export function CoresHubStudio({
 
           {/* Hourly Profile (No 876 KWD quiet window upside) */}
           <div className={CARD_CLS}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   {isAr ? 'التوزيع الساعي لطلبات نقاط البيع' : 'Hourly POS Sales Profile'}
                 </h2>
@@ -791,14 +931,16 @@ export function CoresHubStudio({
                       : `Peak hour: ${snapshot.sales.peakHourShortEn} (${formatKwd(snapshot.sales.peakHourSalesKwd, { locale: resolvedLocale })}) · 3–6 PM: ${formatKwd(snapshot.sales.quietWindowSalesKwd, { locale: resolvedLocale })} (${f0(snapshot.sales.quietWindowOrders, resolvedLocale)} orders)`}
                 </p>
               </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="Grouped by Asia/Kuwait hour of pos.order.date_order"
-              />
+              <div className="shrink-0">
+                <KpiProvenanceBadge
+                  odooModel="pos.order"
+                  dateRange={dateRangeLabel}
+                  lastSyncAt={lastSyncAt}
+                  isStale24h={isStale24h}
+                  kind="فعلي"
+                  queryOrFormula="Grouped by Asia/Kuwait hour of pos.order.date_order"
+                />
+              </div>
             </div>
             {cubeLoading && hourlyBars.length === 0 ? (
               <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={3} />
@@ -844,19 +986,23 @@ export function CoresHubStudio({
             ) : null}
           </div>
 
-          {/* 3-Column Breakdown: 7 Branches + Unattributed | 6 Brands | Channels */}
+          {/* 3-Column Breakdown: Mapped Branches (+ Unattributed if > 0) | 6 Brands | Channels */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Branches (7 + 8th Unattributed row) */}
+            {/* Branches */}
             <div className={CARD_CLS}>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                {isAr
-                  ? 'الفروع السبعة + غير منسوب لفرع'
-                  : '7 Branches + Unattributed Row'}
+                {hasVisibleCoreUnattributed
+                  ? isAr
+                    ? 'الفروع السبعة + غير منسوب لفرع'
+                    : '7 Branches + Unattributed Row'
+                  : isAr
+                    ? 'أداء الفروع المربوطة'
+                    : 'Mapped Restaurant Branches'}
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {isAr
-                  ? 'مبيعات الفروع المربوطة وسطر المبيعات غير المنسوبة دون أي توزيع اصطناعي'
-                  : 'Mapped branch sales plus unattributed POS sales with zero forced allocation'}
+                  ? 'فروع مربوطة في نقاط بيع أودو 17 — صافي المبيعات والطلبات دون أي توزيع اصطناعي'
+                  : 'Mapped Odoo 17 POS branch locations — net sales & orders with zero forced allocation'}
               </p>
               <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
                 {snapshot.sales.branchesUnavailable ? (
@@ -869,32 +1015,66 @@ export function CoresHubStudio({
                     {isAr ? 'غير متاح' : '—'}
                   </div>
                 ) : (
-                  snapshot.sales.branchRanking.map((b) => {
-                    const isUnattr = b.id === 'unattributed'
-                    return (
-                      <div
-                        key={b.id}
-                        className={`flex items-center justify-between gap-2 py-2.5 text-xs ${
-                          isUnattr
-                            ? 'rounded-lg px-2 font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
-                            : ''
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="font-semibold">
-                            {isAr ? b.labelAr : b.labelEn}
+                  <>
+                    {visibleCoreBranches.map((b) => {
+                      const isUnattr = b.id === 'unattributed'
+                      const branchLabel = isAr ? b.labelAr : b.labelEn
+                      return (
+                        <div
+                          key={b.id}
+                          className={`flex items-center justify-between gap-2.5 py-2.5 text-xs ${
+                            isUnattr
+                              ? 'rounded-lg px-2 font-semibold bg-slate-100 text-slate-700 ring-1 ring-slate-300/60 dark:bg-white/[0.06] dark:text-slate-200 dark:ring-white/15'
+                              : ''
+                          }`}
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <span
+                              className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${
+                                isUnattr
+                                  ? 'bg-slate-200/80 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                                  : 'bg-emerald-600/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300'
+                              }`}
+                            >
+                              <Building2 className="h-3.5 w-3.5" aria-hidden />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h4
+                                title={branchLabel}
+                                className="truncate font-semibold text-slate-900 dark:text-white"
+                              >
+                                {branchLabel}
+                              </h4>
+                              <div className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                                {f0(b.orders, resolvedLocale)} {isAr ? 'طلب' : 'orders'}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                            {f0(b.orders, resolvedLocale)} {isAr ? 'طلب' : 'orders'} ·{' '}
-                            {f1Pct(b.sharePct, resolvedLocale)}
+                          <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+                            <span
+                              dir="ltr"
+                              className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
+                                isUnattr
+                                  ? 'bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                                  : 'bg-[#D1FAE5] text-[#1E3A5F] ring-1 ring-emerald-500/25 dark:bg-emerald-400/15 dark:text-emerald-200 dark:ring-emerald-400/25'
+                              }`}
+                            >
+                              {f1Pct(b.sharePct, resolvedLocale)}
+                            </span>
+                            <span dir="ltr" className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums text-slate-900 dark:text-white">
+                              {formatKwd(b.salesKwd, { locale: resolvedLocale })}
+                            </span>
                           </div>
                         </div>
-                        <div dir="ltr" className="shrink-0 font-mono font-bold tabular-nums">
-                          {formatKwd(b.salesKwd, { locale: resolvedLocale })}
-                        </div>
-                      </div>
-                    )
-                  })
+                      )
+                    })}
+                    {idleCoreBranches.length > 0 ? (
+                      <p data-idle-branches="true" className="py-2 text-xs text-slate-500 dark:text-slate-400">
+                        {isAr ? 'بلا مبيعات في هذه الفترة: ' : 'No sales in this period: '}
+                        {idleCoreBranches.map((b) => (isAr ? b.labelAr : b.labelEn)).join(isAr ? '، ' : ', ')}
+                      </p>
+                    ) : null}
+                  </>
                 )}
               </div>
               <KpiProvenanceBadge
@@ -965,7 +1145,7 @@ export function CoresHubStudio({
                     <ul className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
                       {snapshot.sales.registerReconciliation.rows.map((row) => (
                         <li key={row.configId} className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 truncate">
+                          <span className="min-w-0 flex-1 truncate" title={row.configName}>
                             {row.configName}
                             <span className="ms-1 text-xs text-[#4F6673]">
                               {row.bucket === 'exhibition-booths'
@@ -981,7 +1161,7 @@ export function CoresHubStudio({
                                     : 'Restaurants'}
                             </span>
                           </span>
-                          <span dir="ltr" className="shrink-0 font-semibold tabular-nums">
+                          <span dir="ltr" className="shrink-0 whitespace-nowrap font-semibold tabular-nums">
                             {formatKwd(row.netKwd, { locale: resolvedLocale })}
                           </span>
                         </li>
@@ -1012,19 +1192,25 @@ export function CoresHubStudio({
               </div>
               {!snapshot.sales.brandsUnavailable ? (
                 <div className="mt-3 divide-y divide-slate-100 dark:divide-white/5">
-                  {snapshot.sales.brandShare.filter((b) => b.salesKwd > 0).map((b) => (
-                    <div key={b.id} className="flex items-center justify-between gap-2 py-2 text-xs">
-                      <span className="font-medium text-slate-800 dark:text-slate-200">
-                        {isAr ? b.labelAr : b.labelEn}
-                      </span>
-                      <span
-                        dir="ltr"
-                        className="shrink-0 font-mono font-bold tabular-nums text-slate-900 dark:text-white"
-                      >
-                        {formatKwd(b.salesKwd, { locale: resolvedLocale })} ({f1Pct(b.sharePct, resolvedLocale)})
-                      </span>
-                    </div>
-                  ))}
+                  {snapshot.sales.brandShare.filter((b) => b.salesKwd > 0).map((b) => {
+                    const brandTitle = isAr ? b.labelAr : b.labelEn
+                    return (
+                      <div key={b.id} className="flex items-center justify-between gap-2 py-2 text-xs">
+                        <span
+                          title={brandTitle}
+                          className="min-w-0 flex-1 truncate font-medium text-slate-800 dark:text-slate-200"
+                        >
+                          {brandTitle}
+                        </span>
+                        <span
+                          dir="ltr"
+                          className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {formatKwd(b.salesKwd, { locale: resolvedLocale })} ({f1Pct(b.sharePct, resolvedLocale)})
+                        </span>
+                      </div>
+                    )
+                  })}
                   {idleBrands.length > 0 ? (
                     <p data-idle-brands="true" className="py-2 text-xs text-slate-500 dark:text-slate-400">
                       {isAr ? 'بلا مبيعات في هذه الفترة: ' : 'No sales in this period: '}
@@ -1098,91 +1284,137 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'menu' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'عدد الأصناف المباعة (أعلى الأصناف)' : 'Sold SKUs (Top Items)'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-              >
-                {snapshot.menu.menuUnavailable ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  f0(snapshot.menu.totalActiveSkus, resolvedLocale)
-                )}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-              />
-            </div>
+          {!snapshot.menu.menuUnavailable
+            ? (() => {
+                const menuKpiCards: { key: string; node: React.ReactNode }[] = [
+                  {
+                    key: 'sold-skus',
+                    node: (
+                      <article className={KPI_CARD_CLS}>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {isAr ? 'عدد الأصناف المباعة (أعلى الأصناف)' : 'Sold SKUs (Top Items)'}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                          >
+                            {f0(snapshot.menu.totalActiveSkus, resolvedLocale)}
+                          </div>
+                        </div>
+                        <KpiProvenanceBadge
+                          odooModel="pos.order.line"
+                          dateRange={dateRangeLabel}
+                          lastSyncAt={lastSyncAt}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                        />
+                      </article>
+                    ),
+                  },
+                  {
+                    key: 'total-units',
+                    node: (
+                      <article className={KPI_CARD_CLS}>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {isAr ? 'إجمالي الوحدات المباعة' : 'Total Units Sold'}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                          >
+                            {f0(snapshot.menu.totalUnitsSold, resolvedLocale)}
+                          </div>
+                        </div>
+                        <KpiProvenanceBadge
+                          odooModel="pos.order.line"
+                          dateRange={dateRangeLabel}
+                          lastSyncAt={lastSyncAt}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula="sum(pos.order.line.qty)"
+                        />
+                      </article>
+                    ),
+                  },
+                  {
+                    key: 'displayed-skus-sales',
+                    node: (
+                      <article className={KPI_CARD_CLS}>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {isAr ? 'صافي مبيعات الأصناف المعروضة' : 'Displayed SKUs Net Sales'}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                          >
+                            {f3(snapshot.menu.totalSalesKwd, resolvedLocale)}{' '}
+                            <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
+                          </div>
+                        </div>
+                        <KpiProvenanceBadge
+                          odooModel="pos.order.line"
+                          dateRange={dateRangeLabel}
+                          lastSyncAt={lastSyncAt}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula="sum(pos.order.line.price_subtotal)"
+                        />
+                      </article>
+                    ),
+                  },
+                ]
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'إجمالي الوحدات المباعة' : 'Total Units Sold'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-              >
-                {snapshot.menu.menuUnavailable ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  f0(snapshot.menu.totalUnitsSold, resolvedLocale)
-                )}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="sum(pos.order.line.qty)"
-              />
-            </div>
+                if (topMenuDish !== null) {
+                  menuKpiCards.push({
+                    key: 'top-menu-dish',
+                    node: (
+                      <article className={KPI_CARD_CLS}>
+                        <div>
+                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            {isAr ? 'الصنف الأعلى مبيعاً' : 'Top Selling Item'}
+                          </div>
+                          <div
+                            title={topMenuDish.name}
+                            className="mt-1 truncate text-sm font-bold text-emerald-700 dark:text-emerald-300"
+                          >
+                            {topMenuDish.name}
+                          </div>
+                          <div
+                            dir="ltr"
+                            className="mt-1 font-mono text-xl font-bold tabular-nums text-slate-900 dark:text-white"
+                          >
+                            {f3(topMenuDish.salesKwd, resolvedLocale)}{' '}
+                            <span className="text-xs font-normal text-slate-500">
+                              {isAr ? 'د.ك' : 'KWD'}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-slate-500 tabular-nums">
+                            {f0(topMenuDish.unitsSold, resolvedLocale)} {isAr ? 'وحدة' : 'units'}
+                          </div>
+                        </div>
+                        <KpiProvenanceBadge
+                          odooModel="pos.order.line"
+                          dateRange={dateRangeLabel}
+                          lastSyncAt={lastSyncAt}
+                          isStale24h={isStale24h}
+                          kind="فعلي"
+                          queryOrFormula="max(pos.order.line.price_subtotal by product_id)"
+                        />
+                      </article>
+                    ),
+                  })
+                }
 
-            <div className={KPI_CARD_CLS}>
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {isAr ? 'صافي مبيعات الأصناف المعروضة' : 'Displayed SKUs Net Sales'}
-              </div>
-              <div
-                dir="ltr"
-                className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-              >
-                {snapshot.menu.menuUnavailable ? (
-                  <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                    {isAr ? 'غير متاح' : '—'}
-                  </span>
-                ) : (
-                  <>
-                    {f3(snapshot.menu.totalSalesKwd, resolvedLocale)}{' '}
-                    <span className="text-xs font-normal">{isAr ? 'د.ك' : 'KWD'}</span>
-                  </>
-                )}
-              </div>
-              <KpiProvenanceBadge
-                odooModel="pos.order.line"
-                dateRange={dateRangeLabel}
-                lastSyncAt={lastSyncAt}
-                isStale24h={isStale24h}
-                kind="فعلي"
-                queryOrFormula="sum(pos.order.line.price_subtotal)"
-              />
-            </div>
-          </div>
+                return renderDynamicKpiRows(menuKpiCards)
+              })()
+            : null}
 
           <div className={CARD_CLS}>
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="relative min-w-[220px] flex-1">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between">
+              <div className="relative min-w-0 flex-1">
                 <Search
                   className="pointer-events-none absolute top-2.5 start-3 h-4 w-4 text-slate-400"
                   aria-hidden
@@ -1200,12 +1432,12 @@ export function CoresHubStudio({
                 />
               </div>
 
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex flex-nowrap shrink-0 items-center gap-2 text-xs">
                 <select
                   value={dishSort}
                   aria-label={isAr ? 'ترتيب الأصناف' : 'Sort menu items'}
                   onChange={(e) => setDishSort(e.target.value as MenuSortKey)}
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                 >
                   <option value="sales">{isAr ? 'ترتيب: الأعلى مبيعات' : 'Sort: Highest Sales'}</option>
                   <option value="units">{isAr ? 'ترتيب: الأعلى كمية' : 'Sort: Highest Units'}</option>
@@ -1219,7 +1451,7 @@ export function CoresHubStudio({
                     setMenuPageSize(v === 'all' ? 'all' : (Number(v) as 12 | 25))
                     setMenuPage(1)
                   }}
-                  className="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
+                  className="shrink-0 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-white/10 dark:bg-[#0B1410]"
                 >
                   <option value="12">12</option>
                   <option value="25">25</option>
@@ -1238,7 +1470,16 @@ export function CoresHubStudio({
                 onRetry={() => setCubeRetryTick((n) => n + 1)}
               />
             ) : snapshot.menu.menuUnavailable && pagedDishes.length === 0 ? (
-              <StateBlock state="unavailable" compact locale={resolvedLocale} />
+              <StateBlock
+                state="unavailable"
+                compact
+                locale={resolvedLocale}
+                description={
+                  isAr
+                    ? 'تعذّر التحقق من قراءات أصناف نقاط البيع حالياً — لا تُعرض أرقام تقديرية.'
+                    : 'POS menu item metrics could not be verified right now — no estimated figures shown.'
+                }
+              />
             ) : pagedDishes.length === 0 ? (
               <StateBlock
                 state="empty"
@@ -1251,37 +1492,37 @@ export function CoresHubStudio({
                 <table className="w-full min-w-[600px] text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 dark:border-white/10">
-                      <th className="py-2.5 text-start">{isAr ? 'الصنف' : 'Item'}</th>
-                      <th className="py-2.5 text-start">{isAr ? 'العلامة' : 'Brand'}</th>
-                      <th className="py-2.5 text-end">{isAr ? 'الكمية' : 'Qty'}</th>
-                      <th className="py-2.5 text-end">{isAr ? 'متوسط السعر الصافي' : 'Avg Net Price'}</th>
-                      <th className="py-2.5 text-end">{isAr ? 'الخصم المسجّل' : 'POS Discount'}</th>
-                      <th className="py-2.5 text-end">{isAr ? 'صافي المبيعات' : 'Net Sales'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-start">{isAr ? 'الصنف' : 'Item'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-start">{isAr ? 'العلامة' : 'Brand'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-end">{isAr ? 'الكمية' : 'Qty'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-end">{isAr ? 'متوسط السعر الصافي' : 'Avg Net Price'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-end">{isAr ? 'الخصم المسجّل' : 'POS Discount'}</th>
+                      <th className="whitespace-nowrap py-2.5 text-end">{isAr ? 'صافي المبيعات' : 'Net Sales'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 tabular-nums dark:divide-white/5">
                     {pagedDishes.map((d) => (
                       <tr key={d.id}>
-                        <td className="py-2.5 font-semibold text-slate-900 dark:text-white">{d.name}</td>
-                        <td className="py-2.5 text-slate-600 dark:text-slate-300">
+                        <td className="py-2.5 pe-3 font-semibold text-slate-900 dark:text-white">{d.name}</td>
+                        <td className="whitespace-nowrap py-2.5 pe-3 text-slate-600 dark:text-slate-300">
                           {isAr ? d.brandAr : d.brandEn}
                         </td>
-                        <td dir="ltr" className="py-2.5 text-end font-mono tabular-nums">
+                        <td dir="ltr" className="whitespace-nowrap py-2.5 text-end font-mono tabular-nums">
                           {f0(d.unitsSold, resolvedLocale)}
                         </td>
-                        <td dir="ltr" className="py-2.5 text-end font-mono tabular-nums">
+                        <td dir="ltr" className="whitespace-nowrap py-2.5 text-end font-mono tabular-nums">
                           {formatKwd(d.unitPriceKwd, { locale: resolvedLocale })}
                         </td>
                         <td
                           dir="ltr"
-                          className="py-2.5 text-end font-mono tabular-nums text-slate-700 dark:text-slate-300"
+                          className="whitespace-nowrap py-2.5 text-end font-mono tabular-nums text-slate-700 dark:text-slate-300"
                         >
                           {formatKwd(d.discountKwd, { locale: resolvedLocale })} (
                           {f1Pct(d.avgDiscountPct, resolvedLocale)})
                         </td>
                         <td
                           dir="ltr"
-                          className="py-2.5 text-end font-mono font-bold tabular-nums text-slate-900 dark:text-white"
+                          className="whitespace-nowrap py-2.5 text-end font-mono font-bold tabular-nums text-slate-900 dark:text-white"
                         >
                           {formatKwd(d.salesKwd, { locale: resolvedLocale })}
                         </td>
@@ -1293,18 +1534,18 @@ export function CoresHubStudio({
             )}
 
             {menuPageSize !== 'all' && totalMenuPages > 1 ? (
-              <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+              <div className="mt-4 flex items-center justify-between gap-2 text-xs text-slate-500">
                 <span className="tabular-nums">
                   {isAr
                     ? `صفحة ${menuPage} من ${totalMenuPages}`
                     : `Page ${menuPage} of ${totalMenuPages}`}
                 </span>
-                <div className="flex gap-2">
+                <div className="flex flex-nowrap shrink-0 gap-2">
                   <button
                     type="button"
                     disabled={menuPage <= 1}
                     onClick={() => setMenuPage((p) => Math.max(1, p - 1))}
-                    className="rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
+                    className="shrink-0 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
                   >
                     {isAr ? 'السابق' : 'Prev'}
                   </button>
@@ -1312,7 +1553,7 @@ export function CoresHubStudio({
                     type="button"
                     disabled={menuPage >= totalMenuPages}
                     onClick={() => setMenuPage((p) => Math.min(totalMenuPages, p + 1))}
-                    className="rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
+                    className="shrink-0 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:opacity-40 dark:border-white/10"
                   >
                     {isAr ? 'التالي' : 'Next'}
                   </button>
@@ -1328,7 +1569,7 @@ export function CoresHubStudio({
       {/* =================================================================== */}
       {!isInitialLoading && !noOdooData && activeTab === 'marketing' ? (
         <div className="space-y-6">
-          {/* Actual Odoo POS Discounts Card */}
+          {/* Actual Odoo POS Discounts Cards */}
           {cubeLoading && !liveCube ? (
             <StateBlock state="loading" compact locale={resolvedLocale} skeletonRows={2} />
           ) : (cubeError || cubeTimedOut) && !liveCube ? (
@@ -1338,92 +1579,138 @@ export function CoresHubStudio({
               locale={resolvedLocale}
               onRetry={() => setCubeRetryTick((n) => n + 1)}
             />
+          ) : !liveCube ? (
+            <StateBlock
+              state="unavailable"
+              compact
+              locale={resolvedLocale}
+              title={isAr ? 'خصومات نقاط البيع غير متاحة حالياً' : 'Recorded POS Line Discounts — Unavailable'}
+              description={
+                isAr
+                  ? 'بانتظار مكعب سطور نقاط البيع التفصيلي (pos.order.line) للفترة المحددة.'
+                  : 'Detailed POS order-line discount metrics require the live period cube (pos.order.line).'
+              }
+            />
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className={KPI_CARD_CLS}>
-                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'إجمالي خصومات نقاط البيع المسجّلة' : 'Recorded POS Line Discounts'}
-                </div>
-                <div
-                  dir="ltr"
-                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-                >
-                  {!liveCube ? (
-                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                      {isAr ? 'غير متاح' : '—'}
-                    </span>
-                  ) : (
-                    formatKwd(snapshot.marketing.posDiscountsKwd, { locale: resolvedLocale })
-                  )}
-                </div>
-                <KpiProvenanceBadge
-                  odooModel="pos.order.line"
-                  dateRange={dateRangeLabel}
-                  lastSyncAt={lastSyncAt}
-                  isStale24h={isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="sum(price_unit * qty * discount / 100)"
-                />
-              </div>
+            (() => {
+              const marketingKpiCards: { key: string; node: React.ReactNode }[] = [
+                {
+                  key: 'pos-discounts-kwd',
+                  node: (
+                    <article className={KPI_CARD_CLS}>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {isAr ? 'إجمالي خصومات نقاط البيع المسجّلة' : 'Recorded POS Line Discounts'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {formatKwd(snapshot.marketing.posDiscountsKwd, { locale: resolvedLocale })}
+                        </div>
+                      </div>
+                      <KpiProvenanceBadge
+                        odooModel="pos.order.line"
+                        dateRange={dateRangeLabel}
+                        lastSyncAt={lastSyncAt}
+                        isStale24h={isStale24h}
+                        kind="فعلي"
+                        queryOrFormula="sum(price_unit * qty * discount / 100)"
+                      />
+                    </article>
+                  ),
+                },
+                {
+                  key: 'pos-avg-discount-pct',
+                  node: (
+                    <article className={KPI_CARD_CLS}>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {isAr ? 'متوسط نسبة الخصم في POS' : 'Average POS Discount %'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {f2Pct(snapshot.marketing.posAvgDiscountPct, resolvedLocale)}
+                        </div>
+                      </div>
+                      <KpiProvenanceBadge
+                        odooModel="pos.order.line"
+                        dateRange={dateRangeLabel}
+                        lastSyncAt={lastSyncAt}
+                        isStale24h={isStale24h}
+                        kind="محسوب بمعادلة"
+                        queryOrFormula="totalDiscountKwd / grossBeforeDiscountKwd * 100"
+                      />
+                    </article>
+                  ),
+                },
+                {
+                  key: 'pos-discounted-lines',
+                  node: (
+                    <article className={KPI_CARD_CLS}>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {isAr ? 'عدد السطور المخصومة في POS' : 'Discounted POS Lines'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {f0(snapshot.marketing.posDiscountedLinesCount, resolvedLocale)}
+                        </div>
+                      </div>
+                      <KpiProvenanceBadge
+                        odooModel="pos.order.line"
+                        dateRange={dateRangeLabel}
+                        lastSyncAt={lastSyncAt}
+                        isStale24h={isStale24h}
+                        kind="فعلي"
+                        queryOrFormula="count(pos.order.line where discount > 0)"
+                      />
+                    </article>
+                  ),
+                },
+              ]
 
-              <div className={KPI_CARD_CLS}>
-                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'متوسط نسبة الخصم في POS' : 'Average POS Discount %'}
-                </div>
-                <div
-                  dir="ltr"
-                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-                >
-                  {!liveCube ? (
-                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                      {isAr ? 'غير متاح' : '—'}
-                    </span>
-                  ) : (
-                    f2Pct(snapshot.marketing.posAvgDiscountPct, resolvedLocale)
-                  )}
-                </div>
-                <KpiProvenanceBadge
-                  odooModel="pos.order.line"
-                  dateRange={dateRangeLabel}
-                  lastSyncAt={lastSyncAt}
-                  isStale24h={isStale24h}
-                  kind="محسوب بمعادلة"
-                  queryOrFormula="totalDiscountKwd / grossBeforeDiscountKwd * 100"
-                />
-              </div>
+              if (snapshot.marketing.evaluations.length > 0) {
+                marketingKpiCards.push({
+                  key: 'logged-campaign-windows',
+                  node: (
+                    <article className={KPI_CARD_CLS}>
+                      <div>
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {isAr ? 'فترات الحملات المسجّلة' : 'Logged Campaign Windows'}
+                        </div>
+                        <div
+                          dir="ltr"
+                          className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
+                        >
+                          {f0(snapshot.marketing.evaluations.length, resolvedLocale)}
+                        </div>
+                      </div>
+                      <KpiProvenanceBadge
+                        odooModel="pos.order.line"
+                        dateRange={dateRangeLabel}
+                        lastSyncAt={lastSyncAt}
+                        isStale24h={isStale24h}
+                        kind="محسوب بمعادلة"
+                        queryOrFormula="Compared against Odoo daily POS sales"
+                      />
+                    </article>
+                  ),
+                })
+              }
 
-              <div className={KPI_CARD_CLS}>
-                <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {isAr ? 'عدد السطور المخصومة في POS' : 'Discounted POS Lines'}
-                </div>
-                <div
-                  dir="ltr"
-                  className="mt-1.5 font-mono text-2xl font-bold tabular-nums text-slate-900 dark:text-white"
-                >
-                  {!liveCube ? (
-                    <span data-unavailable="true" title={unavailableTip} aria-label={unavailableTip}>
-                      {isAr ? 'غير متاح' : '—'}
-                    </span>
-                  ) : (
-                    f0(snapshot.marketing.posDiscountedLinesCount, resolvedLocale)
-                  )}
-                </div>
-                <KpiProvenanceBadge
-                  odooModel="pos.order.line"
-                  dateRange={dateRangeLabel}
-                  lastSyncAt={lastSyncAt}
-                  isStale24h={isStale24h}
-                  kind="فعلي"
-                  queryOrFormula="count(pos.order.line where discount > 0)"
-                />
-              </div>
-            </div>
+              return renderDynamicKpiRows(marketingKpiCards)
+            })()
           )}
 
           {/* User-entered Manual Campaign Window Comparison (0 seeded rows) */}
           <div className={CARD_CLS}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-bold text-slate-900 dark:text-white">
                   {isAr
                     ? 'سجل مقارنة فترات الحملات اليدوية بمبيعات Odoo اليومية'
@@ -1442,7 +1729,7 @@ export function CoresHubStudio({
                   resetCampaignForm()
                   setIsAdFormOpen((v) => !v)
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
               >
                 {isAdFormOpen ? <X className="h-3.5 w-3.5" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
                 <span>{isAr ? 'إضافة فترة حملة يدوية' : 'Log Campaign Window'}</span>
@@ -1595,15 +1882,18 @@ export function CoresHubStudio({
                       ? 'بدون حملة'
                       : 'No campaign'
                     : resolveCampaignDisplayName(ev.campaign, isAr)
+                  const fullCampaignLabel = `${displayTitle} · ${getBrandLabel(ev.campaign.brand, isAr)} (${getBranchLabel(ev.campaign.branch ?? 'all', isAr)})`
                   return (
                     <div
                       key={ev.campaign.id}
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-xs dark:border-white/10"
                     >
-                      <div>
-                        <div className="font-bold text-slate-900 dark:text-white">
-                          {displayTitle} · {getBrandLabel(ev.campaign.brand, isAr)} (
-                          {getBranchLabel(ev.campaign.branch ?? 'all', isAr)})
+                      <div className="min-w-0 flex-1">
+                        <div
+                          title={fullCampaignLabel}
+                          className="truncate font-bold text-slate-900 dark:text-white"
+                        >
+                          {fullCampaignLabel}
                         </div>
                         <div className="mt-0.5 text-xs text-slate-500 tabular-nums">
                           <span dir="ltr">
@@ -1615,9 +1905,9 @@ export function CoresHubStudio({
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex shrink-0 items-center gap-3">
                         <div className="text-end font-mono tabular-nums">
-                          <div>
+                          <div className="whitespace-nowrap">
                             {isAr ? 'فرق المبيعات اليومية:' : 'Daily Sales Delta:'}{' '}
                             {ev.noData ? (
                               <span
@@ -1648,7 +1938,7 @@ export function CoresHubStudio({
                         <button
                           type="button"
                           onClick={() => handleEditCampaign(ev.campaign)}
-                          className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-white/10"
+                          className="shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-white/10"
                           aria-label={isAr ? 'تعديل الحملة' : 'Edit campaign'}
                         >
                           <Edit3 className="h-3.5 w-3.5" aria-hidden />
@@ -1656,7 +1946,7 @@ export function CoresHubStudio({
                         <button
                           type="button"
                           onClick={() => handleDeleteCampaign(ev.campaign.id)}
-                          className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 dark:hover:bg-rose-950/30"
+                          className="shrink-0 rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60 dark:hover:bg-rose-950/30"
                           aria-label={isAr ? 'حذف الحملة' : 'Delete campaign'}
                         >
                           <Trash2 className="h-3.5 w-3.5" aria-hidden />

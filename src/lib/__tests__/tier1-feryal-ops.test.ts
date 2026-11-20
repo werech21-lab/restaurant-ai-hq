@@ -326,7 +326,7 @@ describe('FeryalGovernanceStudio — Today Notes, Consensus/Contradiction Badges
     expect(arHtml).toContain('data-studio-tab="today-notes"')
     expect(arHtml).toContain('ملاحظات اليوم ⚡')
     expect(arHtml).toContain('ملخص اليوم وآخر التنبيهات')
-    expect(arHtml).toContain('data-odoo-partial-warning="true"')
+    expect(arHtml).not.toContain('data-odoo-partial-warning="true"')
     expect(arHtml).toContain('1,690.750')
     expect(arHtml).toContain('420')
     expect(arHtml).toContain('1,234.500')
@@ -341,7 +341,7 @@ describe('FeryalGovernanceStudio — Today Notes, Consensus/Contradiction Badges
     expect(enHtml).toContain('data-studio-tab="today-notes"')
     expect(enHtml).toContain("Today&#x27;s Notes ⚡")
     expect(enHtml).toContain("Today&#x27;s Executive Summary &amp; Latest Alerts")
-    expect(enHtml).toContain('data-odoo-partial-warning="true"')
+    expect(enHtml).not.toContain('data-odoo-partial-warning="true"')
     expect(enHtml).toContain('1,690.750')
     expect(enHtml).toContain('1,234.500')
     expect(enHtml).toContain('456.250')
@@ -721,7 +721,7 @@ describe('CostIntelligenceV2 — 3-Decimal KWD, Null Honesty & States', () => {
       'ar',
       React.createElement(CostIntelligenceV2, { initialSummary: purchaseSummary }),
     )
-    expect(arHtml).toContain('data-odoo-partial-warning="true"')
+    expect(arHtml).not.toContain('data-odoo-partial-warning="true"')
     expect(arHtml).toContain('5,432.100')
     expect(arHtml).toContain('1,250.500')
     expect(arHtml).toContain('data-unavailable="true"')
@@ -882,7 +882,7 @@ describe('WarehouseDailyChainStudio — 3-Decimal KWD, Exclusion Filter & States
       'ar',
       React.createElement(WarehouseDailyChainStudio, { initialWarehouseChain: payload }),
     )
-    expect(arHtml).toContain('data-odoo-partial-warning="true"')
+    expect(arHtml).not.toContain('data-odoo-partial-warning="true"')
     expect(arHtml).toContain('8,200.250')
     expect(arHtml).toContain('3,100.750')
     expect(arHtml).toContain('2,400.500')

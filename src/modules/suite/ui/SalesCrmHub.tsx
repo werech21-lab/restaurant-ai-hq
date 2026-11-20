@@ -42,7 +42,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <div
           role="tablist"
           aria-label={t('sector.sales')}
-          className="flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+          className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
         >
           {tabs.map((item) => {
             const active = tab === item
@@ -54,7 +54,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                 id={`sales-crm-tab-${item}`}
                 aria-selected={active}
                 aria-controls={`sales-crm-panel-${item}`}
-                className={active ? suitePrimaryBtn : suiteSecondaryBtn}
+                className={`shrink-0 whitespace-nowrap ${active ? suitePrimaryBtn : suiteSecondaryBtn}`}
                 onClick={() => setTab(item)}
               >
                 {t(titles[item])}

@@ -346,8 +346,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
 
       const arHtml = renderWithProviders('ar', el(FullJourney360))
       const arMain = arHtml.split('id="admin-pos-terminal-mapping"')[0] ?? arHtml
-      expect(arMain).toContain('data-odoo-partial-warning="true"')
-      expect(arMain).toContain('بعض الأرقام غير متاحة الآن')
+      expect(arMain).not.toContain('data-odoo-partial-warning="true"')
+      expect(arMain).not.toContain('بعض الأرقام غير متاحة الآن')
       expect(arMain).toContain('title="غير متاح"')
       expect(arMain).toContain('data-unavailable="true"')
       expect(arMain).toContain('—')
@@ -355,8 +355,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
 
       const enHtml = renderWithProviders('en', el(FullJourney360))
       const enMain = enHtml.split('id="admin-pos-terminal-mapping"')[0] ?? enHtml
-      expect(enMain).toContain('data-odoo-partial-warning="true"')
-      expect(enMain).toContain('Some figures are temporarily unavailable')
+      expect(enMain).not.toContain('data-odoo-partial-warning="true"')
+      expect(enMain).not.toContain('Some figures are temporarily unavailable')
       expect(enMain).toContain('title="Unavailable"')
       expect(enMain).toContain('• AOV —')
       expect(enMain).not.toContain('0.000 KWD')
@@ -413,12 +413,18 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
 
       const enHtml = renderWithProviders('en', el(FullJourney360))
       expect(enHtml).not.toContain('Incomplete GL entries for this period')
-      expect(enHtml).toContain('Not posted yet')
+      expect(enHtml).not.toContain('Posted general ledger entries')
+      expect(enHtml).not.toContain('Aggregator Commissions')
+      expect(enHtml).toContain('data-kpi="average-order-value"')
+      expect(enHtml).toContain('data-kpi="top-performing-branch"')
       expect(enHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
 
       const arHtml = renderWithProviders('ar', el(FullJourney360))
       expect(arHtml).not.toContain('دفتر الأستاذ بلا بند مصروف')
-      expect(arHtml).toContain('غير مُرحَّل بعد')
+      expect(arHtml).not.toContain('قيود دفتر الأستاذ المرحّلة')
+      expect(arHtml).not.toContain('عمولات تطبيقات التوصيل')
+      expect(arHtml).toContain('data-kpi="average-order-value"')
+      expect(arHtml).toContain('data-kpi="top-performing-branch"')
     })
   })
 
@@ -466,8 +472,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
         }),
       )
       const deliverySlaTopBar = renderWithProviders('en', el(TopFilterBar))
-      expect(deliverySlaTopBar).toContain('data-odoo-partial-warning="true"')
-      expect(deliverySlaTopBar).toContain('Some figures are temporarily unavailable')
+      expect(deliverySlaTopBar).not.toContain('data-odoo-partial-warning="true"')
+      expect(deliverySlaTopBar).not.toContain('Some figures are temporarily unavailable')
 
       for (const route of [
         '/erp/receivables',
@@ -591,7 +597,8 @@ describe('Tier 1 Chrome, /erp & /dashboard Overview', () => {
         path.join(root, 'src/components/aether/FullJourney360.tsx'),
         'utf8',
       )
-      expect(journeySrc).not.toContain('truncate')
+      expect(journeySrc).toContain('truncate')
+      expect(journeySrc).toContain('min-w-0')
       expect(journeySrc).not.toContain('<h1')
       expect(journeySrc).not.toContain('href="#')
       expect(journeySrc).toContain('grid-cols-2 lg:grid-cols-4')

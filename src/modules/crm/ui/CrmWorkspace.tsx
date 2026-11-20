@@ -98,18 +98,18 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
         {t('erp.back')}
       </Link>
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{t('crm.title')}</h2>
           <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-300">{t('crm.subtitle')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setDialog({ kind: 'customer' })} className={crmSecondaryBtn}>
+          <button type="button" onClick={() => setDialog({ kind: 'customer' })} className={`shrink-0 whitespace-nowrap ${crmSecondaryBtn}`}>
             {t('crm.newCustomer')}
           </button>
-          <button type="button" onClick={() => setDialog({ kind: 'lead' })} className={crmSecondaryBtn}>
+          <button type="button" onClick={() => setDialog({ kind: 'lead' })} className={`shrink-0 whitespace-nowrap ${crmSecondaryBtn}`}>
             {t('crm.newLead')}
           </button>
-          <button type="button" onClick={() => setDialog({ kind: 'quotation' })} className={crmPrimaryBtn}>
+          <button type="button" onClick={() => setDialog({ kind: 'quotation' })} className={`shrink-0 whitespace-nowrap ${crmPrimaryBtn}`}>
             {t('crm.newQuotation')}
           </button>
         </div>
@@ -129,7 +129,7 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
       <div
         role="tablist"
         aria-label={t('crm.title')}
-        className="mb-4 flex max-w-full flex-wrap gap-1 overflow-x-auto border-b border-slate-200 dark:border-emerald-500/15"
+        className="mb-4 flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-emerald-500/15"
       >
         {tabs.map((value) => (
           <button
@@ -140,7 +140,7 @@ export default function CrmWorkspace({ initialCustomerId = null }: { initialCust
             aria-selected={tab === value}
             aria-controls={`crm-panel-${value}`}
             onClick={() => setTab(value)}
-            className={`-mb-px cursor-pointer whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
+            className={`-mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 px-4 py-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 ${
               tab === value
                 ? 'border-emerald-600 font-semibold text-emerald-700 dark:border-emerald-400 dark:text-emerald-300'
                 : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'

@@ -11,7 +11,7 @@ export const metadata = {
 export default async function AlertsPage() {
   await requirePageUser('/erp/alerts')
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0 overflow-x-hidden">
+    <div className="w-full max-w-[1920px] mx-auto px-4 py-5 sm:px-6 min-w-0 overflow-x-clip">
       <h1 className="sr-only">
         مركز التنبيهات المالية والتشغيلية | Automated Financial Alerts
       </h1>

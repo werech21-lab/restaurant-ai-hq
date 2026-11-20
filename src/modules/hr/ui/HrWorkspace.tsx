@@ -527,25 +527,25 @@ function Workspace({
         <div className="mb-4 flex flex-wrap gap-2">
           <a
             href="/hr/smart-folder-upload"
-            className="ds-focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
+            className="ds-focus-ring inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
           >
             {t('hr.smartUpload')}
           </a>
           <a
             href="/hr/compliance-radar"
-            className="ds-focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-700"
+            className="ds-focus-ring inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-amber-600 px-3.5 py-2 text-xs font-bold text-white hover:bg-amber-700"
           >
             {t('hr.complianceRadar')}
           </a>
           <a
             href="/ess"
-            className="ds-focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-300/90 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
+            className="ds-focus-ring inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-300/90 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50 dark:border-white/15 dark:bg-[#141F1B] dark:text-slate-100"
           >
             {t('hr.ess')}
           </a>
           <a
             href={`/api/hr/wps-export?month=${period.slice(5, 7)}&year=${period.slice(0, 4)}&download=1`}
-            className="ds-focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200"
+            className="ds-focus-ring inline-flex min-h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-amber-500/40 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200"
           >
             {t('hr.wpsExport')}
           </a>
@@ -570,7 +570,7 @@ function Workspace({
         <nav
           role="tablist"
           aria-label={t('hr.title')}
-          className="mb-5 flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+          className="mb-5 flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
         >
           {tabs.map((item) => (
             <button
@@ -580,7 +580,7 @@ function Workspace({
               id={`hr-tab-${item}`}
               aria-selected={tab === item}
               aria-controls={`hr-panel-${item}`}
-              className={tab === item ? primaryBtnCls : secondaryBtnCls}
+              className={`shrink-0 whitespace-nowrap ${tab === item ? primaryBtnCls : secondaryBtnCls}`}
               onClick={() => setTab(item)}
             >
               {t(`hr.nav.${item}` as MessageKey)}
@@ -1038,12 +1038,12 @@ function Workspace({
 
           {tab === 'payroll' ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
+              <div className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                 {payrollSubs.map((item) => (
                   <button
                     key={item}
                     type="button"
-                    className={payrollSub === item ? primaryBtnCls : secondaryBtnCls}
+                    className={`shrink-0 whitespace-nowrap ${payrollSub === item ? primaryBtnCls : secondaryBtnCls}`}
                     onClick={() => setPayrollSub(item)}
                   >
                     {t(`hr.pay.${item}` as MessageKey)}

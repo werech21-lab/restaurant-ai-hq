@@ -158,7 +158,7 @@ export function DepartmentalReportsHub({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
+            <div className="inline-flex max-w-full overflow-x-auto no-scrollbar rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
               {GLOBAL_PERIOD_OPTIONS.filter((p) => p.id !== 'custom').map((opt) => {
                 const active = filters.period === opt.id
                 return (
@@ -167,7 +167,7 @@ export function DepartmentalReportsHub({
                     type="button"
                     aria-pressed={active}
                     onClick={() => setPeriod(opt.id as GlobalPeriod)}
-                    className={`ds-focus-ring rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    className={`ds-focus-ring shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                       active
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
@@ -184,9 +184,9 @@ export function DepartmentalReportsHub({
                 type="button"
                 aria-expanded={showLocalDb}
                 onClick={() => setShowLocalDb((prev) => !prev)}
-                className="ds-focus-ring inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="ds-focus-ring inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
-                <Database className="h-3.5 w-3.5" aria-hidden />
+                <Database className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {isAr ? 'جداول النظام المحلي' : 'Local DB Tables'}
               </button>
             )}
@@ -451,8 +451,8 @@ export function DepartmentalReportsHub({
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{report.code}</span>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        <span className="min-w-0 truncate text-xs font-bold text-slate-600 dark:text-slate-300">{report.code}</span>
+                        <span className="shrink-0 whitespace-nowrap rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
                           {report.odooModel ?? 'Odoo'}
                         </span>
                       </div>

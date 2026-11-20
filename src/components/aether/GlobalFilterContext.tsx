@@ -1,6 +1,15 @@
 'use client'
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { usePathname } from 'next/navigation'
 import {
   APPROVED_BRANCH_IDS,
@@ -25,10 +34,40 @@ import {
 import type { OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import { clampPeriodToKuwaitToday, getKuwaitTodayIso } from '@/lib/aether/period-delta'
 import type { ExecSessionRole } from '@/lib/auth/exec-role-meta'
+import {
+  bustErpReadCache,
+  DEFAULT_ERP_CACHE_MAX_STALE_MS,
+  DEFAULT_ERP_CACHE_TTL_MS,
+  ERP_ODOO_SYNC_EVENT,
+  fetchWithErpReadCache,
+  peekErpReadCache,
+  writeErpReadCache,
+} from '@/lib/erp-read-cache'
 import { UNAVAILABLE_DASH, formatInt, formatKwd, formatPct } from '@/lib/format'
 
 const STORAGE_KEY = 'aether.globalFilters.v2'
 const SILENT_POLL_INTERVAL_MS = 180_000 // 3 minutes silent live Odoo 17 polling
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
+export function buildOdooSyncPeriodQuery(
+  period: GlobalPeriod,
+  customFrom: string,
+  customTo: string,
+): string {
+  return period === 'custom'
+    ? `period=custom&from=${encodeURIComponent(customFrom)}&to=${encodeURIComponent(customTo)}`
+    : `period=${encodeURIComponent(period)}`
+}
+
+export function buildOdooSummaryCacheKey(periodQuery: string): string {
+  return `odoo-sync:${periodQuery}`
+}
+
+function isCacheableLiveSummary(
+  summary: OdooLiveSummary | null | undefined,
+): summary is OdooLiveSummary {
+  return Boolean(summary && summary.connected === true && summary.noData !== true && summary.totals)
+}
 
 function normalizeSyncPayloadToSummary(raw: Partial<OdooLiveSummary> | null | undefined): OdooLiveSummary {
   if (raw && raw.connected === true && raw.totals) {
@@ -270,107 +309,124 @@ export function GlobalFilterProvider({
     }
   }, [effectiveFilters, hydrated, isSubpage])
 
-  // Background fetch of /api/erp/odoo-sync + silent 3-minute polling on active executive sessions
+  const selfSyncingRef = useRef(false)
+  const periodQuery = useMemo(
+    () =>
+      buildOdooSyncPeriodQuery(
+        effectiveFilters.period,
+        effectiveFilters.customFrom,
+        effectiveFilters.customTo,
+      ),
+    [effectiveFilters.customFrom, effectiveFilters.customTo, effectiveFilters.period],
+  )
+  const summaryCacheKey = useMemo(
+    () => buildOdooSummaryCacheKey(periodQuery),
+    [periodQuery],
+  )
+
+  // Synchronously hydrate `liveSummary` (<5ms) from warm L1/L2 SWR cache on route/period transitions
+  useIsomorphicLayoutEffect(() => {
+    const warmCached = peekErpReadCache<OdooLiveSummary>(summaryCacheKey)
+    if (isCacheableLiveSummary(warmCached)) {
+      setLiveSummary(warmCached)
+      setSyncingOdoo(false)
+    }
+  }, [summaryCacheKey])
+
+  // Background SWR read of /api/erp/odoo-sync + silent 3-minute polling on active executive sessions
   useEffect(() => {
     let active = true
-    const qs =
-      effectiveFilters.period === 'custom'
-        ? `period=custom&from=${encodeURIComponent(effectiveFilters.customFrom)}&to=${encodeURIComponent(effectiveFilters.customTo)}`
-        : `period=${encodeURIComponent(effectiveFilters.period)}`
-    const cacheKey = `aether_live_odoo_summary_v1:${qs}`
 
-    try {
-      const cachedRaw = window.sessionStorage.getItem(cacheKey)
-      if (cachedRaw) {
-        const parsed = JSON.parse(cachedRaw) as { savedAt?: number; data?: OdooLiveSummary }
-        if (
-          parsed?.data?.connected === true &&
-          parsed?.data?.noData !== true &&
-          parsed?.data?.totals &&
-          typeof parsed.savedAt === 'number' &&
-          Date.now() - parsed.savedAt < 5 * 60_000
-        ) {
-          setLiveSummary((prev) => prev ?? parsed.data ?? null)
-        } else {
-          window.sessionStorage.removeItem(cacheKey)
-        }
-      }
-    } catch {
-      // ignore sessionStorage quota/access errors
-    }
-
-    const pullSilentStatus = () => {
-      fetch(`/api/erp/odoo-sync?${qs}`, {
+    const fetchLiveSummaryFromApi = async (forceRefresh: boolean): Promise<OdooLiveSummary> => {
+      const url = forceRefresh
+        ? `/api/erp/odoo-sync?${periodQuery}&force=1&forceRefresh=true`
+        : `/api/erp/odoo-sync?${periodQuery}`
+      const res = await fetch(url, {
         method: 'GET',
-        cache: 'no-store',
+        cache: forceRefresh ? 'no-store' : 'default',
         credentials: 'same-origin',
         headers: { accept: 'application/json' },
       })
-        .then((res) => (res.ok ? (res.json() as Promise<Partial<OdooLiveSummary>>) : null))
-        .then((data) => {
-          if (!active) return
-          const normalized = normalizeSyncPayloadToSummary(data)
-          setLiveSummary(normalized)
-          try {
-            if (normalized.connected && !normalized.noData) {
-              window.sessionStorage.setItem(
-                cacheKey,
-                JSON.stringify({ savedAt: Date.now(), data: normalized }),
-              )
-            } else {
-              window.sessionStorage.removeItem(cacheKey)
+      const rawData = res.ok ? ((await res.json()) as Partial<OdooLiveSummary>) : null
+      if (active && typeof rawData?.syncCooldownRemainingSec === 'number') {
+        setSyncCooldownSec(Math.max(0, Math.round(rawData.syncCooldownRemainingSec)))
+      }
+      return normalizeSyncPayloadToSummary(rawData)
+    }
+
+    const pullSilentStatus = (forceRefresh = false) => {
+      fetchWithErpReadCache<OdooLiveSummary>(
+        summaryCacheKey,
+        () => fetchLiveSummaryFromApi(forceRefresh),
+        {
+          ttlMs: DEFAULT_ERP_CACHE_TTL_MS,
+          maxStaleMs: DEFAULT_ERP_CACHE_MAX_STALE_MS,
+          forceRefresh,
+          shouldCache: isCacheableLiveSummary,
+          onRevalidate: (freshSummary) => {
+            if (active) {
+              setLiveSummary(freshSummary)
             }
-          } catch {
-            // ignore sessionStorage quota errors
-          }
-          if (typeof data?.syncCooldownRemainingSec === 'number') {
-            setSyncCooldownSec(Math.max(0, Math.round(data.syncCooldownRemainingSec)))
-          }
+          },
+        },
+      )
+        .then((summary) => {
+          if (!active) return
+          setLiveSummary(summary)
         })
         .catch(() => {
           if (!active) return
-          try {
-            window.sessionStorage.removeItem(cacheKey)
-          } catch {
-            // ignore sessionStorage errors
-          }
-          setLiveSummary(normalizeSyncPayloadToSummary(null))
+          const fallbackWarm = peekErpReadCache<OdooLiveSummary>(summaryCacheKey)
+          setLiveSummary(
+            isCacheableLiveSummary(fallbackWarm)
+              ? fallbackWarm
+              : normalizeSyncPayloadToSummary(null),
+          )
         })
     }
 
-    pullSilentStatus()
+    pullSilentStatus(false)
 
     const pollTimer = !isAuditor
       ? window.setInterval(() => {
           if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
             return
           }
-          pullSilentStatus()
+          pullSilentStatus(false)
         }, SILENT_POLL_INTERVAL_MS)
       : null
 
     const onSyncEvent = (ev: Event) => {
-      const detail = (ev as CustomEvent<Partial<OdooLiveSummary>>).detail
-      if (detail) setLiveSummary(normalizeSyncPayloadToSummary(detail))
+      if (selfSyncingRef.current) return
+      const detail = (ev as CustomEvent<Partial<OdooLiveSummary> | undefined>).detail
+      if (detail) {
+        const normalized = normalizeSyncPayloadToSummary(detail)
+        if (effectiveFilters.period === 'month') {
+          setLiveSummary(normalized)
+          if (isCacheableLiveSummary(normalized)) {
+            writeErpReadCache(summaryCacheKey, normalized)
+          }
+          return
+        }
+      }
+      pullSilentStatus(true)
     }
-    window.addEventListener('aether:odoo-sync', onSyncEvent)
+    window.addEventListener(ERP_ODOO_SYNC_EVENT, onSyncEvent)
     return () => {
       active = false
       if (pollTimer !== null) window.clearInterval(pollTimer)
-      window.removeEventListener('aether:odoo-sync', onSyncEvent)
+      window.removeEventListener(ERP_ODOO_SYNC_EVENT, onSyncEvent)
     }
-  }, [effectiveFilters.customFrom, effectiveFilters.customTo, effectiveFilters.period, isAuditor])
+  }, [effectiveFilters.period, isAuditor, periodQuery, summaryCacheKey])
 
   const triggerOdooSyncNow = useCallback(async () => {
     if (isAuditor || syncCooldownSec > 0) return
     setSyncingOdoo(true)
+    selfSyncingRef.current = true
+    bustErpReadCache()
     try {
-      const qs =
-        effectiveFilters.period === 'custom'
-          ? `period=custom&from=${encodeURIComponent(effectiveFilters.customFrom)}&to=${encodeURIComponent(effectiveFilters.customTo)}`
-          : `period=${encodeURIComponent(effectiveFilters.period)}`
       const res = await fetch(
-        `/api/erp/odoo-sync?${qs}`,
+        `/api/erp/odoo-sync?${periodQuery}&force=1&forceRefresh=true`,
         {
           method: 'POST',
           cache: 'no-store',
@@ -381,7 +437,7 @@ export function GlobalFilterProvider({
       if (!res.ok) {
         const disconnected = normalizeSyncPayloadToSummary(null)
         setLiveSummary(disconnected)
-        window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: disconnected }))
+        window.dispatchEvent(new CustomEvent(ERP_ODOO_SYNC_EVENT, { detail: disconnected }))
         return
       }
       const rawFresh = (await res.json()) as Partial<OdooLiveSummary>
@@ -392,23 +448,32 @@ export function GlobalFilterProvider({
           ? Math.round(rawFresh.syncCooldownRemainingSec)
           : 30,
       )
-      window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: fresh }))
+      window.dispatchEvent(new CustomEvent(ERP_ODOO_SYNC_EVENT, { detail: fresh }))
+      if (isCacheableLiveSummary(fresh)) {
+        writeErpReadCache(summaryCacheKey, fresh)
+      }
     } catch {
       const disconnected = normalizeSyncPayloadToSummary(null)
       setLiveSummary(disconnected)
-      window.dispatchEvent(new CustomEvent('aether:odoo-sync', { detail: disconnected }))
+      window.dispatchEvent(new CustomEvent(ERP_ODOO_SYNC_EVENT, { detail: disconnected }))
     } finally {
+      selfSyncingRef.current = false
       setSyncingOdoo(false)
     }
-  }, [effectiveFilters.customFrom, effectiveFilters.customTo, effectiveFilters.period, isAuditor, syncCooldownSec])
+  }, [isAuditor, periodQuery, summaryCacheKey, syncCooldownSec])
 
-  // Hydrate custom global date ranges from /api/erp/live-comparison so Company Summary & Comparison stay 100% unified
+  // Hydrate custom global date ranges from /api/erp/live-comparison via SWR cache
   useEffect(() => {
     if (effectiveFilters.period !== 'custom') {
       setCustomDailySeries([])
       return undefined
     }
     let active = true
+    const customCacheKey = `live-comparison:custom:${effectiveFilters.customFrom}:${effectiveFilters.customTo}`
+    const warmSeries = peekErpReadCache<{ day: string; orders: number; netKwd: number }[]>(customCacheKey)
+    if (Array.isArray(warmSeries)) {
+      setCustomDailySeries(warmSeries)
+    }
     const qs = new URLSearchParams({
       dateA: effectiveFilters.customFrom,
       toA: effectiveFilters.customTo,
@@ -416,47 +481,73 @@ export function GlobalFilterProvider({
       toB: effectiveFilters.customTo,
       granularity: 'range',
     })
-    fetch(`/api/erp/live-comparison?${qs.toString()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'same-origin',
-      headers: { accept: 'application/json' },
-    })
-      .then((res) =>
-        res.ok
-          ? (res.json() as Promise<{
+    fetchWithErpReadCache<{ day: string; orders: number; netKwd: number }[]>(
+      customCacheKey,
+      async () => {
+        const res = await fetch(`/api/erp/live-comparison?${qs.toString()}`, {
+          method: 'GET',
+          cache: 'default',
+          credentials: 'same-origin',
+          headers: { accept: 'application/json' },
+        })
+        const payload = res.ok
+          ? ((await res.json()) as {
               connected?: boolean
               dailySeries?: { day: string; orders: number; netKwd: number }[]
-            }>)
-          : null,
-      )
-      .then((payload) => {
-        if (!active) return
+            })
+          : null
         if (
           payload?.connected === false ||
           !Array.isArray(payload?.dailySeries) ||
           payload.dailySeries.length === 0
         ) {
-          setCustomDailySeries([])
-          return
+          return []
         }
-        setCustomDailySeries(payload.dailySeries)
+        return payload.dailySeries
+      },
+      {
+        ttlMs: DEFAULT_ERP_CACHE_TTL_MS,
+        maxStaleMs: DEFAULT_ERP_CACHE_MAX_STALE_MS,
+        shouldCache: (rows) => Array.isArray(rows) && rows.length > 0,
+        onRevalidate: (freshRows) => {
+          if (active) setCustomDailySeries(freshRows)
+        },
+      },
+    )
+      .then((rows) => {
+        if (active) setCustomDailySeries(rows)
       })
       .catch(() => {
-        if (active) setCustomDailySeries([])
+        if (active && !Array.isArray(warmSeries)) setCustomDailySeries([])
       })
     return () => {
       active = false
     }
   }, [effectiveFilters.period, effectiveFilters.customFrom, effectiveFilters.customTo])
 
-  const setPeriod = useCallback((period: GlobalPeriod) => setFilters((f) => ({ ...f, period })), [])
+  const setPeriod = useCallback((period: GlobalPeriod) => {
+    setFilters((f) => {
+      const nextQs = buildOdooSyncPeriodQuery(period, f.customFrom, f.customTo)
+      const warm = peekErpReadCache<OdooLiveSummary>(buildOdooSummaryCacheKey(nextQs))
+      if (isCacheableLiveSummary(warm)) {
+        setLiveSummary(warm)
+        setSyncingOdoo(false)
+      }
+      return { ...f, period }
+    })
+  }, [])
   const setCustomRange = useCallback((from: string, to: string) => {
     setFilters((f) => {
       const fClean = /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : f.customFrom
       const tClean = /^\d{4}-\d{2}-\d{2}$/.test(to) ? to : f.customTo
       const [start, end] = fClean <= tClean ? [fClean, tClean] : [tClean, fClean]
       const clamped = clampPeriodToKuwaitToday({ from: start, to: end })
+      const nextQs = buildOdooSyncPeriodQuery('custom', clamped.from, clamped.to)
+      const warm = peekErpReadCache<OdooLiveSummary>(buildOdooSummaryCacheKey(nextQs))
+      if (isCacheableLiveSummary(warm)) {
+        setLiveSummary(warm)
+        setSyncingOdoo(false)
+      }
       return { ...f, period: 'custom', customFrom: clamped.from, customTo: clamped.to }
     })
   }, [])

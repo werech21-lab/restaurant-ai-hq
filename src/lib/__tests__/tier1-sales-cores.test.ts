@@ -571,7 +571,8 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
       'ar',
       React.createElement(CoresHubStudioComponent, { initialTab: 'menu' }),
     )
-    expect(menuPartialAr).toContain('بعض الأرقام غير متاحة الآن')
+    expect(menuPartialAr).not.toContain('بعض الأرقام غير متاحة الآن')
+    expect(menuPartialAr).toContain('data-state-block="unavailable"')
     expect(menuPartialAr).toContain('غير متاح')
     expect(menuPartialAr).toContain('—')
 
@@ -585,7 +586,8 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
       'en',
       React.createElement(CoresHubStudioComponent, { initialTab: 'marketing' }),
     )
-    expect(mktEn).toContain('Some figures are temporarily unavailable')
+    expect(mktEn).not.toContain('Some figures are temporarily unavailable')
+    expect(mktEn).toContain('data-state-block="unavailable"')
     expect(mktEn).not.toContain('https://secret.example')
     expect(sanitizeCampaignName(null, true)).toBe('بدون حملة')
     expect(sanitizeCampaignName('', false)).toBe('No campaign')
@@ -616,7 +618,7 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
       liveCube: null,
     })
     const partialEn = renderWithLang('en', React.createElement(BrandSalesAnalyticsDashboard))
-    expect(partialEn).toContain('Some figures are temporarily unavailable')
+    expect(partialEn).not.toContain('Some figures are temporarily unavailable')
     expect(partialEn).toContain('data-unavailable="true"')
     expect(partialEn).toContain('Unavailable')
     expect(partialEn).toContain('—')
@@ -659,7 +661,7 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
       liveCube: null,
     })
     const partialEn = renderWithLang('en', React.createElement(DeliveryRadarV5))
-    expect(partialEn).toContain('Some figures are temporarily unavailable')
+    expect(partialEn).not.toContain('Some figures are temporarily unavailable')
     expect(partialEn).toContain('Unattributed to Branch')
     expect(partialEn).toContain('Unavailable')
     expect(partialEn).toContain('—')
@@ -667,7 +669,7 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
     const partialAr = renderWithLang('ar', React.createElement(DeliveryRadarV5))
     expect(partialAr).toContain('غير منسوب لفرع')
     expect(partialAr).toContain('غير متاح')
-    expect(partialAr).toContain('بعض الأرقام غير متاحة الآن')
+    expect(partialAr).not.toContain('بعض الأرقام غير متاحة الآن')
 
     setMockFilterContext({ liveSummary: buildLiveSummary(), liveCube: buildLiveCube() })
     const connectedEn = renderWithLang('en', React.createElement(DeliveryRadarV5))
@@ -685,12 +687,12 @@ describe('Tier 1 Sales, Cores, Brand, Radar, Weekday & Before/After Phase B Audi
 
     const weekdayAr = renderWithLang('ar', React.createElement(WeekdayComparisonStudio))
     expect(weekdayAr).toContain('role="status"')
-    expect(weekdayAr).toContain('بعض الأرقام غير متاحة الآن')
+    expect(weekdayAr).not.toContain('بعض الأرقام غير متاحة الآن')
     expect(weekdayAr).not.toContain('<h1')
 
     const beforeAfterEn = renderWithLang('en', React.createElement(BeforeAfterStudio))
     expect(beforeAfterEn).toContain('role="status"')
-    expect(beforeAfterEn).toContain('Some figures are temporarily unavailable')
+    expect(beforeAfterEn).not.toContain('Some figures are temporarily unavailable')
     expect(beforeAfterEn).not.toContain('<h1')
 
     // Verify pure Arabic copy inside Same-Hours bar on ExecutiveComparisonControlBar

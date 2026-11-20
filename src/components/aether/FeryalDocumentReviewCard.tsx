@@ -122,28 +122,30 @@ export function FeryalDocumentReviewCard({
           ? 'جدول مراجعة وتأكيد الأسعار المستخرجة قبل التحليل التنفيذي'
           : 'Review and confirm extracted prices before executive analysis'
       }
-      className="mb-3 space-y-3 rounded-2xl border border-amber-300/80 bg-amber-50/40 p-3.5 shadow-xs dark:border-amber-500/30 dark:bg-[#121C18]"
+      className="mb-3 min-w-0 space-y-3 rounded-2xl border border-amber-300/80 bg-amber-50/40 p-3.5 shadow-xs dark:border-amber-500/30 dark:bg-[#121C18]"
     >
       {/* Gate Header */}
       <div className="flex flex-wrap items-start justify-between gap-2.5 border-b border-amber-200/70 pb-2.5 dark:border-white/10">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/70 dark:text-amber-200">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-950 ring-1 ring-amber-500/30 dark:bg-amber-950/70 dark:text-amber-200">
               <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span dir="ltr">{EXTRACTED_DRAFT_UNCONFIRMED_LABEL}</span>
             </span>
 
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
-              <span>{draft.fileName}</span>
-              <span dir="ltr" className="font-mono text-xs text-slate-500 dark:text-slate-400">
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15">
+              <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden />
+              <span className="min-w-0 max-w-[220px] sm:max-w-[320px] truncate" title={draft.fileName}>
+                {draft.fileName}
+              </span>
+              <span dir="ltr" className="shrink-0 font-mono text-xs text-slate-500 dark:text-slate-400">
                 ({draft.fileKind.toUpperCase()})
               </span>
             </span>
 
             <span
               dir="ltr"
-              className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
+              className="shrink-0 whitespace-nowrap rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold tabular-nums text-emerald-900 ring-1 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200"
             >
               {draft.period.from} → {draft.period.to}
             </span>
@@ -156,8 +158,8 @@ export function FeryalDocumentReviewCard({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100/90 px-2.5 py-1 text-xs font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+          <span className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg bg-emerald-100/90 px-2.5 py-1 text-xs font-bold text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-200">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span>
               {isAr
@@ -169,7 +171,7 @@ export function FeryalDocumentReviewCard({
           {draft.summary.criticalCount > 0 ? (
             <span
               data-anomaly-summary="critical"
-              className="inline-flex items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800 ring-1 ring-rose-500/30 dark:bg-rose-950/80 dark:text-rose-200"
+              className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-800 ring-1 ring-rose-500/30 dark:bg-rose-950/80 dark:text-rose-200"
             >
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>
@@ -183,7 +185,7 @@ export function FeryalDocumentReviewCard({
           {draft.summary.warningCount > 0 ? (
             <span
               data-anomaly-summary="warning"
-              className="inline-flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/80 dark:text-amber-200"
+              className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900 ring-1 ring-amber-500/30 dark:bg-amber-950/80 dark:text-amber-200"
             >
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span>
@@ -199,7 +201,7 @@ export function FeryalDocumentReviewCard({
             disabled={submitting}
             onClick={onCancel}
             aria-label={isAr ? 'إلغاء مسودة الأسعار' : 'Dismiss price draft'}
-            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-300 dark:ring-white/15"
+            className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-300 dark:ring-white/15"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
@@ -211,27 +213,27 @@ export function FeryalDocumentReviewCard({
         <table className="w-full border-collapse text-xs">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-[#141F1B] dark:text-slate-200">
-              <th className="px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'تضمين' : 'Include'}
               </th>
-              <th className="px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'الصنف المستخرج' : 'Extracted Item'}
               </th>
-              <th className="px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'مرجع Odoo الفعلي' : 'Odoo Actual'}
               </th>
-              <th className="px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'الحالي بالملف (د.ك)' : 'Sheet Current (KWD)'}
               </th>
               {optionColumns.map((col) => (
-                <th key={col.optionKey} className="px-2.5 py-2 text-start font-bold">
+                <th key={col.optionKey} className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                   <span>{col.label}</span>{' '}
                   <span dir="ltr" className="text-slate-500 dark:text-slate-400">
                     (KWD)
                   </span>
                 </th>
               ))}
-              <th className="px-2.5 py-2 text-start font-bold">
+              <th className="whitespace-nowrap px-2.5 py-2 text-start font-bold">
                 {isAr ? 'فحص الشذوذ والأخطاء' : 'Anomaly & Typo Guard'}
               </th>
             </tr>
@@ -445,12 +447,12 @@ export function FeryalDocumentReviewCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={submitting}
             onClick={onCancel}
-            className="cursor-pointer rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15"
+            className="shrink-0 whitespace-nowrap cursor-pointer rounded-xl bg-white px-3 py-2 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-[#090E0C] dark:text-slate-200 dark:ring-white/15"
           >
             {isAr ? 'إلغاء' : 'Cancel'}
           </button>
@@ -463,12 +465,12 @@ export function FeryalDocumentReviewCard({
               const confirmed = confirmDocumentIntakeDraft(draft)
               onConfirmAndRun(confirmed, draft)
             }}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 whitespace-nowrap cursor-pointer items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
             ) : (
-              <CheckCircle2 className="h-4 w-4" aria-hidden />
+              <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
             )}
             <span>
               {isAr ? 'تأكيد وتشغيل التحليل التنفيذي' : 'Confirm & Run Executive Analysis'}

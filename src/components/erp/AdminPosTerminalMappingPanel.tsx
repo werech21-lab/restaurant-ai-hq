@@ -283,7 +283,7 @@ export function AdminPosTerminalMappingPanel({
                 ? 'اكتشاف وربط أجهزة الكاشير غير المصنّفة (أودو 17)'
                 : 'Auto-Discovered Unmapped Odoo 17 POS Terminals'}
             </h2>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-200">
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-200">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
               <span>{isAr ? 'مسؤول النظام فقط' : 'Admin Only'}</span>
             </span>
@@ -344,7 +344,7 @@ export function AdminPosTerminalMappingPanel({
                 : formatAdminUnmappedAlertCopy(totals.unmappedTerminalsNetKwd, false)}
             </span>
           </div>
-          <span className="shrink-0 rounded-full border border-amber-400/35 bg-amber-100/70 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:border-amber-400/25 dark:bg-amber-500/15 dark:text-amber-200">
+          <span className="shrink-0 whitespace-nowrap rounded-full border border-amber-400/35 bg-amber-100/70 px-2.5 py-0.5 text-xs font-semibold text-amber-900 dark:border-amber-400/25 dark:bg-amber-500/15 dark:text-amber-200">
             {isAr ? 'تنبيه مسؤول النظام' : 'Admin Alert'}
           </span>
         </div>

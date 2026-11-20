@@ -153,7 +153,7 @@ function Workspace() {
           <div
             role="tablist"
             aria-label={t('org.title')}
-            className="flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+            className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
           >
             {visibleTabs.map((value) => {
               const active = tab === value
@@ -166,7 +166,7 @@ function Workspace() {
                   aria-selected={active}
                   aria-controls={`org-panel-${value}`}
                   onClick={() => setTab(value)}
-                  className={active ? orgPrimaryBtn : orgSecondaryBtn}
+                  className={`shrink-0 whitespace-nowrap ${active ? orgPrimaryBtn : orgSecondaryBtn}`}
                 >
                   {t(`org.tab.${value}`)}
                 </button>

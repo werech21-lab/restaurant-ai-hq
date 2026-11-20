@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react'
-import { AlertCircle, Inbox, Info, Link2Off, Lock, Slash } from 'lucide-react'
+import { AlertCircle, Inbox, Link2Off, Lock, Slash } from 'lucide-react'
 import { UNAVAILABLE_DASH, getUnavailableTooltip, type FormatLocale } from '@/lib/format'
 import { cx } from './cx'
 
@@ -90,13 +90,14 @@ export function StateBlock({
   retryLabel,
   warningAr,
   warningEn,
-  unavailableSections,
+  unavailableSections: _ignoredUnavailableSections,
   error: _ignoredError,
   skeletonRows = 3,
   minHeightClass = 'min-h-[148px]',
   compact = false,
   className = '',
 }: StateBlockProps) {
+  void _ignoredUnavailableSections
   void _ignoredError
   const isAr = locale !== 'en'
   const dir = isAr ? 'rtl' : 'ltr'
@@ -156,41 +157,11 @@ export function StateBlock({
   if (state === 'partial') {
     return (
       <div
-        role="alert"
         data-state-block="partial"
-        data-odoo-partial-warning="true"
         dir={dir}
-        className={cx(
-          'flex flex-col justify-center gap-2 rounded-2xl border border-slate-300/70 bg-white/80 px-4 py-3 text-[13px] text-slate-700 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] backdrop-blur-md ring-1 ring-slate-900/[0.04] dark:border-slate-500/25 dark:bg-[rgba(15,26,48,0.78)] dark:text-slate-200 dark:ring-white/5',
-          className,
-        )}
-        style={{
-          backgroundColor: 'var(--ds-unavailable-bg)',
-          borderColor: 'var(--ds-unavailable-border)',
-          color: 'var(--ds-unavailable)',
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-semibold">
-            <Info className="h-4 w-4 shrink-0" aria-hidden />
-            <span>{resolvedTitle}</span>
-            {unavailableSections && unavailableSections.length > 0 ? (
-              <span
-                dir="ltr"
-                className="ds-num rounded-md bg-slate-100/90 px-1.5 py-0.5 text-xs font-bold text-slate-700 dark:bg-white/[0.08] dark:text-slate-200"
-              >
-                {unavailableSections.length}
-              </span>
-            ) : null}
-          </div>
-          {action ? <div className="flex items-center gap-2">{action}</div> : null}
-        </div>
-        {resolvedDescription ? (
-          <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-            {resolvedDescription}
-          </p>
-        ) : null}
-      </div>
+        aria-hidden="true"
+        className={cx('hidden', className)}
+      />
     )
   }
 

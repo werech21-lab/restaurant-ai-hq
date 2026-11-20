@@ -249,21 +249,21 @@ export function ReportBody({
           <table className="min-w-full border-collapse text-start text-sm">
             <thead className="bg-slate-50 text-slate-600 dark:bg-[#141F1B] dark:text-slate-300">
               <tr>
-                <th className="px-3 py-2 font-bold">{T('المزود', 'Provider')}</th>
-                <th className="px-3 py-2 font-bold">{T('النموذج', 'Model')}</th>
-                <th className="px-3 py-2 font-bold">{T('الحالة', 'Status')}</th>
-                <th className="px-3 py-2 font-bold">{T('الرمز', 'Code')}</th>
+                <th className="whitespace-nowrap px-3 py-2 font-bold">{T('المزود', 'Provider')}</th>
+                <th className="whitespace-nowrap px-3 py-2 font-bold">{T('النموذج', 'Model')}</th>
+                <th className="whitespace-nowrap px-3 py-2 font-bold">{T('الحالة', 'Status')}</th>
+                <th className="whitespace-nowrap px-3 py-2 font-bold">{T('الرمز', 'Code')}</th>
               </tr>
             </thead>
             <tbody>
               {report.models.map((model) => (
                 <tr key={model.provider} className="border-t border-slate-100 dark:border-white/10">
-                  <td className="px-3 py-2 text-slate-800 dark:text-slate-200">{model.provider}</td>
-                  <td className="px-3 py-2 font-mono text-slate-700 dark:text-slate-300" dir="ltr">
+                  <td className="whitespace-nowrap px-3 py-2 text-slate-800 dark:text-slate-200">{model.provider}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-slate-700 dark:text-slate-300" dir="ltr">
                     {model.modelId || UNAVAILABLE_DASH}
                   </td>
-                  <td className="px-3 py-2 font-mono text-slate-800 dark:text-slate-200">{model.status}</td>
-                  <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-slate-800 dark:text-slate-200">{model.status}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-slate-600 dark:text-slate-400">
                     {model.errorCode ?? UNAVAILABLE_DASH}
                   </td>
                 </tr>
@@ -289,12 +289,12 @@ export function ReportBody({
             {report.findings.map((finding, index) => (
               <article
                 key={index}
-                className="rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-[#141F1B] dark:ring-white/10"
+                className="min-w-0 [overflow-wrap:anywhere] rounded-2xl bg-white p-3 ring-1 ring-slate-200 dark:bg-[#141F1B] dark:ring-white/10"
               >
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span
                     data-consensus-badge="agreed"
-                    className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200"
+                    className="inline-flex shrink-0 whitespace-nowrap items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-200"
                   >
                     <span dir="ltr" className="tabular-nums">
                       {finding.notes.length}/{totalModels}

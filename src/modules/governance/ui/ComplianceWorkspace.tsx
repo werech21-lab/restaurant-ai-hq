@@ -188,7 +188,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
         <div
           role="tablist"
           aria-label={t('hub.compliance')}
-          className="flex flex-wrap gap-2 border-b border-[var(--ds-border-hairline)] pb-3"
+          className="flex max-w-full items-center gap-2 overflow-x-auto no-scrollbar border-b border-[var(--ds-border-hairline)] pb-3"
         >
           {tabs.map((item) => {
             const active = item === tab
@@ -200,7 +200,7 @@ function Workspace({ initialTab }: { initialTab: string }) {
                 id={`compliance-tab-${item}`}
                 aria-selected={active}
                 aria-controls={`compliance-panel-${item}`}
-                className={active ? primaryBtnClass : secondaryBtnClass}
+                className={`shrink-0 whitespace-nowrap ${active ? primaryBtnClass : secondaryBtnClass}`}
                 onClick={() => setTab(item)}
               >
                 {t(`gov.tab.${item}` as MessageKey)}

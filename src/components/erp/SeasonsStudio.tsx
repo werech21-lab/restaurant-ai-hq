@@ -68,10 +68,10 @@ export function SeasonsStudioView({ locale, events, suggested, report, liveSumma
             const f = findingFor(ev)
             const lift = liftFor(ev)
             return (
-              <li key={ev.id} data-season={ev.id} className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.04]">
+              <li key={ev.id} data-season={ev.id} className="min-w-0 space-y-2 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.04]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-bold text-slate-900 dark:text-white">{isAr ? ev.nameAr : ev.nameEn}</p>
                     <p className="text-[12px] text-slate-500 dark:text-slate-400" dir="ltr">
                       {ev.kind === 'salary-days'
                         ? t(
@@ -82,7 +82,7 @@ export function SeasonsStudioView({ locale, events, suggested, report, liveSumma
                     </p>
                   </div>
                   {canEdit ? (
-                    <div className="flex gap-1.5 text-[12px]">
+                    <div className="flex shrink-0 gap-1.5 whitespace-nowrap text-[12px]">
                       <button type="button" className="rounded-lg px-2 py-1 ring-1 ring-slate-300 dark:ring-white/15" onClick={() => setDraft(ev)}>{t('Edit', 'تعديل')}</button>
                       {!suggested ? <button type="button" className="rounded-lg px-2 py-1 text-rose-700 ring-1 ring-rose-200 dark:text-rose-300" onClick={() => onDelete?.(ev.id)}>{t('Delete', 'حذف')}</button> : null}
                     </div>
@@ -115,14 +115,14 @@ export function SeasonsStudioView({ locale, events, suggested, report, liveSumma
                 {f ? (
                   <div className="space-y-1.5 text-[12.5px] text-slate-700 dark:text-slate-300">
                     <p className="font-semibold text-slate-900 dark:text-white">{isAr ? f.titleAr : f.titleEn}</p>
-                    <p className="text-[11.5px] text-slate-500" dir="ltr">{f.evidence.filter((e) => e.unit === 'KWD').map((e) => `${isAr ? e.labelAr : e.labelEn}: ${e.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD', 'د.ك')} (${e.period.from} → ${e.period.to})`).join(' · ')}</p>
+                    <p className="text-xs text-slate-500" dir="ltr">{f.evidence.filter((e) => e.unit === 'KWD').map((e) => `${isAr ? e.labelAr : e.labelEn}: ${e.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD', 'د.ك')} (${e.period.from} → ${e.period.to})`).join(' · ')}</p>
                     <p className="font-semibold">{t('Prep plan', 'خطة التحضير')}</p>
                     <ul className="list-disc space-y-1 ps-5">
                       {f.proposals.map((p, i) => (
                         <li key={i}>
                           {isAr ? `${p.who.ar}: ${p.what.ar} — ${p.when.ar}` : `${p.who.en}: ${p.what.en} — ${p.when.en}`}
                           {p.expectedImpact ? (
-                            <span className="block text-[11.5px] text-amber-800 dark:text-amber-200">{`${t('Estimate', 'تقدير')}: ${p.expectedImpact.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${p.expectedImpact.formula}`}</span>
+                            <span className="block text-xs text-amber-800 dark:text-amber-200">{`${t('Estimate', 'تقدير')}: ${p.expectedImpact.value.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${t('KWD over the event week', 'د.ك خلال أسبوع الموسم')} = ${p.expectedImpact.formula}`}</span>
                           ) : null}
                         </li>
                       ))}

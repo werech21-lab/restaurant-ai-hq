@@ -395,7 +395,7 @@ export function V35ChartCardHeader({
                 dir="ltr"
                 data-delta-tone={deltaBadge.tone}
                 className={cx(
-                  'inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums',
+                  'inline-flex shrink-0 items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold tabular-nums',
                   deltaBadge.cls,
                 )}
               >
@@ -429,7 +429,14 @@ export function V35ChartCardHeader({
   }
 
   return (
-    <div dir={dir} className={cx(V35_CHART_CARD_CLASS, 'w-full min-w-0 space-y-3', className)}>
+    <div
+      dir={dir}
+      className={cx(
+        V35_CHART_CARD_CLASS,
+        'relative overflow-visible w-full min-w-0 space-y-3',
+        className,
+      )}
+    >
       {headerBody}
       {children}
     </div>
@@ -562,7 +569,7 @@ export function ChartCard({
       dir={dir}
       data-chart-card="true"
       className={cx(
-        'ds-chart-card ds-surface w-full min-w-0',
+        'ds-chart-card ds-surface relative overflow-visible w-full min-w-0',
         V35_CHART_CARD_CLASS,
         className,
       )}
@@ -647,7 +654,7 @@ export function ChartCard({
 
             <div
               className={cx(
-                'relative w-full min-w-0 overflow-hidden pt-1',
+                'relative w-full min-w-0 overflow-visible pt-1',
                 minHeightClass,
               )}
               style={

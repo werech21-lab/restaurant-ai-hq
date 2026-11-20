@@ -59,7 +59,8 @@ describe('Home Today: same completed hours vs yesterday', () => {
   })
   it('every recorded-zero branch card (0 KWD, 0 orders) collapses to the named line; unknown (null) keeps its card', () => {
     const src = fs.readFileSync(path.join(process.cwd(), 'src/components/aether/FullJourney360.tsx'), 'utf8')
-    expect(src).toContain('const isIdleBoothCard = (row: BranchCardRow): boolean => row.salesKwd === 0 && row.orders === 0')
+    expect(src).toContain('const isZeroBranchRow = (row: BranchCardRow): boolean =>')
+    expect(src).toContain('const isIdleBoothCard = (row: BranchCardRow): boolean => isZeroBranchRow(row)')
     expect(src).toContain("بلا مبيعات حتى الآن اليوم: ")
   })
   it('the 7-day pulse falls back to the month bucket\'s real daily rows when the payload has no week bucket', () => {
