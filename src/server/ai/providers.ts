@@ -7,6 +7,8 @@ import {
   DEFAULT_XAI_MODEL,
 } from './models'
 
+export { DEFAULT_GEMINI_MODEL }
+
 export type ProviderId = 'anthropic' | 'google' | 'xai'
 
 export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 'xai']
@@ -451,7 +453,7 @@ function tokenBudget(input: ProviderCallInput): number {
 
 function anthropicBody(input: ProviderCallInput): string {
   return JSON.stringify({
-    model: input.model,
+    model: resolveRequestedModel('anthropic', input.model),
     max_tokens: tokenBudget(input),
     system: input.system,
     messages: [{ role: 'user', content: input.user }],
@@ -468,7 +470,7 @@ function geminiBody(input: ProviderCallInput): string {
 
 function xaiBody(input: ProviderCallInput): string {
   return JSON.stringify({
-    model: input.model,
+    model: resolveRequestedModel('xai', input.model),
     max_tokens: tokenBudget(input),
     messages: [
       { role: 'system', content: input.system },
@@ -494,7 +496,7 @@ function requestFor(input: ProviderCallInput, signal: AbortSignal): { url: strin
     }
   }
   if (input.provider === 'google') {
-    const model = encodeURIComponent(input.model)
+    const model = encodeURIComponent(resolveRequestedModel('google', input.model))
     return {
       url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       init: {

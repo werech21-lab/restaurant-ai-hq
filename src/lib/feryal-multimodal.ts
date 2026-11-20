@@ -1121,7 +1121,7 @@ export interface RunFeryalVisionOutcome {
 }
 
 const MIN_VISION_API_KEY_LENGTH = 20
-const DEFAULT_VISION_GEMINI_MODEL = 'gemini-2.5-flash'
+const DEFAULT_VISION_GEMINI_MODEL = 'gemini-3.5-flash'
 const DEFAULT_VISION_ANTHROPIC_MODEL = 'claude-sonnet-4-6'
 const DEFAULT_VISION_TIMEOUT_MS = 35_000
 
@@ -1348,7 +1348,7 @@ export async function runFeryalVisionAnalysis(
 
   let lastTelemetry: RunFeryalVisionOutcome['telemetry']
 
-  // 1. Primary Multimodal Vision Provider: Google Gemini (`gemini-2.5-flash` inline_data)
+  // 1. Primary Multimodal Vision Provider: Google Gemini (`gemini-3.5-flash` inline_data)
   if (hasGoogle && geminiParts.length > 1) {
     const started = Date.now()
     const controller = new AbortController()

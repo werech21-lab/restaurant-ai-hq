@@ -1,5 +1,5 @@
 export const DEFAULT_ANTHROPIC_MODEL = 'claude-sonnet-4-6'
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash'
 export const DEFAULT_XAI_MODEL = 'grok-4'
 
 export interface CouncilModels {

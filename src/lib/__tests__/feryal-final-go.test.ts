@@ -145,7 +145,7 @@ function okProviderResponse(provider: ProviderId, text: string): Response {
   }
   if (provider === 'google') {
     return jsonHttpResponse({
-      modelVersion: 'gemini-2.5-flash',
+      modelVersion: 'gemini-3.5-flash',
       candidates: [{ content: { parts: [{ text }] } }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 40 },
     })
@@ -226,11 +226,11 @@ describe('fix/feryal-final-go verification gate', () => {
     expect(answer.verifier.valid).toBe(true)
   })
 
-  it('Item 2: replaces broken gemini-3.1-pro-preview with stable gemini-2.5-flash and logs actual HTTP status + sanitized errorSummary inside ai_provider_attempt and ai_runs', async () => {
-    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-2.5-flash')
+  it('Item 2: replaces broken gemini-3.1-pro-preview with stable gemini-3.5-flash and logs actual HTTP status + sanitized errorSummary inside ai_provider_attempt and ai_runs', async () => {
+    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.5-flash')
     expect(DEFAULT_GEMINI_MODEL).not.toBe('gemini-3.1-pro-preview')
     expect(resolveCouncilModels({ NODE_ENV: 'test' })).toMatchObject({
-      google: 'gemini-2.5-flash',
+      google: 'gemini-3.5-flash',
     })
 
     const warnSpy = vi.spyOn(logger, 'warn')
@@ -270,7 +270,7 @@ describe('fix/feryal-final-go verification gate', () => {
 
       expect(direct404).toMatchObject({
         provider: 'google',
-        requestedModel: 'gemini-2.5-flash',
+        requestedModel: 'gemini-3.5-flash',
         status: 'error',
         errorCode: 'HTTP_CLIENT',
         httpStatus: 404,
@@ -284,8 +284,8 @@ describe('fix/feryal-final-go verification gate', () => {
         'ai_provider_attempt',
         expect.objectContaining({
           provider: 'google',
-          requestedModel: 'gemini-2.5-flash',
-          modelId: 'gemini-2.5-flash',
+          requestedModel: 'gemini-3.5-flash',
+          modelId: 'gemini-3.5-flash',
           status: 'error',
           errorCode: 'HTTP_CLIENT',
           httpStatus: 404,
@@ -359,7 +359,7 @@ describe('fix/feryal-final-go verification gate', () => {
       const googleRow = runsSnap.runs.find((r) => r.provider === 'google')
       expect(googleRow).toMatchObject({
         provider: 'google',
-        modelId: 'gemini-2.5-flash',
+        modelId: 'gemini-3.5-flash',
         status: 'error',
         errorCode:
           'HTTP_CLIENT;httpStatus=400;errorSummary=INVALID_ARGUMENT: Invalid value at generation_config',
@@ -415,9 +415,9 @@ describe('fix/feryal-final-go verification gate', () => {
 
     expect(diagnosisWithHallucination).toEqual({
       reason: 'PARSE_FAIL',
-      requestedModel: 'gemini-2.5-flash',
+      requestedModel: 'gemini-3.5-flash',
       offendingNumbers: ['999.9'],
-      errorCode: 'PARSE_FAIL;requestedModel=gemini-2.5-flash;offendingNumbers=[999.9]',
+      errorCode: 'PARSE_FAIL;requestedModel=gemini-3.5-flash;offendingNumbers=[999.9]',
     })
 
     const diagnosisOnlyPeriodDateParts = diagnoseGuardRejectedAnswer({
