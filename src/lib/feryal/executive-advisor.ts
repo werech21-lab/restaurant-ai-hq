@@ -21,6 +21,14 @@ import {
 } from '@/lib/feryal/item-pricing'
 import { isExcludedOdooEntity } from '@/lib/odoo/excluded-entities'
 import type { ConfirmedPriceSheet, DocumentIntakeDraft } from '@/lib/feryal/document-intake-types'
+import {
+  areSkuBrandsCompatible,
+  checkPriceSanityDeviation,
+  hasCompatibleSizePackTokens,
+  hasCrossBrandAmbiguity,
+  inferBrandIdFromSkuName,
+  resolveCanonicalBrandId,
+} from '@/lib/feryal/sku-matcher-guard'
 import type { OdooBucketSummary, OdooLiveSummary } from '@/lib/odoo/live-sync-core'
 import posRegistry from '@/lib/odoo/pos-registry.json'
 import { logger } from '@/lib/logger'
@@ -61,6 +69,7 @@ export interface SkuVelocityRow {
   cumulativeSharePct: string
   abcTier: AbcTier
   rank: number
+  brandId?: string | null
 }
 
 export interface AbcTierSummary {
@@ -472,6 +481,7 @@ export function classifyParetoAbc(rows: readonly ItemPricingRow[]): ParetoClassi
     qtyCanonical: string
     netFixed: string
     avgUnitFixed: string | null
+    brandId: string | null
   }
 
   const parsedRows: ParsedSku[] = []
@@ -483,6 +493,8 @@ export function classifyParetoAbc(rows: readonly ItemPricingRow[]): ParetoClassi
     const unitFromRow = parseDecimal(row.unitPriceKwd)
     const computedUnit =
       qtyDec.sign() > 0 ? netDec.div(qtyDec, 3) : unitFromRow ? unitFromRow.roundHalfUp(3) : null
+    const resolvedBrand =
+      resolveCanonicalBrandId(row.brandId) ?? inferBrandIdFromSkuName(trimmedName) ?? null
     parsedRows.push({
       productId: row.productId,
       name: trimmedName,
@@ -491,6 +503,7 @@ export function classifyParetoAbc(rows: readonly ItemPricingRow[]): ParetoClassi
       qtyCanonical: qtyDec.canonical(),
       netFixed: formatFixed(netDec, 3),
       avgUnitFixed: computedUnit ? formatFixed(computedUnit, 3) : null,
+      brandId: resolvedBrand,
     })
   }
 
@@ -562,6 +575,7 @@ export function classifyParetoAbc(rows: readonly ItemPricingRow[]): ParetoClassi
       cumulativeSharePct: formatFixed(cumAfterDec, 2),
       abcTier: tier,
       rank: skus.length + 1,
+      ...(item.brandId ? { brandId: item.brandId } : {}),
     })
   }
 
@@ -581,6 +595,7 @@ export function classifyParetoAbc(rows: readonly ItemPricingRow[]): ParetoClassi
       cumulativeSharePct: tailCumShare,
       abcTier: 'C',
       rank: skus.length + 1,
+      ...(item.brandId ? { brandId: item.brandId } : {}),
     })
   }
 
@@ -832,6 +847,10 @@ export function buildExecutiveContextPack(input: BuildExecutiveContextPackInput)
   const branch = branchLabelForId(branchId)
   const posRoot = posRootForBrand(brandId)
   const pareto = classifyParetoAbc(input.rows)
+  const scopedBrandId = resolveCanonicalBrandId(brandId)
+  const skus = scopedBrandId
+    ? pareto.skus.map((sku) => (sku.brandId ? sku : { ...sku, brandId: scopedBrandId }))
+    : pareto.skus
   const branchChannelMix = buildBranchChannelMixContext(input.liveSummary)
   const defaultConfigIds = itemPricingRegisterIds(branchId)
 
@@ -857,7 +876,7 @@ export function buildExecutiveContextPack(input: BuildExecutiveContextPackInput)
       totalQty: pareto.totalQty,
       totalNetSalesKwd: pareto.totalNetSalesKwd,
     },
-    skus: pareto.skus,
+    skus,
     tierSummary: pareto.tierSummary,
     branchChannelMix,
     odooQueryMeta: {
@@ -1099,29 +1118,122 @@ export function parseExecutivePromptProposals(prompt: string): ConfirmedPriceShe
   }))
 }
 
-function matchSkuForProposal(
+function stripLeadingSkuBracket(value: string): string {
+  return value.replace(/^\s*\[[^\]]+\]\s*/, '').trim()
+}
+
+interface ProposalSkuMatchResult {
+  matchedSku: SkuVelocityRow | null
+  rejectedWrongVariant: boolean
+}
+
+function evaluateProposalSkuMatch(
   row: ConfirmedPriceSheetRowInput,
   skus: readonly SkuVelocityRow[],
   asItemRows: readonly ItemPricingRow[],
   skuById: ReadonlyMap<number, SkuVelocityRow>,
-): SkuVelocityRow | null {
+  contextBrandRaw: string | null | undefined,
+): ProposalSkuMatchResult {
+  const contextBrandId = resolveCanonicalBrandId(contextBrandRaw)
+  const explicitRowBrandId =
+    resolveCanonicalBrandId(row.brand) ?? inferBrandIdFromSkuName(row.itemName)
+
+  if (contextBrandId && explicitRowBrandId && explicitRowBrandId !== contextBrandId) {
+    return { matchedSku: null, rejectedWrongVariant: false }
+  }
+
+  const effectiveRowBrandId = explicitRowBrandId ?? contextBrandId
+  const sheetCurrentRaw = row.currentPriceKwd ?? row.sheetCurrentPriceKwd ?? null
+
+  const isCandidateAllowed = (sku: SkuVelocityRow): boolean => {
+    if (!sku.name || isExcludedOdooEntity(sku.name)) return false
+    if (
+      !areSkuBrandsCompatible({
+        rowBrand: explicitRowBrandId ?? row.brand,
+        sheetItemName: row.itemName,
+        candidateBrand: sku.brandId,
+        candidateSkuName: sku.name,
+        contextBrand: contextBrandId,
+      })
+    ) {
+      return false
+    }
+    if (!hasCompatibleSizePackTokens(row.itemName, sku.name)) {
+      return false
+    }
+    return true
+  }
+
   if (row.matchedOdooProductId != null) {
     const direct = skuById.get(row.matchedOdooProductId)
-    if (direct) return direct
+    if (direct && isCandidateAllowed(direct)) {
+      const sanity = checkPriceSanityDeviation(sheetCurrentRaw, direct.avgRealizedPriceKwd)
+      if (sanity.exceedsThreshold) {
+        return { matchedSku: null, rejectedWrongVariant: true }
+      }
+      return { matchedSku: direct, rejectedWrongVariant: false }
+    }
   }
-  const wanted = foldItemName(row.itemName)
-  if (wanted.length < 2) return null
 
-  const exactHits = skus.filter((sku) => foldItemName(sku.name) === wanted)
-  if (exactHits.length === 1) return exactHits[0] ?? null
+  const compatibleSkus = skus.filter(isCandidateAllowed)
+  if (compatibleSkus.length === 0) {
+    return { matchedSku: null, rejectedWrongVariant: false }
+  }
 
-  const matchedItem = matchProposedPrice({ label: row.itemName, amount: '0' }, asItemRows)
-  if (!matchedItem) return null
-  return skuById.get(matchedItem.productId) ?? null
+  const wanted = foldItemName(stripLeadingSkuBracket(row.itemName))
+  if (wanted.length < 2) {
+    return { matchedSku: null, rejectedWrongVariant: false }
+  }
+
+  let candidate: SkuVelocityRow | null = null
+  const exactHits = compatibleSkus.filter((sku) => {
+    const full = foldItemName(sku.name)
+    const stripped = foldItemName(stripLeadingSkuBracket(sku.name))
+    return full === wanted || stripped === wanted
+  })
+
+  if (exactHits.length === 1) {
+    candidate = exactHits[0] ?? null
+  } else if (exactHits.length > 1) {
+    if (hasCrossBrandAmbiguity(exactHits, effectiveRowBrandId)) {
+      return { matchedSku: null, rejectedWrongVariant: false }
+    }
+    const sanityPassing = sheetCurrentRaw
+      ? exactHits.filter(
+          (sku) => !checkPriceSanityDeviation(sheetCurrentRaw, sku.avgRealizedPriceKwd).exceedsThreshold,
+        )
+      : exactHits
+    const pool = sanityPassing.length > 0 ? sanityPassing : exactHits
+    candidate = pool.slice().sort((a, b) => a.rank - b.rank)[0] ?? null
+  }
+
+  if (!candidate) {
+    const compatibleItemRows = asItemRows.filter((itemRow) => {
+      const sku = skuById.get(itemRow.productId)
+      return sku ? isCandidateAllowed(sku) : false
+    })
+    const matchedItem = matchProposedPrice({ label: row.itemName, amount: '0' }, compatibleItemRows, {
+      rowBrand: explicitRowBrandId ?? row.brand,
+      contextBrand: contextBrandId,
+    })
+    candidate = matchedItem ? (skuById.get(matchedItem.productId) ?? null) : null
+  }
+
+  if (!candidate) {
+    return { matchedSku: null, rejectedWrongVariant: false }
+  }
+
+  const sanity = checkPriceSanityDeviation(sheetCurrentRaw, candidate.avgRealizedPriceKwd)
+  if (sanity.exceedsThreshold) {
+    return { matchedSku: null, rejectedWrongVariant: true }
+  }
+
+  return { matchedSku: candidate, rejectedWrongVariant: false }
 }
 
 function classifyPlaybookAndRationale(params: {
   matched: boolean
+  rejectedWrongVariant?: boolean
   itemName: string
   abcTier: AbcTier | null
   revenueSharePct: Decimal
@@ -1141,6 +1253,7 @@ function classifyPlaybookAndRationale(params: {
 } {
   const {
     matched,
+    rejectedWrongVariant,
     abcTier,
     revenueSharePct,
     currentDec,
@@ -1153,6 +1266,19 @@ function classifyPlaybookAndRationale(params: {
   const anomalyCodes: string[] = []
 
   if (!matched) {
+    if (rejectedWrongVariant) {
+      anomalyCodes.push('UNMATCHED_WRONG_VARIANT')
+      return {
+        highElasticityRisk: false,
+        riskTag: null,
+        playbookAction: 'Fix Typo First',
+        anomalyCodes,
+        rationaleEn:
+          'Unmatched / Wrong Variant — sheet current unit price deviates sharply from the candidate Odoo POS SKU realized price (likely platter vs single portion); verify the exact POS variant before repricing.',
+        rationaleAr:
+          'غير مطابق / صنف أو حجم مختلف — يختلف السعر الحالي بالملف جذرياً عن السعر الفعلي للصنف في نقاط بيع Odoo (احتمال اختلاف الحجم أو البلاتر عن الطبق الفردي)؛ يلزم التحقق من الصنف الفعلي أولاً.',
+      }
+    }
     anomalyCodes.push('UNMATCHED_ODOO_SKU')
     return {
       highElasticityRisk: false,
@@ -1345,6 +1471,7 @@ export function simulateExecutivePricingOptions(
     netKwd: sku.netSalesKwd,
     unitPriceKwd: sku.avgRealizedPriceKwd,
     categoryId: null,
+    brandId: sku.brandId ?? null,
   }))
 
   const options: SimulatedOptionResult[] = optionOrder.map(({ optionKey, label }) => {
@@ -1369,7 +1496,14 @@ export function simulateExecutivePricingOptions(
       if (!optEntry) continue
 
       const rowId = row.rowId ?? `row_${idx + 1}`
-      const matchedSku = matchSkuForProposal(row, input.pack.skus, asItemRows, skuById)
+      const matchOutcome = evaluateProposalSkuMatch(
+        row,
+        input.pack.skus,
+        asItemRows,
+        skuById,
+        input.pack.scope.brandId,
+      )
+      const matchedSku = matchOutcome.matchedSku
       const confirmedCurrentDec = parseDecimal(row.currentPriceKwd ?? row.sheetCurrentPriceKwd ?? null)
       const proposedDec = parseDecimal(optEntry.proposedPriceKwd)
 
@@ -1377,6 +1511,7 @@ export function simulateExecutivePricingOptions(
         unmatchedRowCount += 1
         const classification = classifyPlaybookAndRationale({
           matched: false,
+          rejectedWrongVariant: matchOutcome.rejectedWrongVariant,
           itemName: row.itemName,
           abcTier: null,
           revenueSharePct: ZERO,
