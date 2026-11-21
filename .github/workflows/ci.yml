@@ -22,7 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # Tests compare council.ts and structured-claim.ts to historical commits
+      # (b985f9b, 653dc84, 097bc9e, 6fa6911). A depth-1 checkout cannot resolve them.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
