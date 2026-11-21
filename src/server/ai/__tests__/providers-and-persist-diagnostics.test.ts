@@ -519,7 +519,7 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
     expect(listProviderAttemptTelemetry()).toHaveLength(MAX_PROVIDER_TELEMETRY_ENTRIES)
   })
 
-  it('Item 7b: diagnoseGuardRejectedAnswer + end-to-end runFeryalCouncil -> persistAiRuns records PARSE_FAIL, SCHEMA_FAIL, FACT_MISMATCH, offendingNumbers, and requestedModel in public.ai_runs with council.ts untouched', async () => {
+  it('Item 7b: diagnoseGuardRejectedAnswer + end-to-end runFeryalCouncil -> persistAiRuns records PARSE_FAIL, SCHEMA_FAIL, FACT_MISMATCH, numbersInText, and requestedModel in public.ai_runs with council.ts untouched', async () => {
     // 1) Pure classifier checks (including strict ACTIVE_VENTURE_BRANCH_IDS enforcement)
     expect(
       diagnoseGuardRejectedAnswer({
@@ -530,8 +530,9 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
     ).toEqual({
       reason: 'PARSE_FAIL',
       requestedModel: MODELS.google,
-      offendingNumbers: ['999.9'],
-      errorCode: 'PARSE_FAIL;requestedModel=gemini-3.1-pro-preview;offendingNumbers=[999.9]',
+      numbersInText: ['999.9'],
+      factIdNumbers: [],
+      errorCode: 'PARSE_FAIL;requestedModel=gemini-3.1-pro-preview;numbersInText=[999.9];factIdNumbers=[]',
     })
 
     expect(
@@ -552,8 +553,9 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
     ).toEqual({
       reason: 'SCHEMA_FAIL',
       requestedModel: MODELS.anthropic,
-      offendingNumbers: ['77.25'],
-      errorCode: 'SCHEMA_FAIL;requestedModel=claude-sonnet-4-6;offendingNumbers=[77.25]',
+      numbersInText: ['77.25'],
+      factIdNumbers: [],
+      errorCode: 'SCHEMA_FAIL;requestedModel=claude-sonnet-4-6;numbersInText=[77.25];factIdNumbers=[]',
     })
 
     // 'best' with only 2 of the active branches must still fail comparisonMatchesFacts -> FACT_MISMATCH
@@ -574,8 +576,9 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
     ).toEqual({
       reason: 'FACT_MISMATCH',
       requestedModel: MODELS.xai,
-      offendingNumbers: [],
-      errorCode: 'FACT_MISMATCH;requestedModel=grok-4;offendingNumbers=[]',
+      numbersInText: [],
+      factIdNumbers: [],
+      errorCode: 'FACT_MISMATCH;requestedModel=grok-4;numbersInText=[];factIdNumbers=[]',
     })
 
     // 2) End-to-end runFeryalCouncil -> persistAiRuns -> PGlite public.ai_runs
@@ -651,17 +654,17 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
       expect(anthropicRun).toMatchObject({
         status: 'guard_rejected',
         modelId: RETURNED_MODELS.anthropic,
-        errorCode: 'PARSE_FAIL;requestedModel=claude-sonnet-4-6;offendingNumbers=[999.9]',
+        errorCode: 'PARSE_FAIL;requestedModel=claude-sonnet-4-6;numbersInText=[999.9];factIdNumbers=[]',
       })
       expect(googleRun).toMatchObject({
         status: 'guard_rejected',
         modelId: RETURNED_MODELS.google,
-        errorCode: 'SCHEMA_FAIL;requestedModel=gemini-3.1-pro-preview;offendingNumbers=[42.75]',
+        errorCode: 'SCHEMA_FAIL;requestedModel=gemini-3.1-pro-preview;numbersInText=[42.75];factIdNumbers=[]',
       })
       expect(xaiRun).toMatchObject({
         status: 'guard_rejected',
         modelId: RETURNED_MODELS.xai,
-        errorCode: 'FACT_MISMATCH;requestedModel=grok-4;offendingNumbers=[888.5]',
+        errorCode: 'FACT_MISMATCH;requestedModel=grok-4;numbersInText=[888.5];factIdNumbers=[]',
       })
 
       expect(warnSpy).toHaveBeenCalledWith(
@@ -672,7 +675,8 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
           requestedModel: MODELS.anthropic,
           modelId: RETURNED_MODELS.anthropic,
           reason: 'PARSE_FAIL',
-          offendingNumbers: ['999.9'],
+          numbersInText: ['999.9'],
+          factIdNumbers: [],
         }),
       )
       expect(warnSpy).toHaveBeenCalledWith(
@@ -683,7 +687,8 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
           requestedModel: MODELS.google,
           modelId: RETURNED_MODELS.google,
           reason: 'SCHEMA_FAIL',
-          offendingNumbers: ['42.75'],
+          numbersInText: ['42.75'],
+          factIdNumbers: [],
         }),
       )
       expect(warnSpy).toHaveBeenCalledWith(
@@ -694,7 +699,8 @@ describe('Items 1 & 7: PostgreSQL-only ai_daily_briefs, provider telemetry, and 
           requestedModel: MODELS.xai,
           modelId: RETURNED_MODELS.xai,
           reason: 'FACT_MISMATCH',
-          offendingNumbers: ['888.5'],
+          numbersInText: ['888.5'],
+          factIdNumbers: [],
         }),
       )
 

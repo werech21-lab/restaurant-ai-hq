@@ -75,7 +75,10 @@ export interface DiagnoseGuardRejectedInput {
 export interface GuardRejectionDiagnosis {
   reason: GuardRejectionReason
   requestedModel: string
-  offendingNumbers: string[]
+  /** Numbers left in the model text after date parts and cited fact-id numbers are removed. Not a guard verdict. */
+  numbersInText: string[]
+  /** Numbers removed because they occurred only inside a cited fact id, after period date parts were already dropped. */
+  factIdNumbers: string[]
   errorCode: string
 }
 
@@ -570,6 +573,88 @@ export function filterPeriodDatePartsFromOffendingNumbers(
   return extracted.filter((num) => !excludedDateParts.has(num))
 }
 
+const MAX_LOGGED_GUARD_NUMBERS = 25
+
+interface LoggedTextNumbers {
+  numbersInText: string[]
+  factIdNumbers: string[]
+}
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function citedFactIdPattern(id: string, flags = ''): RegExp {
+  return new RegExp(`(^|[^A-Za-z0-9_])${escapeForRegExp(id)}(?=$|[^A-Za-z0-9_])`, flags)
+}
+
+function citedFactIdsInText(
+  rawText: string,
+  facts?: readonly ComparableFact[],
+  factsJson?: string | null,
+): string[] {
+  const seen = new Set<string>()
+  const ids: string[] = []
+  for (const fact of resolveComparableFacts(facts, factsJson)) {
+    const id = typeof fact?.id === 'string' ? fact.id.trim() : ''
+    if (!id || seen.has(id) || !citedFactIdPattern(id).test(rawText)) continue
+    seen.add(id)
+    ids.push(id)
+  }
+  return ids.sort((left, right) => right.length - left.length)
+}
+
+function withoutCitedFactIds(rawText: string, factIds: readonly string[]): string {
+  let text = rawText
+  for (const id of factIds) {
+    text = text.replace(citedFactIdPattern(id, 'g'), (_match, prefix: string) => `${prefix} `)
+  }
+  return text
+}
+
+function countLoggedNumbers(values: readonly string[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const value of values) {
+    counts.set(value, (counts.get(value) ?? 0) + 1)
+  }
+  return counts
+}
+
+function splitFactIdNumbers(all: readonly string[], outsideFactIds: readonly string[]): LoggedTextNumbers {
+  const remaining = countLoggedNumbers(outsideFactIds)
+  const factIdNumbers: string[] = []
+  for (const value of all) {
+    const left = remaining.get(value) ?? 0
+    if (left > 0) {
+      remaining.set(value, left - 1)
+      continue
+    }
+    factIdNumbers.push(value)
+  }
+  return { numbersInText: [...outsideFactIds], factIdNumbers }
+}
+
+/** Diagnostic split only. The guard still sees the original model text. */
+export function classifyLoggedTextNumbers(
+  rawText: string,
+  facts?: readonly ComparableFact[],
+  factsJson?: string | null,
+): LoggedTextNumbers {
+  const afterDates = filterPeriodDatePartsFromOffendingNumbers(rawText, facts, factsJson)
+  const citedIds = citedFactIdsInText(rawText, facts, factsJson)
+  if (citedIds.length === 0) return { numbersInText: afterDates, factIdNumbers: [] }
+  const outside = filterPeriodDatePartsFromOffendingNumbers(
+    withoutCitedFactIds(rawText, citedIds),
+    facts,
+    factsJson,
+  )
+  return splitFactIdNumbers(afterDates, outside)
+}
+
+function joinLoggedNumbers(values: readonly string[]): string {
+  return values.slice(0, MAX_LOGGED_GUARD_NUMBERS).join(',')
+}
+
 export function formatProviderHttpErrorCode(input: {
   errorCode: string | null
   httpStatus?: number | null
@@ -594,22 +679,39 @@ export function formatProviderHttpErrorCode(input: {
 export function formatGuardRejectionErrorCode(input: {
   reason: GuardRejectionReason
   requestedModel: string
-  offendingNumbers: readonly string[]
+  numbersInText: readonly string[]
+  factIdNumbers: readonly string[]
 }): string {
   const modelPart = input.requestedModel.trim() || 'unknown'
-  const numbersPart = input.offendingNumbers.slice(0, 25).join(',')
-  return `${input.reason};requestedModel=${modelPart};offendingNumbers=[${numbersPart}]`
+  const numbersPart = joinLoggedNumbers(input.numbersInText)
+  const factIdPart = joinLoggedNumbers(input.factIdNumbers)
+  return `${input.reason};requestedModel=${modelPart};numbersInText=[${numbersPart}];factIdNumbers=[${factIdPart}]`
+}
+
+function guardRejectionDiagnosis(
+  reason: GuardRejectionReason,
+  requestedModel: string,
+  numbers: LoggedTextNumbers,
+): GuardRejectionDiagnosis {
+  return {
+    reason,
+    requestedModel,
+    numbersInText: numbers.numbersInText,
+    factIdNumbers: numbers.factIdNumbers,
+    errorCode: formatGuardRejectionErrorCode({
+      reason,
+      requestedModel,
+      numbersInText: numbers.numbersInText,
+      factIdNumbers: numbers.factIdNumbers,
+    }),
+  }
 }
 
 export function diagnoseGuardRejectedAnswer(
   input: DiagnoseGuardRejectedInput,
 ): GuardRejectionDiagnosis {
   const requestedModel = input.requestedModel?.trim() ?? ''
-  const offendingNumbers = filterPeriodDatePartsFromOffendingNumbers(
-    input.text,
-    input.facts,
-    input.factsJson,
-  )
+  const numbers = classifyLoggedTextNumbers(input.text, input.facts, input.factsJson)
   const trimmed = input.text
     .trim()
     .replace(/^```(?:json)?\s*/i, '')
@@ -619,29 +721,11 @@ export function diagnoseGuardRejectedAnswer(
   try {
     parsedJson = JSON.parse(trimmed)
   } catch {
-    return {
-      reason: 'PARSE_FAIL',
-      requestedModel,
-      offendingNumbers,
-      errorCode: formatGuardRejectionErrorCode({
-        reason: 'PARSE_FAIL',
-        requestedModel,
-        offendingNumbers,
-      }),
-    }
+    return guardRejectionDiagnosis('PARSE_FAIL', requestedModel, numbers)
   }
 
   if (!parsedJson || typeof parsedJson !== 'object') {
-    return {
-      reason: 'PARSE_FAIL',
-      requestedModel,
-      offendingNumbers,
-      errorCode: formatGuardRejectionErrorCode({
-        reason: 'PARSE_FAIL',
-        requestedModel,
-        offendingNumbers,
-      }),
-    }
+    return guardRejectionDiagnosis('PARSE_FAIL', requestedModel, numbers)
   }
 
   const record = !Array.isArray(parsedJson)
@@ -650,16 +734,7 @@ export function diagnoseGuardRejectedAnswer(
   const candidate = record && 'comparison' in record ? record.comparison : parsedJson
   const schemaResult = comparisonSchema.safeParse(candidate)
   if (!schemaResult.success) {
-    return {
-      reason: 'SCHEMA_FAIL',
-      requestedModel,
-      offendingNumbers,
-      errorCode: formatGuardRejectionErrorCode({
-        reason: 'SCHEMA_FAIL',
-        requestedModel,
-        offendingNumbers,
-      }),
-    }
+    return guardRejectionDiagnosis('SCHEMA_FAIL', requestedModel, numbers)
   }
 
   const facts = resolveComparableFacts(input.facts, input.factsJson)
@@ -668,28 +743,10 @@ export function diagnoseGuardRejectedAnswer(
       activeBranchIds: ACTIVE_VENTURE_BRANCH_IDS,
     })
   ) {
-    return {
-      reason: 'FACT_MISMATCH',
-      requestedModel,
-      offendingNumbers,
-      errorCode: formatGuardRejectionErrorCode({
-        reason: 'FACT_MISMATCH',
-        requestedModel,
-        offendingNumbers,
-      }),
-    }
+    return guardRejectionDiagnosis('FACT_MISMATCH', requestedModel, numbers)
   }
 
-  return {
-    reason: 'FACT_MISMATCH',
-    requestedModel,
-    offendingNumbers,
-    errorCode: formatGuardRejectionErrorCode({
-      reason: 'FACT_MISMATCH',
-      requestedModel,
-      offendingNumbers,
-    }),
-  }
+  return guardRejectionDiagnosis('FACT_MISMATCH', requestedModel, numbers)
 }
 
 function enrichAiRunDraft(row: AiRunDraft): AiRunDraft {
@@ -750,7 +807,8 @@ function enrichAiRunDraft(row: AiRunDraft): AiRunDraft {
     requestedModel: diagnosis.requestedModel,
     modelId: effectiveModelId,
     reason: diagnosis.reason,
-    offendingNumbers: diagnosis.offendingNumbers,
+    numbersInText: diagnosis.numbersInText,
+    factIdNumbers: diagnosis.factIdNumbers,
   })
 
   return {

@@ -20,6 +20,43 @@ const COUNCIL_FACTS_DELIMITER = '\n\nOdoo facts JSON:\n'
 export const ANALYSIS_MAX_TOKENS = 800
 const MAX_PROVIDER_OUTPUT_TOKENS = 4_096
 
+/** Gemini output budget when the caller does not pass maxTokens. Replaces the 800 default. */
+export const GEMINI_MAX_OUTPUT_TOKENS = 2000
+
+/**
+ * Small Gemini 2.5 thinkingBudget. 128 is the documented minimum for 2.5 Pro,
+ * so the same cap is valid for 2.5 Flash and 2.5 Pro. Thought tokens count
+ * toward maxOutputTokens, and this cap keeps them from crowding out the reply.
+ */
+export const GEMINI_THINKING_BUDGET = 128
+
+/** Documented minimum thinkingBudget for Gemini 2.5 Flash-Lite. 128 is rejected. */
+export const GEMINI_FLASH_LITE_THINKING_BUDGET = 512
+
+/**
+ * Gemini 3 and later, including 3.5, use thinkingLevel. The legacy integer
+ * thinkingBudget is deprecated on those models, and sending both fields returns
+ * 400. LOW is the smallest level both Gemini 3 Flash and Pro accept.
+ */
+export const GEMINI_THINKING_LEVEL = 'LOW'
+
+export const GEMINI_JSON_MIME_TYPE = 'application/json'
+export const GEMINI_FINISH_REASON_MAX_TOKENS = 'MAX_TOKENS'
+
+/**
+ * First line shared by the council and daily-brief system prompts. Those calls
+ * must return one JSON object. Other Gemini callers stay free text.
+ */
+export const STRUCTURED_JSON_SYSTEM_MARKER =
+  'You receive Odoo facts as JSON. Return one JSON object and no other text.'
+
+const GEMINI_25_MODEL_ID = /^gemini-2\.5(?:[.-]|$)/i
+const GEMINI_3_MODEL_ID = /^gemini-3(?:[.-]|$)/i
+const GEMINI_FLASH_LITE_MODEL_ID = /flash-lite/i
+const PROVIDER_ATTEMPT_LOG = 'ai_provider_attempt'
+const PROVIDER_MAX_TOKENS_LOG = 'ai_provider_max_tokens'
+const PROVIDER_UNPARSEABLE_JSON_LOG = 'ai_provider_unparseable_json'
+
 export const PROVIDER_COOLDOWN_MS = 45_000
 export const REPEATED_TIMEOUT_THRESHOLD = 2
 
@@ -45,6 +82,8 @@ export interface ProviderCallResult {
   latencyMs: number
   tokensIn: number | null
   tokensOut: number | null
+  /** Gemini candidates[0].finishReason. Null for other providers and transport failures. */
+  finishReason: string | null
   status: 'ok' | 'error'
   errorCode: string | null
   httpStatus?: number | null
@@ -229,18 +268,52 @@ export function sanitizeProviderErrorSummary(rawBody: string): string | null {
     : redacted
 }
 
+function expectsStructuredJson(input: Pick<ProviderCallInput, 'system' | 'user'>): boolean {
+  if (input.system.startsWith(STRUCTURED_JSON_SYSTEM_MARKER)) return true
+  return input.user.startsWith(COUNCIL_QUESTION_PREFIX) && input.user.includes(COUNCIL_FACTS_DELIMITER)
+}
+
+function replyIsJson(text: string): boolean {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  if (!trimmed) return false
+  try {
+    JSON.parse(trimmed)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function providerLogIdentity(input: ProviderCallInput, result: ProviderCallResult) {
+  return {
+    provider: input.provider,
+    requestedModel: resolveRequestedModel(input.provider, input.model),
+    modelVersion: result.modelId.trim() || null,
+    finishReason: result.finishReason,
+    tokensOut: result.tokensOut,
+  }
+}
+
+function logProviderOutcomeSignals(input: ProviderCallInput, result: ProviderCallResult): void {
+  const identity = providerLogIdentity(input, result)
+  if (result.finishReason === GEMINI_FINISH_REASON_MAX_TOKENS) {
+    logger.warn(PROVIDER_MAX_TOKENS_LOG, identity)
+  }
+  const sawModelOutput = result.finishReason !== null || result.status === 'ok'
+  if (!sawModelOutput || !expectsStructuredJson(input) || replyIsJson(result.text)) return
+  logger.warn(PROVIDER_UNPARSEABLE_JSON_LOG, identity)
+}
+
 function logProviderAttempt(input: ProviderCallInput, result: ProviderCallResult): void {
-  const requestedModel = resolveRequestedModel(input.provider, input.model)
-  const effectiveModelId = result.modelId.trim() || requestedModel
+  const identity = providerLogIdentity(input, result)
   const httpStatus = typeof result.httpStatus === 'number' ? result.httpStatus : null
   const errorSummary =
     typeof result.errorSummary === 'string' && result.errorSummary.trim()
       ? result.errorSummary.trim()
       : null
   const fields = {
-    provider: input.provider,
-    requestedModel,
-    modelId: effectiveModelId,
+    ...identity,
+    modelId: result.modelId.trim() || identity.requestedModel,
     status: result.status,
     errorCode: result.errorCode,
     ...(httpStatus !== null ? { httpStatus } : {}),
@@ -248,10 +321,11 @@ function logProviderAttempt(input: ProviderCallInput, result: ProviderCallResult
     latencyMs: result.latencyMs,
   }
   if (result.status === 'ok') {
-    logger.info('ai_provider_attempt', fields)
-    return
+    logger.info(PROVIDER_ATTEMPT_LOG, fields)
+  } else {
+    logger.warn(PROVIDER_ATTEMPT_LOG, fields)
   }
-  logger.warn('ai_provider_attempt', fields)
+  logProviderOutcomeSignals(input, result)
 }
 
 function recordProviderTelemetry(input: ProviderCallInput, result: ProviderCallResult): void {
@@ -431,6 +505,7 @@ function failure(
     latencyMs,
     tokensIn: null,
     tokensOut: null,
+    finishReason: null,
     status: 'error',
     errorCode,
   }
@@ -460,11 +535,48 @@ function anthropicBody(input: ProviderCallInput): string {
   })
 }
 
+function callerOmittedMaxTokens(input: ProviderCallInput): boolean {
+  return typeof input.maxTokens !== 'number' || !Number.isFinite(input.maxTokens) || input.maxTokens <= 0
+}
+
+function geminiMaxOutputTokens(input: ProviderCallInput): number {
+  if (callerOmittedMaxTokens(input)) return GEMINI_MAX_OUTPUT_TOKENS
+  return tokenBudget(input)
+}
+
+interface GeminiThinkingConfig {
+  thinkingBudget?: number
+  thinkingLevel?: typeof GEMINI_THINKING_LEVEL
+}
+
+function geminiThinkingConfig(model: string): GeminiThinkingConfig | null {
+  const id = model.trim()
+  if (GEMINI_3_MODEL_ID.test(id)) return { thinkingLevel: GEMINI_THINKING_LEVEL }
+  if (!GEMINI_25_MODEL_ID.test(id)) return null
+  if (GEMINI_FLASH_LITE_MODEL_ID.test(id)) {
+    return { thinkingBudget: GEMINI_FLASH_LITE_THINKING_BUDGET }
+  }
+  return { thinkingBudget: GEMINI_THINKING_BUDGET }
+}
+
+function geminiGenerationConfig(input: ProviderCallInput): {
+  maxOutputTokens: number
+  responseMimeType?: typeof GEMINI_JSON_MIME_TYPE
+  thinkingConfig?: GeminiThinkingConfig
+} {
+  const thinkingConfig = geminiThinkingConfig(resolveRequestedModel('google', input.model))
+  return {
+    maxOutputTokens: geminiMaxOutputTokens(input),
+    ...(expectsStructuredJson(input) ? { responseMimeType: GEMINI_JSON_MIME_TYPE } : {}),
+    ...(thinkingConfig ? { thinkingConfig } : {}),
+  }
+}
+
 function geminiBody(input: ProviderCallInput): string {
   return JSON.stringify({
     systemInstruction: { parts: [{ text: input.system }] },
     contents: [{ role: 'user', parts: [{ text: input.user }] }],
-    generationConfig: { maxOutputTokens: tokenBudget(input) },
+    generationConfig: geminiGenerationConfig(input),
   })
 }
 
@@ -555,7 +667,15 @@ function pingRequest(provider: ProviderId, apiKey: string, signal: AbortSignal):
   }
 }
 
-function parseAnthropic(payload: unknown): { modelId: string; text: string; tokensIn: number | null; tokensOut: number | null } | null {
+interface ParsedModelPayload {
+  modelId: string
+  text: string
+  tokensIn: number | null
+  tokensOut: number | null
+  finishReason: string | null
+}
+
+function parseAnthropic(payload: unknown): ParsedModelPayload | null {
   const body = asRecord(payload)
   if (!body || typeof body.model !== 'string' || !body.model.trim()) return null
   const content = Array.isArray(body.content) ? body.content : []
@@ -573,10 +693,17 @@ function parseAnthropic(payload: unknown): { modelId: string; text: string; toke
     text,
     tokensIn: integerField(usage?.input_tokens),
     tokensOut: integerField(usage?.output_tokens),
+    finishReason: null,
   }
 }
 
-function parseGemini(payload: unknown): { modelId: string; text: string; tokensIn: number | null; tokensOut: number | null } | null {
+function readFinishReason(candidate: Record<string, unknown> | null): string | null {
+  if (typeof candidate?.finishReason !== 'string') return null
+  const trimmed = candidate.finishReason.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function parseGemini(payload: unknown): ParsedModelPayload | null {
   const body = asRecord(payload)
   if (!body) return null
   const modelId =
@@ -602,10 +729,11 @@ function parseGemini(payload: unknown): { modelId: string; text: string; tokensI
     text,
     tokensIn: integerField(usage?.promptTokenCount),
     tokensOut: integerField(usage?.candidatesTokenCount),
+    finishReason: readFinishReason(first),
   }
 }
 
-function parseXai(payload: unknown): { modelId: string; text: string; tokensIn: number | null; tokensOut: number | null } | null {
+function parseXai(payload: unknown): ParsedModelPayload | null {
   const body = asRecord(payload)
   if (!body || typeof body.model !== 'string' || !body.model.trim()) return null
   const choices = Array.isArray(body.choices) ? body.choices : []
@@ -618,6 +746,7 @@ function parseXai(payload: unknown): { modelId: string; text: string; tokensIn: 
     text,
     tokensIn: integerField(usage?.prompt_tokens),
     tokensOut: integerField(usage?.completion_tokens),
+    finishReason: null,
   }
 }
 
@@ -670,7 +799,16 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
     }
     const parsed = parseProvider(input.provider, await readJson(response))
     if (!parsed) return { ...failure(input, Date.now() - started, 'MISSING_MODEL_ID'), retryAfterMs: null }
-    if (!parsed.text) return { ...failure(input, Date.now() - started, 'EMPTY_ANSWER'), retryAfterMs: null }
+    if (!parsed.text) {
+      return {
+        ...failure(input, Date.now() - started, 'EMPTY_ANSWER'),
+        modelId: parsed.modelId,
+        tokensIn: parsed.tokensIn,
+        tokensOut: parsed.tokensOut,
+        finishReason: parsed.finishReason,
+        retryAfterMs: null,
+      }
+    }
     return {
       provider: input.provider,
       requestedModel: resolveRequestedModel(input.provider, input.model),
@@ -679,6 +817,7 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
       latencyMs: Date.now() - started,
       tokensIn: parsed.tokensIn,
       tokensOut: parsed.tokensOut,
+      finishReason: parsed.finishReason,
       status: 'ok',
       errorCode: null,
       retryAfterMs: null,
@@ -751,6 +890,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
         latencyMs: Date.now() - started,
         tokensIn: once.tokensIn,
         tokensOut: once.tokensOut,
+        finishReason: once.finishReason,
         status: once.status,
         errorCode: once.errorCode,
         ...(once.httpStatus != null ? { httpStatus: once.httpStatus } : {}),
@@ -778,6 +918,7 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
         latencyMs: Date.now() - started,
         tokensIn: once.tokensIn,
         tokensOut: once.tokensOut,
+        finishReason: once.finishReason,
         status: once.status,
         errorCode: once.errorCode,
         ...(once.httpStatus != null ? { httpStatus: once.httpStatus } : {}),
