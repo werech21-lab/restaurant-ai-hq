@@ -508,6 +508,79 @@ function resolveComparableFacts(
   }
 }
 
+function collectPeriodDatePartsFromString(raw: string, out: Set<string>): void {
+  if (!raw) return
+  const ymdRe = /\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/g
+  let match: RegExpExecArray | null
+  while ((match = ymdRe.exec(raw)) !== null) {
+    out.add(String(Number(match[1])))
+    out.add(String(Number(match[2])))
+    out.add(String(Number(match[3])))
+  }
+  const dmyRe = /\b(0?[1-9]|[12]\d|3[01])[-/](0?[1-9]|1[0-2])[-/](20\d{2})\b/g
+  while ((match = dmyRe.exec(raw)) !== null) {
+    out.add(String(Number(match[1])))
+    out.add(String(Number(match[2])))
+    out.add(String(Number(match[3])))
+  }
+}
+
+export function extractExcludedPeriodDateNumbers(
+  facts?: readonly ComparableFact[],
+  factsJson?: string | null,
+): Set<string> {
+  const excluded = new Set<string>()
+  if (typeof factsJson === 'string' && factsJson.length > 0) {
+    collectPeriodDatePartsFromString(factsJson, excluded)
+  }
+  const resolved = resolveComparableFacts(facts, factsJson)
+  for (const fact of resolved) {
+    if (!fact || typeof fact !== 'object') continue
+    for (const val of Object.values(fact)) {
+      if (typeof val === 'string') {
+        collectPeriodDatePartsFromString(val, excluded)
+      }
+    }
+  }
+  return excluded
+}
+
+export function filterPeriodDatePartsFromOffendingNumbers(
+  rawText: string,
+  facts?: readonly ComparableFact[],
+  factsJson?: string | null,
+): string[] {
+  const textWithoutFullDates = rawText
+    .replace(/\b20\d{2}[-/](?:0?[1-9]|1[0-2])[-/](?:0?[1-9]|[12]\d|3[01])\b/g, ' ')
+    .replace(/\b(?:0?[1-9]|[12]\d|3[01])[-/](?:0?[1-9]|1[0-2])[-/]20\d{2}\b/g, ' ')
+  const extracted = extractCanonicalDecimals(textWithoutFullDates)
+  if (extracted.length === 0) return []
+  const excludedDateParts = extractExcludedPeriodDateNumbers(facts, factsJson)
+  if (excludedDateParts.size === 0) return extracted
+  return extracted.filter((num) => !excludedDateParts.has(num))
+}
+
+export function formatProviderHttpErrorCode(input: {
+  errorCode: string | null
+  httpStatus?: number | null
+  errorSummary?: string | null
+}): string | null {
+  const base = input.errorCode?.trim() || null
+  if (typeof input.httpStatus !== 'number') {
+    return base
+  }
+  const code = base || 'HTTP_CLIENT'
+  if (code.includes(';httpStatus=')) {
+    return code
+  }
+  const cleanSummary = input.errorSummary
+    ? input.errorSummary.replace(/;/g, ',').replace(/\s+/g, ' ').trim().slice(0, 180)
+    : ''
+  return cleanSummary
+    ? `${code};httpStatus=${input.httpStatus};errorSummary=${cleanSummary}`
+    : `${code};httpStatus=${input.httpStatus}`
+}
+
 export function formatGuardRejectionErrorCode(input: {
   reason: GuardRejectionReason
   requestedModel: string
@@ -522,7 +595,11 @@ export function diagnoseGuardRejectedAnswer(
   input: DiagnoseGuardRejectedInput,
 ): GuardRejectionDiagnosis {
   const requestedModel = input.requestedModel?.trim() ?? ''
-  const offendingNumbers = extractCanonicalDecimals(input.text)
+  const offendingNumbers = filterPeriodDatePartsFromOffendingNumbers(
+    input.text,
+    input.facts,
+    input.factsJson,
+  )
   const trimmed = input.text
     .trim()
     .replace(/^```(?:json)?\s*/i, '')
@@ -619,6 +696,17 @@ function enrichAiRunDraft(row: AiRunDraft): AiRunDraft {
     (row.errorCode === 'GUARD_REJECTED' || !row.errorCode)
 
   if (!shouldDiagnoseGuardRejection) {
+    if (row.status === 'error' && telemetry?.httpStatus != null) {
+      return {
+        ...row,
+        modelId: effectiveModelId,
+        errorCode: formatProviderHttpErrorCode({
+          errorCode: row.errorCode ?? telemetry.errorCode,
+          httpStatus: telemetry.httpStatus,
+          errorSummary: telemetry.errorSummary,
+        }),
+      }
+    }
     return {
       ...row,
       modelId: effectiveModelId,

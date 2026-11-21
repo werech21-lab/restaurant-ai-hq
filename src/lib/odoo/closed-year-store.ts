@@ -385,7 +385,7 @@ function getClosedYearPgPool(): Pool | null {
     const pool = new Pool({
       connectionString: dbUrl,
       ssl: sslOptions(sslMode, process.env.DATABASE_SSL_CA),
-      max: 2,
+      max: 5,
       connectionTimeoutMillis: CLOSED_YEAR_PG_CONNECT_TIMEOUT_MS,
       idleTimeoutMillis: 10_000,
     })

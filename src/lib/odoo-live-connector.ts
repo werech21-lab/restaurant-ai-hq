@@ -108,7 +108,8 @@ import {
   readClosedYearPlusToday,
   readYearClosedPersistentEntry,
   registerDefaultYearClosedPersistentStore,
-  writeYearClosedPersistentEntry,
+  scheduleYearClosedAfterTask,
+  scheduleYearClosedPersistentWrite,
   YEAR_CLOSED_MAX,
   YEAR_CLOSED_READ_TIMEOUT_MS,
   YEAR_CLOSED_TTL_MS,
@@ -4277,6 +4278,25 @@ export async function fetchLiveOdooCustomBucket(
  * Read-only accessor for `auditor` sessions: returns the latest warm live server cache if connected,
  * or a strict disconnected envelope with zero invented fallback numbers.
  */
+export function warmLiveOdooSnapshotInBackground(period = 'month'): void {
+  assertServerRuntime()
+  if (!isOdooLiveEnvConfigured()) return
+  const now = Date.now()
+  if (
+    coreSnapshotCache &&
+    coreSnapshotCache.connected &&
+    now - coreSnapshotCache.fetchedAtMs < LIVE_SNAPSHOT_TTL_MS
+  ) {
+    return
+  }
+  if (inflightCorePull || circuitOpenUntilMs > now) {
+    return
+  }
+  scheduleYearClosedAfterTask(async () => {
+    await fetchLiveOdooSnapshot({ period }).catch(() => null)
+  })
+}
+
 export function getReadOnlyOdooSnapshotStatus(
   rawPeriod?: string | null,
   referenceNowMs = Date.now(),
@@ -5856,7 +5876,7 @@ export async function fetchLiveOdooPeriodCube(
       periodCubeCache.delete(oldest)
     }
     if (isClosedHistorical) {
-      await writeYearClosedPersistentEntry(l2CubeKey, {
+      scheduleYearClosedPersistentWrite(l2CubeKey, {
         rows: [cube],
         at: referenceNowMs,
       })

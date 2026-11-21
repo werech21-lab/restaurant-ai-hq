@@ -786,6 +786,14 @@ const DEFAULT_ODOO_DATA_SOURCE: FeryalOdooDataSource = {
     try {
       const mod = await loadOdooConnector()
       if (!mod) return null
+      if (typeof mod.getReadOnlyOdooSnapshotStatus === 'function') {
+        const warmSnap = mod.getReadOnlyOdooSnapshotStatus('month')
+        if (warmSnap.connected && warmSnap.source !== 'disconnected') {
+          return warmSnap.lastSyncAt ?? warmSnap.syncedAt ?? null
+        }
+        mod.warmLiveOdooSnapshotInBackground?.('month')
+        return null
+      }
       const snap = await mod.fetchLiveOdooSnapshot({ period: 'month' })
       if (!snap.connected || snap.source === 'disconnected') return null
       return snap.lastSyncAt ?? snap.syncedAt ?? null

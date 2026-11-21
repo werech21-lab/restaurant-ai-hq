@@ -963,13 +963,13 @@ export async function readYearClosedPersistentEntry<T = unknown>(
   now = Date.now(),
   timeoutOrOptions?: number | YearClosedL2IoOptions,
 ): Promise<YearClosedCacheEntry<T> | undefined> {
+  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
   const pendingWrite = getYearClosedInflightWritesMap().get(key)
   if (pendingWrite) {
-    await pendingWrite.catch(() => {})
+    await withBoundedL2Timeout(() => pendingWrite, undefined, timeoutMs)
   }
   const store = getYearClosedPersistentStore()
   if (!store) return undefined
-  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
   const persisted = await withBoundedL2Timeout(
     () => store.get(key),
     undefined,
@@ -997,13 +997,14 @@ export async function writeYearClosedPersistentEntry<T = unknown>(
 ): Promise<void> {
   const store = getYearClosedPersistentStore()
   if (!store) return
-  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
   const inflightWrites = getYearClosedInflightWritesMap()
-  const previousWrite = inflightWrites.get(key)
+  const existingWrite = inflightWrites.get(key)
+  if (existingWrite) {
+    await existingWrite
+    return
+  }
+  const timeoutMs = resolveL2TimeoutMs(timeoutOrOptions)
   const trackedWrite = (async () => {
-    if (previousWrite) {
-      await previousWrite.catch(() => {})
-    }
     const activeStore = getYearClosedPersistentStore()
     if (!activeStore) return
     await withBoundedL2Timeout(
@@ -1019,6 +1020,55 @@ export async function writeYearClosedPersistentEntry<T = unknown>(
   })
   inflightWrites.set(key, trackedWrite)
   await trackedWrite
+}
+
+export function scheduleYearClosedAfterTask(
+  task: () => Promise<void>,
+  scheduleAfterOverride?: YearClosedAfterScheduler,
+): void {
+  const scheduler =
+    scheduleAfterOverride ??
+    getYearClosedPersistentStore()?.scheduleAfter ??
+    globalForYearClosed.__vfYearClosedAfterScheduler
+  if (scheduler) {
+    try {
+      scheduler(task)
+      return
+    } catch {
+      // Outside Next.js request scope: run detached in background without blocking the caller.
+    }
+  }
+  void task().catch(() => {})
+}
+
+export function scheduleYearClosedPersistentWrite<T = unknown>(
+  key: string,
+  entry: YearClosedCacheEntry<T>,
+  options?: {
+    timeoutMs?: number
+    scheduleAfter?: YearClosedAfterScheduler
+  },
+): void {
+  if (!getYearClosedPersistentStore()) return
+  const persistPromise = writeYearClosedPersistentEntry(key, entry, options?.timeoutMs)
+  void persistPromise.catch(() => {})
+  const scheduler =
+    options?.scheduleAfter ??
+    getYearClosedPersistentStore()?.scheduleAfter ??
+    globalForYearClosed.__vfYearClosedAfterScheduler
+  if (scheduler) {
+    try {
+      scheduler(() => persistPromise)
+    } catch {
+      // Detached background promise is already running; never block the caller.
+    }
+  }
+}
+
+export async function flushYearClosedInflightWrites(): Promise<void> {
+  const pending = [...getYearClosedInflightWritesMap().values()]
+  if (pending.length === 0) return
+  await Promise.allSettled(pending)
 }
 
 /**
@@ -1065,24 +1115,14 @@ export async function readClosedYearPlusToday<T>(input: {
 
           const fetched = await input.read(closedWindow)
           writeYearClosedCache(input.cacheKey, fetched, now)
-          const persistPromise = writeYearClosedPersistentEntry(
+          scheduleYearClosedPersistentWrite(
             input.cacheKey,
             { rows: fetched, at: now },
-            input.l2TimeoutMs,
+            {
+              timeoutMs: input.l2TimeoutMs,
+              scheduleAfter: input.scheduleAfter,
+            },
           )
-          const scheduler =
-            input.scheduleAfter ??
-            getYearClosedPersistentStore()?.scheduleAfter ??
-            globalForYearClosed.__vfYearClosedAfterScheduler
-          if (scheduler) {
-            try {
-              scheduler(() => persistPromise)
-            } catch {
-              await persistPromise
-            }
-          } else {
-            await persistPromise
-          }
           return fetched
         })().finally(() => {
           if (inflight.get(input.cacheKey) === pending) {

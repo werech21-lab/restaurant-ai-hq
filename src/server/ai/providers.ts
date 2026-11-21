@@ -7,6 +7,8 @@ import {
   DEFAULT_XAI_MODEL,
 } from './models'
 
+export { DEFAULT_GEMINI_MODEL }
+
 export type ProviderId = 'anthropic' | 'google' | 'xai'
 
 export const COUNCIL_PROVIDERS: readonly ProviderId[] = ['anthropic', 'google', 'xai']
@@ -45,6 +47,8 @@ export interface ProviderCallResult {
   tokensOut: number | null
   status: 'ok' | 'error'
   errorCode: string | null
+  httpStatus?: number | null
+  errorSummary?: string | null
 }
 
 export interface ProviderPingResult {
@@ -72,6 +76,8 @@ export interface ProviderAttemptTelemetry {
   questionHash: string | null
   status: 'ok' | 'error'
   errorCode: string | null
+  httpStatus: number | null
+  errorSummary: string | null
   latencyMs: number
   recordedAtMs: number
 }
@@ -167,15 +173,78 @@ function extractPromptTelemetryMetadata(userPrompt: string): {
   return { questionHash: null, factsJson: null }
 }
 
+const MAX_ERROR_SUMMARY_LENGTH = 200
+
+export function sanitizeProviderErrorSummary(rawBody: string): string | null {
+  const trimmed = rawBody.trim()
+  if (!trimmed) return null
+
+  let extracted = trimmed
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      const root = asRecord(parsed)
+      const nestedErr = asRecord(root?.error)
+      if (nestedErr) {
+        const msg =
+          typeof nestedErr.message === 'string' && nestedErr.message.trim()
+            ? nestedErr.message.trim()
+            : ''
+        const statusOrType =
+          typeof nestedErr.status === 'string' && nestedErr.status.trim()
+            ? nestedErr.status.trim()
+            : typeof nestedErr.type === 'string' && nestedErr.type.trim()
+              ? nestedErr.type.trim()
+              : ''
+        if (msg && statusOrType && !msg.toLowerCase().includes(statusOrType.toLowerCase())) {
+          extracted = `${statusOrType}: ${msg}`
+        } else if (msg) {
+          extracted = msg
+        } else if (statusOrType) {
+          extracted = statusOrType
+        }
+      } else if (typeof root?.error === 'string' && root.error.trim()) {
+        extracted = root.error.trim()
+      } else if (typeof root?.message === 'string' && root.message.trim()) {
+        extracted = root.message.trim()
+      }
+    } catch {
+      extracted = trimmed
+    }
+  }
+
+  const redacted = extracted
+    .replace(/\bBearer\s+[^\s,;)"'\]]+/gi, '[redacted-token]')
+    .replace(/\b(?:x-api-key|x-goog-api-key)\s*[:=]\s*[^\s,;)"'\]]+/gi, '[redacted-header]')
+    .replace(/\b(?:api[_-]?key|key|token|secret|password|passwd|pwd)\s*[:=]\s*[^\s,&;)"'\]]+/gi, '[redacted-secret]')
+    .replace(/\b(?:sk-ant-|sk-|AIza|xai-)[A-Za-z0-9_-]{8,}/g, '[redacted-key]')
+    .replace(/\bpostgres(?:ql)?:\/\/[^\s'")\],;]+/gi, '[redacted-db-url]')
+    .replace(/\b[A-Za-z0-9._%+-]+:[^\s@'")\],;]+@[^\s'")\],;]+/g, '[redacted-credentials]')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!redacted) return null
+  return redacted.length > MAX_ERROR_SUMMARY_LENGTH
+    ? `${redacted.slice(0, MAX_ERROR_SUMMARY_LENGTH - 3)}...`
+    : redacted
+}
+
 function logProviderAttempt(input: ProviderCallInput, result: ProviderCallResult): void {
   const requestedModel = resolveRequestedModel(input.provider, input.model)
   const effectiveModelId = result.modelId.trim() || requestedModel
+  const httpStatus = typeof result.httpStatus === 'number' ? result.httpStatus : null
+  const errorSummary =
+    typeof result.errorSummary === 'string' && result.errorSummary.trim()
+      ? result.errorSummary.trim()
+      : null
   const fields = {
     provider: input.provider,
     requestedModel,
     modelId: effectiveModelId,
     status: result.status,
     errorCode: result.errorCode,
+    ...(httpStatus !== null ? { httpStatus } : {}),
+    ...(errorSummary !== null ? { errorSummary } : {}),
     latencyMs: result.latencyMs,
   }
   if (result.status === 'ok') {
@@ -188,6 +257,11 @@ function logProviderAttempt(input: ProviderCallInput, result: ProviderCallResult
 function recordProviderTelemetry(input: ProviderCallInput, result: ProviderCallResult): void {
   const requestedModel = resolveRequestedModel(input.provider, input.model)
   const { questionHash, factsJson } = extractPromptTelemetryMetadata(input.user)
+  const httpStatus = typeof result.httpStatus === 'number' ? result.httpStatus : null
+  const errorSummary =
+    typeof result.errorSummary === 'string' && result.errorSummary.trim()
+      ? result.errorSummary.trim()
+      : null
   const store = telemetryStore()
   store.push({
     provider: input.provider,
@@ -198,6 +272,8 @@ function recordProviderTelemetry(input: ProviderCallInput, result: ProviderCallR
     questionHash,
     status: result.status,
     errorCode: result.errorCode,
+    httpStatus,
+    errorSummary,
     latencyMs: result.latencyMs,
     recordedAtMs: input.nowMs ?? Date.now(),
   })
@@ -377,7 +453,7 @@ function tokenBudget(input: ProviderCallInput): number {
 
 function anthropicBody(input: ProviderCallInput): string {
   return JSON.stringify({
-    model: input.model,
+    model: resolveRequestedModel('anthropic', input.model),
     max_tokens: tokenBudget(input),
     system: input.system,
     messages: [{ role: 'user', content: input.user }],
@@ -394,7 +470,7 @@ function geminiBody(input: ProviderCallInput): string {
 
 function xaiBody(input: ProviderCallInput): string {
   return JSON.stringify({
-    model: input.model,
+    model: resolveRequestedModel('xai', input.model),
     max_tokens: tokenBudget(input),
     messages: [
       { role: 'system', content: input.system },
@@ -420,7 +496,7 @@ function requestFor(input: ProviderCallInput, signal: AbortSignal): { url: strin
     }
   }
   if (input.provider === 'google') {
-    const model = encodeURIComponent(input.model)
+    const model = encodeURIComponent(resolveRequestedModel('google', input.model))
     return {
       url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       init: {
@@ -582,8 +658,13 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
     const request = requestFor({ ...input, timeoutMs }, controller.signal)
     const response = await (input.fetchImpl ?? fetch)(request.url, request.init)
     if (!response.ok) {
+      const rawErrorBody =
+        typeof response.text === 'function' ? await response.text().catch(() => '') : ''
+      const errorSummary = sanitizeProviderErrorSummary(rawErrorBody)
       return {
         ...failure(input, Date.now() - started, httpErrorCode(response.status)),
+        httpStatus: response.status,
+        errorSummary,
         retryAfterMs: response.status === 429 || response.status === 529 ? retryAfterMs(response) : null,
       }
     }
@@ -603,8 +684,13 @@ async function callProviderOnce(input: ProviderCallInput, timeoutMs: number): Pr
       retryAfterMs: null,
     }
   } catch (error) {
+    const aborted = isAbortError(error)
+    const errorSummary = aborted
+      ? null
+      : sanitizeProviderErrorSummary(error instanceof Error ? error.message : '')
     return {
-      ...failure(input, Date.now() - started, isAbortError(error) ? 'TIMEOUT' : 'NETWORK'),
+      ...failure(input, Date.now() - started, aborted ? 'TIMEOUT' : 'NETWORK'),
+      ...(errorSummary ? { errorSummary } : {}),
       retryAfterMs: null,
     }
   } finally {
@@ -667,6 +753,8 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
         tokensOut: once.tokensOut,
         status: once.status,
         errorCode: once.errorCode,
+        ...(once.httpStatus != null ? { httpStatus: once.httpStatus } : {}),
+        ...(once.errorSummary ? { errorSummary: once.errorSummary } : {}),
       }
       if (useCooldown) {
         recordProviderOutcome(
@@ -692,6 +780,8 @@ export async function callProvider(input: ProviderCallInput): Promise<ProviderCa
         tokensOut: once.tokensOut,
         status: once.status,
         errorCode: once.errorCode,
+        ...(once.httpStatus != null ? { httpStatus: once.httpStatus } : {}),
+        ...(once.errorSummary ? { errorSummary: once.errorSummary } : {}),
       }
       if (useCooldown) {
         recordProviderOutcome(

@@ -1560,8 +1560,7 @@ export function detectOdooToolKind(
 }
 
 export const FERYAL_CONNECTION_ERROR_AR = 'تعذّر الاتصال — أعد المحاولة' as const
-export const FERYAL_CONNECTION_ERROR_EN =
-  'Connection failed — please retry (تعذّر الاتصال — أعد المحاولة)' as const
+export const FERYAL_CONNECTION_ERROR_EN = FERYAL_CONNECTION_ERROR_AR
 
 export interface FeryalFrozenScope {
   periodKey: string
@@ -1744,14 +1743,15 @@ export function buildFeryalChatRequestPayload(
   }
 }
 
-export function buildFeryalConnectionErrorOutcome(isAr: boolean): {
+export function buildFeryalConnectionErrorOutcome(_isAr?: boolean): {
   replyText: string
   modelBadge: string
   replyStatus: 'connection_error'
 } {
+  void _isAr
   return {
-    replyText: isAr ? FERYAL_CONNECTION_ERROR_AR : FERYAL_CONNECTION_ERROR_EN,
-    modelBadge: isAr ? 'تعذّر الاتصال' : 'Connection error',
+    replyText: FERYAL_CONNECTION_ERROR_AR,
+    modelBadge: 'تعذّر الاتصال',
     replyStatus: 'connection_error',
   }
 }
