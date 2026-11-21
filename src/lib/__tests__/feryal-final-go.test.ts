@@ -406,7 +406,7 @@ describe('fix/feryal-final-go verification gate', () => {
     expect(malformedPayloadEn.modelBadge).toBe('تعذّر الاتصال')
   })
 
-  it('Item 4: excludes period date parts (e.g. 11, 20, 2026) from logged offendingNumbers in persist.ts without touching council.ts or guards', async () => {
+  it('Item 4: excludes period date parts (e.g. 11, 20, 2026) from logged numbersInText in persist.ts without touching council.ts or guards', async () => {
     const diagnosisWithHallucination = diagnoseGuardRejectedAnswer({
       text: 'خلال الفترة 2026-11-01 إلى 2026-11-20 وفي يوم 20 من شهر 11 بلغت المبيعات 999.9 د.ك',
       facts: PERIOD_COMPARABLE_FACTS,
@@ -416,8 +416,9 @@ describe('fix/feryal-final-go verification gate', () => {
     expect(diagnosisWithHallucination).toEqual({
       reason: 'PARSE_FAIL',
       requestedModel: 'gemini-3.5-flash',
-      offendingNumbers: ['999.9'],
-      errorCode: 'PARSE_FAIL;requestedModel=gemini-3.5-flash;offendingNumbers=[999.9]',
+      numbersInText: ['999.9'],
+      factIdNumbers: [],
+      errorCode: 'PARSE_FAIL;requestedModel=gemini-3.5-flash;numbersInText=[999.9];factIdNumbers=[]',
     })
 
     const diagnosisOnlyPeriodDateParts = diagnoseGuardRejectedAnswer({
@@ -425,9 +426,10 @@ describe('fix/feryal-final-go verification gate', () => {
       facts: PERIOD_COMPARABLE_FACTS,
       requestedModel: 'claude-sonnet-4-6',
     })
-    expect(diagnosisOnlyPeriodDateParts.offendingNumbers).toEqual([])
+    expect(diagnosisOnlyPeriodDateParts.numbersInText).toEqual([])
+    expect(diagnosisOnlyPeriodDateParts.factIdNumbers).toEqual([])
     expect(diagnosisOnlyPeriodDateParts.errorCode).toBe(
-      'PARSE_FAIL;requestedModel=claude-sonnet-4-6;offendingNumbers=[]',
+      'PARSE_FAIL;requestedModel=claude-sonnet-4-6;numbersInText=[];factIdNumbers=[]',
     )
 
     const councilDiff = execFileSync(

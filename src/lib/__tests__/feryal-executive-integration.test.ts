@@ -156,7 +156,7 @@ import {
   hasExplicitGroundingLabel,
   reviewGroundedNumbers,
 } from '@/server/ai/number-guard'
-import { ANALYSIS_MAX_TOKENS, callProvider } from '@/server/ai/providers'
+import { ANALYSIS_MAX_TOKENS, GEMINI_MAX_OUTPUT_TOKENS, GEMINI_THINKING_LEVEL, callProvider } from '@/server/ai/providers'
 
 const LanguageProviderHost = LanguageProvider as unknown as React.ComponentType<{
   initialLocale: 'ar' | 'en'
@@ -404,10 +404,13 @@ describe('Phase 2/3 Integration — Number Guard Whitelisting & Anti-Hallucinati
 })
 
 describe('Phase 2/3 Integration — Unified runFeryalCouncil Executive Pricing Path (2-of-3 Structured Consensus, <2 Fallback & All-Guard-Rejected)', () => {
-  it('preserves default ANALYSIS_MAX_TOKENS=800 and ignores Gemini thought parts', async () => {
+  it('keeps ANALYSIS_MAX_TOKENS at 800 for other providers, raises the Gemini default, and ignores thought parts', async () => {
     expect(ANALYSIS_MAX_TOKENS).toBe(800)
+    expect(GEMINI_MAX_OUTPUT_TOKENS).toBe(2000)
 
     let capturedMaxOutputTokens = 0
+    let capturedMime: string | undefined
+    let capturedThinking: { thinkingLevel?: string; thinkingBudget?: number } | undefined
     const res = await callProvider({
       provider: 'google',
       apiKey: 'test-google-key-00000001',
@@ -417,9 +420,15 @@ describe('Phase 2/3 Integration — Unified runFeryalCouncil Executive Pricing P
       timeoutMs: 5_000,
       fetchImpl: async (_url, init) => {
         const parsedBody = JSON.parse(String(init?.body ?? '{}')) as {
-          generationConfig?: { maxOutputTokens?: number }
+          generationConfig?: {
+            maxOutputTokens?: number
+            responseMimeType?: string
+            thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number }
+          }
         }
         capturedMaxOutputTokens = parsedBody.generationConfig?.maxOutputTokens ?? 0
+        capturedMime = parsedBody.generationConfig?.responseMimeType
+        capturedThinking = parsedBody.generationConfig?.thinkingConfig
         return Response.json({
           modelVersion: 'gemini-3.1-pro-preview-001',
           candidates: [
@@ -437,7 +446,9 @@ describe('Phase 2/3 Integration — Unified runFeryalCouncil Executive Pricing P
       },
     })
 
-    expect(capturedMaxOutputTokens).toBe(ANALYSIS_MAX_TOKENS)
+    expect(capturedMaxOutputTokens).toBe(GEMINI_MAX_OUTPUT_TOKENS)
+    expect(capturedMime).toBeUndefined()
+    expect(capturedThinking).toEqual({ thinkingLevel: GEMINI_THINKING_LEVEL })
     expect(res.status).toBe('ok')
     expect(res.text).toBe('Clean executive synthesis 5000 KWD')
     expect(res.text).not.toContain('999999')
