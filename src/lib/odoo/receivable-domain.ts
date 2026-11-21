@@ -13,6 +13,15 @@ export function isExplicitPosClearingAccountId(accountId: number): boolean {
   return accountId === POS_CLEARING_ACCOUNT_ID
 }
 
+/**
+ * Cashier clearing is Odoo account id 35 only.
+ * A row whose account code is 10552 but whose account id is anything else is not clearing.
+ * A missing or invalid account id is not clearing; callers keep their own fail-closed checks.
+ */
+export function isPosClearingRow(row: { accountId?: number | null }): boolean {
+  return isVerifiedReceivableAccountId(row.accountId) && row.accountId === POS_CLEARING_ACCOUNT_ID
+}
+
 export function buildOpenReceivableClauses(): unknown[][] {
   return [
     ['parent_state', '=', 'posted'],
