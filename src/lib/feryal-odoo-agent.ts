@@ -81,6 +81,8 @@ import {
   posRootForBrand,
   renderCogsUnavailableReply,
   type ItemPricingRead,
+  type ItemPricingRow,
+  type SuggestedItemCostSource,
 } from '@/lib/feryal/item-pricing'
 import { Decimal } from '@/server/ai/decimal'
 import type { ComparableFact } from '@/server/ai/structured-claim'
@@ -267,6 +269,8 @@ export interface AskFeryalOdooAgentResult {
   period: { from: string; to: string } | null
   /** Numeric Odoo facts from structuredFacts. Comparisons cite these ids. */
   facts: ComparableFact[]
+  /** Structured tool telemetry (including suggestedItemPricing.costSource when resolved). */
+  structuredFacts?: Record<string, unknown>
   /** Phase 5 · Item 3: exact data source & last sync attached to every answered reply. */
   source: FeryalAnswerSource | null
   auditEntry: FeryalAuditLogEntry
@@ -1166,6 +1170,90 @@ async function runPosOrdersTool(params: {
   }
 }
 
+export const ITEM_UNIT_COST_TIMEOUT_MS = 8_000
+
+function normalizeSuggestedCostSource(raw: unknown): SuggestedItemCostSource | null {
+  if (raw === 'standard_price') return 'standard_price'
+  if (raw === 'valuation_layer') return 'valuation_layer'
+  if (raw === 'purchase' || raw === 'purchase_price') return 'purchase'
+  return null
+}
+
+export async function withLiveUnitCost(
+  row: ItemPricingRow,
+  timeoutMs = ITEM_UNIT_COST_TIMEOUT_MS,
+): Promise<{ row: ItemPricingRow; costSource: SuggestedItemCostSource | null }> {
+  if (row.unitCostKwd) {
+    const existing = Decimal.parse(row.unitCostKwd)
+    if (existing && existing.sign() > 0) {
+      return { row, costSource: null }
+    }
+  }
+  if (!Number.isInteger(row.productId) || row.productId <= 0) {
+    return { row, costSource: null }
+  }
+  const effectiveTimeoutMs =
+    typeof timeoutMs === 'number' && Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : ITEM_UNIT_COST_TIMEOUT_MS
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const guardedFetch = (async () => {
+      const mod = await loadOdooConnector()
+      if (!mod || typeof mod.fetchLiveOdooProductCosts !== 'function') return null
+      return await mod.fetchLiveOdooProductCosts([row.productId])
+    })().catch(() => null)
+
+    const payload = await Promise.race([
+      guardedFetch,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), effectiveTimeoutMs)
+      }),
+    ])
+
+    if (
+      !payload ||
+      !payload.connected ||
+      !payload.costs ||
+      !Object.prototype.hasOwnProperty.call(payload.costs, row.productId)
+    ) {
+      return { row, costSource: null }
+    }
+    const hit = payload.costs[row.productId]
+    if (
+      !hit ||
+      typeof hit.unitCostKwd !== 'number' ||
+      !Number.isFinite(hit.unitCostKwd) ||
+      !(hit.unitCostKwd > 0)
+    ) {
+      return { row, costSource: null }
+    }
+    const formattedCost = hit.unitCostKwd.toFixed(3)
+    const parsedCost = Decimal.parse(formattedCost)
+    if (!parsedCost || parsedCost.sign() <= 0) {
+      return { row, costSource: null }
+    }
+    const costSource = normalizeSuggestedCostSource(hit.source)
+    if (!costSource) {
+      return { row, costSource: null }
+    }
+    return {
+      row: {
+        ...row,
+        unitCostKwd: formattedCost,
+      },
+      costSource,
+    }
+  } catch {
+    return { row, costSource: null }
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer)
+    }
+  }
+}
+
 async function runItemLevelPricingTool(params: {
   dataSource: FeryalOdooDataSource
   period: { from: string; to: string; periodLabelAr: string }
@@ -1260,11 +1348,14 @@ async function runItemLevelPricingTool(params: {
         }
       }
       if (asksSuggested) {
+        const singleHit = dishHits.length === 1 ? dishHits[0] : null
+        const enriched = singleHit ? await withLiveUnitCost(singleHit) : null
         const suggestedOut = buildSuggestedItemPricingAnswer({
           question,
           periodLabel: period.periodLabelAr,
           brandNameAr: brand?.ar ?? null,
-          matchedRow: dishHits[0] ?? null,
+          matchedRow: enriched ? enriched.row : null,
+          costSource: enriched ? enriched.costSource : null,
           allRows: read.rows,
         })
         return {
@@ -2959,6 +3050,7 @@ export async function askFeryalOdooAgent(
         params.structuredFacts ?? null,
         params.period,
       ),
+      ...(params.structuredFacts ? { structuredFacts: params.structuredFacts } : {}),
       source,
       auditEntry,
       ...(advisory ? { advisory } : {}),

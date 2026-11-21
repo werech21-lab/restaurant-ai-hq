@@ -1201,11 +1201,27 @@ export function buildMultiMatchClarificationAnswer(input: {
   }
 }
 
+export const SUGGESTED_ITEM_COST_SOURCES = [
+  'standard_price',
+  'valuation_layer',
+  'purchase',
+] as const
+
+export type SuggestedItemCostSource = (typeof SUGGESTED_ITEM_COST_SOURCES)[number]
+
+function isAllowedSuggestedCostSource(value: unknown): value is SuggestedItemCostSource {
+  return (
+    typeof value === 'string' &&
+    (SUGGESTED_ITEM_COST_SOURCES as readonly string[]).includes(value)
+  )
+}
+
 export function buildSuggestedItemPricingAnswer(input: {
   question: string
   periodLabel: string
   brandNameAr: string | null
   matchedRow: ItemPricingRow | null
+  costSource?: SuggestedItemCostSource | null
   allRows: readonly ItemPricingRow[]
 }): {
   reply: string
@@ -1299,12 +1315,16 @@ export function buildSuggestedItemPricingAnswer(input: {
   const currentClause = calc.currentUnitPriceKwd
     ? ` مقابل السعر الفعلي الحالي ${formatGrouped(calc.currentUnitPriceKwd, 3)} د.ك`
     : ''
+  const safeCostSource = isAllowedSuggestedCostSource(input.costSource) ? input.costSource : null
+  const costSourceClause = safeCostSource
+    ? ` — التكلفة من أودو (${safeCostSource})`
+    : ''
   const deltaSentence = calc.revenueDeltaKwd
     ? `عند ثبات الكمية الفعلية البالغة ${qtyText}، يبلغ فرق الإيراد المحسوب ${formatGrouped(calc.revenueDeltaKwd, 3)} د.ك (${simLabel}: الكمية × (السعر المقترح − السعر الحالي)).`
     : `يعتمد احتساب فرق الإيراد الكلي على الكمية الفعلية المسجلة للصنف ${matched.name} البالغة ${qtyText}.`
 
   const reply = [
-    `• الرقم: السعر المقترح المحسوب برمجياً للصنف ${matched.name} للفترة ${input.periodLabel} (${scope}) هو ${suggestedText} د.ك (${simLabel})${currentClause} استناداً إلى التكلفة الموثّقة ${costText} د.ك (${verifiedActualLabel}: الكمية ${qtyText} بصافي ${netText} د.ك).`,
+    `• الرقم: السعر المقترح المحسوب برمجياً للصنف ${matched.name} للفترة ${input.periodLabel} (${scope}) هو ${suggestedText} د.ك (${simLabel})${currentClause} استناداً إلى التكلفة الموثّقة ${costText} د.ك${costSourceClause} (${verifiedActualLabel}: الكمية ${qtyText} بصافي ${netText} د.ك).`,
     `• السبب من البيانات: بناءً على التكلفة الموثّقة ${costText} د.ك (${verifiedActualLabel})، يحقق السعر المقترح ${suggestedText} د.ك فائضاً فوق التكلفة للوحدة قدره ${marginText} د.ك.`,
     `• الإجراء المحدد: يراجع مدير العلامة اعتماد السعر المقترح ${suggestedText} د.ك للصنف ${matched.name} على شاشات نقاط البيع مع متابعة استقرار الكمية المباعة البالغة ${qtyText}.`,
     `• الأثر المتوقع (تقدير): تقدير — ${deltaSentence}`,
@@ -1319,6 +1339,7 @@ export function buildSuggestedItemPricingAnswer(input: {
       model: 'pos.order.line',
       scope,
       cogsReadable: true,
+      ...(safeCostSource ? { costSource: safeCostSource } : {}),
       itemRows: fallbackItemRows,
       suggestedItemPricing: {
         productId: matched.productId,
@@ -1327,6 +1348,7 @@ export function buildSuggestedItemPricingAnswer(input: {
         netKwd: Number(matched.netKwd),
         currentUnitPriceKwd: calc.currentUnitPriceKwd ? Number(calc.currentUnitPriceKwd) : null,
         unitCostKwd: Number(calc.unitCostKwd),
+        ...(safeCostSource ? { costSource: safeCostSource } : {}),
         suggestedPriceKwd: Number(calc.suggestedPriceKwd),
         unitMarginKwd: Number(calc.unitMarginKwd),
         revenueDeltaKwd: calc.revenueDeltaKwd ? Number(calc.revenueDeltaKwd) : null,
