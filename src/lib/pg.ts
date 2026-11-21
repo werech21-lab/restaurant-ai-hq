@@ -27,7 +27,12 @@ function getPool(): Pool {
     logger.warn('The database certificate is not verified. Set DATABASE_SSL=verify (and DATABASE_SSL_CA) in production.')
   }
   const ssl = sslOptions(env.DATABASE_SSL, env.DATABASE_SSL_CA)
-  const pool = new Pool({ connectionString: env.DATABASE_URL, ssl, max: 5 })
+  const pool = new Pool({
+    connectionString: env.DATABASE_URL,
+    ssl,
+    max: 2,
+    idleTimeoutMillis: 10_000,
+  })
   pool.on('error', (error) => logger.error('Idle database client error', errorFields(error)))
   globalForPool.erpPool = pool
   return pool

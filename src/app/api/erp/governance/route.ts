@@ -149,7 +149,7 @@ function getGovernancePgPool(): Pool | null {
     const pool = new Pool({
       connectionString: dbUrl,
       ssl,
-      max: 2,
+      max: 1,
       connectionTimeoutMillis: 2200,
       idleTimeoutMillis: 10000,
     })

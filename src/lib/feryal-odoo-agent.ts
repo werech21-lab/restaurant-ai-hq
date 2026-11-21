@@ -2589,7 +2589,7 @@ function getAuditPgPool(): Pool | null {
     const pool = new Pool({
       connectionString: dbUrl,
       ssl,
-      max: 2,
+      max: 1,
       connectionTimeoutMillis: 2000,
       idleTimeoutMillis: 10_000,
     })
