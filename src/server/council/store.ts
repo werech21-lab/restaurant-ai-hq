@@ -37,11 +37,23 @@ function postgresUrl(): string | null {
 
 const g = globalThis as unknown as { councilPool?: Pool; councilSqliteReady?: Promise<void> | null }
 
+function postgresErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object' || !('code' in error)) return undefined
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' && /^[A-Z0-9_]{1,40}$/i.test(code) ? code : undefined
+}
+
 function pool(url: string): Pool {
   if (g.councilPool) return g.councilPool
   const raw = (process.env.DATABASE_SSL ?? 'require').trim()
   const mode: 'require' | 'verify' | 'disable' = raw === 'disable' || raw === 'verify' ? raw : 'require'
-  const p = new Pool({ connectionString: url, ssl: sslOptions(mode, process.env.DATABASE_SSL_CA), max: 2, connectionTimeoutMillis: 4000 })
+  const p = new Pool({
+    connectionString: url,
+    ssl: sslOptions(mode, process.env.DATABASE_SSL_CA),
+    max: 1,
+    connectionTimeoutMillis: 4000,
+    idleTimeoutMillis: 10_000,
+  })
   p.on('error', (error) => logger.error('council store pool error', errorFields(error)))
   g.councilPool = p
   return p
@@ -247,7 +259,11 @@ export async function listDecisions(limit = 200): Promise<DecisionRecord[]> {
     const rows = await query<DecisionRow>(`SELECT ${DECISION_COLUMNS} FROM council_decisions ORDER BY decided_at DESC LIMIT $1`, [limit])
     return rows.map(decisionFromRow)
   } catch (error) {
-    logger.error('council decisions read failed', errorFields(error))
+    const code = postgresErrorCode(error)
+    logger.error('council decisions read failed', {
+      ...errorFields(error),
+      ...(code ? { code } : {}),
+    })
     return []
   }
 }

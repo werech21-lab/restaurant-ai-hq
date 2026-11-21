@@ -88,7 +88,7 @@ function getThreadsPgPool(): Pool | null {
     const pool = new Pool({
       connectionString: dbUrl,
       ssl: sslOptions(sslMode, process.env.DATABASE_SSL_CA),
-      max: 2,
+      max: 1,
       connectionTimeoutMillis: 2200,
       idleTimeoutMillis: 10_000,
     })

@@ -158,9 +158,14 @@ CREATE TABLE IF NOT EXISTS public.ai_daily_briefs (
 const CREATE_BRIEFS_INDEX_POSTGRES = `CREATE INDEX IF NOT EXISTS ai_daily_briefs_created_at_idx ON public.ai_daily_briefs ("createdAt")`
 
 let sqliteTablesReady: Promise<void> | null = null
-let pgPool: Pool | null | undefined
-let pgPoolUrl: string | undefined
 let customAiQueryable: AiSqlQueryable | null | undefined
+
+interface AiPersistPgGlobal {
+  __vfAiPersistPgPool?: Pool
+  __vfAiPersistPgPoolUrl?: string
+}
+
+const globalForAiPersistPg = globalThis as unknown as AiPersistPgGlobal
 
 const initializedPgQueryables = new WeakSet<AiSqlQueryable>()
 const initializingPgQueryables = new WeakMap<AiSqlQueryable, Promise<void>>()
@@ -214,23 +219,28 @@ function postgresPool(): AiSqlQueryable | null {
   if (!isPostgresUrl(dbUrl)) {
     return null
   }
-  if (pgPool && pgPoolUrl === dbUrl) {
-    return pgPool as unknown as AiSqlQueryable
+  const existing = globalForAiPersistPg.__vfAiPersistPgPool
+  if (existing && globalForAiPersistPg.__vfAiPersistPgPoolUrl === dbUrl) {
+    return existing as unknown as AiSqlQueryable
   }
   const rawSsl = (process.env.DATABASE_SSL ?? 'require').trim()
   const sslMode: SslMode = rawSsl === 'disable' || rawSsl === 'verify' ? rawSsl : 'require'
-  pgPool = new Pool({
+  const pool = new Pool({
     connectionString: dbUrl,
     ssl: sslOptions(sslMode, process.env.DATABASE_SSL_CA),
-    max: 2,
+    max: 1,
     connectionTimeoutMillis: AI_PG_CONNECT_TIMEOUT_MS,
     idleTimeoutMillis: 10_000,
   })
-  pgPoolUrl = dbUrl
-  pgPool.on('error', (error) => {
+  pool.on('error', (error) => {
     logger.error('ai run postgres pool failed', { errorCode: pgErrorCode(error) })
   })
-  return pgPool as unknown as AiSqlQueryable
+  if (existing) {
+    void existing.end().catch(() => undefined)
+  }
+  globalForAiPersistPg.__vfAiPersistPgPool = pool
+  globalForAiPersistPg.__vfAiPersistPgPoolUrl = dbUrl
+  return pool as unknown as AiSqlQueryable
 }
 
 function pgErrorCode(error: unknown): string {
