@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState } from 'react'
 import { canShowReceivableAmounts } from '@/lib/aether/receivables-status'
-import { isPosClearingAccount, receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
+import { receivablesCustomerSplit } from '@/lib/odoo/live-sync-core'
+import { isPosClearingRow } from '@/lib/odoo/receivable-domain'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -51,7 +52,7 @@ export function ReceivablesAgingStudio() {
 
   const amountsVisible = canShowReceivableAmounts(ar)
   const partners = useMemo(
-    () => (ar.byPartner ?? []).filter((row) => !isPosClearingAccount(row.accountCode)),
+    () => (ar.byPartner ?? []).filter((row) => !isPosClearingRow(row)),
     [ar.byPartner],
   )
   const split = useMemo(

@@ -73,9 +73,6 @@ export interface OdooReceivableAgingBucket {
   linesCount: number
 }
 
-/** Cashier clearing (10552) is not customer or platform AR. */
-export const POS_CLEARING_ACCOUNT_CODE = '10552'
-
 export interface OdooReceivablePartnerRow {
   partnerId: number
   partnerName: string
@@ -155,14 +152,6 @@ export interface OdooReceivableClearingSummary {
 
 function roundReceivableKwd(n: number): number {
   return Object.is(n, -0) ? 0 : Math.round(n * 1000) / 1000
-}
-
-/** True only when the account code is cashier clearing 10552. The label is ignored. */
-export function isPosClearingAccount(codeOrLabel: string | null | undefined): boolean {
-  const text = (codeOrLabel ?? '').trim()
-  if (!text) return false
-  const leading = /^(\d+)\b/.exec(text)
-  return leading?.[1] === POS_CLEARING_ACCOUNT_CODE || text === POS_CLEARING_ACCOUNT_CODE
 }
 
 export function receivableAccountCode(label: string, accountId: number): string {

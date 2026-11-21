@@ -114,6 +114,17 @@ import {
   parseFeryalChatHttpResponse,
 } from '@/lib/feryal-intent'
 import {
+  FERYAL_DOCUMENT_UPLOAD_CONNECTION_ERROR_AR,
+  FERYAL_GOVERNANCE_ALERTS_LOAD_ERROR_AR,
+  FERYAL_PRICE_SHEET_EXTRACT_ERROR_AR,
+  FERYAL_QUERY_LOG_LOAD_ERROR_AR,
+  FERYAL_REMATCH_CONNECTION_ERROR_AR,
+  FERYAL_REMATCH_LAST_30_DAYS_ERROR_AR,
+  FERYAL_RERUN_SIMULATION_ERROR_AR,
+  FERYAL_UNSUPPORTED_INTAKE_FILE_ERROR_AR,
+  FERYAL_VISUAL_ATTACHMENT_ERROR_AR,
+} from '@/components/erp/feryal-studio-errors'
+import {
   isVerifiedOdooGovernanceBreach,
   type ComplianceBreachItem,
 } from '@/lib/governance-compliance'
@@ -1025,14 +1036,12 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         }
         setPendingAttachments((prev) => [...prev, ...processed].slice(0, 4))
       } catch {
-        setMediaError(
-          isAr ? 'تعذر تجهيز المرفق البصري.' : 'Could not process visual attachment.',
-        )
+        setMediaError(FERYAL_VISUAL_ATTACHMENT_ERROR_AR)
       } finally {
         setProcessingMedia(false)
       }
     },
-    [isAr, isAuditor],
+    [isAuditor],
   )
 
   const handleRemoveAttachment = useCallback((id: string) => {
@@ -1109,27 +1118,18 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
 
         setIntakeRotationDegrees(rotationDeg)
         if (!res.ok || !data?.ok || !data.draft) {
-          setIntakeError(
-            isAr
-              ? 'تعذّر استخراج جدول الأسعار من الملف المرفق — تحقق من الأعمدة أو جرّب تدوير الصورة 90°.'
-              : 'Could not extract price rows from the uploaded file — check column headers or try rotating the image 90°.',
-          )
+          setIntakeError(FERYAL_PRICE_SHEET_EXTRACT_ERROR_AR)
           return
         }
         setPendingIntakeDraft(data.draft)
       } catch {
-        setIntakeError(
-          isAr
-            ? 'تعذّر الاتصال بخدمة استخراج الجداول — أعد المحاولة.'
-            : 'Connection failed while uploading document — please retry.',
-        )
+        setIntakeError(FERYAL_DOCUMENT_UPLOAD_CONNECTION_ERROR_AR)
       } finally {
         setUploadingIntake(false)
       }
     },
     [
       activePeriod,
-      isAr,
       isAuditor,
       sending,
       uploadingIntake,
@@ -1144,18 +1144,14 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
     async (file: File) => {
       if (isAuditor || uploadingIntake || sending) return
       if (!isSupportedDocumentIntakeFile(file)) {
-        setIntakeError(
-          isAr
-            ? 'الصيغة غير مدعومة — يرجى رفع ملف Excel (.xlsx) أو CSV (.csv) أو صورة قائمة (.jpg / .png / .webp).'
-            : 'Unsupported file format — upload .xlsx, .csv, .jpg, .png, or .webp.',
-        )
+        setIntakeError(FERYAL_UNSUPPORTED_INTAKE_FILE_ERROR_AR)
         return
       }
       lastIntakeFileRef.current = file
       setIntakeRotationDegrees(0)
       await submitIntakeFileWithRotation(file, 0)
     },
-    [isAr, isAuditor, sending, submitIntakeFileWithRotation, uploadingIntake],
+    [isAuditor, sending, submitIntakeFileWithRotation, uploadingIntake],
   )
 
   const handleRotateIntakeImageAndRescan = useCallback(async () => {
@@ -1238,25 +1234,16 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
         fallbackFile: lastIntakeFileRef.current,
       })
       if (!monthDraft) {
-        setIntakeError(
-          isAr
-            ? 'تعذّر إعادة مطابقة الأصناف على آخر 30 يوماً — يرجى المحاولة مرة أخرى.'
-            : 'Could not re-match items on Last 30 Days — please retry.',
-        )
+        setIntakeError(FERYAL_REMATCH_LAST_30_DAYS_ERROR_AR)
         return
       }
       setPendingIntakeDraft(recomputeDocumentIntakeDraft(monthDraft))
     } catch {
-      setIntakeError(
-        isAr
-          ? 'تعذّر الاتصال لإعادة المطابقة على آخر 30 يوماً — أعد المحاولة.'
-          : 'Connection failed while re-matching on Last 30 Days — please retry.',
-      )
+      setIntakeError(FERYAL_REMATCH_CONNECTION_ERROR_AR)
     } finally {
       setRematchingLast30Days(false)
     }
   }, [
-    isAr,
     isAuditor,
     pendingIntakeDraft,
     rematchingLast30Days,
@@ -1600,11 +1587,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
       })
     } catch {
       setRematchingLast30Days(false)
-      setIntakeError(
-        isAr
-          ? 'تعذّر إعادة التشغيل على آخر 30 يوماً — يرجى المحاولة مرة أخرى.'
-          : 'Could not re-run simulation on Last 30 Days — please retry.',
-      )
+      setIntakeError(FERYAL_RERUN_SIMULATION_ERROR_AR)
     }
   }, [
     isAr,
@@ -3100,7 +3083,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 state="error"
                 locale={fmtLocale}
                 onRetry={() => void fetchServerGovernanceBreaches()}
-                title={isAr ? 'تعذّر جلب تنبيهات الحوكمة حالياً' : 'Unable to load governance alerts right now'}
+                title={FERYAL_GOVERNANCE_ALERTS_LOAD_ERROR_AR}
               />
             ) : liveBreaches.length === 0 ? (
               <StateBlock
@@ -3199,7 +3182,7 @@ export function FeryalGovernanceStudio(props: FeryalGovernanceStudioProps) {
                 state="error"
                 locale={fmtLocale}
                 onRetry={() => void fetchServerAuditLogs()}
-                title={isAr ? 'تعذّر تحميل سجل الاستعلامات حالياً' : 'Unable to load Odoo query log right now'}
+                title={FERYAL_QUERY_LOG_LOAD_ERROR_AR}
               />
             ) : auditLogs.length === 0 ? (
               <StateBlock

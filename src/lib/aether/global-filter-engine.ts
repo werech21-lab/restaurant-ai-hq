@@ -20,7 +20,6 @@ import type { CfoRealismProfile } from '@/lib/odoo-cfo-realism'
 import {
   customerReceivableFigures,
   customerReceivableNetKwd,
-  isPosClearingAccount,
   receivablesCustomerSplit,
   splitOpenResiduals,
   type CustomerReceivableFigures,
@@ -31,6 +30,7 @@ import {
   type OdooReceivableAgingBucket,
   type OdooReceivablePartnerRow,
 } from '@/lib/odoo/live-sync-core'
+import { isPosClearingRow } from '@/lib/odoo/receivable-domain'
 import { clampPeriodToKuwaitToday, getKuwaitTimeContext } from '@/lib/aether/period-delta'
 import { companyDailySeries, resolveBrandHeadline } from '@/lib/aether/brand-scope'
 import { formatArReconciliationFormula, toDisplayableAging } from '@/lib/odoo/receivable-aging'
@@ -1056,9 +1056,7 @@ export function applyReceivablesExecutivePolicy(
   verified: boolean = PER_CUSTOMER_DUE_DATE_AGING_VERIFIED,
 ): WorkspaceReceivablesMeta {
   if (r.unavailable || canShowReceivableAmounts(r, verified)) return sealCustomerReceivables(r)
-  const partners = (r.byPartner ?? []).filter(
-    (row) => !isPosClearingAccount(row.accountCode),
-  )
+  const partners = (r.byPartner ?? []).filter((row) => !isPosClearingRow(row))
   const split = r.byAccount.length > 0 ? receivablesCustomerSplit(r.byAccount, partners) : null
   const partnerSplit = partners.length > 0 ? splitOpenResiduals(partners) : null
   return sealCustomerReceivables({

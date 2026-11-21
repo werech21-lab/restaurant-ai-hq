@@ -9,7 +9,7 @@ import { companyPosConfigAllowed, isQurainPosConfigId } from '@/lib/odoo/company
 import { isExcludedRecordId } from '@/lib/odoo/excluded-entities'
 import { buildPosOrderUtcDomain } from '@/lib/odoo/pos-order-query'
 import { classifyPlatformExpenseAccount } from '@/lib/odoo/platform-expense-accounts'
-import { isPosClearingAccount } from '@/lib/odoo/live-sync-core'
+import { isPosClearingRow, POS_CLEARING_ACCOUNT_ID } from '@/lib/odoo/receivable-domain'
 import { isDecommissionedWarehouseRecord } from '@/lib/odoo-live-connector'
 
 const ROOT = process.cwd()
@@ -69,9 +69,10 @@ describe('id-only register and account matching', () => {
     expect(JSON.stringify(domain)).not.toContain('stock.move')
   })
 
-  it('classifies accounts by code only', () => {
-    expect(isPosClearingAccount('10552')).toBe(true)
-    expect(isPosClearingAccount('Account Receivable (PoS)')).toBe(false)
+  it('classifies warehouses and expense accounts by code, and POS clearing by account id', () => {
+    const nonClearingAccountId = 777
+    expect(isPosClearingRow({ accountId: POS_CLEARING_ACCOUNT_ID })).toBe(true)
+    expect(isPosClearingRow({ accountId: nonClearingAccountId })).toBe(false)
     expect(isDecommissionedWarehouseRecord('9950473 Heisenberg')).toBe(true)
     expect(isDecommissionedWarehouseRecord('Heisenberg Kitchen')).toBe(false)
     expect(classifyPlatformExpenseAccount('40866', 'Carriage fee', 'expense')).toBe('platform_commission')

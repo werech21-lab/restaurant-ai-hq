@@ -648,7 +648,10 @@ describe('Bug E — Ask Feryal Routing, Context Defaults, Council Degradation & 
       expect(netErrAr.replyStatus).toBe('connection_error')
 
       const netErrEn = intentMod.buildFeryalConnectionErrorOutcome(false)
-      expect(netErrEn.replyText).toMatch(/تعذّر الاتصال — أعد المحاولة|Connection failed — please retry/)
+      expect(netErrEn.replyText).toBe('تعذّر الاتصال — أعد المحاولة')
+      expect(netErrEn.modelBadge).toBe('تعذّر الاتصال')
+      expect(netErrEn.replyText).not.toMatch(/[A-Za-z]/)
+      expect(netErrEn.modelBadge).not.toMatch(/[A-Za-z]/)
       expect(netErrEn.replyText).not.toContain('لا أملك بيانات من Odoo')
       expect(netErrEn.replyStatus).toBe('connection_error')
 
